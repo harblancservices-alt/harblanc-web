@@ -1,36 +1,39 @@
-// Single source of truth for every image on the site.
-// Set a path to "/some/file.jpg" to enable; leave as null to use the typographic
-// fallback in the corresponding component.
+// Single source of truth for every image and video on the site.
+// Set a path to "/some/file.ext" to enable; leave as null to use the
+// typographic fallback in the corresponding component.
 //
-// File location convention: put assets under public/brand/ so they live at
-// /brand/<filename> at runtime. See ASSET_GUIDE.md for full specs.
+// File location convention: put assets under public/brand/. See
+// ASSET_GUIDE.md for full specs.
+//
+// ─────────────────────────────────────────────────────────────────────
+// Hero / about / service photos are nulled in production until owned
+// (licensed) assets are added. Components fall back to typographic
+// layouts. Logos under /brand/* are real brand assets.
+// ─────────────────────────────────────────────────────────────────────
 
 export type AssetPath = string | null;
 
 export const assets = {
   // ---- Brand ----
-  // Horizontal lockup, used in navbar and footer.
-  logoPrimary: null as AssetPath,
-  // Optional white/inverted version for very dark backgrounds.
-  logoInverted: null as AssetPath,
-  // Icon-only mark for tight spaces. Falls back to logoPrimary if null.
-  logoCompact: null as AssetPath,
+  // Horizontal lockup for navbar/footer (readable at small sizes)
+  logoPrimary: "/brand/logo-horizontal.png" as AssetPath,
+  logoInverted: "/brand/logo-horizontal.png" as AssetPath,
+  // Square badge mark — for tight square contexts (favicon source, etc.)
+  logoCompact: "/brand/logo-mark.png" as AssetPath,
 
   // ---- Hero ----
-  // 1920x1080 (16:9). Appears as the right column of the hero.
-  // When null, the hero renders a typographic dispatch card instead.
+  // Video takes precedence over heroImage when both are set.
+  // null = typographic fallback rendered in <Hero/>.
+  heroVideo: null as AssetPath,
+  heroVideoPoster: null as AssetPath,
   heroImage: null as AssetPath,
-  // CSS object-position. Examples: "center 40%", "right center", "50% 25%".
-  heroImagePosition: "center center",
+  heroImagePosition: "center 55%",
 
   // ---- About / company ----
-  // 1600x1200 (4:3). Shows next to the company prose. Hidden when null.
   aboutImage: null as AssetPath,
   aboutImagePosition: "center center",
 
   // ---- Per-service photos ----
-  // 1200x900 (4:3) each. Any subset can be set; the others fall back to the
-  // typographic manifest row.
   serviceImages: {
     hotshot: null as AssetPath,
     expedited: null as AssetPath,
@@ -39,6 +42,5 @@ export const assets = {
   } as Record<string, AssetPath>,
 
   // ---- Social / meta ----
-  // 1200x630 (1.91:1). Used for OpenGraph/Twitter link previews.
   ogImage: null as AssetPath,
 } as const;

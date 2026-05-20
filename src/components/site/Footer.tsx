@@ -15,7 +15,7 @@ export function Footer() {
               className="inline-flex items-center"
               aria-label={`${company.legalName} home`}
             >
-              <BrandLogo variant="inverted" className="h-10 w-auto" />
+              <BrandLogo variant="inverted" className="h-16 w-auto" />
             </Link>
             <p className="mt-4 max-w-md text-sm leading-relaxed text-neutral-400">
               Licensed motor carrier. Hotshot, expedited, equipment, and

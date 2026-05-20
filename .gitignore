@@ -47,3 +47,25 @@ next-env.d.ts
 public/IMG_*.jpeg
 public/IMG_*.jpg
 public/logo-square*.png
+
+# local-only preview placeholders (downloaded/stock photos — NEVER push to prod)
+public/Hotshot car hauler.jpg
+public/Trucking.jpg
+public/Step-Deck-Truck-Dispatcher-1024x640-1.jpg
+public/08c718ce6a6ed3fa2d15429024c627d0.jpg
+public/yy.jpg
+public/istockphoto-*.jpg
+public/1.jpeg
+public/ChatGPT Image*.png
+public/new*.png
+public/newtry*.png
+public/logo.png
+public/logo-with-dotmc.png
+public/brand/hero.mp4
+public/brand/logo.png
+# original Next scaffold svg leftovers
+public/file.svg
+public/globe.svg
+public/next.svg
+public/vercel.svg
+public/window.svg

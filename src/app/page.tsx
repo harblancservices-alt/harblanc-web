@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { assets } from "@/lib/assets";
 import { company, services } from "@/lib/company";
 import { MediaSlot } from "@/components/site/MediaSlot";
@@ -19,93 +20,108 @@ export default function Home() {
 const phoneHref = `tel:${company.dispatchPhone.replace(/[^\d+]/g, "")}`;
 
 /* -------------------------------- HERO ----------------------------------- */
+/*
+ * Layered hero: media (video → image → none) as background, dark gradient
+ * anchored to the left, content block (eyebrow → headline → body → CTAs →
+ * mono credentials row) overlays the left side. The truck/video stays
+ * visible on the right; the left side gets a strong wash of black for text
+ * legibility without flooding the whole image.
+ */
 
 function Hero() {
-  const heroSrc = assets.heroImage;
+  const heroVideo = assets.heroVideo;
+  const heroImage = assets.heroImage;
   return (
-    <section className="border-b border-neutral-800 bg-neutral-950">
-      <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-24 lg:px-8 lg:py-32">
-        <div className="grid gap-y-10 lg:grid-cols-12 lg:gap-x-12">
-          <div className={heroSrc ? "lg:col-span-7" : "lg:col-span-8"}>
-            <p className="font-mono text-[11px] tracking-[0.22em] text-neutral-500 uppercase">
-              Est. {company.established} &middot; {company.legalName}
-            </p>
-            <h1 className="mt-5 text-5xl font-black tracking-tight text-white sm:text-6xl lg:text-7xl xl:text-8xl">
-              Freight, hauled
-              <br />
-              <span className="text-neutral-500">direct.</span>
-            </h1>
-            <p className="mt-8 max-w-2xl text-base leading-relaxed text-neutral-300 sm:text-lg">
-              Licensed motor carrier running hotshot, expedited, equipment,
-              and general freight across the {company.serviceArea.toLowerCase()}.
-              Owner-operated dispatch. No broker layers, no auto-replies, no
-              markups on capacity we don&apos;t own.
-            </p>
-            <div className="mt-10 flex flex-col gap-2.5 sm:max-w-md sm:flex-row">
-              <Link
-                href="/quote"
-                className="block w-full bg-red-600 px-6 py-4 text-center text-sm font-bold uppercase tracking-[0.14em] text-white transition-colors hover:bg-red-500"
-              >
-                Request a Quote
-              </Link>
-              <a
-                href={phoneHref}
-                className="block w-full border border-neutral-700 px-6 py-4 text-center text-sm font-bold uppercase tracking-[0.14em] text-white transition-colors hover:border-neutral-500 hover:bg-neutral-900"
-              >
-                Call Dispatch
-              </a>
-            </div>
+    <section className="relative isolate overflow-hidden border-b border-neutral-800 bg-neutral-950">
+      {/* Background media — full bleed */}
+      {heroVideo ? (
+        <video
+          src={heroVideo}
+          poster={assets.heroVideoPoster ?? undefined}
+          autoPlay
+          loop
+          muted
+          playsInline
+          preload="auto"
+          className="absolute inset-0 -z-10 h-full w-full object-cover"
+        />
+      ) : heroImage ? (
+        <Image
+          src={heroImage}
+          alt=""
+          fill
+          priority
+          sizes="100vw"
+          className="-z-10 object-cover"
+          style={{ objectPosition: assets.heroImagePosition }}
+        />
+      ) : null}
+
+      {/* Left-anchored dark wash — heavier on mobile, fades to transparent on desktop */}
+      <div
+        aria-hidden
+        className="absolute inset-0 -z-10 bg-gradient-to-r from-black via-black/90 to-black/40 lg:via-black/75 lg:to-transparent"
+      />
+
+      {/* Content */}
+      <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-28 lg:px-10 lg:py-36">
+        <div className="max-w-xl lg:max-w-2xl">
+          {/* Eyebrow — brand + year, mono with red bar */}
+          <p className="flex items-center gap-3 text-[11px] font-bold tracking-[0.22em] text-red-500 uppercase">
+            <span aria-hidden className="inline-block h-3 w-1 bg-red-600" />
+            Est. {company.established} &middot; {company.legalName}
+          </p>
+
+          {/* Headline */}
+          <h1 className="mt-5 text-4xl font-black tracking-tight text-white sm:text-5xl lg:text-6xl xl:text-7xl">
+            Freight, hauled
+            <br />
+            <span className="text-neutral-400">direct.</span>
+          </h1>
+
+          {/* Body */}
+          <p className="mt-6 max-w-lg text-base leading-relaxed text-neutral-200 sm:text-lg">
+            Licensed motor carrier running hotshot, expedited, equipment, and
+            general freight across the {company.serviceArea.toLowerCase()}.
+            Owner-operated dispatch. No broker layers, no auto-replies.
+          </p>
+
+          {/* CTAs */}
+          <div className="mt-10 flex flex-col gap-2.5 sm:max-w-md sm:flex-row">
+            <Link
+              href="/quote"
+              className="block w-full bg-red-600 px-6 py-4 text-center text-sm font-bold uppercase tracking-[0.14em] text-white shadow-lg shadow-black/40 transition-colors hover:bg-red-500"
+            >
+              Request a Quote
+            </Link>
+            <a
+              href={phoneHref}
+              className="block w-full border border-white/30 bg-black/40 px-6 py-4 text-center text-sm font-bold uppercase tracking-[0.14em] text-white backdrop-blur-sm transition-colors hover:border-white hover:bg-black/60"
+            >
+              Call Dispatch
+            </a>
           </div>
 
-          <div className={`lg:self-end ${heroSrc ? "lg:col-span-5" : "lg:col-span-4"}`}>
-            <MediaSlot
-              src={heroSrc}
-              alt={`${company.legalName} freight operations`}
-              aspectRatio="16 / 9"
-              position={assets.heroImagePosition}
-              priority
-              fallback={<DispatchContactCard />}
-            />
-          </div>
+          {/* Operational status row — mono credentials anchoring authority */}
+          <dl className="mt-12 flex flex-wrap items-center gap-x-6 gap-y-2 font-mono text-[11px] tracking-[0.18em] uppercase">
+            <div className="flex items-baseline gap-2">
+              <dt className="text-neutral-500">USDOT</dt>
+              <dd className="text-white">{company.dotNumber}</dd>
+            </div>
+            <span aria-hidden className="text-neutral-700">/</span>
+            <div className="flex items-baseline gap-2">
+              <dt className="text-neutral-500">MC</dt>
+              <dd className="text-white">{company.mcNumber}</dd>
+            </div>
+            <span aria-hidden className="text-neutral-700">/</span>
+            <div>
+              <dt className="sr-only">Operating status</dt>
+              <dd className="text-white">{company.authorityText}</dd>
+            </div>
+          </dl>
         </div>
       </div>
     </section>
-  );
-}
-
-function DispatchContactCard() {
-  return (
-    <div className="border border-neutral-800 bg-neutral-950 p-6 sm:p-8">
-      <p className="font-mono text-[10px] tracking-[0.22em] text-neutral-500 uppercase">
-        Dispatch
-      </p>
-      <dl className="mt-5 space-y-4">
-        <div>
-          <dt className="font-mono text-[10px] tracking-[0.18em] text-neutral-600 uppercase">
-            Phone
-          </dt>
-          <dd className="mt-1 font-mono text-base text-white">
-            {company.dispatchPhone}
-          </dd>
-        </div>
-        <div>
-          <dt className="font-mono text-[10px] tracking-[0.18em] text-neutral-600 uppercase">
-            Email
-          </dt>
-          <dd className="mt-1 font-mono text-sm text-white break-all">
-            {company.dispatchEmail}
-          </dd>
-        </div>
-        <div>
-          <dt className="font-mono text-[10px] tracking-[0.18em] text-neutral-600 uppercase">
-            Authority
-          </dt>
-          <dd className="mt-1 font-mono text-sm text-white">
-            USDOT {company.dotNumber} &middot; MC {company.mcNumber}
-          </dd>
-        </div>
-      </dl>
-    </div>
   );
 }
 
