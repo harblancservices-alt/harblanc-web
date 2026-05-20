@@ -24,7 +24,7 @@ export const assets = {
   // ---- Hero ----
   // Video takes precedence over heroImage when both are set.
   // null = typographic fallback rendered in <Hero/>.
-  heroVideo: null as AssetPath,
+  heroVideo: "/brand/hero.mp4" as AssetPath,
   heroVideoPoster: null as AssetPath,
   heroImage: null as AssetPath,
   heroImagePosition: "center 55%",
