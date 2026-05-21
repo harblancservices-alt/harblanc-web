@@ -42,9 +42,9 @@ export function BrandLogo({
   return (
     <span className="flex items-center gap-3 whitespace-nowrap text-white">
       <span className="inline-block h-5 w-1.5 bg-red-600" aria-hidden />
-      <span className="font-black uppercase tracking-tight text-base sm:text-lg">
+      <span className="font-display uppercase tracking-tight text-base sm:text-lg">
         HARBLANC{" "}
-        <span className="text-neutral-400 font-bold">SERVICES</span>
+        <span className="text-neutral-400">SERVICES</span>
       </span>
     </span>
   );

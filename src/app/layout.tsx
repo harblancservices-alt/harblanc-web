@@ -1,25 +1,25 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Public_Sans } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/site/Navbar";
 import { Footer } from "@/components/site/Footer";
 import { company } from "@/lib/company";
 import { assets } from "@/lib/assets";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// Single family across the site — Public Sans (variable font, full range).
+// Body @ 400, buttons/nav @ 600 (font-semibold), headlines @ 900 (font-display).
+// Operational labels use font-mono utility which keeps Public Sans but
+// applies tabular figures + disables the slashed/dotted zero (see globals.css).
+const publicSans = Public_Sans({
+  variable: "--font-public-sans",
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
   title: {
-    default: `${company.legalName} — Freight, Hotshot & Equipment Hauling`,
-    template: `%s — ${company.shortName}`,
+    default: `${company.legalName} \u2014 Freight, Hotshot & Equipment Hauling`,
+    template: `%s \u2014 ${company.shortName}`,
   },
   description:
     "Direct dispatch motor carrier. Hotshot, expedited, equipment, and general freight hauling. Request a quote in minutes.",
@@ -45,7 +45,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${publicSans.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-neutral-950 text-zinc-100">
         <Navbar />

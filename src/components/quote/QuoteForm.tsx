@@ -4,331 +4,285 @@ import { useState } from "react";
 import Link from "next/link";
 import { company } from "@/lib/company";
 
-/** Shape of a quote request — used by the form and (later) by the API. */
+/** Shape of a quote request — used by the form and the API route. */
 export type QuoteFormValues = {
-  customerName: string;
-  companyName: string;
-  phone: string;
+  name: string;
   email: string;
-  pickupLocation: string;
-  deliveryLocation: string;
-  pickupDate: string;
-  deliveryDate: string;
+  phone: string;
   commodity: string;
   weight: string;
-  dimensions: string;
-  equipment: string;
-  urgency: string;
-  specialInstructions: string;
+  notes: string;
 };
+
+type Errors = Partial<Record<keyof QuoteFormValues, string>>;
 
 const initialValues: QuoteFormValues = {
-  customerName: "",
-  companyName: "",
-  phone: "",
+  name: "",
   email: "",
-  pickupLocation: "",
-  deliveryLocation: "",
-  pickupDate: "",
-  deliveryDate: "",
+  phone: "",
   commodity: "",
   weight: "",
-  dimensions: "",
-  equipment: "",
-  urgency: "",
-  specialInstructions: "",
+  notes: "",
 };
 
-const equipmentOptions = [
-  "Flatbed",
-  "Step Deck",
-  "Gooseneck",
-  "Dovetail",
-  "Dry Van",
-  "Reefer",
-  "Hotshot Pickup",
-  "Lowboy",
-  "Other / Not sure",
-];
+/** Reject obvious garbage, not legitimate variations. */
+function validate(values: QuoteFormValues): Errors {
+  const errs: Errors = {};
 
-const urgencyOptions = [
-  "Same day / ASAP",
-  "This week",
-  "Next week",
-  "Flexible / no rush",
-];
+  if (values.name.trim().length < 2) {
+    errs.name = "Enter your name.";
+  }
 
-/* ---------- shared field styles, kept inline so there's no extra file ---------- */
-const labelCls = "block text-sm font-medium text-zinc-200";
+  const email = values.email.trim();
+  if (!email) {
+    errs.email = "Enter an email address.";
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    errs.email = "That doesn\u2019t look like a valid email.";
+  }
+
+  const phoneDigits = values.phone.replace(/\D/g, "");
+  if (!values.phone.trim()) {
+    errs.phone = "Enter a phone number.";
+  } else if (phoneDigits.length < 10) {
+    errs.phone = "Phone number looks too short.";
+  }
+
+  if (values.commodity.trim().length < 2) {
+    errs.commodity = "What are we hauling?";
+  }
+
+  const weight = values.weight.trim();
+  if (!weight) {
+    errs.weight = "Enter an estimated weight.";
+  } else if (!/\d/.test(weight)) {
+    errs.weight = "Include a number (e.g. 12000 lbs).";
+  }
+
+  return errs;
+}
+
+/* ---------- styles: industrial / blocky, no rounded corners ---------- */
+const labelCls =
+  "block font-mono text-[10px] tracking-[0.22em] text-neutral-400 uppercase";
 const requiredMark = (
-  <span aria-hidden className="ml-0.5 text-red-500">
+  <span aria-hidden className="ml-1 text-red-500">
     *
   </span>
 );
-const fieldCls =
-  "mt-1.5 block w-full rounded-md border border-neutral-700 bg-neutral-900 px-3 py-2.5 text-base text-zinc-100 placeholder:text-zinc-500 transition-colors focus:border-red-600 focus:outline-none focus:ring-2 focus:ring-red-600/30 sm:text-sm";
+const baseFieldCls =
+  "mt-2.5 block w-full bg-neutral-900 px-4 py-3.5 text-base text-zinc-100 placeholder:text-neutral-600 transition-colors focus:outline-none";
+const fieldCls = `${baseFieldCls} border border-neutral-800 focus:border-red-600`;
+const errorFieldCls = `${baseFieldCls} border border-red-600 focus:border-red-500`;
+const errCls =
+  "mt-2 font-mono text-[10px] tracking-[0.14em] text-red-400 uppercase";
+const hintCls = "mt-2 font-mono text-[10px] tracking-[0.12em] text-neutral-500 uppercase";
 
 type Status = "idle" | "submitting" | "success";
 
 export function QuoteForm() {
   const [values, setValues] = useState<QuoteFormValues>(initialValues);
+  const [errors, setErrors] = useState<Errors>({});
   const [status, setStatus] = useState<Status>("idle");
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   function update<K extends keyof QuoteFormValues>(
     key: K,
     value: QuoteFormValues[K],
   ) {
     setValues((prev) => ({ ...prev, [key]: value }));
+    setErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+    if (submitError) setSubmitError(null);
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const errs = validate(values);
+    if (Object.keys(errs).length > 0) {
+      setErrors(errs);
+      const first = Object.keys(errs)[0];
+      if (typeof document !== "undefined") {
+        document.getElementById(first)?.focus();
+      }
+      return;
+    }
+    setErrors({});
+    setSubmitError(null);
     setStatus("submitting");
 
-    // Placeholder for the future API call.
-    // When the backend is wired, replace this block with:
-    //   const res = await fetch("/api/quote", { method: "POST", body: JSON.stringify(values) });
-    //   if (!res.ok) { setStatus("idle"); return; }
-    await new Promise((r) => setTimeout(r, 600));
-
-    setStatus("success");
+    try {
+      const res = await fetch("/api/quote", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
+      });
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        setSubmitError(
+          data.error ??
+            "Could not send your request. Please try again in a moment.",
+        );
+        setStatus("idle");
+        return;
+      }
+      setStatus("success");
+    } catch {
+      setSubmitError("Network error. Check your connection and try again.");
+      setStatus("idle");
+    }
   }
 
   if (status === "success") {
-    return <SuccessState onReset={() => {
-      setValues(initialValues);
-      setStatus("idle");
-    }} />;
+    return (
+      <SuccessState
+        onReset={() => {
+          setValues(initialValues);
+          setErrors({});
+          setSubmitError(null);
+          setStatus("idle");
+        }}
+      />
+    );
   }
 
   return (
     <form
       onSubmit={handleSubmit}
-      noValidate={false}
-      className="space-y-10"
+      noValidate
       aria-busy={status === "submitting"}
+      className="space-y-10"
     >
-      {/* Section: Contact info */}
-      <Section title="Your contact info" eyebrow="01">
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-          <Field
-            id="customerName"
-            label="Your name"
-            required
-          >
-            <input
-              id="customerName"
-              name="customerName"
-              type="text"
-              required
-              autoComplete="name"
-              value={values.customerName}
-              onChange={(e) => update("customerName", e.target.value)}
-              className={fieldCls}
-              placeholder="Jane Doe"
-            />
-          </Field>
-          <Field id="companyName" label="Company">
-            <input
-              id="companyName"
-              name="companyName"
-              type="text"
-              autoComplete="organization"
-              value={values.companyName}
-              onChange={(e) => update("companyName", e.target.value)}
-              className={fieldCls}
-              placeholder="Acme Logistics (optional)"
-            />
-          </Field>
-          <Field id="phone" label="Phone" required>
-            <input
-              id="phone"
-              name="phone"
-              type="tel"
-              required
-              autoComplete="tel"
-              inputMode="tel"
-              value={values.phone}
-              onChange={(e) => update("phone", e.target.value)}
-              className={fieldCls}
-              placeholder="(555) 123-4567"
-            />
-          </Field>
-          <Field id="email" label="Email" required>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              required
-              autoComplete="email"
-              inputMode="email"
-              value={values.email}
-              onChange={(e) => update("email", e.target.value)}
-              className={fieldCls}
-              placeholder="you@company.com"
-            />
-          </Field>
-        </div>
-      </Section>
+      {/* 01 / Contact */}
+      <Section number="01" title="Contact">
+        <Field id="name" label="Name" required error={errors.name}>
+          <input
+            id="name"
+            name="name"
+            type="text"
+            autoComplete="name"
+            value={values.name}
+            onChange={(e) => update("name", e.target.value)}
+            className={errors.name ? errorFieldCls : fieldCls}
+            placeholder="Jane Doe"
+            aria-invalid={!!errors.name}
+            aria-describedby={errors.name ? "name-error" : undefined}
+          />
+        </Field>
 
-      {/* Section: Pickup & delivery */}
-      <Section title="Pickup & delivery" eyebrow="02">
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-          <Field id="pickupLocation" label="Pickup city, state" required>
-            <input
-              id="pickupLocation"
-              name="pickupLocation"
-              type="text"
-              required
-              value={values.pickupLocation}
-              onChange={(e) => update("pickupLocation", e.target.value)}
-              className={fieldCls}
-              placeholder="Dallas, TX"
-            />
-          </Field>
-          <Field id="deliveryLocation" label="Delivery city, state" required>
-            <input
-              id="deliveryLocation"
-              name="deliveryLocation"
-              type="text"
-              required
-              value={values.deliveryLocation}
-              onChange={(e) => update("deliveryLocation", e.target.value)}
-              className={fieldCls}
-              placeholder="Phoenix, AZ"
-            />
-          </Field>
-          <Field id="pickupDate" label="Pickup date" required>
-            <input
-              id="pickupDate"
-              name="pickupDate"
-              type="date"
-              required
-              value={values.pickupDate}
-              onChange={(e) => update("pickupDate", e.target.value)}
-              className={fieldCls}
-            />
-          </Field>
-          <Field id="deliveryDate" label="Delivery date (if known)">
-            <input
-              id="deliveryDate"
-              name="deliveryDate"
-              type="date"
-              value={values.deliveryDate}
-              onChange={(e) => update("deliveryDate", e.target.value)}
-              className={fieldCls}
-            />
-          </Field>
-        </div>
-      </Section>
+        <Field id="email" label="Email" required error={errors.email}>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            inputMode="email"
+            value={values.email}
+            onChange={(e) => update("email", e.target.value)}
+            className={errors.email ? errorFieldCls : fieldCls}
+            placeholder="you@company.com"
+            aria-invalid={!!errors.email}
+            aria-describedby={errors.email ? "email-error" : undefined}
+          />
+        </Field>
 
-      {/* Section: Load details */}
-      <Section title="Load details" eyebrow="03">
-        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
-          <Field id="commodity" label="Commodity / load description" required className="sm:col-span-2">
-            <input
-              id="commodity"
-              name="commodity"
-              type="text"
-              required
-              value={values.commodity}
-              onChange={(e) => update("commodity", e.target.value)}
-              className={fieldCls}
-              placeholder="Skid steer, palletized parts, machinery, etc."
-            />
-          </Field>
-          <Field id="weight" label="Weight (lbs)" required>
-            <input
-              id="weight"
-              name="weight"
-              type="text"
-              required
-              inputMode="numeric"
-              value={values.weight}
-              onChange={(e) => update("weight", e.target.value)}
-              className={fieldCls}
-              placeholder="12,000"
-            />
-          </Field>
-          <Field id="dimensions" label="Dimensions (L × W × H, if known)">
-            <input
-              id="dimensions"
-              name="dimensions"
-              type="text"
-              value={values.dimensions}
-              onChange={(e) => update("dimensions", e.target.value)}
-              className={fieldCls}
-              placeholder="20' × 8' × 8'"
-            />
-          </Field>
-          <Field id="equipment" label="Equipment needed" required>
-            <select
-              id="equipment"
-              name="equipment"
-              required
-              value={values.equipment}
-              onChange={(e) => update("equipment", e.target.value)}
-              className={fieldCls}
-            >
-              <option value="" disabled>
-                Choose equipment
-              </option>
-              {equipmentOptions.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field id="urgency" label="Urgency" required>
-            <select
-              id="urgency"
-              name="urgency"
-              required
-              value={values.urgency}
-              onChange={(e) => update("urgency", e.target.value)}
-              className={fieldCls}
-            >
-              <option value="" disabled>
-                How soon?
-              </option>
-              {urgencyOptions.map((opt) => (
-                <option key={opt} value={opt}>
-                  {opt}
-                </option>
-              ))}
-            </select>
-          </Field>
-        </div>
-      </Section>
-
-      {/* Section: Special instructions */}
-      <Section title="Special instructions" eyebrow="04">
-        <Field id="specialInstructions" label="Anything else dispatch should know?">
-          <textarea
-            id="specialInstructions"
-            name="specialInstructions"
-            rows={4}
-            value={values.specialInstructions}
-            onChange={(e) => update("specialInstructions", e.target.value)}
-            className={fieldCls}
-            placeholder="Tarps required, escort needed, gate code, after-hours pickup, etc. (optional)"
+        <Field id="phone" label="Phone" required error={errors.phone}>
+          <input
+            id="phone"
+            name="phone"
+            type="tel"
+            autoComplete="tel"
+            inputMode="tel"
+            value={values.phone}
+            onChange={(e) => update("phone", e.target.value)}
+            className={errors.phone ? errorFieldCls : fieldCls}
+            placeholder="(555) 123-4567"
+            aria-invalid={!!errors.phone}
+            aria-describedby={errors.phone ? "phone-error" : undefined}
           />
         </Field>
       </Section>
 
-      {/* Submit */}
-      <div className="flex flex-col items-stretch gap-3 border-t border-neutral-800 pt-8 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm text-zinc-500">
-          Fields marked {requiredMark} are required. We&apos;ll get back to
-          you from {company.dispatchEmail}.
+      {/* 02 / Load */}
+      <Section number="02" title="Load">
+        <Field id="commodity" label="Commodity" required error={errors.commodity}>
+          <input
+            id="commodity"
+            name="commodity"
+            type="text"
+            value={values.commodity}
+            onChange={(e) => update("commodity", e.target.value)}
+            className={errors.commodity ? errorFieldCls : fieldCls}
+            placeholder="Skid steer, palletized parts, machinery…"
+            aria-invalid={!!errors.commodity}
+            aria-describedby={errors.commodity ? "commodity-error" : undefined}
+          />
+        </Field>
+
+        <Field
+          id="weight"
+          label="Estimated weight"
+          required
+          error={errors.weight}
+          hint="Include units if you know them — lbs, kg, tons."
+        >
+          <input
+            id="weight"
+            name="weight"
+            type="text"
+            inputMode="decimal"
+            value={values.weight}
+            onChange={(e) => update("weight", e.target.value)}
+            className={errors.weight ? errorFieldCls : fieldCls}
+            placeholder="12,000 lbs"
+            aria-invalid={!!errors.weight}
+            aria-describedby={
+              errors.weight ? "weight-error" : "weight-hint"
+            }
+          />
+        </Field>
+
+        <Field id="notes" label="Notes / load details">
+          <textarea
+            id="notes"
+            name="notes"
+            rows={4}
+            value={values.notes}
+            onChange={(e) => update("notes", e.target.value)}
+            className={fieldCls}
+            placeholder="Pickup/drop locations, dates, equipment needs, anything else dispatch should know."
+          />
+        </Field>
+      </Section>
+
+      {/* Submit row */}
+      <div className="space-y-5 border-t border-neutral-800 pt-7">
+        <p className="font-mono text-[10px] tracking-[0.2em] text-neutral-500 uppercase">
+          Fields marked {requiredMark} are required.
         </p>
+
+        {submitError ? (
+          <div
+            role="alert"
+            className="flex items-start gap-3 border border-red-700 bg-red-950/30 p-4"
+          >
+            <span
+              aria-hidden
+              className="mt-0.5 inline-block h-3 w-1 shrink-0 bg-red-600"
+            />
+            <p className="text-sm leading-relaxed text-red-200">{submitError}</p>
+          </div>
+        ) : null}
+
         <button
           type="submit"
           disabled={status === "submitting"}
-          className="inline-flex items-center justify-center rounded-md bg-red-600 px-6 py-3 text-base font-semibold text-white shadow-sm transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-70"
+          className="inline-flex w-full items-center justify-center bg-red-600 px-8 py-4 text-sm font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
         >
-          {status === "submitting" ? "Sending..." : "Submit Quote Request"}
+          {status === "submitting" ? "Sending\u2026" : "Submit to dispatch"}
         </button>
       </div>
     </form>
@@ -338,25 +292,25 @@ export function QuoteForm() {
 /* ----------------------------- subcomponents ----------------------------- */
 
 function Section({
+  number,
   title,
-  eyebrow,
   children,
 }: {
+  number: string;
   title: string;
-  eyebrow: string;
   children: React.ReactNode;
 }) {
   return (
-    <fieldset className="space-y-6">
-      <legend className="w-full">
-        <div className="flex items-baseline gap-3">
-          <span className="font-mono text-xs font-semibold tracking-[0.2em] text-red-500">
-            {eyebrow}
-          </span>
-          <h2 className="text-lg font-semibold text-white">{title}</h2>
-        </div>
+    <fieldset>
+      <legend className="mb-6 flex items-baseline gap-3">
+        <span className="font-mono text-xs text-red-500">
+          {number}
+        </span>
+        <span className="font-mono text-[11px] tracking-[0.22em] text-white uppercase">
+          / {title}
+        </span>
       </legend>
-      {children}
+      <div className="space-y-6">{children}</div>
     </fieldset>
   );
 }
@@ -365,73 +319,74 @@ function Field({
   id,
   label,
   required,
-  className,
+  error,
+  hint,
   children,
 }: {
   id: string;
   label: string;
   required?: boolean;
-  className?: string;
+  error?: string;
+  hint?: string;
   children: React.ReactNode;
 }) {
   return (
-    <div className={className}>
+    <div>
       <label htmlFor={id} className={labelCls}>
         {label}
         {required && requiredMark}
       </label>
       {children}
+      {error ? (
+        <p id={`${id}-error`} role="alert" className={errCls}>
+          {error}
+        </p>
+      ) : hint ? (
+        <p id={`${id}-hint`} className={hintCls}>
+          {hint}
+        </p>
+      ) : null}
     </div>
   );
 }
 
 function SuccessState({ onReset }: { onReset: () => void }) {
+  const phoneHref = `tel:${company.dispatchPhone.replace(/[^\d+]/g, "")}`;
   return (
-    <div className="rounded-lg border border-neutral-800 bg-neutral-900/60 p-8 text-center sm:p-12">
-      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-600/15 text-red-500">
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          className="h-6 w-6"
-          aria-hidden
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M5 13l4 4L19 7"
-          />
-        </svg>
-      </div>
-      <h2 className="mt-5 text-2xl font-semibold text-white">
-        Quote request received.
-      </h2>
-      <p className="mx-auto mt-3 max-w-md text-sm text-zinc-400">
-        Dispatch will reach out shortly from{" "}
-        <span className="text-zinc-200">{company.dispatchEmail}</span> with
-        pricing and availability. For anything urgent, call{" "}
-        <span className="text-zinc-200">{company.dispatchPhone}</span>.
+    <div className="border border-neutral-800 bg-neutral-900/40 p-8 sm:p-10">
+      <p className="flex items-center gap-3 font-mono text-[10px] tracking-[0.22em] text-red-500 uppercase">
+        <span aria-hidden className="inline-block h-3 w-1 bg-red-600" />
+        Submitted
       </p>
-      <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
+      <h2 className="mt-4 text-2xl font-display tracking-[-0.01em] text-white sm:text-3xl">
+        Request received.
+      </h2>
+      <p className="mt-3 max-w-md text-sm leading-relaxed text-neutral-400">
+        Dispatch will review the details and follow up. For anything
+        time-critical, call{" "}
+        <a
+          href={phoneHref}
+          className="text-zinc-100 underline-offset-4 hover:text-white hover:underline"
+        >
+          {company.dispatchPhone}
+        </a>
+        .
+      </p>
+      <div className="mt-7 flex flex-col items-stretch gap-2.5 sm:flex-row sm:gap-3">
         <Link
           href="/"
-          className="inline-flex items-center justify-center rounded-md border border-neutral-700 bg-neutral-900 px-4 py-2 text-sm font-semibold text-zinc-100 hover:border-neutral-500 hover:bg-neutral-800"
+          className="inline-flex items-center justify-center border border-neutral-700 px-5 py-3 text-xs font-semibold uppercase tracking-[0.14em] text-zinc-100 transition-colors hover:border-neutral-500 hover:bg-neutral-800"
         >
           Back to home
         </Link>
         <button
           type="button"
           onClick={onReset}
-          className="inline-flex items-center justify-center rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-500"
+          className="inline-flex items-center justify-center bg-red-600 px-5 py-3 text-xs font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-red-500"
         >
-          Submit another quote
+          Submit another
         </button>
       </div>
-      {/* dev-only note while backend is not wired */}
-      <p className="mt-6 text-xs text-zinc-600">
-        Placeholder confirmation — backend wiring lands in a later phase.
-      </p>
     </div>
   );
 }

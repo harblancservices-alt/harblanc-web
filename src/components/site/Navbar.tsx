@@ -35,14 +35,14 @@ export function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                className="text-[15px] font-bold uppercase tracking-[0.1em] text-neutral-400 transition-colors hover:text-white"
+                className="text-[15px] font-semibold uppercase tracking-[0.1em] text-neutral-400 transition-colors hover:text-white"
               >
                 {link.label}
               </Link>
             ))}
             <a
               href={`mailto:${company.dispatchEmail}`}
-              className="text-[15px] font-bold uppercase tracking-[0.1em] text-neutral-400 transition-colors hover:text-white"
+              className="text-[15px] font-semibold uppercase tracking-[0.1em] text-neutral-400 transition-colors hover:text-white"
             >
               Contact
             </a>
@@ -50,7 +50,7 @@ export function Navbar() {
           <span aria-hidden className="h-6 w-px bg-neutral-800" />
           <Link
             href="/quote"
-            className="inline-flex items-center bg-red-600 px-5 py-2.5 text-[13px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-red-500"
+            className="inline-flex items-center bg-red-600 px-5 py-2.5 text-[13px] font-semibold uppercase tracking-[0.1em] text-white transition-colors hover:bg-red-500"
           >
             Request a Quote
           </Link>
@@ -83,7 +83,7 @@ export function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                className="block px-1 py-3 text-sm font-bold uppercase tracking-[0.12em] text-neutral-300 hover:text-white"
+                className="block px-1 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-neutral-300 hover:text-white"
                 onClick={() => setOpen(false)}
               >
                 {link.label}
@@ -91,14 +91,14 @@ export function Navbar() {
             ))}
             <a
               href={`mailto:${company.dispatchEmail}`}
-              className="block px-1 py-3 text-sm font-bold uppercase tracking-[0.12em] text-neutral-300 hover:text-white"
+              className="block px-1 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-neutral-300 hover:text-white"
               onClick={() => setOpen(false)}
             >
               Contact
             </a>
             <Link
               href="/quote"
-              className="mt-3 block bg-red-600 px-4 py-3 text-center text-sm font-bold uppercase tracking-[0.12em] text-white hover:bg-red-500"
+              className="mt-3 block bg-red-600 px-4 py-3 text-center text-sm font-semibold uppercase tracking-[0.12em] text-white hover:bg-red-500"
               onClick={() => setOpen(false)}
             >
               Request a Quote

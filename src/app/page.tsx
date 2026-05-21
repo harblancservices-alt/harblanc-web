@@ -1,8 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { assets } from "@/lib/assets";
-import { company, services } from "@/lib/company";
-import { MediaSlot } from "@/components/site/MediaSlot";
+import { company } from "@/lib/company";
 
 export default function Home() {
   return (
@@ -21,11 +20,10 @@ const phoneHref = `tel:${company.dispatchPhone.replace(/[^\d+]/g, "")}`;
 
 /* -------------------------------- HERO ----------------------------------- */
 /*
- * Layered hero: media (video → image → none) as background, dark gradient
- * anchored to the left, content block (eyebrow → headline → body → CTAs →
- * mono credentials row) overlays the left side. The truck/video stays
- * visible on the right; the left side gets a strong wash of black for text
- * legibility without flooding the whole image.
+ * Layered hero: media (video → image → none) full-bleed, flat dark wash
+ * over the top for legibility (no gradients), content block left-anchored.
+ * Object-position is biased toward the lower half where vehicle/road
+ * content typically lives in dashcam-style footage.
  */
 
 function Hero() {
@@ -33,7 +31,7 @@ function Hero() {
   const heroImage = assets.heroImage;
   return (
     <section className="relative isolate overflow-hidden border-b border-neutral-800 bg-neutral-950">
-      {/* Background media — full bleed */}
+      {/* Background media — full bleed, focal point biased toward the road */}
       {heroVideo ? (
         <video
           src={heroVideo}
@@ -44,6 +42,7 @@ function Hero() {
           playsInline
           preload="auto"
           className="absolute inset-0 -z-10 h-full w-full object-cover"
+          style={{ objectPosition: "center 65%" }}
         />
       ) : heroImage ? (
         <Image
@@ -57,53 +56,55 @@ function Hero() {
         />
       ) : null}
 
-      {/* Left-anchored dark wash — heavier on mobile, fades to transparent on desktop */}
-      <div
-        aria-hidden
-        className="absolute inset-0 -z-10 bg-gradient-to-r from-black via-black/90 to-black/40 lg:via-black/75 lg:to-transparent"
-      />
+      {/* Flat dark wash — uniform, no gradient. Heavier on mobile for
+          readability, lighter on desktop so the footage still reads. */}
+      <div aria-hidden className="absolute inset-0 -z-10 bg-black/70 lg:bg-black/55" />
 
       {/* Content */}
-      <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-28 lg:px-10 lg:py-36">
+      <div className="mx-auto max-w-7xl px-4 py-24 sm:px-6 sm:py-32 lg:px-10 lg:py-40">
         <div className="max-w-xl lg:max-w-2xl">
-          {/* Eyebrow — brand + year, mono with red bar */}
-          <p className="flex items-center gap-3 text-[11px] font-bold tracking-[0.22em] text-red-500 uppercase">
+          {/* Eyebrow — small red bar + location line, IBM Plex Mono 400 */}
+          <p className="flex items-center gap-3 font-mono text-[11px] tracking-[0.22em] text-red-500 uppercase">
             <span aria-hidden className="inline-block h-3 w-1 bg-red-600" />
-            Est. {company.established} &middot; {company.legalName}
+            EST. 2022 &middot; HOUSTON TEXAS
           </p>
 
-          {/* Headline */}
-          <h1 className="mt-5 text-4xl font-black tracking-tight text-white sm:text-5xl lg:text-6xl xl:text-7xl">
+          {/* Headline — Inter Black (900); both lines white for contrast,
+              tight industrial tracking, line 2 carries a leading red bar */}
+          <h1 className="mt-6 text-4xl font-display leading-[0.95] tracking-[-0.02em] text-white sm:text-5xl lg:text-6xl xl:text-7xl">
             Freight, hauled
-            <br />
-            <span className="text-neutral-400">direct.</span>
+            <span className="mt-2 flex items-baseline gap-3 sm:gap-4">
+              <span aria-hidden className="inline-block h-[0.6em] w-[6px] shrink-0 bg-red-600 sm:w-2" />
+              direct.
+            </span>
           </h1>
 
           {/* Body */}
-          <p className="mt-6 max-w-lg text-base leading-relaxed text-neutral-200 sm:text-lg">
+          <p className="mt-7 max-w-lg text-base leading-relaxed text-neutral-200 sm:text-lg">
             Licensed motor carrier running hotshot, expedited, equipment, and
             general freight across the {company.serviceArea.toLowerCase()}.
             Owner-operated dispatch. No broker layers, no auto-replies.
           </p>
 
-          {/* CTAs */}
-          <div className="mt-10 flex flex-col gap-2.5 sm:max-w-md sm:flex-row">
+          {/* CTAs — primary solid (heavier), secondary outlined.
+              Stacked full-width on mobile, intrinsic-width inline on desktop. */}
+          <div className="mt-10 flex flex-col gap-2.5 sm:flex-row sm:gap-3">
             <Link
               href="/quote"
-              className="block w-full bg-red-600 px-6 py-4 text-center text-sm font-bold uppercase tracking-[0.14em] text-white shadow-lg shadow-black/40 transition-colors hover:bg-red-500"
+              className="inline-flex w-full items-center justify-center bg-red-600 px-8 py-4 text-sm font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-red-500 sm:w-auto"
             >
               Request a Quote
             </Link>
             <a
               href={phoneHref}
-              className="block w-full border border-white/30 bg-black/40 px-6 py-4 text-center text-sm font-bold uppercase tracking-[0.14em] text-white backdrop-blur-sm transition-colors hover:border-white hover:bg-black/60"
+              className="inline-flex w-full items-center justify-center border border-white/30 px-6 py-4 text-sm font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:border-white sm:w-auto"
             >
               Call Dispatch
             </a>
           </div>
 
-          {/* Operational status row — mono credentials anchoring authority */}
-          <dl className="mt-12 flex flex-wrap items-center gap-x-6 gap-y-2 font-mono text-[11px] tracking-[0.18em] uppercase">
+          {/* Credentials row — IBM Plex Mono 400 */}
+          <dl className="mt-14 flex flex-wrap items-center gap-x-6 gap-y-2 font-mono text-[11px] tracking-[0.18em] uppercase">
             <div className="flex items-baseline gap-2">
               <dt className="text-neutral-500">USDOT</dt>
               <dd className="text-white">{company.dotNumber}</dd>
@@ -128,63 +129,32 @@ function Hero() {
 /* ------------------------------- OPS BAR --------------------------------- */
 
 function OpsBar() {
-  const items = [
-    { label: "USDOT", value: company.dotNumber },
-    { label: "MC", value: company.mcNumber },
-    { label: "Coverage", value: company.serviceArea },
-    { label: "Authority", value: company.authorityText },
+  const items: { label: string; main: string }[] = [
+    { label: "Response", main: "Time-Critical Freight" },
+    { label: "Dispatch", main: "Owner Operated" },
+    { label: "Authority", main: "Licensed & Insured" },
+    { label: "Service", main: "Reliable & Efficient" },
   ];
   return (
-    <section className="border-b border-neutral-800 bg-black">
+    <section className="border-b border-neutral-900 bg-black">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <dl className="grid grid-cols-2 sm:grid-cols-4">
+        <ul className="grid grid-cols-2 sm:grid-cols-4">
           {items.map((item, i) => (
-            <div
+            <li
               key={item.label}
               className={
-                "px-2 py-5 sm:px-4 " +
-                (i > 0 ? "sm:border-l border-neutral-800 " : "") +
-                (i >= 2 ? "border-t border-neutral-800 sm:border-t-0 " : "")
+                "px-2 py-3 sm:px-4 sm:py-4 " +
+                (i > 0 ? "sm:border-l border-neutral-900 " : "") +
+                (i >= 2 ? "border-t border-neutral-900 sm:border-t-0 " : "")
               }
             >
-              <dt className="font-mono text-[10px] tracking-[0.2em] text-neutral-500 uppercase">
+              <p className="font-mono text-[10px] tracking-[0.22em] text-red-500 uppercase">
                 {item.label}
-              </dt>
-              <dd className="mt-1.5 font-mono text-sm text-white sm:text-base">
-                {item.value}
-              </dd>
-            </div>
-          ))}
-        </dl>
-      </div>
-    </section>
-  );
-}
-
-/* ------------------------------- SERVICES -------------------------------- */
-
-function Services() {
-  return (
-    <section id="services" className="border-b border-neutral-800 scroll-mt-16">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <header className="border-b border-neutral-800 py-14 lg:py-20">
-          <p className="font-mono text-[11px] tracking-[0.22em] text-red-500 uppercase">
-            Freight Services
-          </p>
-          <h2 className="mt-4 max-w-3xl text-4xl font-black tracking-tight text-white sm:text-5xl lg:text-6xl">
-            One carrier. Four lanes of work.
-          </h2>
-        </header>
-
-        <ul className="divide-y divide-neutral-800">
-          {services.map((svc, i) => (
-            <ServiceRow
-              key={svc.slug}
-              index={i + 1}
-              title={svc.title}
-              blurb={svc.blurb}
-              image={assets.serviceImages[svc.slug] ?? null}
-            />
+              </p>
+              <p className="mt-1 text-sm text-neutral-200 sm:text-base">
+                {item.main}
+              </p>
+            </li>
           ))}
         </ul>
       </div>
@@ -192,52 +162,82 @@ function Services() {
   );
 }
 
-function ServiceRow({
-  index,
-  title,
-  blurb,
-  image,
-}: {
-  index: number;
+/* ------------------------------- SERVICES -------------------------------- */
+/*
+ * Capability manifest — no intro, no row numbers.
+ * Four service rows, vertical-flow content, thin dividers.
+ * Title leads each row; tagline / description / capability spec follow.
+ */
+
+type ServiceModule = {
+  slug: string;
   title: string;
-  blurb: string;
-  image: string | null;
-}) {
-  if (image) {
-    return (
-      <li className="grid grid-cols-12 items-center gap-x-4 py-10 sm:gap-x-8 sm:py-12">
-        <p className="col-span-2 font-mono text-base text-neutral-500 sm:col-span-1 sm:text-lg">
-          {String(index).padStart(2, "0")}
-        </p>
-        <div className="col-span-10 sm:col-span-7">
-          <h3 className="text-2xl font-black uppercase tracking-tight text-white sm:text-3xl lg:text-4xl">
-            {title}
-          </h3>
-          <p className="mt-3 max-w-xl text-sm leading-relaxed text-neutral-400 sm:text-base">
-            {blurb}
-          </p>
-        </div>
-        <div className="col-span-12 mt-4 sm:col-span-4 sm:mt-0">
-          <MediaSlot src={image} alt={title} aspectRatio="4 / 3" />
-        </div>
-      </li>
-    );
-  }
+  tagline: string;
+  description: string;
+  capabilities: string;
+};
+
+const serviceModules: ServiceModule[] = [
+  {
+    slug: "hotshot",
+    title: "Hotshot Hauling",
+    tagline: "Time-critical \u2022 Direct dispatch",
+    description:
+      "Time-critical loads on flatbeds, gooseneck, and lowboy trailers. Direct dispatch, fast turnaround, single point of contact from booking to BOL.",
+    capabilities: "Flatbeds \u00b7 Gooseneck \u00b7 Lowboy \u00b7 Same-day pickup",
+  },
+  {
+    slug: "expedited",
+    title: "Expedited Freight",
+    tagline: "No stops \u2022 No delays",
+    description:
+      "When the load can't wait. Tight pickup windows, hard delivery deadlines, single driver running it through with status updates en route.",
+    capabilities: "Hot loads \u00b7 Hard deadlines \u00b7 Driver direct \u00b7 Through-run",
+  },
+  {
+    slug: "equipment",
+    title: "Equipment Hauling",
+    tagline: "Oversized \u2022 Permits \u2022 Routing",
+    description:
+      "Construction equipment, machinery, agricultural gear, and oversized loads. Permits and routing handled. Pilot cars arranged when required.",
+    capabilities: "Oversized loads \u00b7 Permit handling \u00b7 Route planning \u00b7 Heavy equipment",
+  },
+  {
+    slug: "general",
+    title: "General Freight",
+    tagline: "Reliable \u2022 Efficient \u2022 Nationwide",
+    description:
+      "Standard freight at a fair rate. Reliable scheduling, clean handling, paperwork done right. Lower 48 coverage with on-time delivery.",
+    capabilities: "Dry van \u00b7 LTL & FTL \u00b7 Lower 48 \u00b7 On-time delivery",
+  },
+];
+
+function Services() {
   return (
-    <li className="grid grid-cols-12 items-baseline gap-x-4 py-10 sm:gap-x-8 sm:py-14 lg:py-16">
-      <p className="col-span-2 font-mono text-base text-neutral-500 sm:col-span-1 sm:text-lg">
-        {String(index).padStart(2, "0")}
+    <section id="services" className="border-b border-neutral-900 scroll-mt-16">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <ul className="divide-y divide-neutral-900">
+          {serviceModules.map((mod) => (
+            <ServiceRow key={mod.slug} module={mod} />
+          ))}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
+function ServiceRow({ module }: { module: ServiceModule }) {
+  return (
+    <li className="py-8 sm:py-10">
+      <h3 className="font-display text-2xl uppercase leading-[1.05] tracking-tight text-white sm:text-3xl">
+        {module.title}
+      </h3>
+      <p className="mt-2 font-mono text-[11px] tracking-[0.22em] text-red-500/70 uppercase">
+        {module.capabilities}
       </p>
-      <div className="col-span-10 sm:col-span-6 lg:col-span-5">
-        <h3 className="text-2xl font-black uppercase tracking-tight text-white sm:text-3xl lg:text-4xl">
-          {title}
-        </h3>
-      </div>
-      <div className="col-span-12 mt-4 sm:col-span-5 sm:col-start-8 sm:mt-0 lg:col-span-6 lg:col-start-7">
-        <p className="text-sm leading-relaxed text-neutral-400 sm:text-base">
-          {blurb}
-        </p>
-      </div>
+      <p className="mt-3 max-w-xl text-sm leading-relaxed text-neutral-400 sm:text-base">
+        {module.description}
+      </p>
     </li>
   );
 }
@@ -248,25 +248,25 @@ function Process() {
   const steps = [
     {
       num: "01",
-      title: "Submit",
+      title: "Submit load details",
       body:
-        "Quote request through the form, by phone, or by email. Send what you know — we'll ask if we need more.",
+        "Quote request through the form, by phone, or by email. Send what you know — dispatch asks if more is needed.",
     },
     {
       num: "02",
-      title: "Price",
+      title: "Dispatch reviews lane",
       body:
-        "Direct quote from dispatch within hours. No bidding wars, no hidden fees, no markups on freight we don't move ourselves.",
+        "Dispatch checks capacity, equipment, and timing against your lane. Direct quote returned within hours — no bidding wars, no broker markups.",
     },
     {
       num: "03",
-      title: "Book",
+      title: "Quote is confirmed",
       body:
-        "Approve the quote and we lock in pickup time, equipment, and a single point of contact.",
+        "Once approved, we lock in pickup time, equipment, and a single point of contact through delivery.",
     },
     {
       num: "04",
-      title: "Deliver",
+      title: "Freight moves",
       body:
         "Door-to-door. Driver updates en route. Paperwork delivered at offload.",
     },
@@ -274,34 +274,34 @@ function Process() {
   return (
     <section
       id="process"
-      className="border-b border-neutral-800 bg-neutral-950 scroll-mt-16"
+      className="border-b border-neutral-900 bg-neutral-950 scroll-mt-16"
     >
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <header className="py-14 lg:py-20">
+        <header className="py-10 lg:py-14">
           <p className="font-mono text-[11px] tracking-[0.22em] text-red-500 uppercase">
             Process
           </p>
-          <h2 className="mt-4 max-w-3xl text-4xl font-black tracking-tight text-white sm:text-5xl lg:text-6xl">
+          <h2 className="mt-3 max-w-3xl text-3xl font-display leading-[1.1] tracking-tight text-white sm:text-4xl">
             Request to delivery.
           </h2>
         </header>
 
-        <ol className="grid grid-cols-1 border-t border-neutral-800 sm:grid-cols-2 lg:grid-cols-4">
+        <ol className="grid grid-cols-1 border-t border-neutral-900 sm:grid-cols-2 lg:grid-cols-4">
           {steps.map((step, i) => (
             <li
               key={step.num}
               className={
-                "py-10 sm:px-6 lg:px-8 lg:py-12 " +
-                (i > 0 ? "border-t border-neutral-800 sm:border-l " : "") +
+                "py-8 sm:px-6 lg:px-8 lg:py-10 " +
+                (i > 0 ? "border-t border-neutral-900 sm:border-l " : "") +
                 (i === 1 || i === 3 ? "sm:border-t-0 " : "") +
                 (i >= 2 ? "lg:border-t-0 " : "")
               }
             >
               <p className="font-mono text-xs text-neutral-500">{step.num}</p>
-              <h3 className="mt-3 text-2xl font-black uppercase tracking-tight text-white">
+              <h3 className="mt-2 text-lg font-display uppercase tracking-tight text-white sm:text-xl">
                 {step.title}
               </h3>
-              <p className="mt-3 text-sm leading-relaxed text-neutral-400">
+              <p className="mt-2 text-sm leading-relaxed text-neutral-400">
                 {step.body}
               </p>
             </li>
@@ -315,40 +315,33 @@ function Process() {
 /* --------------------------------- ABOUT --------------------------------- */
 
 function About() {
-  const aboutSrc = assets.aboutImage;
   return (
-    <section id="about" className="border-b border-neutral-800 scroll-mt-16">
-      <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
-        <div className="grid gap-x-12 gap-y-10 lg:grid-cols-12">
-          <header className="lg:col-span-4">
-            <p className="font-mono text-[11px] tracking-[0.22em] text-red-500 uppercase">
-              Company
-            </p>
-            <h2 className="mt-4 text-4xl font-black tracking-tight text-white sm:text-5xl">
-              The carrier.
-            </h2>
-            {aboutSrc && (
-              <div className="mt-8 hidden lg:block">
-                <MediaSlot
-                  src={aboutSrc}
-                  alt={`${company.legalName}`}
-                  aspectRatio="4 / 3"
-                  position={assets.aboutImagePosition}
-                />
-              </div>
-            )}
-          </header>
-          <div className="space-y-5 text-base leading-relaxed text-neutral-300 lg:col-span-8 lg:text-lg">
-            {aboutSrc && (
-              <div className="mb-6 lg:hidden">
-                <MediaSlot
-                  src={aboutSrc}
-                  alt={`${company.legalName}`}
-                  aspectRatio="4 / 3"
-                  position={assets.aboutImagePosition}
-                />
-              </div>
-            )}
+    <section
+      id="about"
+      className="relative isolate overflow-hidden border-b border-neutral-800 scroll-mt-16"
+    >
+      {/* Full-bleed background — aerial follow-shot of the carrier on route */}
+      <Image
+        src="/brand/about-bg.jpg"
+        alt=""
+        fill
+        sizes="100vw"
+        className="-z-10 object-cover"
+        style={{ objectPosition: "60% 50%" }}
+      />
+      {/* Dark wash — heavier on mobile for legibility, lighter on desktop so the road still reads */}
+      <div aria-hidden className="absolute inset-0 -z-10 bg-black/75 lg:bg-black/60" />
+
+      {/* Content — left-aligned column over the background */}
+      <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-28 lg:px-8 lg:py-36">
+        <div className="max-w-xl">
+          <p className="font-mono text-[11px] tracking-[0.22em] text-red-500 uppercase">
+            Company
+          </p>
+          <h2 className="mt-4 text-4xl font-display tracking-tight text-white sm:text-5xl">
+            The carrier.
+          </h2>
+          <div className="mt-8 space-y-5 text-base leading-relaxed text-neutral-200 lg:text-lg">
             <p>
               {company.legalName} is a licensed motor carrier moving hotshot,
               expedited, equipment, and general freight across the
@@ -366,14 +359,14 @@ function About() {
               time. Status updated by the driver. Paperwork delivered on
               completion. That&apos;s the job.
             </p>
-
-            <dl className="grid grid-cols-2 gap-x-8 gap-y-5 border-t border-neutral-800 pt-8 sm:grid-cols-4">
-              <Spec label="USDOT" value={company.dotNumber} />
-              <Spec label="MC" value={company.mcNumber} />
-              <Spec label="Operating" value={company.authorityText} />
-              <Spec label="Dispatch" value={company.dispatchModel} />
-            </dl>
           </div>
+
+          <dl className="mt-10 grid grid-cols-2 gap-x-8 gap-y-5 border-t border-white/15 pt-8 sm:grid-cols-4">
+            <Spec label="USDOT" value={company.dotNumber} />
+            <Spec label="MC" value={company.mcNumber} />
+            <Spec label="Operating" value={company.authorityText} />
+            <Spec label="Dispatch" value={company.dispatchModel} />
+          </dl>
         </div>
       </div>
     </section>
@@ -404,7 +397,7 @@ function Dispatch() {
             <p className="font-mono text-[11px] tracking-[0.22em] text-red-500 uppercase">
               Dispatch
             </p>
-            <h2 className="mt-4 text-4xl font-black tracking-tight text-white sm:text-5xl lg:text-6xl">
+            <h2 className="mt-4 text-4xl font-display tracking-tight text-white sm:text-5xl lg:text-6xl">
               Got a load?
             </h2>
             <p className="mt-5 max-w-2xl text-base leading-relaxed text-neutral-400 sm:text-lg">
@@ -415,13 +408,13 @@ function Dispatch() {
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:col-span-5">
             <Link
               href="/quote"
-              className="block bg-red-600 px-6 py-4 text-center text-sm font-bold uppercase tracking-[0.14em] text-white transition-colors hover:bg-red-500"
+              className="block bg-red-600 px-6 py-4 text-center text-sm font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-red-500"
             >
               Request a Quote
             </Link>
             <a
               href={phoneHref}
-              className="block border border-neutral-700 px-6 py-4 text-center text-sm font-bold uppercase tracking-[0.14em] text-white transition-colors hover:border-neutral-500 hover:bg-neutral-900"
+              className="block border border-neutral-700 px-6 py-4 text-center text-sm font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:border-neutral-500 hover:bg-neutral-900"
             >
               Call Dispatch
             </a>
