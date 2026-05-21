@@ -23,31 +23,7 @@ export const company = {
     "Owner-operated motor carrier. Direct dispatch. Honest pricing. No middlemen, no markups, no broker games.",
 } as const;
 
-export const services = [
-  {
-    slug: "hotshot",
-    title: "Hotshot Hauling",
-    blurb:
-      "Time-critical loads on flatbeds, gooseneck, and dovetail trailers. Direct dispatch, fast turnaround.",
-  },
-  {
-    slug: "expedited",
-    title: "Expedited Freight",
-    blurb:
-      "When the load can't wait. Tight pickup windows, hard delivery deadlines, single point of contact start to finish.",
-  },
-  {
-    slug: "equipment",
-    title: "Equipment Hauling",
-    blurb:
-      "Construction equipment, machinery, agricultural gear, and oversized loads. Permits and routing handled.",
-  },
-  {
-    slug: "general",
-    title: "General Freight",
-    blurb:
-      "Standard freight at a fair rate. Reliable scheduling, clean handling, paperwork done right.",
-  },
-] as const;
-
-export type ServiceSlug = (typeof services)[number]["slug"];
+// NOTE: the previous in-lib `services` array was removed during the audit
+// pass — the homepage defines its own `serviceModules` array inline
+// (src/app/page.tsx). Keep service-level data in that single source until
+// a second consumer appears.

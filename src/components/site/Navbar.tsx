@@ -8,7 +8,7 @@ import { BrandLogo } from "./BrandLogo";
 const navLinks = [
   { href: "/#services", label: "Services" },
   { href: "/#process", label: "Process" },
-  { href: "/#about", label: "Company" },
+  { href: "/#about", label: "About" },
 ];
 
 export function Navbar() {
@@ -48,12 +48,20 @@ export function Navbar() {
             </a>
           </nav>
           <span aria-hidden className="h-6 w-px bg-neutral-800" />
-          <Link
-            href="/quote"
-            className="inline-flex items-center bg-red-600 px-5 py-2.5 text-[13px] font-semibold uppercase tracking-[0.1em] text-white transition-colors hover:bg-red-500"
-          >
-            Request a Quote
-          </Link>
+          <div className="flex items-center gap-2.5">
+            <Link
+              href="/quote"
+              className="btn-cut inline-flex items-center bg-red-600 px-5 py-2.5 text-[13px] font-semibold uppercase tracking-[0.1em] text-white transition-colors hover:bg-red-500"
+            >
+              Request a Quote
+            </Link>
+            <Link
+              href="/apply"
+              className="btn-outline-cut inline-flex items-center px-5 py-2.5 text-[13px] font-semibold uppercase tracking-[0.1em] text-white transition-colors"
+            >
+              Join the Fleet
+            </Link>
+          </div>
         </div>
 
         {/* MOBILE: hamburger toggle */}
@@ -98,10 +106,17 @@ export function Navbar() {
             </a>
             <Link
               href="/quote"
-              className="mt-3 block bg-red-600 px-4 py-3 text-center text-sm font-semibold uppercase tracking-[0.12em] text-white hover:bg-red-500"
+              className="btn-cut mt-3 block bg-red-600 px-4 py-3 text-center text-sm font-semibold uppercase tracking-[0.12em] text-white hover:bg-red-500"
               onClick={() => setOpen(false)}
             >
               Request a Quote
+            </Link>
+            <Link
+              href="/apply"
+              className="btn-outline-cut mt-2 block px-4 py-3 text-center text-sm font-semibold uppercase tracking-[0.12em] text-white"
+              onClick={() => setOpen(false)}
+            >
+              Join the Fleet
             </Link>
           </nav>
         </div>

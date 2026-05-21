@@ -42,5 +42,7 @@ export const assets = {
   } as Record<string, AssetPath>,
 
   // ---- Social / meta ----
-  ogImage: null as AssetPath,
+  // 1920x1080 — slightly wide for OG's typical 1.91:1 but usable.
+  // Swap to a dedicated 1200x630 render when one is produced.
+  ogImage: "/brand/about-bg.jpg" as AssetPath,
 } as const;

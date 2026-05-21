@@ -56,3 +56,111 @@ body {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+
+/* ============================================================== */
+/* Industrial cut-corner buttons.
+   Single bottom-right chamfer (10px). Primary uses .btn-cut on top
+   of the existing red bg. Secondary uses .btn-outline-cut, a
+   layered approach where the element bg acts as the border color
+   and a ::before pseudo-element fills the interior — both clipped
+   to the chamfer so the border follows the cut cleanly.
+   Focus ring switches to an inset box-shadow because clip-path
+   would chop a normal CSS outline. */
+@layer utilities {
+  .btn-cut {
+    -webkit-clip-path: polygon(
+      10px 0,
+      100% 0,
+      100% calc(100% - 10px),
+      calc(100% - 10px) 100%,
+      0 100%,
+      0 10px
+    );
+    clip-path: polygon(
+      10px 0,
+      100% 0,
+      100% calc(100% - 10px),
+      calc(100% - 10px) 100%,
+      0 100%,
+      0 10px
+    );
+  }
+}
+
+@layer utilities {
+  /* Solid industrial utility button — subtle neutral-800 border around a
+     solid neutral-900 charcoal fill. Same dual-corner chamfer geometry
+     as .btn-cut. Inner chamfer is 8.586px (= 10 − √2) so the visible
+     border is a uniform 1px PERPENDICULAR distance along both the
+     straight edges and the diagonal cuts — fixes the "right-heavy"
+     silhouette caused by the prior 9px inner. */
+  .btn-outline-cut {
+    position: relative;
+    isolation: isolate;
+    background: #3a3a3a; /* slightly stronger neutral border — defines silhouette */
+    -webkit-clip-path: polygon(
+      10px 0,
+      100% 0,
+      100% calc(100% - 10px),
+      calc(100% - 10px) 100%,
+      0 100%,
+      0 10px
+    );
+    clip-path: polygon(
+      10px 0,
+      100% 0,
+      100% calc(100% - 10px),
+      calc(100% - 10px) 100%,
+      0 100%,
+      0 10px
+    );
+    transition: background-color 150ms;
+  }
+
+  .btn-outline-cut::before {
+    content: "";
+    position: absolute;
+    inset: 1px;
+    z-index: -1;
+    background: #1f1f1f; /* lifted dark charcoal — reads as a solid block */
+    -webkit-clip-path: polygon(
+      8.586px 0,
+      100% 0,
+      100% calc(100% - 8.586px),
+      calc(100% - 8.586px) 100%,
+      0 100%,
+      0 8.586px
+    );
+    clip-path: polygon(
+      8.586px 0,
+      100% 0,
+      100% calc(100% - 8.586px),
+      calc(100% - 8.586px) 100%,
+      0 100%,
+      0 8.586px
+    );
+    transition: background-color 150ms;
+  }
+
+  /* Restrained hover: subtle border brighten only. Inner fill stays put —
+     no ghost, no glow, no bright-fill transition. */
+  .btn-outline-cut:hover {
+    background: #525252; /* neutral-600 — clearer border brighten */
+  }
+}
+
+/* Inset focus ring — outline would be clipped by clip-path. */
+@layer utilities {
+  .btn-cut:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 2px var(--accent);
+  }
+}
+
+@layer utilities {
+  .btn-outline-cut:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 2px var(--accent);
+  }
+}

@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { Public_Sans } from "next/font/google";
 import "./globals.css";
-import { Navbar } from "@/components/site/Navbar";
-import { Footer } from "@/components/site/Footer";
+import { SiteChrome } from "@/components/site/SiteChrome";
 import { company } from "@/lib/company";
 import { assets } from "@/lib/assets";
 
@@ -48,9 +47,7 @@ export default function RootLayout({
       className={`${publicSans.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-neutral-950 text-zinc-100">
-        <Navbar />
-        <main className="flex-1">{children}</main>
-        <Footer />
+        <SiteChrome>{children}</SiteChrome>
       </body>
     </html>
   );

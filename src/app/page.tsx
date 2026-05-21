@@ -9,6 +9,7 @@ export default function Home() {
       <Hero />
       <OpsBar />
       <Services />
+      <Operations />
       <Process />
       <About />
       <Dispatch />
@@ -91,13 +92,13 @@ function Hero() {
           <div className="mt-10 flex flex-col gap-2.5 sm:flex-row sm:gap-3">
             <Link
               href="/quote"
-              className="inline-flex w-full items-center justify-center bg-red-600 px-8 py-4 text-sm font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-red-500 sm:w-auto"
+              className="btn-cut inline-flex w-full items-center justify-center bg-red-600 px-8 py-4 text-sm font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-red-500 sm:w-auto"
             >
               Request a Quote
             </Link>
             <a
               href={phoneHref}
-              className="inline-flex w-full items-center justify-center border border-white/30 px-6 py-4 text-sm font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:border-white sm:w-auto"
+              className="btn-outline-cut inline-flex w-full items-center justify-center px-6 py-4 text-sm font-semibold uppercase tracking-[0.14em] text-white transition-colors sm:w-auto"
             >
               Call Dispatch
             </a>
@@ -277,13 +278,26 @@ function Process() {
       className="border-b border-neutral-900 bg-neutral-950 scroll-mt-16"
     >
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <header className="py-10 lg:py-14">
-          <p className="font-mono text-[11px] tracking-[0.22em] text-red-500 uppercase">
-            Process
-          </p>
-          <h2 className="mt-3 max-w-3xl text-3xl font-display leading-[1.1] tracking-tight text-white sm:text-4xl">
-            Request to delivery.
-          </h2>
+        <header className="py-5 lg:py-7">
+          <div className="grid items-center gap-x-10 gap-y-4 lg:grid-cols-12">
+            <div className="lg:col-span-7">
+              <p className="text-2xl font-display tracking-tight text-white sm:text-3xl lg:text-right">
+                Simple process, submit in under 60 seconds
+              </p>
+            </div>
+            {/* Nested 2-col grid mirrors the Dispatch CTA row below so the
+                Process button aligns horizontally with the red Dispatch
+                button. Only the first cell is filled; the right cell stays
+                intentionally empty. */}
+            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:col-span-5">
+              <Link
+                href="/quote"
+                className="btn-cut block bg-red-600 px-6 py-3 text-center text-sm font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-red-500"
+              >
+                Request a Quote
+              </Link>
+            </div>
+          </div>
         </header>
 
         <ol className="grid grid-cols-1 border-t border-neutral-900 sm:grid-cols-2 lg:grid-cols-4">
@@ -312,6 +326,69 @@ function Process() {
   );
 }
 
+/* ------------------------------ OPERATIONS ------------------------------- */
+/*
+ * Restrained operational proof strip. Four real-load photos with small
+ * font-mono labels — no captions doing marketing work, no carousel, no
+ * lifestyle cards. Photos carry the section; copy stays out of the way.
+ */
+
+type OpsPhoto = { src: string; caption: string };
+
+const opsPhotos: OpsPhoto[] = [
+  {
+    src: "/brand/operations/rig-loaded-promaster.jpg",
+    caption: "Loaded gooseneck",
+  },
+  {
+    src: "/brand/operations/ocala-crates.jpg",
+    caption: "Secured freight",
+  },
+  {
+    src: "/brand/operations/pipe-stop-sign-turbines.jpg",
+    caption: "Equipment move",
+  },
+  {
+    src: "/brand/operations/rig-pipe-dirt-road.jpg",
+    caption: "Road-ready",
+  },
+];
+
+function Operations() {
+  return (
+    <section
+      id="operations"
+      className="border-y border-neutral-800 bg-neutral-950"
+    >
+      {/* Contained strip — same gutter as Services / Process / Company.
+          No eyebrow, no heading, no captions. The photos do the work and
+          the strip reads as a transition between Services and Process. */}
+      <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8 lg:py-4">
+        <h2 className="sr-only">Operational photos</h2>
+        <ul
+          aria-label="Recent freight and equipment hauls"
+          className="grid grid-cols-2 gap-[2px] lg:grid-cols-4"
+        >
+          {opsPhotos.map((photo) => (
+            <li
+              key={photo.src}
+              className="relative h-40 overflow-hidden sm:h-52 lg:h-56"
+            >
+              <Image
+                src={photo.src}
+                alt=""
+                fill
+                sizes="(min-width: 1024px) 22vw, 45vw"
+                className="object-cover brightness-95 contrast-105"
+              />
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
 /* --------------------------------- ABOUT --------------------------------- */
 
 function About() {
@@ -320,20 +397,29 @@ function About() {
       id="about"
       className="relative isolate overflow-hidden border-b border-neutral-800 scroll-mt-16"
     >
-      {/* Full-bleed background — aerial follow-shot of the carrier on route */}
+      {/* Full-bleed background — aerial follow-shot of the carrier on route.
+          Y-bias keeps the trailer in frame on widescreen crops and lets the
+          truck/trailer (not the asphalt) carry the composition. */}
       <Image
         src="/brand/about-bg.jpg"
         alt=""
         fill
         sizes="100vw"
         className="-z-10 object-cover"
-        style={{ objectPosition: "60% 50%" }}
+        style={{ objectPosition: "62% 78%" }}
       />
-      {/* Dark wash — heavier on mobile for legibility, lighter on desktop so the road still reads */}
-      <div aria-hidden className="absolute inset-0 -z-10 bg-black/75 lg:bg-black/60" />
+      {/* Dark wash — flat on mobile for full-image legibility; left-weighted
+          gradient on desktop so the text side stays readable and the truck
+          side shows more operational detail without going muddy. */}
+      <div aria-hidden className="absolute inset-0 -z-10 bg-black/75 lg:hidden" />
+      <div
+        aria-hidden
+        className="absolute inset-0 -z-10 hidden bg-gradient-to-r from-black/85 via-black/45 to-black/15 lg:block"
+      />
 
-      {/* Content — left-aligned column over the background */}
-      <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 sm:py-28 lg:px-8 lg:py-36">
+      {/* Content — left-aligned column, sat lower in the frame so the text
+          settles into the composition instead of floating at the top. */}
+      <div className="mx-auto max-w-7xl px-4 pt-24 pb-14 sm:px-6 sm:pt-32 sm:pb-20 lg:px-8 lg:pt-44 lg:pb-24">
         <div className="max-w-xl">
           <p className="font-mono text-[11px] tracking-[0.22em] text-red-500 uppercase">
             Company
@@ -408,13 +494,13 @@ function Dispatch() {
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:col-span-5">
             <Link
               href="/quote"
-              className="block bg-red-600 px-6 py-4 text-center text-sm font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-red-500"
+              className="btn-cut block bg-red-600 px-6 py-4 text-center text-sm font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-red-500"
             >
               Request a Quote
             </Link>
             <a
               href={phoneHref}
-              className="block border border-neutral-700 px-6 py-4 text-center text-sm font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:border-neutral-500 hover:bg-neutral-900"
+              className="btn-outline-cut block px-6 py-4 text-center text-sm font-semibold uppercase tracking-[0.14em] text-white transition-colors"
             >
               Call Dispatch
             </a>

@@ -4,40 +4,48 @@ import { useState } from "react";
 import Link from "next/link";
 import { company } from "@/lib/company";
 
-/** Shape of a quote request — used by the form and the API route. */
-export type QuoteFormValues = {
+/** Shape of an owner-operator application — used by the form and the API route. */
+export type ApplyFormValues = {
   name: string;
-  email: string;
   phone: string;
-  commodity: string;
-  weight: string;
-  notes: string;
+  email: string;
+  equipmentType: string;
+  cdlStatus: string;
+  yearsExperience: string;
+  homeBase: string;
+  message: string;
 };
 
-type Errors = Partial<Record<keyof QuoteFormValues, string>>;
+type Errors = Partial<Record<keyof ApplyFormValues, string>>;
 
-const initialValues: QuoteFormValues = {
+const initialValues: ApplyFormValues = {
   name: "",
-  email: "",
   phone: "",
-  commodity: "",
-  weight: "",
-  notes: "",
+  email: "",
+  equipmentType: "",
+  cdlStatus: "",
+  yearsExperience: "",
+  homeBase: "",
+  message: "",
 };
 
-/** Reject obvious garbage, not legitimate variations. */
-function validate(values: QuoteFormValues): Errors {
+const equipmentOptions = [
+  "Flatbed",
+  "Gooseneck",
+  "Lowboy",
+  "Dry van",
+  "Reefer",
+  "Step deck",
+  "Other",
+];
+
+const cdlOptions = ["Class A", "Class B", "No CDL", "Other"];
+
+function validate(values: ApplyFormValues): Errors {
   const errs: Errors = {};
 
   if (values.name.trim().length < 2) {
     errs.name = "Enter your name.";
-  }
-
-  const email = values.email.trim();
-  if (!email) {
-    errs.email = "Enter an email address.";
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    errs.email = "That doesn\u2019t look like a valid email.";
   }
 
   const phoneDigits = values.phone.replace(/\D/g, "");
@@ -47,21 +55,24 @@ function validate(values: QuoteFormValues): Errors {
     errs.phone = "Phone number looks too short.";
   }
 
-  if (values.commodity.trim().length < 2) {
-    errs.commodity = "What are we hauling?";
+  const email = values.email.trim();
+  if (!email) {
+    errs.email = "Enter an email address.";
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    errs.email = "That doesn\u2019t look like a valid email.";
   }
 
-  const weight = values.weight.trim();
-  if (!weight) {
-    errs.weight = "Enter an estimated weight.";
-  } else if (!/\d/.test(weight)) {
-    errs.weight = "Include a number (e.g. 12000 lbs).";
+  if (!values.equipmentType.trim()) {
+    errs.equipmentType = "Select your equipment.";
+  }
+
+  if (!values.cdlStatus.trim()) {
+    errs.cdlStatus = "Select your CDL status.";
   }
 
   return errs;
 }
 
-/* ---------- styles: industrial / blocky, no rounded corners ---------- */
 const labelCls =
   "block font-mono text-[10px] tracking-[0.22em] text-neutral-400 uppercase";
 const requiredMark = (
@@ -75,19 +86,18 @@ const fieldCls = `${baseFieldCls} border border-neutral-800 focus:border-red-600
 const errorFieldCls = `${baseFieldCls} border border-red-600 focus:border-red-500`;
 const errCls =
   "mt-2 font-mono text-[10px] tracking-[0.14em] text-red-400 uppercase";
-const hintCls = "mt-2 font-mono text-[10px] tracking-[0.12em] text-neutral-500 uppercase";
 
 type Status = "idle" | "submitting" | "success";
 
-export function QuoteForm() {
-  const [values, setValues] = useState<QuoteFormValues>(initialValues);
+export function ApplyForm() {
+  const [values, setValues] = useState<ApplyFormValues>(initialValues);
   const [errors, setErrors] = useState<Errors>({});
   const [status, setStatus] = useState<Status>("idle");
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  function update<K extends keyof QuoteFormValues>(
+  function update<K extends keyof ApplyFormValues>(
     key: K,
-    value: QuoteFormValues[K],
+    value: ApplyFormValues[K],
   ) {
     setValues((prev) => ({ ...prev, [key]: value }));
     setErrors((prev) => {
@@ -115,7 +125,7 @@ export function QuoteForm() {
     setStatus("submitting");
 
     try {
-      const res = await fetch("/api/quote", {
+      const res = await fetch("/api/apply", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(values),
@@ -124,7 +134,7 @@ export function QuoteForm() {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
         setSubmitError(
           data.error ??
-            "Could not send your request. Please try again in a moment.",
+            "Could not send your application. Please try again in a moment.",
         );
         setStatus("idle");
         return;
@@ -173,22 +183,6 @@ export function QuoteForm() {
           />
         </Field>
 
-        <Field id="email" label="Email" required error={errors.email}>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            inputMode="email"
-            value={values.email}
-            onChange={(e) => update("email", e.target.value)}
-            className={errors.email ? errorFieldCls : fieldCls}
-            placeholder="you@company.com"
-            aria-invalid={!!errors.email}
-            aria-describedby={errors.email ? "email-error" : undefined}
-          />
-        </Field>
-
         <Field id="phone" label="Phone" required error={errors.phone}>
           <input
             id="phone"
@@ -204,56 +198,114 @@ export function QuoteForm() {
             aria-describedby={errors.phone ? "phone-error" : undefined}
           />
         </Field>
+
+        <Field id="email" label="Email" required error={errors.email}>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            inputMode="email"
+            value={values.email}
+            onChange={(e) => update("email", e.target.value)}
+            className={errors.email ? errorFieldCls : fieldCls}
+            placeholder="you@example.com"
+            aria-invalid={!!errors.email}
+            aria-describedby={errors.email ? "email-error" : undefined}
+          />
+        </Field>
       </Section>
 
-      {/* 02 / Load */}
-      <Section number="02" title="Load">
-        <Field id="commodity" label="Commodity" required error={errors.commodity}>
-          <input
-            id="commodity"
-            name="commodity"
-            type="text"
-            value={values.commodity}
-            onChange={(e) => update("commodity", e.target.value)}
-            className={errors.commodity ? errorFieldCls : fieldCls}
-            placeholder="Skid steer, palletized parts, machinery…"
-            aria-invalid={!!errors.commodity}
-            aria-describedby={errors.commodity ? "commodity-error" : undefined}
-          />
-        </Field>
-
+      {/* 02 / Operations */}
+      <Section number="02" title="Operations">
         <Field
-          id="weight"
-          label="Estimated weight"
+          id="equipmentType"
+          label="Equipment"
           required
-          error={errors.weight}
-          hint="Include units if you know them — lbs, kg, tons."
+          error={errors.equipmentType}
         >
-          <input
-            id="weight"
-            name="weight"
-            type="text"
-            inputMode="decimal"
-            value={values.weight}
-            onChange={(e) => update("weight", e.target.value)}
-            className={errors.weight ? errorFieldCls : fieldCls}
-            placeholder="12,000 lbs"
-            aria-invalid={!!errors.weight}
+          <select
+            id="equipmentType"
+            name="equipmentType"
+            value={values.equipmentType}
+            onChange={(e) => update("equipmentType", e.target.value)}
+            className={`${errors.equipmentType ? errorFieldCls : fieldCls} appearance-none`}
+            aria-invalid={!!errors.equipmentType}
             aria-describedby={
-              errors.weight ? "weight-error" : "weight-hint"
+              errors.equipmentType ? "equipmentType-error" : undefined
             }
+          >
+            <option value="" disabled>
+              Select equipment\u2026
+            </option>
+            {equipmentOptions.map((opt) => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
+          </select>
+        </Field>
+
+        <Field id="cdlStatus" label="CDL status" required error={errors.cdlStatus}>
+          <select
+            id="cdlStatus"
+            name="cdlStatus"
+            value={values.cdlStatus}
+            onChange={(e) => update("cdlStatus", e.target.value)}
+            className={`${errors.cdlStatus ? errorFieldCls : fieldCls} appearance-none`}
+            aria-invalid={!!errors.cdlStatus}
+            aria-describedby={
+              errors.cdlStatus ? "cdlStatus-error" : undefined
+            }
+          >
+            <option value="" disabled>
+              Select CDL status\u2026
+            </option>
+            {cdlOptions.map((opt) => (
+              <option key={opt} value={opt}>
+                {opt}
+              </option>
+            ))}
+          </select>
+        </Field>
+
+        <Field id="yearsExperience" label="Years experience">
+          <input
+            id="yearsExperience"
+            name="yearsExperience"
+            type="text"
+            inputMode="numeric"
+            value={values.yearsExperience}
+            onChange={(e) => update("yearsExperience", e.target.value)}
+            className={fieldCls}
+            placeholder="5"
           />
         </Field>
 
-        <Field id="notes" label="Notes / load details">
-          <textarea
-            id="notes"
-            name="notes"
-            rows={4}
-            value={values.notes}
-            onChange={(e) => update("notes", e.target.value)}
+        <Field id="homeBase" label="Home base / state">
+          <input
+            id="homeBase"
+            name="homeBase"
+            type="text"
+            value={values.homeBase}
+            onChange={(e) => update("homeBase", e.target.value)}
             className={fieldCls}
-            placeholder="Pickup/drop locations, dates, equipment needs, anything else dispatch should know."
+            placeholder="Houston, TX"
+          />
+        </Field>
+      </Section>
+
+      {/* 03 / Notes */}
+      <Section number="03" title="Anything else">
+        <Field id="message" label="Message">
+          <textarea
+            id="message"
+            name="message"
+            rows={4}
+            value={values.message}
+            onChange={(e) => update("message", e.target.value)}
+            className={fieldCls}
+            placeholder="Lanes you prefer, availability, anything dispatch should know."
           />
         </Field>
       </Section>
@@ -282,14 +334,12 @@ export function QuoteForm() {
           disabled={status === "submitting"}
           className="btn-cut inline-flex w-full items-center justify-center bg-red-600 px-8 py-4 text-sm font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
         >
-          {status === "submitting" ? "Sending\u2026" : "Submit to dispatch"}
+          {status === "submitting" ? "Sending\u2026" : "Submit application"}
         </button>
       </div>
     </form>
   );
 }
-
-/* ----------------------------- subcomponents ----------------------------- */
 
 function Section({
   number,
@@ -303,9 +353,7 @@ function Section({
   return (
     <fieldset>
       <legend className="mb-6 flex items-baseline gap-3">
-        <span className="font-mono text-xs text-red-500">
-          {number}
-        </span>
+        <span className="font-mono text-xs text-red-500">{number}</span>
         <span className="font-mono text-[11px] tracking-[0.22em] text-white uppercase">
           / {title}
         </span>
@@ -320,14 +368,12 @@ function Field({
   label,
   required,
   error,
-  hint,
   children,
 }: {
   id: string;
   label: string;
   required?: boolean;
   error?: string;
-  hint?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -340,10 +386,6 @@ function Field({
       {error ? (
         <p id={`${id}-error`} role="alert" className={errCls}>
           {error}
-        </p>
-      ) : hint ? (
-        <p id={`${id}-hint`} className={hintCls}>
-          {hint}
         </p>
       ) : null}
     </div>
@@ -359,11 +401,11 @@ function SuccessState({ onReset }: { onReset: () => void }) {
         Submitted
       </p>
       <h2 className="mt-4 text-2xl font-display tracking-[-0.01em] text-white sm:text-3xl">
-        Request received.
+        Application received.
       </h2>
       <p className="mt-3 max-w-md text-sm leading-relaxed text-neutral-400">
-        Dispatch will review the details and follow up. For anything
-        time-critical, call{" "}
+        Dispatch will review the details and follow up. If you want to speak
+        sooner, call{" "}
         <a
           href={phoneHref}
           className="text-zinc-100 underline-offset-4 hover:text-white hover:underline"
@@ -375,7 +417,7 @@ function SuccessState({ onReset }: { onReset: () => void }) {
       <div className="mt-7 flex flex-col items-stretch gap-2.5 sm:flex-row sm:gap-3">
         <Link
           href="/"
-          className="btn-outline-cut inline-flex items-center justify-center px-5 py-3 text-xs font-semibold uppercase tracking-[0.14em] text-zinc-100 transition-colors"
+          className="inline-flex items-center justify-center border border-neutral-700 px-5 py-3 text-xs font-semibold uppercase tracking-[0.14em] text-zinc-100 transition-colors hover:border-neutral-500 hover:bg-neutral-800"
         >
           Back to home
         </Link>
