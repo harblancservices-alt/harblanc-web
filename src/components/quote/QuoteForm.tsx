@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { company } from "@/lib/company";
 
 /**
  * Public Quick Quote form (Phase 2A).
@@ -121,6 +120,26 @@ export function QuoteForm() {
   const [status, setStatus] = useState<Status>("idle");
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  /**
+   * Anti-spam: honeypot + min-time check.
+   *
+   * - `honeypot` is a hidden field that real users never see (off-screen,
+   *   tabindex=-1, aria-hidden). Bots that auto-fill every input will
+   *   trip it. The form refuses to submit if it's non-empty.
+   * - `formStartedAt` is set on mount via useEffect. Submissions that
+   *   arrive faster than MIN_SUBMIT_MS after the form rendered are
+   *   almost certainly automated and refused server-side.
+   *
+   * Both checks happen on the server too — never trust client guards
+   * alone. These client checks just keep dispatch from receiving
+   * obvious bot traffic.
+   */
+  const [honeypot, setHoneypot] = useState("");
+  const formStartedAtRef = useRef<number>(0);
+  useEffect(() => {
+    formStartedAtRef.current = Date.now();
+  }, []);
+
   function update<K extends keyof QuickQuoteValues>(
     key: K,
     value: QuickQuoteValues[K],
@@ -154,7 +173,11 @@ export function QuoteForm() {
       const res = await fetch("/api/quote", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
+        body: JSON.stringify({
+          ...values,
+          website: honeypot,
+          formStartedAt: formStartedAtRef.current,
+        }),
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
@@ -179,6 +202,32 @@ export function QuoteForm() {
       aria-busy={status === "submitting"}
       className="space-y-10"
     >
+      {/* Honeypot — invisible to real users, irresistible to bots.
+          Off-screen via position absolute, plus aria-hidden + tabIndex=-1
+          so screen readers and keyboard users skip it. */}
+      <div
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          left: "-10000px",
+          top: "auto",
+          width: "1px",
+          height: "1px",
+          overflow: "hidden",
+        }}
+      >
+        <label htmlFor="website">Website (leave blank)</label>
+        <input
+          id="website"
+          name="website"
+          type="text"
+          autoComplete="off"
+          tabIndex={-1}
+          value={honeypot}
+          onChange={(e) => setHoneypot(e.target.value)}
+        />
+      </div>
+
       {/* 01 / Lane */}
       <Section number="01" title="Lane">
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
@@ -375,24 +424,14 @@ export function QuoteForm() {
           disabled={status === "submitting"}
           className="btn-cut inline-flex w-full items-center justify-center bg-red-600 px-8 py-4 text-sm font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
         >
-          {status === "submitting" ? "Sending…" : "Request a quote"}
+          {status === "submitting" ? "Sending..." : "Request a quote"}
         </button>
-
-        <p className="font-mono text-[10px] tracking-[0.18em] text-neutral-600 uppercase">
-          Or call dispatch direct: {" "}
-          <a
-            href={`tel:${company.dispatchPhone.replace(/[^\d+]/g, "")}`}
-            className="text-zinc-300 underline-offset-4 hover:text-white hover:underline"
-          >
-            {company.dispatchPhone}
-          </a>
-        </p>
       </div>
     </form>
   );
 }
 
-/* ----------------------------- subcomponents ----------------------------- */
+/* ---------- helpers ---------- */
 
 function Section({
   number,
@@ -404,15 +443,17 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <fieldset>
-      <legend className="mb-6 flex items-baseline gap-3">
-        <span className="font-mono text-xs text-red-500">{number}</span>
-        <span className="font-mono text-[11px] tracking-[0.22em] text-white uppercase">
-          / {title}
+    <section className="space-y-5">
+      <div className="flex items-baseline gap-3">
+        <span className="font-mono text-[10px] tracking-[0.22em] text-red-500 uppercase">
+          {number}
         </span>
-      </legend>
-      <div className="space-y-6">{children}</div>
-    </fieldset>
+        <h2 className="font-mono text-[11px] tracking-[0.22em] text-neutral-300 uppercase">
+          {title}
+        </h2>
+      </div>
+      {children}
+    </section>
   );
 }
 
@@ -435,16 +476,13 @@ function Field({
     <div>
       <label htmlFor={id} className={labelCls}>
         {label}
-        {required && requiredMark}
+        {required ? requiredMark : null}
       </label>
       {children}
+      {hint && !error ? <p className={hintCls}>{hint}</p> : null}
       {error ? (
         <p id={`${id}-error`} role="alert" className={errCls}>
           {error}
-        </p>
-      ) : hint ? (
-        <p id={`${id}-hint`} className={hintCls}>
-          {hint}
         </p>
       ) : null}
     </div>

@@ -24,6 +24,16 @@ export type DispatchEventKind =
   | "estimate_accepted"
   | "estimate_declined"
   | "intake_submitted"
+  | "finalized_quote_draft_started"
+  | "finalized_quote_draft_saved"
+  | "finalized_quote_preview_built"
+  | "finalized_quote_sent"
+  | "finalized_quote_send_failed"
+  | "bol_draft_started"
+  | "bol_draft_saved"
+  | "bol_preview_built"
+  | "bol_sent"
+  | "bol_send_failed"
   | "pdf_generated"
   | "note";
 
@@ -45,6 +55,59 @@ export type DispatchEventPayloadByKind = {
   estimate_accepted: { estimateId: string; mode: "save" | "submit" };
   estimate_declined: { estimateId: string; reason: string | null };
   intake_submitted: { estimateId: string };
+  finalized_quote_draft_started: {
+    finalizedQuoteId: string;
+    finalizedQuoteNumber: string;
+    dispatchEstimateId: string;
+  };
+  finalized_quote_draft_saved: {
+    finalizedQuoteId: string;
+    finalizedQuoteNumber: string;
+    totalAmount: number | null;
+  };
+  finalized_quote_preview_built: {
+    finalizedQuoteId: string;
+    finalizedQuoteNumber: string;
+    totalAmount: number | null;
+  };
+  finalized_quote_sent: {
+    finalizedQuoteId: string;
+    finalizedQuoteNumber: string;
+    totalAmount: number | null;
+    emailId: string | null;
+    to: string;
+  };
+  finalized_quote_send_failed: {
+    finalizedQuoteId: string;
+    finalizedQuoteNumber: string;
+    reason: string;
+    to: string;
+  };
+  bol_draft_started: {
+    bolId: string;
+    bolNumber: string;
+    finalizedQuoteId: string;
+  };
+  bol_draft_saved: {
+    bolId: string;
+    bolNumber: string;
+  };
+  bol_preview_built: {
+    bolId: string;
+    bolNumber: string;
+  };
+  bol_sent: {
+    bolId: string;
+    bolNumber: string;
+    emailId: string | null;
+    to: string;
+  };
+  bol_send_failed: {
+    bolId: string;
+    bolNumber: string;
+    reason: string;
+    to: string;
+  };
   pdf_generated: { quoteNumber: string };
   note: { body: string };
 };

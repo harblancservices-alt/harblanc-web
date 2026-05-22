@@ -16,6 +16,11 @@ import { LEAD_STATUS_LABELS, type LeadStatus } from "@/lib/dispatch/status";
  *   - short payload-derived description
  *
  * Includes a "Add note" composer at top for free-form operational notes.
+ *
+ * Phase 5C audit fix: added render branches for estimate_accepted,
+ * estimate_declined, intake_submitted, and the full finalized_quote_* /
+ * bol_* event families. Previously they fell through to the default
+ * (raw kind name + neutral dot + no description).
  */
 
 export type DispatchEvent = {
@@ -35,6 +40,19 @@ const KIND_LABELS: Record<string, string> = {
   estimate_draft_saved: "Draft saved",
   estimate_sent: "Estimate sent",
   estimate_send_failed: "Estimate send failed",
+  estimate_accepted: "Customer accepted estimate",
+  estimate_declined: "Customer declined estimate",
+  intake_submitted: "Customer submitted intake",
+  finalized_quote_draft_started: "Finalized quote draft started",
+  finalized_quote_draft_saved: "Finalized quote draft saved",
+  finalized_quote_preview_built: "Finalized quote preview built",
+  finalized_quote_sent: "Finalized quote sent",
+  finalized_quote_send_failed: "Finalized quote send failed",
+  bol_draft_started: "BOL draft started",
+  bol_draft_saved: "BOL draft saved",
+  bol_preview_built: "BOL preview built",
+  bol_sent: "BOL sent",
+  bol_send_failed: "BOL send failed",
   pdf_generated: "Quote PDF generated",
   note: "Note",
 };
@@ -49,9 +67,31 @@ const KIND_DOT_CLASSES: Record<string, string> = {
   estimate_draft_saved: "bg-neutral-400",
   estimate_sent: "bg-green-500",
   estimate_send_failed: "bg-red-500",
+  estimate_accepted: "bg-green-500",
+  estimate_declined: "bg-red-500",
+  intake_submitted: "bg-green-500",
+  finalized_quote_draft_started: "bg-neutral-400",
+  finalized_quote_draft_saved: "bg-neutral-400",
+  finalized_quote_preview_built: "bg-amber-500",
+  finalized_quote_sent: "bg-green-500",
+  finalized_quote_send_failed: "bg-red-500",
+  bol_draft_started: "bg-neutral-400",
+  bol_draft_saved: "bg-neutral-400",
+  bol_preview_built: "bg-amber-500",
+  bol_sent: "bg-emerald-500",
+  bol_send_failed: "bg-red-500",
   pdf_generated: "bg-blue-500",
   note: "bg-neutral-400",
 };
+
+function fmtUsd(n: number): string {
+  return n.toLocaleString("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
+}
 
 function describe(event: DispatchEvent): string {
   const p = event.payload ?? {};
@@ -77,6 +117,44 @@ function describe(event: DispatchEvent): string {
       if (high == null) return `$${low}`;
       return `$${low}–$${high}`;
     }
+    case "estimate_accepted": {
+      const mode = String(p.mode ?? "");
+      if (mode === "submit") {
+        return "accepted via Submit (intake also submitted)";
+      }
+      if (mode === "save") {
+        return "accepted via Save Progress";
+      }
+      return "accepted";
+    }
+    case "estimate_declined":
+      return p.reason ? String(p.reason) : "no reason given";
+    case "intake_submitted":
+      return "shipment details finalized";
+    case "finalized_quote_draft_started":
+    case "finalized_quote_draft_saved":
+    case "finalized_quote_preview_built":
+    case "finalized_quote_sent": {
+      const num = p.finalizedQuoteNumber ? String(p.finalizedQuoteNumber) : "";
+      const total = typeof p.totalAmount === "number" ? fmtUsd(p.totalAmount) : null;
+      if (num && total) return `${num} · ${total}`;
+      if (num) return num;
+      if (total) return total;
+      return "";
+    }
+    case "finalized_quote_send_failed":
+      return p.reason ? String(p.reason) : "";
+    case "bol_draft_started":
+    case "bol_draft_saved":
+    case "bol_preview_built":
+    case "bol_sent": {
+      const num = p.bolNumber ? String(p.bolNumber) : "";
+      const to = p.to ? `to ${String(p.to)}` : "";
+      if (num && to) return `${num} · ${to}`;
+      return num || to;
+    }
+    case "bol_send_failed":
+      return p.reason ? String(p.reason) : "";
     case "pdf_generated":
       return p.quoteNumber ? String(p.quoteNumber) : "";
     case "note":
@@ -143,7 +221,7 @@ export function CommTimeline({
           value={noteBody}
           onChange={(e) => setNoteBody(e.target.value)}
           className="block w-full bg-neutral-900 border border-neutral-800 px-3 py-2.5 text-base text-zinc-100 placeholder:text-neutral-600 focus:border-red-600 focus:outline-none resize-y"
-          placeholder='e.g. "Called Mike — said he’ll confirm dimensions by Wed."'
+          placeholder='e.g. "Called Mike — said he&rsquo;ll confirm dimensions by Wed."'
         />
         {error ? (
           <p
@@ -160,7 +238,7 @@ export function CommTimeline({
             disabled={isPending || noteBody.trim().length === 0}
             className="btn-outline-cut inline-flex items-center justify-center px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-zinc-100 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {isPending ? "Saving…" : "Add note"}
+            {isPending ? "Saving..." : "Add note"}
           </button>
         </div>
       </div>
@@ -173,8 +251,7 @@ export function CommTimeline({
       ) : (
         <ol className="border border-neutral-800 bg-neutral-950">
           {events.map((event, i) => {
-            const dotCls =
-              KIND_DOT_CLASSES[event.kind] ?? "bg-neutral-500";
+            const dotCls = KIND_DOT_CLASSES[event.kind] ?? "bg-neutral-500";
             const label = KIND_LABELS[event.kind] ?? event.kind;
             const detail = describe(event);
             const isLast = i === events.length - 1;

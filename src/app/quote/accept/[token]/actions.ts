@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { logDispatchEvent } from "@/lib/dispatch/events";
 import { resolveByToken } from "@/lib/quote-token/lookup";
+import { isLeadStatus, type LeadStatus } from "@/lib/dispatch/status";
 
 /**
  * Server actions for the customer-facing /quote/accept/[token] page.
@@ -11,9 +12,27 @@ import { resolveByToken } from "@/lib/quote-token/lookup";
  * No admin auth — the accept_token IS the authorization. resolveByToken
  * gates both Save Progress and Submit. Rejected lookups return cleanly
  * without leaking which step failed.
+ *
+ * Submission-side bookkeeping (Phase 5C audit fix):
+ *   - On first interaction (any mode): stamp dispatch_estimates.accepted_at
+ *     and log estimate_accepted. Idempotent.
+ *   - On Submit specifically: log intake_submitted regardless of whether
+ *     the customer also accepted in the same call. The previous
+ *     `if (!acceptedAt) { ... } else if (mode === "submit") { ... }`
+ *     swallowed intake_submitted on the common single-session path.
+ *   - On Submit, advance quote_requests.lead_status to
+ *     awaiting_confirmation when the lead is still in {new, contacted,
+ *     estimate_sent}. Logs status_changed. Status never moves backwards.
  */
 
 type SaveMode = "save" | "submit";
+
+/** Statuses from which Submit should advance the lead to awaiting_confirmation. */
+const ADVANCE_FROM_STATUSES: ReadonlySet<LeadStatus> = new Set([
+  "new",
+  "contacted",
+  "estimate_sent",
+]);
 
 function s(v: FormDataEntryValue | null): string | null {
   if (v == null) return null;
@@ -90,7 +109,7 @@ async function persistIntake(
     mode === "submit" ? "submitted" : "in_progress";
   const submittedAt = mode === "submit" ? new Date().toISOString() : null;
 
-  // Look for an existing intake row.
+  // Upsert the intake row.
   const { data: existing } = await sb
     .from("shipment_intake")
     .select("id")
@@ -115,8 +134,10 @@ async function persistIntake(
     if (error) return { ok: false, reason: error.message };
   }
 
-  // Stamp accepted_at on the estimate when the customer first interacts.
-  // Idempotent: only sets it the first time.
+  // ── First-interaction bookkeeping ──────────────────────────────────────
+  //
+  // Stamp accepted_at on the estimate when the customer first touches the
+  // intake. Idempotent — only the first call sets it.
   if (!estimate.acceptedAt) {
     await sb
       .from("dispatch_estimates")
@@ -126,14 +147,58 @@ async function persistIntake(
       mode,
       estimateId: estimate.id,
     });
-  } else if (mode === "submit") {
+  }
+
+  // ── Submit-only bookkeeping ────────────────────────────────────────────
+  //
+  // Log intake_submitted independently of acceptance. Previous logic
+  // (else-if) swallowed this event on the most common path — customer
+  // accepts and submits in one session.
+  //
+  // Then advance lead_status to awaiting_confirmation if the lead is
+  // still in the early funnel. Never moves status backwards.
+  if (mode === "submit") {
     await logDispatchEvent(sb, lead.id, "intake_submitted", {
       estimateId: estimate.id,
     });
+
+    const { data: leadStatusRow } = await sb
+      .from("quote_requests")
+      .select("lead_status")
+      .eq("id", lead.id)
+      .maybeSingle<{ lead_status: string }>();
+
+    if (
+      leadStatusRow &&
+      isLeadStatus(leadStatusRow.lead_status) &&
+      ADVANCE_FROM_STATUSES.has(leadStatusRow.lead_status)
+    ) {
+      const previous = leadStatusRow.lead_status;
+      const now = new Date().toISOString();
+      const { error: statusError } = await sb
+        .from("quote_requests")
+        .update({
+          lead_status: "awaiting_confirmation",
+          lead_status_updated_at: now,
+        })
+        .eq("id", lead.id);
+      if (statusError) {
+        console.error("[submitIntake] status advance failed", {
+          leadId: lead.id,
+          message: statusError.message,
+        });
+      } else {
+        await logDispatchEvent(sb, lead.id, "status_changed", {
+          from: previous,
+          to: "awaiting_confirmation",
+        });
+      }
+    }
   }
 
   revalidatePath(`/admin/quotes/${lead.id}`);
   revalidatePath("/admin/quotes");
+  revalidatePath("/admin");
   revalidatePath(`/quote/accept/${token}`);
   return { ok: true, status };
 }

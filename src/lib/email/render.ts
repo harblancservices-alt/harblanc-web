@@ -29,8 +29,8 @@ const MONO_FEATURES =
 // ─────────────────────────────────────────────────────────────────────────────
 
 const SECTION_PADDING_X = 20;
-const SECTION_PADDING_Y_TOP = 10;
-const SECTION_PADDING_Y_BOTTOM = 10;
+const SECTION_PADDING_Y_TOP = 8;
+const SECTION_PADDING_Y_BOTTOM = 8;
 
 const HAIRLINE = `<tr><td style="padding:0;background:#e5e5e5;font-size:1px;line-height:1px">&nbsp;</td></tr>`;
 
@@ -43,11 +43,11 @@ const HAIRLINE = `<tr><td style="padding:0;background:#e5e5e5;font-size:1px;line
 function sectionHeader(title: string, inverted = false): string {
   const titleColor = inverted ? "#fafafa" : "#0a0a0a";
   const ruleColor = inverted ? "#3f3f46" : "#d4d4d8";
-  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;width:100%;margin:0 0 12px">
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;width:100%;margin:0 0 10px">
     <tr>
-      <td style="border-top:1px solid ${ruleColor};font-size:1px;line-height:1px;width:40%">&nbsp;</td>
-      <td style="padding:0 16px;white-space:nowrap;font-family:${SANS};${MONO_FEATURES};font-size:11px;letter-spacing:0.28em;color:${titleColor};text-transform:uppercase;font-weight:800;text-align:center;vertical-align:middle">${escapeHtml(title)}</td>
-      <td style="border-top:1px solid ${ruleColor};font-size:1px;line-height:1px;width:40%">&nbsp;</td>
+      <td style="border-top:1px solid ${ruleColor};font-size:1px;line-height:1px;width:30%">&nbsp;</td>
+      <td style="padding:0 12px;white-space:nowrap;font-family:${SANS};${MONO_FEATURES};font-size:11px;letter-spacing:0.22em;color:${titleColor};text-transform:uppercase;font-weight:700;text-align:center;vertical-align:middle">${escapeHtml(title)}</td>
+      <td style="border-top:1px solid ${ruleColor};font-size:1px;line-height:1px;width:30%">&nbsp;</td>
     </tr>
   </table>`;
 }
@@ -66,9 +66,9 @@ function fieldTable(
 
   const body = rows
     .map(({ label, value }) => {
-      const valueStyle = `padding:3px 0;font-size:15px;color:${valueColor};font-weight:500`;
+      const valueStyle = `padding:2px 0;font-size:15px;color:${valueColor};font-weight:500`;
       return `<tr>
-        <td style="padding:3px 16px 3px 0;font-family:${SANS};${MONO_FEATURES};font-size:10px;color:${labelColor};text-transform:uppercase;letter-spacing:0.22em;white-space:nowrap;font-weight:700;vertical-align:top;width:120px">${escapeHtml(label)}</td>
+        <td style="padding:2px 14px 2px 0;font-family:${SANS};${MONO_FEATURES};font-size:10px;color:${labelColor};text-transform:uppercase;letter-spacing:0.18em;white-space:nowrap;font-weight:700;vertical-align:top;width:120px">${escapeHtml(label)}</td>
         <td style="${valueStyle};vertical-align:top">${value}</td>
       </tr>`;
     })
@@ -106,11 +106,11 @@ function rateSummaryTable(
       }
       const isTotal = !!row.emphasize;
       const labelStyle = isTotal
-        ? `padding:5px 0 3px;font-family:${SANS};${MONO_FEATURES};font-size:10px;color:${emphasizeLabelColor};text-transform:uppercase;letter-spacing:0.22em;font-weight:700;vertical-align:middle`
-        : `padding:4px 0;font-family:${SANS};font-size:14px;color:${labelColor};font-weight:500;vertical-align:middle`;
+        ? `padding:4px 0 2px;font-family:${SANS};${MONO_FEATURES};font-size:10px;color:${emphasizeLabelColor};text-transform:uppercase;letter-spacing:0.18em;font-weight:700;vertical-align:middle`
+        : `padding:3px 0;font-family:${SANS};font-size:14px;color:${labelColor};font-weight:500;vertical-align:middle`;
       const amountStyle = isTotal
-        ? `padding:5px 0 3px;font-family:${SANS};${MONO_FEATURES};font-size:20px;color:${amountColor};font-weight:700;text-align:right;vertical-align:middle`
-        : `padding:4px 0;font-family:${SANS};${MONO_FEATURES};font-size:14px;color:${amountColor};font-weight:500;text-align:right;vertical-align:middle`;
+        ? `padding:4px 0 2px;font-family:${SANS};${MONO_FEATURES};font-size:17px;color:${amountColor};font-weight:700;text-align:right;vertical-align:middle`
+        : `padding:3px 0;font-family:${SANS};${MONO_FEATURES};font-size:14px;color:${amountColor};font-weight:500;text-align:right;vertical-align:middle`;
       return `<tr>
         <td style="${labelStyle}">${escapeHtml(row.label)}</td>
         <td style="${amountStyle}">${escapeHtml(row.amount)}</td>
@@ -341,10 +341,12 @@ function actionBand(
   declineUrl: string,
   validThrough: string | null,
 ): string {
-  const acceptBg = "#15803d";
-  const acceptBorder = "#166534";
-  const declineBg = "#991b1b";
-  const declineBorder = "#7f1d1d";
+  // Muted operational tones — green-900 / red-900 register, not the brighter
+  // 700-tier marketing greens/reds.
+  const acceptBg = "#166534";
+  const acceptBorder = "#14532d";
+  const declineBg = "#7f1d1d";
+  const declineBorder = "#450a0a";
 
   const button = (
     href: string,
@@ -355,7 +357,7 @@ function actionBand(
     `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;width:100%">
       <tr>
         <td align="center" bgcolor="${bg}" style="background:${bg};border:1px solid ${border}">
-          <a href="${escapeHtml(href)}" style="display:block;padding:14px 18px;font-family:${SANS};${MONO_FEATURES};font-size:12px;letter-spacing:0.22em;color:#ffffff;text-decoration:none;text-transform:uppercase;font-weight:800">${escapeHtml(label)}</a>
+          <a href="${escapeHtml(href)}" style="display:block;padding:11px 16px;font-family:${SANS};${MONO_FEATURES};font-size:12px;letter-spacing:0.18em;color:#ffffff;text-decoration:none;text-transform:uppercase;font-weight:700">${escapeHtml(label)}</a>
         </td>
       </tr>
     </table>`;
@@ -380,8 +382,7 @@ function actionBand(
           </td>
         </tr>
       </table>
-      <p style="margin:14px 0 0;font-family:${SANS};${MONO_FEATURES};font-size:10px;letter-spacing:0.16em;color:#52525b;text-transform:uppercase;text-align:center">Quote ID&nbsp;&middot;&nbsp;<span style="color:#0a0a0a;font-weight:700">${escapeHtml(validThrough ? "Valid through " + validThrough : "Subject to change")}</span></p>
-      <p style="margin:6px 0 0;font-family:${SANS};font-size:11px;color:#52525b;line-height:1.55;text-align:center">${validityLine}</p>
+      <p style="margin:12px 0 0;font-family:${SANS};font-size:11px;color:#52525b;line-height:1.5">${validityLine}</p>
     </td>
   </tr>`;
 }

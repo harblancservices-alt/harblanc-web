@@ -17,6 +17,24 @@ import { StatusBadge } from "./StatusBadge";
 import { StatusSelector } from "./StatusSelector";
 import { QuickActions } from "./QuickActions";
 import { type LeadStatus } from "@/lib/dispatch/status";
+import {
+  FinalizedQuoteSection,
+  type FinalizedQuoteWorkflowState,
+} from "./FinalizedQuoteSection";
+import type { SentFinalizedQuoteRow } from "./SentFinalizedQuotesList";
+import {
+  BillOfLadingSection,
+  type BolWorkflowState,
+} from "./BillOfLadingSection";
+import type { SentBolRow } from "./SentBolsList";
+import {
+  SubmittedIntakePanel,
+  type SubmittedIntakeData,
+} from "./SubmittedIntakePanel";
+import {
+  DispatchOwnershipPanel,
+  type DispatchOwnership,
+} from "./DispatchOwnershipPanel";
 
 export type QuoteDetailRow = {
   id: string;
@@ -36,13 +54,19 @@ export type QuoteDetailRow = {
   ip: string | null;
   deleted_at: string | null;
   delete_after: string | null;
+  assigned_dispatcher: string | null;
+  assigned_carrier: string | null;
+  assigned_truck: string | null;
+  trailer_type: string | null;
 };
 
-type TabId = "request" | "activity" | "generated" | "metadata";
+type TabId = "request" | "activity" | "finalized" | "bol" | "generated" | "metadata";
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "request", label: "Workspace" },
   { id: "activity", label: "Activity" },
+  { id: "finalized", label: "Finalized Quote" },
+  { id: "bol", label: "BOL" },
   { id: "generated", label: "Generated Quote" },
   { id: "metadata", label: "Metadata" },
 ];
@@ -55,6 +79,12 @@ export function QuoteDetailTabs({
   sentEstimates,
   events,
   computedMiles,
+  finalizedQuoteState,
+  sentFinalizedQuotes,
+  bolState,
+  sentBols,
+  submittedIntake,
+  ownership,
 }: {
   row: QuoteDetailRow;
   generatedQuote: GeneratedQuoteSummary | null;
@@ -63,6 +93,12 @@ export function QuoteDetailTabs({
   sentEstimates: SentEstimateRow[];
   events: DispatchEvent[];
   computedMiles: number | null;
+  finalizedQuoteState: FinalizedQuoteWorkflowState;
+  sentFinalizedQuotes: SentFinalizedQuoteRow[];
+  bolState: BolWorkflowState;
+  sentBols: SentBolRow[];
+  submittedIntake: SubmittedIntakeData | null;
+  ownership: DispatchOwnership;
 }) {
   const [activeTab, setActiveTab] = useState<TabId>("request");
   const isTrashed = Boolean(row.deleted_at);
@@ -177,10 +213,31 @@ export function QuoteDetailTabs({
             sentEstimates={sentEstimates}
             computedMiles={computedMiles}
             isTrashed={isTrashed}
+            submittedIntake={submittedIntake}
+            ownership={ownership}
           />
         ) : null}
         {activeTab === "activity" ? (
           <CommTimeline quoteRequestId={row.id} events={events} />
+        ) : null}
+        {activeTab === "finalized" ? (
+          <FinalizedQuoteSection
+            quoteRequestId={row.id}
+            leadName={row.name}
+            state={finalizedQuoteState}
+            sentHistory={sentFinalizedQuotes}
+            isTrashed={isTrashed}
+            submittedIntake={submittedIntake}
+          />
+        ) : null}
+        {activeTab === "bol" ? (
+          <BillOfLadingSection
+            quoteRequestId={row.id}
+            leadName={row.name}
+            state={bolState}
+            sentHistory={sentBols}
+            isTrashed={isTrashed}
+          />
         ) : null}
         {activeTab === "generated" ? (
           <GeneratedQuoteTab
@@ -203,6 +260,8 @@ function RequestTab({
   sentEstimates,
   computedMiles,
   isTrashed,
+  submittedIntake,
+  ownership,
 }: {
   row: QuoteDetailRow;
   phoneHref: string;
@@ -210,17 +269,17 @@ function RequestTab({
   sentEstimates: SentEstimateRow[];
   computedMiles: number | null;
   isTrashed: boolean;
+  submittedIntake: SubmittedIntakeData | null;
+  ownership: DispatchOwnership;
 }) {
   const hasLane = Boolean(row.pickup_zip && row.delivery_zip);
 
   return (
     <div className="space-y-5">
-      {/* Quick dispatch actions — one-tap call / email / copy. */}
       {!isTrashed ? (
         <QuickActions phone={row.phone} email={row.email} />
       ) : null}
 
-      {/* Lane band — top of detail. Most important info at a glance. */}
       {hasLane ? (
         <section className="border border-neutral-800 bg-neutral-900/40 p-5 sm:p-6">
           <h2 className="font-mono text-[10px] tracking-[0.22em] text-red-500 uppercase">
@@ -249,7 +308,6 @@ function RequestTab({
         </section>
       ) : null}
 
-      {/* Primary contact + Shipment — stacked mobile, side-by-side tablet+ */}
       <div className="grid grid-cols-1 divide-y divide-neutral-800 border border-neutral-800 sm:grid-cols-2 sm:divide-x sm:divide-y-0">
         <section className="bg-neutral-900/40 p-5 sm:p-6">
           <h2 className="font-mono text-[10px] tracking-[0.22em] text-red-500 uppercase">
@@ -304,11 +362,17 @@ function RequestTab({
         </section>
       ) : null}
 
-      {/* Quick Estimate Composer — the dispatch workspace.
-          The `key` re-inits the composer when the draft identity
-          changes — e.g. after Send, when the previous draft is
-          consumed into history and the next draft slot opens up
-          empty. */}
+      {submittedIntake ? (
+        <SubmittedIntakePanel intake={submittedIntake} />
+      ) : null}
+
+      {!isTrashed ? (
+        <DispatchOwnershipPanel
+          quoteRequestId={row.id}
+          ownership={ownership}
+        />
+      ) : null}
+
       {!isTrashed ? (
         <section className="border border-neutral-800 border-t-2 border-t-red-600 bg-neutral-900/40 p-5 sm:p-6">
           <EstimateComposer
@@ -334,7 +398,6 @@ function RequestTab({
         </section>
       )}
 
-      {/* Estimate history — every sent estimate for this quote. */}
       <SentEstimatesList rows={sentEstimates} />
     </div>
   );

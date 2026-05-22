@@ -35,7 +35,14 @@ type Body = {
   phone?: unknown;
   email?: unknown;
   notes?: unknown;
+  /** Honeypot field — must be empty / absent for a real submission. */
+  website?: unknown;
+  /** Client timestamp when the form mounted (Date.now()). Must be >= 2s ago. */
+  formStartedAt?: unknown;
 };
+
+/** Minimum time between form-mount and submit. Anything faster is a bot. */
+const MIN_SUBMIT_MS = 2000;
 
 const MAX_LEN = {
   pickupZip: 10,
@@ -179,6 +186,35 @@ export async function POST(req: Request) {
     body = (await req.json()) as Body;
   } catch {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+  }
+
+  // ── Anti-spam: honeypot + minimum submit time ──────────────────────
+  //
+  // Both checks return a generic 400 — we deliberately don't reveal
+  // which check failed so bots can't differentiate. Real users never
+  // see either error because honest form fills always satisfy both.
+  const honeypot =
+    typeof body.website === "string" ? body.website.trim() : "";
+  if (honeypot.length > 0) {
+    console.warn("[quote] honeypot tripped", { ua: req.headers.get("user-agent") });
+    return NextResponse.json(
+      { error: "Could not save your request. Please try again." },
+      { status: 400 },
+    );
+  }
+
+  const formStartedAt =
+    typeof body.formStartedAt === "number" ? body.formStartedAt : 0;
+  const elapsed = Date.now() - formStartedAt;
+  if (formStartedAt > 0 && elapsed < MIN_SUBMIT_MS) {
+    console.warn("[quote] submit too fast", {
+      elapsedMs: elapsed,
+      ua: req.headers.get("user-agent"),
+    });
+    return NextResponse.json(
+      { error: "Could not save your request. Please try again." },
+      { status: 400 },
+    );
   }
 
   const result = validate(body);

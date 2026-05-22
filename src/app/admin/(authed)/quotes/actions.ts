@@ -829,6 +829,57 @@ export async function sendEstimate(quoteRequestId: string): Promise<void> {
   revalidatePath("/admin");
 }
 
+/**
+ * Update the lightweight "ownership" fields on a lead: dispatcher,
+ * carrier, truck, trailer type. All four are free-text and nullable —
+ * passing an empty string clears the field. Logged as a single note
+ * event so the timeline reflects the change.
+ */
+export async function updateDispatchOwnership(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const quoteRequestId = parseString(formData.get("quote_request_id"));
+  if (!quoteRequestId) {
+    throw new Error("Missing quote_request_id.");
+  }
+
+  const fields = {
+    assigned_dispatcher: parseString(formData.get("assigned_dispatcher")),
+    assigned_carrier: parseString(formData.get("assigned_carrier")),
+    assigned_truck: parseString(formData.get("assigned_truck")),
+    trailer_type: parseString(formData.get("trailer_type")),
+  };
+
+  const sb = createServiceRoleClient();
+  const { error } = await sb
+    .from("quote_requests")
+    .update(fields)
+    .eq("id", quoteRequestId);
+  if (error) {
+    throw new Error(`Could not save ownership: ${error.message}`);
+  }
+
+  // Audit trail: keep changes visible in Activity. Stored as a note so
+  // we don't need to introduce a new dispatch_events kind for what is
+  // essentially metadata bookkeeping.
+  const summary = [
+    fields.assigned_dispatcher ? `Dispatcher: ${fields.assigned_dispatcher}` : null,
+    fields.assigned_carrier ? `Carrier: ${fields.assigned_carrier}` : null,
+    fields.assigned_truck ? `Truck: ${fields.assigned_truck}` : null,
+    fields.trailer_type ? `Trailer: ${fields.trailer_type}` : null,
+  ]
+    .filter((v): v is string => v !== null)
+    .join(" · ");
+  await logDispatchEvent(sb, quoteRequestId, "note", {
+    body: summary.length > 0
+      ? `Dispatch ownership updated — ${summary}`
+      : "Dispatch ownership cleared.",
+  });
+
+  revalidatePath(`/admin/quotes/${quoteRequestId}`);
+  revalidatePath("/admin/quotes");
+  revalidatePath("/admin");
+}
+
 export async function addDispatchNote(formData: FormData): Promise<void> {
   await requireAdmin();
   const quoteRequestId = parseString(formData.get("quote_request_id"));
