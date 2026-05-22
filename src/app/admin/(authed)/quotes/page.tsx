@@ -16,7 +16,9 @@ async function loadQuotes(): Promise<{
   const [{ data }, { count }] = await Promise.all([
     sb
       .from("quote_requests")
-      .select("id, created_at, name, email, phone, commodity, weight")
+      .select(
+        "id, created_at, name, email, phone, commodity, weight, lead_status",
+      )
       .is("deleted_at", null)
       .order("created_at", { ascending: false }),
     sb

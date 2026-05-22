@@ -11,6 +11,7 @@ import { EstimateComposer, type EstimateDraft } from "./EstimateComposer";
 import { CommTimeline, type DispatchEvent } from "./CommTimeline";
 import { StatusBadge } from "./StatusBadge";
 import { StatusSelector } from "./StatusSelector";
+import { QuickActions } from "./QuickActions";
 import { type LeadStatus } from "@/lib/dispatch/status";
 
 export type QuoteDetailRow = {
@@ -60,13 +61,10 @@ export function QuoteDetailTabs({
   const [activeTab, setActiveTab] = useState<TabId>("request");
   const isTrashed = Boolean(row.deleted_at);
   const phoneHref = `tel:${row.phone.replace(/[^\d+]/g, "")}`;
-
-  // Activity tab gets a small badge with event count for triage.
   const activityCount = events.length;
 
   return (
     <>
-      {/* Title block + status row + Generate Quote button */}
       <header className="mt-5 sm:mt-6">
         <div className="flex flex-wrap items-center gap-3">
           <p className="font-mono text-[11px] tracking-[0.22em] text-red-500 uppercase">
@@ -110,7 +108,6 @@ export function QuoteDetailTabs({
           </div>
         </div>
 
-        {/* Status selector row */}
         {!isTrashed ? (
           <div className="mt-4">
             <StatusSelector
@@ -121,7 +118,6 @@ export function QuoteDetailTabs({
         ) : null}
       </header>
 
-      {/* Tab bar — browser-style tabs */}
       <nav
         role="tablist"
         aria-label="Quote detail sections"
@@ -161,7 +157,6 @@ export function QuoteDetailTabs({
         })}
       </nav>
 
-      {/* Tab content panel — overlaps tab bar bottom border via -mt-px */}
       <div
         id={`panel-${activeTab}`}
         role="tabpanel"
@@ -211,6 +206,11 @@ function RequestTab({
 
   return (
     <div className="space-y-5">
+      {/* Quick dispatch actions — one-tap call / email / copy. */}
+      {!isTrashed ? (
+        <QuickActions phone={row.phone} email={row.email} />
+      ) : null}
+
       {/* Lane band — top of detail. Most important info at a glance. */}
       {hasLane ? (
         <section className="border border-neutral-800 bg-neutral-900/40 p-5 sm:p-6">
@@ -284,7 +284,6 @@ function RequestTab({
         </section>
       </div>
 
-      {/* Notes */}
       {row.notes ? (
         <section className="border border-neutral-800 bg-neutral-900/40 p-5 sm:p-6">
           <h2 className="font-mono text-[10px] tracking-[0.22em] text-red-500 uppercase">

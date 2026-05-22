@@ -756,13 +756,15 @@ export async function sendEstimate(formData: FormData): Promise<void> {
     to: lead.email,
   });
 
-  // Advance funnel: new → engaged on first send. Don't move already-
-  // progressed leads backward.
-  if (lead.lead_status === "new") {
+  // Advance funnel: new → estimate_sent on first send (or contacted →
+  // estimate_sent if Brent already marked them contacted manually).
+  // Don't move already-progressed leads backward.
+  if (lead.lead_status === "new" || lead.lead_status === "contacted") {
+    const previous = lead.lead_status;
     const now = new Date().toISOString();
     const { error: statusError } = await sb
       .from("quote_requests")
-      .update({ lead_status: "engaged", lead_status_updated_at: now })
+      .update({ lead_status: "estimate_sent", lead_status_updated_at: now })
       .eq("id", input.quoteRequestId);
     if (statusError) {
       console.error("[sendEstimate] status advance failed", {
@@ -770,8 +772,8 @@ export async function sendEstimate(formData: FormData): Promise<void> {
       });
     } else {
       await logDispatchEvent(sb, input.quoteRequestId, "status_changed", {
-        from: "new",
-        to: "engaged",
+        from: previous,
+        to: "estimate_sent",
       });
     }
   }

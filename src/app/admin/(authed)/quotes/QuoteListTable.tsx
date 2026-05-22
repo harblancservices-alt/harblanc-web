@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { formatTimestampShort, isNew } from "@/lib/admin/format";
 import { softDeleteQuote, softDeleteQuotes } from "./actions";
+import { StatusBadge } from "./[id]/StatusBadge";
+import { type LeadStatus } from "@/lib/dispatch/status";
 
 export type QuoteListRow = {
   id: string;
@@ -13,10 +15,14 @@ export type QuoteListRow = {
   phone: string;
   commodity: string;
   weight: string;
+  lead_status: LeadStatus;
 };
 
+// Grid: checkbox / received / status / name / phone / email / commodity /
+// weight (compact) / action. Status replaces the prior dedicated weight
+// column position; weight moves narrower to make room for the badge.
 const colSpec =
-  "grid grid-cols-[40px_180px_minmax(140px,1fr)_140px_minmax(160px,1fr)_minmax(140px,1fr)_120px_70px] gap-x-3";
+  "grid grid-cols-[40px_180px_180px_minmax(140px,1fr)_140px_minmax(160px,1fr)_minmax(140px,1fr)_100px_70px] gap-x-3";
 
 const checkboxCls =
   "h-4 w-4 shrink-0 cursor-pointer accent-red-600 border border-neutral-600 bg-neutral-900 focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-1 focus:ring-offset-neutral-950";
@@ -110,7 +116,7 @@ export function QuoteListTable({ rows }: { rows: QuoteListRow[] }) {
       ) : null}
 
       <div className="mt-5 overflow-x-auto">
-        <div className="min-w-[1050px]">
+        <div className="min-w-[1130px]">
           <div
             className={`${colSpec} items-center border-b border-neutral-700 bg-neutral-900 px-3 py-3`}
           >
@@ -127,6 +133,7 @@ export function QuoteListTable({ rows }: { rows: QuoteListRow[] }) {
               />
             </div>
             <Th>Received</Th>
+            <Th>Status</Th>
             <Th>Name</Th>
             <Th>Phone</Th>
             <Th>Email</Th>
@@ -166,6 +173,9 @@ export function QuoteListTable({ rows }: { rows: QuoteListRow[] }) {
                         </span>
                       ) : null}
                       <span>{formatTimestampShort(r.created_at)}</span>
+                    </span>
+                    <span className="flex items-center">
+                      <StatusBadge status={r.lead_status} />
                     </span>
                     <span className="truncate text-sm font-semibold text-white">
                       {r.name}
