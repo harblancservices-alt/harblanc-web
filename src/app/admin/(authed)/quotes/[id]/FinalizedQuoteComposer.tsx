@@ -216,12 +216,19 @@ export function FinalizedQuoteComposer({
   );
 
   // ── Policies / agreement ─────────────────────────────────────────────
-  const [detentionPolicy, setDetentionPolicy] = useState(strOrEmpty(draft.detentionPolicy));
-  const [tonuPolicy, setTonuPolicy] = useState(strOrEmpty(draft.tonuPolicy));
-  const [paymentInstructions, setPaymentInstructions] = useState(strOrEmpty(draft.paymentInstructions));
-  const [dispatchConfirmationStatement, setDispatchConfirmationStatement] = useState(strOrEmpty(draft.dispatchConfirmationStatement));
-  const [schedulingStatement, setSchedulingStatement] = useState(strOrEmpty(draft.schedulingStatement));
-  const [acceptanceAcknowledgement, setAcceptanceAcknowledgement] = useState(strOrEmpty(draft.acceptanceAcknowledgement));
+  //
+  // Phase 5E declutter: these fields no longer have a form section in
+  // the composer — they're not rendered in the new dispatch-invoice
+  // email body. The values still round-trip through the action so any
+  // existing data is preserved on the row, and a future Terms
+  // acknowledgement layer can pick them up. Plain consts (no setters)
+  // because nothing in the form mutates them any more.
+  const detentionPolicy = strOrEmpty(draft.detentionPolicy);
+  const tonuPolicy = strOrEmpty(draft.tonuPolicy);
+  const paymentInstructions = strOrEmpty(draft.paymentInstructions);
+  const dispatchConfirmationStatement = strOrEmpty(draft.dispatchConfirmationStatement);
+  const schedulingStatement = strOrEmpty(draft.schedulingStatement);
+  const acceptanceAcknowledgement = strOrEmpty(draft.acceptanceAcknowledgement);
 
   // ── Preview snapshot mirror ──────────────────────────────────────────
   const [preview, setPreview] = useState<EmailPreviewData | null>(() =>
@@ -586,18 +593,13 @@ export function FinalizedQuoteComposer({
         </div>
       </Section>
 
-      {/* ── Policies & agreement ───────────────────────────────────────── */}
-      <Section title="Policies (optional — defaults used when blank)">
-        <Textarea label="Detention policy" value={detentionPolicy} onChange={(v) => { setDetentionPolicy(v); markStale(); }} rows={2} placeholder="Leave blank to use standard 2-hour free policy." />
-        <Textarea label="TONU policy" value={tonuPolicy} onChange={(v) => { setTonuPolicy(v); markStale(); }} rows={2} placeholder="Leave blank to use standard $250 TONU policy." />
-        <Textarea label="Payment instructions" value={paymentInstructions} onChange={(v) => { setPaymentInstructions(v); markStale(); }} rows={3} placeholder="Leave blank to use 'reply to confirm and request payment instructions'." />
-      </Section>
-
-      <Section title="Agreement language (optional)">
-        <Textarea label="Dispatch confirmation statement" value={dispatchConfirmationStatement} onChange={(v) => { setDispatchConfirmationStatement(v); markStale(); }} rows={3} />
-        <Textarea label="Scheduling statement" value={schedulingStatement} onChange={(v) => { setSchedulingStatement(v); markStale(); }} rows={3} />
-        <Textarea label="Acceptance acknowledgement" value={acceptanceAcknowledgement} onChange={(v) => { setAcceptanceAcknowledgement(v); markStale(); }} rows={3} />
-      </Section>
+      {/* Policy + agreement sections removed in Phase 5E declutter.
+          The detention / TONU / payment-instructions / confirmation /
+          scheduling / acceptance values still round-trip through the
+          form data (read-only consts above) so existing rows are
+          preserved, but the email no longer renders them in the body
+          — those policies belong in a separate Terms acknowledgement
+          surface, not inside the dispatch invoice. */}
 
       {notice ? (
         <p role="status" className="font-mono text-[10px] tracking-[0.14em] text-green-400 uppercase">
