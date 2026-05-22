@@ -1,0 +1,92 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import {
+  LEAD_STATUSES,
+  LEAD_STATUS_LABELS,
+  LEAD_STATUS_CLASSES,
+  suggestedNext,
+  type LeadStatus,
+} from "@/lib/dispatch/status";
+import { updateLeadStatus } from "../actions";
+
+/**
+ * Status selector — change the lead's funnel state.
+ *
+ * Two interaction patterns at once:
+ *   - One-tap "next state" button (suggestedNext) on the left
+ *   - Full dropdown to jump anywhere on the right
+ *
+ * Both call updateLeadStatus, which logs to the dispatch_events
+ * timeline and revalidates the page.
+ */
+export function StatusSelector({
+  quoteRequestId,
+  status,
+}: {
+  quoteRequestId: string;
+  status: LeadStatus;
+}) {
+  const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  function changeTo(next: LeadStatus) {
+    setError(null);
+    startTransition(async () => {
+      try {
+        await updateLeadStatus(quoteRequestId, next);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Status change failed.");
+      }
+    });
+  }
+
+  const next = suggestedNext(status);
+
+  return (
+    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+      {next ? (
+        <button
+          type="button"
+          onClick={() => changeTo(next)}
+          disabled={isPending}
+          className={
+            "btn-cut inline-flex items-center justify-center px-4 py-2 font-mono text-[10px] tracking-[0.18em] uppercase transition-colors disabled:cursor-not-allowed disabled:opacity-60 " +
+            "bg-red-600 text-white hover:bg-red-500"
+          }
+          title={`Move to ${LEAD_STATUS_LABELS[next]}`}
+        >
+          {isPending ? "…" : `→ ${LEAD_STATUS_LABELS[next]}`}
+        </button>
+      ) : null}
+
+      <label className="flex items-center gap-2">
+        <span className="sr-only">Set lead status</span>
+        <select
+          value={status}
+          onChange={(e) => changeTo(e.target.value as LeadStatus)}
+          disabled={isPending}
+          className={
+            "border bg-neutral-900 px-3 py-2 font-mono text-[10px] tracking-[0.18em] uppercase text-zinc-100 focus:border-red-600 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 " +
+            LEAD_STATUS_CLASSES[status].split(" ").filter((c) => c.startsWith("border-")).join(" ")
+          }
+        >
+          {LEAD_STATUSES.map((s) => (
+            <option key={s} value={s} className="bg-neutral-900 text-zinc-100">
+              {LEAD_STATUS_LABELS[s]}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      {error ? (
+        <p
+          role="alert"
+          className="font-mono text-[10px] tracking-[0.14em] text-red-400 uppercase"
+        >
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}

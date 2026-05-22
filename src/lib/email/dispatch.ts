@@ -7,6 +7,11 @@ import { Resend } from "resend";
  * the function returns a structured `{ ok: false, reason }` rather than
  * throwing — the caller should log the reason but must not roll back the
  * database insert (the lead is already captured).
+ *
+ * Phase 2B updates:
+ *   - subject is now "NEW QUOTE — {pickupZip} → {deliveryZip} — {weight}"
+ *     so the phone notification preview shows the lane at a glance
+ *   - lane (pickup ZIP, delivery ZIP, pickup date) is included in body
  */
 
 export type DispatchPayload = {
@@ -17,6 +22,9 @@ export type DispatchPayload = {
   phone: string;
   commodity: string;
   weight: string;
+  pickupZip: string;
+  deliveryZip: string;
+  pickupDate: string | null;
   notes: string | null;
 };
 
@@ -52,17 +60,20 @@ export async function sendDispatchNotification(
 
   const resend = new Resend(apiKey);
 
-  const subject = `New quote: ${payload.name} — ${payload.commodity}`.slice(
-    0,
-    180,
-  );
+  const subject =
+    `NEW QUOTE — ${payload.pickupZip} → ${payload.deliveryZip} — ${payload.weight}`.slice(
+      0,
+      180,
+    );
 
   const rows: [string, string][] = [
-    ["Name", payload.name],
-    ["Email", payload.email],
-    ["Phone", payload.phone],
+    ["Lane", `${payload.pickupZip} → ${payload.deliveryZip}`],
+    ["Pickup date", payload.pickupDate ?? "ASAP"],
     ["Commodity", payload.commodity],
-    ["Estimated weight", payload.weight],
+    ["Weight", payload.weight],
+    ["Name", payload.name],
+    ["Phone", payload.phone],
+    ["Email", payload.email],
     ["Notes", payload.notes ?? "(none)"],
     ["Created", payload.createdAt],
     ["Lead ID", payload.id],
@@ -74,7 +85,7 @@ export async function sendDispatchNotification(
 <html><body style="margin:0;padding:24px;background:#0a0a0a;color:#e5e5e5;font-family:system-ui,-apple-system,Segoe UI,sans-serif">
   <div style="max-width:560px;margin:0 auto;background:#171717;border:1px solid #262626;padding:24px">
     <h1 style="margin:0 0 4px;font-size:18px;color:#fff">New quote request</h1>
-    <p style="margin:0 0 20px;font-size:13px;color:#a3a3a3">From the Harblanc Services /quote form</p>
+    <p style="margin:0 0 20px;font-size:13px;color:#a3a3a3">${escapeHtml(payload.pickupZip)} &rarr; ${escapeHtml(payload.deliveryZip)} &middot; ${escapeHtml(payload.weight)}</p>
     <table style="border-collapse:collapse;width:100%">
 ${rows
   .map(

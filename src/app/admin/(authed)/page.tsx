@@ -44,32 +44,44 @@ async function loadDashboard() {
     { data: recentQuotes },
     { data: recentApps },
   ] = await Promise.all([
-    sb.from("quote_requests").select("*", { count: "exact", head: true }),
     sb
       .from("quote_requests")
       .select("*", { count: "exact", head: true })
+      .is("deleted_at", null),
+    sb
+      .from("quote_requests")
+      .select("*", { count: "exact", head: true })
+      .is("deleted_at", null)
       .gte("created_at", todayISO),
     sb
       .from("quote_requests")
       .select("*", { count: "exact", head: true })
+      .is("deleted_at", null)
       .gte("created_at", weekISO),
-    sb.from("applications").select("*", { count: "exact", head: true }),
     sb
       .from("applications")
       .select("*", { count: "exact", head: true })
+      .is("deleted_at", null),
+    sb
+      .from("applications")
+      .select("*", { count: "exact", head: true })
+      .is("deleted_at", null)
       .gte("created_at", todayISO),
     sb
       .from("applications")
       .select("*", { count: "exact", head: true })
+      .is("deleted_at", null)
       .gte("created_at", weekISO),
     sb
       .from("quote_requests")
       .select("id, created_at, name, commodity, weight")
+      .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(6),
     sb
       .from("applications")
       .select("id, created_at, name, equipment_type, cdl_status")
+      .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(6),
   ]);

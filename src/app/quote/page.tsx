@@ -13,18 +13,18 @@ type NextStep = { n: string; title: string; body: string };
 const nextSteps: NextStep[] = [
   {
     n: "01",
-    title: "Dispatch reviews the request",
-    body: "We read the load details and check capacity against your timeline.",
+    title: "Dispatch reviews the lane",
+    body: "We check capacity against your pickup window and the lane.",
   },
   {
     n: "02",
-    title: "We contact you",
-    body: "Quick follow-up by phone or email to confirm pickup, drop, and equipment.",
+    title: "You get a price range within the hour",
+    body: "Reply from a real dispatcher with a range \u2014 not an auto-quoter.",
   },
   {
     n: "03",
-    title: "You receive a quote",
-    body: "Direct pricing from dispatch — no broker markups, no auto-replies.",
+    title: "We confirm details and book",
+    body: "Once you\u2019re ready, we lock in pickup, drop, equipment, and rate.",
   },
 ];
 
@@ -42,16 +42,16 @@ export default function QuotePage() {
           </p>
 
           <h1 className="mt-5 text-3xl font-display leading-[1.05] tracking-[-0.02em] text-white sm:text-5xl lg:text-6xl">
-            Request a freight quote.
+            Direct dispatch. Honest pricing.
           </h1>
 
           <p className="mt-6 max-w-2xl text-base leading-relaxed text-neutral-300 sm:text-lg">
-            Name, contact, what we’re hauling, and how much it weighs. That’s
-            all dispatch needs. Pricing comes back direct — no broker layers,
-            no auto-replies.
+            Lane, load, contact. That’s all dispatch needs to get back to you
+            with a price range. Real dispatcher replies within the hour — no
+            broker layers, no auto-quoters.
           </p>
 
-          {/* Credential strip — mono manifest style */}
+          {/* Credential strip \u2014 mono manifest style */}
           <dl className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 font-mono text-[11px] tracking-[0.18em] uppercase">
             <div className="flex items-baseline gap-2">
               <dt className="text-neutral-500">USDOT</dt>

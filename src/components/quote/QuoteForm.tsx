@@ -1,43 +1,81 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { company } from "@/lib/company";
 
-/** Shape of a quote request — used by the form and the API route. */
-export type QuoteFormValues = {
-  name: string;
-  email: string;
-  phone: string;
+/**
+ * Public Quick Quote form (Phase 2A).
+ *
+ * Five-section, mobile-first lead capture. Replaces the previous detailed
+ * freight intake form on the public site. The detailed intake still exists
+ * — it now lives in admin (GenerateQuoteForm) and runs LATER in the
+ * workflow, once the customer has engaged.
+ *
+ * Design rules (see docs/communication-workflow.md):
+ *   - sub-60-second completion on a phone
+ *   - no hard pricing, no PDF, no contract terms
+ *   - server fires both an internal dispatch alert and a customer
+ *     acknowledgement email after a successful insert
+ *   - on success, navigate to /quote/success rather than swapping in
+ *     a SuccessState inline (a real page is shareable, refreshable, and
+ *     plays nicer with browser back/forward)
+ */
+
+export type QuickQuoteValues = {
+  pickupZip: string;
+  deliveryZip: string;
   commodity: string;
   weight: string;
+  pickupDate: string; // YYYY-MM-DD or "" (treated server-side as ASAP)
+  name: string;
+  phone: string;
+  email: string;
   notes: string;
 };
 
-type Errors = Partial<Record<keyof QuoteFormValues, string>>;
+type Errors = Partial<Record<keyof QuickQuoteValues, string>>;
 
-const initialValues: QuoteFormValues = {
-  name: "",
-  email: "",
-  phone: "",
+const initialValues: QuickQuoteValues = {
+  pickupZip: "",
+  deliveryZip: "",
   commodity: "",
   weight: "",
+  pickupDate: "",
+  name: "",
+  phone: "",
+  email: "",
   notes: "",
 };
 
 /** Reject obvious garbage, not legitimate variations. */
-function validate(values: QuoteFormValues): Errors {
+function validate(values: QuickQuoteValues): Errors {
   const errs: Errors = {};
+
+  const zipRe = /^\d{5}(?:-\d{4})?$/;
+
+  if (!zipRe.test(values.pickupZip.trim())) {
+    errs.pickupZip = "Enter a 5-digit ZIP.";
+  }
+  if (!zipRe.test(values.deliveryZip.trim())) {
+    errs.deliveryZip = "Enter a 5-digit ZIP.";
+  }
+
+  if (values.commodity.trim().length < 2) {
+    errs.commodity = "What are we moving?";
+  }
+
+  const weight = values.weight.trim();
+  if (!weight) {
+    errs.weight = "Enter an approximate weight.";
+  } else if (!/\d/.test(weight)) {
+    errs.weight = "Include a number (e.g. 8000 lbs).";
+  }
+
+  // pickupDate is optional — empty is treated as "ASAP"
 
   if (values.name.trim().length < 2) {
     errs.name = "Enter your name.";
-  }
-
-  const email = values.email.trim();
-  if (!email) {
-    errs.email = "Enter an email address.";
-  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-    errs.email = "That doesn\u2019t look like a valid email.";
   }
 
   const phoneDigits = values.phone.replace(/\D/g, "");
@@ -47,15 +85,11 @@ function validate(values: QuoteFormValues): Errors {
     errs.phone = "Phone number looks too short.";
   }
 
-  if (values.commodity.trim().length < 2) {
-    errs.commodity = "What are we hauling?";
-  }
-
-  const weight = values.weight.trim();
-  if (!weight) {
-    errs.weight = "Enter an estimated weight.";
-  } else if (!/\d/.test(weight)) {
-    errs.weight = "Include a number (e.g. 12000 lbs).";
+  const email = values.email.trim();
+  if (!email) {
+    errs.email = "Enter an email address.";
+  } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    errs.email = "That doesn’t look like a valid email.";
   }
 
   return errs;
@@ -75,19 +109,21 @@ const fieldCls = `${baseFieldCls} border border-neutral-800 focus:border-red-600
 const errorFieldCls = `${baseFieldCls} border border-red-600 focus:border-red-500`;
 const errCls =
   "mt-2 font-mono text-[10px] tracking-[0.14em] text-red-400 uppercase";
-const hintCls = "mt-2 font-mono text-[10px] tracking-[0.12em] text-neutral-500 uppercase";
+const hintCls =
+  "mt-2 font-mono text-[10px] tracking-[0.12em] text-neutral-500 uppercase";
 
-type Status = "idle" | "submitting" | "success";
+type Status = "idle" | "submitting";
 
 export function QuoteForm() {
-  const [values, setValues] = useState<QuoteFormValues>(initialValues);
+  const router = useRouter();
+  const [values, setValues] = useState<QuickQuoteValues>(initialValues);
   const [errors, setErrors] = useState<Errors>({});
   const [status, setStatus] = useState<Status>("idle");
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  function update<K extends keyof QuoteFormValues>(
+  function update<K extends keyof QuickQuoteValues>(
     key: K,
-    value: QuoteFormValues[K],
+    value: QuickQuoteValues[K],
   ) {
     setValues((prev) => ({ ...prev, [key]: value }));
     setErrors((prev) => {
@@ -129,24 +165,11 @@ export function QuoteForm() {
         setStatus("idle");
         return;
       }
-      setStatus("success");
+      router.push("/quote/success");
     } catch {
       setSubmitError("Network error. Check your connection and try again.");
       setStatus("idle");
     }
-  }
-
-  if (status === "success") {
-    return (
-      <SuccessState
-        onReset={() => {
-          setValues(initialValues);
-          setErrors({});
-          setSubmitError(null);
-          setStatus("idle");
-        }}
-      />
-    );
   }
 
   return (
@@ -156,8 +179,112 @@ export function QuoteForm() {
       aria-busy={status === "submitting"}
       className="space-y-10"
     >
-      {/* 01 / Contact */}
-      <Section number="01" title="Contact">
+      {/* 01 / Lane */}
+      <Section number="01" title="Lane">
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+          <Field id="pickupZip" label="Pickup ZIP" required error={errors.pickupZip}>
+            <input
+              id="pickupZip"
+              name="pickupZip"
+              type="text"
+              autoComplete="postal-code"
+              inputMode="numeric"
+              pattern="\d{5}(?:-\d{4})?"
+              maxLength={10}
+              value={values.pickupZip}
+              onChange={(e) => update("pickupZip", e.target.value)}
+              className={errors.pickupZip ? errorFieldCls : fieldCls}
+              placeholder="74104"
+              aria-invalid={!!errors.pickupZip}
+              aria-describedby={errors.pickupZip ? "pickupZip-error" : undefined}
+            />
+          </Field>
+          <Field
+            id="deliveryZip"
+            label="Delivery ZIP"
+            required
+            error={errors.deliveryZip}
+          >
+            <input
+              id="deliveryZip"
+              name="deliveryZip"
+              type="text"
+              autoComplete="postal-code"
+              inputMode="numeric"
+              pattern="\d{5}(?:-\d{4})?"
+              maxLength={10}
+              value={values.deliveryZip}
+              onChange={(e) => update("deliveryZip", e.target.value)}
+              className={errors.deliveryZip ? errorFieldCls : fieldCls}
+              placeholder="75201"
+              aria-invalid={!!errors.deliveryZip}
+              aria-describedby={
+                errors.deliveryZip ? "deliveryZip-error" : undefined
+              }
+            />
+          </Field>
+        </div>
+      </Section>
+
+      {/* 02 / Load */}
+      <Section number="02" title="Load">
+        <Field id="commodity" label="What are we moving?" required error={errors.commodity}>
+          <input
+            id="commodity"
+            name="commodity"
+            type="text"
+            value={values.commodity}
+            onChange={(e) => update("commodity", e.target.value)}
+            className={errors.commodity ? errorFieldCls : fieldCls}
+            placeholder="Skid steer, palletized parts, machinery…"
+            aria-invalid={!!errors.commodity}
+            aria-describedby={errors.commodity ? "commodity-error" : undefined}
+          />
+        </Field>
+
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+          <Field
+            id="weight"
+            label="Approximate weight"
+            required
+            error={errors.weight}
+            hint="lbs, kg, tons — whatever you know."
+          >
+            <input
+              id="weight"
+              name="weight"
+              type="text"
+              inputMode="decimal"
+              value={values.weight}
+              onChange={(e) => update("weight", e.target.value)}
+              className={errors.weight ? errorFieldCls : fieldCls}
+              placeholder="8,000 lbs"
+              aria-invalid={!!errors.weight}
+              aria-describedby={
+                errors.weight ? "weight-error" : "weight-hint"
+              }
+            />
+          </Field>
+
+          <Field
+            id="pickupDate"
+            label="Target pickup date"
+            hint="Leave blank if it’s ASAP."
+          >
+            <input
+              id="pickupDate"
+              name="pickupDate"
+              type="date"
+              value={values.pickupDate}
+              onChange={(e) => update("pickupDate", e.target.value)}
+              className={fieldCls}
+            />
+          </Field>
+        </div>
+      </Section>
+
+      {/* 03 / Contact */}
+      <Section number="03" title="Contact">
         <Field id="name" label="Name" required error={errors.name}>
           <input
             id="name"
@@ -173,79 +300,44 @@ export function QuoteForm() {
           />
         </Field>
 
-        <Field id="email" label="Email" required error={errors.email}>
-          <input
-            id="email"
-            name="email"
-            type="email"
-            autoComplete="email"
-            inputMode="email"
-            value={values.email}
-            onChange={(e) => update("email", e.target.value)}
-            className={errors.email ? errorFieldCls : fieldCls}
-            placeholder="you@company.com"
-            aria-invalid={!!errors.email}
-            aria-describedby={errors.email ? "email-error" : undefined}
-          />
-        </Field>
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+          <Field id="phone" label="Phone" required error={errors.phone}>
+            <input
+              id="phone"
+              name="phone"
+              type="tel"
+              autoComplete="tel"
+              inputMode="tel"
+              value={values.phone}
+              onChange={(e) => update("phone", e.target.value)}
+              className={errors.phone ? errorFieldCls : fieldCls}
+              placeholder="(555) 123-4567"
+              aria-invalid={!!errors.phone}
+              aria-describedby={errors.phone ? "phone-error" : undefined}
+            />
+          </Field>
 
-        <Field id="phone" label="Phone" required error={errors.phone}>
-          <input
-            id="phone"
-            name="phone"
-            type="tel"
-            autoComplete="tel"
-            inputMode="tel"
-            value={values.phone}
-            onChange={(e) => update("phone", e.target.value)}
-            className={errors.phone ? errorFieldCls : fieldCls}
-            placeholder="(555) 123-4567"
-            aria-invalid={!!errors.phone}
-            aria-describedby={errors.phone ? "phone-error" : undefined}
-          />
-        </Field>
+          <Field id="email" label="Email" required error={errors.email}>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              inputMode="email"
+              value={values.email}
+              onChange={(e) => update("email", e.target.value)}
+              className={errors.email ? errorFieldCls : fieldCls}
+              placeholder="you@company.com"
+              aria-invalid={!!errors.email}
+              aria-describedby={errors.email ? "email-error" : undefined}
+            />
+          </Field>
+        </div>
       </Section>
 
-      {/* 02 / Load */}
-      <Section number="02" title="Load">
-        <Field id="commodity" label="Commodity" required error={errors.commodity}>
-          <input
-            id="commodity"
-            name="commodity"
-            type="text"
-            value={values.commodity}
-            onChange={(e) => update("commodity", e.target.value)}
-            className={errors.commodity ? errorFieldCls : fieldCls}
-            placeholder="Skid steer, palletized parts, machinery…"
-            aria-invalid={!!errors.commodity}
-            aria-describedby={errors.commodity ? "commodity-error" : undefined}
-          />
-        </Field>
-
-        <Field
-          id="weight"
-          label="Estimated weight"
-          required
-          error={errors.weight}
-          hint="Include units if you know them — lbs, kg, tons."
-        >
-          <input
-            id="weight"
-            name="weight"
-            type="text"
-            inputMode="decimal"
-            value={values.weight}
-            onChange={(e) => update("weight", e.target.value)}
-            className={errors.weight ? errorFieldCls : fieldCls}
-            placeholder="12,000 lbs"
-            aria-invalid={!!errors.weight}
-            aria-describedby={
-              errors.weight ? "weight-error" : "weight-hint"
-            }
-          />
-        </Field>
-
-        <Field id="notes" label="Notes / load details">
+      {/* 04 / Additional details (optional) */}
+      <Section number="04" title="Anything else?">
+        <Field id="notes" label="Additional details (optional)">
           <textarea
             id="notes"
             name="notes"
@@ -253,7 +345,7 @@ export function QuoteForm() {
             value={values.notes}
             onChange={(e) => update("notes", e.target.value)}
             className={fieldCls}
-            placeholder="Pickup/drop locations, dates, equipment needs, anything else dispatch should know."
+            placeholder="Dimensions, deadlines, special handling, forklift on either end, anything dispatch should know."
           />
         </Field>
       </Section>
@@ -261,7 +353,8 @@ export function QuoteForm() {
       {/* Submit row */}
       <div className="space-y-5 border-t border-neutral-800 pt-7">
         <p className="font-mono text-[10px] tracking-[0.2em] text-neutral-500 uppercase">
-          Fields marked {requiredMark} are required.
+          Fields marked {requiredMark} are required. This is a request, not a
+          binding order. Dispatch replies with a price range within the hour.
         </p>
 
         {submitError ? (
@@ -282,8 +375,18 @@ export function QuoteForm() {
           disabled={status === "submitting"}
           className="btn-cut inline-flex w-full items-center justify-center bg-red-600 px-8 py-4 text-sm font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
         >
-          {status === "submitting" ? "Sending\u2026" : "Submit to dispatch"}
+          {status === "submitting" ? "Sending…" : "Request a quote"}
         </button>
+
+        <p className="font-mono text-[10px] tracking-[0.18em] text-neutral-600 uppercase">
+          Or call dispatch direct: {" "}
+          <a
+            href={`tel:${company.dispatchPhone.replace(/[^\d+]/g, "")}`}
+            className="text-zinc-300 underline-offset-4 hover:text-white hover:underline"
+          >
+            {company.dispatchPhone}
+          </a>
+        </p>
       </div>
     </form>
   );
@@ -303,9 +406,7 @@ function Section({
   return (
     <fieldset>
       <legend className="mb-6 flex items-baseline gap-3">
-        <span className="font-mono text-xs text-red-500">
-          {number}
-        </span>
+        <span className="font-mono text-xs text-red-500">{number}</span>
         <span className="font-mono text-[11px] tracking-[0.22em] text-white uppercase">
           / {title}
         </span>
@@ -346,47 +447,6 @@ function Field({
           {hint}
         </p>
       ) : null}
-    </div>
-  );
-}
-
-function SuccessState({ onReset }: { onReset: () => void }) {
-  const phoneHref = `tel:${company.dispatchPhone.replace(/[^\d+]/g, "")}`;
-  return (
-    <div className="border border-neutral-800 bg-neutral-900/40 p-8 sm:p-10">
-      <p className="flex items-center gap-3 font-mono text-[10px] tracking-[0.22em] text-red-500 uppercase">
-        <span aria-hidden className="inline-block h-3 w-1 bg-red-600" />
-        Submitted
-      </p>
-      <h2 className="mt-4 text-2xl font-display tracking-[-0.01em] text-white sm:text-3xl">
-        Request received.
-      </h2>
-      <p className="mt-3 max-w-md text-sm leading-relaxed text-neutral-400">
-        Dispatch will review the details and follow up. For anything
-        time-critical, call{" "}
-        <a
-          href={phoneHref}
-          className="text-zinc-100 underline-offset-4 hover:text-white hover:underline"
-        >
-          {company.dispatchPhone}
-        </a>
-        .
-      </p>
-      <div className="mt-7 flex flex-col items-stretch gap-2.5 sm:flex-row sm:gap-3">
-        <Link
-          href="/"
-          className="btn-outline-cut inline-flex items-center justify-center px-5 py-3 text-xs font-semibold uppercase tracking-[0.14em] text-zinc-100 transition-colors"
-        >
-          Back to home
-        </Link>
-        <button
-          type="button"
-          onClick={onReset}
-          className="btn-cut inline-flex items-center justify-center bg-red-600 px-5 py-3 text-xs font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-red-500"
-        >
-          Submit another
-        </button>
-      </div>
     </div>
   );
 }

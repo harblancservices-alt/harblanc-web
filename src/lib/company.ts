@@ -16,7 +16,7 @@ export const company = {
 
   // Contact (placeholders — replace before launch)
   dispatchEmail: "dispatch@harblancservices.com",
-  dispatchPhone: "(XXX) XXX-XXXX",
+  dispatchPhone: "(281)-636-9676",
 
   tagline: "Direct freight hauling. Hotshot to heavy equipment.",
   shortPitch:
