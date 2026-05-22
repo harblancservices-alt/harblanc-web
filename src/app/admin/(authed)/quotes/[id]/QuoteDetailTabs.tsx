@@ -484,15 +484,3 @@ function Field({
     </div>
   );
 }
-      <dt
-        className={
-          "font-mono text-[10px] tracking-[0.22em] uppercase " +
-          (muted ? "text-neutral-500" : "text-neutral-500")
-        }
-      >
-        {label}
-      </dt>
-      <dd className="mt-1.5">{children}</dd>
-    </div>
-  );
-}
