@@ -53,7 +53,7 @@ export async function sendDispatchNotification(
   const to = process.env.DISPATCH_EMAIL;
   const from =
     process.env.RESEND_FROM_ADDRESS ??
-    "Harblanc Dispatch <onboarding@resend.dev>";
+    "Harblanc Dispatch <dispatch@harblancservices.com>";
 
   if (!apiKey) return { ok: false, reason: "RESEND_API_KEY not configured" };
   if (!to) return { ok: false, reason: "DISPATCH_EMAIL not configured" };

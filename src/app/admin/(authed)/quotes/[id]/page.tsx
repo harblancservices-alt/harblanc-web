@@ -12,6 +12,7 @@ import {
 import { QuoteDetailTabs, type QuoteDetailRow } from "./QuoteDetailTabs";
 import type { GeneratedQuoteSummary } from "./GeneratedQuotePreview";
 import type { EstimateDraft } from "./EstimateComposer";
+import type { SentEstimateRow } from "./SentEstimatesList";
 import type { DispatchEvent } from "./CommTimeline";
 
 export const metadata: Metadata = {
@@ -42,12 +43,37 @@ type DispatchEstimateRow = {
   equipment_notes: string | null;
   dispatch_notes: string | null;
   expiration_at: string | null;
+  closing_line: string | null;
   sent_at: string | null;
   sent_email_id: string | null;
+  preview_subject: string | null;
+  preview_preheader: string | null;
+  preview_html: string | null;
+  preview_to: string | null;
+  preview_from: string | null;
+  preview_reply_to: string | null;
+  preview_built_at: string | null;
 };
 
 function toEstimateDraft(row: DispatchEstimateRow | null): EstimateDraft | null {
   if (!row) return null;
+  const preview =
+    row.preview_built_at &&
+    row.preview_subject &&
+    row.preview_html &&
+    row.preview_to &&
+    row.preview_from &&
+    row.preview_reply_to
+      ? {
+          subject: row.preview_subject,
+          preheader: row.preview_preheader ?? "",
+          html: row.preview_html,
+          to: row.preview_to,
+          from: row.preview_from,
+          replyTo: row.preview_reply_to,
+          builtAt: row.preview_built_at,
+        }
+      : null;
   return {
     id: row.id,
     linehaulLow:
@@ -59,8 +85,42 @@ function toEstimateDraft(row: DispatchEstimateRow | null): EstimateDraft | null 
     equipmentNotes: row.equipment_notes,
     dispatchNotes: row.dispatch_notes,
     expirationAt: row.expiration_at,
+    closingLine: row.closing_line,
     sentAt: row.sent_at,
     sentEmailId: row.sent_email_id,
+    preview,
+  };
+}
+
+type SentEstimateDbRow = {
+  id: string;
+  sent_at: string;
+  sent_email_id: string | null;
+  linehaul_low: string | number | null;
+  linehaul_high: string | number | null;
+  preview_subject: string | null;
+  preview_preheader: string | null;
+  preview_html: string | null;
+  preview_to: string | null;
+  preview_from: string | null;
+  preview_reply_to: string | null;
+};
+
+function toSentEstimateRow(row: SentEstimateDbRow): SentEstimateRow {
+  return {
+    id: row.id,
+    sentAt: row.sent_at,
+    sentEmailId: row.sent_email_id,
+    linehaulLow:
+      row.linehaul_low === null ? null : Number(row.linehaul_low),
+    linehaulHigh:
+      row.linehaul_high === null ? null : Number(row.linehaul_high),
+    subject: row.preview_subject ?? "(no subject recorded)",
+    preheader: row.preview_preheader ?? "",
+    html: row.preview_html ?? "",
+    to: row.preview_to ?? "",
+    from: row.preview_from ?? "",
+    replyTo: row.preview_reply_to ?? "",
   };
 }
 
@@ -69,6 +129,7 @@ async function loadDetail(id: string): Promise<{
   generatedQuote: GeneratedQuoteSummary | null;
   signedPdfUrl: string | null;
   draftEstimate: EstimateDraft | null;
+  sentEstimates: SentEstimateRow[];
   events: DispatchEvent[];
   computedMiles: number | null;
 } | null> {
@@ -83,10 +144,13 @@ async function loadDetail(id: string): Promise<{
     .maybeSingle<QuoteDetailRow>();
   if (!row) return null;
 
-  // Fetch related data in parallel.
+  // Fetch related data in parallel. Draft and sent history are now two
+  // distinct fetches — the draft is the single sent_at IS NULL row (if
+  // any), the history is every sent_at IS NOT NULL row newest-first.
   const [
     { data: rawGenerated },
     { data: draftEstimateRow },
+    { data: sentEstimateRows },
     { data: eventRows },
   ] = await Promise.all([
     sb
@@ -102,12 +166,20 @@ async function loadDetail(id: string): Promise<{
     sb
       .from("dispatch_estimates")
       .select(
-        "id, linehaul_low, linehaul_high, miles_estimate, pickup_timing_notes, equipment_notes, dispatch_notes, expiration_at, sent_at, sent_email_id",
+        "id, linehaul_low, linehaul_high, miles_estimate, pickup_timing_notes, equipment_notes, dispatch_notes, expiration_at, closing_line, sent_at, sent_email_id, preview_subject, preview_preheader, preview_html, preview_to, preview_from, preview_reply_to, preview_built_at",
       )
       .eq("quote_request_id", id)
-      .order("created_at", { ascending: false })
-      .limit(1)
+      .is("sent_at", null)
       .maybeSingle<DispatchEstimateRow>(),
+    sb
+      .from("dispatch_estimates")
+      .select(
+        "id, sent_at, sent_email_id, linehaul_low, linehaul_high, preview_subject, preview_preheader, preview_html, preview_to, preview_from, preview_reply_to",
+      )
+      .eq("quote_request_id", id)
+      .not("sent_at", "is", null)
+      .order("sent_at", { ascending: false })
+      .returns<SentEstimateDbRow[]>(),
     sb
       .from("dispatch_events")
       .select("id, kind, payload, created_at")
@@ -153,6 +225,7 @@ async function loadDetail(id: string): Promise<{
     generatedQuote,
     signedPdfUrl,
     draftEstimate: toEstimateDraft(draftEstimateRow ?? null),
+    sentEstimates: (sentEstimateRows ?? []).map(toSentEstimateRow),
     events: eventRows ?? [],
     computedMiles,
   };
@@ -171,6 +244,7 @@ export default async function QuoteDetailPage({
     generatedQuote,
     signedPdfUrl,
     draftEstimate,
+    sentEstimates,
     events,
     computedMiles,
   } = detail;
@@ -220,6 +294,7 @@ export default async function QuoteDetailPage({
         generatedQuote={generatedQuote}
         signedPdfUrl={signedPdfUrl}
         draftEstimate={draftEstimate}
+        sentEstimates={sentEstimates}
         events={events}
         computedMiles={computedMiles}
       />

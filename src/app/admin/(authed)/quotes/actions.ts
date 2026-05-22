@@ -9,13 +9,29 @@ import type { QuotePdfData } from "@/lib/pdf/QuotePDF";
 import { logDispatchEvent } from "@/lib/dispatch/events";
 import { isLeadStatus, type LeadStatus } from "@/lib/dispatch/status";
 import { computeRpm } from "@/lib/dispatch/distance";
-import { sendDispatchEstimate } from "@/lib/email/estimate";
+import { sendDispatchEstimateBytes } from "@/lib/email/estimate";
 import { findTemplate } from "@/lib/dispatch/templates";
 import {
   renderEstimateEmail,
   renderAcknowledgementEmail,
   type EstimatePayload as EstimateRenderPayload,
 } from "@/lib/email/render";
+
+/**
+ * Public origin used in customer-facing Accept / Decline URLs embedded
+ * in sent estimate emails. Falls back to the production hostname when
+ * the env var isn't set so local previews still render valid-looking
+ * URLs.
+ */
+const PUBLIC_ORIGIN =
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.harblancservices.com";
+
+function acceptUrl(token: string): string {
+  return `${PUBLIC_ORIGIN}/quote/accept/${token}`;
+}
+function declineUrl(token: string): string {
+  return `${PUBLIC_ORIGIN}/quote/decline/${token}`;
+}
 
 const RETENTION_DAYS = 30;
 const QUOTES_BUCKET = "quotes";
@@ -493,31 +509,53 @@ type DraftEstimateRow = {
   id: string;
   linehaul_low: string | number | null;
   linehaul_high: string | number | null;
+  accept_token: string | null;
+};
+
+type DraftPersistFields = {
+  linehaul_low: number | null;
+  linehaul_high: number | null;
+  miles_estimate: number | null;
+  rpm_low: number | null;
+  rpm_high: number | null;
+  pickup_timing_notes: string | null;
+  equipment_notes: string | null;
+  dispatch_notes: string | null;
+  expiration_at: string | null;
+  closing_line: string | null;
 };
 
 /**
  * UPSERT-like helper: keep at most one DRAFT (sent_at IS NULL) estimate
  * per quote_request. If one exists, UPDATE it. Otherwise INSERT a new one.
+ *
+ * Optional `previewSnapshot` overwrites the saved preview HTML/text on
+ * the draft row. Field-only saves (Save Draft, send-time bookkeeping)
+ * leave the preview untouched.
  */
 async function upsertDraftEstimate(
   sb: ReturnType<typeof createServiceRoleClient>,
   quoteRequestId: string,
-  fields: {
-    linehaul_low: number | null;
-    linehaul_high: number | null;
-    miles_estimate: number | null;
-    rpm_low: number | null;
-    rpm_high: number | null;
-    pickup_timing_notes: string | null;
-    equipment_notes: string | null;
-    dispatch_notes: string | null;
-    expiration_at: string | null;
+  fields: DraftPersistFields,
+  previewSnapshot?: {
+    preview_subject: string;
+    preview_preheader: string;
+    preview_html: string;
+    preview_text: string;
+    preview_to: string;
+    preview_from: string;
+    preview_reply_to: string;
+    preview_built_at: string;
   },
 ): Promise<DraftEstimateRow> {
+  const writePayload = previewSnapshot
+    ? { ...fields, ...previewSnapshot }
+    : fields;
+
   // Check for existing draft.
   const { data: existing } = await sb
     .from("dispatch_estimates")
-    .select("id, linehaul_low, linehaul_high")
+    .select("id, linehaul_low, linehaul_high, accept_token")
     .eq("quote_request_id", quoteRequestId)
     .is("sent_at", null)
     .maybeSingle<DraftEstimateRow>();
@@ -525,9 +563,9 @@ async function upsertDraftEstimate(
   if (existing) {
     const { data, error } = await sb
       .from("dispatch_estimates")
-      .update(fields)
+      .update(writePayload)
       .eq("id", existing.id)
-      .select("id, linehaul_low, linehaul_high")
+      .select("id, linehaul_low, linehaul_high, accept_token")
       .single<DraftEstimateRow>();
     if (error || !data) {
       throw new Error(`Draft update failed: ${error?.message ?? "unknown"}`);
@@ -537,8 +575,8 @@ async function upsertDraftEstimate(
 
   const { data, error } = await sb
     .from("dispatch_estimates")
-    .insert({ quote_request_id: quoteRequestId, ...fields })
-    .select("id, linehaul_low, linehaul_high")
+    .insert({ quote_request_id: quoteRequestId, ...writePayload })
+    .select("id, linehaul_low, linehaul_high, accept_token")
     .single<DraftEstimateRow>();
   if (error || !data) {
     throw new Error(`Draft insert failed: ${error?.message ?? "unknown"}`);
@@ -561,7 +599,26 @@ type DraftEstimateInput = {
   equipmentNotes: string | null;
   dispatchNotes: string | null;
   expirationAt: string | null;
+  closingLine: string | null;
 };
+
+/**
+ * Resolve the resolved closing line from FormData. Either `template_id`
+ * (canonical template body) or `closing_line` (custom override). Returns
+ * null when neither is present — callers that require a closing line
+ * (build preview, send) check for null explicitly.
+ */
+function resolveClosingLine(formData: FormData): string | null {
+  const templateId = parseString(formData.get("template_id"));
+  if (templateId) {
+    const tpl = findTemplate(templateId);
+    if (!tpl) {
+      throw new Error(`Unknown template: ${templateId}`);
+    }
+    return tpl.body;
+  }
+  return parseString(formData.get("closing_line"));
+}
 
 function readDraftEstimateInput(formData: FormData): DraftEstimateInput {
   const quoteRequestId = parseString(formData.get("quote_request_id"));
@@ -593,15 +650,12 @@ function readDraftEstimateInput(formData: FormData): DraftEstimateInput {
     equipmentNotes: parseString(formData.get("equipment_notes")),
     dispatchNotes: parseString(formData.get("dispatch_notes")),
     expirationAt: expirationAtRaw, // ISO YYYY-MM-DD or null
+    closingLine: resolveClosingLine(formData),
   };
 }
 
-export async function saveDraftEstimate(formData: FormData): Promise<void> {
-  await requireAdmin();
-  const input = readDraftEstimateInput(formData);
-  const sb = createServiceRoleClient();
-
-  await upsertDraftEstimate(sb, input.quoteRequestId, {
+function toDraftPersistFields(input: DraftEstimateInput): DraftPersistFields {
+  return {
     linehaul_low: input.linehaulLow,
     linehaul_high: input.linehaulHigh,
     miles_estimate: input.milesEstimate,
@@ -611,7 +665,19 @@ export async function saveDraftEstimate(formData: FormData): Promise<void> {
     equipment_notes: input.equipmentNotes,
     dispatch_notes: input.dispatchNotes,
     expiration_at: input.expirationAt,
-  });
+    closing_line: input.closingLine,
+  };
+}
+
+export async function saveDraftEstimate(formData: FormData): Promise<void> {
+  await requireAdmin();
+  const input = readDraftEstimateInput(formData);
+  const sb = createServiceRoleClient();
+
+  // Field-only save. Leaves any existing preview snapshot intact — the
+  // composer's stale indicator will flip on once the next field edit
+  // diverges from the snapshot.
+  await upsertDraftEstimate(sb, input.quoteRequestId, toDraftPersistFields(input));
 
   await logDispatchEvent(sb, input.quoteRequestId, "estimate_draft_saved", {
     linehaulLow: input.linehaulLow,
@@ -621,164 +687,144 @@ export async function saveDraftEstimate(formData: FormData): Promise<void> {
   revalidatePath(`/admin/quotes/${input.quoteRequestId}`);
 }
 
-type LeadEmailRow = {
-  name: string;
-  email: string;
-  commodity: string;
-  weight: string;
-  pickup_zip: string | null;
-  delivery_zip: string | null;
-  pickup_date: string | null;
-  lead_status: LeadStatus;
+type DraftPreviewSnapshotRow = {
+  id: string;
+  linehaul_low: string | number | null;
+  linehaul_high: string | number | null;
+  preview_subject: string | null;
+  preview_preheader: string | null;
+  preview_html: string | null;
+  preview_text: string | null;
+  preview_to: string | null;
+  preview_from: string | null;
+  preview_reply_to: string | null;
+  preview_built_at: string | null;
 };
 
 /**
  * Finalize and send the dispatch estimate to the customer.
  *
- * Flow:
- *   1. Save the draft (so the row matches the email body that goes out)
- *   2. Resolve lane + load + closing line
- *   3. Send the email via Resend
- *   4. On success: mark sent_at + email id, log estimate_sent, advance
- *      status from 'new' → 'engaged' if currently 'new'
- *   5. On failure: leave draft intact, log estimate_send_failed, throw
+ * Send uses the *persisted preview snapshot* on the draft row — the
+ * exact bytes Brent reviewed in Build Preview — never the live form
+ * fields. preview-bytes == sent-bytes by construction. If no preview
+ * exists, send is refused.
+ *
+ * On success the draft row is converted in-place to a historical sent
+ * record (sent_at + sent_email_id set). The partial unique index
+ * `dispatch_estimates_one_draft_per_request` only constrains sent_at IS
+ * NULL rows, so this clears the way for the next draft to be created.
  */
-export async function sendEstimate(formData: FormData): Promise<void> {
+export async function sendEstimate(quoteRequestId: string): Promise<void> {
   await requireAdmin();
-  const input = readDraftEstimateInput(formData);
-  if (input.linehaulLow === null || input.linehaulLow <= 0) {
-    throw new Error("Linehaul (low) must be a positive number to send.");
+  if (!quoteRequestId) {
+    throw new Error("Missing quote_request_id.");
   }
 
   const sb = createServiceRoleClient();
 
-  // 1. Save / refresh the draft.
-  const draft = await upsertDraftEstimate(sb, input.quoteRequestId, {
-    linehaul_low: input.linehaulLow,
-    linehaul_high: input.linehaulHigh,
-    miles_estimate: input.milesEstimate,
-    rpm_low: input.rpmLow,
-    rpm_high: input.rpmHigh,
-    pickup_timing_notes: input.pickupTimingNotes,
-    equipment_notes: input.equipmentNotes,
-    dispatch_notes: input.dispatchNotes,
-    expiration_at: input.expirationAt,
-  });
+  // 1. Read the current draft + its persisted preview snapshot.
+  const { data: draft, error: draftError } = await sb
+    .from("dispatch_estimates")
+    .select(
+      "id, linehaul_low, linehaul_high, preview_subject, preview_preheader, preview_html, preview_text, preview_to, preview_from, preview_reply_to, preview_built_at",
+    )
+    .eq("quote_request_id", quoteRequestId)
+    .is("sent_at", null)
+    .maybeSingle<DraftPreviewSnapshotRow>();
+  if (draftError) {
+    throw new Error(`Draft lookup failed: ${draftError.message}`);
+  }
+  if (!draft) {
+    throw new Error("No draft estimate found. Build a preview first.");
+  }
+  if (
+    !draft.preview_built_at ||
+    !draft.preview_subject ||
+    !draft.preview_html ||
+    !draft.preview_text ||
+    !draft.preview_to ||
+    !draft.preview_from ||
+    !draft.preview_reply_to
+  ) {
+    throw new Error("Preview hasn't been built yet. Build a preview first.");
+  }
 
-  // 2. Read the lead so we know who to email + the lane.
+  // 2. Read lead lead_status so we know whether to advance it.
   const { data: lead, error: leadError } = await sb
     .from("quote_requests")
-    .select(
-      "name, email, commodity, weight, pickup_zip, delivery_zip, pickup_date, lead_status",
-    )
-    .eq("id", input.quoteRequestId)
-    .maybeSingle<LeadEmailRow>();
+    .select("lead_status")
+    .eq("id", quoteRequestId)
+    .maybeSingle<{ lead_status: LeadStatus }>();
   if (leadError) {
     throw new Error(`Lead lookup failed: ${leadError.message}`);
   }
   if (!lead) {
     throw new Error("Lead not found.");
   }
-  if (!lead.pickup_zip || !lead.delivery_zip) {
-    throw new Error(
-      "Lead is missing pickup or delivery ZIP — can't send a lane-recap email.",
-    );
-  }
 
-  // 3. Resolve the closing line. Template id wins; otherwise custom text.
-  const templateId = parseString(formData.get("template_id"));
-  const customClosing = parseString(formData.get("closing_line"));
-  let closingLine: string;
-  if (templateId) {
-    const tpl = findTemplate(templateId);
-    if (!tpl) {
-      throw new Error(`Unknown template: ${templateId}`);
-    }
-    closingLine = tpl.body;
-  } else if (customClosing) {
-    closingLine = customClosing;
-  } else {
-    throw new Error("Choose a template or write a closing line before sending.");
-  }
-
-  // 4. Send the email.
-  const result = await sendDispatchEstimate({
-    to: lead.email,
-    name: lead.name,
-    lane: {
-      pickupZip: lead.pickup_zip,
-      deliveryZip: lead.delivery_zip,
-    },
-    load: {
-      commodity: lead.commodity,
-      weight: lead.weight,
-      pickup: lead.pickup_date ?? "ASAP",
-    },
-    rate: {
-      low: input.linehaulLow,
-      high: input.linehaulHigh,
-    },
-    miles: input.milesEstimate,
-    pickupTimingNotes: input.pickupTimingNotes,
-    equipmentNotes: input.equipmentNotes,
-    closingLine,
-    expirationAt: input.expirationAt,
-    leadId: input.quoteRequestId,
+  // 3. Send the saved preview verbatim.
+  const result = await sendDispatchEstimateBytes({
+    to: draft.preview_to,
+    from: draft.preview_from,
+    replyTo: draft.preview_reply_to,
+    subject: draft.preview_subject,
+    html: draft.preview_html,
+    text: draft.preview_text,
   });
 
   if (!result.ok) {
-    await logDispatchEvent(sb, input.quoteRequestId, "estimate_send_failed", {
+    await logDispatchEvent(sb, quoteRequestId, "estimate_send_failed", {
       reason: result.reason,
-      to: lead.email,
+      to: draft.preview_to,
     });
     throw new Error(`Could not send estimate: ${result.reason}`);
   }
 
-  // 5. Mark sent + log event + advance status.
+  // 4. Mark draft as sent.
   const sentAt = new Date().toISOString();
   const { error: markError } = await sb
     .from("dispatch_estimates")
     .update({ sent_at: sentAt, sent_email_id: result.emailId })
     .eq("id", draft.id);
   if (markError) {
-    // Email already went out — log but don't throw. The estimate exists,
-    // it's just missing its sent_at. Operator can re-send if needed.
     console.error("[sendEstimate] mark-sent failed after delivery", {
       estimateId: draft.id,
       message: markError.message,
     });
   }
 
-  await logDispatchEvent(sb, input.quoteRequestId, "estimate_sent", {
+  const linehaulLow =
+    draft.linehaul_low === null ? null : Number(draft.linehaul_low);
+  const linehaulHigh =
+    draft.linehaul_high === null ? null : Number(draft.linehaul_high);
+
+  await logDispatchEvent(sb, quoteRequestId, "estimate_sent", {
     emailId: result.emailId,
-    linehaulLow: input.linehaulLow,
-    linehaulHigh: input.linehaulHigh,
-    to: lead.email,
+    linehaulLow,
+    linehaulHigh,
+    to: draft.preview_to,
   });
 
-  // Advance funnel: new → estimate_sent on first send (or contacted →
-  // estimate_sent if Brent already marked them contacted manually).
-  // Don't move already-progressed leads backward.
   if (lead.lead_status === "new" || lead.lead_status === "contacted") {
     const previous = lead.lead_status;
     const now = new Date().toISOString();
     const { error: statusError } = await sb
       .from("quote_requests")
       .update({ lead_status: "estimate_sent", lead_status_updated_at: now })
-      .eq("id", input.quoteRequestId);
+      .eq("id", quoteRequestId);
     if (statusError) {
       console.error("[sendEstimate] status advance failed", {
         message: statusError.message,
       });
     } else {
-      await logDispatchEvent(sb, input.quoteRequestId, "status_changed", {
+      await logDispatchEvent(sb, quoteRequestId, "status_changed", {
         from: previous,
         to: "estimate_sent",
       });
     }
   }
 
-  revalidatePath(`/admin/quotes/${input.quoteRequestId}`);
+  revalidatePath(`/admin/quotes/${quoteRequestId}`);
   revalidatePath("/admin/quotes");
   revalidatePath("/admin");
 }
@@ -805,16 +851,12 @@ export async function addDispatchNote(formData: FormData): Promise<void> {
 
 
 /* ────────────────────────────────────────────────────────────── */
-/* Phase 3C — Email preview action.                               */
+/* Email preview action.                                          */
 /*                                                                */
-/* buildEstimatePreview: saves the draft (so DB is in sync with   */
-/* what's about to be sent) and returns the rendered email bytes  */
-/* — subject, html, text, headers — for inline display.           */
-/*                                                                */
-/* No email is sent. The matching send action (sendEstimate) is   */
-/* unchanged: it reads the same draft from DB and dispatches via  */
-/* Resend, so preview-bytes == sent-bytes (both produced by       */
-/* renderEstimateEmail with the same payload).                    */
+/* buildEstimatePreview: saves the draft + the rendered preview   */
+/* snapshot. Returns the rendered email bytes for inline display. */
+/* Send reads the saved snapshot back so preview-bytes ==         */
+/* sent-bytes is guaranteed by construction.                      */
 /* ────────────────────────────────────────────────────────────── */
 
 export type EmailPreview = {
@@ -835,21 +877,11 @@ export async function buildEstimatePreview(
   if (input.linehaulLow === null || input.linehaulLow <= 0) {
     throw new Error("Set the rate (low) before building a preview.");
   }
+  if (!input.closingLine) {
+    throw new Error("Pick a template or write a closing line first.");
+  }
 
   const sb = createServiceRoleClient();
-
-  // Save / refresh the draft so DB matches the preview the admin sees.
-  await upsertDraftEstimate(sb, input.quoteRequestId, {
-    linehaul_low: input.linehaulLow,
-    linehaul_high: input.linehaulHigh,
-    miles_estimate: input.milesEstimate,
-    rpm_low: input.rpmLow,
-    rpm_high: input.rpmHigh,
-    pickup_timing_notes: input.pickupTimingNotes,
-    equipment_notes: input.equipmentNotes,
-    dispatch_notes: input.dispatchNotes,
-    expiration_at: input.expirationAt,
-  });
 
   // Pull lead fields we need to fill the rendered email.
   const { data: lead, error: leadError } = await sb
@@ -877,21 +909,26 @@ export async function buildEstimatePreview(
     );
   }
 
-  // Resolve closing line — same logic as sendEstimate so the preview
-  // exactly matches what would be sent.
-  const templateId = parseString(formData.get("template_id"));
-  const customClosing = parseString(formData.get("closing_line"));
-  let closingLine: string;
-  if (templateId) {
-    const tpl = findTemplate(templateId);
-    if (!tpl) {
-      throw new Error(`Unknown template: ${templateId}`);
+  // First pass: persist the form fields so the row exists and we can
+  // read back its accept_token (auto-populated by the DB default on
+  // first insert, preserved on subsequent updates).
+  const draftRow = await upsertDraftEstimate(
+    sb,
+    input.quoteRequestId,
+    toDraftPersistFields(input),
+  );
+  if (!draftRow.accept_token) {
+    // Older row inserted before the token column existed and missed the
+    // backfill — generate one now so the email can render Accept/Decline.
+    const token = crypto.randomUUID().replace(/-/g, "");
+    const { error: tokenError } = await sb
+      .from("dispatch_estimates")
+      .update({ accept_token: token })
+      .eq("id", draftRow.id);
+    if (tokenError) {
+      throw new Error(`Could not assign accept token: ${tokenError.message}`);
     }
-    closingLine = tpl.body;
-  } else if (customClosing) {
-    closingLine = customClosing;
-  } else {
-    throw new Error("Pick a template or write a closing line first.");
+    draftRow.accept_token = token;
   }
 
   const payload: EstimateRenderPayload = {
@@ -913,12 +950,32 @@ export async function buildEstimatePreview(
     miles: input.milesEstimate,
     pickupTimingNotes: input.pickupTimingNotes,
     equipmentNotes: input.equipmentNotes,
-    closingLine,
+    closingLine: input.closingLine,
     expirationAt: input.expirationAt,
     leadId: input.quoteRequestId,
+    acceptUrl: acceptUrl(draftRow.accept_token),
+    declineUrl: declineUrl(draftRow.accept_token),
   };
 
   const rendered = renderEstimateEmail(payload);
+
+  // Second pass: persist the rendered snapshot. preview-bytes ==
+  // sent-bytes by construction because Send reads these back verbatim.
+  await upsertDraftEstimate(
+    sb,
+    input.quoteRequestId,
+    toDraftPersistFields(input),
+    {
+      preview_subject: rendered.subject,
+      preview_preheader: rendered.preheader,
+      preview_html: rendered.html,
+      preview_text: rendered.text,
+      preview_to: rendered.to,
+      preview_from: rendered.from,
+      preview_reply_to: rendered.replyTo,
+      preview_built_at: new Date().toISOString(),
+    },
+  );
 
   revalidatePath(`/admin/quotes/${input.quoteRequestId}`);
 

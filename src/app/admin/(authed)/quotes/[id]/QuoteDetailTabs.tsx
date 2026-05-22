@@ -8,6 +8,10 @@ import {
   type GeneratedQuoteSummary,
 } from "./GeneratedQuotePreview";
 import { EstimateComposer, type EstimateDraft } from "./EstimateComposer";
+import {
+  SentEstimatesList,
+  type SentEstimateRow,
+} from "./SentEstimatesList";
 import { CommTimeline, type DispatchEvent } from "./CommTimeline";
 import { StatusBadge } from "./StatusBadge";
 import { StatusSelector } from "./StatusSelector";
@@ -48,6 +52,7 @@ export function QuoteDetailTabs({
   generatedQuote,
   signedPdfUrl,
   draftEstimate,
+  sentEstimates,
   events,
   computedMiles,
 }: {
@@ -55,6 +60,7 @@ export function QuoteDetailTabs({
   generatedQuote: GeneratedQuoteSummary | null;
   signedPdfUrl: string | null;
   draftEstimate: EstimateDraft | null;
+  sentEstimates: SentEstimateRow[];
   events: DispatchEvent[];
   computedMiles: number | null;
 }) {
@@ -168,6 +174,7 @@ export function QuoteDetailTabs({
             row={row}
             phoneHref={phoneHref}
             draftEstimate={draftEstimate}
+            sentEstimates={sentEstimates}
             computedMiles={computedMiles}
             isTrashed={isTrashed}
           />
@@ -193,12 +200,14 @@ function RequestTab({
   row,
   phoneHref,
   draftEstimate,
+  sentEstimates,
   computedMiles,
   isTrashed,
 }: {
   row: QuoteDetailRow;
   phoneHref: string;
   draftEstimate: EstimateDraft | null;
+  sentEstimates: SentEstimateRow[];
   computedMiles: number | null;
   isTrashed: boolean;
 }) {
@@ -295,10 +304,15 @@ function RequestTab({
         </section>
       ) : null}
 
-      {/* Quick Estimate Composer — the dispatch workspace. */}
+      {/* Quick Estimate Composer — the dispatch workspace.
+          The `key` re-inits the composer when the draft identity
+          changes — e.g. after Send, when the previous draft is
+          consumed into history and the next draft slot opens up
+          empty. */}
       {!isTrashed ? (
         <section className="border border-neutral-800 border-t-2 border-t-red-600 bg-neutral-900/40 p-5 sm:p-6">
           <EstimateComposer
+            key={draftEstimate?.id ?? "no-draft"}
             quoteRequestId={row.id}
             leadName={row.name}
             laneRecap={{
@@ -319,6 +333,9 @@ function RequestTab({
           </p>
         </section>
       )}
+
+      {/* Estimate history — every sent estimate for this quote. */}
+      <SentEstimatesList rows={sentEstimates} />
     </div>
   );
 }
@@ -455,6 +472,18 @@ function Field({
 }) {
   return (
     <div className={full ? "sm:col-span-2" : undefined}>
+      <dt
+        className={
+          "font-mono text-[10px] tracking-[0.22em] uppercase " +
+          (muted ? "text-neutral-500" : "text-neutral-500")
+        }
+      >
+        {label}
+      </dt>
+      <dd className="mt-1.5">{children}</dd>
+    </div>
+  );
+}
       <dt
         className={
           "font-mono text-[10px] tracking-[0.22em] uppercase " +

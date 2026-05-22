@@ -24,6 +24,15 @@ export type EmailShellInput = {
   contentText: string;
   refNumber: string;
   docType: string;
+  /**
+   * When true (default), the closing signature block — "— Brent",
+   * USDOT / MC / OPERATES grid, DISPATCH / EMAIL directory — is
+   * appended after the content slot. Set false for documents that
+   * end in their own action area (the estimate email's Accept /
+   * Decline band) so the document closes cleanly without a
+   * redundant signature.
+   */
+  includeSignatureFooter?: boolean;
 };
 
 const PUBLIC_ORIGIN =
@@ -61,6 +70,54 @@ export function renderEmailShell(input: EmailShellInput): {
   const phoneDigits = company.dispatchPhone.replace(/[^\d+]/g, "");
   const logoUrl = `${PUBLIC_ORIGIN}/brand/logo-horizontal.png`;
   const issuedDate = formatPacketDate(new Date());
+  const showSignature = input.includeSignatureFooter !== false;
+
+  const signatureFooterHtml = showSignature
+    ? `<!-- ───── SIGNATURE FOOTER ───── -->
+          <tr>
+            <td style="padding:0;background:#dc2626;font-size:1px;line-height:1px">&nbsp;</td>
+          </tr>
+          <tr>
+            <td style="padding:0;background:#0a0a0a">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse">
+                <tr>
+                  <td width="4" style="width:4px;background:#dc2626;font-size:1px;line-height:1px">&nbsp;</td>
+                  <td style="padding:18px 22px 18px">
+                    <p style="margin:0;font-family:'Public Sans',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;font-weight:700;color:#ffffff;">&mdash; Brent</p>
+
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin:12px 0 0">
+                      <tr>
+                        <td style="padding:0 14px 0 0;border-right:1px solid #404040;vertical-align:top">
+                          <p style="margin:0;font-family:'Public Sans',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-variant-numeric:tabular-nums lining-nums;font-feature-settings:'tnum' 1,'lnum' 1,'zero' 0;font-size:9px;letter-spacing:0.22em;color:#dc2626;text-transform:uppercase;font-weight:700">USDOT</p>
+                          <p style="margin:2px 0 0;font-family:'Public Sans',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-variant-numeric:tabular-nums lining-nums;font-feature-settings:'tnum' 1,'lnum' 1,'zero' 0;font-size:13px;color:#ffffff;font-weight:700">${escapeHtml(company.dotNumber)}</p>
+                        </td>
+                        <td style="padding:0 14px;border-right:1px solid #404040;vertical-align:top">
+                          <p style="margin:0;font-family:'Public Sans',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-variant-numeric:tabular-nums lining-nums;font-feature-settings:'tnum' 1,'lnum' 1,'zero' 0;font-size:9px;letter-spacing:0.22em;color:#dc2626;text-transform:uppercase;font-weight:700">MC</p>
+                          <p style="margin:2px 0 0;font-family:'Public Sans',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-variant-numeric:tabular-nums lining-nums;font-feature-settings:'tnum' 1,'lnum' 1,'zero' 0;font-size:13px;color:#ffffff;font-weight:700">${escapeHtml(company.mcNumber)}</p>
+                        </td>
+                        <td style="padding:0 0 0 14px;vertical-align:top">
+                          <p style="margin:0;font-family:'Public Sans',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-variant-numeric:tabular-nums lining-nums;font-feature-settings:'tnum' 1,'lnum' 1,'zero' 0;font-size:9px;letter-spacing:0.22em;color:#dc2626;text-transform:uppercase;font-weight:700">Operates</p>
+                          <p style="margin:2px 0 0;font-family:'Public Sans',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-variant-numeric:tabular-nums lining-nums;font-feature-settings:'tnum' 1,'lnum' 1,'zero' 0;font-size:13px;color:#ffffff;font-weight:600">${escapeHtml(company.serviceArea)}</p>
+                        </td>
+                      </tr>
+                    </table>
+
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin:14px 0 0;border-top:1px solid #404040;width:100%">
+                      <tr>
+                        <td style="padding:10px 0 4px;font-family:'Public Sans',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-variant-numeric:tabular-nums lining-nums;font-feature-settings:'tnum' 1,'lnum' 1,'zero' 0;font-size:9px;letter-spacing:0.22em;color:#dc2626;text-transform:uppercase;font-weight:700;width:120px;vertical-align:middle">Dispatch</td>
+                        <td style="padding:10px 0 4px;font-family:'Public Sans',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-variant-numeric:tabular-nums lining-nums;font-feature-settings:'tnum' 1,'lnum' 1,'zero' 0;font-size:14px;color:#ffffff;font-weight:700;vertical-align:middle"><a href="tel:${escapeHtml(phoneDigits)}" style="color:#ffffff;text-decoration:none">${escapeHtml(company.dispatchPhone)}</a></td>
+                      </tr>
+                      <tr>
+                        <td style="padding:4px 0 0;font-family:'Public Sans',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-variant-numeric:tabular-nums lining-nums;font-feature-settings:'tnum' 1,'lnum' 1,'zero' 0;font-size:9px;letter-spacing:0.22em;color:#dc2626;text-transform:uppercase;font-weight:700;vertical-align:middle">Email</td>
+                        <td style="padding:4px 0 0;font-family:'Public Sans',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14px;color:#ffffff;font-weight:500;vertical-align:middle"><a href="mailto:${escapeHtml(company.dispatchEmail)}" style="color:#ffffff;text-decoration:none">${escapeHtml(company.dispatchEmail)}</a></td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>`
+    : "";
 
   const html = `<!doctype html>
 <html><body style="margin:0;padding:0;background:#e5e5e5;color:#0a0a0a;font-family:'Public Sans',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;line-height:1.5;font-size:15px">
@@ -123,56 +180,28 @@ export function renderEmailShell(input: EmailShellInput): {
             </td>
           </tr>
 
-          <!-- ───── SIGNATURE FOOTER ───── -->
-          <tr>
-            <td style="padding:0;background:#dc2626;font-size:1px;line-height:1px">&nbsp;</td>
-          </tr>
-          <tr>
-            <td style="padding:0;background:#0a0a0a">
-              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse">
-                <tr>
-                  <td width="4" style="width:4px;background:#dc2626;font-size:1px;line-height:1px">&nbsp;</td>
-                  <td style="padding:18px 22px 18px">
-                    <p style="margin:0;font-family:'Public Sans',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;font-weight:700;color:#ffffff;">&mdash; Brent</p>
-
-                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin:12px 0 0">
-                      <tr>
-                        <td style="padding:0 14px 0 0;border-right:1px solid #404040;vertical-align:top">
-                          <p style="margin:0;font-family:'Public Sans',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-variant-numeric:tabular-nums lining-nums;font-feature-settings:'tnum' 1,'lnum' 1,'zero' 0;font-size:9px;letter-spacing:0.22em;color:#dc2626;text-transform:uppercase;font-weight:700">USDOT</p>
-                          <p style="margin:2px 0 0;font-family:'Public Sans',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-variant-numeric:tabular-nums lining-nums;font-feature-settings:'tnum' 1,'lnum' 1,'zero' 0;font-size:13px;color:#ffffff;font-weight:700">${escapeHtml(company.dotNumber)}</p>
-                        </td>
-                        <td style="padding:0 14px;border-right:1px solid #404040;vertical-align:top">
-                          <p style="margin:0;font-family:'Public Sans',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-variant-numeric:tabular-nums lining-nums;font-feature-settings:'tnum' 1,'lnum' 1,'zero' 0;font-size:9px;letter-spacing:0.22em;color:#dc2626;text-transform:uppercase;font-weight:700">MC</p>
-                          <p style="margin:2px 0 0;font-family:'Public Sans',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-variant-numeric:tabular-nums lining-nums;font-feature-settings:'tnum' 1,'lnum' 1,'zero' 0;font-size:13px;color:#ffffff;font-weight:700">${escapeHtml(company.mcNumber)}</p>
-                        </td>
-                        <td style="padding:0 0 0 14px;vertical-align:top">
-                          <p style="margin:0;font-family:'Public Sans',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-variant-numeric:tabular-nums lining-nums;font-feature-settings:'tnum' 1,'lnum' 1,'zero' 0;font-size:9px;letter-spacing:0.22em;color:#dc2626;text-transform:uppercase;font-weight:700">Operates</p>
-                          <p style="margin:2px 0 0;font-family:'Public Sans',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-variant-numeric:tabular-nums lining-nums;font-feature-settings:'tnum' 1,'lnum' 1,'zero' 0;font-size:13px;color:#ffffff;font-weight:600">${escapeHtml(company.serviceArea)}</p>
-                        </td>
-                      </tr>
-                    </table>
-
-                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin:14px 0 0;border-top:1px solid #404040;width:100%">
-                      <tr>
-                        <td style="padding:10px 0 4px;font-family:'Public Sans',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-variant-numeric:tabular-nums lining-nums;font-feature-settings:'tnum' 1,'lnum' 1,'zero' 0;font-size:9px;letter-spacing:0.22em;color:#dc2626;text-transform:uppercase;font-weight:700;width:120px;vertical-align:middle">Dispatch</td>
-                        <td style="padding:10px 0 4px;font-family:'Public Sans',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-variant-numeric:tabular-nums lining-nums;font-feature-settings:'tnum' 1,'lnum' 1,'zero' 0;font-size:14px;color:#ffffff;font-weight:700;vertical-align:middle"><a href="tel:${escapeHtml(phoneDigits)}" style="color:#ffffff;text-decoration:none">${escapeHtml(company.dispatchPhone)}</a></td>
-                      </tr>
-                      <tr>
-                        <td style="padding:4px 0 0;font-family:'Public Sans',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-variant-numeric:tabular-nums lining-nums;font-feature-settings:'tnum' 1,'lnum' 1,'zero' 0;font-size:9px;letter-spacing:0.22em;color:#dc2626;text-transform:uppercase;font-weight:700;vertical-align:middle">Email</td>
-                        <td style="padding:4px 0 0;font-family:'Public Sans',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:14px;color:#ffffff;font-weight:500;vertical-align:middle"><a href="mailto:${escapeHtml(company.dispatchEmail)}" style="color:#ffffff;text-decoration:none">${escapeHtml(company.dispatchEmail)}</a></td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
+          ${signatureFooterHtml}
 
         </table>
       </td>
     </tr>
   </table>
 </body></html>`;
+
+  const signatureTextLines = showSignature
+    ? [
+        "",
+        "────────────────────────────────────────",
+        "— Brent",
+        "",
+        `USDOT  ${company.dotNumber}`,
+        `MC     ${company.mcNumber}`,
+        `OPERATES  ${company.serviceArea} · ${company.dispatchModel}`,
+        "",
+        `DIRECT DISPATCH:  ${company.dispatchPhone}`,
+        company.dispatchEmail,
+      ]
+    : [];
 
   const text = [
     `HARBLANC SERVICES LLC`,
@@ -182,16 +211,7 @@ export function renderEmailShell(input: EmailShellInput): {
     "────────────────────────────────────────",
     "",
     input.contentText,
-    "",
-    "────────────────────────────────────────",
-    "— Brent",
-    "",
-    `USDOT  ${company.dotNumber}`,
-    `MC     ${company.mcNumber}`,
-    `OPERATES  ${company.serviceArea} · ${company.dispatchModel}`,
-    "",
-    `DIRECT DISPATCH:  ${company.dispatchPhone}`,
-    company.dispatchEmail,
+    ...signatureTextLines,
   ].join("\n");
 
   return { html, text };

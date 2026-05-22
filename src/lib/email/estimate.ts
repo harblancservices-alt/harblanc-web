@@ -18,20 +18,47 @@ export type EstimateSendResult =
 export async function sendDispatchEstimate(
   payload: EstimatePayload,
 ): Promise<EstimateSendResult> {
+  const rendered = renderEstimateEmail(payload);
+  return sendDispatchEstimateBytes({
+    to: rendered.to,
+    from: rendered.from,
+    replyTo: rendered.replyTo,
+    subject: rendered.subject,
+    html: rendered.html,
+    text: rendered.text,
+  });
+}
+
+/**
+ * Send pre-rendered estimate bytes verbatim. Used by the Quick Estimate
+ * workflow so the customer receives the exact preview Brent reviewed,
+ * with no re-rendering between Build Preview and Send.
+ */
+export type DispatchEstimateBytes = {
+  to: string;
+  from: string;
+  replyTo: string;
+  subject: string;
+  html: string;
+  text: string;
+};
+
+export async function sendDispatchEstimateBytes(
+  bytes: DispatchEstimateBytes,
+): Promise<EstimateSendResult> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return { ok: false, reason: "RESEND_API_KEY not configured" };
 
-  const rendered = renderEstimateEmail(payload);
   const resend = new Resend(apiKey);
 
   try {
     const result = await resend.emails.send({
-      from: rendered.from,
-      to: [rendered.to],
-      subject: rendered.subject,
-      text: rendered.text,
-      html: rendered.html,
-      replyTo: rendered.replyTo,
+      from: bytes.from,
+      to: [bytes.to],
+      subject: bytes.subject,
+      text: bytes.text,
+      html: bytes.html,
+      replyTo: bytes.replyTo,
     });
     if (result.error) {
       return {

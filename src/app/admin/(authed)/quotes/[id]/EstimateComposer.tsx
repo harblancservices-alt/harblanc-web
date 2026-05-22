@@ -8,28 +8,45 @@ import {
   buildEstimatePreview,
 } from "../actions";
 import { REPLY_TEMPLATES, findTemplate } from "@/lib/dispatch/templates";
-import { computeRpm } from "@/lib/dispatch/distance";
+import { computeRpm } from "@/lib/dispatch/rpm";
 import {
   EmailPreviewPanel,
   type EmailPreviewData,
 } from "./EmailPreviewPanel";
 
 /**
- * Quick Estimate Composer — preview-gated dispatch workspace.
+ * Quick Estimate Composer — preview-gated, server-persisted.
  *
- * Phase 3C: Send Estimate is now gated by a Build Preview step.
- *
- * Flow:
+ * Workflow:
  *   1. Composer fields → Build Preview
- *   2. Preview appears inline directly under the composer (rendered
- *      from the same code that ships to the customer)
- *   3. Only after preview exists does Send Estimate appear
- *   4. Any edit to a composer field after building marks the preview
- *      "stale" — Send is hidden until Rebuild Preview is clicked
+ *   2. Build Preview persists the rendered email (subject/html/text/...)
+ *      on the draft row AND saves the form fields. Preview is shown.
+ *   3. Preview stays visible until another preview is built — even
+ *      across page reloads, because it lives on the dispatch_estimates
+ *      row, not in React state.
+ *   4. Editing any composer field flips the `stale` flag. Preview stays
+ *      visible for comparison; the Send button disables.
+ *   5. Send reads the persisted preview bytes from the draft row and
+ *      transmits them verbatim. preview-bytes == sent-bytes by
+ *      construction. The draft row's sent_at fills in — it becomes
+ *      a historical sent record. The next Build Preview creates a
+ *      fresh draft (the partial unique index on sent_at IS NULL
+ *      lets that happen automatically).
  *
- * This enforces "no preview = no send" and guarantees the customer
- * gets exactly what the dispatcher just reviewed.
+ * Each quote keeps its full estimate history under SentEstimatesList,
+ * which is fed by the same table. Cascade delete on quote_requests
+ * removes every estimate when the quote is permanently deleted.
  */
+
+export type EstimateDraftPreview = {
+  subject: string;
+  preheader: string;
+  html: string;
+  to: string;
+  from: string;
+  replyTo: string;
+  builtAt: string;
+};
 
 export type EstimateDraft = {
   id: string;
@@ -40,8 +57,10 @@ export type EstimateDraft = {
   equipmentNotes: string | null;
   dispatchNotes: string | null;
   expirationAt: string | null;
+  closingLine: string | null;
   sentAt: string | null;
   sentEmailId: string | null;
+  preview: EstimateDraftPreview | null;
 };
 
 export type EstimateComposerProps = {
@@ -57,12 +76,6 @@ const inputCls =
 const labelCls =
   "block font-mono text-[10px] tracking-[0.22em] text-neutral-400 uppercase";
 
-type PreviewState =
-  | { kind: "none" }
-  | { kind: "building" }
-  | { kind: "fresh"; data: EmailPreviewData }
-  | { kind: "stale"; data: EmailPreviewData };
-
 function defaultExpiry(): string {
   const d = new Date();
   d.setUTCDate(d.getUTCDate() + 7);
@@ -74,14 +87,57 @@ function numToInput(n: number | null): string {
   return String(n);
 }
 
+/**
+ * Decide whether the saved closing_line on the draft matches one of
+ * the canned templates. If it does, that template is the active pick.
+ * Otherwise we treat the closing as a custom override.
+ */
+function resolveTemplateState(savedClosing: string | null): {
+  templateId: string;
+  closingLine: string;
+  edited: boolean;
+} {
+  if (savedClosing && savedClosing.length > 0) {
+    const match = REPLY_TEMPLATES.find((t) => t.body === savedClosing);
+    if (match) {
+      return { templateId: match.id, closingLine: match.body, edited: false };
+    }
+    return {
+      templateId: REPLY_TEMPLATES[0].id,
+      closingLine: savedClosing,
+      edited: true,
+    };
+  }
+  return {
+    templateId: REPLY_TEMPLATES[0].id,
+    closingLine: REPLY_TEMPLATES[0].body,
+    edited: false,
+  };
+}
+
 export function EstimateComposer(props: EstimateComposerProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [previewState, setPreviewState] = useState<PreviewState>({
-    kind: "none",
-  });
+
+  // The preview snapshot displayed under the form. Sourced from the
+  // server on first render. Replaced on Build Preview. Never cleared
+  // by field edits — only the `stale` flag flips.
+  const [preview, setPreview] = useState<EmailPreviewData | null>(() =>
+    props.draft?.preview
+      ? {
+          subject: props.draft.preview.subject,
+          preheader: props.draft.preview.preheader,
+          html: props.draft.preview.html,
+          to: props.draft.preview.to,
+          from: props.draft.preview.from,
+          replyTo: props.draft.preview.replyTo,
+        }
+      : null,
+  );
+  const [stale, setStale] = useState<boolean>(false);
+  const [building, setBuilding] = useState<boolean>(false);
 
   const [linehaulLow, setLinehaulLow] = useState<string>(
     numToInput(props.draft?.linehaulLow ?? null),
@@ -104,55 +160,16 @@ export function EstimateComposer(props: EstimateComposerProps) {
   const [expirationAt, setExpirationAt] = useState<string>(
     props.draft?.expirationAt ?? defaultExpiry(),
   );
-  const [templateId, setTemplateId] = useState<string>(REPLY_TEMPLATES[0].id);
-  const [closingLine, setClosingLine] = useState<string>(
-    REPLY_TEMPLATES[0].body,
-  );
-  const [editedClosing, setEditedClosing] = useState(false);
+  const initialTemplate = resolveTemplateState(props.draft?.closingLine ?? null);
+  const [templateId, setTemplateId] = useState<string>(initialTemplate.templateId);
+  const [closingLine, setClosingLine] = useState<string>(initialTemplate.closingLine);
+  const [editedClosing, setEditedClosing] = useState<boolean>(initialTemplate.edited);
 
-  /** Mark the preview stale when any composer field changes. */
-  function invalidatePreview() {
-    setPreviewState((s) => {
-      if (s.kind === "fresh") return { kind: "stale", data: s.data };
-      return s;
-    });
+  /** Any field edit marks the preview stale (if one exists). */
+  function markStale() {
+    if (preview && !stale) setStale(true);
     if (notice) setNotice(null);
   }
-
-  // Wrapped setters so any field change invalidates the preview.
-  const onChange = {
-    linehaulLow: (v: string) => {
-      setLinehaulLow(v);
-      invalidatePreview();
-    },
-    linehaulHigh: (v: string) => {
-      setLinehaulHigh(v);
-      invalidatePreview();
-    },
-    miles: (v: string) => {
-      setMiles(v);
-      invalidatePreview();
-    },
-    pickupTimingNotes: (v: string) => {
-      setPickupTimingNotes(v);
-      invalidatePreview();
-    },
-    equipmentNotes: (v: string) => {
-      setEquipmentNotes(v);
-      invalidatePreview();
-    },
-    dispatchNotes: (v: string) => {
-      setDispatchNotes(v);
-      // dispatchNotes is internal-only, doesn't appear in email — but
-      // it IS saved to the draft, so invalidate to keep preview-as-sent
-      // contract honest. Cheap and consistent.
-      invalidatePreview();
-    },
-    expirationAt: (v: string) => {
-      setExpirationAt(v);
-      invalidatePreview();
-    },
-  };
 
   const rpmLow = useMemo(() => {
     const r = Number(linehaulLow);
@@ -176,7 +193,7 @@ export function EstimateComposer(props: EstimateComposerProps) {
     if (!editedClosing) {
       setClosingLine(tpl.body);
     }
-    invalidatePreview();
+    markStale();
   }
 
   function resetClosingToTemplate() {
@@ -184,7 +201,7 @@ export function EstimateComposer(props: EstimateComposerProps) {
     if (!tpl) return;
     setClosingLine(tpl.body);
     setEditedClosing(false);
-    invalidatePreview();
+    markStale();
   }
 
   function buildFormData(): FormData {
@@ -222,21 +239,30 @@ export function EstimateComposer(props: EstimateComposerProps) {
   function onBuildPreview() {
     setError(null);
     setNotice(null);
-    setPreviewState({ kind: "building" });
+    setBuilding(true);
     startTransition(async () => {
       try {
         const data = await buildEstimatePreview(buildFormData());
-        setPreviewState({ kind: "fresh", data });
+        setPreview({
+          to: data.to,
+          from: data.from,
+          replyTo: data.replyTo,
+          subject: data.subject,
+          preheader: data.preheader,
+          html: data.html,
+        });
+        setStale(false);
+        setBuilding(false);
         router.refresh();
       } catch (e) {
-        setPreviewState({ kind: "none" });
+        setBuilding(false);
         setError(e instanceof Error ? e.message : "Preview failed.");
       }
     });
   }
 
   function onSend() {
-    if (previewState.kind !== "fresh") return;
+    if (!preview || stale) return;
     setError(null);
     setNotice(null);
     if (
@@ -248,34 +274,19 @@ export function EstimateComposer(props: EstimateComposerProps) {
     }
     startTransition(async () => {
       try {
-        await sendEstimate(buildFormData());
+        await sendEstimate(props.quoteRequestId);
         setNotice("Estimate sent.");
-        setPreviewState({ kind: "none" });
+        // Local optimistic clear — server refresh repopulates the
+        // composer with an empty draft and adds the sent record to
+        // the history list below.
+        setPreview(null);
+        setStale(false);
         router.refresh();
       } catch (e) {
         setError(e instanceof Error ? e.message : "Send failed.");
       }
     });
   }
-
-  const sentBanner =
-    props.draft?.sentAt != null ? (
-      <div className="flex items-start gap-3 border border-green-700/60 bg-green-950/30 p-4">
-        <span
-          aria-hidden
-          className="mt-0.5 inline-block h-3 w-1 shrink-0 bg-green-500"
-        />
-        <div>
-          <p className="font-mono text-[10px] tracking-[0.22em] text-green-300 uppercase">
-            Estimate sent
-          </p>
-          <p className="mt-1 text-sm leading-relaxed text-green-100">
-            Last estimate went out to the customer. Editing below starts a
-            new draft — the sent estimate stays in the timeline.
-          </p>
-        </div>
-      </div>
-    ) : null;
 
   const laneIncomplete =
     !props.laneRecap.pickupZip || !props.laneRecap.deliveryZip;
@@ -291,8 +302,6 @@ export function EstimateComposer(props: EstimateComposerProps) {
           then send. The customer gets exactly what the preview shows.
         </p>
       </header>
-
-      {sentBanner}
 
       {laneIncomplete ? (
         <div className="flex items-start gap-3 border border-amber-700/60 bg-amber-950/30 p-4">
@@ -316,7 +325,10 @@ export function EstimateComposer(props: EstimateComposerProps) {
             min="0"
             step="50"
             value={linehaulLow}
-            onChange={(e) => onChange.linehaulLow(e.target.value)}
+            onChange={(e) => {
+              setLinehaulLow(e.target.value);
+              markStale();
+            }}
             className={inputCls}
             placeholder="1850"
           />
@@ -328,7 +340,10 @@ export function EstimateComposer(props: EstimateComposerProps) {
             min="0"
             step="50"
             value={linehaulHigh}
-            onChange={(e) => onChange.linehaulHigh(e.target.value)}
+            onChange={(e) => {
+              setLinehaulHigh(e.target.value);
+              markStale();
+            }}
             className={inputCls}
             placeholder="2050"
           />
@@ -340,7 +355,10 @@ export function EstimateComposer(props: EstimateComposerProps) {
             min="0"
             step="1"
             value={miles}
-            onChange={(e) => onChange.miles(e.target.value)}
+            onChange={(e) => {
+              setMiles(e.target.value);
+              markStale();
+            }}
             className={inputCls}
             placeholder={
               props.computedMiles ? String(props.computedMiles) : "280"
@@ -365,7 +383,10 @@ export function EstimateComposer(props: EstimateComposerProps) {
         <textarea
           rows={2}
           value={pickupTimingNotes}
-          onChange={(e) => onChange.pickupTimingNotes(e.target.value)}
+          onChange={(e) => {
+            setPickupTimingNotes(e.target.value);
+            markStale();
+          }}
           className={`${inputCls} resize-y`}
           placeholder='e.g. "Can pick Tuesday morning. Wednesday is tight."'
         />
@@ -374,7 +395,10 @@ export function EstimateComposer(props: EstimateComposerProps) {
         <textarea
           rows={2}
           value={equipmentNotes}
-          onChange={(e) => onChange.equipmentNotes(e.target.value)}
+          onChange={(e) => {
+            setEquipmentNotes(e.target.value);
+            markStale();
+          }}
           className={`${inputCls} resize-y`}
           placeholder='e.g. "Standard flatbed, tarps available, no chains needed for this profile."'
         />
@@ -383,7 +407,13 @@ export function EstimateComposer(props: EstimateComposerProps) {
         <textarea
           rows={2}
           value={dispatchNotes}
-          onChange={(e) => onChange.dispatchNotes(e.target.value)}
+          onChange={(e) => {
+            setDispatchNotes(e.target.value);
+            // Internal note doesn't appear in the email body, but it IS
+            // saved on the draft row, so flipping stale keeps the
+            // "preview matches saved draft" contract honest.
+            markStale();
+          }}
           className={`${inputCls} resize-y`}
           placeholder="Your notes — capacity, who to call, why this rate, etc."
         />
@@ -394,7 +424,10 @@ export function EstimateComposer(props: EstimateComposerProps) {
           <input
             type="date"
             value={expirationAt}
-            onChange={(e) => onChange.expirationAt(e.target.value)}
+            onChange={(e) => {
+              setExpirationAt(e.target.value);
+              markStale();
+            }}
             className={inputCls}
           />
         </Field>
@@ -431,7 +464,7 @@ export function EstimateComposer(props: EstimateComposerProps) {
             onChange={(e) => {
               setClosingLine(e.target.value);
               setEditedClosing(true);
-              invalidatePreview();
+              markStale();
             }}
             className={`${inputCls} flex-1 resize-y`}
           />
@@ -477,7 +510,7 @@ export function EstimateComposer(props: EstimateComposerProps) {
           disabled={isPending}
           className="btn-outline-cut inline-flex items-center justify-center px-5 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-zinc-100 transition-colors disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
-          {isPending && previewState.kind !== "building" ? "Working…" : "Save draft"}
+          {isPending && !building ? "Working…" : "Save draft"}
         </button>
         <button
           type="button"
@@ -485,59 +518,80 @@ export function EstimateComposer(props: EstimateComposerProps) {
           disabled={isPending || laneIncomplete}
           className="btn-cut inline-flex items-center justify-center bg-red-600 px-5 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
-          {previewState.kind === "building"
+          {building
             ? "Building…"
-            : previewState.kind === "fresh"
+            : preview
               ? "Rebuild preview"
-              : previewState.kind === "stale"
-                ? "Rebuild preview"
-                : "Build preview"}
+              : "Build preview"}
         </button>
       </div>
 
-      {/* Preview panel — appears only after Build Preview. */}
-      {previewState.kind === "fresh" || previewState.kind === "stale" ? (
+      {/* Preview panel — visible whenever a preview exists, fresh or stale. */}
+      {preview ? (
         <div className="space-y-4 pt-2">
-          {previewState.kind === "stale" ? (
+          {stale ? (
             <div className="flex items-start gap-3 border border-amber-700/60 bg-amber-950/30 p-4">
               <span
                 aria-hidden
                 className="mt-0.5 inline-block h-3 w-1 shrink-0 bg-amber-500"
               />
               <p className="text-sm leading-relaxed text-amber-100">
-                You edited the composer after building this preview. Rebuild
-                the preview before sending — what you see below no longer
-                matches the current draft.
+                Preview is stale — rebuild before sending. The composer
+                fields have changed since this preview was built; Send is
+                disabled until you rebuild.
               </p>
             </div>
           ) : null}
 
-          <EmailPreviewPanel preview={previewState.data} />
+          <EmailPreviewPanel preview={preview} />
 
-          {/* Gated Send — only when preview is fresh */}
-          {previewState.kind === "fresh" ? (
-            <div className="border border-red-700/60 bg-red-950/20 p-4 sm:p-5">
-              <p className="font-mono text-[10px] tracking-[0.22em] text-red-300 uppercase">
-                Ready to send
-              </p>
-              <p className="mt-2 text-sm leading-relaxed text-red-100">
-                The email above is exactly what {props.leadName} will receive.
-                Once sent, the lead status auto-advances to{" "}
-                <span className="font-mono text-red-200">Engaged</span> and
-                this draft becomes part of the timeline.
-              </p>
-              <div className="mt-4 flex justify-end">
-                <button
-                  type="button"
-                  onClick={onSend}
-                  disabled={isPending}
-                  className="btn-cut inline-flex items-center justify-center bg-red-600 px-6 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {isPending ? "Sending…" : "Send estimate"}
-                </button>
-              </div>
+          <div
+            className={
+              "border p-4 sm:p-5 " +
+              (stale
+                ? "border-neutral-800 bg-neutral-950"
+                : "border-red-700/60 bg-red-950/20")
+            }
+          >
+            <p
+              className={
+                "font-mono text-[10px] tracking-[0.22em] uppercase " +
+                (stale ? "text-neutral-500" : "text-red-300")
+              }
+            >
+              {stale ? "Send disabled" : "Ready to send"}
+            </p>
+            <p
+              className={
+                "mt-2 text-sm leading-relaxed " +
+                (stale ? "text-neutral-400" : "text-red-100")
+              }
+            >
+              {stale ? (
+                <>
+                  Rebuild the preview to enable Send. The preview above
+                  still reflects the last build — keep or change it before
+                  you send.
+                </>
+              ) : (
+                <>
+                  The email above is exactly what {props.leadName} will
+                  receive. Once sent, the lead status auto-advances and
+                  this draft becomes the next record in Sent Estimates.
+                </>
+              )}
+            </p>
+            <div className="mt-4 flex justify-end">
+              <button
+                type="button"
+                onClick={onSend}
+                disabled={isPending || stale}
+                className="btn-cut inline-flex items-center justify-center bg-red-600 px-6 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isPending && !building ? "Sending…" : "Send estimate"}
+              </button>
             </div>
-          ) : null}
+          </div>
         </div>
       ) : null}
     </section>

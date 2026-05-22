@@ -72,8 +72,7 @@ export function estimateLaneMiles(originZip: string, destZip: string): LaneMiles
   };
 }
 
-/** Compute RPM = rate / miles. Returns null if miles is 0 / undefined. */
-export function computeRpm(rate: number | null, miles: number | null): number | null {
-  if (!rate || !miles || miles <= 0) return null;
-  return Math.round((rate / miles) * 100) / 100;
-}
+// computeRpm lives in ./rpm so client components can import it without
+// pulling the zipcodes dataset into the browser bundle. Server callers
+// can keep importing it from this module via the re-export below.
+export { computeRpm } from "./rpm";

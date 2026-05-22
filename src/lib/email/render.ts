@@ -34,13 +34,20 @@ const SECTION_PADDING_Y_BOTTOM = 10;
 
 const HAIRLINE = `<tr><td style="padding:0;background:#e5e5e5;font-size:1px;line-height:1px">&nbsp;</td></tr>`;
 
-function sectionHeader(num: string, title: string, inverted = false): string {
-  const labelColor = inverted ? "#fafafa" : "#0a0a0a";
-  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin:0 0 6px">
+/**
+ * Centered section header — title flanked by horizontal rules. Reads as
+ * a chapter title in a formal proposal rather than a numbered dispatch
+ * step. Renders correctly in Gmail, Apple Mail, Outlook (mso lines
+ * collapse cleanly because each rule cell carries its own 1px line).
+ */
+function sectionHeader(title: string, inverted = false): string {
+  const titleColor = inverted ? "#fafafa" : "#0a0a0a";
+  const ruleColor = inverted ? "#3f3f46" : "#d4d4d8";
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;width:100%;margin:0 0 12px">
     <tr>
-      <td style="padding:0 0 6px;font-family:${SANS};${MONO_FEATURES};font-size:11px;letter-spacing:0.22em;color:${labelColor};text-transform:uppercase;font-weight:800">
-        <span style="color:#dc2626">${escapeHtml(num)}</span>&nbsp;&nbsp;${escapeHtml(title)}
-      </td>
+      <td style="border-top:1px solid ${ruleColor};font-size:1px;line-height:1px;width:40%">&nbsp;</td>
+      <td style="padding:0 16px;white-space:nowrap;font-family:${SANS};${MONO_FEATURES};font-size:11px;letter-spacing:0.28em;color:${titleColor};text-transform:uppercase;font-weight:800;text-align:center;vertical-align:middle">${escapeHtml(title)}</td>
+      <td style="border-top:1px solid ${ruleColor};font-size:1px;line-height:1px;width:40%">&nbsp;</td>
     </tr>
   </table>`;
 }
@@ -202,7 +209,7 @@ export function renderAcknowledgementEmail(
     "",
     "Got it. Pulling the lane up now.",
     "",
-    "01 / REQUEST SUMMARY",
+    "── REQUEST SUMMARY ──",
     `  REQUEST #     ${qNum}`,
     `  ORIGIN        ${payload.pickupZip}`,
     `  DESTINATION   ${payload.deliveryZip}`,
@@ -210,7 +217,7 @@ export function renderAcknowledgementEmail(
     `  WEIGHT        ${payload.weight}`,
     `  PICKUP        ${pickup}`,
     "",
-    "02 / NEXT STEP",
+    "── NEXT STEP ──",
     "  REPLY         within the hour with a price range",
     `  IF URGENT     call direct ${company.dispatchPhone}`,
   ].join("\n");
@@ -221,7 +228,7 @@ export function renderAcknowledgementEmail(
   );
 
   const requestSummaryBand = bandWhite(
-    sectionHeader("01", "Request summary") +
+    sectionHeader("Request summary") +
       fieldTable([
         {
           label: "Request #",
@@ -242,7 +249,7 @@ export function renderAcknowledgementEmail(
   );
 
   const nextStepBand = bandWhite(
-    sectionHeader("02", "Next step") +
+    sectionHeader("Next step") +
       fieldTable([
         { label: "Reply", value: "within the hour with a price range." },
         {
@@ -295,6 +302,15 @@ export type EstimatePayload = {
   closingLine: string;
   expirationAt: string | null;
   leadId: string;
+  /**
+   * Public, tokenized URL the customer clicks to accept this estimate.
+   * Lands on the shipment finalization intake page. When null, the
+   * Accept / Decline action band is omitted from the rendered email —
+   * Build Preview before send time renders without a token because
+   * tokens are issued at send time.
+   */
+  acceptUrl?: string | null;
+  declineUrl?: string | null;
 };
 
 function formatUsd(n: number): string {
@@ -309,6 +325,65 @@ function formatUsd(n: number): string {
 function formatRate(low: number, high: number | null): string {
   if (high == null || high <= low) return formatUsd(low);
   return `${formatUsd(low)}–${formatUsd(high)}`;
+}
+
+/**
+ * Email-safe Accept / Decline action band. Two restrained buttons
+ * side-by-side (stack-via-percent-widths on narrow viewports), a sub-
+ * caption explaining each, and the validity disclaimer below.
+ *
+ * Buttons use solid backgrounds (no images, no SVG), 1px darker
+ * borders, square corners — they read as operational paperwork, not
+ * a SaaS landing page CTA.
+ */
+function actionBand(
+  acceptUrl: string,
+  declineUrl: string,
+  validThrough: string | null,
+): string {
+  const acceptBg = "#15803d";
+  const acceptBorder = "#166534";
+  const declineBg = "#991b1b";
+  const declineBorder = "#7f1d1d";
+
+  const button = (
+    href: string,
+    label: string,
+    bg: string,
+    border: string,
+  ): string =>
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;width:100%">
+      <tr>
+        <td align="center" bgcolor="${bg}" style="background:${bg};border:1px solid ${border}">
+          <a href="${escapeHtml(href)}" style="display:block;padding:14px 18px;font-family:${SANS};${MONO_FEATURES};font-size:12px;letter-spacing:0.22em;color:#ffffff;text-decoration:none;text-transform:uppercase;font-weight:800">${escapeHtml(label)}</a>
+        </td>
+      </tr>
+    </table>`;
+
+  const validityLine = validThrough
+    ? `This estimate is valid through ${escapeHtml(validThrough)} and is subject to change based on final shipment details and capacity at dispatch.`
+    : `This estimate is subject to change based on final shipment details and capacity at dispatch.`;
+
+  return `<tr>
+    <td style="padding:${SECTION_PADDING_Y_TOP}px ${SECTION_PADDING_X}px ${SECTION_PADDING_Y_BOTTOM}px;background:#fafafa;border-top:1px solid #d4d4d8">
+      ${sectionHeader("How would you like to proceed?")}
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;width:100%">
+        <tr>
+          <td width="48%" valign="top" style="width:48%;vertical-align:top">
+            ${button(acceptUrl, "Accept quote", acceptBg, acceptBorder)}
+            <p style="margin:8px 0 0;font-family:${SANS};font-size:12px;color:#3f3f46;line-height:1.5">Accept the estimate range and continue to shipment finalization. Dispatch reviews the full intake before any truck is locked.</p>
+          </td>
+          <td width="4%" style="width:4%;font-size:1px;line-height:1px">&nbsp;</td>
+          <td width="48%" valign="top" style="width:48%;vertical-align:top">
+            ${button(declineUrl, "Decline quote", declineBg, declineBorder)}
+            <p style="margin:8px 0 0;font-family:${SANS};font-size:12px;color:#3f3f46;line-height:1.5">Decline this estimate. There&rsquo;s a short note field on the next screen if anything needs to change.</p>
+          </td>
+        </tr>
+      </table>
+      <p style="margin:14px 0 0;font-family:${SANS};${MONO_FEATURES};font-size:10px;letter-spacing:0.16em;color:#52525b;text-transform:uppercase;text-align:center">Quote ID&nbsp;&middot;&nbsp;<span style="color:#0a0a0a;font-weight:700">${escapeHtml(validThrough ? "Valid through " + validThrough : "Subject to change")}</span></p>
+      <p style="margin:6px 0 0;font-family:${SANS};font-size:11px;color:#52525b;line-height:1.55;text-align:center">${validityLine}</p>
+    </td>
+  </tr>`;
 }
 
 export function renderEstimateEmail(payload: EstimatePayload): RenderedEmail {
@@ -330,13 +405,15 @@ export function renderEstimateEmail(payload: EstimatePayload): RenderedEmail {
       ? "Dispatch reviewed the requested lane. Below is the current rate estimate for the shipment. Range covers final dimensions and appointment timing."
       : "Dispatch reviewed the requested lane. Below is the current rate estimate for the shipment.";
 
+  const hasActions = !!payload.acceptUrl && !!payload.declineUrl;
+
   // ── Plain-text body — invoice grammar in monospace ASCII ─────────────────
   const textLines: string[] = [
     greeting,
     "",
     opener,
     "",
-    "01 / QUOTE SUMMARY",
+    "── QUOTE SUMMARY ──",
     `  QUOTE #         ${qNum}`,
     `  ISSUED          ${issued}`,
     `  VALID THROUGH   ${validThrough}`,
@@ -356,7 +433,7 @@ export function renderEstimateEmail(payload: EstimatePayload): RenderedEmail {
     textLines.push(`  EQUIPMENT       ${payload.equipmentNotes}`);
   }
   textLines.push("");
-  textLines.push("02 / RATE SUMMARY");
+  textLines.push("── RATE SUMMARY ──");
   textLines.push(`  Linehaul estimate                     ${rate}`);
   textLines.push(`  Accessorials                          TBD`);
   textLines.push(`  ─────────────────────────────────────────`);
@@ -365,8 +442,19 @@ export function renderEstimateEmail(payload: EstimatePayload): RenderedEmail {
     textLines.push(`  Valid through                         ${payload.expirationAt}`);
   }
   textLines.push("");
-  textLines.push("03 / CONFIRMATION");
+  textLines.push("── CONFIRMATION ──");
   textLines.push(`  ${payload.closingLine}`);
+  if (hasActions) {
+    textLines.push("");
+    textLines.push("── HOW WOULD YOU LIKE TO PROCEED? ──");
+    textLines.push(`  ACCEPT:   ${payload.acceptUrl}`);
+    textLines.push(`  DECLINE:  ${payload.declineUrl}`);
+    if (payload.expirationAt) {
+      textLines.push(
+        `  Valid through ${payload.expirationAt}. Subject to change based on final shipment details.`,
+      );
+    }
+  }
   const contentText = textLines.join("\n");
 
   // ── HTML body ─────────────────────────────────────────────────────────────
@@ -421,7 +509,7 @@ export function renderEstimateEmail(payload: EstimatePayload): RenderedEmail {
     });
   }
   const quoteSummaryBand = bandWhite(
-    sectionHeader("01", "Quote summary") + fieldTable(quoteSummaryRows),
+    sectionHeader("Quote summary") + fieldTable(quoteSummaryRows),
   );
 
   // Rate summary — invoice-style line items + total + validity.
@@ -435,15 +523,19 @@ export function renderEstimateEmail(payload: EstimatePayload): RenderedEmail {
     rateRows.push({ label: "Valid through", amount: payload.expirationAt });
   }
   const rateSummaryBand = bandBlack(
-    sectionHeader("02", "Rate summary", true) +
+    sectionHeader("Rate summary", true) +
       rateSummaryTable(rateRows, { inverted: true }),
   );
 
   // Confirmation — closing line content lifted to its own section.
   const confirmationBand = bandWhite(
-    sectionHeader("03", "Confirmation") +
+    sectionHeader("Confirmation") +
       `<p style="margin:0;color:#0a0a0a;font-family:${SANS};font-size:15px;font-weight:400;line-height:1.55">${escapeHtml(payload.closingLine)}</p>`,
   );
+
+  const actionBandHtml = hasActions
+    ? actionBand(payload.acceptUrl!, payload.declineUrl!, payload.expirationAt)
+    : "";
 
   const contentHtml = `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;width:100%">
     ${messageBand}
@@ -453,6 +545,7 @@ export function renderEstimateEmail(payload: EstimatePayload): RenderedEmail {
     ${rateSummaryBand}
     ${HAIRLINE}
     ${confirmationBand}
+    ${actionBandHtml}
   </table>`;
 
   const { html, text } = renderEmailShell({
@@ -461,6 +554,10 @@ export function renderEstimateEmail(payload: EstimatePayload): RenderedEmail {
     contentText,
     refNumber: ref,
     docType: "Range proposal",
+    // Estimate ends in its own Accept / Decline action area — drop the
+    // signature footer so the document closes cleanly into a decision.
+    // Acknowledgement email keeps the signature (default true).
+    includeSignatureFooter: false,
   });
 
   return {

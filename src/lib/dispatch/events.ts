@@ -21,6 +21,9 @@ export type DispatchEventKind =
   | "estimate_draft_saved"
   | "estimate_sent"
   | "estimate_send_failed"
+  | "estimate_accepted"
+  | "estimate_declined"
+  | "intake_submitted"
   | "pdf_generated"
   | "note";
 
@@ -39,6 +42,9 @@ export type DispatchEventPayloadByKind = {
     to: string;
   };
   estimate_send_failed: { reason: string; to: string };
+  estimate_accepted: { estimateId: string; mode: "save" | "submit" };
+  estimate_declined: { estimateId: string; reason: string | null };
+  intake_submitted: { estimateId: string };
   pdf_generated: { quoteNumber: string };
   note: { body: string };
 };
