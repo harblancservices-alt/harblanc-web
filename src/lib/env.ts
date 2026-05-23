@@ -61,6 +61,18 @@ const ENV_VARS: ReadonlyArray<EnvSpec> = [
     impact:
       "NEXT_PUBLIC_SITE_URL not set — accept/decline links and logo URLs fall back to the production hostname.",
   },
+  {
+    // Phase Q2: Resend webhook signing secret. When unset, the
+    // /api/resend-webhook route refuses to process events (returns 503
+    // with no row mutations). This is deliberate — we will not accept
+    // unauthenticated webhook payloads, even from localhost, because a
+    // forged bounce event could silently mark a healthy send as
+    // hard-bounced and poison the operator UI.
+    name: "RESEND_WEBHOOK_SECRET",
+    required: false,
+    impact:
+      "RESEND_WEBHOOK_SECRET not set — incoming Resend webhooks (bounce/complaint events) are rejected; sent-list bounce badges will never appear.",
+  },
 ];
 
 /**

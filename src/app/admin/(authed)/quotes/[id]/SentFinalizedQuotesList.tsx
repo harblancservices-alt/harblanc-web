@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { formatDateFull, relativeTime } from "@/lib/admin/format";
 import { EmailPreviewPanel } from "./EmailPreviewPanel";
-import { ResendForm } from "./SentEstimatesList";
+import { ResendForm, BounceBadge, BounceReason } from "./SentEstimatesList";
 import { resendFinalizedQuote } from "../finalized-quote-actions";
 
 export type SentFinalizedQuoteRow = {
@@ -20,6 +20,10 @@ export type SentFinalizedQuoteRow = {
   from: string;
   replyTo: string;
   resentFromId: string | null;
+  // Phase Q2: bounce ingestion. See SentEstimateRow for details.
+  bouncedAt: string | null;
+  bounceKind: "hard" | "soft" | "complaint" | null;
+  bounceReason: string | null;
 };
 
 function formatUsd(n: number): string {
@@ -110,11 +114,13 @@ export function SentFinalizedQuotesList({ rows }: { rows: SentFinalizedQuoteRow[
                       Resent from {row.resentFromId.slice(0, 8)}
                     </p>
                   ) : null}
+                  <BounceReason kind={row.bounceKind} reason={row.bounceReason} />
                 </div>
                 <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                   <span className="inline-flex items-center border border-green-700/60 bg-green-950/30 px-2 py-1 font-mono text-[9px] tracking-[0.22em] text-green-300 uppercase">
                     Sent
                   </span>
+                  <BounceBadge kind={row.bounceKind} />
                   <button
                     type="button"
                     onClick={() => { setResendOpenId(resendOpen ? null : row.id); setError(null); }}

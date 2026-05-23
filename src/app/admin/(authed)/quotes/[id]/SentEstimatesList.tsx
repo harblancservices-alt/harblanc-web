@@ -27,6 +27,12 @@ export type SentEstimateRow = {
   from: string;
   replyTo: string;
   resentFromId: string | null;
+  // Phase Q2: bounce ingestion. Populated by the /api/resend-webhook
+  // route after Resend reports a bounce or complaint on this send.
+  // All three are null on a healthy (or not-yet-reported) send.
+  bouncedAt: string | null;
+  bounceKind: "hard" | "soft" | "complaint" | null;
+  bounceReason: string | null;
 };
 
 function formatRate(low: number | null, high: number | null): string {
@@ -36,6 +42,68 @@ function formatRate(low: number | null, high: number | null): string {
   }
   const v = (low ?? high) as number;
   return `$${v.toLocaleString()}`;
+}
+
+/**
+ * Phase Q2: bounce status badge. Renders nothing when the send is
+ * healthy. Three states:
+ *   - hard       → red, "Bounced" — delivery permanently failed.
+ *   - soft       → amber, "Soft bounce" — informational; Resend may
+ *                  still retry, or the mailbox may be transiently
+ *                  unavailable. Operators decide whether to chase.
+ *   - complaint  → red, "Marked spam" — recipient flagged as junk.
+ *
+ * Exported so SentFinalizedQuotesList and SentBolsList can reuse it.
+ */
+export function BounceBadge({
+  kind,
+}: {
+  kind: "hard" | "soft" | "complaint" | null;
+}) {
+  if (!kind) return null;
+  const className =
+    kind === "soft"
+      ? "inline-flex items-center border border-amber-700/60 bg-amber-950/30 px-2 py-1 font-mono text-[9px] tracking-[0.22em] text-amber-300 uppercase"
+      : "inline-flex items-center border border-red-700/60 bg-red-950/30 px-2 py-1 font-mono text-[9px] tracking-[0.22em] text-red-300 uppercase";
+  const label =
+    kind === "hard"
+      ? "Bounced"
+      : kind === "soft"
+        ? "Soft bounce"
+        : "Marked spam";
+  return <span className={className}>{label}</span>;
+}
+
+/**
+ * Phase Q2: bounce reason caption. Renders the upstream message from
+ * Resend (e.g. "550 5.1.1 mailbox not found") under the row's primary
+ * info. Hidden when null. Kept compact (one line, neutral color) so
+ * the row stays scannable.
+ *
+ * Exported so SentFinalizedQuotesList and SentBolsList can reuse it.
+ */
+export function BounceReason({
+  kind,
+  reason,
+}: {
+  kind: "hard" | "soft" | "complaint" | null;
+  reason: string | null;
+}) {
+  if (!kind) return null;
+  const prefix =
+    kind === "hard"
+      ? "Bounced"
+      : kind === "soft"
+        ? "Soft bounce"
+        : "Spam complaint";
+  return (
+    <p className="font-mono text-[10px] leading-relaxed text-neutral-500">
+      <span className={kind === "soft" ? "text-amber-300" : "text-red-300"}>
+        {prefix}
+      </span>
+      {reason ? <> · {reason}</> : null}
+    </p>
+  );
 }
 
 export function SentEstimatesList({ rows }: { rows: SentEstimateRow[] }) {
@@ -131,11 +199,13 @@ export function SentEstimatesList({ rows }: { rows: SentEstimateRow[] }) {
                       Resent from {row.resentFromId.slice(0, 8)}
                     </p>
                   ) : null}
+                  <BounceReason kind={row.bounceKind} reason={row.bounceReason} />
                 </div>
                 <div className="flex flex-wrap items-center gap-2 sm:justify-end">
                   <span className="inline-flex items-center border border-green-700/60 bg-green-950/30 px-2 py-1 font-mono text-[9px] tracking-[0.22em] text-green-300 uppercase">
                     Sent
                   </span>
+                  <BounceBadge kind={row.bounceKind} />
                   <button
                     type="button"
                     onClick={() => { setResendOpenId(resendOpen ? null : row.id); setError(null); }}

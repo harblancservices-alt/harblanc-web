@@ -64,6 +64,13 @@ const KIND_LABELS: Record<string, string> = {
   estimate_resent: "Estimate resent",
   finalized_quote_resent: "Finalized quote resent",
   bol_resent: "BOL resent",
+  // Phase Q2: bounce ingestion. Labels stay neutral — the dot class and
+  // the describe() text carry the severity (hard vs soft) and the
+  // upstream reason string.
+  estimate_bounced: "Estimate bounced",
+  finalized_quote_bounced: "Finalized quote bounced",
+  bol_bounced: "BOL bounced",
+  email_complained: "Recipient marked as spam",
   note: "Note",
 };
 
@@ -103,6 +110,16 @@ const KIND_DOT_CLASSES: Record<string, string> = {
   estimate_resent: "bg-blue-500",
   finalized_quote_resent: "bg-blue-500",
   bol_resent: "bg-blue-500",
+  // Phase Q2: bounce events all use red — they represent a failed or
+  // refused delivery. Operators should treat them with the same urgency
+  // as send-failed events. We deliberately do NOT use amber for soft
+  // bounces here, because the timeline is the operator's audit trail,
+  // not a triage queue — the per-row badge in the Sent list carries the
+  // hard/soft distinction visually.
+  estimate_bounced: "bg-red-500",
+  finalized_quote_bounced: "bg-red-500",
+  bol_bounced: "bg-red-500",
+  email_complained: "bg-red-500",
   note: "bg-neutral-400",
 };
 
@@ -225,6 +242,38 @@ function describe(event: DispatchEvent): string {
       if (num) parts.push(num);
       if (to) parts.push(to);
       if (reason) parts.push(reason);
+      return parts.join(" · ");
+    }
+    case "estimate_bounced":
+    case "finalized_quote_bounced":
+    case "bol_bounced": {
+      // Phase Q2: render kind + recipient + upstream reason. The kind
+      // ("hard"/"soft"/"complaint") is the most important fact since it
+      // determines what the operator should do next (chase a new
+      // address vs wait out a transient failure).
+      const kind = p.kind ? String(p.kind) : "";
+      const to = p.to ? `to ${String(p.to)}` : "";
+      const num = p.finalizedQuoteNumber
+        ? String(p.finalizedQuoteNumber)
+        : p.bolNumber
+          ? String(p.bolNumber)
+          : "";
+      const reason = p.reason ? String(p.reason) : "";
+      const parts: string[] = [];
+      if (kind) parts.push(`${kind} bounce`);
+      if (num) parts.push(num);
+      if (to) parts.push(to);
+      if (reason) parts.push(reason);
+      return parts.join(" · ");
+    }
+    case "email_complained": {
+      // Phase Q2: complaint is "this recipient marked our mail as spam".
+      // No hard/soft kind — render the doc number (if any) and recipient.
+      const to = p.to ? `to ${String(p.to)}` : "";
+      const num = p.docNumber ? String(p.docNumber) : "";
+      const parts: string[] = [];
+      if (num) parts.push(num);
+      if (to) parts.push(to);
       return parts.join(" · ");
     }
     case "note":

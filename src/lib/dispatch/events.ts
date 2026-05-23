@@ -40,6 +40,10 @@ export type DispatchEventKind =
   | "estimate_resent"
   | "finalized_quote_resent"
   | "bol_resent"
+  | "estimate_bounced"
+  | "finalized_quote_bounced"
+  | "bol_bounced"
+  | "email_complained"
   | "note";
 
 export type DispatchEventPayloadByKind = {
@@ -160,6 +164,48 @@ export type DispatchEventPayloadByKind = {
     to: string;
     emailId: string | null;
     reason: string | null;
+  };
+  // Phase Q2: bounce ingestion. Emitted by the /api/resend-webhook route
+  // after matching an incoming bounce/complaint to a sent row by
+  // sent_email_id. Carries the document id so the timeline can render
+  // without a join, and the upstream bounce reason verbatim so operators
+  // can decide whether to re-send (soft bounce) or chase a new address
+  // (hard bounce). `kind` mirrors the persisted `bounce_kind` column on
+  // the same row.
+  estimate_bounced: {
+    estimateId: string;
+    emailId: string;
+    to: string;
+    kind: "hard" | "soft" | "complaint";
+    reason: string | null;
+  };
+  finalized_quote_bounced: {
+    finalizedQuoteId: string;
+    finalizedQuoteNumber: string;
+    emailId: string;
+    to: string;
+    kind: "hard" | "soft" | "complaint";
+    reason: string | null;
+  };
+  bol_bounced: {
+    bolId: string;
+    bolNumber: string;
+    emailId: string;
+    to: string;
+    kind: "hard" | "soft" | "complaint";
+    reason: string | null;
+  };
+  // Distinct from the three bounce types: a complaint is an "I marked
+  // this as spam" report. Persisted on the same row as bounce_kind =
+  // 'complaint', but emitted as its own event kind so the timeline can
+  // call it out separately from a delivery failure (operationally
+  // different — a complaint is a deliverability reputation hazard).
+  email_complained: {
+    docType: "estimate" | "finalized_quote" | "bol";
+    docId: string;
+    docNumber: string | null;
+    emailId: string;
+    to: string;
   };
   note: { body: string };
 };
