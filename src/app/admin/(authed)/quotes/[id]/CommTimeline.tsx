@@ -54,6 +54,11 @@ const KIND_LABELS: Record<string, string> = {
   bol_sent: "BOL sent",
   bol_send_failed: "BOL send failed",
   pdf_generated: "Quote PDF generated",
+  // Phase P1A: payment event labels reserved for when payment-actions
+  // start emitting them (Phase P1B). Declared here so CommTimeline
+  // renders them with the correct label/dot from day one.
+  payment_recorded: "Payment recorded",
+  payment_completed: "Paid in full",
   note: "Note",
 };
 
@@ -81,6 +86,12 @@ const KIND_DOT_CLASSES: Record<string, string> = {
   bol_sent: "bg-emerald-500",
   bol_send_failed: "bg-red-500",
   pdf_generated: "bg-blue-500",
+  // Phase P1A: payment events use the same green family as other
+  // commercial-success events (estimate_sent, intake_submitted, etc.).
+  // "Paid in full" gets the strongest emerald to call out the moment
+  // money settles and the load is cleared to dispatch.
+  payment_recorded: "bg-green-500",
+  payment_completed: "bg-emerald-500",
   note: "bg-neutral-400",
 };
 
@@ -157,6 +168,31 @@ function describe(event: DispatchEvent): string {
       return p.reason ? String(p.reason) : "";
     case "pdf_generated":
       return p.quoteNumber ? String(p.quoteNumber) : "";
+    case "payment_recorded": {
+      // Phase P1A: render the amount + method (+ reference if present).
+      // Payload shape is set by the future payment-actions in Phase P1B;
+      // this branch already handles partial payloads gracefully.
+      const amount =
+        typeof p.amount === "number" ? fmtUsd(p.amount) : null;
+      const method = p.method ? String(p.method) : null;
+      const reference = p.reference ? String(p.reference) : null;
+      const parts: string[] = [];
+      if (amount) parts.push(amount);
+      if (method) parts.push(`via ${method.replace(/_/g, " ")}`);
+      if (reference) parts.push(reference);
+      return parts.join(" · ");
+    }
+    case "payment_completed": {
+      // Phase P1A: rendered when the FQ flips paid-in-full. Show the
+      // FQ number + total so the timeline anchors the dollar moment.
+      const fqNum = p.fqNumber ? String(p.fqNumber) : "";
+      const total =
+        typeof p.totalAmount === "number" ? fmtUsd(p.totalAmount) : null;
+      if (fqNum && total) return `${fqNum} · ${total}`;
+      if (fqNum) return fqNum;
+      if (total) return total;
+      return "";
+    }
     case "note":
       return p.body ? String(p.body) : "";
     default:
