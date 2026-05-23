@@ -181,7 +181,7 @@ export function QuoteDetailTabs({
                 "shrink-0 border px-5 py-3.5 text-[11px] font-semibold tracking-[0.18em] uppercase transition-colors " +
                 (i > 0 ? "-ml-px " : "") +
                 (isActive
-                  ? "relative z-10 border-neutral-800 border-b-transparent bg-neutral-800/50 text-white"
+                  ? "relative z-10 border-neutral-800 border-b-neutral-900 bg-neutral-900 text-white"
                   : "border-neutral-800 bg-neutral-950 text-neutral-400 hover:bg-neutral-900/40 hover:text-white")
               }
             >
@@ -203,7 +203,7 @@ export function QuoteDetailTabs({
         id={`panel-${activeTab}`}
         role="tabpanel"
         aria-labelledby={`tab-${activeTab}`}
-        className="relative -mt-px border-x border-b border-neutral-800 bg-neutral-800/50 p-5 sm:p-6"
+        className="relative -mt-px border border-neutral-800 bg-neutral-900 p-5 shadow-2xl shadow-black/50 sm:p-7"
       >
         {activeTab === "request" ? (
           <RequestTab
@@ -281,7 +281,7 @@ function RequestTab({
       ) : null}
 
       {hasLane ? (
-        <section className="border border-neutral-700 bg-neutral-800/60 p-5 sm:p-6">
+        <section className="border border-neutral-700 bg-neutral-800 p-5 sm:p-6">
           <h2 className="label-cap">
             Lane
           </h2>
@@ -309,7 +309,7 @@ function RequestTab({
       ) : null}
 
       <div className="grid grid-cols-1 divide-y divide-neutral-700 border border-neutral-700 sm:grid-cols-2 sm:divide-x sm:divide-y-0">
-        <section className="bg-neutral-800/60 p-5 sm:p-6">
+        <section className="bg-neutral-800 p-5 sm:p-6">
           <h2 className="label-cap">
             Primary contact
           </h2>
@@ -332,7 +332,7 @@ function RequestTab({
             </Field>
           </dl>
         </section>
-        <section className="bg-neutral-800/60 p-5 sm:p-6">
+        <section className="bg-neutral-800 p-5 sm:p-6">
           <h2 className="label-cap">
             Shipment
           </h2>
@@ -352,7 +352,7 @@ function RequestTab({
       </div>
 
       {row.notes ? (
-        <section className="border border-neutral-700 bg-neutral-800/60 p-5 sm:p-6">
+        <section className="border border-neutral-700 bg-neutral-800 p-5 sm:p-6">
           <h2 className="label-cap">
             Customer notes
           </h2>
@@ -374,7 +374,7 @@ function RequestTab({
       ) : null}
 
       {!isTrashed ? (
-        <section className="border border-neutral-700 border-t-2 border-t-red-600 bg-neutral-800/60 p-5 sm:p-6">
+        <section className="border border-neutral-600 border-t-2 border-t-red-600 bg-neutral-800 p-5 shadow-lg shadow-black/40 sm:p-7">
           <EstimateComposer
             key={draftEstimate?.id ?? "no-draft"}
             quoteRequestId={row.id}

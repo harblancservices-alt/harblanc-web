@@ -49,27 +49,27 @@ export function QuickActions({ phone, email }: QuickActionsProps) {
   return (
     <section
       aria-label="Quick dispatch actions"
-      className="flex flex-wrap items-stretch gap-2 border border-neutral-700 bg-neutral-800/60 p-2"
+      className="flex flex-wrap items-stretch gap-2.5 border border-neutral-700 bg-neutral-800 p-3 shadow-md shadow-black/30"
     >
       <a
         href={telHref}
-        className="inline-flex w-full items-center gap-2 border border-neutral-600 bg-neutral-800 px-3 py-2.5 text-[11px] font-semibold tracking-[0.18em] text-white uppercase transition-colors hover:border-red-500 hover:bg-neutral-700 sm:w-auto"
+        className="inline-flex w-full items-center gap-2.5 border border-neutral-500 bg-neutral-700 px-4 py-3 text-[11px] font-semibold tracking-[0.18em] text-white uppercase transition-colors hover:border-red-500 hover:bg-neutral-600 sm:w-auto"
       >
         <span aria-hidden className="inline-block h-2 w-1 bg-red-600" />
         Call
-        <span className="font-mono text-[10px] tracking-normal text-neutral-300 normal-case">
+        <span className="font-mono text-xs tracking-normal text-neutral-200 normal-case">
           {phone}
         </span>
       </a>
 
       <a
         href={mailHref}
-        className="inline-flex w-full items-center gap-2 border border-neutral-600 bg-neutral-800 px-3 py-2.5 text-[11px] font-semibold tracking-[0.18em] text-white uppercase transition-colors hover:border-red-500 hover:bg-neutral-700 sm:w-auto"
+        className="inline-flex w-full items-center gap-2.5 border border-neutral-500 bg-neutral-700 px-4 py-3 text-[11px] font-semibold tracking-[0.18em] text-white uppercase transition-colors hover:border-red-500 hover:bg-neutral-600 sm:w-auto"
       >
         <span aria-hidden className="inline-block h-2 w-1 bg-red-600" />
         Email
         <span
-          className="max-w-[16ch] truncate font-mono text-[10px] tracking-normal text-neutral-300 normal-case"
+          className="max-w-[16ch] truncate font-mono text-xs tracking-normal text-neutral-200 normal-case"
           title={email}
         >
           {email}
