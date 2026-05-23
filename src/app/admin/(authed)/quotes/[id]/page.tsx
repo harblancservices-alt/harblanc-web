@@ -24,7 +24,6 @@ import type { BolDraft } from "./BillOfLadingComposer";
 import type { BolWorkflowState } from "./BillOfLadingSection";
 import type { SentBolRow } from "./SentBolsList";
 import type { SubmittedIntakeData } from "./SubmittedIntakePanel";
-import type { DispatchOwnership } from "./DispatchOwnershipPanel";
 import type { PaymentTarget, PaymentRow } from "./PaymentSection";
 
 export const metadata: Metadata = {
@@ -602,7 +601,6 @@ async function loadDetail(id: string): Promise<{
   bolState: BolWorkflowState;
   sentBols: SentBolRow[];
   submittedIntake: SubmittedIntakeData | null;
-  ownership: DispatchOwnership;
   paymentTarget: PaymentTarget | null;
 } | null> {
   const sb = createServiceRoleClient();
@@ -695,13 +693,6 @@ async function loadDetail(id: string): Promise<{
   const submittedIntake = await loadSubmittedIntake(sb, id);
   const paymentTarget = await loadPaymentTarget(sb, id);
 
-  const ownership: DispatchOwnership = {
-    assignedDispatcher: row.assigned_dispatcher,
-    assignedCarrier: row.assigned_carrier,
-    assignedTruck: row.assigned_truck,
-    trailerType: row.trailer_type,
-  };
-
   return {
     row,
     generatedQuote,
@@ -715,7 +706,6 @@ async function loadDetail(id: string): Promise<{
     bolState,
     sentBols,
     submittedIntake,
-    ownership,
     paymentTarget,
   };
 }
@@ -981,7 +971,6 @@ export default async function QuoteDetailPage({
     bolState,
     sentBols,
     submittedIntake,
-    ownership,
     paymentTarget,
   } = detail;
 
@@ -1035,7 +1024,6 @@ export default async function QuoteDetailPage({
         bolState={bolState}
         sentBols={sentBols}
         submittedIntake={submittedIntake}
-        ownership={ownership}
         paymentTarget={paymentTarget}
       />
 

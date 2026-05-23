@@ -31,10 +31,6 @@ import {
   SubmittedIntakePanel,
   type SubmittedIntakeData,
 } from "./SubmittedIntakePanel";
-import {
-  DispatchOwnershipPanel,
-  type DispatchOwnership,
-} from "./DispatchOwnershipPanel";
 import { type PaymentTarget } from "./PaymentSection";
 
 export type QuoteDetailRow = {
@@ -91,7 +87,6 @@ export function QuoteDetailTabs({
   bolState,
   sentBols,
   submittedIntake,
-  ownership,
   paymentTarget,
 }: {
   row: QuoteDetailRow;
@@ -106,7 +101,6 @@ export function QuoteDetailTabs({
   bolState: BolWorkflowState;
   sentBols: SentBolRow[];
   submittedIntake: SubmittedIntakeData | null;
-  ownership: DispatchOwnership;
   paymentTarget: PaymentTarget | null;
 }) {
   const [activeTab, setActiveTab] = useState<TabId>("request");
@@ -218,7 +212,6 @@ export function QuoteDetailTabs({
             computedMiles={computedMiles}
             isTrashed={isTrashed}
             submittedIntake={submittedIntake}
-            ownership={ownership}
           />
         ) : null}
         {activeTab === "finalized" ? (
@@ -265,7 +258,6 @@ function RequestTab({
   computedMiles,
   isTrashed,
   submittedIntake,
-  ownership,
 }: {
   row: QuoteDetailRow;
   phoneHref: string;
@@ -274,7 +266,6 @@ function RequestTab({
   computedMiles: number | null;
   isTrashed: boolean;
   submittedIntake: SubmittedIntakeData | null;
-  ownership: DispatchOwnership;
 }) {
   const hasLane = Boolean(row.pickup_zip && row.delivery_zip);
 
@@ -284,111 +275,25 @@ function RequestTab({
         <QuickActions phone={row.phone} email={row.email} />
       ) : null}
 
-      {/* GROUP: Load overview — lane, primary contact, shipment, customer notes */}
+      {/* Phase W2: unified Load preview replaces the prior three stacked
+          groups (Load overview / Finalized load information / Dispatch
+          ownership). Primary client/contact sits at the top of the shell
+          and is always shown; the body switches between the lead-form
+          summary (State A) and SubmittedIntakePanel (State B) depending
+          on whether the customer has submitted intake. Dispatch ownership
+          has been removed from Workspace for now — DispatchOwnershipPanel
+          and updateDispatchOwnership remain in the codebase for later
+          re-introduction. */}
       <section className="space-y-5">
-        <GroupHeading>Load overview</GroupHeading>
-
-      {hasLane ? (
-        <section className="border border-neutral-700 bg-neutral-800 p-5 sm:p-6">
-          <h2 className="label-cap">
-            Lane
-          </h2>
-          <div className="mt-4 flex flex-wrap items-baseline gap-x-4 gap-y-2">
-            <span className="font-mono text-2xl font-semibold text-white sm:text-3xl">
-              {row.pickup_zip}
-            </span>
-            <span aria-hidden className="font-mono text-xl text-red-500">
-              &rarr;
-            </span>
-            <span className="font-mono text-2xl font-semibold text-white sm:text-3xl">
-              {row.delivery_zip}
-            </span>
-            {computedMiles != null ? (
-              <span className="ml-1 font-mono text-[10px] tracking-[0.22em] text-neutral-500 uppercase">
-                ~{computedMiles} mi
-              </span>
-            ) : null}
-          </div>
-          <p className="mt-3 label-cap">
-            Pickup target:{" "}
-            <span className="text-zinc-200">{row.pickup_date ?? "ASAP"}</span>
-          </p>
-        </section>
-      ) : null}
-
-      <div className="grid grid-cols-1 divide-y divide-neutral-700 border border-neutral-700 sm:grid-cols-2 sm:divide-x sm:divide-y-0">
-        <section className="bg-neutral-800 p-5 sm:p-6">
-          <h2 className="label-cap">
-            Primary contact
-          </h2>
-          <dl className="mt-4 space-y-4">
-            <Field label="Phone">
-              <a
-                href={phoneHref}
-                className="block break-all font-mono text-xl text-white underline-offset-4 hover:underline sm:text-2xl"
-              >
-                {row.phone}
-              </a>
-            </Field>
-            <Field label="Email">
-              <a
-                href={`mailto:${row.email}`}
-                className="block break-all text-base text-white underline-offset-4 hover:underline sm:text-lg"
-              >
-                {row.email}
-              </a>
-            </Field>
-          </dl>
-        </section>
-        <section className="bg-neutral-800 p-5 sm:p-6">
-          <h2 className="label-cap">
-            Shipment
-          </h2>
-          <dl className="mt-4 space-y-4">
-            <Field label="Commodity">
-              <span className="block text-xl text-white sm:text-2xl">
-                {row.commodity}
-              </span>
-            </Field>
-            <Field label="Approximate weight">
-              <span className="block font-mono text-xl text-white sm:text-2xl">
-                {row.weight}
-              </span>
-            </Field>
-          </dl>
-        </section>
-      </div>
-
-      {row.notes ? (
-        <section className="border border-neutral-700 bg-neutral-800 p-5 sm:p-6">
-          <h2 className="label-cap">
-            Customer notes
-          </h2>
-          <p className="mt-4 whitespace-pre-wrap text-base leading-relaxed text-neutral-100">
-            {row.notes}
-          </p>
-        </section>
-      ) : null}
+        <GroupHeading>Load preview</GroupHeading>
+        <LoadPreview
+          row={row}
+          phoneHref={phoneHref}
+          computedMiles={computedMiles}
+          submittedIntake={submittedIntake}
+          hasLane={hasLane}
+        />
       </section>
-
-      {/* GROUP: Finalized load information — only when intake submitted */}
-      {submittedIntake ? (
-        <section className="space-y-5">
-          <GroupHeading>Finalized load information</GroupHeading>
-          <SubmittedIntakePanel intake={submittedIntake} />
-        </section>
-      ) : null}
-
-      {/* GROUP: Dispatch ownership */}
-      {!isTrashed ? (
-        <section className="space-y-5">
-          <GroupHeading>Dispatch ownership</GroupHeading>
-          <DispatchOwnershipPanel
-            quoteRequestId={row.id}
-            ownership={ownership}
-          />
-        </section>
-      ) : null}
 
       {/* GROUP: Range quote — primary action area */}
       <section className="space-y-5">
@@ -590,6 +495,186 @@ function MetadataTab({
           <CommTimeline quoteRequestId={row.id} events={events} />
         </div>
       </section>
+    </div>
+  );
+}
+
+/**
+ * Phase W2: unified Load preview shell. Renders ONE coherent operational
+ * preview surface instead of the prior three stacked cards. The shell
+ * has a persistent header (primary client + state badge) and a body that
+ * adapts to intake state:
+ *
+ *   - State A (submittedIntake === null) — original lead-form data:
+ *     lane, pickup target, commodity, approximate weight, customer notes.
+ *
+ *   - State B (submittedIntake !== null) — SubmittedIntakePanel rendered
+ *     verbatim inside the shell, plus a `<details>` disclosure that
+ *     surfaces the original quote-form values for comparison.
+ *
+ * No logic changes — purely a structural/visual consolidation. The
+ * descendants (SubmittedIntakePanel, Field) are reused as-is.
+ */
+function LoadPreview({
+  row,
+  phoneHref,
+  computedMiles,
+  submittedIntake,
+  hasLane,
+}: {
+  row: QuoteDetailRow;
+  phoneHref: string;
+  computedMiles: number | null;
+  submittedIntake: SubmittedIntakeData | null;
+  hasLane: boolean;
+}) {
+  return (
+    <div className="border border-neutral-700 bg-neutral-800">
+      {/* Header — primary client/contact + state badge. Always shown. */}
+      <header className="border-b border-neutral-700 px-5 py-4 sm:px-6 sm:py-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <p className="label-cap">Primary client</p>
+            <p className="mt-2 text-xl font-semibold text-white sm:text-2xl">
+              {row.name}
+            </p>
+            <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-x-6">
+              <div>
+                <dt className="label-cap">Phone</dt>
+                <dd className="mt-1">
+                  <a
+                    href={phoneHref}
+                    className="block break-all font-mono text-lg text-white underline-offset-4 hover:underline sm:text-xl"
+                  >
+                    {row.phone}
+                  </a>
+                </dd>
+              </div>
+              <div>
+                <dt className="label-cap">Email</dt>
+                <dd className="mt-1">
+                  <a
+                    href={`mailto:${row.email}`}
+                    className="block break-all text-base text-white underline-offset-4 hover:underline sm:text-lg"
+                  >
+                    {row.email}
+                  </a>
+                </dd>
+              </div>
+            </dl>
+          </div>
+          <div className="shrink-0">
+            {submittedIntake ? (
+              <span className="inline-flex items-center border border-green-700/60 bg-green-950/30 px-2.5 py-1 font-mono text-[10px] tracking-[0.22em] text-green-300 uppercase">
+                Intake confirmed
+              </span>
+            ) : (
+              <span className="inline-flex items-center border border-amber-700/60 bg-amber-950/30 px-2.5 py-1 font-mono text-[10px] tracking-[0.22em] text-amber-300 uppercase">
+                Awaiting intake
+              </span>
+            )}
+          </div>
+        </div>
+      </header>
+
+      {/* Body — adapts to intake state. */}
+      <div className="space-y-6 p-5 sm:p-6">
+        {submittedIntake ? (
+          <>
+            {/* SubmittedIntakePanel rendered verbatim — its existing
+                green-accent border-top now reads as the confirmed-intake
+                indicator within the unified shell. */}
+            <SubmittedIntakePanel intake={submittedIntake} />
+
+            {/* Comparison disclosure — keeps the original quote-form
+                values one tap away without cluttering the preview. */}
+            <details className="group border border-neutral-800 bg-neutral-950/50 p-4">
+              <summary className="block cursor-pointer list-none font-mono text-[10px] tracking-[0.22em] text-neutral-400 uppercase select-none transition-colors hover:text-white">
+                <span className="group-open:hidden">+ View original quote-form request</span>
+                <span className="hidden group-open:inline">− Hide original quote-form request</span>
+              </summary>
+              <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
+                <Field label="Original commodity" muted>
+                  <span className="text-sm text-neutral-200">{row.commodity}</span>
+                </Field>
+                <Field label="Original weight" muted>
+                  <span className="font-mono text-sm text-neutral-200">{row.weight}</span>
+                </Field>
+                <Field label="Original pickup target" muted>
+                  <span className="text-sm text-neutral-200">
+                    {row.pickup_date ?? "ASAP"}
+                  </span>
+                </Field>
+                {row.notes ? (
+                  <Field label="Original notes" muted full>
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-neutral-200">
+                      {row.notes}
+                    </p>
+                  </Field>
+                ) : null}
+              </dl>
+            </details>
+          </>
+        ) : (
+          <>
+            {/* State A: lead-form data. Same visual language as the
+                prior Load overview cards, just hosted inside the unified
+                shell rather than as separate stacked sections. */}
+            {hasLane ? (
+              <section>
+                <h3 className="label-cap">Lane</h3>
+                <div className="mt-3 flex flex-wrap items-baseline gap-x-4 gap-y-2">
+                  <span className="font-mono text-2xl font-semibold text-white sm:text-3xl">
+                    {row.pickup_zip}
+                  </span>
+                  <span aria-hidden className="font-mono text-xl text-red-500">
+                    &rarr;
+                  </span>
+                  <span className="font-mono text-2xl font-semibold text-white sm:text-3xl">
+                    {row.delivery_zip}
+                  </span>
+                  {computedMiles != null ? (
+                    <span className="ml-1 font-mono text-[10px] tracking-[0.22em] text-neutral-500 uppercase">
+                      ~{computedMiles} mi
+                    </span>
+                  ) : null}
+                </div>
+                <p className="mt-3 label-cap">
+                  Pickup target:{" "}
+                  <span className="text-zinc-200">
+                    {row.pickup_date ?? "ASAP"}
+                  </span>
+                </p>
+              </section>
+            ) : null}
+
+            <section>
+              <h3 className="label-cap">Shipment</h3>
+              <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
+                <Field label="Commodity">
+                  <span className="block text-xl text-white sm:text-2xl">
+                    {row.commodity}
+                  </span>
+                </Field>
+                <Field label="Approximate weight">
+                  <span className="block font-mono text-xl text-white sm:text-2xl">
+                    {row.weight}
+                  </span>
+                </Field>
+              </dl>
+            </section>
+
+            {row.notes ? (
+              <section>
+                <h3 className="label-cap">Customer notes</h3>
+                <p className="mt-3 whitespace-pre-wrap text-base leading-relaxed text-neutral-100">
+                  {row.notes}
+                </p>
+              </section>
+            ) : null}
+          </>
+        )}
+      </div>
     </div>
   );
 }

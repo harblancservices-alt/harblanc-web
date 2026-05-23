@@ -1,7 +1,5 @@
 "use client";
 
-import { useState } from "react";
-
 /**
  * One-tap dispatch actions bar — sits at the top of the workspace tab.
  *
@@ -20,31 +18,16 @@ export type QuickActionsProps = {
   email: string;
 };
 
-type FlashState = null | { kind: "phone" | "email"; expiresAt: number };
-
 export function QuickActions({ phone, email }: QuickActionsProps) {
-  const [flash, setFlash] = useState<FlashState>(null);
+  // Phase W2: Copy phone / Copy email buttons + their clipboard helper
+  // and flash state were removed. The Call and Email anchors below
+  // already render the phone / email text inline, which browsers expose
+  // for selection / copy via right-click or triple-click — sufficient
+  // for the dispatch workflow without dedicated copy buttons.
 
   const phoneDigits = phone.replace(/[^\d+]/g, "");
   const telHref = `tel:${phoneDigits}`;
   const mailHref = `mailto:${email}`;
-
-  async function copy(text: string, kind: "phone" | "email") {
-    try {
-      await navigator.clipboard.writeText(text);
-      const expiresAt = Date.now() + 1600;
-      setFlash({ kind, expiresAt });
-      setTimeout(() => {
-        setFlash((current) =>
-          current && current.expiresAt <= Date.now() ? null : current,
-        );
-      }, 1700);
-    } catch {
-      // Browser refused clipboard access. Fall back to selecting the
-      // text node — same UX, just one extra tap.
-      setFlash({ kind, expiresAt: Date.now() + 1600 });
-    }
-  }
 
   return (
     <section
@@ -76,31 +59,6 @@ export function QuickActions({ phone, email }: QuickActionsProps) {
         </span>
       </a>
 
-      <button
-        type="button"
-        onClick={() => copy(phone, "phone")}
-        className="inline-flex items-center gap-2 border border-transparent px-3 py-2 text-[11px] font-semibold tracking-[0.18em] text-neutral-400 uppercase transition-colors hover:text-white"
-      >
-        Copy phone
-        {flash?.kind === "phone" ? (
-          <span className="font-mono text-[9px] tracking-[0.22em] text-green-400 uppercase">
-            ✓
-          </span>
-        ) : null}
-      </button>
-
-      <button
-        type="button"
-        onClick={() => copy(email, "email")}
-        className="inline-flex items-center gap-2 border border-transparent px-3 py-2 text-[11px] font-semibold tracking-[0.18em] text-neutral-400 uppercase transition-colors hover:text-white"
-      >
-        Copy email
-        {flash?.kind === "email" ? (
-          <span className="font-mono text-[9px] tracking-[0.22em] text-green-400 uppercase">
-            ✓
-          </span>
-        ) : null}
-      </button>
     </section>
   );
 }
