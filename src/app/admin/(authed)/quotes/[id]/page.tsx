@@ -25,6 +25,7 @@ import type { BolWorkflowState } from "./BillOfLadingSection";
 import type { SentBolRow } from "./SentBolsList";
 import type { SubmittedIntakeData } from "./SubmittedIntakePanel";
 import type { DispatchOwnership } from "./DispatchOwnershipPanel";
+import type { PaymentTarget, PaymentRow } from "./PaymentSection";
 
 export const metadata: Metadata = {
   title: "Quote detail",
@@ -562,6 +563,7 @@ async function loadDetail(id: string): Promise<{
   sentBols: SentBolRow[];
   submittedIntake: SubmittedIntakeData | null;
   ownership: DispatchOwnership;
+  paymentTarget: PaymentTarget | null;
 } | null> {
   const sb = createServiceRoleClient();
 
@@ -651,6 +653,7 @@ async function loadDetail(id: string): Promise<{
   const bolState = await loadBolState(sb, id);
   const sentBols = await loadSentBols(sb, id);
   const submittedIntake = await loadSubmittedIntake(sb, id);
+  const paymentTarget = await loadPaymentTarget(sb, id);
 
   const ownership: DispatchOwnership = {
     assignedDispatcher: row.assigned_dispatcher,
@@ -673,6 +676,84 @@ async function loadDetail(id: string): Promise<{
     sentBols,
     submittedIntake,
     ownership,
+    paymentTarget,
+  };
+}
+
+// ─── Phase P1C: payment target loader ────────────────────────────────────
+//
+// Finds the latest sent finalized quote on this lead and the payments
+// recorded against it. Returns null if no FQ has been sent yet — the UI
+// hides the payment section in that case.
+//
+// Soft-deleted payments are included in the returned list so the UI can
+// render them as struck-through history. The summary calculation in
+// PaymentSection filters them out before reducing.
+async function loadPaymentTarget(
+  sb: ReturnType<typeof createServiceRoleClient>,
+  quoteRequestId: string,
+): Promise<PaymentTarget | null> {
+  const { data: latestFq } = await sb
+    .from("finalized_quotes")
+    .select("id, finalized_quote_number, total_amount, sent_at")
+    .eq("quote_request_id", quoteRequestId)
+    .not("sent_at", "is", null)
+    .order("sent_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<{
+      id: string;
+      finalized_quote_number: string;
+      total_amount: string | number | null;
+      sent_at: string;
+    }>();
+
+  if (!latestFq) return null;
+
+  const { data: rows } = await sb
+    .from("payments")
+    .select(
+      "id, amount, currency, received_at, method, reference, notes, recorded_by, recorded_at, deleted_at",
+    )
+    .eq("finalized_quote_id", latestFq.id)
+    .order("received_at", { ascending: false })
+    .returns<
+      Array<{
+        id: string;
+        amount: string | number;
+        currency: string;
+        received_at: string;
+        method: string;
+        reference: string | null;
+        notes: string | null;
+        recorded_by: string | null;
+        recorded_at: string;
+        deleted_at: string | null;
+      }>
+    >();
+
+  const payments: PaymentRow[] = (rows ?? []).map((r) => ({
+    id: r.id,
+    amount: typeof r.amount === "number" ? r.amount : Number(r.amount),
+    currency: r.currency,
+    receivedAt: r.received_at,
+    method: r.method,
+    reference: r.reference,
+    notes: r.notes,
+    recordedBy: r.recorded_by,
+    recordedAt: r.recorded_at,
+    deletedAt: r.deleted_at,
+  }));
+
+  return {
+    finalizedQuoteId: latestFq.id,
+    finalizedQuoteNumber: latestFq.finalized_quote_number,
+    totalAmount:
+      latestFq.total_amount === null || latestFq.total_amount === undefined
+        ? null
+        : typeof latestFq.total_amount === "number"
+          ? latestFq.total_amount
+          : Number(latestFq.total_amount),
+    payments,
   };
 }
 
@@ -861,6 +942,7 @@ export default async function QuoteDetailPage({
     sentBols,
     submittedIntake,
     ownership,
+    paymentTarget,
   } = detail;
 
   const isTrashed = Boolean(row.deleted_at);
@@ -914,6 +996,7 @@ export default async function QuoteDetailPage({
         sentBols={sentBols}
         submittedIntake={submittedIntake}
         ownership={ownership}
+        paymentTarget={paymentTarget}
       />
 
       <section className="mt-6 border border-neutral-800 border-t-2 border-t-red-600 bg-neutral-900 p-5 sm:mt-8 sm:p-6">

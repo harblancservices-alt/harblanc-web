@@ -35,6 +35,7 @@ import {
   DispatchOwnershipPanel,
   type DispatchOwnership,
 } from "./DispatchOwnershipPanel";
+import { type PaymentTarget } from "./PaymentSection";
 
 export type QuoteDetailRow = {
   id: string;
@@ -89,6 +90,7 @@ export function QuoteDetailTabs({
   sentBols,
   submittedIntake,
   ownership,
+  paymentTarget,
 }: {
   row: QuoteDetailRow;
   generatedQuote: GeneratedQuoteSummary | null;
@@ -103,6 +105,7 @@ export function QuoteDetailTabs({
   sentBols: SentBolRow[];
   submittedIntake: SubmittedIntakeData | null;
   ownership: DispatchOwnership;
+  paymentTarget: PaymentTarget | null;
 }) {
   const [activeTab, setActiveTab] = useState<TabId>("request");
   const isTrashed = Boolean(row.deleted_at);
@@ -237,6 +240,7 @@ export function QuoteDetailTabs({
             sentHistory={sentFinalizedQuotes}
             isTrashed={isTrashed}
             submittedIntake={submittedIntake}
+            paymentTarget={paymentTarget}
           />
         ) : null}
         {activeTab === "bol" ? (

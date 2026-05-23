@@ -16,6 +16,9 @@ import {
 // lives in Workspace only. Type still imported because the prop on
 // FinalizedQuoteSectionProps is preserved for callsite stability.
 import { type SubmittedIntakeData } from "./SubmittedIntakePanel";
+// Phase P1C: payment summary + history + manual recording form,
+// rendered as a subsection below the active finalized-quote workflow.
+import { PaymentSection, type PaymentTarget } from "./PaymentSection";
 
 /**
  * Finalized Quote orchestration shell.
@@ -40,13 +43,16 @@ export type FinalizedQuoteSectionProps = {
   sentHistory: SentFinalizedQuoteRow[];
   isTrashed: boolean;
   submittedIntake: SubmittedIntakeData | null;
+  /** Phase P1C: latest sent finalized quote + its payments, or null
+   *  if no FQ has been sent yet. When null, the PaymentSection is hidden. */
+  paymentTarget: PaymentTarget | null;
 };
 
 export function FinalizedQuoteSection(props: FinalizedQuoteSectionProps) {
   // Phase J2: submittedIntake prop preserved on the type for callsite
   // stability but no longer destructured/rendered here. The intake panel
   // lives on the Workspace tab only.
-  const { quoteRequestId, leadName, state, sentHistory, isTrashed } = props;
+  const { quoteRequestId, leadName, state, sentHistory, isTrashed, paymentTarget } = props;
 
   return (
     <div className="space-y-8">
@@ -96,6 +102,17 @@ export function FinalizedQuoteSection(props: FinalizedQuoteSectionProps) {
           draft={state.draft}
         />
       )}
+
+      {/* Phase P1C: payments subsection. Only renders once a finalized
+          quote has been sent (and a payment target row exists), and
+          when the lead isn't trashed. Operationally subordinate to the
+          active workflow above but visually distinct from history. */}
+      {!isTrashed && paymentTarget ? (
+        <PaymentSection
+          quoteRequestId={quoteRequestId}
+          target={paymentTarget}
+        />
+      ) : null}
 
       {/* Phase L: explicit "history" heading so the historical record
           reads as separate from the active workflow above. */}
