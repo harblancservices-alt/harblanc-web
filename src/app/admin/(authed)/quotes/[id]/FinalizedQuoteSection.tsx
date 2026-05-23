@@ -49,16 +49,14 @@ export function FinalizedQuoteSection(props: FinalizedQuoteSectionProps) {
   const { quoteRequestId, leadName, state, sentHistory, isTrashed } = props;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <header>
-        <p className="font-mono text-[10px] tracking-[0.22em] text-red-500 uppercase">
-          Finalized quote / rate confirmation
+        <p className="text-[11px] font-semibold tracking-[0.18em] text-red-500 uppercase">
+          Finalized quote
         </p>
-        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-neutral-300">
-          The formal, contract-adjacent agreement document. Generated after the
-          customer accepts the range estimate and submits the shipment intake.
-          Exact pricing, dispatch-confirmed scope. Distinct from the range
-          proposal and from the bill of lading.
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-neutral-300">
+          Formal rate confirmation with exact pricing. Generated after the
+          customer accepts the range estimate and submits intake.
         </p>
       </header>
 
@@ -99,7 +97,14 @@ export function FinalizedQuoteSection(props: FinalizedQuoteSectionProps) {
         />
       )}
 
-      <SentFinalizedQuotesList rows={sentHistory} />
+      {/* Phase L: explicit "history" heading so the historical record
+          reads as separate from the active workflow above. */}
+      <section className="space-y-5">
+        <h2 className="border-b border-neutral-800 pb-2.5 text-sm font-semibold uppercase tracking-[0.18em] text-white">
+          Finalized quote history
+        </h2>
+        <SentFinalizedQuotesList rows={sentHistory} />
+      </section>
     </div>
   );
 }
