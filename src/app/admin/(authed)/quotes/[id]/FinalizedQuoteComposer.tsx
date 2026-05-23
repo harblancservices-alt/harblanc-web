@@ -116,7 +116,7 @@ export type FinalizedQuoteDraft = {
 };
 
 const labelCls =
-  "block font-mono text-[10px] tracking-[0.22em] text-neutral-400 uppercase";
+  "block font-mono text-[10px] tracking-[0.22em] text-label-fg uppercase";
 const inputCls =
   "block w-full bg-neutral-900 border border-neutral-800 px-3 py-2.5 text-base text-zinc-100 placeholder:text-neutral-600 focus:border-red-600 focus:outline-none";
 

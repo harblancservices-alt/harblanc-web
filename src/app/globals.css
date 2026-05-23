@@ -186,3 +186,14 @@ body {
     box-shadow: inset 0 0 0 2px var(--accent);
   }
 }
+
+/* Phase B: surface the Phase A --label-fg token as a Tailwind utility.
+   Used by small uppercase operational labels (0.22em-tracked) to lift
+   them out of the text-neutral-400 readability band under sunlight,
+   without changing any other theme behavior. Token value lives in
+   :root above; this utility is the only consumer surface. */
+@layer utilities {
+  .text-label-fg {
+    color: var(--label-fg);
+  }
+}

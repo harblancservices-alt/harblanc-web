@@ -301,7 +301,7 @@ function RequestTab({
               </span>
             ) : null}
           </div>
-          <p className="mt-3 font-mono text-[10px] tracking-[0.22em] text-neutral-400 uppercase">
+          <p className="mt-3 font-mono text-[10px] tracking-[0.22em] text-label-fg uppercase">
             Pickup target:{" "}
             <span className="text-zinc-200">{row.pickup_date ?? "ASAP"}</span>
           </p>
@@ -477,7 +477,7 @@ function GeneratedQuoteTab({
 function MetadataTab({ row }: { row: QuoteDetailRow }) {
   return (
     <div>
-      <h2 className="font-mono text-[10px] tracking-[0.22em] text-neutral-400 uppercase">
+      <h2 className="font-mono text-[10px] tracking-[0.22em] text-label-fg uppercase">
         Metadata
       </h2>
       <dl className="mt-4 grid grid-cols-1 gap-x-10 gap-y-4 sm:grid-cols-2">
