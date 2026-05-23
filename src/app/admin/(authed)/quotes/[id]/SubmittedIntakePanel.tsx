@@ -8,12 +8,13 @@ import { formatDateFull, relativeTime } from "@/lib/admin/format";
  * In-progress intakes are NOT shown here — the workflow state machine
  * surfaces those separately so admin doesn't act on partial data.
  *
- * The panel is rendered in two places:
- *   1. The Workspace tab, above the estimate composer, so the operator
- *      sees the finalized operational scope the moment the customer
- *      submits.
- *   2. The Finalized Quote tab, above the Generate CTA, so dispatch
- *      can review intake before generating the rate confirmation.
+ * Phase J2: the panel is rendered ONLY on the Workspace tab, above the
+ * estimate composer, so the operator sees the finalized operational
+ * scope the moment the customer submits. (Previously also rendered on
+ * the Finalized Quote tab; that duplicate was removed because the
+ * finalized-quote composer prefills its Pickup/Delivery/Freight fields
+ * from intake data via the server data loader, making a separate
+ * read-only panel redundant on that tab.)
  *
  * Server component — no client state. The rendered output is fed
  * verbatim from the database snapshot.

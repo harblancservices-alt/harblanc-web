@@ -62,12 +62,16 @@ export type QuoteDetailRow = {
 
 type TabId = "request" | "activity" | "finalized" | "bol" | "generated" | "metadata";
 
+// Phase J2: "Quote PDF" (id: "generated") demoted from primary tab nav.
+// The TabId union below still includes "generated", the panel body branch
+// still renders GeneratedQuoteTab when activeTab === "generated", and the
+// header "Open Quote PDF" button still flips activeTab to "generated" —
+// the tab is just no longer surfaced as a primary navigation choice.
 const TABS: { id: TabId; label: string }[] = [
   { id: "request", label: "Workspace" },
   { id: "activity", label: "Activity" },
   { id: "finalized", label: "Finalized Quote" },
   { id: "bol", label: "BOL" },
-  { id: "generated", label: "Quote PDF" },
   { id: "metadata", label: "Metadata" },
 ];
 

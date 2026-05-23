@@ -12,10 +12,10 @@ import {
   SentFinalizedQuotesList,
   type SentFinalizedQuoteRow,
 } from "./SentFinalizedQuotesList";
-import {
-  SubmittedIntakePanel,
-  type SubmittedIntakeData,
-} from "./SubmittedIntakePanel";
+// SubmittedIntakePanel render removed in Phase J2 — intake panel now
+// lives in Workspace only. Type still imported because the prop on
+// FinalizedQuoteSectionProps is preserved for callsite stability.
+import { type SubmittedIntakeData } from "./SubmittedIntakePanel";
 
 /**
  * Finalized Quote orchestration shell.
@@ -43,7 +43,10 @@ export type FinalizedQuoteSectionProps = {
 };
 
 export function FinalizedQuoteSection(props: FinalizedQuoteSectionProps) {
-  const { quoteRequestId, leadName, state, sentHistory, isTrashed, submittedIntake } = props;
+  // Phase J2: submittedIntake prop preserved on the type for callsite
+  // stability but no longer destructured/rendered here. The intake panel
+  // lives on the Workspace tab only.
+  const { quoteRequestId, leadName, state, sentHistory, isTrashed } = props;
 
   return (
     <div className="space-y-6">
@@ -59,12 +62,11 @@ export function FinalizedQuoteSection(props: FinalizedQuoteSectionProps) {
         </p>
       </header>
 
-      {/* Intake summary — visible alongside the state-machine UI once the
-          customer has submitted shipment details, so dispatch reviews the
-          finalized operational scope before generating the rate confirmation. */}
-      {!isTrashed && submittedIntake ? (
-        <SubmittedIntakePanel intake={submittedIntake} />
-      ) : null}
+      {/* Phase J2: intake summary panel removed — it duplicated the one
+          on the Workspace tab. The composer below still prefills from
+          intake data via the server data loader, so removing the panel
+          doesn't change what the operator can see or do; it just removes
+          the redundant on-screen copy when switching to this tab. */}
 
       {isTrashed ? (
         <TrashGate />
