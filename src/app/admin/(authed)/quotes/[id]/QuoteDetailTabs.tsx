@@ -279,10 +279,14 @@ function RequestTab({
   const hasLane = Boolean(row.pickup_zip && row.delivery_zip);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {!isTrashed ? (
         <QuickActions phone={row.phone} email={row.email} />
       ) : null}
+
+      {/* GROUP: Load overview — lane, primary contact, shipment, customer notes */}
+      <section className="space-y-5">
+        <GroupHeading>Load overview</GroupHeading>
 
       {hasLane ? (
         <section className="border border-neutral-700 bg-neutral-800 p-5 sm:p-6">
@@ -365,44 +369,61 @@ function RequestTab({
           </p>
         </section>
       ) : null}
+      </section>
 
+      {/* GROUP: Finalized load information — only when intake submitted */}
       {submittedIntake ? (
-        <SubmittedIntakePanel intake={submittedIntake} />
+        <section className="space-y-5">
+          <GroupHeading>Finalized load information</GroupHeading>
+          <SubmittedIntakePanel intake={submittedIntake} />
+        </section>
       ) : null}
 
+      {/* GROUP: Dispatch ownership */}
       {!isTrashed ? (
-        <DispatchOwnershipPanel
-          quoteRequestId={row.id}
-          ownership={ownership}
-        />
-      ) : null}
-
-      {!isTrashed ? (
-        <section className="border border-neutral-600 border-t-2 border-t-red-600 bg-neutral-800 p-5 shadow-lg shadow-black/40 sm:p-7">
-          <EstimateComposer
-            key={draftEstimate?.id ?? "no-draft"}
+        <section className="space-y-5">
+          <GroupHeading>Dispatch ownership</GroupHeading>
+          <DispatchOwnershipPanel
             quoteRequestId={row.id}
-            leadName={row.name}
-            laneRecap={{
-              pickupZip: row.pickup_zip,
-              deliveryZip: row.delivery_zip,
-            }}
-            computedMiles={computedMiles}
-            draft={draftEstimate}
+            ownership={ownership}
           />
         </section>
-      ) : (
-        <section className="border border-neutral-800 bg-neutral-950 p-8 text-center">
-          <p className="label-cap text-neutral-500">
-            Request is in trash
-          </p>
-          <p className="mt-3 text-sm leading-relaxed text-neutral-400">
-            Restore the request from trash to build an estimate.
-          </p>
-        </section>
-      )}
+      ) : null}
 
-      <SentEstimatesList rows={sentEstimates} />
+      {/* GROUP: Range quote — primary action area */}
+      <section className="space-y-5">
+        <GroupHeading>Range quote</GroupHeading>
+        {!isTrashed ? (
+          <section className="border border-neutral-600 border-t-2 border-t-red-600 bg-neutral-800 p-5 shadow-lg shadow-black/40 sm:p-7">
+            <EstimateComposer
+              key={draftEstimate?.id ?? "no-draft"}
+              quoteRequestId={row.id}
+              leadName={row.name}
+              laneRecap={{
+                pickupZip: row.pickup_zip,
+                deliveryZip: row.delivery_zip,
+              }}
+              computedMiles={computedMiles}
+              draft={draftEstimate}
+            />
+          </section>
+        ) : (
+          <section className="border border-neutral-800 bg-neutral-950 p-8 text-center">
+            <p className="label-cap text-neutral-500">
+              Request is in trash
+            </p>
+            <p className="mt-3 text-sm leading-relaxed text-neutral-400">
+              Restore the request from trash to build an estimate.
+            </p>
+          </section>
+        )}
+      </section>
+
+      {/* GROUP: Estimate history */}
+      <section className="space-y-5">
+        <GroupHeading>Estimate history</GroupHeading>
+        <SentEstimatesList rows={sentEstimates} />
+      </section>
     </div>
   );
 }
@@ -523,6 +544,22 @@ function MetadataTab({ row }: { row: QuoteDetailRow }) {
         ) : null}
       </dl>
     </div>
+  );
+}
+
+/**
+ * Phase K: visual group heading used by RequestTab to split the Workspace
+ * into ~5 conceptual zones (Load overview / Finalized load information /
+ * Dispatch ownership / Range quote / Estimate history). Sits above each
+ * group's existing card(s). Slightly larger, brighter, and bottom-bordered
+ * compared to the `label-cap` headings INSIDE the cards, so groups read
+ * as a tier above sections without changing any logic or composition.
+ */
+function GroupHeading({ children }: { children: React.ReactNode }) {
+  return (
+    <h2 className="border-b border-neutral-800 pb-2.5 text-sm font-semibold uppercase tracking-[0.18em] text-white">
+      {children}
+    </h2>
   );
 }
 
