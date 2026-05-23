@@ -35,6 +35,8 @@ export type DispatchEventKind =
   | "bol_sent"
   | "bol_send_failed"
   | "pdf_generated"
+  | "payment_recorded"
+  | "payment_completed"
   | "note";
 
 export type DispatchEventPayloadByKind = {
@@ -109,6 +111,27 @@ export type DispatchEventPayloadByKind = {
     to: string;
   };
   pdf_generated: { quoteNumber: string };
+  // Phase P1B: emitted by recordPayment in payment-actions.ts on every
+  // successful insert into the payments table. Carries enough context
+  // for CommTimeline's describe() to render the row without a join.
+  payment_recorded: {
+    paymentId: string;
+    finalizedQuoteId: string;
+    finalizedQuoteNumber: string;
+    amount: number;
+    currency: string;
+    method: string;
+    reference: string | null;
+  };
+  // Phase P1B: emitted ONCE when the cumulative paid amount first
+  // crosses the FQ's total_amount. Subsequent over-payments do not
+  // re-emit; soft-deleting a payment does NOT reverse this event.
+  payment_completed: {
+    finalizedQuoteId: string;
+    finalizedQuoteNumber: string;
+    totalAmount: number;
+    paidTotal: number;
+  };
   note: { body: string };
 };
 
@@ -122,7 +145,7 @@ export async function logDispatchEvent<K extends DispatchEventKind>(
     .from("dispatch_events")
     .insert({ quote_request_id: quoteRequestId, kind, payload });
   if (error) {
-    // Observability event — log and move on. NEVER throw.
+    // Observability event -- log and move on. NEVER throw.
     console.error("[dispatch_events] insert failed", {
       kind,
       quoteRequestId,

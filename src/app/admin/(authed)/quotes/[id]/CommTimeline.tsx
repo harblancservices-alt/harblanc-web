@@ -185,7 +185,11 @@ function describe(event: DispatchEvent): string {
     case "payment_completed": {
       // Phase P1A: rendered when the FQ flips paid-in-full. Show the
       // FQ number + total so the timeline anchors the dollar moment.
-      const fqNum = p.fqNumber ? String(p.fqNumber) : "";
+      // Payload key aligned with Phase P1B's typed payload schema in
+      // src/lib/dispatch/events.ts (finalizedQuoteNumber, not fqNumber).
+      const fqNum = p.finalizedQuoteNumber
+        ? String(p.finalizedQuoteNumber)
+        : "";
       const total =
         typeof p.totalAmount === "number" ? fmtUsd(p.totalAmount) : null;
       if (fqNum && total) return `${fqNum} · ${total}`;

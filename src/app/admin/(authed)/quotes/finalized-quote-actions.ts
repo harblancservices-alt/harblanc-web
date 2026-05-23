@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin/auth";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { logDispatchEvent } from "@/lib/dispatch/events";
+import { type LeadStatus } from "@/lib/dispatch/status";
 import {
   renderFinalizedQuoteEmail,
   sendFinalizedQuoteBytes,
@@ -39,9 +40,14 @@ import {
  *          index lets the next finalized-quote draft be created later
  *          if scope changes.
  *
- * The Send action does NOT auto-advance lead_status. The customer
- * still has to accept the rate confirmation (payment is the trigger),
- * so the dispatcher controls status manually.
+ * Phase P1B: the Send action auto-advances lead_status from
+ * `booked` to `awaiting_payment`. Sending the finalized quote IS the
+ * moment payment becomes the next blocker, so the transition is
+ * automatic. Status transitions FROM other states (e.g. someone sends
+ * a re-issue while already at `awaiting_payment` or further) are
+ * untouched -- the dispatcher controls status manually for everything
+ * else. The subsequent `awaiting_payment` -> `ready_to_dispatch`
+ * transition is driven by payments-actions.ts recordPayment.
  */
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
@@ -893,6 +899,44 @@ export async function sendFinalizedQuote(
       to: draft.preview_to,
     },
   );
+
+  // Phase P1B: auto-advance lead status from booked -> awaiting_payment.
+  // Mirror of the sendEstimate auto-advance pattern in actions.ts:
+  // read current status, only advance from the expected source state,
+  // emit status_changed AFTER updating, never throw on side-effect
+  // failures (the FQ was sent -- that's what matters).
+  const { data: lead, error: leadErr } = await sb
+    .from("quote_requests")
+    .select("lead_status")
+    .eq("id", draft.quote_request_id)
+    .maybeSingle<{ lead_status: LeadStatus }>();
+  if (leadErr) {
+    console.error("[sendFinalizedQuote] lead lookup failed (no status advance)", {
+      quoteRequestId: draft.quote_request_id,
+      message: leadErr.message,
+    });
+  } else if (lead && lead.lead_status === "booked") {
+    const previous = lead.lead_status;
+    const now = new Date().toISOString();
+    const { error: statusErr } = await sb
+      .from("quote_requests")
+      .update({
+        lead_status: "awaiting_payment",
+        lead_status_updated_at: now,
+      })
+      .eq("id", draft.quote_request_id);
+    if (statusErr) {
+      console.error("[sendFinalizedQuote] status advance failed", {
+        quoteRequestId: draft.quote_request_id,
+        message: statusErr.message,
+      });
+    } else {
+      await logDispatchEvent(sb, draft.quote_request_id, "status_changed", {
+        from: previous,
+        to: "awaiting_payment",
+      });
+    }
+  }
 
   revalidatePath(`/admin/quotes/${draft.quote_request_id}`);
   revalidatePath("/admin/quotes");
