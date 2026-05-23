@@ -46,16 +46,15 @@ export function BillOfLadingSection(props: BillOfLadingSectionProps) {
   const { quoteRequestId, leadName, state, sentHistory, isTrashed } = props;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <header>
-        <p className="font-mono text-[10px] tracking-[0.22em] text-red-500 uppercase">
+        <p className="text-[11px] font-semibold tracking-[0.18em] text-red-500 uppercase">
           Bill of lading
         </p>
-        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-neutral-300">
-          Shipment execution paperwork. This is what physically rides with the
-          freight and gets signed by shipper, driver, and consignee. Generated
-          downstream from the finalized quote — it is NOT a pricing document
-          and is distinct from the range proposal and rate confirmation.
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-neutral-300">
+          Shipment execution paperwork. Rides with the freight and gets
+          signed by shipper, driver, and consignee. Generated downstream
+          from the finalized quote.
         </p>
       </header>
 
@@ -80,7 +79,15 @@ export function BillOfLadingSection(props: BillOfLadingSectionProps) {
         />
       )}
 
-      <SentBolsList rows={sentHistory} />
+      {/* Phase M: explicit "history" heading so the historical record
+          reads as separate from the active workflow above. Mirrors the
+          Finalized Quote tab's Phase L structure. */}
+      <section className="space-y-5">
+        <h2 className="border-b border-neutral-800 pb-2.5 text-sm font-semibold uppercase tracking-[0.18em] text-white">
+          BOL history
+        </h2>
+        <SentBolsList rows={sentHistory} />
+      </section>
     </div>
   );
 }
