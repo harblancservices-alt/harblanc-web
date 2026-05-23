@@ -27,7 +27,7 @@ export function AdminNav() {
             key={item.href}
             href={item.href}
             className={
-              "flex items-center gap-2 font-mono text-[11px] tracking-[0.18em] uppercase transition-colors " +
+              "flex items-center gap-2 text-[11px] font-semibold tracking-[0.18em] uppercase transition-colors " +
               (active ? "text-white" : "text-neutral-400 hover:text-white")
             }
           >

@@ -143,7 +143,7 @@ export function QuoteDetailTabs({
             <button
               type="button"
               onClick={() => setActiveTab("generated")}
-              className="btn-outline-cut inline-flex w-full items-center justify-center px-4 py-2 font-mono text-[11px] tracking-[0.22em] text-neutral-300 uppercase transition-colors hover:text-white sm:w-auto"
+              className="btn-outline-cut inline-flex w-full items-center justify-center px-4 py-2 text-[11px] font-semibold tracking-[0.18em] text-neutral-300 uppercase transition-colors hover:text-white sm:w-auto"
             >
               Open Quote PDF
             </button>
@@ -178,7 +178,7 @@ export function QuoteDetailTabs({
               id={`tab-${tab.id}`}
               onClick={() => setActiveTab(tab.id)}
               className={
-                "shrink-0 border px-5 py-3.5 font-mono text-[11px] tracking-[0.18em] uppercase transition-colors " +
+                "shrink-0 border px-5 py-3.5 text-[11px] font-semibold tracking-[0.18em] uppercase transition-colors " +
                 (i > 0 ? "-ml-px " : "") +
                 (isActive
                   ? "relative z-10 border-neutral-800 border-b-transparent bg-neutral-800/50 text-white"
@@ -282,7 +282,7 @@ function RequestTab({
 
       {hasLane ? (
         <section className="border border-neutral-700 bg-neutral-800/60 p-5 sm:p-6">
-          <h2 className="font-mono text-[10px] tracking-[0.22em] text-red-500 uppercase">
+          <h2 className="label-cap">
             Lane
           </h2>
           <div className="mt-4 flex flex-wrap items-baseline gap-x-4 gap-y-2">
@@ -301,7 +301,7 @@ function RequestTab({
               </span>
             ) : null}
           </div>
-          <p className="mt-3 font-mono text-[10px] tracking-[0.22em] text-label-fg uppercase">
+          <p className="mt-3 label-cap">
             Pickup target:{" "}
             <span className="text-zinc-200">{row.pickup_date ?? "ASAP"}</span>
           </p>
@@ -310,7 +310,7 @@ function RequestTab({
 
       <div className="grid grid-cols-1 divide-y divide-neutral-700 border border-neutral-700 sm:grid-cols-2 sm:divide-x sm:divide-y-0">
         <section className="bg-neutral-800/60 p-5 sm:p-6">
-          <h2 className="font-mono text-[10px] tracking-[0.22em] text-red-500 uppercase">
+          <h2 className="label-cap">
             Primary contact
           </h2>
           <dl className="mt-4 space-y-4">
@@ -333,7 +333,7 @@ function RequestTab({
           </dl>
         </section>
         <section className="bg-neutral-800/60 p-5 sm:p-6">
-          <h2 className="font-mono text-[10px] tracking-[0.22em] text-red-500 uppercase">
+          <h2 className="label-cap">
             Shipment
           </h2>
           <dl className="mt-4 space-y-4">
@@ -353,7 +353,7 @@ function RequestTab({
 
       {row.notes ? (
         <section className="border border-neutral-700 bg-neutral-800/60 p-5 sm:p-6">
-          <h2 className="font-mono text-[10px] tracking-[0.22em] text-red-500 uppercase">
+          <h2 className="label-cap">
             Customer notes
           </h2>
           <p className="mt-4 whitespace-pre-wrap text-base leading-relaxed text-neutral-100">
@@ -389,7 +389,7 @@ function RequestTab({
         </section>
       ) : (
         <section className="border border-neutral-800 bg-neutral-950 p-8 text-center">
-          <p className="font-mono text-[10px] tracking-[0.22em] text-neutral-500 uppercase">
+          <p className="label-cap text-neutral-500">
             Request is in trash
           </p>
           <p className="mt-3 text-sm leading-relaxed text-neutral-400">
@@ -421,7 +421,7 @@ function GeneratedQuoteTab({
   if (generatedQuote && !signedPdfUrl) {
     return (
       <div className="border border-red-700/60 bg-red-950/30 p-5 sm:p-6">
-        <p className="font-mono text-[10px] tracking-[0.22em] text-red-400 uppercase">
+        <p className="text-[11px] font-semibold tracking-[0.18em] text-red-400 uppercase">
           PDF unavailable
         </p>
         <p className="mt-2 text-sm leading-relaxed text-red-200">
@@ -448,7 +448,7 @@ function GeneratedQuoteTab({
   return (
     <div className="space-y-5">
       <header>
-        <h2 className="font-mono text-[10px] tracking-[0.22em] text-red-500 uppercase">
+        <h2 className="label-cap">
           Quote PDF
         </h2>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-neutral-300">
@@ -477,7 +477,7 @@ function GeneratedQuoteTab({
 function MetadataTab({ row }: { row: QuoteDetailRow }) {
   return (
     <div>
-      <h2 className="font-mono text-[10px] tracking-[0.22em] text-label-fg uppercase">
+      <h2 className="label-cap">
         Metadata
       </h2>
       <dl className="mt-4 grid grid-cols-1 gap-x-10 gap-y-4 sm:grid-cols-2">
@@ -537,7 +537,7 @@ function Field({
     <div className={full ? "sm:col-span-2" : undefined}>
       <dt
         className={
-          "font-mono text-[10px] tracking-[0.22em] uppercase " +
+          "label-cap " +
           (muted ? "text-neutral-500" : "text-neutral-500")
         }
       >

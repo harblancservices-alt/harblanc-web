@@ -196,4 +196,23 @@ body {
   .text-label-fg {
     color: var(--label-fg);
   }
+}/* Phase H: operational label utility. Replaces the
+   "font-mono text-[10px] tracking-[0.22em] uppercase" heading aesthetic
+   across the admin shell. Switches to proportional sans so the admin
+   reads as freight operations software rather than a terminal, keeps
+   the small uppercase tracked operational identity, and uses the
+   Phase A --label-fg token so the labels stay visible in sunlight.
+   Tabular data (totals, ZIPs, phones, IDs, dates, counts) keeps
+   font-mono at the call site -- this utility is ONLY for headings
+   and labels, never for data. */
+@layer utilities {
+  .label-cap {
+    font-family: var(--font-public-sans), ui-sans-serif, system-ui, sans-serif;
+    font-size: 11px;
+    line-height: 1.3;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--label-fg);
+    font-weight: 600;
+  }
 }

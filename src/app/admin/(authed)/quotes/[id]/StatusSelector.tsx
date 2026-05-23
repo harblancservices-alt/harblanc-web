@@ -51,7 +51,7 @@ export function StatusSelector({
           onClick={() => changeTo(next)}
           disabled={isPending}
           className={
-            "btn-cut inline-flex w-full items-center justify-center px-4 py-3 font-mono text-[10px] tracking-[0.18em] uppercase transition-colors disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto " +
+            "btn-cut inline-flex w-full items-center justify-center px-4 py-3 text-[11px] font-semibold tracking-[0.18em] uppercase transition-colors disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto " +
             "bg-red-600 text-white hover:bg-red-500"
           }
           title={`Move to ${LEAD_STATUS_LABELS[next]}`}
@@ -67,7 +67,7 @@ export function StatusSelector({
           onChange={(e) => changeTo(e.target.value as LeadStatus)}
           disabled={isPending}
           className={
-            "w-full border bg-neutral-900 px-3 py-3 font-mono text-[10px] tracking-[0.18em] uppercase text-zinc-100 focus:border-red-600 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto " +
+            "w-full border bg-neutral-900 px-3 py-3 text-[11px] font-semibold tracking-[0.18em] uppercase text-zinc-100 focus:border-red-600 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto " +
             LEAD_STATUS_CLASSES[status].split(" ").filter((c) => c.startsWith("border-")).join(" ")
           }
         >
@@ -82,7 +82,7 @@ export function StatusSelector({
       {error ? (
         <p
           role="alert"
-          className="font-mono text-[10px] tracking-[0.14em] text-red-400 uppercase"
+          className="text-[11px] font-semibold tracking-[0.18em] text-red-400 uppercase"
         >
           {error}
         </p>

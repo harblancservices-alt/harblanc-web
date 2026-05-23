@@ -92,7 +92,7 @@ export function QuoteListTable({ rows }: { rows: QuoteListRow[] }) {
     <>
       {selected.size > 0 ? (
         <div className="mt-3 flex items-center justify-between gap-4 border border-neutral-700 bg-neutral-900 px-4 py-3">
-          <span className="font-mono text-[11px] tracking-[0.18em] text-white uppercase">
+          <span className="text-[11px] font-semibold tracking-[0.18em] text-white uppercase">
             {selected.size} selected
           </span>
           <div className="flex items-center gap-2.5">
@@ -217,7 +217,7 @@ export function QuoteListTable({ rows }: { rows: QuoteListRow[] }) {
 
 function Th({ children }: { children: React.ReactNode }) {
   return (
-    <span className="font-mono text-[10px] tracking-[0.22em] text-neutral-500 uppercase">
+    <span className="label-cap text-neutral-500">
       {children}
     </span>
   );

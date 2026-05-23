@@ -47,7 +47,7 @@ export function SentEstimatesList({ rows }: { rows: SentEstimateRow[] }) {
     return (
       <section className="mt-8 border border-neutral-800 bg-neutral-950 p-5 sm:p-6">
         <header>
-          <h2 className="font-mono text-[10px] tracking-[0.22em] text-red-500 uppercase">
+          <h2 className="label-cap">
             Sent estimates
           </h2>
           <p className="mt-2 text-sm leading-relaxed text-neutral-400">
@@ -65,7 +65,7 @@ export function SentEstimatesList({ rows }: { rows: SentEstimateRow[] }) {
         <h2 className="font-mono text-[10px] tracking-[0.22em] text-red-500 uppercase">
           Sent estimates
         </h2>
-        <p className="mt-1 font-mono text-[10px] tracking-[0.22em] text-neutral-500 uppercase">
+        <p className="mt-1 label-cap text-neutral-500">
           {rows.length} record{rows.length === 1 ? "" : "s"} · newest first
         </p>
       </header>

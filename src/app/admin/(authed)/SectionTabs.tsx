@@ -26,7 +26,7 @@ export function SectionTabs({ tabs }: { tabs: SectionTab[] }) {
           href={tab.href}
           aria-current={tab.active ? "page" : undefined}
           className={
-            "flex flex-1 items-center justify-between gap-3 border-t-2 px-4 py-3 font-mono text-[11px] tracking-[0.18em] uppercase transition-colors sm:px-5 " +
+            "flex flex-1 items-center justify-between gap-3 border-t-2 px-4 py-3 text-[11px] font-semibold tracking-[0.18em] uppercase transition-colors sm:px-5 " +
             (i > 0 ? "border-l border-l-neutral-800 " : "") +
             (tab.active
               ? "border-t-red-600 bg-neutral-900 font-semibold text-white "

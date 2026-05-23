@@ -334,10 +334,10 @@ export default async function DashboardPage() {
       {attention.length > 0 ? (
         <section className="mt-10">
           <header className="flex items-baseline justify-between">
-            <h2 className="font-mono text-[10px] tracking-[0.22em] text-red-500 uppercase">
+            <h2 className="label-cap">
               Needs attention
             </h2>
-            <p className="font-mono text-[10px] tracking-[0.22em] text-neutral-500 uppercase">
+            <p className="label-cap text-neutral-500">
               {attention.length} lead{attention.length === 1 ? "" : "s"}
             </p>
           </header>
@@ -347,7 +347,7 @@ export default async function DashboardPage() {
             ))}
           </ul>
           {attention.length > 8 ? (
-            <p className="mt-3 text-right font-mono text-[10px] tracking-[0.22em] text-neutral-500 uppercase">
+            <p className="mt-3 text-right label-cap text-neutral-500">
               + {attention.length - 8} more
             </p>
           ) : null}
@@ -356,7 +356,7 @@ export default async function DashboardPage() {
 
       {/* Funnel buckets */}
       <section className="mt-10">
-        <h2 className="font-mono text-[10px] tracking-[0.22em] text-red-500 uppercase">
+        <h2 className="label-cap">
           Active funnel
         </h2>
         <div className="mt-4 space-y-6">
@@ -371,7 +371,7 @@ export default async function DashboardPage() {
 
       {/* Recent applications */}
       <section className="mt-10">
-        <h2 className="font-mono text-[10px] tracking-[0.22em] text-neutral-500 uppercase">
+        <h2 className="label-cap text-neutral-500">
           Recent applications
         </h2>
         <ul className="mt-3 divide-y divide-neutral-900 border-y border-neutral-900">
@@ -426,7 +426,7 @@ function Counter({
         : "text-neutral-500";
   const inner = (
     <>
-      <p className="font-mono text-[10px] tracking-[0.22em] text-red-500 uppercase">
+      <p className="label-cap">
         {label}
       </p>
       <p className={"mt-3 font-mono text-3xl tracking-tight " + valueColor}>
@@ -453,7 +453,7 @@ function Bucket({ label, leads }: { label: string; leads: EnrichedLead[] }) {
     return (
       <section className="border border-neutral-900 bg-neutral-950">
         <header className="flex items-baseline justify-between px-4 py-3">
-          <h3 className="font-mono text-[10px] tracking-[0.22em] text-neutral-500 uppercase">
+          <h3 className="label-cap text-neutral-500">
             {label}
           </h3>
           <span className="font-mono text-[10px] tracking-[0.22em] text-neutral-700 uppercase">
@@ -470,7 +470,7 @@ function Bucket({ label, leads }: { label: string; leads: EnrichedLead[] }) {
   return (
     <section className="border border-neutral-800 bg-neutral-950">
       <header className="flex items-baseline justify-between border-b border-neutral-800 px-4 py-3">
-        <h3 className="font-mono text-[10px] tracking-[0.22em] text-red-500 uppercase">
+        <h3 className="label-cap">
           {label}
         </h3>
         <span className="font-mono text-[10px] tracking-[0.22em] text-neutral-400 uppercase">
@@ -483,7 +483,7 @@ function Bucket({ label, leads }: { label: string; leads: EnrichedLead[] }) {
         ))}
       </ul>
       {remaining > 0 ? (
-        <p className="border-t border-neutral-900 px-4 py-2 text-right font-mono text-[10px] tracking-[0.22em] text-neutral-500 uppercase">
+        <p className="border-t border-neutral-900 px-4 py-2 text-right label-cap text-neutral-500">
           + {remaining} more
         </p>
       ) : null}
@@ -556,7 +556,7 @@ function LeadRowItem({
 function EnvBanner({ issues }: { issues: string[] }) {
   return (
     <div className="mb-6 border border-amber-700/60 bg-amber-950/30 p-4">
-      <p className="font-mono text-[10px] tracking-[0.22em] text-amber-400 uppercase">
+      <p className="text-[11px] font-semibold tracking-[0.18em] text-amber-400 uppercase">
         System check
       </p>
       <p className="mt-1 text-sm leading-relaxed text-amber-100">
