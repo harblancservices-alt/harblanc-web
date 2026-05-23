@@ -61,16 +61,18 @@ export type QuoteDetailRow = {
   trailer_type: string | null;
 };
 
-type TabId = "request" | "activity" | "finalized" | "bol" | "generated" | "metadata";
+type TabId = "request" | "finalized" | "bol" | "generated" | "metadata";
 
 // Phase J2: "Quote PDF" (id: "generated") demoted from primary tab nav.
 // The TabId union below still includes "generated", the panel body branch
 // still renders GeneratedQuoteTab when activeTab === "generated", and the
 // header "Open Quote PDF" button still flips activeTab to "generated" —
 // the tab is just no longer surfaced as a primary navigation choice.
+// Phase UI-M1: Activity tab removed; CommTimeline now renders inside
+// the Metadata tab as a final section below the technical record. The
+// TabId union and the panel-body switch have been updated to match.
 const TABS: { id: TabId; label: string }[] = [
   { id: "request", label: "Workspace" },
-  { id: "activity", label: "Activity" },
   { id: "finalized", label: "Finalized Quote" },
   { id: "bol", label: "BOL" },
   { id: "metadata", label: "Metadata" },
@@ -110,7 +112,6 @@ export function QuoteDetailTabs({
   const [activeTab, setActiveTab] = useState<TabId>("request");
   const isTrashed = Boolean(row.deleted_at);
   const phoneHref = `tel:${row.phone.replace(/[^\d+]/g, "")}`;
-  const activityCount = events.length;
 
   return (
     <>
@@ -174,7 +175,6 @@ export function QuoteDetailTabs({
       >
         {TABS.map((tab, i) => {
           const isActive = activeTab === tab.id;
-          const showCount = tab.id === "activity" && activityCount > 0;
           // Phase N: Metadata tab visually de-emphasized when inactive
           // (admin-only technical info, lower priority than workflow tabs).
           const isMetadata = tab.id === "metadata";
@@ -198,14 +198,6 @@ export function QuoteDetailTabs({
               }
             >
               {tab.label}
-              {showCount ? (
-                <span
-                  aria-hidden
-                  className="ml-2 inline-flex items-center bg-neutral-800 px-1.5 text-[9px] text-neutral-300"
-                >
-                  {activityCount}
-                </span>
-              ) : null}
             </button>
           );
         })}
@@ -228,9 +220,6 @@ export function QuoteDetailTabs({
             submittedIntake={submittedIntake}
             ownership={ownership}
           />
-        ) : null}
-        {activeTab === "activity" ? (
-          <CommTimeline quoteRequestId={row.id} events={events} />
         ) : null}
         {activeTab === "finalized" ? (
           <FinalizedQuoteSection
@@ -260,7 +249,9 @@ export function QuoteDetailTabs({
             isTrashed={isTrashed}
           />
         ) : null}
-        {activeTab === "metadata" ? <MetadataTab row={row} /> : null}
+        {activeTab === "metadata" ? (
+          <MetadataTab row={row} events={events} />
+        ) : null}
       </div>
     </>
   );
@@ -508,55 +499,97 @@ function GeneratedQuoteTab({
   );
 }
 
-function MetadataTab({ row }: { row: QuoteDetailRow }) {
+function MetadataTab({
+  row,
+  events,
+}: {
+  row: QuoteDetailRow;
+  events: DispatchEvent[];
+}) {
+  // Phase UI-M2: lifecycle subsection only renders when something to
+  // show — avoids an empty card on healthy active leads.
+  const hasLifecycle = Boolean(row.deleted_at || row.delete_after);
   return (
-    <div>
-      {/* Phase N: dimmed treatment so the tab visibly reads as
-          secondary/admin-only rather than a primary workflow surface. */}
-      <h2 className="label-cap text-neutral-500">
-        Metadata
-      </h2>
-      <p className="mt-1.5 text-xs text-neutral-500">
-        Technical record · admin-only
-      </p>
-      <dl className="mt-5 grid grid-cols-1 gap-x-10 gap-y-4 sm:grid-cols-2">
-        <Field label="Created" muted>
-          <span className="font-mono text-xs text-neutral-300 sm:text-sm">
-            {formatDateFull(row.created_at)}
-          </span>
-        </Field>
-        {row.deleted_at ? (
-          <Field label="Deleted" muted>
-            <span className="font-mono text-xs text-red-300 sm:text-sm">
-              {formatDateFull(row.deleted_at)}
-            </span>
-          </Field>
-        ) : null}
-        {row.delete_after ? (
-          <Field label="Auto-purge" muted>
+    <div className="space-y-10 sm:space-y-12">
+      {/* Top header — Metadata frames itself as the operational
+          record + audit surface, not a random technical dump. The
+          dimmed treatment from Phase N is preserved so the tab still
+          reads as secondary to the workflow tabs. */}
+      <header>
+        <h2 className="label-cap text-neutral-500">
+          Metadata
+        </h2>
+        <p className="mt-1.5 text-xs text-neutral-500">
+          Operational record · audit surface
+        </p>
+      </header>
+
+      {/* Subsection: Request record — how the lead came in. */}
+      <section>
+        <SubHeading>Request record</SubHeading>
+        <dl className="mt-4 grid grid-cols-1 gap-x-10 gap-y-4 sm:grid-cols-2">
+          <Field label="Created" muted>
             <span className="font-mono text-xs text-neutral-300 sm:text-sm">
-              {formatDateFull(row.delete_after)}
+              {formatDateFull(row.created_at)}
             </span>
           </Field>
-        ) : null}
-        <Field label="Request ID" muted full>
-          <span className="font-mono text-xs break-all text-neutral-300">
-            {row.id}
-          </span>
-        </Field>
-        {row.user_agent ? (
-          <Field label="User agent" muted full>
-            <span className="font-mono text-[11px] break-all text-neutral-500">
-              {row.user_agent}
+          <Field label="Request ID" muted full>
+            <span className="font-mono text-xs break-all text-neutral-300">
+              {row.id}
             </span>
           </Field>
-        ) : null}
-        {row.ip ? (
-          <Field label="IP" muted>
-            <span className="font-mono text-xs text-neutral-500">{row.ip}</span>
-          </Field>
-        ) : null}
-      </dl>
+          {row.user_agent ? (
+            <Field label="User agent" muted full>
+              <span className="font-mono text-[11px] break-all text-neutral-500">
+                {row.user_agent}
+              </span>
+            </Field>
+          ) : null}
+          {row.ip ? (
+            <Field label="IP" muted>
+              <span className="font-mono text-xs text-neutral-500">
+                {row.ip}
+              </span>
+            </Field>
+          ) : null}
+        </dl>
+      </section>
+
+      {/* Subsection: Lifecycle — admin actions on the request itself
+          (soft-delete + scheduled purge). Conditional so it disappears
+          for healthy leads. */}
+      {hasLifecycle ? (
+        <section>
+          <SubHeading>Lifecycle</SubHeading>
+          <dl className="mt-4 grid grid-cols-1 gap-x-10 gap-y-4 sm:grid-cols-2">
+            {row.deleted_at ? (
+              <Field label="Deleted" muted>
+                <span className="font-mono text-xs text-red-300 sm:text-sm">
+                  {formatDateFull(row.deleted_at)}
+                </span>
+              </Field>
+            ) : null}
+            {row.delete_after ? (
+              <Field label="Auto-purge" muted>
+                <span className="font-mono text-xs text-neutral-300 sm:text-sm">
+                  {formatDateFull(row.delete_after)}
+                </span>
+              </Field>
+            ) : null}
+          </dl>
+        </section>
+      ) : null}
+
+      {/* Subsection: Activity timeline — merged in from the dropped
+          Activity tab in UI-M1. CommTimeline's own internal header pill
+          was dropped in UI-M2 since the SubHeading here now carries the
+          subsection identity. */}
+      <section>
+        <SubHeading>Activity timeline</SubHeading>
+        <div className="mt-4">
+          <CommTimeline quoteRequestId={row.id} events={events} />
+        </div>
+      </section>
     </div>
   );
 }
@@ -574,6 +607,21 @@ function GroupHeading({ children }: { children: React.ReactNode }) {
     <h2 className="border-b border-neutral-800 pb-2.5 text-sm font-semibold uppercase tracking-[0.18em] text-white">
       {children}
     </h2>
+  );
+}
+
+/**
+ * Phase UI-M2: subsection heading used inside MetadataTab to break the
+ * merged metadata + activity surface into 3 conceptual zones (Request
+ * record / Lifecycle / Activity timeline). Dimmer + smaller than
+ * GroupHeading so Metadata reads as an admin/audit surface rather than
+ * a primary workflow tab.
+ */
+function SubHeading({ children }: { children: React.ReactNode }) {
+  return (
+    <h3 className="label-cap border-b border-neutral-800 pb-2 text-neutral-400">
+      {children}
+    </h3>
   );
 }
 

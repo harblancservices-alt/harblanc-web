@@ -315,16 +315,10 @@ export function CommTimeline({
 
   return (
     <section className="space-y-5">
-      <header>
-        <p className="text-[11px] font-semibold tracking-[0.18em] text-red-500 uppercase">
-          Activity
-        </p>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-neutral-300">
-          Every operational moment on this lead, newest first. Use notes to
-          capture phone calls, voicemails, and follow-ups handled outside
-          the system.
-        </p>
-      </header>
+      <p className="max-w-2xl text-sm leading-relaxed text-neutral-400">
+        Append-only event log. Add notes for phone calls or anything
+        handled outside the system.
+      </p>
 
       {/* Add note composer */}
       <div className="space-y-2.5 border border-neutral-700 bg-neutral-800/60 p-4">
@@ -369,16 +363,18 @@ export function CommTimeline({
         </p>
       ) : (
         <ol className="border border-neutral-800 bg-neutral-950">
-          {events.map((event, i) => {
+          {/* Phase UI-M1: reverse to chronological order (oldest at top,
+              newest at bottom). Use slice() to avoid mutating the prop. */}
+          {events.slice().reverse().map((event, i, arr) => {
             const dotCls = KIND_DOT_CLASSES[event.kind] ?? "bg-neutral-500";
             const label = KIND_LABELS[event.kind] ?? event.kind;
             const detail = describe(event);
-            const isLast = i === events.length - 1;
+            const isLast = i === arr.length - 1;
             return (
               <li
                 key={event.id}
                 className={
-                  "grid grid-cols-[14px_minmax(0,1fr)] gap-x-4 px-4 py-3.5 " +
+                  "grid grid-cols-[14px_minmax(0,1fr)] gap-x-3 px-3.5 py-3.5 sm:gap-x-4 sm:px-4 " +
                   (isLast ? "" : "border-b border-neutral-800")
                 }
               >
@@ -394,7 +390,7 @@ export function CommTimeline({
                     <time
                       dateTime={event.created_at}
                       title={formatDateFull(event.created_at)}
-                      className="font-mono text-[10px] text-neutral-600"
+                      className="font-mono text-[10px] text-neutral-500"
                     >
                       {relativeTime(event.created_at)}
                     </time>
