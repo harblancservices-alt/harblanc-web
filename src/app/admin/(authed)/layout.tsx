@@ -21,8 +21,8 @@ export default async function AuthedAdminLayout({
   const user = await requireAdmin();
 
   return (
-    <div className="flex min-h-screen flex-col bg-neutral-950">
-      <header className="border-b border-neutral-800 bg-neutral-950">
+    <div className="flex min-h-screen flex-col bg-zinc-50">
+      <header className="border-b border-zinc-200 bg-white">
         <div className="mx-auto flex h-14 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           {/* left — brand mark + identity */}
           <div className="flex items-center gap-3 md:gap-4">
@@ -31,13 +31,13 @@ export default async function AuthedAdminLayout({
               aria-label="Dispatch center home"
               className="flex items-center"
             >
-              <BrandLogo variant="inverted" className="h-7 w-auto" />
+              <BrandLogo variant="default" className="h-7 w-auto" />
             </Link>
             <span
               aria-hidden
-              className="hidden h-4 w-px bg-neutral-800 md:inline-block"
+              className="hidden h-4 w-px bg-zinc-300 md:inline-block"
             />
-            <span className="hidden font-mono text-[10px] tracking-[0.22em] text-red-500 uppercase md:inline">
+            <span className="hidden font-mono text-xs tracking-[0.12em] text-red-600 uppercase md:inline">
               Dispatch Center
             </span>
           </div>
@@ -50,15 +50,15 @@ export default async function AuthedAdminLayout({
             <DispatchClock />
             <span
               aria-hidden
-              className="hidden h-4 w-px bg-neutral-800 lg:inline-block"
+              className="hidden h-4 w-px bg-zinc-300 lg:inline-block"
             />
-            <span className="hidden font-mono text-[10px] tracking-[0.18em] text-neutral-500 uppercase lg:inline">
+            <span className="hidden font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase lg:inline">
               {user.email}
             </span>
             <form action="/admin/logout" method="post">
               <button
                 type="submit"
-                className="inline-flex items-center border border-neutral-700 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-100 transition-colors hover:border-neutral-500 hover:bg-neutral-900"
+                className="inline-flex items-center border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-zinc-700 transition-colors hover:border-zinc-400 hover:bg-zinc-100"
               >
                 Sign out
               </button>

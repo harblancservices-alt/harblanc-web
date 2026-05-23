@@ -50,7 +50,7 @@ export function UpdatePasswordForm() {
       <div>
         <label
           htmlFor="password"
-          className="block font-mono text-[10px] tracking-[0.22em] text-neutral-400 uppercase"
+          className="block font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase"
         >
           New password
         </label>
@@ -63,14 +63,14 @@ export function UpdatePasswordForm() {
           onChange={(e) => setPassword(e.target.value)}
           required
           minLength={8}
-          className="mt-2.5 block w-full bg-neutral-900 px-4 py-3.5 text-base text-zinc-100 placeholder:text-neutral-600 border border-neutral-800 focus:border-red-600 focus:outline-none"
+          className="mt-2.5 block w-full bg-white px-4 py-3.5 text-base text-zinc-900 placeholder:text-zinc-400 border border-zinc-300 focus:border-red-600 focus:outline-none"
         />
       </div>
 
       <div>
         <label
           htmlFor="confirm"
-          className="block font-mono text-[10px] tracking-[0.22em] text-neutral-400 uppercase"
+          className="block font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase"
         >
           Confirm new password
         </label>
@@ -83,20 +83,20 @@ export function UpdatePasswordForm() {
           onChange={(e) => setConfirm(e.target.value)}
           required
           minLength={8}
-          className="mt-2.5 block w-full bg-neutral-900 px-4 py-3.5 text-base text-zinc-100 placeholder:text-neutral-600 border border-neutral-800 focus:border-red-600 focus:outline-none"
+          className="mt-2.5 block w-full bg-white px-4 py-3.5 text-base text-zinc-900 placeholder:text-zinc-400 border border-zinc-300 focus:border-red-600 focus:outline-none"
         />
       </div>
 
       {error ? (
         <div
           role="alert"
-          className="flex items-start gap-3 border border-red-700 bg-red-950/30 p-4"
+          className="flex items-start gap-3 border border-red-300 bg-red-50 p-4"
         >
           <span
             aria-hidden
             className="mt-0.5 inline-block h-3 w-1 shrink-0 bg-red-600"
           />
-          <p className="text-sm leading-relaxed text-red-200">{error}</p>
+          <p className="text-sm leading-relaxed text-red-800">{error}</p>
         </div>
       ) : null}
 

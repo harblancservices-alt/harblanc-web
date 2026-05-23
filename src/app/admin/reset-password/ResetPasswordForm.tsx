@@ -36,17 +36,17 @@ export function ResetPasswordForm() {
 
   if (status === "done") {
     return (
-      <div className="mt-10 border border-neutral-800 bg-neutral-900/40 p-5">
-        <p className="font-mono text-[10px] tracking-[0.22em] text-red-500 uppercase">
+      <div className="mt-10 border border-zinc-300 bg-zinc-100 p-5">
+        <p className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
           Sent
         </p>
-        <p className="mt-3 text-sm leading-relaxed text-neutral-300">
+        <p className="mt-3 text-sm leading-relaxed text-zinc-700">
           If that email is registered, a reset link is on its way. Check the
           inbox and click the link to set a new password.
         </p>
         <Link
           href="/admin/login"
-          className="mt-5 inline-block font-mono text-[10px] tracking-[0.22em] text-neutral-500 uppercase transition-colors hover:text-white"
+          className="mt-5 inline-block font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase transition-colors hover:text-zinc-900"
         >
           &larr; Back to sign in
         </Link>
@@ -59,7 +59,7 @@ export function ResetPasswordForm() {
       <div>
         <label
           htmlFor="email"
-          className="block font-mono text-[10px] tracking-[0.22em] text-neutral-400 uppercase"
+          className="block font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase"
         >
           Email
         </label>
@@ -72,7 +72,7 @@ export function ResetPasswordForm() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
-          className="mt-2.5 block w-full bg-neutral-900 px-4 py-3.5 text-base text-zinc-100 placeholder:text-neutral-600 border border-neutral-800 focus:border-red-600 focus:outline-none"
+          className="mt-2.5 block w-full bg-white px-4 py-3.5 text-base text-zinc-900 placeholder:text-zinc-400 border border-zinc-300 focus:border-red-600 focus:outline-none"
           placeholder="dispatch@harblancservices.com"
         />
       </div>
@@ -80,13 +80,13 @@ export function ResetPasswordForm() {
       {error ? (
         <div
           role="alert"
-          className="flex items-start gap-3 border border-red-700 bg-red-950/30 p-4"
+          className="flex items-start gap-3 border border-red-300 bg-red-50 p-4"
         >
           <span
             aria-hidden
             className="mt-0.5 inline-block h-3 w-1 shrink-0 bg-red-600"
           />
-          <p className="text-sm leading-relaxed text-red-200">{error}</p>
+          <p className="text-sm leading-relaxed text-red-800">{error}</p>
         </div>
       ) : null}
 
@@ -100,7 +100,7 @@ export function ResetPasswordForm() {
 
       <Link
         href="/admin/login"
-        className="block font-mono text-[10px] tracking-[0.22em] text-neutral-500 uppercase transition-colors hover:text-white"
+        className="block font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase transition-colors hover:text-zinc-900"
       >
         &larr; Back to sign in
       </Link>

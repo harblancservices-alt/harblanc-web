@@ -68,7 +68,7 @@ export function LoginForm({
       <div>
         <label
           htmlFor="email"
-          className="block font-mono text-[10px] tracking-[0.22em] text-neutral-400 uppercase"
+          className="block font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase"
         >
           Email
         </label>
@@ -81,7 +81,7 @@ export function LoginForm({
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
-          className="mt-2.5 block w-full bg-neutral-900 px-4 py-3.5 text-base text-zinc-100 placeholder:text-neutral-600 border border-neutral-800 focus:border-red-600 focus:outline-none"
+          className="mt-2.5 block w-full bg-white px-4 py-3.5 text-base text-zinc-900 placeholder:text-zinc-400 border border-zinc-300 focus:border-red-600 focus:outline-none"
           placeholder="dispatch@harblancservices.com"
         />
       </div>
@@ -89,7 +89,7 @@ export function LoginForm({
       <div>
         <label
           htmlFor="password"
-          className="block font-mono text-[10px] tracking-[0.22em] text-neutral-400 uppercase"
+          className="block font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase"
         >
           Password
         </label>
@@ -101,33 +101,33 @@ export function LoginForm({
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
-          className="mt-2.5 block w-full bg-neutral-900 px-4 py-3.5 text-base text-zinc-100 placeholder:text-neutral-600 border border-neutral-800 focus:border-red-600 focus:outline-none"
+          className="mt-2.5 block w-full bg-white px-4 py-3.5 text-base text-zinc-900 placeholder:text-zinc-400 border border-zinc-300 focus:border-red-600 focus:outline-none"
         />
       </div>
 
       {notice ? (
         <div
           role="status"
-          className="flex items-start gap-3 border border-neutral-700 bg-neutral-900/40 p-4"
+          className="flex items-start gap-3 border border-zinc-300 bg-zinc-100 p-4"
         >
           <span
             aria-hidden
-            className="mt-0.5 inline-block h-3 w-1 shrink-0 bg-neutral-500"
+            className="mt-0.5 inline-block h-3 w-1 shrink-0 bg-zinc-500"
           />
-          <p className="text-sm leading-relaxed text-neutral-200">{notice}</p>
+          <p className="text-sm leading-relaxed text-zinc-800">{notice}</p>
         </div>
       ) : null}
 
       {error ? (
         <div
           role="alert"
-          className="flex items-start gap-3 border border-red-700 bg-red-950/30 p-4"
+          className="flex items-start gap-3 border border-red-300 bg-red-50 p-4"
         >
           <span
             aria-hidden
             className="mt-0.5 inline-block h-3 w-1 shrink-0 bg-red-600"
           />
-          <p className="text-sm leading-relaxed text-red-200">{error}</p>
+          <p className="text-sm leading-relaxed text-red-800">{error}</p>
         </div>
       ) : null}
 
@@ -142,7 +142,7 @@ export function LoginForm({
       <div className="text-center">
         <Link
           href="/admin/reset-password"
-          className="font-mono text-[10px] tracking-[0.22em] text-neutral-500 uppercase transition-colors hover:text-white"
+          className="font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase transition-colors hover:text-zinc-900"
         >
           Forgot password?
         </Link>
