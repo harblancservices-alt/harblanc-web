@@ -197,21 +197,21 @@ export function CommTimeline({
   return (
     <section className="space-y-5">
       <header>
-        <h2 className="font-mono text-[10px] tracking-[0.22em] text-red-500 uppercase">
+        <p className="text-[11px] font-semibold tracking-[0.18em] text-red-500 uppercase">
           Activity
-        </h2>
+        </p>
         <p className="mt-2 max-w-2xl text-sm leading-relaxed text-neutral-300">
           Every operational moment on this lead, newest first. Use notes to
-          capture phone calls, voicemails, follow-ups dispatched outside the
-          system.
+          capture phone calls, voicemails, and follow-ups handled outside
+          the system.
         </p>
       </header>
 
       {/* Add note composer */}
-      <div className="space-y-2.5 border border-neutral-800 bg-neutral-900/40 p-4">
+      <div className="space-y-2.5 border border-neutral-700 bg-neutral-800/60 p-4">
         <label
           htmlFor="dispatch-note"
-          className="block font-mono text-[10px] tracking-[0.22em] text-neutral-400 uppercase"
+          className="block label-cap"
         >
           Add note
         </label>
@@ -226,7 +226,7 @@ export function CommTimeline({
         {error ? (
           <p
             role="alert"
-            className="font-mono text-[10px] tracking-[0.14em] text-red-400 uppercase"
+            className="text-[11px] font-semibold tracking-[0.18em] text-red-400 uppercase"
           >
             {error}
           </p>
@@ -245,7 +245,7 @@ export function CommTimeline({
 
       {/* Event list */}
       {events.length === 0 ? (
-        <p className="font-mono text-xs text-neutral-500">
+        <p className="text-sm text-neutral-400">
           No activity yet. Events appear here as the lead progresses.
         </p>
       ) : (
@@ -259,7 +259,7 @@ export function CommTimeline({
               <li
                 key={event.id}
                 className={
-                  "grid grid-cols-[14px_minmax(0,1fr)] gap-x-4 px-4 py-3 " +
+                  "grid grid-cols-[14px_minmax(0,1fr)] gap-x-4 px-4 py-3.5 " +
                   (isLast ? "" : "border-b border-neutral-800")
                 }
               >
@@ -269,7 +269,7 @@ export function CommTimeline({
                 />
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                    <span className="font-mono text-[10px] tracking-[0.22em] text-neutral-400 uppercase">
+                    <span className="label-cap">
                       {label}
                     </span>
                     <time

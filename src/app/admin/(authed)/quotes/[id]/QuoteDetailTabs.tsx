@@ -172,6 +172,9 @@ export function QuoteDetailTabs({
         {TABS.map((tab, i) => {
           const isActive = activeTab === tab.id;
           const showCount = tab.id === "activity" && activityCount > 0;
+          // Phase N: Metadata tab visually de-emphasized when inactive
+          // (admin-only technical info, lower priority than workflow tabs).
+          const isMetadata = tab.id === "metadata";
           return (
             <button
               key={tab.id}
@@ -186,7 +189,9 @@ export function QuoteDetailTabs({
                 (i > 0 ? "-ml-px " : "") +
                 (isActive
                   ? "relative z-10 border-neutral-800 border-b-neutral-900 bg-neutral-900 text-white"
-                  : "border-neutral-800 bg-neutral-950 text-neutral-400 hover:bg-neutral-900/40 hover:text-white")
+                  : isMetadata
+                    ? "border-neutral-800 bg-neutral-950 text-neutral-600 hover:bg-neutral-900/40 hover:text-neutral-300"
+                    : "border-neutral-800 bg-neutral-950 text-neutral-400 hover:bg-neutral-900/40 hover:text-white")
               }
             >
               {tab.label}
@@ -502,10 +507,15 @@ function GeneratedQuoteTab({
 function MetadataTab({ row }: { row: QuoteDetailRow }) {
   return (
     <div>
-      <h2 className="label-cap">
+      {/* Phase N: dimmed treatment so the tab visibly reads as
+          secondary/admin-only rather than a primary workflow surface. */}
+      <h2 className="label-cap text-neutral-500">
         Metadata
       </h2>
-      <dl className="mt-4 grid grid-cols-1 gap-x-10 gap-y-4 sm:grid-cols-2">
+      <p className="mt-1.5 text-xs text-neutral-500">
+        Technical record · admin-only
+      </p>
+      <dl className="mt-5 grid grid-cols-1 gap-x-10 gap-y-4 sm:grid-cols-2">
         <Field label="Created" muted>
           <span className="font-mono text-xs text-neutral-300 sm:text-sm">
             {formatDateFull(row.created_at)}
