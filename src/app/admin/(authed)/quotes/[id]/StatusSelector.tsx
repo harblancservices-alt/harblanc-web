@@ -44,14 +44,14 @@ export function StatusSelector({
   const next = suggestedNext(status);
 
   return (
-    <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-2">
       {next ? (
         <button
           type="button"
           onClick={() => changeTo(next)}
           disabled={isPending}
           className={
-            "btn-cut inline-flex items-center justify-center px-4 py-2 font-mono text-[10px] tracking-[0.18em] uppercase transition-colors disabled:cursor-not-allowed disabled:opacity-60 " +
+            "btn-cut inline-flex w-full items-center justify-center px-4 py-3 font-mono text-[10px] tracking-[0.18em] uppercase transition-colors disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto " +
             "bg-red-600 text-white hover:bg-red-500"
           }
           title={`Move to ${LEAD_STATUS_LABELS[next]}`}
@@ -60,14 +60,14 @@ export function StatusSelector({
         </button>
       ) : null}
 
-      <label className="flex items-center gap-2">
+      <label className="flex w-full items-center gap-2 sm:w-auto">
         <span className="sr-only">Set lead status</span>
         <select
           value={status}
           onChange={(e) => changeTo(e.target.value as LeadStatus)}
           disabled={isPending}
           className={
-            "border bg-neutral-900 px-3 py-2 font-mono text-[10px] tracking-[0.18em] uppercase text-zinc-100 focus:border-red-600 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 " +
+            "w-full border bg-neutral-900 px-3 py-3 font-mono text-[10px] tracking-[0.18em] uppercase text-zinc-100 focus:border-red-600 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto " +
             LEAD_STATUS_CLASSES[status].split(" ").filter((c) => c.startsWith("border-")).join(" ")
           }
         >

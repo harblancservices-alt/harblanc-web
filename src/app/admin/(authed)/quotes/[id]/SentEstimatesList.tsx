@@ -119,7 +119,7 @@ export function SentEstimatesList({ rows }: { rows: SentEstimateRow[] }) {
                     type="button"
                     onClick={() => setOpenId(open ? null : row.id)}
                     aria-expanded={open}
-                    className="border border-neutral-700 bg-neutral-900 px-3 py-1.5 font-mono text-[10px] tracking-[0.22em] text-neutral-300 uppercase transition-colors hover:border-neutral-500 hover:text-white"
+                    className="border border-neutral-700 bg-neutral-900 px-4 py-2.5 font-mono text-[10px] tracking-[0.22em] text-neutral-300 uppercase transition-colors hover:border-neutral-500 hover:text-white"
                   >
                     {open ? "Hide" : "View sent preview"}
                   </button>

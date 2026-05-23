@@ -53,7 +53,7 @@ export function QuickActions({ phone, email }: QuickActionsProps) {
     >
       <a
         href={telHref}
-        className="inline-flex items-center gap-2 border border-neutral-600 bg-neutral-800 px-3 py-2 font-mono text-[10px] tracking-[0.22em] text-white uppercase transition-colors hover:border-red-500 hover:bg-neutral-700"
+        className="inline-flex w-full items-center gap-2 border border-neutral-600 bg-neutral-800 px-3 py-2.5 font-mono text-[10px] tracking-[0.22em] text-white uppercase transition-colors hover:border-red-500 hover:bg-neutral-700 sm:w-auto"
       >
         <span aria-hidden className="inline-block h-2 w-1 bg-red-600" />
         Call
@@ -64,7 +64,7 @@ export function QuickActions({ phone, email }: QuickActionsProps) {
 
       <a
         href={mailHref}
-        className="inline-flex items-center gap-2 border border-neutral-600 bg-neutral-800 px-3 py-2 font-mono text-[10px] tracking-[0.22em] text-white uppercase transition-colors hover:border-red-500 hover:bg-neutral-700"
+        className="inline-flex w-full items-center gap-2 border border-neutral-600 bg-neutral-800 px-3 py-2.5 font-mono text-[10px] tracking-[0.22em] text-white uppercase transition-colors hover:border-red-500 hover:bg-neutral-700 sm:w-auto"
       >
         <span aria-hidden className="inline-block h-2 w-1 bg-red-600" />
         Email

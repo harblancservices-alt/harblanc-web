@@ -163,7 +163,7 @@ export function QuoteDetailTabs({
       <nav
         role="tablist"
         aria-label="Quote detail sections"
-        className="mt-6 flex overflow-x-auto sm:mt-8"
+        className="mt-6 flex overflow-x-auto sm:mt-8 [mask-image:linear-gradient(to_right,black_88%,transparent)] sm:[mask-image:none]"
       >
         {TABS.map((tab, i) => {
           const isActive = activeTab === tab.id;
@@ -178,7 +178,7 @@ export function QuoteDetailTabs({
               id={`tab-${tab.id}`}
               onClick={() => setActiveTab(tab.id)}
               className={
-                "shrink-0 border px-5 py-3 font-mono text-[11px] tracking-[0.18em] uppercase transition-colors " +
+                "shrink-0 border px-5 py-3.5 font-mono text-[11px] tracking-[0.18em] uppercase transition-colors " +
                 (i > 0 ? "-ml-px " : "") +
                 (isActive
                   ? "relative z-10 border-neutral-800 border-b-transparent bg-neutral-800/50 text-white"
