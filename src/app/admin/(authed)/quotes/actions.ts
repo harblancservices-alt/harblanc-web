@@ -1079,3 +1079,154 @@ export async function buildAcknowledgementPreview(
     leadId: lead.id,
   });
 }
+
+
+// ---------------------------------------------------------------------
+//  Phase Q1 - resendEstimate
+//
+//  Redeliver a previously-sent estimate using the original row's
+//  persisted preview bytes (preview/send byte parity guaranteed). A NEW
+//  sent row is inserted; the source row stays exactly as it was. The
+//  new row is linked back via resent_from_id. Status auto-advance is
+//  intentionally NOT fired - a resend never regresses lead lifecycle.
+// ---------------------------------------------------------------------
+
+type SentEstimateSourceRow = {
+  id: string;
+  quote_request_id: string;
+  linehaul_low: string | number | null;
+  linehaul_high: string | number | null;
+  miles_estimate: number | null;
+  pickup_timing_notes: string | null;
+  equipment_notes: string | null;
+  dispatch_notes: string | null;
+  expiration_at: string | null;
+  closing_line: string | null;
+  preview_subject: string | null;
+  preview_preheader: string | null;
+  preview_html: string | null;
+  preview_text: string | null;
+  preview_to: string | null;
+  preview_from: string | null;
+  preview_reply_to: string | null;
+  preview_built_at: string | null;
+  sent_at: string | null;
+};
+
+export async function resendEstimate(
+  sourceEstimateId: string,
+  formData: FormData,
+): Promise<void> {
+  await requireAdmin();
+  if (!sourceEstimateId) {
+    throw new Error("Missing source estimate id.");
+  }
+
+  const sb = createServiceRoleClient();
+
+  const { data: source, error: srcErr } = await sb
+    .from("dispatch_estimates")
+    .select(
+      "id, quote_request_id, linehaul_low, linehaul_high, miles_estimate, pickup_timing_notes, equipment_notes, dispatch_notes, expiration_at, closing_line, preview_subject, preview_preheader, preview_html, preview_text, preview_to, preview_from, preview_reply_to, preview_built_at, sent_at",
+    )
+    .eq("id", sourceEstimateId)
+    .maybeSingle<SentEstimateSourceRow>();
+  if (srcErr) throw new Error(`Source lookup failed: ${srcErr.message}`);
+  if (!source) throw new Error("Source estimate not found.");
+  if (!source.sent_at) {
+    throw new Error("Source estimate has not been sent - nothing to resend.");
+  }
+  if (
+    !source.preview_subject ||
+    !source.preview_html ||
+    !source.preview_text ||
+    !source.preview_to ||
+    !source.preview_from ||
+    !source.preview_reply_to ||
+    !source.preview_built_at
+  ) {
+    throw new Error("Source estimate is missing preview bytes - cannot resend.");
+  }
+
+  const toRaw = (formData.get("to") ?? "").toString().trim();
+  const reasonRaw = (formData.get("reason") ?? "").toString().trim();
+  const overrideTo = toRaw.length > 0 ? toRaw : null;
+  const reason = reasonRaw.length > 0 ? reasonRaw : null;
+  const recipient = overrideTo ?? source.preview_to;
+
+  if (overrideTo && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(overrideTo)) {
+    throw new Error("Override recipient does not look like an email address.");
+  }
+
+  const nowIso = new Date().toISOString();
+  const { data: inserted, error: insErr } = await sb
+    .from("dispatch_estimates")
+    .insert({
+      quote_request_id: source.quote_request_id,
+      linehaul_low: source.linehaul_low,
+      linehaul_high: source.linehaul_high,
+      miles_estimate: source.miles_estimate,
+      pickup_timing_notes: source.pickup_timing_notes,
+      equipment_notes: source.equipment_notes,
+      dispatch_notes: source.dispatch_notes,
+      expiration_at: source.expiration_at,
+      closing_line: source.closing_line,
+      preview_subject: source.preview_subject,
+      preview_preheader: source.preview_preheader,
+      preview_html: source.preview_html,
+      preview_text: source.preview_text,
+      preview_to: recipient,
+      preview_from: source.preview_from,
+      preview_reply_to: source.preview_reply_to,
+      preview_built_at: source.preview_built_at,
+      sent_at: nowIso,
+      resent_from_id: source.id,
+    })
+    .select("id")
+    .single<{ id: string }>();
+  if (insErr || !inserted) {
+    throw new Error(
+      `Resend insert failed: ${insErr?.message ?? "no row returned"}`,
+    );
+  }
+
+  const result = await sendDispatchEstimateBytes({
+    to: recipient,
+    from: source.preview_from,
+    replyTo: source.preview_reply_to,
+    subject: source.preview_subject,
+    html: source.preview_html,
+    text: source.preview_text,
+  });
+
+  if (!result.ok) {
+    await logDispatchEvent(sb, source.quote_request_id, "estimate_send_failed", {
+      reason: result.reason,
+      to: recipient,
+    });
+    throw new Error(`Could not resend estimate: ${result.reason}`);
+  }
+
+  const { error: markErr } = await sb
+    .from("dispatch_estimates")
+    .update({ sent_email_id: result.emailId })
+    .eq("id", inserted.id);
+  if (markErr) {
+    console.error("[resendEstimate] mark-sent failed after delivery", {
+      estimateId: inserted.id,
+      message: markErr.message,
+    });
+  }
+
+  await logDispatchEvent(sb, source.quote_request_id, "estimate_resent", {
+    newEstimateId: inserted.id,
+    resentFromId: source.id,
+    to: recipient,
+    emailId: result.emailId,
+    reason,
+  });
+
+  revalidatePath(`/admin/quotes/${source.quote_request_id}`);
+  revalidatePath("/admin/quotes");
+  revalidatePath("/admin");
+}

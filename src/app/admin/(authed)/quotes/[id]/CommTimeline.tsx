@@ -59,6 +59,11 @@ const KIND_LABELS: Record<string, string> = {
   // renders them with the correct label/dot from day one.
   payment_recorded: "Payment recorded",
   payment_completed: "Paid in full",
+  // Phase Q1: redelivery of a sent document using the original's
+  // persisted preview bytes (preview/send byte parity preserved).
+  estimate_resent: "Estimate resent",
+  finalized_quote_resent: "Finalized quote resent",
+  bol_resent: "BOL resent",
   note: "Note",
 };
 
@@ -92,6 +97,12 @@ const KIND_DOT_CLASSES: Record<string, string> = {
   // money settles and the load is cleared to dispatch.
   payment_recorded: "bg-green-500",
   payment_completed: "bg-emerald-500",
+  // Phase Q1: resend events use the same blue family as other
+  // outbound-delivery moments (dispatch_alert_sent) so they read as
+  // "an email went out" without conflating with a fresh send.
+  estimate_resent: "bg-blue-500",
+  finalized_quote_resent: "bg-blue-500",
+  bol_resent: "bg-blue-500",
   note: "bg-neutral-400",
 };
 
@@ -196,6 +207,25 @@ function describe(event: DispatchEvent): string {
       if (fqNum) return fqNum;
       if (total) return total;
       return "";
+    }
+    case "estimate_resent":
+    case "finalized_quote_resent":
+    case "bol_resent": {
+      // Phase Q1: render the destination + (optional) operator note.
+      // The doc number is in the payload for FQ/BOL but not estimates
+      // (estimates have no number) — surface whatever is available.
+      const to = p.to ? `to ${String(p.to)}` : "";
+      const num = p.finalizedQuoteNumber
+        ? String(p.finalizedQuoteNumber)
+        : p.bolNumber
+          ? String(p.bolNumber)
+          : "";
+      const reason = p.reason ? String(p.reason) : "";
+      const parts: string[] = [];
+      if (num) parts.push(num);
+      if (to) parts.push(to);
+      if (reason) parts.push(reason);
+      return parts.join(" · ");
     }
     case "note":
       return p.body ? String(p.body) : "";

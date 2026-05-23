@@ -37,6 +37,9 @@ export type DispatchEventKind =
   | "pdf_generated"
   | "payment_recorded"
   | "payment_completed"
+  | "estimate_resent"
+  | "finalized_quote_resent"
+  | "bol_resent"
   | "note";
 
 export type DispatchEventPayloadByKind = {
@@ -131,6 +134,32 @@ export type DispatchEventPayloadByKind = {
     finalizedQuoteNumber: string;
     totalAmount: number;
     paidTotal: number;
+  };
+  // Phase Q1: resend event payloads. Carry both IDs so the timeline can
+  // link the redelivery back to the original send without a join, and
+  // capture the (possibly-overridden) recipient + optional operator note.
+  estimate_resent: {
+    newEstimateId: string;
+    resentFromId: string;
+    to: string;
+    emailId: string | null;
+    reason: string | null;
+  };
+  finalized_quote_resent: {
+    newFinalizedQuoteId: string;
+    resentFromId: string;
+    finalizedQuoteNumber: string;
+    to: string;
+    emailId: string | null;
+    reason: string | null;
+  };
+  bol_resent: {
+    newBolId: string;
+    resentFromId: string;
+    bolNumber: string;
+    to: string;
+    emailId: string | null;
+    reason: string | null;
   };
   note: { body: string };
 };

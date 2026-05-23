@@ -114,6 +114,7 @@ type SentEstimateDbRow = {
   preview_to: string | null;
   preview_from: string | null;
   preview_reply_to: string | null;
+  resent_from_id: string | null;
 };
 
 function toSentEstimateRow(row: SentEstimateDbRow): SentEstimateRow {
@@ -129,6 +130,7 @@ function toSentEstimateRow(row: SentEstimateDbRow): SentEstimateRow {
     to: row.preview_to ?? "",
     from: row.preview_from ?? "",
     replyTo: row.preview_reply_to ?? "",
+    resentFromId: row.resent_from_id,
   };
 }
 
@@ -212,6 +214,7 @@ type FinalizedQuoteRow = {
   preview_built_at: string | null;
   sent_at: string | null;
   sent_email_id: string | null;
+  resent_from_id: string | null;
 };
 
 function readAccessorials(raw: unknown): FinalizedQuoteAccessorial[] {
@@ -322,6 +325,7 @@ function toSentFinalizedQuoteRow(row: FinalizedQuoteRow): SentFinalizedQuoteRow 
     to: row.preview_to ?? "",
     from: row.preview_from ?? "",
     replyTo: row.preview_reply_to ?? "",
+    resentFromId: row.resent_from_id,
   };
 }
 
@@ -382,6 +386,7 @@ type BolRow = {
   preview_built_at: string | null;
   sent_at: string | null;
   sent_email_id: string | null;
+  resent_from_id: string | null;
 };
 
 function toBolDraft(
@@ -472,6 +477,7 @@ function toSentBolRow(row: BolRow): SentBolRow {
     to: row.preview_to ?? "",
     from: row.preview_from ?? "",
     replyTo: row.preview_reply_to ?? "",
+    resentFromId: row.resent_from_id,
   };
 }
 
@@ -603,7 +609,7 @@ async function loadDetail(id: string): Promise<{
     sb
       .from("dispatch_estimates")
       .select(
-        "id, sent_at, sent_email_id, linehaul_low, linehaul_high, preview_subject, preview_preheader, preview_html, preview_to, preview_from, preview_reply_to",
+        "id, sent_at, sent_email_id, linehaul_low, linehaul_high, preview_subject, preview_preheader, preview_html, preview_to, preview_from, preview_reply_to, resent_from_id",
       )
       .eq("quote_request_id", id)
       .not("sent_at", "is", null)
@@ -793,7 +799,7 @@ async function loadFinalizedQuoteState(
   const { data: draftRow } = await sb
     .from("finalized_quotes")
     .select(
-      "id, finalized_quote_number, dispatch_estimate_id, quote_request_id, issue_date, expiration_at, payment_due_at, pickup_company, pickup_contact_name, pickup_contact_phone, pickup_contact_email, pickup_address_line1, pickup_address_line2, pickup_city, pickup_state, pickup_zip, pickup_window, pickup_loading_hours, delivery_company, delivery_contact_name, delivery_contact_phone, delivery_contact_email, delivery_address_line1, delivery_address_line2, delivery_city, delivery_state, delivery_zip, delivery_window, delivery_receiving_hours, commodity, length_in, width_in, height_in, exact_weight_lbs, quantity, handling_type, running_condition, securement_requirements, forklift_available, driver_assist_required, crane_required, permits_required, escort_required, tarp_required, special_instructions, linehaul, fuel_surcharge, permits_fee, accessorials, total_amount, detention_policy, tonu_policy, payment_instructions, dispatch_confirmation_statement, scheduling_statement, acceptance_acknowledgement, preview_subject, preview_preheader, preview_html, preview_text, preview_to, preview_from, preview_reply_to, preview_built_at, sent_at, sent_email_id",
+      "id, finalized_quote_number, dispatch_estimate_id, quote_request_id, issue_date, expiration_at, payment_due_at, pickup_company, pickup_contact_name, pickup_contact_phone, pickup_contact_email, pickup_address_line1, pickup_address_line2, pickup_city, pickup_state, pickup_zip, pickup_window, pickup_loading_hours, delivery_company, delivery_contact_name, delivery_contact_phone, delivery_contact_email, delivery_address_line1, delivery_address_line2, delivery_city, delivery_state, delivery_zip, delivery_window, delivery_receiving_hours, commodity, length_in, width_in, height_in, exact_weight_lbs, quantity, handling_type, running_condition, securement_requirements, forklift_available, driver_assist_required, crane_required, permits_required, escort_required, tarp_required, special_instructions, linehaul, fuel_surcharge, permits_fee, accessorials, total_amount, detention_policy, tonu_policy, payment_instructions, dispatch_confirmation_statement, scheduling_statement, acceptance_acknowledgement, preview_subject, preview_preheader, preview_html, preview_text, preview_to, preview_from, preview_reply_to, preview_built_at, sent_at, sent_email_id, resent_from_id",
     )
     .eq("dispatch_estimate_id", latestSent.id)
     .is("sent_at", null)
@@ -820,7 +826,7 @@ async function loadSentFinalizedQuotes(
   const { data: rows } = await sb
     .from("finalized_quotes")
     .select(
-      "id, finalized_quote_number, dispatch_estimate_id, quote_request_id, issue_date, expiration_at, payment_due_at, pickup_company, pickup_contact_name, pickup_contact_phone, pickup_contact_email, pickup_address_line1, pickup_address_line2, pickup_city, pickup_state, pickup_zip, pickup_window, pickup_loading_hours, delivery_company, delivery_contact_name, delivery_contact_phone, delivery_contact_email, delivery_address_line1, delivery_address_line2, delivery_city, delivery_state, delivery_zip, delivery_window, delivery_receiving_hours, commodity, length_in, width_in, height_in, exact_weight_lbs, quantity, handling_type, running_condition, securement_requirements, forklift_available, driver_assist_required, crane_required, permits_required, escort_required, tarp_required, special_instructions, linehaul, fuel_surcharge, permits_fee, accessorials, total_amount, detention_policy, tonu_policy, payment_instructions, dispatch_confirmation_statement, scheduling_statement, acceptance_acknowledgement, preview_subject, preview_preheader, preview_html, preview_text, preview_to, preview_from, preview_reply_to, preview_built_at, sent_at, sent_email_id",
+      "id, finalized_quote_number, dispatch_estimate_id, quote_request_id, issue_date, expiration_at, payment_due_at, pickup_company, pickup_contact_name, pickup_contact_phone, pickup_contact_email, pickup_address_line1, pickup_address_line2, pickup_city, pickup_state, pickup_zip, pickup_window, pickup_loading_hours, delivery_company, delivery_contact_name, delivery_contact_phone, delivery_contact_email, delivery_address_line1, delivery_address_line2, delivery_city, delivery_state, delivery_zip, delivery_window, delivery_receiving_hours, commodity, length_in, width_in, height_in, exact_weight_lbs, quantity, handling_type, running_condition, securement_requirements, forklift_available, driver_assist_required, crane_required, permits_required, escort_required, tarp_required, special_instructions, linehaul, fuel_surcharge, permits_fee, accessorials, total_amount, detention_policy, tonu_policy, payment_instructions, dispatch_confirmation_statement, scheduling_statement, acceptance_acknowledgement, preview_subject, preview_preheader, preview_html, preview_text, preview_to, preview_from, preview_reply_to, preview_built_at, sent_at, sent_email_id, resent_from_id",
     )
     .eq("quote_request_id", quoteRequestId)
     .not("sent_at", "is", null)
@@ -854,7 +860,7 @@ async function loadBolState(
   const { data: draftRow } = await sb
     .from("bills_of_lading")
     .select(
-      "id, bol_number, finalized_quote_id, dispatch_reference, issue_date, shipper_company, shipper_contact_name, shipper_contact_phone, shipper_contact_email, shipper_address_line1, shipper_address_line2, shipper_city, shipper_state, shipper_zip, pickup_window, pickup_instructions, consignee_company, consignee_contact_name, consignee_contact_phone, consignee_contact_email, consignee_address_line1, consignee_address_line2, consignee_city, consignee_state, consignee_zip, delivery_window, delivery_instructions, commodity, quantity, handling_units_type, length_in, width_in, height_in, weight_lbs, nmfc_code, freight_class, hazmat, special_handling, driver_assist_required, tarp_required, permits_required, escort_required, rigging_required, appointment_required, special_instructions, dispatch_notes, preview_subject, preview_preheader, preview_html, preview_text, preview_to, preview_from, preview_reply_to, preview_built_at, sent_at, sent_email_id",
+      "id, bol_number, finalized_quote_id, dispatch_reference, issue_date, shipper_company, shipper_contact_name, shipper_contact_phone, shipper_contact_email, shipper_address_line1, shipper_address_line2, shipper_city, shipper_state, shipper_zip, pickup_window, pickup_instructions, consignee_company, consignee_contact_name, consignee_contact_phone, consignee_contact_email, consignee_address_line1, consignee_address_line2, consignee_city, consignee_state, consignee_zip, delivery_window, delivery_instructions, commodity, quantity, handling_units_type, length_in, width_in, height_in, weight_lbs, nmfc_code, freight_class, hazmat, special_handling, driver_assist_required, tarp_required, permits_required, escort_required, rigging_required, appointment_required, special_instructions, dispatch_notes, preview_subject, preview_preheader, preview_html, preview_text, preview_to, preview_from, preview_reply_to, preview_built_at, sent_at, sent_email_id, resent_from_id",
     )
     .eq("finalized_quote_id", latestFq.id)
     .is("sent_at", null)
@@ -881,7 +887,7 @@ async function loadSentBols(
   const { data: rows } = await sb
     .from("bills_of_lading")
     .select(
-      "id, bol_number, finalized_quote_id, dispatch_reference, issue_date, shipper_company, shipper_contact_name, shipper_contact_phone, shipper_contact_email, shipper_address_line1, shipper_address_line2, shipper_city, shipper_state, shipper_zip, pickup_window, pickup_instructions, consignee_company, consignee_contact_name, consignee_contact_phone, consignee_contact_email, consignee_address_line1, consignee_address_line2, consignee_city, consignee_state, consignee_zip, delivery_window, delivery_instructions, commodity, quantity, handling_units_type, length_in, width_in, height_in, weight_lbs, nmfc_code, freight_class, hazmat, special_handling, driver_assist_required, tarp_required, permits_required, escort_required, rigging_required, appointment_required, special_instructions, dispatch_notes, preview_subject, preview_preheader, preview_html, preview_text, preview_to, preview_from, preview_reply_to, preview_built_at, sent_at, sent_email_id",
+      "id, bol_number, finalized_quote_id, dispatch_reference, issue_date, shipper_company, shipper_contact_name, shipper_contact_phone, shipper_contact_email, shipper_address_line1, shipper_address_line2, shipper_city, shipper_state, shipper_zip, pickup_window, pickup_instructions, consignee_company, consignee_contact_name, consignee_contact_phone, consignee_contact_email, consignee_address_line1, consignee_address_line2, consignee_city, consignee_state, consignee_zip, delivery_window, delivery_instructions, commodity, quantity, handling_units_type, length_in, width_in, height_in, weight_lbs, nmfc_code, freight_class, hazmat, special_handling, driver_assist_required, tarp_required, permits_required, escort_required, rigging_required, appointment_required, special_instructions, dispatch_notes, preview_subject, preview_preheader, preview_html, preview_text, preview_to, preview_from, preview_reply_to, preview_built_at, sent_at, sent_email_id, resent_from_id",
     )
     .eq("quote_request_id", quoteRequestId)
     .not("sent_at", "is", null)
