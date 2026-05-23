@@ -67,7 +67,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: "activity", label: "Activity" },
   { id: "finalized", label: "Finalized Quote" },
   { id: "bol", label: "BOL" },
-  { id: "generated", label: "Generated Quote" },
+  { id: "generated", label: "Quote PDF" },
   { id: "metadata", label: "Metadata" },
 ];
 
@@ -145,7 +145,7 @@ export function QuoteDetailTabs({
               onClick={() => setActiveTab("generated")}
               className="btn-outline-cut inline-flex w-full items-center justify-center px-4 py-2 font-mono text-[11px] tracking-[0.22em] text-neutral-300 uppercase transition-colors hover:text-white sm:w-auto"
             >
-              Generate Quote
+              Open Quote PDF
             </button>
           </div>
         </div>
@@ -449,7 +449,7 @@ function GeneratedQuoteTab({
     <div className="space-y-5">
       <header>
         <h2 className="font-mono text-[10px] tracking-[0.22em] text-red-500 uppercase">
-          Generate quote
+          Quote PDF
         </h2>
         <p className="mt-3 max-w-2xl text-sm leading-relaxed text-neutral-300">
           Build a customer-ready Premium Carrier Quote PDF. Once generated,

@@ -95,7 +95,7 @@ export function GeneratedQuotePreview({
           title="Email sending arrives in Phase 2"
           className="inline-flex w-full items-center justify-center border border-neutral-800 px-5 py-3 text-xs font-semibold uppercase tracking-[0.14em] text-neutral-500 transition-colors disabled:cursor-not-allowed sm:w-auto"
         >
-          Send quote (coming soon)
+          Send Quote PDF (coming soon)
         </button>
       </div>
 
