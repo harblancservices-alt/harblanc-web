@@ -1,14 +1,33 @@
 @import "tailwindcss";
 
-/* Fixed dark theme — charcoal/near-black with red accent. */
+/* Fixed dark theme — charcoal/near-black with red accent.
+ *
+ * Phase A note: background lifted from #0a0a0a to #111111 (one notch
+ * brighter). Reduces phone-screen glare under direct sunlight; text
+ * contrast against the page remains ≥ 15:1 so dark-room legibility is
+ * unchanged. No component-level edits — surfaces that explicitly use
+ * `bg-neutral-950` are unaffected.
+ *
+ * Two new foundation tokens land here for use by later phases:
+ *   --label-fg            : a higher-contrast neutral for small uppercase
+ *                           labels. Sits between text-neutral-500 (too dim
+ *                           in sunlight) and text-neutral-200 (too loud).
+ *                           NOT YET wired into components.
+ *   --accent-destructive  : a deeper, less candy-red for the destructive
+ *                           primary action (Permanently delete) so it no
+ *                           longer reads identical to Send. NOT YET wired
+ *                           into components. */
 :root {
-  --background: #0a0a0a;
+  --background: #111111;
   --foreground: #f4f4f5;
   --accent: #dc2626;
   --accent-hover: #ef4444;
+  --accent-destructive: #991b1b;
+  --accent-destructive-hover: #b91c1c;
   --border: #262626;
   --surface: #171717;
   --muted: #a1a1aa;
+  --label-fg: #d4d4d8;
 }
 
 @theme inline {
@@ -16,9 +35,12 @@
   --color-foreground: var(--foreground);
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
+  --color-accent-destructive: var(--accent-destructive);
+  --color-accent-destructive-hover: var(--accent-destructive-hover);
   --color-border-default: var(--border);
   --color-surface: var(--surface);
   --color-muted: var(--muted);
+  --color-label-fg: var(--label-fg);
   /* Single family across all roles — Public Sans handles every tier. */
   --font-sans: var(--font-public-sans);
   --font-mono: var(--font-public-sans);
