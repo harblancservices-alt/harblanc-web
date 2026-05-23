@@ -90,6 +90,43 @@ export const LEAD_STATUS_CLASSES: Record<LeadStatus, string> = {
 };
 
 /**
+ * Phase COLOR-2: light-mode twin for LEAD_STATUS_CLASSES. Same 13-key
+ * shape, switched to the Tailwind light-pill family
+ * (`border-X-300 bg-X-50 text-X-800`) so the status pill remains
+ * operationally legible on a white/zinc-50 admin background.
+ *
+ * NOT YET wired into consumers. StatusBadge / StatusSelector / the
+ * ops home list will switch from LEAD_STATUS_CLASSES to
+ * LEAD_STATUS_CLASSES_LIGHT during the COLOR-3+ phases. Until then
+ * this constant is unused — the dark mapping above remains the source
+ * of truth for every consumer.
+ *
+ * `dispatched` uses a slightly stronger 400/900 split to keep it
+ * visually distinct from `ready_to_dispatch` on a light surface — the
+ * dark version achieves this via /50 alpha vs /40, which has no clean
+ * light-pill equivalent.
+ *
+ * `archived` and `lost` deliberately use zinc-100 (one shade darker
+ * than other pills' zinc-50) so closed-out leads read as visibly
+ * dormant compared to active-pipeline statuses.
+ */
+export const LEAD_STATUS_CLASSES_LIGHT: Record<LeadStatus, string> = {
+  new: "border-red-300 bg-red-50 text-red-800",
+  contacted: "border-zinc-300 bg-zinc-50 text-zinc-700",
+  estimate_sent: "border-blue-300 bg-blue-50 text-blue-800",
+  awaiting_confirmation: "border-amber-300 bg-amber-50 text-amber-800",
+  booked: "border-green-300 bg-green-50 text-green-800",
+  awaiting_payment: "border-amber-300 bg-amber-50 text-amber-800",
+  ready_to_dispatch: "border-emerald-300 bg-emerald-50 text-emerald-800",
+  dispatched: "border-emerald-400 bg-emerald-50 text-emerald-900",
+  picked_up: "border-teal-300 bg-teal-50 text-teal-800",
+  in_transit: "border-cyan-300 bg-cyan-50 text-cyan-800",
+  delivered: "border-sky-300 bg-sky-50 text-sky-800",
+  archived: "border-zinc-300 bg-zinc-100 text-zinc-600",
+  lost: "border-zinc-300 bg-zinc-100 text-zinc-500",
+};
+
+/**
  * Suggest the most likely next state from a given state. Drives the
  * one-tap "advance" button in StatusSelector.
  */

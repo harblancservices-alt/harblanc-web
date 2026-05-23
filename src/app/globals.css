@@ -208,11 +208,69 @@ body {
 @layer utilities {
   .label-cap {
     font-family: var(--font-public-sans), ui-sans-serif, system-ui, sans-serif;
-    font-size: 11px;
+    font-size: 13px;
     line-height: 1.3;
-    letter-spacing: 0.18em;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
     color: var(--label-fg);
     font-weight: 600;
+  }
+}
+
+/* Phase COLOR-2: light-mode pill utility set.
+   Produces the Tailwind equivalent of
+   `border border-X-300 bg-X-50 text-X-800` for each hue, plus the
+   shared border width/style. NOT YET wired into consumers — consumers
+   will switch over to these in COLOR-3/4/5 along with the broader
+   admin light-mode pass. The dark pill classes consumers reference
+   today are unchanged and still present in the codebase.
+
+   Hex values are Tailwind v3/v4 palette literals; kept inline so the
+   utilities are self-contained CSS without @apply dependency. */
+@layer utilities {
+  .pill-light-red {
+    border: 1px solid #fca5a5; /* red-300 */
+    background-color: #fef2f2; /* red-50 */
+    color: #991b1b; /* red-800 */
+  }
+  .pill-light-amber {
+    border: 1px solid #fcd34d; /* amber-300 */
+    background-color: #fffbeb; /* amber-50 */
+    color: #92400e; /* amber-800 */
+  }
+  .pill-light-green {
+    border: 1px solid #86efac; /* green-300 */
+    background-color: #f0fdf4; /* green-50 */
+    color: #166534; /* green-800 */
+  }
+  .pill-light-emerald {
+    border: 1px solid #6ee7b7; /* emerald-300 */
+    background-color: #ecfdf5; /* emerald-50 */
+    color: #065f46; /* emerald-800 */
+  }
+  .pill-light-blue {
+    border: 1px solid #93c5fd; /* blue-300 */
+    background-color: #eff6ff; /* blue-50 */
+    color: #1e40af; /* blue-800 */
+  }
+  .pill-light-teal {
+    border: 1px solid #5eead4; /* teal-300 */
+    background-color: #f0fdfa; /* teal-50 */
+    color: #115e59; /* teal-800 */
+  }
+  .pill-light-cyan {
+    border: 1px solid #67e8f9; /* cyan-300 */
+    background-color: #ecfeff; /* cyan-50 */
+    color: #155e75; /* cyan-800 */
+  }
+  .pill-light-sky {
+    border: 1px solid #7dd3fc; /* sky-300 */
+    background-color: #f0f9ff; /* sky-50 */
+    color: #075985; /* sky-800 */
+  }
+  .pill-light-neutral {
+    border: 1px solid #d4d4d8; /* zinc-300 */
+    background-color: #fafafa; /* zinc-50 */
+    color: #27272a; /* zinc-800 */
   }
 }

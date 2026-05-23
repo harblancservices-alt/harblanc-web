@@ -223,3 +223,14 @@ export const URGENCY_SEVERITY_CLASSES: Record<UrgencySeverity, string> = {
   warn: "border-amber-700 bg-amber-950/40 text-amber-300",
   alert: "border-red-700 bg-red-950/50 text-red-300",
 };
+
+/**
+ * Phase COLOR-2: light-mode twin for URGENCY_SEVERITY_CLASSES. Same
+ * 2-key shape, switched to the Tailwind light-pill family. NOT YET
+ * wired into consumers — the dark mapping above remains the source
+ * of truth until the COLOR-3+ admin retheme switches each consumer.
+ */
+export const URGENCY_SEVERITY_CLASSES_LIGHT: Record<UrgencySeverity, string> = {
+  warn: "border-amber-300 bg-amber-50 text-amber-800",
+  alert: "border-red-300 bg-red-50 text-red-800",
+};
