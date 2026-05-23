@@ -49,27 +49,27 @@ export function QuickActions({ phone, email }: QuickActionsProps) {
   return (
     <section
       aria-label="Quick dispatch actions"
-      className="flex flex-wrap items-stretch gap-2 border border-neutral-800 bg-neutral-950 p-2"
+      className="flex flex-wrap items-stretch gap-2 border border-neutral-700 bg-neutral-800/60 p-2"
     >
       <a
         href={telHref}
-        className="inline-flex items-center gap-2 border border-neutral-700 bg-neutral-900/60 px-3 py-2 font-mono text-[10px] tracking-[0.22em] text-zinc-100 uppercase transition-colors hover:border-red-600 hover:text-white"
+        className="inline-flex items-center gap-2 border border-neutral-600 bg-neutral-800 px-3 py-2 font-mono text-[10px] tracking-[0.22em] text-white uppercase transition-colors hover:border-red-500 hover:bg-neutral-700"
       >
         <span aria-hidden className="inline-block h-2 w-1 bg-red-600" />
         Call
-        <span className="font-mono text-[10px] tracking-normal text-neutral-400 normal-case">
+        <span className="font-mono text-[10px] tracking-normal text-neutral-300 normal-case">
           {phone}
         </span>
       </a>
 
       <a
         href={mailHref}
-        className="inline-flex items-center gap-2 border border-neutral-700 bg-neutral-900/60 px-3 py-2 font-mono text-[10px] tracking-[0.22em] text-zinc-100 uppercase transition-colors hover:border-red-600 hover:text-white"
+        className="inline-flex items-center gap-2 border border-neutral-600 bg-neutral-800 px-3 py-2 font-mono text-[10px] tracking-[0.22em] text-white uppercase transition-colors hover:border-red-500 hover:bg-neutral-700"
       >
         <span aria-hidden className="inline-block h-2 w-1 bg-red-600" />
         Email
         <span
-          className="max-w-[16ch] truncate font-mono text-[10px] tracking-normal text-neutral-400 normal-case"
+          className="max-w-[16ch] truncate font-mono text-[10px] tracking-normal text-neutral-300 normal-case"
           title={email}
         >
           {email}
@@ -79,7 +79,7 @@ export function QuickActions({ phone, email }: QuickActionsProps) {
       <button
         type="button"
         onClick={() => copy(phone, "phone")}
-        className="inline-flex items-center gap-2 border border-neutral-700 bg-neutral-900/60 px-3 py-2 font-mono text-[10px] tracking-[0.22em] text-zinc-100 uppercase transition-colors hover:border-red-600 hover:text-white"
+        className="inline-flex items-center gap-2 border border-transparent px-3 py-2 font-mono text-[10px] tracking-[0.22em] text-neutral-400 uppercase transition-colors hover:text-white"
       >
         Copy phone
         {flash?.kind === "phone" ? (
@@ -92,7 +92,7 @@ export function QuickActions({ phone, email }: QuickActionsProps) {
       <button
         type="button"
         onClick={() => copy(email, "email")}
-        className="inline-flex items-center gap-2 border border-neutral-700 bg-neutral-900/60 px-3 py-2 font-mono text-[10px] tracking-[0.22em] text-zinc-100 uppercase transition-colors hover:border-red-600 hover:text-white"
+        className="inline-flex items-center gap-2 border border-transparent px-3 py-2 font-mono text-[10px] tracking-[0.22em] text-neutral-400 uppercase transition-colors hover:text-white"
       >
         Copy email
         {flash?.kind === "email" ? (

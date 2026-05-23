@@ -143,7 +143,7 @@ export function QuoteDetailTabs({
             <button
               type="button"
               onClick={() => setActiveTab("generated")}
-              className="btn-cut inline-flex w-full items-center justify-center bg-red-600 px-5 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-red-500 sm:w-auto"
+              className="btn-outline-cut inline-flex w-full items-center justify-center px-4 py-2 font-mono text-[11px] tracking-[0.22em] text-neutral-300 uppercase transition-colors hover:text-white sm:w-auto"
             >
               Generate Quote
             </button>
@@ -181,7 +181,7 @@ export function QuoteDetailTabs({
                 "shrink-0 border px-5 py-3 font-mono text-[11px] tracking-[0.18em] uppercase transition-colors " +
                 (i > 0 ? "-ml-px " : "") +
                 (isActive
-                  ? "relative z-10 border-neutral-800 border-b-neutral-900 bg-neutral-900 text-white"
+                  ? "relative z-10 border-neutral-800 border-b-transparent bg-neutral-800/50 text-white"
                   : "border-neutral-800 bg-neutral-950 text-neutral-400 hover:bg-neutral-900/40 hover:text-white")
               }
             >
@@ -203,7 +203,7 @@ export function QuoteDetailTabs({
         id={`panel-${activeTab}`}
         role="tabpanel"
         aria-labelledby={`tab-${activeTab}`}
-        className="relative -mt-px border border-neutral-800 bg-neutral-900 p-5 sm:p-6"
+        className="relative -mt-px border-x border-b border-neutral-800 bg-neutral-800/50 p-5 sm:p-6"
       >
         {activeTab === "request" ? (
           <RequestTab
@@ -275,13 +275,13 @@ function RequestTab({
   const hasLane = Boolean(row.pickup_zip && row.delivery_zip);
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       {!isTrashed ? (
         <QuickActions phone={row.phone} email={row.email} />
       ) : null}
 
       {hasLane ? (
-        <section className="border border-neutral-800 bg-neutral-900/40 p-5 sm:p-6">
+        <section className="border border-neutral-700 bg-neutral-800/60 p-5 sm:p-6">
           <h2 className="font-mono text-[10px] tracking-[0.22em] text-red-500 uppercase">
             Lane
           </h2>
@@ -308,8 +308,8 @@ function RequestTab({
         </section>
       ) : null}
 
-      <div className="grid grid-cols-1 divide-y divide-neutral-800 border border-neutral-800 sm:grid-cols-2 sm:divide-x sm:divide-y-0">
-        <section className="bg-neutral-900/40 p-5 sm:p-6">
+      <div className="grid grid-cols-1 divide-y divide-neutral-700 border border-neutral-700 sm:grid-cols-2 sm:divide-x sm:divide-y-0">
+        <section className="bg-neutral-800/60 p-5 sm:p-6">
           <h2 className="font-mono text-[10px] tracking-[0.22em] text-red-500 uppercase">
             Primary contact
           </h2>
@@ -332,7 +332,7 @@ function RequestTab({
             </Field>
           </dl>
         </section>
-        <section className="bg-neutral-900/40 p-5 sm:p-6">
+        <section className="bg-neutral-800/60 p-5 sm:p-6">
           <h2 className="font-mono text-[10px] tracking-[0.22em] text-red-500 uppercase">
             Shipment
           </h2>
@@ -352,7 +352,7 @@ function RequestTab({
       </div>
 
       {row.notes ? (
-        <section className="border border-neutral-800 bg-neutral-900/40 p-5 sm:p-6">
+        <section className="border border-neutral-700 bg-neutral-800/60 p-5 sm:p-6">
           <h2 className="font-mono text-[10px] tracking-[0.22em] text-red-500 uppercase">
             Customer notes
           </h2>
@@ -374,7 +374,7 @@ function RequestTab({
       ) : null}
 
       {!isTrashed ? (
-        <section className="border border-neutral-800 border-t-2 border-t-red-600 bg-neutral-900/40 p-5 sm:p-6">
+        <section className="border border-neutral-700 border-t-2 border-t-red-600 bg-neutral-800/60 p-5 sm:p-6">
           <EstimateComposer
             key={draftEstimate?.id ?? "no-draft"}
             quoteRequestId={row.id}

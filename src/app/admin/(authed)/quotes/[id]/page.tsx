@@ -866,7 +866,7 @@ export default async function QuoteDetailPage({
   const isTrashed = Boolean(row.deleted_at);
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
+    <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
       <Link
         href={isTrashed ? "/admin/quotes/trash" : "/admin/quotes"}
         className="inline-flex items-center font-mono text-[10px] tracking-[0.22em] text-neutral-500 uppercase transition-colors hover:text-white"
