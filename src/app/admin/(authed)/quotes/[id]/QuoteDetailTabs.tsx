@@ -109,7 +109,8 @@ export function QuoteDetailTabs({
 
   return (
     <>
-      <header className="mt-5 sm:mt-6">
+      <header className="mt-4">
+        {/* Phase LAYOUT-1: eyebrow row — status + relative time */}
         <div className="flex flex-wrap items-center gap-3">
           <p className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
             Quote request
@@ -125,47 +126,51 @@ export function QuoteDetailTabs({
           ) : null}
         </div>
 
-        <div className="mt-3 sm:flex sm:items-start sm:justify-between sm:gap-6">
-          <div className="min-w-0">
-            <h1 className="text-3xl font-display tracking-tight text-zinc-900 sm:text-4xl lg:text-5xl">
-              {row.name}
-            </h1>
-            <p
-              className="mt-2 font-mono text-xs text-zinc-500"
-              title={formatDateFull(row.created_at)}
-            >
-              Received {relativeTime(row.created_at)}{" "}
-              <span aria-hidden className="mx-1 text-zinc-500">
-                ·
-              </span>{" "}
-              {formatDateFull(row.created_at)}
-            </p>
-          </div>
-          <div className="mt-5 sm:mt-0 sm:shrink-0">
-            <button
-              type="button"
-              onClick={() => setActiveTab("generated")}
-              className="btn-outline-cut inline-flex w-full items-center justify-center px-4 py-2 text-xs font-semibold tracking-[0.12em] text-zinc-200 uppercase transition-colors hover:text-white sm:w-auto"
-            >
-              Open Quote PDF
-            </button>
-          </div>
-        </div>
+        {/* Hero — customer name dominates the page top */}
+        <h1 className="mt-3 text-3xl font-display tracking-tight text-zinc-900 sm:text-4xl lg:text-5xl">
+          {row.name}
+        </h1>
+        <p
+          className="mt-2 font-mono text-xs text-zinc-500"
+          title={formatDateFull(row.created_at)}
+        >
+          Received {relativeTime(row.created_at)}{" "}
+          <span aria-hidden className="mx-1 text-zinc-500">
+            ·
+          </span>{" "}
+          {formatDateFull(row.created_at)}
+        </p>
 
-        {!isTrashed ? (
-          <div className="mt-4">
+        {/* Phase LAYOUT-1: unified command row. Status controls + Open Quote
+            PDF live on the same line so the operational action surface reads
+            as one group. When trashed, StatusSelector is suppressed but the
+            PDF button stays right-aligned so the row keeps its shape. */}
+        <div
+          className={
+            "mt-4 flex flex-wrap items-center gap-3 sm:flex-nowrap " +
+            (!isTrashed ? "sm:justify-between" : "sm:justify-end")
+          }
+        >
+          {!isTrashed ? (
             <StatusSelector
               quoteRequestId={row.id}
               status={row.lead_status}
             />
-          </div>
-        ) : null}
+          ) : null}
+          <button
+            type="button"
+            onClick={() => setActiveTab("generated")}
+            className="btn-outline-cut inline-flex w-full items-center justify-center px-4 py-2 text-xs font-semibold tracking-[0.12em] text-zinc-200 uppercase transition-colors hover:text-white sm:w-auto"
+          >
+            Open Quote PDF
+          </button>
+        </div>
       </header>
 
       <nav
         role="tablist"
         aria-label="Quote detail sections"
-        className="mt-6 flex overflow-x-auto sm:mt-8 [mask-image:linear-gradient(to_right,black_88%,transparent)] sm:[mask-image:none]"
+        className="mt-5 flex overflow-x-auto sm:mt-6 [mask-image:linear-gradient(to_right,black_88%,transparent)] sm:[mask-image:none]"
       >
         {TABS.map((tab, i) => {
           const isActive = activeTab === tab.id;
@@ -185,7 +190,7 @@ export function QuoteDetailTabs({
                 "shrink-0 border px-5 py-3.5 text-xs font-semibold tracking-[0.12em] uppercase transition-colors " +
                 (i > 0 ? "-ml-px " : "") +
                 (isActive
-                  ? "relative z-10 border-zinc-200 border-b-neutral-900 bg-white text-zinc-900"
+                  ? "relative z-10 border-zinc-200 border-b-white bg-white text-zinc-900 font-bold"
                   : isMetadata
                     ? "border-zinc-200 bg-zinc-50 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700"
                     : "border-zinc-200 bg-zinc-50 text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900")
@@ -201,7 +206,7 @@ export function QuoteDetailTabs({
         id={`panel-${activeTab}`}
         role="tabpanel"
         aria-labelledby={`tab-${activeTab}`}
-        className="relative -mt-px border border-zinc-200 bg-white p-5 shadow-2xl shadow-black/50 sm:p-7"
+        className="relative -mt-px border border-zinc-200 bg-white p-5 shadow-sm sm:p-6"
       >
         {activeTab === "request" ? (
           <RequestTab
@@ -270,7 +275,7 @@ function RequestTab({
   const hasLane = Boolean(row.pickup_zip && row.delivery_zip);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-7">
       {!isTrashed ? (
         <QuickActions phone={row.phone} email={row.email} />
       ) : null}
@@ -531,7 +536,7 @@ function LoadPreview({
   return (
     <div className="border border-zinc-300 bg-white">
       {/* Header — primary client/contact + state badge. Always shown. */}
-      <header className="border-b border-zinc-300 px-5 py-4 sm:px-6 sm:py-5">
+      <header className="border-b border-zinc-300 px-5 py-5 sm:px-6 sm:py-6">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <p className="label-cap">Primary client</p>
@@ -544,7 +549,7 @@ function LoadPreview({
                 <dd className="mt-1">
                   <a
                     href={phoneHref}
-                    className="block break-all font-mono text-lg text-zinc-900 underline-offset-4 hover:underline sm:text-xl"
+                    className="block break-all font-mono text-xl text-zinc-900 underline-offset-4 hover:underline sm:text-2xl"
                   >
                     {row.phone}
                   </a>

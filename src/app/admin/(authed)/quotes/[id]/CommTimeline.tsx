@@ -374,7 +374,7 @@ export function CommTimeline({
               <li
                 key={event.id}
                 className={
-                  "grid grid-cols-[14px_minmax(0,1fr)] gap-x-3 px-3.5 py-3.5 sm:gap-x-4 sm:px-4 " +
+                  "grid grid-cols-[14px_minmax(0,1fr)] gap-x-3 px-3.5 py-3 sm:gap-x-4 sm:px-4 " +
                   (isLast ? "" : "border-b border-zinc-200")
                 }
               >

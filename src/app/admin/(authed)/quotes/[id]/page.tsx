@@ -977,7 +977,7 @@ export default async function QuoteDetailPage({
   const isTrashed = Boolean(row.deleted_at);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-12">
+    <div className="mx-auto max-w-[1400px] px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
       <Link
         href={isTrashed ? "/admin/quotes/trash" : "/admin/quotes"}
         className="inline-flex items-center font-mono text-xs tracking-[0.12em] text-zinc-500 uppercase transition-colors hover:text-zinc-900"
@@ -1027,7 +1027,7 @@ export default async function QuoteDetailPage({
         paymentTarget={paymentTarget}
       />
 
-      <section className="mt-6 border border-zinc-200 border-t-2 border-t-red-600 bg-white p-5 sm:mt-8 sm:p-6">
+      <section className="mt-5 border border-zinc-200 border-t-2 border-t-red-600 bg-white p-5 sm:mt-6 sm:p-6">
         <h2 className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
           Actions
         </h2>

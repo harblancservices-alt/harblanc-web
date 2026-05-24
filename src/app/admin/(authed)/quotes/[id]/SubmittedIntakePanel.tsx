@@ -185,7 +185,7 @@ export function SubmittedIntakePanel({
     .filter((l) => l.length > 0);
 
   return (
-    <section className="border border-zinc-200 border-t-2 border-t-green-600 bg-zinc-100 p-5 sm:p-6">
+    <section className="border border-zinc-200 border-t-2 border-t-green-600 bg-zinc-50 p-5 sm:p-6">
       <header className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-1">
         <p className="font-mono text-xs tracking-[0.12em] text-green-800 uppercase">
           Submitted intake

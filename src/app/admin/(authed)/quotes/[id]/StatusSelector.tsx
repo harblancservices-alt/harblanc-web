@@ -52,7 +52,7 @@ export function StatusSelector({
           disabled={isPending}
           className={
             "btn-cut inline-flex w-full items-center justify-center px-4 py-3 text-xs font-semibold tracking-[0.12em] uppercase transition-colors disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto " +
-            "bg-red-600 text-zinc-900 hover:bg-red-500"
+            "bg-red-600 text-white hover:bg-red-500"
           }
           title={`Move to ${LEAD_STATUS_LABELS[next]}`}
         >

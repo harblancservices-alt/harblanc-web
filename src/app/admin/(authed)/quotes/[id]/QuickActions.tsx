@@ -32,11 +32,11 @@ export function QuickActions({ phone, email }: QuickActionsProps) {
   return (
     <section
       aria-label="Quick dispatch actions"
-      className="flex flex-wrap items-stretch gap-2.5 border border-zinc-300 bg-white p-3 shadow-md shadow-black/30"
+      className="flex flex-wrap items-stretch gap-2.5 border border-zinc-200 bg-white p-3"
     >
       <a
         href={telHref}
-        className="inline-flex w-full items-center gap-2.5 border border-zinc-400 bg-white px-4 py-3 text-xs font-semibold tracking-[0.12em] text-zinc-900 uppercase transition-colors hover:border-red-500 hover:bg-neutral-600 sm:w-auto"
+        className="inline-flex w-full items-center gap-2.5 border border-zinc-400 bg-white px-4 py-3 text-xs font-semibold tracking-[0.12em] text-zinc-900 uppercase transition-colors hover:border-red-500 hover:bg-zinc-50 sm:w-auto"
       >
         <span aria-hidden className="inline-block h-2 w-1 bg-red-600" />
         Call
@@ -47,7 +47,7 @@ export function QuickActions({ phone, email }: QuickActionsProps) {
 
       <a
         href={mailHref}
-        className="inline-flex w-full items-center gap-2.5 border border-zinc-400 bg-white px-4 py-3 text-xs font-semibold tracking-[0.12em] text-zinc-900 uppercase transition-colors hover:border-red-500 hover:bg-neutral-600 sm:w-auto"
+        className="inline-flex w-full items-center gap-2.5 border border-zinc-400 bg-white px-4 py-3 text-xs font-semibold tracking-[0.12em] text-zinc-900 uppercase transition-colors hover:border-red-500 hover:bg-zinc-50 sm:w-auto"
       >
         <span aria-hidden className="inline-block h-2 w-1 bg-red-600" />
         Email
