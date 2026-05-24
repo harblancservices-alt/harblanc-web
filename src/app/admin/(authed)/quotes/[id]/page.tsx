@@ -588,6 +588,21 @@ function toSubmittedIntake(row: SubmittedIntakeRow): SubmittedIntakeData | null 
   };
 }
 
+// Phase LANE-3B: local extension of QuoteDetailRow with the LANE-3A
+// persistence columns. Kept in this file so QuoteDetailTabs’ exported
+// QuoteDetailRow stays a clean public API surface for the client
+// component — the persistence shape is an implementation detail of
+// the loader.
+type QuoteRowWithLane = QuoteDetailRow & {
+  pickup_city: string | null;
+  pickup_state: string | null;
+  delivery_city: string | null;
+  delivery_state: string | null;
+  calculated_miles: number | null;
+  mileage_source: string | null;
+  last_geocoded_at: string | null;
+};
+
 async function loadDetail(id: string): Promise<{
   row: QuoteDetailRow;
   generatedQuote: GeneratedQuoteSummary | null;
@@ -616,10 +631,16 @@ async function loadDetail(id: string): Promise<{
   const { data: row } = await sb
     .from("quote_requests")
     .select(
-      "id, created_at, name, email, phone, commodity, weight, notes, pickup_zip, delivery_zip, pickup_date, lead_status, lead_status_updated_at, user_agent, ip, deleted_at, delete_after, assigned_dispatcher, assigned_carrier, assigned_truck, trailer_type",
+      // Phase LANE-3B: extended with the 7 LANE-3A columns that
+      // back persistent lane resolution. The new fields are read
+      // via the local QuoteRowWithLane type so QuoteDetailTabs’
+      // exported QuoteDetailRow shape doesn’t have to grow —
+      // downstream consumers keep receiving the resolved primitives
+      // (pickupCity, pickupState, etc.) that LANE-2 already threads.
+      "id, created_at, name, email, phone, commodity, weight, notes, pickup_zip, delivery_zip, pickup_date, lead_status, lead_status_updated_at, user_agent, ip, deleted_at, delete_after, assigned_dispatcher, assigned_carrier, assigned_truck, trailer_type, pickup_city, pickup_state, delivery_city, delivery_state, calculated_miles, mileage_source, last_geocoded_at",
     )
     .eq("id", id)
-    .maybeSingle<QuoteDetailRow>();
+    .maybeSingle<QuoteRowWithLane>();
   if (!row) return null;
 
   const [
@@ -688,32 +709,113 @@ async function loadDetail(id: string): Promise<{
     }
   }
 
-  let computedMiles: number | null = null;
-  if (row.pickup_zip && row.delivery_zip) {
-    const r = estimateLaneMiles(row.pickup_zip, row.delivery_zip);
-    if (r.ok) computedMiles = r.miles;
-  }
+  // Phase LANE-3B: lazy lane-resolution backfill.
+  //
+  // The LANE-3A migration added pickup_city / pickup_state /
+  // delivery_city / delivery_state / calculated_miles / mileage_source
+  // / last_geocoded_at on quote_requests, all nullable. For brand-new
+  // rows and existing rows that pre-date the migration, those columns
+  // are NULL. On first detail-page render we resolve any missing
+  // values from the server-only `zipcodes` dataset and persist them.
+  //
+  // The block is idempotent: each clause guards on the column being
+  // NULL before computing, and the UPDATE re-asserts NULL in its WHERE
+  // so a concurrent render that already filled the column does not
+  // get clobbered. A failed UPDATE never blocks the page render — the
+  // UI degrades to ZIP-only display + live mileage calc on this
+  // render and retries on the next.
+  //
+  // No customer-facing behavior change. No FormData. No server action.
+  // No email rendering. No workflow logic. Display-only persistence.
+  const updates: {
+    pickup_city?: string;
+    pickup_state?: string;
+    delivery_city?: string;
+    delivery_state?: string;
+    calculated_miles?: number;
+    mileage_source?: "zip_estimate";
+    last_geocoded_at?: string;
+  } = {};
 
-  // Phase LANE-2: resolve city/state for each lane endpoint via the
-  // server-only `zipcodes` dataset. Cheap (in-memory lookup), no DB
-  // write, no API. Values are nullable when the ZIP doesn’t resolve.
-  let pickupCity: string | null = null;
-  let pickupState: string | null = null;
-  let deliveryCity: string | null = null;
-  let deliveryState: string | null = null;
-  if (row.pickup_zip) {
+  if (row.pickup_city === null && row.pickup_zip) {
     const z = lookupZip(row.pickup_zip);
     if (z) {
-      pickupCity = z.city || null;
-      pickupState = z.state || null;
+      if (z.city) updates.pickup_city = z.city;
+      if (z.state) updates.pickup_state = z.state;
     }
   }
-  if (row.delivery_zip) {
+  if (row.delivery_city === null && row.delivery_zip) {
     const z = lookupZip(row.delivery_zip);
     if (z) {
-      deliveryCity = z.city || null;
-      deliveryState = z.state || null;
+      if (z.city) updates.delivery_city = z.city;
+      if (z.state) updates.delivery_state = z.state;
     }
+  }
+  if (
+    row.calculated_miles === null &&
+    row.pickup_zip &&
+    row.delivery_zip
+  ) {
+    const r = estimateLaneMiles(row.pickup_zip, row.delivery_zip);
+    if (r.ok) {
+      updates.calculated_miles = r.miles;
+      updates.mileage_source = "zip_estimate";
+    }
+  }
+
+  if (Object.keys(updates).length > 0) {
+    updates.last_geocoded_at = new Date().toISOString();
+    try {
+      // Guarded UPDATE: only set the columns that are still NULL on
+      // the row in the DB. Two concurrent renders can both arrive
+      // here; only the first one’s value lands, the rest no-op.
+      let q = sb.from("quote_requests").update(updates).eq("id", row.id);
+      if (updates.pickup_city !== undefined || updates.pickup_state !== undefined) {
+        q = q.is("pickup_city", null);
+      }
+      if (updates.delivery_city !== undefined || updates.delivery_state !== undefined) {
+        q = q.is("delivery_city", null);
+      }
+      if (updates.calculated_miles !== undefined) {
+        q = q.is("calculated_miles", null);
+      }
+      await q;
+      // Overlay onto the in-memory row so this render uses the
+      // resolved values without a re-fetch.
+      if (updates.pickup_city !== undefined) row.pickup_city = updates.pickup_city;
+      if (updates.pickup_state !== undefined) row.pickup_state = updates.pickup_state;
+      if (updates.delivery_city !== undefined) row.delivery_city = updates.delivery_city;
+      if (updates.delivery_state !== undefined) row.delivery_state = updates.delivery_state;
+      if (updates.calculated_miles !== undefined) row.calculated_miles = updates.calculated_miles;
+      if (updates.mileage_source !== undefined) row.mileage_source = updates.mileage_source;
+      row.last_geocoded_at = updates.last_geocoded_at;
+    } catch (e) {
+      // Non-fatal: render proceeds with the unresolved row + live
+      // mileage fallback below. Next render retries.
+      console.error("LANE-3B backfill UPDATE failed", e);
+    }
+  }
+
+  // Resolved primitives passed to QuoteDetailTabs. Read from the
+  // persisted columns (which may have just been backfilled above);
+  // null when the ZIP doesn’t resolve at all, in which case the UI
+  // already falls back to raw ZIP display (LANE-2 behavior).
+  const pickupCity = row.pickup_city;
+  const pickupState = row.pickup_state;
+  const deliveryCity = row.delivery_city;
+  const deliveryState = row.delivery_state;
+
+  // computedMiles cascade:
+  //   1) row.calculated_miles (persisted from this or a prior render)
+  //   2) live estimateLaneMiles(pickup_zip, delivery_zip) if both
+  //      ZIPs are present but the column happens to be null (covers
+  //      the case where backfill failed transiently this render)
+  //   3) null → EstimateComposer continues to show “Enter miles
+  //      manually” exactly as before.
+  let computedMiles: number | null = row.calculated_miles;
+  if (computedMiles === null && row.pickup_zip && row.delivery_zip) {
+    const r = estimateLaneMiles(row.pickup_zip, row.delivery_zip);
+    if (r.ok) computedMiles = r.miles;
   }
 
   const finalizedQuoteState = await loadFinalizedQuoteState(sb, id);
