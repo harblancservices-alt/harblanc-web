@@ -315,13 +315,13 @@ export function CommTimeline({
 
   return (
     <section className="space-y-5">
-      <p className="max-w-2xl text-sm leading-relaxed text-neutral-400">
+      <p className="max-w-2xl text-sm leading-relaxed text-zinc-600">
         Append-only event log. Add notes for phone calls or anything
         handled outside the system.
       </p>
 
       {/* Add note composer */}
-      <div className="space-y-2.5 border border-neutral-700 bg-neutral-800/60 p-4">
+      <div className="space-y-2.5 border border-zinc-300 bg-zinc-50 p-4">
         <label
           htmlFor="dispatch-note"
           className="block label-cap"
@@ -333,13 +333,13 @@ export function CommTimeline({
           rows={2}
           value={noteBody}
           onChange={(e) => setNoteBody(e.target.value)}
-          className="block w-full bg-neutral-900 border border-neutral-800 px-3 py-2.5 text-base text-zinc-100 placeholder:text-neutral-600 focus:border-red-600 focus:outline-none resize-y"
+          className="block w-full bg-white border border-zinc-200 px-3 py-2.5 text-base text-zinc-900 placeholder:text-zinc-500 focus:border-red-600 focus:outline-none resize-y"
           placeholder='e.g. "Called Mike — said he&rsquo;ll confirm dimensions by Wed."'
         />
         {error ? (
           <p
             role="alert"
-            className="text-[11px] font-semibold tracking-[0.18em] text-red-400 uppercase"
+            className="text-xs font-semibold tracking-[0.12em] text-red-600 uppercase"
           >
             {error}
           </p>
@@ -349,7 +349,7 @@ export function CommTimeline({
             type="button"
             onClick={onAddNote}
             disabled={isPending || noteBody.trim().length === 0}
-            className="btn-outline-cut inline-flex items-center justify-center px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-zinc-100 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+            className="btn-outline-cut inline-flex items-center justify-center px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-zinc-900 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
           >
             {isPending ? "Saving..." : "Add note"}
           </button>
@@ -358,11 +358,11 @@ export function CommTimeline({
 
       {/* Event list */}
       {events.length === 0 ? (
-        <p className="text-sm text-neutral-400">
+        <p className="text-sm text-zinc-600">
           No activity yet. Events appear here as the lead progresses.
         </p>
       ) : (
-        <ol className="border border-neutral-800 bg-neutral-950">
+        <ol className="border border-zinc-200 bg-zinc-50">
           {/* Phase UI-M1: reverse to chronological order (oldest at top,
               newest at bottom). Use slice() to avoid mutating the prop. */}
           {events.slice().reverse().map((event, i, arr) => {
@@ -375,7 +375,7 @@ export function CommTimeline({
                 key={event.id}
                 className={
                   "grid grid-cols-[14px_minmax(0,1fr)] gap-x-3 px-3.5 py-3.5 sm:gap-x-4 sm:px-4 " +
-                  (isLast ? "" : "border-b border-neutral-800")
+                  (isLast ? "" : "border-b border-zinc-200")
                 }
               >
                 <span
@@ -390,13 +390,13 @@ export function CommTimeline({
                     <time
                       dateTime={event.created_at}
                       title={formatDateFull(event.created_at)}
-                      className="font-mono text-[10px] text-neutral-500"
+                      className="font-mono text-xs text-zinc-500"
                     >
                       {relativeTime(event.created_at)}
                     </time>
                   </div>
                   {detail ? (
-                    <p className="mt-1 text-sm whitespace-pre-wrap text-neutral-200">
+                    <p className="mt-1 text-sm whitespace-pre-wrap text-zinc-800">
                       {detail}
                     </p>
                   ) : null}

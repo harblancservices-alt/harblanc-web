@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import {
   LEAD_STATUSES,
   LEAD_STATUS_LABELS,
-  LEAD_STATUS_CLASSES,
+  LEAD_STATUS_CLASSES_LIGHT,
   suggestedNext,
   type LeadStatus,
 } from "@/lib/dispatch/status";
@@ -51,8 +51,8 @@ export function StatusSelector({
           onClick={() => changeTo(next)}
           disabled={isPending}
           className={
-            "btn-cut inline-flex w-full items-center justify-center px-4 py-3 text-[11px] font-semibold tracking-[0.18em] uppercase transition-colors disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto " +
-            "bg-red-600 text-white hover:bg-red-500"
+            "btn-cut inline-flex w-full items-center justify-center px-4 py-3 text-xs font-semibold tracking-[0.12em] uppercase transition-colors disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto " +
+            "bg-red-600 text-zinc-900 hover:bg-red-500"
           }
           title={`Move to ${LEAD_STATUS_LABELS[next]}`}
         >
@@ -67,12 +67,12 @@ export function StatusSelector({
           onChange={(e) => changeTo(e.target.value as LeadStatus)}
           disabled={isPending}
           className={
-            "w-full border bg-neutral-900 px-3 py-3 text-[11px] font-semibold tracking-[0.18em] uppercase text-zinc-100 focus:border-red-600 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto " +
-            LEAD_STATUS_CLASSES[status].split(" ").filter((c) => c.startsWith("border-")).join(" ")
+            "w-full border bg-white px-3 py-3 text-xs font-semibold tracking-[0.12em] uppercase text-zinc-900 focus:border-red-600 focus:outline-none disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto " +
+            LEAD_STATUS_CLASSES_LIGHT[status].split(" ").filter((c) => c.startsWith("border-")).join(" ")
           }
         >
           {LEAD_STATUSES.map((s) => (
-            <option key={s} value={s} className="bg-neutral-900 text-zinc-100">
+            <option key={s} value={s} className="bg-white text-zinc-900">
               {LEAD_STATUS_LABELS[s]}
             </option>
           ))}
@@ -82,7 +82,7 @@ export function StatusSelector({
       {error ? (
         <p
           role="alert"
-          className="text-[11px] font-semibold tracking-[0.18em] text-red-400 uppercase"
+          className="text-xs font-semibold tracking-[0.12em] text-red-600 uppercase"
         >
           {error}
         </p>

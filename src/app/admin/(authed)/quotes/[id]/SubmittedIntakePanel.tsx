@@ -185,13 +185,13 @@ export function SubmittedIntakePanel({
     .filter((l) => l.length > 0);
 
   return (
-    <section className="border border-neutral-800 border-t-2 border-t-green-600 bg-neutral-900/40 p-5 sm:p-6">
+    <section className="border border-zinc-200 border-t-2 border-t-green-600 bg-zinc-100 p-5 sm:p-6">
       <header className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-1">
-        <p className="font-mono text-[10px] tracking-[0.22em] text-green-400 uppercase">
+        <p className="font-mono text-xs tracking-[0.12em] text-green-800 uppercase">
           Submitted intake
         </p>
         <span
-          className="font-mono text-[10px] text-neutral-500"
+          className="font-mono text-xs text-zinc-500"
           title={formatDateFull(intake.submittedAt)}
         >
           {relativeTime(intake.submittedAt)} · {formatDateFull(intake.submittedAt)}
@@ -204,7 +204,7 @@ export function SubmittedIntakePanel({
           {redFlags.map((f) => (
             <span
               key={f}
-              className="inline-flex items-center border border-amber-700/60 bg-amber-950/30 px-2.5 py-1 font-mono text-[10px] tracking-[0.22em] text-amber-200 uppercase"
+              className="inline-flex items-center border border-amber-300 bg-amber-50 px-2.5 py-1 font-mono text-xs tracking-[0.12em] text-amber-800 uppercase"
             >
               {f}
             </span>
@@ -213,7 +213,7 @@ export function SubmittedIntakePanel({
       ) : null}
 
       {/* Pickup / Delivery two-column */}
-      <div className="grid grid-cols-1 divide-y divide-neutral-800 border border-neutral-800 sm:grid-cols-2 sm:divide-x sm:divide-y-0">
+      <div className="grid grid-cols-1 divide-y divide-zinc-200 border border-zinc-200 sm:grid-cols-2 sm:divide-x sm:divide-y-0">
         <LocationBlock
           title="Pickup"
           company={intake.pickupCompany}
@@ -241,39 +241,39 @@ export function SubmittedIntakePanel({
       </div>
 
       {/* Freight scope */}
-      <div className="mt-5 border border-neutral-800 bg-neutral-950 p-4 sm:p-5">
-        <p className="font-mono text-[10px] tracking-[0.22em] text-red-500 uppercase">
+      <div className="mt-5 border border-zinc-200 bg-zinc-50 p-4 sm:p-5">
+        <p className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
           Freight scope
         </p>
         <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-3">
           {intake.commodityDetails ? (
             <Field label="Commodity" full>
-              <p className="text-sm leading-relaxed whitespace-pre-wrap text-neutral-100">
+              <p className="text-sm leading-relaxed whitespace-pre-wrap text-zinc-900">
                 {intake.commodityDetails}
               </p>
             </Field>
           ) : null}
           {dims ? (
             <Field label="Dimensions">
-              <span className="font-mono text-base font-semibold text-white">
+              <span className="font-mono text-base font-semibold text-zinc-900">
                 {dims}
               </span>
             </Field>
           ) : null}
           {intake.exactWeightLbs !== null ? (
             <Field label="Exact weight">
-              <span className="font-mono text-base font-semibold text-white">
+              <span className="font-mono text-base font-semibold text-zinc-900">
                 {intake.exactWeightLbs.toLocaleString()} lbs
               </span>
             </Field>
           ) : null}
         </dl>
         {intake.specialRequirements ? (
-          <div className="mt-4 border-t border-neutral-800 pt-4">
-            <p className="font-mono text-[10px] tracking-[0.22em] text-neutral-400 uppercase">
+          <div className="mt-4 border-t border-zinc-200 pt-4">
+            <p className="font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase">
               Special requirements
             </p>
-            <p className="mt-2 text-sm leading-relaxed whitespace-pre-wrap text-neutral-100">
+            <p className="mt-2 text-sm leading-relaxed whitespace-pre-wrap text-zinc-900">
               {intake.specialRequirements}
             </p>
           </div>
@@ -284,18 +284,18 @@ export function SubmittedIntakePanel({
       {(intake.notes || referenceLinks.length > 0) ? (
         <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
           {intake.notes ? (
-            <div className="border border-neutral-800 bg-neutral-950 p-4">
-              <p className="font-mono text-[10px] tracking-[0.22em] text-red-500 uppercase">
+            <div className="border border-zinc-200 bg-zinc-50 p-4">
+              <p className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
                 Notes for dispatch
               </p>
-              <p className="mt-2 text-sm leading-relaxed whitespace-pre-wrap text-neutral-100">
+              <p className="mt-2 text-sm leading-relaxed whitespace-pre-wrap text-zinc-900">
                 {intake.notes}
               </p>
             </div>
           ) : null}
           {referenceLinks.length > 0 ? (
-            <div className="border border-neutral-800 bg-neutral-950 p-4">
-              <p className="font-mono text-[10px] tracking-[0.22em] text-red-500 uppercase">
+            <div className="border border-zinc-200 bg-zinc-50 p-4">
+              <p className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
                 Reference links
               </p>
               <ul className="mt-2 space-y-1.5">
@@ -305,7 +305,7 @@ export function SubmittedIntakePanel({
                       href={link}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block break-all font-mono text-xs text-blue-300 underline-offset-4 hover:underline"
+                      className="block break-all font-mono text-xs text-blue-800 underline-offset-4 hover:underline"
                     >
                       {link}
                     </a>
@@ -351,29 +351,29 @@ function LocationBlock({
     : null;
 
   return (
-    <section className="bg-neutral-900/40 p-4 sm:p-5">
-      <p className="font-mono text-[10px] tracking-[0.22em] text-red-500 uppercase">
+    <section className="bg-zinc-100 p-4 sm:p-5">
+      <p className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
         {title}
       </p>
       <div className="mt-3 space-y-3">
         {company ? (
-          <p className="text-base font-semibold text-white">{company}</p>
+          <p className="text-base font-semibold text-zinc-900">{company}</p>
         ) : null}
         {address.length > 0 ? (
-          <p className="text-sm leading-relaxed whitespace-pre-wrap text-neutral-200">
+          <p className="text-sm leading-relaxed whitespace-pre-wrap text-zinc-800">
             {address.join("\n")}
           </p>
         ) : null}
         {contactName ? (
           <Field label="Contact" inline>
-            <span className="text-sm text-neutral-200">{contactName}</span>
+            <span className="text-sm text-zinc-800">{contactName}</span>
           </Field>
         ) : null}
         {contactPhone ? (
           <Field label="Phone" inline>
             <a
               href={phoneHref ?? "#"}
-              className="font-mono text-sm text-white underline-offset-4 hover:underline"
+              className="font-mono text-sm text-zinc-900 underline-offset-4 hover:underline"
             >
               {contactPhone}
             </a>
@@ -383,7 +383,7 @@ function LocationBlock({
           <Field label="Email" inline>
             <a
               href={`mailto:${contactEmail}`}
-              className="break-all text-sm text-white underline-offset-4 hover:underline"
+              className="break-all text-sm text-zinc-900 underline-offset-4 hover:underline"
             >
               {contactEmail}
             </a>
@@ -391,12 +391,12 @@ function LocationBlock({
         ) : null}
         {window ? (
           <Field label="Window" inline>
-            <span className="text-sm whitespace-pre-wrap text-neutral-100">{window}</span>
+            <span className="text-sm whitespace-pre-wrap text-zinc-900">{window}</span>
           </Field>
         ) : null}
         {responsibilityLabel ? (
           <Field label={responsibilityCaption} inline>
-            <span className="text-sm text-neutral-100">{responsibilityLabel}</span>
+            <span className="text-sm text-zinc-900">{responsibilityLabel}</span>
           </Field>
         ) : null}
       </div>
@@ -418,7 +418,7 @@ function Field({
   if (inline) {
     return (
       <div>
-        <dt className="font-mono text-[9px] tracking-[0.22em] text-neutral-500 uppercase">
+        <dt className="font-mono text-xs tracking-[0.12em] text-zinc-500 uppercase">
           {label}
         </dt>
         <dd className="mt-0.5">{children}</dd>
@@ -427,7 +427,7 @@ function Field({
   }
   return (
     <div className={full ? "sm:col-span-3" : undefined}>
-      <dt className="font-mono text-[9px] tracking-[0.22em] text-neutral-500 uppercase">
+      <dt className="font-mono text-xs tracking-[0.12em] text-zinc-500 uppercase">
         {label}
       </dt>
       <dd className="mt-1">{children}</dd>

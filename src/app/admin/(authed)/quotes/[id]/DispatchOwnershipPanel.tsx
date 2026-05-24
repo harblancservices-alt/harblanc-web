@@ -27,9 +27,9 @@ export type DispatchOwnership = {
 };
 
 const labelCls =
-  "block font-mono text-[10px] tracking-[0.22em] text-neutral-400 uppercase";
+  "block font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase";
 const inputCls =
-  "mt-2 block w-full bg-neutral-900 border border-neutral-800 px-3 py-2.5 text-base text-zinc-100 placeholder:text-neutral-600 focus:border-red-600 focus:outline-none";
+  "mt-2 block w-full bg-white border border-zinc-200 px-3 py-2.5 text-base text-zinc-900 placeholder:text-zinc-500 focus:border-red-600 focus:outline-none";
 
 export function DispatchOwnershipPanel({
   quoteRequestId,
@@ -69,11 +69,11 @@ export function DispatchOwnershipPanel({
   }
 
   return (
-    <section className="border border-neutral-800 bg-neutral-900/40 p-5 sm:p-6">
-      <h2 className="font-mono text-[10px] tracking-[0.22em] text-red-500 uppercase">
+    <section className="border border-zinc-200 bg-zinc-100 p-5 sm:p-6">
+      <h2 className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
         Dispatch ownership
       </h2>
-      <p className="mt-2 max-w-2xl text-sm leading-relaxed text-neutral-400">
+      <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-600">
         Track who&rsquo;s moving this load. Free-text for now — full driver
         assignment lands later.
       </p>
@@ -136,15 +136,15 @@ export function DispatchOwnershipPanel({
       {notice ? (
         <p
           role="status"
-          className="mt-4 font-mono text-[10px] tracking-[0.14em] text-green-400 uppercase"
+          className="mt-4 font-mono text-xs tracking-[0.12em] text-green-800 uppercase"
         >
           {notice}
         </p>
       ) : null}
       {error ? (
-        <div role="alert" className="mt-4 flex items-start gap-3 border border-red-700 bg-red-950/30 p-4">
+        <div role="alert" className="mt-4 flex items-start gap-3 border border-red-300 bg-red-50 p-4">
           <span aria-hidden className="mt-0.5 inline-block h-3 w-1 shrink-0 bg-red-600" />
-          <p className="text-sm leading-relaxed text-red-200">{error}</p>
+          <p className="text-sm leading-relaxed text-red-800">{error}</p>
         </div>
       ) : null}
 
@@ -153,7 +153,7 @@ export function DispatchOwnershipPanel({
           type="button"
           onClick={onSave}
           disabled={isPending}
-          className="btn-outline-cut inline-flex items-center justify-center px-5 py-2.5 text-sm font-semibold uppercase tracking-[0.14em] text-zinc-100 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+          className="btn-outline-cut inline-flex items-center justify-center px-5 py-2.5 text-sm font-semibold uppercase tracking-[0.12em] text-zinc-900 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isPending ? "Saving..." : "Save ownership"}
         </button>

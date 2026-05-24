@@ -63,8 +63,8 @@ export function BounceBadge({
   if (!kind) return null;
   const className =
     kind === "soft"
-      ? "inline-flex items-center border border-amber-700/60 bg-amber-950/30 px-2 py-1 font-mono text-[9px] tracking-[0.22em] text-amber-300 uppercase"
-      : "inline-flex items-center border border-red-700/60 bg-red-950/30 px-2 py-1 font-mono text-[9px] tracking-[0.22em] text-red-300 uppercase";
+      ? "inline-flex items-center border border-amber-300 bg-amber-50 px-2 py-1 font-mono text-xs tracking-[0.12em] text-amber-800 uppercase"
+      : "inline-flex items-center border border-red-300 bg-red-50 px-2 py-1 font-mono text-xs tracking-[0.12em] text-red-700 uppercase";
   const label =
     kind === "hard"
       ? "Bounced"
@@ -97,8 +97,8 @@ export function BounceReason({
         ? "Soft bounce"
         : "Spam complaint";
   return (
-    <p className="font-mono text-[10px] leading-relaxed text-neutral-500">
-      <span className={kind === "soft" ? "text-amber-300" : "text-red-300"}>
+    <p className="font-mono text-xs leading-relaxed text-zinc-500">
+      <span className={kind === "soft" ? "text-amber-800" : "text-red-700"}>
         {prefix}
       </span>
       {reason ? <> · {reason}</> : null}
@@ -134,10 +134,10 @@ export function SentEstimatesList({ rows }: { rows: SentEstimateRow[] }) {
 
   if (rows.length === 0) {
     return (
-      <section className="mt-8 border border-neutral-800 bg-neutral-950 p-5 sm:p-6">
+      <section className="mt-8 border border-zinc-200 bg-zinc-50 p-5 sm:p-6">
         <header>
           <h2 className="label-cap">Sent estimates</h2>
-          <p className="mt-2 text-sm leading-relaxed text-neutral-400">
+          <p className="mt-2 text-sm leading-relaxed text-zinc-600">
             No estimates have been sent for this quote yet. Build a preview
             and send to start the history.
           </p>
@@ -147,17 +147,17 @@ export function SentEstimatesList({ rows }: { rows: SentEstimateRow[] }) {
   }
 
   return (
-    <section className="mt-8 border border-neutral-800 bg-neutral-950">
-      <header className="border-b border-neutral-800 px-5 py-4 sm:px-6">
-        <h2 className="font-mono text-[10px] tracking-[0.22em] text-red-500 uppercase">
+    <section className="mt-8 border border-zinc-200 bg-zinc-50">
+      <header className="border-b border-zinc-200 px-5 py-4 sm:px-6">
+        <h2 className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
           Sent estimates
         </h2>
-        <p className="mt-1 label-cap text-neutral-500">
+        <p className="mt-1 label-cap text-zinc-500">
           {rows.length} record{rows.length === 1 ? "" : "s"} · newest first
         </p>
       </header>
 
-      <ul className="divide-y divide-neutral-800">
+      <ul className="divide-y divide-zinc-200">
         {rows.map((row) => {
           const open = row.id === openId;
           const resendOpen = row.id === resendOpenId;
@@ -167,49 +167,49 @@ export function SentEstimatesList({ rows }: { rows: SentEstimateRow[] }) {
                 <div className="min-w-0 space-y-1.5">
                   <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                     <span
-                      className="font-mono text-[10px] tracking-[0.22em] text-green-400 uppercase"
+                      className="font-mono text-xs tracking-[0.12em] text-green-800 uppercase"
                       title={formatDateFull(row.sentAt)}
                     >
                       Sent {relativeTime(row.sentAt)}
                     </span>
-                    <span className="font-mono text-[10px] text-neutral-600">
+                    <span className="font-mono text-xs text-zinc-500">
                       {formatDateFull(row.sentAt)}
                     </span>
                     {row.resentFromId ? (
-                      <span className="inline-flex items-center border border-blue-700/60 bg-blue-950/30 px-2 py-0.5 font-mono text-[9px] tracking-[0.22em] text-blue-300 uppercase">
+                      <span className="inline-flex items-center border border-blue-300 bg-blue-50 px-2 py-0.5 font-mono text-xs tracking-[0.12em] text-blue-800 uppercase">
                         Resent
                       </span>
                     ) : null}
                   </div>
-                  <p className="text-sm font-semibold text-white">{row.subject}</p>
-                  <p className="text-xs text-neutral-400">
-                    To <span className="text-neutral-200">{row.to}</span>
+                  <p className="text-sm font-semibold text-zinc-900">{row.subject}</p>
+                  <p className="text-xs text-zinc-600">
+                    To <span className="text-zinc-800">{row.to}</span>
                   </p>
-                  <p className="font-mono text-[11px] text-neutral-300">
-                    Rate <span className="text-white">{formatRate(row.linehaulLow, row.linehaulHigh)}</span>
+                  <p className="font-mono text-xs text-zinc-700">
+                    Rate <span className="text-zinc-900">{formatRate(row.linehaulLow, row.linehaulHigh)}</span>
                     {row.sentEmailId ? (
                       <>
-                        <span aria-hidden className="mx-2 text-neutral-700">·</span>
-                        <span className="text-neutral-500">ID {row.sentEmailId.slice(0, 8)}</span>
+                        <span aria-hidden className="mx-2 text-zinc-500">·</span>
+                        <span className="text-zinc-500">ID {row.sentEmailId.slice(0, 8)}</span>
                       </>
                     ) : null}
                   </p>
                   {row.resentFromId ? (
-                    <p className="font-mono text-[10px] text-neutral-500">
+                    <p className="font-mono text-xs text-zinc-500">
                       Resent from {row.resentFromId.slice(0, 8)}
                     </p>
                   ) : null}
                   <BounceReason kind={row.bounceKind} reason={row.bounceReason} />
                 </div>
                 <div className="flex flex-wrap items-center gap-2 sm:justify-end">
-                  <span className="inline-flex items-center border border-green-700/60 bg-green-950/30 px-2 py-1 font-mono text-[9px] tracking-[0.22em] text-green-300 uppercase">
+                  <span className="inline-flex items-center border border-green-300 bg-green-50 px-2 py-1 font-mono text-xs tracking-[0.12em] text-green-800 uppercase">
                     Sent
                   </span>
                   <BounceBadge kind={row.bounceKind} />
                   <button
                     type="button"
                     onClick={() => { setResendOpenId(resendOpen ? null : row.id); setError(null); }}
-                    className="border border-neutral-700 bg-neutral-900 px-4 py-2.5 font-mono text-[10px] tracking-[0.22em] text-neutral-300 uppercase transition-colors hover:border-neutral-500 hover:text-white"
+                    className="border border-zinc-300 bg-white px-4 py-2.5 font-mono text-xs tracking-[0.12em] text-zinc-700 uppercase transition-colors hover:border-zinc-400 hover:text-zinc-900"
                   >
                     {resendOpen ? "Cancel resend" : "Resend"}
                   </button>
@@ -217,7 +217,7 @@ export function SentEstimatesList({ rows }: { rows: SentEstimateRow[] }) {
                     type="button"
                     onClick={() => setOpenId(open ? null : row.id)}
                     aria-expanded={open}
-                    className="border border-neutral-700 bg-neutral-900 px-4 py-2.5 font-mono text-[10px] tracking-[0.22em] text-neutral-300 uppercase transition-colors hover:border-neutral-500 hover:text-white"
+                    className="border border-zinc-300 bg-white px-4 py-2.5 font-mono text-xs tracking-[0.12em] text-zinc-700 uppercase transition-colors hover:border-zinc-400 hover:text-zinc-900"
                   >
                     {open ? "Hide" : "View sent preview"}
                   </button>
@@ -233,13 +233,13 @@ export function SentEstimatesList({ rows }: { rows: SentEstimateRow[] }) {
                 />
               ) : null}
               {open ? (
-                <div className="border-t border-neutral-800 bg-neutral-900/40 p-4 sm:p-6">
+                <div className="border-t border-zinc-200 bg-zinc-100 p-4 sm:p-6">
                   {row.html ? (
                     <EmailPreviewPanel
                       preview={{ to: row.to, from: row.from, replyTo: row.replyTo, subject: row.subject, preheader: row.preheader, html: row.html }}
                     />
                   ) : (
-                    <p className="text-sm text-neutral-400">
+                    <p className="text-sm text-zinc-600">
                       The stored preview for this estimate is empty.
                     </p>
                   )}
@@ -269,11 +269,11 @@ export function ResendForm({
   return (
     <form
       onSubmit={onSubmit}
-      className="space-y-4 border-t border-neutral-800 bg-neutral-900/60 p-4 sm:p-6"
+      className="space-y-4 border-t border-zinc-200 bg-zinc-50 p-4 sm:p-6"
     >
       <header>
-        <p className="text-[11px] font-semibold tracking-[0.18em] text-blue-300 uppercase">Resend</p>
-        <p className="mt-1 max-w-2xl text-xs leading-relaxed text-neutral-400">
+        <p className="text-xs font-semibold tracking-[0.12em] text-blue-800 uppercase">Resend</p>
+        <p className="mt-1 max-w-2xl text-xs leading-relaxed text-zinc-600">
           Redelivers the same document content (byte-identical to the original send)
           using the persisted preview bytes. Optionally override the recipient if
           the original address was wrong.
@@ -286,7 +286,7 @@ export function ResendForm({
             type="email"
             name="to"
             defaultValue={defaultTo}
-            className="mt-2 block w-full border border-neutral-700 bg-neutral-900 px-3 py-2.5 text-base text-zinc-100 placeholder:text-neutral-600 focus:border-red-600 focus:outline-none"
+            className="mt-2 block w-full border border-zinc-300 bg-white px-3 py-2.5 text-base text-zinc-900 placeholder:text-zinc-500 focus:border-red-600 focus:outline-none"
             placeholder={defaultTo}
           />
         </div>
@@ -295,33 +295,33 @@ export function ResendForm({
           <input
             type="text"
             name="reason"
-            className="mt-2 block w-full border border-neutral-700 bg-neutral-900 px-3 py-2.5 text-base text-zinc-100 placeholder:text-neutral-600 focus:border-red-600 focus:outline-none"
+            className="mt-2 block w-full border border-zinc-300 bg-white px-3 py-2.5 text-base text-zinc-900 placeholder:text-zinc-500 focus:border-red-600 focus:outline-none"
             placeholder="e.g. customer said original bounced"
           />
         </div>
       </div>
       {error ? (
-        <div role="alert" className="flex items-start gap-3 border border-red-700 bg-red-950/30 p-4">
+        <div role="alert" className="flex items-start gap-3 border border-red-300 bg-red-50 p-4">
           <span aria-hidden className="mt-0.5 inline-block h-3 w-1 shrink-0 bg-red-600" />
-          <p className="text-sm leading-relaxed text-red-200">{error}</p>
+          <p className="text-sm leading-relaxed text-red-800">{error}</p>
         </div>
       ) : null}
-      <p className="text-xs leading-relaxed text-neutral-500">
+      <p className="text-xs leading-relaxed text-zinc-500">
         This creates a new sent row linked to the original. Lead status is NOT changed by a resend.
       </p>
-      <div className="flex flex-col-reverse items-stretch gap-3 border-t border-neutral-800 pt-4 sm:flex-row sm:items-center sm:justify-end">
+      <div className="flex flex-col-reverse items-stretch gap-3 border-t border-zinc-200 pt-4 sm:flex-row sm:items-center sm:justify-end">
         <button
           type="button"
           onClick={onCancel}
           disabled={isPending}
-          className="btn-outline-cut inline-flex items-center justify-center px-5 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-zinc-100 transition-colors disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+          className="btn-outline-cut inline-flex items-center justify-center px-5 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-zinc-900 transition-colors disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
           Cancel
         </button>
         <button
           type="submit"
           disabled={isPending}
-          className="btn-cut inline-flex items-center justify-center bg-red-600 px-5 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+          className="btn-cut inline-flex items-center justify-center bg-red-600 px-5 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-zinc-900 transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
           {isPending ? "Resending..." : "Resend"}
         </button>

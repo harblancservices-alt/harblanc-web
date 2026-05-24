@@ -111,13 +111,13 @@ export function QuoteDetailTabs({
     <>
       <header className="mt-5 sm:mt-6">
         <div className="flex flex-wrap items-center gap-3">
-          <p className="font-mono text-[11px] tracking-[0.22em] text-red-500 uppercase">
+          <p className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
             Quote request
           </p>
           <StatusBadge status={row.lead_status} />
           {row.lead_status_updated_at ? (
             <span
-              className="font-mono text-[10px] text-neutral-500"
+              className="font-mono text-xs text-zinc-500"
               title={formatDateFull(row.lead_status_updated_at)}
             >
               {relativeTime(row.lead_status_updated_at)}
@@ -127,15 +127,15 @@ export function QuoteDetailTabs({
 
         <div className="mt-3 sm:flex sm:items-start sm:justify-between sm:gap-6">
           <div className="min-w-0">
-            <h1 className="text-3xl font-display tracking-tight text-white sm:text-4xl lg:text-5xl">
+            <h1 className="text-3xl font-display tracking-tight text-zinc-900 sm:text-4xl lg:text-5xl">
               {row.name}
             </h1>
             <p
-              className="mt-2 font-mono text-xs text-neutral-500"
+              className="mt-2 font-mono text-xs text-zinc-500"
               title={formatDateFull(row.created_at)}
             >
               Received {relativeTime(row.created_at)}{" "}
-              <span aria-hidden className="mx-1 text-neutral-700">
+              <span aria-hidden className="mx-1 text-zinc-500">
                 ·
               </span>{" "}
               {formatDateFull(row.created_at)}
@@ -145,7 +145,7 @@ export function QuoteDetailTabs({
             <button
               type="button"
               onClick={() => setActiveTab("generated")}
-              className="btn-outline-cut inline-flex w-full items-center justify-center px-4 py-2 text-[11px] font-semibold tracking-[0.18em] text-neutral-300 uppercase transition-colors hover:text-white sm:w-auto"
+              className="btn-outline-cut inline-flex w-full items-center justify-center px-4 py-2 text-xs font-semibold tracking-[0.12em] text-zinc-700 uppercase transition-colors hover:text-zinc-900 sm:w-auto"
             >
               Open Quote PDF
             </button>
@@ -182,13 +182,13 @@ export function QuoteDetailTabs({
               id={`tab-${tab.id}`}
               onClick={() => setActiveTab(tab.id)}
               className={
-                "shrink-0 border px-5 py-3.5 text-[11px] font-semibold tracking-[0.18em] uppercase transition-colors " +
+                "shrink-0 border px-5 py-3.5 text-xs font-semibold tracking-[0.12em] uppercase transition-colors " +
                 (i > 0 ? "-ml-px " : "") +
                 (isActive
-                  ? "relative z-10 border-neutral-800 border-b-neutral-900 bg-neutral-900 text-white"
+                  ? "relative z-10 border-zinc-200 border-b-neutral-900 bg-white text-zinc-900"
                   : isMetadata
-                    ? "border-neutral-800 bg-neutral-950 text-neutral-600 hover:bg-neutral-900/40 hover:text-neutral-300"
-                    : "border-neutral-800 bg-neutral-950 text-neutral-400 hover:bg-neutral-900/40 hover:text-white")
+                    ? "border-zinc-200 bg-zinc-50 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700"
+                    : "border-zinc-200 bg-zinc-50 text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900")
               }
             >
               {tab.label}
@@ -201,7 +201,7 @@ export function QuoteDetailTabs({
         id={`panel-${activeTab}`}
         role="tabpanel"
         aria-labelledby={`tab-${activeTab}`}
-        className="relative -mt-px border border-neutral-800 bg-neutral-900 p-5 shadow-2xl shadow-black/50 sm:p-7"
+        className="relative -mt-px border border-zinc-200 bg-white p-5 shadow-2xl shadow-black/50 sm:p-7"
       >
         {activeTab === "request" ? (
           <RequestTab
@@ -299,7 +299,7 @@ function RequestTab({
       <section className="space-y-5">
         <GroupHeading>Range quote</GroupHeading>
         {!isTrashed ? (
-          <section className="border border-neutral-600 border-t-2 border-t-red-600 bg-neutral-800 p-5 shadow-lg shadow-black/40 sm:p-7">
+          <section className="border border-zinc-400 border-t-2 border-t-red-600 bg-white p-5 shadow-lg shadow-black/40 sm:p-7">
             <EstimateComposer
               key={draftEstimate?.id ?? "no-draft"}
               quoteRequestId={row.id}
@@ -313,11 +313,11 @@ function RequestTab({
             />
           </section>
         ) : (
-          <section className="border border-neutral-800 bg-neutral-950 p-8 text-center">
-            <p className="label-cap text-neutral-500">
+          <section className="border border-zinc-200 bg-zinc-50 p-8 text-center">
+            <p className="label-cap text-zinc-500">
               Request is in trash
             </p>
-            <p className="mt-3 text-sm leading-relaxed text-neutral-400">
+            <p className="mt-3 text-sm leading-relaxed text-zinc-600">
               Restore the request from trash to build an estimate.
             </p>
           </section>
@@ -350,11 +350,11 @@ function GeneratedQuoteTab({
 
   if (generatedQuote && !signedPdfUrl) {
     return (
-      <div className="border border-red-700/60 bg-red-950/30 p-5 sm:p-6">
-        <p className="text-[11px] font-semibold tracking-[0.18em] text-red-400 uppercase">
+      <div className="border border-red-300 bg-red-50 p-5 sm:p-6">
+        <p className="text-xs font-semibold tracking-[0.12em] text-red-600 uppercase">
           PDF unavailable
         </p>
-        <p className="mt-2 text-sm leading-relaxed text-red-200">
+        <p className="mt-2 text-sm leading-relaxed text-red-800">
           A generated quote row exists ({generatedQuote.quoteNumber}) but its
           stored PDF couldn&rsquo;t be loaded. Re-generate to refresh.
         </p>
@@ -364,11 +364,11 @@ function GeneratedQuoteTab({
 
   if (isTrashed) {
     return (
-      <div className="border border-neutral-800 bg-neutral-950 p-8 text-center">
-        <p className="font-mono text-[10px] tracking-[0.22em] text-neutral-500 uppercase">
+      <div className="border border-zinc-200 bg-zinc-50 p-8 text-center">
+        <p className="font-mono text-xs tracking-[0.12em] text-zinc-500 uppercase">
           Request is in trash
         </p>
-        <p className="mt-3 text-sm leading-relaxed text-neutral-400">
+        <p className="mt-3 text-sm leading-relaxed text-zinc-600">
           Restore the request from trash to generate a quote PDF.
         </p>
       </div>
@@ -381,7 +381,7 @@ function GeneratedQuoteTab({
         <h2 className="label-cap">
           Quote PDF
         </h2>
-        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-neutral-300">
+        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-700">
           Build a customer-ready Premium Carrier Quote PDF. Once generated,
           the PDF appears here for download or send.
         </p>
@@ -421,10 +421,10 @@ function MetadataTab({
           dimmed treatment from Phase N is preserved so the tab still
           reads as secondary to the workflow tabs. */}
       <header>
-        <h2 className="label-cap text-neutral-500">
+        <h2 className="label-cap text-zinc-500">
           Metadata
         </h2>
-        <p className="mt-1.5 text-xs text-neutral-500">
+        <p className="mt-1.5 text-xs text-zinc-500">
           Operational record · audit surface
         </p>
       </header>
@@ -434,25 +434,25 @@ function MetadataTab({
         <SubHeading>Request record</SubHeading>
         <dl className="mt-4 grid grid-cols-1 gap-x-10 gap-y-4 sm:grid-cols-2">
           <Field label="Created" muted>
-            <span className="font-mono text-xs text-neutral-300 sm:text-sm">
+            <span className="font-mono text-xs text-zinc-700 sm:text-sm">
               {formatDateFull(row.created_at)}
             </span>
           </Field>
           <Field label="Request ID" muted full>
-            <span className="font-mono text-xs break-all text-neutral-300">
+            <span className="font-mono text-xs break-all text-zinc-700">
               {row.id}
             </span>
           </Field>
           {row.user_agent ? (
             <Field label="User agent" muted full>
-              <span className="font-mono text-[11px] break-all text-neutral-500">
+              <span className="font-mono text-xs break-all text-zinc-500">
                 {row.user_agent}
               </span>
             </Field>
           ) : null}
           {row.ip ? (
             <Field label="IP" muted>
-              <span className="font-mono text-xs text-neutral-500">
+              <span className="font-mono text-xs text-zinc-500">
                 {row.ip}
               </span>
             </Field>
@@ -469,14 +469,14 @@ function MetadataTab({
           <dl className="mt-4 grid grid-cols-1 gap-x-10 gap-y-4 sm:grid-cols-2">
             {row.deleted_at ? (
               <Field label="Deleted" muted>
-                <span className="font-mono text-xs text-red-300 sm:text-sm">
+                <span className="font-mono text-xs text-red-700 sm:text-sm">
                   {formatDateFull(row.deleted_at)}
                 </span>
               </Field>
             ) : null}
             {row.delete_after ? (
               <Field label="Auto-purge" muted>
-                <span className="font-mono text-xs text-neutral-300 sm:text-sm">
+                <span className="font-mono text-xs text-zinc-700 sm:text-sm">
                   {formatDateFull(row.delete_after)}
                 </span>
               </Field>
@@ -529,13 +529,13 @@ function LoadPreview({
   hasLane: boolean;
 }) {
   return (
-    <div className="border border-neutral-700 bg-neutral-800">
+    <div className="border border-zinc-300 bg-white">
       {/* Header — primary client/contact + state badge. Always shown. */}
-      <header className="border-b border-neutral-700 px-5 py-4 sm:px-6 sm:py-5">
+      <header className="border-b border-zinc-300 px-5 py-4 sm:px-6 sm:py-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
             <p className="label-cap">Primary client</p>
-            <p className="mt-2 text-xl font-semibold text-white sm:text-2xl">
+            <p className="mt-2 text-xl font-semibold text-zinc-900 sm:text-2xl">
               {row.name}
             </p>
             <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-x-6">
@@ -544,7 +544,7 @@ function LoadPreview({
                 <dd className="mt-1">
                   <a
                     href={phoneHref}
-                    className="block break-all font-mono text-lg text-white underline-offset-4 hover:underline sm:text-xl"
+                    className="block break-all font-mono text-lg text-zinc-900 underline-offset-4 hover:underline sm:text-xl"
                   >
                     {row.phone}
                   </a>
@@ -555,7 +555,7 @@ function LoadPreview({
                 <dd className="mt-1">
                   <a
                     href={`mailto:${row.email}`}
-                    className="block break-all text-base text-white underline-offset-4 hover:underline sm:text-lg"
+                    className="block break-all text-base text-zinc-900 underline-offset-4 hover:underline sm:text-lg"
                   >
                     {row.email}
                   </a>
@@ -565,11 +565,11 @@ function LoadPreview({
           </div>
           <div className="shrink-0">
             {submittedIntake ? (
-              <span className="inline-flex items-center border border-green-700/60 bg-green-950/30 px-2.5 py-1 font-mono text-[10px] tracking-[0.22em] text-green-300 uppercase">
+              <span className="inline-flex items-center border border-green-300 bg-green-50 px-2.5 py-1 font-mono text-xs tracking-[0.12em] text-green-800 uppercase">
                 Intake confirmed
               </span>
             ) : (
-              <span className="inline-flex items-center border border-amber-700/60 bg-amber-950/30 px-2.5 py-1 font-mono text-[10px] tracking-[0.22em] text-amber-300 uppercase">
+              <span className="inline-flex items-center border border-amber-300 bg-amber-50 px-2.5 py-1 font-mono text-xs tracking-[0.12em] text-amber-800 uppercase">
                 Awaiting intake
               </span>
             )}
@@ -588,26 +588,26 @@ function LoadPreview({
 
             {/* Comparison disclosure — keeps the original quote-form
                 values one tap away without cluttering the preview. */}
-            <details className="group border border-neutral-800 bg-neutral-950/50 p-4">
-              <summary className="block cursor-pointer list-none font-mono text-[10px] tracking-[0.22em] text-neutral-400 uppercase select-none transition-colors hover:text-white">
+            <details className="group border border-zinc-200 bg-zinc-50/50 p-4">
+              <summary className="block cursor-pointer list-none font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase select-none transition-colors hover:text-zinc-900">
                 <span className="group-open:hidden">+ View original quote-form request</span>
                 <span className="hidden group-open:inline">− Hide original quote-form request</span>
               </summary>
               <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
                 <Field label="Original commodity" muted>
-                  <span className="text-sm text-neutral-200">{row.commodity}</span>
+                  <span className="text-sm text-zinc-800">{row.commodity}</span>
                 </Field>
                 <Field label="Original weight" muted>
-                  <span className="font-mono text-sm text-neutral-200">{row.weight}</span>
+                  <span className="font-mono text-sm text-zinc-800">{row.weight}</span>
                 </Field>
                 <Field label="Original pickup target" muted>
-                  <span className="text-sm text-neutral-200">
+                  <span className="text-sm text-zinc-800">
                     {row.pickup_date ?? "ASAP"}
                   </span>
                 </Field>
                 {row.notes ? (
                   <Field label="Original notes" muted full>
-                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-neutral-200">
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-800">
                       {row.notes}
                     </p>
                   </Field>
@@ -624,24 +624,24 @@ function LoadPreview({
               <section>
                 <h3 className="label-cap">Lane</h3>
                 <div className="mt-3 flex flex-wrap items-baseline gap-x-4 gap-y-2">
-                  <span className="font-mono text-2xl font-semibold text-white sm:text-3xl">
+                  <span className="font-mono text-2xl font-semibold text-zinc-900 sm:text-3xl">
                     {row.pickup_zip}
                   </span>
-                  <span aria-hidden className="font-mono text-xl text-red-500">
+                  <span aria-hidden className="font-mono text-xl text-red-600">
                     &rarr;
                   </span>
-                  <span className="font-mono text-2xl font-semibold text-white sm:text-3xl">
+                  <span className="font-mono text-2xl font-semibold text-zinc-900 sm:text-3xl">
                     {row.delivery_zip}
                   </span>
                   {computedMiles != null ? (
-                    <span className="ml-1 font-mono text-[10px] tracking-[0.22em] text-neutral-500 uppercase">
+                    <span className="ml-1 font-mono text-xs tracking-[0.12em] text-zinc-500 uppercase">
                       ~{computedMiles} mi
                     </span>
                   ) : null}
                 </div>
                 <p className="mt-3 label-cap">
                   Pickup target:{" "}
-                  <span className="text-zinc-200">
+                  <span className="text-zinc-800">
                     {row.pickup_date ?? "ASAP"}
                   </span>
                 </p>
@@ -652,12 +652,12 @@ function LoadPreview({
               <h3 className="label-cap">Shipment</h3>
               <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
                 <Field label="Commodity">
-                  <span className="block text-xl text-white sm:text-2xl">
+                  <span className="block text-xl text-zinc-900 sm:text-2xl">
                     {row.commodity}
                   </span>
                 </Field>
                 <Field label="Approximate weight">
-                  <span className="block font-mono text-xl text-white sm:text-2xl">
+                  <span className="block font-mono text-xl text-zinc-900 sm:text-2xl">
                     {row.weight}
                   </span>
                 </Field>
@@ -667,7 +667,7 @@ function LoadPreview({
             {row.notes ? (
               <section>
                 <h3 className="label-cap">Customer notes</h3>
-                <p className="mt-3 whitespace-pre-wrap text-base leading-relaxed text-neutral-100">
+                <p className="mt-3 whitespace-pre-wrap text-base leading-relaxed text-zinc-900">
                   {row.notes}
                 </p>
               </section>
@@ -689,7 +689,7 @@ function LoadPreview({
  */
 function GroupHeading({ children }: { children: React.ReactNode }) {
   return (
-    <h2 className="border-b border-neutral-800 pb-2.5 text-sm font-semibold uppercase tracking-[0.18em] text-white">
+    <h2 className="border-b border-zinc-200 pb-2.5 text-sm font-semibold uppercase tracking-[0.12em] text-zinc-900">
       {children}
     </h2>
   );
@@ -704,7 +704,7 @@ function GroupHeading({ children }: { children: React.ReactNode }) {
  */
 function SubHeading({ children }: { children: React.ReactNode }) {
   return (
-    <h3 className="label-cap border-b border-neutral-800 pb-2 text-neutral-400">
+    <h3 className="label-cap border-b border-zinc-200 pb-2 text-zinc-600">
       {children}
     </h3>
   );
@@ -726,7 +726,7 @@ function Field({
       <dt
         className={
           "label-cap " +
-          (muted ? "text-neutral-500" : "text-neutral-500")
+          (muted ? "text-zinc-500" : "text-zinc-500")
         }
       >
         {label}

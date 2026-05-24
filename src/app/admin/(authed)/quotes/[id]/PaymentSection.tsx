@@ -110,14 +110,14 @@ export function PaymentSection({
 
   return (
     <section className="space-y-5">
-      <header className="border-b border-neutral-800 pb-2.5">
+      <header className="border-b border-zinc-200 pb-2.5">
         <div className="flex flex-wrap items-baseline justify-between gap-3">
-          <h2 className="text-sm font-semibold uppercase tracking-[0.18em] text-white">
+          <h2 className="text-sm font-semibold uppercase tracking-[0.12em] text-zinc-900">
             Payments
           </h2>
           <span
             className={
-              "inline-flex items-center border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] " +
+              "inline-flex items-center border px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.12em] " +
               badge.classes
             }
           >
@@ -127,7 +127,7 @@ export function PaymentSection({
       </header>
 
       {/* Summary card */}
-      <div className="grid grid-cols-1 gap-px border border-neutral-700 bg-neutral-700 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-px border border-zinc-300 bg-zinc-300 sm:grid-cols-3">
         <SummaryCell
           label="Finalized total"
           value={
@@ -159,11 +159,11 @@ export function PaymentSection({
       </div>
 
       {summary.isPaidInFull ? (
-        <div className="border border-emerald-700/60 bg-emerald-950/30 p-4">
-          <p className="text-[11px] font-semibold tracking-[0.18em] text-emerald-300 uppercase">
+        <div className="border border-emerald-300 bg-emerald-50 p-4">
+          <p className="text-xs font-semibold tracking-[0.12em] text-emerald-800 uppercase">
             Paid in full · Ready to dispatch
           </p>
-          <p className="mt-2 text-sm leading-relaxed text-emerald-100">
+          <p className="mt-2 text-sm leading-relaxed text-emerald-900">
             {target.finalizedQuoteNumber} is paid in full. Lead status was
             advanced to Ready to dispatch automatically when payment cleared.
           </p>
@@ -176,7 +176,7 @@ export function PaymentSection({
           <button
             type="button"
             onClick={() => setFormOpen(true)}
-            className="btn-outline-cut inline-flex items-center justify-center px-4 py-2.5 text-[11px] font-semibold tracking-[0.18em] text-zinc-100 uppercase transition-colors hover:text-white"
+            className="btn-outline-cut inline-flex items-center justify-center px-4 py-2.5 text-xs font-semibold tracking-[0.12em] text-zinc-900 uppercase transition-colors hover:text-zinc-900"
           >
             + Record payment
           </button>
@@ -197,25 +197,25 @@ export function PaymentSection({
       )}
 
       {!formOpen && error ? (
-        <div role="alert" className="flex items-start gap-3 border border-red-700 bg-red-950/30 p-4">
+        <div role="alert" className="flex items-start gap-3 border border-red-300 bg-red-50 p-4">
           <span aria-hidden className="mt-0.5 inline-block h-3 w-1 shrink-0 bg-red-600" />
-          <p className="text-sm leading-relaxed text-red-200">{error}</p>
+          <p className="text-sm leading-relaxed text-red-800">{error}</p>
         </div>
       ) : null}
 
       {/* History */}
       {target.payments.length === 0 ? (
-        <p className="text-sm text-neutral-400">
+        <p className="text-sm text-zinc-600">
           No payments recorded yet against {target.finalizedQuoteNumber}.
         </p>
       ) : (
-        <ul className="border border-neutral-800 bg-neutral-900/60">
+        <ul className="border border-zinc-200 bg-zinc-50">
           {target.payments.map((p, i) => (
             <li
               key={p.id}
               className={
                 "grid grid-cols-1 gap-2 px-4 py-3.5 sm:grid-cols-[1fr_auto] sm:items-start sm:px-5 " +
-                (i > 0 ? "border-t border-neutral-800 " : "") +
+                (i > 0 ? "border-t border-zinc-200 " : "") +
                 (p.deletedAt !== null ? "opacity-50" : "")
               }
             >
@@ -225,40 +225,40 @@ export function PaymentSection({
                     className={
                       "font-mono text-base font-semibold " +
                       (p.deletedAt !== null
-                        ? "text-neutral-400 line-through"
-                        : "text-white")
+                        ? "text-zinc-600 line-through"
+                        : "text-zinc-900")
                     }
                   >
                     {formatPaymentAmount(p.amount, p.currency)}
                   </span>
-                  <span className="text-[11px] font-semibold tracking-[0.18em] text-neutral-300 uppercase">
+                  <span className="text-xs font-semibold tracking-[0.12em] text-zinc-700 uppercase">
                     via {prettyMethod(p.method)}
                   </span>
                   {p.deletedAt !== null ? (
-                    <span className="inline-flex items-center border border-neutral-700 bg-neutral-900 px-2 py-0.5 text-[9px] font-semibold tracking-[0.22em] text-neutral-400 uppercase">
+                    <span className="inline-flex items-center border border-zinc-300 bg-white px-2 py-0.5 text-xs font-semibold tracking-[0.12em] text-zinc-600 uppercase">
                       Deleted
                     </span>
                   ) : null}
                 </div>
                 <p
-                  className="font-mono text-[11px] text-neutral-500"
+                  className="font-mono text-xs text-zinc-500"
                   title={formatDateFull(p.receivedAt)}
                 >
                   Received {relativeTime(p.receivedAt)}{" "}
-                  <span aria-hidden className="mx-1 text-neutral-700">·</span>{" "}
+                  <span aria-hidden className="mx-1 text-zinc-500">·</span>{" "}
                   {formatDateFull(p.receivedAt)}
                 </p>
                 {p.reference ? (
-                  <p className="font-mono text-[11px] text-neutral-400">
+                  <p className="font-mono text-xs text-zinc-600">
                     Ref: {p.reference}
                   </p>
                 ) : null}
                 {p.notes ? (
-                  <p className="text-xs text-neutral-400 whitespace-pre-wrap">
+                  <p className="text-xs text-zinc-600 whitespace-pre-wrap">
                     {p.notes}
                   </p>
                 ) : null}
-                <p className="font-mono text-[10px] text-neutral-600">
+                <p className="font-mono text-xs text-zinc-500">
                   Recorded {relativeTime(p.recordedAt)}
                   {p.recordedBy ? ` · by ${p.recordedBy.slice(0, 8)}` : ""}
                 </p>
@@ -274,7 +274,7 @@ export function PaymentSection({
                       )
                     }
                     disabled={isPending}
-                    className="border border-neutral-700 bg-neutral-900 px-3 py-1.5 text-[10px] font-semibold tracking-[0.22em] text-neutral-400 uppercase transition-colors hover:border-red-700 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold tracking-[0.12em] text-zinc-600 uppercase transition-colors hover:border-red-300 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Remove
                   </button>
@@ -301,15 +301,15 @@ function SummaryCell({
 }) {
   const valueColor =
     accent === "green"
-      ? "text-emerald-300"
+      ? "text-emerald-800"
       : accent === "amber"
-        ? "text-amber-300"
+        ? "text-amber-800"
         : accent === "red"
-          ? "text-red-300"
-          : "text-white";
+          ? "text-red-700"
+          : "text-zinc-900";
   return (
-    <div className="bg-neutral-800 p-4 sm:p-5">
-      <p className="label-cap text-neutral-500">{label}</p>
+    <div className="bg-white p-4 sm:p-5">
+      <p className="label-cap text-zinc-500">{label}</p>
       <p className={"mt-2 font-mono text-2xl font-semibold " + valueColor}>
         {value}
       </p>
@@ -341,13 +341,13 @@ function RecordPaymentForm({
   return (
     <form
       onSubmit={onSubmit}
-      className="space-y-4 border border-neutral-700 bg-neutral-800 p-5 shadow-md shadow-black/30 sm:p-6"
+      className="space-y-4 border border-zinc-300 bg-white p-5 shadow-md shadow-black/30 sm:p-6"
     >
       <header>
-        <p className="text-[11px] font-semibold tracking-[0.18em] text-red-500 uppercase">
+        <p className="text-xs font-semibold tracking-[0.12em] text-red-600 uppercase">
           Record payment
         </p>
-        <p className="mt-1 max-w-2xl text-xs leading-relaxed text-neutral-400">
+        <p className="mt-1 max-w-2xl text-xs leading-relaxed text-zinc-600">
           Against {finalizedQuoteNumber}.{" "}
           {outstanding > 0
             ? `Outstanding ${formatPaymentAmount(outstanding)}.`
@@ -372,7 +372,7 @@ function RecordPaymentForm({
             step="0.01"
             defaultValue={defaultAmount}
             required
-            className="block w-full bg-neutral-900 border border-neutral-700 px-3 py-2.5 text-base text-zinc-100 placeholder:text-neutral-600 focus:border-red-600 focus:outline-none"
+            className="block w-full bg-white border border-zinc-300 px-3 py-2.5 text-base text-zinc-900 placeholder:text-zinc-500 focus:border-red-600 focus:outline-none"
             placeholder="0.00"
           />
         </Field>
@@ -382,7 +382,7 @@ function RecordPaymentForm({
             name="received_at"
             defaultValue={today}
             required
-            className="block w-full bg-neutral-900 border border-neutral-700 px-3 py-2.5 text-base text-zinc-100 focus:border-red-600 focus:outline-none"
+            className="block w-full bg-white border border-zinc-300 px-3 py-2.5 text-base text-zinc-900 focus:border-red-600 focus:outline-none"
           />
         </Field>
       </div>
@@ -393,10 +393,10 @@ function RecordPaymentForm({
             name="method"
             defaultValue="wire"
             required
-            className="block w-full bg-neutral-900 border border-neutral-700 px-3 py-2.5 text-base text-zinc-100 focus:border-red-600 focus:outline-none"
+            className="block w-full bg-white border border-zinc-300 px-3 py-2.5 text-base text-zinc-900 focus:border-red-600 focus:outline-none"
           >
             {PAYMENT_METHODS.map((m) => (
-              <option key={m} value={m} className="bg-neutral-900">
+              <option key={m} value={m} className="bg-white">
                 {PAYMENT_METHOD_LABELS[m as PaymentMethod]}
               </option>
             ))}
@@ -406,7 +406,7 @@ function RecordPaymentForm({
           <input
             type="text"
             name="reference"
-            className="block w-full bg-neutral-900 border border-neutral-700 px-3 py-2.5 text-base text-zinc-100 placeholder:text-neutral-600 focus:border-red-600 focus:outline-none"
+            className="block w-full bg-white border border-zinc-300 px-3 py-2.5 text-base text-zinc-900 placeholder:text-zinc-500 focus:border-red-600 focus:outline-none"
             placeholder="Wire conf, check #, last-4..."
           />
         </Field>
@@ -416,37 +416,37 @@ function RecordPaymentForm({
         <textarea
           name="notes"
           rows={2}
-          className="block w-full bg-neutral-900 border border-neutral-700 px-3 py-2.5 text-base text-zinc-100 placeholder:text-neutral-600 focus:border-red-600 focus:outline-none resize-y"
+          className="block w-full bg-white border border-zinc-300 px-3 py-2.5 text-base text-zinc-900 placeholder:text-zinc-500 focus:border-red-600 focus:outline-none resize-y"
           placeholder="Any context that won't be obvious later..."
         />
       </Field>
 
       {error ? (
-        <div role="alert" className="flex items-start gap-3 border border-red-700 bg-red-950/30 p-4">
+        <div role="alert" className="flex items-start gap-3 border border-red-300 bg-red-50 p-4">
           <span aria-hidden className="mt-0.5 inline-block h-3 w-1 shrink-0 bg-red-600" />
-          <p className="text-sm leading-relaxed text-red-200">{error}</p>
+          <p className="text-sm leading-relaxed text-red-800">{error}</p>
         </div>
       ) : null}
 
-      <p className="text-xs leading-relaxed text-neutral-500">
+      <p className="text-xs leading-relaxed text-zinc-500">
         Recording a payment that brings the finalized quote to paid-in-full
         will automatically advance this lead to{" "}
-        <span className="text-neutral-300">Ready to dispatch</span>.
+        <span className="text-zinc-700">Ready to dispatch</span>.
       </p>
 
-      <div className="flex flex-col-reverse items-stretch gap-3 border-t border-neutral-700 pt-4 sm:flex-row sm:items-center sm:justify-end">
+      <div className="flex flex-col-reverse items-stretch gap-3 border-t border-zinc-300 pt-4 sm:flex-row sm:items-center sm:justify-end">
         <button
           type="button"
           onClick={onCancel}
           disabled={isPending}
-          className="btn-outline-cut inline-flex items-center justify-center px-5 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-zinc-100 transition-colors disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+          className="btn-outline-cut inline-flex items-center justify-center px-5 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-zinc-900 transition-colors disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
           Cancel
         </button>
         <button
           type="submit"
           disabled={isPending}
-          className="btn-cut inline-flex items-center justify-center bg-red-600 px-5 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+          className="btn-cut inline-flex items-center justify-center bg-red-600 px-5 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-zinc-900 transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
           {isPending ? "Recording..." : "Record payment"}
         </button>
@@ -468,7 +468,7 @@ function Field({
     <div>
       <label className="label-cap">
         {label}
-        {required ? <span className="ml-1 text-red-500">*</span> : null}
+        {required ? <span className="ml-1 text-red-600">*</span> : null}
       </label>
       <div className="mt-2">{children}</div>
     </div>
@@ -486,24 +486,24 @@ function badgeFor(summary: {
   if (summary.total === null) {
     return {
       label: "Total not set",
-      classes: "border-neutral-700 bg-neutral-900 text-neutral-400",
+      classes: "border-zinc-300 bg-white text-zinc-600",
     };
   }
   if (summary.isPaidInFull) {
     return {
       label: "Paid in full",
-      classes: "border-emerald-700 bg-emerald-950/40 text-emerald-300",
+      classes: "border-emerald-300 bg-emerald-50 text-emerald-800",
     };
   }
   if (summary.hasAnyPayment) {
     return {
       label: "Partial",
-      classes: "border-amber-700 bg-amber-950/40 text-amber-300",
+      classes: "border-amber-300 bg-amber-50 text-amber-800",
     };
   }
   return {
     label: "Unpaid",
-    classes: "border-red-700 bg-red-950/30 text-red-300",
+    classes: "border-red-300 bg-red-50 text-red-700",
   };
 }
 
