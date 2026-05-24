@@ -137,9 +137,33 @@ export function GenerateQuoteForm({ defaults }: { defaults: Defaults }) {
         await generateQuote(formData);
         router.refresh();
       } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Could not generate quote.",
-        );
+        // Phase INSTR: classify common server-action failure shapes so
+        // the operator sees something actionable instead of a single
+        // generic line. Behavior unchanged — the form still shows the
+        // existing error box and stays put. NEXT_REDIRECT thrown by
+        // requireAdmin() is intercepted by Next inside the
+        // startTransition wrapper; we surface a session-expired hint.
+        // In production, Next sanitizes thrown messages to a generic
+        // string; we surface a “check Vercel logs” hint in that case.
+        const msg = err instanceof Error ? err.message : String(err);
+        const digest = (err as { digest?: unknown } | undefined)?.digest;
+        const digestStr = typeof digest === "string" ? digest : "";
+        if (digestStr.startsWith("NEXT_REDIRECT")) {
+          setError(
+            "Session expired — please log in again, then retry.",
+          );
+        } else if (
+          /An error occurred in the Server Components render/.test(msg) ||
+          msg === "" ||
+          msg === "An unexpected response was received from the server."
+        ) {
+          setError(
+            "Could not generate quote. The server logged a stage-tagged " +
+              "error — check Vercel logs for `[generateQuote] stage=...`.",
+          );
+        } else {
+          setError(msg || "Could not generate quote.");
+        }
       }
     });
   }

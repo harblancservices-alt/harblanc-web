@@ -809,8 +809,14 @@ export async function buildFinalizedQuotePreview(
 export async function sendFinalizedQuote(
   finalizedQuoteId: string,
 ): Promise<void> {
+  // Phase INSTR: each stage logs `[sendFinalizedQuote] stage=X failed`
+  // before rethrowing so Vercel logs identify the failing step.
   await requireAdmin();
   if (!finalizedQuoteId) {
+    console.error("[sendFinalizedQuote] stage=parse_finalized_quote_id failed", {
+      stage: "parse_finalized_quote_id",
+      errorMessage: "Missing finalized_quote_id.",
+    });
     throw new Error("Missing finalized_quote_id.");
   }
 
@@ -830,9 +836,28 @@ export async function sendFinalizedQuote(
       }
     >();
 
-  if (draftErr) throw new Error(`Lookup failed: ${draftErr.message}`);
-  if (!draft) throw new Error("Finalized quote not found.");
+  if (draftErr) {
+    console.error("[sendFinalizedQuote] stage=lookup_draft failed", {
+      finalizedQuoteId,
+      stage: "lookup_draft",
+      errorMessage: draftErr.message,
+    });
+    throw new Error(`Lookup failed: ${draftErr.message}`);
+  }
+  if (!draft) {
+    console.error("[sendFinalizedQuote] stage=lookup_draft failed (not found)", {
+      finalizedQuoteId,
+      stage: "lookup_draft",
+      errorMessage: "Finalized quote not found.",
+    });
+    throw new Error("Finalized quote not found.");
+  }
   if (draft.sent_at) {
+    console.error("[sendFinalizedQuote] stage=guard_already_sent failed", {
+      finalizedQuoteId,
+      stage: "guard_already_sent",
+      errorMessage: "This finalized quote was already sent.",
+    });
     throw new Error("This finalized quote was already sent.");
   }
   if (
@@ -844,6 +869,11 @@ export async function sendFinalizedQuote(
     !draft.preview_from ||
     !draft.preview_reply_to
   ) {
+    console.error("[sendFinalizedQuote] stage=guard_preview_built failed", {
+      finalizedQuoteId,
+      stage: "guard_preview_built",
+      errorMessage: "Preview hasn't been built yet. Build a preview first.",
+    });
     throw new Error("Preview hasn't been built yet. Build a preview first.");
   }
 
@@ -857,6 +887,12 @@ export async function sendFinalizedQuote(
   });
 
   if (!result.ok) {
+    console.error("[sendFinalizedQuote] stage=resend_send failed", {
+      finalizedQuoteId: draft.id,
+      quoteRequestId: draft.quote_request_id,
+      stage: "resend_send",
+      errorMessage: result.reason,
+    });
     await logDispatchEvent(
       sb,
       draft.quote_request_id,

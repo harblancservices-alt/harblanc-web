@@ -294,20 +294,36 @@ function parseAccessorials(formData: FormData): AccessorialInput[] {
 }
 
 export async function generateQuote(formData: FormData): Promise<void> {
+  // Phase INSTR: each stage logs with `[generateQuote] stage=X failed`
+  // before rethrowing so Vercel logs pinpoint the failing step.
   const admin = await requireAdmin();
   const quoteRequestId = parseString(formData.get("quote_request_id"));
   if (!quoteRequestId) {
+    console.error("[generateQuote] stage=parse_request_id failed", {
+      stage: "parse_request_id",
+      errorMessage: "Missing quote_request_id.",
+    });
     throw new Error("Missing quote_request_id.");
   }
 
   // Required fields
   const linehaul = parseNumber(formData.get("linehaul"));
   if (linehaul === null || linehaul <= 0) {
+    console.error("[generateQuote] stage=parse_form_data failed", {
+      quoteRequestId,
+      stage: "parse_form_data",
+      errorMessage: "Linehaul must be a positive number.",
+    });
     throw new Error("Linehaul must be a positive number.");
   }
   const origin = parseString(formData.get("origin"));
   const destination = parseString(formData.get("destination"));
   if (!origin || !destination) {
+    console.error("[generateQuote] stage=parse_form_data failed", {
+      quoteRequestId,
+      stage: "parse_form_data",
+      errorMessage: "Origin and destination are required.",
+    });
     throw new Error("Origin and destination are required.");
   }
 
@@ -357,6 +373,11 @@ export async function generateQuote(formData: FormData): Promise<void> {
     .single();
 
   if (insertError || !inserted) {
+    console.error("[generateQuote] stage=insert_generated_quote failed", {
+      quoteRequestId,
+      stage: "insert_generated_quote",
+      errorMessage: insertError?.message ?? "unknown error",
+    });
     throw new Error(
       `Could not save generated quote: ${insertError?.message ?? "unknown error"}`,
     );
@@ -392,7 +413,19 @@ export async function generateQuote(formData: FormData): Promise<void> {
       specialInstructions: inserted.special_instructions,
       preparedBy: inserted.prepared_by,
     };
-    const buffer = await renderQuotePdfBuffer(pdfData);
+    let buffer;
+    try {
+      buffer = await renderQuotePdfBuffer(pdfData);
+    } catch (renderErr) {
+      console.error("[generateQuote] stage=render_pdf failed", {
+        quoteRequestId,
+        quoteId: inserted.id,
+        stage: "render_pdf",
+        errorMessage:
+          renderErr instanceof Error ? renderErr.message : String(renderErr),
+      });
+      throw renderErr;
+    }
 
     // 3. UPLOAD PDF
     const storagePath = `${inserted.quote_number}.pdf`;
@@ -403,6 +436,12 @@ export async function generateQuote(formData: FormData): Promise<void> {
         upsert: true,
       });
     if (uploadError) {
+      console.error("[generateQuote] stage=storage_upload failed", {
+        quoteRequestId,
+        quoteId: inserted.id,
+        stage: "storage_upload",
+        errorMessage: uploadError.message,
+      });
       throw new Error(`PDF upload failed: ${uploadError.message}`);
     }
 
@@ -416,9 +455,23 @@ export async function generateQuote(formData: FormData): Promise<void> {
       })
       .eq("id", inserted.id);
     if (updateError) {
+      console.error("[generateQuote] stage=update_pdf_path failed", {
+        quoteRequestId,
+        quoteId: inserted.id,
+        stage: "update_pdf_path",
+        errorMessage: updateError.message,
+      });
       throw new Error(`Could not finalise quote: ${updateError.message}`);
     }
   } catch (err) {
+    // Phase INSTR: umbrella log so a single Vercel line identifies the
+    // failure even if the per-stage log above scrolled out of buffer.
+    console.error("[generateQuote] stage=render_upload_update failed (umbrella)", {
+      quoteRequestId,
+      quoteId: inserted.id,
+      stage: "render_upload_update",
+      errorMessage: err instanceof Error ? err.message : String(err),
+    });
     // Clean up the orphan row so the next attempt starts fresh.
     await sb.from("generated_quotes").delete().eq("id", inserted.id);
     throw err instanceof Error
