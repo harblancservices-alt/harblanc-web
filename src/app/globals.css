@@ -27,7 +27,15 @@
   --border: #262626;
   --surface: #171717;
   --muted: #a1a1aa;
-  --label-fg: #d4d4d8;
+  /* Phase READABILITY-2: --label-fg promoted from #d4d4d8 (zinc-300, ~2.5:1
+     on white) to #3f3f46 (zinc-700, ~10.7:1 on white). Was originally
+     authored for the dark theme where zinc-300 sat at high contrast against
+     #111111; after COLOR-1..7 flipped the admin to a light surface the
+     token started rendering small uppercase labels almost invisibly when
+     a consumer didn't co-specify text-zinc-700/800. Bumping at the token
+     fixes every .label-cap and .text-label-fg call site in one place
+     without touching component code. */
+  --label-fg: #3f3f46;
 }
 
 @theme inline {

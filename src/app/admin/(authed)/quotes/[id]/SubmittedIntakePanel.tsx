@@ -187,11 +187,14 @@ export function SubmittedIntakePanel({
   return (
     <section className="border border-zinc-200 border-t-2 border-t-green-600 bg-zinc-50 p-5 sm:p-6">
       <header className="mb-5 flex flex-wrap items-center gap-x-3 gap-y-1">
-        <p className="font-mono text-xs tracking-[0.12em] text-green-800 uppercase">
+        {/* Phase READABILITY-2: section headers bumped text-xs → text-sm
+            and tracking 0.12em → 0.08em to stay above the inline Field
+            labels in the visual hierarchy after those grew to text-sm. */}
+        <p className="font-mono text-sm tracking-[0.08em] text-green-800 uppercase">
           Submitted intake
         </p>
         <span
-          className="font-mono text-xs text-zinc-500"
+          className="font-mono text-xs text-zinc-700"
           title={formatDateFull(intake.submittedAt)}
         >
           {relativeTime(intake.submittedAt)} · {formatDateFull(intake.submittedAt)}
@@ -242,7 +245,7 @@ export function SubmittedIntakePanel({
 
       {/* Freight scope */}
       <div className="mt-5 border border-zinc-200 bg-zinc-50 p-4 sm:p-5">
-        <p className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
+        <p className="font-mono text-sm tracking-[0.08em] text-red-600 uppercase">
           Freight scope
         </p>
         <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-3">
@@ -270,7 +273,7 @@ export function SubmittedIntakePanel({
         </dl>
         {intake.specialRequirements ? (
           <div className="mt-4 border-t border-zinc-200 pt-4">
-            <p className="font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase">
+            <p className="font-mono text-sm tracking-[0.08em] text-zinc-700 uppercase">
               Special requirements
             </p>
             <p className="mt-2 text-sm leading-relaxed whitespace-pre-wrap text-zinc-900">
@@ -285,7 +288,7 @@ export function SubmittedIntakePanel({
         <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
           {intake.notes ? (
             <div className="border border-zinc-200 bg-zinc-50 p-4">
-              <p className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
+              <p className="font-mono text-sm tracking-[0.08em] text-red-600 uppercase">
                 Notes for dispatch
               </p>
               <p className="mt-2 text-sm leading-relaxed whitespace-pre-wrap text-zinc-900">
@@ -295,7 +298,7 @@ export function SubmittedIntakePanel({
           ) : null}
           {referenceLinks.length > 0 ? (
             <div className="border border-zinc-200 bg-zinc-50 p-4">
-              <p className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
+              <p className="font-mono text-sm tracking-[0.08em] text-red-600 uppercase">
                 Reference links
               </p>
               <ul className="mt-2 space-y-1.5">
@@ -352,7 +355,7 @@ function LocationBlock({
 
   return (
     <section className="bg-zinc-100 p-4 sm:p-5">
-      <p className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
+      <p className="font-mono text-sm tracking-[0.08em] text-red-600 uppercase">
         {title}
       </p>
       <div className="mt-3 space-y-3">
@@ -416,18 +419,26 @@ function Field({
   inline?: boolean;
 }) {
   if (inline) {
+    // Phase READABILITY-2: bumped from text-xs (12px) -> text-sm
+    // (14px) and tightened tracking 0.12em -> 0.08em. The original
+    // sizing was a holdover from the dark-theme density tier; on
+    // white surfaces those labels became the visual weak point of
+    // SubmittedIntakePanel -- Brent flagged them on the live build
+    // as 'intake information font too small'. Color also lifted
+    // zinc-600 -> zinc-700 for clearer hierarchy against the
+    // zinc-100 inset panel background.
     return (
       <div>
-        <dt className="font-mono text-xs tracking-[0.12em] text-zinc-500 uppercase">
+        <dt className="font-mono text-sm tracking-[0.08em] text-zinc-700 uppercase">
           {label}
         </dt>
-        <dd className="mt-0.5">{children}</dd>
+        <dd className="mt-1">{children}</dd>
       </div>
     );
   }
   return (
     <div className={full ? "sm:col-span-3" : undefined}>
-      <dt className="font-mono text-xs tracking-[0.12em] text-zinc-500 uppercase">
+      <dt className="font-mono text-sm tracking-[0.08em] text-zinc-700 uppercase">
         {label}
       </dt>
       <dd className="mt-1">{children}</dd>
