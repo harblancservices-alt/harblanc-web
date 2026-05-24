@@ -97,7 +97,7 @@ export function BounceReason({
         ? "Soft bounce"
         : "Spam complaint";
   return (
-    <p className="font-mono text-xs leading-relaxed text-zinc-500">
+    <p className="font-mono text-xs leading-relaxed text-zinc-600">
       <span className={kind === "soft" ? "text-amber-800" : "text-red-700"}>
         {prefix}
       </span>
@@ -152,9 +152,47 @@ export function SentEstimatesList({ rows }: { rows: SentEstimateRow[] }) {
         <h2 className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
           Sent estimates
         </h2>
-        <p className="mt-1 label-cap text-zinc-500">
+        <p className="mt-1 label-cap text-zinc-600">
           {rows.length} record{rows.length === 1 ? "" : "s"} · newest first
         </p>
+
+        {/* Phase OPS-2B: "Most recent" action strip. Shortcuts to view
+            the latest sent preview or fire a resend without scrolling
+            the list. Clicking sets the same openId / resendOpenId state
+            the per-row buttons toggle, so the rendered behavior is
+            identical — these are pure shortcuts, not parallel state. */}
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-zinc-200 pt-3">
+          <span className="font-mono text-xs text-zinc-700">
+            <span className="label-cap text-zinc-600">Most recent</span>
+            <span aria-hidden className="mx-2 text-zinc-500">·</span>
+            <span className="text-zinc-900" title={formatDateFull(rows[0].sentAt)}>
+              {relativeTime(rows[0].sentAt)}
+            </span>
+          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setResendOpenId(null);
+                setOpenId(openId === rows[0].id ? null : rows[0].id);
+              }}
+              className="inline-flex items-center border border-zinc-300 bg-white px-3 py-1.5 font-mono text-xs tracking-[0.12em] text-zinc-700 uppercase transition-colors hover:border-zinc-400 hover:text-zinc-900"
+            >
+              {openId === rows[0].id ? "Hide preview" : "Open preview"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setOpenId(null);
+                setResendOpenId(resendOpenId === rows[0].id ? null : rows[0].id);
+                setError(null);
+              }}
+              className="inline-flex items-center border border-zinc-300 bg-white px-3 py-1.5 font-mono text-xs tracking-[0.12em] text-zinc-700 uppercase transition-colors hover:border-zinc-400 hover:text-zinc-900"
+            >
+              {resendOpenId === rows[0].id ? "Cancel resend" : "Resend"}
+            </button>
+          </div>
+        </div>
       </header>
 
       <ul className="divide-y divide-zinc-200">
@@ -172,7 +210,7 @@ export function SentEstimatesList({ rows }: { rows: SentEstimateRow[] }) {
                     >
                       Sent {relativeTime(row.sentAt)}
                     </span>
-                    <span className="font-mono text-xs text-zinc-500">
+                    <span className="font-mono text-xs text-zinc-600">
                       {formatDateFull(row.sentAt)}
                     </span>
                     {row.resentFromId ? (
@@ -189,13 +227,13 @@ export function SentEstimatesList({ rows }: { rows: SentEstimateRow[] }) {
                     Rate <span className="text-zinc-900">{formatRate(row.linehaulLow, row.linehaulHigh)}</span>
                     {row.sentEmailId ? (
                       <>
-                        <span aria-hidden className="mx-2 text-zinc-500">·</span>
-                        <span className="text-zinc-500">ID {row.sentEmailId.slice(0, 8)}</span>
+                        <span aria-hidden className="mx-2 text-zinc-600">·</span>
+                        <span className="text-zinc-600">ID {row.sentEmailId.slice(0, 8)}</span>
                       </>
                     ) : null}
                   </p>
                   {row.resentFromId ? (
-                    <p className="font-mono text-xs text-zinc-500">
+                    <p className="font-mono text-xs text-zinc-600">
                       Resent from {row.resentFromId.slice(0, 8)}
                     </p>
                   ) : null}
@@ -306,7 +344,7 @@ export function ResendForm({
           <p className="text-sm leading-relaxed text-red-800">{error}</p>
         </div>
       ) : null}
-      <p className="text-xs leading-relaxed text-zinc-500">
+      <p className="text-xs leading-relaxed text-zinc-600">
         This creates a new sent row linked to the original. Lead status is NOT changed by a resend.
       </p>
       <div className="flex flex-col-reverse items-stretch gap-3 border-t border-zinc-200 pt-4 sm:flex-row sm:items-center sm:justify-end">

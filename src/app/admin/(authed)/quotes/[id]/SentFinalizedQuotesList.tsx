@@ -70,9 +70,46 @@ export function SentFinalizedQuotesList({ rows }: { rows: SentFinalizedQuoteRow[
     <section className="border border-zinc-200 bg-zinc-50">
       <header className="border-b border-zinc-200 px-5 py-4 sm:px-6">
         <h2 className="label-cap">Sent finalized quotes</h2>
-        <p className="mt-1 label-cap text-zinc-500">
+        <p className="mt-1 label-cap text-zinc-600">
           {rows.length} record{rows.length === 1 ? "" : "s"} · newest first
         </p>
+
+        {/* Phase OPS-2B: "Most recent" action strip — same pattern as
+            SentEstimatesList. Saves scrolling on multi-FQ leads. */}
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-zinc-200 pt-3">
+          <span className="font-mono text-xs text-zinc-700">
+            <span className="label-cap text-zinc-600">Most recent</span>
+            <span aria-hidden className="mx-2 text-zinc-500">·</span>
+            <span className="text-zinc-900" title={formatDateFull(rows[0].sentAt)}>
+              {relativeTime(rows[0].sentAt)}
+            </span>
+            <span aria-hidden className="mx-2 text-zinc-500">·</span>
+            <span className="text-zinc-900">{rows[0].finalizedQuoteNumber}</span>
+          </span>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setResendOpenId(null);
+                setOpenId(openId === rows[0].id ? null : rows[0].id);
+              }}
+              className="inline-flex items-center border border-zinc-300 bg-white px-3 py-1.5 font-mono text-xs tracking-[0.12em] text-zinc-700 uppercase transition-colors hover:border-zinc-400 hover:text-zinc-900"
+            >
+              {openId === rows[0].id ? "Hide preview" : "Open preview"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setOpenId(null);
+                setResendOpenId(resendOpenId === rows[0].id ? null : rows[0].id);
+                setError(null);
+              }}
+              className="inline-flex items-center border border-zinc-300 bg-white px-3 py-1.5 font-mono text-xs tracking-[0.12em] text-zinc-700 uppercase transition-colors hover:border-zinc-400 hover:text-zinc-900"
+            >
+              {resendOpenId === rows[0].id ? "Cancel resend" : "Resend"}
+            </button>
+          </div>
+        </div>
       </header>
       <ul className="divide-y divide-zinc-200">
         {rows.map((row) => {
@@ -86,7 +123,7 @@ export function SentFinalizedQuotesList({ rows }: { rows: SentFinalizedQuoteRow[
                     <span className="font-mono text-xs tracking-[0.12em] text-green-800 uppercase" title={formatDateFull(row.sentAt)}>
                       Sent {relativeTime(row.sentAt)}
                     </span>
-                    <span className="font-mono text-xs text-zinc-500">{formatDateFull(row.sentAt)}</span>
+                    <span className="font-mono text-xs text-zinc-600">{formatDateFull(row.sentAt)}</span>
                     {row.resentFromId ? (
                       <span className="inline-flex items-center border border-blue-300 bg-blue-50 px-2 py-0.5 font-mono text-xs tracking-[0.12em] text-blue-800 uppercase">
                         Resent
@@ -104,13 +141,13 @@ export function SentFinalizedQuotesList({ rows }: { rows: SentFinalizedQuoteRow[
                     Total <span className="text-zinc-900">{row.totalAmount !== null ? formatUsd(row.totalAmount) : "—"}</span>
                     {row.sentEmailId ? (
                       <>
-                        <span aria-hidden className="mx-2 text-zinc-500">·</span>
-                        <span className="text-zinc-500">ID {row.sentEmailId.slice(0, 8)}</span>
+                        <span aria-hidden className="mx-2 text-zinc-600">·</span>
+                        <span className="text-zinc-600">ID {row.sentEmailId.slice(0, 8)}</span>
                       </>
                     ) : null}
                   </p>
                   {row.resentFromId ? (
-                    <p className="font-mono text-xs text-zinc-500">
+                    <p className="font-mono text-xs text-zinc-600">
                       Resent from {row.resentFromId.slice(0, 8)}
                     </p>
                   ) : null}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { formatDateFull, relativeTime } from "@/lib/admin/format";
 import { GenerateQuoteForm } from "./GenerateQuoteForm";
 import {
@@ -15,7 +15,6 @@ import {
 import { CommTimeline, type DispatchEvent } from "./CommTimeline";
 import { StatusBadge } from "./StatusBadge";
 import { StatusSelector } from "./StatusSelector";
-import { QuickActions } from "./QuickActions";
 import { type LeadStatus } from "@/lib/dispatch/status";
 import {
   FinalizedQuoteSection,
@@ -32,6 +31,17 @@ import {
   type SubmittedIntakeData,
 } from "./SubmittedIntakePanel";
 import { type PaymentTarget } from "./PaymentSection";
+// Phase OPS-2A: operational header summary needs urgency + payment math.
+import {
+  computeUrgency,
+  topUrgency,
+  URGENCY_SEVERITY_CLASSES_LIGHT,
+  type UrgencyChip,
+} from "@/lib/dispatch/urgency";
+import {
+  computePaymentSummary,
+  formatPaymentAmount,
+} from "@/lib/dispatch/payment";
 
 export type QuoteDetailRow = {
   id: string;
@@ -104,11 +114,123 @@ export function QuoteDetailTabs({
   paymentTarget: PaymentTarget | null;
 }) {
   const [activeTab, setActiveTab] = useState<TabId>("request");
+
+  // Phase OPS-2B: sticky identity bar visibility — appears once the
+  // main header has scrolled off-screen (roughly 200px). Defaults to
+  // hidden on SSR; the effect flips it on the first client-side scroll
+  // measurement. passive listener so we don't block scrolling.
+  const [stickyVisible, setStickyVisible] = useState(false);
+  useEffect(() => {
+    function onScroll() {
+      setStickyVisible(window.scrollY > 200);
+    }
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   const isTrashed = Boolean(row.deleted_at);
   const phoneHref = `tel:${row.phone.replace(/[^\d+]/g, "")}`;
+  const mailHref = `mailto:${row.email}`;
+  const hasLane = Boolean(row.pickup_zip && row.delivery_zip);
+
+  // Phase OPS-2B: per-tab indicator dots so an operator on, say, the BOL
+  // tab can see at a glance that a sent estimate bounced — without having
+  // to switch tabs to find out. Computed from the same sent-history props
+  // that feed the per-tab Sent lists.
+  const hasBouncedEstimate = sentEstimates.some((r) => r.bounceKind !== null);
+  const hasBouncedFq = sentFinalizedQuotes.some((r) => r.bounceKind !== null);
+  const hasBouncedBol = sentBols.some((r) => r.bounceKind !== null);
+
+  // Phase OPS-2A: operational header data. Computed client-side from
+  // existing props (no new server query / data-flow change). intakeStartedAt
+  // is null here because the detail page does not currently load the
+  // in-progress intake row — its chip ("intake_in_progress") will only
+  // surface on the ops home until/unless intakeStartedAt is threaded in.
+  // All other urgency chips fire normally.
+  const urgency: UrgencyChip[] = computeUrgency({
+    leadStatus: row.lead_status,
+    createdAt: row.created_at,
+    latestEstimateSentAt: sentEstimates[0]?.sentAt ?? null,
+    intakeStartedAt: null,
+    intakeSubmittedAt: submittedIntake?.submittedAt ?? null,
+    latestFinalizedSentAt: sentFinalizedQuotes[0]?.sentAt ?? null,
+    latestBolSentAt: sentBols[0]?.sentAt ?? null,
+    leadStatusUpdatedAt: row.lead_status_updated_at,
+    now: new Date(),
+  });
+  const topUrgencyChip = topUrgency(urgency);
+
+  // Outstanding balance (read from the FQ payment target if present).
+  // Active (non-deleted) payments only — mirrors PaymentSection logic.
+  const outstanding =
+    paymentTarget && paymentTarget.totalAmount !== null
+      ? computePaymentSummary(
+          paymentTarget.totalAmount,
+          paymentTarget.payments
+            .filter((p) => p.deletedAt === null)
+            .map((p) => ({ amount: p.amount, currency: p.currency })),
+        ).outstanding
+      : 0;
+
+  const summaryHasContent =
+    hasLane ||
+    Boolean(row.pickup_date) ||
+    (paymentTarget?.totalAmount !== undefined && paymentTarget.totalAmount !== null) ||
+    outstanding > 0 ||
+    topUrgencyChip !== null;
 
   return (
     <>
+      {/* Phase OPS-2B: sticky condensed identity bar. Hidden when the
+          main header is in view; slides down from top after scroll
+          exceeds ~200px. Carries the bare minimum operational context
+          (status pill + customer name + top urgency chip + Call + Email)
+          so the dispatcher never loses orientation when scrolling deep
+          into composer / payment / sent-history surfaces. Fixed
+          positioning lets it sit on top of the page as the user scrolls;
+          the AdminNav header is non-sticky and has already scrolled
+          away by the time this appears, so they do not overlap. */}
+      <div
+        aria-hidden={!stickyVisible}
+        className={
+          "fixed inset-x-0 top-0 z-30 border-b border-zinc-200 bg-white shadow-sm transition-transform duration-200 " +
+          (stickyVisible ? "translate-y-0" : "-translate-y-full pointer-events-none")
+        }
+      >
+        <div className="mx-auto flex max-w-[1400px] items-center gap-3 px-4 py-2 sm:px-6 sm:py-2.5 lg:px-8">
+          <StatusBadge status={row.lead_status} />
+          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-zinc-900">
+            {row.name}
+          </span>
+          {topUrgencyChip ? (
+            <span
+              className={
+                "shrink-0 inline-flex items-center border px-1.5 py-0.5 font-mono text-xs tracking-[0.12em] uppercase " +
+                URGENCY_SEVERITY_CLASSES_LIGHT[topUrgencyChip.severity]
+              }
+              title={topUrgencyChip.kind}
+            >
+              {topUrgencyChip.label}
+            </span>
+          ) : null}
+          <a
+            href={phoneHref}
+            className="shrink-0 inline-flex items-center justify-center border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold tracking-[0.12em] text-zinc-700 uppercase transition-colors hover:bg-zinc-100 hover:text-zinc-900"
+            aria-label="Call customer"
+          >
+            Call
+          </a>
+          <a
+            href={mailHref}
+            className="shrink-0 inline-flex items-center justify-center border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold tracking-[0.12em] text-zinc-700 uppercase transition-colors hover:bg-zinc-100 hover:text-zinc-900"
+            aria-label="Email customer"
+          >
+            Email
+          </a>
+        </div>
+      </div>
+
       <header className="mt-4">
         {/* Phase LAYOUT-1: eyebrow row — status + relative time */}
         <div className="flex flex-wrap items-center gap-3">
@@ -118,7 +240,7 @@ export function QuoteDetailTabs({
           <StatusBadge status={row.lead_status} />
           {row.lead_status_updated_at ? (
             <span
-              className="font-mono text-xs text-zinc-500"
+              className="font-mono text-xs text-zinc-600"
               title={formatDateFull(row.lead_status_updated_at)}
             >
               {relativeTime(row.lead_status_updated_at)}
@@ -131,39 +253,110 @@ export function QuoteDetailTabs({
           {row.name}
         </h1>
         <p
-          className="mt-2 font-mono text-xs text-zinc-500"
+          className="mt-2 font-mono text-xs text-zinc-600"
           title={formatDateFull(row.created_at)}
         >
           Received {relativeTime(row.created_at)}{" "}
-          <span aria-hidden className="mx-1 text-zinc-500">
+          <span aria-hidden className="mx-1 text-zinc-600">
             ·
           </span>{" "}
           {formatDateFull(row.created_at)}
         </p>
 
-        {/* Phase LAYOUT-1: unified command row. Status controls + Open Quote
-            PDF live on the same line so the operational action surface reads
-            as one group. When trashed, StatusSelector is suppressed but the
-            PDF button stays right-aligned so the row keeps its shape. */}
-        <div
-          className={
-            "mt-4 flex flex-wrap items-center gap-3 sm:flex-nowrap " +
-            (!isTrashed ? "sm:justify-between" : "sm:justify-end")
-          }
-        >
-          {!isTrashed ? (
-            <StatusSelector
-              quoteRequestId={row.id}
-              status={row.lead_status}
-            />
-          ) : null}
-          <button
-            type="button"
-            onClick={() => setActiveTab("generated")}
-            className="btn-outline-cut inline-flex w-full items-center justify-center px-4 py-2 text-xs font-semibold tracking-[0.12em] text-zinc-200 uppercase transition-colors hover:text-white sm:w-auto"
-          >
-            Open Quote PDF
-          </button>
+        {/* Phase OPS-2A: operational summary strip. Compact scannable
+            line carrying lane + miles, pickup target, FQ total, outstanding
+            balance, and the top urgency chip. All fields conditional —
+            the strip renders nothing when no fields populated. */}
+        {summaryHasContent ? (
+          <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 border-y border-zinc-200 py-3">
+            {hasLane ? (
+              <span className="inline-flex items-baseline gap-2">
+                <span className="label-cap text-zinc-600">Lane</span>
+                <span className="font-mono text-sm font-semibold text-zinc-900">
+                  {row.pickup_zip}
+                  <span aria-hidden className="mx-1 text-red-600">→</span>
+                  {row.delivery_zip}
+                </span>
+                {computedMiles != null ? (
+                  <span className="font-mono text-xs text-zinc-600">
+                    ~{computedMiles} mi
+                  </span>
+                ) : null}
+              </span>
+            ) : null}
+            {row.pickup_date ? (
+              <span className="inline-flex items-baseline gap-2">
+                <span className="label-cap text-zinc-600">Pickup</span>
+                <span className="text-sm text-zinc-900">{row.pickup_date}</span>
+              </span>
+            ) : null}
+            {paymentTarget && paymentTarget.totalAmount !== null ? (
+              <span className="inline-flex items-baseline gap-2">
+                <span className="label-cap text-zinc-600">Total</span>
+                <span className="font-mono text-sm font-semibold text-zinc-900">
+                  {formatPaymentAmount(paymentTarget.totalAmount)}
+                </span>
+              </span>
+            ) : null}
+            {outstanding > 0 ? (
+              <span className="inline-flex items-baseline gap-2">
+                <span className="label-cap text-zinc-600">Outstanding</span>
+                <span className="font-mono text-sm font-semibold text-amber-800">
+                  {formatPaymentAmount(outstanding)}
+                </span>
+              </span>
+            ) : null}
+            {topUrgencyChip ? (
+              <span
+                className={
+                  "inline-flex items-center border px-2 py-0.5 font-mono text-xs tracking-[0.12em] uppercase " +
+                  URGENCY_SEVERITY_CLASSES_LIGHT[topUrgencyChip.severity]
+                }
+                title={topUrgencyChip.kind}
+              >
+                {topUrgencyChip.label}
+              </span>
+            ) : null}
+          </div>
+        ) : null}
+
+        {/* Phase OPS-2A: command row. StatusSelector on the left;
+            Call + Email + Open Quote PDF on the right. Call/Email moved
+            out of Workspace QuickActions so dispatchers can dial without
+            tab switching. The three right-cluster buttons share the same
+            secondary-light treatment for cohesion. */}
+        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+          <div className="min-w-0">
+            {!isTrashed ? (
+              <StatusSelector
+                quoteRequestId={row.id}
+                status={row.lead_status}
+              />
+            ) : null}
+          </div>
+          <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap sm:justify-end">
+            <a
+              href={phoneHref}
+              className="inline-flex items-center gap-2 border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold tracking-[0.12em] text-zinc-700 uppercase transition-colors hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900"
+            >
+              <span aria-hidden className="inline-block h-1.5 w-1 shrink-0 bg-red-600" />
+              Call
+            </a>
+            <a
+              href={mailHref}
+              className="inline-flex items-center gap-2 border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold tracking-[0.12em] text-zinc-700 uppercase transition-colors hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900"
+            >
+              <span aria-hidden className="inline-block h-1.5 w-1 shrink-0 bg-red-600" />
+              Email
+            </a>
+            <button
+              type="button"
+              onClick={() => setActiveTab("generated")}
+              className="inline-flex items-center gap-2 border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold tracking-[0.12em] text-zinc-700 uppercase transition-colors hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900"
+            >
+              Open Quote PDF
+            </button>
+          </div>
         </div>
       </header>
 
@@ -177,6 +370,16 @@ export function QuoteDetailTabs({
           // Phase N: Metadata tab visually de-emphasized when inactive
           // (admin-only technical info, lower priority than workflow tabs).
           const isMetadata = tab.id === "metadata";
+          // Phase OPS-2B: per-tab dot indicators. Red dot when ANY sent
+          // row on that tab has a bounce_kind set. Amber dot on the
+          // Finalized Quote tab when outstanding > 0. Both dots can
+          // appear simultaneously on the FQ tab (rendered side-by-side).
+          const showBounceDot =
+            (tab.id === "request" && hasBouncedEstimate) ||
+            (tab.id === "finalized" && hasBouncedFq) ||
+            (tab.id === "bol" && hasBouncedBol);
+          const showPaymentDot =
+            tab.id === "finalized" && outstanding > 0;
           return (
             <button
               key={tab.id}
@@ -192,11 +395,27 @@ export function QuoteDetailTabs({
                 (isActive
                   ? "relative z-10 border-zinc-200 border-b-white bg-white text-zinc-900 font-bold"
                   : isMetadata
-                    ? "border-zinc-200 bg-zinc-50 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-700"
+                    ? "border-zinc-200 bg-zinc-50 text-zinc-600 hover:bg-zinc-100 hover:text-zinc-700"
                     : "border-zinc-200 bg-zinc-50 text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900")
               }
             >
-              {tab.label}
+              <span className="inline-flex items-center gap-1.5">
+                {tab.label}
+                {showBounceDot ? (
+                  <span
+                    aria-hidden
+                    title="One or more sent rows on this tab bounced"
+                    className="inline-block h-1.5 w-1.5 shrink-0 bg-red-600"
+                  />
+                ) : null}
+                {showPaymentDot ? (
+                  <span
+                    aria-hidden
+                    title="Outstanding balance"
+                    className="inline-block h-1.5 w-1.5 shrink-0 bg-amber-600"
+                  />
+                ) : null}
+              </span>
             </button>
           );
         })}
@@ -276,9 +495,10 @@ function RequestTab({
 
   return (
     <div className="space-y-7">
-      {!isTrashed ? (
-        <QuickActions phone={row.phone} email={row.email} />
-      ) : null}
+      {/* Phase OPS-2A: <QuickActions /> render dropped here. The Call/Email
+          anchors moved into the persistent quote-detail header command row
+          (visible on every tab). QuickActions.tsx is kept in the codebase
+          for code preservation but is no longer consumed. */}
 
       {/* Phase W2: unified Load preview replaces the prior three stacked
           groups (Load overview / Finalized load information / Dispatch
@@ -319,7 +539,7 @@ function RequestTab({
           </section>
         ) : (
           <section className="border border-zinc-200 bg-zinc-50 p-8 text-center">
-            <p className="label-cap text-zinc-500">
+            <p className="label-cap text-zinc-600">
               Request is in trash
             </p>
             <p className="mt-3 text-sm leading-relaxed text-zinc-600">
@@ -370,7 +590,7 @@ function GeneratedQuoteTab({
   if (isTrashed) {
     return (
       <div className="border border-zinc-200 bg-zinc-50 p-8 text-center">
-        <p className="font-mono text-xs tracking-[0.12em] text-zinc-500 uppercase">
+        <p className="font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase">
           Request is in trash
         </p>
         <p className="mt-3 text-sm leading-relaxed text-zinc-600">
@@ -426,10 +646,10 @@ function MetadataTab({
           dimmed treatment from Phase N is preserved so the tab still
           reads as secondary to the workflow tabs. */}
       <header>
-        <h2 className="label-cap text-zinc-500">
+        <h2 className="label-cap text-zinc-600">
           Metadata
         </h2>
-        <p className="mt-1.5 text-xs text-zinc-500">
+        <p className="mt-1.5 text-xs text-zinc-600">
           Operational record · audit surface
         </p>
       </header>
@@ -450,14 +670,14 @@ function MetadataTab({
           </Field>
           {row.user_agent ? (
             <Field label="User agent" muted full>
-              <span className="font-mono text-xs break-all text-zinc-500">
+              <span className="font-mono text-xs break-all text-zinc-600">
                 {row.user_agent}
               </span>
             </Field>
           ) : null}
           {row.ip ? (
             <Field label="IP" muted>
-              <span className="font-mono text-xs text-zinc-500">
+              <span className="font-mono text-xs text-zinc-600">
                 {row.ip}
               </span>
             </Field>
@@ -639,7 +859,7 @@ function LoadPreview({
                     {row.delivery_zip}
                   </span>
                   {computedMiles != null ? (
-                    <span className="ml-1 font-mono text-xs tracking-[0.12em] text-zinc-500 uppercase">
+                    <span className="ml-1 font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase">
                       ~{computedMiles} mi
                     </span>
                   ) : null}
@@ -731,7 +951,7 @@ function Field({
       <dt
         className={
           "label-cap " +
-          (muted ? "text-zinc-500" : "text-zinc-500")
+          (muted ? "text-zinc-600" : "text-zinc-600")
         }
       >
         {label}
