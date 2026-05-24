@@ -431,10 +431,17 @@ export function QuoteDetailTabs({
         ) : null}
 
         {/* Phase OPS-2A: command row. StatusSelector on the left;
-            Call + Email + Open Quote PDF on the right. Call/Email moved
-            out of Workspace QuickActions so dispatchers can dial without
-            tab switching. The three right-cluster buttons share the same
-            secondary-light treatment for cohesion. */}
+            Call + Email on the right.
+            Phase FLOW-FIX: the "Open Quote PDF" button was removed
+            from this row. It routed the operator into the legacy
+            standalone Generated Quote PDF form, which is not the
+            canonical pricing-document workflow. The canonical path is
+            the Finalized Quote tab → Generate Finalized Quote →
+            Build/Rebuild preview → Send. The legacy GeneratedQuoteTab
+            panel + GenerateQuoteForm + generateQuote server action +
+            generated_quotes table all remain in the codebase for code
+            preservation, but are no longer surfaced as a primary
+            navigation choice. */}
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <div className="min-w-0">
             {!isTrashed ? (
@@ -459,13 +466,6 @@ export function QuoteDetailTabs({
               <span aria-hidden className="inline-block h-1.5 w-1 shrink-0 bg-red-600" />
               Email
             </a>
-            <button
-              type="button"
-              onClick={() => setActiveTab("generated")}
-              className="inline-flex items-center gap-2 border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold tracking-[0.12em] text-zinc-700 uppercase transition-colors hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900"
-            >
-              Open Quote PDF
-            </button>
           </div>
         </div>
       </header>

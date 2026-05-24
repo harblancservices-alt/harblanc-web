@@ -76,18 +76,18 @@ export function FinalizedQuoteSection(props: FinalizedQuoteSectionProps) {
         <TrashGate />
       ) : state.kind === "no_estimate_sent" ? (
         <InfoCard
-          headline="Send a range proposal first"
-          body="Finalized quotes are generated after the customer accepts a range estimate. Build and send an estimate from the Workspace tab."
+          headline="Step 1 of 3 — send a range proposal"
+          body="The finalized quote is generated AFTER the customer accepts a range estimate. Open the Workspace tab, build a Quick Estimate preview, and send it. Once the customer accepts and submits shipment intake, the Generate Finalized Quote button appears here."
         />
       ) : state.kind === "no_intake" ? (
         <InfoCard
-          headline="Waiting on customer intake"
-          body="The estimate has been sent. The customer has not opened the acceptance link yet. Once they accept and submit shipment details, generate the finalized quote here."
+          headline="Step 2 of 3 — waiting on customer intake"
+          body="The range estimate has been sent. The customer hasn't opened the acceptance link yet. Once they accept and submit the shipment intake form, the Generate Finalized Quote button will appear here automatically. Refresh the page after the customer submits — or wait for the next render."
         />
       ) : state.kind === "intake_in_progress" ? (
         <InfoCard
-          headline="Customer is still completing intake"
-          body="The customer started the shipment intake but hasn't submitted it. Wait for submission before generating the finalized quote — dispatch needs the full operational scope."
+          headline="Step 2 of 3 — customer is still completing intake"
+          body="The customer accepted the estimate and opened the intake form, but hasn't submitted it yet. Dispatch needs the full operational scope (addresses, dimensions, exact weight, handling) before the finalized quote can be generated. Refresh after the customer submits — or wait."
         />
       ) : state.kind === "intake_submitted_no_draft" ? (
         <GenerateDraftCard
@@ -166,11 +166,39 @@ function GenerateDraftCard({
   function onGenerate() {
     setError(null);
     startTransition(async () => {
-      const result = await generateFinalizedQuoteDraft(quoteRequestId);
-      if (result.ok) {
-        router.refresh();
-      } else {
-        setError(result.reason);
+      try {
+        const result = await generateFinalizedQuoteDraft(quoteRequestId);
+        if (result.ok) {
+          // Server action revalidates the path on both the
+          // existing-draft idempotent return and the fresh-insert
+          // return. router.refresh() re-fetches server data and the
+          // section re-renders with state.kind === "draft", mounting
+          // the FinalizedQuoteComposer below this card.
+          router.refresh();
+        } else {
+          setError(result.reason);
+        }
+      } catch (e) {
+        // Phase FLOW-FIX: previously an unexpected throw (e.g. session
+        // expiry surfacing as NEXT_REDIRECT, or a sanitized server
+        // failure) bubbled up to the transition with no operator-visible
+        // signal — the button just stayed pending forever-looking.
+        const msg = e instanceof Error ? e.message : String(e);
+        const digest = (e as { digest?: unknown } | undefined)?.digest;
+        const digestStr = typeof digest === "string" ? digest : "";
+        if (digestStr.startsWith("NEXT_REDIRECT")) {
+          setError("Session expired — please log in again, then retry.");
+        } else if (
+          /An error occurred in the Server Components render/.test(msg) ||
+          msg === "" ||
+          msg === "An unexpected response was received from the server."
+        ) {
+          setError(
+            "Could not generate the finalized quote. The server logged a stage-tagged error — check Vercel logs for `[generateFinalizedQuoteDraft]`.",
+          );
+        } else {
+          setError(msg || "Could not generate the finalized quote.");
+        }
       }
     });
   }

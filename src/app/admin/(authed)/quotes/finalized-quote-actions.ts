@@ -255,6 +255,14 @@ export async function generateFinalizedQuoteDraft(
     .maybeSingle<FinalizedQuoteDraftRow>();
 
   if (existing) {
+    // Phase FLOW-FIX: revalidate even on the idempotent existing-draft
+    // return. Most renders should already see this draft (the page
+    // loader's loadFinalizedQuoteState reads the same row), so this is
+    // belt-and-suspenders — covers the case where the operator clicks
+    // Generate from a stale tab right after another tab created the
+    // draft. router.refresh() on the client then reliably lands them
+    // in the composer.
+    revalidatePath(`/admin/quotes/${quoteRequestId}`);
     return { ok: true, id: existing.id };
   }
 
