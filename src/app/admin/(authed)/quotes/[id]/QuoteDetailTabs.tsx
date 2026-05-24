@@ -30,6 +30,13 @@ import {
   SubmittedIntakePanel,
   type SubmittedIntakeData,
 } from "./SubmittedIntakePanel";
+// Phase OPS-2C: DispatchOwnershipPanel re-introduced inside MetadataTab.
+// The panel + its server action have been kept in the codebase since
+// W2; only the import + render site changed.
+import {
+  DispatchOwnershipPanel,
+  type DispatchOwnership,
+} from "./DispatchOwnershipPanel";
 import { type PaymentTarget } from "./PaymentSection";
 // Phase OPS-2A: operational header summary needs urgency + payment math.
 import {
@@ -84,6 +91,41 @@ const TABS: { id: TabId; label: string }[] = [
   { id: "metadata", label: "Metadata" },
 ];
 
+/**
+ * Phase OPS-2C: default-tab routing by lead operational state.
+ *
+ * Early-stage leads (new → awaiting_confirmation) open on Workspace
+ * where the estimate composer lives. Once a finalized quote is in play
+ * (booked / awaiting_payment / ready_to_dispatch) the operator most
+ * often wants the FQ tab (payment tracking, send history). Execution
+ * states (dispatched / picked_up / in_transit / delivered) default to
+ * the BOL tab. Archived / lost fall back to Workspace.
+ *
+ * The user can still tap any tab manually — this only sets the
+ * initial render selection, saving one tap on the most common case.
+ */
+function defaultTabForStatus(status: LeadStatus): TabId {
+  switch (status) {
+    case "booked":
+    case "awaiting_payment":
+    case "ready_to_dispatch":
+      return "finalized";
+    case "dispatched":
+    case "picked_up":
+    case "in_transit":
+    case "delivered":
+      return "bol";
+    case "new":
+    case "contacted":
+    case "estimate_sent":
+    case "awaiting_confirmation":
+    case "archived":
+    case "lost":
+    default:
+      return "request";
+  }
+}
+
 export function QuoteDetailTabs({
   row,
   generatedQuote,
@@ -113,7 +155,11 @@ export function QuoteDetailTabs({
   submittedIntake: SubmittedIntakeData | null;
   paymentTarget: PaymentTarget | null;
 }) {
-  const [activeTab, setActiveTab] = useState<TabId>("request");
+  // Phase OPS-2C: default tab driven by lead status (initializer
+  // runs once on mount; manual tab changes are preserved thereafter).
+  const [activeTab, setActiveTab] = useState<TabId>(() =>
+    defaultTabForStatus(row.lead_status),
+  );
 
   // Phase OPS-2B: sticky identity bar visibility — appears once the
   // main header has scrolled off-screen (roughly 200px). Defaults to
@@ -141,6 +187,17 @@ export function QuoteDetailTabs({
   const hasBouncedEstimate = sentEstimates.some((r) => r.bounceKind !== null);
   const hasBouncedFq = sentFinalizedQuotes.some((r) => r.bounceKind !== null);
   const hasBouncedBol = sentBols.some((r) => r.bounceKind !== null);
+
+  // Phase OPS-2C: ownership derived client-side from row data so the
+  // DispatchOwnershipPanel can be re-rendered without touching the
+  // page.tsx loader. The DB columns (assigned_dispatcher / assigned_carrier
+  // / assigned_truck / trailer_type) have been on the row all along.
+  const ownership: DispatchOwnership = {
+    assignedDispatcher: row.assigned_dispatcher,
+    assignedCarrier: row.assigned_carrier,
+    assignedTruck: row.assigned_truck,
+    trailerType: row.trailer_type,
+  };
 
   // Phase OPS-2A: operational header data. Computed client-side from
   // existing props (no new server query / data-flow change). intakeStartedAt
@@ -467,7 +524,7 @@ export function QuoteDetailTabs({
           />
         ) : null}
         {activeTab === "metadata" ? (
-          <MetadataTab row={row} events={events} />
+          <MetadataTab row={row} events={events} ownership={ownership} />
         ) : null}
       </div>
     </>
@@ -632,13 +689,16 @@ function GeneratedQuoteTab({
 function MetadataTab({
   row,
   events,
+  ownership,
 }: {
   row: QuoteDetailRow;
   events: DispatchEvent[];
+  ownership: DispatchOwnership;
 }) {
   // Phase UI-M2: lifecycle subsection only renders when something to
   // show — avoids an empty card on healthy active leads.
   const hasLifecycle = Boolean(row.deleted_at || row.delete_after);
+  const isTrashed = Boolean(row.deleted_at);
   return (
     <div className="space-y-10 sm:space-y-12">
       {/* Top header — Metadata frames itself as the operational
@@ -653,6 +713,24 @@ function MetadataTab({
           Operational record · audit surface
         </p>
       </header>
+
+      {/* Phase OPS-2C: DispatchOwnershipPanel re-introduced at the top
+          of MetadataTab (not the old Workspace placement). Lets dispatch
+          set/update assigned_dispatcher / assigned_carrier / assigned_truck
+          / trailer_type without leaving the lead. The panel writes via
+          updateDispatchOwnership server action and surfaces values on
+          the ops home. Hidden when the lead is trashed — restore first. */}
+      {!isTrashed ? (
+        <section>
+          <SubHeading>Dispatch ownership</SubHeading>
+          <div className="mt-4">
+            <DispatchOwnershipPanel
+              quoteRequestId={row.id}
+              ownership={ownership}
+            />
+          </div>
+        </section>
+      ) : null}
 
       {/* Subsection: Request record — how the lead came in. */}
       <section>

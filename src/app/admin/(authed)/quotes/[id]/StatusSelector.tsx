@@ -43,6 +43,30 @@ export function StatusSelector({
 
   const next = suggestedNext(status);
 
+  // Phase OPS-2C: context-aware execution-phase shortcut buttons.
+  //
+  // The existing `advance` button always does suggestedNext. These two
+  // are skip-ahead shortcuts for moments that frequently happen out of
+  // strict pipeline order:
+  //   - Mark picked up: driver loaded straight from ready_to_dispatch
+  //     (skipping the manual "dispatched" tick).
+  //   - Mark delivered: short trip — driver delivered the same day
+  //     and the operator never had to chart picked_up / in_transit.
+  //
+  // Hidden when they would duplicate the advance button (the advance
+  // button is the cleaner UI when it's pointing at the same target).
+  const showMarkPickedUp =
+    (status === "ready_to_dispatch" || status === "dispatched") &&
+    next !== "picked_up";
+  const showMarkDelivered =
+    (status === "dispatched" ||
+      status === "picked_up" ||
+      status === "in_transit") &&
+    next !== "delivered";
+
+  const shortcutClasses =
+    "btn-cut inline-flex w-full items-center justify-center px-4 py-3 text-xs font-semibold tracking-[0.12em] uppercase transition-colors disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto bg-red-600 text-white hover:bg-red-500";
+
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-2">
       {next ? (
@@ -57,6 +81,32 @@ export function StatusSelector({
           title={`Move to ${LEAD_STATUS_LABELS[next]}`}
         >
           {isPending ? "…" : `→ ${LEAD_STATUS_LABELS[next]}`}
+        </button>
+      ) : null}
+
+      {/* Phase OPS-2C: execution-phase skip-ahead shortcuts. Both call
+          the same changeTo() that the advance button + dropdown use —
+          identical server-action path, identical timeline event. */}
+      {showMarkPickedUp ? (
+        <button
+          type="button"
+          onClick={() => changeTo("picked_up")}
+          disabled={isPending}
+          className={shortcutClasses}
+          title="Mark this load as picked up"
+        >
+          Mark picked up
+        </button>
+      ) : null}
+      {showMarkDelivered ? (
+        <button
+          type="button"
+          onClick={() => changeTo("delivered")}
+          disabled={isPending}
+          className={shortcutClasses}
+          title="Mark this load as delivered"
+        >
+          Mark delivered
         </button>
       ) : null}
 
