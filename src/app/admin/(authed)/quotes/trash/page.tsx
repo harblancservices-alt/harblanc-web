@@ -20,7 +20,7 @@ async function loadTrashedQuotes(): Promise<{
     sb
       .from("quote_requests")
       .select(
-        "id, created_at, deleted_at, delete_after, name, email, phone, commodity",
+        "id, created_at, deleted_at, delete_after, name, email, phone, commodity, pickup_zip, delivery_zip",
       )
       .not("deleted_at", "is", null)
       .order("deleted_at", { ascending: false }),
@@ -75,7 +75,7 @@ export default async function QuotesTrashPage() {
       />
 
       {rows.length === 0 ? (
-        <p className="mt-12 text-sm text-zinc-500">Trash is empty.</p>
+        <p className="mt-12 text-sm text-zinc-600">Trash is empty.</p>
       ) : (
         <QuoteTrashTable rows={rows} />
       )}

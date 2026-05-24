@@ -1,11 +1,15 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useMemo } from "react";
 import Link from "next/link";
 import { formatTimestampShort, isNew } from "@/lib/admin/format";
 import { softDeleteQuote, softDeleteQuotes } from "./actions";
 import { StatusBadge } from "./[id]/StatusBadge";
-import { type LeadStatus } from "@/lib/dispatch/status";
+import {
+  LEAD_STATUSES,
+  LEAD_STATUS_LABELS,
+  type LeadStatus,
+} from "@/lib/dispatch/status";
 
 export type QuoteListRow = {
   id: string;
@@ -16,6 +20,11 @@ export type QuoteListRow = {
   commodity: string;
   weight: string;
   lead_status: LeadStatus;
+  // Phase OPS-3: surfaced for client-side lane search. Loaded by the
+  // page wrapper's SELECT; nullable on legacy rows that pre-date the
+  // quick-quote ZIP fields.
+  pickup_zip: string | null;
+  delivery_zip: string | null;
 };
 
 // Grid: checkbox / received / status / name / phone / email / commodity /
@@ -31,8 +40,41 @@ export function QuoteListTable({ rows }: { rows: QuoteListRow[] }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
 
-  const allSelected = rows.length > 0 && selected.size === rows.length;
-  const someSelected = selected.size > 0 && selected.size < rows.length;
+  // Phase OPS-3: client-side search + status filter. Server query
+  // unchanged; this is pure presentation-layer filtering across the
+  // already-loaded row set. As lead volume grows past ~50 the operator
+  // hits a scroll wall — this kills it.
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<LeadStatus | "">("");
+
+  const filtered = useMemo(() => {
+    let result = rows;
+    if (statusFilter) {
+      result = result.filter((r) => r.lead_status === statusFilter);
+    }
+    const q = searchQuery.trim().toLowerCase();
+    if (q.length > 0) {
+      result = result.filter(
+        (r) =>
+          r.name.toLowerCase().includes(q) ||
+          r.phone.toLowerCase().includes(q) ||
+          r.email.toLowerCase().includes(q) ||
+          r.commodity.toLowerCase().includes(q) ||
+          (r.pickup_zip ?? "").toLowerCase().includes(q) ||
+          (r.delivery_zip ?? "").toLowerCase().includes(q) ||
+          r.id.toLowerCase().includes(q),
+      );
+    }
+    return result;
+  }, [rows, searchQuery, statusFilter]);
+
+  // "All selected" / "Some selected" against the CURRENTLY-VISIBLE
+  // filtered set so the operator can intuitively "select all visible".
+  // Selections outside the filter are preserved across filter changes.
+  const allSelected =
+    filtered.length > 0 && filtered.every((r) => selected.has(r.id));
+  const someSelected =
+    !allSelected && filtered.some((r) => selected.has(r.id));
 
   function toggleRow(id: string, checked: boolean) {
     setSelected((prev) => {
@@ -44,12 +86,27 @@ export function QuoteListTable({ rows }: { rows: QuoteListRow[] }) {
   }
 
   function toggleAll(checked: boolean) {
-    setSelected(checked ? new Set(rows.map((r) => r.id)) : new Set());
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        for (const r of filtered) next.add(r.id);
+      } else {
+        for (const r of filtered) next.delete(r.id);
+      }
+      return next;
+    });
   }
 
   function clearSelection() {
     setSelected(new Set());
   }
+
+  function clearFilters() {
+    setSearchQuery("");
+    setStatusFilter("");
+  }
+
+  const hasFilter = searchQuery.trim().length > 0 || statusFilter !== "";
 
   function bulkSoftDelete() {
     if (selected.size === 0) return;
@@ -90,8 +147,64 @@ export function QuoteListTable({ rows }: { rows: QuoteListRow[] }) {
 
   return (
     <>
+      {/* Phase OPS-3: search + filter bar. Search input is always
+          visible (mobile-first). Status filter shares the row on sm+;
+          stacks below on mobile. Clear button appears when any filter
+          is active. */}
+      <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-stretch">
+        <div className="relative flex-1">
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search name, phone, email, commodity, lane, ID..."
+            className="block w-full border border-zinc-300 bg-white px-4 py-2.5 pr-10 text-sm text-zinc-900 placeholder:text-zinc-500 focus:border-red-600 focus:outline-none"
+            aria-label="Search quotes"
+          />
+          {searchQuery ? (
+            <button
+              type="button"
+              onClick={() => setSearchQuery("")}
+              className="absolute inset-y-0 right-0 flex items-center px-3 text-zinc-500 transition-colors hover:text-zinc-900"
+              aria-label="Clear search"
+            >
+              ×
+            </button>
+          ) : null}
+        </div>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value as LeadStatus | "")}
+          className="block w-full border border-zinc-300 bg-white px-3 py-2.5 text-xs font-semibold tracking-[0.12em] uppercase text-zinc-700 focus:border-red-600 focus:outline-none sm:w-auto"
+          aria-label="Filter by status"
+        >
+          <option value="">All statuses</option>
+          {LEAD_STATUSES.map((s) => (
+            <option key={s} value={s}>
+              {LEAD_STATUS_LABELS[s]}
+            </option>
+          ))}
+        </select>
+        {hasFilter ? (
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="inline-flex items-center justify-center border border-zinc-300 bg-white px-4 py-2.5 text-xs font-semibold tracking-[0.12em] uppercase text-zinc-700 transition-colors hover:border-zinc-400 hover:text-zinc-900 sm:w-auto"
+          >
+            Clear
+          </button>
+        ) : null}
+      </div>
+
+      {hasFilter ? (
+        <p className="mt-2 text-xs text-zinc-600">
+          Showing {filtered.length} of {rows.length} record
+          {rows.length === 1 ? "" : "s"}
+        </p>
+      ) : null}
+
       {selected.size > 0 ? (
-        <div className="mt-3 flex items-center justify-between gap-4 border border-zinc-300 bg-white px-4 py-3">
+        <div className="sticky top-0 z-20 mt-3 flex items-center justify-between gap-4 border border-zinc-300 bg-white px-4 py-3 shadow-sm">
           <span className="text-xs font-semibold tracking-[0.12em] text-zinc-900 uppercase">
             {selected.size} selected
           </span>
@@ -143,7 +256,23 @@ export function QuoteListTable({ rows }: { rows: QuoteListRow[] }) {
           </div>
 
           <div className="divide-y divide-zinc-200 border-l border-r border-b border-zinc-200 bg-white">
-            {rows.map((r) => {
+            {filtered.length === 0 ? (
+              <div className="px-3 py-8 text-center">
+                <p className="text-sm text-zinc-600">
+                  No records match your filter.
+                </p>
+                {hasFilter ? (
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="mt-3 inline-flex items-center border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold tracking-[0.12em] uppercase text-zinc-700 transition-colors hover:border-zinc-400 hover:text-zinc-900"
+                  >
+                    Clear filters
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+            {filtered.map((r) => {
               const isSel = selected.has(r.id);
               return (
                 <div

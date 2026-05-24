@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useMemo } from "react";
 import Link from "next/link";
 import { formatTimestampShort, formatDateShort } from "@/lib/admin/format";
 import {
@@ -19,6 +19,9 @@ export type QuoteTrashRow = {
   email: string;
   phone: string;
   commodity: string;
+  // Phase OPS-3: client-side lane search support.
+  pickup_zip: string | null;
+  delivery_zip: string | null;
 };
 
 const colSpec =
@@ -31,8 +34,31 @@ export function QuoteTrashTable({ rows }: { rows: QuoteTrashRow[] }) {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
 
-  const allSelected = rows.length > 0 && selected.size === rows.length;
-  const someSelected = selected.size > 0 && selected.size < rows.length;
+  // Phase OPS-3: client-side search. No status filter in trash (all
+  // rows share the soft-deleted state). Sort/group by deleted_at is
+  // preserved from the loader.
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const filtered = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (q.length === 0) return rows;
+    return rows.filter(
+      (r) =>
+        r.name.toLowerCase().includes(q) ||
+        r.phone.toLowerCase().includes(q) ||
+        r.email.toLowerCase().includes(q) ||
+        r.commodity.toLowerCase().includes(q) ||
+        (r.pickup_zip ?? "").toLowerCase().includes(q) ||
+        (r.delivery_zip ?? "").toLowerCase().includes(q) ||
+        r.id.toLowerCase().includes(q),
+    );
+  }, [rows, searchQuery]);
+
+  const allSelected =
+    filtered.length > 0 && filtered.every((r) => selected.has(r.id));
+  const someSelected =
+    !allSelected && filtered.some((r) => selected.has(r.id));
+  const hasFilter = searchQuery.trim().length > 0;
 
   function toggleRow(id: string, checked: boolean) {
     setSelected((prev) => {
@@ -44,11 +70,23 @@ export function QuoteTrashTable({ rows }: { rows: QuoteTrashRow[] }) {
   }
 
   function toggleAll(checked: boolean) {
-    setSelected(checked ? new Set(rows.map((r) => r.id)) : new Set());
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        for (const r of filtered) next.add(r.id);
+      } else {
+        for (const r of filtered) next.delete(r.id);
+      }
+      return next;
+    });
   }
 
   function clearSelection() {
     setSelected(new Set());
+  }
+
+  function clearFilters() {
+    setSearchQuery("");
   }
 
   function bulkRestore() {
@@ -123,8 +161,49 @@ export function QuoteTrashTable({ rows }: { rows: QuoteTrashRow[] }) {
 
   return (
     <>
+      {/* Phase OPS-3: search bar. No status filter — trash items share
+          the same soft-deleted state. */}
+      <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-stretch">
+        <div className="relative flex-1">
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search name, phone, email, commodity, lane, ID..."
+            className="block w-full border border-zinc-300 bg-white px-4 py-2.5 pr-10 text-sm text-zinc-900 placeholder:text-zinc-500 focus:border-red-600 focus:outline-none"
+            aria-label="Search trashed quotes"
+          />
+          {searchQuery ? (
+            <button
+              type="button"
+              onClick={() => setSearchQuery("")}
+              className="absolute inset-y-0 right-0 flex items-center px-3 text-zinc-500 transition-colors hover:text-zinc-900"
+              aria-label="Clear search"
+            >
+              ×
+            </button>
+          ) : null}
+        </div>
+        {hasFilter ? (
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="inline-flex items-center justify-center border border-zinc-300 bg-white px-4 py-2.5 text-xs font-semibold tracking-[0.12em] uppercase text-zinc-700 transition-colors hover:border-zinc-400 hover:text-zinc-900 sm:w-auto"
+          >
+            Clear
+          </button>
+        ) : null}
+      </div>
+
+      {hasFilter ? (
+        <p className="mt-2 text-xs text-zinc-600">
+          Showing {filtered.length} of {rows.length} record
+          {rows.length === 1 ? "" : "s"}
+        </p>
+      ) : null}
+
       {selected.size > 0 ? (
-        <div className="mt-3 flex items-center justify-between gap-4 border border-zinc-300 bg-white px-4 py-3">
+        <div className="sticky top-0 z-20 mt-3 flex items-center justify-between gap-4 border border-zinc-300 bg-white px-4 py-3 shadow-sm">
           <span className="font-mono text-xs tracking-[0.12em] text-zinc-900 uppercase">
             {selected.size} selected
           </span>
@@ -183,7 +262,23 @@ export function QuoteTrashTable({ rows }: { rows: QuoteTrashRow[] }) {
           </div>
 
           <div className="divide-y divide-zinc-200 border-l border-r border-b border-zinc-200 bg-white">
-            {rows.map((r) => {
+            {filtered.length === 0 ? (
+              <div className="px-3 py-8 text-center">
+                <p className="text-sm text-zinc-600">
+                  No trashed records match your search.
+                </p>
+                {hasFilter ? (
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="mt-3 inline-flex items-center border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold tracking-[0.12em] uppercase text-zinc-700 transition-colors hover:border-zinc-400 hover:text-zinc-900"
+                  >
+                    Clear search
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+            {filtered.map((r) => {
               const isSel = selected.has(r.id);
               return (
                 <div
@@ -221,7 +316,7 @@ export function QuoteTrashTable({ rows }: { rows: QuoteTrashRow[] }) {
                     <span className="truncate text-sm text-zinc-700">
                       {r.commodity}
                     </span>
-                    <span className="font-mono text-xs tracking-[0.12em] text-zinc-500 uppercase">
+                    <span className="font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase">
                       {r.delete_after
                         ? formatDateShort(r.delete_after).slice(0, 10)
                         : "\u2014"}

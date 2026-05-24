@@ -17,7 +17,7 @@ async function loadQuotes(): Promise<{
     sb
       .from("quote_requests")
       .select(
-        "id, created_at, name, email, phone, commodity, weight, lead_status",
+        "id, created_at, name, email, phone, commodity, weight, lead_status, pickup_zip, delivery_zip",
       )
       .is("deleted_at", null)
       .order("created_at", { ascending: false }),
@@ -60,7 +60,7 @@ export default async function QuotesPage() {
       />
 
       {rows.length === 0 ? (
-        <p className="mt-12 text-sm text-zinc-500">
+        <p className="mt-12 text-sm text-zinc-600">
           No active quote requests.
         </p>
       ) : (

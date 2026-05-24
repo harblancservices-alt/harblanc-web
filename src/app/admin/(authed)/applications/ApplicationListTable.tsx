@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useMemo } from "react";
 import Link from "next/link";
 import { formatTimestampShort, isNew } from "@/lib/admin/format";
 import { softDeleteApplication, softDeleteApplications } from "./actions";
@@ -31,8 +31,49 @@ export function ApplicationListTable({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
 
-  const allSelected = rows.length > 0 && selected.size === rows.length;
-  const someSelected = selected.size > 0 && selected.size < rows.length;
+  // Phase OPS-3: client-side search + CDL filter. Unique CDL values
+  // are derived from the loaded rows so the filter dropdown always
+  // shows actually-present options (no stale enum drift).
+  const [searchQuery, setSearchQuery] = useState("");
+  const [cdlFilter, setCdlFilter] = useState<string>("");
+
+  const cdlOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of rows) {
+      if (r.cdl_status && r.cdl_status.trim().length > 0) {
+        set.add(r.cdl_status);
+      }
+    }
+    return Array.from(set).sort();
+  }, [rows]);
+
+  const filtered = useMemo(() => {
+    let result = rows;
+    if (cdlFilter) {
+      result = result.filter((r) => r.cdl_status === cdlFilter);
+    }
+    const q = searchQuery.trim().toLowerCase();
+    if (q.length > 0) {
+      result = result.filter(
+        (r) =>
+          r.name.toLowerCase().includes(q) ||
+          r.phone.toLowerCase().includes(q) ||
+          r.email.toLowerCase().includes(q) ||
+          r.equipment_type.toLowerCase().includes(q) ||
+          r.cdl_status.toLowerCase().includes(q) ||
+          (r.home_base ?? "").toLowerCase().includes(q) ||
+          (r.years_experience ?? "").toLowerCase().includes(q) ||
+          r.id.toLowerCase().includes(q),
+      );
+    }
+    return result;
+  }, [rows, searchQuery, cdlFilter]);
+
+  const allSelected =
+    filtered.length > 0 && filtered.every((r) => selected.has(r.id));
+  const someSelected =
+    !allSelected && filtered.some((r) => selected.has(r.id));
+  const hasFilter = searchQuery.trim().length > 0 || cdlFilter !== "";
 
   function toggleRow(id: string, checked: boolean) {
     setSelected((prev) => {
@@ -44,11 +85,24 @@ export function ApplicationListTable({
   }
 
   function toggleAll(checked: boolean) {
-    setSelected(checked ? new Set(rows.map((r) => r.id)) : new Set());
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        for (const r of filtered) next.add(r.id);
+      } else {
+        for (const r of filtered) next.delete(r.id);
+      }
+      return next;
+    });
   }
 
   function clearSelection() {
     setSelected(new Set());
+  }
+
+  function clearFilters() {
+    setSearchQuery("");
+    setCdlFilter("");
   }
 
   function bulkSoftDelete() {
@@ -86,8 +140,64 @@ export function ApplicationListTable({
 
   return (
     <>
+      {/* Phase OPS-3: search + CDL filter. Search input always visible;
+          CDL filter shares the row on sm+, stacks on mobile. */}
+      <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-stretch">
+        <div className="relative flex-1">
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search name, phone, email, equipment, home base..."
+            className="block w-full border border-zinc-300 bg-white px-4 py-2.5 pr-10 text-sm text-zinc-900 placeholder:text-zinc-500 focus:border-red-600 focus:outline-none"
+            aria-label="Search applications"
+          />
+          {searchQuery ? (
+            <button
+              type="button"
+              onClick={() => setSearchQuery("")}
+              className="absolute inset-y-0 right-0 flex items-center px-3 text-zinc-500 transition-colors hover:text-zinc-900"
+              aria-label="Clear search"
+            >
+              ×
+            </button>
+          ) : null}
+        </div>
+        {cdlOptions.length > 0 ? (
+          <select
+            value={cdlFilter}
+            onChange={(e) => setCdlFilter(e.target.value)}
+            className="block w-full border border-zinc-300 bg-white px-3 py-2.5 text-xs font-semibold tracking-[0.12em] uppercase text-zinc-700 focus:border-red-600 focus:outline-none sm:w-auto"
+            aria-label="Filter by CDL status"
+          >
+            <option value="">All CDL statuses</option>
+            {cdlOptions.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        ) : null}
+        {hasFilter ? (
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="inline-flex items-center justify-center border border-zinc-300 bg-white px-4 py-2.5 text-xs font-semibold tracking-[0.12em] uppercase text-zinc-700 transition-colors hover:border-zinc-400 hover:text-zinc-900 sm:w-auto"
+          >
+            Clear
+          </button>
+        ) : null}
+      </div>
+
+      {hasFilter ? (
+        <p className="mt-2 text-xs text-zinc-600">
+          Showing {filtered.length} of {rows.length} record
+          {rows.length === 1 ? "" : "s"}
+        </p>
+      ) : null}
+
       {selected.size > 0 ? (
-        <div className="mt-3 flex items-center justify-between gap-4 border border-zinc-300 bg-white px-4 py-3">
+        <div className="sticky top-0 z-20 mt-3 flex items-center justify-between gap-4 border border-zinc-300 bg-white px-4 py-3 shadow-sm">
           <span className="font-mono text-xs tracking-[0.12em] text-zinc-900 uppercase">
             {selected.size} selected
           </span>
@@ -140,7 +250,23 @@ export function ApplicationListTable({
           </div>
 
           <div className="divide-y divide-zinc-200 border-l border-r border-b border-zinc-200 bg-white">
-            {rows.map((r) => {
+            {filtered.length === 0 ? (
+              <div className="px-3 py-8 text-center">
+                <p className="text-sm text-zinc-600">
+                  No applications match your filter.
+                </p>
+                {hasFilter ? (
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="mt-3 inline-flex items-center border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold tracking-[0.12em] uppercase text-zinc-700 transition-colors hover:border-zinc-400 hover:text-zinc-900"
+                  >
+                    Clear filters
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+            {filtered.map((r) => {
               const isSel = selected.has(r.id);
               return (
                 <div
