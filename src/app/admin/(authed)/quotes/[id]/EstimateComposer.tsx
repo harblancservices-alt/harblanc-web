@@ -72,9 +72,9 @@ export type EstimateComposerProps = {
 };
 
 const inputCls =
-  "block w-full bg-neutral-900 border border-neutral-800 px-3 py-2.5 text-base text-zinc-100 placeholder:text-neutral-600 focus:border-red-600 focus:outline-none";
+  "block w-full bg-white border border-zinc-200 px-3 py-2.5 text-base text-zinc-900 placeholder:text-zinc-500 focus:border-red-600 focus:outline-none";
 const labelCls =
-  "block font-mono text-[10px] tracking-[0.22em] text-label-fg uppercase";
+  "block font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase";
 
 function defaultExpiry(): string {
   const d = new Date();
@@ -294,22 +294,22 @@ export function EstimateComposer(props: EstimateComposerProps) {
   return (
     <section className="space-y-5">
       <header>
-        <h2 className="font-mono text-[10px] tracking-[0.22em] text-red-500 uppercase">
+        <h2 className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
           Quick estimate
         </h2>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-neutral-300">
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-700">
           Rate range, miles, and a closing line. Build a preview, review,
           then send. The customer gets exactly what the preview shows.
         </p>
       </header>
 
       {laneIncomplete ? (
-        <div className="flex items-start gap-3 border border-amber-700/60 bg-amber-950/30 p-4">
+        <div className="flex items-start gap-3 border border-amber-300 bg-amber-50 p-4">
           <span
             aria-hidden
             className="mt-0.5 inline-block h-3 w-1 shrink-0 bg-amber-500"
           />
-          <p className="text-sm leading-relaxed text-amber-100">
+          <p className="text-sm leading-relaxed text-amber-900">
             Lane ZIPs are missing on this lead. Can&rsquo;t build a preview
             without ZIPs for the lane recap.
           </p>
@@ -368,14 +368,14 @@ export function EstimateComposer(props: EstimateComposerProps) {
       </div>
 
       {/* RPM preview strip */}
-      <div className="flex items-center gap-4 border border-neutral-800 bg-neutral-950 px-4 py-3">
-        <span className="font-mono text-[10px] tracking-[0.22em] text-neutral-500 uppercase">
+      <div className="flex items-center gap-4 border border-zinc-200 bg-zinc-50 px-4 py-3">
+        <span className="font-mono text-xs tracking-[0.12em] text-zinc-500 uppercase">
           RPM preview
         </span>
-        <span className="font-mono text-sm text-white">
+        <span className="font-mono text-sm text-zinc-900">
           {rpmLow !== null ? `$${rpmLow.toFixed(2)}` : "—"}
           {rpmHigh !== null ? ` – $${rpmHigh.toFixed(2)}` : ""}
-          <span className="ml-1 text-neutral-500">/ mile</span>
+          <span className="ml-1 text-zinc-500">/ mile</span>
         </span>
       </div>
 
@@ -446,10 +446,10 @@ export function EstimateComposer(props: EstimateComposerProps) {
                 onClick={() => pickTemplate(t.id)}
                 title={t.description}
                 className={
-                  "border px-3 py-1.5 font-mono text-[10px] tracking-[0.18em] uppercase transition-colors " +
+                  "border px-3 py-1.5 font-mono text-xs tracking-[0.12em] uppercase transition-colors " +
                   (active
-                    ? "border-red-600 bg-red-950/40 text-red-200"
-                    : "border-neutral-700 bg-neutral-900/40 text-neutral-300 hover:border-neutral-500 hover:text-white")
+                    ? "border-red-600 bg-red-50 text-red-800"
+                    : "border-zinc-300 bg-zinc-100 text-zinc-700 hover:border-zinc-400 hover:text-zinc-900")
                 }
               >
                 {t.label}
@@ -473,7 +473,7 @@ export function EstimateComposer(props: EstimateComposerProps) {
           <button
             type="button"
             onClick={resetClosingToTemplate}
-            className="mt-2 font-mono text-[10px] tracking-[0.18em] text-neutral-500 uppercase hover:text-white"
+            className="mt-2 font-mono text-xs tracking-[0.12em] text-zinc-500 uppercase hover:text-zinc-900"
           >
             Reset to template
           </button>
@@ -483,7 +483,7 @@ export function EstimateComposer(props: EstimateComposerProps) {
       {notice ? (
         <p
           role="status"
-          className="font-mono text-[10px] tracking-[0.14em] text-green-400 uppercase"
+          className="font-mono text-xs tracking-[0.12em] text-green-800 uppercase"
         >
           {notice}
         </p>
@@ -491,24 +491,24 @@ export function EstimateComposer(props: EstimateComposerProps) {
       {error ? (
         <div
           role="alert"
-          className="flex items-start gap-3 border border-red-700 bg-red-950/30 p-4"
+          className="flex items-start gap-3 border border-red-300 bg-red-50 p-4"
         >
           <span
             aria-hidden
             className="mt-0.5 inline-block h-3 w-1 shrink-0 bg-red-600"
           />
-          <p className="text-sm leading-relaxed text-red-200">{error}</p>
+          <p className="text-sm leading-relaxed text-red-800">{error}</p>
         </div>
       ) : null}
 
       {/* Action row — Save Draft + Build/Rebuild Preview. Send appears
           below the preview once it's fresh. */}
-      <div className="flex flex-col-reverse items-stretch gap-3 border-t border-neutral-800 pt-5 sm:flex-row sm:items-center sm:justify-end">
+      <div className="flex flex-col-reverse items-stretch gap-3 border-t border-zinc-200 pt-5 sm:flex-row sm:items-center sm:justify-end">
         <button
           type="button"
           onClick={onSaveDraft}
           disabled={isPending}
-          className="btn-outline-cut inline-flex items-center justify-center px-5 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-zinc-100 transition-colors disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+          className="btn-outline-cut inline-flex items-center justify-center px-5 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-zinc-900 transition-colors disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
           {isPending && !building ? "Working…" : "Save draft"}
         </button>
@@ -516,7 +516,7 @@ export function EstimateComposer(props: EstimateComposerProps) {
           type="button"
           onClick={onBuildPreview}
           disabled={isPending || laneIncomplete}
-          className="btn-cut inline-flex items-center justify-center bg-red-600 px-5 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+          className="btn-cut inline-flex items-center justify-center bg-red-600 px-5 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-zinc-900 transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
           {building
             ? "Building…"
@@ -530,12 +530,12 @@ export function EstimateComposer(props: EstimateComposerProps) {
       {preview ? (
         <div className="space-y-4 pt-2">
           {stale ? (
-            <div className="flex items-start gap-3 border border-amber-700/60 bg-amber-950/30 p-4">
+            <div className="flex items-start gap-3 border border-amber-300 bg-amber-50 p-4">
               <span
                 aria-hidden
                 className="mt-0.5 inline-block h-3 w-1 shrink-0 bg-amber-500"
               />
-              <p className="text-sm leading-relaxed text-amber-100">
+              <p className="text-sm leading-relaxed text-amber-900">
                 Preview is stale — rebuild before sending. The composer
                 fields have changed since this preview was built; Send is
                 disabled until you rebuild.
@@ -549,14 +549,14 @@ export function EstimateComposer(props: EstimateComposerProps) {
             className={
               "border p-4 sm:p-5 " +
               (stale
-                ? "border-neutral-800 bg-neutral-950"
-                : "border-red-700/60 bg-red-950/20")
+                ? "border-zinc-200 bg-zinc-50"
+                : "border-red-300 bg-red-50/20")
             }
           >
             <p
               className={
-                "font-mono text-[10px] tracking-[0.22em] uppercase " +
-                (stale ? "text-neutral-500" : "text-red-300")
+                "font-mono text-xs tracking-[0.12em] uppercase " +
+                (stale ? "text-zinc-500" : "text-red-700")
               }
             >
               {stale ? "Send disabled" : "Ready to send"}
@@ -564,7 +564,7 @@ export function EstimateComposer(props: EstimateComposerProps) {
             <p
               className={
                 "mt-2 text-sm leading-relaxed " +
-                (stale ? "text-neutral-400" : "text-red-100")
+                (stale ? "text-zinc-600" : "text-red-800")
               }
             >
               {stale ? (
@@ -586,7 +586,7 @@ export function EstimateComposer(props: EstimateComposerProps) {
                 type="button"
                 onClick={onSend}
                 disabled={isPending || stale}
-                className="btn-cut inline-flex items-center justify-center bg-red-600 px-6 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+                className="btn-cut inline-flex items-center justify-center bg-red-600 px-6 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-zinc-900 transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isPending && !building ? "Sending…" : "Send estimate"}
               </button>
@@ -611,7 +611,7 @@ function Field({
     <div>
       <label className={labelCls}>
         {label}
-        {required ? <span className="ml-1 text-red-500">*</span> : null}
+        {required ? <span className="ml-1 text-red-600">*</span> : null}
       </label>
       <div className="mt-2">{children}</div>
     </div>

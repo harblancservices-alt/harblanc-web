@@ -13,7 +13,7 @@ export type GeneratedQuoteSummary = {
 };
 
 const ROW_LABEL =
-  "font-mono text-[10px] tracking-[0.22em] text-neutral-500 uppercase";
+  "font-mono text-xs tracking-[0.12em] text-zinc-500 uppercase";
 
 function dateOnly(iso: string | null): string {
   if (!iso) return "\u2014";
@@ -45,28 +45,28 @@ export function GeneratedQuotePreview({
   return (
     <div className="space-y-5">
       {/* Summary strip */}
-      <div className="grid grid-cols-1 gap-4 border border-neutral-800 bg-neutral-900/40 p-4 sm:grid-cols-4 sm:gap-6 sm:p-5">
+      <div className="grid grid-cols-1 gap-4 border border-zinc-200 bg-zinc-100 p-4 sm:grid-cols-4 sm:gap-6 sm:p-5">
         <div>
           <p className={ROW_LABEL}>Quote</p>
-          <p className="mt-1 font-mono text-base font-semibold text-white">
+          <p className="mt-1 font-mono text-base font-semibold text-zinc-900">
             {quote.quoteNumber}
           </p>
         </div>
         <div>
           <p className={ROW_LABEL}>Issued</p>
-          <p className="mt-1 font-mono text-base text-white">
+          <p className="mt-1 font-mono text-base text-zinc-900">
             {dateOnly(quote.issuedAt)}
           </p>
         </div>
         <div>
           <p className={ROW_LABEL}>Expires</p>
-          <p className="mt-1 font-mono text-base text-white">
+          <p className="mt-1 font-mono text-base text-zinc-900">
             {dateOnly(quote.expiresAt)}
           </p>
         </div>
         <div>
           <p className={ROW_LABEL}>Total</p>
-          <p className="mt-1 font-mono text-base font-semibold text-white">
+          <p className="mt-1 font-mono text-base font-semibold text-zinc-900">
             {currency(quote.totalAmount)}
           </p>
         </div>
@@ -78,14 +78,14 @@ export function GeneratedQuotePreview({
           href={signedUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="btn-outline-cut inline-flex w-full items-center justify-center px-5 py-3 text-xs font-semibold uppercase tracking-[0.14em] text-zinc-100 transition-colors sm:w-auto"
+          className="btn-outline-cut inline-flex w-full items-center justify-center px-5 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-zinc-900 transition-colors sm:w-auto"
         >
           Open PDF
         </a>
         <a
           href={signedUrl}
           download={`HARBLANC_Quote_${quote.quoteNumber}.pdf`}
-          className="btn-outline-cut inline-flex w-full items-center justify-center px-5 py-3 text-xs font-semibold uppercase tracking-[0.14em] text-zinc-100 transition-colors sm:w-auto"
+          className="btn-outline-cut inline-flex w-full items-center justify-center px-5 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-zinc-900 transition-colors sm:w-auto"
         >
           Download PDF
         </a>
@@ -93,17 +93,17 @@ export function GeneratedQuotePreview({
           type="button"
           disabled
           title="Email sending arrives in Phase 2"
-          className="inline-flex w-full items-center justify-center border border-neutral-800 px-5 py-3 text-xs font-semibold uppercase tracking-[0.14em] text-neutral-500 transition-colors disabled:cursor-not-allowed sm:w-auto"
+          className="inline-flex w-full items-center justify-center border border-zinc-200 px-5 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500 transition-colors disabled:cursor-not-allowed sm:w-auto"
         >
           Send Quote PDF (coming soon)
         </button>
       </div>
 
       {/* Inline preview */}
-      <div className="relative border border-neutral-800 bg-neutral-950">
+      <div className="relative border border-zinc-200 bg-zinc-50">
         {iframeFailed ? (
           <div className="flex h-[480px] items-center justify-center p-6 text-center">
-            <p className="text-sm text-neutral-400">
+            <p className="text-sm text-zinc-600">
               Inline preview unavailable on this browser.
               <br />
               Use Open or Download above to view the PDF.
@@ -113,13 +113,13 @@ export function GeneratedQuotePreview({
           <iframe
             src={signedUrl}
             title={`Quote ${quote.quoteNumber}`}
-            className="block h-[640px] w-full bg-neutral-950 sm:h-[820px]"
+            className="block h-[640px] w-full bg-zinc-50 sm:h-[820px]"
             onError={() => setIframeFailed(true)}
           />
         )}
       </div>
 
-      <p className="font-mono text-[10px] tracking-[0.22em] text-neutral-600 uppercase">
+      <p className="font-mono text-xs tracking-[0.12em] text-zinc-500 uppercase">
         Quote PDF stored in HARBLANC dispatch · {quote.quoteNumber}
       </p>
     </div>

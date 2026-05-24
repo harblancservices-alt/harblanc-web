@@ -21,9 +21,9 @@ type Defaults = {
 type Accessorial = { id: string; label: string; amount: string };
 
 const inputCls =
-  "block w-full bg-neutral-900 border border-neutral-800 px-3 py-2 text-sm text-zinc-100 placeholder:text-neutral-600 focus:border-red-600 focus:outline-none";
+  "block w-full bg-white border border-zinc-200 px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-500 focus:border-red-600 focus:outline-none";
 const labelCls =
-  "block font-mono text-[10px] tracking-[0.22em] text-neutral-400 uppercase";
+  "block font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase";
 
 function newAccessorialId(): string {
   return Math.random().toString(36).slice(2, 9);
@@ -312,13 +312,13 @@ export function GenerateQuoteForm({ defaults }: { defaults: Defaults }) {
             <button
               type="button"
               onClick={addAccessorial}
-              className="font-mono text-[10px] tracking-[0.22em] text-red-500 uppercase transition-colors hover:text-red-400"
+              className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase transition-colors hover:text-red-600"
             >
               + Add row
             </button>
           </div>
           {accessorials.length === 0 ? (
-            <p className="mt-2.5 font-mono text-xs text-neutral-600">
+            <p className="mt-2.5 font-mono text-xs text-zinc-500">
               None. Add detention, tarp, lumper, etc. if applicable.
             </p>
           ) : (
@@ -354,7 +354,7 @@ export function GenerateQuoteForm({ defaults }: { defaults: Defaults }) {
                     onClick={() => removeAccessorial(a.id)}
                     title="Remove"
                     aria-label="Remove accessorial"
-                    className="inline-flex items-center justify-center border border-neutral-700 bg-neutral-900/40 text-sm text-neutral-400 transition-colors hover:border-red-700 hover:bg-red-950/30 hover:text-red-300"
+                    className="inline-flex items-center justify-center border border-zinc-300 bg-zinc-100 text-sm text-zinc-600 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-700"
                   >
                     ×
                   </button>
@@ -365,11 +365,11 @@ export function GenerateQuoteForm({ defaults }: { defaults: Defaults }) {
         </div>
 
         {/* Total preview */}
-        <div className="mt-5 flex items-center justify-between border-t border-neutral-800 pt-4">
-          <span className="font-mono text-[10px] tracking-[0.22em] text-neutral-400 uppercase">
+        <div className="mt-5 flex items-center justify-between border-t border-zinc-200 pt-4">
+          <span className="font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase">
             Total preview
           </span>
-          <span className="font-mono text-lg font-semibold text-white">
+          <span className="font-mono text-lg font-semibold text-zinc-900">
             {previewTotal().toLocaleString("en-US", {
               style: "currency",
               currency: "USD",
@@ -414,22 +414,22 @@ export function GenerateQuoteForm({ defaults }: { defaults: Defaults }) {
       {error ? (
         <div
           role="alert"
-          className="flex items-start gap-3 border border-red-700 bg-red-950/30 p-4"
+          className="flex items-start gap-3 border border-red-300 bg-red-50 p-4"
         >
           <span
             aria-hidden
             className="mt-0.5 inline-block h-3 w-1 shrink-0 bg-red-600"
           />
-          <p className="text-sm leading-relaxed text-red-200">{error}</p>
+          <p className="text-sm leading-relaxed text-red-800">{error}</p>
         </div>
       ) : null}
 
       {/* Submit */}
-      <div className="border-t border-neutral-800 pt-5">
+      <div className="border-t border-zinc-200 pt-5">
         <button
           type="submit"
           disabled={isPending}
-          className="btn-cut inline-flex w-full items-center justify-center bg-red-600 px-6 py-4 text-sm font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+          className="btn-cut inline-flex w-full items-center justify-center bg-red-600 px-6 py-4 text-sm font-semibold uppercase tracking-[0.12em] text-zinc-900 transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
           {isPending ? "Generating PDF…" : "Generate Quote PDF"}
         </button>
@@ -447,7 +447,7 @@ function Section({
 }) {
   return (
     <fieldset>
-      <legend className="font-mono text-[11px] tracking-[0.22em] text-red-500 uppercase">
+      <legend className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
         {title}
       </legend>
       <div className="mt-4">{children}</div>
@@ -474,7 +474,7 @@ function Field({
     <div>
       <label className={labelCls}>
         {label}
-        {required ? <span className="ml-1 text-red-500">*</span> : null}
+        {required ? <span className="ml-1 text-red-600">*</span> : null}
       </label>
       <div className="mt-2">{children}</div>
     </div>

@@ -63,10 +63,10 @@ export function EmailPreviewPanel({ preview }: { preview: EmailPreviewData }) {
   }, [preview.html]);
 
   return (
-    <section className="border border-neutral-700 bg-neutral-950">
+    <section className="border border-zinc-300 bg-zinc-50">
       {/* Frame title bar */}
-      <header className="flex items-center justify-between border-b border-neutral-800 bg-neutral-900 px-4 py-2">
-        <p className="font-mono text-[10px] tracking-[0.22em] text-red-500 uppercase">
+      <header className="flex items-center justify-between border-b border-zinc-200 bg-white px-4 py-2">
+        <p className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
           Preview &nbsp;/&nbsp; not yet sent
         </p>
         <div className="flex items-center gap-1">
@@ -78,10 +78,10 @@ export function EmailPreviewPanel({ preview }: { preview: EmailPreviewData }) {
                 type="button"
                 onClick={() => setWidth(m)}
                 className={
-                  "border px-2.5 py-1 font-mono text-[9px] tracking-[0.22em] uppercase transition-colors " +
+                  "border px-2.5 py-1 font-mono text-xs tracking-[0.12em] uppercase transition-colors " +
                   (isActive
-                    ? "border-red-600 bg-red-950/40 text-red-200"
-                    : "border-neutral-700 bg-neutral-900 text-neutral-400 hover:text-white")
+                    ? "border-red-600 bg-red-50 text-red-800"
+                    : "border-zinc-300 bg-white text-zinc-600 hover:text-zinc-900")
                 }
               >
                 {m}
@@ -92,7 +92,7 @@ export function EmailPreviewPanel({ preview }: { preview: EmailPreviewData }) {
       </header>
 
       {/* Email header strip — mail-app style */}
-      <div className="space-y-1 border-b border-neutral-800 bg-neutral-900/40 px-4 py-3">
+      <div className="space-y-1 border-b border-zinc-200 bg-zinc-100 px-4 py-3">
         <HeaderRow label="From" value={preview.from} />
         <HeaderRow label="To" value={preview.to} />
         <HeaderRow label="Reply-to" value={preview.replyTo} />
@@ -151,17 +151,17 @@ function HeaderRow({
 }) {
   return (
     <div className="grid grid-cols-[80px_minmax(0,1fr)] items-baseline gap-3">
-      <span className="font-mono text-[10px] tracking-[0.22em] text-neutral-500 uppercase">
+      <span className="font-mono text-xs tracking-[0.12em] text-zinc-500 uppercase">
         {label}
       </span>
       <span
         className={
           "min-w-0 break-words text-sm " +
           (emphasize
-            ? "font-semibold text-white"
+            ? "font-semibold text-zinc-900"
             : muted
-              ? "text-neutral-400"
-              : "text-zinc-200")
+              ? "text-zinc-600"
+              : "text-zinc-800")
         }
       >
         {value}

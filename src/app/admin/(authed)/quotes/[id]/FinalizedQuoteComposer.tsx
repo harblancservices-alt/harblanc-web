@@ -116,9 +116,9 @@ export type FinalizedQuoteDraft = {
 };
 
 const labelCls =
-  "block font-mono text-[10px] tracking-[0.22em] text-label-fg uppercase";
+  "block font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase";
 const inputCls =
-  "block w-full bg-neutral-900 border border-neutral-800 px-3 py-2.5 text-base text-zinc-100 placeholder:text-neutral-600 focus:border-red-600 focus:outline-none";
+  "block w-full bg-white border border-zinc-200 px-3 py-2.5 text-base text-zinc-900 placeholder:text-zinc-500 focus:border-red-600 focus:outline-none";
 
 function strOrEmpty(v: string | null | undefined): string {
   return v == null ? "" : v;
@@ -416,19 +416,19 @@ export function FinalizedQuoteComposer({
   return (
     <section className="space-y-6">
       <header>
-        <p className="font-mono text-[10px] tracking-[0.22em] text-red-500 uppercase">
+        <p className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
           Finalized quote
         </p>
-        <h2 className="mt-2 text-2xl font-display tracking-tight text-white sm:text-3xl">
+        <h2 className="mt-2 text-2xl font-display tracking-tight text-zinc-900 sm:text-3xl">
           {draft.finalizedQuoteNumber}
         </h2>
-        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-neutral-300">
+        <p className="mt-2 max-w-2xl text-sm leading-relaxed text-zinc-700">
           This is the formal rate confirmation. Exact pricing, dispatch-confirmed
           scope. Fields prefilled from the shipment intake; adjust as needed before
           building the preview. The customer receives exactly what the preview shows.
         </p>
-        <p className="mt-1 font-mono text-[10px] tracking-[0.22em] text-neutral-500 uppercase">
-          References range quote <span className="text-zinc-300">{draft.rangeQuoteNumberLabel}</span>
+        <p className="mt-1 font-mono text-xs tracking-[0.12em] text-zinc-500 uppercase">
+          References range quote <span className="text-zinc-700">{draft.rangeQuoteNumberLabel}</span>
         </p>
       </header>
 
@@ -539,7 +539,7 @@ export function FinalizedQuoteComposer({
         <div className="space-y-3">
           <p className={labelCls}>Accessorials</p>
           {accessorials.length === 0 ? (
-            <p className="font-mono text-[11px] text-neutral-500">
+            <p className="font-mono text-xs text-zinc-500">
               No accessorials. Add one for tarp, escort, layover, lumper, etc.
             </p>
           ) : (
@@ -565,7 +565,7 @@ export function FinalizedQuoteComposer({
                   <button
                     type="button"
                     onClick={() => removeAccessorial(i)}
-                    className="border border-neutral-700 bg-neutral-900 px-3 py-2.5 font-mono text-[10px] tracking-[0.18em] text-neutral-400 uppercase hover:text-red-300"
+                    className="border border-zinc-300 bg-white px-3 py-2.5 font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase hover:text-red-700"
                   >
                     Remove
                   </button>
@@ -576,18 +576,18 @@ export function FinalizedQuoteComposer({
           <button
             type="button"
             onClick={addAccessorial}
-            className="border border-neutral-700 bg-neutral-900 px-3 py-2 font-mono text-[10px] tracking-[0.18em] text-neutral-300 uppercase hover:border-neutral-500 hover:text-white"
+            className="border border-zinc-300 bg-white px-3 py-2 font-mono text-xs tracking-[0.12em] text-zinc-700 uppercase hover:border-zinc-400 hover:text-zinc-900"
           >
             + Add accessorial
           </button>
         </div>
 
         {/* Live total preview */}
-        <div className="flex items-center justify-between border border-red-700/60 bg-red-950/20 px-4 py-3">
-          <span className="font-mono text-[10px] tracking-[0.22em] text-red-300 uppercase">
+        <div className="flex items-center justify-between border border-red-300 bg-red-50/20 px-4 py-3">
+          <span className="font-mono text-xs tracking-[0.12em] text-red-700 uppercase">
             Total final rate
           </span>
-          <span className="font-mono text-xl font-semibold text-white">
+          <span className="font-mono text-xl font-semibold text-zinc-900">
             {Number.isFinite(liveTotal) ? formatUsd(liveTotal) : "—"}
           </span>
         </div>
@@ -602,23 +602,23 @@ export function FinalizedQuoteComposer({
           surface, not inside the dispatch invoice. */}
 
       {notice ? (
-        <p role="status" className="font-mono text-[10px] tracking-[0.14em] text-green-400 uppercase">
+        <p role="status" className="font-mono text-xs tracking-[0.12em] text-green-800 uppercase">
           {notice}
         </p>
       ) : null}
       {error ? (
-        <div role="alert" className="flex items-start gap-3 border border-red-700 bg-red-950/30 p-4">
+        <div role="alert" className="flex items-start gap-3 border border-red-300 bg-red-50 p-4">
           <span aria-hidden className="mt-0.5 inline-block h-3 w-1 shrink-0 bg-red-600" />
-          <p className="text-sm leading-relaxed text-red-200">{error}</p>
+          <p className="text-sm leading-relaxed text-red-800">{error}</p>
         </div>
       ) : null}
 
-      <div className="flex flex-col-reverse items-stretch gap-3 border-t border-neutral-800 pt-5 sm:flex-row sm:items-center sm:justify-end">
+      <div className="flex flex-col-reverse items-stretch gap-3 border-t border-zinc-200 pt-5 sm:flex-row sm:items-center sm:justify-end">
         <button
           type="button"
           onClick={onSaveDraft}
           disabled={isPending}
-          className="btn-outline-cut inline-flex items-center justify-center px-5 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-zinc-100 transition-colors disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+          className="btn-outline-cut inline-flex items-center justify-center px-5 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-zinc-900 transition-colors disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
           {isPending && !building ? "Working…" : "Save draft"}
         </button>
@@ -626,7 +626,7 @@ export function FinalizedQuoteComposer({
           type="button"
           onClick={onBuildPreview}
           disabled={isPending}
-          className="btn-cut inline-flex items-center justify-center bg-red-600 px-5 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+          className="btn-cut inline-flex items-center justify-center bg-red-600 px-5 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-zinc-900 transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
           {building ? "Building…" : preview ? "Rebuild preview" : "Build preview"}
         </button>
@@ -635,9 +635,9 @@ export function FinalizedQuoteComposer({
       {preview ? (
         <div className="space-y-4 pt-2">
           {stale ? (
-            <div className="flex items-start gap-3 border border-amber-700/60 bg-amber-950/30 p-4">
+            <div className="flex items-start gap-3 border border-amber-300 bg-amber-50 p-4">
               <span aria-hidden className="mt-0.5 inline-block h-3 w-1 shrink-0 bg-amber-500" />
-              <p className="text-sm leading-relaxed text-amber-100">
+              <p className="text-sm leading-relaxed text-amber-900">
                 Preview is stale — rebuild before sending. The composer fields have
                 changed since this preview was built; Send is disabled until you rebuild.
               </p>
@@ -649,13 +649,13 @@ export function FinalizedQuoteComposer({
           <div
             className={
               "border p-4 sm:p-5 " +
-              (stale ? "border-neutral-800 bg-neutral-950" : "border-red-700/60 bg-red-950/20")
+              (stale ? "border-zinc-200 bg-zinc-50" : "border-red-300 bg-red-50/20")
             }
           >
             <p
               className={
-                "font-mono text-[10px] tracking-[0.22em] uppercase " +
-                (stale ? "text-neutral-500" : "text-red-300")
+                "font-mono text-xs tracking-[0.12em] uppercase " +
+                (stale ? "text-zinc-500" : "text-red-700")
               }
             >
               {stale ? "Send disabled" : "Ready to send"}
@@ -663,7 +663,7 @@ export function FinalizedQuoteComposer({
             <p
               className={
                 "mt-2 text-sm leading-relaxed " +
-                (stale ? "text-neutral-400" : "text-red-100")
+                (stale ? "text-zinc-600" : "text-red-800")
               }
             >
               {stale ? (
@@ -680,7 +680,7 @@ export function FinalizedQuoteComposer({
                 type="button"
                 onClick={onSend}
                 disabled={isPending || stale}
-                className="btn-cut inline-flex items-center justify-center bg-red-600 px-6 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+                className="btn-cut inline-flex items-center justify-center bg-red-600 px-6 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-zinc-900 transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isPending && !building ? "Sending…" : "Send finalized quote"}
               </button>
@@ -696,8 +696,8 @@ export function FinalizedQuoteComposer({
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="border border-neutral-800 bg-neutral-900/40 p-5 sm:p-6">
-      <h3 className="font-mono text-[10px] tracking-[0.22em] text-red-500 uppercase">
+    <section className="border border-zinc-200 bg-zinc-100 p-5 sm:p-6">
+      <h3 className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
         {title}
       </h3>
       <div className="mt-4 space-y-4">{children}</div>
@@ -722,7 +722,7 @@ function Field({
     <div>
       <label className={labelCls}>
         {label}
-        {required ? <span className="ml-1 text-red-500">*</span> : null}
+        {required ? <span className="ml-1 text-red-600">*</span> : null}
       </label>
       <div className="mt-2">{children}</div>
     </div>
@@ -832,14 +832,14 @@ function TriBool({
               type="button"
               onClick={() => onChange(opt)}
               className={
-                "flex-1 border px-2 py-2 font-mono text-[10px] tracking-[0.18em] uppercase transition-colors " +
+                "flex-1 border px-2 py-2 font-mono text-xs tracking-[0.12em] uppercase transition-colors " +
                 (active
                   ? isYes
-                    ? "border-green-700 bg-green-950/40 text-green-200"
+                    ? "border-green-300 bg-green-50 text-green-800"
                     : isNo
-                      ? "border-red-700 bg-red-950/40 text-red-200"
-                      : "border-neutral-600 bg-neutral-800 text-neutral-200"
-                  : "border-neutral-700 bg-neutral-900 text-neutral-400 hover:border-neutral-500 hover:text-white")
+                      ? "border-red-300 bg-red-50 text-red-800"
+                      : "border-zinc-400 bg-white text-zinc-800"
+                  : "border-zinc-300 bg-white text-zinc-600 hover:border-zinc-400 hover:text-zinc-900")
               }
             >
               {display}
