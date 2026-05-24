@@ -26,7 +26,7 @@ const colSpec =
   "grid grid-cols-[40px_160px_minmax(140px,1fr)_140px_minmax(160px,1fr)_120px_100px_140px_150px] gap-x-3";
 
 const checkboxCls =
-  "h-4 w-4 shrink-0 cursor-pointer accent-red-600 border border-neutral-600 bg-neutral-900 focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-1 focus:ring-offset-neutral-950";
+  "h-4 w-4 shrink-0 cursor-pointer accent-red-600 border border-zinc-400 bg-white focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-1 focus:ring-offset-zinc-50";
 
 export function ApplicationTrashTable({
   rows,
@@ -131,8 +131,8 @@ export function ApplicationTrashTable({
   return (
     <>
       {selected.size > 0 ? (
-        <div className="mt-3 flex items-center justify-between gap-4 border border-neutral-700 bg-neutral-900 px-4 py-3">
-          <span className="font-mono text-[11px] tracking-[0.18em] text-white uppercase">
+        <div className="mt-3 flex items-center justify-between gap-4 border border-zinc-300 bg-white px-4 py-3">
+          <span className="font-mono text-xs tracking-[0.12em] text-zinc-900 uppercase">
             {selected.size} selected
           </span>
           <div className="flex items-center gap-2.5">
@@ -140,7 +140,7 @@ export function ApplicationTrashTable({
               type="button"
               onClick={bulkRestore}
               disabled={isPending}
-              className="inline-flex items-center border border-neutral-700 bg-neutral-900/40 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-100 transition-colors hover:border-neutral-500 hover:bg-neutral-900 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center border border-zinc-300 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-zinc-700 transition-colors hover:border-zinc-400 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-60"
             >
               Restore selected
             </button>
@@ -148,14 +148,14 @@ export function ApplicationTrashTable({
               type="button"
               onClick={bulkPermanentDelete}
               disabled={isPending}
-              className="inline-flex items-center bg-red-600 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center bg-red-600 px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60"
             >
               Permanently delete selected
             </button>
             <button
               type="button"
               onClick={clearSelection}
-              className="inline-flex items-center border border-neutral-700 bg-neutral-900/40 px-4 py-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-100 transition-colors hover:border-neutral-500 hover:bg-neutral-900"
+              className="inline-flex items-center border border-zinc-300 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-zinc-700 transition-colors hover:border-zinc-400 hover:bg-zinc-100"
             >
               Clear selection
             </button>
@@ -166,7 +166,7 @@ export function ApplicationTrashTable({
       <div className="mt-5 overflow-x-auto">
         <div className="min-w-[1240px]">
           <div
-            className={`${colSpec} items-center border-b border-neutral-700 bg-neutral-900 px-3 py-3`}
+            className={`${colSpec} items-center border-b border-zinc-300 bg-zinc-100 px-3 py-3`}
           >
             <div>
               <input
@@ -190,15 +190,15 @@ export function ApplicationTrashTable({
             <span />
           </div>
 
-          <div className="divide-y divide-neutral-800">
+          <div className="divide-y divide-zinc-200 border-l border-r border-b border-zinc-200 bg-white">
             {rows.map((r) => {
               const isSel = selected.has(r.id);
               return (
                 <div
                   key={r.id}
                   className={
-                    `${colSpec} items-center px-3 py-2.5 transition-colors hover:bg-neutral-900 ` +
-                    (isSel ? "bg-neutral-900/60" : "")
+                    `${colSpec} items-center px-3 py-2.5 transition-colors hover:bg-zinc-50 ` +
+                    (isSel ? "bg-red-50" : "")
                   }
                 >
                   <div>
@@ -214,25 +214,25 @@ export function ApplicationTrashTable({
                     href={`/admin/applications/${r.id}`}
                     className="contents"
                   >
-                    <span className="font-mono text-xs text-neutral-300">
+                    <span className="font-mono text-xs text-zinc-700">
                       {formatTimestampShort(r.deleted_at)}
                     </span>
-                    <span className="truncate text-sm font-semibold text-white">
+                    <span className="truncate text-sm font-semibold text-zinc-900">
                       {r.name}
                     </span>
-                    <span className="font-mono text-xs text-neutral-300">
+                    <span className="font-mono text-xs text-zinc-700">
                       {r.phone}
                     </span>
-                    <span className="truncate text-xs text-neutral-300">
+                    <span className="truncate text-xs text-zinc-700">
                       {r.email}
                     </span>
-                    <span className="truncate text-sm text-neutral-300">
+                    <span className="truncate text-sm text-zinc-700">
                       {r.equipment_type}
                     </span>
-                    <span className="text-sm text-neutral-300">
+                    <span className="text-sm text-zinc-700">
                       {r.cdl_status}
                     </span>
-                    <span className="font-mono text-[11px] tracking-[0.14em] text-neutral-500 uppercase">
+                    <span className="font-mono text-xs tracking-[0.12em] text-zinc-500 uppercase">
                       {r.delete_after
                         ? formatDateShort(r.delete_after).slice(0, 10)
                         : "\u2014"}
@@ -245,7 +245,7 @@ export function ApplicationTrashTable({
                       disabled={isPending}
                       title="Restore"
                       aria-label={`Restore ${r.name}`}
-                      className="inline-flex items-center justify-center border border-neutral-700 bg-neutral-900/40 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-200 transition-colors hover:border-neutral-500 hover:bg-neutral-900 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="inline-flex items-center justify-center border border-zinc-300 bg-white px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-zinc-700 transition-colors hover:border-zinc-400 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       Restore
                     </button>
@@ -255,7 +255,7 @@ export function ApplicationTrashTable({
                       disabled={isPending}
                       title="Permanently delete"
                       aria-label={`Permanently delete ${r.name}`}
-                      className="inline-flex items-center justify-center bg-red-600 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="inline-flex items-center justify-center bg-red-600 px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       Delete
                     </button>
@@ -272,7 +272,7 @@ export function ApplicationTrashTable({
 
 function Th({ children }: { children: React.ReactNode }) {
   return (
-    <span className="font-mono text-[10px] tracking-[0.22em] text-neutral-500 uppercase">
+    <span className="label-cap text-zinc-600">
       {children}
     </span>
   );

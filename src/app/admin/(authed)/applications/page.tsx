@@ -38,10 +38,10 @@ export default async function ApplicationsPage() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
       <header className="pb-5">
-        <p className="font-mono text-[11px] tracking-[0.22em] text-red-500 uppercase">
+        <p className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
           Applications
         </p>
-        <h1 className="mt-2 text-2xl font-display tracking-tight text-white sm:text-3xl">
+        <h1 className="mt-2 text-2xl font-display tracking-tight text-zinc-900 sm:text-3xl">
           Owner-operator applications
         </h1>
       </header>
@@ -63,7 +63,7 @@ export default async function ApplicationsPage() {
       />
 
       {rows.length === 0 ? (
-        <p className="mt-12 text-sm text-neutral-500">
+        <p className="mt-12 text-sm text-zinc-500">
           No incoming applications.
         </p>
       ) : (

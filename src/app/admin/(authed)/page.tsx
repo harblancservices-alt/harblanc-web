@@ -9,7 +9,7 @@ import {
 import {
   computeUrgency,
   topUrgency,
-  URGENCY_SEVERITY_CLASSES,
+  URGENCY_SEVERITY_CLASSES_LIGHT,
   type UrgencyChip,
 } from "@/lib/dispatch/urgency";
 import { validateEnv } from "@/lib/env";
@@ -309,16 +309,16 @@ export default async function DashboardPage() {
       {ops.envIssues.length > 0 ? <EnvBanner issues={ops.envIssues} /> : null}
 
       <header>
-        <p className="font-mono text-[11px] tracking-[0.22em] text-red-500 uppercase">
+        <p className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
           Overview
         </p>
-        <h1 className="mt-2 text-2xl font-display tracking-tight text-white sm:text-3xl">
+        <h1 className="mt-2 text-2xl font-display tracking-tight text-zinc-900 sm:text-3xl">
           Dispatch center
         </h1>
       </header>
 
       {/* Counters */}
-      <div className="mt-6 grid grid-cols-2 border border-neutral-800 sm:grid-cols-4">
+      <div className="mt-6 grid grid-cols-2 border border-zinc-200 bg-white sm:grid-cols-4">
         <Counter label="Active leads" value={totalActive} href="/admin/quotes" />
         <Counter label="New today" value={newToday} href="/admin/quotes" divider />
         <Counter
@@ -337,17 +337,17 @@ export default async function DashboardPage() {
             <h2 className="label-cap">
               Needs attention
             </h2>
-            <p className="label-cap text-neutral-500">
+            <p className="label-cap text-zinc-600">
               {attention.length} lead{attention.length === 1 ? "" : "s"}
             </p>
           </header>
-          <ul className="mt-3 divide-y divide-neutral-900 border-y border-neutral-900">
+          <ul className="mt-3 divide-y divide-zinc-200 border-y border-zinc-200 bg-white">
             {attention.slice(0, 8).map((e) => (
               <LeadRowItem key={e.row.id} enriched={e} showStatus />
             ))}
           </ul>
           {attention.length > 8 ? (
-            <p className="mt-3 text-right label-cap text-neutral-500">
+            <p className="mt-3 text-right label-cap text-zinc-600">
               + {attention.length - 8} more
             </p>
           ) : null}
@@ -371,26 +371,26 @@ export default async function DashboardPage() {
 
       {/* Recent applications */}
       <section className="mt-10">
-        <h2 className="label-cap text-neutral-500">
+        <h2 className="label-cap text-zinc-600">
           Recent applications
         </h2>
-        <ul className="mt-3 divide-y divide-neutral-900 border-y border-neutral-900">
+        <ul className="mt-3 divide-y divide-zinc-200 border-y border-zinc-200 bg-white">
           {ops.recentApps.length === 0 ? (
-            <li className="px-1 py-3 text-sm text-neutral-500">No incoming applications.</li>
+            <li className="px-1 py-3 text-sm text-zinc-500">No incoming applications.</li>
           ) : (
             ops.recentApps.map((r) => (
               <li key={r.id}>
                 <Link
                   href={`/admin/applications/${r.id}`}
-                  className="block px-1 py-2.5 transition-colors hover:bg-neutral-900"
+                  className="block px-1 py-2.5 transition-colors hover:bg-zinc-100"
                 >
                   <div className="flex items-baseline justify-between gap-3">
-                    <span className="truncate text-sm text-white">{r.name}</span>
-                    <span className="font-mono text-[10px] tracking-[0.18em] text-neutral-500 uppercase shrink-0">
+                    <span className="truncate text-sm text-zinc-900">{r.name}</span>
+                    <span className="font-mono text-xs tracking-[0.12em] text-zinc-500 uppercase shrink-0">
                       {formatTimestampShort(r.created_at)}
                     </span>
                   </div>
-                  <p className="mt-0.5 truncate font-mono text-[10px] tracking-[0.14em] text-neutral-500 uppercase">
+                  <p className="mt-0.5 truncate font-mono text-xs tracking-[0.12em] text-zinc-500 uppercase">
                     {[r.equipment_type, r.cdl_status].filter(Boolean).join(" · ")}
                   </p>
                 </Link>
@@ -420,10 +420,10 @@ function Counter({
 }) {
   const valueColor =
     accent === "alert" && value > 0
-      ? "text-red-400"
+      ? "text-red-600"
       : value > 0
-        ? "text-white"
-        : "text-neutral-500";
+        ? "text-zinc-900"
+        : "text-zinc-500";
   const inner = (
     <>
       <p className="label-cap">
@@ -436,8 +436,8 @@ function Counter({
   );
   const baseCls =
     "block px-4 py-5 sm:px-5 sm:py-6 " +
-    (divider ? "border-l border-neutral-800 " : "") +
-    (href ? "transition-colors hover:bg-neutral-900" : "");
+    (divider ? "border-l border-zinc-200 " : "") +
+    (href ? "transition-colors hover:bg-zinc-100" : "");
   if (href) {
     return (
       <Link href={href} className={baseCls}>
@@ -451,12 +451,12 @@ function Counter({
 function Bucket({ label, leads }: { label: string; leads: EnrichedLead[] }) {
   if (leads.length === 0) {
     return (
-      <section className="border border-neutral-900 bg-neutral-950">
+      <section className="border border-zinc-200 bg-zinc-50">
         <header className="flex items-baseline justify-between px-4 py-3">
-          <h3 className="label-cap text-neutral-500">
+          <h3 className="label-cap text-zinc-600">
             {label}
           </h3>
-          <span className="font-mono text-[10px] tracking-[0.22em] text-neutral-700 uppercase">
+          <span className="font-mono text-xs tracking-[0.12em] text-zinc-400 uppercase">
             0
           </span>
         </header>
@@ -468,22 +468,22 @@ function Bucket({ label, leads }: { label: string; leads: EnrichedLead[] }) {
   const remaining = leads.length - visible.length;
 
   return (
-    <section className="border border-neutral-800 bg-neutral-950">
-      <header className="flex items-baseline justify-between border-b border-neutral-800 px-4 py-3">
+    <section className="border border-zinc-200 bg-white">
+      <header className="flex items-baseline justify-between border-b border-zinc-200 px-4 py-3">
         <h3 className="label-cap">
           {label}
         </h3>
-        <span className="font-mono text-[10px] tracking-[0.22em] text-neutral-400 uppercase">
+        <span className="font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase">
           {leads.length}
         </span>
       </header>
-      <ul className="divide-y divide-neutral-900">
+      <ul className="divide-y divide-zinc-200">
         {visible.map((e) => (
           <LeadRowItem key={e.row.id} enriched={e} />
         ))}
       </ul>
       {remaining > 0 ? (
-        <p className="border-t border-neutral-900 px-4 py-2 text-right label-cap text-neutral-500">
+        <p className="border-t border-zinc-200 px-4 py-2 text-right label-cap text-zinc-600">
           + {remaining} more
         </p>
       ) : null}
@@ -511,37 +511,37 @@ function LeadRowItem({
     <li>
       <Link
         href={`/admin/quotes/${row.id}`}
-        className="block px-4 py-3 transition-colors hover:bg-neutral-900"
+        className="block px-4 py-3 transition-colors hover:bg-zinc-100"
       >
         <div className="flex items-baseline justify-between gap-3">
           <div className="flex min-w-0 items-baseline gap-2">
-            <span className="truncate text-sm font-medium text-white">
+            <span className="truncate text-sm font-medium text-zinc-900">
               {row.name}
             </span>
-            <span className="font-mono text-[10px] text-neutral-500">{lane}</span>
+            <span className="font-mono text-xs text-zinc-600">{lane}</span>
           </div>
-          <span className="font-mono text-[10px] tracking-[0.18em] text-neutral-500 uppercase shrink-0">
+          <span className="font-mono text-xs tracking-[0.12em] text-zinc-500 uppercase shrink-0">
             {sinceStatus}
           </span>
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1.5">
           {showStatus ? (
-            <span className="font-mono text-[9px] tracking-[0.22em] text-neutral-400 uppercase">
+            <span className="font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase">
               {LEAD_STATUS_LABELS[row.lead_status]}
             </span>
           ) : null}
           {top ? (
             <span
               className={
-                "inline-flex items-center border px-2 py-0.5 font-mono text-[9px] tracking-[0.22em] uppercase " +
-                URGENCY_SEVERITY_CLASSES[top.severity]
+                "inline-flex items-center border px-2 py-0.5 font-mono text-xs tracking-[0.12em] uppercase " +
+                URGENCY_SEVERITY_CLASSES_LIGHT[top.severity]
               }
             >
               {top.label}
             </span>
           ) : null}
           {row.assigned_dispatcher || row.assigned_carrier ? (
-            <span className="font-mono text-[9px] tracking-[0.18em] text-neutral-500 uppercase">
+            <span className="font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase">
               {row.assigned_dispatcher || ""}
               {row.assigned_dispatcher && row.assigned_carrier ? " · " : ""}
               {row.assigned_carrier || ""}
@@ -555,15 +555,15 @@ function LeadRowItem({
 
 function EnvBanner({ issues }: { issues: string[] }) {
   return (
-    <div className="mb-6 border border-amber-700/60 bg-amber-950/30 p-4">
-      <p className="text-[11px] font-semibold tracking-[0.18em] text-amber-400 uppercase">
+    <div className="mb-6 border border-amber-300 bg-amber-50 p-4">
+      <p className="text-xs font-semibold tracking-[0.12em] text-amber-800 uppercase">
         System check
       </p>
-      <p className="mt-1 text-sm leading-relaxed text-amber-100">
+      <p className="mt-1 text-sm leading-relaxed text-amber-900">
         Missing or invalid environment configuration. Some features may not
         work until these are set:
       </p>
-      <ul className="mt-2 list-inside list-disc font-mono text-xs text-amber-200">
+      <ul className="mt-2 list-inside list-disc font-mono text-xs text-amber-800">
         {issues.map((i) => (
           <li key={i}>{i}</li>
         ))}

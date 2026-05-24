@@ -41,20 +41,20 @@ export default async function ApplicationsTrashPage() {
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
       <header className="pb-5">
-        <p className="font-mono text-[11px] tracking-[0.22em] text-red-500 uppercase">
+        <p className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
           Trash
         </p>
-        <h1 className="mt-2 text-2xl font-display tracking-tight text-white sm:text-3xl">
+        <h1 className="mt-2 text-2xl font-display tracking-tight text-zinc-900 sm:text-3xl">
           Trashed applications
         </h1>
       </header>
 
-      <div className="mt-1 mb-1 flex items-start gap-3 border-l-2 border-red-600 bg-neutral-900/40 px-4 py-3">
+      <div className="mt-1 mb-1 flex items-start gap-3 border-l-2 border-red-600 bg-zinc-100 px-4 py-3">
         <div>
-          <p className="font-mono text-[10px] tracking-[0.22em] text-red-500 uppercase">
+          <p className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
             Retention
           </p>
-          <p className="mt-1 max-w-2xl text-sm leading-relaxed text-neutral-300">
+          <p className="mt-1 max-w-2xl text-sm leading-relaxed text-zinc-700">
             Deleted records remain recoverable for 30 days. After that, an
             auto-purge job removes them permanently.
           </p>
@@ -78,7 +78,7 @@ export default async function ApplicationsTrashPage() {
       />
 
       {rows.length === 0 ? (
-        <p className="mt-12 text-sm text-neutral-500">Trash is empty.</p>
+        <p className="mt-12 text-sm text-zinc-500">Trash is empty.</p>
       ) : (
         <ApplicationTrashTable rows={rows} />
       )}

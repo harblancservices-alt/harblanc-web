@@ -1,6 +1,6 @@
 import {
   LEAD_STATUS_LABELS,
-  LEAD_STATUS_CLASSES,
+  LEAD_STATUS_CLASSES_LIGHT,
   type LeadStatus,
 } from "@/lib/dispatch/status";
 
@@ -13,15 +13,17 @@ import {
  * the code doesn't recognise (e.g. an old row from before the Phase 4A
  * migration ran). Prevents the workspace from crashing on legacy data.
  */
-const FALLBACK_CLASSES = "border-neutral-700 bg-neutral-900 text-neutral-300";
+// Phase COLOR-4: light-mode fallback pill for unknown statuses (matches
+// the zinc-100 family used by `archived` / `lost` in the light twin set).
+const FALLBACK_CLASSES = "border-zinc-300 bg-zinc-100 text-zinc-600";
 
 export function StatusBadge({ status }: { status: LeadStatus }) {
   const label = LEAD_STATUS_LABELS[status] ?? String(status).replace(/_/g, " ");
-  const cls = LEAD_STATUS_CLASSES[status] ?? FALLBACK_CLASSES;
+  const cls = LEAD_STATUS_CLASSES_LIGHT[status] ?? FALLBACK_CLASSES;
   return (
     <span
       className={
-        "inline-flex items-center gap-1.5 border px-2.5 py-1 font-mono text-[9px] tracking-[0.22em] uppercase " +
+        "inline-flex items-center gap-1.5 border px-2.5 py-1 font-mono text-xs tracking-[0.12em] uppercase " +
         cls
       }
     >
