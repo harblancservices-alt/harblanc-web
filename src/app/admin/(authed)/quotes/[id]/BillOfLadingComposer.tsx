@@ -253,6 +253,55 @@ export function BillOfLadingComposer({
     return fd;
   }
 
+  /**
+   * Phase BUTTON-FIX-1: pre-checks before the Build Preview server action.
+   *
+   * Mirrors the server-side validation in buildBolPreview so the
+   * production-sanitized "Server Components render…" message is never
+   * shown for normal operator mistakes. Returns the first field-specific
+   * message, or null when the draft is good to render.
+   */
+  function validateForBuildPreview(): string | null {
+    if (commodity.trim().length === 0) {
+      return "Commodity is required before building the BOL preview.";
+    }
+    if (
+      shipperCompany.trim().length === 0 &&
+      shipperAddressLine1.trim().length === 0
+    ) {
+      return "Shipper info is required — fill in the company name or address line 1.";
+    }
+    if (
+      consigneeCompany.trim().length === 0 &&
+      consigneeAddressLine1.trim().length === 0
+    ) {
+      return "Consignee info is required — fill in the company name or address line 1.";
+    }
+    return null;
+  }
+
+  /**
+   * Phase BUTTON-FIX-1: classify caught server errors. Production-sanitized
+   * errors map to the stage-tagged Vercel-log hint; NEXT_REDIRECT maps to
+   * a session-expired hint; everything else is shown verbatim.
+   */
+  function describeServerError(e: unknown, stageLabel: string): string {
+    const msg = e instanceof Error ? e.message : String(e);
+    const digest = (e as { digest?: unknown } | undefined)?.digest;
+    const digestStr = typeof digest === "string" ? digest : "";
+    if (digestStr.startsWith("NEXT_REDIRECT")) {
+      return "Session expired — please log in again, then retry.";
+    }
+    if (
+      /An error occurred in the Server Components render/.test(msg) ||
+      msg === "" ||
+      msg === "An unexpected response was received from the server."
+    ) {
+      return `Could not complete request. The server logged a stage-tagged error — check Vercel logs for \`[${stageLabel}]\`.`;
+    }
+    return msg || "Request failed.";
+  }
+
   function onSaveDraft() {
     setError(null);
     setNotice(null);
@@ -262,7 +311,7 @@ export function BillOfLadingComposer({
         setNotice("Draft saved.");
         router.refresh();
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Save failed.");
+        setError(describeServerError(e, "saveBolDraft"));
       }
     });
   }
@@ -270,6 +319,13 @@ export function BillOfLadingComposer({
   function onBuildPreview() {
     setError(null);
     setNotice(null);
+
+    const validationError = validateForBuildPreview();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
     setBuilding(true);
     startTransition(async () => {
       try {
@@ -287,15 +343,27 @@ export function BillOfLadingComposer({
         router.refresh();
       } catch (e) {
         setBuilding(false);
-        setError(e instanceof Error ? e.message : "Preview failed.");
+        setError(describeServerError(e, "buildBolPreview"));
       }
     });
   }
 
   function onSend() {
-    if (!preview || stale) return;
     setError(null);
     setNotice(null);
+
+    // Phase BUTTON-FIX-1: previously these two guards returned silently,
+    // so Send looked broken. Now they surface explicit messages so the
+    // operator knows what to do next.
+    if (!preview) {
+      setError("Build a preview before sending the BOL.");
+      return;
+    }
+    if (stale) {
+      setError("Rebuild the BOL preview before sending.");
+      return;
+    }
+
     if (
       !confirm(
         `Send Bill of Lading ${draft.bolNumber} to ${leadName}?\n\nThis sends the exact preview shown below and locks the record.`,
@@ -311,7 +379,7 @@ export function BillOfLadingComposer({
         setStale(false);
         router.refresh();
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Send failed.");
+        setError(describeServerError(e, "sendBol"));
       }
     });
   }

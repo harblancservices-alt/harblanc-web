@@ -222,6 +222,77 @@ export function EstimateComposer(props: EstimateComposerProps) {
     return fd;
   }
 
+  /**
+   * Phase BUTTON-FIX-1: pre-checks before the Build Preview server action.
+   *
+   * Production sanitization replaces specific server-thrown messages
+   * with a generic "Server Components render…" string. Catching the
+   * common mistakes here means the operator sees something fixable
+   * before the request leaves the browser.
+   *
+   * Returns the first field-specific message, or null when the draft
+   * is good to render.
+   */
+  function validateForBuildPreview(): string | null {
+    if (laneIncomplete) {
+      return "This lead is missing pickup or delivery ZIP — can't build a lane-recap preview.";
+    }
+    if (linehaulLow.trim().length === 0) {
+      return "Rate (low) is required before building a preview.";
+    }
+    const lh = Number(linehaulLow);
+    if (!Number.isFinite(lh)) {
+      return "Rate (low) must be a valid number.";
+    }
+    if (lh <= 0) {
+      return "Rate (low) must be greater than $0.";
+    }
+    if (linehaulHigh.trim().length > 0) {
+      const high = Number(linehaulHigh);
+      if (!Number.isFinite(high)) {
+        return "Rate (high) must be a valid number.";
+      }
+      if (high < lh) {
+        return "Rate (high) cannot be less than rate (low).";
+      }
+    }
+    if (miles.trim().length > 0) {
+      const m = Number(miles);
+      if (!Number.isFinite(m) || m < 0) {
+        return "Miles must be a non-negative number.";
+      }
+    }
+    if (closingLine.trim().length === 0) {
+      return "Pick a template or write a closing line before building a preview.";
+    }
+    return null;
+  }
+
+  /**
+   * Phase BUTTON-FIX-1: classify caught server errors the same way the
+   * other composers do.
+   *
+   *   - NEXT_REDIRECT  -> session-expired hint
+   *   - sanitized      -> friendly "stage-tagged Vercel log" hint
+   *   - otherwise      -> verbatim
+   */
+  function describeServerError(e: unknown, stageLabel: string): string {
+    const msg = e instanceof Error ? e.message : String(e);
+    const digest = (e as { digest?: unknown } | undefined)?.digest;
+    const digestStr = typeof digest === "string" ? digest : "";
+    if (digestStr.startsWith("NEXT_REDIRECT")) {
+      return "Session expired — please log in again, then retry.";
+    }
+    if (
+      /An error occurred in the Server Components render/.test(msg) ||
+      msg === "" ||
+      msg === "An unexpected response was received from the server."
+    ) {
+      return `Could not complete request. The server logged a stage-tagged error — check Vercel logs for \`[${stageLabel}]\`.`;
+    }
+    return msg || "Request failed.";
+  }
+
   function onSaveDraft() {
     setError(null);
     setNotice(null);
@@ -231,7 +302,7 @@ export function EstimateComposer(props: EstimateComposerProps) {
         setNotice("Draft saved.");
         router.refresh();
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Save failed.");
+        setError(describeServerError(e, "saveDraftEstimate"));
       }
     });
   }
@@ -239,6 +310,13 @@ export function EstimateComposer(props: EstimateComposerProps) {
   function onBuildPreview() {
     setError(null);
     setNotice(null);
+
+    const validationError = validateForBuildPreview();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
     setBuilding(true);
     startTransition(async () => {
       try {
@@ -256,15 +334,29 @@ export function EstimateComposer(props: EstimateComposerProps) {
         router.refresh();
       } catch (e) {
         setBuilding(false);
-        setError(e instanceof Error ? e.message : "Preview failed.");
+        setError(describeServerError(e, "buildEstimatePreview"));
       }
     });
   }
 
   function onSend() {
-    if (!preview || stale) return;
     setError(null);
     setNotice(null);
+
+    // Phase BUTTON-FIX-1: previously these two guards returned silently
+    // so the Send button looked broken. Now they surface explicit
+    // messages so the operator knows what to do next.
+    if (!preview) {
+      setError("Build a preview before sending.");
+      return;
+    }
+    if (stale) {
+      setError(
+        "Rebuild the preview before sending — the form has changed since the last build.",
+      );
+      return;
+    }
+
     if (
       !confirm(
         `Send this estimate to ${props.leadName}?\n\nThis sends the exact preview shown below.`,
@@ -283,7 +375,7 @@ export function EstimateComposer(props: EstimateComposerProps) {
         setStale(false);
         router.refresh();
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Send failed.");
+        setError(describeServerError(e, "sendEstimate"));
       }
     });
   }

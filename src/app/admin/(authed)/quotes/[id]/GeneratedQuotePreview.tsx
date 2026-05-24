@@ -89,15 +89,18 @@ export function GeneratedQuotePreview({
         >
           Download PDF
         </a>
-        <button
-          type="button"
-          disabled
-          title="Email sending arrives in Phase 2"
-          className="inline-flex w-full items-center justify-center border border-zinc-200 px-5 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-zinc-600 transition-colors disabled:cursor-not-allowed sm:w-auto"
-        >
-          Send Quote PDF (coming soon)
-        </button>
       </div>
+
+      {/* Phase BUTTON-FIX-1: the "Send Quote PDF (coming soon)" disabled
+          placeholder button used to live here. Removed — a perpetually
+          disabled button next to two working ones reads as broken. The
+          PDF-email send flow lives downstream of the finalized-quote
+          workflow; this surface is for the standalone Premium Carrier
+          Quote PDF only. */}
+      <p className="font-mono text-xs leading-relaxed text-zinc-600">
+        PDF email sending is not enabled for this document yet. Open or
+        download the PDF above and attach it to a manual reply if needed.
+      </p>
 
       {/* Inline preview */}
       <div className="relative border border-zinc-200 bg-zinc-50">

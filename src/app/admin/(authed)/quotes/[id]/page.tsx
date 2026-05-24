@@ -10,6 +10,7 @@ import {
   permanentlyDeleteQuote,
 } from "../actions";
 import { QuoteDetailTabs, type QuoteDetailRow } from "./QuoteDetailTabs";
+import { QuoteLifecycleActions } from "./QuoteLifecycleActions";
 import type { GeneratedQuoteSummary } from "./GeneratedQuotePreview";
 import type { EstimateDraft } from "./EstimateComposer";
 import type { SentEstimateRow } from "./SentEstimatesList";
@@ -1181,35 +1182,12 @@ export default async function QuoteDetailPage({
             (isTrashed ? "sm:justify-between" : "")
           }
         >
-          {isTrashed ? (
-            <>
-              <form action={restoreQuote.bind(null, row.id)}>
-                <button
-                  type="submit"
-                  className="btn-outline-cut inline-flex w-full items-center justify-center px-6 py-4 text-sm font-semibold uppercase tracking-[0.12em] text-zinc-100 transition-colors sm:w-auto"
-                >
-                  Restore
-                </button>
-              </form>
-              <form action={permanentlyDeleteQuote.bind(null, row.id)}>
-                <button
-                  type="submit"
-                  className="btn-cut inline-flex w-full items-center justify-center bg-red-600 px-6 py-4 text-sm font-semibold uppercase tracking-[0.12em] text-white transition-colors hover:bg-red-500 sm:w-auto"
-                >
-                  Permanently delete
-                </button>
-              </form>
-            </>
-          ) : (
-            <form action={softDeleteQuote.bind(null, row.id)}>
-              <button
-                type="submit"
-                className="btn-outline-cut inline-flex w-full items-center justify-center px-6 py-4 text-sm font-semibold uppercase tracking-[0.12em] text-zinc-100 transition-colors sm:w-auto"
-              >
-                Move to trash
-              </button>
-            </form>
-          )}
+          <QuoteLifecycleActions
+            isTrashed={isTrashed}
+            softDelete={softDeleteQuote.bind(null, row.id)}
+            restore={restoreQuote.bind(null, row.id)}
+            permanentDelete={permanentlyDeleteQuote.bind(null, row.id)}
+          />
         </div>
       </section>
     </div>
