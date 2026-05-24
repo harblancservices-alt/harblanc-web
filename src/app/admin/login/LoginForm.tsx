@@ -134,7 +134,7 @@ export function LoginForm({
       <button
         type="submit"
         disabled={status === "submitting"}
-        className="btn-cut inline-flex w-full items-center justify-center bg-red-600 px-6 py-3.5 text-sm font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-70"
+        className="btn-cut inline-flex w-full items-center justify-center bg-red-600 px-6 py-3.5 text-sm font-semibold uppercase tracking-[0.12em] text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-70"
       >
         {status === "submitting" ? "Signing in\u2026" : "Sign in"}
       </button>

@@ -255,7 +255,7 @@ export default async function ApplicationDetailPage({
               <form action={restoreApplication.bind(null, row.id)}>
                 <button
                   type="submit"
-                  className="btn-outline-cut inline-flex w-full items-center justify-center px-6 py-4 text-sm font-semibold uppercase tracking-[0.12em] text-zinc-900 transition-colors sm:w-auto"
+                  className="btn-outline-cut inline-flex w-full items-center justify-center px-6 py-4 text-sm font-semibold uppercase tracking-[0.12em] text-zinc-100 transition-colors sm:w-auto"
                 >
                   Restore
                 </button>
@@ -263,7 +263,7 @@ export default async function ApplicationDetailPage({
               <form action={permanentlyDeleteApplication.bind(null, row.id)}>
                 <button
                   type="submit"
-                  className="btn-cut inline-flex w-full items-center justify-center bg-red-600 px-6 py-4 text-sm font-semibold uppercase tracking-[0.12em] text-zinc-900 transition-colors hover:bg-red-500 sm:w-auto"
+                  className="btn-cut inline-flex w-full items-center justify-center bg-red-600 px-6 py-4 text-sm font-semibold uppercase tracking-[0.12em] text-white transition-colors hover:bg-red-500 sm:w-auto"
                 >
                   Permanently delete
                 </button>
@@ -273,7 +273,7 @@ export default async function ApplicationDetailPage({
             <form action={softDeleteApplication.bind(null, row.id)}>
               <button
                 type="submit"
-                className="btn-outline-cut inline-flex w-full items-center justify-center px-6 py-4 text-sm font-semibold uppercase tracking-[0.12em] text-zinc-900 transition-colors sm:w-auto"
+                className="btn-outline-cut inline-flex w-full items-center justify-center px-6 py-4 text-sm font-semibold uppercase tracking-[0.12em] text-zinc-100 transition-colors sm:w-auto"
               >
                 Move to trash
               </button>

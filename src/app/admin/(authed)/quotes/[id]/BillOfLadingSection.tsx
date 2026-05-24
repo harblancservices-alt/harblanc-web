@@ -179,7 +179,7 @@ function GenerateDraftCard({
           type="button"
           onClick={onGenerate}
           disabled={isPending}
-          className="btn-cut inline-flex w-full items-center justify-center bg-red-600 px-6 py-4 text-sm font-semibold uppercase tracking-[0.12em] text-zinc-900 transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+          className="btn-cut inline-flex w-full items-center justify-center bg-red-600 px-6 py-4 text-sm font-semibold uppercase tracking-[0.12em] text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
           {isPending ? "Generating..." : "Generate BOL"}
         </button>

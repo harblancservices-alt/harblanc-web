@@ -176,7 +176,7 @@ export function PaymentSection({
           <button
             type="button"
             onClick={() => setFormOpen(true)}
-            className="btn-outline-cut inline-flex items-center justify-center px-4 py-2.5 text-xs font-semibold tracking-[0.12em] text-zinc-900 uppercase transition-colors hover:text-zinc-900"
+            className="btn-outline-cut inline-flex items-center justify-center px-4 py-2.5 text-xs font-semibold tracking-[0.12em] text-zinc-100 uppercase transition-colors hover:text-white"
           >
             + Record payment
           </button>
@@ -439,14 +439,14 @@ function RecordPaymentForm({
           type="button"
           onClick={onCancel}
           disabled={isPending}
-          className="btn-outline-cut inline-flex items-center justify-center px-5 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-zinc-900 transition-colors disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+          className="btn-outline-cut inline-flex items-center justify-center px-5 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-zinc-100 transition-colors disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
           Cancel
         </button>
         <button
           type="submit"
           disabled={isPending}
-          className="btn-cut inline-flex items-center justify-center bg-red-600 px-5 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-zinc-900 transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+          className="btn-cut inline-flex items-center justify-center bg-red-600 px-5 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
           {isPending ? "Recording..." : "Record payment"}
         </button>

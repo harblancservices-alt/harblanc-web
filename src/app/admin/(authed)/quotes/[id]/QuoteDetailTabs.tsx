@@ -145,7 +145,7 @@ export function QuoteDetailTabs({
             <button
               type="button"
               onClick={() => setActiveTab("generated")}
-              className="btn-outline-cut inline-flex w-full items-center justify-center px-4 py-2 text-xs font-semibold tracking-[0.12em] text-zinc-700 uppercase transition-colors hover:text-zinc-900 sm:w-auto"
+              className="btn-outline-cut inline-flex w-full items-center justify-center px-4 py-2 text-xs font-semibold tracking-[0.12em] text-zinc-200 uppercase transition-colors hover:text-white sm:w-auto"
             >
               Open Quote PDF
             </button>

@@ -980,27 +980,27 @@ export default async function QuoteDetailPage({
     <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-12">
       <Link
         href={isTrashed ? "/admin/quotes/trash" : "/admin/quotes"}
-        className="inline-flex items-center font-mono text-[10px] tracking-[0.22em] text-neutral-500 uppercase transition-colors hover:text-white"
+        className="inline-flex items-center font-mono text-xs tracking-[0.12em] text-zinc-500 uppercase transition-colors hover:text-zinc-900"
       >
         &larr; Back to {isTrashed ? "trash" : "quotes"}
       </Link>
 
       {isTrashed ? (
-        <div className="mt-5 flex items-start gap-3 border border-red-700/60 bg-red-950/30 p-4">
+        <div className="mt-5 flex items-start gap-3 border border-red-300 bg-red-50 p-4">
           <span
             aria-hidden
             className="mt-0.5 inline-block h-3 w-1 shrink-0 bg-red-600"
           />
           <div>
-            <p className="font-mono text-[10px] tracking-[0.22em] text-red-400 uppercase">
+            <p className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
               In trash
             </p>
-            <p className="mt-1 text-sm leading-relaxed text-red-200">
+            <p className="mt-1 text-sm leading-relaxed text-red-800">
               Moved to trash {relativeTime(row.deleted_at!)}.{" "}
               {row.delete_after ? (
                 <>
                   Auto-purge on{" "}
-                  <span className="font-mono text-red-100">
+                  <span className="font-mono text-red-800">
                     {formatDateFull(row.delete_after)}
                   </span>
                   .
@@ -1027,8 +1027,8 @@ export default async function QuoteDetailPage({
         paymentTarget={paymentTarget}
       />
 
-      <section className="mt-6 border border-neutral-800 border-t-2 border-t-red-600 bg-neutral-900 p-5 sm:mt-8 sm:p-6">
-        <h2 className="font-mono text-[10px] tracking-[0.22em] text-red-500 uppercase">
+      <section className="mt-6 border border-zinc-200 border-t-2 border-t-red-600 bg-white p-5 sm:mt-8 sm:p-6">
+        <h2 className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
           Actions
         </h2>
         <div
@@ -1042,7 +1042,7 @@ export default async function QuoteDetailPage({
               <form action={restoreQuote.bind(null, row.id)}>
                 <button
                   type="submit"
-                  className="btn-outline-cut inline-flex w-full items-center justify-center px-6 py-4 text-sm font-semibold uppercase tracking-[0.14em] text-zinc-100 transition-colors sm:w-auto"
+                  className="btn-outline-cut inline-flex w-full items-center justify-center px-6 py-4 text-sm font-semibold uppercase tracking-[0.12em] text-zinc-100 transition-colors sm:w-auto"
                 >
                   Restore
                 </button>
@@ -1050,7 +1050,7 @@ export default async function QuoteDetailPage({
               <form action={permanentlyDeleteQuote.bind(null, row.id)}>
                 <button
                   type="submit"
-                  className="btn-cut inline-flex w-full items-center justify-center bg-red-600 px-6 py-4 text-sm font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-red-500 sm:w-auto"
+                  className="btn-cut inline-flex w-full items-center justify-center bg-red-600 px-6 py-4 text-sm font-semibold uppercase tracking-[0.12em] text-white transition-colors hover:bg-red-500 sm:w-auto"
                 >
                   Permanently delete
                 </button>
@@ -1060,7 +1060,7 @@ export default async function QuoteDetailPage({
             <form action={softDeleteQuote.bind(null, row.id)}>
               <button
                 type="submit"
-                className="btn-outline-cut inline-flex w-full items-center justify-center px-6 py-4 text-sm font-semibold uppercase tracking-[0.14em] text-zinc-100 transition-colors sm:w-auto"
+                className="btn-outline-cut inline-flex w-full items-center justify-center px-6 py-4 text-sm font-semibold uppercase tracking-[0.12em] text-zinc-100 transition-colors sm:w-auto"
               >
                 Move to trash
               </button>

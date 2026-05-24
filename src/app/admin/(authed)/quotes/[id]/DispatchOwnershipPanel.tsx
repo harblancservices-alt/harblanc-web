@@ -153,7 +153,7 @@ export function DispatchOwnershipPanel({
           type="button"
           onClick={onSave}
           disabled={isPending}
-          className="btn-outline-cut inline-flex items-center justify-center px-5 py-2.5 text-sm font-semibold uppercase tracking-[0.12em] text-zinc-900 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+          className="btn-outline-cut inline-flex items-center justify-center px-5 py-2.5 text-sm font-semibold uppercase tracking-[0.12em] text-zinc-100 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isPending ? "Saving..." : "Save ownership"}
         </button>
