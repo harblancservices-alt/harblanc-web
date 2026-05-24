@@ -26,6 +26,19 @@ export function AdminNav() {
           <Link
             key={item.href}
             href={item.href}
+            // Phase PREFETCH-FIX: prefetch={false} stops Next.js from
+            // background-fetching these three RSC payloads on idle. The
+            // admin middleware writes Set-Cookie on every request via
+            // supabase.auth.getUser() (@supabase/ssr session refresh),
+            // and Next's router cache refuses to store responses with
+            // mutated cookies — so the auto-prefetcher kept retrying
+            // forever, producing a steady stream of admin?_rsc /
+            // quotes?_rsc / applications?_rsc GETs in the Network tab
+            // while idle. Clicking these links still works exactly as
+            // before; navigation just incurs the full RSC fetch on
+            // click instead of being pre-warmed. Middleware + Supabase
+            // session handling are untouched.
+            prefetch={false}
             className={
               "flex items-center gap-2 text-xs font-semibold tracking-[0.12em] uppercase transition-colors " +
               (active ? "text-zinc-900" : "text-zinc-600 hover:text-zinc-900")
