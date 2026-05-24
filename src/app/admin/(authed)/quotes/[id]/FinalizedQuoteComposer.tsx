@@ -335,6 +335,70 @@ export function FinalizedQuoteComposer({
     return fd;
   }
 
+  /**
+   * Phase VALIDATE: pre-checks before the Build Preview server action.
+   *
+   * Server-side validation still runs (defense-in-depth) — Next.js
+   * sanitizes server-thrown messages in production, so without a client
+   * pre-check the user only sees a generic "Server Components render"
+   * string. Returns the first field-specific message, or null when the
+   * draft is good to render.
+   */
+  function validateForBuildPreview(): string | null {
+    if (linehaul.trim().length === 0) return "Linehaul is required.";
+    const lh = Number(linehaul);
+    if (!Number.isFinite(lh)) return "Linehaul must be a valid number.";
+    if (lh <= 0) return "Linehaul must be greater than $0.";
+
+    if (fuelSurcharge.trim().length > 0) {
+      const fs = Number(fuelSurcharge);
+      if (!Number.isFinite(fs)) return "Fuel surcharge must be a valid number.";
+      if (fs < 0) return "Fuel surcharge cannot be negative.";
+    }
+    if (permitsFee.trim().length > 0) {
+      const pf = Number(permitsFee);
+      if (!Number.isFinite(pf)) return "Permits fee must be a valid number.";
+      if (pf < 0) return "Permits fee cannot be negative.";
+    }
+
+    for (const a of accessorials) {
+      if (a.label.trim().length === 0) {
+        return "Each accessorial needs a label — fill it in or remove the row.";
+      }
+      if (!Number.isFinite(a.amount) || a.amount <= 0) {
+        return "Each accessorial amount must be greater than $0.";
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Phase VALIDATE: classify caught server errors the same way the
+   * GenerateQuoteForm does so the user sees something actionable.
+   *
+   *   - NEXT_REDIRECT  -> session-expired hint (requireAdmin redirected)
+   *   - sanitized      -> friendly "stage-tagged Vercel log" hint
+   *   - otherwise      -> verbatim message (covers dev mode and any
+   *                       server messages Next didn't sanitize)
+   */
+  function describeServerError(e: unknown, stageLabel: string): string {
+    const msg = e instanceof Error ? e.message : String(e);
+    const digest = (e as { digest?: unknown } | undefined)?.digest;
+    const digestStr = typeof digest === "string" ? digest : "";
+    if (digestStr.startsWith("NEXT_REDIRECT")) {
+      return "Session expired — please log in again, then retry.";
+    }
+    if (
+      /An error occurred in the Server Components render/.test(msg) ||
+      msg === "" ||
+      msg === "An unexpected response was received from the server."
+    ) {
+      return `Could not complete request. The server logged a stage-tagged error — check Vercel logs for \`[${stageLabel}] stage=...\`.`;
+    }
+    return msg || "Request failed.";
+  }
+
   function onSaveDraft() {
     setError(null);
     setNotice(null);
@@ -344,7 +408,7 @@ export function FinalizedQuoteComposer({
         setNotice("Draft saved.");
         router.refresh();
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Save failed.");
+        setError(describeServerError(e, "saveFinalizedQuoteDraft"));
       }
     });
   }
@@ -352,6 +416,13 @@ export function FinalizedQuoteComposer({
   function onBuildPreview() {
     setError(null);
     setNotice(null);
+
+    const validationError = validateForBuildPreview();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
     setBuilding(true);
     startTransition(async () => {
       try {
@@ -369,15 +440,26 @@ export function FinalizedQuoteComposer({
         router.refresh();
       } catch (e) {
         setBuilding(false);
-        setError(e instanceof Error ? e.message : "Preview failed.");
+        setError(describeServerError(e, "buildFinalizedQuotePreview"));
       }
     });
   }
 
   function onSend() {
-    if (!preview || stale) return;
     setError(null);
     setNotice(null);
+
+    if (!preview) {
+      setError("A finalized quote preview must be built before sending.");
+      return;
+    }
+    if (stale) {
+      setError(
+        "Preview is stale — rebuild the preview before sending so the customer receives the latest version.",
+      );
+      return;
+    }
+
     if (
       !confirm(
         `Send finalized quote ${draft.finalizedQuoteNumber} to ${leadName}?\n\nThis sends the exact preview shown below and locks the record.`,
@@ -393,7 +475,7 @@ export function FinalizedQuoteComposer({
         setStale(false);
         router.refresh();
       } catch (e) {
-        setError(e instanceof Error ? e.message : "Send failed.");
+        setError(describeServerError(e, "sendFinalizedQuote"));
       }
     });
   }

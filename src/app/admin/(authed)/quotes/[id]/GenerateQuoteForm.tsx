@@ -102,9 +102,65 @@ export function GenerateQuoteForm({ defaults }: { defaults: Defaults }) {
     return lh + fs + accTotal;
   }
 
+  /**
+   * Phase VALIDATE: client-side pre-check.
+   *
+   * The server action still validates (defense-in-depth), but in
+   * production Next.js sanitizes server-thrown Error messages to a
+   * generic "Server Components render" string, which the user can't act
+   * on. Catching the common mistakes here means Brent sees a specific,
+   * fixable message right inside the form before the request leaves
+   * the browser.
+   *
+   * Returns the first field-specific message it hits, or null when the
+   * form is good to submit. We do NOT short-circuit on the first
+   * empty/zero (it intentionally lists fields top-to-bottom so the
+   * error reads in form order).
+   */
+  function validateForm(): string | null {
+    if (origin.trim().length === 0) return "Origin is required.";
+    if (destination.trim().length === 0) return "Destination is required.";
+
+    if (linehaul.trim().length === 0) return "Linehaul is required.";
+    const lh = Number(linehaul);
+    if (!Number.isFinite(lh)) return "Linehaul must be a valid number.";
+    if (lh <= 0) return "Linehaul must be greater than $0.";
+
+    if (fuelSurcharge.trim().length > 0) {
+      const fs = Number(fuelSurcharge);
+      if (!Number.isFinite(fs)) return "Fuel surcharge must be a valid number.";
+      if (fs < 0) return "Fuel surcharge cannot be negative.";
+    }
+
+    for (const a of accessorials) {
+      const hasLabel = a.label.trim().length > 0;
+      const hasAmount = a.amount.trim().length > 0;
+      if (hasLabel !== hasAmount) {
+        return "Each accessorial needs both a label and an amount — fill both fields or remove the row.";
+      }
+      if (hasAmount) {
+        const amt = Number(a.amount);
+        if (!Number.isFinite(amt)) {
+          return "Accessorial amount must be a valid number.";
+        }
+        if (amt <= 0) {
+          return "Accessorial amount must be greater than $0.";
+        }
+      }
+    }
+
+    return null;
+  }
+
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
+
+    const validationError = validateForm();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
 
     const formData = new FormData();
     formData.append("quote_request_id", defaults.quoteRequestId);
