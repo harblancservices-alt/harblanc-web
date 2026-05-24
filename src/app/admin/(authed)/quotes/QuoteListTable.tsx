@@ -4,7 +4,7 @@ import { useState, useTransition, useMemo } from "react";
 import Link from "next/link";
 import { formatTimestampShort, isNew } from "@/lib/admin/format";
 import { softDeleteQuote, softDeleteQuotes } from "./actions";
-import { StatusBadge } from "./[id]/StatusBadge";
+import { StatusBadge } from "./StatusBadge";
 import {
   LEAD_STATUSES,
   LEAD_STATUS_LABELS,
