@@ -919,14 +919,36 @@ function LoadPreview({
           avoid mid-number breaks; email drops to text-sm/lg, keeping
           break-all because email domains have no natural break points.
           Card padding tightens to px-4 on mobile. */}
-      <header className="border-b border-zinc-300 px-4 py-5 sm:px-6 sm:py-6">
+      <header className="border-b border-zinc-300 px-4 py-4 sm:px-6 sm:py-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
           <div className="order-2 min-w-0 flex-1 sm:order-1">
             <p className="label-cap">Primary client</p>
-            <p className="mt-2 text-lg font-semibold text-zinc-900 sm:text-2xl">
+            <p className="mt-1 text-lg font-semibold text-zinc-900 sm:mt-2 sm:text-2xl">
               {row.name}
             </p>
-            <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-x-6">
+            {/* Phase MOBILE-2: compact mobile contact line replaces
+                the 2-cell labeled dl grid. Mobile shows a single
+                truncated `phone · email` row that fits one line of
+                the card; long emails render as `brent.har…@gmail.com`.
+                Desktop dl is preserved verbatim via sm:hidden / hidden
+                sm:grid pair — desktop labels, gaps, and font sizes
+                are byte-identical to MOBILE-1. */}
+            <p className="mt-2 flex min-w-0 items-baseline gap-2 text-sm text-zinc-800 sm:hidden">
+              <a
+                href={phoneHref}
+                className="shrink-0 font-mono text-zinc-900 underline-offset-4 hover:underline"
+              >
+                {row.phone}
+              </a>
+              <span aria-hidden className="shrink-0 text-zinc-500">·</span>
+              <a
+                href={`mailto:${row.email}`}
+                className="min-w-0 truncate text-zinc-700 underline-offset-4 hover:underline"
+              >
+                {row.email}
+              </a>
+            </p>
+            <dl className="mt-3 hidden grid-cols-1 gap-3 sm:grid sm:grid-cols-2 sm:gap-x-6">
               <div className="min-w-0">
                 <dt className="label-cap">Phone</dt>
                 <dd className="mt-1 min-w-0">
@@ -966,7 +988,7 @@ function LoadPreview({
       </header>
 
       {/* Body — adapts to intake state. */}
-      <div className="space-y-6 p-4 sm:p-6">
+      <div className="space-y-4 p-4 sm:space-y-6 sm:p-6">
         {submittedIntake ? (
           <>
             {/* SubmittedIntakePanel rendered verbatim — its existing
@@ -1024,22 +1046,31 @@ function LoadPreview({
                     on one or two lines instead of three. Desktop
                     text-3xl preserved. Gap tightens to gap-x-2 on
                     mobile. */}
-                <div className="mt-3 flex flex-wrap items-baseline gap-x-2 gap-y-1 sm:gap-x-4 sm:gap-y-2">
-                  <span className="text-xl font-semibold text-zinc-900 sm:text-3xl">
+                {/* Phase MOBILE-2: lane block tightens further on
+                    mobile. Endpoints shrink to text-lg (18px) and the
+                    arrow to text-base so the City, ST -> City, ST
+                    route reads as a compact one-liner instead of a
+                    huge stacked hero. ZIP/mileage secondary line and
+                    pickup-target line keep their existing sizes but
+                    their mt spacing tightens to mt-1.5 / mt-2 on
+                    mobile. Desktop sizing (text-3xl, mt-2/mt-3)
+                    preserved via sm: overrides. */}
+                <div className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1 sm:mt-3 sm:gap-x-4 sm:gap-y-2">
+                  <span className="text-lg font-semibold text-zinc-900 sm:text-3xl">
                     {pickupCity && pickupState
                       ? `${pickupCity}, ${pickupState}`
                       : row.pickup_zip}
                   </span>
-                  <span aria-hidden className="text-lg text-red-600 sm:text-2xl">
+                  <span aria-hidden className="text-base text-red-600 sm:text-2xl">
                     &rarr;
                   </span>
-                  <span className="text-xl font-semibold text-zinc-900 sm:text-3xl">
+                  <span className="text-lg font-semibold text-zinc-900 sm:text-3xl">
                     {deliveryCity && deliveryState
                       ? `${deliveryCity}, ${deliveryState}`
                       : row.delivery_zip}
                   </span>
                 </div>
-                <p className="mt-2 font-mono text-sm text-zinc-700">
+                <p className="mt-1.5 font-mono text-sm text-zinc-700 sm:mt-2">
                   {row.pickup_zip}
                   <span aria-hidden className="mx-2 text-zinc-500">→</span>
                   {row.delivery_zip}
@@ -1050,7 +1081,7 @@ function LoadPreview({
                     </>
                   ) : null}
                 </p>
-                <p className="mt-3 text-sm text-zinc-700">
+                <p className="mt-2 text-sm text-zinc-700 sm:mt-3">
                   <span className="font-mono text-xs tracking-[0.08em] text-zinc-600 uppercase">
                     Pickup target
                   </span>{" "}
@@ -1063,7 +1094,17 @@ function LoadPreview({
 
             <section>
               <h3 className="label-cap">Shipment</h3>
-              <dl className="mt-3 grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
+              {/* Phase MOBILE-2: mobile compact one-liner replaces
+                  the 2-cell labeled dl grid. Form: `commodity · weight`.
+                  Desktop dl is preserved verbatim via sm:hidden /
+                  hidden sm:grid pair — commodity + approximate-weight
+                  labels and fonts are byte-identical to pre-MOBILE-2. */}
+              <p className="mt-2 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-base text-zinc-900 sm:hidden">
+                <span>{row.commodity}</span>
+                <span aria-hidden className="text-zinc-500">·</span>
+                <span className="font-mono">{row.weight}</span>
+              </p>
+              <dl className="mt-3 hidden grid-cols-1 gap-x-6 gap-y-4 sm:grid sm:grid-cols-2">
                 <Field label="Commodity">
                   <span className="block text-xl text-zinc-900 sm:text-2xl">
                     {row.commodity}
@@ -1080,7 +1121,7 @@ function LoadPreview({
             {row.notes ? (
               <section>
                 <h3 className="label-cap">Customer notes</h3>
-                <p className="mt-3 whitespace-pre-wrap text-base leading-relaxed text-zinc-900">
+                <p className="mt-2 whitespace-pre-wrap text-base leading-relaxed text-zinc-900 sm:mt-3">
                   {row.notes}
                 </p>
               </section>
