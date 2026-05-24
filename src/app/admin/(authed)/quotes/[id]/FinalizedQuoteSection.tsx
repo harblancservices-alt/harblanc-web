@@ -129,7 +129,7 @@ export function FinalizedQuoteSection(props: FinalizedQuoteSectionProps) {
 function TrashGate() {
   return (
     <section className="border border-zinc-200 bg-zinc-50 p-8 text-center">
-      <p className="font-mono text-xs tracking-[0.12em] text-zinc-500 uppercase">
+      <p className="font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase">
         Request is in trash
       </p>
       <p className="mt-3 text-sm leading-relaxed text-zinc-600">
@@ -184,11 +184,11 @@ function GenerateDraftCard({
         Shipment intake submitted
       </h3>
       <p
-        className="mt-1 font-mono text-xs text-zinc-500"
+        className="mt-1 font-mono text-xs text-zinc-600"
         title={formatDateFull(submittedAt)}
       >
         Submitted {relativeTime(submittedAt)}{" "}
-        <span aria-hidden className="mx-1 text-zinc-500">
+        <span aria-hidden className="mx-1 text-zinc-600">
           ·
         </span>{" "}
         {formatDateFull(submittedAt)}

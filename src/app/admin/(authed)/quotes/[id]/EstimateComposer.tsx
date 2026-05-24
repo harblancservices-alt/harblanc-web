@@ -369,13 +369,13 @@ export function EstimateComposer(props: EstimateComposerProps) {
 
       {/* RPM preview strip */}
       <div className="flex items-center gap-4 border border-zinc-200 bg-zinc-50 px-4 py-3">
-        <span className="font-mono text-xs tracking-[0.12em] text-zinc-500 uppercase">
+        <span className="font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase">
           RPM preview
         </span>
         <span className="font-mono text-sm text-zinc-900">
           {rpmLow !== null ? `$${rpmLow.toFixed(2)}` : "—"}
           {rpmHigh !== null ? ` – $${rpmHigh.toFixed(2)}` : ""}
-          <span className="ml-1 text-zinc-500">/ mile</span>
+          <span className="ml-1 text-zinc-600">/ mile</span>
         </span>
       </div>
 
@@ -473,7 +473,7 @@ export function EstimateComposer(props: EstimateComposerProps) {
           <button
             type="button"
             onClick={resetClosingToTemplate}
-            className="mt-2 font-mono text-xs tracking-[0.12em] text-zinc-500 uppercase hover:text-zinc-900"
+            className="mt-2 font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase hover:text-zinc-900"
           >
             Reset to template
           </button>
@@ -556,7 +556,7 @@ export function EstimateComposer(props: EstimateComposerProps) {
             <p
               className={
                 "font-mono text-xs tracking-[0.12em] uppercase " +
-                (stale ? "text-zinc-500" : "text-red-700")
+                (stale ? "text-zinc-600" : "text-red-700")
               }
             >
               {stale ? "Send disabled" : "Ready to send"}

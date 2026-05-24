@@ -376,7 +376,7 @@ export default async function DashboardPage() {
         </h2>
         <ul className="mt-3 divide-y divide-zinc-200 border-y border-zinc-200 bg-white">
           {ops.recentApps.length === 0 ? (
-            <li className="px-1 py-3 text-sm text-zinc-500">No incoming applications.</li>
+            <li className="px-1 py-3 text-sm text-zinc-600">No incoming applications.</li>
           ) : (
             ops.recentApps.map((r) => (
               <li key={r.id}>
@@ -386,11 +386,11 @@ export default async function DashboardPage() {
                 >
                   <div className="flex items-baseline justify-between gap-3">
                     <span className="truncate text-sm text-zinc-900">{r.name}</span>
-                    <span className="font-mono text-xs tracking-[0.12em] text-zinc-500 uppercase shrink-0">
+                    <span className="font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase shrink-0">
                       {formatTimestampShort(r.created_at)}
                     </span>
                   </div>
-                  <p className="mt-0.5 truncate font-mono text-xs tracking-[0.12em] text-zinc-500 uppercase">
+                  <p className="mt-0.5 truncate font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase">
                     {[r.equipment_type, r.cdl_status].filter(Boolean).join(" · ")}
                   </p>
                 </Link>
@@ -423,7 +423,7 @@ function Counter({
       ? "text-red-600"
       : value > 0
         ? "text-zinc-900"
-        : "text-zinc-500";
+        : "text-zinc-600";
   const inner = (
     <>
       <p className="label-cap">
@@ -456,7 +456,7 @@ function Bucket({ label, leads }: { label: string; leads: EnrichedLead[] }) {
           <h3 className="label-cap text-zinc-600">
             {label}
           </h3>
-          <span className="font-mono text-xs tracking-[0.12em] text-zinc-400 uppercase">
+          <span className="font-mono text-xs tracking-[0.12em] text-zinc-500 uppercase">
             0
           </span>
         </header>
@@ -520,7 +520,7 @@ function LeadRowItem({
             </span>
             <span className="font-mono text-xs text-zinc-600">{lane}</span>
           </div>
-          <span className="font-mono text-xs tracking-[0.12em] text-zinc-500 uppercase shrink-0">
+          <span className="font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase shrink-0">
             {sinceStatus}
           </span>
         </div>

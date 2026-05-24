@@ -318,7 +318,7 @@ export function GenerateQuoteForm({ defaults }: { defaults: Defaults }) {
             </button>
           </div>
           {accessorials.length === 0 ? (
-            <p className="mt-2.5 font-mono text-xs text-zinc-500">
+            <p className="mt-2.5 font-mono text-xs text-zinc-600">
               None. Add detention, tarp, lumper, etc. if applicable.
             </p>
           ) : (

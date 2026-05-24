@@ -151,7 +151,7 @@ function HeaderRow({
 }) {
   return (
     <div className="grid grid-cols-[80px_minmax(0,1fr)] items-baseline gap-3">
-      <span className="font-mono text-xs tracking-[0.12em] text-zinc-500 uppercase">
+      <span className="font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase">
         {label}
       </span>
       <span

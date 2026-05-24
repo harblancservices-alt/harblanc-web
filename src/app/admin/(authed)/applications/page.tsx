@@ -63,7 +63,7 @@ export default async function ApplicationsPage() {
       />
 
       {rows.length === 0 ? (
-        <p className="mt-12 text-sm text-zinc-500">
+        <p className="mt-12 text-sm text-zinc-600">
           No incoming applications.
         </p>
       ) : (

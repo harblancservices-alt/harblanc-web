@@ -390,7 +390,7 @@ export function CommTimeline({
                     <time
                       dateTime={event.created_at}
                       title={formatDateFull(event.created_at)}
-                      className="font-mono text-xs text-zinc-500"
+                      className="font-mono text-xs text-zinc-600"
                     >
                       {relativeTime(event.created_at)}
                     </time>

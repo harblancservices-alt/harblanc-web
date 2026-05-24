@@ -241,11 +241,11 @@ export function PaymentSection({
                   ) : null}
                 </div>
                 <p
-                  className="font-mono text-xs text-zinc-500"
+                  className="font-mono text-xs text-zinc-600"
                   title={formatDateFull(p.receivedAt)}
                 >
                   Received {relativeTime(p.receivedAt)}{" "}
-                  <span aria-hidden className="mx-1 text-zinc-500">·</span>{" "}
+                  <span aria-hidden className="mx-1 text-zinc-600">·</span>{" "}
                   {formatDateFull(p.receivedAt)}
                 </p>
                 {p.reference ? (
@@ -258,7 +258,7 @@ export function PaymentSection({
                     {p.notes}
                   </p>
                 ) : null}
-                <p className="font-mono text-xs text-zinc-500">
+                <p className="font-mono text-xs text-zinc-600">
                   Recorded {relativeTime(p.recordedAt)}
                   {p.recordedBy ? ` · by ${p.recordedBy.slice(0, 8)}` : ""}
                 </p>
@@ -309,7 +309,7 @@ function SummaryCell({
           : "text-zinc-900";
   return (
     <div className="bg-white p-4 sm:p-5">
-      <p className="label-cap text-zinc-500">{label}</p>
+      <p className="label-cap text-zinc-600">{label}</p>
       <p className={"mt-2 font-mono text-2xl font-semibold " + valueColor}>
         {value}
       </p>
@@ -428,7 +428,7 @@ function RecordPaymentForm({
         </div>
       ) : null}
 
-      <p className="text-xs leading-relaxed text-zinc-500">
+      <p className="text-xs leading-relaxed text-zinc-600">
         Recording a payment that brings the finalized quote to paid-in-full
         will automatically advance this lead to{" "}
         <span className="text-zinc-700">Ready to dispatch</span>.

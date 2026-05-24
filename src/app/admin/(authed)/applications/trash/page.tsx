@@ -78,7 +78,7 @@ export default async function ApplicationsTrashPage() {
       />
 
       {rows.length === 0 ? (
-        <p className="mt-12 text-sm text-zinc-500">Trash is empty.</p>
+        <p className="mt-12 text-sm text-zinc-600">Trash is empty.</p>
       ) : (
         <ApplicationTrashTable rows={rows} />
       )}

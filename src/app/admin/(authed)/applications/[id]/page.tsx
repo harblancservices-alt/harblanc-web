@@ -58,7 +58,7 @@ export default async function ApplicationDetailPage({
       {/* Back link */}
       <Link
         href={isTrashed ? "/admin/applications/trash" : "/admin/applications"}
-        className="inline-flex items-center font-mono text-xs tracking-[0.12em] text-zinc-500 uppercase transition-colors hover:text-zinc-900"
+        className="inline-flex items-center font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase transition-colors hover:text-zinc-900"
       >
         &larr; Back to {isTrashed ? "trash" : "applications"}
       </Link>
@@ -110,11 +110,11 @@ export default async function ApplicationDetailPage({
           {row.name}
         </h1>
         <p
-          className="mt-2 font-mono text-xs text-zinc-500"
+          className="mt-2 font-mono text-xs text-zinc-600"
           title={formatDateFull(row.created_at)}
         >
           Received {relativeTime(row.created_at)}{" "}
-          <span aria-hidden className="mx-1 text-zinc-500">
+          <span aria-hidden className="mx-1 text-zinc-600">
             ·
           </span>{" "}
           {formatDateFull(row.created_at)}
@@ -224,14 +224,14 @@ export default async function ApplicationDetailPage({
           </Field>
           {row.user_agent ? (
             <Field label="User agent" muted full>
-              <span className="font-mono text-xs break-all text-zinc-500">
+              <span className="font-mono text-xs break-all text-zinc-600">
                 {row.user_agent}
               </span>
             </Field>
           ) : null}
           {row.ip ? (
             <Field label="IP" muted>
-              <span className="font-mono text-xs text-zinc-500">
+              <span className="font-mono text-xs text-zinc-600">
                 {row.ip}
               </span>
             </Field>
@@ -301,7 +301,7 @@ function Field({
       <dt
         className={
           "font-mono text-xs tracking-[0.12em] uppercase " +
-          (muted ? "text-zinc-500" : "text-zinc-500")
+          (muted ? "text-zinc-600" : "text-zinc-600")
         }
       >
         {label}

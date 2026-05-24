@@ -427,7 +427,7 @@ export function FinalizedQuoteComposer({
           scope. Fields prefilled from the shipment intake; adjust as needed before
           building the preview. The customer receives exactly what the preview shows.
         </p>
-        <p className="mt-1 font-mono text-xs tracking-[0.12em] text-zinc-500 uppercase">
+        <p className="mt-1 font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase">
           References range quote <span className="text-zinc-700">{draft.rangeQuoteNumberLabel}</span>
         </p>
       </header>
@@ -539,7 +539,7 @@ export function FinalizedQuoteComposer({
         <div className="space-y-3">
           <p className={labelCls}>Accessorials</p>
           {accessorials.length === 0 ? (
-            <p className="font-mono text-xs text-zinc-500">
+            <p className="font-mono text-xs text-zinc-600">
               No accessorials. Add one for tarp, escort, layover, lumper, etc.
             </p>
           ) : (
@@ -655,7 +655,7 @@ export function FinalizedQuoteComposer({
             <p
               className={
                 "font-mono text-xs tracking-[0.12em] uppercase " +
-                (stale ? "text-zinc-500" : "text-red-700")
+                (stale ? "text-zinc-600" : "text-red-700")
               }
             >
               {stale ? "Send disabled" : "Ready to send"}

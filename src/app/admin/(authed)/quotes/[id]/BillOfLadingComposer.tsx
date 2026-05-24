@@ -331,11 +331,11 @@ export function BillOfLadingComposer({
           consignee. Fields prefilled from the finalized quote; adjust as
           needed before building the preview.
         </p>
-        <p className="mt-1 font-mono text-xs tracking-[0.12em] text-zinc-500 uppercase">
+        <p className="mt-1 font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase">
           Range quote <span className="text-zinc-700">{draft.rangeQuoteNumberLabel}</span>
           {draft.finalizedQuoteNumberLabel ? (
             <>
-              <span aria-hidden className="mx-2 text-zinc-500">·</span>
+              <span aria-hidden className="mx-2 text-zinc-600">·</span>
               Finalized quote <span className="text-zinc-700">{draft.finalizedQuoteNumberLabel}</span>
             </>
           ) : null}
@@ -485,7 +485,7 @@ export function BillOfLadingComposer({
             <p
               className={
                 "font-mono text-xs tracking-[0.12em] uppercase " +
-                (stale ? "text-zinc-500" : "text-red-700")
+                (stale ? "text-zinc-600" : "text-red-700")
               }
             >
               {stale ? "Send disabled" : "Ready to send"}

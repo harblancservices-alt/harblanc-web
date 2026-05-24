@@ -46,7 +46,7 @@ export function SectionTabs({ tabs }: { tabs: SectionTab[] }) {
             <span
               className={
                 "shrink-0 font-mono text-xs tracking-[0.12em] " +
-                (tab.active ? "text-zinc-900" : "text-zinc-500")
+                (tab.active ? "text-zinc-900" : "text-zinc-600")
               }
             >
               {tab.count}

@@ -13,7 +13,7 @@ export type GeneratedQuoteSummary = {
 };
 
 const ROW_LABEL =
-  "font-mono text-xs tracking-[0.12em] text-zinc-500 uppercase";
+  "font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase";
 
 function dateOnly(iso: string | null): string {
   if (!iso) return "\u2014";
@@ -93,7 +93,7 @@ export function GeneratedQuotePreview({
           type="button"
           disabled
           title="Email sending arrives in Phase 2"
-          className="inline-flex w-full items-center justify-center border border-zinc-200 px-5 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-zinc-500 transition-colors disabled:cursor-not-allowed sm:w-auto"
+          className="inline-flex w-full items-center justify-center border border-zinc-200 px-5 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-zinc-600 transition-colors disabled:cursor-not-allowed sm:w-auto"
         >
           Send Quote PDF (coming soon)
         </button>
@@ -119,7 +119,7 @@ export function GeneratedQuotePreview({
         )}
       </div>
 
-      <p className="font-mono text-xs tracking-[0.12em] text-zinc-500 uppercase">
+      <p className="font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase">
         Quote PDF stored in HARBLANC dispatch · {quote.quoteNumber}
       </p>
     </div>

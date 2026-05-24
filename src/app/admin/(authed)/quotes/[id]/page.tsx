@@ -980,7 +980,7 @@ export default async function QuoteDetailPage({
     <div className="mx-auto max-w-[1400px] px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-8">
       <Link
         href={isTrashed ? "/admin/quotes/trash" : "/admin/quotes"}
-        className="inline-flex items-center font-mono text-xs tracking-[0.12em] text-zinc-500 uppercase transition-colors hover:text-zinc-900"
+        className="inline-flex items-center font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase transition-colors hover:text-zinc-900"
       >
         &larr; Back to {isTrashed ? "trash" : "quotes"}
       </Link>
