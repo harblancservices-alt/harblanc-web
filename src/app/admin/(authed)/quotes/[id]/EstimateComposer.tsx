@@ -508,7 +508,7 @@ export function EstimateComposer(props: EstimateComposerProps) {
           type="button"
           onClick={onSaveDraft}
           disabled={isPending}
-          className="btn-outline-cut inline-flex items-center justify-center px-5 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-zinc-900 transition-colors disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+          className="btn-outline-cut inline-flex items-center justify-center px-5 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-zinc-100 transition-colors disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
           {isPending && !building ? "Working…" : "Save draft"}
         </button>
@@ -516,7 +516,7 @@ export function EstimateComposer(props: EstimateComposerProps) {
           type="button"
           onClick={onBuildPreview}
           disabled={isPending || laneIncomplete}
-          className="btn-cut inline-flex items-center justify-center bg-red-600 px-5 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-zinc-900 transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+          className="btn-cut inline-flex items-center justify-center bg-red-600 px-5 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
           {building
             ? "Building…"
@@ -586,7 +586,7 @@ export function EstimateComposer(props: EstimateComposerProps) {
                 type="button"
                 onClick={onSend}
                 disabled={isPending || stale}
-                className="btn-cut inline-flex items-center justify-center bg-red-600 px-6 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-zinc-900 transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+                className="btn-cut inline-flex items-center justify-center bg-red-600 px-6 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isPending && !building ? "Sending…" : "Send estimate"}
               </button>

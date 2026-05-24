@@ -78,14 +78,14 @@ export function GeneratedQuotePreview({
           href={signedUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="btn-outline-cut inline-flex w-full items-center justify-center px-5 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-zinc-900 transition-colors sm:w-auto"
+          className="btn-outline-cut inline-flex w-full items-center justify-center px-5 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-zinc-100 transition-colors sm:w-auto"
         >
           Open PDF
         </a>
         <a
           href={signedUrl}
           download={`HARBLANC_Quote_${quote.quoteNumber}.pdf`}
-          className="btn-outline-cut inline-flex w-full items-center justify-center px-5 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-zinc-900 transition-colors sm:w-auto"
+          className="btn-outline-cut inline-flex w-full items-center justify-center px-5 py-3 text-xs font-semibold uppercase tracking-[0.12em] text-zinc-100 transition-colors sm:w-auto"
         >
           Download PDF
         </a>
