@@ -342,7 +342,7 @@ export function QuoteDetailTabs({
             Strip is now an items-stretch row separated by a top border
             and a divide so each cell visibly owns its column. */}
         {summaryHasContent ? (
-          <div className="mt-5 flex flex-col gap-x-6 gap-y-4 border-y border-zinc-200 py-4 sm:flex-row sm:flex-wrap sm:items-start sm:gap-y-3">
+          <div className="mt-5 flex flex-col gap-x-6 gap-y-3 border-y border-zinc-200 py-4 sm:flex-row sm:flex-wrap sm:items-start">
             <div className="shrink-0">
               <p className="font-mono text-xs tracking-[0.1em] text-zinc-700 uppercase">
                 Status
@@ -356,7 +356,7 @@ export function QuoteDetailTabs({
                 <p className="font-mono text-xs tracking-[0.1em] text-zinc-700 uppercase">
                   Lane
                 </p>
-                <div className="mt-1.5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                <div className="mt-1.5 flex flex-wrap items-baseline gap-x-2 gap-y-1 sm:gap-x-3">
                   <span className="text-base font-semibold text-zinc-900 sm:text-lg">
                     {pickupCity && pickupState
                       ? `${pickupCity}, ${pickupState}`
@@ -911,31 +911,39 @@ function LoadPreview({
   return (
     <div className="border border-zinc-300 bg-white">
       {/* Header — primary client/contact + state badge. Always shown. */}
-      <header className="border-b border-zinc-300 px-5 py-5 sm:px-6 sm:py-6">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
+      {/* Phase MOBILE-1: header reflows to a true mobile stack below
+          sm. Status pill renders FIRST on mobile (order-1) so it reads
+          as a status banner above the contact info; on sm+ it returns
+          to the right-aligned position. Phone drops from text-xl/2xl
+          to text-base/2xl and switches break-all -> break-words to
+          avoid mid-number breaks; email drops to text-sm/lg, keeping
+          break-all because email domains have no natural break points.
+          Card padding tightens to px-4 on mobile. */}
+      <header className="border-b border-zinc-300 px-4 py-5 sm:px-6 sm:py-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
+          <div className="order-2 min-w-0 flex-1 sm:order-1">
             <p className="label-cap">Primary client</p>
-            <p className="mt-2 text-xl font-semibold text-zinc-900 sm:text-2xl">
+            <p className="mt-2 text-lg font-semibold text-zinc-900 sm:text-2xl">
               {row.name}
             </p>
             <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-x-6">
-              <div>
+              <div className="min-w-0">
                 <dt className="label-cap">Phone</dt>
-                <dd className="mt-1">
+                <dd className="mt-1 min-w-0">
                   <a
                     href={phoneHref}
-                    className="block break-all font-mono text-xl text-zinc-900 underline-offset-4 hover:underline sm:text-2xl"
+                    className="block break-words font-mono text-base text-zinc-900 underline-offset-4 hover:underline sm:text-2xl"
                   >
                     {row.phone}
                   </a>
                 </dd>
               </div>
-              <div>
+              <div className="min-w-0">
                 <dt className="label-cap">Email</dt>
-                <dd className="mt-1">
+                <dd className="mt-1 min-w-0">
                   <a
                     href={`mailto:${row.email}`}
-                    className="block break-all text-base text-zinc-900 underline-offset-4 hover:underline sm:text-lg"
+                    className="block break-all text-sm text-zinc-900 underline-offset-4 hover:underline sm:text-lg"
                   >
                     {row.email}
                   </a>
@@ -943,7 +951,7 @@ function LoadPreview({
               </div>
             </dl>
           </div>
-          <div className="shrink-0">
+          <div className="order-1 shrink-0 sm:order-2">
             {submittedIntake ? (
               <span className="inline-flex items-center border border-green-300 bg-green-50 px-2.5 py-1 font-mono text-xs tracking-[0.12em] text-green-800 uppercase">
                 Intake confirmed
@@ -958,7 +966,7 @@ function LoadPreview({
       </header>
 
       {/* Body — adapts to intake state. */}
-      <div className="space-y-6 p-5 sm:p-6">
+      <div className="space-y-6 p-4 sm:p-6">
         {submittedIntake ? (
           <>
             {/* SubmittedIntakePanel rendered verbatim — its existing
@@ -1011,16 +1019,21 @@ function LoadPreview({
                     Second line is always ZIP + mileage at a readable
                     size — mileage promoted out of the tracked-uppercase
                     tier it used to live in. */}
-                <div className="mt-3 flex flex-wrap items-baseline gap-x-4 gap-y-2">
-                  <span className="text-2xl font-semibold text-zinc-900 sm:text-3xl">
+                {/* Phase MOBILE-1: lane endpoints scale down on mobile
+                    (text-xl ~20px) so origin / arrow / destination fit
+                    on one or two lines instead of three. Desktop
+                    text-3xl preserved. Gap tightens to gap-x-2 on
+                    mobile. */}
+                <div className="mt-3 flex flex-wrap items-baseline gap-x-2 gap-y-1 sm:gap-x-4 sm:gap-y-2">
+                  <span className="text-xl font-semibold text-zinc-900 sm:text-3xl">
                     {pickupCity && pickupState
                       ? `${pickupCity}, ${pickupState}`
                       : row.pickup_zip}
                   </span>
-                  <span aria-hidden className="text-xl text-red-600 sm:text-2xl">
+                  <span aria-hidden className="text-lg text-red-600 sm:text-2xl">
                     &rarr;
                   </span>
-                  <span className="text-2xl font-semibold text-zinc-900 sm:text-3xl">
+                  <span className="text-xl font-semibold text-zinc-900 sm:text-3xl">
                     {deliveryCity && deliveryState
                       ? `${deliveryCity}, ${deliveryState}`
                       : row.delivery_zip}
