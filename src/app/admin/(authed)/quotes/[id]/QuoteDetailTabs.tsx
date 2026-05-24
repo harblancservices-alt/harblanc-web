@@ -134,6 +134,10 @@ export function QuoteDetailTabs({
   sentEstimates,
   events,
   computedMiles,
+  pickupCity,
+  pickupState,
+  deliveryCity,
+  deliveryState,
   finalizedQuoteState,
   sentFinalizedQuotes,
   bolState,
@@ -148,6 +152,12 @@ export function QuoteDetailTabs({
   sentEstimates: SentEstimateRow[];
   events: DispatchEvent[];
   computedMiles: number | null;
+  // Phase LANE-2: resolved city/state for lane endpoints. Display-only
+  // (server-resolved via the `zipcodes` package in the page loader).
+  pickupCity: string | null;
+  pickupState: string | null;
+  deliveryCity: string | null;
+  deliveryState: string | null;
   finalizedQuoteState: FinalizedQuoteWorkflowState;
   sentFinalizedQuotes: SentFinalizedQuoteRow[];
   bolState: BolWorkflowState;
@@ -289,18 +299,22 @@ export function QuoteDetailTabs({
       </div>
 
       <header className="mt-4">
-        {/* Phase LAYOUT-1: eyebrow row — status + relative time */}
+        {/* Phase LANE-2: eyebrow stripped of the redundant StatusBadge.
+            The dropdown below shows current status (selected value), the
+            summary strip below carries it as a labeled cell, and the
+            scroll-sticky bar carries it scroll-deep. Three copies on one
+            screen was reading as conflicting state declarations next to
+            the red “Advance → X” action button. */}
         <div className="flex flex-wrap items-center gap-3">
           <p className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
             Quote request
           </p>
-          <StatusBadge status={row.lead_status} />
           {row.lead_status_updated_at ? (
             <span
-              className="font-mono text-xs text-zinc-600"
+              className="font-mono text-xs text-zinc-700"
               title={formatDateFull(row.lead_status_updated_at)}
             >
-              {relativeTime(row.lead_status_updated_at)}
+              Status updated {relativeTime(row.lead_status_updated_at)}
             </span>
           ) : null}
         </div>
@@ -320,59 +334,98 @@ export function QuoteDetailTabs({
           {formatDateFull(row.created_at)}
         </p>
 
-        {/* Phase OPS-2A: operational summary strip. Compact scannable
-            line carrying lane + miles, pickup target, FQ total, outstanding
-            balance, and the top urgency chip. All fields conditional —
-            the strip renders nothing when no fields populated. */}
+        {/* Phase LANE-2: operational summary strip rebuilt.
+            Stronger label/value hierarchy (no more .label-cap zinc-300
+            dependency), labels at text-xs tracking-0.1em zinc-700, values
+            at text-base zinc-900. Lane is a 2-line block (City, ST hero
+            + ZIP secondary) and gets visual priority via flex-grow.
+            Strip is now an items-stretch row separated by a top border
+            and a divide so each cell visibly owns its column. */}
         {summaryHasContent ? (
-          <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-2 border-y border-zinc-200 py-3">
+          <div className="mt-5 flex flex-col gap-x-6 gap-y-4 border-y border-zinc-200 py-4 sm:flex-row sm:flex-wrap sm:items-start sm:gap-y-3">
+            <div className="shrink-0">
+              <p className="font-mono text-xs tracking-[0.1em] text-zinc-700 uppercase">
+                Status
+              </p>
+              <div className="mt-1.5">
+                <StatusBadge status={row.lead_status} />
+              </div>
+            </div>
             {hasLane ? (
-              <span className="inline-flex items-baseline gap-2">
-                <span className="label-cap text-zinc-600">Lane</span>
-                <span className="font-mono text-sm font-semibold text-zinc-900">
-                  {row.pickup_zip}
-                  <span aria-hidden className="mx-1 text-red-600">→</span>
-                  {row.delivery_zip}
-                </span>
-                {computedMiles != null ? (
-                  <span className="font-mono text-xs text-zinc-600">
-                    ~{computedMiles} mi
+              <div className="min-w-0 flex-1 sm:min-w-[16rem]">
+                <p className="font-mono text-xs tracking-[0.1em] text-zinc-700 uppercase">
+                  Lane
+                </p>
+                <div className="mt-1.5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                  <span className="text-base font-semibold text-zinc-900 sm:text-lg">
+                    {pickupCity && pickupState
+                      ? `${pickupCity}, ${pickupState}`
+                      : row.pickup_zip}
                   </span>
-                ) : null}
-              </span>
+                  <span aria-hidden className="text-base text-red-600 sm:text-lg">
+                    →
+                  </span>
+                  <span className="text-base font-semibold text-zinc-900 sm:text-lg">
+                    {deliveryCity && deliveryState
+                      ? `${deliveryCity}, ${deliveryState}`
+                      : row.delivery_zip}
+                  </span>
+                </div>
+                <p className="mt-1 font-mono text-xs text-zinc-700">
+                  {row.pickup_zip}
+                  <span aria-hidden className="mx-1.5 text-zinc-500">→</span>
+                  {row.delivery_zip}
+                  {computedMiles != null ? (
+                    <>
+                      <span aria-hidden className="mx-2 text-zinc-500">·</span>
+                      <span className="text-zinc-800">~{computedMiles} mi</span>
+                    </>
+                  ) : null}
+                </p>
+              </div>
             ) : null}
             {row.pickup_date ? (
-              <span className="inline-flex items-baseline gap-2">
-                <span className="label-cap text-zinc-600">Pickup</span>
-                <span className="text-sm text-zinc-900">{row.pickup_date}</span>
-              </span>
+              <div className="shrink-0">
+                <p className="font-mono text-xs tracking-[0.1em] text-zinc-700 uppercase">
+                  Pickup
+                </p>
+                <p className="mt-1.5 text-base text-zinc-900 sm:text-lg">
+                  {row.pickup_date}
+                </p>
+              </div>
             ) : null}
             {paymentTarget && paymentTarget.totalAmount !== null ? (
-              <span className="inline-flex items-baseline gap-2">
-                <span className="label-cap text-zinc-600">Total</span>
-                <span className="font-mono text-sm font-semibold text-zinc-900">
+              <div className="shrink-0">
+                <p className="font-mono text-xs tracking-[0.1em] text-zinc-700 uppercase">
+                  Total
+                </p>
+                <p className="mt-1.5 font-mono text-base font-semibold text-zinc-900 sm:text-lg">
                   {formatPaymentAmount(paymentTarget.totalAmount)}
-                </span>
-              </span>
+                </p>
+              </div>
             ) : null}
             {outstanding > 0 ? (
-              <span className="inline-flex items-baseline gap-2">
-                <span className="label-cap text-zinc-600">Outstanding</span>
-                <span className="font-mono text-sm font-semibold text-amber-800">
+              <div className="shrink-0">
+                <p className="font-mono text-xs tracking-[0.1em] text-zinc-700 uppercase">
+                  Outstanding
+                </p>
+                <p className="mt-1.5 font-mono text-base font-semibold text-amber-800 sm:text-lg">
                   {formatPaymentAmount(outstanding)}
-                </span>
-              </span>
+                </p>
+              </div>
             ) : null}
             {topUrgencyChip ? (
-              <span
-                className={
-                  "inline-flex items-center border px-2 py-0.5 font-mono text-xs tracking-[0.12em] uppercase " +
-                  URGENCY_SEVERITY_CLASSES_LIGHT[topUrgencyChip.severity]
-                }
-                title={topUrgencyChip.kind}
-              >
-                {topUrgencyChip.label}
-              </span>
+              <div className="shrink-0 sm:self-center">
+                <span
+                  className={
+                    "inline-flex items-center border px-2.5 py-1 font-mono text-xs tracking-[0.1em] uppercase " +
+                    URGENCY_SEVERITY_CLASSES_LIGHT[topUrgencyChip.severity]
+                  }
+                  title={topUrgencyChip.kind}
+                >
+                  {topUrgencyChip.label}
+                </span>
+              </div>
             ) : null}
           </div>
         ) : null}
@@ -491,6 +544,10 @@ export function QuoteDetailTabs({
             draftEstimate={draftEstimate}
             sentEstimates={sentEstimates}
             computedMiles={computedMiles}
+            pickupCity={pickupCity}
+            pickupState={pickupState}
+            deliveryCity={deliveryCity}
+            deliveryState={deliveryState}
             isTrashed={isTrashed}
             submittedIntake={submittedIntake}
           />
@@ -537,6 +594,10 @@ function RequestTab({
   draftEstimate,
   sentEstimates,
   computedMiles,
+  pickupCity,
+  pickupState,
+  deliveryCity,
+  deliveryState,
   isTrashed,
   submittedIntake,
 }: {
@@ -545,6 +606,10 @@ function RequestTab({
   draftEstimate: EstimateDraft | null;
   sentEstimates: SentEstimateRow[];
   computedMiles: number | null;
+  pickupCity: string | null;
+  pickupState: string | null;
+  deliveryCity: string | null;
+  deliveryState: string | null;
   isTrashed: boolean;
   submittedIntake: SubmittedIntakeData | null;
 }) {
@@ -572,6 +637,10 @@ function RequestTab({
           row={row}
           phoneHref={phoneHref}
           computedMiles={computedMiles}
+          pickupCity={pickupCity}
+          pickupState={pickupState}
+          deliveryCity={deliveryCity}
+          deliveryState={deliveryState}
           submittedIntake={submittedIntake}
           hasLane={hasLane}
         />
@@ -822,12 +891,20 @@ function LoadPreview({
   row,
   phoneHref,
   computedMiles,
+  pickupCity,
+  pickupState,
+  deliveryCity,
+  deliveryState,
   submittedIntake,
   hasLane,
 }: {
   row: QuoteDetailRow;
   phoneHref: string;
   computedMiles: number | null;
+  pickupCity: string | null;
+  pickupState: string | null;
+  deliveryCity: string | null;
+  deliveryState: string | null;
   submittedIntake: SubmittedIntakeData | null;
   hasLane: boolean;
 }) {
@@ -892,7 +969,9 @@ function LoadPreview({
             {/* Comparison disclosure — keeps the original quote-form
                 values one tap away without cluttering the preview. */}
             <details className="group border border-zinc-200 bg-zinc-50/50 p-4">
-              <summary className="block cursor-pointer list-none font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase select-none transition-colors hover:text-zinc-900">
+              {/* Phase LANE-2: disclosure trigger upgraded from tiny
+                  tracked uppercase to readable plain-caption. */}
+              <summary className="block cursor-pointer list-none text-sm font-semibold text-zinc-700 select-none transition-colors hover:text-zinc-900">
                 <span className="group-open:hidden">+ View original quote-form request</span>
                 <span className="hidden group-open:inline">− Hide original quote-form request</span>
               </summary>
@@ -926,25 +1005,43 @@ function LoadPreview({
             {hasLane ? (
               <section>
                 <h3 className="label-cap">Lane</h3>
+                {/* Phase LANE-2: two-tier lane display. Hero line carries
+                    City, ST when both ZIPs resolve (server-side via the
+                    `zipcodes` package); ZIP-only fallback otherwise.
+                    Second line is always ZIP + mileage at a readable
+                    size — mileage promoted out of the tracked-uppercase
+                    tier it used to live in. */}
                 <div className="mt-3 flex flex-wrap items-baseline gap-x-4 gap-y-2">
-                  <span className="font-mono text-2xl font-semibold text-zinc-900 sm:text-3xl">
-                    {row.pickup_zip}
+                  <span className="text-2xl font-semibold text-zinc-900 sm:text-3xl">
+                    {pickupCity && pickupState
+                      ? `${pickupCity}, ${pickupState}`
+                      : row.pickup_zip}
                   </span>
-                  <span aria-hidden className="font-mono text-xl text-red-600">
+                  <span aria-hidden className="text-xl text-red-600 sm:text-2xl">
                     &rarr;
                   </span>
-                  <span className="font-mono text-2xl font-semibold text-zinc-900 sm:text-3xl">
-                    {row.delivery_zip}
+                  <span className="text-2xl font-semibold text-zinc-900 sm:text-3xl">
+                    {deliveryCity && deliveryState
+                      ? `${deliveryCity}, ${deliveryState}`
+                      : row.delivery_zip}
                   </span>
-                  {computedMiles != null ? (
-                    <span className="ml-1 font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase">
-                      ~{computedMiles} mi
-                    </span>
-                  ) : null}
                 </div>
-                <p className="mt-3 label-cap">
-                  Pickup target:{" "}
-                  <span className="text-zinc-800">
+                <p className="mt-2 font-mono text-sm text-zinc-700">
+                  {row.pickup_zip}
+                  <span aria-hidden className="mx-2 text-zinc-500">→</span>
+                  {row.delivery_zip}
+                  {computedMiles != null ? (
+                    <>
+                      <span aria-hidden className="mx-2 text-zinc-500">·</span>
+                      <span className="text-zinc-800">~{computedMiles} mi</span>
+                    </>
+                  ) : null}
+                </p>
+                <p className="mt-3 text-sm text-zinc-700">
+                  <span className="font-mono text-xs tracking-[0.08em] text-zinc-600 uppercase">
+                    Pickup target
+                  </span>{" "}
+                  <span className="ml-1 text-zinc-900">
                     {row.pickup_date ?? "ASAP"}
                   </span>
                 </p>

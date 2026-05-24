@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { formatDateFull, relativeTime } from "@/lib/admin/format";
-import { estimateLaneMiles } from "@/lib/dispatch/distance";
+import { estimateLaneMiles, lookupZip } from "@/lib/dispatch/distance";
 import {
   softDeleteQuote,
   restoreQuote,
@@ -596,6 +596,14 @@ async function loadDetail(id: string): Promise<{
   sentEstimates: SentEstimateRow[];
   events: DispatchEvent[];
   computedMiles: number | null;
+  // Phase LANE-2: resolved city/state for the lane endpoints. Server-only
+  // lookup via the bundled `zipcodes` dataset — no API, no schema. Nulls
+  // when the ZIP doesn’t resolve (PO-box-only, very new ZIPs, etc.); the
+  // UI falls back to ZIP-only display.
+  pickupCity: string | null;
+  pickupState: string | null;
+  deliveryCity: string | null;
+  deliveryState: string | null;
   finalizedQuoteState: FinalizedQuoteWorkflowState;
   sentFinalizedQuotes: SentFinalizedQuoteRow[];
   bolState: BolWorkflowState;
@@ -686,6 +694,28 @@ async function loadDetail(id: string): Promise<{
     if (r.ok) computedMiles = r.miles;
   }
 
+  // Phase LANE-2: resolve city/state for each lane endpoint via the
+  // server-only `zipcodes` dataset. Cheap (in-memory lookup), no DB
+  // write, no API. Values are nullable when the ZIP doesn’t resolve.
+  let pickupCity: string | null = null;
+  let pickupState: string | null = null;
+  let deliveryCity: string | null = null;
+  let deliveryState: string | null = null;
+  if (row.pickup_zip) {
+    const z = lookupZip(row.pickup_zip);
+    if (z) {
+      pickupCity = z.city || null;
+      pickupState = z.state || null;
+    }
+  }
+  if (row.delivery_zip) {
+    const z = lookupZip(row.delivery_zip);
+    if (z) {
+      deliveryCity = z.city || null;
+      deliveryState = z.state || null;
+    }
+  }
+
   const finalizedQuoteState = await loadFinalizedQuoteState(sb, id);
   const sentFinalizedQuotes = await loadSentFinalizedQuotes(sb, id);
   const bolState = await loadBolState(sb, id);
@@ -701,6 +731,10 @@ async function loadDetail(id: string): Promise<{
     sentEstimates: (sentEstimateRows ?? []).map(toSentEstimateRow),
     events: eventRows ?? [],
     computedMiles,
+    pickupCity,
+    pickupState,
+    deliveryCity,
+    deliveryState,
     finalizedQuoteState,
     sentFinalizedQuotes,
     bolState,
@@ -966,6 +1000,10 @@ export default async function QuoteDetailPage({
     sentEstimates,
     events,
     computedMiles,
+    pickupCity,
+    pickupState,
+    deliveryCity,
+    deliveryState,
     finalizedQuoteState,
     sentFinalizedQuotes,
     bolState,
@@ -1019,6 +1057,10 @@ export default async function QuoteDetailPage({
         sentEstimates={sentEstimates}
         events={events}
         computedMiles={computedMiles}
+        pickupCity={pickupCity}
+        pickupState={pickupState}
+        deliveryCity={deliveryCity}
+        deliveryState={deliveryState}
         finalizedQuoteState={finalizedQuoteState}
         sentFinalizedQuotes={sentFinalizedQuotes}
         bolState={bolState}

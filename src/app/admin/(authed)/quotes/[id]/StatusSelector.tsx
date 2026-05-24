@@ -80,7 +80,7 @@ export function StatusSelector({
           }
           title={`Move to ${LEAD_STATUS_LABELS[next]}`}
         >
-          {isPending ? "…" : `→ ${LEAD_STATUS_LABELS[next]}`}
+          {isPending ? "…" : `Advance → ${LEAD_STATUS_LABELS[next]}`}
         </button>
       ) : null}
 
