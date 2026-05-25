@@ -5,7 +5,7 @@ import { resolveByToken } from "@/lib/quote-token/lookup";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { company } from "@/lib/company";
 import { IntakeForm, type IntakeFormDefaults } from "./IntakeForm";
-import { IntakeUploads, type IntakeUploadRow } from "./IntakeUploads";
+import { type IntakeUploadRow } from "./IntakeUploads";
 
 /**
  * Load the customer's existing uploads for this lead, newest first.
@@ -169,17 +169,19 @@ export default async function QuoteAcceptPage({
         </div>
       </section>
 
-      {/* Intake form — main interaction. */}
+      {/* Intake form — main interaction. The Documents & Photos uploader
+          renders INSIDE this form (between Shipment and Logistics) so it
+          disappears alongside the form once the customer submits — uploads
+          are pre-confirmation only and never surface after the success
+          card replaces the editable branch. */}
       <section className="bg-neutral-950">
         <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8 lg:py-16">
           <IntakeForm
             token={token}
             defaults={defaults}
             initialStatus={initialStatus}
+            initialUploads={initialUploads}
           />
-
-          {/* Documents & Photos — supporting files for dispatch. */}
-          <IntakeUploads token={token} initialUploads={initialUploads} />
 
           <p className="mt-8 font-mono text-[10px] tracking-[0.22em] text-neutral-500 uppercase">
             Changed your mind?{" "}

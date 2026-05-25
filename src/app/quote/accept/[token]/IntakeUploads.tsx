@@ -172,6 +172,13 @@ export function IntakeUploads({
               type="text"
               value={note}
               onChange={(e) => setNote(e.target.value)}
+              onKeyDown={(e) => {
+                // The uploader now lives inside the intake <form>, so
+                // an Enter press here would otherwise bubble up and
+                // submit the whole intake. The note is a label for the
+                // next upload batch — it must never trigger a submit.
+                if (e.key === "Enter") e.preventDefault();
+              }}
               placeholder="e.g. shipper paperwork, freight from front"
               className="mt-2 block w-full border border-neutral-700 bg-neutral-900 px-3 py-2.5 text-sm text-white placeholder:text-neutral-600 focus:border-red-500 focus:outline-none"
               maxLength={200}

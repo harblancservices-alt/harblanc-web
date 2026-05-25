@@ -7,14 +7,21 @@ import {
   submitIntake,
   type IntakeSaveResult,
 } from "./actions";
+import { IntakeUploads, type IntakeUploadRow } from "./IntakeUploads";
 
 /**
  * Shipment finalization intake — single-page sectioned form, mobile
  * first. Save Progress persists partial state; Submit flips status to
  * 'submitted' and routes the customer to a confirmation view.
  *
- * No file uploads in this cut — reference URLs only. Adding uploads
- * later means wiring a Supabase Storage bucket scoped by token.
+ * Documents & Photos uploader lives INSIDE the editable branch of this
+ * component, between the Shipment (commodity / dims / weight) section
+ * and the Logistics section — i.e. on the Confirm Shipment Details
+ * screen, before the submit button. When status flips to "submitted"
+ * the editable branch is replaced by a success card and the uploader
+ * disappears alongside the form, so files cannot be added after the
+ * customer has confirmed. Uploads remain optional throughout — the
+ * customer can submit with zero files attached.
  */
 
 export type IntakeFormDefaults = {
@@ -82,10 +89,12 @@ export function IntakeForm({
   token,
   defaults,
   initialStatus,
+  initialUploads,
 }: {
   token: string;
   defaults: IntakeFormDefaults;
   initialStatus: "in_progress" | "submitted" | "new";
+  initialUploads: IntakeUploadRow[];
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -225,6 +234,16 @@ export function IntakeForm({
           placeholder="Escorts, permits, tarping, chains, hazmat, non-running condition, etc."
         />
       </Section>
+
+      {/* Documents & Photos — optional. Sits between Logistics and Notes
+          & links so handling-responsibility decisions are made first and
+          the customer can then attach the photos / weight tickets / spec
+          sheets that back those decisions up. Submits independently via
+          its own server action (the note input suppresses Enter so the
+          parent intake <form> never auto-submits). When status flips to
+          "submitted" this whole branch is replaced by the success card
+          above, so uploads cannot be added after the customer confirms. */}
+      <IntakeUploads token={token} initialUploads={initialUploads} />
 
       <Section title="Notes & links">
         <Textarea

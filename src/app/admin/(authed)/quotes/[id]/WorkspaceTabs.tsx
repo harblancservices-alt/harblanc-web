@@ -14,8 +14,8 @@ import { useState, type ReactNode } from "react";
  * Tabs:
  *   1. Load Details    — auto-fill intake data + customer documents
  *   2. Quote Range     — primary range proposal workspace
- *   3. Finalized Quote — placeholder, REBUILD-3
- *   4. BOL             — placeholder, REBUILD-3
+ *   3. Finalized Quote — rate confirmation workspace (REBUILD-3)
+ *   4. BOL             — Bill of Lading execution paperwork (REBUILD-3)
  *   5. Payments        — placeholder, REBUILD-3
  *
  * Documents & Photos live as a section inside the Load Details card
@@ -34,17 +34,21 @@ type TabDef = { id: TabId; label: string; placeholder?: boolean };
 const TABS: TabDef[] = [
   { id: "load_details", label: "Load details" },
   { id: "quote_range", label: "Quote range" },
-  { id: "finalized", label: "Finalized quote", placeholder: true },
-  { id: "bol", label: "BOL", placeholder: true },
+  { id: "finalized", label: "Finalized quote" },
+  { id: "bol", label: "BOL" },
   { id: "payments", label: "Payments", placeholder: true },
 ];
 
 export function WorkspaceTabs({
   quoteRangeContent,
   loadDetailsContent,
+  finalizedQuoteContent,
+  bolContent,
 }: {
   quoteRangeContent: ReactNode;
   loadDetailsContent: ReactNode;
+  finalizedQuoteContent: ReactNode;
+  bolContent: ReactNode;
 }) {
   const [tab, setTab] = useState<TabId>("load_details");
 
@@ -59,16 +63,10 @@ export function WorkspaceTabs({
           {loadDetailsContent}
         </div>
         <div className={tab === "finalized" ? "" : "hidden"}>
-          <PlaceholderTab
-            title="Finalized quote"
-            subtitle="Firm rate confirmation generated after the customer accepts the range proposal. Workflow lands in REBUILD-3."
-          />
+          {finalizedQuoteContent}
         </div>
         <div className={tab === "bol" ? "" : "hidden"}>
-          <PlaceholderTab
-            title="Bill of lading"
-            subtitle="Execution paperwork generated after the finalized quote is sent. Workflow lands in REBUILD-3."
-          />
+          {bolContent}
         </div>
         <div className={tab === "payments" ? "" : "hidden"}>
           <PlaceholderTab
