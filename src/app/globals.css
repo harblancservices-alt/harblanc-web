@@ -27,15 +27,15 @@
   --border: #262626;
   --surface: #171717;
   --muted: #a1a1aa;
-  /* Phase READABILITY-2: --label-fg promoted from #d4d4d8 (zinc-300, ~2.5:1
-     on white) to #3f3f46 (zinc-700, ~10.7:1 on white). Was originally
-     authored for the dark theme where zinc-300 sat at high contrast against
-     #111111; after COLOR-1..7 flipped the admin to a light surface the
-     token started rendering small uppercase labels almost invisibly when
-     a consumer didn't co-specify text-zinc-700/800. Bumping at the token
-     fixes every .label-cap and .text-label-fg call site in one place
-     without touching component code. */
-  --label-fg: #3f3f46;
+  /* Phase READABILITY-2 / TYPO-1: --label-fg promoted again.
+     Original: #d4d4d8 (zinc-300, ~2.5:1 on white) — dark-theme legacy.
+     READABILITY-2: #3f3f46 (zinc-700, ~10.7:1) — light-theme baseline.
+     TYPO-CORRECT: #000000 (true black, ~21:1 on white) —
+     industrial-paperwork target. The admin reads as freight dispatch
+     paperwork, not a modern-SaaS template; uppercase operational
+     labels are black, not muted. Every .label-cap and .text-label-fg
+     consumer inherits the bump for free. */
+  --label-fg: #000000;
 }
 
 @theme inline {
@@ -280,5 +280,39 @@ body {
     border: 1px solid #d4d4d8; /* zinc-300 */
     background-color: #fafafa; /* zinc-50 */
     color: #27272a; /* zinc-800 */
+  }
+}
+
+
+/* SECTION-1: dashboard section-header pattern.
+   Thin HARBLANC red left bar + black bold uppercase title. Replaces
+   bare .label-cap at major section / card heading sites so dashboard
+   hierarchy reads as freight-paperwork operational chrome instead of
+   a flat run of small caps. The bar is a ::before pseudo so callsite
+   JSX stays a single element. Bar geometry: 3px wide × 14px tall
+   (matches cap height); color from --accent so a future accent change
+   propagates. Text: Public Sans 700, 0.12em tracked, true black.
+   Used ONLY at section/card heading sites — not at field labels or
+   metadata captions, where .label-cap remains the right utility. */
+@layer utilities {
+  .section-title {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    font-family: var(--font-public-sans), ui-sans-serif, system-ui, sans-serif;
+    font-size: 13px;
+    line-height: 1.3;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #000;
+  }
+  .section-title::before {
+    content: "";
+    display: inline-block;
+    width: 3px;
+    height: 14px;
+    background: var(--accent);
+    flex-shrink: 0;
   }
 }

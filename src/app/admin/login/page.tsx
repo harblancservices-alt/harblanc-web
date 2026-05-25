@@ -19,10 +19,10 @@ export default async function LoginPage({
           <span aria-hidden className="inline-block h-3 w-1 bg-red-600" />
           Dispatch
         </p>
-        <h1 className="mt-5 text-3xl font-display tracking-tight text-zinc-900 sm:text-4xl">
+        <h1 className="mt-5 text-3xl font-display tracking-tight text-black sm:text-4xl">
           Sign in
         </h1>
-        <p className="mt-3 text-sm leading-relaxed text-zinc-600">
+        <p className="mt-3 text-sm leading-relaxed text-black">
           Authorized personnel only.
         </p>
 

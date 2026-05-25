@@ -41,7 +41,7 @@ export function AdminNav() {
             prefetch={false}
             className={
               "flex items-center gap-2 text-xs font-semibold tracking-[0.12em] uppercase transition-colors " +
-              (active ? "text-zinc-900" : "text-zinc-600 hover:text-zinc-900")
+              (active ? "text-black" : "text-black hover:text-black")
             }
           >
             {active ? (

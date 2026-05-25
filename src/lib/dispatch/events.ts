@@ -24,6 +24,8 @@ export type DispatchEventKind =
   | "estimate_accepted"
   | "estimate_declined"
   | "intake_submitted"
+  | "intake_upload_added"
+  | "intake_upload_removed"
   | "finalized_quote_draft_started"
   | "finalized_quote_draft_saved"
   | "finalized_quote_preview_built"
@@ -64,6 +66,13 @@ export type DispatchEventPayloadByKind = {
   estimate_accepted: { estimateId: string; mode: "save" | "submit" };
   estimate_declined: { estimateId: string; reason: string | null };
   intake_submitted: { estimateId: string };
+  intake_upload_added: {
+    uploadId: string;
+    mimeType: string;
+    sizeBytes: number;
+    originalFilename: string;
+  };
+  intake_upload_removed: { uploadId: string; storagePath: string };
   finalized_quote_draft_started: {
     finalizedQuoteId: string;
     finalizedQuoteNumber: string;
@@ -220,11 +229,12 @@ export async function logDispatchEvent<K extends DispatchEventKind>(
     .from("dispatch_events")
     .insert({ quote_request_id: quoteRequestId, kind, payload });
   if (error) {
-    // Observability event -- log and move on. NEVER throw.
-    console.error("[dispatch_events] insert failed", {
-      kind,
+    // Logging is best-effort. Caller cannot meaningfully recover
+    // from a failed event insert (the underlying operation already
+    // succeeded). Surface to server logs and move on.
+    console.error("[logDispatchEvent] insert failed", {
       quoteRequestId,
-      code: error.code,
+      kind,
       message: error.message,
     });
   }

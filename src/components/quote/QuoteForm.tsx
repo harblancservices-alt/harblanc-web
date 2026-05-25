@@ -2,6 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { uploadQuickQuoteDocument } from "@/app/quote/upload-actions";
+
+/** Files the customer can attach to a Quick Quote. Validated again
+ *  server-side; this client gate just blocks obvious mismatches early. */
+const UPLOAD_ACCEPT = "image/jpeg,image/png,image/webp,application/pdf";
+const UPLOAD_MAX_BYTES = 15 * 1024 * 1024;
 
 /**
  * Public Quick Quote form (Phase 2A).
@@ -111,7 +117,7 @@ const errCls =
 const hintCls =
   "mt-2 font-mono text-[10px] tracking-[0.12em] text-neutral-500 uppercase";
 
-type Status = "idle" | "submitting";
+type Status = "idle" | "submitting" | "uploading";
 
 export function QuoteForm() {
   const router = useRouter();
@@ -139,6 +145,47 @@ export function QuoteForm() {
   useEffect(() => {
     formStartedAtRef.current = Date.now();
   }, []);
+
+  // Optional uploaded files. Customer can pick documents/photos
+  // alongside their quote request. Files are uploaded AFTER the
+  // /api/quote POST succeeds (so we have a leadId to attach them
+  // to). Per-file outcome is tracked so we can show a summary
+  // without blocking navigation to /quote/success.
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploadProgress, setUploadProgress] = useState<{
+    done: number;
+    total: number;
+    failed: string[];
+  }>({ done: 0, total: 0, failed: [] });
+
+  function addFiles(list: FileList | null) {
+    if (!list || list.length === 0) return;
+    const next: File[] = [];
+    const rejects: string[] = [];
+    for (const f of Array.from(list)) {
+      if (f.size > UPLOAD_MAX_BYTES) {
+        rejects.push(`${f.name}: file too large (max 15 MB)`);
+        continue;
+      }
+      if (
+        !["image/jpeg", "image/png", "image/webp", "application/pdf"].includes(
+          f.type,
+        )
+      ) {
+        rejects.push(`${f.name}: unsupported type`);
+        continue;
+      }
+      next.push(f);
+    }
+    setSelectedFiles((prev) => [...prev, ...next]);
+    if (rejects.length > 0) {
+      setSubmitError(rejects.join(" · "));
+    }
+  }
+
+  function removeFile(idx: number) {
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== idx));
+  }
 
   function update<K extends keyof QuickQuoteValues>(
     key: K,
@@ -187,6 +234,28 @@ export function QuoteForm() {
         );
         setStatus("idle");
         return;
+      }
+
+      // Lead created. If files were picked, upload them via the
+      // quick-quote action serially so the customer sees progress.
+      // Failed files don't block navigation — the lead is already
+      // saved, and dispatch can follow up if anything's missing.
+      const data = (await res.json().catch(() => ({}))) as { leadId?: string };
+      const leadId = data.leadId;
+      if (leadId && selectedFiles.length > 0) {
+        setStatus("uploading");
+        setUploadProgress({ done: 0, total: selectedFiles.length, failed: [] });
+        for (let i = 0; i < selectedFiles.length; i++) {
+          const f = selectedFiles[i];
+          const fd = new FormData();
+          fd.append("file", f);
+          const result = await uploadQuickQuoteDocument(leadId, fd);
+          setUploadProgress((prev) => ({
+            done: i + 1,
+            total: prev.total,
+            failed: result.ok ? prev.failed : [...prev.failed, f.name],
+          }));
+        }
       }
       router.push("/quote/success");
     } catch {
@@ -330,6 +399,82 @@ export function QuoteForm() {
             />
           </Field>
         </div>
+
+        {/* Optional Documents & Photos — freight photos, packaging,
+            spec sheets, weight/dimension PDFs. Uploaded after the
+            quote request is created. JPG / PNG / WEBP / PDF up to
+            15 MB each. */}
+        <Field
+          id="documents"
+          label="Documents & photos (optional)"
+          hint="Up to 15 MB each — JPG, PNG, WEBP, or PDF."
+        >
+          <div>
+            {/* The label acts as the visible picker. We disable
+                it visually AND gate the underlying input while
+                status !== "idle" so files added mid-upload can't
+                fall into the silent-drop window between the
+                upload loop's initial selectedFiles snapshot and
+                the post-loop router.push to /quote/success. */}
+            <label
+              htmlFor="documents"
+              aria-disabled={status !== "idle"}
+              className={
+                "mt-2.5 inline-flex items-center gap-2 border border-neutral-800 bg-neutral-900 px-4 py-2.5 text-sm font-semibold uppercase tracking-[0.14em] text-zinc-100 transition-colors " +
+                (status !== "idle"
+                  ? "cursor-not-allowed opacity-60"
+                  : "cursor-pointer hover:border-red-600")
+              }
+            >
+              Add files
+            </label>
+            <input
+              id="documents"
+              name="documents"
+              type="file"
+              multiple
+              accept={UPLOAD_ACCEPT}
+              disabled={status !== "idle"}
+              onChange={(e) => {
+                addFiles(e.target.files);
+                e.target.value = "";
+              }}
+              className="sr-only"
+            />
+            {selectedFiles.length > 0 ? (
+              <ul className="mt-3 space-y-1">
+                {selectedFiles.map((f, i) => (
+                  <li
+                    key={`${f.name}-${i}`}
+                    className="flex items-center gap-2 border border-neutral-800 bg-neutral-900/40 px-3 py-2"
+                  >
+                    <span
+                      aria-hidden
+                      className="inline-flex h-6 w-9 shrink-0 items-center justify-center border border-neutral-700 bg-neutral-950 font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-red-400"
+                    >
+                      {f.type.startsWith("image/") ? "IMG" : "PDF"}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-sm text-zinc-200">
+                      {f.name}
+                    </span>
+                    <span className="shrink-0 font-mono text-[10px] uppercase tracking-wide text-neutral-500">
+                      {(f.size / 1024 / 1024).toFixed(1)} MB
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeFile(i)}
+                      disabled={status !== "idle"}
+                      aria-label={`Remove ${f.name}`}
+                      className="shrink-0 border border-neutral-700 bg-neutral-950 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] text-neutral-300 transition-colors hover:border-red-700 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-neutral-700 disabled:hover:text-neutral-300"
+                    >
+                      Remove
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+        </Field>
       </Section>
 
       {/* 03 / Contact */}
@@ -419,12 +564,23 @@ export function QuoteForm() {
           </div>
         ) : null}
 
+        {status === "uploading" && uploadProgress.total > 0 ? (
+          <p className="font-mono text-[10px] tracking-[0.2em] text-neutral-400 uppercase">
+            Uploading {uploadProgress.done} of {uploadProgress.total} file
+            {uploadProgress.total === 1 ? "" : "s"}…
+          </p>
+        ) : null}
+
         <button
           type="submit"
-          disabled={status === "submitting"}
+          disabled={status !== "idle"}
           className="btn-cut inline-flex w-full items-center justify-center bg-red-600 px-8 py-4 text-sm font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
         >
-          {status === "submitting" ? "Sending..." : "Request a quote"}
+          {status === "submitting"
+            ? "Sending…"
+            : status === "uploading"
+              ? "Uploading files…"
+              : "Request a quote"}
         </button>
       </div>
     </form>

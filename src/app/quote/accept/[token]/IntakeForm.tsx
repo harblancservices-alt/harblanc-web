@@ -168,7 +168,7 @@ export function IntakeForm({
           <Field label="State" name="pickup_state" defaultValue={defaults.pickupState} />
           <Field label="ZIP" name="pickup_zip" defaultValue={defaults.pickupZip} />
         </div>
-        <Field label="Pickup window" name="pickup_window" defaultValue={defaults.pickupWindow} placeholder="e.g. Tue 8am–2pm, appt required" />
+        <Field label="Pickup window" name="pickup_window" type="date" defaultValue={defaults.pickupWindow} />
       </Section>
 
       <Section title="Delivery">
@@ -185,7 +185,7 @@ export function IntakeForm({
           <Field label="State" name="delivery_state" defaultValue={defaults.deliveryState} />
           <Field label="ZIP" name="delivery_zip" defaultValue={defaults.deliveryZip} />
         </div>
-        <Field label="Delivery window" name="delivery_window" defaultValue={defaults.deliveryWindow} placeholder="e.g. Thu after 10am, appt confirmed" />
+        <Field label="Delivery window" name="delivery_window" type="date" defaultValue={defaults.deliveryWindow} />
       </Section>
 
       <Section title="Shipment">

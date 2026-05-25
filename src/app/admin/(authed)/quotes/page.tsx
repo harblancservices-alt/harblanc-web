@@ -38,7 +38,7 @@ export default async function QuotesPage() {
         <p className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
           Quote requests
         </p>
-        <h1 className="mt-2 text-2xl font-display tracking-tight text-zinc-900 sm:text-3xl">
+        <h1 className="mt-2 text-2xl font-display tracking-tight text-black sm:text-3xl">
           Inbound freight quotes
         </h1>
       </header>
@@ -60,7 +60,7 @@ export default async function QuotesPage() {
       />
 
       {rows.length === 0 ? (
-        <p className="mt-12 text-sm text-zinc-600">
+        <p className="mt-12 text-sm text-black">
           No active quote requests.
         </p>
       ) : (

@@ -3,6 +3,7 @@ import {
   Page,
   View,
   Text,
+  Image,
   StyleSheet,
 } from "@react-pdf/renderer";
 import { company } from "@/lib/company";
@@ -14,10 +15,16 @@ import { company } from "@/lib/company";
  * structured panels. No gradients, no soft shadows, no rounded corners.
  * Helvetica is used as the print typeface (built into PDF; no font fetch).
  *
- * v1 uses a typographic header (no embedded logo image) to avoid runtime
- * file-system fragility on Vercel. Logo image embed can be added in v1.1
- * once the asset pipeline is finalised.
+ * v1.1: header now embeds the horizontal HARBLANC lockup
+ * (logo-horizontal.png, 181 KB) instead of the typographic
+ * placeholder. The asset is fetched by @react-pdf at render time
+ * from the public site origin so the function doesn't depend on
+ * runtime filesystem access to the public folder on Vercel.
  */
+
+const LOGO_URL = `${
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.harblancservices.com"
+}/brand/harblanc-pro.png`;
 
 export type QuotePdfData = {
   quoteNumber: string;
@@ -79,6 +86,14 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     color: "#666",
     marginTop: 2,
+  },
+  // Logo image — source PNG is 2170×725 (≈3:1). At 156×52pt the
+  // hexagon mark + wordmark sit at roughly the same baseline as the
+  // QUOTE doctype on the right, with breathing room above the
+  // 2pt bottom rule of the headerBar.
+  logoLockup: {
+    width: 156,
+    height: 52,
   },
   docType: {
     fontFamily: "Helvetica-Bold",
@@ -305,14 +320,13 @@ export function QuotePDF({ data }: { data: QuotePdfData }) {
     <Document>
       <Page size="LETTER" style={styles.page}>
         {/* ── Header bar ─────────────────────────────────── */}
+        {/* Horizontal HARBLANC lockup on the left, QUOTE doctype on
+            the right. The image asset replaces the typographic
+            placeholder so the customer's PDF carries the carrier's
+            actual brand identity. */}
         <View style={styles.headerBar}>
-          <View style={{ flexDirection: "row", alignItems: "flex-end" }}>
-            <View style={styles.redBar} />
-            <View>
-              <Text style={styles.brand}>HARBLANC</Text>
-              <Text style={styles.brandSub}>SERVICES LLC</Text>
-            </View>
-          </View>
+          {/* eslint-disable-next-line jsx-a11y/alt-text -- @react-pdf Image accepts no alt prop */}
+          <Image src={LOGO_URL} style={styles.logoLockup} />
           <Text style={styles.docType}>QUOTE</Text>
         </View>
 
@@ -472,16 +486,20 @@ export function QuotePDF({ data }: { data: QuotePdfData }) {
           <View style={styles.footerCell}>
             <Text style={styles.footerLabel}>AUTHORITY</Text>
             <Text style={styles.footerValue}>
-              USDOT {company.dotNumber} / MC {company.mcNumber}
+              {company.dot} · {company.mc}
             </Text>
           </View>
           <View style={styles.footerCell}>
-            <Text style={styles.footerLabel}>DISPATCH</Text>
-            <Text style={styles.footerValue}>{company.dispatchEmail}</Text>
+            <Text style={[styles.footerLabel, { textAlign: "center" }]}>DISPATCH</Text>
+            <Text style={[styles.footerValue, { textAlign: "center" }]}>
+              {company.dispatchPhone}
+            </Text>
           </View>
           <View style={styles.footerCell}>
-            <Text style={styles.footerLabel}>QUOTE</Text>
-            <Text style={styles.footerValue}>{data.quoteNumber}</Text>
+            <Text style={[styles.footerLabel, { textAlign: "right" }]}>EMAIL</Text>
+            <Text style={[styles.footerValue, { textAlign: "right" }]}>
+              {company.dispatchEmail}
+            </Text>
           </View>
         </View>
       </Page>

@@ -172,14 +172,14 @@ export function ApplicationTrashTable({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search name, phone, email, equipment, ID..."
-            className="block w-full border border-zinc-300 bg-white px-4 py-2.5 pr-10 text-sm text-zinc-900 placeholder:text-zinc-500 focus:border-red-600 focus:outline-none"
+            className="block w-full border border-zinc-300 bg-white px-4 py-2.5 pr-10 text-sm text-black placeholder:text-black focus:border-red-600 focus:outline-none"
             aria-label="Search trashed applications"
           />
           {searchQuery ? (
             <button
               type="button"
               onClick={() => setSearchQuery("")}
-              className="absolute inset-y-0 right-0 flex items-center px-3 text-zinc-500 transition-colors hover:text-zinc-900"
+              className="absolute inset-y-0 right-0 flex items-center px-3 text-black transition-colors hover:text-black"
               aria-label="Clear search"
             >
               ×
@@ -190,7 +190,7 @@ export function ApplicationTrashTable({
           <button
             type="button"
             onClick={clearFilters}
-            className="inline-flex items-center justify-center border border-zinc-300 bg-white px-4 py-2.5 text-xs font-semibold tracking-[0.12em] uppercase text-zinc-700 transition-colors hover:border-zinc-400 hover:text-zinc-900 sm:w-auto"
+            className="inline-flex items-center justify-center border border-zinc-300 bg-white px-4 py-2.5 text-xs font-semibold tracking-[0.12em] uppercase text-black transition-colors hover:border-zinc-400 hover:text-black sm:w-auto"
           >
             Clear
           </button>
@@ -198,7 +198,7 @@ export function ApplicationTrashTable({
       </div>
 
       {hasFilter ? (
-        <p className="mt-2 text-xs text-zinc-600">
+        <p className="mt-2 text-xs text-black">
           Showing {filtered.length} of {rows.length} record
           {rows.length === 1 ? "" : "s"}
         </p>
@@ -206,7 +206,7 @@ export function ApplicationTrashTable({
 
       {selected.size > 0 ? (
         <div className="sticky top-0 z-20 mt-3 flex items-center justify-between gap-4 border border-zinc-300 bg-white px-4 py-3 shadow-sm">
-          <span className="font-mono text-xs tracking-[0.12em] text-zinc-900 uppercase">
+          <span className="font-mono text-xs tracking-[0.12em] text-black uppercase">
             {selected.size} selected
           </span>
           <div className="flex items-center gap-2.5">
@@ -214,7 +214,7 @@ export function ApplicationTrashTable({
               type="button"
               onClick={bulkRestore}
               disabled={isPending}
-              className="inline-flex items-center border border-zinc-300 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-zinc-700 transition-colors hover:border-zinc-400 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center border border-zinc-300 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-black transition-colors hover:border-zinc-400 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-60"
             >
               Restore selected
             </button>
@@ -229,7 +229,7 @@ export function ApplicationTrashTable({
             <button
               type="button"
               onClick={clearSelection}
-              className="inline-flex items-center border border-zinc-300 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-zinc-700 transition-colors hover:border-zinc-400 hover:bg-zinc-100"
+              className="inline-flex items-center border border-zinc-300 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-black transition-colors hover:border-zinc-400 hover:bg-zinc-100"
             >
               Clear selection
             </button>
@@ -267,14 +267,14 @@ export function ApplicationTrashTable({
           <div className="divide-y divide-zinc-200 border-l border-r border-b border-zinc-200 bg-white">
             {filtered.length === 0 ? (
               <div className="px-3 py-8 text-center">
-                <p className="text-sm text-zinc-600">
+                <p className="text-sm text-black">
                   No trashed applications match your search.
                 </p>
                 {hasFilter ? (
                   <button
                     type="button"
                     onClick={clearFilters}
-                    className="mt-3 inline-flex items-center border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold tracking-[0.12em] uppercase text-zinc-700 transition-colors hover:border-zinc-400 hover:text-zinc-900"
+                    className="mt-3 inline-flex items-center border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold tracking-[0.12em] uppercase text-black transition-colors hover:border-zinc-400 hover:text-black"
                   >
                     Clear search
                   </button>
@@ -304,25 +304,25 @@ export function ApplicationTrashTable({
                     href={`/admin/applications/${r.id}`}
                     className="contents"
                   >
-                    <span className="font-mono text-xs text-zinc-700">
+                    <span className="font-mono text-xs text-black">
                       {formatTimestampShort(r.deleted_at)}
                     </span>
-                    <span className="truncate text-sm font-semibold text-zinc-900">
+                    <span className="truncate text-sm font-semibold text-black">
                       {r.name}
                     </span>
-                    <span className="font-mono text-xs text-zinc-700">
+                    <span className="font-mono text-xs text-black">
                       {r.phone}
                     </span>
-                    <span className="truncate text-xs text-zinc-700">
+                    <span className="truncate text-xs text-black">
                       {r.email}
                     </span>
-                    <span className="truncate text-sm text-zinc-700">
+                    <span className="truncate text-sm text-black">
                       {r.equipment_type}
                     </span>
-                    <span className="text-sm text-zinc-700">
+                    <span className="text-sm text-black">
                       {r.cdl_status}
                     </span>
-                    <span className="font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase">
+                    <span className="font-mono text-xs tracking-[0.12em] text-black uppercase">
                       {r.delete_after
                         ? formatDateShort(r.delete_after).slice(0, 10)
                         : "\u2014"}
@@ -335,7 +335,7 @@ export function ApplicationTrashTable({
                       disabled={isPending}
                       title="Restore"
                       aria-label={`Restore ${r.name}`}
-                      className="inline-flex items-center justify-center border border-zinc-300 bg-white px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-zinc-700 transition-colors hover:border-zinc-400 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="inline-flex items-center justify-center border border-zinc-300 bg-white px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-black transition-colors hover:border-zinc-400 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       Restore
                     </button>
@@ -362,7 +362,7 @@ export function ApplicationTrashTable({
 
 function Th({ children }: { children: React.ReactNode }) {
   return (
-    <span className="label-cap text-zinc-600">
+    <span className="label-cap text-black">
       {children}
     </span>
   );

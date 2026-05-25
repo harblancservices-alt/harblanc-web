@@ -29,7 +29,7 @@ export function DispatchClock() {
     <span
       suppressHydrationWarning
       aria-label="Current UTC time"
-      className="hidden font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase md:inline"
+      className="hidden font-mono text-xs tracking-[0.12em] text-black uppercase md:inline"
     >
       {label}
     </span>

@@ -68,7 +68,7 @@ export function LoginForm({
       <div>
         <label
           htmlFor="email"
-          className="block font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase"
+          className="block font-mono text-xs tracking-[0.12em] text-black uppercase"
         >
           Email
         </label>
@@ -81,7 +81,7 @@ export function LoginForm({
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
-          className="mt-2.5 block w-full bg-white px-4 py-3.5 text-base text-zinc-900 placeholder:text-zinc-500 border border-zinc-300 focus:border-red-600 focus:outline-none"
+          className="mt-2.5 block w-full bg-white px-4 py-3.5 text-base text-black placeholder:text-black border border-zinc-300 focus:border-red-600 focus:outline-none"
           placeholder="dispatch@harblancservices.com"
         />
       </div>
@@ -89,7 +89,7 @@ export function LoginForm({
       <div>
         <label
           htmlFor="password"
-          className="block font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase"
+          className="block font-mono text-xs tracking-[0.12em] text-black uppercase"
         >
           Password
         </label>
@@ -101,7 +101,7 @@ export function LoginForm({
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
-          className="mt-2.5 block w-full bg-white px-4 py-3.5 text-base text-zinc-900 placeholder:text-zinc-500 border border-zinc-300 focus:border-red-600 focus:outline-none"
+          className="mt-2.5 block w-full bg-white px-4 py-3.5 text-base text-black placeholder:text-black border border-zinc-300 focus:border-red-600 focus:outline-none"
         />
       </div>
 
@@ -114,7 +114,7 @@ export function LoginForm({
             aria-hidden
             className="mt-0.5 inline-block h-3 w-1 shrink-0 bg-zinc-500"
           />
-          <p className="text-sm leading-relaxed text-zinc-800">{notice}</p>
+          <p className="text-sm leading-relaxed text-black">{notice}</p>
         </div>
       ) : null}
 
@@ -142,7 +142,7 @@ export function LoginForm({
       <div className="text-center">
         <Link
           href="/admin/reset-password"
-          className="font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase transition-colors hover:text-zinc-900"
+          className="font-mono text-xs tracking-[0.12em] text-black uppercase transition-colors hover:text-black"
         >
           Forgot password?
         </Link>

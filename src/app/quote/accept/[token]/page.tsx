@@ -2,8 +2,33 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { resolveByToken } from "@/lib/quote-token/lookup";
+import { createServiceRoleClient } from "@/lib/supabase/server";
 import { company } from "@/lib/company";
 import { IntakeForm, type IntakeFormDefaults } from "./IntakeForm";
+import { IntakeUploads, type IntakeUploadRow } from "./IntakeUploads";
+
+/**
+ * Load the customer's existing uploads for this lead, newest first.
+ * Service-role read — the token gate already happened in resolveByToken.
+ */
+async function loadIntakeUploads(
+  quoteRequestId: string,
+): Promise<IntakeUploadRow[]> {
+  const sb = createServiceRoleClient();
+  const { data } = await sb
+    .from("shipment_intake_uploads")
+    .select("id, original_filename, mime_type, size_bytes, note, created_at")
+    .eq("quote_request_id", quoteRequestId)
+    .order("created_at", { ascending: false });
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    originalFilename: r.original_filename,
+    mimeType: r.mime_type,
+    sizeBytes: Number(r.size_bytes),
+    note: r.note,
+    createdAt: r.created_at,
+  }));
+}
 
 export const metadata: Metadata = {
   title: "Finalize shipment details",
@@ -89,6 +114,7 @@ export default async function QuoteAcceptPage({
 
   const phoneHref = `tel:${company.dispatchPhone.replace(/[^\d+]/g, "")}`;
   const rate = formatRate(estimate.linehaulLow, estimate.linehaulHigh);
+  const initialUploads = await loadIntakeUploads(lead.id);
 
   return (
     <div className="bg-neutral-950">
@@ -151,6 +177,9 @@ export default async function QuoteAcceptPage({
             defaults={defaults}
             initialStatus={initialStatus}
           />
+
+          {/* Documents & Photos — supporting files for dispatch. */}
+          <IntakeUploads token={token} initialUploads={initialUploads} />
 
           <p className="mt-8 font-mono text-[10px] tracking-[0.22em] text-neutral-500 uppercase">
             Changed your mind?{" "}

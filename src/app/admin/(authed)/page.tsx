@@ -312,7 +312,7 @@ export default async function DashboardPage() {
         <p className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
           Overview
         </p>
-        <h1 className="mt-2 text-2xl font-display tracking-tight text-zinc-900 sm:text-3xl">
+        <h1 className="mt-2 text-2xl font-display tracking-tight text-black sm:text-3xl">
           Dispatch center
         </h1>
       </header>
@@ -334,10 +334,10 @@ export default async function DashboardPage() {
       {attention.length > 0 ? (
         <section className="mt-10">
           <header className="flex items-baseline justify-between">
-            <h2 className="label-cap">
+            <h2 className="section-title">
               Needs attention
             </h2>
-            <p className="label-cap text-zinc-600">
+            <p className="label-cap text-black">
               {attention.length} lead{attention.length === 1 ? "" : "s"}
             </p>
           </header>
@@ -347,7 +347,7 @@ export default async function DashboardPage() {
             ))}
           </ul>
           {attention.length > 8 ? (
-            <p className="mt-3 text-right label-cap text-zinc-600">
+            <p className="mt-3 text-right label-cap text-black">
               + {attention.length - 8} more
             </p>
           ) : null}
@@ -356,7 +356,7 @@ export default async function DashboardPage() {
 
       {/* Funnel buckets */}
       <section className="mt-10">
-        <h2 className="label-cap">
+        <h2 className="section-title">
           Active funnel
         </h2>
         <div className="mt-4 space-y-6">
@@ -371,12 +371,12 @@ export default async function DashboardPage() {
 
       {/* Recent applications */}
       <section className="mt-10">
-        <h2 className="label-cap text-zinc-600">
+        <h2 className="section-title">
           Recent applications
         </h2>
         <ul className="mt-3 divide-y divide-zinc-200 border-y border-zinc-200 bg-white">
           {ops.recentApps.length === 0 ? (
-            <li className="px-1 py-3 text-sm text-zinc-600">No incoming applications.</li>
+            <li className="px-1 py-3 text-sm text-black">No incoming applications.</li>
           ) : (
             ops.recentApps.map((r) => (
               <li key={r.id}>
@@ -385,12 +385,12 @@ export default async function DashboardPage() {
                   className="block px-1 py-2.5 transition-colors hover:bg-zinc-100"
                 >
                   <div className="flex items-baseline justify-between gap-3">
-                    <span className="truncate text-sm text-zinc-900">{r.name}</span>
-                    <span className="font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase shrink-0">
+                    <span className="truncate text-sm text-black">{r.name}</span>
+                    <span className="font-mono text-xs tracking-[0.12em] text-black uppercase shrink-0">
                       {formatTimestampShort(r.created_at)}
                     </span>
                   </div>
-                  <p className="mt-0.5 truncate font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase">
+                  <p className="mt-0.5 truncate font-mono text-xs tracking-[0.12em] text-black uppercase">
                     {[r.equipment_type, r.cdl_status].filter(Boolean).join(" · ")}
                   </p>
                 </Link>
@@ -422,11 +422,11 @@ function Counter({
     accent === "alert" && value > 0
       ? "text-red-600"
       : value > 0
-        ? "text-zinc-900"
-        : "text-zinc-600";
+        ? "text-black"
+        : "text-black";
   const inner = (
     <>
-      <p className="label-cap">
+      <p className="section-title">
         {label}
       </p>
       <p className={"mt-3 font-mono text-3xl tracking-tight " + valueColor}>
@@ -453,10 +453,10 @@ function Bucket({ label, leads }: { label: string; leads: EnrichedLead[] }) {
     return (
       <section className="border border-zinc-200 bg-zinc-50">
         <header className="flex items-baseline justify-between px-4 py-3">
-          <h3 className="label-cap text-zinc-600">
+          <h3 className="section-title">
             {label}
           </h3>
-          <span className="font-mono text-xs tracking-[0.12em] text-zinc-500 uppercase">
+          <span className="font-mono text-xs tracking-[0.12em] text-black uppercase">
             0
           </span>
         </header>
@@ -470,10 +470,10 @@ function Bucket({ label, leads }: { label: string; leads: EnrichedLead[] }) {
   return (
     <section className="border border-zinc-200 bg-white">
       <header className="flex items-baseline justify-between border-b border-zinc-200 px-4 py-3">
-        <h3 className="label-cap">
+        <h3 className="section-title">
           {label}
         </h3>
-        <span className="font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase">
+        <span className="font-mono text-xs tracking-[0.12em] text-black uppercase">
           {leads.length}
         </span>
       </header>
@@ -483,7 +483,7 @@ function Bucket({ label, leads }: { label: string; leads: EnrichedLead[] }) {
         ))}
       </ul>
       {remaining > 0 ? (
-        <p className="border-t border-zinc-200 px-4 py-2 text-right label-cap text-zinc-600">
+        <p className="border-t border-zinc-200 px-4 py-2 text-right label-cap text-black">
           + {remaining} more
         </p>
       ) : null}
@@ -515,18 +515,18 @@ function LeadRowItem({
       >
         <div className="flex items-baseline justify-between gap-3">
           <div className="flex min-w-0 items-baseline gap-2">
-            <span className="truncate text-sm font-medium text-zinc-900">
+            <span className="truncate text-sm font-medium text-black">
               {row.name}
             </span>
-            <span className="font-mono text-xs text-zinc-600">{lane}</span>
+            <span className="font-mono text-xs text-black">{lane}</span>
           </div>
-          <span className="font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase shrink-0">
+          <span className="font-mono text-xs tracking-[0.12em] text-black uppercase shrink-0">
             {sinceStatus}
           </span>
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1.5">
           {showStatus ? (
-            <span className="font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase">
+            <span className="font-mono text-xs tracking-[0.12em] text-black uppercase">
               {LEAD_STATUS_LABELS[row.lead_status]}
             </span>
           ) : null}
@@ -541,7 +541,7 @@ function LeadRowItem({
             </span>
           ) : null}
           {row.assigned_dispatcher || row.assigned_carrier ? (
-            <span className="font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase">
+            <span className="font-mono text-xs tracking-[0.12em] text-black uppercase">
               {row.assigned_dispatcher || ""}
               {row.assigned_dispatcher && row.assigned_carrier ? " · " : ""}
               {row.assigned_carrier || ""}

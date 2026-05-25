@@ -14,10 +14,10 @@ export default function UpdatePasswordPage() {
           <span aria-hidden className="inline-block h-3 w-1 bg-red-600" />
           Dispatch
         </p>
-        <h1 className="mt-5 text-3xl font-display tracking-tight text-zinc-900 sm:text-4xl">
+        <h1 className="mt-5 text-3xl font-display tracking-tight text-black sm:text-4xl">
           Set new password
         </h1>
-        <p className="mt-3 text-sm leading-relaxed text-zinc-600">
+        <p className="mt-3 text-sm leading-relaxed text-black">
           Choose a new password for your dispatch account. You will need to
           sign in again with the new password.
         </p>

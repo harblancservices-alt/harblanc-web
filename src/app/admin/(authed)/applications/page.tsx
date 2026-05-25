@@ -41,7 +41,7 @@ export default async function ApplicationsPage() {
         <p className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
           Applications
         </p>
-        <h1 className="mt-2 text-2xl font-display tracking-tight text-zinc-900 sm:text-3xl">
+        <h1 className="mt-2 text-2xl font-display tracking-tight text-black sm:text-3xl">
           Owner-operator applications
         </h1>
       </header>
@@ -63,7 +63,7 @@ export default async function ApplicationsPage() {
       />
 
       {rows.length === 0 ? (
-        <p className="mt-12 text-sm text-zinc-600">
+        <p className="mt-12 text-sm text-black">
           No incoming applications.
         </p>
       ) : (

@@ -15,7 +15,7 @@ import {
  */
 // Phase COLOR-4: light-mode fallback pill for unknown statuses (matches
 // the zinc-100 family used by `archived` / `lost` in the light twin set).
-const FALLBACK_CLASSES = "border-zinc-300 bg-zinc-100 text-zinc-600";
+const FALLBACK_CLASSES = "border-zinc-300 bg-zinc-100 text-black";
 
 export function StatusBadge({ status }: { status: LeadStatus }) {
   const label = LEAD_STATUS_LABELS[status] ?? String(status).replace(/_/g, " ");

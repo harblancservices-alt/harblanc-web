@@ -9,10 +9,26 @@ import { renderEmailShell, refNumber, escapeHtml } from "./shell";
  * read like a rate confirmation. LANE → QUOTE SUMMARY with formal
  * Quote # / Issued / Origin / Destination / Commodity / Weight / Pickup
  * / Miles fields (Pickup timing + Equipment fold in when present).
- * RATE band redesigned as an invoice-style RATE SUMMARY: label-left,
- * amount-right line items (Linehaul / Accessorials TBD), a hairline
- * rule, then a TOTAL ESTIMATE row + Valid Through.  Closing line
- * promotes to a 03 / CONFIRMATION band.
+ * RATE band carries the rate-conf grammar: label-left, amount-right
+ * line items, a hairline rule, then a TOTAL ESTIMATE row + Valid
+ * Through. Closing line promotes to a CONFIRMATION band.
+ *
+ * Phase QR-EMAIL-1 (2026-05-24): Quote Range refinements.
+ *   - Subject reads as operational paperwork:
+ *     "Lane quote · {origin}→{dest} · {rate}" (drop the "Quote on"
+ *     marketing-y stem). Quote # leads the preheader for ops clarity.
+ *   - Opener now says "rate range estimate" when range present and
+ *     "rate estimate" when single price, matching how dispatch
+ *     paperwork actually phrases the document.
+ *   - Rate breakdown drops the "Accessorials TBD" row (the schema
+ *     has no separate fuel/accessorials column today — showing TBD
+ *     makes the math read as Total = Linehaul + 0, which is
+ *     confusing). When/if fuel + accessorials become first-class
+ *     columns on dispatch_estimates, they fold back in here as
+ *     additional RateRow entries with no other structural change.
+ *   - Action buttons say "Accept this range" / "Decline this range"
+ *     — accurately names what the customer is accepting, since
+ *     this email proposes a range, not a finalized quote.
  *
  * Typography parity from pass4 is preserved: Public Sans stack across
  * sans + mono, tabular numbers via font-feature-settings on numeric
@@ -29,25 +45,27 @@ const MONO_FEATURES =
 // ─────────────────────────────────────────────────────────────────────────────
 
 const SECTION_PADDING_X = 20;
-const SECTION_PADDING_Y_TOP = 8;
-const SECTION_PADDING_Y_BOTTOM = 8;
+const SECTION_PADDING_Y_TOP = 4;
+const SECTION_PADDING_Y_BOTTOM = 4;
 
 const HAIRLINE = `<tr><td style="padding:0;background:#e5e5e5;font-size:1px;line-height:1px">&nbsp;</td></tr>`;
 
 /**
- * Centered section header — title flanked by horizontal rules. Reads as
- * a chapter title in a formal proposal rather than a numbered dispatch
- * step. Renders correctly in Gmail, Apple Mail, Outlook (mso lines
- * collapse cleanly because each rule cell carries its own 1px line).
+ * Section header — a thin red horizontal strip spanning the section
+ * width, with the title text contained inside it (white, uppercase
+ * tracked). Reads as a small label tab in front of each block.
+ *
+ * The `inverted` parameter is retained for signature compatibility
+ * but currently has no visual effect — the strip is always red with
+ * white text on every background.
  */
 function sectionHeader(title: string, inverted = false): string {
-  const titleColor = inverted ? "#fafafa" : "#0a0a0a";
-  const ruleColor = inverted ? "#3f3f46" : "#d4d4d8";
+  void inverted;
+  // Black strip, white text, centered. Reads as a small dispatch
+  // banner against the white body without the red accent shouting.
   return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;width:100%;margin:0 0 10px">
     <tr>
-      <td style="border-top:1px solid ${ruleColor};font-size:1px;line-height:1px;width:30%">&nbsp;</td>
-      <td style="padding:0 12px;white-space:nowrap;font-family:${SANS};${MONO_FEATURES};font-size:11px;letter-spacing:0.22em;color:${titleColor};text-transform:uppercase;font-weight:700;text-align:center;vertical-align:middle">${escapeHtml(title)}</td>
-      <td style="border-top:1px solid ${ruleColor};font-size:1px;line-height:1px;width:30%">&nbsp;</td>
+      <td align="center" style="padding:5px 12px;background:#0a0a0a;font-family:${SANS};${MONO_FEATURES};font-size:10px;letter-spacing:0.22em;color:#ffffff;text-transform:uppercase;font-weight:700;text-align:center;vertical-align:middle">${escapeHtml(title)}</td>
     </tr>
   </table>`;
 }
@@ -129,14 +147,6 @@ function bandWhite(inner: string): string {
   </tr>`;
 }
 
-function bandBlack(inner: string): string {
-  return `<tr>
-    <td style="padding:${SECTION_PADDING_Y_TOP}px ${SECTION_PADDING_X}px ${SECTION_PADDING_Y_BOTTOM}px;background:#0a0a0a">
-      ${inner}
-    </td>
-  </tr>`;
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
 //  Acknowledgement
 // ─────────────────────────────────────────────────────────────────────────────
@@ -189,6 +199,29 @@ function formatHumanDate(d: Date): string {
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
   ];
   return `${months[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`;
+}
+
+/**
+ * Format a calendar-day ISO string (YYYY-MM-DD, as stored on
+ * dispatch_estimates.expiration_at) into the friendly "Month DD, YYYY"
+ * the body uses. Parsed component-wise so timezones don't shift the
+ * wall-clock day — the customer's expiry shouldn't move with their
+ * device clock.
+ */
+function formatHumanDateFromIsoDay(iso: string): string {
+  const parts = iso.split("-");
+  if (parts.length !== 3) return iso;
+  const y = parseInt(parts[0], 10);
+  const m = parseInt(parts[1], 10);
+  const d = parseInt(parts[2], 10);
+  if (!Number.isFinite(y) || !Number.isFinite(m) || !Number.isFinite(d)) {
+    return iso;
+  }
+  const months = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  ];
+  return `${months[m - 1]} ${d}, ${y}`;
 }
 
 export function renderAcknowledgementEmail(
@@ -295,6 +328,11 @@ export type EstimatePayload = {
   name: string;
   lane: { pickupZip: string; deliveryZip: string };
   load: { commodity: string; weight: string; pickup: string };
+  /**
+   * Linehaul range. low is the bottom of the operator's quote, high is
+   * the top (or null for a single price). Fuel surcharge + accessorials
+   * are tracked separately and only appear as line items when present.
+   */
   rate: { low: number; high: number | null };
   miles: number | null;
   pickupTimingNotes: string | null;
@@ -302,6 +340,19 @@ export type EstimatePayload = {
   closingLine: string;
   expirationAt: string | null;
   leadId: string;
+  /**
+   * Optional fuel surcharge. When null or 0, the line is suppressed
+   * from the rate breakdown. When > 0 it adds to both the low and high
+   * total, and appears as a single (non-range) line item.
+   */
+  fuelSurcharge?: number | null;
+  /**
+   * Optional accessorial line items. Empty/missing labels and zero
+   * amounts are filtered out by the caller. When the resulting list is
+   * empty, no accessorial rows are rendered. Each surviving entry
+   * appears in the breakdown with its label and a single amount.
+   */
+  accessorials?: ReadonlyArray<{ label: string; amount: number }> | null;
   /**
    * Public, tokenized URL the customer clicks to accept this estimate.
    * Lands on the shipment finalization intake page. When null, the
@@ -363,8 +414,8 @@ function actionBand(
     </table>`;
 
   const validityLine = validThrough
-    ? `This estimate is valid through ${escapeHtml(validThrough)} and is subject to change based on final shipment details and capacity at dispatch.`
-    : `This estimate is subject to change based on final shipment details and capacity at dispatch.`;
+    ? `This range is valid through ${escapeHtml(validThrough)} and is subject to final shipment details and capacity at dispatch.`
+    : `This range is subject to final shipment details and capacity at dispatch.`;
 
   return `<tr>
     <td style="padding:${SECTION_PADDING_Y_TOP}px ${SECTION_PADDING_X}px ${SECTION_PADDING_Y_BOTTOM}px;background:#fafafa;border-top:1px solid #d4d4d8">
@@ -372,13 +423,13 @@ function actionBand(
       <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;width:100%">
         <tr>
           <td width="48%" valign="top" style="width:48%;vertical-align:top">
-            ${button(acceptUrl, "Accept quote", acceptBg, acceptBorder)}
-            <p style="margin:8px 0 0;font-family:${SANS};font-size:12px;color:#3f3f46;line-height:1.5">Accept the estimate range and continue to shipment finalization. Dispatch reviews the full intake before any truck is locked.</p>
+            ${button(acceptUrl, "Accept this range", acceptBg, acceptBorder)}
+            <p style="margin:8px 0 0;font-family:${SANS};font-size:12px;color:#3f3f46;line-height:1.5">Accept the range and continue to load finalization. Dispatch reviews the full intake before a truck is committed.</p>
           </td>
           <td width="4%" style="width:4%;font-size:1px;line-height:1px">&nbsp;</td>
           <td width="48%" valign="top" style="width:48%;vertical-align:top">
-            ${button(declineUrl, "Decline quote", declineBg, declineBorder)}
-            <p style="margin:8px 0 0;font-family:${SANS};font-size:12px;color:#3f3f46;line-height:1.5">Decline this estimate. There&rsquo;s a short note field on the next screen if anything needs to change.</p>
+            ${button(declineUrl, "Decline this range", declineBg, declineBorder)}
+            <p style="margin:8px 0 0;font-family:${SANS};font-size:12px;color:#3f3f46;line-height:1.5">Decline the range. There&rsquo;s a short note field on the next screen if anything needs to change.</p>
           </td>
         </tr>
       </table>
@@ -389,22 +440,57 @@ function actionBand(
 
 export function renderEstimateEmail(payload: EstimatePayload): RenderedEmail {
   const lane = `${payload.lane.pickupZip} → ${payload.lane.deliveryZip}`;
-  const rate = formatRate(payload.rate.low, payload.rate.high);
-  const subject = `Quote on ${lane} — ${rate}`.slice(0, 180);
+
+  // Linehaul-only range — what the body's "Linehaul" line shows.
+  const linehaulRate = formatRate(payload.rate.low, payload.rate.high);
+
+  // Compute the total (linehaul + fuel + sum of accessorials) so the
+  // Total Estimate line and the subject/preheader reflect everything
+  // the customer pays. Fuel + accessorials add the SAME flat amount
+  // to both ends of the linehaul range.
+  const fuelSurcharge = payload.fuelSurcharge ?? 0;
+  const accessorialsList = (payload.accessorials ?? []).filter(
+    (a) => a.label.trim().length > 0 || a.amount > 0,
+  );
+  const accessorialsTotal = accessorialsList.reduce(
+    (sum, a) => sum + (Number.isFinite(a.amount) ? a.amount : 0),
+    0,
+  );
+  const adders = fuelSurcharge + accessorialsTotal;
+  const totalLow = payload.rate.low + adders;
+  const totalHigh =
+    payload.rate.high != null ? payload.rate.high + adders : null;
+  const totalRate = formatRate(totalLow, totalHigh);
+
+  // Subject: dispatch-paperwork phrasing. "Lane quote" leads, route +
+  // total rate follow. Subject reflects the full price the customer
+  // pays, not just the linehaul.
+  const subject = `Lane quote · ${lane} · ${totalRate}`.slice(0, 180);
+
+  const qNum = quoteNumber(payload.leadId);
+  // Preheader: quote # first (so the inbox preview shows the document
+  // reference), then total rate + lane, then validity window.
   const preheader =
     payload.miles != null
-      ? `${rate} on ${lane}. ~${payload.miles} miles. Range holds through ${payload.expirationAt ?? "the week"}.`
-      : `${rate} on ${lane}. Range holds through ${payload.expirationAt ?? "the week"}.`;
+      ? `${qNum} · ${totalRate} on ${lane}. ~${payload.miles} mi. Holds through ${payload.expirationAt ?? "the week"}.`
+      : `${qNum} · ${totalRate} on ${lane}. Holds through ${payload.expirationAt ?? "the week"}.`;
 
   const greeting = `${firstName(payload.name)},`;
   const ref = refNumber(payload.leadId);
-  const qNum = quoteNumber(payload.leadId);
   const issued = formatHumanDate(new Date());
-  const validThrough = payload.expirationAt ?? "—";
+  // ISO YYYY-MM-DD comes in from the workspace's date input. Format
+  // it the same way Issued is rendered — "May 27, 2026" — so the row
+  // pair reads consistently in the body, plaintext, and rate breakdown.
+  const validThrough =
+    payload.expirationAt && /^\d{4}-\d{2}-\d{2}$/.test(payload.expirationAt)
+      ? formatHumanDateFromIsoDay(payload.expirationAt)
+      : (payload.expirationAt ?? "—");
+  // Opener: dispatch reviewed the lane → range estimate (or single
+  // rate estimate). Matches how a freight rate-conf opens.
   const opener =
     payload.rate.high != null
-      ? "Dispatch reviewed the requested lane. Below is the current rate estimate for the shipment. Range covers final dimensions and appointment timing."
-      : "Dispatch reviewed the requested lane. Below is the current rate estimate for the shipment.";
+      ? "Dispatch reviewed the requested lane. Below is the current rate range estimate. The range absorbs final shipment dimensions and appointment timing."
+      : "Dispatch reviewed the requested lane. Below is the current rate estimate.";
 
   const hasActions = !!payload.acceptUrl && !!payload.declineUrl;
 
@@ -434,25 +520,33 @@ export function renderEstimateEmail(payload: EstimatePayload): RenderedEmail {
     textLines.push(`  EQUIPMENT       ${payload.equipmentNotes}`);
   }
   textLines.push("");
-  textLines.push("── RATE SUMMARY ──");
-  textLines.push(`  Linehaul estimate                     ${rate}`);
-  textLines.push(`  Accessorials                          TBD`);
-  textLines.push(`  ─────────────────────────────────────────`);
-  textLines.push(`  TOTAL ESTIMATE                        ${rate}`);
-  if (payload.expirationAt) {
-    textLines.push(`  Valid through                         ${payload.expirationAt}`);
+  textLines.push("── RATE BREAKDOWN ──");
+  textLines.push(`  Linehaul                              ${linehaulRate}`);
+  if (fuelSurcharge > 0) {
+    textLines.push(`  Fuel surcharge                        ${formatUsd(fuelSurcharge)}`);
   }
-  textLines.push("");
-  textLines.push("── CONFIRMATION ──");
-  textLines.push(`  ${payload.closingLine}`);
+  for (const a of accessorialsList) {
+    const labelText = (a.label.trim() || "Accessorial").padEnd(38, " ").slice(0, 38);
+    textLines.push(`  ${labelText}${formatUsd(a.amount)}`);
+  }
+  textLines.push(`  ─────────────────────────────────────────`);
+  textLines.push(`  TOTAL ESTIMATE                        ${totalRate}`);
+  if (payload.expirationAt) {
+    textLines.push(`  Valid through                         ${validThrough}`);
+  }
+  if (payload.closingLine.trim().length > 0) {
+    textLines.push("");
+    textLines.push("── CONFIRMATION ──");
+    textLines.push(`  ${payload.closingLine}`);
+  }
   if (hasActions) {
     textLines.push("");
     textLines.push("── HOW WOULD YOU LIKE TO PROCEED? ──");
-    textLines.push(`  ACCEPT:   ${payload.acceptUrl}`);
-    textLines.push(`  DECLINE:  ${payload.declineUrl}`);
+    textLines.push(`  ACCEPT THIS RANGE:   ${payload.acceptUrl}`);
+    textLines.push(`  DECLINE THIS RANGE:  ${payload.declineUrl}`);
     if (payload.expirationAt) {
       textLines.push(
-        `  Valid through ${payload.expirationAt}. Subject to change based on final shipment details.`,
+        `  Valid through ${payload.expirationAt}. Subject to final shipment details and capacity at dispatch.`,
       );
     }
   }
@@ -465,11 +559,23 @@ export function renderEstimateEmail(payload: EstimatePayload): RenderedEmail {
      <p style="margin:0;color:#0a0a0a;font-family:${SANS};font-size:15px;font-weight:400">${escapeHtml(opener)}</p>`,
   );
 
-  // Quote summary — formal field labels.
+  // Quote summary — formal field labels. Values render with one
+  // consistent style instead of per-row inline overrides: 15px,
+  // weight 500, black. Identifier-ish fields (Quote #, Origin,
+  // Destination) carry tabular-num features so the digits align
+  // vertically. The Valid through ISO date is reformatted to the
+  // friendly "Month DD, YYYY" so it matches the Issued row and
+  // doesn't read as raw DB output.
+  // Tabular-num wrapper for identifier-ish values (ref numbers, ZIPs).
+  // Same size + weight as plain values; only the numeric features
+  // differ so digit columns visually align in the row stack.
+  const tabularSpan = (text: string) =>
+    `<span style="font-family:${SANS};${MONO_FEATURES};font-size:15px;color:#0a0a0a;font-weight:500">${escapeHtml(text)}</span>`;
+
   const quoteSummaryRows: { label: string; value: string }[] = [
     {
       label: "Quote #",
-      value: `<span style="font-family:${SANS};${MONO_FEATURES};font-size:15px;font-weight:700;color:#0a0a0a">${escapeHtml(qNum)}</span>`,
+      value: tabularSpan(qNum),
     },
     {
       label: "Issued",
@@ -477,15 +583,15 @@ export function renderEstimateEmail(payload: EstimatePayload): RenderedEmail {
     },
     {
       label: "Valid through",
-      value: `<span style="font-family:${SANS};${MONO_FEATURES};font-weight:700;color:#0a0a0a">${escapeHtml(validThrough)}</span>`,
+      value: escapeHtml(validThrough),
     },
     {
       label: "Origin",
-      value: `<span style="font-family:${SANS};${MONO_FEATURES};font-size:20px;font-weight:700;color:#0a0a0a">${escapeHtml(payload.lane.pickupZip)}</span>`,
+      value: tabularSpan(payload.lane.pickupZip),
     },
     {
       label: "Destination",
-      value: `<span style="font-family:${SANS};${MONO_FEATURES};font-size:20px;font-weight:700;color:#0a0a0a">${escapeHtml(payload.lane.deliveryZip)}</span>`,
+      value: tabularSpan(payload.lane.deliveryZip),
     },
     { label: "Commodity", value: escapeHtml(payload.load.commodity) },
     { label: "Weight", value: escapeHtml(payload.load.weight) },
@@ -513,38 +619,73 @@ export function renderEstimateEmail(payload: EstimatePayload): RenderedEmail {
     sectionHeader("Quote summary") + fieldTable(quoteSummaryRows),
   );
 
-  // Rate summary — invoice-style line items + total + validity.
+  // Rate breakdown — real freight rate-conf grammar: label-left,
+  // amount-right. Linehaul leads; fuel + accessorials only appear
+  // when present (no phantom TBD rows). Total reflects everything
+  // above the rule.
   const rateRows: Array<RateRow | { rule: true }> = [
-    { label: "Linehaul estimate", amount: rate },
-    { label: "Accessorials", amount: "TBD" },
-    { rule: true },
-    { label: "Total estimate", amount: rate, emphasize: true },
+    { label: "Linehaul", amount: linehaulRate },
   ];
-  if (payload.expirationAt) {
-    rateRows.push({ label: "Valid through", amount: payload.expirationAt });
+  if (fuelSurcharge > 0) {
+    rateRows.push({ label: "Fuel surcharge", amount: formatUsd(fuelSurcharge) });
   }
-  const rateSummaryBand = bandBlack(
-    sectionHeader("Rate summary", true) +
-      rateSummaryTable(rateRows, { inverted: true }),
+  for (const a of accessorialsList) {
+    rateRows.push({
+      label: a.label.trim() || "Accessorial",
+      amount: formatUsd(a.amount),
+    });
+  }
+  rateRows.push({ rule: true });
+  rateRows.push({
+    label: "Total estimate",
+    amount: totalRate,
+    emphasize: true,
+  });
+  if (payload.expirationAt) {
+    rateRows.push({ label: "Valid through", amount: validThrough });
+  }
+  // Rate breakdown on white — no inverted band. Matches the rest of
+  // the document; section header rules + a tinted top/bottom hairline
+  // give the block its own gravity without the dark masthead-style
+  // background.
+  const rateSummaryBand = bandWhite(
+    sectionHeader("Rate breakdown") +
+      rateSummaryTable(rateRows, { inverted: false }),
   );
 
   // Confirmation — closing line content lifted to its own section.
-  const confirmationBand = bandWhite(
-    sectionHeader("Confirmation") +
-      `<p style="margin:0;color:#0a0a0a;font-family:${SANS};font-size:15px;font-weight:400;line-height:1.55">${escapeHtml(payload.closingLine)}</p>`,
-  );
-
-  const actionBandHtml = hasActions
-    ? actionBand(payload.acceptUrl!, payload.declineUrl!, payload.expirationAt)
+  // Suppressed entirely when the operator left the closing line
+  // empty (no Special Instructions typed in the workspace). Same
+  // applies to the plaintext below.
+  const hasClosingLine = payload.closingLine.trim().length > 0;
+  const confirmationBand = hasClosingLine
+    ? bandWhite(
+        sectionHeader("Confirmation") +
+          `<p style="margin:0;color:#0a0a0a;font-family:${SANS};font-size:15px;font-weight:400;line-height:1.55">${escapeHtml(payload.closingLine)}</p>`,
+      )
     : "";
 
+  // actionBand's validThrough param accepts null to switch its
+  // disclaimer to the no-expiry phrasing. Our local `validThrough`
+  // is "—" in the no-expiry case (so the summary row reads cleanly);
+  // hand the action band the real null so it picks the right copy.
+  const actionBandHtml = hasActions
+    ? actionBand(
+        payload.acceptUrl!,
+        payload.declineUrl!,
+        payload.expirationAt ? validThrough : null,
+      )
+    : "";
+
+  // HAIRLINE before the Confirmation band only appears when the
+  // band itself is rendering — otherwise it leaves a phantom rule.
   const contentHtml = `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;width:100%">
     ${messageBand}
     ${HAIRLINE}
     ${quoteSummaryBand}
     ${HAIRLINE}
     ${rateSummaryBand}
-    ${HAIRLINE}
+    ${hasClosingLine ? HAIRLINE : ""}
     ${confirmationBand}
     ${actionBandHtml}
   </table>`;

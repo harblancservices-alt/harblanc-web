@@ -40,13 +40,13 @@ export function ResetPasswordForm() {
         <p className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
           Sent
         </p>
-        <p className="mt-3 text-sm leading-relaxed text-zinc-700">
+        <p className="mt-3 text-sm leading-relaxed text-black">
           If that email is registered, a reset link is on its way. Check the
           inbox and click the link to set a new password.
         </p>
         <Link
           href="/admin/login"
-          className="mt-5 inline-block font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase transition-colors hover:text-zinc-900"
+          className="mt-5 inline-block font-mono text-xs tracking-[0.12em] text-black uppercase transition-colors hover:text-black"
         >
           &larr; Back to sign in
         </Link>
@@ -59,7 +59,7 @@ export function ResetPasswordForm() {
       <div>
         <label
           htmlFor="email"
-          className="block font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase"
+          className="block font-mono text-xs tracking-[0.12em] text-black uppercase"
         >
           Email
         </label>
@@ -72,7 +72,7 @@ export function ResetPasswordForm() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
-          className="mt-2.5 block w-full bg-white px-4 py-3.5 text-base text-zinc-900 placeholder:text-zinc-500 border border-zinc-300 focus:border-red-600 focus:outline-none"
+          className="mt-2.5 block w-full bg-white px-4 py-3.5 text-base text-black placeholder:text-black border border-zinc-300 focus:border-red-600 focus:outline-none"
           placeholder="dispatch@harblancservices.com"
         />
       </div>
@@ -100,7 +100,7 @@ export function ResetPasswordForm() {
 
       <Link
         href="/admin/login"
-        className="block font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase transition-colors hover:text-zinc-900"
+        className="block font-mono text-xs tracking-[0.12em] text-black uppercase transition-colors hover:text-black"
       >
         &larr; Back to sign in
       </Link>

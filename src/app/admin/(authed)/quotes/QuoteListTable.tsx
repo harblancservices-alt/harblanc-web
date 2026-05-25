@@ -158,14 +158,14 @@ export function QuoteListTable({ rows }: { rows: QuoteListRow[] }) {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search name, phone, email, commodity, lane, ID..."
-            className="block w-full border border-zinc-300 bg-white px-4 py-2.5 pr-10 text-sm text-zinc-900 placeholder:text-zinc-500 focus:border-red-600 focus:outline-none"
+            className="block w-full border border-zinc-300 bg-white px-4 py-2.5 pr-10 text-sm text-black placeholder:text-black focus:border-red-600 focus:outline-none"
             aria-label="Search quotes"
           />
           {searchQuery ? (
             <button
               type="button"
               onClick={() => setSearchQuery("")}
-              className="absolute inset-y-0 right-0 flex items-center px-3 text-zinc-500 transition-colors hover:text-zinc-900"
+              className="absolute inset-y-0 right-0 flex items-center px-3 text-black transition-colors hover:text-black"
               aria-label="Clear search"
             >
               ×
@@ -175,7 +175,7 @@ export function QuoteListTable({ rows }: { rows: QuoteListRow[] }) {
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value as LeadStatus | "")}
-          className="block w-full border border-zinc-300 bg-white px-3 py-2.5 text-xs font-semibold tracking-[0.12em] uppercase text-zinc-700 focus:border-red-600 focus:outline-none sm:w-auto"
+          className="block w-full border border-zinc-300 bg-white px-3 py-2.5 text-xs font-semibold tracking-[0.12em] uppercase text-black focus:border-red-600 focus:outline-none sm:w-auto"
           aria-label="Filter by status"
         >
           <option value="">All statuses</option>
@@ -189,7 +189,7 @@ export function QuoteListTable({ rows }: { rows: QuoteListRow[] }) {
           <button
             type="button"
             onClick={clearFilters}
-            className="inline-flex items-center justify-center border border-zinc-300 bg-white px-4 py-2.5 text-xs font-semibold tracking-[0.12em] uppercase text-zinc-700 transition-colors hover:border-zinc-400 hover:text-zinc-900 sm:w-auto"
+            className="inline-flex items-center justify-center border border-zinc-300 bg-white px-4 py-2.5 text-xs font-semibold tracking-[0.12em] uppercase text-black transition-colors hover:border-zinc-400 hover:text-black sm:w-auto"
           >
             Clear
           </button>
@@ -197,7 +197,7 @@ export function QuoteListTable({ rows }: { rows: QuoteListRow[] }) {
       </div>
 
       {hasFilter ? (
-        <p className="mt-2 text-xs text-zinc-600">
+        <p className="mt-2 text-xs text-black">
           Showing {filtered.length} of {rows.length} record
           {rows.length === 1 ? "" : "s"}
         </p>
@@ -205,7 +205,7 @@ export function QuoteListTable({ rows }: { rows: QuoteListRow[] }) {
 
       {selected.size > 0 ? (
         <div className="sticky top-0 z-20 mt-3 flex items-center justify-between gap-4 border border-zinc-300 bg-white px-4 py-3 shadow-sm">
-          <span className="text-xs font-semibold tracking-[0.12em] text-zinc-900 uppercase">
+          <span className="text-xs font-semibold tracking-[0.12em] text-black uppercase">
             {selected.size} selected
           </span>
           <div className="flex items-center gap-2.5">
@@ -220,7 +220,7 @@ export function QuoteListTable({ rows }: { rows: QuoteListRow[] }) {
             <button
               type="button"
               onClick={clearSelection}
-              className="inline-flex items-center border border-zinc-300 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-zinc-700 transition-colors hover:border-zinc-400 hover:bg-zinc-100"
+              className="inline-flex items-center border border-zinc-300 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-black transition-colors hover:border-zinc-400 hover:bg-zinc-100"
             >
               Clear selection
             </button>
@@ -258,14 +258,14 @@ export function QuoteListTable({ rows }: { rows: QuoteListRow[] }) {
           <div className="divide-y divide-zinc-200 border-l border-r border-b border-zinc-200 bg-white">
             {filtered.length === 0 ? (
               <div className="px-3 py-8 text-center">
-                <p className="text-sm text-zinc-600">
+                <p className="text-sm text-black">
                   No records match your filter.
                 </p>
                 {hasFilter ? (
                   <button
                     type="button"
                     onClick={clearFilters}
-                    className="mt-3 inline-flex items-center border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold tracking-[0.12em] uppercase text-zinc-700 transition-colors hover:border-zinc-400 hover:text-zinc-900"
+                    className="mt-3 inline-flex items-center border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold tracking-[0.12em] uppercase text-black transition-colors hover:border-zinc-400 hover:text-black"
                   >
                     Clear filters
                   </button>
@@ -295,7 +295,7 @@ export function QuoteListTable({ rows }: { rows: QuoteListRow[] }) {
                     href={`/admin/quotes/${r.id}`}
                     className="contents"
                   >
-                    <span className="flex items-center gap-2 font-mono text-xs text-zinc-700">
+                    <span className="flex items-center gap-2 font-mono text-xs text-black">
                       {isNew(r.created_at) ? (
                         <span className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
                           New
@@ -306,19 +306,19 @@ export function QuoteListTable({ rows }: { rows: QuoteListRow[] }) {
                     <span className="flex items-center">
                       <StatusBadge status={r.lead_status} />
                     </span>
-                    <span className="truncate text-sm font-semibold text-zinc-900">
+                    <span className="truncate text-sm font-semibold text-black">
                       {r.name}
                     </span>
-                    <span className="font-mono text-xs text-zinc-700">
+                    <span className="font-mono text-xs text-black">
                       {r.phone}
                     </span>
-                    <span className="truncate text-xs text-zinc-700">
+                    <span className="truncate text-xs text-black">
                       {r.email}
                     </span>
-                    <span className="truncate text-sm text-zinc-700">
+                    <span className="truncate text-sm text-black">
                       {r.commodity}
                     </span>
-                    <span className="font-mono text-xs text-zinc-700">
+                    <span className="font-mono text-xs text-black">
                       {r.weight}
                     </span>
                   </Link>
@@ -329,7 +329,7 @@ export function QuoteListTable({ rows }: { rows: QuoteListRow[] }) {
                       disabled={isPending}
                       title="Move to trash"
                       aria-label={`Move ${r.name} to trash`}
-                      className="inline-flex items-center justify-center border border-zinc-300 bg-white px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-zinc-700 transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                      className="inline-flex items-center justify-center border border-zinc-300 bg-white px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-black transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       Trash
                     </button>
@@ -346,7 +346,7 @@ export function QuoteListTable({ rows }: { rows: QuoteListRow[] }) {
 
 function Th({ children }: { children: React.ReactNode }) {
   return (
-    <span className="label-cap text-zinc-600">
+    <span className="label-cap text-black">
       {children}
     </span>
   );

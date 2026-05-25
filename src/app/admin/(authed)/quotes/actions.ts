@@ -981,9 +981,10 @@ export async function buildEstimatePreview(
   if (input.linehaulLow === null || input.linehaulLow <= 0) {
     throw new Error("Set the rate (low) before building a preview.");
   }
-  if (!input.closingLine) {
-    throw new Error("Pick a template or write a closing line first.");
-  }
+  // closingLine is optional — the workspace's Special Instructions
+  // field synthesizes it, and operators are allowed to leave it
+  // blank. The renderer suppresses the Confirmation band when
+  // closingLine is empty so the email closes cleanly.
 
   const sb = createServiceRoleClient();
 
@@ -1045,7 +1046,11 @@ export async function buildEstimatePreview(
     load: {
       commodity: lead.commodity,
       weight: lead.weight,
-      pickup: lead.pickup_date ?? "ASAP",
+      // When the customer didn't supply a pickup date, print an em-dash
+      // in the rendered email instead of "ASAP". Reads as standard
+      // dispatch paperwork — "—" means "not yet set" rather than
+      // implying same-day urgency.
+      pickup: lead.pickup_date ?? "—",
     },
     rate: {
       low: input.linehaulLow,
@@ -1054,7 +1059,20 @@ export async function buildEstimatePreview(
     miles: input.milesEstimate,
     pickupTimingNotes: input.pickupTimingNotes,
     equipmentNotes: input.equipmentNotes,
-    closingLine: input.closingLine,
+    // Optional rate-breakdown line items. These are NOT persisted to
+    // dispatch_estimates columns (schema unchanged); they only need
+    // to survive the single render call before being baked into the
+    // preview_html / preview_text snapshot. fuel_surcharge is a
+    // single non-negative number; accessorial_label[] +
+    // accessorial_amount[] are parallel arrays parsed by the existing
+    // parseAccessorials() helper. When both are absent the rate
+    // breakdown collapses to Linehaul → Total.
+    fuelSurcharge: parseNumber(formData.get("fuel_surcharge")),
+    accessorials: parseAccessorials(formData),
+    // closingLine is parsed as string|null but the renderer's
+    // EstimatePayload expects string. Coalesce to "" — the renderer
+    // already suppresses the Confirmation band on empty closing lines.
+    closingLine: input.closingLine ?? "",
     expirationAt: input.expirationAt,
     leadId: input.quoteRequestId,
     acceptUrl: acceptUrl(draftRow.accept_token),
@@ -1280,6 +1298,4 @@ export async function resendEstimate(
   });
 
   revalidatePath(`/admin/quotes/${source.quote_request_id}`);
-  revalidatePath("/admin/quotes");
-  revalidatePath("/admin");
 }

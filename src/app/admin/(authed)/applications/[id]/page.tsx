@@ -58,7 +58,7 @@ export default async function ApplicationDetailPage({
       {/* Back link */}
       <Link
         href={isTrashed ? "/admin/applications/trash" : "/admin/applications"}
-        className="inline-flex items-center font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase transition-colors hover:text-zinc-900"
+        className="inline-flex items-center font-mono text-xs tracking-[0.12em] text-black uppercase transition-colors hover:text-black"
       >
         &larr; Back to {isTrashed ? "trash" : "applications"}
       </Link>
@@ -97,7 +97,7 @@ export default async function ApplicationDetailPage({
             Application
           </p>
           {!isTrashed ? (
-            <span className="inline-flex items-center gap-1.5 border border-zinc-300 bg-zinc-100 px-2.5 py-1 font-mono text-xs tracking-[0.12em] text-zinc-700 uppercase">
+            <span className="inline-flex items-center gap-1.5 border border-zinc-300 bg-zinc-100 px-2.5 py-1 font-mono text-xs tracking-[0.12em] text-black uppercase">
               <span
                 aria-hidden
                 className="inline-block h-1.5 w-1.5 shrink-0 bg-neutral-400"
@@ -106,15 +106,15 @@ export default async function ApplicationDetailPage({
             </span>
           ) : null}
         </div>
-        <h1 className="mt-3 text-3xl font-display tracking-tight text-zinc-900 sm:text-4xl lg:text-5xl">
+        <h1 className="mt-3 text-3xl font-display tracking-tight text-black sm:text-4xl lg:text-5xl">
           {row.name}
         </h1>
         <p
-          className="mt-2 font-mono text-xs text-zinc-600"
+          className="mt-2 font-mono text-xs text-black"
           title={formatDateFull(row.created_at)}
         >
           Received {relativeTime(row.created_at)}{" "}
-          <span aria-hidden className="mx-1 text-zinc-600">
+          <span aria-hidden className="mx-1 text-black">
             ·
           </span>{" "}
           {formatDateFull(row.created_at)}
@@ -133,7 +133,7 @@ export default async function ApplicationDetailPage({
             <Field label="Phone">
               <a
                 href={phoneHref}
-                className="block break-all font-mono text-xl text-zinc-900 underline-offset-4 hover:underline sm:text-2xl"
+                className="block break-all font-mono text-xl text-black underline-offset-4 hover:underline sm:text-2xl"
               >
                 {row.phone}
               </a>
@@ -141,7 +141,7 @@ export default async function ApplicationDetailPage({
             <Field label="Email">
               <a
                 href={`mailto:${row.email}`}
-                className="block break-all text-base text-zinc-900 underline-offset-4 hover:underline sm:text-lg"
+                className="block break-all text-base text-black underline-offset-4 hover:underline sm:text-lg"
               >
                 {row.email}
               </a>
@@ -155,23 +155,23 @@ export default async function ApplicationDetailPage({
           </h2>
           <dl className="mt-4 space-y-4">
             <Field label="Equipment">
-              <span className="block text-xl text-zinc-900 sm:text-2xl">
+              <span className="block text-xl text-black sm:text-2xl">
                 {row.equipment_type}
               </span>
             </Field>
             <Field label="CDL status">
-              <span className="block text-xl text-zinc-900 sm:text-2xl">
+              <span className="block text-xl text-black sm:text-2xl">
                 {row.cdl_status}
               </span>
             </Field>
             <div className="grid grid-cols-2 gap-x-6 gap-y-4">
               <Field label="Years experience">
-                <span className="block font-mono text-base text-zinc-900 sm:text-lg">
+                <span className="block font-mono text-base text-black sm:text-lg">
                   {row.years_experience ?? "\u2014"}
                 </span>
               </Field>
               <Field label="Home base">
-                <span className="block text-base text-zinc-900 sm:text-lg">
+                <span className="block text-base text-black sm:text-lg">
                   {row.home_base ?? "\u2014"}
                 </span>
               </Field>
@@ -186,7 +186,7 @@ export default async function ApplicationDetailPage({
           <h2 className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
             Message
           </h2>
-          <p className="mt-4 whitespace-pre-wrap text-base leading-relaxed text-zinc-900">
+          <p className="mt-4 whitespace-pre-wrap text-base leading-relaxed text-black">
             {row.message}
           </p>
         </section>
@@ -194,12 +194,12 @@ export default async function ApplicationDetailPage({
 
       {/* Metadata — subtle, dimmer */}
       <section className="mt-4 border border-zinc-200 p-5 sm:mt-5 sm:p-6">
-        <h2 className="font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase">
+        <h2 className="font-mono text-xs tracking-[0.12em] text-black uppercase">
           Metadata
         </h2>
         <dl className="mt-4 grid grid-cols-1 gap-x-10 gap-y-4 sm:grid-cols-2">
           <Field label="Created" muted>
-            <span className="font-mono text-xs text-zinc-700 sm:text-sm">
+            <span className="font-mono text-xs text-black sm:text-sm">
               {formatDateFull(row.created_at)}
             </span>
           </Field>
@@ -212,26 +212,26 @@ export default async function ApplicationDetailPage({
           ) : null}
           {row.delete_after ? (
             <Field label="Auto-purge" muted>
-              <span className="font-mono text-xs text-zinc-700 sm:text-sm">
+              <span className="font-mono text-xs text-black sm:text-sm">
                 {formatDateFull(row.delete_after)}
               </span>
             </Field>
           ) : null}
           <Field label="Lead ID" muted full>
-            <span className="font-mono text-xs break-all text-zinc-700">
+            <span className="font-mono text-xs break-all text-black">
               {row.id}
             </span>
           </Field>
           {row.user_agent ? (
             <Field label="User agent" muted full>
-              <span className="font-mono text-xs break-all text-zinc-600">
+              <span className="font-mono text-xs break-all text-black">
                 {row.user_agent}
               </span>
             </Field>
           ) : null}
           {row.ip ? (
             <Field label="IP" muted>
-              <span className="font-mono text-xs text-zinc-600">
+              <span className="font-mono text-xs text-black">
                 {row.ip}
               </span>
             </Field>
@@ -301,7 +301,7 @@ function Field({
       <dt
         className={
           "font-mono text-xs tracking-[0.12em] uppercase " +
-          (muted ? "text-zinc-600" : "text-zinc-600")
+          (muted ? "text-black" : "text-black")
         }
       >
         {label}

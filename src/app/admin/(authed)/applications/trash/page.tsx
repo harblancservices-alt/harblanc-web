@@ -44,7 +44,7 @@ export default async function ApplicationsTrashPage() {
         <p className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
           Trash
         </p>
-        <h1 className="mt-2 text-2xl font-display tracking-tight text-zinc-900 sm:text-3xl">
+        <h1 className="mt-2 text-2xl font-display tracking-tight text-black sm:text-3xl">
           Trashed applications
         </h1>
       </header>
@@ -54,7 +54,7 @@ export default async function ApplicationsTrashPage() {
           <p className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
             Retention
           </p>
-          <p className="mt-1 max-w-2xl text-sm leading-relaxed text-zinc-700">
+          <p className="mt-1 max-w-2xl text-sm leading-relaxed text-black">
             Deleted records remain recoverable for 30 days. After that, an
             auto-purge job removes them permanently.
           </p>
@@ -78,7 +78,7 @@ export default async function ApplicationsTrashPage() {
       />
 
       {rows.length === 0 ? (
-        <p className="mt-12 text-sm text-zinc-600">Trash is empty.</p>
+        <p className="mt-12 text-sm text-black">Trash is empty.</p>
       ) : (
         <ApplicationTrashTable rows={rows} />
       )}

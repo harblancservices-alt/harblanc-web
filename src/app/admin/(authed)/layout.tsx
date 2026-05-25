@@ -52,13 +52,13 @@ export default async function AuthedAdminLayout({
               aria-hidden
               className="hidden h-4 w-px bg-zinc-300 lg:inline-block"
             />
-            <span className="hidden font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase lg:inline">
+            <span className="hidden font-mono text-xs tracking-[0.12em] text-black uppercase lg:inline">
               {user.email}
             </span>
             <form action="/admin/logout" method="post">
               <button
                 type="submit"
-                className="inline-flex items-center border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-zinc-700 transition-colors hover:border-zinc-400 hover:bg-zinc-100"
+                className="inline-flex items-center border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-black transition-colors hover:border-zinc-400 hover:bg-zinc-100"
               >
                 Sign out
               </button>

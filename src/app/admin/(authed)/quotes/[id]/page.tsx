@@ -3,32 +3,125 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { formatDateFull, relativeTime } from "@/lib/admin/format";
-import { StatusBadge } from "../StatusBadge";
-import { type LeadStatus } from "@/lib/dispatch/status";
 
 /**
- * Phase DEL-1 — minimal quote-detail page after the admin UI reset.
+ * Local "Month DD, YYYY" formatter for the OperatorHeader received-at
+ * strip. formatDateFull is kept (it's used by event logs and audit
+ * trails that need the precise UTC timestamp) — the header just reads
+ * better as freight paperwork in the friendly form. Built in UTC so
+ * the day doesn't shift around timezones.
+ */
+function formatReceivedDate(iso: string): string {
+  const d = new Date(iso);
+  const months = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+  ];
+  return `${months[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`;
+}
+import {
+  LEAD_STATUS_CLASSES_LIGHT,
+  LEAD_STATUS_LABELS,
+  type LeadStatus,
+} from "@/lib/dispatch/status";
+import { IconArrowLeft } from "./icons";
+import { OperatorHeader, type OperatorHeaderProps } from "./OperatorHeader";
+import { QuoteRangeWorkspace } from "./QuoteRangeWorkspace";
+import {
+  LoadDetailsCard,
+  type LoadDetailsInitial,
+  type IntakeUploadAdminRow,
+} from "./LoadDetailsCard";
+import { WorkspaceTabs } from "./WorkspaceTabs";
+
+const INTAKE_BUCKET = "intake-uploads";
+/**
+ * Signed URLs for admin viewing of customer-uploaded intake docs.
+ * 1 hour TTL — long enough for an operator's session, short enough
+ * that a copied URL doesn't leak indefinitely. Bucket is private; the
+ * signed URL is the only way to reach the bytes.
+ */
+const UPLOAD_SIGNED_URL_TTL_SECONDS = 60 * 60;
+
+type RawIntakeUpload = {
+  id: string;
+  original_filename: string;
+  mime_type: string;
+  size_bytes: string | number;
+  note: string | null;
+  created_at: string;
+  storage_path: string;
+  source: "quick_quote" | "customer_intake" | null;
+};
+
+async function loadIntakeUploadsForAdmin(
+  quoteRequestId: string,
+): Promise<IntakeUploadAdminRow[]> {
+  const sb = createServiceRoleClient();
+  const { data } = await sb
+    .from("shipment_intake_uploads")
+    .select(
+      "id, original_filename, mime_type, size_bytes, note, created_at, storage_path, source",
+    )
+    .eq("quote_request_id", quoteRequestId)
+    .order("created_at", { ascending: false })
+    .returns<RawIntakeUpload[]>();
+
+  const rows = data ?? [];
+  if (rows.length === 0) return [];
+
+  // Batch-sign all paths. Falls back to per-row null url if the batch
+  // call fails — the admin still sees the upload list, just without
+  // the open/copy URL.
+  const paths = rows.map((r) => r.storage_path);
+  const { data: signed } = await sb.storage
+    .from(INTAKE_BUCKET)
+    .createSignedUrls(paths, UPLOAD_SIGNED_URL_TTL_SECONDS);
+
+  const urlByPath = new Map<string, string | null>();
+  if (signed) {
+    for (const entry of signed) {
+      urlByPath.set(entry.path ?? "", entry.signedUrl ?? null);
+    }
+  }
+
+  return rows.map((r) => ({
+    id: r.id,
+    originalFilename: r.original_filename,
+    mimeType: r.mime_type,
+    sizeBytes:
+      typeof r.size_bytes === "number" ? r.size_bytes : Number(r.size_bytes),
+    note: r.note,
+    createdAt: r.created_at,
+    signedUrl: urlByPath.get(r.storage_path) ?? null,
+    // Fall back to "customer_intake" for any legacy row whose source
+    // column is null (the migration backfills, but the cast is
+    // defensive in case a row predates the column rollout).
+    source: r.source ?? "customer_intake",
+  }));
+}
+
+/**
+ * Phase REBUILD-2 P1 â quote-detail page.
  *
- * The prior tangled detail UI (QuoteDetailTabs, EstimateComposer,
- * FinalizedQuoteComposer, BillOfLadingComposer, PaymentSection,
- * sent-history lists, status selectors, composers, preview panes) was
- * removed in DEL-1 because its workflow tangles produced silent buttons
- * and the only way out was a clean rebuild.
+ * New three-section structure replacing the prior contact-card layout:
  *
- * This page is intentionally read-only. It loads the lead row and
- * renders enough operational context for Brent to know which lead he
- * is looking at — identity, lane, status, when it came in. It does NOT
- * advance the workflow, generate quotes, build previews, send emails,
- * record payments, or change status. Those actions still exist as
- * server actions under this directory; new UI panels will reintroduce
- * them one at a time in subsequent REBUILD phases.
+ *   Section 1: <OperatorHeader>        â identity + lane + tap-to-call/email
+ *   Section 2: <QuoteRangeWorkspace>   â unified range proposal workflow (shell)
+ *   Section 3: <LoadDetailsCard>       â auto-fill quote details (existing)
  *
- * Critical: no email rendering changes, no PDF rendering changes, no
- * Resend changes, no database schema changes, no Supabase data changes
- * resulted from this phase. Customer-facing routes (/quote/*) are
- * untouched. Server actions in actions.ts /
- * finalized-quote-actions.ts / bol-actions.ts / payment-actions.ts are
- * untouched and orphaned-but-functional pending the rebuild.
+ * Page is a server component that loads quote_requests + the latest
+ * shipment_intake, shapes props for each section, and passes them down.
+ * No server actions invoked here — those will land in REBUILD-2 P2
+ * when the Quote Range Workspace wires its Send / Preview to backend.
+ *
+ * Preserved infrastructure (not touched in this phase):
+ *   - server actions in actions.ts / finalized-quote-actions.ts /
+ *     bol-actions.ts / payment-actions.ts
+ *   - customer flows in /quote/* and /api/*
+ *   - email rendering in src/lib/email
+ *   - PDF rendering in src/lib/pdf
+ *   - Supabase schema
  */
 
 export const metadata: Metadata = {
@@ -42,16 +135,50 @@ type QuoteDetailRow = {
   name: string;
   email: string;
   phone: string;
+  commodity: string;
+  weight: string;
+  pickup_date: string | null;
   pickup_zip: string | null;
   delivery_zip: string | null;
   pickup_city: string | null;
   pickup_state: string | null;
   delivery_city: string | null;
   delivery_state: string | null;
+  calculated_miles: number | null;
   lead_status: LeadStatus;
   lead_status_updated_at: string | null;
   deleted_at: string | null;
   delete_after: string | null;
+};
+
+type IntakeRow = {
+  id: string;
+  status: "in_progress" | "submitted";
+  submitted_at: string | null;
+  pickup_company: string | null;
+  pickup_contact_name: string | null;
+  pickup_contact_phone: string | null;
+  pickup_address_line1: string | null;
+  pickup_address_line2: string | null;
+  pickup_city: string | null;
+  pickup_state: string | null;
+  pickup_zip: string | null;
+  pickup_window: string | null;
+  delivery_company: string | null;
+  delivery_contact_name: string | null;
+  delivery_contact_phone: string | null;
+  delivery_address_line1: string | null;
+  delivery_address_line2: string | null;
+  delivery_city: string | null;
+  delivery_state: string | null;
+  delivery_zip: string | null;
+  delivery_window: string | null;
+  commodity_details: string | null;
+  length_in: number | null;
+  width_in: number | null;
+  height_in: number | null;
+  exact_weight_lbs: number | null;
+  special_requirements: string | null;
 };
 
 async function loadQuoteRequest(id: string): Promise<QuoteDetailRow | null> {
@@ -59,11 +186,149 @@ async function loadQuoteRequest(id: string): Promise<QuoteDetailRow | null> {
   const { data } = await sb
     .from("quote_requests")
     .select(
-      "id, created_at, name, email, phone, pickup_zip, delivery_zip, pickup_city, pickup_state, delivery_city, delivery_state, lead_status, lead_status_updated_at, deleted_at, delete_after",
+      "id, created_at, name, email, phone, commodity, weight, pickup_date, pickup_zip, delivery_zip, pickup_city, pickup_state, delivery_city, delivery_state, calculated_miles, lead_status, lead_status_updated_at, deleted_at, delete_after",
     )
     .eq("id", id)
     .maybeSingle<QuoteDetailRow>();
   return data ?? null;
+}
+
+async function loadLatestIntake(
+  quoteRequestId: string,
+): Promise<IntakeRow | null> {
+  const sb = createServiceRoleClient();
+  const { data: est } = await sb
+    .from("dispatch_estimates")
+    .select("id")
+    .eq("quote_request_id", quoteRequestId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<{ id: string }>();
+  if (!est) return null;
+
+  const { data: intake } = await sb
+    .from("shipment_intake")
+    .select(
+      "id, status, submitted_at, pickup_company, pickup_contact_name, pickup_contact_phone, pickup_address_line1, pickup_address_line2, pickup_city, pickup_state, pickup_zip, pickup_window, delivery_company, delivery_contact_name, delivery_contact_phone, delivery_address_line1, delivery_address_line2, delivery_city, delivery_state, delivery_zip, delivery_window, commodity_details, length_in, width_in, height_in, exact_weight_lbs, special_requirements",
+    )
+    .eq("dispatch_estimate_id", est.id)
+    .maybeSingle<IntakeRow>();
+  return intake ?? null;
+}
+
+// âââ Field-merge helpers (intake first, Quick Quote fallback) ââââââââ
+
+function pickString(...candidates: Array<string | null | undefined>): string {
+  for (const c of candidates) {
+    if (c != null && c !== "") return c;
+  }
+  return "";
+}
+
+function joinAddress(
+  a: string | null | undefined,
+  b: string | null | undefined,
+): string {
+  const out: string[] = [];
+  if (a && a.trim()) out.push(a.trim());
+  if (b && b.trim()) out.push(b.trim());
+  return out.join(", ");
+}
+
+function formatCityStateZip(
+  city: string | null | undefined,
+  state: string | null | undefined,
+  zip: string | null | undefined,
+): string {
+  if (city && state && zip) return `${city}, ${state} ${zip}`;
+  if (city && state) return `${city}, ${state}`;
+  if (zip) return zip;
+  return "";
+}
+
+function formatWeight(
+  lbs: number | null | undefined,
+  fallback: string | null | undefined,
+): string {
+  if (lbs != null && Number.isFinite(lbs)) {
+    return `${Math.round(Number(lbs)).toLocaleString()} lbs`;
+  }
+  return fallback ?? "";
+}
+
+function formatDimensions(
+  l: number | null | undefined,
+  w: number | null | undefined,
+  h: number | null | undefined,
+): string {
+  if (l == null || w == null || h == null) return "";
+  const fmt = (n: number) => {
+    const num = Number(n);
+    return Number.isInteger(num) ? String(num) : num.toFixed(1);
+  };
+  return `${fmt(l)}″ × ${fmt(w)}″ × ${fmt(h)}″`;
+}
+
+function computeInitialValues(
+  row: QuoteDetailRow,
+  intake: IntakeRow | null,
+): LoadDetailsInitial {
+  return {
+    pickup_company: pickString(intake?.pickup_company),
+    pickup_address: joinAddress(
+      intake?.pickup_address_line1,
+      intake?.pickup_address_line2,
+    ),
+    pickup_city_zip: formatCityStateZip(
+      pickString(intake?.pickup_city, row.pickup_city),
+      pickString(intake?.pickup_state, row.pickup_state),
+      pickString(intake?.pickup_zip, row.pickup_zip),
+    ),
+    pickup_contact: pickString(intake?.pickup_contact_name),
+    pickup_phone: pickString(intake?.pickup_contact_phone),
+    pickup_window: pickString(intake?.pickup_window, row.pickup_date),
+    // pickup_window_end intentionally left empty for now — the
+    // shipment_intake schema doesn't store a separate end date yet.
+    // Operator types the end manually in the workspace until a
+    // future migration lands a pickup_window_end column.
+    pickup_window_end: "",
+
+    delivery_company: pickString(intake?.delivery_company),
+    delivery_address: joinAddress(
+      intake?.delivery_address_line1,
+      intake?.delivery_address_line2,
+    ),
+    delivery_city_zip: formatCityStateZip(
+      pickString(intake?.delivery_city, row.delivery_city),
+      pickString(intake?.delivery_state, row.delivery_state),
+      pickString(intake?.delivery_zip, row.delivery_zip),
+    ),
+    delivery_contact: pickString(intake?.delivery_contact_name),
+    delivery_phone: pickString(intake?.delivery_contact_phone),
+    delivery_window: pickString(intake?.delivery_window),
+    // delivery_window_end — same as pickup_window_end. Operator-typed
+    // until the schema gains a delivery_window_end column.
+    delivery_window_end: "",
+
+    freight_commodity: pickString(intake?.commodity_details, row.commodity),
+    freight_weight: formatWeight(intake?.exact_weight_lbs, row.weight),
+    freight_pieces: "",
+    freight_dimensions: formatDimensions(
+      intake?.length_in,
+      intake?.width_in,
+      intake?.height_in,
+    ),
+    freight_hazmat: "",
+    freight_handling: pickString(intake?.special_requirements),
+  };
+}
+
+function intakeStatusMessage(intake: IntakeRow | null): string {
+  if (!intake) return "Awaiting customer intake";
+  if (intake.status === "submitted" && intake.submitted_at) {
+    return `Intake submitted ${relativeTime(intake.submitted_at)}`;
+  }
+  return "Intake in progress";
 }
 
 function laneLabel(
@@ -75,6 +340,46 @@ function laneLabel(
   return zip ?? "—";
 }
 
+function shortRequestId(uuid: string): string {
+  const hex = uuid.replace(/-/g, "");
+  if (hex.length < 8) return uuid;
+  return hex.slice(0, 8);
+}
+
+function buildOperatorHeaderProps(row: QuoteDetailRow): OperatorHeaderProps {
+  return {
+    customer: {
+      name: row.name,
+      phone: row.phone,
+      email: row.email,
+    },
+    identity: {
+      requestId: shortRequestId(row.id),
+      requestIdFull: row.id,
+      receivedRelative: relativeTime(row.created_at),
+      receivedFull: formatReceivedDate(row.created_at),
+      statusLabel:
+        LEAD_STATUS_LABELS[row.lead_status] ??
+        String(row.lead_status).replace(/_/g, " "),
+      statusPillClasses:
+        LEAD_STATUS_CLASSES_LIGHT[row.lead_status] ??
+        "border-zinc-300 bg-zinc-100 text-black",
+    },
+    lane: {
+      pickupLabel: laneLabel(row.pickup_city, row.pickup_state, row.pickup_zip),
+      deliveryLabel: laneLabel(
+        row.delivery_city,
+        row.delivery_state,
+        row.delivery_zip,
+      ),
+      pickupZip: row.pickup_zip,
+      deliveryZip: row.delivery_zip,
+      miles: row.calculated_miles ?? null,
+      hasLane: Boolean(row.pickup_zip && row.delivery_zip),
+    },
+  };
+}
+
 export default async function QuoteDetailPage({
   params,
 }: {
@@ -84,37 +389,38 @@ export default async function QuoteDetailPage({
   const row = await loadQuoteRequest(id);
   if (!row) notFound();
 
-  const phoneHref = `tel:${row.phone.replace(/[^\d+]/g, "")}`;
-  const mailHref = `mailto:${row.email}`;
+  const intake = await loadLatestIntake(id);
+  const initialValues = computeInitialValues(row, intake);
+  const statusMessage = intakeStatusMessage(intake);
+  const intakeUploads = await loadIntakeUploadsForAdmin(row.id);
+  const intakeSnapshotKey = intake
+    ? `${intake.id}:${intake.status}:${intake.submitted_at ?? ""}`
+    : "no_intake";
+
   const isTrashed = Boolean(row.deleted_at);
-  const pickupLabel = laneLabel(row.pickup_city, row.pickup_state, row.pickup_zip);
-  const deliveryLabel = laneLabel(
-    row.delivery_city,
-    row.delivery_state,
-    row.delivery_zip,
-  );
-  const hasLane = Boolean(row.pickup_zip && row.delivery_zip);
+  const headerProps = buildOperatorHeaderProps(row);
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
+    <div className="mx-auto max-w-3xl space-y-2 px-4 py-5 sm:px-6 sm:py-7 lg:px-8 lg:py-8">
       {/* Back link */}
       <Link
         href={isTrashed ? "/admin/quotes/trash" : "/admin/quotes"}
         prefetch={false}
-        className="inline-flex items-center font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase transition-colors hover:text-zinc-900"
+        className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-black transition-opacity hover:opacity-70"
       >
-        &larr; Back to {isTrashed ? "trash" : "quotes"}
+        <IconArrowLeft className="h-4 w-4 shrink-0" />
+        Back to {isTrashed ? "trash" : "quotes"}
       </Link>
 
       {/* Trash banner */}
       {isTrashed ? (
-        <div className="mt-5 flex items-start gap-3 border border-red-300 bg-red-50 p-4">
+        <div className="flex items-start gap-3 rounded-lg border border-red-300 bg-red-50 p-4">
           <span
             aria-hidden
             className="mt-0.5 inline-block h-3 w-1 shrink-0 bg-red-600"
           />
           <div>
-            <p className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
+            <p className="text-xs font-semibold uppercase tracking-wide text-red-700">
               In trash
             </p>
             <p className="mt-1 text-sm leading-relaxed text-red-800">
@@ -133,155 +439,26 @@ export default async function QuoteDetailPage({
         </div>
       ) : null}
 
-      {/* Eyebrow + status updated caption */}
-      <header className="mt-5 sm:mt-6">
-        <div className="flex flex-wrap items-center gap-3">
-          <p className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
-            Quote request
-          </p>
-          {row.lead_status_updated_at ? (
-            <span
-              className="font-mono text-xs text-zinc-700"
-              title={formatDateFull(row.lead_status_updated_at)}
-            >
-              Status updated {relativeTime(row.lead_status_updated_at)}
-            </span>
-          ) : null}
-        </div>
+      {/* Operator Header (above the tabs) */}
+      <OperatorHeader {...headerProps} />
 
-        {/* Hero — customer name */}
-        <h1 className="mt-3 text-3xl font-display tracking-tight text-zinc-900 sm:text-4xl">
-          {row.name}
-        </h1>
-        <p
-          className="mt-2 font-mono text-xs text-zinc-600"
-          title={formatDateFull(row.created_at)}
-        >
-          Received {relativeTime(row.created_at)}
-          <span aria-hidden className="mx-1.5 text-zinc-500">·</span>
-          {formatDateFull(row.created_at)}
-        </p>
-      </header>
-
-      {/* Identity strip — phone + email + status badge */}
-      <section className="mt-5 grid grid-cols-1 gap-3 border-y border-zinc-200 py-4 sm:grid-cols-3 sm:items-center sm:gap-6">
-        <div className="min-w-0">
-          <p className="font-mono text-xs tracking-[0.1em] text-zinc-700 uppercase">
-            Phone
-          </p>
-          <a
-            href={phoneHref}
-            className="mt-1 block font-mono text-base text-zinc-900 underline-offset-4 hover:underline sm:text-lg"
-          >
-            {row.phone}
-          </a>
-        </div>
-        <div className="min-w-0">
-          <p className="font-mono text-xs tracking-[0.1em] text-zinc-700 uppercase">
-            Email
-          </p>
-          <a
-            href={mailHref}
-            className="mt-1 block break-all text-sm text-zinc-900 underline-offset-4 hover:underline"
-          >
-            {row.email}
-          </a>
-        </div>
-        <div>
-          <p className="font-mono text-xs tracking-[0.1em] text-zinc-700 uppercase">
-            Status
-          </p>
-          <div className="mt-1.5">
-            <StatusBadge status={row.lead_status} />
-          </div>
-        </div>
-      </section>
-
-      {/* Lane block */}
-      {hasLane ? (
-        <section className="mt-6 border border-zinc-200 bg-white p-5 sm:p-6">
-          <p className="font-mono text-xs tracking-[0.1em] text-zinc-700 uppercase">
-            Lane
-          </p>
-          <div className="mt-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <span className="text-lg font-semibold text-zinc-900 sm:text-2xl">
-              {pickupLabel}
-            </span>
-            <span aria-hidden className="text-base text-red-600 sm:text-xl">
-              &rarr;
-            </span>
-            <span className="text-lg font-semibold text-zinc-900 sm:text-2xl">
-              {deliveryLabel}
-            </span>
-          </div>
-          <p className="mt-1.5 font-mono text-xs text-zinc-700">
-            {row.pickup_zip}
-            <span aria-hidden className="mx-1.5 text-zinc-500">→</span>
-            {row.delivery_zip}
-          </p>
-        </section>
-      ) : null}
-
-      {/* Rebuild notice */}
-      <section
-        role="status"
-        className="mt-6 border border-amber-300 bg-amber-50 p-5 sm:p-6"
-      >
-        <p className="font-mono text-xs tracking-[0.12em] text-amber-800 uppercase">
-          Workspace under reconstruction
-        </p>
-        <h2 className="mt-2 text-xl font-display tracking-tight text-zinc-900 sm:text-2xl">
-          Admin workspace is being rebuilt.
-        </h2>
-        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-700">
-          The quote-detail workspace was reset in DEL-1 because the prior
-          tabbed composer system produced silent buttons and was not
-          reliably moving leads through the pipeline. The data is
-          untouched — every lead, sent estimate, finalized quote, BOL,
-          payment, and dispatch event is preserved in Supabase. The
-          workflow panels (range proposal, finalized quote, BOL,
-          payments) will return one at a time in upcoming REBUILD
-          phases.
-        </p>
-      </section>
-
-      {/* Placeholder card — single visual seat for the future panels */}
-      <section className="mt-6 border border-zinc-200 bg-zinc-50 p-5 text-center sm:p-8">
-        <p className="font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase">
-          Future workspace
-        </p>
-        <p className="mt-3 max-w-md mx-auto text-sm leading-relaxed text-zinc-600">
-          Range proposal, finalized quote, bill of lading, and payment
-          panels will land here in REBUILD phases. No actions are
-          available on this page in DEL-1 — this is the clean reset
-          before the rebuild begins.
-        </p>
-      </section>
-
-      {/* Metadata strip — minimal audit info */}
-      <section className="mt-8 border-t border-zinc-200 pt-5">
-        <p className="font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase">
-          Record
-        </p>
-        <dl className="mt-3 grid grid-cols-1 gap-x-10 gap-y-3 sm:grid-cols-2">
-          <div>
-            <dt className="font-mono text-xs tracking-[0.1em] text-zinc-600 uppercase">
-              Request ID
-            </dt>
-            <dd className="mt-1 font-mono text-xs break-all text-zinc-700">
-              {row.id}
-            </dd>
-          </div>
-          <div>
-            <dt className="font-mono text-xs tracking-[0.1em] text-zinc-600 uppercase">
-              Created
-            </dt>
-            <dd className="mt-1 font-mono text-xs text-zinc-700">
-              {formatDateFull(row.created_at)}
-            </dd>
-          </div>
-        </dl>
-      </section>
+      {/* Tabbed workspace */}
+      <WorkspaceTabs
+        quoteRangeContent={
+          <QuoteRangeWorkspace
+            quoteRequestId={row.id}
+            miles={row.calculated_miles}
+          />
+        }
+        loadDetailsContent={
+          <LoadDetailsCard
+            key={intakeSnapshotKey}
+            initial={initialValues}
+            intakeStatusMessage={statusMessage}
+            uploads={intakeUploads}
+          />
+        }
+      />
     </div>
   );
 }

@@ -29,8 +29,8 @@ export function SectionTabs({ tabs }: { tabs: SectionTab[] }) {
             "flex flex-1 items-center justify-between gap-3 border-t-2 px-4 py-3 text-xs font-semibold tracking-[0.12em] uppercase transition-colors sm:px-5 " +
             (i > 0 ? "border-l border-l-zinc-200 " : "") +
             (tab.active
-              ? "border-t-red-600 bg-white font-semibold text-zinc-900 "
-              : "border-t-transparent bg-zinc-50 text-zinc-600 hover:bg-white hover:text-zinc-900 ")
+              ? "border-t-red-600 bg-white font-semibold text-black "
+              : "border-t-transparent bg-zinc-50 text-black hover:bg-white hover:text-black ")
           }
         >
           <span className="flex items-center gap-2.5">
@@ -46,7 +46,7 @@ export function SectionTabs({ tabs }: { tabs: SectionTab[] }) {
             <span
               className={
                 "shrink-0 font-mono text-xs tracking-[0.12em] " +
-                (tab.active ? "text-zinc-900" : "text-zinc-600")
+                (tab.active ? "text-black" : "text-black")
               }
             >
               {tab.count}
