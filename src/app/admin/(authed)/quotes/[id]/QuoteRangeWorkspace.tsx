@@ -171,6 +171,7 @@ function fingerprint(
 export function QuoteRangeWorkspace({
   quoteRequestId,
   miles,
+  defaults,
 }: {
   quoteRequestId: string;
   /**
@@ -181,20 +182,51 @@ export function QuoteRangeWorkspace({
    * is suppressed.
    */
   miles: number | null;
+  /**
+   * Persisted draft estimate fields from dispatch_estimates. Used to
+   * hydrate the form on page load so values survive navigation. Null
+   * when no draft exists yet -- the workspace falls back to its
+   * built-in empty defaults. Only fields persisted as columns are
+   * restored; fuel surcharge and accessorials are not (they only
+   * exist baked into preview_html / preview_text snapshots).
+   */
+  defaults: {
+    linehaul_low: number | null;
+    linehaul_high: number | null;
+    miles_estimate: number | null;
+    pickup_timing_notes: string | null;
+    equipment_notes: string | null;
+    dispatch_notes: string | null;
+    expiration_at: string | null;
+    closing_line: string | null;
+  } | null;
 }) {
   // Two linehaul inputs. The operator owns both ends of the range —
   // no automatic upside is applied. linehaulHigh is optional; when
   // blank the email renders a single price.
-  const [linehaulLow, setLinehaulLow] = useState("");
-  const [linehaulHigh, setLinehaulHigh] = useState("");
+  //
+  // Initial values hydrate from `defaults` when a saved draft row
+  // exists, so range prices, miles override, notes, and expiration
+  // survive navigation away and back. Fuel surcharge and accessorials
+  // are not column-persisted, so they intentionally reset to empty.
+  const [linehaulLow, setLinehaulLow] = useState(
+    defaults?.linehaul_low != null ? String(defaults.linehaul_low) : "",
+  );
+  const [linehaulHigh, setLinehaulHigh] = useState(
+    defaults?.linehaul_high != null ? String(defaults.linehaul_high) : "",
+  );
   const [fuelSurcharge, setFuelSurcharge] = useState("");
   const [accessorials, setAccessorials] = useState<Accessorial[]>([]);
-  const [expiryDate, setExpiryDate] = useState(defaultExpiry());
+  const [expiryDate, setExpiryDate] = useState(
+    defaults?.expiration_at ?? defaultExpiry(),
+  );
   // Prepay is the default for owner-operator freight quotes — single
   // truck, no factoring float to absorb. Operator switches to Net N
   // only when the customer is a known account.
   const [paymentTerms, setPaymentTerms] = useState("Prepay");
-  const [specialInstructions, setSpecialInstructions] = useState("");
+  const [specialInstructions, setSpecialInstructions] = useState(
+    defaults?.closing_line ?? "",
+  );
 
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewState, setPreviewState] = useState<PreviewModalState>("building");

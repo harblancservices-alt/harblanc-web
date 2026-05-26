@@ -722,6 +722,44 @@ async function loadLatestIntake(
   return intake ?? null;
 }
 
+/**
+ * Read the persisted draft estimate fields for hydrating the Quote Range
+ * workspace on page load. Matches the "single draft per quote_request"
+ * invariant enforced by upsertDraftEstimate (the unique unsent row).
+ *
+ * Returns null when no draft exists yet -- the workspace renders with
+ * its built-in empty defaults in that case. The fields persisted here
+ * are the same set written by buildEstimatePreview / saveDraftEstimate
+ * (linehaul, miles override, notes, expiration, closing line). Fuel
+ * surcharge and accessorials are NOT persisted as columns -- those are
+ * only baked into preview_html / preview_text at build time.
+ */
+export type QuoteRangeDefaults = {
+  linehaul_low: number | null;
+  linehaul_high: number | null;
+  miles_estimate: number | null;
+  pickup_timing_notes: string | null;
+  equipment_notes: string | null;
+  dispatch_notes: string | null;
+  expiration_at: string | null;
+  closing_line: string | null;
+};
+
+async function loadDraftEstimate(
+  quoteRequestId: string,
+): Promise<QuoteRangeDefaults | null> {
+  const sb = createServiceRoleClient();
+  const { data } = await sb
+    .from("dispatch_estimates")
+    .select(
+      "linehaul_low, linehaul_high, miles_estimate, pickup_timing_notes, equipment_notes, dispatch_notes, expiration_at, closing_line",
+    )
+    .eq("quote_request_id", quoteRequestId)
+    .is("sent_at", null)
+    .maybeSingle<QuoteRangeDefaults>();
+  return data ?? null;
+}
+
 // âââ Field-merge helpers (intake first, Quick Quote fallback) ââââââââ
 
 function pickString(...candidates: Array<string | null | undefined>): string {
@@ -928,6 +966,7 @@ export default async function QuoteDetailPage({
   const initialValues = computeInitialValues(row, intake);
   const statusMessage = intakeStatusMessage(intake);
   const intakeUploads = await loadIntakeUploadsForAdmin(row.id);
+  const estimateDraft = await loadDraftEstimate(id);
   const intakeSnapshotKey = intake
     ? `${intake.id}:${intake.status}:${intake.submitted_at ?? ""}`
     : "no_intake";
@@ -1011,6 +1050,7 @@ export default async function QuoteDetailPage({
           <QuoteRangeWorkspace
             quoteRequestId={row.id}
             miles={row.calculated_miles}
+            defaults={estimateDraft}
           />
         }
         loadDetailsContent={
