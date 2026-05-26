@@ -723,16 +723,26 @@ async function loadLatestIntake(
 }
 
 /**
- * Read the persisted draft estimate fields for hydrating the Quote Range
- * workspace on page load. Matches the "single draft per quote_request"
- * invariant enforced by upsertDraftEstimate (the unique unsent row).
+ * Read estimate fields for hydrating the Quote Range workspace on page
+ * load.
  *
- * Returns null when no draft exists yet -- the workspace renders with
- * its built-in empty defaults in that case. The fields persisted here
- * are the same set written by buildEstimatePreview / saveDraftEstimate
- * (linehaul, miles override, notes, expiration, closing line). Fuel
- * surcharge and accessorials are NOT persisted as columns -- those are
- * only baked into preview_html / preview_text at build time.
+ * Two-tier lookup that mirrors how operators actually use the workspace:
+ *   1. If a DRAFT row exists (sent_at IS NULL), return its fields. This
+ *      is the in-progress estimate the operator is building.
+ *   2. Otherwise, if a SENT row exists (sent_at IS NOT NULL), return
+ *      the most recent sent estimate's fields. This lets the operator
+ *      come back after sending and still see what was sent. Editing
+ *      and pressing Preview/Send will create a NEW draft row alongside
+ *      the sent one (the existing upsertDraftEstimate inserts when no
+ *      sent_at-null row matches), which is the resend / follow-up
+ *      workflow.
+ *   3. Returns null if no estimate exists at all -- the workspace
+ *      falls back to its built-in empty defaults.
+ *
+ * Only column-persisted fields are restored. Fuel surcharge and
+ * accessorials are NOT stored as columns; they're baked into the
+ * preview_html / preview_text snapshot at build time, so they cannot
+ * be restored without a schema change.
  */
 export type QuoteRangeDefaults = {
   linehaul_low: number | null;
@@ -749,15 +759,29 @@ async function loadDraftEstimate(
   quoteRequestId: string,
 ): Promise<QuoteRangeDefaults | null> {
   const sb = createServiceRoleClient();
-  const { data } = await sb
+  const cols =
+    "linehaul_low, linehaul_high, miles_estimate, pickup_timing_notes, equipment_notes, dispatch_notes, expiration_at, closing_line";
+
+  // 1. Prefer the in-progress draft row.
+  const { data: draft } = await sb
     .from("dispatch_estimates")
-    .select(
-      "linehaul_low, linehaul_high, miles_estimate, pickup_timing_notes, equipment_notes, dispatch_notes, expiration_at, closing_line",
-    )
+    .select(cols)
     .eq("quote_request_id", quoteRequestId)
     .is("sent_at", null)
     .maybeSingle<QuoteRangeDefaults>();
-  return data ?? null;
+  if (draft) return draft;
+
+  // 2. Fall back to the most recently sent estimate so the workspace
+  //    reads back the values the customer actually received.
+  const { data: sent } = await sb
+    .from("dispatch_estimates")
+    .select(cols)
+    .eq("quote_request_id", quoteRequestId)
+    .not("sent_at", "is", null)
+    .order("sent_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<QuoteRangeDefaults>();
+  return sent ?? null;
 }
 
 // âââ Field-merge helpers (intake first, Quick Quote fallback) ââââââââ
