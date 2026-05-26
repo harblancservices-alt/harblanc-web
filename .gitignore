@@ -68,3 +68,7 @@ public/globe.svg
 public/next.svg
 public/vercel.svg
 public/window.svg
+
+# local-only staging from recovery work (not for prod)
+/recovery/
+tsconfig.source-only.json

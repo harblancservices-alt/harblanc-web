@@ -47,7 +47,60 @@ function n(v: FormDataEntryValue | null): number | null {
   return Number.isFinite(num) ? num : null;
 }
 
+/**
+ * Allowed appointment-status codes — must match the CHECK constraint
+ * added in migration 20260539000000_intake_date_windows.sql. We
+ * normalize anything that isn't on the list back to NULL so a stray
+ * value from a malformed form post can't poison the row.
+ */
+const ALLOWED_APPOINTMENT_STATUS = new Set([
+  "flexible",
+  "appointment_needed",
+  "already_scheduled",
+  "call_to_schedule",
+]);
+
+function appointmentStatus(v: FormDataEntryValue | null): string | null {
+  const raw = s(v);
+  if (raw == null) return null;
+  return ALLOWED_APPOINTMENT_STATUS.has(raw) ? raw : null;
+}
+
+/**
+ * Derive a human-readable text representation of a date window into
+ * the legacy pickup_window / delivery_window column. Email renderers,
+ * the Finalized Quote workspace, and admin Load Details all read the
+ * legacy column — keeping it populated means none of those layers
+ * need to change.
+ */
+function deriveWindowText(
+  start: string | null,
+  end: string | null,
+): string | null {
+  if (!start && !end) return null;
+  if (start && end && start !== end) return `${start} – ${end}`;
+  return start ?? end ?? null;
+}
+
 function readIntakeFields(formData: FormData): Record<string, unknown> {
+  const pickupStart = s(formData.get("pickup_window_start"));
+  const pickupEndRaw = s(formData.get("pickup_window_end"));
+  const deliveryStart = s(formData.get("delivery_window_start"));
+  const deliveryEndRaw = s(formData.get("delivery_window_end"));
+
+  // End-before-start is rejected at the schema CHECK level (the
+  // migration adds shipment_intake_pickup_window_order_check). Strip
+  // an out-of-order end here too so the row passes both checks and
+  // the customer doesn't lose their start date to a failed update.
+  const pickupEnd =
+    pickupStart && pickupEndRaw && pickupEndRaw < pickupStart
+      ? null
+      : pickupEndRaw;
+  const deliveryEnd =
+    deliveryStart && deliveryEndRaw && deliveryEndRaw < deliveryStart
+      ? null
+      : deliveryEndRaw;
+
   return {
     pickup_company: s(formData.get("pickup_company")),
     pickup_contact_name: s(formData.get("pickup_contact_name")),
@@ -58,7 +111,11 @@ function readIntakeFields(formData: FormData): Record<string, unknown> {
     pickup_city: s(formData.get("pickup_city")),
     pickup_state: s(formData.get("pickup_state")),
     pickup_zip: s(formData.get("pickup_zip")),
-    pickup_window: s(formData.get("pickup_window")),
+    pickup_window_start: pickupStart,
+    pickup_window_end: pickupEnd,
+    // Legacy text column — keep populating so email renderers / admin /
+    // FQ stay in sync without code changes upstream.
+    pickup_window: deriveWindowText(pickupStart, pickupEnd),
 
     delivery_company: s(formData.get("delivery_company")),
     delivery_contact_name: s(formData.get("delivery_contact_name")),
@@ -69,7 +126,9 @@ function readIntakeFields(formData: FormData): Record<string, unknown> {
     delivery_city: s(formData.get("delivery_city")),
     delivery_state: s(formData.get("delivery_state")),
     delivery_zip: s(formData.get("delivery_zip")),
-    delivery_window: s(formData.get("delivery_window")),
+    delivery_window_start: deliveryStart,
+    delivery_window_end: deliveryEnd,
+    delivery_window: deriveWindowText(deliveryStart, deliveryEnd),
 
     commodity_details: s(formData.get("commodity_details")),
     length_in: n(formData.get("length_in")),
@@ -79,6 +138,7 @@ function readIntakeFields(formData: FormData): Record<string, unknown> {
 
     loading_responsibility: s(formData.get("loading_responsibility")),
     unloading_responsibility: s(formData.get("unloading_responsibility")),
+    appointment_status: appointmentStatus(formData.get("appointment_status")),
     special_requirements: s(formData.get("special_requirements")),
     reference_links: s(formData.get("reference_links")),
     notes: s(formData.get("notes")),

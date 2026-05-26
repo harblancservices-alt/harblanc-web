@@ -56,11 +56,18 @@ export function IntakeUploads({
   token,
   initialUploads,
   disabled,
+  referenceLinksDefault,
 }: {
   token: string;
   initialUploads: IntakeUploadRow[];
   /** Hide the upload affordance when the estimate is declined / dead. */
   disabled?: boolean;
+  /** Optional reference-links textarea default. When provided, the
+   *  uploader renders a `<textarea name="reference_links">` after the
+   *  file list — same FormData name the server action already reads.
+   *  No new server-side persistence layer is added: the textarea is a
+   *  plain child of the parent intake <form>. */
+  referenceLinksDefault?: string;
 }) {
   const [uploads, setUploads] = useState<LocalUploadRow[]>(initialUploads);
   const [note, setNote] = useState("");
@@ -143,29 +150,31 @@ export function IntakeUploads({
   }
 
   return (
-    <section className="mt-10 border-t border-neutral-800 pt-10">
+    // Matches IntakeForm's sectionCls so Documents & Photos reads as
+    // another section of the same form, not a separate widget.
+    <section className="border-l-4 border-l-red-600 bg-[#1a1a1a] p-5 shadow-[0_6px_18px_-6px_rgba(0,0,0,0.7)] sm:p-6">
       <header>
-        <p className="flex items-center gap-3 font-mono text-[11px] tracking-[0.22em] text-red-500 uppercase">
-          <span aria-hidden className="inline-block h-3 w-1 bg-red-600" />
+        {/* Title rests on the card's red 4px left strip — no inline
+            accent bar needed (would be a redundant brand mark). */}
+        <h2 className="font-mono text-[13px] font-bold uppercase tracking-[0.18em] text-white">
           Documents &amp; Photos
-        </p>
-        <h2 className="mt-3 text-xl font-display tracking-tight text-white sm:text-2xl">
-          Attach supporting files
         </h2>
-        <p className="mt-2 max-w-2xl text-sm text-neutral-400">
-          Optional but helpful — photos of the freight, dimension or
-          weight documents, product spec sheets, pickup/delivery
-          paperwork, or anything that helps dispatch quote the lane
-          accurately. Images (JPG, PNG, WEBP) and PDFs up to 15&nbsp;MB
-          each.
+        <p className="mt-1.5 font-mono text-[11px] leading-snug text-zinc-500">
+          Optional supporting files — used by dispatch to verify freight
+          details before scheduling.
+        </p>
+        <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-300">
+          Attach freight photos, weight tickets, spec sheets, or
+          pickup/delivery paperwork. JPG, PNG, WEBP, or PDF up to
+          15&nbsp;MB per file.
         </p>
       </header>
 
       {!disabled ? (
         <>
           {/* Optional note that applies to the next upload batch. */}
-          <label className="mt-6 block">
-            <span className="font-mono text-[10px] tracking-[0.22em] text-neutral-400 uppercase">
+          <label className="mt-5 block">
+            <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-300">
               Note for next upload (optional)
             </span>
             <input
@@ -180,22 +189,26 @@ export function IntakeUploads({
                 if (e.key === "Enter") e.preventDefault();
               }}
               placeholder="e.g. shipper paperwork, freight from front"
-              className="mt-2 block w-full border border-neutral-700 bg-neutral-900 px-3 py-2.5 text-sm text-white placeholder:text-neutral-600 focus:border-red-500 focus:outline-none"
+              className="mt-2 block w-full border border-[#3a3a3a] bg-[#2e2e2e] px-3 py-3 text-sm text-white placeholder:text-neutral-500 transition-colors focus:border-red-600 focus:outline-none"
               maxLength={200}
             />
           </label>
 
+          {/* Add-files button kept solid red — it IS the primary action
+              of the uploader. The page-level Call dispatch CTA is
+              outlined-red, so the two reds don't both shout at the
+              customer at the same time. */}
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <button
               type="button"
               onClick={pickFiles}
               disabled={isPending}
-              className="inline-flex items-center gap-2 border border-red-600 bg-red-600 px-5 py-2.5 text-sm font-semibold uppercase tracking-[0.12em] text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center gap-2 border border-red-700 bg-transparent px-5 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-red-300 transition-colors hover:border-red-500 hover:bg-red-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isPending ? "Uploading…" : "Add files"}
             </button>
-            <p className="font-mono text-[10px] tracking-[0.22em] text-neutral-500 uppercase">
-              JPG · PNG · WEBP · PDF
+            <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
+              JPG &middot; PNG &middot; WEBP &middot; PDF
             </p>
           </div>
 
@@ -215,7 +228,7 @@ export function IntakeUploads({
           />
 
           {error ? (
-            <p className="mt-3 border border-red-800 bg-red-950/40 px-3 py-2 font-mono text-[11px] tracking-wide text-red-300">
+            <p className="mt-3 border border-red-800 bg-red-950/40 px-3 py-2 font-mono text-[11px] font-semibold tracking-wide text-red-200">
               {error}
             </p>
           ) : null}
@@ -224,10 +237,10 @@ export function IntakeUploads({
 
       {/* Upload list. Empty state, optimistic rows, and confirmed
           rows all share one rendering pass. */}
-      <div className="mt-6">
+      <div className="mt-5">
         {uploads.length === 0 ? (
-          <p className="border border-neutral-800 bg-neutral-900/40 px-4 py-6 font-mono text-[11px] tracking-[0.18em] text-neutral-500 uppercase">
-            No documents uploaded yet.
+          <p className="border border-[#3a3a3a]/60 bg-[#2e2e2e] px-4 py-5 font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-400">
+            No files attached &middot; optional
           </p>
         ) : (
           <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -235,14 +248,14 @@ export function IntakeUploads({
               <li
                 key={u.id}
                 className={
-                  "flex items-start gap-3 border border-neutral-800 bg-neutral-900/40 px-3 py-3 " +
+                  "flex items-start gap-3 border border-[#3a3a3a] bg-[#2e2e2e] px-3 py-3 " +
                   (u.pending ? "opacity-60" : "")
                 }
               >
                 {/* Type icon */}
                 <span
                   aria-hidden
-                  className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center border border-neutral-700 bg-neutral-950 font-mono text-[10px] font-bold uppercase tracking-wide text-red-400"
+                  className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center border border-[#3a3a3a] bg-[#050505] font-mono text-[10px] font-bold uppercase tracking-wide text-red-400"
                 >
                   {isImage(u.mimeType) ? "IMG" : "PDF"}
                 </span>
@@ -250,12 +263,12 @@ export function IntakeUploads({
                   <p className="truncate text-sm font-semibold text-white">
                     {u.originalFilename}
                   </p>
-                  <p className="mt-0.5 font-mono text-[10px] tracking-wide text-neutral-500 uppercase">
+                  <p className="mt-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide text-zinc-400">
                     {formatSize(u.sizeBytes)}
                     {u.pending ? " · uploading" : ""}
                   </p>
                   {u.note ? (
-                    <p className="mt-1 text-xs italic text-neutral-400">
+                    <p className="mt-1 text-xs italic text-zinc-300">
                       {u.note}
                     </p>
                   ) : null}
@@ -266,7 +279,7 @@ export function IntakeUploads({
                     onClick={() => removeUpload(u.id)}
                     disabled={u.deleting}
                     aria-label={`Remove ${u.originalFilename}`}
-                    className="shrink-0 border border-neutral-700 bg-neutral-950 px-2 py-1 font-mono text-[10px] uppercase tracking-[0.16em] text-neutral-300 transition-colors hover:border-red-700 hover:text-red-300 disabled:opacity-50"
+                    className="shrink-0 border border-neutral-600 bg-transparent px-2 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-200 transition-colors hover:border-red-500 hover:text-red-400 disabled:opacity-50"
                   >
                     {u.deleting ? "Removing" : "Remove"}
                   </button>
@@ -276,6 +289,34 @@ export function IntakeUploads({
           </ul>
         )}
       </div>
+
+      {/* Optional reference links — moved here from the prior "Notes &
+          links" section so all freight-context inputs live in one
+          place. The textarea is a plain child of the parent intake
+          <form>, so the existing server action keeps reading it from
+          formData.get("reference_links") with no wiring changes. */}
+      {referenceLinksDefault !== undefined ? (
+        <div className="mt-6">
+          <label
+            htmlFor="reference_links"
+            className="block font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-300"
+          >
+            Reference links
+          </label>
+          <p className="mt-1.5 max-w-2xl text-sm leading-relaxed text-zinc-400">
+            Paste any product pages, spec sheets, shared folders, or
+            reference links that help dispatch understand the freight.
+          </p>
+          <textarea
+            id="reference_links"
+            name="reference_links"
+            defaultValue={referenceLinksDefault}
+            rows={3}
+            placeholder="https://…"
+            className="mt-2 block w-full resize-y border border-[#3a3a3a] bg-[#2e2e2e] px-3 py-3 text-base text-white placeholder:text-neutral-500 transition-colors focus:border-red-600 focus:outline-none"
+          />
+        </div>
+      ) : null}
     </section>
   );
 }

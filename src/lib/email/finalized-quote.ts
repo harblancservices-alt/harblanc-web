@@ -272,6 +272,17 @@ export type FinalizedQuotePayload = {
   dispatchConfirmationStatement: string | null;
   schedulingStatement: string | null;
   acceptanceAcknowledgement: string | null;
+
+  /**
+   * Public, tokenized URL the customer clicks to confirm the finalized
+   * rate. Lands on /quote/confirm/[token]. When null, the Confirm
+   * action band is omitted from the rendered email — Build Preview
+   * before send time renders without a URL because the confirmation
+   * token is generated at row insert and only stitched into the URL
+   * at build-preview time. Same posture as the Quote Range acceptUrl
+   * pattern in render.ts.
+   */
+  confirmUrl?: string | null;
 };
 
 export type RenderedFinalizedQuoteEmail = {
@@ -300,7 +311,7 @@ export const DEFAULT_TONU_POLICY =
   "Truck Ordered Not Used (TONU) billed per standard carrier terms.";
 
 const MINIMAL_DISCLAIMER =
-  "This quote reflects the finalized shipment scope reviewed by dispatch. Material changes to shipment conditions may result in revised charges.";
+  "This rate reflects the shipment scope confirmed by dispatch. Changes to the load or schedule may require a revised quote.";
 
 // ─── Operational flag chips ──────────────────────────────────────────────
 //
@@ -330,6 +341,40 @@ function activeOpsFlags(ops: FinalizedQuotePayload["ops"]): string[] {
     if (ops[k] === true) out.push(OPS_FLAG_LABELS[k]);
   });
   return out;
+}
+
+/**
+ * Confirm-rate action band. Single muted-green button — this is a
+ * confirmation, not a yes/no fork. Visually mirrors the Quote Range
+ * actionBand in render.ts (same muted-green operational red-900 /
+ * green-900 register) so the two customer action emails read as the
+ * same family.
+ *
+ * Rendered only when payload.confirmUrl is non-null. Build Preview
+ * before send time omits the URL and therefore omits the band —
+ * preview/send byte parity is maintained because the URL is stitched
+ * in at the same moment the preview is built, then persisted into
+ * preview_html and shipped verbatim at send time.
+ */
+function confirmActionBand(confirmUrl: string, validThrough: string | null): string {
+  const bg = "#166534"; // green-900 — operational confirmation tone
+  const border = "#14532d";
+  const validityLine = validThrough
+    ? `Confirms the rate above through ${escapeHtml(validThrough)}. A dispatcher follows up to coordinate pickup and delivery scheduling.`
+    : `Confirms the rate above. A dispatcher follows up to coordinate pickup and delivery scheduling.`;
+  return `<tr>
+    <td style="padding:${SECTION_PADDING_Y_TOP}px ${SECTION_PADDING_X}px ${SECTION_PADDING_Y_BOTTOM}px;background:#fafafa;border-top:1px solid #d4d4d8">
+      ${sectionHeader("Confirm the rate")}
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;width:100%">
+        <tr>
+          <td align="center" bgcolor="${bg}" style="background:${bg};border:1px solid ${border}">
+            <a href="${escapeHtml(confirmUrl)}" style="display:block;padding:13px 20px;font-family:${SANS};${MONO_FEATURES};font-size:13px;letter-spacing:0.18em;color:#ffffff;text-decoration:none;text-transform:uppercase;font-weight:700">Confirm finalized quote</a>
+          </td>
+        </tr>
+      </table>
+      <p style="margin:10px 0 0;font-family:${SANS};font-size:12px;color:#3f3f46;line-height:1.55">${validityLine}</p>
+    </td>
+  </tr>`;
 }
 
 function opsChipStripHtml(flags: string[]): string {
@@ -365,7 +410,7 @@ export function renderFinalizedQuoteEmail(
 
   const greeting = `${firstName(payload.customerName)},`;
   const opener =
-    "Dispatch has finalized the rate and shipment scope below.";
+    "Below are the finalized shipment details and committed rate.";
 
   const flags = activeOpsFlags(payload.ops);
 
@@ -375,7 +420,7 @@ export function renderFinalizedQuoteEmail(
     "",
     opener,
     "",
-    "── SHIPMENT ──",
+    "── CONFIRMATION ──",
     `  QUOTE #         ${payload.finalizedQuoteNumber}`,
     `  ISSUED          ${issued}`,
   ];
@@ -443,7 +488,7 @@ export function renderFinalizedQuoteEmail(
   }
 
   textLines.push("");
-  textLines.push("── CHARGES ──");
+  textLines.push("── RATE ──");
   textLines.push(
     `  Linehaul                                  ${formatUsd(payload.pricing.linehaul)}`,
   );
@@ -481,6 +526,12 @@ export function renderFinalizedQuoteEmail(
     });
   }
 
+  if (payload.confirmUrl) {
+    textLines.push("");
+    textLines.push("── CONFIRM THE RATE ──");
+    textLines.push(`  ${payload.confirmUrl}`);
+  }
+
   textLines.push("");
   textLines.push(MINIMAL_DISCLAIMER);
 
@@ -509,7 +560,7 @@ export function renderFinalizedQuoteEmail(
     });
   }
   const shipmentBand = bandWhite(
-    sectionHeader("Shipment") + fieldTable(shipmentRows),
+    sectionHeader("Confirmation") + fieldTable(shipmentRows),
   );
 
   const pickupBand = bandWhite(
@@ -588,7 +639,7 @@ export function renderFinalizedQuoteEmail(
     rateRows.push({ label: "Payment due", amount: paymentDue });
   }
   const rateBand = bandBlack(
-    sectionHeader("Charges", true) + rateSummaryTable(rateRows, { inverted: true }),
+    sectionHeader("Rate", true) + rateSummaryTable(rateRows, { inverted: true }),
   );
 
   // Dispatch notes — only renders when there's actually a note.
@@ -597,6 +648,13 @@ export function renderFinalizedQuoteEmail(
         sectionHeader("Dispatch notes") +
           `<p style="margin:0;color:#0a0a0a;font-family:${SANS};font-size:14px;font-weight:400;line-height:1.55;white-space:pre-wrap">${escapeHtml(payload.ops.specialInstructions)}</p>`,
       )
+    : "";
+
+  // Confirm action band — single muted-green Confirm button, mirroring
+  // the Quote Range Accept/Decline action-band pattern. Omitted when
+  // confirmUrl is null (Build Preview before send time).
+  const confirmBandHtml = payload.confirmUrl
+    ? confirmActionBand(payload.confirmUrl, payload.expirationAt ? validThrough : null)
     : "";
 
   // Minimal disclaimer — one short paragraph, calm operational tone.
@@ -616,6 +674,7 @@ export function renderFinalizedQuoteEmail(
     ${HAIRLINE}
     ${rateBand}
     ${dispatchNotesBand ? HAIRLINE + dispatchNotesBand : ""}
+    ${confirmBandHtml}
     ${HAIRLINE}
     ${disclaimerBand}
   </table>`;

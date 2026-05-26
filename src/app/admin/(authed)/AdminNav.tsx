@@ -9,6 +9,7 @@ const items: NavItem[] = [
   { href: "/admin", label: "Dashboard" },
   { href: "/admin/quotes", label: "Quotes" },
   { href: "/admin/applications", label: "Applications" },
+  { href: "/admin/previews", label: "Previews" },
 ];
 
 function isActive(pathname: string, href: string): boolean {

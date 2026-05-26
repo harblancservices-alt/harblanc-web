@@ -1059,6 +1059,20 @@ function SentHistoryTab({
             View sent BOL
           </button>
         ) : null}
+        {/* Phase 3A — on-demand BOL PDF download. The GET route renders
+            a fresh Straight Bill of Lading PDF from current row state
+            and streams it back with inline Content-Disposition so most
+            browsers open it in a viewer tab (operator can print for
+            the driver's clipboard packet or save for archive). Email
+            send pipeline is intentionally untouched. */}
+        <a
+          href={`/admin/quotes/${quoteRequestId}/bol-pdf/${sent.id}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center justify-center gap-2 border border-zinc-400 bg-white px-4 py-2.5 text-sm font-semibold text-black transition-colors hover:border-red-600 hover:text-red-700"
+        >
+          Download PDF
+        </a>
         <button
           type="button"
           onClick={onGenerateRevision}

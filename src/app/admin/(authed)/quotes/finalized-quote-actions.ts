@@ -54,6 +54,19 @@ const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_VALIDITY_DAYS = 5;
 const DEFAULT_PAYMENT_DUE_DAYS = 3;
 
+/**
+ * Public origin for customer-facing token URLs (the confirm-rate link
+ * the email's action band points at). Mirrors the PUBLIC_ORIGIN
+ * pattern in actions.ts so a missing env var falls back to the prod
+ * domain — local previews still produce valid-looking URLs.
+ */
+const PUBLIC_ORIGIN =
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.harblancservices.com";
+
+function confirmUrl(token: string): string {
+  return `${PUBLIC_ORIGIN}/quote/confirm/${token}`;
+}
+
 // ─── primitive parsers ────────────────────────────────────────────────────
 
 function s(v: FormDataEntryValue | null): string | null {
@@ -700,6 +713,19 @@ export async function buildFinalizedQuotePreview(
     throw new Error(`Could not save fields: ${updateErr.message}`);
   }
 
+  // Phase 2B: pull the row's confirmation_token (auto-generated at row
+  // insert via the schema default — see migration 20260529000000) so
+  // we can stitch the customer-facing confirm URL into the rendered
+  // email. The URL is baked into preview_html at this moment and
+  // shipped verbatim at send time, preserving preview/send byte
+  // parity.
+  const { data: tokenRow } = await sb
+    .from("finalized_quotes")
+    .select("confirmation_token")
+    .eq("id", draft.id)
+    .maybeSingle<{ confirmation_token: string | null }>();
+  const confirmationToken = tokenRow?.confirmation_token ?? null;
+
   // Build the renderer payload from the SAVED fields (not the form),
   // so preview-bytes are derived from the row that send will read.
   const payload: FinalizedQuotePayload = {
@@ -773,6 +799,8 @@ export async function buildFinalizedQuotePreview(
     dispatchConfirmationStatement: fields.dispatch_confirmation_statement,
     schedulingStatement: fields.scheduling_statement,
     acceptanceAcknowledgement: fields.acceptance_acknowledgement,
+
+    confirmUrl: confirmationToken ? confirmUrl(confirmationToken) : null,
   };
 
   const rendered = renderFinalizedQuoteEmail(payload);

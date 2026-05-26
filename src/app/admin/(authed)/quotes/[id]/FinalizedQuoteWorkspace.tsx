@@ -134,6 +134,11 @@ export type FinalizedQuoteSentSnapshot = {
   previewHtml: string | null;
   previewSubject: string | null;
   resentFromId: string | null;
+  /** Phase 2B — non-null when the customer clicked the Confirm
+   *  Finalized Quote button on /quote/confirm/[token] and the server
+   *  action stamped the row. The workspace renders a "Confirmed"
+   *  badge + the timestamp when this is set. */
+  confirmedAt: string | null;
 };
 
 export type FinalizedQuoteState =
@@ -1197,19 +1202,48 @@ function SentHistoryTab({
     });
   }, [sent.sentAt]);
 
+  // Phase 2B — render a "Confirmed" status pill next to the FQ number
+  // and a Confirmed-at row in the summary when the customer has tapped
+  // the email's Confirm Finalized Quote button. confirmedAt comes from
+  // the FQ row's confirmed_at column, stamped by the customer-facing
+  // confirmFinalizedQuote server action.
+  const confirmedAtDisplay = useMemo(() => {
+    if (!sent.confirmedAt) return "";
+    const d = new Date(sent.confirmedAt);
+    if (Number.isNaN(d.getTime())) return sent.confirmedAt;
+    return d.toLocaleString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }, [sent.confirmedAt]);
+
   return (
     <section className="overflow-hidden rounded border border-zinc-400 border-l-4 border-l-red-600 bg-white">
       <div className="flex items-center justify-between gap-3 border-b border-zinc-400 bg-white px-4 py-2.5 sm:px-5">
         <h2 className="text-[13px] font-bold uppercase tracking-[0.08em] text-black">
           Finalized quote
         </h2>
-        <p className="font-mono text-[11px] text-black">
-          {sent.finalizedQuoteNumber} &middot; Sent
+        <p className="flex items-center gap-2 font-mono text-[11px] text-black">
+          <span>
+            {sent.finalizedQuoteNumber} &middot;{" "}
+            {sent.confirmedAt ? "Sent" : "Sent"}
+          </span>
+          {sent.confirmedAt ? (
+            <span className="inline-flex items-center border border-green-700 bg-green-50 px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-green-800">
+              Confirmed
+            </span>
+          ) : null}
         </p>
       </div>
 
       <div className="grid gap-3 px-4 py-4 sm:px-5">
         <SummaryRow label="Sent at" value={sentAtDisplay} />
+        {sent.confirmedAt ? (
+          <SummaryRow label="Confirmed at" value={confirmedAtDisplay} />
+        ) : null}
         <SummaryRow
           label="Recipient"
           value={sent.recipientEmail ?? "—"}
@@ -1252,6 +1286,20 @@ function SentHistoryTab({
             View sent document
           </button>
         ) : null}
+        {/* Phase 2C — on-demand PDF download. The GET route renders a
+            fresh PDF from current row state and streams it back with
+            an inline Content-Disposition so most browsers open it in
+            a viewer tab (where the operator can print, save, forward).
+            Email send pipeline is intentionally untouched — this is a
+            separate archive/print path. */}
+        <a
+          href={`/admin/quotes/${quoteRequestId}/finalized-quote-pdf/${sent.id}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center justify-center gap-2 border border-zinc-400 bg-white px-4 py-2.5 text-sm font-semibold text-black transition-colors hover:border-red-600 hover:text-red-700"
+        >
+          Download PDF
+        </a>
         <button
           type="button"
           onClick={onGenerateRevision}

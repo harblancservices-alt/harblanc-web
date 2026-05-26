@@ -43,6 +43,11 @@ export type LoadDetailsInitial = {
   /** End of the delivery window. Optional; same behavior as
    *  pickup_window_end. */
   delivery_window_end: string;
+  /** Customer's scheduling posture, surfaced as a friendly string
+   *  ("Flexible", "Appointment needed", etc.). Blank when the
+   *  customer hasn't answered. Read-only; dispatch uses it to know
+   *  whether to call before confirming exact times. */
+  appointment_status: string;
   freight_commodity: string;
   freight_weight: string;
   freight_pieces: string;
@@ -139,6 +144,12 @@ export function LoadDetailsCard({
             startValue={values.delivery_window}
             endKey="delivery_window_end"
             endValue={values.delivery_window_end}
+            onChange={setValue}
+          />
+          <Row
+            label="Appointment"
+            fieldKey="appointment_status"
+            value={values.appointment_status}
             onChange={setValue}
           />
         </>

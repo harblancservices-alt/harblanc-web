@@ -31,6 +31,7 @@ export type DispatchEventKind =
   | "finalized_quote_preview_built"
   | "finalized_quote_sent"
   | "finalized_quote_send_failed"
+  | "finalized_quote_confirmed"
   | "bol_draft_started"
   | "bol_draft_saved"
   | "bol_preview_built"
@@ -100,6 +101,20 @@ export type DispatchEventPayloadByKind = {
     finalizedQuoteNumber: string;
     reason: string;
     to: string;
+  };
+  /**
+   * Phase 2B — emitted by the customer-side confirmFinalizedQuote
+   * server action when the recipient taps the Confirm Finalized Quote
+   * button on /quote/confirm/[token] and the FQ row's confirmed_at is
+   * stamped. Idempotent: subsequent clicks on a confirmed token do not
+   * re-emit. The dispatch lifecycle strip uses the existence of this
+   * event (and the FQ row's confirmed_at) to mark the "Confirmed"
+   * stage as complete.
+   */
+  finalized_quote_confirmed: {
+    finalizedQuoteId: string;
+    finalizedQuoteNumber: string;
+    confirmedAt: string;
   };
   bol_draft_started: {
     bolId: string;

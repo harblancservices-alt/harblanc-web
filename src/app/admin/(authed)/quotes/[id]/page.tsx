@@ -34,6 +34,10 @@ import {
 } from "./LoadDetailsCard";
 import { WorkspaceTabs } from "./WorkspaceTabs";
 import {
+  DispatchLifecycle,
+  type DispatchStageInput,
+} from "./DispatchLifecycle";
+import {
   FinalizedQuoteWorkspace,
   type FinalizedAccessorialSnapshot,
   type FinalizedQuoteDraftSnapshot,
@@ -177,6 +181,8 @@ type IntakeRow = {
   pickup_state: string | null;
   pickup_zip: string | null;
   pickup_window: string | null;
+  pickup_window_start: string | null;
+  pickup_window_end: string | null;
   delivery_company: string | null;
   delivery_contact_name: string | null;
   delivery_contact_phone: string | null;
@@ -186,6 +192,9 @@ type IntakeRow = {
   delivery_state: string | null;
   delivery_zip: string | null;
   delivery_window: string | null;
+  delivery_window_start: string | null;
+  delivery_window_end: string | null;
+  appointment_status: string | null;
   commodity_details: string | null;
   length_in: number | null;
   width_in: number | null;
@@ -263,10 +272,11 @@ type FinalizedQuoteRowForDraft = {
   preview_built_at: string | null;
 
   resent_from_id: string | null;
+  confirmed_at: string | null;
 };
 
 const FINALIZED_QUOTE_COLUMNS =
-  "id, finalized_quote_number, sent_at, expiration_at, payment_due_at, pickup_company, pickup_contact_name, pickup_contact_phone, pickup_contact_email, pickup_address_line1, pickup_address_line2, pickup_city, pickup_state, pickup_zip, pickup_window, pickup_loading_hours, delivery_company, delivery_contact_name, delivery_contact_phone, delivery_contact_email, delivery_address_line1, delivery_address_line2, delivery_city, delivery_state, delivery_zip, delivery_window, delivery_receiving_hours, commodity, length_in, width_in, height_in, exact_weight_lbs, quantity, handling_type, running_condition, securement_requirements, forklift_available, driver_assist_required, crane_required, permits_required, escort_required, tarp_required, special_instructions, linehaul, fuel_surcharge, permits_fee, accessorials, total_amount, preview_subject, preview_html, preview_to, preview_built_at, resent_from_id";
+  "id, finalized_quote_number, sent_at, expiration_at, payment_due_at, pickup_company, pickup_contact_name, pickup_contact_phone, pickup_contact_email, pickup_address_line1, pickup_address_line2, pickup_city, pickup_state, pickup_zip, pickup_window, pickup_loading_hours, delivery_company, delivery_contact_name, delivery_contact_phone, delivery_contact_email, delivery_address_line1, delivery_address_line2, delivery_city, delivery_state, delivery_zip, delivery_window, delivery_receiving_hours, commodity, length_in, width_in, height_in, exact_weight_lbs, quantity, handling_type, running_condition, securement_requirements, forklift_available, driver_assist_required, crane_required, permits_required, escort_required, tarp_required, special_instructions, linehaul, fuel_surcharge, permits_fee, accessorials, total_amount, preview_subject, preview_html, preview_to, preview_built_at, resent_from_id, confirmed_at";
 
 function coerceNum(v: string | number | null): number | null {
   if (v == null) return null;
@@ -403,6 +413,7 @@ function rowToSentSnapshot(
     previewHtml: row.preview_html,
     previewSubject: row.preview_subject,
     resentFromId: row.resent_from_id,
+    confirmedAt: row.confirmed_at,
   };
 }
 
@@ -704,7 +715,7 @@ async function loadLatestIntake(
   const { data: intake } = await sb
     .from("shipment_intake")
     .select(
-      "id, status, submitted_at, pickup_company, pickup_contact_name, pickup_contact_phone, pickup_address_line1, pickup_address_line2, pickup_city, pickup_state, pickup_zip, pickup_window, delivery_company, delivery_contact_name, delivery_contact_phone, delivery_address_line1, delivery_address_line2, delivery_city, delivery_state, delivery_zip, delivery_window, commodity_details, length_in, width_in, height_in, exact_weight_lbs, special_requirements",
+      "id, status, submitted_at, pickup_company, pickup_contact_name, pickup_contact_phone, pickup_address_line1, pickup_address_line2, pickup_city, pickup_state, pickup_zip, pickup_window, pickup_window_start, pickup_window_end, delivery_company, delivery_contact_name, delivery_contact_phone, delivery_address_line1, delivery_address_line2, delivery_city, delivery_state, delivery_zip, delivery_window, delivery_window_start, delivery_window_end, appointment_status, commodity_details, length_in, width_in, height_in, exact_weight_lbs, special_requirements",
     )
     .eq("dispatch_estimate_id", est.id)
     .maybeSingle<IntakeRow>();
@@ -764,6 +775,29 @@ function formatDimensions(
   return `${fmt(l)}″ × ${fmt(w)}″ × ${fmt(h)}″`;
 }
 
+/**
+ * Convert the stored appointment_status code (snake_case) into the
+ * friendly text the admin Load Details row shows. Returns "" when the
+ * customer hasn't answered — the row then renders as "Appointment: —".
+ *
+ * Keep in sync with APPOINTMENT_STATUS_OPTIONS in
+ * src/app/quote/accept/[token]/intake-fields.tsx.
+ */
+function friendlyAppointmentStatus(code: string | null | undefined): string {
+  switch (code) {
+    case "flexible":
+      return "Flexible";
+    case "appointment_needed":
+      return "Appointment needed";
+    case "already_scheduled":
+      return "Already scheduled";
+    case "call_to_schedule":
+      return "Call me to schedule";
+    default:
+      return "";
+  }
+}
+
 function computeInitialValues(
   row: QuoteDetailRow,
   intake: IntakeRow | null,
@@ -781,12 +815,16 @@ function computeInitialValues(
     ),
     pickup_contact: pickString(intake?.pickup_contact_name),
     pickup_phone: pickString(intake?.pickup_contact_phone),
-    pickup_window: pickString(intake?.pickup_window, row.pickup_date),
-    // pickup_window_end intentionally left empty for now — the
-    // shipment_intake schema doesn't store a separate end date yet.
-    // Operator types the end manually in the workspace until a
-    // future migration lands a pickup_window_end column.
-    pickup_window_end: "",
+    // Prefer the new typed start column when present; fall back to the
+    // legacy text column (always a YYYY-MM-DD for intakes submitted via
+    // the old single-date UI) and finally to the original Quick Quote
+    // pickup_date. The display only shows what's set — no synthesis.
+    pickup_window: pickString(
+      intake?.pickup_window_start,
+      intake?.pickup_window,
+      row.pickup_date,
+    ),
+    pickup_window_end: pickString(intake?.pickup_window_end),
 
     delivery_company: pickString(intake?.delivery_company),
     delivery_address: joinAddress(
@@ -800,10 +838,12 @@ function computeInitialValues(
     ),
     delivery_contact: pickString(intake?.delivery_contact_name),
     delivery_phone: pickString(intake?.delivery_contact_phone),
-    delivery_window: pickString(intake?.delivery_window),
-    // delivery_window_end — same as pickup_window_end. Operator-typed
-    // until the schema gains a delivery_window_end column.
-    delivery_window_end: "",
+    delivery_window: pickString(
+      intake?.delivery_window_start,
+      intake?.delivery_window,
+    ),
+    delivery_window_end: pickString(intake?.delivery_window_end),
+    appointment_status: friendlyAppointmentStatus(intake?.appointment_status),
 
     freight_commodity: pickString(intake?.commodity_details, row.commodity),
     freight_weight: formatWeight(intake?.exact_weight_lbs, row.weight),
@@ -894,6 +934,26 @@ export default async function QuoteDetailPage({
   const finalizedQuoteState = await loadFinalizedQuoteState(row.id, row.email);
   const bolState = await loadBolState(row.id, row.email);
 
+  // Phase 3B — derive the operational lifecycle from data we already
+  // loaded. The strip is a presentation layer over existing artifact
+  // state; no new queries and no new lead_status values. The estimate
+  // is implicitly sent when an intake row exists (the customer can
+  // only reach the intake page through a token-gated estimate accept
+  // link), so intake existence stands in for "range proposal sent."
+  const lifecycleState: DispatchStageInput = {
+    estimateSent: intake !== null,
+    intakeSubmitted: intake?.status === "submitted",
+    finalizedQuoteSent:
+      finalizedQuoteState.phase === "sent" ||
+      finalizedQuoteState.phase === "draft",
+    finalizedQuoteConfirmed:
+      finalizedQuoteState.phase === "sent" &&
+      finalizedQuoteState.sent.confirmedAt !== null,
+    bolGenerated:
+      bolState.phase === "draft" || bolState.phase === "sent",
+    bolSent: bolState.phase === "sent",
+  };
+
   const isTrashed = Boolean(row.deleted_at);
   const headerProps = buildOperatorHeaderProps(row);
 
@@ -938,6 +998,12 @@ export default async function QuoteDetailPage({
 
       {/* Operator Header (above the tabs) */}
       <OperatorHeader {...headerProps} />
+
+      {/* Phase 3B — Dispatch lifecycle strip. Aggregates artifact state
+          (estimate / intake / FQ / confirmed / BOL) into one row so the
+          operator knows where the shipment is and what the next move
+          is without clicking through every tab. */}
+      <DispatchLifecycle state={lifecycleState} />
 
       {/* Tabbed workspace */}
       <WorkspaceTabs

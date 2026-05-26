@@ -8,6 +8,12 @@ import {
   type IntakeSaveResult,
 } from "./actions";
 import { IntakeUploads, type IntakeUploadRow } from "./IntakeUploads";
+import {
+  AppointmentStatusSelect,
+  DateWindowField,
+  PhoneField,
+  StateSelect,
+} from "./intake-fields";
 
 /**
  * Shipment finalization intake — single-page sectioned form, mobile
@@ -34,7 +40,12 @@ export type IntakeFormDefaults = {
   pickupCity: string;
   pickupState: string;
   pickupZip: string;
-  pickupWindow: string;
+  // Calendar window — start is the day the shipper has freight ready;
+  // end (optional) is the last day they'll release it. Server actions
+  // also derive a "{start} – {end}" string into the legacy pickup_window
+  // text column so existing email / admin / FQ consumers keep working.
+  pickupWindowStart: string;
+  pickupWindowEnd: string;
   deliveryCompany: string;
   deliveryContactName: string;
   deliveryContactPhone: string;
@@ -44,7 +55,8 @@ export type IntakeFormDefaults = {
   deliveryCity: string;
   deliveryState: string;
   deliveryZip: string;
-  deliveryWindow: string;
+  deliveryWindowStart: string;
+  deliveryWindowEnd: string;
   commodityDetails: string;
   lengthIn: string;
   widthIn: string;
@@ -52,17 +64,40 @@ export type IntakeFormDefaults = {
   exactWeightLbs: string;
   loadingResponsibility: string;
   unloadingResponsibility: string;
+  // Customer's scheduling posture — see APPOINTMENT_STATUS_OPTIONS in
+  // intake-fields.tsx. Stored as a stable code (e.g. "flexible").
+  appointmentStatus: string;
   specialRequirements: string;
   referenceLinks: string;
   notes: string;
 };
 
+// Three-layer depth model with clearly distinct tonal steps:
+//
+//   Layer 1 — page shell      #050505  (~2% luminance, deepest)
+//   Layer 2 — section cards   #1a1a1a  (~10%, +8 from page)
+//   Layer 3 — editable inputs #2e2e2e  (~18%, +8 from card)
+//
+// Each step is ~8 luminance points apart so the layering is visible on
+// any monitor, not theoretical. Cards drop the surround border in favor
+// of the red 4px ID strip + a strong drop shadow. Inputs lift to
+// #2e2e2e and carry a visible #3a3a3a border so they read unmistakably
+// as editable wells inside their parent card. Input text is text-white
+// for maximum readability; labels at zinc-300 stay clearly readable
+// without shouting. py-3 keeps mobile tap targets thumb-friendly.
 const labelCls =
-  "block font-mono text-[10px] tracking-[0.22em] text-neutral-400 uppercase";
+  "block font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-zinc-300";
 const inputCls =
-  "mt-2 block w-full bg-neutral-900 border border-neutral-800 px-3 py-2.5 text-base text-zinc-100 placeholder:text-neutral-600 focus:border-red-600 focus:outline-none";
+  // Focus shifted from red-500 to red-600 — same brand red as the
+  // accent strips, less neon under sustained focus. transition-colors
+  // eases the border-color change instead of snapping, which reads as
+  // premium operational interaction rather than a generic HTML field.
+  "mt-2 block w-full border border-[#3a3a3a] bg-[#2e2e2e] px-3 py-3 text-base text-white placeholder:text-neutral-500 transition-colors focus:border-red-600 focus:outline-none";
+// Section card chrome. Shadow softened from the prior 0.9-opacity 24px
+// blur to 0.7-opacity 18px — tighter spread + lower opacity reads as
+// premium operational paperwork elevation rather than dashboard widget.
 const sectionCls =
-  "border border-neutral-800 bg-neutral-900/40 p-5 sm:p-6";
+  "border-l-4 border-l-red-600 bg-[#1a1a1a] p-5 shadow-[0_6px_18px_-6px_rgba(0,0,0,0.7)] sm:p-6";
 
 const LOADING_OPTIONS = [
   { value: "", label: "Select…" },
@@ -124,7 +159,10 @@ export function IntakeForm({
     const fd = buildFormData(form);
     startTransition(async () => {
       const result = await saveIntakeProgress(token, fd);
-      handleResult(result, "Progress saved. You can come back to this link.");
+      handleResult(
+        result,
+        "Progress saved. This link stays valid — return any time before submitting.",
+      );
     });
   }
 
@@ -137,83 +175,111 @@ export function IntakeForm({
       const result = await submitIntake(token, fd);
       handleResult(
         result,
-        "Submitted. Dispatch will review and follow up with confirmation.",
+        "Submitted. A dispatcher will review and follow up to coordinate pickup.",
       );
     });
   }
 
   if (status === "submitted") {
     return (
-      <div className="border-2 border-green-700 bg-green-950/30 p-6 sm:p-8">
-        <p className="font-mono text-[10px] tracking-[0.22em] text-green-300 uppercase">
-          Submitted
+      <div className="border-l-4 border-l-green-500 bg-[#1a1a1a] p-6 shadow-[0_6px_18px_-6px_rgba(0,0,0,0.7)] sm:p-8">
+        <p className="flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-green-400">
+          <span aria-hidden className="inline-block h-3 w-1 bg-green-500" />
+          Submitted &middot; step 2 of 2
         </p>
         <h2 className="mt-3 text-2xl font-display tracking-tight text-white sm:text-3xl">
           Shipment details received.
         </h2>
-        <p className="mt-4 text-base leading-relaxed text-green-100">
-          Dispatch will review the finalized details and follow up to confirm
-          the booking. You&rsquo;ll get a separate confirmation email once the
-          truck is locked. If anything urgent comes up before then, reply to
-          the original quote email or call the dispatch number on it.
+        <p className="mt-4 text-base leading-relaxed text-zinc-300">
+          A dispatcher reviews the load, confirms equipment, and
+          coordinates the pickup and delivery windows. You&rsquo;ll get
+          a separate email once a truck is assigned and a scheduling
+          call goes out. Reply to the original quote email or call
+          dispatch directly if anything changes in the meantime.
         </p>
       </div>
     );
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-6">
-      <Section title="Pickup">
+    <form onSubmit={onSubmit} className="space-y-6 sm:space-y-7">
+      <Section
+        title="Pickup"
+        subtitle="Origin point and shipper contact for the lane."
+      >
         <Grid>
-          <Field label="Pickup company" name="pickup_company" defaultValue={defaults.pickupCompany} />
-          <Field label="Pickup contact" name="pickup_contact_name" defaultValue={defaults.pickupContactName} />
-          <Field label="Pickup phone" name="pickup_contact_phone" type="tel" defaultValue={defaults.pickupContactPhone} />
-          <Field label="Pickup email" name="pickup_contact_email" type="email" defaultValue={defaults.pickupContactEmail} />
+          <Field label="Company" name="pickup_company" defaultValue={defaults.pickupCompany} />
+          <Field label="Contact" name="pickup_contact_name" defaultValue={defaults.pickupContactName} />
+          <PhoneField
+            label="Phone"
+            name="pickup_contact_phone"
+            defaultValue={defaults.pickupContactPhone}
+          />
+          <Field label="Email" name="pickup_contact_email" type="email" defaultValue={defaults.pickupContactEmail} />
         </Grid>
         <Field label="Address line 1" name="pickup_address_line1" defaultValue={defaults.pickupAddressLine1} />
         <Field label="Address line 2" name="pickup_address_line2" defaultValue={defaults.pickupAddressLine2} />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-[2fr_1fr_1fr]">
           <Field label="City" name="pickup_city" defaultValue={defaults.pickupCity} />
-          <Field label="State" name="pickup_state" defaultValue={defaults.pickupState} />
+          <StateSelect
+            label="State"
+            name="pickup_state"
+            defaultValue={defaults.pickupState}
+          />
           <Field label="ZIP" name="pickup_zip" defaultValue={defaults.pickupZip} />
         </div>
-        <Field label="Pickup window" name="pickup_window" type="date" defaultValue={defaults.pickupWindow} />
+        <DateWindowField
+          label="Pickup window"
+          startName="pickup_window_start"
+          endName="pickup_window_end"
+          startDefault={defaults.pickupWindowStart}
+          endDefault={defaults.pickupWindowEnd}
+        />
       </Section>
 
-      <Section title="Delivery">
+      <Section
+        title="Delivery"
+        subtitle="Destination point and consignee contact for the lane."
+      >
         <Grid>
-          <Field label="Delivery company" name="delivery_company" defaultValue={defaults.deliveryCompany} />
-          <Field label="Delivery contact" name="delivery_contact_name" defaultValue={defaults.deliveryContactName} />
-          <Field label="Delivery phone" name="delivery_contact_phone" type="tel" defaultValue={defaults.deliveryContactPhone} />
-          <Field label="Delivery email" name="delivery_contact_email" type="email" defaultValue={defaults.deliveryContactEmail} />
+          <Field label="Company" name="delivery_company" defaultValue={defaults.deliveryCompany} />
+          <Field label="Contact" name="delivery_contact_name" defaultValue={defaults.deliveryContactName} />
+          <PhoneField
+            label="Phone"
+            name="delivery_contact_phone"
+            defaultValue={defaults.deliveryContactPhone}
+          />
+          <Field label="Email" name="delivery_contact_email" type="email" defaultValue={defaults.deliveryContactEmail} />
         </Grid>
         <Field label="Address line 1" name="delivery_address_line1" defaultValue={defaults.deliveryAddressLine1} />
         <Field label="Address line 2" name="delivery_address_line2" defaultValue={defaults.deliveryAddressLine2} />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-[2fr_1fr_1fr]">
           <Field label="City" name="delivery_city" defaultValue={defaults.deliveryCity} />
-          <Field label="State" name="delivery_state" defaultValue={defaults.deliveryState} />
+          <StateSelect
+            label="State"
+            name="delivery_state"
+            defaultValue={defaults.deliveryState}
+          />
           <Field label="ZIP" name="delivery_zip" defaultValue={defaults.deliveryZip} />
         </div>
-        <Field label="Delivery window" name="delivery_window" type="date" defaultValue={defaults.deliveryWindow} />
-      </Section>
-
-      <Section title="Shipment">
-        <Textarea
-          label="Commodity details"
-          name="commodity_details"
-          defaultValue={defaults.commodityDetails}
-          rows={3}
-          placeholder="What is it, condition, packaging, anything unusual."
+        <DateWindowField
+          label="Delivery window"
+          startName="delivery_window_start"
+          endName="delivery_window_end"
+          startDefault={defaults.deliveryWindowStart}
+          endDefault={defaults.deliveryWindowEnd}
         />
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <Field label="Length (in)" name="length_in" type="number" defaultValue={defaults.lengthIn} />
-          <Field label="Width (in)" name="width_in" type="number" defaultValue={defaults.widthIn} />
-          <Field label="Height (in)" name="height_in" type="number" defaultValue={defaults.heightIn} />
-          <Field label="Exact weight (lbs)" name="exact_weight_lbs" type="number" defaultValue={defaults.exactWeightLbs} />
-        </div>
       </Section>
 
-      <Section title="Logistics">
+      {/* Logistics now sits BEFORE Shipment. Operationally the customer
+          decides how the freight will be handled (loading responsibility,
+          scheduling posture, special requirements) before describing the
+          freight itself — describing dimensions and weight is faster once
+          the load/unload decisions are settled. */}
+      <Section
+        title="Logistics"
+        subtitle="Handling responsibility, scheduling posture, and special requirements."
+      >
         <SelectField
           label="Loading responsibility"
           name="loading_responsibility"
@@ -226,6 +292,14 @@ export function IntakeForm({
           defaultValue={defaults.unloadingResponsibility}
           options={UNLOADING_OPTIONS}
         />
+        {/* Customer's scheduling posture — dispatch confirms exact times
+            by phone after intake/payment, so this form intentionally
+            doesn't ask for hour-of-day. */}
+        <AppointmentStatusSelect
+          label="Scheduling"
+          name="appointment_status"
+          defaultValue={defaults.appointmentStatus}
+        />
         <Textarea
           label="Special requirements"
           name="special_requirements"
@@ -235,45 +309,52 @@ export function IntakeForm({
         />
       </Section>
 
-      {/* Documents & Photos — optional. Sits between Logistics and Notes
-          & links so handling-responsibility decisions are made first and
-          the customer can then attach the photos / weight tickets / spec
-          sheets that back those decisions up. Submits independently via
-          its own server action (the note input suppresses Enter so the
-          parent intake <form> never auto-submits). When status flips to
-          "submitted" this whole branch is replaced by the success card
-          above, so uploads cannot be added after the customer confirms. */}
-      <IntakeUploads token={token} initialUploads={initialUploads} />
-
-      <Section title="Notes & links">
+      <Section
+        title="Shipment"
+        subtitle="Commodity description, dimensions, and exact weight."
+      >
         <Textarea
-          label="Reference links (photos, BOL, spec sheets — one per line)"
-          name="reference_links"
-          defaultValue={defaults.referenceLinks}
+          label="Commodity details"
+          name="commodity_details"
+          defaultValue={defaults.commodityDetails}
           rows={3}
-          placeholder="https://…"
+          placeholder="Commodity description, packaging, condition, anything unusual."
         />
-        <Textarea
-          label="Notes for dispatch"
-          name="notes"
-          defaultValue={defaults.notes}
-          rows={3}
-          placeholder="Anything else dispatch should know before locking the truck."
-        />
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          <Field label="Length (in)" name="length_in" type="number" defaultValue={defaults.lengthIn} />
+          <Field label="Width (in)" name="width_in" type="number" defaultValue={defaults.widthIn} />
+          <Field label="Height (in)" name="height_in" type="number" defaultValue={defaults.heightIn} />
+          <Field label="Exact weight (lbs)" name="exact_weight_lbs" type="number" defaultValue={defaults.exactWeightLbs} />
+        </div>
       </Section>
+
+      {/* Documents & Photos — final section. The Notes & links section
+          that used to sit below this is gone; the customer's reference
+          links input has moved INSIDE this section (rendered by
+          IntakeUploads via referenceLinksDefault). The `notes` field
+          and its `shipment_intake.notes` column are still supported on
+          the server side — the customer-facing input was just removed.
+          Submission of files goes through its own server action; the
+          parent intake <form> never auto-submits from inside it. */}
+      <IntakeUploads
+        token={token}
+        initialUploads={initialUploads}
+        referenceLinksDefault={defaults.referenceLinks}
+      />
 
       {notice ? (
         <p
           role="status"
-          className="font-mono text-[10px] tracking-[0.14em] text-green-400 uppercase"
+          className="flex items-center gap-2 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-green-400"
         >
+          <span aria-hidden className="inline-block h-3 w-1 bg-green-500" />
           {notice}
         </p>
       ) : null}
       {error ? (
         <div
           role="alert"
-          className="flex items-start gap-3 border border-red-700 bg-red-950/30 p-4"
+          className="flex items-start gap-3 border border-red-800 bg-red-950/40 p-4"
         >
           <span
             aria-hidden
@@ -283,21 +364,21 @@ export function IntakeForm({
         </div>
       ) : null}
 
-      <div className="flex flex-col-reverse items-stretch gap-3 border-t border-neutral-800 pt-6 sm:flex-row sm:items-center sm:justify-end">
+      <div className="flex flex-col-reverse items-stretch gap-3 border-t border-[#1f1f1f] pt-7 sm:flex-row sm:items-center sm:justify-end">
         <button
           type="button"
           onClick={onSave}
           disabled={isPending}
-          className="btn-outline-cut inline-flex items-center justify-center px-5 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-zinc-100 transition-colors disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+          className="inline-flex items-center justify-center border border-neutral-600 bg-transparent px-5 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-zinc-100 transition-colors hover:border-zinc-400 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
           {isPending ? "Working…" : "Save progress"}
         </button>
         <button
           type="submit"
           disabled={isPending}
-          className="btn-cut inline-flex items-center justify-center bg-red-600 px-6 py-3 text-sm font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+          className="inline-flex items-center justify-center border border-red-700 bg-red-600 px-6 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
         >
-          {isPending ? "Submitting…" : "Submit for dispatch review"}
+          {isPending ? "Submitting…" : "Send to dispatch"}
         </button>
       </div>
     </form>
@@ -306,16 +387,26 @@ export function IntakeForm({
 
 function Section({
   title,
+  subtitle,
   children,
 }: {
   title: string;
+  /** Optional one-line dispatch descriptor rendered below the title in
+   *  a quiet mono voice. Gives each card a freight-document header
+   *  rhythm instead of bare section labels. */
+  subtitle?: string;
   children: React.ReactNode;
 }) {
   return (
     <section className={sectionCls}>
-      <h2 className="font-mono text-[10px] tracking-[0.22em] text-red-500 uppercase">
+      <h2 className="font-mono text-[13px] font-bold uppercase tracking-[0.18em] text-white">
         {title}
       </h2>
+      {subtitle ? (
+        <p className="mt-1.5 font-mono text-[11px] leading-snug text-zinc-500">
+          {subtitle}
+        </p>
+      ) : null}
       <div className="mt-4 space-y-4">{children}</div>
     </section>
   );
