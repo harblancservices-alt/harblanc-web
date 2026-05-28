@@ -576,6 +576,14 @@ type DraftPersistFields = {
   dispatch_notes: string | null;
   expiration_at: string | null;
   closing_line: string | null;
+  // Phase REBUILD-3 — Quote Range workspace state persistence. These four
+  // fields were previously only baked into preview_html / preview_text at
+  // build time; the schema migration 20260540000000_dispatch_estimates_range_persistence
+  // adds them as columns so the workspace can hydrate them on page load.
+  fuel_surcharge: number | null;
+  accessorials: AccessorialInput[] | null;
+  payment_terms: string | null;
+  special_instructions: string | null;
 };
 
 /**
@@ -653,6 +661,10 @@ type DraftEstimateInput = {
   dispatchNotes: string | null;
   expirationAt: string | null;
   closingLine: string | null;
+  fuelSurcharge: number | null;
+  accessorials: AccessorialInput[];
+  paymentTerms: string | null;
+  specialInstructions: string | null;
 };
 
 /**
@@ -704,6 +716,10 @@ function readDraftEstimateInput(formData: FormData): DraftEstimateInput {
     dispatchNotes: parseString(formData.get("dispatch_notes")),
     expirationAt: expirationAtRaw, // ISO YYYY-MM-DD or null
     closingLine: resolveClosingLine(formData),
+    fuelSurcharge: parseNumber(formData.get("fuel_surcharge")),
+    accessorials: parseAccessorials(formData),
+    paymentTerms: parseString(formData.get("payment_terms")),
+    specialInstructions: parseString(formData.get("special_instructions")),
   };
 }
 
@@ -719,6 +735,13 @@ function toDraftPersistFields(input: DraftEstimateInput): DraftPersistFields {
     dispatch_notes: input.dispatchNotes,
     expiration_at: input.expirationAt,
     closing_line: input.closingLine,
+    // New persisted fields land here as well. accessorials persists as
+    // JSONB; an empty array is fine to store (workspace coalesces null
+    // and [] to the same empty state on read).
+    fuel_surcharge: input.fuelSurcharge,
+    accessorials: input.accessorials,
+    payment_terms: input.paymentTerms,
+    special_instructions: input.specialInstructions,
   };
 }
 
@@ -1299,3 +1322,54 @@ export async function resendEstimate(
 
   revalidatePath(`/admin/quotes/${source.quote_request_id}`);
 }
+/**
+ * Persist operator-side Load Details overrides on the lead row. The
+ * Load Details tab lets dispatch edit every visible field; this action
+ * writes that edit set as a JSON blob on quote_requests.load_details_overrides.
+ *
+ * The override is layered on TOP of intake + Quick Quote at render time
+ * (see computeInitialValues in /admin/quotes/[id]/page.tsx) so:
+ *   - operator-edited fields show the operator's value
+ *   - fields the operator never touched fall through to the customer's
+ *     intake submission / original Quick Quote
+ *   - operator-cleared fields ("") stay cleared instead of reverting
+ *
+ * No schema enforcement on the JSON shape; keys are LoadDetailsInitial
+ * field names. We accept whatever the form posts so adding a new card
+ * field later does not require a server-action change.
+ */
+export type LoadDetailsOverridesPayload = Record<string, string>;
+
+export async function saveLoadDetailsOverrides(
+  quoteRequestId: string,
+  formData: FormData,
+): Promise<{ ok: true } | { ok: false; reason: string }> {
+  await requireAdmin();
+  if (!quoteRequestId) {
+    return { ok: false, reason: "Missing quote_request_id." };
+  }
+
+  // Collect every form field as a string. The action does not interpret
+  // values -- the workspace owns the shape. Empty strings ARE persisted
+  // (cleared fields stay cleared on refresh).
+  const overrides: LoadDetailsOverridesPayload = {};
+  for (const [key, raw] of formData.entries()) {
+    if (key === "quote_request_id") continue;
+    if (typeof raw === "string") {
+      overrides[key] = raw;
+    }
+  }
+
+  const sb = createServiceRoleClient();
+  const { error } = await sb
+    .from("quote_requests")
+    .update({ load_details_overrides: overrides })
+    .eq("id", quoteRequestId);
+  if (error) {
+    return { ok: false, reason: `Save failed: ${error.message}` };
+  }
+
+  revalidatePath(`/admin/quotes/${quoteRequestId}`);
+  return { ok: true };
+}
+

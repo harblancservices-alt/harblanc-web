@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { formatDateFull, relativeTime } from "@/lib/admin/format";
+import { estimateLaneMiles, lookupZip } from "@/lib/dispatch/distance";
 
 /**
  * Local "Month DD, YYYY" formatter for the OperatorHeader received-at
@@ -166,6 +167,11 @@ type QuoteDetailRow = {
   lead_status_updated_at: string | null;
   deleted_at: string | null;
   delete_after: string | null;
+  /** Operator-side Load Details edits, layered over intake + Quick
+   *  Quote at render time. Null when the operator has never saved,
+   *  and also null right after the customer submits intake (the
+   *  submit action clears the override so the customer's data wins). */
+  load_details_overrides: Record<string, string> | null;
 };
 
 type IntakeRow = {
@@ -744,6 +750,11 @@ async function loadLatestIntake(
  * preview_html / preview_text snapshot at build time, so they cannot
  * be restored without a schema change.
  */
+export type QuoteRangeAccessorialDefault = {
+  label: string;
+  amount: number;
+};
+
 export type QuoteRangeDefaults = {
   linehaul_low: number | null;
   linehaul_high: number | null;
@@ -753,6 +764,13 @@ export type QuoteRangeDefaults = {
   dispatch_notes: string | null;
   expiration_at: string | null;
   closing_line: string | null;
+  // Phase REBUILD-3 persisted fields. accessorials is stored as JSONB
+  // in dispatch_estimates; nulls and empty arrays are equivalent and
+  // both render as the "no accessorials" empty state.
+  fuel_surcharge: number | null;
+  accessorials: QuoteRangeAccessorialDefault[] | null;
+  payment_terms: string | null;
+  special_instructions: string | null;
 };
 
 async function loadDraftEstimate(
@@ -760,7 +778,7 @@ async function loadDraftEstimate(
 ): Promise<QuoteRangeDefaults | null> {
   const sb = createServiceRoleClient();
   const cols =
-    "linehaul_low, linehaul_high, miles_estimate, pickup_timing_notes, equipment_notes, dispatch_notes, expiration_at, closing_line";
+    "linehaul_low, linehaul_high, miles_estimate, pickup_timing_notes, equipment_notes, dispatch_notes, expiration_at, closing_line, fuel_surcharge, accessorials, payment_terms, special_instructions";
 
   // 1. Prefer the in-progress draft row.
   const { data: draft } = await sb
@@ -803,14 +821,19 @@ function joinAddress(
   return out.join(", ");
 }
 
-function formatCityStateZip(
+/**
+ * "City, ST" only (no ZIP). Used to populate the City column of the
+ * Load Details rows now that the ZIP renders in its own input on the
+ * same line. When the city or state is missing the helper falls back
+ * to whichever piece is present, or returns an empty string.
+ */
+function formatCityState(
   city: string | null | undefined,
   state: string | null | undefined,
-  zip: string | null | undefined,
 ): string {
-  if (city && state && zip) return `${city}, ${state} ${zip}`;
   if (city && state) return `${city}, ${state}`;
-  if (zip) return zip;
+  if (city) return city;
+  if (state) return state;
   return "";
 }
 
@@ -870,11 +893,11 @@ function computeInitialValues(
       intake?.pickup_address_line1,
       intake?.pickup_address_line2,
     ),
-    pickup_city_zip: formatCityStateZip(
+    pickup_city_state: formatCityState(
       pickString(intake?.pickup_city, row.pickup_city),
       pickString(intake?.pickup_state, row.pickup_state),
-      pickString(intake?.pickup_zip, row.pickup_zip),
     ),
+    pickup_zip: pickString(intake?.pickup_zip, row.pickup_zip),
     pickup_contact: pickString(intake?.pickup_contact_name),
     pickup_phone: pickString(intake?.pickup_contact_phone),
     // Prefer the new typed start column when present; fall back to the
@@ -893,11 +916,11 @@ function computeInitialValues(
       intake?.delivery_address_line1,
       intake?.delivery_address_line2,
     ),
-    delivery_city_zip: formatCityStateZip(
+    delivery_city_state: formatCityState(
       pickString(intake?.delivery_city, row.delivery_city),
       pickString(intake?.delivery_state, row.delivery_state),
-      pickString(intake?.delivery_zip, row.delivery_zip),
     ),
+    delivery_zip: pickString(intake?.delivery_zip, row.delivery_zip),
     delivery_contact: pickString(intake?.delivery_contact_name),
     delivery_phone: pickString(intake?.delivery_contact_phone),
     delivery_window: pickString(
@@ -928,6 +951,29 @@ function intakeStatusMessage(intake: IntakeRow | null): string {
   return "Intake in progress";
 }
 
+/**
+ * Compose the final LoadDetailsInitial from the computed-from-intake
+ * baseline + the operator's saved overrides. Overrides win on every
+ * key the operator has set (including empty strings -- cleared fields
+ * stay cleared). Fields the operator never touched fall through to
+ * the baseline so the customer's intake / Quick Quote data is the
+ * default state.
+ */
+function applyLoadDetailsOverrides(
+  baseline: LoadDetailsInitial,
+  overrides: Record<string, string> | null,
+): LoadDetailsInitial {
+  if (!overrides) return baseline;
+  const filtered: Partial<LoadDetailsInitial> = {};
+  for (const key of Object.keys(baseline) as Array<keyof LoadDetailsInitial>) {
+    const v = overrides[key];
+    if (typeof v === "string") {
+      filtered[key] = v;
+    }
+  }
+  return { ...baseline, ...filtered };
+}
+
 function laneLabel(
   city: string | null,
   state: string | null,
@@ -944,6 +990,28 @@ function shortRequestId(uuid: string): string {
 }
 
 function buildOperatorHeaderProps(row: QuoteDetailRow): OperatorHeaderProps {
+  // Resolve city / state from the ZIP code when the DB row does not
+  // already have them. The Quick Quote form only collects ZIPs, so
+  // pickup_city / pickup_state are typically null on a fresh lead.
+  // lookupZip uses the zipcodes dataset (server-side only) -- safe
+  // here because page.tsx is a server component.
+  const pickupZipLookup = row.pickup_zip ? lookupZip(row.pickup_zip) : null;
+  const deliveryZipLookup = row.delivery_zip ? lookupZip(row.delivery_zip) : null;
+  const pickupCity = row.pickup_city ?? pickupZipLookup?.city ?? null;
+  const pickupState = row.pickup_state ?? pickupZipLookup?.state ?? null;
+  const deliveryCity = row.delivery_city ?? deliveryZipLookup?.city ?? null;
+  const deliveryState = row.delivery_state ?? deliveryZipLookup?.state ?? null;
+
+  // Miles fall back to a server-side estimate when calculated_miles is
+  // not yet stored. estimateLaneMiles returns the same driving-miles
+  // number the dispatch composer uses so the lane chip stays consistent
+  // with whatever the rate-per-mile widget shows.
+  let miles: number | null = row.calculated_miles;
+  if (miles == null && row.pickup_zip && row.delivery_zip) {
+    const est = estimateLaneMiles(row.pickup_zip, row.delivery_zip);
+    if (est.ok) miles = est.miles;
+  }
+
   return {
     customer: {
       name: row.name,
@@ -963,15 +1031,11 @@ function buildOperatorHeaderProps(row: QuoteDetailRow): OperatorHeaderProps {
         "border-zinc-300 bg-zinc-100 text-black",
     },
     lane: {
-      pickupLabel: laneLabel(row.pickup_city, row.pickup_state, row.pickup_zip),
-      deliveryLabel: laneLabel(
-        row.delivery_city,
-        row.delivery_state,
-        row.delivery_zip,
-      ),
+      pickupLabel: laneLabel(pickupCity, pickupState, row.pickup_zip),
+      deliveryLabel: laneLabel(deliveryCity, deliveryState, row.delivery_zip),
       pickupZip: row.pickup_zip,
       deliveryZip: row.delivery_zip,
-      miles: row.calculated_miles ?? null,
+      miles,
       hasLane: Boolean(row.pickup_zip && row.delivery_zip),
     },
   };
@@ -987,7 +1051,10 @@ export default async function QuoteDetailPage({
   if (!row) notFound();
 
   const intake = await loadLatestIntake(id);
-  const initialValues = computeInitialValues(row, intake);
+  const initialValues = applyLoadDetailsOverrides(
+    computeInitialValues(row, intake),
+    row.load_details_overrides,
+  );
   const statusMessage = intakeStatusMessage(intake);
   const intakeUploads = await loadIntakeUploadsForAdmin(row.id);
   const estimateDraft = await loadDraftEstimate(id);
@@ -1043,7 +1110,7 @@ export default async function QuoteDetailPage({
             <p className="text-xs font-semibold uppercase tracking-wide text-red-700">
               In trash
             </p>
-            <p className="mt-1 text-sm leading-relaxed text-red-800">
+            <p className="mt-1 text-[15px] leading-relaxed text-red-800">
               Moved to trash {relativeTime(row.deleted_at!)}.{" "}
               {row.delete_after ? (
                 <>
@@ -1080,6 +1147,7 @@ export default async function QuoteDetailPage({
         loadDetailsContent={
           <LoadDetailsCard
             key={intakeSnapshotKey}
+            quoteRequestId={row.id}
             initial={initialValues}
             intakeStatusMessage={statusMessage}
             uploads={intakeUploads}

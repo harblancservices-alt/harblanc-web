@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 /**
  * Phase REBUILD-2 P1 correction — Workspace tabs.
@@ -52,6 +52,24 @@ export function WorkspaceTabs({
 }) {
   const [tab, setTab] = useState<TabId>("load_details");
 
+  // Cross-tab navigation hook. LoadDetailsCard's footer button (and any
+  // future "go to tab X" affordance from inside a tab body) dispatches
+  // a window-level CustomEvent rather than threading a callback down.
+  // We listen here and switch the active tab when the detail names a
+  // tab we know about. Decouples LoadDetailsCard from the parent's
+  // tab state without prop drilling.
+  useEffect(() => {
+    function onAdvance(e: Event) {
+      const ce = e as CustomEvent<{ to: TabId }>;
+      const next = ce.detail?.to;
+      if (next && TABS.some((t) => t.id === next && !t.placeholder)) {
+        setTab(next);
+      }
+    }
+    window.addEventListener("workspace-advance", onAdvance);
+    return () => window.removeEventListener("workspace-advance", onAdvance);
+  }, []);
+
   return (
     <div>
       <TabBar tab={tab} setTab={setTab} />
@@ -90,9 +108,9 @@ function TabBar({
     <div
       role="tablist"
       aria-label="Workspace sections"
-      className="overflow-x-auto border-b border-zinc-400 bg-white"
+      className="overflow-x-auto border-b-2 border-black bg-[#fafaf6]"
     >
-      <div className="flex min-w-fit divide-x divide-zinc-300">
+      <div className="flex min-w-fit">
         {TABS.map((t) => {
           const active = tab === t.id;
           return (
@@ -103,12 +121,13 @@ function TabBar({
               aria-selected={active}
               onClick={() => setTab(t.id)}
               className={
-                "shrink-0 border-b px-3 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.1em] transition-colors focus:outline-none sm:px-4 " +
+                "-mb-[2px] shrink-0 border-b-[2px] px-3.5 py-2.5 font-mono text-[12px] font-bold uppercase tracking-[0.16em] transition-colors focus:outline-none sm:px-4 " +
                 (active
-                  ? "border-red-600 text-black"
-                  : "border-transparent text-black hover:bg-zinc-50") +
-                (t.placeholder ? " opacity-50" : "")
+                  ? "border-red-700 font-medium text-black"
+                  : "border-transparent text-black hover:bg-[#f3f1e9] hover:text-black") +
+                (t.placeholder ? " cursor-not-allowed text-black" : "")
               }
+              disabled={t.placeholder}
             >
               {t.label}
             </button>
@@ -127,12 +146,14 @@ function PlaceholderTab({
   subtitle: string;
 }) {
   return (
-    <section className="overflow-hidden rounded border border-zinc-400 bg-white p-6 text-center sm:p-10">
-      <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-red-600">
-        Coming in REBUILD-3
+    <section className="border border-black border-l-4 border-l-red-700 bg-[#fafaf6] p-6 text-center sm:p-10">
+      <p className="font-mono text-[12px] font-bold uppercase tracking-[0.22em] text-red-700">
+        Not built yet
       </p>
-      <h2 className="mt-3 text-xl font-bold text-black">{title}</h2>
-      <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-black">
+      <h2 className="mt-3 font-mono text-2xl font-bold uppercase tracking-[0.1em] text-black">
+        {title}
+      </h2>
+      <p className="mx-auto mt-3 max-w-md text-[15px] leading-relaxed text-black">
         {subtitle}
       </p>
     </section>

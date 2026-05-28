@@ -101,6 +101,15 @@ export default function AdminPreviewsPage() {
     {
       kind: "route",
       classification: "customer_page",
+      id: "payment",
+      title: "Payment (awaiting)",
+      subtitle:
+        "Customer-facing payment screen shown inline after Confirm Finalized Quote. Mockup only \u2014 Stripe SDK not loaded, no payment can occur. Used to iterate on the visual + copy before wiring real payments.",
+      route: "/admin/previews/payment",
+    },
+    {
+      kind: "route",
+      classification: "customer_page",
       id: "decline",
       title: "Decline quote",
       subtitle:

@@ -40,6 +40,8 @@ export type DispatchEventKind =
   | "pdf_generated"
   | "payment_recorded"
   | "payment_completed"
+  | "payment_session_created"
+  | "payment_received"
   | "estimate_resent"
   | "finalized_quote_resent"
   | "bol_resent"
@@ -162,6 +164,28 @@ export type DispatchEventPayloadByKind = {
     finalizedQuoteNumber: string;
     totalAmount: number;
     paidTotal: number;
+  };
+  // Stripe customer-side checkout lifecycle. payment_session_created is
+  // emitted by createPaymentCheckoutSession() the moment a Stripe
+  // PaymentIntent (or session) is created -- money has NOT moved yet.
+  // payment_received is emitted by the /api/stripe/webhook handler when
+  // Stripe confirms the funds cleared (payment_intent.succeeded /
+  // checkout.session.completed). Both carry the FQ context so the
+  // timeline can render without a join.
+  payment_session_created: {
+    finalizedQuoteId: string;
+    finalizedQuoteNumber: string;
+    amount: number;
+    stripePaymentIntentId?: string;
+    stripeSessionId?: string;
+    paymentRowId: string;
+  };
+  payment_received: {
+    paymentId: string;
+    finalizedQuoteId: string;
+    amount: number;
+    stripePaymentIntentId?: string | null;
+    stripeSessionId?: string | null;
   };
   // Phase Q1: resend event payloads. Carry both IDs so the timeline can
   // link the redelivery back to the original send without a join, and

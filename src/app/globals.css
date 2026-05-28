@@ -36,6 +36,15 @@
      labels are black, not muted. Every .label-cap and .text-label-fg
      consumer inherits the bump for free. */
   --label-fg: #000000;
+
+  /* HARBLANC freight-document token set. Used by the admin workspace
+     (quote / load details / finalized quote / BOL). The public marketing
+     site stays on the existing dark palette and is unaffected. */
+  --harblanc-ink: #0a0a0a;
+  --harblanc-red: #b3261f;
+  --harblanc-paper: #fafaf6;
+  --harblanc-sand: #f3f1e9;
+  --harblanc-rule: #d0cfc8;
 }
 
 @theme inline {
@@ -49,10 +58,26 @@
   --color-surface: var(--surface);
   --color-muted: var(--muted);
   --color-label-fg: var(--label-fg);
-  /* Single family across all roles — Public Sans handles every tier. */
+  /* Single family across every role -- Public Sans renders body, mono
+     utility (lane numerals, REQ IDs, dispatch refs, line-item amounts,
+     BOL numbers), and display headlines. The freight-document feel
+     comes from layout + uppercase + bold weight + letter-spacing,
+     not from a separate monospace family. Plex Mono / Plex Sans are
+     still loaded by layout.tsx so they can be re-enabled with a
+     one-line variable swap. */
   --font-sans: var(--font-public-sans);
   --font-mono: var(--font-public-sans);
   --font-display: var(--font-public-sans);
+  --font-plex-sans: var(--font-plex-sans);
+
+  /* Expose the HARBLANC tokens as Tailwind theme colors so they can be
+     used as utility classes (bg-harblanc-paper / text-harblanc-ink /
+     border-harblanc-rule) in admin components without ad-hoc hex. */
+  --color-harblanc-ink: var(--harblanc-ink);
+  --color-harblanc-red: var(--harblanc-red);
+  --color-harblanc-paper: var(--harblanc-paper);
+  --color-harblanc-sand: var(--harblanc-sand);
+  --color-harblanc-rule: var(--harblanc-rule);
 }
 
 html {

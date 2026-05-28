@@ -165,97 +165,107 @@ export function DispatchLifecycle({
   return (
     <section
       aria-label="Dispatch lifecycle"
-      className="rounded border border-zinc-300 bg-white"
+      className="border border-black border-l-4 border-l-red-700 bg-[#f3f1e9]"
     >
-      <div className="flex flex-col gap-3 px-4 py-3 sm:px-5 sm:py-3.5 lg:flex-row lg:items-center lg:justify-between lg:gap-6">
-        {/* Headline — what the operator should do or expect next */}
-        <div className="flex items-center gap-2.5">
-          <span aria-hidden className="inline-block h-3.5 w-1 shrink-0 bg-red-600" />
-          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-700">
-            Dispatch lifecycle
-          </p>
-          <span aria-hidden className="hidden h-3 w-px bg-zinc-300 lg:inline-block" />
-          <p className="hidden text-sm text-black lg:inline">{headline}</p>
-        </div>
-
-        {/* Step strip */}
-        <ol className="flex flex-wrap items-center gap-x-2.5 gap-y-2 sm:gap-x-3">
-          {STAGES.map((stage, idx) => {
-            const s = stageStates[stage.id];
-            const isLast = idx === STAGES.length - 1;
-            return (
-              <li
-                key={stage.id}
-                className="flex items-center gap-2 sm:gap-2.5"
-                aria-current={s === "active" ? "step" : undefined}
-              >
-                <StageCell ordinal={stage.ordinal} state={s} />
-                <span
-                  className={
-                    "font-mono text-[10px] font-bold uppercase tracking-[0.14em] " +
-                    (s === "done"
-                      ? "text-black"
-                      : s === "active"
-                        ? "text-red-700"
-                        : "text-zinc-500")
-                  }
-                >
-                  {stage.label}
-                </span>
-                {!isLast ? (
-                  <span
-                    aria-hidden
-                    className="hidden h-px w-3 bg-zinc-300 sm:inline-block sm:w-4"
-                  />
-                ) : null}
-              </li>
-            );
-          })}
-        </ol>
+      {/* Title + inline headline (desktop) / wraps to its own line (mobile) */}
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 pt-2.5 pb-2 sm:px-5">
+        <span
+          aria-hidden
+          className="inline-block h-3.5 w-1 shrink-0 self-center bg-red-700"
+        />
+        <p className="font-mono text-[12px] font-bold uppercase tracking-[0.2em] text-black">
+          Dispatch lifecycle
+        </p>
+        <span aria-hidden className="hidden h-3 w-px self-center bg-zinc-400 sm:inline-block" />
+        <p className="text-[13px] text-black sm:text-[14px]">{headline}</p>
       </div>
 
-      {/* Mobile-only headline — shows below the strip when the desktop
-          inline version is hidden. */}
-      <p className="border-t border-zinc-200 px-4 py-2 text-sm text-black sm:px-5 lg:hidden">
-        {headline}
-      </p>
+      {/* Manifest strip — single bordered grid, 6 cells, no inter-arrow noise */}
+      <div className="mx-4 mb-3 grid grid-cols-2 border border-black bg-white sm:mx-5 sm:mb-4 sm:grid-cols-3 lg:grid-cols-6">
+        {STAGES.map((stage, idx) => {
+          const s = stageStates[stage.id];
+          const isLastCol = (idx + 1) % 6 === 0;
+          const onSmRightEdge = (idx + 1) % 2 === 0;
+          return (
+            <StageCell
+              key={stage.id}
+              ordinal={stage.ordinal}
+              label={stage.label}
+              state={s}
+              isLastCol={isLastCol}
+              isSmRightEdge={onSmRightEdge}
+            />
+          );
+        })}
+      </div>
     </section>
   );
 }
 
 function StageCell({
   ordinal,
+  label,
   state,
+  isLastCol,
+  isSmRightEdge,
 }: {
   ordinal: string;
+  label: string;
   state: StageState;
+  isLastCol: boolean;
+  isSmRightEdge: boolean;
 }) {
-  if (state === "done") {
-    return (
-      <span
-        aria-hidden
-        className="inline-flex h-5 w-5 items-center justify-center border border-black bg-black font-mono text-[10px] font-bold text-white"
-      >
-        ✓
-      </span>
-    );
-  }
+  // Right-edge border control so vertical rules between cells render
+  // crisply on every breakpoint without doubling up on the outer frame.
+  const rightBorder =
+    " border-b border-zinc-300 lg:border-b-0" +
+    (isLastCol ? "" : " lg:border-r lg:border-black") +
+    (isSmRightEdge ? "" : " sm:border-r sm:border-zinc-300");
+
+  const base =
+    "px-2 py-2 text-center font-mono" + rightBorder;
+
   if (state === "active") {
     return (
-      <span
-        aria-hidden
-        className="inline-flex h-5 w-5 items-center justify-center border border-red-600 bg-white font-mono text-[10px] font-bold tabular-nums text-red-700"
-      >
-        {ordinal}
-      </span>
+      <div className={base + " bg-red-700 text-white"}>
+        <p className="text-[11px] tracking-[0.18em] opacity-90">
+          {ordinal}
+        </p>
+        <p className="mt-0.5 text-[12px] font-bold uppercase tracking-[0.1em]">
+          {label}
+        </p>
+        <p className="mt-0.5 text-[11px] tracking-[0.18em] opacity-85">
+          CURRENT
+        </p>
+      </div>
+    );
+  }
+  if (state === "done") {
+    return (
+      <div className={base + " bg-white text-black"}>
+        <p className="text-[11px] tracking-[0.18em] text-black">
+          {ordinal}
+        </p>
+        <p className="mt-0.5 text-[12px] font-bold uppercase tracking-[0.1em]">
+          {label}
+        </p>
+        <p className="mt-0.5 text-[11px] tracking-[0.18em] text-black">
+          DONE
+        </p>
+      </div>
     );
   }
   return (
-    <span
-      aria-hidden
-      className="inline-flex h-5 w-5 items-center justify-center border border-zinc-300 bg-white font-mono text-[10px] font-bold tabular-nums text-zinc-500"
-    >
-      {ordinal}
-    </span>
+    <div className={base + " bg-white text-black"}>
+      <p className="text-[11px] tracking-[0.18em]">
+        {ordinal}
+      </p>
+      <p className="mt-0.5 text-[12px] font-bold uppercase tracking-[0.1em]">
+        {label}
+      </p>
+      <p className="mt-0.5 text-[11px] tracking-[0.18em]">
+        PENDING
+      </p>
+    </div>
   );
 }

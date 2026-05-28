@@ -62,16 +62,39 @@ const ENV_VARS: ReadonlyArray<EnvSpec> = [
       "NEXT_PUBLIC_SITE_URL not set — accept/decline links and logo URLs fall back to the production hostname.",
   },
   {
-    // Phase Q2: Resend webhook signing secret. When unset, the
-    // /api/resend-webhook route refuses to process events (returns 503
-    // with no row mutations). This is deliberate — we will not accept
-    // unauthenticated webhook payloads, even from localhost, because a
-    // forged bounce event could silently mark a healthy send as
-    // hard-bounced and poison the operator UI.
     name: "RESEND_WEBHOOK_SECRET",
     required: false,
     impact:
       "RESEND_WEBHOOK_SECRET not set — incoming Resend webhooks (bounce/complaint events) are rejected; sent-list bounce badges will never appear.",
+  },
+  {
+    // Stripe Phase B: customer-facing checkout for the Pay button on
+    // /quote/confirm/[token]. Server-only. Without this the payment
+    // server action returns ok:false and the Pay button shows a soft
+    // error — never a 500.
+    name: "STRIPE_SECRET_KEY",
+    required: false,
+    impact:
+      "STRIPE_SECRET_KEY not set — customer Pay button on the confirmed quote page is disabled; no checkout sessions can be created.",
+  },
+  {
+    // Embedded Checkout requires the client to know the publishable
+    // key to call loadStripe(). Safe to expose — it's a public
+    // identifier, not a credential. Missing this disables the
+    // embedded card form on /quote/confirm/[token].
+    name: "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY",
+    required: false,
+    impact:
+      "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY not set — embedded checkout cannot mount in the customer's browser; the Pay block falls back to a hosted-checkout redirect.",
+  },
+  {
+    // Stripe webhook signing secret. Without this the /api/stripe/webhook
+    // route refuses inbound events (returns 503) — same posture as
+    // Resend. We never accept unsigned webhook payloads.
+    name: "STRIPE_WEBHOOK_SECRET",
+    required: false,
+    impact:
+      "STRIPE_WEBHOOK_SECRET not set — incoming Stripe webhooks (checkout.session.completed) are rejected; payments stay in pending state until manually reconciled.",
   },
 ];
 

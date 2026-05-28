@@ -293,7 +293,7 @@ function Modal({
               // allow-scripts so the React page boots inside the iframe.
               // No allow-forms / allow-top-navigation — defensive even
               // though the embedded preview route disables its form.
-              sandbox="allow-scripts allow-same-origin"
+              sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals"
               className="block h-[calc(100vh-180px)] min-h-[400px] w-full border-0 bg-white sm:h-[calc(100vh-110px)]"
             />
           )}

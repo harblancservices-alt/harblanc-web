@@ -2,28 +2,36 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { company } from "@/lib/company";
 import { SAMPLE_FINALIZED_QUOTE_CONFIRM } from "@/lib/preview/sample-data";
+import { createPreviewDemoSession } from "@/lib/stripe/preview/demo-session";
+import { DemoEmbeddedCheckout } from "./DemoEmbeddedCheckout";
 
 /**
- * Confirm Finalized Quote — CONFIRMED state preview.
+ * Payment screen - preview-only route.
  *
- * Recreates the visual chrome of /quote/confirm/[token] in its post-
- * confirm success state, where finalizedQuote.confirmedAt is non-null
- * and the page shows the green "Confirmed" panel with the timestamp.
+ * Customer-facing payment surface that the recipient sees IMMEDIATELY
+ * after clicking "Confirm Finalized Quote" on /quote/confirm/[token].
+ * Same page chrome as the post-confirm success state, but with a
+ * payment block + Stripe Pay-with-card CTA stacked under the
+ * confirmation timestamp panel.
  *
- * No interactive controls render in this state on the production page,
- * so no fieldset wrap is needed — the page is pure display. The
- * matching PENDING state lives at /admin/previews/finalize-pending.
+ * This is a MOCKUP -- no Stripe SDK is loaded, no Pay button is wired,
+ * no actual payment can occur from this page. Used to iterate on the
+ * visual + copy before committing to a live payment integration.
+ *
+ * Sample data is read from SAMPLE_FINALIZED_QUOTE_CONFIRM so the lane,
+ * total, and confirmation timestamp match the Finalized Quote
+ * Confirmed preview tile next to it in the Preview Lab.
  */
 
 export const metadata: Metadata = {
-  title: "Finalized Quote Confirmed — preview",
+  title: "Payment - preview",
   robots: { index: false, follow: false },
 };
 
 const SAMPLE = SAMPLE_FINALIZED_QUOTE_CONFIRM;
 
 function formatHumanDate(iso: string | null): string {
-  if (!iso) return "—";
+  if (!iso) return "\u2014";
   const parts = iso.split("-");
   if (parts.length !== 3) return iso;
   const [y, m, d] = parts.map((n) => parseInt(n, 10));
@@ -38,7 +46,7 @@ function formatHumanDate(iso: string | null): string {
 }
 
 function formatHumanDateTime(iso: string | null): string {
-  if (!iso) return "—";
+  if (!iso) return "\u2014";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   const months = [
@@ -50,11 +58,11 @@ function formatHumanDateTime(iso: string | null): string {
   const ampm = hours >= 12 ? "PM" : "AM";
   const h12 = hours % 12 === 0 ? 12 : hours % 12;
   const mm = String(minutes).padStart(2, "0");
-  return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()} · ${h12}:${mm} ${ampm}`;
+  return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()} \u00b7 ${h12}:${mm} ${ampm}`;
 }
 
 function formatUsd(n: number | null): string {
-  if (n === null) return "—";
+  if (n === null) return "\u2014";
   return n.toLocaleString("en-US", {
     style: "currency",
     currency: "USD",
@@ -63,28 +71,34 @@ function formatUsd(n: number | null): string {
   });
 }
 
-export default function FinalizeConfirmedPreviewPage() {
+export default async function PaymentPreviewPage() {
   const phoneHref = `tel:${company.dispatchPhone.replace(/[^\d+]/g, "")}`;
+  const total = formatUsd(SAMPLE.totalAmount);
+  // Spin up a one-off Stripe embedded session per render so the
+  // preview tile shows the EXACT form the customer will see on
+  // /quote/confirm/[token]. Sandbox-only; never reaches a real
+  // payment intent because it'''s served only inside admin auth.
+  const demo = await createPreviewDemoSession();
 
   return (
     <div className="bg-[#050505] text-zinc-100">
       {/* Preview banner */}
       <div className="border-b border-red-700 bg-red-600 px-4 py-2 text-center font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-white sm:py-2.5">
-        Preview only &middot; no email sent &middot; no records changed
+        Static Stripe sandbox demo only &middot; real payments use /quote/confirm/[token]
       </div>
 
       <section className="border-b border-[#1a1a1a] bg-gradient-to-b from-[#050505] via-[#0a0a0a] to-[#141414]">
         <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8 lg:py-16">
           <p className="flex items-center justify-center gap-2 font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-red-600">
             <span aria-hidden className="inline-block h-3 w-1 bg-red-600" />
-            Rate confirmation
+            Rate confirmation &middot; payment
           </p>
           <h1 className="mt-3 text-center text-3xl font-display leading-[1.05] tracking-[-0.02em] text-white sm:text-4xl lg:text-5xl">
             Finalized Quote Confirmed
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-center text-base leading-relaxed text-white sm:text-lg">
-            Dispatch has received your confirmation. A HARBLANC dispatcher
-            will coordinate the next scheduling step.
+            Dispatch has received your confirmation. Complete payment below
+            to lock the lane on dispatch\u2019s schedule.
           </p>
 
           {/* Summary card */}
@@ -110,9 +124,9 @@ export default function FinalizeConfirmedPreviewPage() {
                 {SAMPLE.deliveryZip}
               </span>
             </KV>
-            <KV label="Total rate">
+            <KV label="Total due">
               <span className="font-mono text-base font-bold text-white tabular-nums">
-                {formatUsd(SAMPLE.totalAmount)}
+                {total}
               </span>
             </KV>
             <KV label="Valid through">
@@ -122,7 +136,7 @@ export default function FinalizeConfirmedPreviewPage() {
             </KV>
           </dl>
 
-          {/* Confirmed-at panel */}
+          {/* Confirmed-at panel - same as the finalize-confirmed preview */}
           <div className="mt-7 border-l-4 border-l-green-500 bg-[#1a1a1a] p-5 shadow-[0_6px_18px_-6px_rgba(0,0,0,0.7)] sm:p-6">
             <p className="flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-green-400">
               <span aria-hidden className="inline-block h-3 w-1 bg-green-500" />
@@ -134,22 +148,63 @@ export default function FinalizeConfirmedPreviewPage() {
             <p className="mt-1 font-mono text-base text-white tabular-nums">
               {formatHumanDateTime(SAMPLE.confirmedAtConfirmed)}
             </p>
-            <p className="mt-4 max-w-2xl text-sm leading-relaxed text-white">
-              A dispatcher will reach out to coordinate pickup and
-              delivery windows. Watch for a separate scheduling email
-              or call from the dispatch number above.
+          </div>
+
+          {/* Payment block */}
+          <div className="mt-7 border-l-4 border-l-red-600 bg-[#1a1a1a] p-5 shadow-[0_6px_18px_-6px_rgba(0,0,0,0.7)] sm:p-6">
+            <div className="flex items-baseline justify-between gap-4">
+              <div>
+                <p className="flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-red-500">
+                  <span aria-hidden className="inline-block h-3 w-1 bg-red-600" />
+                  Payment required
+                </p>
+                <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.18em] text-white">
+                  Amount due
+                </p>
+                <p className="mt-1 font-mono text-2xl font-bold text-white tabular-nums sm:text-3xl">
+                  {total}
+                </p>
+                <p className="mt-1 font-mono text-[11px] text-white">
+                  Due before pickup &middot; USD
+                </p>
+              </div>
+              <div className="hidden text-right sm:block">
+                <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-white">
+                  Status
+                </p>
+                <p className="mt-1 font-mono text-[12px] font-bold uppercase tracking-[0.16em] text-red-400">
+                  Awaiting payment
+                </p>
+              </div>
+            </div>
+
+            {/* Embedded Stripe Checkout - same component the customer sees
+                on /quote/confirm/[token]. Sandbox session, no real
+                charge, no payments-table row. clientSecret is created
+                server-side at render time (see createPreviewDemoSession). */}
+            <div className="mt-5">
+              {demo.ok ? (
+                <DemoEmbeddedCheckout clientSecret={demo.clientSecret} />
+              ) : (
+                <div className="border border-amber-700 bg-amber-900/20 px-4 py-3 font-mono text-[11px] text-amber-200">
+                  Embedded checkout demo unavailable &middot; {demo.reason}
+                </div>
+              )}
+            </div>
+            <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.18em] text-white">
+              Sandbox demo only &middot; production flow lives on the confirmed quote page &middot; test card 4242 4242 4242 4242
             </p>
           </div>
 
-          {/* Need help support panel */}
+          {/* Help support panel */}
           <div className="mt-7 flex flex-col gap-3 border-l-2 border-l-neutral-600 bg-[#161616] p-4 shadow-[0_6px_18px_-6px_rgba(0,0,0,0.55)] sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-white">
                 Need dispatch help?
               </p>
               <p className="mt-1 text-sm leading-relaxed text-white">
-                Reach a dispatcher directly with any questions on the
-                rate or scheduling.{" "}
+                Reach dispatch with any questions on the rate, payment, or
+                scheduling.{" "}
                 <span className="font-medium text-zinc-100 tabular-nums">
                   {company.dispatchPhone}
                 </span>

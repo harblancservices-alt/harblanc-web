@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { resolveByConfirmationToken } from "@/lib/quote-token/lookup";
 import { company } from "@/lib/company";
 import { ConfirmButton } from "./ConfirmButton";
+import { PayButton } from "./PayButton";
+import { createServiceRoleClient } from "@/lib/supabase/server";
 
 /**
  * Customer-facing rate-confirmation page. Lands here from the Confirm
@@ -85,10 +87,13 @@ function formatLaneEndpoint(
 
 export default async function ConfirmFinalizedQuotePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ token: string }>;
+  searchParams: Promise<{ payment?: string }>;
 }) {
   const { token } = await params;
+  const { payment: paymentStatus } = await searchParams;
   const resolved = await resolveByConfirmationToken(token);
   if (!resolved.ok) notFound();
 
@@ -105,6 +110,39 @@ export default async function ConfirmFinalizedQuotePage({
 
   const isConfirmed = !!finalizedQuote.confirmedAt;
 
+  // ── Payment state lookup (runs only when the quote is confirmed) ────
+  //
+  // Reads the existing payments table (Phase P1A + Stripe migration).
+  // We surface three pieces of state to the post-confirm payment card:
+  //   - paidSoFar (sum of completed.amount) -- if >= total, hide Pay
+  //   - hasPendingPayment -- if a Stripe checkout was started but the
+  //     webhook hasn'''t reported back yet, change the button label
+  //   - lastSessionAt -- not currently displayed, kept for future
+  //
+  // When unconfirmed we skip the lookup entirely.
+  let paidSoFar = 0;
+  let hasPendingPayment = false;
+  if (isConfirmed && finalizedQuote.totalAmount != null) {
+    const sb = createServiceRoleClient();
+    const { data: rows } = await sb
+      .from("payments")
+      .select("amount, status")
+      .eq("finalized_quote_id", finalizedQuote.id)
+      .is("deleted_at", null);
+    for (const r of rows ?? []) {
+      if (r.status === "completed") {
+        paidSoFar += Number(r.amount ?? 0);
+      } else if (r.status === "pending") {
+        hasPendingPayment = true;
+      }
+    }
+  }
+  const amountDue =
+    finalizedQuote.totalAmount != null
+      ? Math.max(0, finalizedQuote.totalAmount - paidSoFar)
+      : null;
+  const paidInFull = amountDue !== null && amountDue <= 0.005;
+
   return (
     <div className="bg-[#050505] text-zinc-100">
       <section className="border-b border-[#1a1a1a] bg-gradient-to-b from-[#050505] via-[#0a0a0a] to-[#141414]">
@@ -116,7 +154,7 @@ export default async function ConfirmFinalizedQuotePage({
           <h1 className="mt-3 text-center text-3xl font-display leading-[1.05] tracking-[-0.02em] text-white sm:text-4xl lg:text-5xl">
             {isConfirmed ? "Finalized Quote Confirmed" : "Confirm Finalized Quote"}
           </h1>
-          <p className="mx-auto mt-4 max-w-2xl text-center text-base leading-relaxed text-zinc-300 sm:text-lg">
+          <p className="mx-auto mt-4 max-w-2xl text-center text-base leading-relaxed text-white sm:text-lg">
             {isConfirmed
               ? "Dispatch has received your confirmation. A HARBLANC dispatcher will coordinate the next scheduling step."
               : "Review the rate and shipment scope below. Confirming locks the rate and signals dispatch to coordinate pickup and delivery."}
@@ -139,7 +177,7 @@ export default async function ConfirmFinalizedQuotePage({
                 {delivery.primary}
               </span>
               {showZipSecondary ? (
-                <span className="mt-1 block font-mono text-[11px] text-zinc-500 tabular-nums">
+                <span className="mt-1 block font-mono text-[11px] text-white tabular-nums">
                   {pickup.secondary || "—"}
                   <span aria-hidden className="mx-1.5 text-zinc-600">
                     &rarr;
@@ -162,27 +200,104 @@ export default async function ConfirmFinalizedQuotePage({
 
           {/* Action zone — Confirm button or confirmed-at timestamp */}
           {isConfirmed ? (
-            <div className="mt-7 border-l-4 border-l-green-500 bg-[#1a1a1a] p-5 shadow-[0_6px_18px_-6px_rgba(0,0,0,0.7)] sm:p-6">
-              <p className="flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-green-400">
-                <span aria-hidden className="inline-block h-3 w-1 bg-green-500" />
-                Confirmed
-              </p>
-              <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.18em] text-zinc-400">
-                Confirmed at
-              </p>
-              <p className="mt-1 font-mono text-base text-white tabular-nums">
-                {formatHumanDateTime(finalizedQuote.confirmedAt)}
-              </p>
-              <p className="mt-4 max-w-2xl text-sm leading-relaxed text-zinc-300">
-                A dispatcher will reach out to coordinate pickup and
-                delivery windows. Watch for a separate scheduling email
-                or call from the dispatch number above.
-              </p>
-            </div>
+            <>
+              <div className="mt-7 border-l-4 border-l-green-500 bg-[#1a1a1a] p-5 shadow-[0_6px_18px_-6px_rgba(0,0,0,0.7)] sm:p-6">
+                <p className="flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-green-400">
+                  <span aria-hidden className="inline-block h-3 w-1 bg-green-500" />
+                  Confirmed
+                </p>
+                <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.18em] text-white">
+                  Confirmed at
+                </p>
+                <p className="mt-1 font-mono text-base text-white tabular-nums">
+                  {formatHumanDateTime(finalizedQuote.confirmedAt)}
+                </p>
+                <p className="mt-4 max-w-2xl text-sm leading-relaxed text-white">
+                  A dispatcher will reach out to coordinate pickup and
+                  delivery windows. Watch for a separate scheduling email
+                  or call from the dispatch number above.
+                </p>
+              </div>
+
+              {/* Payment block - only renders when the quote is confirmed.
+                  Three states:
+                    - paid in full          -> green "Paid" panel
+                    - pending Stripe session -> amber "Payment processing" panel
+                    - awaiting payment      -> red Pay-with-card CTA
+                  Success / cancelled query params from the Stripe return
+                  trip render a small status banner above the block. */}
+              {paymentStatus === "success" ? (
+                <div className="mt-7 border-l-4 border-l-green-500 bg-[#0e2118] p-4 sm:p-5">
+                  <p className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-green-300">
+                    Payment submitted
+                  </p>
+                  <p className="mt-2 text-sm leading-relaxed text-green-100">
+                    Stripe is processing your payment. Once it clears
+                    (usually within seconds for card, 1-3 business days
+                    for bank), this page will show {"\"Paid in full\""} and
+                    dispatch will be notified.
+                  </p>
+                </div>
+              ) : null}
+              {paymentStatus === "cancelled" ? (
+                <div className="mt-7 border-l-4 border-l-amber-500 bg-[#1f1709] p-4 sm:p-5">
+                  <p className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-amber-300">
+                    Payment cancelled
+                  </p>
+                  <p className="mt-2 text-sm leading-relaxed text-amber-100">
+                    No charge was made. You can retry the payment below
+                    whenever you{"\u2019"}re ready.
+                  </p>
+                </div>
+              ) : null}
+
+              {paidInFull ? (
+                <div className="mt-7 border-l-4 border-l-green-500 bg-[#1a1a1a] p-5 shadow-[0_6px_18px_-6px_rgba(0,0,0,0.7)] sm:p-6">
+                  <p className="flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-green-400">
+                    <span aria-hidden className="inline-block h-3 w-1 bg-green-500" />
+                    Paid in full
+                  </p>
+                  <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white">
+                    Dispatch has the funds. No further action is required
+                    from you on payment.
+                  </p>
+                </div>
+              ) : amountDue != null && amountDue > 0 ? (
+                <div className="mt-7 border-l-4 border-l-red-600 bg-[#1a1a1a] p-5 shadow-[0_6px_18px_-6px_rgba(0,0,0,0.7)] sm:p-6">
+                  <p className="flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-red-500">
+                    <span aria-hidden className="inline-block h-3 w-1 bg-red-600" />
+                    {hasPendingPayment ? "Payment in progress" : "Payment required"}
+                  </p>
+                  <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.18em] text-white">
+                    Amount due
+                  </p>
+                  <p className="mt-1 font-mono text-2xl font-bold text-white tabular-nums sm:text-3xl">
+                    {formatUsd(amountDue)}
+                  </p>
+                  <p className="mt-1 font-mono text-[11px] text-white">
+                    {finalizedQuote.finalizedQuoteNumber} &middot; Due before pickup &middot; USD
+                  </p>
+                  <div className="mt-5">
+                    <PayButton
+                      token={token}
+                      amountLabel={formatUsd(amountDue)}
+                      label={
+                        hasPendingPayment
+                          ? `Resume secure payment \u2192`
+                          : `Pay freight invoice \u2014 ${formatUsd(amountDue)} \u2192`
+                      }
+                    />
+                  </div>
+                  <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.18em] text-white">
+                    Stripe checkout &middot; secure card entry &middot; receipt emailed on success
+                  </p>
+                </div>
+              ) : null}
+            </>
           ) : (
             <div className="mt-7">
               <ConfirmButton token={token} />
-              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-400">
+              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white">
                 Confirming records the rate and shipment scope above as
                 accepted. A dispatcher follows up to schedule the
                 pickup and delivery windows by phone.
@@ -194,10 +309,10 @@ export default async function ConfirmFinalizedQuotePage({
               version since this page has fewer actions. */}
           <div className="mt-7 flex flex-col gap-3 border-l-2 border-l-neutral-600 bg-[#161616] p-4 shadow-[0_6px_18px_-6px_rgba(0,0,0,0.55)] sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-400">
+              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-white">
                 Need dispatch help?
               </p>
-              <p className="mt-1 text-sm leading-relaxed text-zinc-200">
+              <p className="mt-1 text-sm leading-relaxed text-white">
                 Reach a dispatcher directly with any questions on the
                 rate or scheduling.{" "}
                 <span className="font-medium text-zinc-100 tabular-nums">
@@ -230,11 +345,11 @@ export default async function ConfirmFinalizedQuotePage({
 
       <section className="bg-[#050505]">
         <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-white">
             Have the rate confirmation email handy?{" "}
             <Link
               href="/"
-              className="text-zinc-300 underline-offset-4 hover:text-red-400 hover:underline"
+              className="text-white underline-offset-4 hover:text-red-400 hover:underline"
             >
               Back to home
             </Link>
@@ -254,7 +369,7 @@ function KV({
 }) {
   return (
     <div>
-      <dt className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-400">
+      <dt className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-white">
         {label}
       </dt>
       <dd className="mt-1.5">{children}</dd>

@@ -127,17 +127,17 @@ export function PreviewModal({
         />
 
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-black sm:text-[12px]">
+          <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-black sm:text-[13px]">
             Quote range preview
           </p>
           {/* Meta strip — subject + recipient. Tabular numerics so it
               reads like a dispatch document header, not a SaaS modal
               title. */}
           {state !== "building" && (subject || to) ? (
-            <p className="mt-0.5 truncate font-mono text-[10px] text-black sm:text-[11px]">
+            <p className="mt-0.5 truncate font-mono text-[11px] text-black sm:text-[12px]">
               {to ? <span>{to}</span> : null}
               {to && subject ? <span className="px-1.5 text-zinc-400">·</span> : null}
-              {subject ? <span className="text-zinc-700">{subject}</span> : null}
+              {subject ? <span className="text-black">{subject}</span> : null}
             </p>
           ) : null}
         </div>
@@ -149,7 +149,7 @@ export function PreviewModal({
           <button
             type="button"
             onClick={onRebuild}
-            className="hidden shrink-0 items-center gap-1.5 border border-amber-700 bg-amber-100 px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-amber-900 transition-colors hover:bg-amber-200 sm:inline-flex"
+            className="hidden shrink-0 items-center gap-1.5 border border-amber-700 bg-amber-100 px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-amber-900 transition-colors hover:bg-amber-200 sm:inline-flex"
           >
             <span aria-hidden className="inline-block h-1.5 w-1.5 rounded-full bg-amber-700" />
             Stale — rebuild
@@ -157,7 +157,7 @@ export function PreviewModal({
         ) : null}
 
         {state === "rebuilding" ? (
-          <span className="hidden shrink-0 items-center gap-1.5 border border-zinc-300 bg-zinc-100 px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-black sm:inline-flex">
+          <span className="hidden shrink-0 items-center gap-1.5 border border-zinc-300 bg-zinc-100 px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-black sm:inline-flex">
             <Spinner className="h-3 w-3" />
             Rebuilding
           </span>
@@ -168,7 +168,7 @@ export function PreviewModal({
             type="button"
             onClick={onSend}
             disabled={sendDisabled}
-            className="inline-flex shrink-0 items-center gap-1.5 border border-red-700 bg-red-600 px-3 py-1.5 text-[12px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60 sm:px-4"
+            className="inline-flex shrink-0 items-center gap-1.5 border border-red-700 bg-red-600 px-3 py-1.5 text-[13px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60 sm:px-4"
           >
             {sendPending ? (
               <>
@@ -202,13 +202,13 @@ export function PreviewModal({
             <button
               type="button"
               onClick={onRebuild}
-              className="inline-flex items-center gap-1.5 border border-amber-700 bg-amber-100 px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-amber-900"
+              className="inline-flex items-center gap-1.5 border border-amber-700 bg-amber-100 px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-amber-900"
             >
               Stale — rebuild
             </button>
           ) : null}
           {state === "rebuilding" ? (
-            <span className="inline-flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-black">
+            <span className="inline-flex items-center gap-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-black">
               <Spinner className="h-3 w-3" />
               Rebuilding preview
             </span>
@@ -245,10 +245,10 @@ function BuildingState() {
   return (
     <div className="mx-auto flex h-full max-w-[680px] flex-col items-center justify-center gap-3 bg-white px-6 py-12">
       <Spinner className="h-6 w-6 text-red-600" />
-      <p className="font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-black">
+      <p className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-black">
         Building preview
       </p>
-      <p className="max-w-sm text-center text-xs text-zinc-700">
+      <p className="max-w-sm text-center text-xs text-black">
         Rendering the document the customer would receive.
       </p>
     </div>
@@ -264,17 +264,17 @@ function FailedState({
 }) {
   return (
     <div className="mx-auto flex max-w-[680px] flex-col items-start gap-3 border border-red-300 bg-red-50 px-5 py-5">
-      <p className="font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-red-800">
+      <p className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-red-800">
         Preview failed
       </p>
-      <p className="text-sm text-red-900">
+      <p className="text-[15px] text-red-900">
         {message ??
           "The preview build did not return a document. Check the rate fields and try again."}
       </p>
       <button
         type="button"
         onClick={onRetry}
-        className="inline-flex items-center gap-1.5 border border-red-700 bg-white px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-red-800 transition-colors hover:bg-red-100"
+        className="inline-flex items-center gap-1.5 border border-red-700 bg-white px-3 py-1.5 font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-red-800 transition-colors hover:bg-red-100"
       >
         Try again
       </button>
@@ -285,10 +285,10 @@ function FailedState({
 function EmptyState() {
   return (
     <div className="mx-auto max-w-[680px] border border-zinc-300 bg-white px-5 py-12 text-center">
-      <p className="font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-black">
+      <p className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-black">
         No preview yet
       </p>
-      <p className="mt-2 text-xs text-zinc-700">
+      <p className="mt-2 text-xs text-black">
         Press Preview in the workspace to render a document.
       </p>
     </div>

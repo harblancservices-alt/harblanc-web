@@ -222,6 +222,25 @@ async function persistIntake(
       estimateId: estimate.id,
     });
 
+    // Clear any operator pre-fill overrides on the lead row. The
+    // customer's submitted intake is now the source of truth for the
+    // Load Details tab; the pre-fill was a placeholder for the
+    // pre-submission window. If the operator wants to override any
+    // value AFTER seeing the customer's submission, they hit
+    // "Save edits" again and that new override wins on next render.
+    const { error: overridesClearError } = await sb
+      .from("quote_requests")
+      .update({ load_details_overrides: null })
+      .eq("id", lead.id)
+      .not("load_details_overrides", "is", null);
+    if (overridesClearError) {
+      console.error("[submitIntake] could not clear pre-fill overrides", {
+        leadId: lead.id,
+        message: overridesClearError.message,
+      });
+      // Non-fatal -- intake save already succeeded.
+    }
+
     const { data: leadStatusRow } = await sb
       .from("quote_requests")
       .select("lead_status")

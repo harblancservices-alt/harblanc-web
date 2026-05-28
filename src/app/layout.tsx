@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Public_Sans } from "next/font/google";
+import { Public_Sans, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { SiteChrome } from "@/components/site/SiteChrome";
 import { company } from "@/lib/company";
@@ -12,6 +12,28 @@ import { assets } from "@/lib/assets";
 const publicSans = Public_Sans({
   variable: "--font-public-sans",
   subsets: ["latin"],
+  display: "swap",
+});
+
+// IBM Plex Mono powers every operational label / number / reference in the
+// HARBLANC admin: lane numerals, REQ IDs, dispatch refs, line-item tables,
+// totals, BOL numbers. Replaces the prior font-mono mapping which was just
+// Public Sans with tabular figures - real monospace renders as freight
+// paperwork; pseudo-mono renders as a SaaS dashboard.
+const plexMono = IBM_Plex_Mono({
+  variable: "--font-plex-mono",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  display: "swap",
+});
+
+// IBM Plex Sans is available for any admin surface that wants to opt out of
+// Public Sans for body copy. Not wired as the default; the marketing site
+// still anchors on Public Sans.
+const plexSans = IBM_Plex_Sans({
+  variable: "--font-plex-sans",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
   display: "swap",
 });
 
@@ -44,7 +66,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${publicSans.variable} h-full antialiased`}
+      className={`${publicSans.variable} ${plexMono.variable} ${plexSans.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-neutral-950 text-zinc-100">
         <SiteChrome>{children}</SiteChrome>

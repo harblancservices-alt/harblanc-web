@@ -1,37 +1,33 @@
 "use client";
 
 import { useState } from "react";
-import {
-  IconArrowRight,
-  IconCalendar,
-  IconCheck,
-  IconChevronRight,
-  IconClock,
-  IconCopy,
-  IconEdit,
-  IconMail,
-  IconPhone,
-  IconUser,
-} from "./icons";
+import { IconCheck, IconCopy } from "./icons";
 
 /**
- * Phase REBUILD-2 P1 correction — Operator Header restructured to
- * match the dispatch-ticket visual reference.
+ * HARBLANC freight-document operator header.
  *
- * Two stacked cards inside the section, each carrying a red 4px
- * left border:
- *   1. Lane card  — horizontal lane row + status pill,
- *                   metadata strip below with calendar / clock /
- *                   request ID
- *   2. Contact card — three operational rows (Customer, Phone,
- *                   Email), each with icon + label + value +
- *                   edit, copy, and chevron action buttons.
+ * Two stacked blocks below the BACK TO QUOTES link on every quote detail page:
  *
- * Edit button is visually present but its server-action wiring lands
- * in REBUILD-2 P2. Copy button writes the row’s current value to
- * the clipboard with a 1500ms checkmark flash. Chevron is the same
- * tap-to-call/mail action as clicking the value area on phone/email
- * rows; on the customer row it sits inert as a structural marker.
+ *   Block 1 (lane manifest) - 4px red left bar, paper bg, hard 90deg edges.
+ *     - "LANE / PICKUP > DELIVERY" mono caption
+ *     - Lane numerals in real monospace with red arrow between (Plex Mono)
+ *     - Optional city sub-line below + mileage stamp when resolved
+ *     - Status STAMP BOX on the right (red bordered, mono caps) - replaces
+ *       the previous Stripe-style yellow pill
+ *     - Meta strip (Received / Date / REQ ID) under a thin top rule, with
+ *       copy button on the REQ ID
+ *
+ *   Block 2 (shipper of record) - 4px red left bar, paper bg, hard edges.
+ *     - Single bordered block with three rows: CUSTOMER / PHONE / EMAIL
+ *     - Phone and email rows are clickable (tel:/mailto:) and announce the
+ *       action as text ("TAP TO CALL" / "DRAFT EMAIL") in mono red - no
+ *       chevron / edit icon clutter
+ *     - Customer row keeps the copy-to-clipboard affordance
+ *
+ * The dead Edit and Chevron icon buttons from the prior REBUILD-2 P1 chrome
+ * have been removed. The clipboard copy with 1.5s checkmark flash is kept.
+ * Prop interface is unchanged so page.tsx's buildOperatorHeaderProps does
+ * not need to update.
  */
 
 export type OperatorHeaderProps = {
@@ -46,6 +42,11 @@ export type OperatorHeaderProps = {
     receivedRelative: string;
     receivedFull: string;
     statusLabel: string;
+    /**
+     * Retained on the prop type for backwards compatibility with the
+     * existing builder in page.tsx; not consumed in the freight-document
+     * rendering (the status renders as a stamp box, not a pill).
+     */
     statusPillClasses: string;
   };
   lane: {
@@ -58,215 +59,222 @@ export type OperatorHeaderProps = {
   };
 };
 
-export function OperatorHeader({ customer, identity, lane }: OperatorHeaderProps) {
+export function OperatorHeader({
+  customer,
+  identity,
+  lane,
+}: OperatorHeaderProps) {
   const phoneHref = `tel:${customer.phone.replace(/[^\d+]/g, "")}`;
   const mailHref = `mailto:${customer.email}`;
 
+  // Sub-line is only rendered when at least one zip is present. Keeps the
+  // header tight when the lane is unresolved.
+  const hasZipSub =
+    Boolean(lane.pickupZip) || Boolean(lane.deliveryZip);
+
   return (
-    <div className="space-y-2">
-      {/* Card 1: Lane + metadata */}
-      <section className="overflow-hidden rounded border border-zinc-400 border-l-4 border-l-red-600 bg-white">
-        <div className="flex flex-wrap items-center justify-between gap-3 px-3 py-3 sm:px-5 sm:py-3.5">
-          {lane.hasLane ? (
-            <div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-3 gap-y-1">
-              <span className="text-2xl font-bold tracking-tight text-black sm:text-3xl">
-                {lane.pickupLabel}
-              </span>
-              <IconArrowRight className="h-5 w-5 shrink-0 self-center text-red-600 sm:h-6 sm:w-6" />
-              <span className="text-2xl font-bold tracking-tight text-black sm:text-3xl">
-                {lane.deliveryLabel}
-              </span>
-              <span className="font-mono text-xs text-black">
-                {lane.pickupZip ?? ""}
-                <span aria-hidden className="mx-1.5 text-red-600">&rarr;</span>
-                {lane.deliveryZip ?? ""}
-              </span>
-              {lane.miles != null ? (
-                // Highlighted mileage chip — the lane length is the
-                // first thing the operator checks against the rate
-                // they're about to quote, so it gets its own pill
-                // with HARBLANC red accent instead of riding the
-                // ZIP strip in muted mono.
-                <span className="inline-flex shrink-0 items-center gap-1 border-2 border-red-600 bg-red-50 px-2 py-0.5 font-mono text-[13px] font-bold tabular-nums text-red-700">
-                  {lane.miles.toLocaleString()}
-                  <span className="text-[10px] uppercase tracking-[0.12em] text-red-700">
-                    mi
-                  </span>
+    <div className="space-y-3">
+      {/* Block 1 - Lane manifest */}
+      <section className="border border-black border-l-4 border-l-red-700 bg-[#fafaf6]">
+        <div className="flex flex-wrap items-start justify-between gap-3 px-4 py-3 sm:px-5 sm:py-4">
+          <div className="min-w-0 flex-1">
+            <p className="font-mono text-[12px] font-bold uppercase tracking-[0.18em] text-black">
+              Lane &middot; Pickup &rarr; Delivery
+            </p>
+            {lane.hasLane ? (
+              <div className="mt-1 flex flex-wrap items-baseline gap-x-3">
+                <span className="font-mono text-3xl font-medium tracking-tight text-black sm:text-4xl">
+                  {lane.pickupLabel}
                 </span>
-              ) : null}
-            </div>
-          ) : (
-            <span className="text-xl font-bold text-black sm:text-2xl">
-              Lane pending
-            </span>
-          )}
-          <span
-            className={
-              "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold " +
-              identity.statusPillClasses
-            }
-          >
-            <span aria-hidden className="inline-block h-1.5 w-1.5 shrink-0 rounded-full bg-current" />
-            {identity.statusLabel}
-          </span>
+                <span
+                  aria-hidden
+                  className="text-xl text-red-700"
+                >
+                  &rarr;
+                </span>
+                <span className="font-mono text-3xl font-medium tracking-tight text-black sm:text-4xl">
+                  {lane.deliveryLabel}
+                </span>
+                {lane.miles != null ? (
+                  <span className="inline-flex items-baseline gap-1 border border-red-700 px-1.5 py-0.5 font-mono text-[13px] font-medium tabular-nums text-red-700">
+                    {lane.miles.toLocaleString()}
+                    <span className="text-[11px] font-bold uppercase tracking-[0.12em]">
+                      mi
+                    </span>
+                  </span>
+                ) : null}
+              </div>
+            ) : (
+              <p className="mt-1 font-mono text-2xl font-medium text-black sm:text-3xl">
+                Lane pending
+              </p>
+            )}
+            {hasZipSub ? (
+              <p className="mt-1.5 font-mono text-[14px] font-bold text-red-700">
+                {lane.pickupZip ?? "--"}
+                <span aria-hidden className="mx-1.5 text-red-700">
+                  &rarr;
+                </span>
+                {lane.deliveryZip ?? "--"}
+                {lane.miles == null ? (
+                  <span className="ml-3 text-[12px] font-normal text-black">
+                    &middot; est. miles unavailable
+                  </span>
+                ) : null}
+              </p>
+            ) : null}
+          </div>
+
+          {/* Status stamp box - replaces the yellow pill */}
+          <div className="shrink-0 border border-red-700 px-2.5 py-1 text-center">
+            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-black">
+              Status
+            </p>
+            <p className="mt-0.5 font-mono text-[13px] font-bold uppercase tracking-[0.1em] text-red-700">
+              {identity.statusLabel}
+            </p>
+          </div>
         </div>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-zinc-300 bg-white px-3 py-2 sm:px-5">
-          <span className="inline-flex items-center gap-1.5 font-mono text-xs text-black">
-            <IconCalendar className="h-3.5 w-3.5 shrink-0 text-black" />
-            Received {identity.receivedRelative}
-          </span>
-          <span aria-hidden className="hidden h-3 w-px shrink-0 bg-zinc-400 sm:inline-block" />
-          <span className="inline-flex items-center gap-1.5 font-mono text-xs text-black">
-            <IconClock className="h-3.5 w-3.5 shrink-0 text-black" />
-            {identity.receivedFull}
-          </span>
-          <span aria-hidden className="hidden h-3 w-px shrink-0 bg-zinc-400 sm:inline-block" />
-          <span className="inline-flex flex-1 items-center justify-end gap-1.5 font-mono text-xs text-black">
-            <span className="text-[10px] font-semibold uppercase tracking-wider">
+
+        {/* Meta strip */}
+        <div className="grid grid-cols-1 gap-x-4 gap-y-1.5 border-t border-zinc-300 px-4 py-2.5 font-mono text-[12px] sm:grid-cols-3 sm:px-5">
+          <div className="flex items-baseline gap-2">
+            <span className="font-bold uppercase tracking-[0.14em] text-black">
+              Received
+            </span>
+            <span className="text-black">
+              {identity.receivedRelative}
+            </span>
+          </div>
+          <div className="flex items-baseline gap-2">
+            <span className="font-bold uppercase tracking-[0.14em] text-black">
+              Date
+            </span>
+            <span className="text-black">
+              {identity.receivedFull}
+            </span>
+          </div>
+          <div className="flex items-baseline gap-2 sm:justify-end">
+            <span className="font-bold uppercase tracking-[0.14em] text-black">
               Req ID
             </span>
-            <span className="font-semibold">{identity.requestId}</span>
-            <RowCopyButton value={identity.requestIdFull} ariaLabel="request ID" />
-          </span>
+            <span className="text-black">{identity.requestId}</span>
+            <CopyButton
+              value={identity.requestIdFull}
+              ariaLabel="request ID"
+            />
+          </div>
         </div>
       </section>
 
-      {/* Card 2: Customer / Phone / Email rows */}
-      <section className="overflow-hidden rounded border border-zinc-400 border-l-4 border-l-red-600 bg-white">
+      {/* Block 2 - Shipper of record */}
+      <section className="border border-black border-l-4 border-l-red-700 bg-[#fafaf6]">
+        <div className="flex items-center gap-2 border-b border-black bg-[#f3f1e9] px-3 py-1.5 sm:px-4">
+          <span
+            aria-hidden
+            className="inline-block h-3.5 w-1 shrink-0 bg-red-700"
+          />
+          <p className="font-mono text-[12px] font-bold uppercase tracking-[0.18em] text-black">
+            Shipper of record
+          </p>
+        </div>
         <ContactRow
-          icon={<IconUser className="h-5 w-5 shrink-0 text-red-600" />}
           label="Customer"
           value={customer.name}
-          copyAriaLabel="customer name"
+          ariaLabel="customer name"
         />
         <ContactRow
-          icon={<IconPhone className="h-5 w-5 shrink-0 text-red-600" />}
           label="Phone"
           value={customer.phone}
           mono
-          primaryHref={phoneHref}
-          copyAriaLabel="phone"
+          actionHref={phoneHref}
+          actionLabel="Tap to call"
+          ariaLabel="phone"
+          dashed
         />
         <ContactRow
-          icon={<IconMail className="h-5 w-5 shrink-0 text-red-600" />}
           label="Email"
           value={customer.email}
+          mono
           breakAll
-          primaryHref={mailHref}
-          copyAriaLabel="email"
-          last
+          actionHref={mailHref}
+          actionLabel="Draft email"
+          ariaLabel="email"
+          dashed
         />
       </section>
     </div>
   );
 }
 
-// âââ Contact row ââââââââââââââââââââââââââââââââââââââââââââââââââââ
-
 function ContactRow({
-  icon,
   label,
   value,
-  primaryHref,
-  copyAriaLabel,
   mono,
   breakAll,
-  last,
+  actionHref,
+  actionLabel,
+  ariaLabel,
+  dashed,
 }: {
-  icon: React.ReactNode;
   label: string;
   value: string;
-  primaryHref?: string;
-  copyAriaLabel: string;
   mono?: boolean;
   breakAll?: boolean;
-  last?: boolean;
+  actionHref?: string;
+  actionLabel?: string;
+  ariaLabel: string;
+  dashed?: boolean;
 }) {
-  const borderClass = last ? "" : "border-b border-zinc-300";
-  const valueClass =
-    "text-[15px] font-bold text-black " +
+  const valueCls =
+    "text-[16px] text-black " +
     (mono ? "font-mono " : "") +
     (breakAll ? "break-all " : "truncate ");
 
-  const body = (
-    <div className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5 sm:px-5">
-      {icon}
+  const inner = (
+    <div className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5 sm:px-4">
+      <div className="w-[80px] shrink-0 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-black">
+        {label}
+      </div>
       <div className="min-w-0 flex-1">
-        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-black">
-          {label}
-        </p>
-        <p className={valueClass}>{value}</p>
+        <p className={valueCls}>{value}</p>
       </div>
     </div>
   );
 
   return (
-    <div className={"flex items-stretch " + borderClass}>
-      {primaryHref ? (
+    <div
+      className={
+        "flex items-stretch " +
+        (dashed ? "border-t border-dashed border-zinc-300" : "")
+      }
+    >
+      {actionHref ? (
         <a
-          href={primaryHref}
-          className="flex min-w-0 flex-1 transition-colors hover:bg-zinc-50"
+          href={actionHref}
+          className="flex min-w-0 flex-1 transition-colors hover:bg-[#f3f1e9]"
         >
-          {body}
+          {inner}
         </a>
       ) : (
-        body
+        inner
       )}
-      <div className="flex shrink-0 items-center gap-1 pr-2 sm:pr-2.5">
-        <RowIconButton
-          icon={<IconEdit className="h-3.5 w-3.5" />}
-          ariaLabel={`Edit ${label} (REBUILD-2 P2)`}
-          disabled
-        />
-        <RowCopyButton value={value} ariaLabel={copyAriaLabel} />
-        <RowIconButton
-          icon={<IconChevronRight className="h-4 w-4" />}
-          ariaLabel={primaryHref ? `Open ${label}` : `Expand ${label}`}
-          asLinkHref={primaryHref}
-        />
+      <div className="flex shrink-0 items-center gap-2 pr-3 sm:pr-4">
+        {actionHref && actionLabel ? (
+          <a
+            href={actionHref}
+            className="font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-red-700 hover:underline"
+          >
+            {actionLabel}
+          </a>
+        ) : null}
+        <CopyButton value={value} ariaLabel={ariaLabel} />
       </div>
     </div>
   );
 }
 
-// âââ Small action buttons âââââââââââââââââââââââââââââââââââââââââââ
-
-function RowIconButton({
-  icon,
-  ariaLabel,
-  disabled,
-  asLinkHref,
-}: {
-  icon: React.ReactNode;
-  ariaLabel: string;
-  disabled?: boolean;
-  asLinkHref?: string;
-}) {
-  const cls =
-    "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded border border-zinc-300 bg-white transition-colors " +
-    (disabled
-      ? "cursor-not-allowed text-zinc-400"
-      : "text-black hover:border-zinc-400 hover:bg-zinc-50");
-  if (asLinkHref && !disabled) {
-    return (
-      <a href={asLinkHref} aria-label={ariaLabel} className={cls}>
-        {icon}
-      </a>
-    );
-  }
-  return (
-    <button
-      type="button"
-      aria-label={ariaLabel}
-      disabled={disabled}
-      className={cls}
-    >
-      {icon}
-    </button>
-  );
-}
-
-function RowCopyButton({
+function CopyButton({
   value,
   ariaLabel,
 }: {
@@ -278,10 +286,19 @@ function RowCopyButton({
 
   function handleClick() {
     if (disabled) return;
-    void navigator.clipboard.writeText(value).then(() => {
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1500);
-    });
+    // navigator.clipboard.writeText requires a secure context (HTTPS or
+    // localhost). In production both apply; the catch is defensive so a
+    // misconfigured preview environment surfaces the failure in console
+    // instead of silently swallowing the click.
+    navigator.clipboard
+      .writeText(value)
+      .then(() => {
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 1500);
+      })
+      .catch((err) => {
+        console.error("[CopyButton] clipboard write failed", err);
+      });
   }
 
   return (
@@ -292,18 +309,18 @@ function RowCopyButton({
       aria-label={copied ? `Copied ${ariaLabel}` : `Copy ${ariaLabel}`}
       title={copied ? "Copied" : "Copy"}
       className={
-        "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded border transition-colors " +
+        "inline-flex h-6 w-6 shrink-0 items-center justify-center border transition-colors " +
         (disabled
-          ? "cursor-not-allowed border-zinc-300 bg-white text-zinc-400"
+          ? "cursor-not-allowed border-zinc-300 text-black"
           : copied
-            ? "border-emerald-600 bg-emerald-50 text-emerald-700"
-            : "border-zinc-300 bg-white text-black hover:border-zinc-400 hover:bg-zinc-50")
+            ? "border-emerald-700 bg-emerald-50 text-emerald-800"
+            : "border-zinc-300 bg-white text-black hover:border-black")
       }
     >
       {copied ? (
-        <IconCheck className="h-3.5 w-3.5" />
+        <IconCheck className="h-3 w-3" />
       ) : (
-        <IconCopy className="h-3.5 w-3.5" />
+        <IconCopy className="h-3 w-3" />
       )}
     </button>
   );

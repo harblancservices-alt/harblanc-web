@@ -72,7 +72,7 @@ export default function FinalizePendingPreviewPage() {
           <h1 className="mt-3 text-center text-3xl font-display leading-[1.05] tracking-[-0.02em] text-white sm:text-4xl lg:text-5xl">
             Confirm Finalized Quote
           </h1>
-          <p className="mx-auto mt-4 max-w-2xl text-center text-base leading-relaxed text-zinc-300 sm:text-lg">
+          <p className="mx-auto mt-4 max-w-2xl text-center text-base leading-relaxed text-white sm:text-lg">
             Review the rate and shipment scope below. Confirming locks the
             rate and signals dispatch to coordinate pickup and delivery.
           </p>
@@ -92,7 +92,7 @@ export default function FinalizePendingPreviewPage() {
                 </span>
                 {SAMPLE.deliveryCity}, {SAMPLE.deliveryState}
               </span>
-              <span className="mt-1 block font-mono text-[11px] text-zinc-500 tabular-nums">
+              <span className="mt-1 block font-mono text-[11px] text-white tabular-nums">
                 {SAMPLE.pickupZip}
                 <span aria-hidden className="mx-1.5 text-zinc-600">
                   &rarr;
@@ -122,7 +122,7 @@ export default function FinalizePendingPreviewPage() {
             >
               <ConfirmButton token="PREVIEW-TOKEN" />
             </fieldset>
-            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-400">
+            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white">
               Confirming records the rate and shipment scope above as
               accepted. A dispatcher follows up to schedule the pickup
               and delivery windows by phone.
@@ -132,10 +132,10 @@ export default function FinalizePendingPreviewPage() {
           {/* Need help support panel */}
           <div className="mt-7 flex flex-col gap-3 border-l-2 border-l-neutral-600 bg-[#161616] p-4 shadow-[0_6px_18px_-6px_rgba(0,0,0,0.55)] sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-400">
+              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-white">
                 Need dispatch help?
               </p>
-              <p className="mt-1 text-sm leading-relaxed text-zinc-200">
+              <p className="mt-1 text-sm leading-relaxed text-white">
                 Reach a dispatcher directly with any questions on the
                 rate or scheduling.{" "}
                 <span className="font-medium text-zinc-100 tabular-nums">
@@ -168,11 +168,11 @@ export default function FinalizePendingPreviewPage() {
 
       <section className="bg-[#050505]">
         <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-zinc-500">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-white">
             Have the rate confirmation email handy?{" "}
             <Link
               href="/"
-              className="text-zinc-300 underline-offset-4 hover:text-red-400 hover:underline"
+              className="text-white underline-offset-4 hover:text-red-400 hover:underline"
             >
               Back to home
             </Link>
@@ -192,7 +192,7 @@ function KV({
 }) {
   return (
     <div>
-      <dt className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-400">
+      <dt className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-white">
         {label}
       </dt>
       <dd className="mt-1.5">{children}</dd>
