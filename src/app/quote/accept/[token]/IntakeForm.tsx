@@ -369,14 +369,14 @@ export function IntakeForm({
           type="button"
           onClick={onSave}
           disabled={isPending}
-          className="inline-flex items-center justify-center border border-neutral-600 bg-transparent px-5 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-zinc-100 transition-colors hover:border-zinc-400 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+          className="btn-cut inline-flex min-w-[200px] items-center justify-center whitespace-nowrap border border-red-600 bg-zinc-800 px-6 py-3 font-mono text-base font-bold uppercase tracking-[0.14em] text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:text-lg"
         >
           {isPending ? "Working…" : "Save progress"}
         </button>
         <button
           type="submit"
           disabled={isPending}
-          className="inline-flex items-center justify-center border border-red-700 bg-red-600 px-6 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+          className="btn-cut inline-flex min-w-[200px] items-center justify-center whitespace-nowrap border border-red-600 bg-zinc-800 px-6 py-3 font-mono text-base font-bold uppercase tracking-[0.14em] text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:text-lg"
         >
           {isPending ? "Submitting…" : "Send to dispatch"}
         </button>

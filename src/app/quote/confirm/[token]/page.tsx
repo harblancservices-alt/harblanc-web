@@ -147,8 +147,8 @@ export default async function ConfirmFinalizedQuotePage({
     <div className="bg-[#050505] text-zinc-100">
       <section className="border-b border-[#1a1a1a] bg-gradient-to-b from-[#050505] via-[#0a0a0a] to-[#141414]">
         <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8 lg:py-16">
-          <p className="flex items-center justify-center gap-2 font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-red-600">
-            <span aria-hidden className="inline-block h-3 w-1 bg-red-600" />
+          <p className="flex items-center justify-center gap-2 font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-white">
+            <span aria-hidden className="inline-block h-3 w-1 bg-white" />
             Rate confirmation
           </p>
           <h1 className="mt-3 text-center text-3xl font-display leading-[1.05] tracking-[-0.02em] text-white sm:text-4xl lg:text-5xl">
@@ -162,7 +162,7 @@ export default async function ConfirmFinalizedQuotePage({
 
           {/* Summary card — same freight-document header row as the
               email and the intake page. Lane spans 2 columns at lg. */}
-          <dl className="mt-7 grid grid-cols-1 gap-x-8 gap-y-4 border-l-4 border-l-red-600 bg-[#1a1a1a] p-5 shadow-[0_6px_18px_-6px_rgba(0,0,0,0.7)] sm:grid-cols-2 sm:p-6 lg:grid-cols-[1fr_2fr_1fr_1fr]">
+          <dl className="mt-7 grid grid-cols-1 gap-x-8 gap-y-4 border-l-4 border-l-zinc-700 bg-[#1a1a1a] p-5 shadow-[0_6px_18px_-6px_rgba(0,0,0,0.7)] sm:grid-cols-2 sm:p-6 lg:grid-cols-[1fr_2fr_1fr_1fr]">
             <KV label="Quote #">
               <span className="font-mono text-base font-semibold text-white tabular-nums">
                 {finalizedQuote.finalizedQuoteNumber}
@@ -171,7 +171,7 @@ export default async function ConfirmFinalizedQuotePage({
             <KV label="Lane">
               <span className="font-mono text-base font-semibold text-white">
                 {pickup.primary}
-                <span aria-hidden className="mx-2 text-red-600">
+                <span aria-hidden className="mx-2 text-white">
                   &rarr;
                 </span>
                 {delivery.primary}
@@ -263,10 +263,10 @@ export default async function ConfirmFinalizedQuotePage({
                   </p>
                 </div>
               ) : amountDue != null && amountDue > 0 ? (
-                <div className="mt-7 border-l-4 border-l-red-600 bg-[#1a1a1a] p-5 shadow-[0_6px_18px_-6px_rgba(0,0,0,0.7)] sm:p-6">
-                  <p className="flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-red-500">
-                    <span aria-hidden className="inline-block h-3 w-1 bg-red-600" />
-                    {hasPendingPayment ? "Payment in progress" : "Payment required"}
+                <div className="mt-7 border-l-4 border-l-zinc-700 bg-[#1a1a1a] p-5 shadow-[0_6px_18px_-6px_rgba(0,0,0,0.7)] sm:p-6">
+                  <p className="flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-white">
+                    <span aria-hidden className="inline-block h-3 w-1 bg-white" />
+                    {hasPendingPayment ? "Payment in progress" : "Balance due"}
                   </p>
                   <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.18em] text-white">
                     Amount due
@@ -322,7 +322,7 @@ export default async function ConfirmFinalizedQuotePage({
             </div>
             <a
               href={phoneHref}
-              className="inline-flex items-center gap-1.5 py-1 text-[13px] font-semibold uppercase tracking-[0.1em] text-red-400 transition-colors hover:text-red-300 sm:shrink-0"
+              className="inline-flex items-center gap-1.5 py-1 text-[13px] font-semibold uppercase tracking-[0.1em] text-white transition-colors hover:text-zinc-300 sm:shrink-0"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -349,7 +349,7 @@ export default async function ConfirmFinalizedQuotePage({
             Have the rate confirmation email handy?{" "}
             <Link
               href="/"
-              className="text-white underline-offset-4 hover:text-red-400 hover:underline"
+              className="text-white underline-offset-4 hover:text-zinc-300 hover:underline"
             >
               Back to home
             </Link>

@@ -203,7 +203,7 @@ export function IntakeUploads({
               type="button"
               onClick={pickFiles}
               disabled={isPending}
-              className="inline-flex items-center gap-2 border border-red-700 bg-transparent px-5 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-red-300 transition-colors hover:border-red-500 hover:bg-red-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+              className="btn-cut inline-flex min-w-[180px] items-center justify-center gap-2 whitespace-nowrap border border-red-600 bg-zinc-800 px-6 py-3 font-mono text-base font-bold uppercase tracking-[0.14em] text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60 sm:text-lg"
             >
               {isPending ? "Uploading…" : "Add files"}
             </button>
@@ -279,7 +279,7 @@ export function IntakeUploads({
                     onClick={() => removeUpload(u.id)}
                     disabled={u.deleting}
                     aria-label={`Remove ${u.originalFilename}`}
-                    className="shrink-0 border border-neutral-600 bg-transparent px-2 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-200 transition-colors hover:border-red-500 hover:text-red-400 disabled:opacity-50"
+                    className="btn-cut shrink-0 border border-red-600 bg-zinc-800 px-3 py-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-white transition-colors hover:bg-zinc-700 disabled:opacity-50"
                   >
                     {u.deleting ? "Removing" : "Remove"}
                   </button>

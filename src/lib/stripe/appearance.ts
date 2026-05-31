@@ -16,7 +16,7 @@ import type { Appearance } from "@stripe/stripe-js";
  *   muted text       #a1a1aa (zinc-400) on dark bg
  *   border           #27272a (zinc-800)
  *
- * Mono font goes through Stripe'''s CSS-stack option; we list our
+ * Mono font goes through Stripe's CSS-stack option; we list our
  * preferred families and Stripe falls back through them.
  */
 export const harblancStripeAppearance: Appearance = {
@@ -30,7 +30,7 @@ export const harblancStripeAppearance: Appearance = {
     fontWeightMedium: "600",
     fontWeightBold: "700",
 
-    colorPrimary: "#dc2626",
+    colorPrimary: "#ffffff",
     colorBackground: "#0a0a0a",
     colorText: "#ffffff",
     colorTextSecondary: "#ffffff",
@@ -63,7 +63,7 @@ export const harblancStripeAppearance: Appearance = {
       padding: "12px 12px",
     },
     ".Input:focus": {
-      borderColor: "#dc2626",
+      borderColor: "#ffffff",
       boxShadow: "none",
       outline: "none",
     },
@@ -76,8 +76,33 @@ export const harblancStripeAppearance: Appearance = {
       border: "1px solid #27272a",
       color: "#ffffff",
     },
+    ".Tab:hover": {
+      backgroundColor: "#141414",
+      borderColor: "#52525b",
+      color: "#ffffff",
+    },
     ".Tab--selected": {
-      borderColor: "#dc2626",
+      backgroundColor: "#141414",
+      borderColor: "#ffffff",
+      color: "#ffffff",
+    },
+    ".Tab--selected:hover": {
+      backgroundColor: "#141414",
+      borderColor: "#ffffff",
+      color: "#ffffff",
+    },
+    ".Tab--selected:focus": {
+      backgroundColor: "#141414",
+      borderColor: "#ffffff",
+      color: "#ffffff",
+      boxShadow: "none",
+      outline: "none",
+    },
+    ".TabIcon--selected": {
+      color: "#ffffff",
+      fill: "#ffffff",
+    },
+    ".TabLabel--selected": {
       color: "#ffffff",
     },
     ".Block": {

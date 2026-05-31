@@ -89,8 +89,8 @@ export default async function PaymentPreviewPage() {
 
       <section className="border-b border-[#1a1a1a] bg-gradient-to-b from-[#050505] via-[#0a0a0a] to-[#141414]">
         <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8 lg:py-16">
-          <p className="flex items-center justify-center gap-2 font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-red-600">
-            <span aria-hidden className="inline-block h-3 w-1 bg-red-600" />
+          <p className="flex items-center justify-center gap-2 font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-white">
+            <span aria-hidden className="inline-block h-3 w-1 bg-white" />
             Rate confirmation &middot; payment
           </p>
           <h1 className="mt-3 text-center text-3xl font-display leading-[1.05] tracking-[-0.02em] text-white sm:text-4xl lg:text-5xl">
@@ -102,7 +102,7 @@ export default async function PaymentPreviewPage() {
           </p>
 
           {/* Summary card */}
-          <dl className="mt-7 grid grid-cols-1 gap-x-8 gap-y-4 border-l-4 border-l-red-600 bg-[#1a1a1a] p-5 shadow-[0_6px_18px_-6px_rgba(0,0,0,0.7)] sm:grid-cols-2 sm:p-6 lg:grid-cols-[1fr_2fr_1fr_1fr]">
+          <dl className="mt-7 grid grid-cols-1 gap-x-8 gap-y-4 border-l-4 border-l-zinc-700 bg-[#1a1a1a] p-5 shadow-[0_6px_18px_-6px_rgba(0,0,0,0.7)] sm:grid-cols-2 sm:p-6 lg:grid-cols-[1fr_2fr_1fr_1fr]">
             <KV label="Quote #">
               <span className="font-mono text-base font-semibold text-white tabular-nums">
                 {SAMPLE.finalizedQuoteNumber}
@@ -111,7 +111,7 @@ export default async function PaymentPreviewPage() {
             <KV label="Lane">
               <span className="font-mono text-base font-semibold text-white">
                 {SAMPLE.pickupCity}, {SAMPLE.pickupState}
-                <span aria-hidden className="mx-2 text-red-600">
+                <span aria-hidden className="mx-2 text-white">
                   &rarr;
                 </span>
                 {SAMPLE.deliveryCity}, {SAMPLE.deliveryState}
@@ -151,12 +151,12 @@ export default async function PaymentPreviewPage() {
           </div>
 
           {/* Payment block */}
-          <div className="mt-7 border-l-4 border-l-red-600 bg-[#1a1a1a] p-5 shadow-[0_6px_18px_-6px_rgba(0,0,0,0.7)] sm:p-6">
+          <div className="mt-7 border-l-4 border-l-zinc-700 bg-[#1a1a1a] p-5 shadow-[0_6px_18px_-6px_rgba(0,0,0,0.7)] sm:p-6">
             <div className="flex items-baseline justify-between gap-4">
               <div>
-                <p className="flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-red-500">
-                  <span aria-hidden className="inline-block h-3 w-1 bg-red-600" />
-                  Payment required
+                <p className="flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-white">
+                  <span aria-hidden className="inline-block h-3 w-1 bg-white" />
+                  Balance due
                 </p>
                 <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.18em] text-white">
                   Amount due
@@ -172,7 +172,7 @@ export default async function PaymentPreviewPage() {
                 <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-white">
                   Status
                 </p>
-                <p className="mt-1 font-mono text-[12px] font-bold uppercase tracking-[0.16em] text-red-400">
+                <p className="mt-1 font-mono text-[12px] font-bold uppercase tracking-[0.16em] text-white">
                   Awaiting payment
                 </p>
               </div>
@@ -212,7 +212,7 @@ export default async function PaymentPreviewPage() {
             </div>
             <a
               href={phoneHref}
-              className="inline-flex items-center gap-1.5 py-1 text-[13px] font-semibold uppercase tracking-[0.1em] text-red-400 transition-colors hover:text-red-300 sm:shrink-0"
+              className="inline-flex items-center gap-1.5 py-1 text-[13px] font-semibold uppercase tracking-[0.1em] text-white transition-colors hover:text-zinc-300 sm:shrink-0"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -239,7 +239,7 @@ export default async function PaymentPreviewPage() {
             Have the rate confirmation email handy?{" "}
             <Link
               href="/"
-              className="text-white underline-offset-4 hover:text-red-400 hover:underline"
+              className="text-white underline-offset-4 hover:text-zinc-300 hover:underline"
             >
               Back to home
             </Link>

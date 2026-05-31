@@ -85,7 +85,7 @@ function DemoPaymentForm() {
       <button
         type="submit"
         disabled={!stripe || !elements || submitting}
-        className="mt-5 inline-flex w-full items-center justify-center gap-2 border-0 bg-red-600 px-5 py-3.5 font-mono text-[13px] font-bold uppercase tracking-[0.16em] text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
+        className="mt-5 inline-flex w-full items-center justify-center gap-2 border-0 bg-black px-5 py-3.5 font-mono text-[13px] font-bold uppercase tracking-[0.16em] text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
       >
         {submitting ? "Processing payment..." : "Pay $3,050.00 \u2192"}
       </button>

@@ -109,7 +109,7 @@ export function PayButton({
         onClick={onPay}
         disabled={isPending}
         aria-label={`Pay freight invoice -- ${amountLabel}`}
-        className="inline-flex w-full items-center justify-center gap-2 border-0 bg-red-600 px-5 py-3.5 font-mono text-[13px] font-bold uppercase tracking-[0.16em] text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
+        className="inline-flex w-full items-center justify-center gap-2 border-0 bg-black px-5 py-3.5 font-mono text-[13px] font-bold uppercase tracking-[0.16em] text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
       >
         {isPending ? "Opening secure payment..." : label}
       </button>
@@ -179,7 +179,7 @@ function PaymentForm({
       <button
         type="submit"
         disabled={!stripe || !elements || submitting}
-        className="mt-5 inline-flex w-full items-center justify-center gap-2 border-0 bg-red-600 px-5 py-3.5 font-mono text-[13px] font-bold uppercase tracking-[0.16em] text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
+        className="mt-5 inline-flex w-full items-center justify-center gap-2 border-0 bg-black px-5 py-3.5 font-mono text-[13px] font-bold uppercase tracking-[0.16em] text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
       >
         {submitting
           ? "Processing payment..."

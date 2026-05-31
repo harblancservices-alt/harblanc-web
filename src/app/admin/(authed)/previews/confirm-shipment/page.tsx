@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import Link from "next/link";
+import Image from "next/image";
 import { company } from "@/lib/company";
 import { IntakeForm } from "@/app/quote/accept/[token]/IntakeForm";
 import {
@@ -87,36 +89,23 @@ export default function ConfirmShipmentPreviewPage() {
 
       <section className="border-b border-[#1a1a1a] bg-gradient-to-b from-[#050505] via-[#0a0a0a] to-[#141414]">
         <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8 lg:py-16">
-          <ol className="flex flex-wrap items-center gap-x-3 gap-y-2 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-300">
-            <li className="flex items-center gap-2">
-              <span
-                aria-current="step"
-                className="inline-flex h-5 w-5 items-center justify-center border border-red-600 bg-red-600 text-white"
-              >
-                1
-              </span>
-              <span className="text-zinc-100">Confirm details</span>
-            </li>
-            <span aria-hidden className="h-px w-6 bg-neutral-700 sm:w-10" />
-            <li className="flex items-center gap-2 text-zinc-500">
-              <span className="inline-flex h-5 w-5 items-center justify-center border border-neutral-700 bg-transparent text-zinc-500">
-                2
-              </span>
-              <span>Review &amp; submit</span>
-            </li>
-          </ol>
-
-          <p className="mt-7 flex items-center justify-center gap-2 font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-red-600">
-            <span aria-hidden className="inline-block h-3 w-1 bg-red-600" />
-            Shipment finalization
-          </p>
-          <h1 className="mt-3 text-center text-3xl font-display leading-[1.05] tracking-[-0.02em] text-white sm:text-4xl lg:text-5xl">
-            Confirm Shipment Details
-          </h1>
-          <p className="mx-auto mt-4 max-w-2xl text-center text-base leading-relaxed text-zinc-300 sm:text-lg">
-            Providing accurate shipment details helps dispatch confirm the
-            correct equipment, timing, and final rate before scheduling.
-          </p>
+          <div className="relative">
+            <div
+              aria-hidden
+              className="absolute -bottom-7 left-0 -top-10 w-1 bg-green-500 sm:-top-14 lg:-top-16"
+            />
+            <p className="flex items-center justify-center gap-2 font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-red-600">
+              <span aria-hidden className="inline-block h-3 w-1 bg-red-600" />
+              Shipment finalization
+            </p>
+            <h1 className="mt-3 text-center text-3xl font-display leading-[1.05] tracking-[-0.02em] text-white sm:text-4xl lg:text-5xl">
+              Confirm Shipment Details
+            </h1>
+            <p className="mx-auto mt-4 max-w-2xl text-center text-base leading-relaxed text-zinc-300 sm:text-lg">
+              Providing accurate shipment details helps dispatch confirm the
+              correct equipment, timing, and final rate before scheduling.
+            </p>
+          </div>
 
           <dl className="mt-7 grid grid-cols-1 gap-x-8 gap-y-4 border-l-4 border-l-red-600 bg-[#1a1a1a] p-5 shadow-[0_6px_18px_-6px_rgba(0,0,0,0.7)] sm:grid-cols-2 sm:p-6 lg:grid-cols-[1fr_2fr_1fr_1fr]">
             <KV label="Quote #">
@@ -168,7 +157,7 @@ export default function ConfirmShipmentPreviewPage() {
             </div>
             <a
               href={phoneHref}
-              className="inline-flex items-center gap-1.5 py-1 text-[13px] font-semibold uppercase tracking-[0.1em] text-red-400 transition-colors hover:text-red-300 sm:shrink-0"
+              className="btn-cut inline-flex items-center justify-center gap-2 whitespace-nowrap border border-red-600 bg-zinc-800 px-6 py-3 font-mono text-base font-bold uppercase tracking-[0.14em] text-white transition-colors hover:bg-zinc-700 sm:shrink-0 sm:text-lg"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -209,6 +198,42 @@ export default function ConfirmShipmentPreviewPage() {
               initialUploads={[]}
             />
           </fieldset>
+        </div>
+      </section>
+      {/* Dispatch support + carrier authority footer */}
+      <section className="border-t border-[#1a1a1a] bg-[#0a0a0a]">
+        <div className="mx-auto max-w-3xl px-4 pb-10 pt-6 sm:px-6 sm:pb-12 sm:pt-8 lg:px-8 lg:pb-14 lg:pt-10">
+          <p className="flex items-center justify-center gap-2 font-mono text-base font-bold uppercase tracking-[0.16em] text-white sm:text-lg">
+            <span aria-hidden className="inline-block h-5 w-1 bg-red-600 sm:h-6" />
+            Need instant dispatch support?
+          </p>
+
+          <div className="mt-8 flex flex-col items-center gap-5 text-center">
+            <div className="flex flex-col items-center gap-4">
+              <a href={phoneHref} className="btn-cut mt-3 inline-flex min-w-[240px] items-center justify-center whitespace-nowrap border border-red-600 bg-zinc-800 px-6 py-3 font-mono text-base font-bold tabular-nums uppercase tracking-[0.14em] text-white transition-colors hover:bg-zinc-700 sm:text-lg">
+                <span>{company.dispatchPhone.replace(/[^\d]/g, "").replace(/(\d{3})(\d{3})(\d{4})/, "($1) $2-$3")}</span>
+              </a>
+              <a href={`mailto:${company.dispatchEmail}`} className="btn-cut mt-3 inline-flex min-w-[240px] items-center justify-center border border-red-600 bg-zinc-800 px-6 py-3 font-mono text-base font-bold uppercase tracking-[0.14em] text-white transition-colors hover:bg-zinc-700 sm:text-lg">Email Us</a>
+            </div>
+          </div>
+
+          <div className="mt-10 border-t border-[#1a1a1a] pt-6">
+            <div className="flex flex-col items-center justify-center gap-6 text-center">
+              <div>
+                <p className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-white sm:text-[11px]">HARBLANC Services LLC</p>
+                <p className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.16em] text-zinc-500 sm:text-[11px]">USDOT {company.dotNumber} &middot; MC {company.mcNumber} &middot; Licensed &amp; Insured</p>
+              </div>
+              <nav className="flex items-center gap-5 font-mono text-[10px] font-bold uppercase tracking-[0.16em] sm:text-[11px]">
+                <Link href="/" className="text-zinc-300 transition-colors hover:text-white">Home</Link>
+                <Link href="/quote" className="text-zinc-300 transition-colors hover:text-white">Quote</Link>
+                <Link href="/apply" className="text-zinc-300 transition-colors hover:text-white">Carriers</Link>
+              </nav>
+            </div>
+          </div>
+
+          <div className="mt-6 flex justify-center">
+            <Image src="/brand/logo-mark.png" alt="HARBLANC" width={637} height={574} className="h-16 w-auto opacity-80" />
+          </div>
         </div>
       </section>
     </div>

@@ -141,6 +141,26 @@ body {
       0 10px
     );
   }
+
+  /* Card chamfer — larger 28px cut for milestone cards. */
+  .card-cut {
+    -webkit-clip-path: polygon(
+      28px 0,
+      100% 0,
+      100% calc(100% - 28px),
+      calc(100% - 28px) 100%,
+      0 100%,
+      0 28px
+    );
+    clip-path: polygon(
+      28px 0,
+      100% 0,
+      100% calc(100% - 28px),
+      calc(100% - 28px) 100%,
+      0 100%,
+      0 28px
+    );
+  }
 }
 
 @layer utilities {
