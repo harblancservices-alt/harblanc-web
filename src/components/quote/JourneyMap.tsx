@@ -33,31 +33,31 @@ const flowSteps: readonly Step[] = [
     n: "01",
     when: "Next",
     title: "Shipment under review",
-    body: "We are reviewing the lane, the load and current capacity. The range comes back by email \u2014 straightforward pricing, ready to move on.",
+    body: "Dispatch is reviewing the lane and current availability before preparing your range estimate.",
   },
   {
     n: "02",
     when: "If the range works",
     title: "Complete the shipment intake",
-    body: "Fill out the shipment intake \u2014 pickup window, equipment, contacts, special handling. This is what dispatch needs to firm up the rate.",
+    body: "Provide the details dispatch needs to finalize the shipment plan, including pickup information, delivery information, contacts, equipment, and handling requirements.",
   },
   {
     n: "03",
     when: "After intake review",
     title: "Receive the finalized quote",
-    body: "Dispatch reviews your intake and sends a finalized quote with the locked-in rate. No surprises, no markup later \u2014 what\u2019s on it is what you pay.",
+    body: "Dispatch reviews the completed intake and issues the finalized quote. The rate shown is the rate approved for the shipment details provided.",
   },
   {
     n: "04",
     when: "Before pickup",
-    title: "Accept and pay the rate",
-    body: "Confirm the finalized quote and pay through secure card processing. The lane is not on dispatch\u2019s schedule until payment clears.",
+    title: "Approve the final quote",
+    body: "Review the finalized quote, approve the rate, and complete payment. Once confirmed, dispatch can place the shipment on the schedule.",
   },
   {
     n: "05",
     when: "On the road",
     title: "Pickup and delivery",
-    body: "Dispatch coordinates pickup with your contact, the driver heads out, and we keep you posted from origin through delivery.",
+    body: "Dispatch coordinates pickup with the shipper contact and posts updates from origin through delivery.",
   },
 ];
 
@@ -97,10 +97,15 @@ export function JourneyMap() {
                       aria-hidden
                       className="absolute left-[18px] top-full h-4 w-px bg-red-600 sm:left-[22px]"
                     />
-                    {/* Pulsing "you are here" dot at the green/red transition */}
+                    {/* Pulsing "you are here" dot - centered on the
+                        green/red transition. translate-y-1/2 shifts the
+                        wrapper down by half its height so the dot CENTER
+                        lands exactly on the bottom edge of li 01 (where
+                        green ends and red begins). Upper half sits on
+                        green, lower half sits on red. */}
                     <span
                       aria-hidden
-                      className="absolute left-0 bottom-0 z-10 flex h-9 w-9 items-center justify-center sm:left-1"
+                      className="absolute bottom-0 left-0 z-10 flex h-9 w-9 translate-y-1/2 items-center justify-center sm:left-1"
                     >
                       <span className="relative flex h-[18px] w-[18px]">
                         <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-400 opacity-75" />

@@ -361,3 +361,41 @@ body {
     flex-shrink: 0;
   }
 }
+
+/* Autoplay progress bar for the homepage Services carousel.
+   Used inline via animation: services-progress <ms> linear forwards. */
+@keyframes services-progress {
+  from { width: 0%; }
+  to   { width: 100%; }
+}
+
+/* Beige twin of .btn-outline-cut for light surfaces (navbar etc.).
+   Element bg is black (acts as the visible chamfered "border"); ::before
+   fills the interior with beige inset 2px so the black ring shows.
+   Hover deepens the beige one shade. */
+@layer utilities {
+  .btn-outline-cut-light {
+    position: relative;
+    isolation: isolate;
+    background: #000;
+    -webkit-clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+    clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+  }
+  .btn-outline-cut-light::before {
+    content: "";
+    position: absolute;
+    inset: 2px;
+    z-index: -1;
+    background: #dcd5c2;
+    -webkit-clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+    clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+    transition: background 150ms ease;
+  }
+  .btn-outline-cut-light:hover::before {
+    background: #c8c0a8;
+  }
+  .btn-outline-cut-light:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 2px var(--accent);
+  }
+}

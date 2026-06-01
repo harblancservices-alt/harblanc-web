@@ -16,7 +16,7 @@ export type AssetPath = string | null;
 export const assets = {
   // ---- Brand ----
   // Horizontal lockup for navbar/footer (readable at small sizes)
-  logoPrimary: "/brand/logo-horizontal.png" as AssetPath,
+  logoPrimary: "/brand/logo-newnew.png" as AssetPath,
   logoInverted: "/brand/logo-horizontal.png" as AssetPath,
   // Square badge mark — for tight square contexts (favicon source, etc.)
   logoCompact: "/brand/logo-mark.png" as AssetPath,

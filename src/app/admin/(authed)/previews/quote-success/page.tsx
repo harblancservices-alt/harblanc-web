@@ -38,8 +38,7 @@ export default function QuoteSuccessPreviewPage() {
           className="absolute inset-0 bg-gradient-to-b from-[#050505]/30 via-[#050505]/45 to-[#141414]/65"
         />
         <div className="relative mx-auto max-w-3xl px-4 pb-32 pt-16 sm:px-6 sm:pb-44 sm:pt-20 lg:px-8 lg:pb-52 lg:pt-24">
-          <div aria-hidden className="absolute bottom-0 left-[34px] top-0 w-px bg-green-500 sm:left-[46px] lg:left-[54px]" />
-<h1 className="flex items-center justify-center gap-4 text-center text-3xl font-display font-medium leading-[1.1] tracking-[-0.015em] text-white sm:text-4xl lg:text-5xl">
+          <h1 className="flex items-center justify-center gap-4 text-center text-3xl font-display font-medium leading-[1.1] tracking-[-0.015em] text-white sm:text-4xl lg:text-5xl">
             <span aria-hidden className="inline-block h-8 w-1.5 bg-green-500 sm:h-10 lg:h-12" />
             Request Received
           </h1>

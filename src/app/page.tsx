@@ -2,15 +2,16 @@ import Link from "next/link";
 import Image from "next/image";
 import { assets } from "@/lib/assets";
 import { company } from "@/lib/company";
+import { ServicesCarousel } from "@/components/home/ServicesCarousel";
+import { HeroVideo } from "@/components/home/HeroVideo";
 
 export default function Home() {
   return (
     <>
       <Hero />
-      <OpsBar />
+      <ProcessSteps />
       <Services />
-      <Operations />
-      <Process />
+      <ProcessSummary />
       <About />
       <Dispatch />
     </>
@@ -31,19 +32,13 @@ function Hero() {
   const heroVideo = assets.heroVideo;
   const heroImage = assets.heroImage;
   return (
-    <section className="relative isolate overflow-hidden border-b border-neutral-800 bg-neutral-950">
+    <section className="relative isolate overflow-hidden border-b-2 border-[#dcd5c2]/30 bg-neutral-950">
       {/* Background media — full bleed, focal point biased toward the road */}
       {heroVideo ? (
-        <video
+        <HeroVideo
           src={heroVideo}
           poster={assets.heroVideoPoster ?? undefined}
-          autoPlay
-          loop
-          muted
-          playsInline
-          preload="auto"
-          className="absolute inset-0 -z-10 h-full w-full object-cover"
-          style={{ objectPosition: "center 65%" }}
+          className="absolute inset-0 -z-10 h-full w-full object-cover object-[center_60%] sm:object-[center_65%]"
         />
       ) : heroImage ? (
         <Image
@@ -57,12 +52,14 @@ function Hero() {
         />
       ) : null}
 
-      {/* Flat dark wash — uniform, no gradient. Heavier on mobile for
-          readability, lighter on desktop so the footage still reads. */}
-      <div aria-hidden className="absolute inset-0 -z-10 bg-black/70 lg:bg-black/55" />
+      {/* Flat dark wash — lighter than before so the video reads
+          through on every breakpoint. Legibility comes from the
+          text-shadow on the headline/body, not from cranking overlay
+          opacity. */}
+      <div aria-hidden className="absolute inset-0 -z-10 bg-black/55 lg:bg-black/45" />
 
       {/* Content */}
-      <div className="mx-auto max-w-7xl px-4 py-24 sm:px-6 sm:py-32 lg:px-10 lg:py-40">
+      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-24 lg:px-10 lg:py-36">
         <div className="max-w-xl lg:max-w-2xl">
           {/* Eyebrow — small red bar + location line, IBM Plex Mono 400 */}
           <p className="flex items-center gap-3 font-mono text-[11px] tracking-[0.22em] text-red-500 uppercase">
@@ -72,7 +69,7 @@ function Hero() {
 
           {/* Headline — Inter Black (900); both lines white for contrast,
               tight industrial tracking, line 2 carries a leading red bar */}
-          <h1 className="mt-6 text-4xl font-display leading-[0.95] tracking-[-0.02em] text-white sm:text-5xl lg:text-6xl xl:text-7xl">
+          <h1 className="mt-5 text-4xl font-display leading-[0.95] tracking-[-0.02em] text-white [text-shadow:0_2px_14px_rgba(0,0,0,0.55)] sm:mt-6 sm:text-5xl lg:text-6xl xl:text-7xl">
             Freight, hauled
             <span className="mt-2 flex items-baseline gap-3 sm:gap-4">
               <span aria-hidden className="inline-block h-[0.6em] w-[6px] shrink-0 bg-red-600 sm:w-2" />
@@ -81,31 +78,32 @@ function Hero() {
           </h1>
 
           {/* Body */}
-          <p className="mt-7 max-w-lg text-base leading-relaxed text-neutral-200 sm:text-lg">
-            Licensed motor carrier running hotshot, expedited, equipment, and
-            general freight across the {company.serviceArea.toLowerCase()}.
-            Owner-operated dispatch. No broker layers, no auto-replies.
+          <p className="mt-6 max-w-lg text-[15px] leading-relaxed text-neutral-100 [text-shadow:0_1px_6px_rgba(0,0,0,0.5)] sm:mt-7 sm:text-lg">
+            Steel, pipe, equipment, and construction materials across
+            the lower 48. Owner-operated dispatch from quote to delivery.
           </p>
 
-          {/* CTAs — primary solid (heavier), secondary outlined.
-              Stacked full-width on mobile, intrinsic-width inline on desktop. */}
-          <div className="mt-10 flex flex-col gap-2.5 sm:flex-row sm:gap-3">
+          {/* CTAs — intrinsic width at every breakpoint (no full-width
+              blocky look on mobile), tighter mobile padding so the
+              hero doesn't read as a stack of oversized buttons.
+              Stacked + left-aligned on mobile, inline on sm+. */}
+          <div className="mt-8 flex flex-col items-center gap-2.5 sm:mt-10 sm:flex-row sm:items-start sm:gap-3">
             <Link
               href="/quote"
-              className="btn-cut inline-flex w-full items-center justify-center bg-red-600 px-8 py-4 text-sm font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-red-500 sm:w-auto"
+              className="btn-cut inline-flex items-center justify-center bg-red-600 px-6 py-3 text-[13px] font-bold uppercase tracking-[0.14em] text-white shadow-[inset_0_0_0_2px_#000] transition-colors hover:bg-red-500 sm:px-8 sm:py-4 sm:text-sm"
             >
               Request a Quote
             </Link>
             <a
               href={phoneHref}
-              className="btn-outline-cut inline-flex w-full items-center justify-center px-6 py-4 text-sm font-semibold uppercase tracking-[0.14em] text-white transition-colors sm:w-auto"
+              className="btn-outline-cut-light inline-flex items-center justify-center px-6 py-3 text-[13px] font-bold uppercase tracking-[0.14em] text-zinc-900 transition-colors sm:py-4 sm:text-sm"
             >
               Call Dispatch
             </a>
           </div>
 
           {/* Credentials row — IBM Plex Mono 400 */}
-          <dl className="mt-14 flex flex-wrap items-center gap-x-6 gap-y-2 font-mono text-[11px] tracking-[0.18em] uppercase">
+          <dl className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-2 font-mono text-[11px] tracking-[0.18em] uppercase sm:mt-14">
             <div className="flex items-baseline gap-2">
               <dt className="text-neutral-500">USDOT</dt>
               <dd className="text-white">{company.dotNumber}</dd>
@@ -127,42 +125,6 @@ function Hero() {
   );
 }
 
-/* ------------------------------- OPS BAR --------------------------------- */
-
-function OpsBar() {
-  const items: { label: string; main: string }[] = [
-    { label: "Response", main: "Time-Critical Freight" },
-    { label: "Dispatch", main: "Owner Operated" },
-    { label: "Authority", main: "Licensed & Insured" },
-    { label: "Service", main: "Reliable & Efficient" },
-  ];
-  return (
-    <section className="border-b border-neutral-900 bg-black">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <ul className="grid grid-cols-2 sm:grid-cols-4">
-          {items.map((item, i) => (
-            <li
-              key={item.label}
-              className={
-                "px-2 py-3 sm:px-4 sm:py-4 " +
-                (i > 0 ? "sm:border-l border-neutral-900 " : "") +
-                (i >= 2 ? "border-t border-neutral-900 sm:border-t-0 " : "")
-              }
-            >
-              <p className="font-mono text-[10px] tracking-[0.22em] text-red-500 uppercase">
-                {item.label}
-              </p>
-              <p className="mt-1 text-sm text-neutral-200 sm:text-base">
-                {item.main}
-              </p>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </section>
-  );
-}
-
 /* ------------------------------- SERVICES -------------------------------- */
 /*
  * Capability manifest — no intro, no row numbers.
@@ -176,76 +138,92 @@ type ServiceModule = {
   tagline: string;
   description: string;
   capabilities: string;
+  /** Placeholder photo for the carousel featured tile. Swap
+   *  these out for dedicated per-service photography when
+   *  available; today they reuse operations-strip images. */
+  photoSrc: string;
+  /** Optional carousel overrides — see ServicesCarousel for behavior. */
+  textPosition?: "top" | "top-third" | "bottom";
+  durationMs?: number;
 };
 
 const serviceModules: ServiceModule[] = [
   {
-    slug: "hotshot",
-    title: "Hotshot Hauling",
-    tagline: "Time-critical \u2022 Direct dispatch",
+    slug: "steel-pipe",
+    title: "Steel & Pipe",
+    tagline: "Flatbed \u2022 Strapped, chained, tarped",
     description:
-      "Time-critical loads on flatbeds, gooseneck, and lowboy trailers. Direct dispatch, fast turnaround, single point of contact from booking to BOL.",
-    capabilities: "Flatbeds \u00b7 Gooseneck \u00b7 Lowboy \u00b7 Same-day pickup",
+      "Coiled steel, pipe sections, and structural beams. Flatbed and gooseneck handling with strap, chain, and tarp coverage as the load requires.",
+    capabilities: "Flatbed \u00b7 Gooseneck \u00b7 Oversized \u00b7 Permits",
+    photoSrc: "/brand/operations/pipe-stop-sign-turbines.jpg",
+    textPosition: "top-third",
+    durationMs: 6000,
+  },
+  {
+    slug: "construction-materials",
+    title: "Construction Materials",
+    tagline: "Site deliveries \u2022 Scheduled drops",
+    description:
+      "Site deliveries for active jobs. Scheduled drops, contractor coordination, paperwork on completion.",
+    capabilities: "Aggregates \u00b7 Lumber \u00b7 Rebar \u00b7 Precast",
+    photoSrc: "/brand/operations/ocala-crates.jpg",
+  },
+  {
+    slug: "heavy-equipment",
+    title: "Heavy Equipment",
+    tagline: "Lowboy \u2022 Permits \u2022 Pilot cars",
+    description:
+      "Construction and agricultural equipment moves. Permits, routing, and pilot cars handled in-house.",
+    capabilities: "Lowboy \u00b7 Pilot cars \u00b7 Route planning \u00b7 Heavy equipment",
+    photoSrc: "/brand/operations/rig-loaded-promaster.jpg",
+    durationMs: 6000,
   },
   {
     slug: "expedited",
     title: "Expedited Freight",
-    tagline: "No stops \u2022 No delays",
+    tagline: "Hot loads \u2022 Hard deadlines",
     description:
-      "When the load can't wait. Tight pickup windows, hard delivery deadlines, single driver running it through with status updates en route.",
+      "Tight pickup windows and hard delivery deadlines. Single driver through-runs with status updates en route.",
     capabilities: "Hot loads \u00b7 Hard deadlines \u00b7 Driver direct \u00b7 Through-run",
-  },
-  {
-    slug: "equipment",
-    title: "Equipment Hauling",
-    tagline: "Oversized \u2022 Permits \u2022 Routing",
-    description:
-      "Construction equipment, machinery, agricultural gear, and oversized loads. Permits and routing handled. Pilot cars arranged when required.",
-    capabilities: "Oversized loads \u00b7 Permit handling \u00b7 Route planning \u00b7 Heavy equipment",
+    photoSrc: "/brand/operations/IMG_0264.JPG",
   },
   {
     slug: "general",
     title: "General Freight",
-    tagline: "Reliable \u2022 Efficient \u2022 Nationwide",
+    tagline: "Dry van \u2022 LTL & FTL",
     description:
-      "Standard freight at a fair rate. Reliable scheduling, clean handling, paperwork done right. Lower 48 coverage with on-time delivery.",
+      "Dry van and LTL/FTL across the lower 48. Scheduled pickup, clean handling, paperwork on completion.",
     capabilities: "Dry van \u00b7 LTL & FTL \u00b7 Lower 48 \u00b7 On-time delivery",
+    photoSrc: "/brand/operations/rig-pipe-dirt-road.jpg",
+    textPosition: "top-third",
+    durationMs: 6000,
   },
 ];
 
 function Services() {
   return (
-    <section id="services" className="border-b border-neutral-900 scroll-mt-16">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <ul className="divide-y divide-neutral-900">
-          {serviceModules.map((mod) => (
-            <ServiceRow key={mod.slug} module={mod} />
-          ))}
-        </ul>
+    <section id="services" className="border-b-2 border-[#dcd5c2]/30 bg-[#141414] scroll-mt-16">
+      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8 lg:py-16">
+        <ServicesCarousel services={serviceModules} />
       </div>
     </section>
   );
 }
 
-function ServiceRow({ module }: { module: ServiceModule }) {
-  return (
-    <li className="py-8 sm:py-10">
-      <h3 className="font-display text-2xl uppercase leading-[1.05] tracking-tight text-white sm:text-3xl">
-        {module.title}
-      </h3>
-      <p className="mt-2 font-mono text-[11px] tracking-[0.22em] text-red-500/70 uppercase">
-        {module.capabilities}
-      </p>
-      <p className="mt-3 max-w-xl text-sm leading-relaxed text-neutral-400 sm:text-base">
-        {module.description}
-      </p>
-    </li>
-  );
-}
+/* ----------------------------- PROCESS STEPS ----------------------------- */
 
-/* -------------------------------- PROCESS -------------------------------- */
-
-function Process() {
+/**
+ * ProcessSteps — the 4-card horizontal checkpoint route, lifted out of
+ * the old combined Process section so it can sit directly under the
+ * Hero. The "Simple process, submit in under 60 seconds" headline +
+ * Request a Quote CTA now live in ProcessSummary below the Services
+ * carousel, so it functions as the closing CTA of the process/services
+ * arc rather than the introduction.
+ *
+ * Surface is bg-neutral-950 with a beige hairline seam at the bottom —
+ * unchanged from when this lived inside Process().
+ */
+function ProcessSteps() {
   const steps = [
     {
       num: "01",
@@ -275,115 +253,88 @@ function Process() {
   return (
     <section
       id="process"
-      className="border-b border-neutral-900 bg-neutral-950 scroll-mt-16"
+      className="border-b-2 border-[#dcd5c2]/30 bg-neutral-950 scroll-mt-16"
     >
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <header className="py-5 lg:py-7">
-          <div className="grid items-center gap-x-10 gap-y-4 lg:grid-cols-12">
-            <div className="lg:col-span-7">
-              <p className="text-2xl font-display tracking-tight text-white sm:text-3xl lg:text-right">
-                Simple process, submit in under 60 seconds
-              </p>
-            </div>
-            {/* Nested 2-col grid mirrors the Dispatch CTA row below so the
-                Process button aligns horizontally with the red Dispatch
-                button. Only the first cell is filled; the right cell stays
-                intentionally empty. */}
-            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:col-span-5">
-              <Link
-                href="/quote"
-                className="btn-cut block bg-red-600 px-6 py-3 text-center text-sm font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-red-500"
+      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-14 lg:px-8">
+        <div className="relative">
+          <ol className="grid grid-cols-1 gap-8 sm:grid-cols-4 sm:gap-4 lg:gap-6">
+            {steps.map((step) => (
+              <li
+                key={step.num}
+                className="relative flex flex-col items-center gap-3 text-center"
               >
-                Request a Quote
-              </Link>
-            </div>
-          </div>
-        </header>
-
-        <ol className="grid grid-cols-1 border-t border-neutral-900 sm:grid-cols-2 lg:grid-cols-4">
-          {steps.map((step, i) => (
-            <li
-              key={step.num}
-              className={
-                "py-8 sm:px-6 lg:px-8 lg:py-10 " +
-                (i > 0 ? "border-t border-neutral-900 sm:border-l " : "") +
-                (i === 1 || i === 3 ? "sm:border-t-0 " : "") +
-                (i >= 2 ? "lg:border-t-0 " : "")
-              }
-            >
-              <p className="font-mono text-xs text-neutral-500">{step.num}</p>
-              <h3 className="mt-2 text-lg font-display uppercase tracking-tight text-white sm:text-xl">
-                {step.title}
-              </h3>
-              <p className="mt-2 text-sm leading-relaxed text-neutral-400">
-                {step.body}
-              </p>
-            </li>
-          ))}
-        </ol>
+                {/* Card above — beige fill, black text, red bottom accent */}
+                <div className="card-cut flex w-full flex-1 flex-col border border-black/30 border-b-4 border-b-red-600 bg-[#dcd5c2] p-5 sm:p-6">
+                  <h3 className="font-display text-lg font-bold uppercase tracking-tight text-black sm:text-xl">
+                    {step.title}
+                  </h3>
+                  <p className="mt-2 text-sm leading-relaxed text-zinc-700">
+                    {step.body}
+                  </p>
+                </div>
+                {/* Drop connector (sm+ only) — visual link from card to marker */}
+                <div
+                  aria-hidden
+                  className="hidden h-4 w-px bg-red-600 sm:block"
+                />
+                {/* Numbered marker — sits on the horizontal spine */}
+                <div className="relative z-10 flex h-10 w-10 items-center justify-center rounded-full border-2 border-red-600 bg-[#0a0a0a]">
+                  <span className="font-mono text-sm font-bold text-white">
+                    {step.num}
+                  </span>
+                </div>
+              </li>
+            ))}
+          </ol>
+          {/* Horizontal red spine — hits the marker centers. bottom-5 =
+              20px = half of the 40px (h-10) marker. The spine extends
+              edge-to-edge of the grid; the marker fills sit on top of
+              it at each column center, visually capping the line. */}
+          <div
+            aria-hidden
+            className="absolute bottom-5 left-0 right-0 hidden h-[2px] bg-red-600 sm:block"
+          />
+        </div>
       </div>
     </section>
   );
 }
 
-/* ------------------------------ OPERATIONS ------------------------------- */
-/*
- * Restrained operational proof strip. Four real-load photos with small
- * font-mono labels — no captions doing marketing work, no carousel, no
- * lifestyle cards. Photos carry the section; copy stays out of the way.
+/* ---------------------------- PROCESS SUMMARY ---------------------------- */
+
+/**
+ * ProcessSummary — the "Simple process, submit in under 60 seconds"
+ * headline paired with the Request a Quote CTA. Sits below the Services
+ * carousel so it acts as the closing CTA for the process/services arc:
+ *   ProcessSteps  →  Services  →  ProcessSummary (CTA)  →  About
+ *
+ * No longer sticky on mobile — when this block intro'd the steps the
+ * sticky pin kept the CTA in view while scrolling the route, but in
+ * its new role as a closing CTA the sticky behavior would pin the
+ * headline across the About section, which reads as off-topic.
  */
-
-type OpsPhoto = { src: string; caption: string };
-
-const opsPhotos: OpsPhoto[] = [
-  {
-    src: "/brand/operations/rig-loaded-promaster.jpg",
-    caption: "Loaded gooseneck",
-  },
-  {
-    src: "/brand/operations/ocala-crates.jpg",
-    caption: "Secured freight",
-  },
-  {
-    src: "/brand/operations/pipe-stop-sign-turbines.jpg",
-    caption: "Equipment move",
-  },
-  {
-    src: "/brand/operations/rig-pipe-dirt-road.jpg",
-    caption: "Road-ready",
-  },
-];
-
-function Operations() {
+function ProcessSummary() {
   return (
     <section
-      id="operations"
-      className="border-y border-neutral-800 bg-neutral-950"
+      id="quote-cta"
+      className="border-b-2 border-[#dcd5c2]/30 bg-neutral-950"
     >
-      {/* Contained strip — same gutter as Services / Process / Company.
-          No eyebrow, no heading, no captions. The photos do the work and
-          the strip reads as a transition between Services and Process. */}
-      <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8 lg:py-4">
-        <h2 className="sr-only">Operational photos</h2>
-        <ul
-          aria-label="Recent freight and equipment hauls"
-          className="grid grid-cols-2 gap-[2px] lg:grid-cols-4"
-        >
-          {opsPhotos.map((photo) => (
-            <li
-              key={photo.src}
-              className="relative h-40 overflow-hidden sm:h-52 lg:h-56"
-            >
-              <Image
-                src={photo.src}
-                alt=""
-                fill
-                sizes="(min-width: 1024px) 22vw, 45vw"
-                className="object-cover brightness-95 contrast-105"
-              />
-            </li>
-          ))}
-        </ul>
+      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-12 lg:px-8 lg:py-14">
+        {/* Closing CTA — headline on top, button below, both centered.
+            Replaces the earlier 7/5 split that had the headline drifting
+            left while the button anchored right; the centered stack reads
+            tighter and matches its new role as a focused call to action. */}
+        <div className="flex flex-col items-center gap-5 text-center">
+          <p className="font-display text-2xl tracking-tight text-white sm:text-3xl">
+            Simple process, submit in under 60 seconds
+          </p>
+          <Link
+            href="/quote"
+            className="btn-cut inline-block bg-red-600 px-8 py-3 text-sm font-bold uppercase tracking-[0.14em] text-white shadow-[inset_0_0_0_2px_#000] transition-colors hover:bg-red-500"
+          >
+            Request a Quote
+          </Link>
+        </div>
       </div>
     </section>
   );
@@ -395,7 +346,7 @@ function About() {
   return (
     <section
       id="about"
-      className="relative isolate overflow-hidden border-b border-neutral-800 scroll-mt-16"
+      className="relative isolate overflow-hidden border-b-2 border-[#dcd5c2]/30 scroll-mt-16"
     >
       {/* Full-bleed background — aerial follow-shot of the carrier on route.
           Y-bias keeps the trailer in frame on widescreen crops and lets the
@@ -421,29 +372,19 @@ function About() {
           settles into the composition instead of floating at the top. */}
       <div className="mx-auto max-w-7xl px-4 pt-24 pb-14 sm:px-6 sm:pt-32 sm:pb-20 lg:px-8 lg:pt-44 lg:pb-24">
         <div className="max-w-xl">
-          <p className="font-mono text-[11px] tracking-[0.22em] text-red-500 uppercase">
-            Company
-          </p>
-          <h2 className="mt-4 text-4xl font-display tracking-tight text-white sm:text-5xl">
+          <h2 className="text-4xl font-display tracking-tight text-white sm:text-5xl">
             The carrier.
           </h2>
           <div className="mt-8 space-y-5 text-base leading-relaxed text-neutral-200 lg:text-lg">
             <p>
-              {company.legalName} is a licensed motor carrier moving hotshot,
-              expedited, equipment, and general freight across the
-              contiguous United States.
-            </p>
-            <p>
-              We run dispatch directly. When customers call, they reach the
-              people moving the load &mdash; not a brokerage call center.
-              Quotes are direct. Pricing is honest. We don&apos;t bid loads
-              against ghost competitors or layer markups on top of capacity
-              we don&apos;t own.
+              {company.legalName} is an owner-operated motor carrier serving
+              industrial and construction freight customers across the
+              lower 48.
             </p>
             <p>
               Equipment confirmed at quote. Pickup windows held to a stated
-              time. Status updated by the driver. Paperwork delivered on
-              completion. That&apos;s the job.
+              time. Status updated during transit. Paperwork delivered on
+              completion.
             </p>
           </div>
 
@@ -476,31 +417,28 @@ function Spec({ label, value }: { label: string; value: string }) {
 
 function Dispatch() {
   return (
-    <section className="border-b border-neutral-800 bg-neutral-950">
+    <section className="border-b-2 border-[#dcd5c2]/30 bg-[#141414]">
       <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
         <div className="grid items-end gap-x-12 gap-y-8 lg:grid-cols-12">
           <div className="lg:col-span-7">
-            <p className="font-mono text-[11px] tracking-[0.22em] text-red-500 uppercase">
-              Dispatch
-            </p>
-            <h2 className="mt-4 text-4xl font-display tracking-tight text-white sm:text-5xl lg:text-6xl">
+            <h2 className="text-4xl font-display tracking-tight text-white sm:text-5xl lg:text-6xl">
               Got a load?
             </h2>
             <p className="mt-5 max-w-2xl text-base leading-relaxed text-neutral-400 sm:text-lg">
-              Pickup, delivery, weight, equipment. That&apos;s all dispatch
-              needs to send back a quote.
+              Pickup, delivery, weight, equipment &mdash; that&apos;s all
+              dispatch needs to send a quote back.
             </p>
           </div>
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:col-span-5">
             <Link
               href="/quote"
-              className="btn-cut block bg-red-600 px-6 py-4 text-center text-sm font-semibold uppercase tracking-[0.14em] text-white transition-colors hover:bg-red-500"
+              className="btn-cut block bg-red-600 px-6 py-4 text-center text-sm font-bold uppercase tracking-[0.14em] text-white shadow-[inset_0_0_0_2px_#000] transition-colors hover:bg-red-500"
             >
               Request a Quote
             </Link>
             <a
               href={phoneHref}
-              className="btn-outline-cut block px-6 py-4 text-center text-sm font-semibold uppercase tracking-[0.14em] text-white transition-colors"
+              className="btn-outline-cut-light block px-6 py-4 text-center text-sm font-bold uppercase tracking-[0.14em] text-zinc-900 transition-colors"
             >
               Call Dispatch
             </a>

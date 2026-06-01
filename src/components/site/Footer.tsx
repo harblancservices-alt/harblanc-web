@@ -6,60 +6,57 @@ export function Footer() {
   const year = new Date().getFullYear();
 
   return (
-    <footer className="border-t border-neutral-800 bg-neutral-950">
-      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
-          <div className="lg:col-span-2">
-            <Link
-              href="/"
-              className="inline-flex items-center"
-              aria-label={`${company.legalName} home`}
-            >
-              <BrandLogo variant="inverted" className="h-16 w-auto" />
-            </Link>
-            <p className="mt-4 max-w-md text-sm leading-relaxed text-neutral-400">
-              Licensed motor carrier. Hotshot, expedited, equipment, and
-              general freight across the lower 48. Owner-operated dispatch.
-            </p>
-          </div>
+    <footer className="border-t-2 border-[#dcd5c2]/30 bg-neutral-950">
+      <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-16">
+        {/* Logo — centered as the footer’s visual anchor. Bumped from
+            h-16 to h-20/h-24 so it carries the top of the block rather
+            than sitting as a corner mark. */}
+        <div className="flex justify-center">
+          <Link
+            href="/"
+            aria-label={`${company.legalName} home`}
+            className="inline-flex items-center"
+          >
+            <BrandLogo variant="inverted" className="h-20 w-auto sm:h-24" />
+          </Link>
+        </div>
 
+        {/* Link columns — centered as a pair below the logo. Mobile
+            stacks them and centers the type; sm+ puts them side by
+            side, left-aligned within each column, centered as a unit
+            via justify-center. Wider gaps (24/32) keep them from
+            crowding now that the type is larger. */}
+        <div className="mt-12 flex flex-col items-center gap-10 text-center sm:flex-row sm:items-start sm:justify-center sm:gap-24 sm:text-left lg:gap-32">
           <div>
-            <h3 className="font-mono text-[10px] tracking-[0.22em] text-neutral-500 uppercase">
+            <h3 className="font-mono text-xs font-bold uppercase tracking-[0.22em] text-neutral-400">
               Site
             </h3>
-            <ul className="mt-4 space-y-2.5 text-sm">
+            <ul className="mt-5 space-y-3">
               <li>
-                <Link href="/" className="text-neutral-300 hover:text-white">
+                <Link href="/" className="text-[15px] font-semibold uppercase tracking-[0.1em] text-neutral-300 hover:text-white">
                   Home
                 </Link>
               </li>
               <li>
-                <Link href="/#services" className="text-neutral-300 hover:text-white">
+                <Link
+                  href="/#services"
+                  className="text-[15px] font-semibold uppercase tracking-[0.1em] text-neutral-300 hover:text-white"
+                >
                   Services
-                </Link>
-              </li>
-              <li>
-                <Link href="/#process" className="text-neutral-300 hover:text-white">
-                  Process
-                </Link>
-              </li>
-              <li>
-                <Link href="/quote" className="text-neutral-300 hover:text-white">
-                  Request a Quote
                 </Link>
               </li>
             </ul>
           </div>
 
           <div>
-            <h3 className="font-mono text-[10px] tracking-[0.22em] text-neutral-500 uppercase">
+            <h3 className="font-mono text-xs font-bold uppercase tracking-[0.22em] text-neutral-400">
               Dispatch
             </h3>
-            <ul className="mt-4 space-y-2.5 text-sm">
+            <ul className="mt-5 space-y-3">
               <li>
                 <a
                   href={`mailto:${company.dispatchEmail}`}
-                  className="text-neutral-300 hover:text-white break-all"
+                  className="text-[15px] font-semibold uppercase tracking-[0.1em] text-neutral-300 hover:text-white break-all"
                 >
                   {company.dispatchEmail}
                 </a>
@@ -67,22 +64,25 @@ export function Footer() {
               <li>
                 <a
                   href={`tel:${company.dispatchPhone.replace(/[^\d+]/g, "")}`}
-                  className="text-neutral-300 hover:text-white"
+                  className="text-[15px] font-semibold uppercase tracking-[0.1em] text-neutral-300 hover:text-white"
                 >
                   {company.dispatchPhone}
                 </a>
               </li>
-              <li className="pt-3 font-mono text-xs text-neutral-500">
+              <li className="pt-3 font-mono text-sm text-neutral-400">
                 USDOT {company.dotNumber}
               </li>
-              <li className="font-mono text-xs text-neutral-500">
+              <li className="font-mono text-sm text-neutral-400">
                 MC {company.mcNumber}
               </li>
             </ul>
           </div>
         </div>
 
-        <div className="mt-12 flex flex-col items-start justify-between gap-2 border-t border-neutral-800 pt-6 text-xs text-neutral-500 sm:flex-row sm:items-center">
+        {/* Bottom row — copyright + authority line. Bumped from text-xs
+            text-neutral-500 to text-sm text-neutral-400 so the legal
+            line stays readable instead of dissolving into the surface. */}
+        <div className="mt-14 flex flex-col items-center justify-between gap-3 border-t border-neutral-800 pt-6 text-sm text-neutral-400 sm:flex-row sm:items-center">
           <p>
             &copy; {year} {company.legalName}. All rights reserved.
           </p>

@@ -53,7 +53,16 @@ export default function AdminPreviewsPage() {
   const bol = renderBolEmail(SAMPLE_BOL_PAYLOAD);
 
   const targets: PreviewTarget[] = [
-        {
+    {
+      kind: "route",
+      classification: "customer_page",
+      id: "home",
+      title: "Home / landing page",
+      subtitle:
+        "Public-facing landing page at /. Renders the real Home component along with the public Navbar and Footer so the operator sees what a first-time visitor would. No forms - preview is read-only by nature.",
+      route: "/admin/previews/home",
+    },
+    {
       kind: "route",
       classification: "customer_page",
       id: "quote",

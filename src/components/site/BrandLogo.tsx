@@ -30,8 +30,8 @@ export function BrandLogo({
       <Image
         src={src}
         alt={company.legalName}
-        width={480}
-        height={144}
+        width={1306}
+        height={336}
         priority={priority}
         className={className}
       />
