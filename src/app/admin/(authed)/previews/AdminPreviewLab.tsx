@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 
 /**
  * Admin Preview Lab — read-only viewer.
@@ -117,6 +118,22 @@ export function AdminPreviewLab({
 
   return (
     <div>
+      {/* Lab tabs — Standard (this page) + Previews 2 (email comparison) */}
+      <nav
+        aria-label="Preview lab tabs"
+        className="mb-3 flex items-stretch border border-zinc-300 bg-white"
+      >
+        <span className="flex items-center gap-2 border-r border-zinc-300 bg-red-600 px-4 py-2.5 font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-white">
+          <span aria-hidden className="inline-block h-3 w-1 bg-white" />
+          Standard previews
+        </span>
+        <Link
+          href="/admin/previews-2"
+          className="flex items-center gap-2 px-4 py-2.5 font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-red-700"
+        >
+          Previews 2 &middot; email uniformity lab &rarr;
+        </Link>
+      </nav>
       <p className="mb-4 flex items-center gap-2 border border-zinc-300 bg-zinc-100 px-3 py-2 font-mono text-[11px] uppercase tracking-[0.12em] text-black">
         <span
           aria-hidden
@@ -206,7 +223,7 @@ export function AdminPreviewLab({
  * they remain readable after the scale transform.
  */
 const MOBILE_FRAME_WIDTH = 402;
-const DESKTOP_FRAME_WIDTH = 1280;
+const DESKTOP_FRAME_WIDTH = 1920;
 const FRAME_GAP = 64;
 const PAIR_NATIVE_WIDTH =
   MOBILE_FRAME_WIDTH + FRAME_GAP + DESKTOP_FRAME_WIDTH;

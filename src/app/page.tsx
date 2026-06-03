@@ -2,8 +2,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { assets } from "@/lib/assets";
 import { company } from "@/lib/company";
-import { ServicesCarousel } from "@/components/home/ServicesCarousel";
 import { HeroVideo } from "@/components/home/HeroVideo";
+import { ServicesShowcase } from "@/components/home/ServicesShowcase";
 
 export default function Home() {
   return (
@@ -154,7 +154,7 @@ const serviceModules: ServiceModule[] = [
     description:
       "Coiled steel, pipe sections, and structural beams. Flatbed and gooseneck handling with strap, chain, and tarp coverage as the load requires.",
     capabilities: "Flatbed \u00b7 Gooseneck \u00b7 Oversized \u00b7 Permits",
-    photoSrc: "/brand/operations/pipe-stop-sign-turbines.jpg",
+    photoSrc: "/brand/666.png",
     textPosition: "top-third",
     durationMs: 6000,
   },
@@ -165,7 +165,7 @@ const serviceModules: ServiceModule[] = [
     description:
       "Site deliveries for active jobs. Scheduled drops, contractor coordination, paperwork on completion.",
     capabilities: "Aggregates \u00b7 Lumber \u00b7 Rebar \u00b7 Precast",
-    photoSrc: "/brand/operations/ocala-crates.jpg",
+    photoSrc: "/brand/enhanced2.png",
   },
   {
     slug: "heavy-equipment",
@@ -174,7 +174,7 @@ const serviceModules: ServiceModule[] = [
     description:
       "Construction and agricultural equipment moves. Permits, routing, and pilot cars handled in-house.",
     capabilities: "Lowboy \u00b7 Pilot cars \u00b7 Route planning \u00b7 Heavy equipment",
-    photoSrc: "/brand/operations/rig-loaded-promaster.jpg",
+    photoSrc: "/brand/enhanced3.png",
     durationMs: 6000,
   },
   {
@@ -184,7 +184,7 @@ const serviceModules: ServiceModule[] = [
     description:
       "Tight pickup windows and hard delivery deadlines. Single driver through-runs with status updates en route.",
     capabilities: "Hot loads \u00b7 Hard deadlines \u00b7 Driver direct \u00b7 Through-run",
-    photoSrc: "/brand/operations/IMG_0264.JPG",
+    photoSrc: "/brand/enhanced5.png",
   },
   {
     slug: "general",
@@ -193,7 +193,7 @@ const serviceModules: ServiceModule[] = [
     description:
       "Dry van and LTL/FTL across the lower 48. Scheduled pickup, clean handling, paperwork on completion.",
     capabilities: "Dry van \u00b7 LTL & FTL \u00b7 Lower 48 \u00b7 On-time delivery",
-    photoSrc: "/brand/operations/rig-pipe-dirt-road.jpg",
+    photoSrc: "/brand/enhanced4.png",
     textPosition: "top-third",
     durationMs: 6000,
   },
@@ -201,9 +201,84 @@ const serviceModules: ServiceModule[] = [
 
 function Services() {
   return (
-    <section id="services" className="border-b-2 border-[#dcd5c2]/30 bg-[#141414] scroll-mt-16">
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8 lg:py-16">
-        <ServicesCarousel services={serviceModules} />
+    <section
+      id="services"
+      className="border-b-2 border-[#dcd5c2]/30 bg-black scroll-mt-16"
+    >
+
+      {/* ── MOBILE (<sm) ──────────────────────────────────────────
+          Existing mobile layout preserved as-is, just wrapped in a
+          sm:hidden container so the desktop branch can have its own
+          wider max-width without breaking mobile. */}
+      <div className="mx-auto max-w-6xl px-4 sm:hidden">
+        {/* Mobile photo tiles — each row is a full-bleed photo tile with
+            title + chevron overlay. */}
+        <ul className="space-y-1">
+          {serviceModules.map((svc) => {
+            // Steel & Pipe (tile 1) and Expedited Freight (tile 4) get
+            // their overlay anchored TOP-left instead of bottom-left.
+            // Photo composition for those two reads better with text up top.
+            const overlayTop =
+              svc.slug === "steel-pipe" || svc.slug === "expedited";
+            return (
+              <li key={svc.slug}>
+                <Link href="/quote" className="group/row block">
+                  <div className="relative aspect-[16/9] w-full overflow-hidden bg-black">
+                    <Image
+                      src={svc.photoSrc}
+                      alt=""
+                      fill
+                      sizes="100vw"
+                      className="object-cover"
+                    />
+                    {/* Gradient flips with overlay position — dark mass
+                        on whichever edge the text sits, transparent
+                        toward the photo so the freight stays visible. */}
+                    <div
+                      aria-hidden
+                      className={
+                        overlayTop
+                          ? "absolute inset-0 bg-gradient-to-b from-black via-black/45 to-transparent"
+                          : "absolute inset-0 bg-gradient-to-t from-black via-black/45 to-transparent"
+                      }
+                    />
+                    <div
+                      className={
+                        overlayTop
+                          ? "absolute inset-x-0 top-0 px-5 pt-5"
+                          : "absolute inset-x-0 bottom-0 px-5 pb-5"
+                      }
+                    >
+                      <div className="flex items-baseline justify-between gap-3">
+                        <p className="font-display text-xl font-black uppercase tracking-tight text-white">
+                          {svc.title}
+                        </p>
+                        <span
+                          aria-hidden
+                          className="font-mono text-xl font-bold text-red-500"
+                        >
+                          &rsaquo;
+                        </span>
+                      </div>
+                      <div
+                        aria-hidden
+                        className="mt-3 h-[2px] w-12 bg-red-500"
+                      />
+                    </div>
+                  </div>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+
+      </div>
+
+      {/* ── DESKTOP (sm+) ──────────────────────────────────────────
+          New freight-first chapter showcase. Wider max-width (1400px)
+          so the hero photo can be ~600px tall at full breakpoint. */}
+      <div className="mx-auto hidden max-w-[1500px] px-4 py-6 sm:block sm:px-6 sm:py-8">
+        <ServicesShowcase services={serviceModules} />
       </div>
     </section>
   );
@@ -359,26 +434,20 @@ function About() {
   return (
     <section
       id="about"
-      className="relative isolate overflow-hidden border-b-2 border-[#dcd5c2]/30 scroll-mt-16 min-h-[600px] lg:min-h-[680px]"
+      className="relative isolate overflow-hidden border-b-2 border-[#dcd5c2]/30 scroll-mt-16 min-h-[500px] lg:min-h-[680px]"
     >
-      {/* LAYER 1 - Full-bleed truck photo. The photo IS the section.
-          src points at the lossless Overhead.png master (same 1920x1080
-          as about-bg.jpg) so Next/Image re-encodes without stacking
-          JPEG-on-JPEG artifacts. priority avoids the LQIP placeholder
-          delay. Mirrored on the X axis so the truck mass sits on the
-          visible right half of the viewport; small filter tweak adds
-          a touch of contrast/saturation so the photo reads crisper. */}
+      {/* LAYER 1 - Full-bleed AI-extended aerial photo. The wider source
+          (base-field-truck.png) means object-cover crops gracefully on
+          every viewport without dropping the truck out of frame. */}
       <Image
-        src="/brand/Overhead.png"
+        src="/brand/base-field-truck.png"
         alt=""
         fill
         priority
         sizes="100vw"
-        className="object-cover"
+        className="object-cover object-[60%_45%] lg:object-[55%_55%]"
         style={{
-          objectPosition: "70% 82%",
-          transform: "scaleX(-1)",
-          filter: "contrast(1.08) saturate(1.12) brightness(1.04)",
+          filter: "contrast(1.08) saturate(1.14) brightness(1.04)",
         }}
         quality={92}
       />
@@ -396,7 +465,7 @@ function About() {
       />
 
       {/* LAYER 2b - Mobile flat dark wash for full legibility. */}
-      <div aria-hidden className="absolute inset-0 bg-black/70 lg:hidden" />
+      <div aria-hidden className="absolute inset-0 bg-black/50 lg:hidden" />
 
       {/* LAYER 2c - Subtle bottom fade for CTA readability. Sits behind the
           CTA band and gives buttons + heading a soft dark backing without
@@ -412,7 +481,7 @@ function About() {
 
       {/* LAYER 3 - Content column. Flex column so the top region grows
           and the CTA band overlay pins to the bottom of the section. */}
-      <div className="relative z-10 flex min-h-[600px] flex-col lg:min-h-[680px]">
+      <div className="relative z-10 flex min-h-[500px] flex-col lg:min-h-[680px]">
 
         {/* TOP: Carrier text overlay, vertically centered, anchored LEFT */}
         <div className="flex flex-1 items-center">
