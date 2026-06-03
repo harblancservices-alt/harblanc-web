@@ -376,7 +376,7 @@ function About() {
         sizes="100vw"
         className="object-cover"
         style={{
-          objectPosition: "70% 50%",
+          objectPosition: "70% 82%",
           transform: "scaleX(-1)",
           filter: "contrast(1.08) saturate(1.12) brightness(1.04)",
         }}
