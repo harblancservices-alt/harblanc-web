@@ -7,6 +7,7 @@ import {
   SAMPLE_INTAKE_DEFAULTS,
   SAMPLE_INTAKE_HEADER,
 } from "@/lib/preview/sample-data";
+import { Footer } from "@/components/site/Footer";
 
 /**
  * Confirm Shipment Details — preview-only route.
@@ -94,14 +95,14 @@ export default function ConfirmShipmentPreviewPage() {
               aria-hidden
               className="absolute -bottom-7 left-0 -top-10 w-1 bg-green-500 sm:-top-14 lg:-top-16"
             />
-            <p className="flex items-center justify-center gap-2 font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-red-600">
+            <p className="flex items-center justify-center gap-2 font-mono text-[11px] tracking-[0.22em] text-red-500 uppercase">
               <span aria-hidden className="inline-block h-3 w-1 bg-red-600" />
               Shipment finalization
             </p>
             <h1 className="mt-3 text-center text-3xl font-display leading-[1.05] tracking-[-0.02em] text-white sm:text-4xl lg:text-5xl">
               Confirm Shipment Details
             </h1>
-            <p className="mx-auto mt-4 max-w-2xl text-center text-base leading-relaxed text-zinc-300 sm:text-lg">
+            <p className="mx-auto mt-4 max-w-2xl text-center text-base leading-relaxed text-white sm:text-lg">
               Providing accurate shipment details helps dispatch confirm the
               correct equipment, timing, and final rate before scheduling.
             </p>
@@ -123,9 +124,9 @@ export default function ConfirmShipmentPreviewPage() {
                 {SAMPLE_INTAKE_HEADER.deliveryCity},{" "}
                 {SAMPLE_INTAKE_HEADER.deliveryState}
               </span>
-              <span className="mt-1 block font-mono text-[11px] text-zinc-500 tabular-nums">
+              <span className="mt-1 block font-mono text-[11px] text-white tabular-nums">
                 {SAMPLE_INTAKE_HEADER.pickupZip}
-                <span aria-hidden className="mx-1.5 text-zinc-600">
+                <span aria-hidden className="mx-1.5 text-red-600">
                   &rarr;
                 </span>
                 {SAMPLE_INTAKE_HEADER.deliveryZip}
@@ -145,19 +146,13 @@ export default function ConfirmShipmentPreviewPage() {
 
           <div className="mt-6 flex flex-col gap-3 border-l-2 border-l-neutral-600 bg-[#161616] p-4 shadow-[0_6px_18px_-6px_rgba(0,0,0,0.55)] sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-400">
+              <p className="font-mono text-[10px] tracking-[0.22em] text-white uppercase">
                 Need dispatch help?
-              </p>
-              <p className="mt-1 text-sm leading-relaxed text-zinc-200">
-                Talk it over with dispatch before locking in.{" "}
-                <span className="font-medium text-zinc-100 tabular-nums">
-                  {company.dispatchPhone}
-                </span>
               </p>
             </div>
             <a
               href={phoneHref}
-              className="btn-cut inline-flex items-center justify-center gap-2 whitespace-nowrap border border-red-600 bg-zinc-800 px-6 py-3 font-mono text-base font-bold uppercase tracking-[0.14em] text-white transition-colors hover:bg-zinc-700 sm:shrink-0 sm:text-lg"
+              className="btn-outline-cut-light inline-flex items-center justify-center gap-2 whitespace-nowrap px-6 py-3 text-base font-bold uppercase tracking-[0.14em] text-white transition-colors sm:shrink-0 sm:text-lg"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -210,32 +205,15 @@ export default function ConfirmShipmentPreviewPage() {
 
           <div className="mt-8 flex flex-col items-center gap-5 text-center">
             <div className="flex flex-col items-center gap-4">
-              <a href={phoneHref} className="btn-cut mt-3 inline-flex min-w-[240px] items-center justify-center whitespace-nowrap border border-red-600 bg-zinc-800 px-6 py-3 font-mono text-base font-bold tabular-nums uppercase tracking-[0.14em] text-white transition-colors hover:bg-zinc-700 sm:text-lg">
+              <a href={phoneHref} className="btn-outline-cut-light mt-3 inline-flex min-w-[240px] items-center justify-center whitespace-nowrap px-6 py-3 text-base font-bold tabular-nums uppercase tracking-[0.14em] text-white transition-colors sm:text-lg">
                 <span>{company.dispatchPhone.replace(/[^\d]/g, "").replace(/(\d{3})(\d{3})(\d{4})/, "($1) $2-$3")}</span>
               </a>
-              <a href={`mailto:${company.dispatchEmail}`} className="btn-cut mt-3 inline-flex min-w-[240px] items-center justify-center border border-red-600 bg-zinc-800 px-6 py-3 font-mono text-base font-bold uppercase tracking-[0.14em] text-white transition-colors hover:bg-zinc-700 sm:text-lg">Email Us</a>
+              <a href={`mailto:${company.dispatchEmail}`} className="btn-outline-cut-light mt-3 inline-flex min-w-[240px] items-center justify-center px-6 py-3 text-base font-bold uppercase tracking-[0.14em] text-white transition-colors sm:text-lg">Email Us</a>
             </div>
-          </div>
-
-          <div className="mt-10 border-t border-[#1a1a1a] pt-6">
-            <div className="flex flex-col items-center justify-center gap-6 text-center">
-              <div>
-                <p className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-white sm:text-[11px]">HARBLANC Services LLC</p>
-                <p className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.16em] text-zinc-500 sm:text-[11px]">USDOT {company.dotNumber} &middot; MC {company.mcNumber} &middot; Licensed &amp; Insured</p>
-              </div>
-              <nav className="flex items-center gap-5 font-mono text-[10px] font-bold uppercase tracking-[0.16em] sm:text-[11px]">
-                <Link href="/" className="text-zinc-300 transition-colors hover:text-white">Home</Link>
-                <Link href="/quote" className="text-zinc-300 transition-colors hover:text-white">Quote</Link>
-                <Link href="/apply" className="text-zinc-300 transition-colors hover:text-white">Carriers</Link>
-              </nav>
-            </div>
-          </div>
-
-          <div className="mt-6 flex justify-center">
-            <Image src="/brand/logo-mark.png" alt="HARBLANC" width={637} height={574} className="h-16 w-auto opacity-80" />
           </div>
         </div>
       </section>
+      <Footer />
     </div>
   );
 }
@@ -249,7 +227,7 @@ function KV({
 }) {
   return (
     <div>
-      <dt className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-400">
+      <dt className="font-mono text-[10px] tracking-[0.22em] text-white uppercase">
         {label}
       </dt>
       <dd className="mt-1.5">{children}</dd>

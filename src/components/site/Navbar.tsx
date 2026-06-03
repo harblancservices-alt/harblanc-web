@@ -13,8 +13,16 @@ export function Navbar() {
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-40 border-b-2 border-[#dcd5c2]/30 bg-neutral-900">
-      <div className="relative mx-auto flex h-24 max-w-7xl items-center justify-center gap-4 px-4 sm:px-6 md:justify-between lg:px-10">
+    <header className="sticky top-0 z-40 overflow-hidden border-b-2 border-[#dcd5c2]/30 bg-black">
+      {/* Topographic SVG layer — matches Footer / ProcessSteps /
+          ProcessSummary so all dark-surface sections share the same
+          background texture. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-repeat bg-center"
+        style={{ backgroundImage: "url('/brand/footer-topo.svg')", backgroundSize: "600px 600px" }}
+      />
+      <div className="relative z-10 mx-auto flex h-24 max-w-7xl items-center justify-center gap-4 px-4 sm:px-6 md:justify-between lg:px-10">
         {/* LEFT: dark-ink logo lives on a small beige platform so it reads
             cleanly against the dark navbar without needing a separate
             inverted asset. */}
@@ -35,7 +43,7 @@ export function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                className="text-[15px] font-semibold uppercase tracking-[0.1em] text-neutral-300 transition-colors hover:text-white"
+                className="text-[15px] font-semibold uppercase tracking-[0.1em] text-white transition-colors hover:text-white"
               >
                 {link.label}
               </Link>
@@ -43,7 +51,7 @@ export function Navbar() {
 
             <a
               href={`mailto:${company.dispatchEmail}`}
-              className="text-[15px] font-semibold uppercase tracking-[0.1em] text-neutral-300 transition-colors hover:text-white"
+              className="text-[15px] font-semibold uppercase tracking-[0.1em] text-white transition-colors hover:text-white"
             >
               Contact
             </a>
@@ -52,13 +60,13 @@ export function Navbar() {
           <div className="flex items-center gap-2.5">
             <Link
               href="/quote"
-              className="btn-cut inline-flex items-center bg-red-600 px-5 py-2.5 text-[13px] font-bold uppercase tracking-[0.1em] text-white shadow-[inset_0_0_0_2px_#000] transition-colors hover:bg-red-500"
+              className="btn-cut inline-flex items-center bg-red-600 px-5 py-2.5 text-[13px] font-bold uppercase tracking-[0.1em] text-white shadow-[inset_0_0_0_2px_#fff] transition-colors hover:bg-red-500"
             >
               Request a Quote
             </Link>
             <Link
               href="/apply"
-              className="btn-outline-cut-light inline-flex items-center px-5 py-2.5 text-[13px] font-bold uppercase tracking-[0.1em] text-zinc-900 transition-colors"
+              className="btn-outline-cut-light inline-flex items-center px-5 py-2.5 text-[13px] font-bold uppercase tracking-[0.1em] text-white transition-colors"
             >
               Join the Fleet
             </Link>
@@ -68,7 +76,7 @@ export function Navbar() {
         {/* MOBILE: hamburger */}
         <button
           type="button"
-          className="absolute right-3 top-1/2 inline-flex -translate-y-1/2 items-center justify-center p-2 text-neutral-300 hover:bg-white/10 hover:text-white sm:right-4 md:hidden"
+          className="absolute right-3 top-1/2 inline-flex -translate-y-1/2 items-center justify-center p-2 text-white hover:bg-white/10 hover:text-white sm:right-4 md:hidden"
           aria-label="Toggle navigation menu"
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
@@ -92,7 +100,7 @@ export function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                className="block px-1 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-neutral-300 hover:text-white"
+                className="block px-1 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-white hover:text-red-400"
                 onClick={() => setOpen(false)}
               >
                 {link.label}
@@ -101,21 +109,21 @@ export function Navbar() {
 
             <a
               href={`mailto:${company.dispatchEmail}`}
-              className="block px-1 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-neutral-300 hover:text-white"
+              className="block px-1 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-white hover:text-red-400"
               onClick={() => setOpen(false)}
             >
               Contact
             </a>
             <Link
               href="/quote"
-              className="btn-cut mt-3 block bg-red-600 px-4 py-3 text-center text-sm font-bold uppercase tracking-[0.12em] text-white shadow-[inset_0_0_0_2px_#000] hover:bg-red-500"
+              className="btn-cut mt-3 block bg-red-600 px-4 py-3 text-center text-sm font-bold uppercase tracking-[0.12em] text-white shadow-[inset_0_0_0_2px_#fff] hover:bg-red-500"
               onClick={() => setOpen(false)}
             >
               Request a Quote
             </Link>
             <Link
               href="/apply"
-              className="btn-outline-cut-light mt-2 block px-4 py-3 text-center text-sm font-bold uppercase tracking-[0.12em] text-zinc-900"
+              className="btn-outline-cut-light mt-2 block px-4 py-3 text-center text-sm font-bold uppercase tracking-[0.12em] text-white"
               onClick={() => setOpen(false)}
             >
               Join the Fleet

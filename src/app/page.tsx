@@ -90,13 +90,13 @@ function Hero() {
           <div className="mt-8 flex flex-col items-center gap-2.5 sm:mt-10 sm:flex-row sm:items-start sm:gap-3">
             <Link
               href="/quote"
-              className="btn-cut inline-flex items-center justify-center bg-red-600 px-6 py-3 text-[13px] font-bold uppercase tracking-[0.14em] text-white shadow-[inset_0_0_0_2px_#000] transition-colors hover:bg-red-500 sm:px-8 sm:py-4 sm:text-sm"
+              className="btn-cut inline-flex items-center justify-center bg-red-600 px-6 py-3 text-[13px] font-bold uppercase tracking-[0.14em] text-white shadow-[inset_0_0_0_2px_#fff] transition-colors hover:bg-red-500 sm:px-8 sm:py-4 sm:text-sm"
             >
               Request a Quote
             </Link>
             <a
               href={phoneHref}
-              className="btn-outline-cut-light inline-flex items-center justify-center px-6 py-3 text-[13px] font-bold uppercase tracking-[0.14em] text-zinc-900 transition-colors sm:py-4 sm:text-sm"
+              className="btn-outline-cut-light inline-flex items-center justify-center px-6 py-3 text-[13px] font-bold uppercase tracking-[0.14em] text-white transition-colors sm:py-4 sm:text-sm"
             >
               Call Dispatch
             </a>
@@ -105,15 +105,15 @@ function Hero() {
           {/* Credentials row — IBM Plex Mono 400 */}
           <dl className="mt-10 flex flex-wrap items-center gap-x-6 gap-y-2 font-mono text-[11px] tracking-[0.18em] uppercase sm:mt-14">
             <div className="flex items-baseline gap-2">
-              <dt className="text-neutral-500">USDOT</dt>
+              <dt className="text-white">USDOT</dt>
               <dd className="text-white">{company.dotNumber}</dd>
             </div>
-            <span aria-hidden className="text-neutral-700">/</span>
+            <span aria-hidden className="text-white">/</span>
             <div className="flex items-baseline gap-2">
-              <dt className="text-neutral-500">MC</dt>
+              <dt className="text-white">MC</dt>
               <dd className="text-white">{company.mcNumber}</dd>
             </div>
-            <span aria-hidden className="text-neutral-700">/</span>
+            <span aria-hidden className="text-white">/</span>
             <div>
               <dt className="sr-only">Operating status</dt>
               <dd className="text-white">{company.authorityText}</dd>
@@ -224,81 +224,82 @@ function Services() {
  * unchanged from when this lived inside Process().
  */
 function ProcessSteps() {
+  // Each step carries an icon key picked to match the mockup. Icons
+  // render as inline SVG inside a beige circular badge at the top of
+  // each card.
   const steps = [
     {
       num: "01",
-      title: "Submit load details",
+      title: "Submit Load Details",
       body:
         "Quote request through the form, by phone, or by email. Send what you know — dispatch asks if more is needed.",
     },
     {
       num: "02",
-      title: "Dispatch reviews lane",
+      title: "Dispatch Reviews Lane",
       body:
         "Dispatch checks capacity, equipment, and timing against your lane. Direct quote returned within hours — no bidding wars, no broker markups.",
     },
     {
       num: "03",
-      title: "Quote is confirmed",
+      title: "Quote Is Confirmed",
       body:
         "Once approved, we lock in pickup time, equipment, and a single point of contact through delivery.",
     },
     {
       num: "04",
-      title: "Freight moves",
+      title: "Freight Moves",
       body:
         "Door-to-door. Driver updates en route. Paperwork delivered at offload.",
     },
   ];
+
   return (
     <section
       id="process"
-      className="border-b-2 border-[#dcd5c2]/30 bg-neutral-950 scroll-mt-16"
+      className="relative overflow-hidden border-b-2 border-[#dcd5c2]/30 bg-black py-20 scroll-mt-16 sm:py-24 lg:py-28"
     >
-      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 sm:py-14 lg:px-8">
-        <div className="relative">
-          <ol className="grid grid-cols-1 gap-8 sm:grid-cols-4 sm:gap-4 lg:gap-6">
-            {steps.map((step) => (
-              <li
-                key={step.num}
-                className="relative flex flex-col items-center gap-3 text-center"
-              >
-                {/* Card above — beige fill, black text, red bottom accent */}
-                <div className="card-cut flex w-full flex-1 flex-col border border-black/30 border-b-4 border-b-red-600 bg-[#dcd5c2] p-5 sm:p-6">
-                  <h3 className="font-display text-lg font-bold uppercase tracking-tight text-black sm:text-xl">
-                    {step.title}
-                  </h3>
-                  <p className="mt-2 text-sm leading-relaxed text-zinc-700">
-                    {step.body}
-                  </p>
-                </div>
-                {/* Drop connector (sm+ only) — visual link from card to marker */}
-                <div
-                  aria-hidden
-                  className="hidden h-4 w-px bg-red-600 sm:block"
-                />
-                {/* Numbered marker — sits on the horizontal spine */}
-                <div className="relative z-10 flex h-10 w-10 items-center justify-center rounded-full border-2 border-red-600 bg-[#0a0a0a]">
-                  <span className="font-mono text-sm font-bold text-white">
-                    {step.num}
-                  </span>
-                </div>
-              </li>
-            ))}
-          </ol>
-          {/* Horizontal red spine — hits the marker centers. bottom-5 =
-              20px = half of the 40px (h-10) marker. The spine extends
-              edge-to-edge of the grid; the marker fills sit on top of
-              it at each column center, visually capping the line. */}
-          <div
-            aria-hidden
-            className="absolute bottom-5 left-0 right-0 hidden h-[2px] bg-red-600 sm:block"
-          />
+      {/* Topographic SVG layer — kept at low opacity behind everything */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-repeat bg-center"
+        style={{ backgroundImage: "url('/brand/footer-topo.svg')", backgroundSize: "600px 600px" }}
+      />
+
+      <div className="relative z-10 mx-auto max-w-[1450px] px-5 sm:px-8 lg:px-10">
+        <div className="mb-10 max-w-3xl">
+          <h2 className="font-mono text-3xl font-black uppercase tracking-tight text-red-500 sm:text-4xl">
+            How it works
+          </h2>
+          <p className="mt-4 text-xl font-medium leading-snug text-white sm:text-2xl">
+            Simple freight coordination from request to delivery.
+          </p>
         </div>
+
+        <ol className="grid grid-cols-1 gap-6 md:grid-cols-2 2xl:grid-cols-4">
+          {steps.map((step) => (
+            <li key={step.num} className="group relative min-h-[320px] overflow-hidden rounded-xl border border-neutral-800 bg-[#111111] px-8 py-10 shadow-[0_18px_45px_rgba(0,0,0,0.28)] lg:min-h-[340px]">
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[3px] bg-red-600" />
+              <div className="relative text-center">
+                <div className="font-mono text-5xl font-black leading-none tracking-tight text-red-500">
+                  {step.num}
+                </div>
+                <div aria-hidden className="mx-auto mt-5 h-[3px] w-12 bg-red-600" />
+                <h3 className="mx-auto mt-6 max-w-[16rem] text-center text-2xl font-black uppercase leading-[1.02] tracking-tight text-white">
+                  {step.title}
+                </h3>
+                <p className="mx-auto mt-6 max-w-[18rem] text-center text-base leading-7 text-neutral-300">
+                  {step.body}
+                </p>
+              </div>
+            </li>
+          ))}
+        </ol>
       </div>
     </section>
   );
 }
+
 
 /* ---------------------------- PROCESS SUMMARY ---------------------------- */
 
@@ -317,9 +318,15 @@ function ProcessSummary() {
   return (
     <section
       id="quote-cta"
-      className="border-b-2 border-[#dcd5c2]/30 bg-neutral-950"
+      className="relative overflow-hidden border-b-2 border-[#dcd5c2]/30 bg-black"
     >
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-12 lg:px-8 lg:py-14">
+      {/* Layer 1 — topographic SVG (matches Footer pattern) */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-repeat bg-center"
+        style={{ backgroundImage: "url('/brand/footer-topo.svg')", backgroundSize: "600px 600px" }}
+      />
+      <div className="relative z-10 mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-12 lg:px-8 lg:py-14">
         {/* Closing CTA — headline on top, button below, both centered.
             Replaces the earlier 7/5 split that had the headline drifting
             left while the button anchored right; the centered stack reads
@@ -330,7 +337,7 @@ function ProcessSummary() {
           </p>
           <Link
             href="/quote"
-            className="btn-cut inline-block bg-red-600 px-8 py-3 text-sm font-bold uppercase tracking-[0.14em] text-white shadow-[inset_0_0_0_2px_#000] transition-colors hover:bg-red-500"
+            className="btn-cut inline-block bg-red-600 px-8 py-3 text-sm font-bold uppercase tracking-[0.14em] text-white shadow-[inset_0_0_0_2px_#fff] transition-colors hover:bg-red-500"
           >
             Request a Quote
           </Link>
@@ -375,7 +382,7 @@ function About() {
           <h2 className="text-4xl font-display tracking-tight text-white sm:text-5xl">
             The carrier.
           </h2>
-          <div className="mt-8 space-y-5 text-base leading-relaxed text-neutral-200 lg:text-lg">
+          <div className="mt-8 space-y-5 text-base leading-relaxed text-white lg:text-lg">
             <p>
               {company.legalName} is an owner-operated motor carrier serving
               industrial and construction freight customers across the
@@ -403,7 +410,7 @@ function About() {
 function Spec({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="font-mono text-[10px] tracking-[0.22em] text-neutral-500 uppercase">
+      <dt className="font-mono text-[10px] tracking-[0.22em] text-white uppercase">
         {label}
       </dt>
       <dd className="mt-1.5 font-mono text-sm text-white sm:text-base">
@@ -424,7 +431,7 @@ function Dispatch() {
             <h2 className="text-4xl font-display tracking-tight text-white sm:text-5xl lg:text-6xl">
               Got a load?
             </h2>
-            <p className="mt-5 max-w-2xl text-base leading-relaxed text-neutral-400 sm:text-lg">
+            <p className="mt-5 max-w-2xl text-base leading-relaxed text-white sm:text-lg">
               Pickup, delivery, weight, equipment &mdash; that&apos;s all
               dispatch needs to send a quote back.
             </p>
@@ -432,13 +439,13 @@ function Dispatch() {
           <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:col-span-5">
             <Link
               href="/quote"
-              className="btn-cut block bg-red-600 px-6 py-4 text-center text-sm font-bold uppercase tracking-[0.14em] text-white shadow-[inset_0_0_0_2px_#000] transition-colors hover:bg-red-500"
+              className="btn-cut block bg-red-600 px-6 py-4 text-center text-sm font-bold uppercase tracking-[0.14em] text-white shadow-[inset_0_0_0_2px_#fff] transition-colors hover:bg-red-500"
             >
               Request a Quote
             </Link>
             <a
               href={phoneHref}
-              className="btn-outline-cut-light block px-6 py-4 text-center text-sm font-bold uppercase tracking-[0.14em] text-zinc-900 transition-colors"
+              className="btn-outline-cut-light block px-6 py-4 text-center text-sm font-bold uppercase tracking-[0.14em] text-white transition-colors"
             >
               Call Dispatch
             </a>

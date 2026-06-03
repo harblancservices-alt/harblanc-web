@@ -374,10 +374,14 @@ body {
    fills the interior with beige inset 2px so the black ring shows.
    Hover deepens the beige one shade. */
 @layer utilities {
+  /* Secondary CTA — black fill + 2px red outline. Mirrors the primary
+     red CTA pattern (red fill + black inset outline) but inverted, so
+     primary and secondary buttons read as one black-and-red family.
+     Replaces the previous beige treatment per user feedback. */
   .btn-outline-cut-light {
     position: relative;
     isolation: isolate;
-    background: #000;
+    background: #dc2626;
     -webkit-clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
     clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
   }
@@ -386,13 +390,13 @@ body {
     position: absolute;
     inset: 2px;
     z-index: -1;
-    background: #dcd5c2;
+    background: #0a0a0a;
     -webkit-clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
     clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
     transition: background 150ms ease;
   }
   .btn-outline-cut-light:hover::before {
-    background: #c8c0a8;
+    background: #1a1a1a;
   }
   .btn-outline-cut-light:focus-visible {
     outline: none;

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { company } from "@/lib/company";
 import { DeclineForm } from "@/app/quote/decline/[token]/DeclineForm";
 import { SAMPLE_INTAKE_HEADER } from "@/lib/preview/sample-data";
+import { Footer } from "@/components/site/Footer";
 
 /**
  * Decline quote — preview-only route.
@@ -59,7 +60,7 @@ export default function DeclinePreviewPage() {
           <h1 className="mt-5 text-3xl font-display leading-[1.05] tracking-[-0.02em] text-white sm:text-5xl">
             Decline this estimate.
           </h1>
-          <p className="mt-5 text-base leading-relaxed text-neutral-300 sm:text-lg">
+          <p className="mt-5 text-base leading-relaxed text-white sm:text-lg">
             The estimate at <span className="font-mono text-white">{rate}</span>{" "}
             on{" "}
             <span className="font-mono text-white">
@@ -70,7 +71,7 @@ export default function DeclinePreviewPage() {
             note helps dispatch on the next quote, but it&rsquo;s optional.
           </p>
 
-          <p className="mt-6 font-mono text-[10px] tracking-[0.22em] text-neutral-500 uppercase">
+          <p className="mt-6 font-mono text-[10px] tracking-[0.22em] text-white uppercase">
             Want to talk first?{" "}
             <a
               href={phoneHref}
@@ -99,17 +100,18 @@ export default function DeclinePreviewPage() {
             />
           </fieldset>
 
-          <p className="mt-8 font-mono text-[10px] tracking-[0.22em] text-neutral-500 uppercase">
+          <p className="mt-8 font-mono text-[10px] tracking-[0.22em] text-white uppercase">
             Changed your mind?{" "}
             <Link
               href="/admin/previews/confirm-shipment"
-              className="text-neutral-400 underline-offset-4 hover:text-white hover:underline"
+              className="text-white underline-offset-4 hover:text-white hover:underline"
             >
               Accept and finalize instead
             </Link>
           </p>
         </div>
       </section>
+      <Footer />
     </div>
   );
 }

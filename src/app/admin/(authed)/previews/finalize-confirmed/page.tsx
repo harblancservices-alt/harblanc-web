@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { company } from "@/lib/company";
 import { SAMPLE_FINALIZED_QUOTE_CONFIRM } from "@/lib/preview/sample-data";
+import { Footer } from "@/components/site/Footer";
 
 /**
  * Confirm Finalized Quote — CONFIRMED state preview.
@@ -75,7 +76,7 @@ export default function FinalizeConfirmedPreviewPage() {
 
       <section className="border-b border-[#1a1a1a] bg-gradient-to-b from-[#050505] via-[#0a0a0a] to-[#141414]">
         <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8 lg:py-16">
-          <p className="flex items-center justify-center gap-2 font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-red-600">
+          <p className="flex items-center justify-center gap-2 font-mono text-[11px] tracking-[0.22em] text-red-500 uppercase">
             <span aria-hidden className="inline-block h-3 w-1 bg-red-600" />
             Rate confirmation
           </p>
@@ -104,7 +105,7 @@ export default function FinalizeConfirmedPreviewPage() {
               </span>
               <span className="mt-1 block font-mono text-[11px] text-white tabular-nums">
                 {SAMPLE.pickupZip}
-                <span aria-hidden className="mx-1.5 text-zinc-600">
+                <span aria-hidden className="mx-1.5 text-red-600">
                   &rarr;
                 </span>
                 {SAMPLE.deliveryZip}
@@ -147,13 +148,6 @@ export default function FinalizeConfirmedPreviewPage() {
               <p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-white">
                 Need dispatch help?
               </p>
-              <p className="mt-1 text-sm leading-relaxed text-white">
-                Reach a dispatcher directly with any questions on the
-                rate or scheduling.{" "}
-                <span className="font-medium text-zinc-100 tabular-nums">
-                  {company.dispatchPhone}
-                </span>
-              </p>
             </div>
             <a
               href={phoneHref}
@@ -191,6 +185,7 @@ export default function FinalizeConfirmedPreviewPage() {
           </p>
         </div>
       </section>
+      <Footer />
     </div>
   );
 }

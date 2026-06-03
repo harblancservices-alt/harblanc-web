@@ -4,6 +4,7 @@ import { company } from "@/lib/company";
 import { SAMPLE_FINALIZED_QUOTE_CONFIRM } from "@/lib/preview/sample-data";
 import { createPreviewDemoSession } from "@/lib/stripe/preview/demo-session";
 import { DemoEmbeddedCheckout } from "./DemoEmbeddedCheckout";
+import { Footer } from "@/components/site/Footer";
 
 /**
  * Payment screen - preview-only route.
@@ -118,7 +119,7 @@ export default async function PaymentPreviewPage() {
               </span>
               <span className="mt-1 block font-mono text-[11px] text-white tabular-nums">
                 {SAMPLE.pickupZip}
-                <span aria-hidden className="mx-1.5 text-zinc-600">
+                <span aria-hidden className="mx-1.5 text-red-600">
                   &rarr;
                 </span>
                 {SAMPLE.deliveryZip}
@@ -202,17 +203,10 @@ export default async function PaymentPreviewPage() {
               <p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-white">
                 Need dispatch help?
               </p>
-              <p className="mt-1 text-sm leading-relaxed text-white">
-                Reach dispatch with any questions on the rate, payment, or
-                scheduling.{" "}
-                <span className="font-medium text-zinc-100 tabular-nums">
-                  {company.dispatchPhone}
-                </span>
-              </p>
             </div>
             <a
               href={phoneHref}
-              className="inline-flex items-center gap-1.5 py-1 text-[13px] font-semibold uppercase tracking-[0.1em] text-white transition-colors hover:text-zinc-300 sm:shrink-0"
+              className="inline-flex items-center gap-1.5 py-1 text-[13px] font-semibold uppercase tracking-[0.1em] text-white transition-colors hover:text-white sm:shrink-0"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -239,13 +233,14 @@ export default async function PaymentPreviewPage() {
             Have the rate confirmation email handy?{" "}
             <Link
               href="/"
-              className="text-white underline-offset-4 hover:text-zinc-300 hover:underline"
+              className="text-white underline-offset-4 hover:text-white hover:underline"
             >
               Back to home
             </Link>
           </p>
         </div>
       </section>
+      <Footer />
     </div>
   );
 }

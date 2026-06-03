@@ -53,7 +53,7 @@ export default function QuoteSuccessPage() {
             Request Received
           </h1>
 
-          <p className="mx-auto mt-4 max-w-2xl text-center text-base leading-relaxed text-zinc-200 sm:text-lg">
+          <p className="mx-auto mt-4 max-w-2xl text-center text-base leading-relaxed text-white sm:text-lg">
             Dispatch has received your request. A coordinator will review the shipment and prepare your quote.
           </p>
 
@@ -118,18 +118,18 @@ export default function QuoteSuccessPage() {
                 <p className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-white sm:text-[11px]">
                   HARBLANC Services LLC
                 </p>
-                <p className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.16em] text-zinc-500 sm:text-[11px]">
+                <p className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.16em] text-white sm:text-[11px]">
                   USDOT {company.dotNumber} · MC {company.mcNumber} · Licensed &amp; Insured
                 </p>
               </div>
               <nav className="flex items-center gap-5 font-mono text-[10px] font-bold uppercase tracking-[0.16em] sm:text-[11px]">
-                <Link href="/" className="text-zinc-300 transition-colors hover:text-white">
+                <Link href="/" className="text-white transition-colors hover:text-white">
                   Home
                 </Link>
-                <Link href="/quote" className="text-zinc-300 transition-colors hover:text-white">
+                <Link href="/quote" className="text-white transition-colors hover:text-white">
                   Quote
                 </Link>
-                <Link href="/apply" className="text-zinc-300 transition-colors hover:text-white">
+                <Link href="/apply" className="text-white transition-colors hover:text-white">
                   Carriers
                 </Link>
               </nav>

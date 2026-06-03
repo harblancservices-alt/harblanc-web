@@ -102,20 +102,20 @@ function validate(values: QuickQuoteValues): Errors {
 
 /* ---------- styles: industrial / blocky, no rounded corners ---------- */
 const labelCls =
-  "block font-mono text-[10px] tracking-[0.22em] text-neutral-400 uppercase";
+  "block font-mono text-[10px] tracking-[0.22em] text-white uppercase";
 const requiredMark = (
   <span aria-hidden className="ml-1 text-red-500">
     *
   </span>
 );
 const baseFieldCls =
-  "mt-2.5 block w-full bg-neutral-900 px-4 py-3.5 text-base text-zinc-100 placeholder:text-neutral-600 transition-colors focus:outline-none";
+  "mt-2.5 block w-full bg-neutral-900 px-4 py-3.5 text-base text-zinc-100 placeholder:text-neutral-500 transition-colors focus:outline-none";
 const fieldCls = `${baseFieldCls} border border-neutral-800 focus:border-red-600`;
 const errorFieldCls = `${baseFieldCls} border border-red-600 focus:border-red-500`;
 const errCls =
   "mt-2 font-mono text-[10px] tracking-[0.14em] text-red-400 uppercase";
 const hintCls =
-  "mt-2 font-mono text-[10px] tracking-[0.12em] text-neutral-500 uppercase";
+  "mt-2 font-mono text-[10px] tracking-[0.12em] text-white uppercase";
 
 type Status = "idle" | "submitting" | "uploading";
 
@@ -420,10 +420,10 @@ export function QuoteForm() {
               htmlFor="documents"
               aria-disabled={status !== "idle"}
               className={
-                "mt-2.5 inline-flex items-center gap-2 border border-neutral-800 bg-neutral-900 px-4 py-2.5 text-sm font-semibold uppercase tracking-[0.14em] text-zinc-100 transition-colors " +
+                "btn-cut mt-2.5 inline-flex items-center gap-2 bg-red-600 px-6 py-3 text-sm font-bold uppercase tracking-[0.14em] text-white shadow-[inset_0_0_0_2px_#fff] transition-colors " +
                 (status !== "idle"
                   ? "cursor-not-allowed opacity-60"
-                  : "cursor-pointer hover:border-red-600")
+                  : "cursor-pointer hover:bg-red-500")
               }
             >
               Add files
@@ -454,10 +454,10 @@ export function QuoteForm() {
                     >
                       {f.type.startsWith("image/") ? "IMG" : "PDF"}
                     </span>
-                    <span className="min-w-0 flex-1 truncate text-sm text-zinc-200">
+                    <span className="min-w-0 flex-1 truncate text-sm text-white">
                       {f.name}
                     </span>
-                    <span className="shrink-0 font-mono text-[10px] uppercase tracking-wide text-neutral-500">
+                    <span className="shrink-0 font-mono text-[10px] uppercase tracking-wide text-white">
                       {(f.size / 1024 / 1024).toFixed(1)} MB
                     </span>
                     <button
@@ -465,7 +465,7 @@ export function QuoteForm() {
                       onClick={() => removeFile(i)}
                       disabled={status !== "idle"}
                       aria-label={`Remove ${f.name}`}
-                      className="shrink-0 border border-neutral-700 bg-neutral-950 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] text-neutral-300 transition-colors hover:border-red-700 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-neutral-700 disabled:hover:text-neutral-300"
+                      className="shrink-0 border border-neutral-700 bg-neutral-950 px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.12em] text-white transition-colors hover:border-red-700 hover:text-red-300 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:border-neutral-700 disabled:hover:text-white"
                     >
                       Remove
                     </button>
@@ -546,7 +546,7 @@ export function QuoteForm() {
 
       {/* Submit row */}
       <div className="space-y-5 border-t border-neutral-800 pt-7">
-        <p className="font-mono text-[10px] tracking-[0.2em] text-neutral-500 uppercase">
+        <p className="font-mono text-[10px] tracking-[0.2em] text-white uppercase">
           Fields marked {requiredMark} are required. This is a request, not a
           binding order. Dispatch replies with a price range within the hour.
         </p>
@@ -565,7 +565,7 @@ export function QuoteForm() {
         ) : null}
 
         {status === "uploading" && uploadProgress.total > 0 ? (
-          <p className="font-mono text-[10px] tracking-[0.2em] text-neutral-400 uppercase">
+          <p className="font-mono text-[10px] tracking-[0.2em] text-white uppercase">
             Uploading {uploadProgress.done} of {uploadProgress.total} file
             {uploadProgress.total === 1 ? "" : "s"}…
           </p>
@@ -601,10 +601,10 @@ function Section({
   return (
     <section className="space-y-5">
       <div className="flex items-baseline gap-3">
-        <span className="font-mono text-[10px] tracking-[0.22em] text-red-500 uppercase">
+        <span className="font-mono text-2xl font-bold tracking-[0.18em] text-red-500">
           {number}
         </span>
-        <h2 className="font-mono text-[11px] tracking-[0.22em] text-neutral-300 uppercase">
+        <h2 className="font-mono text-[11px] tracking-[0.22em] text-white uppercase">
           {title}
         </h2>
       </div>

@@ -89,12 +89,12 @@ const BUCKETS: { key: LeadStatus | "in_motion"; label: string; members: LeadStat
   { key: "estimate_sent", label: "Estimate sent", members: ["estimate_sent"] },
   {
     key: "awaiting_confirmation",
-    label: "Awaiting confirmation",
+    label: "Awaiting confirm",
     members: ["awaiting_confirmation"],
   },
   {
     key: "awaiting_payment",
-    label: "Awaiting payment",
+    label: "Awaiting pay",
     members: ["awaiting_payment"],
   },
   {
@@ -104,10 +104,10 @@ const BUCKETS: { key: LeadStatus | "in_motion"; label: string; members: LeadStat
   },
   {
     key: "in_motion",
-    label: "In motion (dispatched / picked up / in transit)",
+    label: "In motion",
     members: ["dispatched", "picked_up", "in_transit"],
   },
-  { key: "delivered", label: "Delivered — close out", members: ["delivered"] },
+  { key: "delivered", label: "Delivered", members: ["delivered"] },
 ];
 
 async function loadOps() {
@@ -285,7 +285,6 @@ async function loadOps() {
 export default async function DashboardPage() {
   const ops = await loadOps();
 
-  // Lead with any urgency chip — top of page, ranked alert→warn, age desc.
   const attention = ops.enriched
     .filter((e) => e.top !== null)
     .sort((a, b) => {
@@ -295,7 +294,6 @@ export default async function DashboardPage() {
       return b.top!.ageHours - a.top!.ageHours;
     });
 
-  // Counters
   const totalActive = ops.enriched.length;
   const newToday = ops.newToday;
   const needsAttn = attention.length;
@@ -304,118 +302,184 @@ export default async function DashboardPage() {
   ).length;
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
-      {/* Env status banner — only renders when there's a problem */}
-      {ops.envIssues.length > 0 ? <EnvBanner issues={ops.envIssues} /> : null}
+    <div className="min-h-screen bg-zinc-50">
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
+        {/* Env status banner */}
+        {ops.envIssues.length > 0 ? <EnvBanner issues={ops.envIssues} /> : null}
 
-      <header>
-        <p className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
-          Overview
-        </p>
-        <h1 className="mt-2 text-2xl font-display tracking-tight text-black sm:text-3xl">
-          Dispatch center
-        </h1>
-      </header>
+        {/* Header — single bold line, no eyebrow */}
+        <header className="flex items-end justify-between gap-4 border-b-2 border-zinc-300 pb-5">
+          <h1 className="text-3xl font-display font-bold tracking-tight text-black sm:text-4xl lg:text-5xl">
+            Dispatch center
+          </h1>
+          <p className="hidden font-mono text-xs tracking-[0.18em] text-zinc-600 uppercase sm:block">
+            {totalActive} active &middot; {newToday} new today
+          </p>
+        </header>
 
-      {/* Counters */}
-      <div className="mt-6 grid grid-cols-2 border border-zinc-200 bg-white sm:grid-cols-4">
-        <Counter label="Active leads" value={totalActive} href="/admin/quotes" />
-        <Counter label="New today" value={newToday} href="/admin/quotes" divider />
-        <Counter
-          label="Needs attention"
-          value={needsAttn}
-          accent={needsAttn > 0 ? "alert" : undefined}
-          divider
-        />
-        <Counter label="In motion" value={inMotion} divider />
-      </div>
+        {/* Stats strip — 4 counters in a row across the top */}
+        <div className="mt-6 grid grid-cols-2 gap-px border border-zinc-300 bg-zinc-300 sm:grid-cols-4">
+          <Counter label="Active leads" value={totalActive} href="/admin/quotes" />
+          <Counter label="New today" value={newToday} href="/admin/quotes" />
+          <Counter
+            label="Needs attention"
+            value={needsAttn}
+            accent={needsAttn > 0 ? "alert" : undefined}
+          />
+          <Counter label="In motion" value={inMotion} />
+        </div>
 
-      {/* Needs attention */}
-      {attention.length > 0 ? (
+        {/* Action queue — featured beige spotlight when 1-5 active leads.
+            Pulls the actual work to the top so the dispatcher doesn't
+            scan 8 funnel stages to find what's live. */}
+        {totalActive > 0 && totalActive < 6 ? (
+          <section className="mt-10">
+            <header className="flex items-baseline justify-between border-b-2 border-zinc-300 pb-3">
+              <h2 className="flex items-center gap-2 font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-black">
+                <span aria-hidden className="inline-block h-3 w-1 bg-red-600" />
+                Action queue
+              </h2>
+              <p className="font-mono text-[11px] tracking-[0.18em] text-red-700 uppercase">
+                {totalActive} live
+              </p>
+            </header>
+            <ul className="mt-4 divide-y divide-black/10 border border-black/30 border-l-4 border-l-red-600 bg-[#dcd5c2]">
+              {ops.enriched.map((e) => (
+                <li key={e.row.id}>
+                  <Link
+                    href={`/admin/quotes/${e.row.id}`}
+                    className="block px-4 py-3 transition-colors hover:bg-[#cfc6b0]"
+                  >
+                    <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+                      <div className="flex min-w-0 items-baseline gap-3">
+                        <span className="truncate text-base font-bold text-black">
+                          {e.row.name}
+                        </span>
+                        <span className="font-mono text-sm text-zinc-700">
+                          {e.row.pickup_zip && e.row.delivery_zip
+                            ? `${e.row.pickup_zip} → ${e.row.delivery_zip}`
+                            : "Lane TBD"}
+                        </span>
+                        <span className="font-mono text-[11px] font-bold tracking-[0.18em] text-red-700 uppercase">
+                          {LEAD_STATUS_LABELS[e.row.lead_status]}
+                        </span>
+                      </div>
+                      <span className="font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase shrink-0">
+                        {e.row.lead_status_updated_at
+                          ? relativeTime(e.row.lead_status_updated_at)
+                          : relativeTime(e.row.created_at)}
+                      </span>
+                    </div>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        {/* Needs attention — only when there are urgent leads */}
+        {attention.length > 0 ? (
+          <section className="mt-10">
+            <header className="flex items-baseline justify-between border-b-2 border-zinc-300 pb-3">
+              <h2 className="font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-black">
+                Needs attention
+              </h2>
+              <p className="font-mono text-[11px] tracking-[0.18em] text-red-700 uppercase">
+                {attention.length} flagged
+              </p>
+            </header>
+            <ul className="mt-4 divide-y divide-zinc-200 border border-zinc-300 border-l-4 border-l-red-600 bg-white">
+              {attention.slice(0, 8).map((e) => (
+                <LeadRowItem key={e.row.id} enriched={e} showStatus />
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        {/* Active funnel — horizontal kanban. Each bucket becomes a
+            column. Empty columns dim, populated columns get a red top
+            accent and a stacked card list. Mobile: horizontal scroll
+            via overflow-x-auto. Desktop: 8 columns fit in the max-w-7xl. */}
         <section className="mt-10">
-          <header className="flex items-baseline justify-between">
-            <h2 className="section-title">
-              Needs attention
+          <header className="flex items-baseline justify-between border-b-2 border-zinc-300 pb-3">
+            <h2 className="flex items-center gap-2 font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-black">
+              <span aria-hidden className="inline-block h-3 w-1 bg-red-600" />
+              Active funnel
             </h2>
-            <p className="label-cap text-black">
-              {attention.length} lead{attention.length === 1 ? "" : "s"}
+            <p className="font-mono text-[11px] tracking-[0.18em] text-zinc-600 uppercase">
+              Lane status board
             </p>
           </header>
-          <ul className="mt-3 divide-y divide-zinc-200 border-y border-zinc-200 bg-white">
-            {attention.slice(0, 8).map((e) => (
-              <LeadRowItem key={e.row.id} enriched={e} showStatus />
-            ))}
-          </ul>
-          {attention.length > 8 ? (
-            <p className="mt-3 text-right label-cap text-black">
-              + {attention.length - 8} more
-            </p>
-          ) : null}
+          <div className="mt-4 -mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+            <div className="flex min-w-[900px] gap-2 lg:min-w-0">
+              {BUCKETS.map((bucket) => {
+                const inBucket = ops.enriched.filter((e) =>
+                  bucket.members.includes(e.row.lead_status),
+                );
+                return (
+                  <KanbanColumn
+                    key={bucket.key}
+                    label={bucket.label}
+                    leads={inBucket}
+                  />
+                );
+              })}
+            </div>
+          </div>
         </section>
-      ) : null}
 
-      {/* Funnel buckets */}
-      <section className="mt-10">
-        <h2 className="section-title">
-          Active funnel
-        </h2>
-        <div className="mt-4 space-y-6">
-          {BUCKETS.map((bucket) => {
-            const inBucket = ops.enriched.filter((e) =>
-              bucket.members.includes(e.row.lead_status),
-            );
-            return <Bucket key={bucket.key} label={bucket.label} leads={inBucket} />;
-          })}
-        </div>
-      </section>
-
-      {/* Recent applications */}
-      <section className="mt-10">
-        <h2 className="section-title">
-          Recent applications
-        </h2>
-        <ul className="mt-3 divide-y divide-zinc-200 border-y border-zinc-200 bg-white">
-          {ops.recentApps.length === 0 ? (
-            <li className="px-1 py-3 text-sm text-black">No incoming applications.</li>
-          ) : (
-            ops.recentApps.map((r) => (
-              <li key={r.id}>
-                <Link
-                  href={`/admin/applications/${r.id}`}
-                  className="block px-1 py-2.5 transition-colors hover:bg-zinc-100"
-                >
-                  <div className="flex items-baseline justify-between gap-3">
-                    <span className="truncate text-sm text-black">{r.name}</span>
-                    <span className="font-mono text-xs tracking-[0.12em] text-black uppercase shrink-0">
-                      {formatTimestampShort(r.created_at)}
-                    </span>
-                  </div>
-                  <p className="mt-0.5 truncate font-mono text-xs tracking-[0.12em] text-black uppercase">
-                    {[r.equipment_type, r.cdl_status].filter(Boolean).join(" · ")}
-                  </p>
-                </Link>
-              </li>
-            ))
-          )}
-        </ul>
-      </section>
+        {/* Recent applications — bottom strip */}
+        <section className="mt-10 mb-2">
+          <header className="flex items-baseline justify-between border-b-2 border-zinc-300 pb-3">
+            <h2 className="flex items-center gap-2 font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-black">
+              <span aria-hidden className="inline-block h-3 w-1 bg-red-600" />
+              Recent applications
+            </h2>
+            <p className="font-mono text-[11px] tracking-[0.18em] text-zinc-600 uppercase">
+              {ops.recentApps.length} recent
+            </p>
+          </header>
+          <ul className="mt-4 divide-y divide-zinc-200 border border-zinc-300 bg-white">
+            {ops.recentApps.length === 0 ? (
+              <li className="px-4 py-3 text-sm text-zinc-600">No incoming applications.</li>
+            ) : (
+              ops.recentApps.map((r) => (
+                <li key={r.id}>
+                  <Link
+                    href={`/admin/applications/${r.id}`}
+                    className="block px-4 py-2.5 transition-colors hover:bg-zinc-100"
+                  >
+                    <div className="flex items-baseline justify-between gap-3">
+                      <span className="truncate text-sm font-semibold text-black">{r.name}</span>
+                      <span className="font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase shrink-0">
+                        {formatTimestampShort(r.created_at)}
+                      </span>
+                    </div>
+                    <p className="mt-0.5 truncate font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase">
+                      {[r.equipment_type, r.cdl_status].filter(Boolean).join(" · ")}
+                    </p>
+                  </Link>
+                </li>
+              ))
+            )}
+          </ul>
+        </section>
+      </div>
     </div>
   );
 }
 
-// ─── components ──────────────────────────────────────────────────────────
+// ─── components ─────────────────────────────────────────────────────────────────────────────
 
 function Counter({
   label,
   value,
   href,
-  divider = false,
   accent,
 }: {
   label: string;
   value: number;
   href?: string;
-  divider?: boolean;
   accent?: "alert";
 }) {
   const valueColor =
@@ -423,20 +487,20 @@ function Counter({
       ? "text-red-600"
       : value > 0
         ? "text-black"
-        : "text-black";
+        : "text-zinc-400";
   const inner = (
     <>
-      <p className="section-title">
+      <p className="flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-zinc-700">
+        <span aria-hidden className="inline-block h-3 w-[3px] shrink-0 bg-red-600" />
         {label}
       </p>
-      <p className={"mt-3 font-mono text-3xl tracking-tight " + valueColor}>
+      <p className={"mt-2 font-display text-4xl font-bold tabular-nums tracking-tight " + valueColor}>
         {value}
       </p>
     </>
   );
   const baseCls =
-    "block px-4 py-5 sm:px-5 sm:py-6 " +
-    (divider ? "border-l border-zinc-200 " : "") +
+    "block bg-white px-4 py-5 sm:px-5 sm:py-6 " +
     (href ? "transition-colors hover:bg-zinc-100" : "");
   if (href) {
     return (
@@ -448,49 +512,103 @@ function Counter({
   return <div className={baseCls}>{inner}</div>;
 }
 
-function Bucket({ label, leads }: { label: string; leads: EnrichedLead[] }) {
-  if (leads.length === 0) {
-    return (
-      <section className="border border-zinc-200 bg-zinc-50">
-        <header className="flex items-baseline justify-between px-4 py-3">
-          <h3 className="section-title">
-            {label}
-          </h3>
-          <span className="font-mono text-xs tracking-[0.12em] text-black uppercase">
-            0
-          </span>
-        </header>
-      </section>
-    );
-  }
-
-  const visible = leads.slice(0, 5);
-  const remaining = leads.length - visible.length;
-
+/**
+ * KanbanColumn — one vertical column per funnel stage. Empty columns
+ * collapse to a thin dim header. Populated columns get a red top
+ * accent bar and a stacked list of compact cards.
+ */
+function KanbanColumn({ label, leads }: { label: string; leads: EnrichedLead[] }) {
+  const isEmpty = leads.length === 0;
   return (
-    <section className="border border-zinc-200 bg-white">
-      <header className="flex items-baseline justify-between border-b border-zinc-200 px-4 py-3">
-        <h3 className="section-title">
+    <section
+      className={
+        "flex min-h-[200px] w-[140px] shrink-0 flex-col border bg-white sm:w-[160px] lg:w-auto lg:flex-1 " +
+        (isEmpty ? "border-zinc-200" : "border-red-600 shadow-[0_2px_8px_-2px_rgba(220,38,38,0.18)]")
+      }
+    >
+      {/* Top accent bar — thicker + red for populated, dim hairline for empty */}
+      <div className={isEmpty ? "h-[3px] w-full bg-zinc-200" : "h-[3px] w-full bg-red-600"} />
+      {/* Header — min-h locks every column header to the same height so
+          short labels and longer labels still align at the bottom rule */}
+      <header
+        className={
+          "flex min-h-[42px] items-center justify-between border-b border-zinc-200 px-3 " +
+          (isEmpty ? "bg-zinc-50" : "bg-red-50")
+        }
+      >
+        <h3
+          className={
+            "font-mono text-[10px] font-bold uppercase tracking-[0.16em] leading-tight " +
+            (isEmpty ? "text-zinc-500" : "text-black")
+          }
+        >
           {label}
         </h3>
-        <span className="font-mono text-xs tracking-[0.12em] text-black uppercase">
+        <span
+          className={
+            "ml-2 font-mono text-xs font-bold tabular-nums " +
+            (isEmpty ? "text-zinc-400" : "text-red-700")
+          }
+        >
           {leads.length}
         </span>
       </header>
-      <ul className="divide-y divide-zinc-200">
-        {visible.map((e) => (
-          <LeadRowItem key={e.row.id} enriched={e} />
-        ))}
+      <ul className="flex flex-1 flex-col divide-y divide-zinc-200">
+        {isEmpty ? (
+          <li className="flex flex-1 items-center justify-center px-3 py-4 font-mono text-[10px] tracking-[0.18em] text-zinc-300 uppercase">
+            —
+          </li>
+        ) : (
+          leads.map((e) => <KanbanCard key={e.row.id} enriched={e} />)
+        )}
       </ul>
-      {remaining > 0 ? (
-        <p className="border-t border-zinc-200 px-4 py-2 text-right label-cap text-black">
-          + {remaining} more
-        </p>
-      ) : null}
     </section>
   );
 }
 
+/**
+ * Compact card for the kanban columns. Name, lane, time-in-status,
+ * and the top urgency chip if any.
+ */
+function KanbanCard({ enriched }: { enriched: EnrichedLead }) {
+  const { row, top } = enriched;
+  const lane =
+    row.pickup_zip && row.delivery_zip
+      ? `${row.pickup_zip} → ${row.delivery_zip}`
+      : "Lane TBD";
+  const sinceStatus = row.lead_status_updated_at
+    ? relativeTime(row.lead_status_updated_at)
+    : relativeTime(row.created_at);
+  return (
+    <li>
+      <Link
+        href={`/admin/quotes/${row.id}`}
+        className="block px-3 py-3 transition-colors hover:bg-zinc-50"
+      >
+        <p className="truncate text-sm font-bold text-black">{row.name}</p>
+        <p className="mt-0.5 truncate font-mono text-[11px] text-zinc-700">{lane}</p>
+        <p className="mt-1 font-mono text-[10px] tracking-[0.12em] text-zinc-500 uppercase">
+          {sinceStatus}
+        </p>
+        {top ? (
+          <span
+            className={
+              "mt-2 inline-flex items-center border px-1.5 py-0.5 font-mono text-[9px] tracking-[0.12em] uppercase " +
+              URGENCY_SEVERITY_CLASSES_LIGHT[top.severity]
+            }
+          >
+            {top.label}
+          </span>
+        ) : null}
+      </Link>
+    </li>
+  );
+}
+
+/**
+ * LeadRowItem — used by the Needs attention list (when populated).
+ * Wide row layout with status + urgency chips inline.
+ */
 function LeadRowItem({
   enriched,
   showStatus = false,
@@ -506,7 +624,6 @@ function LeadRowItem({
   const sinceStatus = row.lead_status_updated_at
     ? relativeTime(row.lead_status_updated_at)
     : relativeTime(row.created_at);
-
   return (
     <li>
       <Link
@@ -515,18 +632,18 @@ function LeadRowItem({
       >
         <div className="flex items-baseline justify-between gap-3">
           <div className="flex min-w-0 items-baseline gap-2">
-            <span className="truncate text-sm font-medium text-black">
+            <span className="truncate text-sm font-semibold text-black">
               {row.name}
             </span>
-            <span className="font-mono text-xs text-black">{lane}</span>
+            <span className="font-mono text-xs text-zinc-700">{lane}</span>
           </div>
-          <span className="font-mono text-xs tracking-[0.12em] text-black uppercase shrink-0">
+          <span className="font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase shrink-0">
             {sinceStatus}
           </span>
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1.5">
           {showStatus ? (
-            <span className="font-mono text-xs tracking-[0.12em] text-black uppercase">
+            <span className="font-mono text-xs font-bold tracking-[0.18em] text-red-700 uppercase">
               {LEAD_STATUS_LABELS[row.lead_status]}
             </span>
           ) : null}
@@ -541,7 +658,7 @@ function LeadRowItem({
             </span>
           ) : null}
           {row.assigned_dispatcher || row.assigned_carrier ? (
-            <span className="font-mono text-xs tracking-[0.12em] text-black uppercase">
+            <span className="font-mono text-xs tracking-[0.12em] text-zinc-600 uppercase">
               {row.assigned_dispatcher || ""}
               {row.assigned_dispatcher && row.assigned_carrier ? " · " : ""}
               {row.assigned_carrier || ""}
@@ -556,14 +673,14 @@ function LeadRowItem({
 function EnvBanner({ issues }: { issues: string[] }) {
   return (
     <div className="mb-6 border border-amber-300 bg-amber-50 p-4">
-      <p className="text-xs font-semibold tracking-[0.12em] text-amber-800 uppercase">
+      <p className="font-mono text-[11px] font-bold tracking-[0.22em] text-amber-800 uppercase">
         System check
       </p>
-      <p className="mt-1 text-sm leading-relaxed text-amber-900">
+      <p className="mt-2 text-sm leading-relaxed text-amber-900">
         Missing or invalid environment configuration. Some features may not
         work until these are set:
       </p>
-      <ul className="mt-2 list-inside list-disc font-mono text-xs text-amber-800">
+      <ul className="mt-2 list-inside list-disc font-mono text-xs leading-relaxed text-amber-800">
         {issues.map((i) => (
           <li key={i}>{i}</li>
         ))}

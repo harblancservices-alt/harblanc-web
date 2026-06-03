@@ -143,7 +143,7 @@ export function JourneyMap() {
 <h3 className={i === 0 ? "text-base font-semibold text-green-500 sm:text-lg" : "text-base font-semibold text-red-500 sm:text-lg"}>
                     {step.title}
                   </h3>
-                  <p className="mt-2 text-sm leading-relaxed text-zinc-300">
+                  <p className="mt-2 text-sm leading-relaxed text-white">
                     {step.body}
                   </p>
                 </div>

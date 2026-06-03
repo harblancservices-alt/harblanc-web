@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { QuoteForm } from "@/components/quote/QuoteForm";
 import { company } from "@/lib/company";
+import { Footer } from "@/components/site/Footer";
 
 /**
  * Quick Quote — preview-only route.
@@ -67,7 +68,7 @@ export default function QuotePreviewPage() {
             Direct dispatch. Honest pricing.
           </h1>
 
-          <p className="mt-6 max-w-2xl text-base leading-relaxed text-neutral-300 sm:text-lg">
+          <p className="mt-6 max-w-2xl text-base leading-relaxed text-white sm:text-lg">
             Lane, load, contact. That&rsquo;s all dispatch needs to get back to
             you with a price range. Real dispatcher replies within the hour
             &mdash; no broker layers, no auto-quoters.
@@ -76,15 +77,15 @@ export default function QuotePreviewPage() {
           {/* Credential strip */}
           <dl className="mt-8 flex flex-wrap items-center gap-x-6 gap-y-2 font-mono text-[11px] tracking-[0.18em] uppercase">
             <div className="flex items-baseline gap-2">
-              <dt className="text-neutral-500">USDOT</dt>
+              <dt className="text-white">USDOT</dt>
               <dd className="text-white">{company.dotNumber}</dd>
             </div>
-            <span aria-hidden className="text-neutral-700">/</span>
+            <span aria-hidden className="text-red-600">/</span>
             <div className="flex items-baseline gap-2">
-              <dt className="text-neutral-500">MC</dt>
+              <dt className="text-white">MC</dt>
               <dd className="text-white">{company.mcNumber}</dd>
             </div>
-            <span aria-hidden className="text-neutral-700">/</span>
+            <span aria-hidden className="text-red-600">/</span>
             <div>
               <dt className="sr-only">Operating status</dt>
               <dd className="text-white">{company.authorityText}</dd>
@@ -115,7 +116,7 @@ export default function QuotePreviewPage() {
             <div className="border border-neutral-800 bg-neutral-900/40 p-6 sm:p-7">
               <h2
                 id="next-steps-heading"
-                className="font-mono text-[10px] tracking-[0.22em] text-neutral-400 uppercase"
+                className="font-mono text-[10px] tracking-[0.22em] text-white uppercase"
               >
                 What happens next
               </h2>
@@ -129,46 +130,34 @@ export default function QuotePreviewPage() {
                       <p className="text-sm font-semibold text-white">
                         {step.title}
                       </p>
-                      <p className="mt-1 text-sm leading-relaxed text-neutral-400">
-                        {step.body}
-                      </p>
                     </div>
                   </li>
                 ))}
               </ol>
 
               <div className="mt-7 border-t border-neutral-800 pt-5">
-                <h3 className="font-mono text-[10px] tracking-[0.22em] text-neutral-400 uppercase">
+                <h3 className="font-mono text-[10px] tracking-[0.22em] text-white uppercase">
                   Need to talk to dispatch?
                 </h3>
                 <a
                   href={phoneHref}
-                  className="mt-3 block text-sm font-semibold text-zinc-100 hover:text-white"
+                  className="mt-3 block text-sm font-semibold text-white hover:text-red-400"
                 >
                   {company.dispatchPhone}
                 </a>
                 <a
                   href={`mailto:${company.dispatchEmail}`}
-                  className="block text-sm break-all text-zinc-300 hover:text-white"
+                  className="block text-sm break-all text-white hover:text-red-400"
                 >
                   {company.dispatchEmail}
                 </a>
               </div>
 
-              <div className="mt-6 border-t border-neutral-800 pt-5">
-                <h3 className="font-mono text-[10px] tracking-[0.22em] text-neutral-400 uppercase">
-                  Privacy
-                </h3>
-                <p className="mt-3 text-xs leading-relaxed text-neutral-400">
-                  Your request goes directly to dispatch. We don&rsquo;t share
-                  your contact info, sell leads, or route this through a
-                  broker network.
-                </p>
-              </div>
             </div>
           </aside>
         </div>
       </section>
+      <Footer />
     </div>
   );
 }

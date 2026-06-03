@@ -3,6 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { company } from "@/lib/company";
 import { JourneyMap } from "@/components/quote/JourneyMap";
+import { Footer } from "@/components/site/Footer";
 
 /**
  * Quick Quote success — preview-only route. Mirrors /quote/success
@@ -43,7 +44,7 @@ export default function QuoteSuccessPreviewPage() {
             Request Received
           </h1>
 
-          <p className="mx-auto mt-4 max-w-2xl text-center text-base leading-relaxed text-zinc-200 sm:text-lg">
+          <p className="mx-auto mt-4 max-w-2xl text-center text-base leading-relaxed text-white sm:text-lg">
             Dispatch has received your request. A coordinator will review the shipment and prepare your quote.
           </p>
         </div>
@@ -95,36 +96,9 @@ export default function QuoteSuccessPreviewPage() {
               </a>
             </div>
           </div>
-
-          <div className="mt-10 border-t border-[#1a1a1a] pt-6">
-            <div className="flex flex-col items-center justify-center gap-6 text-center">
-              <div>
-                <p className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-white sm:text-[11px]">
-                  HARBLANC Services LLC
-                </p>
-                <p className="mt-1.5 font-mono text-[10px] uppercase tracking-[0.16em] text-zinc-500 sm:text-[11px]">
-                  USDOT {company.dotNumber} · MC {company.mcNumber} · Licensed &amp; Insured
-                </p>
-              </div>
-              <nav className="flex items-center gap-5 font-mono text-[10px] font-bold uppercase tracking-[0.16em] sm:text-[11px]">
-                <Link href="/" className="text-zinc-300 transition-colors hover:text-white">Home</Link>
-                <Link href="/quote" className="text-zinc-300 transition-colors hover:text-white">Quote</Link>
-                <Link href="/apply" className="text-zinc-300 transition-colors hover:text-white">Carriers</Link>
-              </nav>
-            </div>
-          </div>
-
-          <div className="mt-6 flex justify-center">
-            <Image
-              src="/brand/logo-mark.png"
-              alt="HARBLANC"
-              width={637}
-              height={574}
-              className="h-16 w-auto opacity-80"
-            />
-          </div>
         </div>
       </section>
+      <Footer />
     </div>
   );
 }
