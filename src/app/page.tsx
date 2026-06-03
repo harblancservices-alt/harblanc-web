@@ -13,7 +13,6 @@ export default function Home() {
       <Services />
       <ProcessSummary />
       <About />
-      <Dispatch />
     </>
   );
 }
@@ -347,111 +346,166 @@ function ProcessSummary() {
   );
 }
 
-/* --------------------------------- ABOUT --------------------------------- */
+/* ---------------------------- CARRIER + DISPATCH ------------------------- */
+/*
+ * One hero-style panel. Full-bleed aerial truck photo is the section.
+ * Left-weighted gradient covers ~50% on desktop for text legibility while
+ * keeping the right 45-55% of the image visible. Mobile gets a flat dark
+ * wash for readability. Bottom dark band holds the Got a Load CTA so the
+ * photo, brand stats, and dispatch hand-off live in one continuous frame.
+ */
 
 function About() {
   return (
     <section
       id="about"
-      className="relative isolate overflow-hidden border-b-2 border-[#dcd5c2]/30 scroll-mt-16"
+      className="relative isolate overflow-hidden border-b-2 border-[#dcd5c2]/30 scroll-mt-16 min-h-[600px] lg:min-h-[680px]"
     >
-      {/* Full-bleed background — aerial follow-shot of the carrier on route.
-          Y-bias keeps the trailer in frame on widescreen crops and lets the
-          truck/trailer (not the asphalt) carry the composition. */}
+      {/* LAYER 1 - Full-bleed truck photo. The photo IS the section.
+          src points at the lossless Overhead.png master (same 1920x1080
+          as about-bg.jpg) so Next/Image re-encodes without stacking
+          JPEG-on-JPEG artifacts. priority avoids the LQIP placeholder
+          delay. Mirrored on the X axis so the truck mass sits on the
+          visible right half of the viewport; small filter tweak adds
+          a touch of contrast/saturation so the photo reads crisper. */}
       <Image
-        src="/brand/about-bg.jpg"
+        src="/brand/Overhead.png"
         alt=""
         fill
+        priority
         sizes="100vw"
-        className="-z-10 object-cover"
-        style={{ objectPosition: "62% 78%" }}
+        className="object-cover"
+        style={{
+          objectPosition: "70% 50%",
+          transform: "scaleX(-1)",
+          filter: "contrast(1.08) saturate(1.12) brightness(1.04)",
+        }}
+        quality={92}
       />
-      {/* Dark wash — flat on mobile for full-image legibility; left-weighted
-          gradient on desktop so the text side stays readable and the truck
-          side shows more operational detail without going muddy. */}
-      <div aria-hidden className="absolute inset-0 -z-10 bg-black/75 lg:hidden" />
+
+      {/* LAYER 2 - Left-weighted gradient (desktop). Strong dark band on
+          the left for legibility, with the right edge still slightly
+          damped so the truck doesn't glare. */}
       <div
         aria-hidden
-        className="absolute inset-0 -z-10 hidden bg-gradient-to-r from-black/85 via-black/45 to-black/15 lg:block"
+        className="absolute inset-0 hidden lg:block"
+        style={{
+          background:
+            "linear-gradient(90deg, rgba(0,0,0,0.86) 0%, rgba(0,0,0,0.78) 28%, rgba(0,0,0,0.48) 48%, rgba(0,0,0,0.18) 68%, rgba(0,0,0,0.08) 100%)",
+        }}
       />
 
-      {/* Content — left-aligned column, sat lower in the frame so the text
-          settles into the composition instead of floating at the top. */}
-      <div className="mx-auto max-w-7xl px-4 pt-24 pb-14 sm:px-6 sm:pt-32 sm:pb-20 lg:px-8 lg:pt-44 lg:pb-24">
-        <div className="max-w-xl">
-          <h2 className="text-4xl font-display tracking-tight text-white sm:text-5xl">
-            The carrier.
-          </h2>
-          <div className="mt-8 space-y-5 text-base leading-relaxed text-white lg:text-lg">
-            <p>
-              {company.legalName} is an owner-operated motor carrier serving
-              industrial and construction freight customers across the
-              lower 48.
-            </p>
-            <p>
-              Equipment confirmed at quote. Pickup windows held to a stated
-              time. Status updated during transit. Paperwork delivered on
-              completion.
-            </p>
-          </div>
+      {/* LAYER 2b - Mobile flat dark wash for full legibility. */}
+      <div aria-hidden className="absolute inset-0 bg-black/70 lg:hidden" />
 
-          <dl className="mt-10 grid grid-cols-2 gap-x-8 gap-y-5 border-t border-white/15 pt-8 sm:grid-cols-4">
-            <Spec label="USDOT" value={company.dotNumber} />
-            <Spec label="MC" value={company.mcNumber} />
-            <Spec label="Operating" value={company.authorityText} />
-            <Spec label="Dispatch" value={company.dispatchModel} />
-          </dl>
+      {/* LAYER 2c - Subtle bottom fade for CTA readability. Sits behind the
+          CTA band and gives buttons + heading a soft dark backing without
+          requiring the band itself to be opaque. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 bottom-0 hidden h-72 lg:block"
+        style={{
+          background:
+            "linear-gradient(0deg, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.42) 45%, rgba(0,0,0,0) 100%)",
+        }}
+      />
+
+      {/* LAYER 3 - Content column. Flex column so the top region grows
+          and the CTA band overlay pins to the bottom of the section. */}
+      <div className="relative z-10 flex min-h-[600px] flex-col lg:min-h-[680px]">
+
+        {/* TOP: Carrier text overlay, vertically centered, anchored LEFT */}
+        <div className="flex flex-1 items-center">
+          <div className="mx-auto w-full max-w-7xl px-4 py-10 sm:px-6 sm:py-12 lg:px-8 lg:py-14">
+            <div className="max-w-[640px]">
+              <div className="font-mono text-[12px] font-bold uppercase tracking-[0.28em] text-red-500">
+                The Carrier
+              </div>
+
+              <h2 className="mt-3 font-display text-4xl leading-[0.95] tracking-tight text-white sm:text-5xl lg:text-6xl">
+                HARBLANC SERVICES LLC
+              </h2>
+
+              <div className="mt-6 space-y-5 text-base leading-relaxed text-white lg:text-lg">
+                <p>
+                  HARBLANC SERVICES LLC is an owner-operated motor carrier
+                  serving industrial and construction freight customers across
+                  the lower 48.
+                </p>
+                <p>
+                  Equipment confirmed at quote. Pickup windows held to a
+                  stated time. Status updated during transit. Paperwork
+                  delivered on completion.
+                </p>
+              </div>
+
+              <div aria-hidden className="mt-10 h-px w-full bg-red-500/70" />
+
+              <dl className="mt-8 grid max-w-md grid-cols-2 gap-x-8 gap-y-5 sm:grid-cols-4">
+                <Stat label="USDOT" value={company.dotNumber} />
+                <Stat label="MC" value={company.mcNumber} />
+                <Stat label="Operating" value={company.authorityText} />
+                <Stat label="Dispatch" value={company.dispatchModel} />
+              </dl>
+            </div>
+          </div>
+        </div>
+
+        {/* BOTTOM: Got a Load CTA band - translucent overlay with a red
+            top hairline. Heading + buttons live inside the same 640px
+            column as the carrier text above, so the buttons hug the
+            copy instead of floating off to the right. */}
+        <div className="border-t border-red-500/70 bg-black/35">
+          <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-5 lg:px-8 lg:py-5">
+            <div className="flex max-w-[640px] flex-col gap-4 lg:flex-row lg:items-center lg:gap-6">
+              <div className="flex flex-1 items-start gap-4 sm:gap-5">
+                <span aria-hidden className="mt-1 block h-9 w-1 flex-none bg-red-500 sm:h-10 lg:h-11" />
+                <div>
+                  <h3 className="font-display text-3xl font-black uppercase leading-none tracking-tight text-white sm:text-4xl lg:text-4xl">
+                    Got a Load?
+                  </h3>
+                  <p className="mt-2 text-sm text-white sm:text-base">
+                    Pickup, delivery, weight, equipment &mdash; that&apos;s all
+                    dispatch needs to send a quote back.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:flex lg:flex-none lg:gap-2">
+                <Link
+                  href="/quote"
+                  className="btn-cut block bg-red-600 px-6 py-4 text-center text-sm font-bold uppercase tracking-[0.14em] text-white shadow-[inset_0_0_0_2px_#fff] transition-colors hover:bg-red-500"
+                >
+                  Request a Quote
+                </Link>
+                <a
+                  href={phoneHref}
+                  className="btn-outline-cut-light block px-6 py-4 text-center text-sm font-bold uppercase tracking-[0.14em] text-white transition-colors"
+                >
+                  Call Dispatch
+                </a>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
   );
 }
 
-function Spec({ label, value }: { label: string; value: string }) {
+/**
+ * Stat - single text-only cell in the carrier stat row.
+ * Red mono label above, bold white value below. No icon, no box, no border.
+ */
+function Stat({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="font-mono text-[10px] tracking-[0.22em] text-white uppercase">
+      <dt className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-red-500">
         {label}
       </dt>
-      <dd className="mt-1.5 font-mono text-sm text-white sm:text-base">
+      <dd className="mt-1.5 text-base font-bold text-white sm:text-lg">
         {value}
       </dd>
     </div>
-  );
-}
-
-/* ------------------------------- DISPATCH -------------------------------- */
-
-function Dispatch() {
-  return (
-    <section className="border-b-2 border-[#dcd5c2]/30 bg-[#141414]">
-      <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8 lg:py-20">
-        <div className="grid items-end gap-x-12 gap-y-8 lg:grid-cols-12">
-          <div className="lg:col-span-7">
-            <h2 className="text-4xl font-display tracking-tight text-white sm:text-5xl lg:text-6xl">
-              Got a load?
-            </h2>
-            <p className="mt-5 max-w-2xl text-base leading-relaxed text-white sm:text-lg">
-              Pickup, delivery, weight, equipment &mdash; that&apos;s all
-              dispatch needs to send a quote back.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:col-span-5">
-            <Link
-              href="/quote"
-              className="btn-cut block bg-red-600 px-6 py-4 text-center text-sm font-bold uppercase tracking-[0.14em] text-white shadow-[inset_0_0_0_2px_#fff] transition-colors hover:bg-red-500"
-            >
-              Request a Quote
-            </Link>
-            <a
-              href={phoneHref}
-              className="btn-outline-cut-light block px-6 py-4 text-center text-sm font-bold uppercase tracking-[0.14em] text-white transition-colors"
-            >
-              Call Dispatch
-            </a>
-          </div>
-        </div>
-      </div>
-    </section>
   );
 }
