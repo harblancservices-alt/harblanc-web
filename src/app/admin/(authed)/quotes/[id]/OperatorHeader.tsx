@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { IconCheck, IconCopy } from "./icons";
+import { formatPhoneDisplay } from "@/lib/admin/form-utils";
 
 /**
  * HARBLANC freight-document operator header.
@@ -74,100 +75,7 @@ export function OperatorHeader({
 
   return (
     <div className="space-y-3">
-      {/* Block 1 - Lane manifest */}
-      <section className="border border-black border-l-4 border-l-red-700 bg-[#fafaf6]">
-        <div className="flex flex-wrap items-start justify-between gap-3 px-4 py-3 sm:px-5 sm:py-4">
-          <div className="min-w-0 flex-1">
-            <p className="font-mono text-[12px] font-bold uppercase tracking-[0.18em] text-black">
-              Lane &middot; Pickup &rarr; Delivery
-            </p>
-            {lane.hasLane ? (
-              <div className="mt-1 flex flex-wrap items-baseline gap-x-3">
-                <span className="font-mono text-3xl font-medium tracking-tight text-black sm:text-4xl">
-                  {lane.pickupLabel}
-                </span>
-                <span
-                  aria-hidden
-                  className="text-xl text-red-700"
-                >
-                  &rarr;
-                </span>
-                <span className="font-mono text-3xl font-medium tracking-tight text-black sm:text-4xl">
-                  {lane.deliveryLabel}
-                </span>
-                {lane.miles != null ? (
-                  <span className="inline-flex items-baseline gap-1 border border-red-700 px-1.5 py-0.5 font-mono text-[13px] font-medium tabular-nums text-red-700">
-                    {lane.miles.toLocaleString()}
-                    <span className="text-[11px] font-bold uppercase tracking-[0.12em]">
-                      mi
-                    </span>
-                  </span>
-                ) : null}
-              </div>
-            ) : (
-              <p className="mt-1 font-mono text-2xl font-medium text-black sm:text-3xl">
-                Lane pending
-              </p>
-            )}
-            {hasZipSub ? (
-              <p className="mt-1.5 font-mono text-[14px] font-bold text-red-700">
-                {lane.pickupZip ?? "--"}
-                <span aria-hidden className="mx-1.5 text-red-700">
-                  &rarr;
-                </span>
-                {lane.deliveryZip ?? "--"}
-                {lane.miles == null ? (
-                  <span className="ml-3 text-[12px] font-normal text-black">
-                    &middot; est. miles unavailable
-                  </span>
-                ) : null}
-              </p>
-            ) : null}
-          </div>
-
-          {/* Status stamp box - replaces the yellow pill */}
-          <div className="shrink-0 border border-red-700 px-2.5 py-1 text-center">
-            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-black">
-              Status
-            </p>
-            <p className="mt-0.5 font-mono text-[13px] font-bold uppercase tracking-[0.1em] text-red-700">
-              {identity.statusLabel}
-            </p>
-          </div>
-        </div>
-
-        {/* Meta strip */}
-        <div className="grid grid-cols-1 gap-x-4 gap-y-1.5 border-t border-zinc-300 px-4 py-2.5 font-mono text-[12px] sm:grid-cols-3 sm:px-5">
-          <div className="flex items-baseline gap-2">
-            <span className="font-bold uppercase tracking-[0.14em] text-black">
-              Received
-            </span>
-            <span className="text-black">
-              {identity.receivedRelative}
-            </span>
-          </div>
-          <div className="flex items-baseline gap-2">
-            <span className="font-bold uppercase tracking-[0.14em] text-black">
-              Date
-            </span>
-            <span className="text-black">
-              {identity.receivedFull}
-            </span>
-          </div>
-          <div className="flex items-baseline gap-2 sm:justify-end">
-            <span className="font-bold uppercase tracking-[0.14em] text-black">
-              Req ID
-            </span>
-            <span className="text-black">{identity.requestId}</span>
-            <CopyButton
-              value={identity.requestIdFull}
-              ariaLabel="request ID"
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* Block 2 - Shipper of record */}
+      {/* Block 1 (was Block 2) - Shipper of record */}
       <section className="border border-black border-l-4 border-l-red-700 bg-[#fafaf6]">
         <div className="flex items-center gap-2 border-b border-black bg-[#f3f1e9] px-3 py-1.5 sm:px-4">
           <span
@@ -185,7 +93,7 @@ export function OperatorHeader({
         />
         <ContactRow
           label="Phone"
-          value={customer.phone}
+          value={formatPhoneDisplay(customer.phone) || customer.phone}
           mono
           actionHref={phoneHref}
           actionLabel="Tap to call"
@@ -196,12 +104,74 @@ export function OperatorHeader({
           label="Email"
           value={customer.email}
           mono
-          breakAll
           actionHref={mailHref}
           actionLabel="Draft email"
           ariaLabel="email"
           dashed
         />
+      </section>
+
+      {/* Block 2 (was Block 1) - Lane manifest (Option B compact layout) */}
+      <section className="border border-black border-l-4 border-l-red-700 bg-[#fafaf6]">
+        <div className="px-4 py-3 sm:px-5 sm:py-3.5">
+          {lane.hasLane ? (
+            <>
+              {/* Top row: large red ZIPs + 995 MI red pill on the right.
+                  ZIPs are the operational identifier dispatch actually
+                  scans for; cities are supporting context below. */}
+              <div className="mb-1.5 flex items-center gap-2">
+                <span className="font-mono text-lg font-medium tabular-nums text-red-700 sm:text-xl">
+                  {lane.pickupZip ?? "----"}
+                </span>
+                <span aria-hidden className="font-mono text-lg text-red-700 sm:text-xl">
+                  &rarr;
+                </span>
+                <span className="font-mono text-lg font-medium tabular-nums text-red-700 sm:text-xl">
+                  {lane.deliveryZip ?? "----"}
+                </span>
+                {lane.miles != null ? (
+                  <span className="ml-auto inline-flex items-baseline gap-1 bg-red-700 px-2 py-0.5 font-mono text-[12px] font-bold tabular-nums tracking-[0.06em] text-white">
+                    {lane.miles.toLocaleString()}
+                    <span className="text-[10px] font-bold uppercase tracking-[0.12em]">mi</span>
+                  </span>
+                ) : null}
+              </div>
+              {/* Second row: city names — smaller, supporting. Truncates
+                  with ellipsis on narrow widths so the row stays single-
+                  line. */}
+              <p className="truncate font-mono text-[13px] text-black sm:text-[14px]">
+                {lane.pickupLabel}
+                <span aria-hidden className="mx-1.5 text-red-700">&rarr;</span>
+                {lane.deliveryLabel}
+              </p>
+              {lane.miles == null ? (
+                <p className="mt-1 font-mono text-[11px] font-medium text-black">
+                  est. miles unavailable
+                </p>
+              ) : null}
+            </>
+          ) : (
+            <p className="font-mono text-lg font-medium text-black sm:text-xl">
+              Lane pending
+            </p>
+          )}
+        </div>
+
+        {/* Meta strip — three compact black pills replacing the old
+            "RECEIVED / DATE / REQ ID" labeled rows. Pills are tight and
+            single-row, with a copy affordance on the REQ ID. */}
+        <div className="flex flex-wrap items-center gap-1.5 border-t border-black/15 px-3 py-2 sm:px-5">
+          <span className="inline-flex items-center bg-black px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.10em] text-white">
+            {identity.receivedRelative}
+          </span>
+          <span className="inline-flex items-center bg-black px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.10em] text-white">
+            {identity.receivedFull}
+          </span>
+          <span className="inline-flex items-center gap-1 bg-black px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.10em] text-white">
+            {identity.requestId}
+            <CopyButton value={identity.requestIdFull} ariaLabel="request ID" />
+          </span>
+        </div>
       </section>
     </div>
   );
@@ -211,7 +181,6 @@ function ContactRow({
   label,
   value,
   mono,
-  breakAll,
   actionHref,
   actionLabel,
   ariaLabel,
@@ -220,16 +189,17 @@ function ContactRow({
   label: string;
   value: string;
   mono?: boolean;
-  breakAll?: boolean;
   actionHref?: string;
   actionLabel?: string;
   ariaLabel: string;
   dashed?: boolean;
 }) {
+  // Always truncate with ellipsis — break-all (the old "breakAll" branch)
+  // shredded the email mid-word on narrow mobile widths
+  // (dispatch@har / blancservice / s.com). The copy button next to the
+  // value still grabs the full address so nothing is lost.
   const valueCls =
-    "text-[16px] text-black " +
-    (mono ? "font-mono " : "") +
-    (breakAll ? "break-all " : "truncate ");
+    "text-[16px] text-black truncate " + (mono ? "font-mono " : "");
 
   const inner = (
     <div className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5 sm:px-4">
@@ -261,9 +231,12 @@ function ContactRow({
       )}
       <div className="flex shrink-0 items-center gap-2 pr-3 sm:pr-4">
         {actionHref && actionLabel ? (
+          // Hidden on mobile — the whole row is already a tap target via
+          // the anchor wrap around `inner`, so the affordance still works.
+          // Frees up ~85px on the right so the value stops getting clipped.
           <a
             href={actionHref}
-            className="font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-red-700 hover:underline"
+            className="hidden font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-red-700 hover:underline sm:inline-block"
           >
             {actionLabel}
           </a>

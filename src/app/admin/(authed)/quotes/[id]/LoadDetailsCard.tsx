@@ -521,7 +521,11 @@ function DateRangeRow({
   return (
     <div className="grid grid-cols-[110px_minmax(0,1fr)_32px] items-center gap-3 border-t border-zinc-300 px-4 py-2 sm:px-5">
       <LabelWithBar label={label} />
-      <div className="grid grid-cols-[minmax(0,1fr)_14px_minmax(0,1fr)] items-center gap-2">
+      {/* Mobile: start date stacks above end date — native date inputs
+          need ~110-120px each to render mm/dd/yyyy, which doesn't fit in
+          the ~180px content column on mobile. mdash separator is hidden
+          on mobile so it doesn't render as an orphan dash on its own row. */}
+      <div className="flex flex-col gap-1.5 sm:grid sm:grid-cols-[minmax(0,1fr)_14px_minmax(0,1fr)] sm:items-center sm:gap-2">
         <EditableInput
           value={startValue}
           onChange={(v) => onChange(startKey, v)}
@@ -530,7 +534,7 @@ function DateRangeRow({
         />
         <span
           aria-hidden
-          className="text-center font-mono text-[15px] font-bold text-black"
+          className="hidden text-center font-mono text-[15px] font-bold text-black sm:block"
         >
           &mdash;
         </span>
@@ -628,7 +632,7 @@ function EditableInput({
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={advanceOnEnter}
         aria-label={ariaLabel}
-        className="min-w-0 flex-1 border-0 bg-transparent px-2.5 py-1.5 text-[15px] text-black placeholder:text-zinc-700 focus:outline-none"
+        className="min-w-0 flex-1 border-0 bg-transparent px-2.5 py-1.5 text-[16px] text-black placeholder:text-zinc-700 focus:outline-none sm:text-[15px]"
       />
     </div>
   );
@@ -719,7 +723,10 @@ function CityZipRow({
   return (
     <div className="grid grid-cols-[110px_minmax(0,1fr)_32px] items-center gap-3 border-t border-zinc-300 px-4 py-2 sm:px-5">
       <LabelWithBar label="City / ZIP" />
-      <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)] items-center gap-2">
+      {/* Mobile: city stacks above ZIP — content column is only ~180px
+          on a 360px viewport, so cramming 2-col chops the ZIP. sm+
+          restores side-by-side. */}
+      <div className="flex flex-col gap-1.5 sm:grid sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] sm:items-center sm:gap-2">
         <EditableInput
           value={cityValue}
           onChange={(v) => onChange(cityKey, v)}

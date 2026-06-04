@@ -1,45 +1,61 @@
 import { company } from "@/lib/company";
 
 /**
- * HARBLANC email shell — centered white letterhead, white credentials
- * strip, white document strip, content slot, signature footer.
+ * HARBLANC CUSTOMER EMAIL SHELL — site-footer port (2026-06-03).
  *
- * Phase HEADER-LITE (2026-05-25): pulled out the black regulatory band
- * and the dark dispatch packet strip. Read as "less AI looking" — too
- * much tactical chrome compressed against the masthead. New header is
- * three centered white blocks separated by hairlines:
+ * ┌─────────────────────────────────────────────────────────────────┐
+ * │  ARCHITECTURAL BOUNDARY — READ BEFORE EDITING                    │
+ * │                                                                  │
+ * │  This shell is used ONLY for customer-facing emails:             │
+ * │     • Acknowledgement      (render.ts)                           │
+ * │     • Quote Range          (render.ts)                           │
+ * │     • Finalized Quote      (finalized-quote.ts)                  │
+ * │                                                                  │
+ * │  This shell is NOT used for the Bill of Lading. BOL is a         │
+ * │  paperwork document, not a customer email — it owns its own      │
+ * │  renderer in bill-of-lading.ts (renderBolEmail). Do NOT route    │
+ * │  BOL through this shell. Do NOT add BOL-style elements here.     │
+ * └─────────────────────────────────────────────────────────────────┘
  *
- *   1. LETTERHEAD     — centered HARBLANC lockup + carrier tagline
- *   2. CREDENTIALS    — centered USDOT · MC · Licensed & Insured
- *                       (black text on white, red middle-dots)
- *   3. DOCUMENT STRIP — centered DATE | DOC | REF (red labels, gray
- *                       pipes, black values on white)
+ * Visual reference: the actual website footer (src/components/site/
+ * Footer.tsx). Header + footer here port that footer's typography,
+ * layout, and assets verbatim, just compressed to email-safe HTML:
  *
- * The body bands (Quote summary / Rate breakdown / Confirmation /
- * Accept-Decline) and the signature footer at the bottom are unchanged.
+ *   HEADER (black + topo SVG)
+ *     centered logo (Reverse-on-dark)
+ *     3 stacked mono lines: OWNER-OPERATED / LICENSED & INSURED / EST. 2022
  *
- * Asset:
- *   https://{domain}/brand/logo-horizontal.png (843×185, 178 KB)
- *   — the navbar/footer lockup. Dark-on-light, designed for white
- *   backgrounds. Renders cleanly without theatrics.
+ *   CONTENT (white) — email body slot, untouched
+ *
+ *   FOOTER (black + topo SVG)
+ *     2-col grid:
+ *       Brand:    logo + 3-line tagline
+ *       DISPATCH: email / phone / USDOT / MC (red mono header)
+ *     SITE column (Home/Services/Contact) was removed — customer
+ *     emails don't need website navigation.
+ *     hairline
+ *     bottom bar: © {year} HARBLANC ... | LICENSED & INSURED MOTOR CARRIER
+ *
+ * Colors taken from the site: bg-black (#000000), red-500 (#ef4444),
+ * neutral-800 border (#262626), white text everywhere else.
  */
 
 export type EmailShellInput = {
   preheader: string;
   contentHtml: string;
   contentText: string;
+  /** Vestigial — kept on the type so existing callers compile. */
   refNumber: string;
+  /** Vestigial — kept on the type so existing callers compile. */
   docType: string;
-  /**
-   * When true (default), the closing signature block — "— Brent",
-   * USDOT / MC / OPERATES grid, DISPATCH / EMAIL directory — is
-   * appended after the content slot. Set false for documents that
-   * end in their own action area (the estimate email's Accept /
-   * Decline band) so the document closes cleanly without a
-   * redundant signature.
-   */
+  /** Vestigial — kept on the type so existing callers compile. */
   includeSignatureFooter?: boolean;
 };
+
+const SANS =
+  "'Public Sans',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+const MONO_FEATURES =
+  "font-variant-numeric:tabular-nums lining-nums;font-feature-settings:'tnum' 1,'lnum' 1,'zero' 0";
 
 const PUBLIC_ORIGIN =
   process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.harblancservices.com";
@@ -58,74 +74,112 @@ function escapeHtml(s: string): string {
   );
 }
 
-function formatPacketDate(d: Date): string {
-  const months = [
-    "JAN", "FEB", "MAR", "APR", "MAY", "JUN",
-    "JUL", "AUG", "SEP", "OCT", "NOV", "DEC",
-  ];
-  const yr = d.getUTCFullYear();
-  const mo = months[d.getUTCMonth()];
-  const dy = String(d.getUTCDate()).padStart(2, "0");
-  return `${yr} · ${mo} · ${dy}`;
-}
-
 export function renderEmailShell(input: EmailShellInput): {
   html: string;
   text: string;
 } {
-  // Operator-supplied horizontal lockup with black-outlined HARBLANC
-  // wordmark. Same asset shipped on the PDF so email and PDF brand
-  // identities stay in lockstep.
-  const logoUrl = `${PUBLIC_ORIGIN}/brand/harblanc-pro.png`;
-  const issuedDate = formatPacketDate(new Date());
-  // Phase HEADER-LITE-2: bottom signature footer dropped entirely.
-  // The signature footer used to be a dark band carrying "— Brent",
-  // USDOT/MC grid, and DISPATCH/EMAIL links. The credentials migrate
-  // to the top black masthead bar; the signature line becomes a
-  // closing-line responsibility (operator typed at intake time).
-  // `includeSignatureFooter` is kept on the input type so older
-  // callers still compile, but it's now a no-op.
+  void input.refNumber;
+  void input.docType;
   void input.includeSignatureFooter;
 
+  // Same assets the website footer uses:
+  //   BrandLogo variant="inverted"  →  /brand/Reverse-on-dark.png
+  //   Topographic SVG               →  /brand/footer-topo.svg
+  const logoUrl = `${PUBLIC_ORIGIN}/brand/Reverse-on-dark.png`;
+  const topoUrl = `${PUBLIC_ORIGIN}/brand/footer-topo.svg`;
+  const phoneDigits = company.dispatchPhone.replace(/[^\d+]/g, "");
+  const mailHref = `mailto:${company.dispatchEmail}`;
+  const phoneHref = `tel:${phoneDigits}`;
+  const year = new Date().getFullYear();
+
   const html = `<!doctype html>
-<html><body style="margin:0;padding:0;background:#e5e5e5;color:#0a0a0a;font-family:'Public Sans',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;line-height:1.5;font-size:15px">
-  <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:#e5e5e5;opacity:0">${escapeHtml(input.preheader)}</div>
+<html><body style="margin:0;padding:0;background:#ffffff;color:#0a0a0a;font-family:${SANS};line-height:1.5;font-size:15px">
+  <div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:#ffffff;opacity:0">${escapeHtml(input.preheader)}</div>
 
-  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;background:#e5e5e5">
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse">
     <tr>
-      <td align="center" style="padding:10px 8px">
-        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="border-collapse:collapse;width:100%;max-width:600px;background:#ffffff;border:1px solid #d4d4d8">
+      <td align="center" style="padding:0">
 
-          <!-- ───── TOP CREDENTIALS BAR — black band, white text, red middle-dots ───── -->
+        <!-- 600px card. Header + footer carry bg-black + the SAME topo
+             SVG file the site footer uses. Content slot stays pure white. -->
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="border-collapse:collapse;width:100%;max-width:600px;background:#ffffff">
+
+          <!-- ── HEADER — site footer Col 1, centered ─────────────────── -->
           <tr>
-            <td align="center" style="padding:8px 22px;background:#0a0a0a">
-              <p style="margin:0;font-family:'Public Sans',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-variant-numeric:tabular-nums lining-nums;font-feature-settings:'tnum' 1,'lnum' 1,'zero' 0;font-size:10px;letter-spacing:0.22em;color:#ffffff;text-transform:uppercase;font-weight:700;text-align:center">
-                ${escapeHtml(company.dot)}&nbsp;<span style="color:#dc2626">&middot;</span>&nbsp;${escapeHtml(company.mc)}&nbsp;<span style="color:#dc2626">&middot;</span>&nbsp;${escapeHtml(company.authorityText)}
-              </p>
+            <td align="center" bgcolor="#000000" style="background-color:#000000;background-image:url('${topoUrl}');background-size:600px 600px;background-repeat:repeat;padding:30px 22px 24px">
+              <img src="${escapeHtml(logoUrl)}" alt="HARBLANC Services LLC" width="220" height="auto" style="display:inline-block;width:220px;height:auto;max-width:100%;border:0;outline:0" />
+              <!-- Verbatim from Footer.tsx lines 76-80: font-mono text-[11px]
+                   tracking-[0.18em] uppercase white weight 500 -->
+              <p style="margin:16px 0 0;font-family:${SANS};${MONO_FEATURES};font-size:11px;font-weight:500;letter-spacing:0.18em;color:#ffffff;text-transform:uppercase;text-align:center;line-height:1.9">Owner-Operated</p>
+              <p style="margin:0;font-family:${SANS};${MONO_FEATURES};font-size:11px;font-weight:500;letter-spacing:0.18em;color:#ffffff;text-transform:uppercase;text-align:center;line-height:1.9">Licensed &amp; Insured</p>
+              <p style="margin:0;font-family:${SANS};${MONO_FEATURES};font-size:11px;font-weight:500;letter-spacing:0.18em;color:#ffffff;text-transform:uppercase;text-align:center;line-height:1.9">Est. 2022</p>
             </td>
           </tr>
 
-          <!-- ───── LETTERHEAD — centered horizontal lockup + tagline ───── -->
-          <tr>
-            <td align="center" style="padding:14px 22px 10px;background:#ffffff">
-              <img src="${escapeHtml(logoUrl)}" alt="HARBLANC Services LLC" width="240" height="80" style="display:inline-block;width:240px;height:auto;max-width:100%;border:0;outline:0;background:#ffffff" />
-              <p style="margin:8px 0 0;font-family:'Public Sans',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-variant-numeric:tabular-nums lining-nums;font-feature-settings:'tnum' 1,'lnum' 1,'zero' 0;font-size:10px;letter-spacing:0.22em;color:#0a0a0a;text-transform:uppercase;font-weight:700;text-align:center">Direct freight dispatch &nbsp;·&nbsp; Owner-operated motor carrier</p>
-            </td>
-          </tr>
-
-          <!-- ───── DOCUMENT STRIP — DATE / DOC / REF on white, red labels ───── -->
-          <tr>
-            <td align="center" style="padding:5px 22px 8px;background:#ffffff;border-top:1px solid #d4d4d8;border-bottom:1px solid #d4d4d8">
-              <p style="margin:0;font-family:'Public Sans',ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-variant-numeric:tabular-nums lining-nums;font-feature-settings:'tnum' 1,'lnum' 1,'zero' 0;font-size:10px;letter-spacing:0.22em;color:#0a0a0a;text-transform:uppercase;font-weight:700;text-align:center">
-                <span style="color:#dc2626">Date</span>&nbsp;&nbsp;${escapeHtml(issuedDate)}&nbsp;&nbsp;<span style="color:#d4d4d8">|</span>&nbsp;&nbsp;<span style="color:#dc2626">Doc</span>&nbsp;&nbsp;${escapeHtml(input.docType)}&nbsp;&nbsp;<span style="color:#d4d4d8">|</span>&nbsp;&nbsp;<span style="color:#dc2626">Ref</span>&nbsp;&nbsp;${escapeHtml(input.refNumber)}
-              </p>
-            </td>
-          </tr>
-
-          <!-- ───── CONTENT ───── -->
+          <!-- ── CONTENT — white slot, body owns its own padding ──────── -->
           <tr>
             <td style="padding:0;background:#ffffff">
               ${input.contentHtml}
+            </td>
+          </tr>
+
+          <!-- ── FOOTER — site footer ported: 3-col grid + bottom bar ── -->
+          <tr>
+            <td bgcolor="#000000" style="background-color:#000000;background-image:url('${topoUrl}');background-size:600px 600px;background-repeat:repeat;padding:30px 24px 20px">
+
+              <!-- Wrapper table — 3 logical rows: (1) 2-col grid,
+                   (2) 24px spacer, (3) hairline + bottom bar. -->
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;width:100%">
+
+                <!-- ROW 1 — Brand | DISPATCH -->
+                <tr>
+                  <td valign="top" style="vertical-align:top;padding:0">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;width:100%">
+                      <tr>
+                        <!-- Col 1 — Brand (logo + 3-line tagline) -->
+                        <td width="46%" valign="top" style="width:46%;vertical-align:top;padding-right:18px">
+                          <img src="${escapeHtml(logoUrl)}" alt="HARBLANC" width="140" height="auto" style="display:block;width:140px;height:auto;max-width:100%;border:0;outline:0" />
+                          <p style="margin:14px 0 0;font-family:${SANS};${MONO_FEATURES};font-size:11px;font-weight:500;letter-spacing:0.18em;color:#ffffff;text-transform:uppercase;line-height:1.9">Owner-Operated</p>
+                          <p style="margin:0;font-family:${SANS};${MONO_FEATURES};font-size:11px;font-weight:500;letter-spacing:0.18em;color:#ffffff;text-transform:uppercase;line-height:1.9">Licensed &amp; Insured</p>
+                          <p style="margin:0;font-family:${SANS};${MONO_FEATURES};font-size:11px;font-weight:500;letter-spacing:0.18em;color:#ffffff;text-transform:uppercase;line-height:1.9">Est. 2022</p>
+                        </td>
+
+                        <!-- Col 2 — DISPATCH (email, phone, USDOT, MC) -->
+                        <td width="54%" valign="top" style="width:54%;vertical-align:top">
+                          <p style="margin:0;font-family:${SANS};${MONO_FEATURES};font-size:13px;font-weight:700;letter-spacing:0.22em;color:#ef4444;text-transform:uppercase;line-height:1.4">Dispatch</p>
+                          <p style="margin:18px 0 0;font-family:${SANS};font-size:13px;font-weight:500;color:#ffffff;line-height:1.5;word-break:break-word"><a href="${escapeHtml(mailHref)}" style="color:#ffffff;text-decoration:none">${escapeHtml(company.dispatchEmail)}</a></p>
+                          <p style="margin:10px 0 0;font-family:${SANS};font-size:13px;font-weight:500;color:#ffffff;line-height:1.4"><a href="${escapeHtml(phoneHref)}" style="color:#ffffff;text-decoration:none">${escapeHtml(company.dispatchPhone)}</a></p>
+                          <p style="margin:14px 0 0;font-family:${SANS};font-size:13px;font-weight:500;color:#ffffff;line-height:1.4">USDOT ${escapeHtml(company.dotNumber)}</p>
+                          <p style="margin:6px 0 0;font-family:${SANS};font-size:13px;font-weight:500;color:#ffffff;line-height:1.4">MC ${escapeHtml(company.mcNumber)}</p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+
+                <!-- ROW 2 — 24px spacer between top grid and bottom bar -->
+                <tr>
+                  <td style="font-size:1px;line-height:1px;height:24px">&nbsp;</td>
+                </tr>
+
+                <!-- ROW 3 — hairline + bottom bar (copyright | L&I MC) -->
+                <tr>
+                  <td style="border-top:1px solid #262626;padding:14px 0 0">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;width:100%">
+                      <tr>
+                        <td valign="middle" align="left" style="vertical-align:middle">
+                          <p style="margin:0;font-family:${SANS};font-size:11px;font-weight:500;color:#ffffff;line-height:1.5">&copy; ${year} ${escapeHtml(company.legalName)}. All Rights Reserved.</p>
+                        </td>
+                        <td valign="middle" align="right" style="vertical-align:middle;text-align:right">
+                          <p style="margin:0;font-family:${SANS};${MONO_FEATURES};font-size:11px;font-weight:500;letter-spacing:0.22em;color:#ffffff;text-transform:uppercase;line-height:1.5">Licensed &amp; Insured Motor Carrier</p>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+
+              </table>
+
             </td>
           </tr>
 
@@ -135,26 +189,28 @@ export function renderEmailShell(input: EmailShellInput): {
   </table>
 </body></html>`;
 
-  // Plaintext mirrors the HTML: credentials at the top, document
-  // strip below, content. No bottom signature block — the HTML side
-  // dropped it too, so plaintext follows.
   const text = [
     `HARBLANC SERVICES LLC`,
-    `${company.dot} · ${company.mc} · ${company.authorityText}`,
-    "────────────────────────────────────────",
-    `DATE  ${issuedDate}    DOC  ${input.docType}    REF  ${input.refNumber}`,
+    `Owner-Operated · Licensed & Insured · Est. 2022`,
     "────────────────────────────────────────",
     "",
     input.contentText,
+    "",
+    "────────────────────────────────────────",
+    "DISPATCH",
+    `${company.dispatchEmail}`,
+    `${company.dispatchPhone}`,
+    `USDOT ${company.dotNumber} · MC ${company.mcNumber}`,
+    "",
+    `© ${year} ${company.legalName}. All Rights Reserved.`,
+    "Licensed & Insured Motor Carrier",
   ].join("\n");
 
   return { html, text };
 }
 
 /**
- * Compress a UUID into a tracking-style ref number used in subject lines,
- * preheader text, and the REF strip. e.g. "9d92f2a1-3b7c-4f2e-8a45-1c3b9e7d4a2f"
- * becomes "A4F2-9B1C" — last 8 hex chars, upper-case, hyphenated.
+ * Compress a UUID into a tracking-style ref number.
  */
 export function refNumber(leadId: string): string {
   const hex = leadId.replace(/-/g, "");

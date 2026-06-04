@@ -414,269 +414,235 @@ export function renderFinalizedQuoteEmail(
 
   const flags = activeOpsFlags(payload.ops);
 
-  // ── Plain-text body ────────────────────────────────────────────────────
+  // ── Plain-text body — confirmed rate first, then 5 sections ─────────────
+  const formatCityStateZip = (loc: {
+    city: string | null;
+    state: string | null;
+    zip: string | null;
+  }): string => {
+    const cs = [loc.city, loc.state].filter(Boolean).join(", ");
+    return [cs, loc.zip].filter(Boolean).join(" ");
+  };
+  const pickupLine = formatCityStateZip(payload.pickup);
+  const deliveryLine = formatCityStateZip(payload.delivery);
+  const totalFmt = formatUsd(payload.pricing.totalAmount);
+  const linehaulFmt = formatUsd(payload.pricing.linehaul);
+  const fuelFmt =
+    payload.pricing.fuelSurcharge != null
+      ? formatUsd(payload.pricing.fuelSurcharge)
+      : null;
+  const permitsFmt =
+    payload.pricing.permitsFee != null
+      ? formatUsd(payload.pricing.permitsFee)
+      : null;
+  const weightFmt =
+    payload.freight.exactWeightLbs !== null
+      ? `${payload.freight.exactWeightLbs.toLocaleString()} lbs`
+      : null;
+
   const textLines: string[] = [
-    greeting,
+    "CONFIRMED RATE",
     "",
-    opener,
-    "",
-    "── CONFIRMATION ──",
-    `  QUOTE #         ${payload.finalizedQuoteNumber}`,
-    `  ISSUED          ${issued}`,
+    totalFmt,
   ];
   if (payload.expirationAt) {
-    textLines.push(`  VALID THROUGH   ${validThrough}`);
+    textLines.push(`Valid through ${validThrough}`);
   }
   textLines.push("");
-  textLines.push("── PICKUP ──");
-  pushTextRows(textLines, [
-    ["Company", payload.pickup.company],
-    ["Contact", payload.pickup.contactName],
-    ["Phone", payload.pickup.contactPhone],
-    [
-      "Address",
-      joinAddress([
-        payload.pickup.addressLine1,
-        payload.pickup.addressLine2,
-        payload.pickup.city,
-        payload.pickup.state,
-        payload.pickup.zip,
-      ]) || null,
-    ],
-    ["Window", payload.pickup.window],
-  ]);
-
+  textLines.push("────────────────────────────────");
+  textLines.push("LANE");
+  if (pickupLine) textLines.push(pickupLine);
+  textLines.push("↓");
+  if (deliveryLine) textLines.push(deliveryLine);
   textLines.push("");
-  textLines.push("── DELIVERY ──");
-  pushTextRows(textLines, [
-    ["Company", payload.delivery.company],
-    ["Contact", payload.delivery.contactName],
-    ["Phone", payload.delivery.contactPhone],
-    [
-      "Address",
-      joinAddress([
-        payload.delivery.addressLine1,
-        payload.delivery.addressLine2,
-        payload.delivery.city,
-        payload.delivery.state,
-        payload.delivery.zip,
-      ]) || null,
-    ],
-    ["Window", payload.delivery.window],
-  ]);
-
+  textLines.push("SCHEDULE");
+  if (payload.pickup.window) {
+    textLines.push("Pickup:");
+    textLines.push(payload.pickup.window);
+  }
+  if (payload.delivery.window) {
+    textLines.push("Delivery:");
+    textLines.push(payload.delivery.window);
+  }
   textLines.push("");
-  textLines.push("── FREIGHT ──");
-  pushTextRows(textLines, [
-    ["Commodity", payload.freight.commodity],
-    ["Dimensions", formatDimensions(payload.freight)],
-    [
-      "Weight",
-      payload.freight.exactWeightLbs !== null
-        ? `${payload.freight.exactWeightLbs.toLocaleString()} lbs`
-        : null,
-    ],
-    [
-      "Quantity",
-      payload.freight.quantity !== null ? String(payload.freight.quantity) : null,
-    ],
-    ["Handling", payload.freight.handlingType],
-    ["Condition", payload.freight.runningCondition],
-  ]);
-  if (flags.length > 0) {
-    textLines.push(`  REQUIREMENTS    ${flags.join(", ")}`);
-  }
-
+  textLines.push("FREIGHT");
+  if (payload.freight.commodity) textLines.push(payload.freight.commodity);
+  if (weightFmt) textLines.push(weightFmt);
+  if (payload.freight.handlingType) textLines.push(payload.freight.handlingType);
   textLines.push("");
-  textLines.push("── RATE ──");
-  textLines.push(
-    `  Linehaul                                  ${formatUsd(payload.pricing.linehaul)}`,
-  );
-  if (payload.pricing.fuelSurcharge != null) {
-    textLines.push(
-      `  Fuel                                      ${formatUsd(payload.pricing.fuelSurcharge)}`,
-    );
-  }
-  if (payload.pricing.permitsFee != null) {
-    textLines.push(
-      `  Permits                                   ${formatUsd(payload.pricing.permitsFee)}`,
-    );
-  }
+  textLines.push("RATE BREAKDOWN");
+  textLines.push(`Linehaul     ${linehaulFmt}`);
+  if (fuelFmt) textLines.push(`Fuel         ${fuelFmt}`);
+  if (permitsFmt) textLines.push(`Permits      ${permitsFmt}`);
   for (const a of payload.pricing.accessorials) {
-    textLines.push(
-      `  ${padRight(a.label, 42)}${formatUsd(a.amount)}`,
-    );
+    textLines.push(`${padRight(a.label, 12)} ${formatUsd(a.amount)}`);
   }
-  textLines.push("  ─────────────────────────────────────────────");
-  textLines.push(
-    `  TOTAL                                     ${formatUsd(payload.pricing.totalAmount)}`,
-  );
-  if (payload.expirationAt) {
-    textLines.push(`  Valid through                             ${validThrough}`);
-  }
-  if (payload.paymentDueAt) {
-    textLines.push(`  Payment due                               ${paymentDue}`);
-  }
-
-  if (payload.ops.specialInstructions) {
-    textLines.push("");
-    textLines.push("── DISPATCH NOTES ──");
-    payload.ops.specialInstructions.split(/\r?\n/).forEach((ln) => {
-      textLines.push(`  ${ln}`);
-    });
-  }
-
+  textLines.push("─────────────────");
+  textLines.push(`TOTAL        ${totalFmt}`);
   if (payload.confirmUrl) {
     textLines.push("");
-    textLines.push("── CONFIRM THE RATE ──");
-    textLines.push(`  ${payload.confirmUrl}`);
+    textLines.push("CONFIRM FINALIZED QUOTE:");
+    textLines.push(payload.confirmUrl);
   }
-
   textLines.push("");
   textLines.push(MINIMAL_DISCLAIMER);
-
   const contentText = textLines.join("\n");
 
-  // ── HTML body ─────────────────────────────────────────────────────────
+  // ── HTML body ─────────────────────────────────────────────────────────────
+  // Premium decision-email hierarchy:
+  //   1. HERO — CONFIRMED RATE eyebrow + $3,200 at 64px + Valid through
+  //   2. LANE — pickup city/state/zip, down arrow, delivery city/state/zip
+  //   3. SCHEDULE — Pickup window + Delivery window stacked, typed labels
+  //   4. FREIGHT — commodity / weight / handling stacked, varied weight
+  //   5. RATE BREAKDOWN — label/amount rows + hairline + TOTAL emphasized
+  //   6. CONFIRM CTA — single big green button with 2px white inset outline
+  //
+  // No metadata at the top. No paperwork tables. Hierarchy via typography.
 
-  const messageBand = bandWhite(
-    `<p style="margin:0 0 4px;color:#0a0a0a;font-family:${SANS};font-size:16px;font-weight:600">${escapeHtml(greeting)}</p>
-     <p style="margin:0;color:#0a0a0a;font-family:${SANS};font-size:15px;font-weight:400;line-height:1.55">${escapeHtml(opener)}</p>`,
-  );
+  const sectionEyebrow = (label: string): string =>
+    `<p style="margin:0;font-family:${SANS};${MONO_FEATURES};font-size:11px;font-weight:700;letter-spacing:0.22em;color:#dc2626;text-transform:uppercase;line-height:1.4">${escapeHtml(label)}</p>`;
 
-  // Shipment block — Quote # / Issued / Valid through (no payment due,
-  // no range quote # — that's already in the packet REF strip).
-  const shipmentRows: { label: string; value: string }[] = [
-    {
-      label: "Quote #",
-      value: `<span style="font-family:${SANS};${MONO_FEATURES};font-size:18px;font-weight:700;color:#dc2626">${escapeHtml(payload.finalizedQuoteNumber)}</span>`,
-    },
-    { label: "Issued", value: escapeHtml(issued) },
-  ];
-  if (payload.expirationAt) {
-    shipmentRows.push({
-      label: "Valid through",
-      value: `<span style="font-family:${SANS};${MONO_FEATURES};font-weight:700;color:#0a0a0a">${escapeHtml(validThrough)}</span>`,
-    });
-  }
-  const shipmentBand = bandWhite(
-    sectionHeader("Confirmation") + fieldTable(shipmentRows),
-  );
+  const hairlineTr = `<tr><td style="padding:32px 40px 0"><div style="height:1px;background:#0a0a0a;font-size:1px;line-height:1px">&nbsp;</div></td></tr>`;
 
-  const pickupBand = bandWhite(
-    sectionHeader("Pickup") + fieldTable(buildLocationRows(payload.pickup, "pickup")),
-  );
-  const deliveryBand = bandWhite(
-    sectionHeader("Delivery") + fieldTable(buildLocationRows(payload.delivery, "delivery")),
-  );
+  // HERO ──────────────────────────────────────────────────────────────────
+  const heroTr = `<tr>
+      <td style="padding:44px 40px 8px">
+        <p style="margin:0;font-family:${SANS};${MONO_FEATURES};font-size:11px;font-weight:700;letter-spacing:0.30em;color:#dc2626;text-transform:uppercase;line-height:1.4">Confirmed Rate</p>
+        <p style="margin:14px 0 0;font-family:${SANS};${MONO_FEATURES};font-size:64px;font-weight:900;color:#0a0a0a;line-height:1.0;letter-spacing:-0.03em">${escapeHtml(totalFmt)}</p>
+        ${
+          payload.expirationAt
+            ? `<p style="margin:18px 0 0;font-family:${SANS};font-size:15px;font-weight:500;color:#0a0a0a;line-height:1.55">Valid through <span style="font-family:${SANS};${MONO_FEATURES};font-weight:700">${escapeHtml(validThrough)}</span>.</p>`
+            : ""
+        }
+      </td>
+    </tr>`;
 
-  // Freight block — fields + ops chip strip when anything is true.
-  const freightRows: { label: string; value: string }[] = [];
+  // LANE ──────────────────────────────────────────────────────────────────
+  const laneTr = `<tr>
+      <td style="padding:32px 40px 0">
+        ${sectionEyebrow("Lane")}
+        ${pickupLine ? `<p style="margin:14px 0 0;font-family:${SANS};font-size:22px;font-weight:700;color:#0a0a0a;line-height:1.3">${escapeHtml(pickupLine)}</p>` : ""}
+        <p style="margin:6px 0 0;font-family:${SANS};font-size:18px;font-weight:500;color:#0a0a0a;line-height:1;letter-spacing:0">&darr;</p>
+        ${deliveryLine ? `<p style="margin:6px 0 0;font-family:${SANS};font-size:22px;font-weight:700;color:#0a0a0a;line-height:1.3">${escapeHtml(deliveryLine)}</p>` : ""}
+      </td>
+    </tr>`;
+
+  // SCHEDULE ──────────────────────────────────────────────────────────────
+  const schedItemHtml = (label: string, value: string): string =>
+    `<p style="margin:14px 0 0;font-family:${SANS};${MONO_FEATURES};font-size:11px;font-weight:700;letter-spacing:0.18em;color:#0a0a0a;text-transform:uppercase;line-height:1.4">${escapeHtml(label)}</p>
+     <p style="margin:4px 0 0;font-family:${SANS};font-size:16px;font-weight:600;color:#0a0a0a;line-height:1.4">${escapeHtml(value)}</p>`;
+
+  const scheduleInner = [
+    payload.pickup.window ? schedItemHtml("Pickup", payload.pickup.window) : "",
+    payload.delivery.window ? schedItemHtml("Delivery", payload.delivery.window) : "",
+  ].join("");
+  const scheduleTr = scheduleInner
+    ? `<tr>
+      <td style="padding:32px 40px 0">
+        ${sectionEyebrow("Schedule")}
+        ${scheduleInner}
+      </td>
+    </tr>`
+    : "";
+
+  // FREIGHT ───────────────────────────────────────────────────────────────
+  const freightInnerLines: string[] = [];
   if (payload.freight.commodity) {
-    freightRows.push({ label: "Commodity", value: escapeHtml(payload.freight.commodity) });
+    freightInnerLines.push(
+      `<p style="margin:14px 0 0;font-family:${SANS};font-size:18px;font-weight:700;color:#0a0a0a;line-height:1.4">${escapeHtml(payload.freight.commodity)}</p>`,
+    );
   }
-  const dims = formatDimensions(payload.freight);
-  if (dims) {
-    freightRows.push({
-      label: "Dimensions",
-      value: `<span style="font-family:${SANS};${MONO_FEATURES};font-weight:700;color:#0a0a0a">${escapeHtml(dims)}</span>`,
-    });
-  }
-  if (payload.freight.exactWeightLbs !== null) {
-    freightRows.push({
-      label: "Weight",
-      value: `<span style="font-family:${SANS};${MONO_FEATURES};font-weight:700;color:#0a0a0a">${escapeHtml(`${payload.freight.exactWeightLbs.toLocaleString()} lbs`)}</span>`,
-    });
-  }
-  if (payload.freight.quantity !== null) {
-    freightRows.push({
-      label: "Quantity",
-      value: `<span style="font-family:${SANS};${MONO_FEATURES}">${escapeHtml(String(payload.freight.quantity))}</span>`,
-    });
+  if (weightFmt) {
+    freightInnerLines.push(
+      `<p style="margin:4px 0 0;font-family:${SANS};${MONO_FEATURES};font-size:14px;font-weight:500;color:#0a0a0a;line-height:1.5">${escapeHtml(weightFmt)}</p>`,
+    );
   }
   if (payload.freight.handlingType) {
-    freightRows.push({ label: "Handling", value: escapeHtml(payload.freight.handlingType) });
+    freightInnerLines.push(
+      `<p style="margin:4px 0 0;font-family:${SANS};font-size:14px;font-weight:500;color:#0a0a0a;line-height:1.5">${escapeHtml(payload.freight.handlingType)}</p>`,
+    );
   }
-  if (payload.freight.runningCondition) {
-    freightRows.push({ label: "Condition", value: escapeHtml(payload.freight.runningCondition) });
-  }
-  if (payload.freight.securementRequirements) {
-    freightRows.push({
-      label: "Securement",
-      value: `<span style="white-space:pre-wrap">${escapeHtml(payload.freight.securementRequirements)}</span>`,
-    });
-  }
-  const freightInner =
-    sectionHeader("Freight") +
-    fieldTable(freightRows) +
-    opsChipStripHtml(flags);
-  const freightBand = freightRows.length > 0 || flags.length > 0 ? bandWhite(freightInner) : "";
+  const freightTr = freightInnerLines.length > 0
+    ? `<tr>
+      <td style="padding:32px 40px 0">
+        ${sectionEyebrow("Freight")}
+        ${freightInnerLines.join("")}
+      </td>
+    </tr>`
+    : "";
 
-  // Rate band — invoice centerpiece. Black inverted, line items + total
-  // + small valid-through / payment-due footnotes.
-  const rateRows: Array<RateRow | { rule: true }> = [
-    { label: "Linehaul", amount: formatUsd(payload.pricing.linehaul) },
-  ];
-  if (payload.pricing.fuelSurcharge != null) {
-    rateRows.push({ label: "Fuel", amount: formatUsd(payload.pricing.fuelSurcharge) });
-  }
-  if (payload.pricing.permitsFee != null) {
-    rateRows.push({ label: "Permits", amount: formatUsd(payload.pricing.permitsFee) });
-  }
+  // RATE BREAKDOWN ────────────────────────────────────────────────────────
+  const rateRowHtml = (label: string, amount: string, emphasize = false): string => {
+    const labelStyle = emphasize
+      ? `font-family:${SANS};${MONO_FEATURES};font-size:13px;font-weight:700;letter-spacing:0.22em;color:#0a0a0a;text-transform:uppercase`
+      : `font-family:${SANS};font-size:15px;font-weight:500;color:#0a0a0a`;
+    const amtStyle = emphasize
+      ? `font-family:${SANS};${MONO_FEATURES};font-size:22px;font-weight:800;color:#0a0a0a`
+      : `font-family:${SANS};${MONO_FEATURES};font-size:15px;font-weight:600;color:#0a0a0a`;
+    return `<tr>
+      <td valign="middle" align="left" style="padding:${emphasize ? "10px" : "6px"} 0 0;vertical-align:middle">
+        <p style="margin:0;${labelStyle};line-height:1.4">${escapeHtml(label)}</p>
+      </td>
+      <td valign="middle" align="right" style="padding:${emphasize ? "10px" : "6px"} 0 0;vertical-align:middle;text-align:right">
+        <p style="margin:0;${amtStyle};line-height:1.4">${escapeHtml(amount)}</p>
+      </td>
+    </tr>`;
+  };
+
+  const rateLineHtmls: string[] = [];
+  rateLineHtmls.push(rateRowHtml("Linehaul", linehaulFmt));
+  if (fuelFmt) rateLineHtmls.push(rateRowHtml("Fuel", fuelFmt));
+  if (permitsFmt) rateLineHtmls.push(rateRowHtml("Permits", permitsFmt));
   for (const a of payload.pricing.accessorials) {
-    rateRows.push({ label: a.label, amount: formatUsd(a.amount) });
+    rateLineHtmls.push(rateRowHtml(a.label, formatUsd(a.amount)));
   }
-  rateRows.push({ rule: true });
-  rateRows.push({
-    label: "Total",
-    amount: formatUsd(payload.pricing.totalAmount),
-    emphasize: true,
-  });
-  if (payload.expirationAt) {
-    rateRows.push({ label: "Valid through", amount: validThrough });
-  }
-  if (payload.paymentDueAt) {
-    rateRows.push({ label: "Payment due", amount: paymentDue });
-  }
-  const rateBand = bandBlack(
-    sectionHeader("Rate", true) + rateSummaryTable(rateRows, { inverted: true }),
-  );
+  // hairline row inside the rate breakdown
+  const rateHairline = `<tr><td colspan="2" style="padding:14px 0 0"><div style="height:1px;background:#0a0a0a;font-size:1px;line-height:1px">&nbsp;</div></td></tr>`;
+  rateLineHtmls.push(rateHairline);
+  rateLineHtmls.push(rateRowHtml("Total", totalFmt, true));
 
-  // Dispatch notes — only renders when there's actually a note.
-  const dispatchNotesBand = payload.ops.specialInstructions
-    ? bandWhite(
-        sectionHeader("Dispatch notes") +
-          `<p style="margin:0;color:#0a0a0a;font-family:${SANS};font-size:14px;font-weight:400;line-height:1.55;white-space:pre-wrap">${escapeHtml(payload.ops.specialInstructions)}</p>`,
-      )
+  const rateBreakdownTr = `<tr>
+      <td style="padding:32px 40px 0">
+        ${sectionEyebrow("Rate Breakdown")}
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;width:100%;margin-top:8px">
+          ${rateLineHtmls.join("")}
+        </table>
+      </td>
+    </tr>`;
+
+  // CONFIRM CTA — single full-width button, premium 2px white inset
+  // outline (matches Email 2's ACCEPT RANGE pattern). Green semantic
+  // for "confirm finalized commitment" — operational confirmation.
+  const confirmTr = payload.confirmUrl
+    ? `<tr>
+        <td style="padding:32px 40px 0">
+          <a href="${escapeHtml(payload.confirmUrl)}" style="display:block;box-sizing:border-box;background:#166534;color:#ffffff;font-family:${SANS};${MONO_FEATURES};font-size:13px;font-weight:800;letter-spacing:0.22em;text-transform:uppercase;text-decoration:none;text-align:center;padding:22px 16px;line-height:1.2;box-shadow:inset 0 0 0 2px #ffffff" bgcolor="#166534">Confirm Finalized Quote</a>
+          ${
+            payload.expirationAt
+              ? `<p style="margin:20px 0 0;font-family:${SANS};${MONO_FEATURES};font-size:11px;font-weight:500;letter-spacing:0.10em;color:#0a0a0a;line-height:1.6;text-align:center;text-transform:uppercase">Confirms the rate above through ${escapeHtml(validThrough)} &middot; Dispatcher follows up to coordinate scheduling</p>`
+              : `<p style="margin:20px 0 0;font-family:${SANS};${MONO_FEATURES};font-size:11px;font-weight:500;letter-spacing:0.10em;color:#0a0a0a;line-height:1.6;text-align:center;text-transform:uppercase">Confirms the rate above &middot; Dispatcher follows up to coordinate scheduling</p>`
+          }
+        </td>
+      </tr>`
     : "";
 
-  // Confirm action band — single muted-green Confirm button, mirroring
-  // the Quote Range Accept/Decline action-band pattern. Omitted when
-  // confirmUrl is null (Build Preview before send time).
-  const confirmBandHtml = payload.confirmUrl
-    ? confirmActionBand(payload.confirmUrl, payload.expirationAt ? validThrough : null)
-    : "";
-
-  // Minimal disclaimer — one short paragraph, calm operational tone.
-  const disclaimerBand = bandWhite(
-    `<p style="margin:0;color:#52525b;font-family:${SANS};font-size:12px;font-weight:400;line-height:1.55">${escapeHtml(MINIMAL_DISCLAIMER)}</p>`,
-  );
+  // Bottom padding row — keeps the CTA from bleeding into the shell's
+  // black footer band.
+  const bottomPadTr = `<tr><td style="padding:0 40px 40px"></td></tr>`;
 
   const contentHtml = `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;width:100%">
-    ${messageBand}
-    ${HAIRLINE}
-    ${shipmentBand}
-    ${HAIRLINE}
-    ${pickupBand}
-    ${HAIRLINE}
-    ${deliveryBand}
-    ${freightBand ? HAIRLINE + freightBand : ""}
-    ${HAIRLINE}
-    ${rateBand}
-    ${dispatchNotesBand ? HAIRLINE + dispatchNotesBand : ""}
-    ${confirmBandHtml}
-    ${HAIRLINE}
-    ${disclaimerBand}
+    ${heroTr}
+    ${hairlineTr}
+    ${laneTr}
+    ${hairlineTr}
+    ${scheduleTr}
+    ${scheduleTr ? hairlineTr : ""}
+    ${freightTr}
+    ${freightTr ? hairlineTr : ""}
+    ${rateBreakdownTr}
+    ${hairlineTr}
+    ${confirmTr}
+    ${bottomPadTr}
   </table>`;
 
   const { html, text } = renderEmailShell({

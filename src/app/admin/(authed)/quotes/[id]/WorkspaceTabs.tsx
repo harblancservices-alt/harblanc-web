@@ -121,14 +121,29 @@ function TabBar({
               aria-selected={active}
               onClick={() => setTab(t.id)}
               className={
-                "-mb-[2px] shrink-0 border-b-[2px] px-3.5 py-2.5 font-mono text-[12px] font-bold uppercase tracking-[0.16em] transition-colors focus:outline-none sm:px-4 " +
+                // Hierarchy:
+                //   Active   → solid red tab (bg-red-700) with white bold
+                //              text and a darker red underline. Reads as
+                //              a stamped/selected tab, not a label.
+                //   Inactive → cream bg, black bold text, no underline.
+                //   Placeholder → black text, not-allowed cursor.
+                "-mb-[2px] inline-flex shrink-0 items-center gap-2 border-b-[3px] px-3.5 py-2.5 font-mono text-[12px] font-bold uppercase tracking-[0.16em] transition-colors focus:outline-none sm:px-4 " +
                 (active
-                  ? "border-red-700 font-medium text-black"
-                  : "border-transparent text-black hover:bg-[#f3f1e9] hover:text-black") +
+                  ? "border-red-900 bg-red-700 font-black text-white"
+                  : "border-transparent text-black hover:bg-[#f3f1e9]") +
                 (t.placeholder ? " cursor-not-allowed text-black" : "")
               }
               disabled={t.placeholder}
             >
+              {/* Vertical accent bar — white on the active red tab so it
+                  still reads, transparent on inactive tabs. */}
+              <span
+                aria-hidden
+                className={
+                  "inline-block h-[12px] w-[3px] shrink-0 " +
+                  (active ? "bg-white" : "bg-transparent")
+                }
+              />
               {t.label}
             </button>
           );

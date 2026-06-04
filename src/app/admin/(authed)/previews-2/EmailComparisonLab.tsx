@@ -29,32 +29,41 @@ const FRAME_GAP = 32;
 
 export function EmailComparisonLab({ emails }: { emails: EmailItem[] }) {
   const wrapRef = useRef<HTMLDivElement>(null);
-  const [size, setSize] = useState<{ w: number; h: number }>({
-    w: 0,
-    h: 900,
-  });
+  const [wrapWidth, setWrapWidth] = useState<number>(0);
+  // Each iframe reports its rendered content height; we use the MAX across
+  // all iframes as the strip's native height. That way the strip is exactly
+  // tall enough to fit the tallest email — no scrollbars, no clipping.
+  const [iframeHeights, setIframeHeights] = useState<Record<string, number>>(
+    {},
+  );
 
-  // Native pixel width of the strip (all frames + gaps between them)
   const stripNativeWidth =
     emails.length * FRAME_WIDTH + (emails.length - 1) * FRAME_GAP;
 
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
-    const compute = () => {
-      setSize({ w: el.clientWidth, h: el.clientHeight });
-    };
+    const compute = () => setWrapWidth(el.clientWidth);
     compute();
     const ro = new ResizeObserver(compute);
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
 
-  const scale = size.w > 0 ? Math.min(1, size.w / stripNativeWidth) : 1;
-  const nativeHeight = scale > 0 ? size.h / scale : size.h;
+  const scale =
+    wrapWidth > 0 ? Math.min(1, wrapWidth / stripNativeWidth) : 1;
+
+  // Native strip height: tallest iframe + 80px breathing room for the
+  // column labels above each frame.
+  const tallestIframe = Math.max(900, ...Object.values(iframeHeights));
+  const nativeHeight = tallestIframe + 80;
+
+  // Tell parent the visual (scaled) height so the page sizes correctly
+  // and no outer scrollbar appears.
+  const scaledHeight = nativeHeight * scale;
 
   return (
-    <div className="flex h-screen flex-col bg-zinc-200">
+    <div className="flex min-h-screen flex-col bg-zinc-200">
       {/* ── Header bar ─────────────────────────────────────────────── */}
       <header className="border-b border-zinc-300 bg-white px-6 py-4">
         <div className="flex items-center justify-between gap-4">
@@ -90,7 +99,8 @@ export function EmailComparisonLab({ emails }: { emails: EmailItem[] }) {
       {/* ── Scaled strip ───────────────────────────────────────────── */}
       <div
         ref={wrapRef}
-        className="relative flex-1 overflow-hidden"
+        className="relative w-full"
+        style={{ height: `${scaledHeight}px` }}
       >
         <div
           className="absolute top-0"
@@ -126,14 +136,78 @@ export function EmailComparisonLab({ emails }: { emails: EmailItem[] }) {
                     </p>
                   </div>
                 </div>
-                {/* Email frame */}
-                <div className="flex-1 overflow-hidden bg-white shadow-[0_2px_0_0_#dc2626,0_0_0_1px_#d4d4d8]">
+                {/* Email frame — one-shot exact measurement, no buffer,
+                    no ResizeObserver growth loop. iframe height equals the
+                    rendered email root height exactly.
+                      1. scrolling="no" + overflow:hidden — iframe never
+                         renders a scrollbar.
+                      2. Initial height 0 — no phantom placeholder.
+                      3. On load: wait 2 RAFs for fonts/images/layout to
+                         settle, then measure the first <table> inside the
+                         iframe body (the email root) with
+                         getBoundingClientRect and Math.ceil.
+                      4. For any still-loading <img>, re-measure once each
+                         finishes. Exact height every time — never additive. */}
+                <div className="self-start shadow-[0_2px_0_0_#dc2626,0_0_0_1px_#d4d4d8]">
                   <iframe
                     title={`${email.title} preview`}
                     srcDoc={email.html}
                     sandbox="allow-same-origin"
-                    className="block border-0 bg-white"
-                    style={{ width: "100%", height: "100%" }}
+                    scrolling="no"
+                    style={{
+                      display: "block",
+                      width: `${FRAME_WIDTH}px`,
+                      height: "0px",
+                      border: 0,
+                      overflow: "hidden",
+                    }}
+                    onLoad={(e) => {
+                      const ifr = e.currentTarget;
+                      const doc = ifr.contentDocument;
+                      if (!doc) return;
+
+                      // Measure the email ROOT (first <table> in body),
+                      // not the html/body document. Avoids html being
+                      // stretched to iframe height and feeding back in.
+                      const measure = () => {
+                        const root: HTMLElement | null =
+                          doc.body?.querySelector("table") ??
+                          doc.body ??
+                          doc.documentElement;
+                        if (!root) return;
+                        const h = Math.ceil(
+                          root.getBoundingClientRect().height,
+                        );
+                        if (h > 0) {
+                          ifr.style.height = `${h}px`;
+                          setIframeHeights((prev) =>
+                            prev[email.id] === h
+                              ? prev
+                              : { ...prev, [email.id]: h },
+                          );
+                        }
+                      };
+
+                      // Two RAFs: fonts/images/layout settle, then measure.
+                      requestAnimationFrame(() => {
+                        requestAnimationFrame(() => {
+                          measure();
+                          // Re-measure exactly once per late-loading image.
+                          const imgs = doc.images;
+                          for (let i = 0; i < imgs.length; i++) {
+                            const img = imgs[i]!;
+                            if (!img.complete) {
+                              img.addEventListener("load", measure, {
+                                once: true,
+                              });
+                              img.addEventListener("error", measure, {
+                                once: true,
+                              });
+                            }
+                          }
+                        });
+                      });
+                    }}
                   />
                 </div>
               </div>

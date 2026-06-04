@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Public_Sans, IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { SiteChrome } from "@/components/site/SiteChrome";
@@ -36,6 +36,16 @@ const plexSans = IBM_Plex_Sans({
   weight: ["400", "500", "600"],
   display: "swap",
 });
+
+// Viewport — required so mobile browsers render the page at the device's
+// actual width instead of the default ~980px desktop viewport. Without
+// this, pinch-zooming to fit the page on mobile reveals the body's dark
+// bg-neutral-950 as a gap on the side.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
 
 export const metadata: Metadata = {
   title: {

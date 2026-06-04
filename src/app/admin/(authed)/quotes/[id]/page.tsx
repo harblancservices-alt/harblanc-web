@@ -1126,14 +1126,17 @@ export default async function QuoteDetailPage({
         </div>
       ) : null}
 
-      {/* Operator Header (above the tabs) */}
-      <OperatorHeader {...headerProps} />
-
       {/* Phase 3B — Dispatch lifecycle strip. Aggregates artifact state
           (estimate / intake / FQ / confirmed / BOL) into one row so the
           operator knows where the shipment is and what the next move
-          is without clicking through every tab. */}
+          is without clicking through every tab.
+          Order: lifecycle FIRST so the operator scans where the shipment
+          stands before reading the lane/mileage manifest below. */}
       <DispatchLifecycle state={lifecycleState} />
+
+      {/* Operator Header — sits directly above the tabs so the
+          lane/mileage/info reads alongside the Quote Range workspace. */}
+      <OperatorHeader {...headerProps} />
 
       {/* Tabbed workspace */}
       <WorkspaceTabs

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { IconSend, IconX } from "./icons";
 
 /**
@@ -103,6 +103,19 @@ export function PreviewModal({
       document.body.style.overflow = previous;
     };
   }, [open]);
+
+  // Auto-sized iframe height. Initial 0 so the iframe isn't a phantom
+  // viewport-tall block before measurement. Set on load to the email
+  // root's exact rendered height. The outer <main> has overflow-auto so
+  // any overflow scrolls the modal, not the iframe — iframes scroll
+  // terribly on mobile (iOS needs two-finger swipe).
+  const [iframeHeight, setIframeHeight] = useState<number>(0);
+
+  // Reset measurement when the html payload changes so a rebuild
+  // re-measures rather than keeping the previous height.
+  useEffect(() => {
+    setIframeHeight(0);
+  }, [html]);
 
   if (!open) return null;
 
@@ -228,7 +241,41 @@ export function PreviewModal({
               title="Quote range document preview"
               srcDoc={html}
               sandbox="allow-same-origin"
-              className="block h-[calc(100vh-180px)] min-h-[400px] w-full border-0 bg-white sm:h-[calc(100vh-110px)]"
+              scrolling="no"
+              className="block w-full border-0 bg-white"
+              style={{ height: iframeHeight > 0 ? `${iframeHeight}px` : "400px" }}
+              onLoad={(e) => {
+                const ifr = e.currentTarget;
+                const doc = ifr.contentDocument;
+                if (!doc) return;
+                const measure = () => {
+                  // Measure the email root (first <table> in body) — same
+                  // pattern as EmailComparisonLab. Avoids html/body baseline
+                  // phantom space.
+                  const root: HTMLElement | null =
+                    doc.body?.querySelector("table") ??
+                    doc.body ??
+                    doc.documentElement;
+                  if (!root) return;
+                  const h = Math.ceil(root.getBoundingClientRect().height);
+                  if (h > 0) setIframeHeight(h);
+                };
+                // Two RAFs so fonts + initial images + layout settle.
+                requestAnimationFrame(() => {
+                  requestAnimationFrame(() => {
+                    measure();
+                    // Re-measure once per late-loading <img>.
+                    const imgs = doc.images;
+                    for (let i = 0; i < imgs.length; i++) {
+                      const img = imgs[i]!;
+                      if (!img.complete) {
+                        img.addEventListener("load", measure, { once: true });
+                        img.addEventListener("error", measure, { once: true });
+                      }
+                    }
+                  });
+                });
+              }}
             />
           </div>
         ) : (

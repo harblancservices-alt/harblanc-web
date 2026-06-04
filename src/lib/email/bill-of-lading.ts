@@ -5,6 +5,27 @@ import { escapeHtml } from "./shell";
 /**
  * Bill of Lading (BOL) — email-deliverable shipment execution paperwork.
  *
+ * ┌─────────────────────────────────────────────────────────────────┐
+ * │  ARCHITECTURAL BOUNDARY — READ BEFORE EDITING                    │
+ * │                                                                  │
+ * │  This file is the BOL DOCUMENT SHELL. It is intentionally        │
+ * │  separate from the customer email shell (src/lib/email/shell.ts) │
+ * │  and renders its own HTML end-to-end. It does NOT and MUST NOT   │
+ * │  call renderEmailShell.                                          │
+ * │                                                                  │
+ * │  Reason: BOL is paperwork, not a customer email. It needs a      │
+ * │  DOT/MC letterhead, a "BILL OF LADING" banner, dense tabular     │
+ * │  freight rows, and boxed signature areas — none of which belong  │
+ * │  in the customer email shell. Conversely, the customer email     │
+ * │  shell's centered logo + tagline + DISPATCH footer would break   │
+ * │  the document's paperwork grammar.                               │
+ * │                                                                  │
+ * │  Customer-shell consumers (Acknowledgement, Quote Range,         │
+ * │  Finalized Quote) live in render.ts and finalized-quote.ts.      │
+ * │  Do NOT add BOL to that list. Do NOT add customer-shell elements │
+ * │  here.                                                           │
+ * └─────────────────────────────────────────────────────────────────┘
+ *
  * THIRD document class, downstream from Range Proposal (estimate) and
  * Finalized Quote / Rate Confirmation:
  *
@@ -663,11 +684,11 @@ function formatDims(f: BolPayload["freight"]): string {
   return parts.join(" × ");
 }
 
-// ─────────────────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────────────
 //  Send wrapper — Resend delivery. Mirrors the estimate.ts /
 //  finalized-quote.ts pattern: rendering above, delivery layered on top
 //  so the same renderer powers preview and the actual send.
-// ─────────────────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────────────
 
 export type BolBytes = {
   to: string;

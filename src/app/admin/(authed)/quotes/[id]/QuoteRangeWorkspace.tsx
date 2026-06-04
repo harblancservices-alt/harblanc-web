@@ -464,7 +464,10 @@ export function QuoteRangeWorkspace({
       {/* 01 PRICING ---------------------------------------------------- */}
       <NumberedSection ordinal="01" title="Pricing">
         <FieldRow label="Linehaul" required>
-          <div className="grid grid-cols-[minmax(0,1fr)_18px_minmax(0,1fr)] items-center gap-2">
+          {/* Mobile: stack low/high inputs vertically so the USD prefix
+              doesn't strangle the number column. sm+: original side-by-side
+              range with the mdash separator. */}
+          <div className="flex flex-col gap-2 sm:grid sm:grid-cols-[minmax(0,1fr)_18px_minmax(0,1fr)] sm:items-center">
             <CurrencyInput
               value={linehaulLow}
               onChange={setLinehaulLow}
@@ -473,7 +476,7 @@ export function QuoteRangeWorkspace({
             />
             <span
               aria-hidden
-              className="text-center font-mono text-[15px] font-medium text-black"
+              className="hidden text-center font-mono text-[15px] font-medium text-black sm:block"
             >
               &mdash;
             </span>
@@ -486,7 +489,8 @@ export function QuoteRangeWorkspace({
         </FieldRow>
 
         <FieldRow label="Fuel surcharge">
-          <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] items-center gap-2">
+          {/* Same stack-on-mobile treatment for fuel input + RPM display. */}
+          <div className="flex flex-col gap-2 sm:grid sm:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] sm:items-center">
             <CurrencyInput
               value={fuelSurcharge}
               onChange={setFuelSurcharge}
@@ -809,9 +813,11 @@ function CurrencyInput({
 }) {
   // USD prefix cell (left-rail) so the dollar amount reads like a real
   // invoice line. Border darkens to red on focus.
+  // Mobile: smaller USD prefix + 16px input font so iOS Safari doesn't
+  // auto-zoom on focus. Desktop: original 12px/15px sizing.
   return (
     <div className="flex items-stretch border border-black bg-white focus-within:border-red-700">
-      <span className="border-r border-zinc-300 px-2.5 py-1.5 font-mono text-[12px] font-medium text-black">
+      <span className="border-r border-zinc-300 px-2 py-1.5 font-mono text-[11px] font-medium text-black sm:px-2.5 sm:text-[12px]">
         USD
       </span>
       <input
@@ -823,7 +829,7 @@ function CurrencyInput({
         placeholder={placeholder}
         autoFocus={autoFocus}
         autoComplete="off"
-        className="min-w-0 flex-1 border-0 bg-transparent px-2.5 py-1.5 text-right font-mono text-[15px] font-medium text-black tabular-nums placeholder:text-zinc-700 focus:outline-none"
+        className="min-w-0 flex-1 border-0 bg-transparent px-2.5 py-1.5 text-right font-mono text-[16px] font-medium text-black tabular-nums placeholder:text-zinc-700 focus:outline-none sm:text-[15px]"
       />
     </div>
   );
