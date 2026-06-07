@@ -3,7 +3,36 @@
 import { useState, useTransition, useMemo } from "react";
 import Link from "next/link";
 import { formatTimestampShort, isNew } from "@/lib/admin/format";
-import { softDeleteApplication, softDeleteApplications } from "./actions";
+import { softDeleteApplication } from "./actions";
+
+/**
+ * Level 6.6 — Active Applications feed.
+ *
+ * V3 visual language: each application renders as a compact cream feed
+ * row, not a spreadsheet cell. Name dominates; date received, equipment,
+ * CDL, years, and home base sit as supporting metadata. Phone / Email
+ * action affordances live inside the row alongside Trash.
+ *
+ * SCOPE (Level 6.6 directive):
+ *   - Pure presentational restructure of /admin/applications.
+ *   - Server action unchanged: softDeleteApplication.
+ *   - Active quotes / detail / schema untouched.
+ *
+ * Dropped from the old spreadsheet implementation (presentation only):
+ *   - 10-column min-w-[1240px] table grid
+ *   - Heavy column headers (Received / Name / Phone / Email / Equipment /
+ *     CDL / Years / Home base)
+ *   - Checkbox-selection + sticky bulk-action bar (single-row Trash still
+ *     covers every use case the server action supports).
+ *
+ * Kept (data + behavior contract):
+ *   - Client-side search predicate (same fields as before).
+ *   - CDL status filter (operators triage by CDL class).
+ *   - "New" badge for recently-received applications.
+ *   - Server action: softDeleteApplication(id).
+ *   - Confirm dialog before trash.
+ *   - Sort order from the loader (created_at DESC).
+ */
 
 export type ApplicationListRow = {
   id: string;
@@ -17,23 +46,12 @@ export type ApplicationListRow = {
   home_base: string | null;
 };
 
-const colSpec =
-  "grid grid-cols-[40px_180px_minmax(140px,1fr)_140px_minmax(160px,1fr)_120px_100px_90px_140px_70px] gap-x-3";
-
-const checkboxCls =
-  "h-4 w-4 shrink-0 cursor-pointer accent-red-600 border border-zinc-400 bg-white focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-1 focus:ring-offset-zinc-50";
-
 export function ApplicationListTable({
   rows,
 }: {
   rows: ApplicationListRow[];
 }) {
-  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
-
-  // Phase OPS-3: client-side search + CDL filter. Unique CDL values
-  // are derived from the loaded rows so the filter dropdown always
-  // shows actually-present options (no stale enum drift).
   const [searchQuery, setSearchQuery] = useState("");
   const [cdlFilter, setCdlFilter] = useState<string>("");
 
@@ -69,62 +87,11 @@ export function ApplicationListTable({
     return result;
   }, [rows, searchQuery, cdlFilter]);
 
-  const allSelected =
-    filtered.length > 0 && filtered.every((r) => selected.has(r.id));
-  const someSelected =
-    !allSelected && filtered.some((r) => selected.has(r.id));
   const hasFilter = searchQuery.trim().length > 0 || cdlFilter !== "";
-
-  function toggleRow(id: string, checked: boolean) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (checked) next.add(id);
-      else next.delete(id);
-      return next;
-    });
-  }
-
-  function toggleAll(checked: boolean) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (checked) {
-        for (const r of filtered) next.add(r.id);
-      } else {
-        for (const r of filtered) next.delete(r.id);
-      }
-      return next;
-    });
-  }
-
-  function clearSelection() {
-    setSelected(new Set());
-  }
 
   function clearFilters() {
     setSearchQuery("");
     setCdlFilter("");
-  }
-
-  function bulkSoftDelete() {
-    if (selected.size === 0) return;
-    const count = selected.size;
-    if (
-      !confirm(
-        `Move ${count} application${count === 1 ? "" : "s"} to trash?`,
-      )
-    ) {
-      return;
-    }
-    const formData = new FormData();
-    selected.forEach((id) => formData.append("ids", id));
-    startTransition(async () => {
-      try {
-        await softDeleteApplications(formData);
-        setSelected(new Set());
-      } catch (e) {
-        alert(`Failed: ${e instanceof Error ? e.message : "unknown error"}`);
-      }
-    });
   }
 
   function rowSoftDelete(row: ApplicationListRow) {
@@ -140,23 +107,22 @@ export function ApplicationListTable({
 
   return (
     <>
-      {/* Phase OPS-3: search + CDL filter. Search input always visible;
-          CDL filter shares the row on sm+, stacks on mobile. */}
-      <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-stretch">
+      {/* Toolbar: search + CDL filter + clear */}
+      <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-stretch">
         <div className="relative flex-1">
           <input
             type="search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search name, phone, email, equipment, home base..."
-            className="block w-full border border-zinc-300 bg-white px-4 py-2.5 pr-10 text-sm text-black placeholder:text-black focus:border-red-600 focus:outline-none"
+            placeholder="Search name, phone, email, equipment, home base…"
+            className="block w-full border-2 border-black bg-white px-3 py-2.5 font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-black placeholder:text-black/40 focus:outline-none"
             aria-label="Search applications"
           />
           {searchQuery ? (
             <button
               type="button"
               onClick={() => setSearchQuery("")}
-              className="absolute inset-y-0 right-0 flex items-center px-3 text-black transition-colors hover:text-black"
+              className="absolute inset-y-0 right-0 flex items-center px-3 text-black transition-colors hover:text-red-700"
               aria-label="Clear search"
             >
               ×
@@ -167,10 +133,10 @@ export function ApplicationListTable({
           <select
             value={cdlFilter}
             onChange={(e) => setCdlFilter(e.target.value)}
-            className="block w-full border border-zinc-300 bg-white px-3 py-2.5 text-xs font-semibold tracking-[0.12em] uppercase text-black focus:border-red-600 focus:outline-none sm:w-auto"
+            className="block w-full border-2 border-black bg-white px-3 py-2.5 font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-black focus:outline-none sm:w-auto"
             aria-label="Filter by CDL status"
           >
-            <option value="">All CDL statuses</option>
+            <option value="">All CDL</option>
             {cdlOptions.map((c) => (
               <option key={c} value={c}>
                 {c}
@@ -182,7 +148,7 @@ export function ApplicationListTable({
           <button
             type="button"
             onClick={clearFilters}
-            className="inline-flex items-center justify-center border border-zinc-300 bg-white px-4 py-2.5 text-xs font-semibold tracking-[0.12em] uppercase text-black transition-colors hover:border-zinc-400 hover:text-black sm:w-auto"
+            className="inline-flex items-center justify-center border-2 border-black bg-white px-4 py-2.5 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-black transition-colors hover:bg-black hover:text-white sm:w-auto"
           >
             Clear
           </button>
@@ -190,161 +156,132 @@ export function ApplicationListTable({
       </div>
 
       {hasFilter ? (
-        <p className="mt-2 text-xs text-black">
-          Showing {filtered.length} of {rows.length} record
-          {rows.length === 1 ? "" : "s"}
+        <p className="mt-2 font-mono text-[10.5px] font-bold uppercase tracking-[0.18em] text-black/60">
+          Showing {filtered.length} of {rows.length}
         </p>
       ) : null}
 
-      {selected.size > 0 ? (
-        <div className="sticky top-0 z-20 mt-3 flex items-center justify-between gap-4 border border-zinc-300 bg-white px-4 py-3 shadow-sm">
-          <span className="font-mono text-xs tracking-[0.12em] text-black uppercase">
-            {selected.size} selected
-          </span>
-          <div className="flex items-center gap-2.5">
-            <button
-              type="button"
-              onClick={bulkSoftDelete}
-              disabled={isPending}
-              className="inline-flex items-center bg-red-600 px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              Move selected to trash
-            </button>
-            <button
-              type="button"
-              onClick={clearSelection}
-              className="inline-flex items-center border border-zinc-300 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-black transition-colors hover:border-zinc-400 hover:bg-zinc-100"
-            >
-              Clear selection
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      <div className="mt-5 overflow-x-auto">
-        <div className="min-w-[1240px]">
-          <div
-            className={`${colSpec} items-center border-b border-zinc-300 bg-zinc-100 px-3 py-3`}
-          >
-            <div>
-              <input
-                type="checkbox"
-                checked={allSelected}
-                ref={(el) => {
-                  if (el) el.indeterminate = someSelected;
-                }}
-                onChange={(e) => toggleAll(e.target.checked)}
-                className={checkboxCls}
-                aria-label="Select all"
-              />
-            </div>
-            <Th>Received</Th>
-            <Th>Name</Th>
-            <Th>Phone</Th>
-            <Th>Email</Th>
-            <Th>Equipment</Th>
-            <Th>CDL</Th>
-            <Th>Years</Th>
-            <Th>Home base</Th>
-            <span />
-          </div>
-
-          <div className="divide-y divide-zinc-200 border-l border-r border-b border-zinc-200 bg-white">
-            {filtered.length === 0 ? (
-              <div className="px-3 py-8 text-center">
-                <p className="text-sm text-black">
-                  No applications match your filter.
-                </p>
-                {hasFilter ? (
-                  <button
-                    type="button"
-                    onClick={clearFilters}
-                    className="mt-3 inline-flex items-center border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold tracking-[0.12em] uppercase text-black transition-colors hover:border-zinc-400 hover:text-black"
-                  >
-                    Clear filters
-                  </button>
-                ) : null}
-              </div>
-            ) : null}
-            {filtered.map((r) => {
-              const isSel = selected.has(r.id);
-              return (
-                <div
-                  key={r.id}
-                  className={
-                    `${colSpec} items-center px-3 py-2.5 transition-colors hover:bg-zinc-50 ` +
-                    (isSel ? "bg-red-50" : "")
-                  }
-                >
-                  <div>
-                    <input
-                      type="checkbox"
-                      checked={isSel}
-                      onChange={(e) => toggleRow(r.id, e.target.checked)}
-                      className={checkboxCls}
-                      aria-label={`Select ${r.name}`}
-                    />
-                  </div>
-                  <Link
-                    href={`/admin/applications/${r.id}`}
-                    className="contents"
-                  >
-                    <span className="flex items-center gap-2 font-mono text-xs text-black">
-                      {isNew(r.created_at) ? (
-                        <span className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
-                          New
-                        </span>
-                      ) : null}
-                      <span>{formatTimestampShort(r.created_at)}</span>
-                    </span>
-                    <span className="truncate text-sm font-semibold text-black">
-                      {r.name}
-                    </span>
-                    <span className="font-mono text-xs text-black">
-                      {r.phone}
-                    </span>
-                    <span className="truncate text-xs text-black">
-                      {r.email}
-                    </span>
-                    <span className="truncate text-sm text-black">
-                      {r.equipment_type}
-                    </span>
-                    <span className="text-sm text-black">
-                      {r.cdl_status}
-                    </span>
-                    <span className="font-mono text-xs text-black">
-                      {r.years_experience ?? "\u2014"}
-                    </span>
-                    <span className="truncate text-xs text-black">
-                      {r.home_base ?? "\u2014"}
-                    </span>
-                  </Link>
-                  <div className="flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() => rowSoftDelete(r)}
-                      disabled={isPending}
-                      title="Move to trash"
-                      aria-label={`Move ${r.name} to trash`}
-                      className="inline-flex items-center justify-center border border-zinc-300 bg-white px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-black transition-colors hover:border-red-300 hover:bg-red-50 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      Trash
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
+      {/* Feed: one compact card per application */}
+      <ul className="mt-4 space-y-3">
+        {filtered.length === 0 ? (
+          <li className="border-2 border-dashed border-black/30 px-5 py-8 text-center font-mono text-[12px] font-bold uppercase tracking-[0.18em] text-black/55">
+            {hasFilter
+              ? "No applications match your filter"
+              : "No incoming applications"}
+          </li>
+        ) : (
+          filtered.map((r) => (
+            <ApplicationRow
+              key={r.id}
+              row={r}
+              isPending={isPending}
+              onTrash={() => rowSoftDelete(r)}
+            />
+          ))
+        )}
+      </ul>
     </>
   );
 }
 
-function Th({ children }: { children: React.ReactNode }) {
+function ApplicationRow({
+  row,
+  isPending,
+  onTrash,
+}: {
+  row: ApplicationListRow;
+  isPending: boolean;
+  onTrash: () => void;
+}) {
+  const received = formatTimestampShort(row.created_at);
+  const fresh = isNew(row.created_at);
+  const equipment = row.equipment_type?.trim().toUpperCase() || null;
+  const cdl = row.cdl_status?.trim().toUpperCase() || null;
+  const years = row.years_experience?.trim() || null;
+  const homeBase = row.home_base?.trim() || null;
+
+  // Tertiary metadata line (equipment · CDL · years).
+  const metaTokens: string[] = [];
+  if (equipment) metaTokens.push(equipment);
+  if (cdl) metaTokens.push(`CDL ${cdl}`);
+  if (years) metaTokens.push(`${years} YRS`);
+
+  const phoneHref = `tel:${row.phone.replace(/[^\d+]/g, "")}`;
+  const emailHref = `mailto:${row.email}`;
+  const hasPhone = row.phone.trim().length > 0;
+  const hasEmail = row.email.trim().length > 0;
+
   return (
-    <span className="label-cap text-black">
-      {children}
-    </span>
+    <li className="border-2 border-black border-l-4 border-l-black bg-[#fafaf6] px-4 py-3 sm:px-5 sm:py-4">
+      {/* Top row: name + date / NEW chip */}
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+        <Link
+          href={`/admin/applications/${row.id}`}
+          className="min-w-0 truncate text-[17px] font-bold leading-tight text-black hover:underline sm:text-[18px]"
+        >
+          {row.name || "—"}
+        </Link>
+        <div className="flex flex-wrap items-baseline gap-x-2 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-black/70 sm:flex-nowrap">
+          <span aria-label="Received">{received || "—"}</span>
+          {fresh ? (
+            <span
+              aria-label="New application"
+              className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-red-700"
+            >
+              NEW
+            </span>
+          ) : null}
+        </div>
+      </div>
+
+      {/* Mid: equipment · CDL · years */}
+      {metaTokens.length > 0 ? (
+        <p className="mt-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-black">
+          {metaTokens.join(" · ")}
+        </p>
+      ) : null}
+
+      {/* Sub: home base */}
+      {homeBase ? (
+        <p className="mt-0.5 text-[13px] text-black/80">{homeBase}</p>
+      ) : null}
+
+      {/* Actions: Phone + Email + Trash */}
+      <div className="mt-3 flex flex-wrap gap-2">
+        {hasPhone ? (
+          <a
+            href={phoneHref}
+            aria-label={`Call ${row.name}`}
+            className="inline-flex items-center justify-center border-2 border-black bg-transparent px-3.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-black transition-colors hover:bg-black hover:text-white"
+          >
+            <span aria-hidden className="mr-1.5">
+              &#9742;
+            </span>
+            Phone
+          </a>
+        ) : null}
+        {hasEmail ? (
+          <a
+            href={emailHref}
+            aria-label={`Email ${row.name}`}
+            className="inline-flex items-center justify-center border-2 border-black bg-transparent px-3.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-black transition-colors hover:bg-black hover:text-white"
+          >
+            <span aria-hidden className="mr-1.5">
+              &#9993;
+            </span>
+            Email
+          </a>
+        ) : null}
+        <button
+          type="button"
+          onClick={onTrash}
+          disabled={isPending}
+          aria-label={`Move ${row.name} to trash`}
+          className="ml-auto inline-flex items-center justify-center border-2 border-red-700 bg-transparent px-3.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-red-700 transition-colors hover:bg-red-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Trash
+        </button>
+      </div>
+    </li>
   );
 }

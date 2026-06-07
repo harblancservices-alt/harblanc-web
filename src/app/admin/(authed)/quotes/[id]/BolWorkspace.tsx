@@ -2,6 +2,7 @@
 
 import { advanceOnEnter } from "@/lib/admin/form-utils";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import {
@@ -251,9 +252,13 @@ function buildFormData(bolId: string, s: ComposerState): FormData {
 export function BolWorkspace({
   quoteRequestId,
   state,
+  nextLeadId,
 }: {
   quoteRequestId: string;
   state: BolState;
+  /** Level 8.1: next active lead id for the Sent state "Save & open next"
+   *  CTA. */
+  nextLeadId: string | null;
 }) {
   switch (state.phase) {
     case "no_sent_finalized_quote":
@@ -277,6 +282,7 @@ export function BolWorkspace({
         <SentHistoryTab
           quoteRequestId={quoteRequestId}
           sent={state.sent}
+          nextLeadId={nextLeadId}
         />
       );
   }
@@ -292,14 +298,16 @@ function BlockedTab({
   body: string;
 }) {
   return (
-    <section className="border-2 border-black border-l-4 border-l-red-700 bg-[#fafaf6]">
-      <div className="flex items-center justify-between gap-3 border-b-2 border-black bg-[#f3f1e9] px-4 py-2.5 sm:px-5">
-        <h2 className="font-mono text-[14px] font-bold uppercase tracking-[0.18em] text-black">
+    <section className="border-2 border-black border-l-4 border-l-black bg-[#fafaf6]">
+      <div className="flex items-baseline justify-between gap-3 px-4 pt-4 pb-2 sm:px-5">
+        <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-black">
           Bill of lading
         </h2>
-        <p className="font-mono text-[12px] text-black">Blocked</p>
+        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-black/60">
+          Blocked
+        </p>
       </div>
-      <div className="px-4 py-6 sm:px-5">
+      <div className="px-4 pb-6 sm:px-5">
         <p className="text-[15px] font-semibold text-black">{headline}</p>
         <p className="mt-2 max-w-lg text-[15px] leading-relaxed text-black">
           {body}
@@ -340,14 +348,16 @@ function ReadyToGenerateTab({
   }
 
   return (
-    <section className="border-2 border-black border-l-4 border-l-red-700 bg-[#fafaf6]">
-      <div className="flex items-center justify-between gap-3 border-b-2 border-black bg-[#f3f1e9] px-4 py-2.5 sm:px-5">
-        <h2 className="font-mono text-[14px] font-bold uppercase tracking-[0.18em] text-black">
+    <section className="border-2 border-black border-l-4 border-l-black bg-[#fafaf6]">
+      <div className="flex items-baseline justify-between gap-3 px-4 pt-4 pb-2 sm:px-5">
+        <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-black">
           Bill of lading
         </h2>
-        <p className="font-mono text-[12px] text-black">Ready to generate</p>
+        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-black/60">
+          Ready to generate
+        </p>
       </div>
-      <div className="px-4 py-6 sm:px-5">
+      <div className="px-4 pb-6 sm:px-5">
         <p className="text-[15px] font-semibold text-black">
           Finalized quote sent &mdash; ready to draft the BOL.
         </p>
@@ -362,12 +372,12 @@ function ReadyToGenerateTab({
             type="button"
             onClick={onGenerate}
             disabled={isPending}
-            className="inline-flex items-center justify-center gap-2 border-0 bg-black px-5 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.16em] text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-700"
+            className="inline-flex items-center justify-center gap-2 border-2 border-black bg-white px-5 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.16em] text-black transition-colors hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isPending ? "Generating…" : "Generate BOL"}
           </button>
           {error ? (
-            <p className="font-mono text-[12px] text-red-700">{error}</p>
+            <p className="font-mono text-[12px] text-black">{error}</p>
           ) : null}
         </div>
       </div>
@@ -565,12 +575,12 @@ function DraftComposer({
   void quoteRequestId;
 
   return (
-    <section className="border-2 border-black border-l-4 border-l-red-700 bg-[#fafaf6]">
-      <div className="flex items-center justify-between gap-3 border-b-2 border-black bg-[#f3f1e9] px-4 py-2.5 sm:px-5">
-        <h2 className="font-mono text-[14px] font-bold uppercase tracking-[0.18em] text-black">
+    <section className="border-2 border-black border-l-4 border-l-black bg-[#fafaf6]">
+      <div className="flex items-baseline justify-between gap-3 px-4 pt-4 pb-2 sm:px-5">
+        <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-black">
           Bill of lading
         </h2>
-        <p className="font-mono text-[12px] text-black">
+        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-black/60">
           {draft.bolNumber} &middot; Draft &middot; not sent
         </p>
       </div>
@@ -663,7 +673,7 @@ function DraftComposer({
           }
           rows={2}
           placeholder="Gate code, dock door, check-in protocol, etc."
-          className="block w-full resize-y border border-black bg-white px-2.5 py-1.5 text-[15px] text-black placeholder:text-zinc-700 focus:border-red-600 focus:outline-none"
+          className="block w-full resize-y border border-black bg-white px-2.5 py-1.5 text-[15px] text-black placeholder:text-zinc-700 focus:border-black focus:outline-none"
         />
       </FieldRow>
 
@@ -738,7 +748,7 @@ function DraftComposer({
           }
           rows={2}
           placeholder="Receiving hours, dock #, signage, etc."
-          className="block w-full resize-y border border-black bg-white px-2.5 py-1.5 text-[15px] text-black placeholder:text-zinc-700 focus:border-red-600 focus:outline-none"
+          className="block w-full resize-y border border-black bg-white px-2.5 py-1.5 text-[15px] text-black placeholder:text-zinc-700 focus:border-black focus:outline-none"
         />
       </FieldRow>
 
@@ -855,7 +865,7 @@ function DraftComposer({
           onChange={(e) => patchFreight("specialHandling", e.target.value)}
           rows={2}
           placeholder="Securement, this side up, do not stack, etc."
-          className="block w-full resize-y border border-black bg-white px-2.5 py-1.5 text-[15px] text-black placeholder:text-zinc-700 focus:border-red-600 focus:outline-none"
+          className="block w-full resize-y border border-black bg-white px-2.5 py-1.5 text-[15px] text-black placeholder:text-zinc-700 focus:border-black focus:outline-none"
         />
       </FieldRow>
 
@@ -903,7 +913,7 @@ function DraftComposer({
           onChange={(e) => patchOps("specialInstructions", e.target.value)}
           rows={2}
           placeholder="Anything the driver needs to know at pickup or delivery."
-          className="block w-full resize-y border border-black bg-white px-2.5 py-1.5 text-[15px] text-black placeholder:text-zinc-700 focus:border-red-600 focus:outline-none"
+          className="block w-full resize-y border border-black bg-white px-2.5 py-1.5 text-[15px] text-black placeholder:text-zinc-700 focus:border-black focus:outline-none"
         />
       </FieldRow>
 
@@ -915,7 +925,7 @@ function DraftComposer({
           onChange={(e) => patchTop("dispatchNotes", e.target.value)}
           rows={3}
           placeholder="Anything else the BOL paperwork should carry."
-          className="block w-full resize-y border border-black bg-white px-2.5 py-1.5 text-[15px] text-black placeholder:text-zinc-700 focus:border-red-600 focus:outline-none"
+          className="block w-full resize-y border border-black bg-white px-2.5 py-1.5 text-[15px] text-black placeholder:text-zinc-700 focus:border-black focus:outline-none"
         />
       </FieldRow>
 
@@ -925,7 +935,7 @@ function DraftComposer({
           className={
             "font-mono text-[12px] sm:mr-auto " +
             (effectivePreviewState === "failed" && previewError
-              ? "text-red-700"
+              ? "text-black"
               : "text-black")
           }
         >
@@ -945,7 +955,7 @@ function DraftComposer({
           type="button"
           onClick={runBuildPreview}
           disabled={!canBuild || isBuildPending}
-          className="inline-flex items-center justify-center gap-2 border border-black bg-white px-4 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.14em] text-black transition-colors hover:bg-[#f3f1e9] disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex items-center justify-center gap-2 border-2 border-black bg-white px-4 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.14em] text-black transition-colors hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isBuildPending
             ? "Building…"
@@ -978,9 +988,11 @@ function DraftComposer({
 function SentHistoryTab({
   quoteRequestId,
   sent,
+  nextLeadId,
 }: {
   quoteRequestId: string;
   sent: BolSentSnapshot;
+  nextLeadId: string | null;
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -988,6 +1000,15 @@ function SentHistoryTab({
   const [previewOpen, setPreviewOpen] = useState(false);
 
   function onGenerateRevision() {
+    // Level 8.1: confirm before discarding the sent BOL and opening a
+    // fresh draft. Same guard added to FinalizedQuoteWorkspace.
+    if (
+      !confirm(
+        "Start a new BOL revision? The current draft will be replaced.",
+      )
+    ) {
+      return;
+    }
     setError(null);
     startTransition(async () => {
       try {
@@ -1019,12 +1040,12 @@ function SentHistoryTab({
   }, [sent.sentAt]);
 
   return (
-    <section className="border-2 border-black border-l-4 border-l-red-700 bg-[#fafaf6]">
-      <div className="flex items-center justify-between gap-3 border-b-2 border-black bg-[#f3f1e9] px-4 py-2.5 sm:px-5">
-        <h2 className="font-mono text-[14px] font-bold uppercase tracking-[0.18em] text-black">
+    <section className="border-2 border-black border-l-4 border-l-black bg-[#fafaf6]">
+      <div className="flex items-baseline justify-between gap-3 px-4 pt-4 pb-2 sm:px-5">
+        <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-black">
           Bill of lading
         </h2>
-        <p className="font-mono text-[12px] text-black">
+        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-black/60">
           {sent.bolNumber} &middot; Sent
         </p>
       </div>
@@ -1042,9 +1063,9 @@ function SentHistoryTab({
         ) : null}
       </div>
 
-      <div className="flex flex-col gap-2 border-t border-zinc-300 px-4 py-3 sm:flex-row sm:items-center sm:justify-end sm:gap-3 sm:px-5">
+      <div className="flex flex-col gap-2 border-t border-black/30 px-4 py-3 sm:flex-row sm:items-center sm:justify-end sm:gap-3 sm:px-5">
         {error ? (
-          <p className="font-mono text-[12px] text-red-700 sm:mr-auto">
+          <p className="font-mono text-[12px] text-black sm:mr-auto">
             {error}
           </p>
         ) : (
@@ -1056,7 +1077,7 @@ function SentHistoryTab({
           <button
             type="button"
             onClick={() => setPreviewOpen(true)}
-            className="inline-flex items-center justify-center gap-2 border border-zinc-400 bg-white px-4 py-2.5 text-[15px] font-semibold text-black transition-colors hover:border-red-600 hover:text-red-700"
+            className="inline-flex items-center justify-center gap-2 border-2 border-black bg-white px-4 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.14em] text-black transition-colors hover:bg-black hover:text-white"
           >
             View sent BOL
           </button>
@@ -1071,7 +1092,7 @@ function SentHistoryTab({
           href={`/admin/quotes/${quoteRequestId}/bol-pdf/${sent.id}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center justify-center gap-2 border border-zinc-400 bg-white px-4 py-2.5 text-[15px] font-semibold text-black transition-colors hover:border-red-600 hover:text-red-700"
+          className="inline-flex items-center justify-center gap-2 border-2 border-black bg-white px-4 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.14em] text-black transition-colors hover:bg-black hover:text-white"
         >
           Download PDF
         </a>
@@ -1079,10 +1100,19 @@ function SentHistoryTab({
           type="button"
           onClick={onGenerateRevision}
           disabled={isPending}
-          className="inline-flex items-center justify-center gap-2 border-0 bg-black px-5 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.16em] text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-700"
+          className="inline-flex items-center justify-center gap-2 border-2 border-black bg-white px-5 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.16em] text-black transition-colors hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isPending ? "Starting…" : "Generate revision"}
         </button>
+        {nextLeadId ? (
+          <Link
+            href={`/admin/quotes/${nextLeadId}`}
+            prefetch={false}
+            className="inline-flex items-center justify-center gap-2 border-2 border-black bg-white px-4 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.14em] text-black transition-colors hover:bg-black hover:text-white"
+          >
+            Save &amp; open next &rarr;
+          </Link>
+        ) : null}
       </div>
 
       <PreviewModal
@@ -1103,12 +1133,8 @@ function SentHistoryTab({
 
 function SectionBanner({ title }: { title: string }) {
   return (
-    <div className="flex items-center gap-2 border-y border-black bg-[#f3f1e9] px-4 py-2 sm:px-5">
-      <span
-        aria-hidden
-        className="inline-block h-[14px] w-1 shrink-0 bg-red-700"
-      />
-      <p className="font-mono text-[14px] font-bold uppercase tracking-[0.18em] text-black">
+    <div className="border-t border-black/30 px-4 pt-3 pb-1 sm:px-5">
+      <p className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-black">
         {title}
       </p>
     </div>
@@ -1136,11 +1162,11 @@ function FieldRow({
       <span className="flex items-center gap-2">
         <span
           aria-hidden
-          className="inline-block h-[14px] w-[3px] shrink-0 bg-red-700"
+          className="inline-block h-[14px] w-[3px] shrink-0 bg-black"
         />
         <span className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-black">
           {label}
-          {required ? <span className="ml-1 text-red-600">*</span> : null}
+          {required ? <span className="ml-1 text-black">*</span> : null}
         </span>
       </span>
       <div className="min-w-0">{children}</div>
@@ -1168,7 +1194,7 @@ function TextInput({
       placeholder={placeholder}
       autoFocus={autoFocus}
       autoComplete="off"
-      className="block w-full border border-black bg-white px-2.5 py-1.5 text-[15px] text-black placeholder:text-zinc-700 focus:border-red-600 focus:outline-none"
+      className="block w-full border border-black bg-white px-2.5 py-1.5 text-[15px] text-black placeholder:text-zinc-700 focus:border-black focus:outline-none"
     />
   );
 }
@@ -1185,7 +1211,7 @@ function NumberInput({
   suffix?: string;
 }) {
   return (
-    <div className="flex items-center border border-black bg-white focus-within:border-red-700">
+    <div className="flex items-center border border-black bg-white focus-within:border-black">
       <input
         type="text"
         inputMode="decimal"
@@ -1218,7 +1244,7 @@ function DateInput({
       value={value}
       onKeyDown={advanceOnEnter}
             onChange={(e) => onChange(e.target.value)}
-      className="block w-full border border-black bg-white px-2.5 py-1.5 font-mono text-[15px] font-medium text-black focus:border-red-600 focus:outline-none"
+      className="block w-full border border-black bg-white px-2.5 py-1.5 font-mono text-[15px] font-medium text-black focus:border-black focus:outline-none"
     />
   );
 }
@@ -1237,7 +1263,7 @@ function SelectInput({
       value={value}
       onKeyDown={advanceOnEnter}
             onChange={(e) => onChange(e.target.value)}
-      className="block w-full border border-black bg-white px-2.5 py-1.5 text-[15px] font-medium text-black focus:border-red-600 focus:outline-none"
+      className="block w-full border border-black bg-white px-2.5 py-1.5 text-[15px] font-medium text-black focus:border-black focus:outline-none"
     >
       {options.map((opt) => (
         <option key={opt.value} value={opt.value}>
@@ -1260,7 +1286,7 @@ function BoolSelect({
       value={value ? "yes" : "no"}
       onKeyDown={advanceOnEnter}
             onChange={(e) => onChange(e.target.value === "yes")}
-      className="block w-full max-w-[180px] border border-black bg-white px-2.5 py-1.5 text-[15px] font-medium text-black focus:border-red-600 focus:outline-none"
+      className="block w-full max-w-[180px] border border-black bg-white px-2.5 py-1.5 text-[15px] font-medium text-black focus:border-black focus:outline-none"
     >
       <option value="no">No</option>
       <option value="yes">Yes</option>

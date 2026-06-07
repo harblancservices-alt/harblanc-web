@@ -16,6 +16,20 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: workspaceRoot,
   },
+  experimental: {
+    serverActions: {
+      // Quick Quote + customer intake forms allow file uploads up to
+      // 15 MB per file (see UPLOAD_MAX_BYTES in QuoteForm.tsx +
+      // src/app/quote/upload-actions.ts). Next.js defaults Server
+      // Action body size to 1 MB, which throws at the framework level
+      // for any larger upload BEFORE our action code runs — meaning the
+      // error never surfaces as the expected {ok:false, reason}
+      // response and customers can re-submit the form, creating
+      // duplicate quote_requests rows. Bump to 20 MB so a single
+      // 15 MB file plus FormData overhead clears comfortably.
+      bodySizeLimit: "20mb",
+    },
+  },
 };
 
 export default nextConfig;

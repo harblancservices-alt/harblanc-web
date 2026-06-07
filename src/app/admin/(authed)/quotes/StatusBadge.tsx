@@ -1,33 +1,33 @@
 import {
   LEAD_STATUS_LABELS,
-  LEAD_STATUS_CLASSES_LIGHT,
   type LeadStatus,
 } from "@/lib/dispatch/status";
 
 /**
- * Lightweight status pill. Read-only display — interactive switching
- * lives in StatusSelector. Tier-1 design language: small caps mono
- * label, hard 1px border, no rounded corners.
+ * Lead status pill — Level 6.3 admin palette.
  *
- * Defensively falls back to a neutral pill if the DB returns a status
- * the code doesn't recognise (e.g. an old row from before the Phase 4A
- * migration ran). Prevents the workspace from crashing on legacy data.
+ * Neutral black-outlined pill with a small black dot + uppercase label.
+ * The label IS the signal — no color matrix per status. Optional `muted`
+ * variant for archived / lost / delivered rows that surface in the
+ * expanded-history view.
  */
-// Phase COLOR-4: light-mode fallback pill for unknown statuses (matches
-// the zinc-100 family used by `archived` / `lost` in the light twin set).
-const FALLBACK_CLASSES = "border-zinc-300 bg-zinc-100 text-black";
 
-export function StatusBadge({ status }: { status: LeadStatus }) {
+export function StatusBadge({
+  status,
+  muted = false,
+}: {
+  status: LeadStatus;
+  muted?: boolean;
+}) {
   const label = LEAD_STATUS_LABELS[status] ?? String(status).replace(/_/g, " ");
-  const cls = LEAD_STATUS_CLASSES_LIGHT[status] ?? FALLBACK_CLASSES;
   return (
     <span
       className={
-        "inline-flex items-center gap-1.5 border px-2.5 py-1 font-mono text-xs tracking-[0.12em] uppercase " +
-        cls
+        "inline-flex items-center gap-1.5 border border-black bg-white px-2 py-0.5 font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-black " +
+        (muted ? "opacity-55" : "")
       }
     >
-      <span aria-hidden className="inline-block h-1.5 w-1.5 shrink-0 bg-current opacity-60" />
+      <span aria-hidden className="inline-block h-1.5 w-1.5 shrink-0 bg-black" />
       {label}
     </span>
   );

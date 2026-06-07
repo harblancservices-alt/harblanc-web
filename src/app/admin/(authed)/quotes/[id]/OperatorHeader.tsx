@@ -111,64 +111,85 @@ export function OperatorHeader({
         />
       </section>
 
-      {/* Block 2 (was Block 1) - Lane manifest (Option B compact layout) */}
+      {/* Block 2 - Lane manifest (compact)
+           One short card:
+             Row A: ZIPs + arrow on the left, mileage + Map button on the right
+             Row B: city sub-line (cities truncate on narrow widths)
+             Row C: refined meta (received · date · ID) in a single line */}
       <section className="border border-black border-l-4 border-l-red-700 bg-[#fafaf6]">
-        <div className="px-4 py-3 sm:px-5 sm:py-3.5">
-          {lane.hasLane ? (
-            <>
-              {/* Top row: large red ZIPs + 995 MI red pill on the right.
-                  ZIPs are the operational identifier dispatch actually
-                  scans for; cities are supporting context below. */}
-              <div className="mb-1.5 flex items-center gap-2">
-                <span className="font-mono text-lg font-medium tabular-nums text-red-700 sm:text-xl">
-                  {lane.pickupZip ?? "----"}
-                </span>
-                <span aria-hidden className="font-mono text-lg text-red-700 sm:text-xl">
-                  &rarr;
-                </span>
-                <span className="font-mono text-lg font-medium tabular-nums text-red-700 sm:text-xl">
-                  {lane.deliveryZip ?? "----"}
-                </span>
+        {lane.hasLane ? (
+          <div className="px-4 py-3 sm:px-5">
+            {/* Row A — ZIPs + Map cluster */}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+              <span className="font-mono text-xl font-medium tabular-nums text-black sm:text-2xl">
+                {lane.pickupZip ?? "----"}
+              </span>
+              <span aria-hidden className="font-mono text-lg text-red-700 sm:text-xl">
+                &rarr;
+              </span>
+              <span className="font-mono text-xl font-medium tabular-nums text-black sm:text-2xl">
+                {lane.deliveryZip ?? "----"}
+              </span>
+              <div className="ml-auto flex items-center gap-2">
                 {lane.miles != null ? (
-                  <span className="ml-auto inline-flex items-baseline gap-1 bg-red-700 px-2 py-0.5 font-mono text-[12px] font-bold tabular-nums tracking-[0.06em] text-white">
+                  <span className="inline-flex items-baseline gap-1 font-mono text-sm font-bold tabular-nums text-black">
                     {lane.miles.toLocaleString()}
-                    <span className="text-[10px] font-bold uppercase tracking-[0.12em]">mi</span>
+                    <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-black">
+                      mi
+                    </span>
                   </span>
                 ) : null}
+                {lane.pickupZip && lane.deliveryZip ? (
+                  <a
+                    href={`https://maps.apple.com/?saddr=${encodeURIComponent(lane.pickupZip)}&daddr=${encodeURIComponent(lane.deliveryZip)}&dirflg=d`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Open route in Maps"
+                    className="inline-flex items-center gap-1.5 bg-red-700 px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-white transition-colors hover:bg-red-600"
+                  >
+                    <IconPin className="h-3 w-3" />
+                    Map
+                  </a>
+                ) : null}
               </div>
-              {/* Second row: city names — smaller, supporting. Truncates
-                  with ellipsis on narrow widths so the row stays single-
-                  line. */}
-              <p className="truncate font-mono text-[13px] text-black sm:text-[14px]">
-                {lane.pickupLabel}
-                <span aria-hidden className="mx-1.5 text-red-700">&rarr;</span>
-                {lane.deliveryLabel}
+            </div>
+            {/* Row B — city sub-line, truncates */}
+            <p className="mt-1 truncate text-[13px] text-black">
+              {lane.pickupLabel}
+              <span aria-hidden className="mx-1.5 text-red-700">&rarr;</span>
+              {lane.deliveryLabel}
+            </p>
+            {lane.miles == null ? (
+              <p className="mt-1 font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-red-700">
+                Miles unavailable
               </p>
-              {lane.miles == null ? (
-                <p className="mt-1 font-mono text-[11px] font-medium text-black">
-                  est. miles unavailable
-                </p>
-              ) : null}
-            </>
-          ) : (
+            ) : null}
+          </div>
+        ) : (
+          <div className="px-4 py-3 sm:px-5">
             <p className="font-mono text-lg font-medium text-black sm:text-xl">
               Lane pending
             </p>
-          )}
-        </div>
+          </div>
+        )}
 
-        {/* Meta strip — three compact black pills replacing the old
-            "RECEIVED / DATE / REQ ID" labeled rows. Pills are tight and
-            single-row, with a copy affordance on the REQ ID. */}
-        <div className="flex flex-wrap items-center gap-1.5 border-t border-black/15 px-3 py-2 sm:px-5">
-          <span className="inline-flex items-center bg-black px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.10em] text-white">
+        {/* Row C — meta footer, one line of dotted-separator data */}
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-black/15 bg-[#f3f1e9] px-4 py-1.5 sm:px-5">
+          <span className="font-mono text-[11px] font-medium text-black">
             {identity.receivedRelative}
           </span>
-          <span className="inline-flex items-center bg-black px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.10em] text-white">
+          <span aria-hidden className="text-black/30">·</span>
+          <span className="font-mono text-[11px] font-medium text-black">
             {identity.receivedFull}
           </span>
-          <span className="inline-flex items-center gap-1 bg-black px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.10em] text-white">
-            {identity.requestId}
+          <span aria-hidden className="text-black/30">·</span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-red-700">
+              ID
+            </span>
+            <span className="font-mono text-[11px] font-medium text-black">
+              {identity.requestId}
+            </span>
             <CopyButton value={identity.requestIdFull} ariaLabel="request ID" />
           </span>
         </div>
@@ -296,5 +317,24 @@ function CopyButton({
         <IconCopy className="h-3 w-3" />
       )}
     </button>
+  );
+}
+
+/** Map-pin glyph for the inline MAP pill in the lane meta strip. */
+function IconPin({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.4}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M12 21s-7-7.5-7-12a7 7 0 0 1 14 0c0 4.5-7 12-7 12z" />
+      <circle cx="12" cy="9" r="2.5" />
+    </svg>
   );
 }

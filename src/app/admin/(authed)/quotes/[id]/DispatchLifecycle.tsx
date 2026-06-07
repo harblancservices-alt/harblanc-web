@@ -21,7 +21,7 @@
  * No-emoji, no-icons, no-animation — industrial mono-uppercase
  * operational marker. Each stage renders as a numbered cell with one
  * of three states:
- *   done    — black filled square with white "✓"  (the freight already
+ *   done    — black filled square with white check (the freight already
  *             passed this stage)
  *   active  — red-bordered square with red number (the current
  *             operational stage)
@@ -43,21 +43,18 @@ export type DispatchStageInput = {
   finalizedQuoteConfirmed: boolean;
   /** Any bills_of_lading row exists (draft or sent). */
   bolGenerated: boolean;
-  /** Any bills_of_lading row has been sent (sent_at non-null). */
-  bolSent: boolean;
 };
 
-type StageId =
+export type StageId =
   | "range"
   | "intake"
   | "finalized"
   | "confirmed"
-  | "bol"
-  | "ready";
+  | "bol";
 
-type StageState = "done" | "active" | "pending";
+export type StageState = "done" | "active" | "pending";
 
-type Stage = {
+export type Stage = {
   id: StageId;
   /** Two-digit ordinal — freight document feel. */
   ordinal: string;
@@ -65,23 +62,22 @@ type Stage = {
   label: string;
 };
 
-const STAGES: ReadonlyArray<Stage> = [
-  { id: "range", ordinal: "01", label: "Range" },
-  { id: "intake", ordinal: "02", label: "Intake" },
-  { id: "finalized", ordinal: "03", label: "Finalized" },
-  { id: "confirmed", ordinal: "04", label: "Confirmed" },
-  { id: "bol", ordinal: "05", label: "BOL" },
-  { id: "ready", ordinal: "06", label: "Ready" },
+export const STAGES: ReadonlyArray<Stage> = [
+  { id: "range", ordinal: "01", label: "Quote Range" },
+  { id: "intake", ordinal: "02", label: "Info Intake" },
+  { id: "finalized", ordinal: "03", label: "Finalize" },
+  { id: "confirmed", ordinal: "04", label: "Payment Confirmed" },
+  { id: "bol", ordinal: "05", label: "BOL Created" },
 ];
 
 /**
  * Map artifact state to the per-stage completion. A stage is `done`
  * when its underlying artifact exists; the FIRST stage that is not
  * done becomes `active`; subsequent stages stay `pending`. If every
- * stage is done, the last one renders as `active` (Ready for dispatch
- * is the highest operational state this strip surfaces).
+ * stage is done, the last one renders as `active` so the strip always
+ * carries a current marker (BOL Created never becomes "stale").
  */
-function computeStageStates(
+export function computeStageStates(
   input: DispatchStageInput,
 ): Record<StageId, StageState> {
   const doneMap: Record<StageId, boolean> = {
@@ -90,10 +86,6 @@ function computeStageStates(
     finalized: input.finalizedQuoteSent,
     confirmed: input.finalizedQuoteConfirmed,
     bol: input.bolGenerated,
-    // Ready = confirmed AND BOL exists. This is the operational
-    // handoff moment: the rate is locked and the paperwork is in
-    // dispatch's hands.
-    ready: input.finalizedQuoteConfirmed && input.bolGenerated,
   };
 
   const result: Record<StageId, StageState> = {
@@ -102,7 +94,6 @@ function computeStageStates(
     finalized: "pending",
     confirmed: "pending",
     bol: "pending",
-    ready: "pending",
   };
 
   let foundActive = false;
@@ -115,10 +106,10 @@ function computeStageStates(
     }
   }
 
-  // Edge case: every stage is done. Mark the final one as active so the
-  // strip always carries a current marker (Ready never becomes "stale").
+  // Edge case: every stage is done. Mark the final one (BOL Created) as
+  // active so the strip always carries a current marker.
   if (!foundActive) {
-    result.ready = "active";
+    result.bol = "active";
   }
 
   return result;
@@ -127,20 +118,17 @@ function computeStageStates(
 // Human-readable headline derived from the state map — sits to the
 // right of the strip on desktop, above it on mobile. Single sentence
 // answering "what's the next operational move?"
-function headlineFromStates(
+export function headlineFromStates(
   states: Record<StageId, StageState>,
 ): string {
-  if (states.ready === "active") {
-    return "Ready for dispatch — paperwork in hand, rate locked.";
-  }
-  if (states.ready === "done") {
-    return "Dispatched and in motion.";
+  if (states.bol === "done") {
+    return "BOL in hand — lifecycle complete.";
   }
   if (states.bol === "active") {
     return "Awaiting BOL generation.";
   }
   if (states.confirmed === "active") {
-    return "Awaiting customer confirmation of the finalized rate.";
+    return "Awaiting payment confirmation.";
   }
   if (states.finalized === "active") {
     return "Ready to send the finalized quote.";
@@ -154,6 +142,23 @@ function headlineFromStates(
   return "Lifecycle complete.";
 }
 
+/**
+ * Resolve the single current stage label for display in compact
+ * surfaces (e.g. Overview tab "Stage: Intake"). Internally calls
+ * computeStageStates() so this helper and the full 6-cell pipeline
+ * (rendered by <DispatchLifecycle> and later TimelineTab) cannot
+ * drift - both consumers derive from a single source of truth.
+ *
+ * Returns the active stage's label. If every stage is done, returns
+ * the last stage's label (matches the "ready never becomes stale"
+ * edge case in computeStageStates).
+ */
+export function currentStageLabel(state: DispatchStageInput): string {
+  const states = computeStageStates(state);
+  const active = STAGES.find((s) => states[s.id] === "active");
+  return active?.label ?? STAGES[STAGES.length - 1].label;
+}
+
 export function DispatchLifecycle({
   state,
 }: {
@@ -165,13 +170,13 @@ export function DispatchLifecycle({
   return (
     <section
       aria-label="Dispatch lifecycle"
-      className="border border-black border-l-4 border-l-red-700 bg-[#f3f1e9]"
+      className="border-2 border-black border-l-4 border-l-black bg-[#f3f1e9]"
     >
       {/* Title + inline headline (desktop) / wraps to its own line (mobile) */}
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 pt-2.5 pb-2 sm:px-5">
         <span
           aria-hidden
-          className="inline-block h-3.5 w-1 shrink-0 self-center bg-red-700"
+          className="inline-block h-3.5 w-1 shrink-0 self-center bg-black"
         />
         <p className="font-mono text-[12px] font-bold uppercase tracking-[0.2em] text-black">
           Dispatch lifecycle
@@ -180,11 +185,11 @@ export function DispatchLifecycle({
         <p className="text-[13px] text-black sm:text-[14px]">{headline}</p>
       </div>
 
-      {/* Manifest strip — single bordered grid, 6 cells, no inter-arrow noise */}
-      <div className="mx-4 mb-3 grid grid-cols-2 border border-black bg-white sm:mx-5 sm:mb-4 sm:grid-cols-3 lg:grid-cols-6">
+      {/* Manifest strip - single bordered grid, 5 cells, no inter-arrow noise */}
+      <div className="mx-4 mb-3 grid grid-cols-2 border border-black bg-white sm:mx-5 sm:mb-4 sm:grid-cols-3 lg:grid-cols-5">
         {STAGES.map((stage, idx) => {
           const s = stageStates[stage.id];
-          const isLastCol = (idx + 1) % 6 === 0;
+          const isLastCol = (idx + 1) % 5 === 0;
           const onSmRightEdge = (idx + 1) % 2 === 0;
           return (
             <StageCell

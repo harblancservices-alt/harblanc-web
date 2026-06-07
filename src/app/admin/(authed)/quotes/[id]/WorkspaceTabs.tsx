@@ -33,19 +33,16 @@ type TabDef = { id: TabId; label: string; placeholder?: boolean };
 
 const TABS: TabDef[] = [
   { id: "load_details", label: "Load details" },
-  { id: "quote_range", label: "Quote range" },
   { id: "finalized", label: "Finalized quote" },
   { id: "bol", label: "BOL" },
   { id: "payments", label: "Payments", placeholder: true },
 ];
 
 export function WorkspaceTabs({
-  quoteRangeContent,
   loadDetailsContent,
   finalizedQuoteContent,
   bolContent,
 }: {
-  quoteRangeContent: ReactNode;
   loadDetailsContent: ReactNode;
   finalizedQuoteContent: ReactNode;
   bolContent: ReactNode;
@@ -74,9 +71,6 @@ export function WorkspaceTabs({
     <div>
       <TabBar tab={tab} setTab={setTab} />
       <div className="mt-3.5">
-        <div className={tab === "quote_range" ? "" : "hidden"}>
-          {quoteRangeContent}
-        </div>
         <div className={tab === "load_details" ? "" : "hidden"}>
           {loadDetailsContent}
         </div>
@@ -122,14 +116,14 @@ function TabBar({
               onClick={() => setTab(t.id)}
               className={
                 // Hierarchy:
-                //   Active   → solid red tab (bg-red-700) with white bold
+                //   Active   → solid red tab (bg-black) with white bold
                 //              text and a darker red underline. Reads as
                 //              a stamped/selected tab, not a label.
                 //   Inactive → cream bg, black bold text, no underline.
                 //   Placeholder → black text, not-allowed cursor.
                 "-mb-[2px] inline-flex shrink-0 items-center gap-2 border-b-[3px] px-3.5 py-2.5 font-mono text-[12px] font-bold uppercase tracking-[0.16em] transition-colors focus:outline-none sm:px-4 " +
                 (active
-                  ? "border-red-900 bg-red-700 font-black text-white"
+                  ? "border-black bg-black font-black text-white"
                   : "border-transparent text-black hover:bg-[#f3f1e9]") +
                 (t.placeholder ? " cursor-not-allowed text-black" : "")
               }
@@ -161,8 +155,8 @@ function PlaceholderTab({
   subtitle: string;
 }) {
   return (
-    <section className="border border-black border-l-4 border-l-red-700 bg-[#fafaf6] p-6 text-center sm:p-10">
-      <p className="font-mono text-[12px] font-bold uppercase tracking-[0.22em] text-red-700">
+    <section className="border border-black border-l-4 border-l-black bg-[#fafaf6] p-6 text-center sm:p-10">
+      <p className="font-mono text-[12px] font-bold uppercase tracking-[0.22em] text-black">
         Not built yet
       </p>
       <h2 className="mt-3 font-mono text-2xl font-bold uppercase tracking-[0.1em] text-black">

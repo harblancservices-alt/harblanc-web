@@ -2,15 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { formatDateFull, relativeTime } from "@/lib/admin/format";
+import { formatDateFull, formatDateShort, relativeTime } from "@/lib/admin/format";
 import { estimateLaneMiles, lookupZip } from "@/lib/dispatch/distance";
 
 /**
- * Local "Month DD, YYYY" formatter for the OperatorHeader received-at
- * strip. formatDateFull is kept (it's used by event logs and audit
- * trails that need the precise UTC timestamp) — the header just reads
- * better as freight paperwork in the friendly form. Built in UTC so
- * the day doesn't shift around timezones.
+ * "Month DD, YYYY · HH:MM" formatter for the received-at line on the
+ * Overview tab's Received card. Built in UTC so the day doesn't shift
+ * around timezones; HH:MM is also UTC for the same reason.
  */
 function formatReceivedDate(iso: string): string {
   const d = new Date(iso);
@@ -18,7 +16,10 @@ function formatReceivedDate(iso: string): string {
     "January", "February", "March", "April", "May", "June",
     "July", "August", "September", "October", "November", "December",
   ];
-  return `${months[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`;
+  const date = `${months[d.getUTCMonth()]} ${d.getUTCDate()}, ${d.getUTCFullYear()}`;
+  const hh = String(d.getUTCHours()).padStart(2, "0");
+  const mm = String(d.getUTCMinutes()).padStart(2, "0");
+  return `${date} · ${hh}:${mm}`;
 }
 import {
   LEAD_STATUS_CLASSES_LIGHT,
@@ -26,31 +27,40 @@ import {
   type LeadStatus,
 } from "@/lib/dispatch/status";
 import { IconArrowLeft } from "./icons";
-import { OperatorHeader, type OperatorHeaderProps } from "./OperatorHeader";
-import { QuoteRangeWorkspace } from "./QuoteRangeWorkspace";
+// Level 5 wire-up: components for the old quote-detail surface are no
+// longer rendered directly from this file. Their types stay imported
+// because the loaders below still produce those shapes and the new V3
+// tab bodies consume them. The old components themselves are mounted
+// inside the new tab wrappers (PricingTab, DocumentsTab) or are kept on
+// disk for a later cleanup pass (OperatorHeader, WorkspaceTabs,
+// LoadDetailsCard, DispatchLifecycle direct render).
+import { type OperatorHeaderProps } from "./OperatorHeader";
 import {
-  LoadDetailsCard,
   type LoadDetailsInitial,
   type IntakeUploadAdminRow,
 } from "./LoadDetailsCard";
-import { WorkspaceTabs } from "./WorkspaceTabs";
+import { type DispatchStageInput } from "./DispatchLifecycle";
 import {
-  DispatchLifecycle,
-  type DispatchStageInput,
-} from "./DispatchLifecycle";
-import {
-  FinalizedQuoteWorkspace,
   type FinalizedAccessorialSnapshot,
   type FinalizedQuoteDraftSnapshot,
   type FinalizedQuoteSentSnapshot,
   type FinalizedQuoteState,
 } from "./FinalizedQuoteWorkspace";
 import {
-  BolWorkspace,
   type BolDraftSnapshot,
   type BolSentSnapshot,
   type BolState,
 } from "./BolWorkspace";
+
+// V3 surface
+import { QuoteHero } from "./QuoteHero";
+import { QuoteWorkspaceTabs } from "./QuoteWorkspaceTabs";
+import { OverviewTab } from "./tabs/OverviewTab";
+import { DetailsTab } from "./tabs/DetailsTab";
+import { type SentDocumentRow } from "./tabs/DocumentsTab";
+import { PricingTab } from "./tabs/PricingTab";
+import { DocumentsTab } from "./tabs/DocumentsTab";
+import { type TimelineEventRow } from "./tabs/TimelineTab";
 
 const INTAKE_BUCKET = "intake-uploads";
 /**
@@ -172,6 +182,10 @@ type QuoteDetailRow = {
    *  and also null right after the customer submits intake (the
    *  submit action clears the override so the customer's data wins). */
   load_details_overrides: Record<string, string> | null;
+  /** Customer-typed "Anything else?" notes from the public Quick Quote
+   *  form. Stored on insert; surfaced in the admin quote page as a
+   *  dedicated Customer-notes card so dispatch sees the context. */
+  notes: string | null;
 };
 
 type IntakeRow = {
@@ -698,7 +712,7 @@ async function loadQuoteRequest(id: string): Promise<QuoteDetailRow | null> {
   const { data } = await sb
     .from("quote_requests")
     .select(
-      "id, created_at, name, email, phone, commodity, weight, pickup_date, pickup_zip, delivery_zip, pickup_city, pickup_state, delivery_city, delivery_state, calculated_miles, lead_status, lead_status_updated_at, deleted_at, delete_after",
+      "id, created_at, name, email, phone, commodity, weight, pickup_date, pickup_zip, delivery_zip, pickup_city, pickup_state, delivery_city, delivery_state, calculated_miles, lead_status, lead_status_updated_at, deleted_at, delete_after, notes",
     )
     .eq("id", id)
     .maybeSingle<QuoteDetailRow>();
@@ -773,6 +787,108 @@ export type QuoteRangeDefaults = {
   special_instructions: string | null;
 };
 
+/**
+ * Returns true when at least one dispatch_estimates row for this quote
+ * request has a non-null sent_at. Used by the DispatchLifecycle to mark
+ * the "Quote Range" stage as done.
+ *
+ * The earlier proxy (`intake !== null`) was wrong: it assumed the
+ * estimate must have been sent because the intake existed, but the
+ * customer can receive the range proposal email and never open the
+ * intake form. The lifecycle therefore stayed stuck on Quote Range
+ * even after the email was sent.
+ */
+async function loadEstimateSentFlag(
+  quoteRequestId: string,
+): Promise<boolean> {
+  const sb = createServiceRoleClient();
+  const { count } = await sb
+    .from("dispatch_estimates")
+    .select("id", { count: "exact", head: true })
+    .eq("quote_request_id", quoteRequestId)
+    .not("sent_at", "is", null);
+  return (count ?? 0) > 0;
+}
+
+/**
+ * Load every SENT document (Range proposal, Finalized Quote, BOL) for
+ * this quote request, newest first. Duplicates are preserved on purpose:
+ * a resent doc inserts a NEW row in its source table, so multiple sends
+ * surface as separate list entries on the Documents tab.
+ *
+ * No deduplication, no filtering past sent_at IS NOT NULL. Sort order
+ * is sent_at DESC after merging.
+ *
+ * Each row carries:
+ *   - type: discriminator for resend action + PDF route routing
+ *   - id: the row id on its source table
+ *   - label: human-readable display string
+ *   - sentAt: ISO timestamp
+ *   - recipient: preview_to from the source row (fallback empty string)
+ *   - pdfHref: existing PDF route href for FQ/BOL; null for estimates
+ *     (which are email-only and have no PDF route).
+ */
+async function loadSentDocuments(
+  quoteRequestId: string,
+): Promise<SentDocumentRow[]> {
+  const sb = createServiceRoleClient();
+
+  const [estResp, fqResp, bolResp] = await Promise.all([
+    sb
+      .from("dispatch_estimates")
+      .select("id, sent_at, preview_to")
+      .eq("quote_request_id", quoteRequestId)
+      .not("sent_at", "is", null)
+      .order("sent_at", { ascending: false })
+      .limit(100),
+    sb
+      .from("finalized_quotes")
+      .select("id, finalized_quote_number, sent_at, preview_to")
+      .eq("quote_request_id", quoteRequestId)
+      .not("sent_at", "is", null)
+      .order("sent_at", { ascending: false })
+      .limit(100),
+    sb
+      .from("bills_of_lading")
+      .select("id, bol_number, sent_at, preview_to")
+      .eq("quote_request_id", quoteRequestId)
+      .not("sent_at", "is", null)
+      .order("sent_at", { ascending: false })
+      .limit(100),
+  ]);
+
+  const estimates: SentDocumentRow[] = (estResp.data ?? []).map((r) => ({
+    type: "estimate",
+    id: r.id,
+    label: "Range proposal",
+    sentAt: r.sent_at ?? "",
+    recipient: r.preview_to ?? "",
+    pdfHref: `/admin/quotes/${quoteRequestId}/estimate-pdf/${r.id}`,
+  }));
+
+  const fqs: SentDocumentRow[] = (fqResp.data ?? []).map((r) => ({
+    type: "finalized_quote",
+    id: r.id,
+    label: `Finalized Quote #${r.finalized_quote_number}`,
+    sentAt: r.sent_at ?? "",
+    recipient: r.preview_to ?? "",
+    pdfHref: `/admin/quotes/${quoteRequestId}/finalized-quote-pdf/${r.id}`,
+  }));
+
+  const bols: SentDocumentRow[] = (bolResp.data ?? []).map((r) => ({
+    type: "bol",
+    id: r.id,
+    label: `BOL #${r.bol_number}`,
+    sentAt: r.sent_at ?? "",
+    recipient: r.preview_to ?? "",
+    pdfHref: `/admin/quotes/${quoteRequestId}/bol-pdf/${r.id}`,
+  }));
+
+  return [...estimates, ...fqs, ...bols].sort((a, b) =>
+    a.sentAt < b.sentAt ? 1 : a.sentAt > b.sentAt ? -1 : 0,
+  );
+}
+
 async function loadDraftEstimate(
   quoteRequestId: string,
 ): Promise<QuoteRangeDefaults | null> {
@@ -803,6 +919,48 @@ async function loadDraftEstimate(
 }
 
 // âââ Field-merge helpers (intake first, Quick Quote fallback) ââââââââ
+
+// ─── Level 8.1 — action-surfacing data loaders ──────────────────────────
+//
+// Two small queries reused by Range/Finalized/BOL workspaces + Overview
+// alert. No business logic, no schema changes, no new server actions.
+
+/**
+ * Next active lead (newest first), excluding the current one. Powers the
+ * "Save & open next" CTA after a successful send. Returns null when this
+ * is the only / last active lead — in which case the CTA hides.
+ */
+async function loadNextLeadId(currentId: string): Promise<string | null> {
+  const sb = createServiceRoleClient();
+  const { data } = await sb
+    .from("quote_requests")
+    .select("id")
+    .is("deleted_at", null)
+    .neq("id", currentId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle<{ id: string }>();
+  return data?.id ?? null;
+}
+
+/**
+ * Maps `quote_requests.lead_status` to the tab the operator should land
+ * on. Active work states default to Details (operator wants to edit);
+ * late states default to Overview (operator wants to read).
+ */
+function initialTabForLeadStatus(
+  status: LeadStatus,
+): "overview" | "details" | "pricing" | "documents" {
+  const ACTIVE_WORK: LeadStatus[] = [
+    "new",
+    "contacted",
+    "estimate_sent",
+    "awaiting_confirmation",
+    "awaiting_payment",
+    "ready_to_dispatch",
+  ];
+  return ACTIVE_WORK.includes(status) ? "details" : "overview";
+}
 
 function pickString(...candidates: Array<string | null | undefined>): string {
   for (const c of candidates) {
@@ -887,17 +1045,44 @@ function computeInitialValues(
   row: QuoteDetailRow,
   intake: IntakeRow | null,
 ): LoadDetailsInitial {
+  // Resolved ZIPs (intake first, Quick Quote fallback). Reused below so the
+  // city/state fallback hits the same ZIP value the field is going to show.
+  const pickupZipResolved = pickString(intake?.pickup_zip, row.pickup_zip);
+  const deliveryZipResolved = pickString(
+    intake?.delivery_zip,
+    row.delivery_zip,
+  );
+  // City/state fallback chain: intake → Quick Quote row → ZIP-dataset
+  // lookup. The final fallback means a fresh lead where the customer only
+  // entered a ZIP comes up pre-filled with the dataset-resolved city/state
+  // on initial render — no operator blur required.
+  const pickupZipLookup = pickupZipResolved
+    ? lookupZip(pickupZipResolved)
+    : null;
+  const deliveryZipLookup = deliveryZipResolved
+    ? lookupZip(deliveryZipResolved)
+    : null;
+  const pickupCityResolved =
+    pickString(intake?.pickup_city, row.pickup_city) ||
+    (pickupZipLookup?.city ?? "");
+  const pickupStateResolved =
+    pickString(intake?.pickup_state, row.pickup_state) ||
+    (pickupZipLookup?.state ?? "");
+  const deliveryCityResolved =
+    pickString(intake?.delivery_city, row.delivery_city) ||
+    (deliveryZipLookup?.city ?? "");
+  const deliveryStateResolved =
+    pickString(intake?.delivery_state, row.delivery_state) ||
+    (deliveryZipLookup?.state ?? "");
+
   return {
     pickup_company: pickString(intake?.pickup_company),
     pickup_address: joinAddress(
       intake?.pickup_address_line1,
       intake?.pickup_address_line2,
     ),
-    pickup_city_state: formatCityState(
-      pickString(intake?.pickup_city, row.pickup_city),
-      pickString(intake?.pickup_state, row.pickup_state),
-    ),
-    pickup_zip: pickString(intake?.pickup_zip, row.pickup_zip),
+    pickup_city_state: formatCityState(pickupCityResolved, pickupStateResolved),
+    pickup_zip: pickupZipResolved,
     pickup_contact: pickString(intake?.pickup_contact_name),
     pickup_phone: pickString(intake?.pickup_contact_phone),
     // Prefer the new typed start column when present; fall back to the
@@ -917,10 +1102,10 @@ function computeInitialValues(
       intake?.delivery_address_line2,
     ),
     delivery_city_state: formatCityState(
-      pickString(intake?.delivery_city, row.delivery_city),
-      pickString(intake?.delivery_state, row.delivery_state),
+      deliveryCityResolved,
+      deliveryStateResolved,
     ),
-    delivery_zip: pickString(intake?.delivery_zip, row.delivery_zip),
+    delivery_zip: deliveryZipResolved,
     delivery_contact: pickString(intake?.delivery_contact_name),
     delivery_phone: pickString(intake?.delivery_contact_phone),
     delivery_window: pickString(
@@ -1041,6 +1226,96 @@ function buildOperatorHeaderProps(row: QuoteDetailRow): OperatorHeaderProps {
   };
 }
 
+/**
+ * Level 5 Step 5.4 wire-up — read-only SELECT for the Timeline tab's
+ * Event history section. Explicit column list (no SELECT *), newest
+ * first, capped at 100 rows so long-lived leads don't return thousands.
+ * Maps row.created_at -> createdAt to match the TimelineEventRow shape.
+ *
+ * The component-level dictionary in TimelineTab.tsx covers all 38
+ * DispatchEventKind variants; unknown kinds (forward-migration drift)
+ * fall back to a generated label and never render an error.
+ */
+type DispatchEventDbRow = {
+  id: string;
+  kind: string;
+  payload: unknown;
+  created_at: string;
+};
+
+async function loadDispatchEventsForTimeline(
+  quoteRequestId: string,
+): Promise<TimelineEventRow[]> {
+  const sb = createServiceRoleClient();
+  const { data } = await sb
+    .from("dispatch_events")
+    .select("id, kind, payload, created_at")
+    .eq("quote_request_id", quoteRequestId)
+    .order("created_at", { ascending: false })
+    .limit(100)
+    .returns<DispatchEventDbRow[]>();
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    kind: r.kind,
+    payload: r.payload,
+    createdAt: r.created_at,
+  }));
+}
+
+/**
+ * Sent-artifact index for the Overview Activity feed (newest-first lists
+ * of {id, sentAt}). Powers the inline "View" link on
+ * Range proposal sent / resent, Finalized quote sent / resent, BOL
+ * sent / resent rows so dispatch can re-open the exact PDF that
+ * went out. Sent-time is the source of truth for the displayed
+ * timestamp on those rows — overrides dispatch_events.created_at so
+ * two consecutive resends never collapse into the same minute.
+ */
+type SentArtifactRow = { id: string; sent_at: string };
+export type SentArtifact = { id: string; sentAt: string };
+export type SentArtifactIndex = {
+  estimates: SentArtifact[];
+  fqs: SentArtifact[];
+  bols: SentArtifact[];
+};
+
+async function loadSentArtifactIndex(
+  quoteRequestId: string,
+): Promise<SentArtifactIndex> {
+  const sb = createServiceRoleClient();
+  const [{ data: estRows }, { data: fqRows }, { data: bolRows }] =
+    await Promise.all([
+      sb
+        .from("dispatch_estimates")
+        .select("id, sent_at")
+        .eq("quote_request_id", quoteRequestId)
+        .not("sent_at", "is", null)
+        .order("sent_at", { ascending: false })
+        .returns<SentArtifactRow[]>(),
+      sb
+        .from("finalized_quotes")
+        .select("id, sent_at")
+        .eq("quote_request_id", quoteRequestId)
+        .not("sent_at", "is", null)
+        .order("sent_at", { ascending: false })
+        .returns<SentArtifactRow[]>(),
+      sb
+        .from("bills_of_lading")
+        .select("id, sent_at")
+        .eq("quote_request_id", quoteRequestId)
+        .not("sent_at", "is", null)
+        .order("sent_at", { ascending: false })
+        .returns<SentArtifactRow[]>(),
+    ]);
+  const norm = (rows: SentArtifactRow[] | null): SentArtifact[] =>
+    (rows ?? []).map((r) => ({ id: r.id, sentAt: r.sent_at }));
+  return {
+    estimates: norm(estRows),
+    fqs: norm(fqRows),
+    bols: norm(bolRows),
+  };
+}
+
 export default async function QuoteDetailPage({
   params,
 }: {
@@ -1055,23 +1330,31 @@ export default async function QuoteDetailPage({
     computeInitialValues(row, intake),
     row.load_details_overrides,
   );
-  const statusMessage = intakeStatusMessage(intake);
+  // intakeStatusMessage is still defined above and may be re-surfaced
+  // later; the old WorkspaceTabs header pill consumed it. Call once and
+  // discard so it stays "used" without rendering.
+  void intakeStatusMessage(intake);
   const intakeUploads = await loadIntakeUploadsForAdmin(row.id);
   const estimateDraft = await loadDraftEstimate(id);
+  const estimateWasSent = await loadEstimateSentFlag(id);
+  const sentDocuments = await loadSentDocuments(id);
   const intakeSnapshotKey = intake
     ? `${intake.id}:${intake.status}:${intake.submitted_at ?? ""}`
     : "no_intake";
   const finalizedQuoteState = await loadFinalizedQuoteState(row.id, row.email);
   const bolState = await loadBolState(row.id, row.email);
+  // Level 5 Step 5.4 wire-up - dispatch_events feed for TimelineTab.
+  const timelineEvents = await loadDispatchEventsForTimeline(row.id);
+  // Sent-artifact index for Activity feed inline "View" links + sent-time
+  // override on sent/resent rows.
+  const sentArtifactIndex = await loadSentArtifactIndex(row.id);
 
-  // Phase 3B — derive the operational lifecycle from data we already
-  // loaded. The strip is a presentation layer over existing artifact
-  // state; no new queries and no new lead_status values. The estimate
-  // is implicitly sent when an intake row exists (the customer can
-  // only reach the intake page through a token-gated estimate accept
-  // link), so intake existence stands in for "range proposal sent."
+  // Lifecycle artifact state. Shared by Overview tab (single stage
+  // label via currentStageLabel) and Timeline tab (full 6-cell pipeline
+  // via <DispatchLifecycle>). Both consumers derive from
+  // computeStageStates() so they cannot drift.
   const lifecycleState: DispatchStageInput = {
-    estimateSent: intake !== null,
+    estimateSent: estimateWasSent,
     intakeSubmitted: intake?.status === "submitted",
     finalizedQuoteSent:
       finalizedQuoteState.phase === "sent" ||
@@ -1081,89 +1364,136 @@ export default async function QuoteDetailPage({
       finalizedQuoteState.sent.confirmedAt !== null,
     bolGenerated:
       bolState.phase === "draft" || bolState.phase === "sent",
-    bolSent: bolState.phase === "sent",
   };
 
   const isTrashed = Boolean(row.deleted_at);
   const headerProps = buildOperatorHeaderProps(row);
 
-  return (
-    <div className="mx-auto max-w-3xl space-y-2 px-4 py-5 sm:px-6 sm:py-7 lg:px-8 lg:py-8">
-      {/* Back link */}
-      <Link
-        href={isTrashed ? "/admin/quotes/trash" : "/admin/quotes"}
-        prefetch={false}
-        className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-black transition-opacity hover:opacity-70"
-      >
-        <IconArrowLeft className="h-4 w-4 shrink-0" />
-        Back to {isTrashed ? "trash" : "quotes"}
-      </Link>
+  // Level 8.1 — action-surfacing data plumbing (no new server actions).
+  //
+  // 1. nextLeadId: next active lead by created_at DESC, excluding this
+  //    one. Powers the "Save & open next" CTA in Range/Finalized/BOL
+  //    workspaces. Single small query.
+  // 2. initialTab: Details for active work states (operator wants to
+  //    edit immediately), Overview for late states (operator wants to
+  //    read).
+  const nextLeadId = await loadNextLeadId(row.id);
+  const initialTab = initialTabForLeadStatus(row.lead_status);
 
-      {/* Trash banner */}
+  return (
+    // 6.9A polish: base widened max-w-3xl → max-w-4xl so tablet portrait /
+    // landscape matches every other admin list / detail page (Active Quotes,
+    // Applications, Application Detail 6.7). lg:max-w-6xl preserved so the
+    // workspace tabs (Pricing forms, BOL composer) still breathe on a real
+    // monitor instead of staying trapped at 4xl.
+    <div className="mx-auto max-w-4xl pt-11 sm:pt-0 lg:max-w-6xl">
+      {/* Back link — outlined-black button matching the admin secondary
+          vocabulary (Phone / Email / Restore / Trash). Inverts to black on
+          hover, same as the other admin-portal buttons. */}
+      <div className="px-4 pt-4 sm:px-6 lg:px-8">
+        <Link
+          href={isTrashed ? "/admin/quotes/trash" : "/admin/quotes"}
+          prefetch={false}
+          className="inline-flex items-center gap-2 border-2 border-black bg-white px-3.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-black transition-colors hover:bg-black hover:text-white"
+        >
+          <IconArrowLeft className="h-3 w-3 shrink-0" />
+          {isTrashed ? "All trash" : "All quotes"}
+        </Link>
+      </div>
+
+      {/* Trash strip — compact retention pattern mirroring Application
+          Detail 6.7 and Quotes Trash 6.5. Replaces the heavy cream-box
+          banner with eyebrow + body sentence. Same data, fraction of the
+          height. */}
       {isTrashed ? (
-        <div className="flex items-start gap-3 rounded-lg border border-red-300 bg-red-50 p-4">
-          <span
-            aria-hidden
-            className="mt-0.5 inline-block h-3 w-1 shrink-0 bg-red-600"
-          />
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-red-700">
-              In trash
-            </p>
-            <p className="mt-1 text-[15px] leading-relaxed text-red-800">
-              Moved to trash {relativeTime(row.deleted_at!)}.{" "}
-              {row.delete_after ? (
-                <>
-                  Auto-purge on{" "}
-                  <span className="font-mono text-red-800">
-                    {formatDateFull(row.delete_after)}
-                  </span>
-                  .
-                </>
-              ) : null}
-            </p>
-          </div>
-        </div>
+        <section
+          aria-label="In trash"
+          className="mx-4 mt-3 mb-4 flex flex-wrap items-baseline gap-x-3 gap-y-1 border-l-[3px] border-black bg-[#fafaf6] px-4 py-2.5 sm:mx-6 sm:gap-x-4 sm:px-5 lg:mx-8"
+        >
+          <p className="shrink-0 font-mono text-[10.5px] font-bold uppercase tracking-[0.22em] text-black">
+            In trash
+          </p>
+          <p className="font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-black/70">
+            Moved {relativeTime(row.deleted_at!)}
+            {row.delete_after ? (
+              <>
+                <span aria-hidden className="mx-1.5 text-black/40">
+                  ·
+                </span>
+                Auto-purge {formatDateShort(row.delete_after).slice(0, 10)}
+              </>
+            ) : null}
+          </p>
+        </section>
       ) : null}
 
-      {/* Phase 3B — Dispatch lifecycle strip. Aggregates artifact state
-          (estimate / intake / FQ / confirmed / BOL) into one row so the
-          operator knows where the shipment is and what the next move
-          is without clicking through every tab.
-          Order: lifecycle FIRST so the operator scans where the shipment
-          stands before reading the lane/mileage manifest below. */}
-      <DispatchLifecycle state={lifecycleState} />
-
-      {/* Operator Header — sits directly above the tabs so the
-          lane/mileage/info reads alongside the Quote Range workspace. */}
-      <OperatorHeader {...headerProps} />
-
-      {/* Tabbed workspace */}
-      <WorkspaceTabs
-        quoteRangeContent={
-          <QuoteRangeWorkspace
+      {/* V3 Tabs - Overview / Details / Pricing / Documents / Timeline.
+          Display:none keep-mounted preserves each tab's internal state
+          (in-progress forms, fingerprints, PreviewModal state).
+          QuoteHero (eyebrow + REQ + received line) lives INSIDE the
+          overview tab so it only shows when overview is active. */}
+      <QuoteWorkspaceTabs
+        initialTab={initialTab}
+        overviewContent={
+          <>
+          <QuoteHero identity={headerProps.identity} />
+          <OverviewTab
+            quoteRange={
+              estimateDraft
+                ? {
+                    linehaulLow: estimateDraft.linehaul_low,
+                    linehaulHigh: estimateDraft.linehaul_high,
+                    fuelSurcharge: estimateDraft.fuel_surcharge,
+                    accessorials: estimateDraft.accessorials,
+                  }
+                : null
+            }
+            lifecycle={lifecycleState}
+            customer={{ name: row.name, phone: row.phone, email: row.email }}
+            freight={{ commodity: row.commodity, weight: row.weight }}
+            lane={initialValues}
+            miles={headerProps.lane.miles}
+            customerNotes={row.notes}
+            uploads={intakeUploads}
+            events={timelineEvents}
             quoteRequestId={row.id}
-            miles={row.calculated_miles}
-            defaults={estimateDraft}
+            sentArtifacts={sentArtifactIndex}
+            received={{
+              relative: headerProps.identity.receivedRelative,
+              full: headerProps.identity.receivedFull,
+            }}
           />
+          </>
         }
-        loadDetailsContent={
-          <LoadDetailsCard
+        detailsContent={
+          <DetailsTab
             key={intakeSnapshotKey}
             quoteRequestId={row.id}
             initial={initialValues}
-            intakeStatusMessage={statusMessage}
-            uploads={intakeUploads}
+            shipperOfRecord={{
+              name: row.name,
+              phone: row.phone,
+              email: row.email,
+            }}
+            miles={headerProps.lane.miles}
           />
         }
-        finalizedQuoteContent={
-          <FinalizedQuoteWorkspace
+        pricingContent={
+          <PricingTab
             quoteRequestId={row.id}
-            state={finalizedQuoteState}
+            miles={headerProps.lane.miles}
+            rangeDefaults={estimateDraft}
+            finalizedQuoteState={finalizedQuoteState}
+            nextLeadId={nextLeadId}
           />
         }
-        bolContent={
-          <BolWorkspace quoteRequestId={row.id} state={bolState} />
+        documentsContent={
+          <DocumentsTab
+            quoteRequestId={row.id}
+            bolState={bolState}
+            sentDocuments={sentDocuments}
+            nextLeadId={nextLeadId}
+          />
         }
       />
     </div>

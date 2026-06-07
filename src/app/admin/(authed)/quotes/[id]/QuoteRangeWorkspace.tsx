@@ -2,6 +2,7 @@
 
 import { advanceOnEnter } from "@/lib/admin/form-utils";
 
+import Link from "next/link";
 import { useId, useMemo, useState, useTransition } from "react";
 import { IconPlus, IconX } from "./icons";
 import {
@@ -174,6 +175,7 @@ export function QuoteRangeWorkspace({
   quoteRequestId,
   miles,
   defaults,
+  nextLeadId,
 }: {
   quoteRequestId: string;
   /**
@@ -209,6 +211,10 @@ export function QuoteRangeWorkspace({
     payment_terms: string | null;
     special_instructions: string | null;
   } | null;
+  /** Level 8.1: next active lead id from page.tsx. When non-null, the
+   *  workspace footer surfaces a "Save & open next" link that lets the
+   *  operator close the loop without bouncing back to /admin/quotes. */
+  nextLeadId: string | null;
 }) {
   // Two linehaul inputs. The operator owns both ends of the range —
   // no automatic upside is applied. linehaulHigh is optional; when
@@ -224,8 +230,20 @@ export function QuoteRangeWorkspace({
   const [linehaulHigh, setLinehaulHigh] = useState(
     defaults?.linehaul_high != null ? String(defaults.linehaul_high) : "",
   );
+  // Fuel surcharge — auto-prefills to miles × $0.35 when there's no saved
+  // value yet and the lane has resolved miles. Operator can still type
+  // over it to override. The saved value (defaults?.fuel_surcharge)
+  // always wins on subsequent loads so we don't overwrite a deliberate
+  // operator choice with the auto-compute.
+  const FUEL_RATE_PER_MILE = 0.35;
+  const autoFuelSurcharge =
+    miles != null && miles > 0
+      ? (miles * FUEL_RATE_PER_MILE).toFixed(2)
+      : "";
   const [fuelSurcharge, setFuelSurcharge] = useState(
-    defaults?.fuel_surcharge != null ? String(defaults.fuel_surcharge) : "",
+    defaults?.fuel_surcharge != null
+      ? String(defaults.fuel_surcharge)
+      : autoFuelSurcharge,
   );
   // Accessorials are stored as a JSONB array of {label, amount}. Convert
   // each to the local Accessorial shape (string amount + stable id) so
@@ -445,17 +463,12 @@ export function QuoteRangeWorkspace({
   }
 
   return (
-    <section className="border-2 border-black border-l-4 border-l-red-700 bg-[#fafaf6]">
-      {/* Header band - red bar marker + section label + status stamp */}
-      <div className="flex flex-wrap items-center gap-3 border-b-2 border-black bg-[#f3f1e9] px-4 py-2.5 sm:px-5">
-        <span
-          aria-hidden
-          className="inline-block h-4 w-1 shrink-0 bg-red-700"
-        />
-        <h2 className="font-mono text-[14px] font-bold uppercase tracking-[0.18em] text-black">
+    <>
+    <section className="border-2 border-black border-l-4 border-l-black bg-[#fafaf6]">
+      <div className="flex flex-wrap items-baseline justify-between gap-2 px-4 pt-4 pb-2 sm:px-5">
+        <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-black">
           Quote range
         </h2>
-        <span className="flex-1" />
         <span className="border border-black bg-white px-2 py-0.5 font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-black">
           Draft &middot; not sent
         </span>
@@ -489,13 +502,23 @@ export function QuoteRangeWorkspace({
         </FieldRow>
 
         <FieldRow label="Fuel surcharge">
-          {/* Same stack-on-mobile treatment for fuel input + RPM display. */}
+          {/* Same stack-on-mobile treatment for fuel input + RPM display.
+              Operator-facing caption below the input names the auto-fill
+              policy so the prefilled number isn't mysterious — they can
+              type over it any time. */}
           <div className="flex flex-col gap-2 sm:grid sm:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] sm:items-center">
-            <CurrencyInput
-              value={fuelSurcharge}
-              onChange={setFuelSurcharge}
-              placeholder="0.00"
-            />
+            <div>
+              <CurrencyInput
+                value={fuelSurcharge}
+                onChange={setFuelSurcharge}
+                placeholder="0.00"
+              />
+              {miles != null && miles > 0 ? (
+                <p className="mt-1 font-mono text-[10px] font-bold uppercase tracking-[0.10em] text-black">
+                  Auto · ${FUEL_RATE_PER_MILE.toFixed(2)}/mi × {miles.toLocaleString()} mi
+                </p>
+              ) : null}
+            </div>
             {hasRpm ? (
               <div className="flex items-baseline justify-between gap-2 border border-black bg-white px-2.5 py-1.5">
                 <span className="font-mono text-[15px] font-medium text-black tabular-nums">
@@ -508,7 +531,7 @@ export function QuoteRangeWorkspace({
                 </span>
               </div>
             ) : (
-              <p className="font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-red-700">
+              <p className="font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-black">
                 {miles == null || miles <= 0
                   ? "Lane miles unavailable"
                   : "Enter a linehaul to compute /mi"}
@@ -523,7 +546,7 @@ export function QuoteRangeWorkspace({
             <span className="flex items-center gap-2">
               <span
                 aria-hidden
-                className="inline-block h-[14px] w-[3px] shrink-0 bg-red-700"
+                className="inline-block h-[14px] w-[3px] shrink-0 bg-black"
               />
               <span className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-black">
                 Accessorials
@@ -532,15 +555,15 @@ export function QuoteRangeWorkspace({
             <button
               type="button"
               onClick={addAccessorial}
-              className="inline-flex items-center gap-1 border border-black bg-white px-2.5 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-black transition-colors hover:bg-[#f3f1e9]"
+              className="inline-flex items-center gap-1 border-2 border-black bg-white px-2.5 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-black transition-colors hover:bg-black hover:text-white"
             >
               <IconPlus className="h-3 w-3" />
               Add line
             </button>
           </div>
           {accessorials.length === 0 ? (
-            <div className="border border-dashed border-zinc-400 bg-white px-3 py-3 text-center font-mono text-[12px] text-black">
-              No accessorials. Add detention, lumper, tarp, etc. if applicable.
+            <div className="border-2 border-dashed border-black/30 px-3 py-3 text-center font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-black/60">
+              No accessorials — add detention, lumper, tarp, etc. if applicable
             </div>
           ) : (
             <div className="border border-black bg-white">
@@ -568,7 +591,7 @@ export function QuoteRangeWorkspace({
                     placeholder="Detention, lumper..."
                     className="border-0 bg-transparent px-1 py-1 font-mono text-[15px] text-black placeholder:text-zinc-700 focus:outline-none"
                   />
-                  <div className="flex items-center border border-zinc-400 bg-white focus-within:border-red-700">
+                  <div className="flex items-center border border-zinc-400 bg-white focus-within:border-black">
                     <span className="px-2 font-mono text-[12px] text-black">
                       $
                     </span>
@@ -588,7 +611,7 @@ export function QuoteRangeWorkspace({
                     type="button"
                     onClick={() => removeAccessorial(a.id)}
                     aria-label={`Remove ${a.label || "accessorial"}`}
-                    className="inline-flex h-7 w-7 items-center justify-center border border-zinc-400 bg-white text-black transition-colors hover:border-red-700 hover:text-red-700"
+                    className="inline-flex h-7 w-7 items-center justify-center border border-zinc-400 bg-white text-black transition-colors hover:border-black hover:text-black"
                   >
                     <IconX className="h-3.5 w-3.5" />
                   </button>
@@ -602,7 +625,7 @@ export function QuoteRangeWorkspace({
       {/* 02 TERMS ------------------------------------------------------- */}
       <NumberedSection ordinal="02" title="Terms">
         <FieldRow label="Expiry date">
-          <div className="flex items-center border border-black bg-white focus-within:border-red-700">
+          <div className="flex items-center border border-black bg-white focus-within:border-black">
             <input
               type="date"
               value={expiryDate}
@@ -638,7 +661,7 @@ export function QuoteRangeWorkspace({
             onChange={(e) => setSpecialInstructions(e.target.value)}
             rows={2}
             placeholder="Tarp required, permitted load, hazmat handling..."
-            className="block w-full resize-y border border-black bg-white px-2.5 py-1.5 font-sans text-[15px] text-black placeholder:text-zinc-700 focus:border-red-700 focus:outline-none"
+            className="block w-full resize-y border border-black bg-white px-2.5 py-1.5 font-sans text-[15px] text-black placeholder:text-zinc-700 focus:border-black focus:outline-none"
           />
         </FieldRow>
       </NumberedSection>
@@ -675,7 +698,7 @@ export function QuoteRangeWorkspace({
             className={
               "inline-block h-[14px] w-1 shrink-0 " +
               (buildBlockedReason || (effectivePreviewState === "failed" && previewError)
-                ? "bg-red-700"
+                ? "bg-black"
                 : effectivePreviewState === "ready"
                   ? "bg-emerald-700"
                   : "bg-black")
@@ -685,7 +708,7 @@ export function QuoteRangeWorkspace({
             className={
               "font-mono text-[12px] font-bold uppercase tracking-[0.14em] " +
               (effectivePreviewState === "failed" && previewError
-                ? "text-red-700"
+                ? "text-black"
                 : "text-black")
             }
           >
@@ -706,7 +729,7 @@ export function QuoteRangeWorkspace({
           type="button"
           onClick={runBuildPreview}
           disabled={!canBuild || isBuildPending}
-          className="inline-flex items-center justify-center gap-2 border-0 bg-black px-5 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.16em] text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-400"
+          className="inline-flex items-center justify-center gap-2 border-2 border-black bg-white px-5 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.16em] text-black transition-colors hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isBuildPending
             ? "Building..."
@@ -731,6 +754,22 @@ export function QuoteRangeWorkspace({
         sendPending={isSendPending}
       />
     </section>
+
+    {/* Level 8.1 — Save & open next. Closes the loop after a send instead
+        of forcing Back → /admin/quotes → click row. Hidden when there is
+        no next lead. */}
+    {nextLeadId ? (
+      <div className="mt-3 flex justify-end">
+        <Link
+          href={`/admin/quotes/${nextLeadId}`}
+          prefetch={false}
+          className="inline-flex items-center border-2 border-black bg-white px-4 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.16em] text-black transition-colors hover:bg-black hover:text-white"
+        >
+          Save &amp; open next &rarr;
+        </Link>
+      </div>
+    ) : null}
+    </>
   );
 }
 
@@ -745,21 +784,18 @@ function NumberedSection({
   last?: boolean;
   children: React.ReactNode;
 }) {
-  // Each subsection is its own bordered band inside the workspace. The
-  // title bar uses the sand fill so the numbered ordinal pops against
-  // the cream paper bg of the surrounding section.
+  // 6.9C: NumberedSection now reads as an inline subsection with a thin
+  // top rule and a single mono eyebrow combining ordinal + title. The
+  // surrounding cream card already supplies bounding chrome — the inner
+  // sand-band-on-white card was a second generation of card chrome that
+  // didn't belong inside the modernized parent.
   return (
     <div className={"px-4 sm:px-5 " + (last ? "pb-2" : "pb-3")}>
-      <div className="mt-3 border border-black bg-white">
-        <div className="flex items-center gap-2 border-b border-black bg-[#f3f1e9] px-3 py-1.5">
-          <span className="font-mono text-[12px] font-bold uppercase tracking-[0.18em] text-red-700">
-            {ordinal}
-          </span>
-          <span className="font-mono text-[12px] font-bold uppercase tracking-[0.18em] text-black">
-            {title}
-          </span>
-        </div>
-        <div>{children}</div>
+      <div className="mt-3 border-t border-black/30 pt-3">
+        <p className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-black">
+          {ordinal} · {title}
+        </p>
+        <div className="mt-1">{children}</div>
       </div>
     </div>
   );
@@ -782,17 +818,19 @@ function FieldRow({
     <div
       className={
         "grid grid-cols-[110px_minmax(0,1fr)] gap-3 border-t border-zinc-300 px-3 py-2.5 first:border-t-0 sm:grid-cols-[140px_minmax(0,1fr)] sm:px-3 " +
-        (align === "start" ? "items-start" : "items-center")
+        (align === "start" ? "items-start " : "items-center ") +
+        (required ? "border-l-[5px] border-l-red-700" : "")
       }
+      style={required ? { backgroundColor: "#fca5a5" } : undefined}
     >
       <span className="flex items-center gap-2">
         <span
           aria-hidden
-          className="inline-block h-[14px] w-[3px] shrink-0 bg-red-700"
+          className="inline-block h-[14px] w-[3px] shrink-0 bg-black"
         />
         <span className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-black">
           {label}
-          {required ? <span className="ml-1 text-red-700">*</span> : null}
+          {required ? <span className="ml-1 text-black">*</span> : null}
         </span>
       </span>
       <div className="min-w-0">{children}</div>
@@ -816,7 +854,7 @@ function CurrencyInput({
   // Mobile: smaller USD prefix + 16px input font so iOS Safari doesn't
   // auto-zoom on focus. Desktop: original 12px/15px sizing.
   return (
-    <div className="flex items-stretch border border-black bg-white focus-within:border-red-700">
+    <div className="flex items-stretch border border-black bg-white focus-within:border-black">
       <span className="border-r border-zinc-300 px-2 py-1.5 font-mono text-[11px] font-medium text-black sm:px-2.5 sm:text-[12px]">
         USD
       </span>

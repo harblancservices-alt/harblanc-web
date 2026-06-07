@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { IconCheck, IconCopy } from "./icons";
 import { advanceOnEnter, formatPhoneDisplay } from "@/lib/admin/form-utils";
-import { saveLoadDetailsOverrides } from "../actions";
+import { lookupZipDetails } from "../actions";
 
 /**
  * Phase REBUILD-1c â editable load-detail card.
@@ -26,6 +26,35 @@ import { saveLoadDetailsOverrides } from "../actions";
  * fresh submission unmounts and remounts this card with the new values.
  */
 
+
+// US state codes for the ZIP-row dropdown. Order: alphabetical by code.
+// Includes DC + the 50 states (covers every ZIP in the zipcodes dataset).
+const US_STATES = [
+  "AL","AK","AZ","AR","CA","CO","CT","DC","DE","FL","GA","HI","IA","ID",
+  "IL","IN","KS","KY","LA","MA","MD","ME","MI","MN","MO","MS","MT","NC",
+  "ND","NE","NH","NJ","NM","NV","NY","OH","OK","OR","PA","RI","SC","SD",
+  "TN","TX","UT","VA","VT","WA","WI","WV","WY",
+] as const;
+
+// "City, ST" combined string ⇄ { city, state } pair. Stable when the
+// combined string is malformed (no comma, etc.) — splits on the LAST
+// comma so "St. Louis, MO" parses correctly.
+function parseCityState(combined: string): { city: string; state: string } {
+  const idx = combined.lastIndexOf(",");
+  if (idx < 0) return { city: combined.trim(), state: "" };
+  return {
+    city: combined.slice(0, idx).trim(),
+    state: combined.slice(idx + 1).trim().toUpperCase(),
+  };
+}
+function joinCityState(city: string, state: string): string {
+  const c = city.trim();
+  const s = state.trim().toUpperCase();
+  if (!c && !s) return "";
+  if (!s) return c;
+  if (!c) return s;
+  return `${c}, ${s}`;
+}
 export type LoadDetailsInitial = {
   pickup_company: string;
   pickup_address: string;
@@ -88,10 +117,13 @@ export function LoadDetailsCard({
   intakeStatusMessage,
   uploads,
 }: {
-  /** Lead row id - identifies the quote_request for the save server
-   *  action. Required so operator edits can be persisted. */
+  /** Lead row id — retained on the public API for future re-introduction
+   *  of a per-card save action. Currently unused; the merged Quote Range
+   *  workspace below owns the build/send action flow. */
   quoteRequestId: string;
   initial: LoadDetailsInitial;
+  /** Retained on the type for callers; no longer surfaced inside the
+   *  card now that the footer bar is gone. */
   intakeStatusMessage: string;
   /**
    * Customer-uploaded supporting files (photos + PDFs). Empty array
@@ -100,64 +132,28 @@ export function LoadDetailsCard({
    */
   uploads: IntakeUploadAdminRow[];
 }) {
+  // quoteRequestId + intakeStatusMessage are retained on the prop type
+  // for callers but the merged-into-load-details layout no longer renders
+  // a save footer or an intake status banner. Voids silence unused-arg
+  // warnings until/unless those affordances come back.
+  void quoteRequestId;
+  void intakeStatusMessage;
   const [values, setValues] = useState<LoadDetailsInitial>(initial);
   const [pickupOpen, setPickupOpen] = useState(true);
   const [deliveryOpen, setDeliveryOpen] = useState(true);
   const [freightOpen, setFreightOpen] = useState(true);
   const [docsOpen, setDocsOpen] = useState(true);
 
-  // Save status for the "Save edits" footer button. Three states:
-  //   idle  - nothing happened recently / inputs may have drifted
-  //   saved - last save succeeded (green checkmark, 2.5s flash)
-  //   error - last save failed (red message, sticks until next attempt)
-  const [saveStatus, setSaveStatus] = useState<"idle" | "saved" | "error">(
-    "idle",
-  );
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [isSaving, startSave] = useTransition();
-
   function setValue<K extends keyof LoadDetailsInitial>(key: K, value: string) {
     setValues((prev) => ({ ...prev, [key]: value }));
-    // Any edit after a successful save means the persisted snapshot is
-    // now drifted; flip back to idle so the "Saved" checkmark drops.
-    if (saveStatus !== "idle") setSaveStatus("idle");
-  }
-
-  function runSave() {
-    setSaveError(null);
-    const fd = new FormData();
-    // Send every field on the LoadDetailsInitial shape so the server
-    // action stores the complete current state. Empty strings ARE sent
-    // (operator-cleared fields stay cleared on refresh).
-    for (const [k, v] of Object.entries(values)) {
-      fd.append(k, v);
-    }
-    startSave(async () => {
-      const result = await saveLoadDetailsOverrides(quoteRequestId, fd);
-      if (result.ok) {
-        setSaveStatus("saved");
-        setSaveError(null);
-        // Hold the "Saved" flash for ~2.5s, then ease back to idle so
-        // the footer does not read perpetually green.
-        window.setTimeout(() => {
-          setSaveStatus((prev) => (prev === "saved" ? "idle" : prev));
-        }, 2500);
-      } else {
-        setSaveStatus("error");
-        setSaveError(result.reason);
-      }
-    });
   }
 
   return (
-    <section className="mt-2 border-2 border-black border-l-4 border-l-red-700 bg-[#fafaf6]">
-      {/* Card header - freight-document band */}
-      <div className="flex flex-wrap items-center gap-3 border-b-2 border-black bg-[#f3f1e9] px-4 py-2.5 sm:px-5">
-        <span aria-hidden className="inline-block h-4 w-1 shrink-0 bg-red-700" />
-        <h2 className="font-mono text-[14px] font-bold uppercase tracking-[0.18em] text-black">
+    <section className="mt-2 border-2 border-black border-l-4 border-l-black bg-[#fafaf6]">
+      <div className="flex flex-wrap items-baseline justify-between gap-2 px-4 pt-4 pb-2 sm:px-5">
+        <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-black">
           Load details
         </h2>
-        <span className="flex-1" />
         <span className="border border-black bg-white px-2 py-0.5 font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-black">
           {intakeStatusMessage}
         </span>
@@ -175,6 +171,7 @@ export function LoadDetailsCard({
             zipKey="pickup_zip"
             zipValue={values.pickup_zip}
             onChange={setValue}
+            fromQuickQuote
           />
           <Row label="Contact" fieldKey="pickup_contact" value={values.pickup_contact} onChange={setValue} />
           <PhoneRow label="Phone" fieldKey="pickup_phone" value={values.pickup_phone} onChange={setValue} />
@@ -185,6 +182,7 @@ export function LoadDetailsCard({
             endKey="pickup_window_end"
             endValue={values.pickup_window_end}
             onChange={setValue}
+            startFromQuickQuote
           />
         </>
       ) : null}
@@ -201,6 +199,7 @@ export function LoadDetailsCard({
             zipKey="delivery_zip"
             zipValue={values.delivery_zip}
             onChange={setValue}
+            fromQuickQuote
           />
           <Row label="Contact" fieldKey="delivery_contact" value={values.delivery_contact} onChange={setValue} />
           <PhoneRow label="Phone" fieldKey="delivery_phone" value={values.delivery_phone} onChange={setValue} />
@@ -211,12 +210,7 @@ export function LoadDetailsCard({
             endKey="delivery_window_end"
             endValue={values.delivery_window_end}
             onChange={setValue}
-          />
-          <Row
-            label="Appointment"
-            fieldKey="appointment_status"
-            value={values.appointment_status}
-            onChange={setValue}
+            startFromQuickQuote
           />
         </>
       ) : null}
@@ -224,33 +218,31 @@ export function LoadDetailsCard({
       {/* Freight */}
       <CollapsibleBanner ordinal="03" title="Freight" open={freightOpen} onToggle={() => setFreightOpen(!freightOpen)} />
       {freightOpen ? (<>
-      <FreightRow
-        leftLabel="Commodity"
-        leftKey="freight_commodity"
-        leftValue={values.freight_commodity}
-        rightLabel={"L × W × H"}
-        rightKey="freight_dimensions"
-        rightValue={values.freight_dimensions}
-        onChange={setValue}
-      />
-      <FreightRow
-        leftLabel="Weight"
-        leftKey="freight_weight"
-        leftValue={values.freight_weight}
-        rightLabel="Hazmat"
-        rightKey="freight_hazmat"
-        rightValue={values.freight_hazmat}
-        onChange={setValue}
-      />
-      <FreightRow
-        leftLabel="Pieces"
-        leftKey="freight_pieces"
-        leftValue={values.freight_pieces}
-        rightLabel="Handling"
-        rightKey="freight_handling"
-        rightValue={values.freight_handling}
-        onChange={setValue}
-      />
+      {/* Commodity row — Dimensions removed. Single FreightCell in the
+          same outer 2-col grid pattern as Weight below it. */}
+      <div className="grid grid-cols-1 gap-3 border-t border-zinc-300 px-4 py-2 sm:grid-cols-2 sm:px-5">
+        <FreightCell
+          label="Commodity"
+          fieldKey="freight_commodity"
+          value={values.freight_commodity}
+          onChange={setValue}
+          fromQuickQuote
+        />
+      </div>
+      {/* Weight row — Hazmat removed. Single FreightCell wrapped in the
+          same outer 2-col grid pattern as the Commodity / Dimensions row
+          above so the rhythm stays consistent (empty right cell on
+          desktop, stacked single-column on mobile). Pieces / Handling
+          row also removed entirely per operator. */}
+      <div className="grid grid-cols-1 gap-3 border-t border-zinc-300 px-4 py-2 sm:grid-cols-2 sm:px-5">
+        <FreightCell
+          label="Weight"
+          fieldKey="freight_weight"
+          value={values.freight_weight}
+          onChange={setValue}
+          fromQuickQuote
+        />
+      </div>
       </>) : null}
 
       {/* Documents — peer section below Freight (not interleaved with
@@ -265,64 +257,6 @@ export function LoadDetailsCard({
       />
       {docsOpen ? <DocumentsSection uploads={uploads} /> : null}
 
-      {/* Footer - red bar marker + status mono caps + Build finalized
-          button. The button dispatches a custom "workspace-advance" event
-          which WorkspaceTabs listens for and uses to switch the active
-          tab to finalized. */}
-      <div className="flex flex-col gap-2 border-t-[3px] border-double border-black px-4 py-3 sm:flex-row sm:items-center sm:gap-3 sm:px-5">
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          <span
-            aria-hidden
-            className={
-              "inline-block h-[14px] w-1 shrink-0 " +
-              (saveStatus === "error"
-                ? "bg-red-700"
-                : saveStatus === "saved"
-                  ? "bg-emerald-700"
-                  : "bg-red-700")
-            }
-          />
-          <p
-            className={
-              "font-mono text-[12px] font-bold uppercase tracking-[0.14em] " +
-              (saveStatus === "error"
-                ? "text-red-700"
-                : saveStatus === "saved"
-                  ? "text-emerald-800"
-                  : "text-black")
-            }
-          >
-            {isSaving
-              ? "Saving edits..."
-              : saveStatus === "error" && saveError
-                ? `Save failed - ${saveError}`
-                : saveStatus === "saved"
-                  ? "Saved - edits persisted"
-                  : intakeStatusMessage}
-          </p>
-        </div>
-        <button
-          type="button"
-          onClick={runSave}
-          disabled={isSaving}
-          className="inline-flex items-center justify-center gap-2 border border-black bg-white px-4 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.14em] text-black transition-colors hover:bg-[#f3f1e9] disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {isSaving ? "Saving..." : "Save edits"}
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            window.dispatchEvent(
-              new CustomEvent("workspace-advance", {
-                detail: { to: "finalized" },
-              }),
-            );
-          }}
-          className="inline-flex items-center justify-center gap-2 border-0 bg-black px-5 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.16em] text-white transition-colors hover:bg-zinc-800"
-        >
-          Build finalized \u2192
-        </button>
-      </div>
     </section>
   );
 }
@@ -347,7 +281,7 @@ function DocumentsSection({ uploads }: { uploads: IntakeUploadAdminRow[] }) {
   return (
     <div className="px-4 pb-3 sm:px-5">
       <div className="border border-black bg-white">
-        <div className="grid grid-cols-[54px_minmax(0,1fr)_120px_70px_90px] border-b border-black bg-[#f3f1e9] px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-black">
+        <div className="grid grid-cols-[54px_minmax(0,1fr)_120px_70px_90px] border-b border-black/30 px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-black">
           <span>Type</span>
           <span>Filename</span>
           <span>Source</span>
@@ -362,7 +296,7 @@ function DocumentsSection({ uploads }: { uploads: IntakeUploadAdminRow[] }) {
               (idx === uploads.length - 1 ? "" : "border-b border-zinc-300")
             }
           >
-            <span className="font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-red-700">
+            <span className="font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-black">
               {u.mimeType.startsWith("image/") ? "IMG" : "PDF"}
             </span>
             <div className="min-w-0">
@@ -384,7 +318,7 @@ function DocumentsSection({ uploads }: { uploads: IntakeUploadAdminRow[] }) {
                 href={u.signedUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-right font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-red-700 hover:underline"
+                className="text-right font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-black hover:underline"
               >
                 Open \u2197
               </a>
@@ -425,10 +359,10 @@ function CollapsibleBanner({
       type="button"
       onClick={onToggle}
       aria-expanded={open}
-      className="flex w-full items-center justify-between gap-2 border-t-2 border-b border-black bg-[#f3f1e9] px-4 py-2 transition-colors hover:bg-[#ede9dc] sm:px-5"
+      className="flex w-full items-center justify-between gap-2 border-t border-b border-black/30 bg-[#fafaf6] px-4 py-2 transition-colors hover:bg-[#f3f1e9] sm:px-5"
     >
       <span className="flex items-center gap-2">
-        <span className="font-mono text-[12px] font-bold uppercase tracking-[0.18em] text-red-700">
+        <span className="font-mono text-[12px] font-bold uppercase tracking-[0.18em] text-black">
           {ordinal}
         </span>
         <span className="font-mono text-[13px] font-bold uppercase tracking-[0.18em] text-black">
@@ -459,10 +393,20 @@ function IconSectionChevron({ open }: { open: boolean }) {
 }
 
 
-function LabelWithBar({ label }: { label: string }) {
+function LabelWithBar({
+  label,
+  fromQuickQuote = false,
+}: {
+  label: string;
+  /** When true, the parent row wrapper applies the panel wash
+   *  (`bg-red-200 border-l-[3px] border-l-red-700`) to mark this row
+   *  as a value the customer submitted on the public /quote form.
+   *  The label itself stays black — only the panel is highlighted. */
+  fromQuickQuote?: boolean;
+}) {
   return (
     <span className="flex items-center gap-2">
-      <span aria-hidden className="inline-block h-[14px] w-[3px] shrink-0 bg-red-700" />
+      <span aria-hidden className="inline-block h-[14px] w-[3px] shrink-0 bg-black" />
       <span className="truncate font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-black">
         {label}
       </span>
@@ -510,6 +454,7 @@ function DateRangeRow({
   endKey,
   endValue,
   onChange,
+  startFromQuickQuote = false,
 }: {
   label: string;
   startKey: keyof LoadDetailsInitial;
@@ -517,10 +462,14 @@ function DateRangeRow({
   endKey: keyof LoadDetailsInitial;
   endValue: string;
   onChange: ChangeFn;
+  startFromQuickQuote?: boolean;
 }) {
   return (
-    <div className="grid grid-cols-[110px_minmax(0,1fr)_32px] items-center gap-3 border-t border-zinc-300 px-4 py-2 sm:px-5">
-      <LabelWithBar label={label} />
+    <div
+      className={"grid grid-cols-[110px_minmax(0,1fr)_32px] items-center gap-3 border-t border-zinc-300 px-4 py-2 sm:px-5 " + (startFromQuickQuote ? "border-l-[5px] border-l-red-700" : "")}
+      style={startFromQuickQuote ? { backgroundColor: "#fca5a5" } : undefined}
+    >
+      <LabelWithBar label={label} fromQuickQuote={startFromQuickQuote} />
       {/* Mobile: start date stacks above end date — native date inputs
           need ~110-120px each to render mm/dd/yyyy, which doesn't fit in
           the ~180px content column on mobile. mdash separator is hidden
@@ -558,6 +507,7 @@ function FreightRow({
   rightKey,
   rightValue,
   onChange,
+  leftFromQuickQuote = false,
 }: {
   leftLabel: string;
   leftKey: keyof LoadDetailsInitial;
@@ -566,6 +516,7 @@ function FreightRow({
   rightKey: keyof LoadDetailsInitial;
   rightValue: string;
   onChange: ChangeFn;
+  leftFromQuickQuote?: boolean;
 }) {
   return (
     <div className="grid grid-cols-1 gap-3 border-t border-zinc-300 px-4 py-2 sm:grid-cols-2 sm:px-5">
@@ -574,6 +525,7 @@ function FreightRow({
         fieldKey={leftKey}
         value={leftValue}
         onChange={onChange}
+        fromQuickQuote={leftFromQuickQuote}
       />
       <FreightCell
         label={rightLabel}
@@ -590,15 +542,20 @@ function FreightCell({
   fieldKey,
   value,
   onChange,
+  fromQuickQuote = false,
 }: {
   label: string;
   fieldKey: keyof LoadDetailsInitial;
   value: string;
   onChange: ChangeFn;
+  fromQuickQuote?: boolean;
 }) {
   return (
-    <div className="grid grid-cols-[90px_minmax(0,1fr)_28px] items-center gap-2">
-      <LabelWithBar label={label} />
+    <div
+      className={"grid grid-cols-[90px_minmax(0,1fr)_28px] items-center gap-2 " + (fromQuickQuote ? "border-l-[5px] border-l-red-700 -mx-2 px-2 py-1" : "")}
+      style={fromQuickQuote ? { backgroundColor: "#fca5a5" } : undefined}
+    >
+      <LabelWithBar label={label} fromQuickQuote={fromQuickQuote} />
       <EditableInput
         value={value}
         onChange={(v) => onChange(fieldKey, v)}
@@ -712,31 +669,76 @@ function CityZipRow({
   zipKey,
   zipValue,
   onChange,
+  fromQuickQuote = false,
 }: {
   cityKey: keyof LoadDetailsInitial;
   cityValue: string;
   zipKey: keyof LoadDetailsInitial;
   zipValue: string;
   onChange: ChangeFn;
+  fromQuickQuote?: boolean;
 }) {
+  // Split the persisted "City, ST" combined string for editing. The
+  // operator sees two inputs: a city text + a small state dropdown
+  // (no label — position alone). Edits flow back through onChange as
+  // the rebuilt "City, ST" combined string so the data model is
+  // unchanged. ZIP onBlur looks up the dataset and overwrites both.
+  const { city: parsedCity, state: parsedState } = parseCityState(cityValue);
   const combined = [cityValue, zipValue].filter(Boolean).join(" ").trim();
+
+  async function handleZipBlur(z: string) {
+    const trimmed = z.trim();
+    if (!/^\d{5}$/.test(trimmed)) return;
+    const hit = await lookupZipDetails(trimmed);
+    if (hit) onChange(cityKey, joinCityState(hit.city, hit.state));
+  }
+
   return (
-    <div className="grid grid-cols-[110px_minmax(0,1fr)_32px] items-center gap-3 border-t border-zinc-300 px-4 py-2 sm:px-5">
-      <LabelWithBar label="City / ZIP" />
-      {/* Mobile: city stacks above ZIP — content column is only ~180px
-          on a 360px viewport, so cramming 2-col chops the ZIP. sm+
-          restores side-by-side. */}
+    <div
+      className={"grid grid-cols-[110px_minmax(0,1fr)_32px] items-center gap-3 border-t border-zinc-300 px-4 py-2 sm:px-5 " + (fromQuickQuote ? "border-l-[5px] border-l-red-700" : "")}
+      style={fromQuickQuote ? { backgroundColor: "#fca5a5" } : undefined}
+    >
+      <LabelWithBar label="City / ZIP" fromQuickQuote={fromQuickQuote} />
+      {/* Mobile: row 1 = City (wide) + State (narrow); row 2 = ZIP full
+          width. sm+: City + State on the left, ZIP on the right of
+          the outer 2-col grid. */}
       <div className="flex flex-col gap-1.5 sm:grid sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] sm:items-center sm:gap-2">
-        <EditableInput
-          value={cityValue}
-          onChange={(v) => onChange(cityKey, v)}
-          ariaLabel="City and state"
-        />
-        <EditableInput
-          value={zipValue}
-          onChange={(v) => onChange(zipKey, v)}
-          ariaLabel="ZIP code"
-        />
+        <div className="flex items-stretch gap-1.5">
+          <div className="min-w-0 flex-1">
+            <EditableInput
+              value={parsedCity}
+              onChange={(v) => onChange(cityKey, joinCityState(v, parsedState))}
+              ariaLabel="City"
+            />
+          </div>
+          <div className="border border-black bg-white focus-within:border-red-700">
+            <select
+              value={parsedState}
+              onChange={(e) => onChange(cityKey, joinCityState(parsedCity, e.target.value))}
+              onKeyDown={advanceOnEnter}
+              aria-label="State"
+              className="block w-[58px] border-0 bg-transparent px-1.5 py-1.5 text-center font-mono text-[16px] font-medium text-black focus:outline-none sm:text-[15px]"
+            >
+              <option value=""></option>
+              {US_STATES.map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        <div className="border border-black bg-white focus-within:border-red-700">
+          <input
+            type="text"
+            inputMode="numeric"
+            value={zipValue}
+            onChange={(e) => onChange(zipKey, e.target.value)}
+            onBlur={(e) => void handleZipBlur(e.target.value)}
+            onKeyDown={advanceOnEnter}
+            aria-label="ZIP code"
+            maxLength={5}
+            className="block w-full border-0 bg-transparent px-2.5 py-1.5 text-[16px] text-black placeholder:text-zinc-700 focus:outline-none sm:text-[15px]"
+          />
+        </div>
       </div>
       <CopyButton value={combined} ariaLabel="city and ZIP" />
     </div>

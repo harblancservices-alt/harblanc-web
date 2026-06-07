@@ -2,6 +2,7 @@
 
 import { advanceOnEnter } from "@/lib/admin/form-utils";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { IconPlus, IconX } from "./icons";
@@ -394,9 +395,13 @@ function emptyFinalizedDraft(): FinalizedQuoteDraftSnapshot {
 export function FinalizedQuoteWorkspace({
   quoteRequestId,
   state,
+  nextLeadId,
 }: {
   quoteRequestId: string;
   state: FinalizedQuoteState;
+  /** Level 8.1: next active lead id for the Sent state "Save & open next"
+   *  CTA. Null when no other active lead exists. */
+  nextLeadId: string | null;
 }) {
   switch (state.phase) {
     case "no_sent_estimate":
@@ -444,6 +449,7 @@ export function FinalizedQuoteWorkspace({
         <SentHistoryTab
           quoteRequestId={quoteRequestId}
           sent={state.sent}
+          nextLeadId={nextLeadId}
         />
       );
   }
@@ -485,14 +491,16 @@ function ReadyToGenerateTab({
   }
 
   return (
-    <section className="border-2 border-black border-l-4 border-l-red-700 bg-[#fafaf6]">
-      <div className="flex items-center justify-between gap-3 border-b-2 border-black bg-[#f3f1e9] px-4 py-2.5 sm:px-5">
-        <h2 className="font-mono text-[14px] font-bold uppercase tracking-[0.18em] text-black">
+    <section className="border-2 border-black border-l-4 border-l-black bg-[#fafaf6]">
+      <div className="flex items-baseline justify-between gap-3 px-4 pt-4 pb-2 sm:px-5">
+        <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-black">
           Finalized quote
         </h2>
-        <p className="font-mono text-[12px] text-black">Ready to generate</p>
+        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-black/60">
+          Ready to generate
+        </p>
       </div>
-      <div className="px-4 py-6 sm:px-5">
+      <div className="px-4 pb-6 sm:px-5">
         <p className="text-[15px] font-semibold text-black">
           Intake submitted &mdash; ready to generate the rate confirmation.
         </p>
@@ -506,12 +514,12 @@ function ReadyToGenerateTab({
             type="button"
             onClick={onGenerate}
             disabled={isPending}
-            className="inline-flex items-center justify-center gap-2 border-0 bg-black px-5 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.16em] text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-700"
+            className="inline-flex items-center justify-center gap-2 border-2 border-black bg-white px-5 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.16em] text-black transition-colors hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isPending ? "Generating…" : "Generate finalized quote"}
           </button>
           {error ? (
-            <p className="font-mono text-[12px] text-red-700">{error}</p>
+            <p className="font-mono text-[12px] text-black">{error}</p>
           ) : null}
         </div>
       </div>
@@ -762,12 +770,12 @@ function DraftComposer({
   // ── render ────────────────────────────────────────────────────────────
 
   return (
-    <section className="border-2 border-black border-l-4 border-l-red-700 bg-[#fafaf6]">
-      <div className="flex items-center justify-between gap-3 border-b-2 border-black bg-[#f3f1e9] px-4 py-2.5 sm:px-5">
-        <h2 className="font-mono text-[14px] font-bold uppercase tracking-[0.18em] text-black">
+    <section className="border-2 border-black border-l-4 border-l-black bg-[#fafaf6]">
+      <div className="flex items-baseline justify-between gap-3 px-4 pt-4 pb-2 sm:px-5">
+        <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-black">
           Finalized quote
         </h2>
-        <p className="font-mono text-[12px] text-black">
+        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-black/60">
           {blocked
             ? blocked.label
             : `${draft.finalizedQuoteNumber} \u00b7 Draft \u00b7 not sent`}
@@ -778,10 +786,10 @@ function DraftComposer({
         <div className="flex items-start gap-3 border-b border-black bg-[#fbeaea] px-4 py-3 sm:px-5">
           <span
             aria-hidden
-            className="mt-0.5 inline-block h-4 w-1 shrink-0 bg-red-700"
+            className="mt-0.5 inline-block h-4 w-1 shrink-0 bg-black"
           />
           <div className="min-w-0 flex-1">
-            <p className="font-mono text-[12px] font-bold uppercase tracking-[0.18em] text-red-700">
+            <p className="font-mono text-[12px] font-bold uppercase tracking-[0.18em] text-black">
               {blocked.label} \u00b7 {blocked.reason}
             </p>
             <p className="mt-1 max-w-2xl text-[15px] leading-relaxed text-black">
@@ -806,6 +814,7 @@ function DraftComposer({
           autoFocus
         />
       </FieldRow>
+      <div className="lg:grid lg:grid-cols-2 lg:gap-x-3">
       <FieldRow label="Fuel surcharge">
         <CurrencyInput
           value={composer.fuelSurcharge}
@@ -820,19 +829,20 @@ function DraftComposer({
           placeholder="0.00"
         />
       </FieldRow>
+      </div>
       <div className="border-t border-zinc-300 px-4 py-2 sm:px-5">
         <div className="flex items-center justify-between gap-3">
           <span className="flex items-center gap-2">
             <span
               aria-hidden
-              className="inline-block h-[14px] w-[3px] shrink-0 bg-red-700"
+              className="inline-block h-[14px] w-[3px] shrink-0 bg-black"
             />
             <span className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-black">Accessorials</span>
           </span>
           <button
             type="button"
             onClick={addAccessorial}
-            className="inline-flex items-center gap-1 border border-black bg-white px-2.5 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-black transition-colors hover:bg-[#f3f1e9]"
+            className="inline-flex items-center gap-1 border-2 border-black bg-white px-2.5 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-black transition-colors hover:bg-black hover:text-white"
           >
             <IconPlus className="h-3 w-3" />
             Add line
@@ -857,9 +867,9 @@ function DraftComposer({
                     updateAccessorial(a.id, { label: e.target.value })
                   }
                   placeholder="Detention, Lumper..."
-                  className="border border-black bg-white px-2 py-1.5 text-[15px] text-black placeholder:text-zinc-700 focus:border-red-600 focus:outline-none"
+                  className="border border-black bg-white px-2 py-1.5 text-[15px] text-black placeholder:text-zinc-700 focus:border-black focus:outline-none"
                 />
-                <div className="flex items-center border border-black bg-white focus-within:border-red-700">
+                <div className="flex items-center border border-black bg-white focus-within:border-black">
                   <span className="px-2 font-mono text-xs text-black">$</span>
                   <input
                     type="text"
@@ -877,7 +887,7 @@ function DraftComposer({
                   type="button"
                   onClick={() => removeAccessorial(a.id)}
                   aria-label={`Remove ${a.label || "accessorial"}`}
-                  className="inline-flex h-7 w-7 items-center justify-center border border-zinc-300 bg-white text-black transition-colors hover:border-red-600 hover:bg-red-50 hover:text-red-700"
+                  className="inline-flex h-7 w-7 items-center justify-center border-2 border-black bg-white text-black transition-colors hover:bg-black hover:text-white"
                 >
                   <IconX className="h-3.5 w-3.5" />
                 </button>
@@ -904,23 +914,9 @@ function DraftComposer({
         ) : null}
       </div>
 
-      {/* ── Validity ────────────────────────────────────────────────── */}
-      <SectionBanner title="Validity" />
-      <FieldRow label="Expiration">
-        <DateInput
-          value={composer.expirationAt}
-          onChange={(v) => patch("expirationAt", v)}
-        />
-      </FieldRow>
-      <FieldRow label="Payment due">
-        <DateInput
-          value={composer.paymentDueAt}
-          onChange={(v) => patch("paymentDueAt", v)}
-        />
-      </FieldRow>
-
       {/* ── Pickup ─────────────────────────────────────────────────── */}
       <SectionBanner title="Pickup" />
+      <div className="lg:grid lg:grid-cols-2 lg:gap-x-3">
       <FieldRow label="Company">
         <TextInput
           value={composer.pickup.company}
@@ -957,25 +953,25 @@ function DraftComposer({
           onChange={(v) => patchPickup("addressLine2", v)}
         />
       </FieldRow>
-      <FieldRow label="City">
+      <FieldRow label="City" fromQuickQuote>
         <TextInput
           value={composer.pickup.city}
           onChange={(v) => patchPickup("city", v)}
         />
       </FieldRow>
-      <FieldRow label="State">
+      <FieldRow label="State" fromQuickQuote>
         <TextInput
           value={composer.pickup.state}
           onChange={(v) => patchPickup("state", v)}
         />
       </FieldRow>
-      <FieldRow label="ZIP">
+      <FieldRow label="ZIP" fromQuickQuote>
         <TextInput
           value={composer.pickup.zip}
           onChange={(v) => patchPickup("zip", v)}
         />
       </FieldRow>
-      <FieldRow label="Window">
+      <FieldRow label="Window" fromQuickQuote>
         <TextInput
           value={composer.pickup.window}
           onChange={(v) => patchPickup("window", v)}
@@ -989,9 +985,11 @@ function DraftComposer({
           placeholder="Mon–Fri 0700–1500"
         />
       </FieldRow>
+      </div>
 
       {/* ── Delivery ──────────────────────────────────────────────── */}
       <SectionBanner title="Delivery" />
+      <div className="lg:grid lg:grid-cols-2 lg:gap-x-3">
       <FieldRow label="Company">
         <TextInput
           value={composer.delivery.company}
@@ -1028,25 +1026,25 @@ function DraftComposer({
           onChange={(v) => patchDelivery("addressLine2", v)}
         />
       </FieldRow>
-      <FieldRow label="City">
+      <FieldRow label="City" fromQuickQuote>
         <TextInput
           value={composer.delivery.city}
           onChange={(v) => patchDelivery("city", v)}
         />
       </FieldRow>
-      <FieldRow label="State">
+      <FieldRow label="State" fromQuickQuote>
         <TextInput
           value={composer.delivery.state}
           onChange={(v) => patchDelivery("state", v)}
         />
       </FieldRow>
-      <FieldRow label="ZIP">
+      <FieldRow label="ZIP" fromQuickQuote>
         <TextInput
           value={composer.delivery.zip}
           onChange={(v) => patchDelivery("zip", v)}
         />
       </FieldRow>
-      <FieldRow label="Window">
+      <FieldRow label="Window" fromQuickQuote>
         <TextInput
           value={composer.delivery.window}
           onChange={(v) => patchDelivery("window", v)}
@@ -1060,10 +1058,11 @@ function DraftComposer({
           placeholder="Mon–Fri 0700–1500"
         />
       </FieldRow>
+      </div>
 
       {/* ── Freight ──────────────────────────────────────────────── */}
       <SectionBanner title="Freight" />
-      <FieldRow label="Commodity">
+      <FieldRow label="Commodity" fromQuickQuote>
         <TextInput
           value={composer.freight.commodity}
           onChange={(v) => patchFreight("commodity", v)}
@@ -1103,7 +1102,8 @@ function DraftComposer({
           />
         </div>
       </FieldRow>
-      <FieldRow label="Exact weight">
+      <div className="lg:grid lg:grid-cols-2 lg:gap-x-3">
+      <FieldRow label="Exact weight" fromQuickQuote>
         <NumberInput
           value={composer.freight.exactWeightLbs}
           onChange={(v) => patchFreight("exactWeightLbs", v)}
@@ -1144,6 +1144,7 @@ function DraftComposer({
           ]}
         />
       </FieldRow>
+      </div>
       <FieldRow label="Securement" align="start">
         <textarea
           value={composer.freight.securementRequirements}
@@ -1152,55 +1153,7 @@ function DraftComposer({
           }
           rows={2}
           placeholder="Strap pattern, edge protection, tarp spec, etc."
-          className="block w-full resize-y border border-black bg-white px-2.5 py-1.5 text-[15px] text-black placeholder:text-zinc-700 focus:border-red-600 focus:outline-none"
-        />
-      </FieldRow>
-
-      {/* ── Operations ──────────────────────────────────────────────── */}
-      <SectionBanner title="Operations" />
-      <FieldRow label="Forklift available">
-        <TriStateSelect
-          value={composer.ops.forkliftAvailable}
-          onChange={(v) => patchOps("forkliftAvailable", v)}
-        />
-      </FieldRow>
-      <FieldRow label="Driver assist">
-        <TriStateSelect
-          value={composer.ops.driverAssistRequired}
-          onChange={(v) => patchOps("driverAssistRequired", v)}
-        />
-      </FieldRow>
-      <FieldRow label="Crane required">
-        <TriStateSelect
-          value={composer.ops.craneRequired}
-          onChange={(v) => patchOps("craneRequired", v)}
-        />
-      </FieldRow>
-      <FieldRow label="Permits required">
-        <TriStateSelect
-          value={composer.ops.permitsRequired}
-          onChange={(v) => patchOps("permitsRequired", v)}
-        />
-      </FieldRow>
-      <FieldRow label="Escort required">
-        <TriStateSelect
-          value={composer.ops.escortRequired}
-          onChange={(v) => patchOps("escortRequired", v)}
-        />
-      </FieldRow>
-      <FieldRow label="Tarp required">
-        <TriStateSelect
-          value={composer.ops.tarpRequired}
-          onChange={(v) => patchOps("tarpRequired", v)}
-        />
-      </FieldRow>
-      <FieldRow label="Special instructions" align="start">
-        <textarea
-          value={composer.ops.specialInstructions}
-          onChange={(e) => patchOps("specialInstructions", e.target.value)}
-          rows={3}
-          placeholder="Dispatch notes that should appear on the rate confirmation."
-          className="block w-full resize-y border border-black bg-white px-2.5 py-1.5 text-[15px] text-black placeholder:text-zinc-700 focus:border-red-600 focus:outline-none"
+          className="block w-full resize-y border border-black bg-white px-2.5 py-1.5 text-[15px] text-black placeholder:text-zinc-700 focus:border-black focus:outline-none"
         />
       </FieldRow>
 
@@ -1210,7 +1163,7 @@ function DraftComposer({
           className={
             "font-mono text-[12px] sm:mr-auto " +
             (effectivePreviewState === "failed" && previewError
-              ? "text-red-700"
+              ? "text-black"
               : "text-black")
           }
         >
@@ -1230,7 +1183,7 @@ function DraftComposer({
           type="button"
           onClick={runBuildPreview}
           disabled={!canBuild || isBuildPending}
-          className="inline-flex items-center justify-center gap-2 border border-black bg-white px-4 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.14em] text-black transition-colors hover:bg-[#f3f1e9] disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex items-center justify-center gap-2 border-2 border-black bg-white px-4 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.14em] text-black transition-colors hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isBuildPending
             ? "Building…"
@@ -1265,9 +1218,11 @@ function DraftComposer({
 function SentHistoryTab({
   quoteRequestId,
   sent,
+  nextLeadId,
 }: {
   quoteRequestId: string;
   sent: FinalizedQuoteSentSnapshot;
+  nextLeadId: string | null;
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -1275,6 +1230,16 @@ function SentHistoryTab({
   const [previewOpen, setPreviewOpen] = useState(false);
 
   function onGenerateRevision() {
+    // Level 8.1: confirm before discarding the sent state and opening
+    // a fresh draft. Prevents silent loss of operator work when the
+    // existing finalized quote is the source of truth on screen.
+    if (
+      !confirm(
+        "Start a new finalized quote revision? The current draft will be replaced.",
+      )
+    ) {
+      return;
+    }
     setError(null);
     startTransition(async () => {
       try {
@@ -1326,12 +1291,12 @@ function SentHistoryTab({
   }, [sent.confirmedAt]);
 
   return (
-    <section className="border-2 border-black border-l-4 border-l-red-700 bg-[#fafaf6]">
-      <div className="flex items-center justify-between gap-3 border-b-2 border-black bg-[#f3f1e9] px-4 py-2.5 sm:px-5">
-        <h2 className="font-mono text-[14px] font-bold uppercase tracking-[0.18em] text-black">
+    <section className="border-2 border-black border-l-4 border-l-black bg-[#fafaf6]">
+      <div className="flex items-baseline justify-between gap-3 px-4 pt-4 pb-2 sm:px-5">
+        <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-black">
           Finalized quote
         </h2>
-        <p className="flex items-center gap-2 font-mono text-[12px] text-black">
+        <p className="flex items-center gap-2 font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-black/60">
           <span>
             {sent.finalizedQuoteNumber} &middot;{" "}
             {sent.confirmedAt ? "Sent" : "Sent"}
@@ -1374,7 +1339,7 @@ function SentHistoryTab({
 
       <div className="flex flex-col gap-2 border-t border-zinc-300 px-4 py-3 sm:flex-row sm:items-center sm:justify-end sm:gap-3 sm:px-5">
         {error ? (
-          <p className="font-mono text-[12px] text-red-700 sm:mr-auto">
+          <p className="font-mono text-[12px] text-black sm:mr-auto">
             {error}
           </p>
         ) : (
@@ -1386,7 +1351,7 @@ function SentHistoryTab({
           <button
             type="button"
             onClick={() => setPreviewOpen(true)}
-            className="inline-flex items-center justify-center gap-2 border border-zinc-400 bg-white px-4 py-2.5 text-[15px] font-semibold text-black transition-colors hover:border-red-600 hover:text-red-700"
+            className="inline-flex items-center justify-center gap-2 border border-zinc-400 bg-white px-4 py-2.5 text-[15px] font-semibold text-black transition-colors hover:border-black hover:text-black"
           >
             View sent document
           </button>
@@ -1401,7 +1366,7 @@ function SentHistoryTab({
           href={`/admin/quotes/${quoteRequestId}/finalized-quote-pdf/${sent.id}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center justify-center gap-2 border border-zinc-400 bg-white px-4 py-2.5 text-[15px] font-semibold text-black transition-colors hover:border-red-600 hover:text-red-700"
+          className="inline-flex items-center justify-center gap-2 border-2 border-black bg-white px-4 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.14em] text-black transition-colors hover:bg-black hover:text-white"
         >
           Download PDF
         </a>
@@ -1409,10 +1374,19 @@ function SentHistoryTab({
           type="button"
           onClick={onGenerateRevision}
           disabled={isPending}
-          className="inline-flex items-center justify-center gap-2 border-0 bg-black px-5 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.16em] text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-700"
+          className="inline-flex items-center justify-center gap-2 border-2 border-black bg-white px-5 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.16em] text-black transition-colors hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isPending ? "Starting…" : "Generate revision"}
         </button>
+        {nextLeadId ? (
+          <Link
+            href={`/admin/quotes/${nextLeadId}`}
+            prefetch={false}
+            className="inline-flex items-center justify-center gap-2 border-2 border-black bg-white px-4 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.14em] text-black transition-colors hover:bg-black hover:text-white"
+          >
+            Save &amp; open next &rarr;
+          </Link>
+        ) : null}
       </div>
 
       <PreviewModal
@@ -1433,12 +1407,8 @@ function SentHistoryTab({
 
 function SectionBanner({ title }: { title: string }) {
   return (
-    <div className="flex items-center gap-2 border-y border-black bg-[#f3f1e9] px-4 py-2 sm:px-5">
-      <span
-        aria-hidden
-        className="inline-block h-[14px] w-1 shrink-0 bg-red-700"
-      />
-      <p className="font-mono text-[14px] font-bold uppercase tracking-[0.18em] text-black">
+    <div className="border-t border-black/30 px-4 pt-3 pb-1 sm:px-5">
+      <p className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-black">
         {title}
       </p>
     </div>
@@ -1450,27 +1420,37 @@ function FieldRow({
   required,
   align = "center",
   children,
+  fromQuickQuote = false,
 }: {
   label: string;
   required?: boolean;
   align?: "center" | "start";
   children: React.ReactNode;
+  /** Field originated in the customer Quick Quote form. Renders:
+   *  bg-[#f3f1e9] row wash, 3px red left bar across the entire row,
+   *  red label text, and a "Q.Q." white-on-red pill next to the
+   *  label. Stronger visual treatment than the LoadDetailsCard
+   *  equivalent — meant to read across the room. */
+  fromQuickQuote?: boolean;
 }) {
+  const tinted = fromQuickQuote || required;
   return (
     <div
       className={
         "grid grid-cols-[110px_minmax(0,1fr)] gap-3 border-t border-zinc-300 px-3 py-2.5 sm:grid-cols-[140px_minmax(0,1fr)] sm:px-3 " +
-        (align === "start" ? "items-start" : "items-center")
+        (align === "start" ? "items-start " : "items-center ") +
+        (tinted ? "border-l-[5px] border-l-red-700" : "")
       }
+      style={tinted ? { backgroundColor: "#fca5a5" } : undefined}
     >
-      <span className="flex items-center gap-2">
+      <span className="flex items-center gap-1.5">
         <span
           aria-hidden
-          className="inline-block h-[14px] w-[3px] shrink-0 bg-red-700"
+          className="inline-block h-[14px] w-[3px] shrink-0 bg-black"
         />
         <span className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-black">
           {label}
-          {required ? <span className="ml-1 text-red-600">*</span> : null}
+          {required ? <span className="ml-1 text-black">*</span> : null}
         </span>
       </span>
       <div className="min-w-0">{children}</div>
@@ -1490,7 +1470,7 @@ function CurrencyInput({
   autoFocus?: boolean;
 }) {
   return (
-    <div className="flex items-center border border-black bg-white focus-within:border-red-700">
+    <div className="flex items-center border border-black bg-white focus-within:border-black">
       <span className="px-2.5 font-mono text-[15px] text-black">$</span>
       <input
         type="text"
@@ -1524,7 +1504,7 @@ function TextInput({
             onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       autoComplete="off"
-      className="block w-full border border-black bg-white px-2.5 py-1.5 text-[15px] text-black placeholder:text-zinc-700 focus:border-red-600 focus:outline-none"
+      className="block w-full border border-black bg-white px-2.5 py-1.5 text-[15px] text-black placeholder:text-zinc-700 focus:border-black focus:outline-none"
     />
   );
 }
@@ -1541,7 +1521,7 @@ function NumberInput({
   suffix?: string;
 }) {
   return (
-    <div className="flex items-center border border-black bg-white focus-within:border-red-700">
+    <div className="flex items-center border border-black bg-white focus-within:border-black">
       <input
         type="text"
         inputMode="decimal"
@@ -1574,7 +1554,7 @@ function DateInput({
       value={value}
       onKeyDown={advanceOnEnter}
             onChange={(e) => onChange(e.target.value)}
-      className="block w-full border border-black bg-white px-2.5 py-1.5 font-mono text-[15px] font-medium text-black focus:border-red-600 focus:outline-none"
+      className="block w-full border border-black bg-white px-2.5 py-1.5 font-mono text-[15px] font-medium text-black focus:border-black focus:outline-none"
     />
   );
 }
@@ -1593,7 +1573,7 @@ function SelectInput({
       value={value}
       onKeyDown={advanceOnEnter}
             onChange={(e) => onChange(e.target.value)}
-      className="block w-full border border-black bg-white px-2.5 py-1.5 text-[15px] font-medium text-black focus:border-red-600 focus:outline-none"
+      className="block w-full border border-black bg-white px-2.5 py-1.5 text-[15px] font-medium text-black focus:border-black focus:outline-none"
     >
       {options.map((opt) => (
         <option key={opt.value} value={opt.value}>
@@ -1616,7 +1596,7 @@ function TriStateSelect({
       value={value}
       onKeyDown={advanceOnEnter}
             onChange={(e) => onChange(e.target.value as TriState)}
-      className="block w-full max-w-[180px] border border-black bg-white px-2.5 py-1.5 text-[15px] font-medium text-black focus:border-red-600 focus:outline-none"
+      className="block w-full max-w-[180px] border border-black bg-white px-2.5 py-1.5 text-[15px] font-medium text-black focus:border-black focus:outline-none"
     >
       <option value="">—</option>
       <option value="yes">Yes</option>
@@ -1633,11 +1613,14 @@ function SummaryRow({
   value: string;
 }) {
   return (
-    <div className="grid grid-cols-[140px_minmax(0,1fr)] items-baseline gap-3">
-      <span className="font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-black">
+    <div className="flex items-baseline justify-between gap-3 border-t border-zinc-200 px-4 py-2 sm:px-5">
+      <span className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-black">
         {label}
       </span>
-      <span className="text-[15px] text-black">{value}</span>
+      <span className="font-mono text-[14px] font-bold tabular-nums text-black">
+        {value}
+      </span>
     </div>
   );
 }
+  

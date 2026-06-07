@@ -11,6 +11,16 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+/**
+ * Level 6.6 — Active Applications page.
+ *
+ * Visual structure mirrors Active Quotes (6.3): max-w-4xl, V3 hero with
+ * eyebrow + bold heading + right-aligned counts column. Below the hero
+ * sits the SectionTabs nav, then the applications feed itself.
+ *
+ * Loader unchanged. No server-action or schema changes.
+ */
+
 async function loadApplications(): Promise<{
   rows: ApplicationListRow[];
   trashCount: number;
@@ -36,14 +46,22 @@ export default async function ApplicationsPage() {
   const { rows, trashCount } = await loadApplications();
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
-      <header className="pb-5">
-        <p className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
-          Applications
+    <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
+      {/* V3 hero — eyebrow + bold title + right-aligned meta */}
+      <header className="flex flex-wrap items-end justify-between gap-4 pb-5 sm:pb-6">
+        <div>
+          <p className="font-mono text-[10.5px] font-bold uppercase tracking-[0.28em] text-black">
+            Applications
+          </p>
+          <h1 className="mt-1 text-[30px] font-bold leading-none tracking-tight text-black sm:text-[36px] lg:text-[40px]">
+            Owner-operator applications
+          </h1>
+        </div>
+        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-black text-right leading-snug">
+          {rows.length} active
+          <br />
+          {trashCount} trashed
         </p>
-        <h1 className="mt-2 text-2xl font-display tracking-tight text-black sm:text-3xl">
-          Owner-operator applications
-        </h1>
       </header>
 
       <SectionTabs
@@ -63,7 +81,7 @@ export default async function ApplicationsPage() {
       />
 
       {rows.length === 0 ? (
-        <p className="mt-12 text-sm text-black">
+        <p className="mt-12 font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-black/55">
           No incoming applications.
         </p>
       ) : (

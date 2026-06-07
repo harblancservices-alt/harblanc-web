@@ -8,45 +8,37 @@ export type SectionTab = {
 };
 
 /**
- * Two-tab horizontal control used at the top of admin list views to switch
- * between Active and Trash. Active tab is unmistakable: red top border,
- * lifted neutral-900 surface, bigger red marker, white semibold label.
- * Inactive tabs sit recessed against the page bg with neutral-400 text
- * and lift to match the active surface on hover.
+ * Two-tab horizontal control used at the top of admin list views.
+ * Level 6.3 admin palette: text-only tabs with a thick black underline
+ * on the active one. No decorative red, no lifted-card pattern.
+ *
+ * Shared by Quotes + Applications list/trash pages. The same V3 style
+ * lands on Applications pages "for free" via this component.
  */
 export function SectionTabs({ tabs }: { tabs: SectionTab[] }) {
   return (
     <nav
       aria-label="Section tabs"
-      className="flex border-b border-zinc-200"
+      className="flex border-b border-black"
     >
-      {tabs.map((tab, i) => (
+      {tabs.map((tab) => (
         <Link
           key={tab.href}
           href={tab.href}
           aria-current={tab.active ? "page" : undefined}
           className={
-            "flex flex-1 items-center justify-between gap-3 border-t-2 px-4 py-3 text-xs font-semibold tracking-[0.12em] uppercase transition-colors sm:px-5 " +
-            (i > 0 ? "border-l border-l-zinc-200 " : "") +
+            "inline-flex items-center gap-2 px-4 py-3 font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-black transition-colors -mb-px border-b-[3px] " +
             (tab.active
-              ? "border-t-red-600 bg-white font-semibold text-black "
-              : "border-t-transparent bg-zinc-50 text-black hover:bg-white hover:text-black ")
+              ? "border-black"
+              : "border-transparent hover:opacity-70")
           }
         >
-          <span className="flex items-center gap-2.5">
-            {tab.active ? (
-              <span
-                aria-hidden
-                className="inline-block h-3.5 w-[3px] shrink-0 bg-red-600"
-              />
-            ) : null}
-            <span>{tab.label}</span>
-          </span>
+          <span>{tab.label}</span>
           {typeof tab.count === "number" ? (
             <span
               className={
-                "shrink-0 font-mono text-xs tracking-[0.12em] " +
-                (tab.active ? "text-black" : "text-black")
+                "font-mono text-[10px] font-bold tabular-nums " +
+                (tab.active ? "text-black" : "text-black/55")
               }
             >
               {tab.count}

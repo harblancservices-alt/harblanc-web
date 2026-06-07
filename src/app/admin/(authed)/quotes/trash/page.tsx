@@ -11,6 +11,17 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+/**
+ * Level 6.5 — Trashed quotes page.
+ *
+ * Visual structure mirrors the Active Quotes feed (max-w-4xl, V3 hero
+ * eyebrow + bold heading + right-aligned meta column). Below the hero
+ * sits a single compact retention strip, then the SectionTabs nav, then
+ * the trash feed itself.
+ *
+ * No server-action or retention-logic changes. Loader unchanged.
+ */
+
 async function loadTrashedQuotes(): Promise<{
   rows: QuoteTrashRow[];
   activeCount: number;
@@ -36,27 +47,36 @@ export default async function QuotesTrashPage() {
   const { rows, activeCount } = await loadTrashedQuotes();
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8 lg:py-10">
-      <header className="pb-5">
-        <p className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
-          Trash
+    <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
+      {/* L1: Page identity — mirrors Active Quotes hero exactly. */}
+      <header className="flex flex-wrap items-end justify-between gap-4 pb-5 sm:pb-6">
+        <div>
+          <p className="font-mono text-[10.5px] font-bold uppercase tracking-[0.28em] text-black">
+            Trash
+          </p>
+          <h1 className="mt-1 text-[30px] font-bold leading-none tracking-tight text-black sm:text-[36px] lg:text-[40px]">
+            Trashed quotes
+          </h1>
+        </div>
+        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-black text-right leading-snug">
+          {rows.length} trashed
+          <br />
+          {activeCount} active
         </p>
-        <h1 className="mt-2 text-2xl font-display tracking-tight text-black sm:text-3xl">
-          Trashed quote requests
-        </h1>
       </header>
 
-      <div className="mt-1 mb-1 flex items-start gap-3 border-l-2 border-red-600 bg-zinc-100 px-4 py-3">
-        <div>
-          <p className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
-            Retention
-          </p>
-          <p className="mt-1 max-w-2xl text-sm leading-relaxed text-black">
-            Deleted records remain recoverable for 30 days. After that, an
-            auto-purge job removes them permanently.
-          </p>
-        </div>
-      </div>
+      {/* L2: Retention strip — single compact cream line. */}
+      <section
+        aria-label="Retention policy"
+        className="mb-4 flex items-baseline gap-3 border-l-[3px] border-black bg-[#fafaf6] px-4 py-2.5 sm:gap-4 sm:px-5"
+      >
+        <p className="shrink-0 font-mono text-[10.5px] font-bold uppercase tracking-[0.22em] text-black">
+          Retention
+        </p>
+        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-black/70">
+          Recoverable for 30 days · Auto-removed after expiration
+        </p>
+      </section>
 
       <SectionTabs
         tabs={[
@@ -75,7 +95,9 @@ export default async function QuotesTrashPage() {
       />
 
       {rows.length === 0 ? (
-        <p className="mt-12 text-sm text-black">Trash is empty.</p>
+        <p className="mt-12 font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-black/55">
+          Trash is empty.
+        </p>
       ) : (
         <QuoteTrashTable rows={rows} />
       )}

@@ -2,7 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { formatDateFull, relativeTime } from "@/lib/admin/format";
+import {
+  formatDateFull,
+  formatDateShort,
+  relativeTime,
+} from "@/lib/admin/format";
 import {
   softDeleteApplication,
   restoreApplication,
@@ -13,6 +17,32 @@ export const metadata: Metadata = {
   title: "Application detail",
   robots: { index: false, follow: false },
 };
+
+/**
+ * Level 6.7 — Application detail page (V7).
+ *
+ * Operator workspace layout, mirroring the design language established by:
+ *   - Active Quotes V6.3 hero
+ *   - Quotes Trash V6.5 retention strip + outlined actions
+ *   - Applications V6.6 feed cards + outlined Trash/Restore/Delete buttons
+ *
+ * Vertical spine (top → bottom):
+ *   1. Back link            (mono caps, no chrome)
+ *   2. Hero                 (eyebrow + name H1 + right-aligned meta)
+ *   3. Trash strip          (conditional, compact cream retention bar)
+ *   4. Contact card         (primary card: Phone / Email / Trash | Restore + Delete)
+ *   5. Operations strip     (inline metadata: equipment · CDL · years + home base)
+ *   6. Message card         (conditional, cream feed card)
+ *   7. Forensics disclosure (collapsed <details>: created, lead id, IP, UA)
+ *
+ * SCOPE (Level 6.7 directive): single-file presentational restructure.
+ *   - Server actions unchanged: softDeleteApplication, restoreApplication,
+ *     permanentlyDeleteApplication. Still bound via server-action form.
+ *   - Loader unchanged.
+ *   - No tabs, no workflow, no quote lifecycle, no activity feed, no
+ *     uploads/notes/comments, no approval system. Applications stay
+ *     intentionally narrow — read, contact, decide.
+ */
 
 type ApplicationRow = {
   id: string;
@@ -41,6 +71,12 @@ async function loadApplication(id: string): Promise<ApplicationRow | null> {
   return data ?? null;
 }
 
+// "APP CEF2ADD5" — first 8 chars of the UUID, uppercased. Mirrors the
+// REQ {shortId} convention used on quote detail pages.
+function shortAppId(id: string): string {
+  return `APP ${id.slice(0, 8).toUpperCase()}`;
+}
+
 export default async function ApplicationDetailPage({
   params,
 }: {
@@ -50,212 +86,126 @@ export default async function ApplicationDetailPage({
   const row = await loadApplication(id);
   if (!row) notFound();
 
-  const phoneHref = `tel:${row.phone.replace(/[^\d+]/g, "")}`;
   const isTrashed = Boolean(row.deleted_at);
+  const phoneHref = `tel:${row.phone.replace(/[^\d+]/g, "")}`;
+  const emailHref = `mailto:${row.email}`;
+  const hasPhone = row.phone.trim().length > 0;
+  const hasEmail = row.email.trim().length > 0;
+  const hasMessage = row.message != null && row.message.trim().length > 0;
+
+  // Operations strip tokens
+  const equipment = row.equipment_type.trim().toUpperCase();
+  const cdl = row.cdl_status.trim().toUpperCase();
+  const years = row.years_experience?.trim() || null;
+  const homeBase = row.home_base?.trim() || null;
+  const metaTokens: string[] = [];
+  if (equipment) metaTokens.push(equipment);
+  if (cdl) metaTokens.push(`CDL ${cdl}`);
+  if (years) metaTokens.push(`${years} YRS`);
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
-      {/* Back link */}
+    <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
+      {/* 1. Back link */}
       <Link
         href={isTrashed ? "/admin/applications/trash" : "/admin/applications"}
-        className="inline-flex items-center font-mono text-xs tracking-[0.12em] text-black uppercase transition-colors hover:text-black"
+        prefetch={false}
+        className="inline-flex items-center font-mono text-[10.5px] font-bold uppercase tracking-[0.18em] text-black transition-opacity hover:opacity-70"
       >
-        &larr; Back to {isTrashed ? "trash" : "applications"}
+        ← All {isTrashed ? "trash" : "applications"}
       </Link>
 
-      {/* Trash banner */}
-      {isTrashed ? (
-        <div className="mt-5 flex items-start gap-3 border border-red-300 bg-red-50 p-4">
-          <span
-            aria-hidden
-            className="mt-0.5 inline-block h-3 w-1 shrink-0 bg-red-600"
-          />
-          <div>
-            <p className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
-              In trash
-            </p>
-            <p className="mt-1 text-sm leading-relaxed text-red-800">
-              Moved to trash {relativeTime(row.deleted_at!)}.{" "}
-              {row.delete_after ? (
-                <>
-                  Auto-purge on{" "}
-                  <span className="font-mono text-red-800">
-                    {formatDateFull(row.delete_after)}
-                  </span>
-                  .
-                </>
-              ) : null}
-            </p>
-          </div>
-        </div>
-      ) : null}
-
-      {/* Title block */}
-      <header className="mt-5 sm:mt-6">
-        <div className="flex flex-wrap items-center gap-3">
-          <p className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
+      {/* 2. V3 hero — eyebrow + bold name + right-aligned meta */}
+      <header className="mt-3 flex flex-wrap items-end justify-between gap-4 pb-5 sm:pb-6">
+        <div>
+          <p className="font-mono text-[10.5px] font-bold uppercase tracking-[0.28em] text-black">
             Application
           </p>
-          {!isTrashed ? (
-            <span className="inline-flex items-center gap-1.5 border border-zinc-300 bg-zinc-100 px-2.5 py-1 font-mono text-xs tracking-[0.12em] text-black uppercase">
-              <span
-                aria-hidden
-                className="inline-block h-1.5 w-1.5 shrink-0 bg-neutral-400"
-              />
-              Active
-            </span>
-          ) : null}
+          <h1 className="mt-1 text-[30px] font-bold leading-none tracking-tight text-black sm:text-[36px] lg:text-[40px]">
+            {row.name || "—"}
+          </h1>
         </div>
-        <h1 className="mt-3 text-3xl font-display tracking-tight text-black sm:text-4xl lg:text-5xl">
-          {row.name}
-        </h1>
         <p
-          className="mt-2 font-mono text-xs text-black"
+          className="font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-black text-right leading-snug"
           title={formatDateFull(row.created_at)}
         >
-          Received {relativeTime(row.created_at)}{" "}
-          <span aria-hidden className="mx-1 text-black">
-            ·
-          </span>{" "}
-          {formatDateFull(row.created_at)}
+          Received {relativeTime(row.created_at)}
+          <br />
+          {shortAppId(row.id)}
         </p>
       </header>
 
-      {/* Grouped panel: Primary contact + Operations.
-          Stacked on mobile with horizontal divider, side-by-side on tablet+
-          with vertical divider. Single bordered container. */}
-      <div className="mt-6 grid grid-cols-1 divide-y divide-zinc-200 border border-zinc-200 sm:mt-8 sm:grid-cols-2 sm:divide-x sm:divide-y-0">
-        <section className="bg-zinc-100 p-5 sm:p-6">
-          <h2 className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
-            Primary contact
-          </h2>
-          <dl className="mt-4 space-y-4">
-            <Field label="Phone">
-              <a
-                href={phoneHref}
-                className="block break-all font-mono text-xl text-black underline-offset-4 hover:underline sm:text-2xl"
-              >
-                {row.phone}
-              </a>
-            </Field>
-            <Field label="Email">
-              <a
-                href={`mailto:${row.email}`}
-                className="block break-all text-base text-black underline-offset-4 hover:underline sm:text-lg"
-              >
-                {row.email}
-              </a>
-            </Field>
-          </dl>
-        </section>
-
-        <section className="bg-zinc-100 p-5 sm:p-6">
-          <h2 className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
-            Operations
-          </h2>
-          <dl className="mt-4 space-y-4">
-            <Field label="Equipment">
-              <span className="block text-xl text-black sm:text-2xl">
-                {row.equipment_type}
-              </span>
-            </Field>
-            <Field label="CDL status">
-              <span className="block text-xl text-black sm:text-2xl">
-                {row.cdl_status}
-              </span>
-            </Field>
-            <div className="grid grid-cols-2 gap-x-6 gap-y-4">
-              <Field label="Years experience">
-                <span className="block font-mono text-base text-black sm:text-lg">
-                  {row.years_experience ?? "\u2014"}
+      {/* 3. Trash strip — compact retention pattern (only when trashed) */}
+      {isTrashed ? (
+        <section
+          aria-label="In trash"
+          className="mb-4 flex flex-wrap items-baseline gap-x-3 gap-y-1 border-l-[3px] border-black bg-[#fafaf6] px-4 py-2.5 sm:gap-x-4 sm:px-5"
+        >
+          <p className="shrink-0 font-mono text-[10.5px] font-bold uppercase tracking-[0.22em] text-black">
+            In trash
+          </p>
+          <p className="font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-black/70">
+            Moved {relativeTime(row.deleted_at!)}
+            {row.delete_after ? (
+              <>
+                <span aria-hidden className="mx-1.5 text-black/40">
+                  ·
                 </span>
-              </Field>
-              <Field label="Home base">
-                <span className="block text-base text-black sm:text-lg">
-                  {row.home_base ?? "\u2014"}
-                </span>
-              </Field>
-            </div>
-          </dl>
-        </section>
-      </div>
-
-      {/* Message — separate panel, readable body */}
-      {row.message ? (
-        <section className="mt-4 border border-zinc-200 bg-zinc-100 p-5 sm:mt-5 sm:p-6">
-          <h2 className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
-            Message
-          </h2>
-          <p className="mt-4 whitespace-pre-wrap text-base leading-relaxed text-black">
-            {row.message}
+                Auto-purge {formatDateShort(row.delete_after).slice(0, 10)}
+              </>
+            ) : null}
           </p>
         </section>
       ) : null}
 
-      {/* Metadata — subtle, dimmer */}
-      <section className="mt-4 border border-zinc-200 p-5 sm:mt-5 sm:p-6">
-        <h2 className="font-mono text-xs tracking-[0.12em] text-black uppercase">
-          Metadata
-        </h2>
-        <dl className="mt-4 grid grid-cols-1 gap-x-10 gap-y-4 sm:grid-cols-2">
-          <Field label="Created" muted>
-            <span className="font-mono text-xs text-black sm:text-sm">
-              {formatDateFull(row.created_at)}
-            </span>
-          </Field>
-          {row.deleted_at ? (
-            <Field label="Deleted" muted>
-              <span className="font-mono text-xs text-red-700 sm:text-sm">
-                {formatDateFull(row.deleted_at)}
-              </span>
-            </Field>
-          ) : null}
-          {row.delete_after ? (
-            <Field label="Auto-purge" muted>
-              <span className="font-mono text-xs text-black sm:text-sm">
-                {formatDateFull(row.delete_after)}
-              </span>
-            </Field>
-          ) : null}
-          <Field label="Lead ID" muted full>
-            <span className="font-mono text-xs break-all text-black">
-              {row.id}
-            </span>
-          </Field>
-          {row.user_agent ? (
-            <Field label="User agent" muted full>
-              <span className="font-mono text-xs break-all text-black">
-                {row.user_agent}
-              </span>
-            </Field>
-          ) : null}
-          {row.ip ? (
-            <Field label="IP" muted>
-              <span className="font-mono text-xs text-black">
-                {row.ip}
-              </span>
-            </Field>
-          ) : null}
-        </dl>
-      </section>
+      {/* 4. Contact card — primary card. Phone + Email + actions */}
+      <section
+        aria-label="Contact"
+        className="border-2 border-black border-l-4 border-l-black bg-[#fafaf6] px-5 py-5 sm:px-6 sm:py-6"
+      >
+        <p className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-black">
+          Contact
+        </p>
+        <p className="mt-1.5 text-[22px] font-bold leading-tight text-black sm:text-[24px]">
+          {row.name || "—"}
+        </p>
 
-      {/* Action zone — strong visual anchor, red top accent */}
-      <section className="mt-6 border border-zinc-200 border-t-2 border-t-red-600 bg-white p-5 sm:mt-8 sm:p-6">
-        <h2 className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
-          Actions
-        </h2>
-        <div
-          className={
-            "mt-4 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center " +
-            (isTrashed ? "sm:justify-between" : "")
-          }
-        >
+        <div className="mt-4 space-y-2">
+          {hasPhone ? (
+            <a
+              href={phoneHref}
+              aria-label={`Call ${row.name || "applicant"}`}
+              className="flex w-full items-center justify-center border-2 border-black bg-white px-3 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.16em] text-black transition-colors hover:bg-black hover:text-white"
+            >
+              <span aria-hidden className="mr-2">
+                &#9742;
+              </span>
+              {row.phone}
+            </a>
+          ) : null}
+          {hasEmail ? (
+            <a
+              href={emailHref}
+              aria-label={`Email ${row.name || "applicant"}`}
+              className="flex w-full items-center justify-center break-all border-2 border-black bg-white px-3 py-2 text-center font-mono text-[12px] font-bold uppercase tracking-[0.16em] text-black transition-colors hover:bg-black hover:text-white"
+            >
+              <span aria-hidden className="mr-2">
+                &#9993;
+              </span>
+              {row.email}
+            </a>
+          ) : null}
+        </div>
+
+        {/* Action row inside the Contact card. Server-action forms preserve
+            the existing binding pattern (softDeleteApplication on active;
+            restoreApplication + permanentlyDeleteApplication when trashed). */}
+        <div className="mt-4 flex flex-wrap gap-2 border-t border-black/15 pt-4">
           {isTrashed ? (
             <>
               <form action={restoreApplication.bind(null, row.id)}>
                 <button
                   type="submit"
-                  className="btn-outline-cut inline-flex w-full items-center justify-center px-6 py-4 text-sm font-semibold uppercase tracking-[0.12em] text-zinc-100 transition-colors sm:w-auto"
+                  className="inline-flex items-center justify-center border-2 border-black bg-transparent px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-black transition-colors hover:bg-black hover:text-white"
                 >
                   Restore
                 </button>
@@ -263,9 +213,9 @@ export default async function ApplicationDetailPage({
               <form action={permanentlyDeleteApplication.bind(null, row.id)}>
                 <button
                   type="submit"
-                  className="btn-cut inline-flex w-full items-center justify-center bg-red-600 px-6 py-4 text-sm font-semibold uppercase tracking-[0.12em] text-white transition-colors hover:bg-red-500 sm:w-auto"
+                  className="inline-flex items-center justify-center border-2 border-red-700 bg-transparent px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-red-700 transition-colors hover:bg-red-700 hover:text-white"
                 >
-                  Permanently delete
+                  Delete
                 </button>
               </form>
             </>
@@ -273,40 +223,110 @@ export default async function ApplicationDetailPage({
             <form action={softDeleteApplication.bind(null, row.id)}>
               <button
                 type="submit"
-                className="btn-outline-cut inline-flex w-full items-center justify-center px-6 py-4 text-sm font-semibold uppercase tracking-[0.12em] text-zinc-100 transition-colors sm:w-auto"
+                className="inline-flex items-center justify-center border-2 border-red-700 bg-transparent px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-red-700 transition-colors hover:bg-red-700 hover:text-white"
               >
-                Move to trash
+                Trash
               </button>
             </form>
           )}
         </div>
       </section>
-    </div>
-  );
-}
 
-function Field({
-  label,
-  children,
-  full = false,
-  muted = false,
-}: {
-  label: string;
-  children: React.ReactNode;
-  full?: boolean;
-  muted?: boolean;
-}) {
-  return (
-    <div className={full ? "sm:col-span-2" : undefined}>
-      <dt
-        className={
-          "font-mono text-xs tracking-[0.12em] uppercase " +
-          (muted ? "text-black" : "text-black")
-        }
+      {/* 5. Operations strip — inline metadata, no card chrome */}
+      <section
+        aria-label="Operations"
+        className="mt-5 border-t border-black/15 pt-3"
       >
-        {label}
-      </dt>
-      <dd className="mt-1.5">{children}</dd>
+        <p className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-black">
+          Operations
+        </p>
+        {metaTokens.length > 0 ? (
+          <p className="mt-1.5 font-mono text-[13px] font-bold uppercase tracking-[0.14em] text-black">
+            {metaTokens.join(" · ")}
+          </p>
+        ) : (
+          <p className="mt-1.5 font-mono text-[13px] uppercase tracking-[0.14em] text-black/50">
+            —
+          </p>
+        )}
+        {homeBase ? (
+          <p className="mt-1 text-[13px] text-black/80">{homeBase}</p>
+        ) : null}
+      </section>
+
+      {/* 6. Message card — conditional, standard cream feed chrome */}
+      {hasMessage ? (
+        <section
+          aria-label="Message"
+          className="mt-5 border-2 border-black border-l-4 border-l-black bg-[#fafaf6] px-5 py-4 sm:px-6 sm:py-5"
+        >
+          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-black">
+            Message
+          </p>
+          <p className="mt-2 whitespace-pre-wrap text-[14px] leading-relaxed text-black sm:text-[15px]">
+            {row.message}
+          </p>
+        </section>
+      ) : null}
+
+      {/* 7. Forensics — collapsed <details> disclosure */}
+      <details className="mt-5 border-t border-black/15 pt-3">
+        <summary className="cursor-pointer list-none font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-black/70 transition-colors hover:text-black">
+          ▾ Forensics
+        </summary>
+        <dl className="mt-2 grid grid-cols-1 gap-x-6 gap-y-1.5 sm:grid-cols-[120px_minmax(0,1fr)]">
+          <dt className="font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-black/60">
+            Created
+          </dt>
+          <dd className="font-mono text-[11px] text-black">
+            {formatDateFull(row.created_at)}
+          </dd>
+          {row.deleted_at ? (
+            <>
+              <dt className="font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-black/60">
+                Deleted
+              </dt>
+              <dd className="font-mono text-[11px] text-black">
+                {formatDateFull(row.deleted_at)}
+              </dd>
+            </>
+          ) : null}
+          {row.delete_after ? (
+            <>
+              <dt className="font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-black/60">
+                Auto-purge
+              </dt>
+              <dd className="font-mono text-[11px] text-black">
+                {formatDateFull(row.delete_after)}
+              </dd>
+            </>
+          ) : null}
+          <dt className="font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-black/60">
+            Lead ID
+          </dt>
+          <dd className="font-mono text-[11px] text-black break-all">
+            {row.id}
+          </dd>
+          {row.ip ? (
+            <>
+              <dt className="font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-black/60">
+                IP
+              </dt>
+              <dd className="font-mono text-[11px] text-black">{row.ip}</dd>
+            </>
+          ) : null}
+          {row.user_agent ? (
+            <>
+              <dt className="font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-black/60">
+                User agent
+              </dt>
+              <dd className="font-mono text-[11px] text-black break-all">
+                {row.user_agent}
+              </dd>
+            </>
+          ) : null}
+        </dl>
+      </details>
     </div>
   );
 }

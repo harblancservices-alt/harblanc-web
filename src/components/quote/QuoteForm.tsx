@@ -32,7 +32,13 @@ export type QuickQuoteValues = {
   deliveryZip: string;
   commodity: string;
   weight: string;
-  pickupDate: string; // YYYY-MM-DD or "" (treated server-side as ASAP)
+  /** Earliest acceptable pickup date — YYYY-MM-DD or "". */
+  pickupDate: string;
+  /** Latest acceptable pickup date — YYYY-MM-DD or "". When both
+   *  pickupDate and pickupDateEnd are present, dispatch reads this as
+   *  the customer-stated pickup-window range. When only pickupDate is
+   *  set, it's a single target day. Backend persists both. */
+  pickupDateEnd: string;
   name: string;
   phone: string;
   email: string;
@@ -47,6 +53,7 @@ const initialValues: QuickQuoteValues = {
   commodity: "",
   weight: "",
   pickupDate: "",
+  pickupDateEnd: "",
   name: "",
   phone: "",
   email: "",
@@ -216,6 +223,12 @@ export function QuoteForm() {
     setSubmitError(null);
     setStatus("submitting");
 
+    // PHASE 1 — create the lead. Only errors here are allowed to flip
+    // the form back to idle (so the customer can retry). Anything that
+    // happens AFTER /api/quote returns 2xx is a "lead already created"
+    // path and must NOT return the form to idle — that's the duplicate-
+    // submit bug we're guarding against.
+    let leadId: string | undefined;
     try {
       const res = await fetch("/api/quote", {
         method: "POST",
@@ -235,18 +248,26 @@ export function QuoteForm() {
         setStatus("idle");
         return;
       }
-
-      // Lead created. If files were picked, upload them via the
-      // quick-quote action serially so the customer sees progress.
-      // Failed files don't block navigation — the lead is already
-      // saved, and dispatch can follow up if anything's missing.
       const data = (await res.json().catch(() => ({}))) as { leadId?: string };
-      const leadId = data.leadId;
-      if (leadId && selectedFiles.length > 0) {
-        setStatus("uploading");
-        setUploadProgress({ done: 0, total: selectedFiles.length, failed: [] });
-        for (let i = 0; i < selectedFiles.length; i++) {
-          const f = selectedFiles[i];
+      leadId = data.leadId;
+    } catch {
+      // Network error BEFORE the lead was created — safe to let customer retry.
+      setSubmitError("Network error. Check your connection and try again.");
+      setStatus("idle");
+      return;
+    }
+
+    // PHASE 2 — uploads + navigation. Lead is created. From here on we
+    // do NOT flip back to idle even if anything throws, because letting
+    // the customer hit Send again would create a duplicate quote_requests
+    // row. Per-file upload failures are caught individually and reported
+    // on the success page; nothing here can stop the final router.push.
+    if (leadId && selectedFiles.length > 0) {
+      setStatus("uploading");
+      setUploadProgress({ done: 0, total: selectedFiles.length, failed: [] });
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const f = selectedFiles[i];
+        try {
           const fd = new FormData();
           fd.append("file", f);
           const result = await uploadQuickQuoteDocument(leadId, fd);
@@ -255,13 +276,19 @@ export function QuoteForm() {
             total: prev.total,
             failed: result.ok ? prev.failed : [...prev.failed, f.name],
           }));
+        } catch {
+          // Upload server action threw — record as failed and continue.
+          // Lead is already saved; dispatch can follow up if anything is
+          // missing.
+          setUploadProgress((prev) => ({
+            done: i + 1,
+            total: prev.total,
+            failed: [...prev.failed, f.name],
+          }));
         }
       }
-      router.push("/quote/success");
-    } catch {
-      setSubmitError("Network error. Check your connection and try again.");
-      setStatus("idle");
     }
+    router.push("/quote/success");
   }
 
   return (
@@ -297,8 +324,60 @@ export function QuoteForm() {
         />
       </div>
 
-      {/* 01 / Lane */}
-      <Section number="01" title="Lane">
+      {/* 01 / Contact */}
+      <Section number="01" title="Contact">
+        <Field id="name" label="Name" required error={errors.name}>
+          <input
+            id="name"
+            name="name"
+            type="text"
+            autoComplete="name"
+            value={values.name}
+            onChange={(e) => update("name", e.target.value)}
+            className={errors.name ? errorFieldCls : fieldCls}
+            placeholder="Jane Doe"
+            aria-invalid={!!errors.name}
+            aria-describedby={errors.name ? "name-error" : undefined}
+          />
+        </Field>
+
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+          <Field id="phone" label="Phone" required error={errors.phone}>
+            <input
+              id="phone"
+              name="phone"
+              type="tel"
+              autoComplete="tel"
+              inputMode="tel"
+              value={values.phone}
+              onChange={(e) => update("phone", e.target.value)}
+              className={errors.phone ? errorFieldCls : fieldCls}
+              placeholder="(555) 123-4567"
+              aria-invalid={!!errors.phone}
+              aria-describedby={errors.phone ? "phone-error" : undefined}
+            />
+          </Field>
+
+          <Field id="email" label="Email" required error={errors.email}>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              inputMode="email"
+              value={values.email}
+              onChange={(e) => update("email", e.target.value)}
+              className={errors.email ? errorFieldCls : fieldCls}
+              placeholder="you@company.com"
+              aria-invalid={!!errors.email}
+              aria-describedby={errors.email ? "email-error" : undefined}
+            />
+          </Field>
+        </div>
+      </Section>
+
+      {/* 02 / Lane */}
+      <Section number="02" title="Lane">
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
           <Field id="pickupZip" label="Pickup ZIP" required error={errors.pickupZip}>
             <input
@@ -344,8 +423,8 @@ export function QuoteForm() {
         </div>
       </Section>
 
-      {/* 02 / Load */}
-      <Section number="02" title="Load">
+      {/* 03 / Load */}
+      <Section number="03" title="Load">
         <Field id="commodity" label="What are we moving?" required error={errors.commodity}>
           <input
             id="commodity"
@@ -360,46 +439,62 @@ export function QuoteForm() {
           />
         </Field>
 
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-          <Field
+        {/* Weight on its own row (full width). Pickup window moved below
+            as a separate full-width row per operator request. */}
+        <Field
+          id="weight"
+          label="Approximate weight"
+          required
+          error={errors.weight}
+          hint="lbs, kg, tons — whatever you know."
+        >
+          <input
             id="weight"
-            label="Approximate weight"
-            required
-            error={errors.weight}
-            hint="lbs, kg, tons — whatever you know."
-          >
-            <input
-              id="weight"
-              name="weight"
-              type="text"
-              inputMode="decimal"
-              value={values.weight}
-              onChange={(e) => update("weight", e.target.value)}
-              className={errors.weight ? errorFieldCls : fieldCls}
-              placeholder="8,000 lbs"
-              aria-invalid={!!errors.weight}
-              aria-describedby={
-                errors.weight ? "weight-error" : "weight-hint"
-              }
-            />
-          </Field>
+            name="weight"
+            type="text"
+            inputMode="decimal"
+            value={values.weight}
+            onChange={(e) => update("weight", e.target.value)}
+            className={errors.weight ? errorFieldCls : fieldCls}
+            placeholder="8,000 lbs"
+            aria-invalid={!!errors.weight}
+            aria-describedby={
+              errors.weight ? "weight-error" : "weight-hint"
+            }
+          />
+        </Field>
 
-          <Field
-            id="pickupDate"
-            label="Target pickup date"
-            hint="Leave blank if it’s ASAP."
-          >
+        <Field id="pickupDate" label="Pickup window">
+          {/* Two native date inputs side-by-side. Earliest pickup on the
+              left, latest on the right. End date min'd to start so the
+              calendar blocks invalid ranges. */}
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
             <input
               id="pickupDate"
               name="pickupDate"
               type="date"
+              aria-label="Earliest pickup date"
               value={values.pickupDate}
               onChange={(e) => update("pickupDate", e.target.value)}
-              className={fieldCls}
+              className={fieldCls + " flex-1"}
             />
-          </Field>
-        </div>
+            <span aria-hidden className="hidden text-sm font-medium text-zinc-500 sm:inline">to</span>
+            <input
+              id="pickupDateEnd"
+              name="pickupDateEnd"
+              type="date"
+              aria-label="Latest pickup date"
+              value={values.pickupDateEnd}
+              min={values.pickupDate || undefined}
+              onChange={(e) => update("pickupDateEnd", e.target.value)}
+              className={fieldCls + " flex-1"}
+            />
+          </div>
+        </Field>
+      </Section>
 
+      {/* 04 / Additional details (optional) */}
+      <Section number="04" title="Anything else?">
         {/* Optional Documents & Photos — freight photos, packaging,
             spec sheets, weight/dimension PDFs. Uploaded after the
             quote request is created. JPG / PNG / WEBP / PDF up to
@@ -475,62 +570,7 @@ export function QuoteForm() {
             ) : null}
           </div>
         </Field>
-      </Section>
 
-      {/* 03 / Contact */}
-      <Section number="03" title="Contact">
-        <Field id="name" label="Name" required error={errors.name}>
-          <input
-            id="name"
-            name="name"
-            type="text"
-            autoComplete="name"
-            value={values.name}
-            onChange={(e) => update("name", e.target.value)}
-            className={errors.name ? errorFieldCls : fieldCls}
-            placeholder="Jane Doe"
-            aria-invalid={!!errors.name}
-            aria-describedby={errors.name ? "name-error" : undefined}
-          />
-        </Field>
-
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-          <Field id="phone" label="Phone" required error={errors.phone}>
-            <input
-              id="phone"
-              name="phone"
-              type="tel"
-              autoComplete="tel"
-              inputMode="tel"
-              value={values.phone}
-              onChange={(e) => update("phone", e.target.value)}
-              className={errors.phone ? errorFieldCls : fieldCls}
-              placeholder="(555) 123-4567"
-              aria-invalid={!!errors.phone}
-              aria-describedby={errors.phone ? "phone-error" : undefined}
-            />
-          </Field>
-
-          <Field id="email" label="Email" required error={errors.email}>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              inputMode="email"
-              value={values.email}
-              onChange={(e) => update("email", e.target.value)}
-              className={errors.email ? errorFieldCls : fieldCls}
-              placeholder="you@company.com"
-              aria-invalid={!!errors.email}
-              aria-describedby={errors.email ? "email-error" : undefined}
-            />
-          </Field>
-        </div>
-      </Section>
-
-      {/* 04 / Additional details (optional) */}
-      <Section number="04" title="Anything else?">
         <Field id="notes" label="Additional details (optional)">
           <textarea
             id="notes"
@@ -580,7 +620,7 @@ export function QuoteForm() {
             ? "Sending…"
             : status === "uploading"
               ? "Uploading files…"
-              : "Request a quote"}
+              : "Send request"}
         </button>
       </div>
     </form>

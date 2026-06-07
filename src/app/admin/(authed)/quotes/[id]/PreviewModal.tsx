@@ -131,12 +131,12 @@ export function PreviewModal({
     >
       {/* ─── Sticky top bar ─── */}
       <header
-        className="relative flex shrink-0 items-center gap-3 border-b-2 border-red-600 bg-white px-3 py-2.5 sm:px-5 sm:py-3"
+        className="relative flex shrink-0 items-center gap-3 border-b-2 border-black bg-white px-3 py-2.5 sm:px-5 sm:py-3"
       >
         {/* Red accent bar (matches admin section-title pattern) */}
         <span
           aria-hidden
-          className="inline-block h-5 w-1 shrink-0 bg-red-600"
+          className="inline-block h-5 w-1 shrink-0 bg-black"
         />
 
         <div className="min-w-0 flex-1">
@@ -181,7 +181,7 @@ export function PreviewModal({
             type="button"
             onClick={onSend}
             disabled={sendDisabled}
-            className="inline-flex shrink-0 items-center gap-1.5 border border-red-700 bg-red-600 px-3 py-1.5 text-[13px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60 sm:px-4"
+            className="inline-flex shrink-0 items-center gap-1.5 border border-black bg-black px-3 py-1.5 text-[13px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60 sm:px-4"
           >
             {sendPending ? (
               <>
@@ -202,7 +202,7 @@ export function PreviewModal({
           onClick={onClose}
           aria-label="Close preview"
           title="Close (Esc)"
-          className="inline-flex h-8 w-8 shrink-0 items-center justify-center border border-zinc-300 bg-white text-black transition-colors hover:border-red-600 hover:bg-red-50 hover:text-red-700"
+          className="inline-flex h-8 w-8 shrink-0 items-center justify-center border border-zinc-300 bg-white text-black transition-colors hover:border-black hover:bg-[#f3f1e9] hover:text-black"
         >
           <IconX className="h-4 w-4" />
         </button>
@@ -291,7 +291,7 @@ export function PreviewModal({
 function BuildingState() {
   return (
     <div className="mx-auto flex h-full max-w-[680px] flex-col items-center justify-center gap-3 bg-white px-6 py-12">
-      <Spinner className="h-6 w-6 text-red-600" />
+      <Spinner className="h-6 w-6 text-black" />
       <p className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-black">
         Building preview
       </p>
@@ -310,18 +310,18 @@ function FailedState({
   onRetry: () => void;
 }) {
   return (
-    <div className="mx-auto flex max-w-[680px] flex-col items-start gap-3 border border-red-300 bg-red-50 px-5 py-5">
-      <p className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-red-800">
+    <div className="mx-auto flex max-w-[680px] flex-col items-start gap-3 border border-black bg-[#f3f1e9] px-5 py-5">
+      <p className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-black">
         Preview failed
       </p>
-      <p className="text-[15px] text-red-900">
+      <p className="text-[15px] text-black">
         {message ??
           "The preview build did not return a document. Check the rate fields and try again."}
       </p>
       <button
         type="button"
         onClick={onRetry}
-        className="inline-flex items-center gap-1.5 border border-red-700 bg-white px-3 py-1.5 font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-red-800 transition-colors hover:bg-red-100"
+        className="inline-flex items-center gap-1.5 border border-black bg-white px-3 py-1.5 font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-black transition-colors hover:bg-[#f3f1e9]"
       >
         Try again
       </button>

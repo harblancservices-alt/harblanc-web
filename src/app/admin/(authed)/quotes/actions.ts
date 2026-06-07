@@ -8,7 +8,7 @@ import { renderQuotePdfBuffer } from "@/lib/pdf/renderQuotePdf";
 import type { QuotePdfData } from "@/lib/pdf/QuotePDF";
 import { logDispatchEvent } from "@/lib/dispatch/events";
 import { isLeadStatus, type LeadStatus } from "@/lib/dispatch/status";
-import { computeRpm } from "@/lib/dispatch/distance";
+import { computeRpm, lookupZip } from "@/lib/dispatch/distance";
 import { sendDispatchEstimateBytes } from "@/lib/email/estimate";
 import { findTemplate } from "@/lib/dispatch/templates";
 import {
@@ -1373,3 +1373,20 @@ export async function saveLoadDetailsOverrides(
   return { ok: true };
 }
 
+/**
+ * Server-only ZIP → {city, state} lookup. Used by LoadDetailsCard to
+ * auto-fill the city + state inputs when the operator pastes / edits a
+ * ZIP. Returns null when the ZIP is not in the zipcodes dataset (very
+ * rare but possible for new ZCTAs). Kept tiny — no admin auth gate
+ * because the zipcodes data is public; this lookup is a thin wrapper
+ * over a static dataset that ships in the bundle anyway.
+ */
+export async function lookupZipDetails(
+  zip: string,
+): Promise<{ city: string; state: string } | null> {
+  const trimmed = zip.trim();
+  if (!/^\d{5}$/.test(trimmed)) return null;
+  const hit = lookupZip(trimmed);
+  if (!hit) return null;
+  return { city: hit.city, state: hit.state };
+}

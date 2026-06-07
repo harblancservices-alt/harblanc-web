@@ -2,13 +2,37 @@
 
 import { useState, useTransition, useMemo } from "react";
 import Link from "next/link";
-import { formatTimestampShort, formatDateShort } from "@/lib/admin/format";
-import {
-  restoreQuote,
-  permanentlyDeleteQuote,
-  restoreQuotes,
-  permanentlyDeleteQuotes,
-} from "../actions";
+import { formatDateShort } from "@/lib/admin/format";
+import { restoreQuote, permanentlyDeleteQuote } from "../actions";
+
+/**
+ * Level 6.5 — Quotes Trash feed.
+ *
+ * V3 visual language: each trashed quote renders as a compact cream feed
+ * row, not a spreadsheet cell. Customer name dominates; deleted date,
+ * lane, freight, and auto-purge sit as supporting metadata. Restore /
+ * Delete live as outlined buttons (black / red) inside the row.
+ *
+ * SCOPE (Level 6.5 directive):
+ *   - Pure presentational restructure of /admin/quotes/trash.
+ *   - Server actions unchanged: restoreQuote / permanentlyDeleteQuote.
+ *   - Soft-delete retention logic unchanged.
+ *   - Active quotes workflow untouched.
+ *
+ * Dropped from the old spreadsheet implementation (presentation only):
+ *   - 8-column min-w-[1100px] table grid
+ *   - Heavy column headers (Deleted / Name / Phone / Email / Commodity /
+ *     Auto-purge)
+ *   - Checkbox-selection + sticky bulk-action bar (single-row Restore /
+ *     Delete still cover every use case the server actions support).
+ *
+ * Kept (data + behavior contract):
+ *   - Client-side search across name / phone / email / commodity / lane /
+ *     id (same predicate as before).
+ *   - Server actions: restoreQuote(id), permanentlyDeleteQuote(id).
+ *   - Confirm dialog before permanent delete.
+ *   - Sort order from the loader (deleted_at DESC).
+ */
 
 export type QuoteTrashRow = {
   id: string;
@@ -19,24 +43,12 @@ export type QuoteTrashRow = {
   email: string;
   phone: string;
   commodity: string;
-  // Phase OPS-3: client-side lane search support.
   pickup_zip: string | null;
   delivery_zip: string | null;
 };
 
-const colSpec =
-  "grid grid-cols-[40px_160px_minmax(140px,1fr)_140px_minmax(160px,1fr)_minmax(140px,1fr)_140px_150px] gap-x-3";
-
-const checkboxCls =
-  "h-4 w-4 shrink-0 cursor-pointer accent-red-600 border border-zinc-400 bg-white focus:outline-none focus:ring-2 focus:ring-red-600 focus:ring-offset-1 focus:ring-offset-zinc-50";
-
 export function QuoteTrashTable({ rows }: { rows: QuoteTrashRow[] }) {
-  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
-
-  // Phase OPS-3: client-side search. No status filter in trash (all
-  // rows share the soft-deleted state). Sort/group by deleted_at is
-  // preserved from the loader.
   const [searchQuery, setSearchQuery] = useState("");
 
   const filtered = useMemo(() => {
@@ -54,83 +66,7 @@ export function QuoteTrashTable({ rows }: { rows: QuoteTrashRow[] }) {
     );
   }, [rows, searchQuery]);
 
-  const allSelected =
-    filtered.length > 0 && filtered.every((r) => selected.has(r.id));
-  const someSelected =
-    !allSelected && filtered.some((r) => selected.has(r.id));
   const hasFilter = searchQuery.trim().length > 0;
-
-  function toggleRow(id: string, checked: boolean) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (checked) next.add(id);
-      else next.delete(id);
-      return next;
-    });
-  }
-
-  function toggleAll(checked: boolean) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (checked) {
-        for (const r of filtered) next.add(r.id);
-      } else {
-        for (const r of filtered) next.delete(r.id);
-      }
-      return next;
-    });
-  }
-
-  function clearSelection() {
-    setSelected(new Set());
-  }
-
-  function clearFilters() {
-    setSearchQuery("");
-  }
-
-  function bulkRestore() {
-    if (selected.size === 0) return;
-    const count = selected.size;
-    if (
-      !confirm(`Restore ${count} quote${count === 1 ? "" : "s"} from trash?`)
-    ) {
-      return;
-    }
-    const formData = new FormData();
-    selected.forEach((id) => formData.append("ids", id));
-    startTransition(async () => {
-      try {
-        await restoreQuotes(formData);
-        setSelected(new Set());
-      } catch (e) {
-        alert(`Failed: ${e instanceof Error ? e.message : "unknown error"}`);
-      }
-    });
-  }
-
-  function bulkPermanentDelete() {
-    if (selected.size === 0) return;
-    const count = selected.size;
-    if (
-      !confirm(
-        `Permanently delete ${count} quote${count === 1 ? "" : "s"}? ` +
-          `This CANNOT be undone.`,
-      )
-    ) {
-      return;
-    }
-    const formData = new FormData();
-    selected.forEach((id) => formData.append("ids", id));
-    startTransition(async () => {
-      try {
-        await permanentlyDeleteQuotes(formData);
-        setSelected(new Set());
-      } catch (e) {
-        alert(`Failed: ${e instanceof Error ? e.message : "unknown error"}`);
-      }
-    });
-  }
 
   function rowRestore(row: QuoteTrashRow) {
     startTransition(async () => {
@@ -144,9 +80,7 @@ export function QuoteTrashTable({ rows }: { rows: QuoteTrashRow[] }) {
 
   function rowPermanentDelete(row: QuoteTrashRow) {
     if (
-      !confirm(
-        `Permanently delete "${row.name}"? This CANNOT be undone.`,
-      )
+      !confirm(`Permanently delete "${row.name}"? This CANNOT be undone.`)
     ) {
       return;
     }
@@ -161,203 +95,139 @@ export function QuoteTrashTable({ rows }: { rows: QuoteTrashRow[] }) {
 
   return (
     <>
-      {/* Phase OPS-3: search bar. No status filter — trash items share
-          the same soft-deleted state. */}
-      <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-stretch">
+      {/* L3: Search — single field, no extra filters per Level 6.5 spec. */}
+      <div className="mt-5 flex items-stretch gap-2">
         <div className="relative flex-1">
           <input
             type="search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search name, phone, email, commodity, lane, ID..."
-            className="block w-full border border-zinc-300 bg-white px-4 py-2.5 pr-10 text-sm text-black placeholder:text-black focus:border-red-600 focus:outline-none"
+            placeholder="Search name, phone, lane, commodity, ID…"
+            className="block w-full border-2 border-black bg-white px-3 py-2.5 font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-black placeholder:text-black/40 focus:outline-none"
             aria-label="Search trashed quotes"
           />
           {searchQuery ? (
             <button
               type="button"
               onClick={() => setSearchQuery("")}
-              className="absolute inset-y-0 right-0 flex items-center px-3 text-black transition-colors hover:text-black"
+              className="absolute inset-y-0 right-0 flex items-center px-3 text-black transition-colors hover:text-red-700"
               aria-label="Clear search"
             >
               ×
             </button>
           ) : null}
         </div>
-        {hasFilter ? (
-          <button
-            type="button"
-            onClick={clearFilters}
-            className="inline-flex items-center justify-center border border-zinc-300 bg-white px-4 py-2.5 text-xs font-semibold tracking-[0.12em] uppercase text-black transition-colors hover:border-zinc-400 hover:text-black sm:w-auto"
-          >
-            Clear
-          </button>
-        ) : null}
       </div>
 
       {hasFilter ? (
-        <p className="mt-2 text-xs text-black">
-          Showing {filtered.length} of {rows.length} record
-          {rows.length === 1 ? "" : "s"}
+        <p className="mt-2 font-mono text-[10.5px] font-bold uppercase tracking-[0.18em] text-black/60">
+          Showing {filtered.length} of {rows.length}
         </p>
       ) : null}
 
-      {selected.size > 0 ? (
-        <div className="sticky top-0 z-20 mt-3 flex items-center justify-between gap-4 border border-zinc-300 bg-white px-4 py-3 shadow-sm">
-          <span className="font-mono text-xs tracking-[0.12em] text-black uppercase">
-            {selected.size} selected
-          </span>
-          <div className="flex items-center gap-2.5">
-            <button
-              type="button"
-              onClick={bulkRestore}
-              disabled={isPending}
-              className="inline-flex items-center border border-zinc-300 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-black transition-colors hover:border-zinc-400 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              Restore selected
-            </button>
-            <button
-              type="button"
-              onClick={bulkPermanentDelete}
-              disabled={isPending}
-              className="inline-flex items-center bg-red-600 px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              Permanently delete selected
-            </button>
-            <button
-              type="button"
-              onClick={clearSelection}
-              className="inline-flex items-center border border-zinc-300 bg-white px-4 py-2 text-xs font-semibold uppercase tracking-[0.12em] text-black transition-colors hover:border-zinc-400 hover:bg-zinc-100"
-            >
-              Clear selection
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      <div className="mt-5 overflow-x-auto">
-        <div className="min-w-[1100px]">
-          <div
-            className={`${colSpec} items-center border-b border-zinc-300 bg-zinc-100 px-3 py-3`}
-          >
-            <div>
-              <input
-                type="checkbox"
-                checked={allSelected}
-                ref={(el) => {
-                  if (el) el.indeterminate = someSelected;
-                }}
-                onChange={(e) => toggleAll(e.target.checked)}
-                className={checkboxCls}
-                aria-label="Select all"
-              />
-            </div>
-            <Th>Deleted</Th>
-            <Th>Name</Th>
-            <Th>Phone</Th>
-            <Th>Email</Th>
-            <Th>Commodity</Th>
-            <Th>Auto-purge</Th>
-            <span />
-          </div>
-
-          <div className="divide-y divide-zinc-200 border-l border-r border-b border-zinc-200 bg-white">
-            {filtered.length === 0 ? (
-              <div className="px-3 py-8 text-center">
-                <p className="text-sm text-black">
-                  No trashed records match your search.
-                </p>
-                {hasFilter ? (
-                  <button
-                    type="button"
-                    onClick={clearFilters}
-                    className="mt-3 inline-flex items-center border border-zinc-300 bg-white px-3 py-1.5 text-xs font-semibold tracking-[0.12em] uppercase text-black transition-colors hover:border-zinc-400 hover:text-black"
-                  >
-                    Clear search
-                  </button>
-                ) : null}
-              </div>
-            ) : null}
-            {filtered.map((r) => {
-              const isSel = selected.has(r.id);
-              return (
-                <div
-                  key={r.id}
-                  className={
-                    `${colSpec} items-center px-3 py-2.5 transition-colors hover:bg-zinc-50 ` +
-                    (isSel ? "bg-red-50" : "")
-                  }
-                >
-                  <div>
-                    <input
-                      type="checkbox"
-                      checked={isSel}
-                      onChange={(e) => toggleRow(r.id, e.target.checked)}
-                      className={checkboxCls}
-                      aria-label={`Select ${r.name}`}
-                    />
-                  </div>
-                  <Link
-                    href={`/admin/quotes/${r.id}`}
-                    className="contents"
-                  >
-                    <span className="font-mono text-xs text-black">
-                      {formatTimestampShort(r.deleted_at)}
-                    </span>
-                    <span className="truncate text-sm font-semibold text-black">
-                      {r.name}
-                    </span>
-                    <span className="font-mono text-xs text-black">
-                      {r.phone}
-                    </span>
-                    <span className="truncate text-xs text-black">
-                      {r.email}
-                    </span>
-                    <span className="truncate text-sm text-black">
-                      {r.commodity}
-                    </span>
-                    <span className="font-mono text-xs tracking-[0.12em] text-black uppercase">
-                      {r.delete_after
-                        ? formatDateShort(r.delete_after).slice(0, 10)
-                        : "\u2014"}
-                    </span>
-                  </Link>
-                  <div className="flex items-center justify-end gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => rowRestore(r)}
-                      disabled={isPending}
-                      title="Restore"
-                      aria-label={`Restore ${r.name}`}
-                      className="inline-flex items-center justify-center border border-zinc-300 bg-white px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-black transition-colors hover:border-zinc-400 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      Restore
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => rowPermanentDelete(r)}
-                      disabled={isPending}
-                      title="Permanently delete"
-                      aria-label={`Permanently delete ${r.name}`}
-                      className="inline-flex items-center justify-center bg-red-600 px-2.5 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
+      {/* L4: Trash feed — one compact card per trashed quote. */}
+      <ul className="mt-4 space-y-3">
+        {filtered.length === 0 ? (
+          <li className="border-2 border-dashed border-black/30 px-5 py-8 text-center font-mono text-[12px] font-bold uppercase tracking-[0.18em] text-black/55">
+            {hasFilter
+              ? "No trashed records match your search"
+              : "Trash is empty"}
+          </li>
+        ) : (
+          filtered.map((r) => (
+            <TrashRow
+              key={r.id}
+              row={r}
+              isPending={isPending}
+              onRestore={() => rowRestore(r)}
+              onDelete={() => rowPermanentDelete(r)}
+            />
+          ))
+        )}
+      </ul>
     </>
   );
 }
 
-function Th({ children }: { children: React.ReactNode }) {
+function TrashRow({
+  row,
+  isPending,
+  onRestore,
+  onDelete,
+}: {
+  row: QuoteTrashRow;
+  isPending: boolean;
+  onRestore: () => void;
+  onDelete: () => void;
+}) {
+  const deletedDate = formatDateShort(row.deleted_at).slice(0, 10);
+  const purgeDate = row.delete_after
+    ? formatDateShort(row.delete_after).slice(0, 10)
+    : null;
+  const lane =
+    row.pickup_zip && row.delivery_zip
+      ? `${row.pickup_zip} → ${row.delivery_zip}`
+      : row.pickup_zip
+        ? `${row.pickup_zip} → —`
+        : row.delivery_zip
+          ? `— → ${row.delivery_zip}`
+          : null;
+  const commodity = row.commodity?.trim().toUpperCase() || null;
+
   return (
-    <span className="label-cap text-black">
-      {children}
-    </span>
+    <li className="border-2 border-black border-l-4 border-l-black bg-[#fafaf6] px-4 py-3 sm:px-5 sm:py-4">
+      {/* Top row: name + deleted date + lane (lane right-aligned on sm+) */}
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+        <Link
+          href={`/admin/quotes/${row.id}`}
+          className="min-w-0 truncate text-[17px] font-bold leading-tight text-black hover:underline sm:text-[18px]"
+        >
+          {row.name || "—"}
+        </Link>
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-black/70 sm:flex-nowrap">
+          <span aria-label="Deleted">{deletedDate || "—"}</span>
+          {lane ? (
+            <span className="text-black tabular-nums" aria-label="Lane">
+              {lane}
+            </span>
+          ) : null}
+        </div>
+      </div>
+
+      {/* Meta row: commodity · auto-purge */}
+      {commodity || purgeDate ? (
+        <p className="mt-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-black/60">
+          {commodity ? <span className="text-black">{commodity}</span> : null}
+          {commodity && purgeDate ? (
+            <span aria-hidden className="mx-2 text-black/40">
+              ·
+            </span>
+          ) : null}
+          {purgeDate ? <span>Auto purge {purgeDate}</span> : null}
+        </p>
+      ) : null}
+
+      {/* Action row: Restore (black outline) + Delete (red outline) */}
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={onRestore}
+          disabled={isPending}
+          aria-label={`Restore ${row.name}`}
+          className="inline-flex items-center justify-center border-2 border-black bg-transparent px-3.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-black transition-colors hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Restore
+        </button>
+        <button
+          type="button"
+          onClick={onDelete}
+          disabled={isPending}
+          aria-label={`Permanently delete ${row.name}`}
+          className="inline-flex items-center justify-center border-2 border-red-700 bg-transparent px-3.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-red-700 transition-colors hover:bg-red-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Delete
+        </button>
+      </div>
+    </li>
   );
 }
