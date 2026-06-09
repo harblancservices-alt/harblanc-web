@@ -247,35 +247,33 @@ export function renderAcknowledgementEmail(
     "EXPECTED RESPONSE    Within approximately 1 hour.",
   ].join("\n");
 
-  // Site-signature eyebrow: small red leading bar + red mono label.
-  // Matches the website's <p className="flex items-center gap-3
-  // font-mono text-[11px] tracking-[0.22em] text-red-500 uppercase">
-  //   <span aria-hidden className="inline-block h-3 w-1 bg-red-600" />
-  //   ...label...
-  // </p> pattern used on hero eyebrows and section markers.
-  const eyebrow = (label: string): string => `
-    <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse">
-      <tr>
-        <td style="padding:0 10px 0 0;vertical-align:middle">
-          <div style="width:4px;height:14px;background:#dc2626;font-size:1px;line-height:1px">&nbsp;</div>
-        </td>
-        <td style="padding:0;vertical-align:middle">
-          <p style="margin:0;font-family:${SANS};${MONO_FEATURES};font-size:11px;font-weight:700;letter-spacing:0.22em;color:#dc2626;text-transform:uppercase;line-height:1">${escapeHtml(label)}</p>
-        </td>
-      </tr>
-    </table>
+  // Section eyebrow: plain red mono small-caps label, matching the
+  // Quote Range / Confirmed Rate emails (no red leading bar). Same
+  // style as `eyebrowBase` in the quote-range renderer below.
+  const eyebrow = (label: string): string =>
+    `<p style="margin:0;font-family:${SANS};${MONO_FEATURES};font-size:11px;font-weight:700;letter-spacing:0.22em;color:#dc2626;text-transform:uppercase;line-height:1.4">${escapeHtml(label)}</p>`;
+
+  // 1px black hairline, mirroring the Quote Range / Confirmed Rate
+  // emails' inter-section dividers. 18px of breathing room above so
+  // the previous section closes; the consuming section adds its own
+  // 18px below the rule before its eyebrow.
+  const hairline = (): string => `
+    <tr>
+      <td style="padding:18px 40px 0">
+        <div style="height:1px;background:#d4d4d8;font-size:1px;line-height:1px">&nbsp;</div>
+      </td>
+    </tr>
   `;
 
-  // Stacked section: eyebrow with red leading bar above value.
-  const section = (
-    label: string,
-    valueHtml: string,
-    topPad: number,
-  ): string => `
+  // Stacked section: hairline + eyebrow label + value. 18px above
+  // and below the rule, 8px between eyebrow and value (tighter than
+  // before to match the visual rhythm of the other two emails).
+  const section = (label: string, valueHtml: string): string => `
+    ${hairline()}
     <tr>
-      <td style="padding:${topPad}px 40px 0;background:#ffffff">
+      <td style="padding:18px 40px 0;background:#ffffff">
         ${eyebrow(label)}
-        <div style="height:14px;font-size:1px;line-height:1px">&nbsp;</div>
+        <div style="height:8px;font-size:1px;line-height:1px">&nbsp;</div>
         ${valueHtml}
       </td>
     </tr>
@@ -318,9 +316,9 @@ export function renderAcknowledgementEmail(
         </td>
       </tr>
 
-      ${section("Reference Number", refValueHtml, 48)}
-      ${section("Next Step", nextStepValueHtml, 36)}
-      ${section("Expected Response", responseValueHtml, 36)}
+      ${section("Reference Number", refValueHtml)}
+      ${section("Next Step", nextStepValueHtml)}
+      ${section("Expected Response", responseValueHtml)}
 
       <!-- Bottom padding before footer divider -->
       <tr>
@@ -355,7 +353,15 @@ export function renderAcknowledgementEmail(
 export type EstimatePayload = {
   to: string;
   name: string;
-  lane: { pickupZip: string; deliveryZip: string };
+  lane: {
+    pickupZip: string;
+    deliveryZip: string;
+    /** Optional — when present, rendered above the zip on the lane card. */
+    pickupCity?: string | null;
+    pickupState?: string | null;
+    deliveryCity?: string | null;
+    deliveryState?: string | null;
+  };
   load: { commodity: string; weight: string; pickup: string };
   /**
    * Linehaul range. low is the bottom of the operator's quote, high is
@@ -562,11 +568,10 @@ export function renderEstimateEmail(payload: EstimatePayload): RenderedEmail {
     payload.load.weight,
     "",
   ];
-  if (equipmentLines.length > 0) {
-    textLines.push("EQUIPMENT");
-    for (const l of equipmentLines) textLines.push(l);
-    textLines.push("");
-  }
+  // EQUIPMENT section removed from customer email — equipmentNotes are
+  // still surfaced internally via the admin preview / dispatch tooling
+  // but no longer rendered in the customer-facing Quote Range body.
+  void equipmentLines;
   textLines.push("PICKUP WINDOW");
   for (const l of pickupLines) textLines.push(l);
   textLines.push("");
@@ -586,54 +591,85 @@ export function renderEstimateEmail(payload: EstimatePayload): RenderedEmail {
   }
   const contentText = textLines.join("\n");
 
-  // ── HTML body — 2-COL LAYOUT ────────────────────────────────────────────
-  // Hero stays full-width (price needs the breathing room). Below the
-  // hairline, the 4 shipment-detail sections split into two columns so
-  // the CTAs land higher in the preview. Layout:
+  // ── HTML body — LANE BAND + 2-COL DETAILS ───────────────────────────────
+  // Hero stays full-width. Below the hairline:
   //
-  //   ┌───────────────────────┬───────────────────────┐
-  //   │  LANE                  │  EQUIPMENT             │
-  //   │  80216 → 75201         │  Step-deck preferred   │
-  //   │                        │  Tarping not required  │
-  //   │  FREIGHT               │  Covered facility ...  │
-  //   │  CNC vertical mach...  │                        │
-  //   │  12,400 lbs            │  PICKUP WINDOW         │
-  //   │                        │  Mon 6/9 0800-1200     │
-  //   │                        │  Receiver flexible ... │
-  //   └───────────────────────┴───────────────────────┘
+  //   ┌──────────────────────────────────────────────────────────────────┐
+  //   │                            LANE                                  │
+  //   │   DENVER, CO          →          DALLAS, TX                      │
+  //   │     80216                          75201                         │
+  //   └──────────────────────────────────────────────────────────────────┘
+  //   ┌────────────────────────────┬──────────────────────────────────┐
+  //   │  FREIGHT                    │  PICKUP WINDOW                   │
+  //   │  CNC vertical machining...  │  Mon 6/9 0800-1200               │
+  //   │  12,400 lbs                 │  Receiver flexible through ...   │
+  //   └────────────────────────────┴──────────────────────────────────┘
+  //
+  // EQUIPMENT removed. equipmentLines/equipmentNotes still flow through
+  // the plain-text body so dispatch sees them, but customer email no
+  // longer surfaces an "EQUIPMENT" section visually.
 
-  // Eyebrow style — used 4 times. Two variants:
-  //   topEyebrow: margin 0 (first eyebrow in a column)
-  //   midEyebrow: margin-top 22px (second eyebrow in same column)
+  // Eyebrow style — used 3 times now (Lane / Freight / Pickup Window).
+  // Each section now lives in its own column or row, so a single
+  // margin-0 variant is sufficient.
   const eyebrowBase = `font-family:${SANS};${MONO_FEATURES};font-size:11px;font-weight:700;letter-spacing:0.22em;color:#dc2626;text-transform:uppercase;line-height:1.4`;
   const topEyebrow = (label: string): string =>
     `<p style="margin:0;${eyebrowBase}">${escapeHtml(label)}</p>`;
-  const midEyebrow = (label: string): string =>
-    `<p style="margin:22px 0 0;${eyebrowBase}">${escapeHtml(label)}</p>`;
 
-  // LEFT column — LANE + FREIGHT.
-  const leftColInner = [
-    topEyebrow("Lane"),
-    `<p style="margin:8px 0 0;font-family:${SANS};${MONO_FEATURES};font-size:24px;font-weight:800;color:#0a0a0a;line-height:1.1;letter-spacing:-0.01em">${escapeHtml(payload.lane.pickupZip)} &rarr; ${escapeHtml(payload.lane.deliveryZip)}</p>`,
-    midEyebrow("Freight"),
+  // ── LANE band (full-width) ───────────────────────────────────────────
+  // "DENVER, CO" / "80216" stack on the left, "→" centered, "DALLAS, TX"
+  // / "75201" stack on the right. Falls back to ZIP-only on either side
+  // if city/state aren't supplied.
+  const formatPlace = (
+    city: string | null | undefined,
+    state: string | null | undefined,
+  ): string | null => {
+    const c = city?.trim() ?? "";
+    const s = state?.trim().toUpperCase() ?? "";
+    if (c && s) return `${c.toUpperCase()}, ${s}`;
+    if (c) return c.toUpperCase();
+    if (s) return s;
+    return null;
+  };
+  const pickupPlace = formatPlace(
+    payload.lane.pickupCity,
+    payload.lane.pickupState,
+  );
+  const deliveryPlace = formatPlace(
+    payload.lane.deliveryCity,
+    payload.lane.deliveryState,
+  );
+  const laneStopHtml = (place: string | null, zip: string): string => `
+    ${place ? `<p style="margin:0;font-family:${SANS};font-size:22px;font-weight:800;color:#0a0a0a;line-height:1.1;letter-spacing:-0.005em">${escapeHtml(place)}</p>` : ""}
+    <p style="margin:${place ? "6px" : "0"} 0 0;font-family:${SANS};${MONO_FEATURES};font-size:14px;font-weight:600;color:#52525b;line-height:1.3;letter-spacing:0.04em">${escapeHtml(zip)}</p>
+  `;
+  const laneBandHtml = `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;width:100%">
+    <tr>
+      <td colspan="3" style="padding:0 0 14px 0">${topEyebrow("Lane")}</td>
+    </tr>
+    <tr>
+      <td width="44%" valign="middle" style="width:44%;vertical-align:middle">
+        ${laneStopHtml(pickupPlace, payload.lane.pickupZip)}
+      </td>
+      <td width="12%" align="center" valign="middle" style="width:12%;vertical-align:middle;text-align:center">
+        <p style="margin:0;font-family:${SANS};font-size:26px;font-weight:500;color:#0a0a0a;line-height:1">&rarr;</p>
+      </td>
+      <td width="44%" valign="middle" style="width:44%;vertical-align:middle">
+        ${laneStopHtml(deliveryPlace, payload.lane.deliveryZip)}
+      </td>
+    </tr>
+  </table>`;
+
+  // ── FREIGHT | PICKUP WINDOW (2-col below the lane band) ───────────────
+  const freightColInner = [
+    topEyebrow("Freight"),
     `<p style="margin:8px 0 0;font-family:${SANS};font-size:16px;font-weight:700;color:#0a0a0a;line-height:1.3">${escapeHtml(payload.load.commodity)}</p>`,
     `<p style="margin:2px 0 0;font-family:${SANS};${MONO_FEATURES};font-size:13px;font-weight:500;color:#0a0a0a;line-height:1.4">${escapeHtml(payload.load.weight)}</p>`,
   ].join("");
 
-  // RIGHT column — EQUIPMENT + PICKUP WINDOW.
-  const equipmentBlock = equipmentLines.length > 0
+  const pickupColInner = pickupLines.length > 0
     ? [
-        topEyebrow("Equipment"),
-        ...equipmentLines.map(
-          (l, idx) =>
-            `<p style="margin:${idx === 0 ? "8px" : "2px"} 0 0;font-family:${SANS};font-size:13px;font-weight:500;color:#0a0a0a;line-height:1.4">${escapeHtml(l)}</p>`,
-        ),
-      ].join("")
-    : "";
-
-  const pickupBlock = pickupLines.length > 0
-    ? [
-        equipmentBlock ? midEyebrow("Pickup Window") : topEyebrow("Pickup Window"),
+        topEyebrow("Pickup Window"),
         ...pickupLines.map((l, idx) => {
           const styles =
             idx === 0
@@ -644,16 +680,19 @@ export function renderEstimateEmail(payload: EstimatePayload): RenderedEmail {
       ].join("")
     : "";
 
-  const rightColInner = equipmentBlock + pickupBlock;
-
-  // 2-col grid — 48% / 4% gutter / 48%.
-  const twoColGridHtml = `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;width:100%">
+  const detailsRowHtml = `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;width:100%">
     <tr>
-      <td width="48%" valign="top" style="width:48%;vertical-align:top">${leftColInner}</td>
+      <td width="48%" valign="top" style="width:48%;vertical-align:top">${freightColInner}</td>
       <td width="4%" style="width:4%;font-size:1px;line-height:1px">&nbsp;</td>
-      <td width="48%" valign="top" style="width:48%;vertical-align:top">${rightColInner}</td>
+      <td width="48%" valign="top" style="width:48%;vertical-align:top">${pickupColInner}</td>
     </tr>
   </table>`;
+
+  // Combined block: lane band + a 22px gap + the 2-col details row.
+  const twoColGridHtml = `${laneBandHtml}
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;width:100%;margin-top:22px">
+      <tr><td>${detailsRowHtml}</td></tr>
+    </table>`;
 
   // ACCEPT / DECLINE — always rendered. Real URLs in production, "#"
   // placeholders in preview (see acceptHref/declineHref above).
@@ -662,7 +701,7 @@ export function renderEstimateEmail(payload: EstimatePayload): RenderedEmail {
           <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;width:100%">
             <tr>
               <td width="48%" valign="top" style="width:48%;vertical-align:top">
-                <a href="${escapeHtml(acceptHref)}" style="display:block;box-sizing:border-box;background:#dc2626;color:#ffffff;font-family:${SANS};${MONO_FEATURES};font-size:13px;font-weight:800;letter-spacing:0.22em;text-transform:uppercase;text-decoration:none;text-align:center;padding:18px 16px;line-height:1.2;box-shadow:inset 0 0 0 2px #ffffff" bgcolor="#dc2626">Accept Range</a>
+                <a href="${escapeHtml(acceptHref)}" style="display:block;box-sizing:border-box;background:#166534;color:#ffffff;font-family:${SANS};${MONO_FEATURES};font-size:13px;font-weight:800;letter-spacing:0.22em;text-transform:uppercase;text-decoration:none;text-align:center;padding:18px 16px;line-height:1.2;box-shadow:inset 0 0 0 2px #ffffff" bgcolor="#166534">Accept Range</a>
               </td>
               <td width="4%" style="width:4%;font-size:1px;line-height:1px">&nbsp;</td>
               <td width="48%" valign="top" style="width:48%;vertical-align:top">
@@ -699,7 +738,7 @@ export function renderEstimateEmail(payload: EstimatePayload): RenderedEmail {
     <!-- HAIRLINE ─────────────────────────────────────────────────────── -->
     <tr>
       <td style="padding:18px 40px 0">
-        <div style="height:1px;background:#0a0a0a;font-size:1px;line-height:1px">&nbsp;</div>
+        <div style="height:1px;background:#d4d4d8;font-size:1px;line-height:1px">&nbsp;</div>
       </td>
     </tr>
     <!-- 2-COL GRID — LANE+FREIGHT | EQUIPMENT+PICKUP WINDOW ───────── -->
@@ -711,7 +750,7 @@ export function renderEstimateEmail(payload: EstimatePayload): RenderedEmail {
     <!-- HAIRLINE ─────────────────────────────────────────────────────── -->
     <tr>
       <td style="padding:18px 40px 0">
-        <div style="height:1px;background:#0a0a0a;font-size:1px;line-height:1px">&nbsp;</div>
+        <div style="height:1px;background:#d4d4d8;font-size:1px;line-height:1px">&nbsp;</div>
       </td>
     </tr>
     <!-- CLOSING + CTAs ─────────────────────────────────────────────── -->

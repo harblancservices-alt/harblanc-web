@@ -427,9 +427,11 @@ export function LaneSummaryCard({
               </p>
             )}
             {miles != null ? (
-              <p className="mt-2 text-right font-mono text-[14px] font-bold uppercase tabular-nums tracking-[0.18em] text-red-700 sm:text-[15px]">
-                Miles : {miles.toLocaleString()}
-              </p>
+              <div className="mt-3 flex justify-end">
+                <span className="inline-flex items-center border-2 border-black bg-white px-4 py-2 font-mono text-[14px] font-bold uppercase tabular-nums tracking-[0.18em] text-red-700 sm:text-[15px]">
+                  Miles : {miles.toLocaleString()}
+                </span>
+              </div>
             ) : null}
           </div>
         </div>

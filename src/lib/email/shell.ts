@@ -23,18 +23,15 @@ import { company } from "@/lib/company";
  *
  *   HEADER (black + topo SVG)
  *     centered logo (Reverse-on-dark)
- *     3 stacked mono lines: OWNER-OPERATED / LICENSED & INSURED / EST. 2022
  *
  *   CONTENT (white) — email body slot, untouched
  *
  *   FOOTER (black + topo SVG)
- *     2-col grid:
- *       Brand:    logo + 3-line tagline
- *       DISPATCH: email / phone / USDOT / MC (red mono header)
- *     SITE column (Home/Services/Contact) was removed — customer
- *     emails don't need website navigation.
+ *     2-col grid (vertically centered):
+ *       Brand:    logo only
+ *       DISPATCH: email / phone (red mono header)
  *     hairline
- *     bottom bar: © {year} HARBLANC ... | LICENSED & INSURED MOTOR CARRIER
+ *     bottom bar: © {year} HARBLANC ... All Rights Reserved. (centered)
  *
  * Colors taken from the site: bg-black (#000000), red-500 (#ef4444),
  * neutral-800 border (#262626), white text everywhere else.
@@ -104,15 +101,10 @@ export function renderEmailShell(input: EmailShellInput): {
              SVG file the site footer uses. Content slot stays pure white. -->
         <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="border-collapse:collapse;width:100%;max-width:600px;background:#ffffff">
 
-          <!-- ── HEADER — site footer Col 1, centered ─────────────────── -->
+          <!-- ── HEADER — centered logo only ──────────────────────────── -->
           <tr>
-            <td align="center" bgcolor="#000000" style="background-color:#000000;background-image:url('${topoUrl}');background-size:600px 600px;background-repeat:repeat;padding:30px 22px 24px">
+            <td align="center" bgcolor="#000000" style="background-color:#000000;background-image:url('${topoUrl}');background-size:600px 600px;background-repeat:repeat;padding:30px 22px 30px">
               <img src="${escapeHtml(logoUrl)}" alt="HARBLANC Services LLC" width="220" height="auto" style="display:inline-block;width:220px;height:auto;max-width:100%;border:0;outline:0" />
-              <!-- Verbatim from Footer.tsx lines 76-80: font-mono text-[11px]
-                   tracking-[0.18em] uppercase white weight 500 -->
-              <p style="margin:16px 0 0;font-family:${SANS};${MONO_FEATURES};font-size:11px;font-weight:500;letter-spacing:0.18em;color:#ffffff;text-transform:uppercase;text-align:center;line-height:1.9">Owner-Operated</p>
-              <p style="margin:0;font-family:${SANS};${MONO_FEATURES};font-size:11px;font-weight:500;letter-spacing:0.18em;color:#ffffff;text-transform:uppercase;text-align:center;line-height:1.9">Licensed &amp; Insured</p>
-              <p style="margin:0;font-family:${SANS};${MONO_FEATURES};font-size:11px;font-weight:500;letter-spacing:0.18em;color:#ffffff;text-transform:uppercase;text-align:center;line-height:1.9">Est. 2022</p>
             </td>
           </tr>
 
@@ -123,58 +115,46 @@ export function renderEmailShell(input: EmailShellInput): {
             </td>
           </tr>
 
-          <!-- ── FOOTER — site footer ported: 3-col grid + bottom bar ── -->
+          <!-- ── FOOTER — logo | DISPATCH (email + phone) + copyright bar ── -->
           <tr>
-            <td bgcolor="#000000" style="background-color:#000000;background-image:url('${topoUrl}');background-size:600px 600px;background-repeat:repeat;padding:30px 24px 20px">
+            <td bgcolor="#000000" style="background-color:#000000;background-image:url('${topoUrl}');background-size:600px 600px;background-repeat:repeat;padding:20px 28px 14px">
 
-              <!-- Wrapper table — 3 logical rows: (1) 2-col grid,
-                   (2) 24px spacer, (3) hairline + bottom bar. -->
+              <!-- Wrapper table — 3 logical rows: (1) 2-col grid (logo | dispatch),
+                   (2) 22px spacer, (3) hairline + centered copyright. -->
               <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;width:100%">
 
-                <!-- ROW 1 — Brand | DISPATCH -->
+                <!-- ROW 1 — Logo | DISPATCH (top-aligned so logo top edge sits
+                     at the red DISPATCH label, bottom edge near phone line) -->
                 <tr>
                   <td valign="top" style="vertical-align:top;padding:0">
                     <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;width:100%">
                       <tr>
-                        <!-- Col 1 — Brand (logo + 3-line tagline) -->
+                        <!-- Col 1 — Brand logo, top-aligned -->
                         <td width="46%" valign="top" style="width:46%;vertical-align:top;padding-right:18px">
-                          <img src="${escapeHtml(logoUrl)}" alt="HARBLANC" width="140" height="auto" style="display:block;width:140px;height:auto;max-width:100%;border:0;outline:0" />
-                          <p style="margin:14px 0 0;font-family:${SANS};${MONO_FEATURES};font-size:11px;font-weight:500;letter-spacing:0.18em;color:#ffffff;text-transform:uppercase;line-height:1.9">Owner-Operated</p>
-                          <p style="margin:0;font-family:${SANS};${MONO_FEATURES};font-size:11px;font-weight:500;letter-spacing:0.18em;color:#ffffff;text-transform:uppercase;line-height:1.9">Licensed &amp; Insured</p>
-                          <p style="margin:0;font-family:${SANS};${MONO_FEATURES};font-size:11px;font-weight:500;letter-spacing:0.18em;color:#ffffff;text-transform:uppercase;line-height:1.9">Est. 2022</p>
+                          <img src="${escapeHtml(logoUrl)}" alt="HARBLANC" width="210" height="auto" style="display:block;width:210px;height:auto;max-width:100%;border:0;outline:0" />
                         </td>
 
-                        <!-- Col 2 — DISPATCH (email, phone, USDOT, MC) -->
-                        <td width="54%" valign="top" style="width:54%;vertical-align:top">
-                          <p style="margin:0;font-family:${SANS};${MONO_FEATURES};font-size:13px;font-weight:700;letter-spacing:0.22em;color:#ef4444;text-transform:uppercase;line-height:1.4">Dispatch</p>
-                          <p style="margin:18px 0 0;font-family:${SANS};font-size:13px;font-weight:500;color:#ffffff;line-height:1.5;word-break:break-word"><a href="${escapeHtml(mailHref)}" style="color:#ffffff;text-decoration:none">${escapeHtml(company.dispatchEmail)}</a></p>
-                          <p style="margin:10px 0 0;font-family:${SANS};font-size:13px;font-weight:500;color:#ffffff;line-height:1.4"><a href="${escapeHtml(phoneHref)}" style="color:#ffffff;text-decoration:none">${escapeHtml(company.dispatchPhone)}</a></p>
-                          <p style="margin:14px 0 0;font-family:${SANS};font-size:13px;font-weight:500;color:#ffffff;line-height:1.4">USDOT ${escapeHtml(company.dotNumber)}</p>
-                          <p style="margin:6px 0 0;font-family:${SANS};font-size:13px;font-weight:500;color:#ffffff;line-height:1.4">MC ${escapeHtml(company.mcNumber)}</p>
+                        <!-- Col 2 — DISPATCH (email + phone), spacing tuned so
+                             the block is roughly as tall as the 210px logo. -->
+                        <td width="54%" valign="top" style="width:54%;vertical-align:top;padding-top:4px">
+                          <p style="margin:0;font-family:${SANS};${MONO_FEATURES};font-size:14px;font-weight:700;letter-spacing:0.22em;color:#ef4444;text-transform:uppercase;line-height:1.4">Dispatch</p>
+                          <p style="margin:32px 0 0;font-family:${SANS};font-size:15px;font-weight:500;color:#ffffff;line-height:1.4;word-break:break-word"><a href="${escapeHtml(mailHref)}" style="color:#ffffff;text-decoration:none">${escapeHtml(company.dispatchEmail)}</a></p>
+                          <p style="margin:12px 0 0;font-family:${SANS};font-size:15px;font-weight:500;color:#ffffff;line-height:1.4"><a href="${escapeHtml(phoneHref)}" style="color:#ffffff;text-decoration:none">${escapeHtml(company.dispatchPhone)}</a></p>
                         </td>
                       </tr>
                     </table>
                   </td>
                 </tr>
 
-                <!-- ROW 2 — 24px spacer between top grid and bottom bar -->
+                <!-- ROW 2 — 14px spacer between top grid and bottom bar -->
                 <tr>
-                  <td style="font-size:1px;line-height:1px;height:24px">&nbsp;</td>
+                  <td style="font-size:1px;line-height:1px;height:14px">&nbsp;</td>
                 </tr>
 
-                <!-- ROW 3 — hairline + bottom bar (copyright | L&I MC) -->
+                <!-- ROW 3 — hairline + centered copyright -->
                 <tr>
-                  <td style="border-top:1px solid #262626;padding:14px 0 0">
-                    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;width:100%">
-                      <tr>
-                        <td valign="middle" align="left" style="vertical-align:middle">
-                          <p style="margin:0;font-family:${SANS};font-size:11px;font-weight:500;color:#ffffff;line-height:1.5">&copy; ${year} ${escapeHtml(company.legalName)}. All Rights Reserved.</p>
-                        </td>
-                        <td valign="middle" align="right" style="vertical-align:middle;text-align:right">
-                          <p style="margin:0;font-family:${SANS};${MONO_FEATURES};font-size:11px;font-weight:500;letter-spacing:0.22em;color:#ffffff;text-transform:uppercase;line-height:1.5">Licensed &amp; Insured Motor Carrier</p>
-                        </td>
-                      </tr>
-                    </table>
+                  <td style="border-top:1px solid #262626;padding:10px 0 0;text-align:center">
+                    <p style="margin:0;font-family:${SANS};font-size:11px;font-weight:500;color:#ffffff;line-height:1.5;text-align:center">&copy; ${year} ${escapeHtml(company.legalName)}. All Rights Reserved.</p>
                   </td>
                 </tr>
 
@@ -191,7 +171,6 @@ export function renderEmailShell(input: EmailShellInput): {
 
   const text = [
     `HARBLANC SERVICES LLC`,
-    `Owner-Operated · Licensed & Insured · Est. 2022`,
     "────────────────────────────────────────",
     "",
     input.contentText,
@@ -200,10 +179,8 @@ export function renderEmailShell(input: EmailShellInput): {
     "DISPATCH",
     `${company.dispatchEmail}`,
     `${company.dispatchPhone}`,
-    `USDOT ${company.dotNumber} · MC ${company.mcNumber}`,
     "",
     `© ${year} ${company.legalName}. All Rights Reserved.`,
-    "Licensed & Insured Motor Carrier",
   ].join("\n");
 
   return { html, text };

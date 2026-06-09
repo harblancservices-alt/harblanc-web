@@ -78,6 +78,10 @@ export const SAMPLE_ESTIMATE_PAYLOAD: EstimatePayload = {
   lane: {
     pickupZip: SAMPLE_LANE.pickupZip,
     deliveryZip: SAMPLE_LANE.deliveryZip,
+    pickupCity: SAMPLE_LANE.pickupCity,
+    pickupState: SAMPLE_LANE.pickupState,
+    deliveryCity: SAMPLE_LANE.deliveryCity,
+    deliveryState: SAMPLE_LANE.deliveryState,
   },
   load: {
     commodity: SAMPLE_FREIGHT.commodity,

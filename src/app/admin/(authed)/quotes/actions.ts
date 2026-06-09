@@ -1014,7 +1014,9 @@ export async function buildEstimatePreview(
   // Pull lead fields we need to fill the rendered email.
   const { data: lead, error: leadError } = await sb
     .from("quote_requests")
-    .select("name, email, commodity, weight, pickup_zip, delivery_zip, pickup_date")
+    .select(
+      "name, email, commodity, weight, pickup_zip, delivery_zip, pickup_date, pickup_city, pickup_state, delivery_city, delivery_state",
+    )
     .eq("id", input.quoteRequestId)
     .maybeSingle<{
       name: string;
@@ -1024,6 +1026,10 @@ export async function buildEstimatePreview(
       pickup_zip: string | null;
       delivery_zip: string | null;
       pickup_date: string | null;
+      pickup_city: string | null;
+      pickup_state: string | null;
+      delivery_city: string | null;
+      delivery_state: string | null;
     }>();
   if (leadError) {
     throw new Error(`Lead lookup failed: ${leadError.message}`);
@@ -1065,6 +1071,10 @@ export async function buildEstimatePreview(
     lane: {
       pickupZip: lead.pickup_zip,
       deliveryZip: lead.delivery_zip,
+      pickupCity: lead.pickup_city ?? null,
+      pickupState: lead.pickup_state ?? null,
+      deliveryCity: lead.delivery_city ?? null,
+      deliveryState: lead.delivery_state ?? null,
     },
     load: {
       commodity: lead.commodity,

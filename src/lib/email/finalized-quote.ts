@@ -426,15 +426,6 @@ export function renderFinalizedQuoteEmail(
   const pickupLine = formatCityStateZip(payload.pickup);
   const deliveryLine = formatCityStateZip(payload.delivery);
   const totalFmt = formatUsd(payload.pricing.totalAmount);
-  const linehaulFmt = formatUsd(payload.pricing.linehaul);
-  const fuelFmt =
-    payload.pricing.fuelSurcharge != null
-      ? formatUsd(payload.pricing.fuelSurcharge)
-      : null;
-  const permitsFmt =
-    payload.pricing.permitsFee != null
-      ? formatUsd(payload.pricing.permitsFee)
-      : null;
   const weightFmt =
     payload.freight.exactWeightLbs !== null
       ? `${payload.freight.exactWeightLbs.toLocaleString()} lbs`
@@ -451,10 +442,41 @@ export function renderFinalizedQuoteEmail(
   textLines.push("");
   textLines.push("────────────────────────────────");
   textLines.push("LANE");
-  if (pickupLine) textLines.push(pickupLine);
-  textLines.push("↓");
-  if (deliveryLine) textLines.push(deliveryLine);
   textLines.push("");
+  const stopTextLines = (
+    stop: {
+      company: string | null;
+      contactName: string | null;
+      contactPhone: string | null;
+      addressLine1: string | null;
+      addressLine2: string | null;
+      city: string | null;
+      state: string | null;
+      zip: string | null;
+    },
+    label: string,
+  ): string[] => {
+    const out: string[] = [`${label}:`];
+    if (stop.company) out.push(`  ${stop.company}`);
+    if (stop.addressLine1) out.push(`  ${stop.addressLine1}`);
+    if (stop.addressLine2) out.push(`  ${stop.addressLine2}`);
+    const csz = [
+      [stop.city, stop.state].filter(Boolean).join(", "),
+      stop.zip,
+    ]
+      .filter(Boolean)
+      .join(" ");
+    if (csz) out.push(`  ${csz}`);
+    if (stop.contactName) out.push(`  ${stop.contactName}`);
+    if (stop.contactPhone) out.push(`  ${stop.contactPhone}`);
+    return out;
+  };
+  textLines.push(...stopTextLines(payload.pickup, "PICKUP"));
+  textLines.push("");
+  textLines.push(...stopTextLines(payload.delivery, "DELIVERY"));
+  textLines.push("");
+  void pickupLine;
+  void deliveryLine;
   textLines.push("SCHEDULE");
   if (payload.pickup.window) {
     textLines.push("Pickup:");
@@ -468,17 +490,26 @@ export function renderFinalizedQuoteEmail(
   textLines.push("FREIGHT");
   if (payload.freight.commodity) textLines.push(payload.freight.commodity);
   if (weightFmt) textLines.push(weightFmt);
-  if (payload.freight.handlingType) textLines.push(payload.freight.handlingType);
-  textLines.push("");
-  textLines.push("RATE BREAKDOWN");
-  textLines.push(`Linehaul     ${linehaulFmt}`);
-  if (fuelFmt) textLines.push(`Fuel         ${fuelFmt}`);
-  if (permitsFmt) textLines.push(`Permits      ${permitsFmt}`);
-  for (const a of payload.pricing.accessorials) {
-    textLines.push(`${padRight(a.label, 12)} ${formatUsd(a.amount)}`);
+  {
+    const dParts: string[] = [];
+    if (payload.freight.lengthIn != null) dParts.push(`${payload.freight.lengthIn}"L`);
+    if (payload.freight.widthIn != null) dParts.push(`${payload.freight.widthIn}"W`);
+    if (payload.freight.heightIn != null) dParts.push(`${payload.freight.heightIn}"H`);
+    if (dParts.length > 0) textLines.push(dParts.join(" × "));
   }
-  textLines.push("─────────────────");
-  textLines.push(`TOTAL        ${totalFmt}`);
+  if (payload.freight.quantity != null) textLines.push(`Qty: ${payload.freight.quantity}`);
+  const skipNa = (v: string | null): string | null => {
+    if (!v) return null;
+    const t = v.trim();
+    if (t.length === 0 || t.toLowerCase() === "n/a") return null;
+    return t;
+  };
+  const handlingT = skipNa(payload.freight.handlingType);
+  const conditionT = skipNa(payload.freight.runningCondition);
+  const securementT = skipNa(payload.freight.securementRequirements);
+  if (handlingT) textLines.push(handlingT);
+  if (conditionT) textLines.push(conditionT);
+  if (securementT) textLines.push(securementT);
   if (payload.confirmUrl) {
     textLines.push("");
     textLines.push("CONFIRM FINALIZED QUOTE:");
@@ -500,122 +531,223 @@ export function renderFinalizedQuoteEmail(
   // No metadata at the top. No paperwork tables. Hierarchy via typography.
 
   const sectionEyebrow = (label: string): string =>
-    `<p style="margin:0;font-family:${SANS};${MONO_FEATURES};font-size:11px;font-weight:700;letter-spacing:0.22em;color:#dc2626;text-transform:uppercase;line-height:1.4">${escapeHtml(label)}</p>`;
+    `<p style="margin:0;font-family:${SANS};${MONO_FEATURES};font-size:11px;font-weight:700;letter-spacing:0.22em;color:#dc2626;text-transform:uppercase;line-height:1.4;text-align:center">${escapeHtml(label)}</p>`;
 
-  const hairlineTr = `<tr><td style="padding:32px 40px 0"><div style="height:1px;background:#0a0a0a;font-size:1px;line-height:1px">&nbsp;</div></td></tr>`;
+  const hairlineTr = `<tr><td style="padding:18px 40px 0"><div style="height:1px;background:#d4d4d8;font-size:1px;line-height:1px">&nbsp;</div></td></tr>`;
 
   // HERO ──────────────────────────────────────────────────────────────────
+  // Centered red eyebrow + centered headline rate.
   const heroTr = `<tr>
-      <td style="padding:44px 40px 8px">
-        <p style="margin:0;font-family:${SANS};${MONO_FEATURES};font-size:11px;font-weight:700;letter-spacing:0.30em;color:#dc2626;text-transform:uppercase;line-height:1.4">Confirmed Rate</p>
-        <p style="margin:14px 0 0;font-family:${SANS};${MONO_FEATURES};font-size:64px;font-weight:900;color:#0a0a0a;line-height:1.0;letter-spacing:-0.03em">${escapeHtml(totalFmt)}</p>
-        ${
-          payload.expirationAt
-            ? `<p style="margin:18px 0 0;font-family:${SANS};font-size:15px;font-weight:500;color:#0a0a0a;line-height:1.55">Valid through <span style="font-family:${SANS};${MONO_FEATURES};font-weight:700">${escapeHtml(validThrough)}</span>.</p>`
-            : ""
-        }
+      <td align="center" style="padding:44px 40px 8px;text-align:center">
+        <p style="margin:0;font-family:${SANS};${MONO_FEATURES};font-size:11px;font-weight:700;letter-spacing:0.30em;color:#dc2626;text-transform:uppercase;line-height:1.4;text-align:center">Confirmed Rate</p>
+        <p style="margin:14px 0 0;font-family:${SANS};${MONO_FEATURES};font-size:64px;font-weight:900;color:#0a0a0a;line-height:1.0;letter-spacing:-0.03em;text-align:center">${escapeHtml(totalFmt)}</p>
       </td>
     </tr>`;
 
   // LANE ──────────────────────────────────────────────────────────────────
+  // V3 layout: full "shipper card" — each side renders company, full
+  // street address (line 1 + optional line 2), city/state/zip, contact
+  // name, and contact phone. Each row drops gracefully when its data
+  // is missing so the layout doesn't leave hanging blank lines.
+  type StopLike = {
+    company: string | null;
+    contactName: string | null;
+    contactPhone: string | null;
+    addressLine1: string | null;
+    addressLine2: string | null;
+    city: string | null;
+    state: string | null;
+    zip: string | null;
+  };
+  const renderStopBlock = (stop: StopLike, miniLabel: string): string => {
+    const cityStateZip = [
+      [stop.city, stop.state].filter(Boolean).join(", "),
+      stop.zip,
+    ]
+      .filter(Boolean)
+      .join(" ");
+    const lines: string[] = [];
+    lines.push(
+      `<p style="margin:0;font-family:${SANS};${MONO_FEATURES};font-size:11px;font-weight:700;letter-spacing:0.18em;color:#71717a;text-transform:uppercase;line-height:1.4">${escapeHtml(miniLabel)}</p>`,
+    );
+    if (stop.company) {
+      lines.push(
+        `<p style="margin:8px 0 0;font-family:${SANS};font-size:16px;font-weight:700;color:#0a0a0a;line-height:1.35">${escapeHtml(stop.company)}</p>`,
+      );
+    }
+    if (stop.addressLine1) {
+      lines.push(
+        `<p style="margin:6px 0 0;font-family:${SANS};font-size:14px;font-weight:500;color:#0a0a0a;line-height:1.45">${escapeHtml(stop.addressLine1)}</p>`,
+      );
+    }
+    if (stop.addressLine2) {
+      lines.push(
+        `<p style="margin:2px 0 0;font-family:${SANS};font-size:14px;font-weight:500;color:#0a0a0a;line-height:1.45">${escapeHtml(stop.addressLine2)}</p>`,
+      );
+    }
+    if (cityStateZip) {
+      lines.push(
+        `<p style="margin:2px 0 0;font-family:${SANS};font-size:14px;font-weight:500;color:#0a0a0a;line-height:1.45">${escapeHtml(cityStateZip)}</p>`,
+      );
+    }
+    if (stop.contactName) {
+      lines.push(
+        `<p style="margin:10px 0 0;font-family:${SANS};font-size:14px;font-weight:500;color:#0a0a0a;line-height:1.45">${escapeHtml(stop.contactName)}</p>`,
+      );
+    }
+    if (stop.contactPhone) {
+      lines.push(
+        `<p style="margin:2px 0 0;font-family:${SANS};${MONO_FEATURES};font-size:14px;font-weight:500;color:#0a0a0a;line-height:1.45">${escapeHtml(stop.contactPhone)}</p>`,
+      );
+    }
+    return lines.join("");
+  };
+
+  void pickupLine;
+  void deliveryLine;
+
   const laneTr = `<tr>
-      <td style="padding:32px 40px 0">
+      <td style="padding:18px 40px 0">
         ${sectionEyebrow("Lane")}
-        ${pickupLine ? `<p style="margin:14px 0 0;font-family:${SANS};font-size:22px;font-weight:700;color:#0a0a0a;line-height:1.3">${escapeHtml(pickupLine)}</p>` : ""}
-        <p style="margin:6px 0 0;font-family:${SANS};font-size:18px;font-weight:500;color:#0a0a0a;line-height:1;letter-spacing:0">&darr;</p>
-        ${deliveryLine ? `<p style="margin:6px 0 0;font-family:${SANS};font-size:22px;font-weight:700;color:#0a0a0a;line-height:1.3">${escapeHtml(deliveryLine)}</p>` : ""}
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;width:100%;margin-top:14px">
+          <tr>
+            <td width="50%" valign="top" style="width:50%;vertical-align:top;padding-right:14px">
+              ${renderStopBlock(payload.pickup, "Pickup")}
+            </td>
+            <td width="50%" valign="top" style="width:50%;vertical-align:top;padding-left:14px">
+              ${renderStopBlock(payload.delivery, "Delivery")}
+            </td>
+          </tr>
+        </table>
       </td>
     </tr>`;
 
   // SCHEDULE ──────────────────────────────────────────────────────────────
-  const schedItemHtml = (label: string, value: string): string =>
-    `<p style="margin:14px 0 0;font-family:${SANS};${MONO_FEATURES};font-size:11px;font-weight:700;letter-spacing:0.18em;color:#0a0a0a;text-transform:uppercase;line-height:1.4">${escapeHtml(label)}</p>
-     <p style="margin:4px 0 0;font-family:${SANS};font-size:16px;font-weight:600;color:#0a0a0a;line-height:1.4">${escapeHtml(value)}</p>`;
+  // V2 layout: Pickup (left column) | Delivery (right column). When only
+  // one of the windows is set, its column spans the full width.
+  const schedCell = (label: string, value: string): string =>
+    `<p style="margin:0;font-family:${SANS};${MONO_FEATURES};font-size:11px;font-weight:700;letter-spacing:0.18em;color:#0a0a0a;text-transform:uppercase;line-height:1.4">${escapeHtml(label)}</p>
+     <p style="margin:6px 0 0;font-family:${SANS};font-size:16px;font-weight:600;color:#0a0a0a;line-height:1.4">${escapeHtml(value)}</p>`;
 
-  const scheduleInner = [
-    payload.pickup.window ? schedItemHtml("Pickup", payload.pickup.window) : "",
-    payload.delivery.window ? schedItemHtml("Delivery", payload.delivery.window) : "",
-  ].join("");
-  const scheduleTr = scheduleInner
+  const pickupWindowValue = payload.pickup.window;
+  const deliveryWindowValue = payload.delivery.window;
+  const scheduleTr = (pickupWindowValue || deliveryWindowValue)
     ? `<tr>
-      <td style="padding:32px 40px 0">
+      <td style="padding:18px 40px 0">
         ${sectionEyebrow("Schedule")}
-        ${scheduleInner}
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;width:100%;margin-top:14px">
+          <tr>
+            <td width="50%" valign="top" style="width:50%;vertical-align:top;padding-right:12px">
+              ${pickupWindowValue ? schedCell("Pickup", pickupWindowValue) : ""}
+            </td>
+            <td width="50%" valign="top" style="width:50%;vertical-align:top;padding-left:12px">
+              ${deliveryWindowValue ? schedCell("Delivery", deliveryWindowValue) : ""}
+            </td>
+          </tr>
+        </table>
       </td>
     </tr>`
     : "";
 
   // FREIGHT ───────────────────────────────────────────────────────────────
-  const freightInnerLines: string[] = [];
-  if (payload.freight.commodity) {
-    freightInnerLines.push(
-      `<p style="margin:14px 0 0;font-family:${SANS};font-size:18px;font-weight:700;color:#0a0a0a;line-height:1.4">${escapeHtml(payload.freight.commodity)}</p>`,
-    );
+  // V4 layout:
+  //   Row 1: COMMODITY — full width, bold prominent.
+  //   Row 2: 2-col labeled spec grid (weight, dimensions, quantity, handling,
+  //          condition). Pairs flow left-to-right; an odd count leaves the
+  //          last cell empty so the layout doesn't shift around.
+  //   Row 3: full-width long fields (securement requirements) when present.
+  // Values equal to "N/A" or "n/a" are filtered out so the layout never
+  // shows literal "N/A" placeholders.
+  const isMeaningful = (v: string | null | undefined): v is string => {
+    if (!v) return false;
+    const t = v.trim();
+    return t.length > 0 && t.toLowerCase() !== "n/a";
+  };
+
+  const dimsParts: string[] = [];
+  if (payload.freight.lengthIn != null) dimsParts.push(`${payload.freight.lengthIn}"L`);
+  if (payload.freight.widthIn != null) dimsParts.push(`${payload.freight.widthIn}"W`);
+  if (payload.freight.heightIn != null) dimsParts.push(`${payload.freight.heightIn}"H`);
+  const dimsStr = dimsParts.length > 0 ? dimsParts.join(" × ") : null;
+  const qtyStr =
+    payload.freight.quantity != null
+      ? payload.freight.quantity.toLocaleString()
+      : null;
+
+  type SpecCell = { label: string; value: string; mono: boolean };
+  const specCells: SpecCell[] = [];
+  if (weightFmt) specCells.push({ label: "Weight", value: weightFmt, mono: true });
+  if (dimsStr) specCells.push({ label: "Dimensions", value: dimsStr, mono: true });
+  if (qtyStr) specCells.push({ label: "Quantity", value: qtyStr, mono: true });
+  if (isMeaningful(payload.freight.handlingType))
+    specCells.push({ label: "Handling", value: payload.freight.handlingType, mono: false });
+  if (isMeaningful(payload.freight.runningCondition))
+    specCells.push({ label: "Condition", value: payload.freight.runningCondition, mono: false });
+
+  const renderSpecCell = (cell: SpecCell | null): string => {
+    if (!cell) return "";
+    const monoCss = cell.mono ? `${MONO_FEATURES};` : "";
+    return `<p style="margin:0;font-family:${SANS};${MONO_FEATURES};font-size:11px;font-weight:700;letter-spacing:0.18em;color:#71717a;text-transform:uppercase;line-height:1.4">${escapeHtml(cell.label)}</p>
+            <p style="margin:6px 0 0;font-family:${SANS};${monoCss}font-size:15px;font-weight:600;color:#0a0a0a;line-height:1.4">${escapeHtml(cell.value)}</p>`;
+  };
+
+  const specRows: string[] = [];
+  for (let i = 0; i < specCells.length; i += 2) {
+    const left = specCells[i] ?? null;
+    const right = specCells[i + 1] ?? null;
+    const topPad = specRows.length === 0 ? "0" : "16px";
+    specRows.push(`<tr>
+        <td width="50%" valign="top" style="width:50%;vertical-align:top;padding:${topPad} 14px 0 0">
+          ${renderSpecCell(left)}
+        </td>
+        <td width="50%" valign="top" style="width:50%;vertical-align:top;padding:${topPad} 0 0 14px">
+          ${renderSpecCell(right)}
+        </td>
+      </tr>`);
   }
-  if (weightFmt) {
-    freightInnerLines.push(
-      `<p style="margin:4px 0 0;font-family:${SANS};${MONO_FEATURES};font-size:14px;font-weight:500;color:#0a0a0a;line-height:1.5">${escapeHtml(weightFmt)}</p>`,
-    );
-  }
-  if (payload.freight.handlingType) {
-    freightInnerLines.push(
-      `<p style="margin:4px 0 0;font-family:${SANS};font-size:14px;font-weight:500;color:#0a0a0a;line-height:1.5">${escapeHtml(payload.freight.handlingType)}</p>`,
-    );
-  }
-  const freightTr = freightInnerLines.length > 0
+  const specGridHtml = specRows.length > 0
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;width:100%;margin-top:14px">
+        ${specRows.join("")}
+      </table>`
+    : "";
+
+  const renderFullWidthField = (label: string, value: string): string =>
+    `<div style="margin-top:18px">
+      <p style="margin:0;font-family:${SANS};${MONO_FEATURES};font-size:11px;font-weight:700;letter-spacing:0.18em;color:#71717a;text-transform:uppercase;line-height:1.4">${escapeHtml(label)}</p>
+      <p style="margin:6px 0 0;font-family:${SANS};font-size:14px;font-weight:500;color:#0a0a0a;line-height:1.5">${escapeHtml(value)}</p>
+    </div>`;
+
+  const fullWidthFields: string[] = [];
+  if (isMeaningful(payload.freight.securementRequirements))
+    fullWidthFields.push(renderFullWidthField("Securement", payload.freight.securementRequirements));
+
+  const commodityValue = isMeaningful(payload.freight.commodity)
+    ? payload.freight.commodity
+    : null;
+  const hasFreightSpecs = specCells.length > 0;
+  const hasFreightExtras = fullWidthFields.length > 0;
+
+  const freightTr = (commodityValue || hasFreightSpecs || hasFreightExtras)
     ? `<tr>
-      <td style="padding:32px 40px 0">
+      <td style="padding:18px 40px 0">
         ${sectionEyebrow("Freight")}
-        ${freightInnerLines.join("")}
+        ${commodityValue ? `<p style="margin:14px 0 0;font-family:${SANS};font-size:20px;font-weight:700;color:#0a0a0a;line-height:1.3">${escapeHtml(commodityValue)}</p>` : ""}
+        ${specGridHtml}
+        ${fullWidthFields.join("")}
       </td>
     </tr>`
     : "";
 
-  // RATE BREAKDOWN ────────────────────────────────────────────────────────
-  const rateRowHtml = (label: string, amount: string, emphasize = false): string => {
-    const labelStyle = emphasize
-      ? `font-family:${SANS};${MONO_FEATURES};font-size:13px;font-weight:700;letter-spacing:0.22em;color:#0a0a0a;text-transform:uppercase`
-      : `font-family:${SANS};font-size:15px;font-weight:500;color:#0a0a0a`;
-    const amtStyle = emphasize
-      ? `font-family:${SANS};${MONO_FEATURES};font-size:22px;font-weight:800;color:#0a0a0a`
-      : `font-family:${SANS};${MONO_FEATURES};font-size:15px;font-weight:600;color:#0a0a0a`;
-    return `<tr>
-      <td valign="middle" align="left" style="padding:${emphasize ? "10px" : "6px"} 0 0;vertical-align:middle">
-        <p style="margin:0;${labelStyle};line-height:1.4">${escapeHtml(label)}</p>
-      </td>
-      <td valign="middle" align="right" style="padding:${emphasize ? "10px" : "6px"} 0 0;vertical-align:middle;text-align:right">
-        <p style="margin:0;${amtStyle};line-height:1.4">${escapeHtml(amount)}</p>
-      </td>
-    </tr>`;
-  };
-
-  const rateLineHtmls: string[] = [];
-  rateLineHtmls.push(rateRowHtml("Linehaul", linehaulFmt));
-  if (fuelFmt) rateLineHtmls.push(rateRowHtml("Fuel", fuelFmt));
-  if (permitsFmt) rateLineHtmls.push(rateRowHtml("Permits", permitsFmt));
-  for (const a of payload.pricing.accessorials) {
-    rateLineHtmls.push(rateRowHtml(a.label, formatUsd(a.amount)));
-  }
-  // hairline row inside the rate breakdown
-  const rateHairline = `<tr><td colspan="2" style="padding:14px 0 0"><div style="height:1px;background:#0a0a0a;font-size:1px;line-height:1px">&nbsp;</div></td></tr>`;
-  rateLineHtmls.push(rateHairline);
-  rateLineHtmls.push(rateRowHtml("Total", totalFmt, true));
-
-  const rateBreakdownTr = `<tr>
-      <td style="padding:32px 40px 0">
-        ${sectionEyebrow("Rate Breakdown")}
-        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;width:100%;margin-top:8px">
-          ${rateLineHtmls.join("")}
-        </table>
-      </td>
-    </tr>`;
+  // RATE BREAKDOWN intentionally omitted from this email — the customer
+  // sees the TOTAL once, prominently, in the hero. We don't surface
+  // linehaul / fuel / permits / accessorial breakdowns to clients.
 
   // CONFIRM CTA — single full-width button, premium 2px white inset
   // outline (matches Email 2's ACCEPT RANGE pattern). Green semantic
   // for "confirm finalized commitment" — operational confirmation.
   const confirmTr = payload.confirmUrl
     ? `<tr>
-        <td style="padding:32px 40px 0">
+        <td style="padding:18px 40px 0">
           <a href="${escapeHtml(payload.confirmUrl)}" style="display:block;box-sizing:border-box;background:#166534;color:#ffffff;font-family:${SANS};${MONO_FEATURES};font-size:13px;font-weight:800;letter-spacing:0.22em;text-transform:uppercase;text-decoration:none;text-align:center;padding:22px 16px;line-height:1.2;box-shadow:inset 0 0 0 2px #ffffff" bgcolor="#166534">Confirm Finalized Quote</a>
           ${
             payload.expirationAt
@@ -639,8 +771,6 @@ export function renderFinalizedQuoteEmail(
     ${scheduleTr ? hairlineTr : ""}
     ${freightTr}
     ${freightTr ? hairlineTr : ""}
-    ${rateBreakdownTr}
-    ${hairlineTr}
     ${confirmTr}
     ${bottomPadTr}
   </table>`;
