@@ -26,7 +26,9 @@ import {
   LEAD_STATUS_LABELS,
   type LeadStatus,
 } from "@/lib/dispatch/status";
-import { IconArrowLeft } from "./icons";
+import { LoadWorkspaceV2 } from "./LoadWorkspaceV2";
+import { EventHistorySection } from "./tabs/TimelineTab";
+import { formatLoadRate } from "@/lib/dispatch/loads-view";
 // Level 5 wire-up: components for the old quote-detail surface are no
 // longer rendered directly from this file. Their types stay imported
 // because the loaders below still produce those shapes and the new V3
@@ -54,7 +56,6 @@ import {
 
 // V3 surface
 import { QuoteHero } from "./QuoteHero";
-import { QuoteWorkspaceTabs } from "./QuoteWorkspaceTabs";
 import { OverviewTab } from "./tabs/OverviewTab";
 import { DetailsTab } from "./tabs/DetailsTab";
 import { type SentDocumentRow } from "./tabs/DocumentsTab";
@@ -1381,88 +1382,69 @@ export default async function QuoteDetailPage({
   const initialTab = initialTabForLeadStatus(row.lead_status);
 
   return (
-    // 6.9A polish: base widened max-w-3xl → max-w-4xl so tablet portrait /
-    // landscape matches every other admin list / detail page (Active Quotes,
-    // Applications, Application Detail 6.7). lg:max-w-6xl preserved so the
-    // workspace tabs (Pricing forms, BOL composer) still breathe on a real
-    // monitor instead of staying trapped at 4xl.
-    <div className="mx-auto max-w-4xl pt-11 sm:pt-0 lg:max-w-6xl">
-      {/* Back link — outlined-black button matching the admin secondary
-          vocabulary (Phone / Email / Restore / Trash). Inverts to black on
-          hover, same as the other admin-portal buttons. */}
-      <div className="px-4 pt-4 sm:px-6 lg:px-8">
-        <Link
-          href={isTrashed ? "/admin/quotes/trash" : "/admin/quotes"}
-          prefetch={false}
-          className="inline-flex items-center gap-2 border-2 border-black bg-white px-3.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-black transition-colors hover:bg-black hover:text-white"
-        >
-          <IconArrowLeft className="h-3 w-3 shrink-0" />
-          {isTrashed ? "All trash" : "All quotes"}
-        </Link>
-      </div>
-
-      {/* Trash strip — compact retention pattern mirroring Application
-          Detail 6.7 and Quotes Trash 6.5. Replaces the heavy cream-box
-          banner with eyebrow + body sentence. Same data, fraction of the
-          height. */}
+    <>
       {isTrashed ? (
-        <section
-          aria-label="In trash"
-          className="mx-4 mt-3 mb-4 flex flex-wrap items-baseline gap-x-3 gap-y-1 border-l-[3px] border-black bg-[#fafaf6] px-4 py-2.5 sm:mx-6 sm:gap-x-4 sm:px-5 lg:mx-8"
-        >
-          <p className="shrink-0 font-mono text-[10.5px] font-bold uppercase tracking-[0.22em] text-black">
-            In trash
-          </p>
-          <p className="font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-black/70">
-            Moved {relativeTime(row.deleted_at!)}
-            {row.delete_after ? (
-              <>
-                <span aria-hidden className="mx-1.5 text-black/40">
-                  ·
-                </span>
-                Auto-purge {formatDateShort(row.delete_after).slice(0, 10)}
-              </>
-            ) : null}
-          </p>
-        </section>
+        <div className="border-t border-zinc-800 bg-zinc-950">
+          <div className="mx-auto flex max-w-7xl flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-2 sm:px-6 lg:px-8">
+            <p className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-amber-400">
+              In trash
+            </p>
+            <p className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-zinc-400">
+              Moved {relativeTime(row.deleted_at!)}
+              {row.delete_after ? " \u00b7 Auto-purge " + formatDateShort(row.delete_after).slice(0, 10) : ""}
+            </p>
+          </div>
+        </div>
       ) : null}
-
-      {/* V3 Tabs - Overview / Details / Pricing / Documents / Timeline.
-          Display:none keep-mounted preserves each tab's internal state
-          (in-progress forms, fingerprints, PreviewModal state).
-          QuoteHero (eyebrow + REQ + received line) lives INSIDE the
-          overview tab so it only shows when overview is active. */}
-      <QuoteWorkspaceTabs
-        initialTab={initialTab}
+      <LoadWorkspaceV2
+        header={{
+          customerName: row.name,
+          shortRequestId: headerProps.identity.requestId,
+          receivedRelative: headerProps.identity.receivedRelative,
+          receivedFull: headerProps.identity.receivedFull,
+          leadStatus: row.lead_status,
+          pickupLabel: headerProps.lane.pickupLabel ?? "",
+          deliveryLabel: headerProps.lane.deliveryLabel ?? "",
+          miles: headerProps.lane.miles,
+          rateDisplay: formatLoadRate({
+            finalizedTotal:
+              finalizedQuoteState.phase === "sent"
+                ? finalizedQuoteState.sent.totalAmount
+                : null,
+            estimateLow: estimateDraft?.linehaul_low ?? null,
+            estimateHigh: estimateDraft?.linehaul_high ?? null,
+          }),
+          isTrashed,
+        }}
         overviewContent={
           <>
-          <QuoteHero identity={headerProps.identity} />
-          <OverviewTab
-            quoteRange={
-              estimateDraft
-                ? {
-                    linehaulLow: estimateDraft.linehaul_low,
-                    linehaulHigh: estimateDraft.linehaul_high,
-                    fuelSurcharge: estimateDraft.fuel_surcharge,
-                    accessorials: estimateDraft.accessorials,
-                  }
-                : null
-            }
-            lifecycle={lifecycleState}
-            customer={{ name: row.name, phone: row.phone, email: row.email }}
-            freight={{ commodity: row.commodity, weight: row.weight }}
-            lane={initialValues}
-            miles={headerProps.lane.miles}
-            customerNotes={row.notes}
-            uploads={intakeUploads}
-            events={timelineEvents}
-            quoteRequestId={row.id}
-            sentArtifacts={sentArtifactIndex}
-            received={{
-              relative: headerProps.identity.receivedRelative,
-              full: headerProps.identity.receivedFull,
-            }}
-          />
+            <QuoteHero identity={headerProps.identity} />
+            <OverviewTab
+              quoteRange={
+                estimateDraft
+                  ? {
+                      linehaulLow: estimateDraft.linehaul_low,
+                      linehaulHigh: estimateDraft.linehaul_high,
+                      fuelSurcharge: estimateDraft.fuel_surcharge,
+                      accessorials: estimateDraft.accessorials,
+                    }
+                  : null
+              }
+              lifecycle={lifecycleState}
+              customer={{ name: row.name, phone: row.phone, email: row.email }}
+              freight={{ commodity: row.commodity, weight: row.weight }}
+              lane={initialValues}
+              miles={headerProps.lane.miles}
+              customerNotes={row.notes}
+              uploads={intakeUploads}
+              events={timelineEvents}
+              quoteRequestId={row.id}
+              sentArtifacts={sentArtifactIndex}
+              received={{
+                relative: headerProps.identity.receivedRelative,
+                full: headerProps.identity.receivedFull,
+              }}
+            />
           </>
         }
         detailsContent={
@@ -1495,7 +1477,8 @@ export default async function QuoteDetailPage({
             nextLeadId={nextLeadId}
           />
         }
+        activityContent={<EventHistorySection events={timelineEvents} />}
       />
-    </div>
+    </>
   );
 }

@@ -10,7 +10,7 @@ import {
   IconLogout,
   IconMail,
   IconSettings,
-  IconStack,
+  IconTruck,
 } from "./icons";
 
 /**
@@ -50,7 +50,7 @@ type NavItem = {
 
 const PRIMARY: NavItem[] = [
   { href: "/admin", label: "Dashboard", Icon: IconDashboard },
-  { href: "/admin/quotes", label: "Quotes", Icon: IconStack },
+  { href: "/admin/loads", label: "Loads", Icon: IconTruck },
   { href: "/admin/applications", label: "Applications", Icon: IconBadge },
 ];
 

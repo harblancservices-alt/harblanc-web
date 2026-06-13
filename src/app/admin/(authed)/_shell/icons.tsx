@@ -89,6 +89,26 @@ export function IconBadge({ className }: IconProps) {
   );
 }
 
+export function IconTruck({ className }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <path d="M3 7h11v9H3z" />
+      <path d="M14 11h4l3 3v2h-7z" />
+      <circle cx="7" cy="18" r="1.6" />
+      <circle cx="17.5" cy="18" r="1.6" />
+    </svg>
+  );
+}
+
 export function IconDots({ className }: IconProps) {
   return (
     <svg

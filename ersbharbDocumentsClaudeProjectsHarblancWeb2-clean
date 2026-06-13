@@ -1,0 +1,71 @@
+warning: in the working copy of 'src/app/admin/(authed)/settings/page.tsx', LF will be replaced by CRLF the next time Git touches it
+[1mdiff --git a/src/app/admin/(authed)/settings/page.tsx b/src/app/admin/(authed)/settings/page.tsx[m
+[1mindex bb77ce7..34c937b 100644[m
+[1m--- a/src/app/admin/(authed)/settings/page.tsx[m
+[1m+++ b/src/app/admin/(authed)/settings/page.tsx[m
+[36m@@ -1,17 +1,18 @@[m
+ import type { Metadata } from "next";[m
+ import { requireAdmin } from "@/lib/admin/auth";[m
+[32m+[m[32mimport { validateEnv } from "@/lib/env";[m
+ import { IconLogout } from "../_shell/icons";[m
+ [m
+ /**[m
+[31m- * Level 4 — Settings page (v1, microscopic).[m
+[32m+[m[32m * Level 4 — Settings page.[m
+  *[m
+[31m- * Two things:[m
+  *   1. Account email — display only.[m
+[31m- *   2. Sign out — POST to /admin/logout (unchanged route).[m
+[32m+[m[32m *   2. System diagnostics — conditional. Renders only when validateEnv()[m
+[32m+[m[32m *      returns at least one issue. Replaces the previous Dashboard[m
+[32m+[m[32m *      EnvBanner with a less intrusive admin-only location.[m
+[32m+[m[32m *   3. Sign out — POST to /admin/logout (unchanged route).[m
+  *[m
+  * No other categories. No theme picker, no integrations, no preferences.[m
+[31m- * If a settings need surfaces later, add it deliberately in a separate[m
+[31m- * pass. Per Q7 / Settings guidance: stay microscopic.[m
+  */[m
+ export const metadata: Metadata = {[m
+   title: "Settings",[m
+[36m@@ -21,6 +22,12 @@[m [mexport const metadata: Metadata = {[m
+ export default async function SettingsPage() {[m
+   const user = await requireAdmin();[m
+   const email = user.email ?? "—";[m
+[32m+[m[32m  // System diagnostics — surfaced here (not on the Dashboard) so the[m
+[32m+[m[32m  // owner-facing dashboard stays calm. Only renders when a real[m
+[32m+[m[32m  // operational risk is detected (e.g. Resend not configured →[m
+[32m+[m[32m  // emails won't send; Stripe webhook secret missing → payments[m
+[32m+[m[32m  // stuck in pending). Empty list = section hidden entirely.[m
+[32m+[m[32m  const envIssues = validateEnv();[m
+ [m
+   return ([m
+     <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">[m
+[36m@@ -42,6 +49,28 @@[m [mexport default async function SettingsPage() {[m
+         </p>[m
+       </section>[m
+ [m
+[32m+[m[32m      {envIssues.length > 0 ? ([m
+[32m+[m[32m        <section className="mt-4 border-2 border-amber-700 border-l-4 border-l-amber-700 bg-[#fdf6e3] px-4 py-4 sm:px-5 sm:py-5">[m
+[32m+[m[32m          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-amber-900">[m
+[32m+[m[32m            System diagnostics[m
+[32m+[m[32m          </p>[m
+[32m+[m[32m          <p className="mt-1 text-[12px] text-amber-900">[m
+[32m+[m[32m            {envIssues.length} env var{envIssues.length === 1 ? "" : "s"} flagged.[m
+[32m+[m[32m            These affect background features only — the portal still works.[m
+[32m+[m[32m          </p>[m
+[32m+[m[32m          <ul className="mt-3 space-y-2 text-[12px] text-black">[m
+[32m+[m[32m            {envIssues.map((msg) => ([m
+[32m+[m[32m              <li[m
+[32m+[m[32m                key={msg}[m
+[32m+[m[32m                className="border-l-2 border-amber-700 pl-3 leading-snug"[m
+[32m+[m[32m              >[m
+[32m+[m[32m                {msg}[m
+[32m+[m[32m              </li>[m
+[32m+[m[32m            ))}[m
+[32m+[m[32m          </ul>[m
+[32m+[m[32m        </section>[m
+[32m+[m[32m      ) : null}[m
+[32m+[m
+       <form action="/admin/logout" method="post" className="mt-4">[m
+         <button[m
+           type="submit"[m

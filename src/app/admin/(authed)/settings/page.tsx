@@ -1,17 +1,18 @@
 import type { Metadata } from "next";
 import { requireAdmin } from "@/lib/admin/auth";
+import { validateEnv } from "@/lib/env";
 import { IconLogout } from "../_shell/icons";
 
 /**
- * Level 4 — Settings page (v1, microscopic).
+ * Level 4 — Settings page.
  *
- * Two things:
  *   1. Account email — display only.
- *   2. Sign out — POST to /admin/logout (unchanged route).
+ *   2. System diagnostics — conditional. Renders only when validateEnv()
+ *      returns at least one issue. Replaces the previous Dashboard
+ *      EnvBanner with a less intrusive admin-only location.
+ *   3. Sign out — POST to /admin/logout (unchanged route).
  *
  * No other categories. No theme picker, no integrations, no preferences.
- * If a settings need surfaces later, add it deliberately in a separate
- * pass. Per Q7 / Settings guidance: stay microscopic.
  */
 export const metadata: Metadata = {
   title: "Settings",
@@ -21,6 +22,12 @@ export const metadata: Metadata = {
 export default async function SettingsPage() {
   const user = await requireAdmin();
   const email = user.email ?? "—";
+  // System diagnostics — surfaced here (not on the Dashboard) so the
+  // owner-facing dashboard stays calm. Only renders when a real
+  // operational risk is detected (e.g. Resend not configured →
+  // emails won't send; Stripe webhook secret missing → payments
+  // stuck in pending). Empty list = section hidden entirely.
+  const envIssues = validateEnv();
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
@@ -41,6 +48,28 @@ export default async function SettingsPage() {
           {email}
         </p>
       </section>
+
+      {envIssues.length > 0 ? (
+        <section className="mt-4 border-2 border-amber-700 border-l-4 border-l-amber-700 bg-[#fdf6e3] px-4 py-4 sm:px-5 sm:py-5">
+          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-amber-900">
+            System diagnostics
+          </p>
+          <p className="mt-1 text-[12px] text-amber-900">
+            {envIssues.length} env var{envIssues.length === 1 ? "" : "s"} flagged.
+            These affect background features only — the portal still works.
+          </p>
+          <ul className="mt-3 space-y-2 text-[12px] text-black">
+            {envIssues.map((msg) => (
+              <li
+                key={msg}
+                className="border-l-2 border-amber-700 pl-3 leading-snug"
+              >
+                {msg}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <form action="/admin/logout" method="post" className="mt-4">
         <button

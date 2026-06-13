@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { SectionTabs } from "../SectionTabs";
 import {
-  ApplicationListTable,
-  type ApplicationListRow,
-} from "./ApplicationListTable";
+  ApplicationsDarkTable,
+  type ApplicationDarkRow,
+} from "./ApplicationsDarkTable";
 
 export const metadata: Metadata = {
   title: "Applications",
@@ -12,17 +12,20 @@ export const metadata: Metadata = {
 };
 
 /**
- * Level 6.6 — Active Applications page.
+ * Applications page — dark FreightGain visual system.
  *
- * Visual structure mirrors Active Quotes (6.3): max-w-4xl, V3 hero with
- * eyebrow + bold heading + right-aligned counts column. Below the hero
- * sits the SectionTabs nav, then the applications feed itself.
+ * Replaces the legacy V3 feed-card surface with the same dark dense
+ * work-queue style used by Loads and the Dashboard. ApplicationListTable
+ * (the old light-themed component) remains on disk for backward
+ * compatibility but is no longer imported by this route. Trash route
+ * (/admin/applications/trash) is unchanged.
  *
- * Loader unchanged. No server-action or schema changes.
+ * Schema untouched — applications have no `status` column today, so the
+ * table deliberately omits a status pill rather than fake one.
  */
 
 async function loadApplications(): Promise<{
-  rows: ApplicationListRow[];
+  rows: ApplicationDarkRow[];
   trashCount: number;
 }> {
   const sb = createServiceRoleClient();
@@ -39,54 +42,46 @@ async function loadApplications(): Promise<{
       .select("*", { count: "exact", head: true })
       .not("deleted_at", "is", null),
   ]);
-  return { rows: (data ?? []) as ApplicationListRow[], trashCount: count ?? 0 };
+  return {
+    rows: (data ?? []) as ApplicationDarkRow[],
+    trashCount: count ?? 0,
+  };
 }
 
 export default async function ApplicationsPage() {
   const { rows, trashCount } = await loadApplications();
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
-      {/* V3 hero — eyebrow + bold title + right-aligned meta */}
-      <header className="flex flex-wrap items-end justify-between gap-4 pb-5 sm:pb-6">
-        <div>
-          <p className="font-mono text-[10.5px] font-bold uppercase tracking-[0.28em] text-black">
-            Applications
-          </p>
-          <h1 className="mt-1 text-[30px] font-bold leading-none tracking-tight text-black sm:text-[36px] lg:text-[40px]">
-            Owner-operator applications
-          </h1>
-        </div>
-        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-black text-right leading-snug">
-          {rows.length} active
-          <br />
-          {trashCount} trashed
-        </p>
-      </header>
+    <div className="min-h-screen border-t border-zinc-800 bg-zinc-950 text-zinc-100">
+      <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6 lg:px-8">
+        <header className="mb-4 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="font-mono text-[9px] font-bold uppercase tracking-[0.24em] text-zinc-500">
+              Applications
+            </p>
+            <div className="mt-1 flex flex-wrap items-baseline gap-3">
+              <h1 className="text-[22px] font-semibold leading-none tracking-tight text-white tabular-nums">
+                {rows.length} active
+              </h1>
+              {trashCount > 0 ? (
+                <Link
+                  href="/admin/applications/trash"
+                  prefetch={false}
+                  className="font-mono text-[11px] font-medium text-zinc-400 hover:text-zinc-200"
+                >
+                  {trashCount} in trash →
+                </Link>
+              ) : null}
+            </div>
+          </div>
+        </header>
 
-      <SectionTabs
-        tabs={[
-          {
-            label: "Active",
-            href: "/admin/applications",
-            count: rows.length,
-            active: true,
-          },
-          {
-            label: "Trash",
-            href: "/admin/applications/trash",
-            count: trashCount,
-          },
-        ]}
-      />
+        <ApplicationsDarkTable rows={rows} />
 
-      {rows.length === 0 ? (
-        <p className="mt-12 font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-black/55">
-          No incoming applications.
+        <p className="mt-3 px-1 font-mono text-[10px] text-zinc-500">
+          Sorted by most recent. Click any row to open the application.
         </p>
-      ) : (
-        <ApplicationListTable rows={rows} />
-      )}
+      </div>
     </div>
   );
 }

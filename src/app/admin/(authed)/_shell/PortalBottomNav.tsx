@@ -7,7 +7,7 @@ import {
   IconBadge,
   IconDashboard,
   IconDots,
-  IconStack,
+  IconTruck,
 } from "./icons";
 import { MoreSheet } from "./MoreSheet";
 
@@ -36,7 +36,7 @@ type NavItem = {
 
 const ITEMS: NavItem[] = [
   { href: "/admin", label: "Dashboard", Icon: IconDashboard },
-  { href: "/admin/quotes", label: "Quotes", Icon: IconStack },
+  { href: "/admin/loads", label: "Loads", Icon: IconTruck },
   { href: "/admin/applications", label: "Apps", Icon: IconBadge },
 ];
 
