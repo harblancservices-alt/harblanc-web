@@ -491,20 +491,20 @@ function ReadyToGenerateTab({
   }
 
   return (
-    <section className="border-2 border-black border-l-4 border-l-black bg-[#fafaf6]">
+    <section className="rounded-md border border-zinc-800 bg-zinc-900/40">
       <div className="flex items-baseline justify-between gap-3 px-4 pt-4 pb-2 sm:px-5">
-        <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-black">
+        <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-100">
           Finalized quote
         </h2>
-        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-black/60">
+        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-100/60">
           Ready to generate
         </p>
       </div>
       <div className="px-4 pb-6 sm:px-5">
-        <p className="text-[15px] font-semibold text-black">
+        <p className="text-[15px] font-semibold text-zinc-100">
           Intake submitted &mdash; ready to generate the rate confirmation.
         </p>
-        <p className="mt-2 max-w-lg text-[15px] leading-relaxed text-black">
+        <p className="mt-2 max-w-lg text-[15px] leading-relaxed text-zinc-100">
           Generating opens a draft prefilled from the intake (pickup, delivery,
           freight, operational hints). Dispatch fills in the firm pricing,
           previews the document, and ships it to the customer.
@@ -514,12 +514,12 @@ function ReadyToGenerateTab({
             type="button"
             onClick={onGenerate}
             disabled={isPending}
-            className="inline-flex items-center justify-center gap-2 border-2 border-black bg-white px-5 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.16em] text-black transition-colors hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-5 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.16em] text-zinc-100 transition-colors hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isPending ? "Generating…" : "Generate finalized quote"}
           </button>
           {error ? (
-            <p className="font-mono text-[12px] text-black">{error}</p>
+            <p className="font-mono text-[12px] text-zinc-100">{error}</p>
           ) : null}
         </div>
       </div>
@@ -770,12 +770,12 @@ function DraftComposer({
   // ── render ────────────────────────────────────────────────────────────
 
   return (
-    <section className="border-2 border-black border-l-4 border-l-black bg-[#fafaf6]">
+    <section className="rounded-md border border-zinc-800 bg-zinc-900/40">
       <div className="flex items-baseline justify-between gap-3 px-4 pt-4 pb-2 sm:px-5">
-        <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-black">
+        <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-100">
           Finalized quote
         </h2>
-        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-black/60">
+        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-100/60">
           {blocked
             ? blocked.label
             : `${draft.finalizedQuoteNumber} \u00b7 Draft \u00b7 not sent`}
@@ -783,16 +783,16 @@ function DraftComposer({
       </div>
 
       {blocked ? (
-        <div className="flex items-start gap-3 border-b border-black bg-[#fbeaea] px-4 py-3 sm:px-5">
+        <div className="flex items-start gap-3 border-b border-zinc-700 bg-[#fbeaea] px-4 py-3 sm:px-5">
           <span
             aria-hidden
             className="mt-0.5 inline-block h-4 w-1 shrink-0 bg-black"
           />
           <div className="min-w-0 flex-1">
-            <p className="font-mono text-[12px] font-bold uppercase tracking-[0.18em] text-black">
+            <p className="font-mono text-[12px] font-bold uppercase tracking-[0.18em] text-zinc-100">
               {blocked.label} \u00b7 {blocked.reason}
             </p>
-            <p className="mt-1 max-w-2xl text-[15px] leading-relaxed text-black">
+            <p className="mt-1 max-w-2xl text-[15px] leading-relaxed text-zinc-100">
               {blocked.detail}
             </p>
           </div>
@@ -837,19 +837,19 @@ function DraftComposer({
               aria-hidden
               className="inline-block h-[14px] w-[3px] shrink-0 bg-black"
             />
-            <span className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-black">Accessorials</span>
+            <span className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-zinc-100">Accessorials</span>
           </span>
           <button
             type="button"
             onClick={addAccessorial}
-            className="inline-flex items-center gap-1 border-2 border-black bg-white px-2.5 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-black transition-colors hover:bg-black hover:text-white"
+            className="inline-flex items-center gap-1 rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-zinc-100 transition-colors hover:bg-black hover:text-white"
           >
             <IconPlus className="h-3 w-3" />
             Add line
           </button>
         </div>
         {composer.accessorials.length === 0 ? (
-          <p className="mt-2 font-mono text-[12px] text-black">
+          <p className="mt-2 font-mono text-[12px] text-zinc-100">
             No accessorials. Add detention, lumper, tarp, etc. if applicable.
           </p>
         ) : (
@@ -867,10 +867,10 @@ function DraftComposer({
                     updateAccessorial(a.id, { label: e.target.value })
                   }
                   placeholder="Detention, Lumper..."
-                  className="border border-black bg-white px-2 py-1.5 text-[15px] text-black placeholder:text-zinc-700 focus:border-black focus:outline-none"
+                  className="border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-[15px] text-zinc-100 placeholder:text-zinc-700 focus:border-zinc-700 focus:outline-none"
                 />
-                <div className="flex items-center border border-black bg-white focus-within:border-black">
-                  <span className="px-2 font-mono text-xs text-black">$</span>
+                <div className="flex items-center border border-zinc-700 bg-zinc-900 focus-within:border-zinc-700">
+                  <span className="px-2 font-mono text-xs text-zinc-100">$</span>
                   <input
                     type="text"
                     inputMode="decimal"
@@ -880,14 +880,14 @@ function DraftComposer({
                       updateAccessorial(a.id, { amount: e.target.value })
                     }
                     placeholder="0.00"
-                    className="min-w-0 flex-1 border-none bg-transparent py-1.5 pr-2 text-right font-mono text-[15px] font-medium text-black tabular-nums placeholder:text-zinc-700 focus:outline-none"
+                    className="min-w-0 flex-1 border-none bg-transparent py-1.5 pr-2 text-right font-mono text-[15px] font-medium text-zinc-100 tabular-nums placeholder:text-zinc-700 focus:outline-none"
                   />
                 </div>
                 <button
                   type="button"
                   onClick={() => removeAccessorial(a.id)}
                   aria-label={`Remove ${a.label || "accessorial"}`}
-                  className="inline-flex h-7 w-7 items-center justify-center border-2 border-black bg-white text-black transition-colors hover:bg-black hover:text-white"
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-zinc-700 bg-zinc-900 text-zinc-100 transition-colors hover:bg-black hover:text-white"
                 >
                   <IconX className="h-3.5 w-3.5" />
                 </button>
@@ -898,17 +898,17 @@ function DraftComposer({
       </div>
 
       {/* Banded total — mirrors QuoteRangeWorkspace "Quoted total" card. */}
-      <div className="border-t-[3px] border-double border-black bg-[#fafaf6] px-4 py-3 sm:px-5">
+      <div className="border-t-[3px] border-double border-zinc-700 bg-zinc-900/40 px-4 py-3 sm:px-5">
         <div className="flex items-baseline justify-between gap-4">
-          <span className="font-mono text-xs font-bold uppercase tracking-[0.14em] text-black">
+          <span className="font-mono text-xs font-bold uppercase tracking-[0.14em] text-zinc-100">
             Quoted total
           </span>
-          <span className="font-mono text-3xl font-bold text-black tabular-nums">
+          <span className="font-mono text-3xl font-bold text-zinc-100 tabular-nums">
             {formatUsd(total)}
           </span>
         </div>
         {accessorialsTotal > 0 ? (
-          <p className="mt-1 text-right font-mono text-[12px] text-black">
+          <p className="mt-1 text-right font-mono text-[12px] text-zinc-100">
             includes {formatUsd(accessorialsTotal)} accessorials
           </p>
         ) : null}
@@ -1078,7 +1078,7 @@ function DraftComposer({
           />
           <span
             aria-hidden
-            className="text-center font-mono text-[15px] text-black"
+            className="text-center font-mono text-[15px] text-zinc-100"
           >
             ×
           </span>
@@ -1090,7 +1090,7 @@ function DraftComposer({
           />
           <span
             aria-hidden
-            className="text-center font-mono text-[15px] text-black"
+            className="text-center font-mono text-[15px] text-zinc-100"
           >
             ×
           </span>
@@ -1153,7 +1153,7 @@ function DraftComposer({
           }
           rows={2}
           placeholder="Strap pattern, edge protection, tarp spec, etc."
-          className="block w-full resize-y border border-black bg-white px-2.5 py-1.5 text-[15px] text-black placeholder:text-zinc-700 focus:border-black focus:outline-none"
+          className="block w-full resize-y border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-[15px] text-zinc-100 placeholder:text-zinc-700 focus:border-zinc-700 focus:outline-none"
         />
       </FieldRow>
 
@@ -1163,8 +1163,8 @@ function DraftComposer({
           className={
             "font-mono text-[12px] sm:mr-auto " +
             (effectivePreviewState === "failed" && previewError
-              ? "text-black"
-              : "text-black")
+              ? "text-zinc-100"
+              : "text-zinc-100")
           }
         >
           {buildBlockedReason
@@ -1183,7 +1183,7 @@ function DraftComposer({
           type="button"
           onClick={runBuildPreview}
           disabled={!canBuild || isBuildPending}
-          className="inline-flex items-center justify-center gap-2 border-2 border-black bg-white px-4 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.14em] text-black transition-colors hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex items-center justify-center gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-4 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.14em] text-zinc-100 transition-colors hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isBuildPending
             ? "Building…"
@@ -1291,12 +1291,12 @@ function SentHistoryTab({
   }, [sent.confirmedAt]);
 
   return (
-    <section className="border-2 border-black border-l-4 border-l-black bg-[#fafaf6]">
+    <section className="rounded-md border border-zinc-800 bg-zinc-900/40">
       <div className="flex items-baseline justify-between gap-3 px-4 pt-4 pb-2 sm:px-5">
-        <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-black">
+        <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-100">
           Finalized quote
         </h2>
-        <p className="flex items-center gap-2 font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-black/60">
+        <p className="flex items-center gap-2 font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-100/60">
           <span>
             {sent.finalizedQuoteNumber} &middot;{" "}
             {sent.confirmedAt ? "Sent" : "Sent"}
@@ -1339,11 +1339,11 @@ function SentHistoryTab({
 
       <div className="flex flex-col gap-2 border-t border-zinc-300 px-4 py-3 sm:flex-row sm:items-center sm:justify-end sm:gap-3 sm:px-5">
         {error ? (
-          <p className="font-mono text-[12px] text-black sm:mr-auto">
+          <p className="font-mono text-[12px] text-zinc-100 sm:mr-auto">
             {error}
           </p>
         ) : (
-          <p className="font-mono text-[12px] text-black sm:mr-auto">
+          <p className="font-mono text-[12px] text-zinc-100 sm:mr-auto">
             Sending a revision opens a fresh draft prefilled from intake.
           </p>
         )}
@@ -1351,7 +1351,7 @@ function SentHistoryTab({
           <button
             type="button"
             onClick={() => setPreviewOpen(true)}
-            className="inline-flex items-center justify-center gap-2 border border-zinc-400 bg-white px-4 py-2.5 text-[15px] font-semibold text-black transition-colors hover:border-black hover:text-black"
+            className="inline-flex items-center justify-center gap-2 border border-zinc-400 bg-zinc-900 px-4 py-2.5 text-[15px] font-semibold text-zinc-100 transition-colors hover:border-zinc-700 hover:text-zinc-100"
           >
             View sent document
           </button>
@@ -1366,7 +1366,7 @@ function SentHistoryTab({
           href={`/admin/quotes/${quoteRequestId}/finalized-quote-pdf/${sent.id}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center justify-center gap-2 border-2 border-black bg-white px-4 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.14em] text-black transition-colors hover:bg-black hover:text-white"
+          className="inline-flex items-center justify-center gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-4 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.14em] text-zinc-100 transition-colors hover:bg-black hover:text-white"
         >
           Download PDF
         </a>
@@ -1374,7 +1374,7 @@ function SentHistoryTab({
           type="button"
           onClick={onGenerateRevision}
           disabled={isPending}
-          className="inline-flex items-center justify-center gap-2 border-2 border-black bg-white px-5 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.16em] text-black transition-colors hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex items-center justify-center gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-5 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.16em] text-zinc-100 transition-colors hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isPending ? "Starting…" : "Generate revision"}
         </button>
@@ -1382,7 +1382,7 @@ function SentHistoryTab({
           <Link
             href={`/admin/quotes/${nextLeadId}`}
             prefetch={false}
-            className="inline-flex items-center justify-center gap-2 border-2 border-black bg-white px-4 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.14em] text-black transition-colors hover:bg-black hover:text-white"
+            className="inline-flex items-center justify-center gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-4 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.14em] text-zinc-100 transition-colors hover:bg-black hover:text-white"
           >
             Save &amp; open next &rarr;
           </Link>
@@ -1407,8 +1407,8 @@ function SentHistoryTab({
 
 function SectionBanner({ title }: { title: string }) {
   return (
-    <div className="border-t border-black/30 px-4 pt-3 pb-1 sm:px-5">
-      <p className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-black">
+    <div className="border-t border-zinc-700 px-4 pt-3 pb-1 sm:px-5">
+      <p className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-100">
         {title}
       </p>
     </div>
@@ -1427,7 +1427,7 @@ function FieldRow({
   align?: "center" | "start";
   children: React.ReactNode;
   /** Field originated in the customer Quick Quote form. Renders:
-   *  bg-[#f3f1e9] row wash, 3px red left bar across the entire row,
+   *  bg-zinc-900/70 row wash, 3px red left bar across the entire row,
    *  red label text, and a "Q.Q." white-on-red pill next to the
    *  label. Stronger visual treatment than the LoadDetailsCard
    *  equivalent — meant to read across the room. */
@@ -1439,7 +1439,7 @@ function FieldRow({
       className={
         "grid grid-cols-[110px_minmax(0,1fr)] gap-3 border-t border-zinc-300 px-3 py-2.5 sm:grid-cols-[140px_minmax(0,1fr)] sm:px-3 " +
         (align === "start" ? "items-start " : "items-center ") +
-        (tinted ? "border-l-[5px] border-l-red-700" : "")
+        (tinted ? "border-l-[5px] border-l-red-500" : "")
       }
       style={tinted ? { backgroundColor: "#fca5a5" } : undefined}
     >
@@ -1448,9 +1448,9 @@ function FieldRow({
           aria-hidden
           className="inline-block h-[14px] w-[3px] shrink-0 bg-black"
         />
-        <span className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-black">
+        <span className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-zinc-100">
           {label}
-          {required ? <span className="ml-1 text-black">*</span> : null}
+          {required ? <span className="ml-1 text-zinc-100">*</span> : null}
         </span>
       </span>
       <div className="min-w-0">{children}</div>
@@ -1470,8 +1470,8 @@ function CurrencyInput({
   autoFocus?: boolean;
 }) {
   return (
-    <div className="flex items-center border border-black bg-white focus-within:border-black">
-      <span className="px-2.5 font-mono text-[15px] text-black">$</span>
+    <div className="flex items-center border border-zinc-700 bg-zinc-900 focus-within:border-zinc-700">
+      <span className="px-2.5 font-mono text-[15px] text-zinc-100">$</span>
       <input
         type="text"
         inputMode="decimal"
@@ -1481,7 +1481,7 @@ function CurrencyInput({
         placeholder={placeholder}
         autoFocus={autoFocus}
         autoComplete="off"
-        className="min-w-0 flex-1 border-0 bg-transparent py-1.5 pr-2.5 font-mono text-[15px] font-medium text-black tabular-nums placeholder:text-zinc-700 focus:outline-none"
+        className="min-w-0 flex-1 border-0 bg-transparent py-1.5 pr-2.5 font-mono text-[15px] font-medium text-zinc-100 tabular-nums placeholder:text-zinc-700 focus:outline-none"
       />
     </div>
   );
@@ -1504,7 +1504,7 @@ function TextInput({
             onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       autoComplete="off"
-      className="block w-full border border-black bg-white px-2.5 py-1.5 text-[15px] text-black placeholder:text-zinc-700 focus:border-black focus:outline-none"
+      className="block w-full border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-[15px] text-zinc-100 placeholder:text-zinc-700 focus:border-zinc-700 focus:outline-none"
     />
   );
 }
@@ -1521,7 +1521,7 @@ function NumberInput({
   suffix?: string;
 }) {
   return (
-    <div className="flex items-center border border-black bg-white focus-within:border-black">
+    <div className="flex items-center border border-zinc-700 bg-zinc-900 focus-within:border-zinc-700">
       <input
         type="text"
         inputMode="decimal"
@@ -1530,10 +1530,10 @@ function NumberInput({
             onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         autoComplete="off"
-        className="min-w-0 flex-1 border-none bg-transparent py-1.5 pl-2.5 font-mono text-[15px] font-medium text-black tabular-nums placeholder:text-zinc-700 focus:outline-none"
+        className="min-w-0 flex-1 border-none bg-transparent py-1.5 pl-2.5 font-mono text-[15px] font-medium text-zinc-100 tabular-nums placeholder:text-zinc-700 focus:outline-none"
       />
       {suffix ? (
-        <span className="px-2 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-black">
+        <span className="px-2 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-100">
           {suffix}
         </span>
       ) : null}
@@ -1554,7 +1554,7 @@ function DateInput({
       value={value}
       onKeyDown={advanceOnEnter}
             onChange={(e) => onChange(e.target.value)}
-      className="block w-full border border-black bg-white px-2.5 py-1.5 font-mono text-[15px] font-medium text-black focus:border-black focus:outline-none"
+      className="block w-full border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 font-mono text-[15px] font-medium text-zinc-100 focus:border-zinc-700 focus:outline-none"
     />
   );
 }
@@ -1573,7 +1573,7 @@ function SelectInput({
       value={value}
       onKeyDown={advanceOnEnter}
             onChange={(e) => onChange(e.target.value)}
-      className="block w-full border border-black bg-white px-2.5 py-1.5 text-[15px] font-medium text-black focus:border-black focus:outline-none"
+      className="block w-full border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-[15px] font-medium text-zinc-100 focus:border-zinc-700 focus:outline-none"
     >
       {options.map((opt) => (
         <option key={opt.value} value={opt.value}>
@@ -1596,7 +1596,7 @@ function TriStateSelect({
       value={value}
       onKeyDown={advanceOnEnter}
             onChange={(e) => onChange(e.target.value as TriState)}
-      className="block w-full max-w-[180px] border border-black bg-white px-2.5 py-1.5 text-[15px] font-medium text-black focus:border-black focus:outline-none"
+      className="block w-full max-w-[180px] border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-[15px] font-medium text-zinc-100 focus:border-zinc-700 focus:outline-none"
     >
       <option value="">—</option>
       <option value="yes">Yes</option>
@@ -1614,10 +1614,10 @@ function SummaryRow({
 }) {
   return (
     <div className="flex items-baseline justify-between gap-3 border-t border-zinc-200 px-4 py-2 sm:px-5">
-      <span className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-black">
+      <span className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-zinc-100">
         {label}
       </span>
-      <span className="font-mono text-[14px] font-bold tabular-nums text-black">
+      <span className="font-mono text-[14px] font-bold tabular-nums text-zinc-100">
         {value}
       </span>
     </div>

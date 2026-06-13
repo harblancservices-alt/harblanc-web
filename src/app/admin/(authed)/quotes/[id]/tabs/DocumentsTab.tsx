@@ -97,23 +97,23 @@ function SentDocumentsSection({
   return (
     <section
       aria-label="Sent documents"
-      className="border-2 border-black border-l-4 border-l-black bg-[#fafaf6]"
+      className="rounded-md border border-zinc-800 bg-zinc-900/40"
     >
       <div className="flex items-baseline justify-between gap-3 px-4 pt-4 pb-2 sm:px-5">
-        <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-black">
+        <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-100">
           Sent documents
         </h2>
-        <span className="font-mono text-[10.5px] font-bold uppercase tracking-[0.18em] text-black/60">
+        <span className="font-mono text-[10.5px] font-bold uppercase tracking-[0.18em] text-zinc-100/60">
           {documents.length} {documents.length === 1 ? "doc" : "docs"}
         </span>
       </div>
 
       {documents.length === 0 ? (
-        <p className="px-4 pb-5 font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-black/60 sm:px-5">
+        <p className="px-4 pb-5 font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-zinc-100/60 sm:px-5">
           No documents sent yet
         </p>
       ) : (
-        <ul className="border-t border-black/15">
+        <ul className="border-t border-zinc-800/80">
           {documents.map((doc, idx) => (
             <SentDocumentRowItem
               key={`${doc.type}-${doc.id}`}
@@ -146,25 +146,25 @@ function SentDocumentRowItem({
     <li
       className={
         "grid grid-cols-1 gap-3 px-4 py-3 sm:grid-cols-[110px_minmax(0,1fr)_auto] sm:items-center sm:px-5 " +
-        (isLast ? "" : "border-b border-black/15")
+        (isLast ? "" : "border-b border-zinc-800/80")
       }
     >
       {/* Timestamp + type badge stack */}
       <div className="flex items-center gap-3 sm:block">
-        <span className="font-mono text-[12px] font-bold uppercase tabular-nums tracking-[0.12em] text-black">
+        <span className="font-mono text-[12px] font-bold uppercase tabular-nums tracking-[0.12em] text-zinc-100">
           {ts}
         </span>
-        <span className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-black sm:mt-1 sm:block">
+        <span className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-100 sm:mt-1 sm:block">
           {typeBadge}
         </span>
       </div>
 
       {/* Label + recipient */}
       <div className="min-w-0">
-        <p className="truncate text-[14px] font-bold text-black">
+        <p className="truncate text-[14px] font-bold text-zinc-100">
           {doc.label}
         </p>
-        <p className="mt-0.5 truncate font-mono text-[11px] text-black">
+        <p className="mt-0.5 truncate font-mono text-[11px] text-zinc-100">
           {doc.recipient}
         </p>
       </div>
@@ -177,7 +177,7 @@ function SentDocumentRowItem({
               href={doc.pdfHref}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center border-2 border-black bg-white px-2.5 py-1 font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-black transition-colors hover:bg-black hover:text-white"
+              className="inline-flex items-center rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1 font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-zinc-100 transition-colors hover:bg-black hover:text-white"
               aria-label={`View ${doc.label}`}
             >
               View
@@ -185,7 +185,7 @@ function SentDocumentRowItem({
             <a
               href={doc.pdfHref}
               download
-              className="inline-flex items-center border-2 border-black bg-white px-2.5 py-1 font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-black transition-colors hover:bg-black hover:text-white"
+              className="inline-flex items-center rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1 font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-zinc-100 transition-colors hover:bg-black hover:text-white"
               aria-label={`Download ${doc.label}`}
             >
               Download
@@ -193,7 +193,7 @@ function SentDocumentRowItem({
           </>
         ) : (
           <span
-            className="inline-flex items-center border border-black/30 bg-white px-2.5 py-1 font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-black/40"
+            className="inline-flex items-center border border-zinc-700 bg-zinc-900 px-2.5 py-1 font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-zinc-100/40"
             title="No PDF available for this document"
           >
             Email
@@ -225,7 +225,7 @@ function ResendForm({ doc }: { doc: SentDocumentRow }) {
     <form action={action}>
       <button
         type="submit"
-        className="inline-flex items-center border-2 border-black bg-white px-2.5 py-1 font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-black transition-colors hover:bg-black hover:text-white"
+        className="inline-flex items-center rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1 font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-zinc-100 transition-colors hover:bg-black hover:text-white"
         aria-label={`Resend ${doc.label}`}
       >
         Resend

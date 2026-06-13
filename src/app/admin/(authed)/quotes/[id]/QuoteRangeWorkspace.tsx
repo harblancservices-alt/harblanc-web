@@ -464,12 +464,12 @@ export function QuoteRangeWorkspace({
 
   return (
     <>
-    <section className="border-2 border-black border-l-4 border-l-black bg-[#fafaf6]">
+    <section className="rounded-md border border-zinc-800 bg-zinc-900/40">
       <div className="flex flex-wrap items-baseline justify-between gap-2 px-4 pt-4 pb-2 sm:px-5">
-        <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-black">
+        <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-100">
           Quote range
         </h2>
-        <span className="border border-black bg-white px-2 py-0.5 font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-black">
+        <span className="border border-zinc-700 bg-zinc-900 px-2 py-0.5 font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-100">
           Draft &middot; not sent
         </span>
       </div>
@@ -489,7 +489,7 @@ export function QuoteRangeWorkspace({
             />
             <span
               aria-hidden
-              className="hidden text-center font-mono text-[15px] font-medium text-black sm:block"
+              className="hidden text-center font-mono text-[15px] font-medium text-zinc-100 sm:block"
             >
               &mdash;
             </span>
@@ -514,24 +514,24 @@ export function QuoteRangeWorkspace({
                 placeholder="0.00"
               />
               {miles != null && miles > 0 ? (
-                <p className="mt-1 font-mono text-[10px] font-bold uppercase tracking-[0.10em] text-black">
+                <p className="mt-1 font-mono text-[10px] font-bold uppercase tracking-[0.10em] text-zinc-100">
                   Auto · ${FUEL_RATE_PER_MILE.toFixed(2)}/mi × {miles.toLocaleString()} mi
                 </p>
               ) : null}
             </div>
             {hasRpm ? (
-              <div className="flex items-baseline justify-between gap-2 border border-black bg-white px-2.5 py-1.5">
-                <span className="font-mono text-[15px] font-medium text-black tabular-nums">
+              <div className="flex items-baseline justify-between gap-2 border border-zinc-700 bg-zinc-900 px-2.5 py-1.5">
+                <span className="font-mono text-[15px] font-medium text-zinc-100 tabular-nums">
                   {hasHigh
                     ? `${formatRpm(rpmLow)} \u2014 ${formatRpm(rpmHigh)}`
                     : formatRpm(rpmLow)}
                 </span>
-                <span className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-black">
+                <span className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-100">
                   {miles!.toLocaleString()} mi
                 </span>
               </div>
             ) : (
-              <p className="font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-black">
+              <p className="font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-zinc-100">
                 {miles == null || miles <= 0
                   ? "Lane miles unavailable"
                   : "Enter a linehaul to compute /mi"}
@@ -548,26 +548,26 @@ export function QuoteRangeWorkspace({
                 aria-hidden
                 className="inline-block h-[14px] w-[3px] shrink-0 bg-black"
               />
-              <span className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-black">
+              <span className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-zinc-100">
                 Accessorials
               </span>
             </span>
             <button
               type="button"
               onClick={addAccessorial}
-              className="inline-flex items-center gap-1 border-2 border-black bg-white px-2.5 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-black transition-colors hover:bg-black hover:text-white"
+              className="inline-flex items-center gap-1 rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-zinc-100 transition-colors hover:bg-black hover:text-white"
             >
               <IconPlus className="h-3 w-3" />
               Add line
             </button>
           </div>
           {accessorials.length === 0 ? (
-            <div className="border-2 border-dashed border-black/30 px-3 py-3 text-center font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-black/60">
+            <div className="border-2 border-dashed border-zinc-700 px-3 py-3 text-center font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-zinc-100/60">
               No accessorials — add detention, lumper, tarp, etc. if applicable
             </div>
           ) : (
-            <div className="border border-black bg-white">
-              <div className="grid grid-cols-[30px_minmax(0,1fr)_110px_28px] border-b border-zinc-300 px-2.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-black">
+            <div className="border border-zinc-700 bg-zinc-900">
+              <div className="grid grid-cols-[30px_minmax(0,1fr)_110px_28px] border-b border-zinc-300 px-2.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-100">
                 <span>#</span>
                 <span>Accessorial</span>
                 <span className="text-right">Amount</span>
@@ -578,7 +578,7 @@ export function QuoteRangeWorkspace({
                   key={a.id}
                   className="grid grid-cols-[30px_minmax(0,1fr)_110px_28px] items-center gap-1.5 border-t border-zinc-300 px-2.5 py-1.5 first:border-t-0 sm:px-3"
                 >
-                  <span className="font-mono text-[12px] tabular-nums text-black">
+                  <span className="font-mono text-[12px] tabular-nums text-zinc-100">
                     {String(idx + 1).padStart(2, "0")}
                   </span>
                   <input
@@ -589,10 +589,10 @@ export function QuoteRangeWorkspace({
                       updateAccessorial(a.id, { label: e.target.value })
                     }
                     placeholder="Detention, lumper..."
-                    className="border-0 bg-transparent px-1 py-1 font-mono text-[15px] text-black placeholder:text-zinc-700 focus:outline-none"
+                    className="border-0 bg-transparent px-1 py-1 font-mono text-[15px] text-zinc-100 placeholder:text-zinc-700 focus:outline-none"
                   />
-                  <div className="flex items-center border border-zinc-400 bg-white focus-within:border-black">
-                    <span className="px-2 font-mono text-[12px] text-black">
+                  <div className="flex items-center border border-zinc-400 bg-zinc-900 focus-within:border-zinc-700">
+                    <span className="px-2 font-mono text-[12px] text-zinc-100">
                       $
                     </span>
                     <input
@@ -604,14 +604,14 @@ export function QuoteRangeWorkspace({
                         updateAccessorial(a.id, { amount: e.target.value })
                       }
                       placeholder="0.00"
-                      className="min-w-0 flex-1 border-0 bg-transparent py-1 pr-1.5 text-right font-mono text-[15px] font-medium tabular-nums text-black placeholder:text-zinc-700 focus:outline-none"
+                      className="min-w-0 flex-1 border-0 bg-transparent py-1 pr-1.5 text-right font-mono text-[15px] font-medium tabular-nums text-zinc-100 placeholder:text-zinc-700 focus:outline-none"
                     />
                   </div>
                   <button
                     type="button"
                     onClick={() => removeAccessorial(a.id)}
                     aria-label={`Remove ${a.label || "accessorial"}`}
-                    className="inline-flex h-7 w-7 items-center justify-center border border-zinc-400 bg-white text-black transition-colors hover:border-black hover:text-black"
+                    className="inline-flex h-7 w-7 items-center justify-center border border-zinc-400 bg-zinc-900 text-zinc-100 transition-colors hover:border-zinc-700 hover:text-zinc-100"
                   >
                     <IconX className="h-3.5 w-3.5" />
                   </button>
@@ -625,23 +625,23 @@ export function QuoteRangeWorkspace({
       {/* 02 TERMS ------------------------------------------------------- */}
       <NumberedSection ordinal="02" title="Terms">
         <FieldRow label="Expiry date">
-          <div className="flex items-center border border-black bg-white focus-within:border-black">
+          <div className="flex items-center border border-zinc-700 bg-zinc-900 focus-within:border-zinc-700">
             <input
               type="date"
               value={expiryDate}
               onKeyDown={advanceOnEnter}
             onChange={(e) => setExpiryDate(e.target.value)}
-              className="block w-full border-0 bg-transparent px-2.5 py-1.5 font-mono text-[15px] font-medium text-black focus:outline-none"
+              className="block w-full border-0 bg-transparent px-2.5 py-1.5 font-mono text-[15px] font-medium text-zinc-100 focus:outline-none"
             />
           </div>
         </FieldRow>
         <FieldRow label="Payment terms">
-          <div className="border border-black bg-white">
+          <div className="border border-zinc-700 bg-zinc-900">
             <select
               value={paymentTerms}
               onKeyDown={advanceOnEnter}
             onChange={(e) => setPaymentTerms(e.target.value)}
-              className="block w-full border-0 bg-transparent px-2.5 py-1.5 font-mono text-[15px] font-medium text-black focus:outline-none"
+              className="block w-full border-0 bg-transparent px-2.5 py-1.5 font-mono text-[15px] font-medium text-zinc-100 focus:outline-none"
             >
               {PAYMENT_TERMS_OPTIONS.map((opt) => (
                 <option key={opt} value={opt}>
@@ -661,37 +661,37 @@ export function QuoteRangeWorkspace({
             onChange={(e) => setSpecialInstructions(e.target.value)}
             rows={2}
             placeholder="Tarp required, permitted load, hazmat handling..."
-            className="block w-full resize-y border border-black bg-white px-2.5 py-1.5 font-sans text-[15px] text-black placeholder:text-zinc-700 focus:border-black focus:outline-none"
+            className="block w-full resize-y border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 font-sans text-[15px] text-zinc-100 placeholder:text-zinc-700 focus:border-zinc-700 focus:outline-none"
           />
         </FieldRow>
       </NumberedSection>
 
       {/* QUOTED TOTAL - double rule above, mono right-aligned amount ----- */}
-      <div className="border-t-[3px] border-double border-black px-4 py-3 sm:px-5">
+      <div className="border-t-[3px] border-double border-zinc-700 px-4 py-3 sm:px-5">
         <div className="flex items-baseline justify-between gap-4">
           <div>
-            <p className="font-mono text-[12px] font-bold uppercase tracking-[0.22em] text-black">
+            <p className="font-mono text-[12px] font-bold uppercase tracking-[0.22em] text-zinc-100">
               {totalHigh !== null ? "Quoted range" : "Quoted total"}
             </p>
-            <p className="mt-0.5 font-mono text-[11px] text-black">
+            <p className="mt-0.5 font-mono text-[11px] text-zinc-100">
               Linehaul + fuel + accessorials &middot; USD
             </p>
           </div>
-          <p className="font-mono text-[28px] font-medium tabular-nums text-black sm:text-[30px]">
+          <p className="font-mono text-[28px] font-medium tabular-nums text-zinc-100 sm:text-[30px]">
             {totalHigh !== null
               ? `${formatUsd(totalLow)} \u2014 ${formatUsd(totalHigh)}`
               : formatUsd(totalLow)}
           </p>
         </div>
         {accessorialsTotal > 0 ? (
-          <p className="mt-1 text-right font-mono text-[12px] text-black">
+          <p className="mt-1 text-right font-mono text-[12px] text-zinc-100">
             includes {formatUsd(accessorialsTotal)} accessorials
           </p>
         ) : null}
       </div>
 
       {/* Footer action bar - status stamp marker + Preview button ------- */}
-      <div className="flex flex-col gap-2 border-t border-black px-4 py-3 sm:flex-row sm:items-center sm:gap-3 sm:px-5">
+      <div className="flex flex-col gap-2 border-t border-zinc-700 px-4 py-3 sm:flex-row sm:items-center sm:gap-3 sm:px-5">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <span
             aria-hidden
@@ -708,8 +708,8 @@ export function QuoteRangeWorkspace({
             className={
               "font-mono text-[12px] font-bold uppercase tracking-[0.14em] " +
               (effectivePreviewState === "failed" && previewError
-                ? "text-black"
-                : "text-black")
+                ? "text-zinc-100"
+                : "text-zinc-100")
             }
           >
             {buildBlockedReason
@@ -729,7 +729,7 @@ export function QuoteRangeWorkspace({
           type="button"
           onClick={runBuildPreview}
           disabled={!canBuild || isBuildPending}
-          className="inline-flex items-center justify-center gap-2 border-2 border-black bg-white px-5 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.16em] text-black transition-colors hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex items-center justify-center gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-5 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.16em] text-zinc-100 transition-colors hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isBuildPending
             ? "Building..."
@@ -763,7 +763,7 @@ export function QuoteRangeWorkspace({
         <Link
           href={`/admin/quotes/${nextLeadId}`}
           prefetch={false}
-          className="inline-flex items-center border-2 border-black bg-white px-4 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.16em] text-black transition-colors hover:bg-black hover:text-white"
+          className="inline-flex items-center rounded-md border border-zinc-700 bg-zinc-900 px-4 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.16em] text-zinc-100 transition-colors hover:bg-black hover:text-white"
         >
           Save &amp; open next &rarr;
         </Link>
@@ -791,8 +791,8 @@ function NumberedSection({
   // didn't belong inside the modernized parent.
   return (
     <div className={"px-4 sm:px-5 " + (last ? "pb-2" : "pb-3")}>
-      <div className="mt-3 border-t border-black/30 pt-3">
-        <p className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-black">
+      <div className="mt-3 border-t border-zinc-700 pt-3">
+        <p className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-100">
           {ordinal} · {title}
         </p>
         <div className="mt-1">{children}</div>
@@ -819,7 +819,7 @@ function FieldRow({
       className={
         "grid grid-cols-[110px_minmax(0,1fr)] gap-3 border-t border-zinc-300 px-3 py-2.5 first:border-t-0 sm:grid-cols-[140px_minmax(0,1fr)] sm:px-3 " +
         (align === "start" ? "items-start " : "items-center ") +
-        (required ? "border-l-[5px] border-l-red-700" : "")
+        (required ? "border-l-[5px] border-l-red-500" : "")
       }
       style={required ? { backgroundColor: "#fca5a5" } : undefined}
     >
@@ -828,9 +828,9 @@ function FieldRow({
           aria-hidden
           className="inline-block h-[14px] w-[3px] shrink-0 bg-black"
         />
-        <span className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-black">
+        <span className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-zinc-100">
           {label}
-          {required ? <span className="ml-1 text-black">*</span> : null}
+          {required ? <span className="ml-1 text-zinc-100">*</span> : null}
         </span>
       </span>
       <div className="min-w-0">{children}</div>
@@ -854,8 +854,8 @@ function CurrencyInput({
   // Mobile: smaller USD prefix + 16px input font so iOS Safari doesn't
   // auto-zoom on focus. Desktop: original 12px/15px sizing.
   return (
-    <div className="flex items-stretch border border-black bg-white focus-within:border-black">
-      <span className="border-r border-zinc-300 px-2 py-1.5 font-mono text-[11px] font-medium text-black sm:px-2.5 sm:text-[12px]">
+    <div className="flex items-stretch border border-zinc-700 bg-zinc-900 focus-within:border-zinc-700">
+      <span className="border-r border-zinc-300 px-2 py-1.5 font-mono text-[11px] font-medium text-zinc-100 sm:px-2.5 sm:text-[12px]">
         USD
       </span>
       <input
@@ -867,7 +867,7 @@ function CurrencyInput({
         placeholder={placeholder}
         autoFocus={autoFocus}
         autoComplete="off"
-        className="min-w-0 flex-1 border-0 bg-transparent px-2.5 py-1.5 text-right font-mono text-[16px] font-medium text-black tabular-nums placeholder:text-zinc-700 focus:outline-none sm:text-[15px]"
+        className="min-w-0 flex-1 border-0 bg-transparent px-2.5 py-1.5 text-right font-mono text-[16px] font-medium text-zinc-100 tabular-nums placeholder:text-zinc-700 focus:outline-none sm:text-[15px]"
       />
     </div>
   );

@@ -17,44 +17,30 @@ import { advanceOnEnter, formatPhoneDisplay } from "@/lib/admin/form-utils";
 import { IconCheck, IconCopy } from "../icons";
 
 /**
- * Level 5 Step 5.9 V4.5 - Details tab.
+ * Details tab -- dark workstation surface (Phase B restyle).
  *
- * Dispatcher-first IA (V4.5): the operator reads "what is this load?"
- * before "how do I edit it?". The Lane card is the dominant element;
- * Shipper of Record and Freight summarise below. The edit form is
- * collapsed by default - most loads never need an immediate override.
+ * Replaces the cream V4.5 surface with the dark zinc idiom that
+ * matches the new Load workspace. The save path, ZIP lookup path,
+ * FormData key set, and intakeSnapshotKey remount pattern are
+ * preserved verbatim.
  *
- * Layout (top -> bottom):
- *   1. Customer notes (full width, conditional on non-empty)
- *   2. PRIMARY Lane card (full width)
- *      - Origin city/state/ZIP + pickup window
- *      - Vertical route rail (red dots connected by a 2px line)
- *      - Destination city/state/ZIP + delivery window
- *      - Miles + Map pill in the top-right
- *   3. Secondary row (2-col on desktop, stacked on mobile)
- *      - Shipper of Record (lead contact, read-only)
- *      - Freight summary (Title Case commodity + formatted weight)
- *   4. Edit Load Details (collapsed by default)
- *      - Entire bar is a clickable <button> - operator clicks anywhere
- *        on it to toggle the form open/closed.
- *      - SaveStatusPill lives on the bar so save state stays visible
- *        whether the form is open or closed.
- *      - When expanded: 01 Shipper + 02 Consignee side-by-side on desktop
- *        (lg breakpoint), stacked on mobile; 03 Freight row spans both
- *        columns below.
+ * Surface (top -> bottom inside the parent "Load details" card):
+ *   1. LaneContextStrip  - compact 4-cell mono strip. The big lane
+ *      viz now lives in the page-level LaneHero; this strip only
+ *      shows window/miles/route status as edit context, deliberately
+ *      shrunk so it does not duplicate the hero.
+ *   2. ShipperOfRecordCard + FreightSummaryCard - dark two-column row.
+ *   3. EditableLoadDetailsCard - the form. 01 Shipper | 02 Consignee
+ *      side-by-side; 03 Freight spans both columns. Each subgroup
+ *      has its own kicker header and its own thin outline so the
+ *      Shipper/Consignee/Freight grouping stays visually distinct.
  *
- * The Lane and Freight summary cards read from LOCAL `values` state
- * (not the `initial` prop) so they update reactively as the operator
- * edits fields inside the edit form. Miles is read from `props.miles`
- * (server-computed) - it does NOT recompute live on ZIP edit; the next
- * page render after save will refresh it.
- *
- * SAVE BEHAVIOR - unchanged from prior version:
- *   - Each input's onBlur schedules a debounced save (~300ms after last
- *     blur). One save in flight at a time; coalesced follow-up.
- *   - The FULL editable form state (all 18 keys) is posted on every save.
- *     The action overwrites the entire JSONB column, so partial posts
- *     would clobber unchanged fields.
+ * SAVE BEHAVIOR (unchanged):
+ *   - Each input''s onBlur schedules a debounced save (~300ms after
+ *     last blur). One save in flight at a time; coalesced follow-up.
+ *   - The FULL editable form state (all 18 keys) is posted on every
+ *     save. The action overwrites the entire JSONB column, so partial
+ *     posts would clobber unchanged fields.
  *   - SaveStatusPill: "Saved HH:MM" / "Saving" / "Save failed".
  *
  * UNCHANGED:
@@ -63,19 +49,13 @@ import { IconCheck, IconCopy } from "../icons";
  *   - LoadDetailsInitial shape.
  *   - EDITABLE_KEYS array and FormData posting.
  *   - intakeSnapshotKey-driven remount pattern at page.tsx.
- *   - PreviewModal, FQ/BOL generation, PDF routes, fingerprints.
- *
- * REMOVED in V4.5:
- *   - Per-section collapse (CollapsibleBanner + IconSectionChevron).
- *     The edit form is now a single bar that opens the entire form;
- *     per-section toggles were redundant once the parent collapses.
- *
- * Risk: MEDIUM (structural rewrite inside a mutation surface; save
- * path preserved verbatim).
+ *   - advanceOnEnter keyboard handler on every input/select.
+ *   - formatPhoneDisplay on phone fields.
+ *   - CopyButton clipboard write semantics.
  */
 
 // ---------------------------------------------------------------------------
-// Constants
+// Constants (unchanged from V4.5)
 // ---------------------------------------------------------------------------
 
 const SAVE_DEBOUNCE_MS = 300;
@@ -110,8 +90,8 @@ const US_STATES = [
   "TN","TX","UT","VA","VT","WA","WI","WV","WY",
 ] as const;
 
-// Quick Quote-origin fields - red row wash + red label per the operator's
-// earlier "highlight which boxes are mandatory from quick quote" request.
+// Quick-Quote-mandatory subset. Red attention treatment, preserved from V4.5
+// but rendered with desaturated dark-mode reds.
 const QUICK_QUOTE_KEYS = new Set<EditableKey>([
   "pickup_zip",
   "pickup_window",
@@ -127,7 +107,7 @@ const QUICK_QUOTE_KEYS = new Set<EditableKey>([
 export type DetailsTabProps = {
   quoteRequestId: string;
   initial: LoadDetailsInitial;
-  /** Shipper of Record (lead contact) - read-only, lifted from OperatorHeader. */
+  /** Shipper of Record (lead contact) -- read-only, lifted from OperatorHeader. */
   shipperOfRecord: { name: string; phone: string; email: string };
   /** Server-computed route miles for the Lane card. Null if unroutable. */
   miles: number | null;
@@ -136,7 +116,7 @@ export type DetailsTabProps = {
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 // ---------------------------------------------------------------------------
-// Helpers
+// Helpers (verbatim from V4.5)
 // ---------------------------------------------------------------------------
 
 function isNextRedirect(e: unknown): boolean {
@@ -160,16 +140,14 @@ function joinCityState(city: string, state: string): string {
   if (!c && !s) return "";
   if (!s) return c;
   if (!c) return s;
-  return `${c}, ${s}`;
+  return c + ", " + s;
 }
 
 function formatClockHHMM(d: Date): string {
   const hh = String(d.getHours()).padStart(2, "0");
   const mm = String(d.getMinutes()).padStart(2, "0");
-  return `${hh}:${mm}`;
+  return hh + ":" + mm;
 }
-
-// V4.5 display helpers - used by LaneSummaryCard + FreightSummaryCard.
 
 function toTitleCase(raw: string): string {
   return raw
@@ -184,34 +162,31 @@ function toTitleCase(raw: string): string {
 function formatFreightWeight(raw: string): string {
   const trimmed = raw.trim();
   if (trimmed.length === 0) return "";
-  // Operator already typed a unit (e.g. "8000 lbs", "4 tons") - leave it.
   if (/[a-zA-Z]/.test(trimmed)) return trimmed;
-  // Otherwise treat as a number and append "lbs" (canonical intake unit).
   const digits = trimmed.replace(/[^\d]/g, "");
   if (digits.length === 0) return trimmed;
   const n = Number(digits);
   if (!Number.isFinite(n)) return trimmed;
-  return `${n.toLocaleString("en-US")} lbs`;
+  return n.toLocaleString("en-US") + " lbs";
 }
 
 function formatDateDisplay(iso: string): string {
   if (!iso) return "";
-  // <input type="date"> emits YYYY-MM-DD; render as MM/DD/YYYY for humans.
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
   if (!m) return iso;
-  return `${m[2]}/${m[3]}/${m[1]}`;
+  return m[2] + "/" + m[3] + "/" + m[1];
 }
 
 function formatWindow(start: string, end: string): string | null {
   const s = start.trim();
   const e = end.trim();
   if (!s && !e) return null;
-  if (s && e) return `${formatDateDisplay(s)} — ${formatDateDisplay(e)}`;
+  if (s && e) return formatDateDisplay(s) + " \u2014 " + formatDateDisplay(e);
   return formatDateDisplay(s || e);
 }
 
 // ---------------------------------------------------------------------------
-// Debounced save hook (unchanged)
+// Debounced save hook (verbatim from V4.5)
 // ---------------------------------------------------------------------------
 
 function useDebouncedSave(
@@ -233,10 +208,6 @@ function useDebouncedSave(
     inflightRef.current = true;
     setStatus("saving");
 
-    // Build FormData fresh from the latest values ref. The action overwrites
-    // the entire JSONB column, so we MUST post the full editable state - not
-    // just the field that triggered the save - or unchanged fields get
-    // clobbered.
     const formData = new FormData();
     const current = valuesRef.current;
     for (const key of EDITABLE_KEYS) {
@@ -294,7 +265,7 @@ function useDebouncedSave(
 }
 
 // ---------------------------------------------------------------------------
-// DetailsTab (V4.5 layout)
+// DetailsTab (dark restyle)
 // ---------------------------------------------------------------------------
 
 export function DetailsTab({
@@ -307,7 +278,8 @@ export function DetailsTab({
   const valuesRef = useRef<LoadDetailsInitial>(values);
   valuesRef.current = values;
 
-  const { scheduleSave } = useDebouncedSave(quoteRequestId, valuesRef);
+  const { scheduleSave, status, errorMessage, lastSavedAt } =
+    useDebouncedSave(quoteRequestId, valuesRef);
 
   const setValue = useCallback(
     <K extends keyof LoadDetailsInitial>(key: K, value: string) => {
@@ -317,10 +289,10 @@ export function DetailsTab({
   );
 
   return (
-    <div className="space-y-3 px-4 pt-4 pb-6 sm:space-y-4 sm:px-6 lg:px-8">
-      <LaneSummaryCard values={values} miles={miles} />
+    <div className="space-y-3 bg-zinc-950 px-3 py-3 text-zinc-100 sm:space-y-4 sm:px-4 sm:py-4">
+      <LaneContextStrip values={values} miles={miles} />
 
-      <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-[1.4fr_1fr]">
+      <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-[1.3fr_1fr]">
         <ShipperOfRecordCard contact={shipperOfRecord} />
         <FreightSummaryCard
           commodity={values.freight_commodity}
@@ -332,16 +304,19 @@ export function DetailsTab({
         values={values}
         setValue={setValue}
         scheduleSave={scheduleSave}
+        saveStatus={status}
+        errorMessage={errorMessage}
+        lastSavedAt={lastSavedAt}
       />
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// LaneSummaryCard (NEW V4.5) - primary, full-width, dominant element
+// LaneContextStrip -- compact replacement for the old big LaneSummaryCard
 // ---------------------------------------------------------------------------
 
-export function LaneSummaryCard({
+export function LaneContextStrip({
   values,
   miles,
 }: {
@@ -350,98 +325,107 @@ export function LaneSummaryCard({
 }) {
   const pickupZip = values.pickup_zip.trim();
   const deliveryZip = values.delivery_zip.trim();
-  const pickupCityState = values.pickup_city_state.trim();
-  const deliveryCityState = values.delivery_city_state.trim();
-  const pickupPlace = [pickupCityState, pickupZip].filter(Boolean).join(" ");
-  const deliveryPlace = [deliveryCityState, deliveryZip].filter(Boolean).join(" ");
-  const pickupWindow = formatWindow(values.pickup_window, values.pickup_window_end);
-  const deliveryWindow = formatWindow(values.delivery_window, values.delivery_window_end);
-  // mapHref is derived locally so the pill stays in sync with edits the
-  // operator just made; miles comes from the server-computed prop.
+  const pickupWindow = formatWindow(
+    values.pickup_window,
+    values.pickup_window_end,
+  );
+  const deliveryWindow = formatWindow(
+    values.delivery_window,
+    values.delivery_window_end,
+  );
   const mapHref =
     pickupZip && deliveryZip
-      ? `https://maps.apple.com/?saddr=${encodeURIComponent(pickupZip)}&daddr=${encodeURIComponent(deliveryZip)}&dirflg=d`
+      ? "https://maps.apple.com/?saddr=" +
+        encodeURIComponent(pickupZip) +
+        "&daddr=" +
+        encodeURIComponent(deliveryZip) +
+        "&dirflg=d"
       : null;
 
   return (
     <section
-      aria-label="Lane"
-      className="border-2 border-black border-l-4 border-l-black bg-[#fafaf6] px-5 py-5 sm:px-6 sm:py-6 lg:py-7"
+      aria-label="Lane edit context"
+      className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-md border border-zinc-800 bg-zinc-900/50 px-3 py-2 sm:grid-cols-4"
     >
-      {mapHref ? (
-        <a
-          href={mapHref}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label="Open route in Maps"
-          className="flex w-full items-center justify-center border-2 border-black bg-white px-4 py-3 font-mono text-[14px] font-bold uppercase tracking-[0.18em] text-black transition-colors hover:bg-[#f3f1e9] sm:text-[15px]"
-        >
-          Open route in Maps
-        </a>
-      ) : null}
-
-      <div className="mt-3 flex gap-3 sm:gap-4">
-        <div className="flex flex-col items-center" aria-hidden>
-          <div className="mt-1.5 h-3 w-3 rounded-full bg-black" />
-          <div className="my-1 w-[2px] flex-1 bg-black" />
-          <div className="mb-1.5 h-3 w-3 rounded-full bg-black" />
-        </div>
-        <div className="min-w-0 flex-1 space-y-5">
-          <div>
-            <p className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-black">
-              Origin
-            </p>
-            <p className="mt-1 text-[20px] font-bold leading-tight text-black sm:text-[26px] lg:text-[30px]">
-              {pickupPlace || "—"}
-            </p>
-            {pickupWindow ? (
-              <p className="mt-2 font-mono text-[12px] font-bold text-red-700 sm:text-[13px]">
-                <span className="mr-2 uppercase tracking-[0.18em] text-red-700">
-                  Pickup
-                </span>
-                {pickupWindow}
-              </p>
-            ) : (
-              <p className="mt-2 font-mono text-[12px] font-bold uppercase tracking-[0.18em] text-red-700">
-                Pickup window not set
-              </p>
-            )}
-          </div>
-          <div>
-            <p className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-black">
-              Destination
-            </p>
-            <p className="mt-1 text-[20px] font-bold leading-tight text-black sm:text-[26px] lg:text-[30px]">
-              {deliveryPlace || "—"}
-            </p>
-            {deliveryWindow ? (
-              <p className="mt-2 font-mono text-[12px] font-bold text-red-700 sm:text-[13px]">
-                <span className="mr-2 uppercase tracking-[0.18em] text-red-700">
-                  Delivery
-                </span>
-                {deliveryWindow}
-              </p>
-            ) : (
-              <p className="mt-2 font-mono text-[12px] font-bold uppercase tracking-[0.18em] text-red-700">
-                Delivery window not set
-              </p>
-            )}
-            {miles != null ? (
-              <div className="mt-3 flex justify-end">
-                <span className="inline-flex items-center border-2 border-black bg-white px-4 py-2 font-mono text-[14px] font-bold uppercase tabular-nums tracking-[0.18em] text-red-700 sm:text-[15px]">
-                  Miles : {miles.toLocaleString()}
-                </span>
-              </div>
-            ) : null}
-          </div>
-        </div>
+      <Cell
+        label="Pickup window"
+        value={pickupWindow}
+        emptyHint="Not set"
+        emptyTone="warn"
+      />
+      <Cell
+        label="Delivery window"
+        value={deliveryWindow}
+        emptyHint="Not set"
+        emptyTone="warn"
+      />
+      <Cell
+        label="Miles"
+        value={miles != null ? miles.toLocaleString() + " mi" : null}
+        emptyHint="—"
+        emptyTone="muted"
+        mono
+      />
+      <div className="min-w-0">
+        <p className="font-mono text-[9px] font-medium uppercase tracking-[0.20em] text-zinc-500">
+          Route
+        </p>
+        {mapHref ? (
+          <a
+            href={mapHref}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-0.5 inline-flex items-center gap-1 font-mono text-[11.5px] font-medium uppercase tracking-[0.12em] text-zinc-200 transition-colors hover:text-white"
+          >
+            Open in Maps
+            <span aria-hidden className="text-zinc-500">
+              {"\u2197"}
+            </span>
+          </a>
+        ) : (
+          <p className="mt-0.5 font-mono text-[11.5px] uppercase tracking-[0.12em] text-zinc-600">
+            Needs both ZIPs
+          </p>
+        )}
       </div>
     </section>
   );
 }
 
+function Cell({
+  label,
+  value,
+  emptyHint,
+  emptyTone,
+  mono,
+}: {
+  label: string;
+  value: string | null;
+  emptyHint: string;
+  emptyTone: "warn" | "muted";
+  mono?: boolean;
+}) {
+  const hasValue = (value ?? "").trim().length > 0;
+  const valueClass =
+    "mt-0.5 truncate text-[12.5px] " +
+    (mono ? "font-mono tabular-nums " : "") +
+    (hasValue
+      ? "text-zinc-100"
+      : emptyTone === "warn"
+        ? "font-mono text-[11.5px] uppercase tracking-[0.12em] text-red-300"
+        : "font-mono text-[11.5px] uppercase tracking-[0.12em] text-zinc-500");
+  return (
+    <div className="min-w-0">
+      <p className="font-mono text-[9px] font-medium uppercase tracking-[0.20em] text-zinc-500">
+        {label}
+      </p>
+      <p className={valueClass}>{hasValue ? value : emptyHint}</p>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
-// Shipper of Record (read-only, lifted from OperatorHeader)
+// Shipper of Record (read-only, dark)
 // ---------------------------------------------------------------------------
 
 function ShipperOfRecordCard({
@@ -449,14 +433,20 @@ function ShipperOfRecordCard({
 }: {
   contact: { name: string; phone: string; email: string };
 }) {
-  const phoneHref = `tel:${contact.phone.replace(/[^\d+]/g, "")}`;
-  const mailHref = `mailto:${contact.email}`;
+  const phoneHref = "tel:" + contact.phone.replace(/[^\d+]/g, "");
+  const mailHref = "mailto:" + contact.email;
   return (
-    <section className="border-2 border-black border-l-4 border-l-black bg-[#fafaf6]">
-      <p className="px-3 pt-3 pb-2 font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-black sm:px-4 sm:pt-4">
-        Shipper of record
-      </p>
-      <ContactRow label="Customer" value={contact.name} ariaLabel="customer name" />
+    <section className="overflow-hidden rounded-md border border-zinc-800 bg-zinc-900/40">
+      <header className="border-b border-zinc-800 bg-zinc-900/70 px-3 py-2">
+        <p className="font-mono text-[10px] font-medium uppercase tracking-[0.22em] text-zinc-300">
+          Shipper of record
+        </p>
+      </header>
+      <ContactRow
+        label="Customer"
+        value={contact.name}
+        ariaLabel="customer name"
+      />
       <ContactRow
         label="Phone"
         value={formatPhoneDisplay(contact.phone) || contact.phone}
@@ -464,7 +454,7 @@ function ShipperOfRecordCard({
         actionHref={phoneHref}
         actionLabel="Tap to call"
         ariaLabel="phone"
-        dashed
+        topBorder
       />
       <ContactRow
         label="Email"
@@ -473,7 +463,7 @@ function ShipperOfRecordCard({
         actionHref={mailHref}
         actionLabel="Draft email"
         ariaLabel="email"
-        dashed
+        topBorder
       />
     </section>
   );
@@ -486,7 +476,7 @@ function ContactRow({
   actionHref,
   actionLabel,
   ariaLabel,
-  dashed,
+  topBorder,
 }: {
   label: string;
   value: string;
@@ -494,44 +484,41 @@ function ContactRow({
   actionHref?: string;
   actionLabel?: string;
   ariaLabel: string;
-  dashed?: boolean;
+  topBorder?: boolean;
 }) {
   const valueCls =
-    "text-[16px] text-black truncate " + (mono ? "font-mono " : "");
-
+    "truncate text-[13.5px] text-zinc-100 " + (mono ? "font-mono " : "");
   const inner = (
-    <div className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5 sm:px-4">
-      <div className="w-[80px] shrink-0 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-black">
+    <div className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2">
+      <div className="w-[68px] shrink-0 font-mono text-[9.5px] font-medium uppercase tracking-[0.18em] text-zinc-500">
         {label}
       </div>
       <div className="min-w-0 flex-1">
-        <p className={valueCls}>{value}</p>
+        <p className={valueCls}>{value || "\u2014"}</p>
       </div>
     </div>
   );
-
   return (
     <div
       className={
-        "flex items-stretch " +
-        (dashed ? "border-t border-dashed border-black/15" : "")
+        "flex items-stretch " + (topBorder ? "border-t border-zinc-800" : "")
       }
     >
       {actionHref ? (
         <a
           href={actionHref}
-          className="flex min-w-0 flex-1 transition-colors hover:bg-[#f3f1e9]"
+          className="flex min-w-0 flex-1 transition-colors hover:bg-zinc-900/60"
         >
           {inner}
         </a>
       ) : (
         inner
       )}
-      <div className="flex shrink-0 items-center gap-2 pr-3 sm:pr-4">
+      <div className="flex shrink-0 items-center gap-2 pr-2 sm:pr-3">
         {actionHref && actionLabel ? (
           <a
             href={actionHref}
-            className="hidden font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-black hover:underline sm:inline-block"
+            className="hidden font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-400 transition-colors hover:text-zinc-100 sm:inline-block"
           >
             {actionLabel}
           </a>
@@ -543,7 +530,7 @@ function ContactRow({
 }
 
 // ---------------------------------------------------------------------------
-// FreightSummaryCard (NEW V4.5)
+// FreightSummaryCard (dark)
 // ---------------------------------------------------------------------------
 
 function FreightSummaryCard({
@@ -556,28 +543,29 @@ function FreightSummaryCard({
   const display = toTitleCase(commodity);
   const wt = formatFreightWeight(weight);
   const hasAny = display.length > 0 || wt.length > 0;
-
   return (
     <section
-      aria-label="Freight"
-      className="border-2 border-black border-l-4 border-l-black bg-[#fafaf6]"
+      aria-label="Freight summary"
+      className="overflow-hidden rounded-md border border-zinc-800 bg-zinc-900/40"
     >
-      <p className="px-4 pt-3 pb-1 font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-black sm:px-5 sm:pt-4">
-        Freight
-      </p>
-      <div className="px-4 pb-4 sm:px-5">
+      <header className="border-b border-zinc-800 bg-zinc-900/70 px-3 py-2">
+        <p className="font-mono text-[10px] font-medium uppercase tracking-[0.22em] text-zinc-300">
+          Freight
+        </p>
+      </header>
+      <div className="px-3 py-3">
         {hasAny ? (
           <>
             {display.length > 0 ? (
-              <p className="text-[20px] font-bold leading-tight text-black sm:text-[22px]">
+              <p className="text-[16px] font-medium leading-tight text-zinc-100">
                 {display}
               </p>
             ) : null}
             {wt.length > 0 ? (
               <p
                 className={
-                  "font-mono text-[13px] font-bold text-black sm:text-[14px] " +
-                  (display.length > 0 ? "mt-1.5" : "")
+                  "font-mono text-[12px] tabular-nums text-zinc-300 " +
+                  (display.length > 0 ? "mt-1" : "")
                 }
               >
                 {wt}
@@ -585,7 +573,7 @@ function FreightSummaryCard({
             ) : null}
           </>
         ) : (
-          <p className="text-[14px] text-black">&mdash;</p>
+          <p className="text-[12px] text-zinc-500">{"\u2014"}</p>
         )}
       </div>
     </section>
@@ -593,7 +581,7 @@ function FreightSummaryCard({
 }
 
 // ---------------------------------------------------------------------------
-// Editable load details card (V4.5: collapsed by default, full-bar click)
+// Editable load details card
 // ---------------------------------------------------------------------------
 
 type ChangeFn = <K extends keyof LoadDetailsInitial>(
@@ -605,134 +593,136 @@ function EditableLoadDetailsCard({
   values,
   setValue,
   scheduleSave,
+  saveStatus,
+  errorMessage,
+  lastSavedAt,
 }: {
   values: LoadDetailsInitial;
   setValue: ChangeFn;
   scheduleSave: () => void;
+  saveStatus: SaveStatus;
+  errorMessage: string | null;
+  lastSavedAt: Date | null;
 }) {
   return (
-    <section className="border-2 border-black border-l-4 border-l-black bg-[#fafaf6]">
-      <p className="px-4 pt-4 pb-2 font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-black sm:px-5">
-        Edit load details
-      </p>
+    <section className="overflow-hidden rounded-md border border-zinc-800 bg-zinc-900/40">
+      <header className="flex items-center justify-between gap-3 border-b border-zinc-800 bg-zinc-900/70 px-3 py-2">
+        <p className="font-mono text-[10px] font-medium uppercase tracking-[0.22em] text-zinc-300">
+          Edit load details
+        </p>
+        <SaveStatusPill
+          status={saveStatus}
+          errorMessage={errorMessage}
+          lastSavedAt={lastSavedAt}
+        />
+      </header>
 
-      <div className="px-4 pb-5 sm:px-5">
-          <div className="grid grid-cols-1 gap-x-6 lg:grid-cols-2">
-            {/* 01 Shipper */}
-            <div>
-              <p className="pb-1 font-mono text-[12px] font-bold uppercase tracking-[0.18em] text-black">
-                01 &middot; Shipper
-              </p>
-              <Row
-                label="Company"
-                fieldKey="pickup_company"
-                value={values.pickup_company}
-                onChange={setValue}
-                onBlur={scheduleSave}
-              />
-              <Row
-                label="Address"
-                fieldKey="pickup_address"
-                value={values.pickup_address}
-                onChange={setValue}
-                onBlur={scheduleSave}
-              />
-              <CityZipRow
-                cityKey="pickup_city_state"
-                cityValue={values.pickup_city_state}
-                zipKey="pickup_zip"
-                zipValue={values.pickup_zip}
-                onChange={setValue}
-                onBlur={scheduleSave}
-                fromQuickQuote
-              />
-              <Row
-                label="Contact"
-                fieldKey="pickup_contact"
-                value={values.pickup_contact}
-                onChange={setValue}
-                onBlur={scheduleSave}
-              />
-              <PhoneRow
-                label="Phone"
-                fieldKey="pickup_phone"
-                value={values.pickup_phone}
-                onChange={setValue}
-                onBlur={scheduleSave}
-              />
-              <DateRangeRow
-                label="Window"
-                startKey="pickup_window"
-                startValue={values.pickup_window}
-                endKey="pickup_window_end"
-                endValue={values.pickup_window_end}
-                onChange={setValue}
-                onBlur={scheduleSave}
-                startFromQuickQuote
-              />
-            </div>
+      <div className="px-3 py-3 sm:px-4">
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 lg:gap-4">
+          <Subgroup kicker="01 · Shipper">
+            <Row
+              label="Company"
+              fieldKey="pickup_company"
+              value={values.pickup_company}
+              onChange={setValue}
+              onBlur={scheduleSave}
+            />
+            <Row
+              label="Address"
+              fieldKey="pickup_address"
+              value={values.pickup_address}
+              onChange={setValue}
+              onBlur={scheduleSave}
+            />
+            <CityZipRow
+              cityKey="pickup_city_state"
+              cityValue={values.pickup_city_state}
+              zipKey="pickup_zip"
+              zipValue={values.pickup_zip}
+              onChange={setValue}
+              onBlur={scheduleSave}
+              fromQuickQuote
+            />
+            <Row
+              label="Contact"
+              fieldKey="pickup_contact"
+              value={values.pickup_contact}
+              onChange={setValue}
+              onBlur={scheduleSave}
+            />
+            <PhoneRow
+              label="Phone"
+              fieldKey="pickup_phone"
+              value={values.pickup_phone}
+              onChange={setValue}
+              onBlur={scheduleSave}
+            />
+            <DateRangeRow
+              label="Window"
+              startKey="pickup_window"
+              startValue={values.pickup_window}
+              endKey="pickup_window_end"
+              endValue={values.pickup_window_end}
+              onChange={setValue}
+              onBlur={scheduleSave}
+              startFromQuickQuote
+            />
+          </Subgroup>
 
-            {/* 02 Consignee */}
-            <div className="mt-5 lg:mt-0">
-              <p className="pb-1 font-mono text-[12px] font-bold uppercase tracking-[0.18em] text-black">
-                02 &middot; Consignee
-              </p>
-              <Row
-                label="Company"
-                fieldKey="delivery_company"
-                value={values.delivery_company}
-                onChange={setValue}
-                onBlur={scheduleSave}
-              />
-              <Row
-                label="Address"
-                fieldKey="delivery_address"
-                value={values.delivery_address}
-                onChange={setValue}
-                onBlur={scheduleSave}
-              />
-              <CityZipRow
-                cityKey="delivery_city_state"
-                cityValue={values.delivery_city_state}
-                zipKey="delivery_zip"
-                zipValue={values.delivery_zip}
-                onChange={setValue}
-                onBlur={scheduleSave}
-                fromQuickQuote
-              />
-              <Row
-                label="Contact"
-                fieldKey="delivery_contact"
-                value={values.delivery_contact}
-                onChange={setValue}
-                onBlur={scheduleSave}
-              />
-              <PhoneRow
-                label="Phone"
-                fieldKey="delivery_phone"
-                value={values.delivery_phone}
-                onChange={setValue}
-                onBlur={scheduleSave}
-              />
-              <DateRangeRow
-                label="Window"
-                startKey="delivery_window"
-                startValue={values.delivery_window}
-                endKey="delivery_window_end"
-                endValue={values.delivery_window_end}
-                onChange={setValue}
-                onBlur={scheduleSave}
-                startFromQuickQuote
-              />
-            </div>
-          </div>
+          <Subgroup kicker="02 · Consignee">
+            <Row
+              label="Company"
+              fieldKey="delivery_company"
+              value={values.delivery_company}
+              onChange={setValue}
+              onBlur={scheduleSave}
+            />
+            <Row
+              label="Address"
+              fieldKey="delivery_address"
+              value={values.delivery_address}
+              onChange={setValue}
+              onBlur={scheduleSave}
+            />
+            <CityZipRow
+              cityKey="delivery_city_state"
+              cityValue={values.delivery_city_state}
+              zipKey="delivery_zip"
+              zipValue={values.delivery_zip}
+              onChange={setValue}
+              onBlur={scheduleSave}
+              fromQuickQuote
+            />
+            <Row
+              label="Contact"
+              fieldKey="delivery_contact"
+              value={values.delivery_contact}
+              onChange={setValue}
+              onBlur={scheduleSave}
+            />
+            <PhoneRow
+              label="Phone"
+              fieldKey="delivery_phone"
+              value={values.delivery_phone}
+              onChange={setValue}
+              onBlur={scheduleSave}
+            />
+            <DateRangeRow
+              label="Window"
+              startKey="delivery_window"
+              startValue={values.delivery_window}
+              endKey="delivery_window_end"
+              endValue={values.delivery_window_end}
+              onChange={setValue}
+              onBlur={scheduleSave}
+              startFromQuickQuote
+            />
+          </Subgroup>
+        </div>
 
-          {/* 03 Freight - spans both columns */}
-          <div className="mt-5 border-t border-black/15 pt-4">
-            <p className="pb-2 font-mono text-[12px] font-bold uppercase tracking-[0.18em] text-black">
-              03 &middot; Freight
-            </p>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="mt-3 lg:mt-4">
+          <Subgroup kicker="03 · Freight">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
               <FreightCell
                 label="Commodity"
                 fieldKey="freight_commodity"
@@ -750,14 +740,35 @@ function EditableLoadDetailsCard({
                 fromQuickQuote
               />
             </div>
-          </div>
+          </Subgroup>
         </div>
+      </div>
     </section>
   );
 }
 
+// Visual subgroup wrapper -- gives Shipper/Consignee/Freight their own
+// outlined surface so the three sections stay distinct rather than melting
+// into one wall of dark inputs.
+function Subgroup({
+  kicker,
+  children,
+}: {
+  kicker: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-md border border-zinc-800/80 bg-zinc-900/30">
+      <p className="border-b border-zinc-800 px-3 py-1.5 font-mono text-[10px] font-medium uppercase tracking-[0.22em] text-zinc-400">
+        {kicker}
+      </p>
+      <div className="px-3 py-1">{children}</div>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
-// Save status pill (now lives on the Edit bar)
+// SaveStatusPill (dark)
 // ---------------------------------------------------------------------------
 
 function SaveStatusPill({
@@ -772,7 +783,7 @@ function SaveStatusPill({
   if (status === "error") {
     return (
       <span
-        className="border border-black bg-[#f3f1e9] px-2.5 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.18em] text-black"
+        className="rounded-sm border border-red-700/70 bg-red-950/30 px-2 py-[3px] font-mono text-[10px] font-medium uppercase tracking-[0.16em] text-red-200"
         title={errorMessage ?? "Save failed"}
       >
         Save failed
@@ -781,30 +792,33 @@ function SaveStatusPill({
   }
   if (status === "saving") {
     return (
-      <span className="border border-black bg-white px-2.5 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.18em] text-black">
+      <span className="rounded-sm border border-zinc-700 bg-zinc-900 px-2 py-[3px] font-mono text-[10px] font-medium uppercase tracking-[0.16em] text-zinc-200">
         Saving
       </span>
     );
   }
   if (status === "saved" && lastSavedAt) {
     return (
-      <span className="border border-black bg-white px-2.5 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.18em] text-black">
+      <span className="rounded-sm border border-zinc-700 bg-zinc-900 px-2 py-[3px] font-mono text-[10px] font-medium uppercase tracking-[0.16em] text-zinc-200">
         Saved {formatClockHHMM(lastSavedAt)}
       </span>
     );
   }
   return (
-    <span className="border border-black bg-white px-2.5 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.18em] text-black">
+    <span className="rounded-sm border border-zinc-800 bg-zinc-900 px-2 py-[3px] font-mono text-[10px] font-medium uppercase tracking-[0.16em] text-zinc-400">
       Auto-save on
     </span>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Layout primitives (unchanged behavior; horizontal padding shifted so the
-// rows fit inside the new edit-form body wrapper which already supplies
-// horizontal padding).
+// Row primitives (dark)
 // ---------------------------------------------------------------------------
+
+const ROW_BASE =
+  "grid grid-cols-[88px_minmax(0,1fr)_28px] items-center gap-2 border-t border-zinc-800/80 py-1.5";
+const ROW_BASE_QQ =
+  "grid grid-cols-[88px_minmax(0,1fr)_28px] items-center gap-2 border-t border-zinc-800/80 py-1.5 border-l-[3px] border-l-red-600/80 bg-red-950/25 pl-2";
 
 function LabelWithBar({
   label,
@@ -815,11 +829,17 @@ function LabelWithBar({
 }) {
   return (
     <span className="flex items-center gap-2">
-      <span aria-hidden className="inline-block h-[14px] w-[3px] shrink-0 bg-black" />
+      <span
+        aria-hidden
+        className={
+          "inline-block h-[12px] w-[2px] shrink-0 " +
+          (fromQuickQuote ? "bg-red-500" : "bg-zinc-600")
+        }
+      />
       <span
         className={
-          "truncate font-mono text-[12px] font-bold uppercase tracking-[0.14em] " +
-          (fromQuickQuote ? "text-black" : "text-black")
+          "truncate font-mono text-[10px] font-medium uppercase tracking-[0.16em] " +
+          (fromQuickQuote ? "text-red-300" : "text-zinc-400")
         }
       >
         {label}
@@ -843,12 +863,7 @@ function Row({
 }) {
   const fromQuickQuote = QUICK_QUOTE_KEYS.has(fieldKey);
   return (
-    <div
-      className={
-        "grid grid-cols-[110px_minmax(0,1fr)_32px] items-center gap-3 border-t border-black/15 py-2 " +
-        (fromQuickQuote ? "-mx-2 border-l-[3px] border-l-black bg-[#f3f1e9] px-2" : "")
-      }
-    >
+    <div className={fromQuickQuote ? ROW_BASE_QQ : ROW_BASE}>
       <LabelWithBar label={label} fromQuickQuote={fromQuickQuote} />
       <EditableInput
         value={value}
@@ -875,7 +890,7 @@ function PhoneRow({
   onBlur: () => void;
 }) {
   return (
-    <div className="grid grid-cols-[110px_minmax(0,1fr)_32px] items-center gap-3 border-t border-black/15 py-2">
+    <div className={ROW_BASE}>
       <LabelWithBar label={label} />
       <EditableInput
         value={value}
@@ -908,33 +923,27 @@ function DateRangeRow({
   startFromQuickQuote?: boolean;
 }) {
   return (
-    <div
-      className={
-        "grid grid-cols-[110px_minmax(0,1fr)_32px] items-center gap-3 border-t border-black/15 py-2 " +
-        (startFromQuickQuote ? "-mx-2 border-l-[5px] border-l-red-700 px-2" : "")
-      }
-      style={startFromQuickQuote ? { backgroundColor: "#fca5a5" } : undefined}
-    >
+    <div className={startFromQuickQuote ? ROW_BASE_QQ : ROW_BASE}>
       <LabelWithBar label={label} fromQuickQuote={startFromQuickQuote} />
       <div className="flex flex-col gap-1.5 sm:grid sm:grid-cols-[minmax(0,1fr)_14px_minmax(0,1fr)] sm:items-center sm:gap-2">
         <EditableInput
           value={startValue}
           onChange={(v) => onChange(startKey, v)}
           onBlur={onBlur}
-          ariaLabel={`${label} start`}
+          ariaLabel={label + " start"}
           type="date"
         />
         <span
           aria-hidden
-          className="hidden text-center font-mono text-[15px] font-bold text-black sm:block"
+          className="hidden text-center font-mono text-[12px] text-zinc-600 sm:block"
         >
-          &mdash;
+          {"\u2014"}
         </span>
         <EditableInput
           value={endValue}
           onChange={(v) => onChange(endKey, v)}
           onBlur={onBlur}
-          ariaLabel={`${label} end`}
+          ariaLabel={label + " end"}
           type="date"
         />
       </div>
@@ -961,10 +970,11 @@ function FreightCell({
   return (
     <div
       className={
-        "grid grid-cols-[90px_minmax(0,1fr)_28px] items-center gap-2 " +
-        (fromQuickQuote ? "-mx-2 border-l-[5px] border-l-red-700 px-2 py-1.5" : "")
+        "grid grid-cols-[80px_minmax(0,1fr)_28px] items-center gap-2 py-1.5 " +
+        (fromQuickQuote
+          ? "border-l-[3px] border-l-red-600/80 bg-red-950/25 pl-2"
+          : "")
       }
-      style={fromQuickQuote ? { backgroundColor: "#fca5a5" } : undefined}
     >
       <LabelWithBar label={label} fromQuickQuote={fromQuickQuote} />
       <EditableInput
@@ -999,11 +1009,11 @@ function CityZipRow({
   const combined = [cityValue, zipValue].filter(Boolean).join(" ").trim();
 
   async function handleZipBlur(z: string) {
-    // ZIP onBlur is twofold: (a) trigger the debounced save like every other
-    // blur, (b) attempt a server-side city/state lookup. Order: schedule the
-    // save first so it runs even if lookup misses; then try lookup and
-    // update city_state if it hits, which itself triggers another debounced
-    // save with the new city/state.
+    // ZIP onBlur is twofold: (a) trigger the debounced save like every
+    // other blur, (b) attempt a server-side city/state lookup. Order:
+    // schedule the save first so it runs even if lookup misses; then try
+    // lookup and update city_state if it hits, which itself triggers
+    // another debounced save with the new city/state.
     onBlur();
     const trimmed = z.trim();
     if (!/^\d{5}$/.test(trimmed)) return;
@@ -1015,25 +1025,21 @@ function CityZipRow({
   }
 
   return (
-    <div
-      className={
-        "grid grid-cols-[110px_minmax(0,1fr)_32px] items-center gap-3 border-t border-black/15 py-2 " +
-        (fromQuickQuote ? "-mx-2 border-l-[5px] border-l-red-700 px-2" : "")
-      }
-      style={fromQuickQuote ? { backgroundColor: "#fca5a5" } : undefined}
-    >
+    <div className={fromQuickQuote ? ROW_BASE_QQ : ROW_BASE}>
       <LabelWithBar label="City / ZIP" fromQuickQuote={fromQuickQuote} />
-      <div className="flex flex-col gap-1.5 sm:grid sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] sm:items-center sm:gap-2">
+      <div className="flex flex-col gap-1.5 sm:grid sm:grid-cols-[minmax(0,3fr)_minmax(0,1fr)] sm:items-center sm:gap-2">
         <div className="flex items-stretch gap-1.5">
           <div className="min-w-0 flex-1">
             <EditableInput
               value={parsedCity}
-              onChange={(v) => onChange(cityKey, joinCityState(v, parsedState))}
+              onChange={(v) =>
+                onChange(cityKey, joinCityState(v, parsedState))
+              }
               onBlur={onBlur}
               ariaLabel="City"
             />
           </div>
-          <div className="border border-black bg-white focus-within:border-black">
+          <div className="rounded-sm border border-zinc-700 bg-zinc-900 focus-within:border-zinc-500">
             <select
               value={parsedState}
               onChange={(e) =>
@@ -1042,7 +1048,7 @@ function CityZipRow({
               onBlur={onBlur}
               onKeyDown={advanceOnEnter}
               aria-label="State"
-              className="block w-[58px] border-0 bg-transparent px-1.5 py-1.5 text-center font-mono text-[16px] font-medium text-black focus:outline-none sm:text-[15px]"
+              className="block w-[44px] border-0 bg-transparent px-1 py-1.5 text-center font-mono text-[14px] font-medium text-zinc-100 focus:outline-none sm:text-[13.5px]"
             >
               <option value=""></option>
               {US_STATES.map((s) => (
@@ -1053,7 +1059,7 @@ function CityZipRow({
             </select>
           </div>
         </div>
-        <div className="border border-black bg-white focus-within:border-black">
+        <div className="rounded-sm border border-zinc-700 bg-zinc-900 focus-within:border-zinc-500">
           <input
             type="text"
             inputMode="numeric"
@@ -1063,7 +1069,8 @@ function CityZipRow({
             onKeyDown={advanceOnEnter}
             aria-label="ZIP code"
             maxLength={5}
-            className="block w-full border-0 bg-transparent px-2.5 py-1.5 text-[16px] text-black placeholder:text-black focus:outline-none sm:text-[15px]"
+            placeholder="ZIP"
+            className="block w-full border-0 bg-transparent px-2 py-1.5 font-mono text-[14px] tabular-nums text-zinc-100 placeholder:text-zinc-600 focus:outline-none sm:text-[13.5px]"
           />
         </div>
       </div>
@@ -1092,7 +1099,7 @@ function EditableInput({
     advanceOnEnter(e);
   }
   return (
-    <div className="flex items-center border border-black bg-white focus-within:border-black">
+    <div className="flex items-center rounded-sm border border-zinc-700 bg-zinc-900 focus-within:border-zinc-500">
       <input
         type={type ?? "text"}
         value={value}
@@ -1100,7 +1107,7 @@ function EditableInput({
         onBlur={onBlur}
         onKeyDown={handleKey}
         aria-label={ariaLabel}
-        className="min-w-0 flex-1 border-0 bg-transparent px-2.5 py-1.5 text-[16px] text-black placeholder:text-black focus:outline-none sm:text-[15px]"
+        className="min-w-0 flex-1 border-0 bg-transparent px-2 py-1.5 text-[14px] text-zinc-100 placeholder:text-zinc-600 focus:outline-none sm:text-[13.5px]"
       />
     </div>
   );
@@ -1134,22 +1141,27 @@ function CopyButton({
       type="button"
       onClick={handleClick}
       disabled={disabled}
-      aria-label={copied ? `Copied ${ariaLabel}` : `Copy ${ariaLabel}`}
+      aria-label={copied ? "Copied " + ariaLabel : "Copy " + ariaLabel}
       title={copied ? "Copied" : "Copy"}
       className={
-        "inline-flex h-7 w-7 shrink-0 items-center justify-center border transition-colors " +
+        "inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-sm border transition-colors " +
         (disabled
-          ? "cursor-not-allowed border-black/30 bg-white text-black"
+          ? "cursor-not-allowed border-zinc-800 bg-zinc-900/50 text-zinc-700"
           : copied
-            ? "border-black bg-black text-white"
-            : "border-black bg-white text-black hover:bg-[#f3f1e9]")
+            ? "border-zinc-300 bg-zinc-100 text-zinc-900"
+            : "border-zinc-700 bg-zinc-900 text-zinc-300 hover:border-zinc-600 hover:text-zinc-100")
       }
     >
       {copied ? (
-        <IconCheck className="h-3.5 w-3.5" />
+        <IconCheck className="h-3 w-3" />
       ) : (
-        <IconCopy className="h-3.5 w-3.5" />
+        <IconCopy className="h-3 w-3" />
       )}
     </button>
   );
 }
+
+// Back-compat alias: OverviewTab (no longer mounted in V4) still
+// imports the V4.5 name. Keep the alias so the dead surface compiles
+// without forcing an OverviewTab edit in this restyle PR.
+export { LaneContextStrip as LaneSummaryCard };

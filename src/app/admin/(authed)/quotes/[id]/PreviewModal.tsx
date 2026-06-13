@@ -131,7 +131,7 @@ export function PreviewModal({
     >
       {/* ─── Sticky top bar ─── */}
       <header
-        className="relative flex shrink-0 items-center gap-3 border-b-2 border-black bg-white px-3 py-2.5 sm:px-5 sm:py-3"
+        className="relative flex shrink-0 items-center gap-3 border-b border-zinc-800 bg-zinc-900 px-3 py-2.5 sm:px-5 sm:py-3"
       >
         {/* Red accent bar (matches admin section-title pattern) */}
         <span
@@ -140,17 +140,17 @@ export function PreviewModal({
         />
 
         <div className="min-w-0 flex-1">
-          <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-black sm:text-[13px]">
+          <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-zinc-100 sm:text-[13px]">
             Quote range preview
           </p>
           {/* Meta strip — subject + recipient. Tabular numerics so it
               reads like a dispatch document header, not a SaaS modal
               title. */}
           {state !== "building" && (subject || to) ? (
-            <p className="mt-0.5 truncate font-mono text-[11px] text-black sm:text-[12px]">
+            <p className="mt-0.5 truncate font-mono text-[11px] text-zinc-100 sm:text-[12px]">
               {to ? <span>{to}</span> : null}
               {to && subject ? <span className="px-1.5 text-zinc-400">·</span> : null}
-              {subject ? <span className="text-black">{subject}</span> : null}
+              {subject ? <span className="text-zinc-100">{subject}</span> : null}
             </p>
           ) : null}
         </div>
@@ -162,7 +162,7 @@ export function PreviewModal({
           <button
             type="button"
             onClick={onRebuild}
-            className="hidden shrink-0 items-center gap-1.5 border border-amber-700 bg-amber-100 px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-amber-900 transition-colors hover:bg-amber-200 sm:inline-flex"
+            className="hidden shrink-0 items-center gap-1.5 border border-amber-700/70 bg-amber-950/30 px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-amber-200 transition-colors hover:bg-amber-900/40 sm:inline-flex"
           >
             <span aria-hidden className="inline-block h-1.5 w-1.5 rounded-full bg-amber-700" />
             Stale — rebuild
@@ -170,7 +170,7 @@ export function PreviewModal({
         ) : null}
 
         {state === "rebuilding" ? (
-          <span className="hidden shrink-0 items-center gap-1.5 border border-zinc-300 bg-zinc-100 px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-black sm:inline-flex">
+          <span className="hidden shrink-0 items-center gap-1.5 border border-zinc-700 bg-zinc-900 px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-100 sm:inline-flex">
             <Spinner className="h-3 w-3" />
             Rebuilding
           </span>
@@ -181,7 +181,7 @@ export function PreviewModal({
             type="button"
             onClick={onSend}
             disabled={sendDisabled}
-            className="inline-flex shrink-0 items-center gap-1.5 border border-black bg-black px-3 py-1.5 text-[13px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60 sm:px-4"
+            className="inline-flex shrink-0 items-center gap-1.5 border border-zinc-700 bg-black px-3 py-1.5 text-[13px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60 sm:px-4"
           >
             {sendPending ? (
               <>
@@ -202,7 +202,7 @@ export function PreviewModal({
           onClick={onClose}
           aria-label="Close preview"
           title="Close (Esc)"
-          className="inline-flex h-8 w-8 shrink-0 items-center justify-center border border-zinc-300 bg-white text-black transition-colors hover:border-black hover:bg-[#f3f1e9] hover:text-black"
+          className="inline-flex h-8 w-8 shrink-0 items-center justify-center border border-zinc-700 bg-zinc-900 text-zinc-100 transition-colors hover:border-zinc-700 hover:bg-zinc-800/60 hover:text-zinc-100"
         >
           <IconX className="h-4 w-4" />
         </button>
@@ -210,18 +210,18 @@ export function PreviewModal({
 
       {/* ─── Mobile-only secondary action row ─── */}
       {state === "stale" || state === "rebuilding" ? (
-        <div className="flex shrink-0 items-center gap-2 border-b border-zinc-300 bg-zinc-50 px-3 py-2 sm:hidden">
+        <div className="flex shrink-0 items-center gap-2 border-b border-zinc-700 bg-zinc-900/60 px-3 py-2 sm:hidden">
           {state === "stale" ? (
             <button
               type="button"
               onClick={onRebuild}
-              className="inline-flex items-center gap-1.5 border border-amber-700 bg-amber-100 px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-amber-900"
+              className="inline-flex items-center gap-1.5 border border-amber-700/70 bg-amber-950/30 px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-amber-200"
             >
               Stale — rebuild
             </button>
           ) : null}
           {state === "rebuilding" ? (
-            <span className="inline-flex items-center gap-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-black">
+            <span className="inline-flex items-center gap-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-100">
               <Spinner className="h-3 w-3" />
               Rebuilding preview
             </span>
@@ -230,7 +230,7 @@ export function PreviewModal({
       ) : null}
 
       {/* ─── Document area ─── */}
-      <main className="relative flex-1 overflow-auto bg-neutral-200 px-2 py-3 sm:px-6 sm:py-6">
+      <main className="relative flex-1 overflow-auto bg-zinc-900 px-2 py-3 sm:px-6 sm:py-6">
         {state === "building" ? (
           <BuildingState />
         ) : state === "failed" ? (
@@ -290,12 +290,12 @@ export function PreviewModal({
 
 function BuildingState() {
   return (
-    <div className="mx-auto flex h-full max-w-[680px] flex-col items-center justify-center gap-3 bg-white px-6 py-12">
-      <Spinner className="h-6 w-6 text-black" />
-      <p className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-black">
+    <div className="mx-auto flex h-full max-w-[680px] flex-col items-center justify-center gap-3 bg-zinc-900 px-6 py-12">
+      <Spinner className="h-6 w-6 text-zinc-100" />
+      <p className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-zinc-100">
         Building preview
       </p>
-      <p className="max-w-sm text-center text-xs text-black">
+      <p className="max-w-sm text-center text-xs text-zinc-100">
         Rendering the document the customer would receive.
       </p>
     </div>
@@ -310,18 +310,18 @@ function FailedState({
   onRetry: () => void;
 }) {
   return (
-    <div className="mx-auto flex max-w-[680px] flex-col items-start gap-3 border border-black bg-[#f3f1e9] px-5 py-5">
-      <p className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-black">
+    <div className="mx-auto flex max-w-[680px] flex-col items-start gap-3 border border-zinc-700 bg-zinc-900/70 px-5 py-5">
+      <p className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-zinc-100">
         Preview failed
       </p>
-      <p className="text-[15px] text-black">
+      <p className="text-[15px] text-zinc-100">
         {message ??
           "The preview build did not return a document. Check the rate fields and try again."}
       </p>
       <button
         type="button"
         onClick={onRetry}
-        className="inline-flex items-center gap-1.5 border border-black bg-white px-3 py-1.5 font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-black transition-colors hover:bg-[#f3f1e9]"
+        className="inline-flex items-center gap-1.5 border border-zinc-700 bg-zinc-900 px-3 py-1.5 font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-zinc-100 transition-colors hover:bg-zinc-800/60"
       >
         Try again
       </button>
@@ -331,11 +331,11 @@ function FailedState({
 
 function EmptyState() {
   return (
-    <div className="mx-auto max-w-[680px] border border-zinc-300 bg-white px-5 py-12 text-center">
-      <p className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-black">
+    <div className="mx-auto max-w-[680px] border border-zinc-700 bg-zinc-900 px-5 py-12 text-center">
+      <p className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-zinc-100">
         No preview yet
       </p>
-      <p className="mt-2 text-xs text-black">
+      <p className="mt-2 text-xs text-zinc-100">
         Press Preview in the workspace to render a document.
       </p>
     </div>

@@ -27,8 +27,14 @@ import {
   type LeadStatus,
 } from "@/lib/dispatch/status";
 import { LoadWorkspaceV2 } from "./LoadWorkspaceV2";
-import { EventHistorySection } from "./tabs/TimelineTab";
-import { formatLoadRate } from "@/lib/dispatch/loads-view";
+import { describeEvent } from "./tabs/TimelineTab";
+import { ActivityRun } from "./ActivityRun";
+import { formatLoadRate, nextAction } from "@/lib/dispatch/loads-view";
+import { AttachmentsList } from "./AttachmentsList";
+import {
+  computeStageStates,
+  headlineFromStates,
+} from "./DispatchLifecycle";
 // Level 5 wire-up: components for the old quote-detail surface are no
 // longer rendered directly from this file. Their types stay imported
 // because the loaders below still produce those shapes and the new V3
@@ -1380,6 +1386,235 @@ export default async function QuoteDetailPage({
   //    read).
   const nextLeadId = await loadNextLeadId(row.id);
   const initialTab = initialTabForLeadStatus(row.lead_status);
+  void initialTab;
+
+  // ── V2 progressive-disclosure: section summaries + LoadSummaryCard ─────
+  //
+  // Computed server-side so each CollapsibleWorkspaceSection header
+  // shows a meaningful at-a-glance string while the body is closed.
+  // None of these touch business logic — they only read from values
+  // already loaded above.
+
+  const rateDisplay = formatLoadRate({
+    finalizedTotal:
+      finalizedQuoteState.phase === "sent"
+        ? finalizedQuoteState.sent.totalAmount
+        : null,
+    estimateLow: estimateDraft?.linehaul_low ?? null,
+    estimateHigh: estimateDraft?.linehaul_high ?? null,
+  });
+
+  const formatWindowSummary = (start: string, end: string): string | null => {
+    const s = start.trim();
+    const e = end.trim();
+    if (!s && !e) return null;
+    if (s && e && s !== e) return s + " — " + e;
+    return s || e;
+  };
+  // YYYY-MM-DD -> "Mon D" (compact, for the OpsStrip + LaneHero date pill).
+  // Anything that isn't a clean ISO date passes through unchanged so
+  // hand-typed window strings like "Mon 0800-1200" still render.
+  const formatCompactDate = (raw: string): string => {
+    const t = raw.trim();
+    if (!t) return "";
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(t);
+    if (!m) return t;
+    const months = [
+      "Jan","Feb","Mar","Apr","May","Jun",
+      "Jul","Aug","Sep","Oct","Nov","Dec",
+    ];
+    const monthIdx = parseInt(m[2]!, 10) - 1;
+    const day = parseInt(m[3]!, 10);
+    if (!Number.isFinite(monthIdx) || monthIdx < 0 || monthIdx > 11) return t;
+    return months[monthIdx]! + " " + day;
+  };
+  const formatCompactWindow = (
+    start: string,
+    end: string,
+  ): string | null => {
+    const s = formatCompactDate(start);
+    const e = formatCompactDate(end);
+    if (!s && !e) return null;
+    if (s && e && s !== e) return s + " — " + e;
+    return s || e;
+  };
+  const pickupWindowSummary = formatWindowSummary(
+    initialValues.pickup_window,
+    initialValues.pickup_window_end,
+  );
+  const deliveryWindowSummary = formatWindowSummary(
+    initialValues.delivery_window,
+    initialValues.delivery_window_end,
+  );
+  const pickupWindowCompact = formatCompactWindow(
+    initialValues.pickup_window,
+    initialValues.pickup_window_end,
+  );
+  const deliveryWindowCompact = formatCompactWindow(
+    initialValues.delivery_window,
+    initialValues.delivery_window_end,
+  );
+
+  const nextActionResult = nextAction(row.lead_status, null);
+
+  // Details section summary — lane + miles (matches the row format in
+  // /admin/loads so the operator's mental model stays consistent).
+  const lanePieces: string[] = [];
+  if (headerProps.lane.pickupLabel) lanePieces.push(headerProps.lane.pickupLabel);
+  if (headerProps.lane.deliveryLabel) lanePieces.push(headerProps.lane.deliveryLabel);
+  const laneText = lanePieces.length > 0 ? lanePieces.join(" → ") : "Lane TBD";
+  const milesText =
+    headerProps.lane.miles != null
+      ? " · " + headerProps.lane.miles.toLocaleString() + " mi"
+      : "";
+  const detailsSectionSummary = laneText + milesText;
+
+  // Documents section summary — sent count + BOL phase.
+  const bolPhaseLabel = (() => {
+    switch (bolState.phase) {
+      case "no_sent_finalized_quote":
+        return "BOL blocked";
+      case "ready_to_generate":
+        return "BOL ready";
+      case "draft":
+        return "BOL draft";
+      case "sent":
+        return "BOL sent";
+    }
+  })();
+  const documentsSectionSummary =
+    sentDocuments.length === 1
+      ? "1 sent · " + bolPhaseLabel
+      : sentDocuments.length + " sent · " + bolPhaseLabel;
+
+  // Attachments — only surface a section when the load actually has
+  // customer uploads. Reuses the existing intakeUploads array loaded
+  // server-side; no new storage logic.
+  const attachmentsContent =
+    intakeUploads.length > 0 ? (
+      <AttachmentsList uploads={intakeUploads} />
+    ) : null;
+  const attachmentsSummary =
+    intakeUploads.length === 0
+      ? null
+      : intakeUploads.length === 1
+        ? "1 file"
+        : intakeUploads.length + " files";
+
+  // Lifecycle headline — plain-English status reused from the legacy
+  // DispatchLifecycle helpers. Surfaced as a thin alert row in
+  // LoadWorkspaceV2 so the operator gets the same "what's blocking
+  // me" cue the old OverviewTab provided.
+  const lifecycleHeadline = headlineFromStates(
+    computeStageStates(lifecycleState),
+  );
+
+  // Activity section summary — latest event + total count.
+  const activitySectionSummary = (() => {
+    if (timelineEvents.length === 0) return "No activity yet";
+    const latest = timelineEvents[0]!;
+    const described = describeEvent(latest.kind, latest.payload);
+    const totalSuffix =
+      timelineEvents.length === 1
+        ? " \u00b7 1 event"
+        : " \u00b7 " + timelineEvents.length + " events";
+    return described.label + totalSuffix;
+  })();
+
+  // ── V4 workstation surface — prop builders ──────────────────────────
+  //
+  // The new LoadWorkspaceV2 takes a flat set of presentational props
+  // (identity / lane / status / ops / bolBlockerPhase / notes). All of
+  // them derive from values already computed above — no new server
+  // queries, no schema changes.
+
+  // Rate label — distinguishes Range vs Final in the IdentityRow.
+  const rateLabel: "Range" | "Final" | null = (() => {
+    if (finalizedQuoteState.phase === "sent" &&
+        finalizedQuoteState.sent.totalAmount != null) {
+      return "Final";
+    }
+    if (
+      estimateDraft &&
+      (estimateDraft.linehaul_low != null ||
+        estimateDraft.linehaul_high != null)
+    ) {
+      return "Range";
+    }
+    return null;
+  })();
+
+  // LaneHero — city/state come from the existing pickupLabel /
+  // deliveryLabel (which are already "City, ST" when available);
+  // zips are surfaced separately.
+  const pickupCityState = headerProps.lane.pickupLabel ?? null;
+  const deliveryCityState = headerProps.lane.deliveryLabel ?? null;
+  const driveTime =
+    headerProps.lane.miles != null
+      ? "~" + Math.max(1, Math.round(headerProps.lane.miles / 60)) + "h drive"
+      : null;
+
+  // Lifecycle -> StatusHero variant. amber = waiting on customer,
+  // blue = action required from us, emerald = terminal success,
+  // neutral = off-pipeline.
+  const statusVariant: import("./StatusHero").StatusHeroVariant = (() => {
+    switch (row.lead_status) {
+      case "lost":
+        return "neutral";
+      case "archived":
+        return "emerald";
+      case "estimate_sent":
+      case "awaiting_confirmation":
+      case "awaiting_payment":
+        return "amber";
+      default:
+        return "blue";
+    }
+  })();
+
+  // Headline reuses the existing lifecycle helper. Fall back to the
+  // status label if the helper has no opinion at this stage.
+  const statusHeadline =
+    lifecycleHeadline?.trim() ||
+    LEAD_STATUS_LABELS[row.lead_status] ||
+    "Load received";
+
+  // Meta line — imperative next action surfaced as "Next: <verb>".
+  const statusMeta = nextActionResult.verb
+    ? "Next: " + nextActionResult.verb
+    : null;
+
+  // Notes -- surfaced as a quote block in its own collapsible card, no
+  // longer crammed into the summary card.
+  const customerNotesText = (row.notes ?? "").trim();
+  const notesContent = customerNotesText ? (
+    <div className="bg-zinc-900/40 px-3 py-2">
+      <blockquote className="border-l-2 border-zinc-700 pl-3 text-[12px] leading-relaxed text-zinc-200">
+        {customerNotesText}
+      </blockquote>
+    </div>
+  ) : null;
+  const notesSummary = customerNotesText
+    ? customerNotesText.length > 60
+      ? customerNotesText.slice(0, 60) + "\u2026"
+      : customerNotesText
+    : null;
+
+  // OpsStrip -- next-action accent matches the status variant.
+  const nextTone: "neutral" | "blue" | "amber" | "emerald" =
+    statusVariant === "neutral" ? "neutral" : statusVariant;
+
+  // Pricing default-open vs collapsed -- post-acceptance the rate is
+  // locked in; operator now cares about BOL / documents / delivery
+  // state, not the price composer.
+  const pricingCollapsedByDefault =
+    row.lead_status === "booked" ||
+    row.lead_status === "ready_to_dispatch" ||
+    row.lead_status === "dispatched" ||
+    row.lead_status === "picked_up" ||
+    row.lead_status === "in_transit" ||
+    row.lead_status === "delivered" ||
+    row.lead_status === "archived";
 
   return (
     <>
@@ -1391,62 +1626,54 @@ export default async function QuoteDetailPage({
             </p>
             <p className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-zinc-400">
               Moved {relativeTime(row.deleted_at!)}
-              {row.delete_after ? " \u00b7 Auto-purge " + formatDateShort(row.delete_after).slice(0, 10) : ""}
+              {row.delete_after
+                ? " \u00b7 Auto-purge " +
+                  formatDateShort(row.delete_after).slice(0, 10)
+                : ""}
             </p>
           </div>
         </div>
       ) : null}
       <LoadWorkspaceV2
-        header={{
+        identity={{
           customerName: row.name,
           shortRequestId: headerProps.identity.requestId,
           receivedRelative: headerProps.identity.receivedRelative,
           receivedFull: headerProps.identity.receivedFull,
           leadStatus: row.lead_status,
-          pickupLabel: headerProps.lane.pickupLabel ?? "",
-          deliveryLabel: headerProps.lane.deliveryLabel ?? "",
-          miles: headerProps.lane.miles,
-          rateDisplay: formatLoadRate({
-            finalizedTotal:
-              finalizedQuoteState.phase === "sent"
-                ? finalizedQuoteState.sent.totalAmount
-                : null,
-            estimateLow: estimateDraft?.linehaul_low ?? null,
-            estimateHigh: estimateDraft?.linehaul_high ?? null,
-          }),
+          rateDisplay,
+          rateLabel: rateLabel ?? undefined,
           isTrashed,
         }}
-        overviewContent={
-          <>
-            <QuoteHero identity={headerProps.identity} />
-            <OverviewTab
-              quoteRange={
-                estimateDraft
-                  ? {
-                      linehaulLow: estimateDraft.linehaul_low,
-                      linehaulHigh: estimateDraft.linehaul_high,
-                      fuelSurcharge: estimateDraft.fuel_surcharge,
-                      accessorials: estimateDraft.accessorials,
-                    }
-                  : null
-              }
-              lifecycle={lifecycleState}
-              customer={{ name: row.name, phone: row.phone, email: row.email }}
-              freight={{ commodity: row.commodity, weight: row.weight }}
-              lane={initialValues}
-              miles={headerProps.lane.miles}
-              customerNotes={row.notes}
-              uploads={intakeUploads}
-              events={timelineEvents}
-              quoteRequestId={row.id}
-              sentArtifacts={sentArtifactIndex}
-              received={{
-                relative: headerProps.identity.receivedRelative,
-                full: headerProps.identity.receivedFull,
-              }}
-            />
-          </>
-        }
+        lane={{
+          pickupCityState,
+          pickupZip: row.pickup_zip,
+          deliveryCityState,
+          deliveryZip: row.delivery_zip,
+          miles: headerProps.lane.miles,
+          driveTime,
+          pickupDateLabel: pickupWindowCompact || pickupWindowSummary,
+          deliveryDateLabel: deliveryWindowCompact || deliveryWindowSummary,
+        }}
+        status={{
+          variant: statusVariant,
+          headline: statusHeadline,
+          detail: null,
+          meta: statusMeta,
+        }}
+        workflowStatus={row.lead_status}
+        ops={{
+          pickupLabel: pickupWindowCompact || pickupWindowSummary,
+          deliveryLabel: deliveryWindowCompact || deliveryWindowSummary,
+          contactLabel: row.phone || row.email || null,
+          nextLabel: nextActionResult.verb || null,
+          nextTone,
+        }}
+        bolBlockerPhase={bolState.phase}
+        attachmentsContent={attachmentsContent}
+        attachmentsSummary={attachmentsSummary}
+        notesContent={notesContent}
+        notesSummary={notesSummary}
         detailsContent={
           <DetailsTab
             key={intakeSnapshotKey}
@@ -1460,6 +1687,7 @@ export default async function QuoteDetailPage({
             miles={headerProps.lane.miles}
           />
         }
+        detailsSummary={detailsSectionSummary}
         pricingContent={
           <PricingTab
             quoteRequestId={row.id}
@@ -1469,6 +1697,8 @@ export default async function QuoteDetailPage({
             nextLeadId={nextLeadId}
           />
         }
+        pricingSummary={rateDisplay ?? "\u2014"}
+        pricingCollapsedByDefault={pricingCollapsedByDefault}
         documentsContent={
           <DocumentsTab
             quoteRequestId={row.id}
@@ -1477,7 +1707,9 @@ export default async function QuoteDetailPage({
             nextLeadId={nextLeadId}
           />
         }
-        activityContent={<EventHistorySection events={timelineEvents} />}
+        documentsSummary={documentsSectionSummary}
+        activityContent={<ActivityRun events={timelineEvents} />}
+        activitySummary={activitySectionSummary}
       />
     </>
   );
