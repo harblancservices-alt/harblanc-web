@@ -24,6 +24,9 @@ type SortKey = "name" | "gross" | "loads";
 export function BrokerListSidebar({ brokers }: { brokers: BrokerListItem[] }) {
   const pathname = usePathname();
   const activeId = pathname.split("/").filter(Boolean).pop();
+  // On mobile the rail is the page itself on the index route; on a detail /
+  // new route it hides so the right pane (full width) shows instead.
+  const isIndex = pathname === "/admin/dispatch/brokers";
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<SortKey>("name");
 
@@ -45,7 +48,12 @@ export function BrokerListSidebar({ brokers }: { brokers: BrokerListItem[] }) {
   }, [brokers, q, sort]);
 
   return (
-    <aside className="sticky top-14 hidden h-[calc(100vh-3.5rem)] w-[286px] shrink-0 flex-col border-r border-line bg-card md:flex">
+    <aside
+      className={
+        (isIndex ? "flex " : "hidden ") +
+        "w-full shrink-0 flex-col bg-card md:flex md:w-[286px] md:sticky md:top-14 md:h-[calc(100vh-3.5rem)] md:border-r md:border-line"
+      }
+    >
       <div className="flex items-center justify-between border-b border-line px-3 py-2.5">
         <span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-fg-subtle">
           Brokers

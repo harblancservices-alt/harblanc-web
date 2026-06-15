@@ -1,5 +1,6 @@
 "use server";
 
+import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { lookupZip, estimateLaneMiles } from "@/lib/dispatch/distance";
@@ -407,6 +408,20 @@ export async function deleteLoadDocument(
   await sb.storage.from(DOC_BUCKET).remove([row.storage_path]);
   await sb.from("load_documents").delete().eq("id", row.id);
   revalidatePath(`/admin/dispatch/loads/${loadId}`);
+}
+
+/** Soft-delete a load — removes it from the board, trips, and broker rollups. */
+export async function deleteLoad(id: string): Promise<void> {
+  const sb = createServiceRoleClient();
+  const { error } = await sb
+    .from("loads")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) throw new Error(`Could not delete load: ${error.message}`);
+  revalidatePath("/admin/dispatch/loads");
+  revalidatePath("/admin/dispatch/brokers");
+  revalidatePath("/admin/dispatch/trips");
+  redirect("/admin/dispatch/loads");
 }
 
 export async function markLoadPaid(id: string): Promise<void> {

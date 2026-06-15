@@ -88,6 +88,13 @@ export function BrokerDetail({ data }: { data: BrokerDetailData }) {
 
   return (
     <div className="px-4 py-4 sm:px-6">
+      <a
+        href="/admin/dispatch/brokers"
+        className="mb-3 inline-flex items-center gap-1 font-mono text-[10.5px] font-bold uppercase tracking-[0.16em] text-fg-muted transition-colors hover:text-fg md:hidden"
+      >
+        ← All brokers
+      </a>
+
       {/* Header */}
       <header className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
@@ -115,7 +122,7 @@ export function BrokerDetail({ data }: { data: BrokerDetailData }) {
                 {broker.status}
               </span>
             </div>
-            <p className="mt-1 font-mono text-[11px] uppercase tracking-[0.08em] text-fg-subtle">
+            <p className="mt-1 font-mono text-[11px] uppercase tracking-[0.08em] text-fg-muted">
               MC {broker.mc ?? "—"} · DOT {broker.dot ?? "—"} ·{" "}
               {broker.type ?? "Brokerage"}
             </p>
@@ -129,9 +136,16 @@ export function BrokerDetail({ data }: { data: BrokerDetailData }) {
               setTab("contacts");
               setAddingContact(true);
             }}
-            className="inline-flex items-center gap-1 rounded-md border border-line-strong bg-card px-3 py-1.5 text-[12px] font-semibold text-fg transition-colors hover:bg-elevated"
+            className="inline-flex items-center gap-1 rounded-md border border-red-700 bg-red-600 px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-red-700"
           >
             <span className="text-[14px] leading-none">+</span> Add Contact
+          </button>
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="inline-flex items-center gap-1.5 rounded-md border border-red-700 bg-red-600 px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-red-700"
+          >
+            ✎ Edit Broker
           </button>
           <a
             href={saferUrl}
@@ -139,15 +153,8 @@ export function BrokerDetail({ data }: { data: BrokerDetailData }) {
             rel="noopener noreferrer"
             className="inline-flex items-center gap-1 rounded-md border border-line-strong bg-card px-3 py-1.5 text-[12px] font-semibold text-fg transition-colors hover:bg-elevated"
           >
-            Open in SAFER ↗
+            SAFER ↗
           </a>
-          <button
-            type="button"
-            onClick={() => setEditing(true)}
-            className="inline-flex items-center gap-1.5 rounded-md border border-line-strong bg-card px-3 py-1.5 text-[12px] font-semibold text-fg transition-colors hover:bg-elevated"
-          >
-            ✎ Edit Broker
-          </button>
           <div className="relative">
             <button
               type="button"
@@ -790,7 +797,7 @@ function Kpi({
     tone === "green" ? "text-green-700" : tone === "red" ? "text-red-700" : "text-fg";
   return (
     <div className="px-4 py-3">
-      <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
+      <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-fg-muted">
         {label}
       </div>
       <div className={"mt-1 text-[22px] font-bold tabular-nums leading-none " + color}>
@@ -812,10 +819,10 @@ function Cell({
   const v = value?.trim();
   return (
     <div className="bg-card px-3 py-2">
-      <div className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
+      <div className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-fg-muted">
         {label}
       </div>
-      <div className={"mt-0.5 truncate text-[12px] " + (v ? "text-fg" : "text-fg-subtle")}>
+      <div className={"mt-0.5 truncate text-[12px] " + (v ? "text-fg" : "text-fg-muted")}>
         {v || fallback}
       </div>
     </div>
@@ -867,7 +874,7 @@ function Row({
         (divider ? "border-line-strong" : "border-line")
       }
     >
-      <span className="text-fg-muted">{label}</span>
+      <span className="text-fg">{label}</span>
       <span className={"font-semibold tabular-nums " + color}>{value}</span>
     </div>
   );
@@ -891,7 +898,7 @@ function AgeRow({
         (last ? "" : "border-b border-line")
       }
     >
-      <span className="text-fg-muted">{label}</span>
+      <span className="text-fg">{label}</span>
       <span
         className={
           "font-semibold tabular-nums " +

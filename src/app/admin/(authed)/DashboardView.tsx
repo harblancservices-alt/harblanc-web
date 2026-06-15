@@ -14,6 +14,26 @@ export type DashboardData = {
   quoteRequests: ReadonlyArray<QuoteRequestCard>;
   expiredQuotes: ReadonlyArray<QuoteRequestCard>;
   applications: ReadonlyArray<ApplicationItem>;
+  activeLoads: ReadonlyArray<ActiveLoadItem>;
+};
+
+export type ActiveLoadItem = {
+  id: string;
+  broker: string;
+  lane: string;
+  status: string;
+  rateDisplay: string;
+};
+
+const LOAD_STATUS_PILL: Record<string, string> = {
+  pending: "bg-amber-100 text-amber-700",
+  assigned: "bg-amber-100 text-amber-700",
+  loaded: "bg-blue-100 text-blue-700",
+};
+const LOAD_STATUS_LABEL: Record<string, string> = {
+  pending: "Pending",
+  assigned: "Rolling",
+  loaded: "Loaded",
 };
 
 export type QuoteStatus = "unseen" | "followup" | "expired" | "ok";
@@ -165,6 +185,48 @@ export function DashboardView({ data }: { data: DashboardData }) {
                   <DatePill dateLabel={a.dateLabel} ageLabel={a.ageLabel} />
                 </span>
                 <span />
+              </Link>
+            ))}
+          </div>
+        )}
+
+        <div className="my-5 h-px bg-line" />
+        <SectionLabel title="Active loads" count={data.activeLoads.length} />
+        {data.activeLoads.length === 0 ? (
+          <EmptyCard text="No active loads." />
+        ) : (
+          <div className="overflow-hidden rounded-xl border border-line bg-card shadow-md">
+            {data.activeLoads.map((l, i) => (
+              <Link
+                key={l.id}
+                href={"/admin/dispatch/loads/" + l.id}
+                prefetch={false}
+                className={
+                  "flex items-center justify-between gap-3 px-3.5 py-2.5 transition-colors hover:bg-elevated " +
+                  (i === data.activeLoads.length - 1 ? "" : "border-b border-line")
+                }
+              >
+                <span className="flex min-w-0 items-center gap-2.5">
+                  <span
+                    className={
+                      "shrink-0 rounded-sm px-1.5 py-[1px] font-mono text-[10px] font-bold uppercase tracking-[0.06em] " +
+                      (LOAD_STATUS_PILL[l.status] ?? "bg-elevated text-fg-muted")
+                    }
+                  >
+                    {LOAD_STATUS_LABEL[l.status] ?? l.status}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block truncate text-[13px] font-semibold text-fg">
+                      {l.broker}
+                    </span>
+                    <span className="block truncate text-[11px] text-fg-muted">
+                      {l.lane}
+                    </span>
+                  </span>
+                </span>
+                <span className="shrink-0 font-mono text-[13px] font-bold tabular-nums text-green-700">
+                  {l.rateDisplay}
+                </span>
               </Link>
             ))}
           </div>

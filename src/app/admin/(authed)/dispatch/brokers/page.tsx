@@ -12,7 +12,7 @@ export const metadata: Metadata = {
  */
 export default function BrokersIndexPage() {
   return (
-    <div className="flex min-h-[60vh] items-center justify-center px-6 py-16">
+    <div className="hidden min-h-[60vh] items-center justify-center px-6 py-16 md:flex">
       <div className="max-w-sm text-center">
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-elevated text-[20px] text-fg-subtle">
           ☷

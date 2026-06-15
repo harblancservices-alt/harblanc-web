@@ -305,7 +305,39 @@ async function loadDashboard(): Promise<DashboardData> {
   const pipelineQuotes = quoteRequests.filter((q) => q.status !== "expired");
   const expiredQuotes = quoteRequests.filter((q) => q.status === "expired");
 
-  return { quoteRequests: pipelineQuotes, expiredQuotes, applications };
+  // Active dispatch loads (not delivered/cancelled) for the at-a-glance card.
+  const { data: loadRows } = await sb
+    .from("loads")
+    .select("id, broker_name, origin, destination, rate, status")
+    .is("deleted_at", null)
+    .in("status", ["pending", "assigned", "loaded"])
+    .order("created_at", { ascending: false })
+    .limit(50)
+    .returns<{
+      id: string;
+      broker_name: string | null;
+      origin: string | null;
+      destination: string | null;
+      rate: number | string | null;
+      status: string;
+    }[]>();
+  const activeLoads = (loadRows ?? []).map((l) => {
+    const rateN =
+      l.rate == null
+        ? 0
+        : typeof l.rate === "number"
+          ? l.rate
+          : Number(l.rate) || 0;
+    return {
+      id: l.id,
+      broker: l.broker_name?.trim() || "No broker",
+      lane: `${l.origin?.trim() || "—"} → ${l.destination?.trim() || "—"}`,
+      status: l.status,
+      rateDisplay: "$" + Math.round(rateN).toLocaleString("en-US"),
+    };
+  });
+
+  return { quoteRequests: pipelineQuotes, expiredQuotes, applications, activeLoads };
 }
 
 export default async function DashboardPage() {

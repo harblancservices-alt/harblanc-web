@@ -7,6 +7,7 @@ import { OdometerStatusCard } from "./OdometerStatusCard";
 import { LoadPnlCard } from "./LoadPnlCard";
 import { FinancialsPanel } from "./FinancialsPanel";
 import { CancelLoadButton } from "./CancelLoadButton";
+import { DeleteLoadButton } from "./DeleteLoadButton";
 import { DocumentsCard } from "./DocumentsCard";
 import {
   loadDiesel,
@@ -253,7 +254,10 @@ export default async function LoadDetailPage({
                 {STATUS_LABEL[load.status] ?? load.status}
               </span>
             </div>
-            {!isCancelled ? <CancelLoadButton loadId={load.id} /> : null}
+            <div className="flex items-center gap-2">
+              {!isCancelled ? <CancelLoadButton loadId={load.id} /> : null}
+              <DeleteLoadButton loadId={load.id} />
+            </div>
           </div>
 
           {/* Tier 2: assignment (no equipment) + compact pickup → delivery */}
