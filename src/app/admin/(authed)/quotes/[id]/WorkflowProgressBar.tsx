@@ -52,11 +52,11 @@ export function WorkflowProgressBar({
 }) {
   if (currentStatus === "lost") {
     return (
-      <div className="flex items-center justify-between rounded-sm bg-zinc-900/40 px-3 py-1.5">
-        <p className="font-mono text-[9px] font-medium uppercase tracking-[0.22em] text-zinc-500">
+      <div className="flex items-center justify-between rounded-sm bg-card px-3 py-1.5">
+        <p className="font-mono text-[9px] font-medium uppercase tracking-[0.22em] text-fg-subtle">
           Workflow
         </p>
-        <p className="font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-amber-300">
+        <p className="font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-amber-700">
           Cancelled · Off the pipeline
         </p>
       </div>
@@ -84,12 +84,12 @@ export function WorkflowProgressBar({
           const isCurrent = i === currentIndex;
           const isFuture = !step.disabled && !isPast && !isCurrent;
           const cls = step.disabled
-            ? "bg-zinc-800/80"
+            ? "bg-elevated/80"
             : isPast
               ? "bg-emerald-500"
               : isCurrent
                 ? "bg-amber-500"
-                : "bg-zinc-800";
+                : "bg-elevated";
           void isFuture;
           return (
             <span
@@ -100,7 +100,7 @@ export function WorkflowProgressBar({
           );
         })}
       </div>
-      <div className="mt-1 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.14em] text-zinc-600 xl:text-[10.5px]">
+      <div className="mt-1 flex items-center justify-between font-mono text-[9px] uppercase tracking-[0.14em] text-fg-subtle xl:text-[10.5px]">
         <span>
           {stepNumber != null && currentStep
             ? "Step " + stepNumber + " of " + STEPS.length + " · " + currentStep.label

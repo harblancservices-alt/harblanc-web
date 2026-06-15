@@ -1,7 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { softDeleteQuotes } from "../quotes/actions";
 import type { LeadStatus } from "@/lib/dispatch/status";
 import type { UrgencyChip } from "@/lib/dispatch/urgency";
 import {
@@ -61,7 +62,7 @@ const FILTER_BUTTONS: ReadonlyArray<{
 ];
 
 const GRID_TEMPLATE =
-  "4px 22px 78px minmax(0,1.2fr) minmax(0,0.9fr) 92px minmax(0,1.3fr) 18px";
+  "30px 4px 36px 84px minmax(0,1.2fr) minmax(0,0.5fr) 108px minmax(0,1.3fr) 18px";
 
 export function LoadsListTable({
   rows,
@@ -73,9 +74,11 @@ export function LoadsListTable({
   /** Initial filter chip, e.g. from a `?filter=attention` URL param. */
   initialFilter?: FilterChip;
 }) {
+  const router = useRouter();
   const [filter, setFilter] = useState<FilterChip>(initialFilter);
   const [sortKey, setSortKey] = useState<SortKey>("attention");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const filterCounts = useMemo(() => {
     const out: Record<string, number> = {
@@ -126,24 +129,44 @@ export function LoadsListTable({
     }
   }
 
+  const allVisibleSelected =
+    sorted.length > 0 && sorted.every((r) => selected.has(r.id));
+
+  function toggle(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleAll() {
+    setSelected((prev) =>
+      sorted.length > 0 && sorted.every((r) => prev.has(r.id))
+        ? new Set()
+        : new Set(sorted.map((r) => r.id)),
+    );
+  }
+
   return (
-    <div className="min-h-screen border-t border-zinc-800 bg-zinc-950 text-zinc-100">
-      <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6 lg:px-8">
+    <div className="min-h-screen border-t border-line bg-canvas text-fg">
+      <div className="w-full px-4 py-5 sm:px-6 sm:py-6 lg:px-10">
         <header className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="font-mono text-[9px] font-bold uppercase tracking-[0.24em] text-zinc-500">
+            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-indigo-600">
               Loads
             </p>
             <div className="mt-1 flex flex-wrap items-baseline gap-3">
-              <h1 className="text-[22px] font-semibold leading-none tracking-tight text-white tabular-nums">
+              <h1 className="text-[24px] font-semibold leading-none tracking-tight text-fg tabular-nums">
                 {counts.active} active
               </h1>
               {counts.attention > 0 ? (
-                <p className="font-mono text-[11px] font-medium text-red-400 tabular-nums">
+                <p className="font-mono text-[12px] font-semibold text-red-600 tabular-nums">
                   {counts.attention} need attention
                 </p>
               ) : (
-                <p className="font-mono text-[11px] font-medium text-zinc-500">
+                <p className="font-mono text-[12px] font-medium text-fg-subtle">
                   All clear
                 </p>
               )}
@@ -177,13 +200,64 @@ export function LoadsListTable({
           })}
         </div>
 
-        <div className="overflow-x-auto rounded-md border border-zinc-800 bg-zinc-900/40">
+        <div className="mb-2 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={toggleAll}
+            className="rounded-md border border-line bg-card px-2.5 py-1 font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-fg-muted transition-colors hover:bg-elevated"
+          >
+            {allVisibleSelected ? "Clear" : "Select all"}
+          </button>
+
+          {selected.size > 0 ? (
+            <>
+              <span className="font-mono text-[11px] tabular-nums text-fg-subtle">
+                {selected.size} selected
+              </span>
+              <form
+                action={softDeleteQuotes}
+                onSubmit={(e) => {
+                  if (
+                    !window.confirm(
+                      `Delete ${selected.size} quote${selected.size === 1 ? "" : "s"}? They move to trash and can be restored for 30 days.`,
+                    )
+                  ) {
+                    e.preventDefault();
+                  } else {
+                    setSelected(new Set());
+                  }
+                }}
+              >
+                {[...selected].map((id) => (
+                  <input key={id} type="hidden" name="ids" value={id} />
+                ))}
+                <button
+                  type="submit"
+                  className="rounded-md border border-red-700 bg-red-600 px-2.5 py-1 font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-white transition-colors hover:bg-red-700"
+                >
+                  Delete {selected.size}
+                </button>
+              </form>
+            </>
+          ) : null}
+        </div>
+
+        <div className="overflow-x-auto rounded-md border border-line bg-card shadow-md">
           <div className="min-w-[640px]">
             <div
               role="row"
-              className="grid items-center gap-2 border-b border-zinc-800 bg-zinc-900/60 px-3 py-2 font-mono text-[9px] font-medium uppercase tracking-[0.16em] text-zinc-500"
+              className="grid items-center gap-2 bg-bar px-3 py-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-bar-fg"
               style={{ gridTemplateColumns: GRID_TEMPLATE }}
             >
+              <div className="flex items-center justify-center">
+                <input
+                  type="checkbox"
+                  checked={allVisibleSelected}
+                  onChange={toggleAll}
+                  aria-label="Select all loads"
+                  className="h-3.5 w-3.5 cursor-pointer accent-red-600"
+                />
+              </div>
               <div />
               <SortHeader
                 label="Flag"
@@ -211,16 +285,24 @@ export function LoadsListTable({
             </div>
 
             {sorted.length === 0 ? (
-              <div className="px-3 py-8 text-center font-mono text-[11px] text-zinc-500">
+              <div className="px-3 py-8 text-center font-mono text-[13px] text-fg-subtle">
                 No loads match this filter.
               </div>
             ) : (
-              sorted.map((row) => <LoadRow key={row.id} row={row} />)
+              sorted.map((row) => (
+                <LoadRow
+                  key={row.id}
+                  row={row}
+                  selected={selected.has(row.id)}
+                  onToggle={() => toggle(row.id)}
+                  onOpen={() => router.push("/admin/quotes/" + row.id)}
+                />
+              ))
             )}
           </div>
         </div>
 
-        <p className="mt-3 px-1 font-mono text-[10px] text-zinc-500">
+        <p className="mt-3 px-1 font-mono text-[12px] text-fg-subtle">
           {sortLabel(sortKey)} Click any row to open the load workspace.
         </p>
       </div>
@@ -240,29 +322,39 @@ function filterPillClass(
   count: number,
 ): string {
   const base =
-    "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[10px] font-medium uppercase tracking-[0.12em] transition-colors ";
+    "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.12em] transition-colors ";
   if (active && isAttention) {
-    return base + "border-red-500 bg-red-600 text-white";
+    return base + "border-red-600 bg-red-600 text-white";
   }
   if (active) {
-    return base + "border-zinc-200 bg-zinc-100 text-zinc-950";
+    return base + "border-fg bg-bar text-bar-fg";
   }
   if (isAttention && count > 0) {
     return (
       base +
-      "border-red-900/50 bg-red-950/20 text-red-300 hover:bg-red-950/40"
+      "border-red-300 bg-red-50 text-red-700 hover:bg-red-100"
     );
   }
-  return base + "border-zinc-800 bg-transparent text-zinc-400 hover:bg-zinc-900";
+  return base + "border-line bg-card text-fg shadow-sm hover:bg-elevated";
 }
 
 function countNumberClass(active: boolean, isAttention: boolean): string {
   if (active && isAttention) return "text-red-100";
-  if (active) return "text-zinc-600";
-  return "text-zinc-500";
+  if (active) return "text-bar-fg/70";
+  return "text-fg-subtle";
 }
 
-function LoadRow({ row }: { row: LoadListRow }) {
+function LoadRow({
+  row,
+  selected,
+  onToggle,
+  onOpen,
+}: {
+  row: LoadListRow;
+  selected: boolean;
+  onToggle: () => void;
+  onOpen: () => void;
+}) {
   const railColor = LOAD_DISPLAY_STATUS_RAIL[row.displayStatus];
   const pillClasses = LOAD_DISPLAY_STATUS_CLASSES[row.displayStatus];
   const pillLabel = LOAD_DISPLAY_STATUS_LABELS[row.displayStatus];
@@ -270,31 +362,50 @@ function LoadRow({ row }: { row: LoadListRow }) {
   const isAlert = row.topUrgency?.severity === "alert";
   const hasAttention = row.topUrgency != null;
 
-  const tintClass = isAlert
-    ? "bg-red-950/15 hover:bg-red-950/25"
-    : hasAttention
-      ? "bg-amber-950/10 hover:bg-amber-950/20"
-      : "hover:bg-zinc-900/50";
+  const tintClass = selected
+    ? "bg-red-100 hover:bg-red-100"
+    : isAlert
+      ? "bg-red-50 hover:bg-red-100"
+      : hasAttention
+        ? "bg-amber-50 hover:bg-amber-100"
+        : "hover:bg-elevated";
 
   const laneLabel = buildLaneLabel(row);
   const ariaLabel = flagAriaLabel(row.urgencyChips);
   const title = flagTitle(row.urgencyChips);
-  const subtitleClass = isAlert ? "text-red-300" : "text-amber-300";
+  const subtitleClass = isAlert ? "text-red-600" : "text-amber-700";
   const fallbackSubtitle = timeAgo(
     row.lead_status_updated_at ?? row.created_at,
   );
-  const rowHref = "/admin/quotes/" + row.id;
 
   return (
-    <Link
-      href={rowHref}
-      prefetch={false}
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
       className={
-        "group grid items-center gap-2 border-b border-zinc-900 px-3 py-2 text-[12px] transition-colors " +
+        "group grid cursor-pointer items-center gap-2 border-b border-line px-3 py-2.5 text-[14px] transition-colors " +
         tintClass
       }
       style={{ gridTemplateColumns: GRID_TEMPLATE }}
     >
+      <span className="flex items-center justify-center">
+        <input
+          type="checkbox"
+          checked={selected}
+          aria-label={`Select ${row.customerName}`}
+          onClick={(e) => e.stopPropagation()}
+          onChange={onToggle}
+          className="h-3.5 w-3.5 cursor-pointer accent-red-600"
+        />
+      </span>
+
       <span
         aria-hidden
         className="block w-[4px] self-stretch rounded-sm"
@@ -313,7 +424,7 @@ function LoadRow({ row }: { row: LoadListRow }) {
 
       <span
         className={
-          "inline-flex w-fit items-center justify-center rounded-sm border px-1.5 py-[2px] font-mono text-[8.5px] font-medium uppercase tracking-[0.12em] " +
+          "inline-flex w-fit items-center justify-center rounded-sm border px-1.5 py-[3px] font-mono text-[11px] font-semibold uppercase tracking-[0.12em] " +
           pillClasses
         }
       >
@@ -321,10 +432,10 @@ function LoadRow({ row }: { row: LoadListRow }) {
       </span>
 
       <span className="min-w-0">
-        <span className="block truncate text-[12px] font-medium text-zinc-100">
+        <span className="block truncate text-[14px] font-medium text-blue-700">
           {laneLabel}
         </span>
-        <span className="block truncate text-[10px] text-zinc-500">
+        <span className="block truncate text-[12px] text-fg-subtle">
           {row.customerName}
           {row.commodity ? " · " + row.commodity : ""}
         </span>
@@ -334,23 +445,23 @@ function LoadRow({ row }: { row: LoadListRow }) {
 
       <span
         className={
-          "block whitespace-nowrap text-right tabular-nums text-[12px] " +
-          (row.rateDisplay ? "text-zinc-100" : "text-zinc-600")
+          "block whitespace-nowrap text-right tabular-nums font-bold text-[14px] " +
+          (row.rateDisplay ? "text-green-700" : "text-fg-subtle")
         }
       >
         {row.rateDisplay ?? "—"}
       </span>
 
       <span className="min-w-0">
-        <span className="block truncate text-[12px] font-medium text-zinc-100">
+        <span className="block truncate text-[14px] font-medium text-fg">
           {row.nextActionVerb}
         </span>
         {row.nextActionSubtitle ? (
-          <span className={"block truncate text-[10px] " + subtitleClass}>
+          <span className={"block truncate text-[12px] " + subtitleClass}>
             {row.nextActionSubtitle}
           </span>
         ) : (
-          <span className="block truncate text-[10px] text-zinc-500">
+          <span className="block truncate text-[12px] text-fg-subtle">
             {fallbackSubtitle}
           </span>
         )}
@@ -358,11 +469,11 @@ function LoadRow({ row }: { row: LoadListRow }) {
 
       <span
         aria-hidden
-        className="flex justify-center text-zinc-600 group-hover:text-zinc-400"
+        className="flex justify-center text-fg-subtle group-hover:text-fg"
       >
         <ChevronRight />
       </span>
-    </Link>
+    </div>
   );
 }
 
@@ -391,8 +502,8 @@ function SortHeader({
       type="button"
       onClick={onClick}
       className={
-        "inline-flex items-center gap-1 font-mono text-[9px] font-medium uppercase tracking-[0.16em] transition-colors " +
-        (active ? "text-zinc-200" : "text-zinc-500 hover:text-zinc-300") +
+        "inline-flex items-center gap-1 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] transition-colors " +
+        (active ? "text-bar-fg" : "text-bar-fg/70 hover:text-bar-fg") +
         (align === "right" ? " justify-self-end" : "")
       }
     >

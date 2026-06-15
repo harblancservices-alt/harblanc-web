@@ -78,7 +78,7 @@ export default function RootLayout({
       lang="en"
       className={`${publicSans.variable} ${plexMono.variable} ${plexSans.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-neutral-950 text-zinc-100">
+      <body className="min-h-full flex flex-col bg-canvas text-fg">
         <SiteChrome>{children}</SiteChrome>
       </body>
     </html>

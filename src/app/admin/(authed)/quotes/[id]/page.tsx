@@ -843,14 +843,18 @@ async function loadSentDocuments(
   const [estResp, fqResp, bolResp] = await Promise.all([
     sb
       .from("dispatch_estimates")
-      .select("id, sent_at, preview_to")
+      .select(
+        "id, sent_at, preview_to, preview_html, linehaul_low, linehaul_high, fuel_surcharge, accessorials",
+      )
       .eq("quote_request_id", quoteRequestId)
       .not("sent_at", "is", null)
       .order("sent_at", { ascending: false })
       .limit(100),
     sb
       .from("finalized_quotes")
-      .select("id, finalized_quote_number, sent_at, preview_to")
+      .select(
+        "id, finalized_quote_number, sent_at, preview_to, preview_html, total_amount",
+      )
       .eq("quote_request_id", quoteRequestId)
       .not("sent_at", "is", null)
       .order("sent_at", { ascending: false })
@@ -864,36 +868,105 @@ async function loadSentDocuments(
       .limit(100),
   ]);
 
-  const estimates: SentDocumentRow[] = (estResp.data ?? []).map((r) => ({
-    type: "estimate",
-    id: r.id,
-    label: "Range proposal",
-    sentAt: r.sent_at ?? "",
-    recipient: r.preview_to ?? "",
-    pdfHref: `/admin/quotes/${quoteRequestId}/estimate-pdf/${r.id}`,
-  }));
+  const estimates: SentDocumentRow[] = (estResp.data ?? []).map((r) => {
+    // Match the customer-facing quoted range: linehaul + fuel + accessorials.
+    const extra =
+      (docNum(r.fuel_surcharge) ?? 0) + sumAccessorials(r.accessorials);
+    const low = docNum(r.linehaul_low);
+    const high = docNum(r.linehaul_high);
+    return {
+      type: "estimate" as const,
+      id: r.id,
+      label: "Range proposal",
+      sentAt: r.sent_at ?? "",
+      recipient: r.preview_to ?? "",
+      // Range proposals are email-only. Surface the actual sent email HTML
+      // (preview_html) rather than the internal PDF, which exposes the fuel
+      // surcharge breakdown the customer must never see.
+      pdfHref: null,
+      emailHtml: r.preview_html ?? null,
+      amount: rangeMoney(
+        low != null ? low + extra : null,
+        high != null ? high + extra : null,
+      ),
+    };
+  });
 
   const fqs: SentDocumentRow[] = (fqResp.data ?? []).map((r) => ({
-    type: "finalized_quote",
+    type: "finalized_quote" as const,
     id: r.id,
     label: `Finalized Quote #${r.finalized_quote_number}`,
     sentAt: r.sent_at ?? "",
     recipient: r.preview_to ?? "",
-    pdfHref: `/admin/quotes/${quoteRequestId}/finalized-quote-pdf/${r.id}`,
+    // View surfaces the actual finalized-quote email that was sent
+    // (preview_html), not the internal PDF route — which was rendering the
+    // BOL. This matches the range-proposal behaviour: View == what the
+    // customer received.
+    pdfHref: null,
+    emailHtml: r.preview_html ?? null,
+    amount: docMoney(docNum(r.total_amount)),
   }));
 
   const bols: SentDocumentRow[] = (bolResp.data ?? []).map((r) => ({
-    type: "bol",
+    type: "bol" as const,
     id: r.id,
     label: `BOL #${r.bol_number}`,
     sentAt: r.sent_at ?? "",
     recipient: r.preview_to ?? "",
     pdfHref: `/admin/quotes/${quoteRequestId}/bol-pdf/${r.id}`,
+    amount: null,
   }));
 
-  return [...estimates, ...fqs, ...bols].sort((a, b) =>
+  const sorted = [...estimates, ...fqs, ...bols].sort((a, b) =>
     a.sentAt < b.sentAt ? 1 : a.sentAt > b.sentAt ? -1 : 0,
   );
+
+  // Highlight the most recent estimate and the most recent finalized quote
+  // (the list is sorted newest-first, so the first of each type wins).
+  let estDone = false;
+  let fqDone = false;
+  for (const d of sorted) {
+    if (!estDone && d.type === "estimate") {
+      d.highlight = true;
+      estDone = true;
+    } else if (!fqDone && d.type === "finalized_quote") {
+      d.highlight = true;
+      fqDone = true;
+    }
+  }
+
+  return sorted;
+}
+
+function docNum(v: unknown): number | null {
+  if (v == null) return null;
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function docMoney(n: number | null): string | null {
+  if (n == null) return null;
+  return "$" + Math.round(n).toLocaleString("en-US");
+}
+
+function rangeMoney(low: number | null, high: number | null): string | null {
+  if (low == null && high == null) return null;
+  if (low != null && high != null && Math.round(low) !== Math.round(high)) {
+    return `${docMoney(low)}–${docMoney(high)}`;
+  }
+  return docMoney(low ?? high);
+}
+
+function sumAccessorials(raw: unknown): number {
+  if (!Array.isArray(raw)) return 0;
+  let total = 0;
+  for (const item of raw) {
+    if (item && typeof item === "object" && "amount" in item) {
+      const a = docNum((item as { amount: unknown }).amount);
+      if (a != null) total += a;
+    }
+  }
+  return total;
 }
 
 async function loadDraftEstimate(
@@ -1012,19 +1085,6 @@ function formatWeight(
   return fallback ?? "";
 }
 
-function formatDimensions(
-  l: number | null | undefined,
-  w: number | null | undefined,
-  h: number | null | undefined,
-): string {
-  if (l == null || w == null || h == null) return "";
-  const fmt = (n: number) => {
-    const num = Number(n);
-    return Number.isInteger(num) ? String(num) : num.toFixed(1);
-  };
-  return `${fmt(l)}″ × ${fmt(w)}″ × ${fmt(h)}″`;
-}
-
 /**
  * Convert the stored appointment_status code (snake_case) into the
  * friendly text the admin Load Details row shows. Returns "" when the
@@ -1125,11 +1185,9 @@ function computeInitialValues(
     freight_commodity: pickString(intake?.commodity_details, row.commodity),
     freight_weight: formatWeight(intake?.exact_weight_lbs, row.weight),
     freight_pieces: "",
-    freight_dimensions: formatDimensions(
-      intake?.length_in,
-      intake?.width_in,
-      intake?.height_in,
-    ),
+    freight_length: fieldNumString(intake?.length_in ?? null),
+    freight_width: fieldNumString(intake?.width_in ?? null),
+    freight_height: fieldNumString(intake?.height_in ?? null),
     freight_hazmat: "",
     freight_handling: pickString(intake?.special_requirements),
   };
@@ -1220,7 +1278,7 @@ function buildOperatorHeaderProps(row: QuoteDetailRow): OperatorHeaderProps {
         String(row.lead_status).replace(/_/g, " "),
       statusPillClasses:
         LEAD_STATUS_CLASSES_LIGHT[row.lead_status] ??
-        "border-zinc-300 bg-zinc-100 text-black",
+        "border-zinc-300 bg-zinc-100 text-fg",
     },
     lane: {
       pickupLabel: laneLabel(pickupCity, pickupState, row.pickup_zip),
@@ -1331,6 +1389,15 @@ export default async function QuoteDetailPage({
   const { id } = await params;
   const row = await loadQuoteRequest(id);
   if (!row) notFound();
+
+  // Stamp the first time the owner opens this quote so the dashboard can
+  // flag never-opened quotes red. Guarded to the null case so it records
+  // only the FIRST view; later opens no-op.
+  await createServiceRoleClient()
+    .from("quote_requests")
+    .update({ first_viewed_at: new Date().toISOString() })
+    .eq("id", id)
+    .is("first_viewed_at", null);
 
   const intake = await loadLatestIntake(id);
   const initialValues = applyLoadDetailsOverrides(
@@ -1588,8 +1655,8 @@ export default async function QuoteDetailPage({
   // longer crammed into the summary card.
   const customerNotesText = (row.notes ?? "").trim();
   const notesContent = customerNotesText ? (
-    <div className="bg-zinc-900/40 px-3 py-2">
-      <blockquote className="border-l-2 border-zinc-700 pl-3 text-[12px] leading-relaxed text-zinc-200">
+    <div className="bg-card px-3 py-2">
+      <blockquote className="border-l-2 border-red-400 pl-3 text-[12px] font-bold leading-relaxed text-red-700">
         {customerNotesText}
       </blockquote>
     </div>
@@ -1619,12 +1686,12 @@ export default async function QuoteDetailPage({
   return (
     <>
       {isTrashed ? (
-        <div className="border-t border-zinc-800 bg-zinc-950">
+        <div className="border-t border-line bg-canvas">
           <div className="mx-auto flex max-w-7xl flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-2 sm:px-6 lg:px-8">
-            <p className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-amber-400">
+            <p className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-amber-600">
               In trash
             </p>
-            <p className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-zinc-400">
+            <p className="font-mono text-[10.5px] uppercase tracking-[0.14em] text-fg-subtle">
               Moved {relativeTime(row.deleted_at!)}
               {row.delete_after
                 ? " \u00b7 Auto-purge " +
@@ -1687,7 +1754,9 @@ export default async function QuoteDetailPage({
             miles={headerProps.lane.miles}
           />
         }
-        detailsSummary={detailsSectionSummary}
+        detailsSummary={
+          <span className="font-bold text-emerald-300">{detailsSectionSummary}</span>
+        }
         pricingContent={
           <PricingTab
             quoteRequestId={row.id}
@@ -1697,7 +1766,9 @@ export default async function QuoteDetailPage({
             nextLeadId={nextLeadId}
           />
         }
-        pricingSummary={rateDisplay ?? "\u2014"}
+        pricingSummary={
+          <span className="font-semibold text-emerald-300">{rateDisplay ?? "\u2014"}</span>
+        }
         pricingCollapsedByDefault={pricingCollapsedByDefault}
         documentsContent={
           <DocumentsTab

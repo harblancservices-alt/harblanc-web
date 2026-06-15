@@ -38,93 +38,75 @@ export function LaneHero({
 }: LaneHeroProps) {
   const pickupText = pickupCityState ?? "—";
   const deliveryText = deliveryCityState ?? "—";
-  const milesText = miles != null ? miles.toLocaleString() + " mi" : null;
+  const milesText = miles != null ? miles.toLocaleString() + " mi" : "—";
 
   return (
-    <section
-      aria-label="Lane"
-      className="px-3 pt-8 pb-7 sm:px-4 xl:pt-12 xl:pb-10"
-    >
-      <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-x-5 sm:gap-x-6 xl:gap-x-10 2xl:gap-x-14">
+    <section aria-label="Lane" className="bg-card">
+      <div className="flex flex-wrap items-stretch">
         {/* Pickup */}
-        <div className="text-right">
-          <p className="font-mono text-[9.5px] font-medium uppercase tracking-[0.24em] text-emerald-400 xl:text-[11px]">
+        <div className="min-w-[150px] flex-1 px-3.5 py-2.5">
+          <p className="font-mono text-[9.5px] font-semibold uppercase tracking-[0.18em] text-amber-700">
             Pickup
           </p>
-          <h1 className="mt-1.5 truncate text-[28px] font-medium leading-[1.05] tracking-tight text-white sm:text-[30px] xl:text-[42px] 2xl:text-[48px]">
+          <p className="mt-0.5 truncate text-[18px] font-semibold leading-tight text-fg xl:text-[20px]">
             {pickupText}
-          </h1>
-          {pickupZip ? (
-            <p className="mt-1 font-mono text-[12px] tabular-nums text-zinc-400 xl:text-[14px]">
-              {pickupZip}
-            </p>
-          ) : (
-            <p className="mt-1 font-mono text-[12px] text-zinc-600">&nbsp;</p>
-          )}
+          </p>
+          <p className="font-mono text-[12px] font-medium tabular-nums text-blue-700">
+            {pickupZip ?? " "}
+          </p>
         </div>
 
         {/* Center — arrow + miles + drive-time */}
-        <div className="flex min-w-[56px] flex-col items-center gap-1.5">
+        <div className="flex flex-col items-center justify-center self-stretch border-l border-line px-4 py-2 text-fg-subtle">
           <RightArrow />
-          {milesText ? (
-            <p className="whitespace-nowrap font-mono text-[12.5px] font-medium tabular-nums text-zinc-300 xl:text-[15px]">
-              {milesText}
-            </p>
-          ) : (
-            <p className="whitespace-nowrap font-mono text-[12.5px] text-zinc-600">
-              &mdash;
-            </p>
-          )}
+          <p className="whitespace-nowrap font-mono text-[12.5px] font-semibold tabular-nums text-fg">
+            {milesText}
+          </p>
           {driveTime ? (
-            <p className="whitespace-nowrap font-mono text-[9.5px] uppercase tracking-[0.16em] text-zinc-600 xl:text-[11px]">
+            <p className="whitespace-nowrap font-mono text-[9px] uppercase tracking-[0.14em] text-fg-subtle">
               {driveTime}
             </p>
           ) : null}
         </div>
 
         {/* Delivery */}
-        <div className="text-left">
-          <p className="font-mono text-[9.5px] font-medium uppercase tracking-[0.24em] text-sky-300 xl:text-[11px]">
+        <div className="min-w-[150px] flex-1 border-l border-line px-3.5 py-2.5">
+          <p className="font-mono text-[9.5px] font-semibold uppercase tracking-[0.18em] text-blue-700">
             Delivery
           </p>
-          <h1 className="mt-1.5 truncate text-[28px] font-medium leading-[1.05] tracking-tight text-white sm:text-[30px] xl:text-[42px] 2xl:text-[48px]">
+          <p className="mt-0.5 truncate text-[18px] font-semibold leading-tight text-fg xl:text-[20px]">
             {deliveryText}
-          </h1>
-          {deliveryZip ? (
-            <p className="mt-1 font-mono text-[12px] tabular-nums text-zinc-400 xl:text-[14px]">
-              {deliveryZip}
-            </p>
-          ) : (
-            <p className="mt-1 font-mono text-[12px] text-zinc-600">&nbsp;</p>
-          )}
+          </p>
+          <p className="font-mono text-[12px] font-medium tabular-nums text-blue-700">
+            {deliveryZip ?? " "}
+          </p>
+        </div>
+
+        {/* Pickup date */}
+        <div className="min-w-[110px] border-l border-line px-3.5 py-2.5">
+          <p className="font-mono text-[9.5px] font-semibold uppercase tracking-[0.18em] text-fg-subtle">
+            Pickup date
+          </p>
+          <p className="mt-0.5 font-mono text-[13px] tabular-nums text-fg">
+            {pickupDateLabel ?? "—"}
+          </p>
+        </div>
+
+        {/* Delivery date */}
+        <div className="min-w-[110px] border-l border-line px-3.5 py-2.5">
+          <p className="font-mono text-[9.5px] font-semibold uppercase tracking-[0.18em] text-fg-subtle">
+            Delivery date
+          </p>
+          <p className="mt-0.5 font-mono text-[13px] tabular-nums text-fg">
+            {deliveryDateLabel ?? "—"}
+          </p>
         </div>
       </div>
-
-      {/* Date pill */}
-      {pickupDateLabel || deliveryDateLabel ? (
-        <div className="mt-4 flex justify-center">
-          <div className="inline-flex items-center gap-3 rounded-full border border-zinc-800 bg-zinc-950/80 px-3.5 py-1.5 xl:gap-4 xl:px-5 xl:py-2">
-            <span className="font-mono text-[11.5px] tabular-nums text-white xl:text-[14px]">
-              {pickupDateLabel ?? "—"}
-            </span>
-            <RightArrow size={14} dim />
-            <span className="font-mono text-[11.5px] tabular-nums text-white xl:text-[14px]">
-              {deliveryDateLabel ?? "—"}
-            </span>
-          </div>
-        </div>
-      ) : null}
     </section>
   );
 }
 
-function RightArrow({
-  size = 28,
-  dim = false,
-}: {
-  size?: number;
-  dim?: boolean;
-}) {
+function RightArrow({ size = 20 }: { size?: number }) {
   return (
     <svg
       width={size}
@@ -136,7 +118,7 @@ function RightArrow({
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
-      className={dim ? "text-zinc-700" : "text-zinc-600"}
+      className="text-fg-subtle"
     >
       <path d="M5 12h14M13 5l7 7-7 7" />
     </svg>

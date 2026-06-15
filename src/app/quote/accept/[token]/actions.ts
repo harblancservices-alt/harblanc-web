@@ -222,24 +222,15 @@ async function persistIntake(
       estimateId: estimate.id,
     });
 
-    // Clear any operator pre-fill overrides on the lead row. The
-    // customer's submitted intake is now the source of truth for the
-    // Load Details tab; the pre-fill was a placeholder for the
-    // pre-submission window. If the operator wants to override any
-    // value AFTER seeing the customer's submission, they hit
-    // "Save edits" again and that new override wins on next render.
-    const { error: overridesClearError } = await sb
-      .from("quote_requests")
-      .update({ load_details_overrides: null })
-      .eq("id", lead.id)
-      .not("load_details_overrides", "is", null);
-    if (overridesClearError) {
-      console.error("[submitIntake] could not clear pre-fill overrides", {
-        leadId: lead.id,
-        message: overridesClearError.message,
-      });
-      // Non-fatal -- intake save already succeeded.
-    }
+    // NOTE: operator Load Details overrides are intentionally NOT cleared
+    // here. The previous behaviour nulled the whole overrides blob on intake
+    // submit, which silently wiped the operator's manually-entered stops,
+    // addresses, and freight — the exact "sending the quote deleted my data"
+    // bug. It isn't needed: applyLoadDetailsOverrides already layers
+    // overrides ON TOP of the freshly-submitted intake, so the operator's
+    // explicit edits win on the fields they set and the customer's intake
+    // fills every field the operator never touched. If the operator wants the
+    // customer's value to win for a field, they clear that field.
 
     const { data: leadStatusRow } = await sb
       .from("quote_requests")

@@ -833,7 +833,11 @@ export async function buildFinalizedQuotePreview(
     },
   );
 
-  revalidatePath(`/admin/quotes/${draft.quote_request_id}`);
+  // NOTE: intentionally NO revalidatePath here — same reason as
+  // buildEstimatePreview. Building the preview returns the rendered email to
+  // the client modal; a page revalidate mid-edit raced with the Load Details
+  // auto-save and wiped freshly-typed stops & addresses. The draft is
+  // persisted above; the page refreshes its state on the next nav or on Send.
 
   return rendered;
 }
@@ -987,7 +991,16 @@ export async function sendFinalizedQuote(
       quoteRequestId: draft.quote_request_id,
       message: leadErr.message,
     });
-  } else if (lead && lead.lead_status === "booked") {
+  } else if (
+    lead &&
+    // Advance from any pre-payment funnel state. Previously this only fired
+    // when the lead was already "booked" — but sending a finalized quote
+    // happens while the lead is "awaiting_confirmation", so the status (and
+    // the pipeline stage) never moved off "Send finalized".
+    ["new", "contacted", "estimate_sent", "awaiting_confirmation", "booked"].includes(
+      lead.lead_status,
+    )
+  ) {
     const previous = lead.lead_status;
     const now = new Date().toISOString();
     const { error: statusErr } = await sb

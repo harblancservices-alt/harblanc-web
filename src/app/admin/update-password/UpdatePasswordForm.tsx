@@ -50,7 +50,7 @@ export function UpdatePasswordForm() {
       <div>
         <label
           htmlFor="password"
-          className="block font-mono text-xs tracking-[0.12em] text-black uppercase"
+          className="block font-mono text-xs tracking-[0.12em] text-fg uppercase"
         >
           New password
         </label>
@@ -63,14 +63,14 @@ export function UpdatePasswordForm() {
           onChange={(e) => setPassword(e.target.value)}
           required
           minLength={8}
-          className="mt-2.5 block w-full bg-white px-4 py-3.5 text-base text-black placeholder:text-black border border-zinc-300 focus:border-red-600 focus:outline-none"
+          className="mt-2.5 block w-full bg-card px-4 py-3.5 text-base text-fg placeholder:text-fg border border-zinc-300 focus:border-red-600 focus:outline-none"
         />
       </div>
 
       <div>
         <label
           htmlFor="confirm"
-          className="block font-mono text-xs tracking-[0.12em] text-black uppercase"
+          className="block font-mono text-xs tracking-[0.12em] text-fg uppercase"
         >
           Confirm new password
         </label>
@@ -83,7 +83,7 @@ export function UpdatePasswordForm() {
           onChange={(e) => setConfirm(e.target.value)}
           required
           minLength={8}
-          className="mt-2.5 block w-full bg-white px-4 py-3.5 text-base text-black placeholder:text-black border border-zinc-300 focus:border-red-600 focus:outline-none"
+          className="mt-2.5 block w-full bg-card px-4 py-3.5 text-base text-fg placeholder:text-fg border border-zinc-300 focus:border-red-600 focus:outline-none"
         />
       </div>
 

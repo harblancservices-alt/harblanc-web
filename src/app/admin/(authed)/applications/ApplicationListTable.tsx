@@ -115,14 +115,14 @@ export function ApplicationListTable({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search name, phone, email, equipment, home base…"
-            className="block w-full border-2 border-black bg-white px-3 py-2.5 font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-black placeholder:text-black/40 focus:outline-none"
+            className="block w-full border-2 border-line bg-card px-3 py-2.5 font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-fg placeholder:text-fg/40 focus:outline-none"
             aria-label="Search applications"
           />
           {searchQuery ? (
             <button
               type="button"
               onClick={() => setSearchQuery("")}
-              className="absolute inset-y-0 right-0 flex items-center px-3 text-black transition-colors hover:text-red-700"
+              className="absolute inset-y-0 right-0 flex items-center px-3 text-fg transition-colors hover:text-red-700"
               aria-label="Clear search"
             >
               ×
@@ -133,7 +133,7 @@ export function ApplicationListTable({
           <select
             value={cdlFilter}
             onChange={(e) => setCdlFilter(e.target.value)}
-            className="block w-full border-2 border-black bg-white px-3 py-2.5 font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-black focus:outline-none sm:w-auto"
+            className="block w-full border-2 border-line bg-card px-3 py-2.5 font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-fg focus:outline-none sm:w-auto"
             aria-label="Filter by CDL status"
           >
             <option value="">All CDL</option>
@@ -148,7 +148,7 @@ export function ApplicationListTable({
           <button
             type="button"
             onClick={clearFilters}
-            className="inline-flex items-center justify-center border-2 border-black bg-white px-4 py-2.5 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-black transition-colors hover:bg-black hover:text-white sm:w-auto"
+            className="inline-flex items-center justify-center border-2 border-line bg-card px-4 py-2.5 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-fg transition-colors hover:bg-canvas hover:text-fg sm:w-auto"
           >
             Clear
           </button>
@@ -156,7 +156,7 @@ export function ApplicationListTable({
       </div>
 
       {hasFilter ? (
-        <p className="mt-2 font-mono text-[10.5px] font-bold uppercase tracking-[0.18em] text-black/60">
+        <p className="mt-2 font-mono text-[10.5px] font-bold uppercase tracking-[0.18em] text-fg-subtle">
           Showing {filtered.length} of {rows.length}
         </p>
       ) : null}
@@ -164,7 +164,7 @@ export function ApplicationListTable({
       {/* Feed: one compact card per application */}
       <ul className="mt-4 space-y-3">
         {filtered.length === 0 ? (
-          <li className="border-2 border-dashed border-black/30 px-5 py-8 text-center font-mono text-[12px] font-bold uppercase tracking-[0.18em] text-black/55">
+          <li className="border-2 border-dashed border-line/30 px-5 py-8 text-center font-mono text-[12px] font-bold uppercase tracking-[0.18em] text-fg-subtle">
             {hasFilter
               ? "No applications match your filter"
               : "No incoming applications"}
@@ -212,16 +212,16 @@ function ApplicationRow({
   const hasEmail = row.email.trim().length > 0;
 
   return (
-    <li className="border-2 border-black border-l-4 border-l-black bg-[#fafaf6] px-4 py-3 sm:px-5 sm:py-4">
+    <li className="border-2 border-line border-l-4 border-l-black bg-[#fafaf6] px-4 py-3 sm:px-5 sm:py-4">
       {/* Top row: name + date / NEW chip */}
       <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
         <Link
           href={`/admin/applications/${row.id}`}
-          className="min-w-0 truncate text-[17px] font-bold leading-tight text-black hover:underline sm:text-[18px]"
+          className="min-w-0 truncate text-[17px] font-bold leading-tight text-fg hover:underline sm:text-[18px]"
         >
           {row.name || "—"}
         </Link>
-        <div className="flex flex-wrap items-baseline gap-x-2 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-black/70 sm:flex-nowrap">
+        <div className="flex flex-wrap items-baseline gap-x-2 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-fg-muted sm:flex-nowrap">
           <span aria-label="Received">{received || "—"}</span>
           {fresh ? (
             <span
@@ -236,14 +236,14 @@ function ApplicationRow({
 
       {/* Mid: equipment · CDL · years */}
       {metaTokens.length > 0 ? (
-        <p className="mt-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-black">
+        <p className="mt-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-fg">
           {metaTokens.join(" · ")}
         </p>
       ) : null}
 
       {/* Sub: home base */}
       {homeBase ? (
-        <p className="mt-0.5 text-[13px] text-black/80">{homeBase}</p>
+        <p className="mt-0.5 text-[13px] text-fg/80">{homeBase}</p>
       ) : null}
 
       {/* Actions: Phone + Email + Trash */}
@@ -252,7 +252,7 @@ function ApplicationRow({
           <a
             href={phoneHref}
             aria-label={`Call ${row.name}`}
-            className="inline-flex items-center justify-center border-2 border-black bg-transparent px-3.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-black transition-colors hover:bg-black hover:text-white"
+            className="inline-flex items-center justify-center border-2 border-line bg-transparent px-3.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-fg transition-colors hover:bg-canvas hover:text-fg"
           >
             <span aria-hidden className="mr-1.5">
               &#9742;
@@ -264,7 +264,7 @@ function ApplicationRow({
           <a
             href={emailHref}
             aria-label={`Email ${row.name}`}
-            className="inline-flex items-center justify-center border-2 border-black bg-transparent px-3.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-black transition-colors hover:bg-black hover:text-white"
+            className="inline-flex items-center justify-center border-2 border-line bg-transparent px-3.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-fg transition-colors hover:bg-canvas hover:text-fg"
           >
             <span aria-hidden className="mr-1.5">
               &#9993;
@@ -277,7 +277,7 @@ function ApplicationRow({
           onClick={onTrash}
           disabled={isPending}
           aria-label={`Move ${row.name} to trash`}
-          className="ml-auto inline-flex items-center justify-center border-2 border-red-700 bg-transparent px-3.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-red-700 transition-colors hover:bg-red-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+          className="ml-auto inline-flex items-center justify-center border-2 border-red-300 bg-transparent px-3.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-red-700 transition-colors hover:bg-red-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
         >
           Trash
         </button>

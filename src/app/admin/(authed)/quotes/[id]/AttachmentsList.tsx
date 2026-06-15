@@ -21,7 +21,7 @@ export function AttachmentsList({
 }) {
   if (uploads.length === 0) return null;
   return (
-    <div className="bg-zinc-900/40 px-3 py-2">
+    <div className="bg-card px-3 py-2">
       <ul className="flex flex-wrap gap-1.5">
         {uploads.map((u) => {
           const badge = u.mimeType.startsWith("image/") ? "IMG" : "PDF";
@@ -36,13 +36,13 @@ export function AttachmentsList({
             (u.signedUrl ? "" : " \u00b7 (link unavailable)");
           const Inner = (
             <>
-              <span className="rounded-sm border border-zinc-700 bg-zinc-800/60 px-1 py-[1px] font-mono text-[8.5px] font-medium uppercase tracking-[0.16em] text-zinc-400">
+              <span className="rounded-sm border border-line-strong bg-elevated px-1 py-[1px] font-mono text-[8.5px] font-medium uppercase tracking-[0.16em] text-fg-subtle">
                 {badge}
               </span>
-              <span className="max-w-[180px] truncate text-zinc-200">
+              <span className="max-w-[180px] truncate text-fg">
                 {u.originalFilename}
               </span>
-              <span aria-hidden className="text-zinc-500">
+              <span aria-hidden className="text-fg-subtle">
                 {"\u2197"}
               </span>
             </>
@@ -56,7 +56,7 @@ export function AttachmentsList({
                   rel="noopener noreferrer"
                   aria-label={"Open " + u.originalFilename + " in a new tab"}
                   title={tooltip}
-                  className="inline-flex items-center gap-1.5 rounded-sm border border-zinc-700/80 bg-zinc-900/60 px-2 py-1 text-[10.5px] no-underline transition-colors hover:border-zinc-600 hover:bg-zinc-900"
+                  className="inline-flex items-center gap-1.5 rounded-sm border border-line-strong/80 bg-panel px-2 py-1 text-[10.5px] no-underline transition-colors hover:border-line-strong hover:bg-card"
                 >
                   {Inner}
                 </a>
@@ -64,7 +64,7 @@ export function AttachmentsList({
                 <span
                   aria-label={"Signed URL unavailable for " + u.originalFilename}
                   title={tooltip}
-                  className="inline-flex items-center gap-1.5 rounded-sm border border-zinc-800 bg-zinc-900/40 px-2 py-1 text-[10.5px] text-zinc-500"
+                  className="inline-flex items-center gap-1.5 rounded-sm border border-line bg-card px-2 py-1 text-[10.5px] text-fg-subtle"
                 >
                   {Inner}
                 </span>

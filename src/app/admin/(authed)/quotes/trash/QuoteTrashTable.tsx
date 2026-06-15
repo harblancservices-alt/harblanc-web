@@ -103,14 +103,14 @@ export function QuoteTrashTable({ rows }: { rows: QuoteTrashRow[] }) {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search name, phone, lane, commodity, ID…"
-            className="block w-full border-2 border-black bg-white px-3 py-2.5 font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-black placeholder:text-black/40 focus:outline-none"
+            className="block w-full border-2 border-line bg-card px-3 py-2.5 font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-fg placeholder:text-fg/40 focus:outline-none"
             aria-label="Search trashed quotes"
           />
           {searchQuery ? (
             <button
               type="button"
               onClick={() => setSearchQuery("")}
-              className="absolute inset-y-0 right-0 flex items-center px-3 text-black transition-colors hover:text-red-700"
+              className="absolute inset-y-0 right-0 flex items-center px-3 text-fg transition-colors hover:text-red-700"
               aria-label="Clear search"
             >
               ×
@@ -120,7 +120,7 @@ export function QuoteTrashTable({ rows }: { rows: QuoteTrashRow[] }) {
       </div>
 
       {hasFilter ? (
-        <p className="mt-2 font-mono text-[10.5px] font-bold uppercase tracking-[0.18em] text-black/60">
+        <p className="mt-2 font-mono text-[10.5px] font-bold uppercase tracking-[0.18em] text-fg-subtle">
           Showing {filtered.length} of {rows.length}
         </p>
       ) : null}
@@ -128,7 +128,7 @@ export function QuoteTrashTable({ rows }: { rows: QuoteTrashRow[] }) {
       {/* L4: Trash feed — one compact card per trashed quote. */}
       <ul className="mt-4 space-y-3">
         {filtered.length === 0 ? (
-          <li className="border-2 border-dashed border-black/30 px-5 py-8 text-center font-mono text-[12px] font-bold uppercase tracking-[0.18em] text-black/55">
+          <li className="border-2 border-dashed border-line/30 px-5 py-8 text-center font-mono text-[12px] font-bold uppercase tracking-[0.18em] text-fg-subtle">
             {hasFilter
               ? "No trashed records match your search"
               : "Trash is empty"}
@@ -175,19 +175,19 @@ function TrashRow({
   const commodity = row.commodity?.trim().toUpperCase() || null;
 
   return (
-    <li className="border-2 border-black border-l-4 border-l-black bg-[#fafaf6] px-4 py-3 sm:px-5 sm:py-4">
+    <li className="border-2 border-line border-l-4 border-l-black bg-[#fafaf6] px-4 py-3 sm:px-5 sm:py-4">
       {/* Top row: name + deleted date + lane (lane right-aligned on sm+) */}
       <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
         <Link
           href={`/admin/quotes/${row.id}`}
-          className="min-w-0 truncate text-[17px] font-bold leading-tight text-black hover:underline sm:text-[18px]"
+          className="min-w-0 truncate text-[17px] font-bold leading-tight text-fg hover:underline sm:text-[18px]"
         >
           {row.name || "—"}
         </Link>
-        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-black/70 sm:flex-nowrap">
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-fg-muted sm:flex-nowrap">
           <span aria-label="Deleted">{deletedDate || "—"}</span>
           {lane ? (
-            <span className="text-black tabular-nums" aria-label="Lane">
+            <span className="text-fg tabular-nums" aria-label="Lane">
               {lane}
             </span>
           ) : null}
@@ -196,10 +196,10 @@ function TrashRow({
 
       {/* Meta row: commodity · auto-purge */}
       {commodity || purgeDate ? (
-        <p className="mt-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-black/60">
-          {commodity ? <span className="text-black">{commodity}</span> : null}
+        <p className="mt-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-fg-subtle">
+          {commodity ? <span className="text-fg">{commodity}</span> : null}
           {commodity && purgeDate ? (
-            <span aria-hidden className="mx-2 text-black/40">
+            <span aria-hidden className="mx-2 text-fg/40">
               ·
             </span>
           ) : null}
@@ -214,7 +214,7 @@ function TrashRow({
           onClick={onRestore}
           disabled={isPending}
           aria-label={`Restore ${row.name}`}
-          className="inline-flex items-center justify-center border-2 border-black bg-transparent px-3.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-black transition-colors hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex items-center justify-center border-2 border-line bg-transparent px-3.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-fg transition-colors hover:bg-canvas hover:text-fg disabled:cursor-not-allowed disabled:opacity-50"
         >
           Restore
         </button>
@@ -223,7 +223,7 @@ function TrashRow({
           onClick={onDelete}
           disabled={isPending}
           aria-label={`Permanently delete ${row.name}`}
-          className="inline-flex items-center justify-center border-2 border-red-700 bg-transparent px-3.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-red-700 transition-colors hover:bg-red-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex items-center justify-center border-2 border-red-300 bg-transparent px-3.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-red-700 transition-colors hover:bg-red-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
         >
           Delete
         </button>

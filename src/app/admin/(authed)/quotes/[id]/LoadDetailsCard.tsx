@@ -85,7 +85,10 @@ export type LoadDetailsInitial = {
   freight_commodity: string;
   freight_weight: string;
   freight_pieces: string;
-  freight_dimensions: string;
+  /** Dimensions in inches, entered as three separate boxes. */
+  freight_length: string;
+  freight_width: string;
+  freight_height: string;
   freight_hazmat: string;
   freight_handling: string;
 };
@@ -149,12 +152,12 @@ export function LoadDetailsCard({
   }
 
   return (
-    <section className="mt-2 border-2 border-black border-l-4 border-l-black bg-[#fafaf6]">
+    <section className="mt-2 border-2 border-line border-l-4 border-l-black bg-[#fafaf6]">
       <div className="flex flex-wrap items-baseline justify-between gap-2 px-4 pt-4 pb-2 sm:px-5">
-        <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-black">
+        <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-fg">
           Load details
         </h2>
-        <span className="border border-black bg-white px-2 py-0.5 font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-black">
+        <span className="border border-line bg-card px-2 py-0.5 font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-fg">
           {intakeStatusMessage}
         </span>
       </div>
@@ -242,6 +245,33 @@ export function LoadDetailsCard({
           onChange={setValue}
           fromQuickQuote
         />
+        <FreightCell
+          label="Pieces"
+          fieldKey="freight_pieces"
+          value={values.freight_pieces}
+          onChange={setValue}
+        />
+      </div>
+      {/* Dimensions — three separate inch boxes (Length / Width / Height). */}
+      <div className="grid grid-cols-3 gap-3 border-t border-zinc-300 px-4 py-2 sm:px-5">
+        <FreightCell
+          label="Length (in)"
+          fieldKey="freight_length"
+          value={values.freight_length}
+          onChange={setValue}
+        />
+        <FreightCell
+          label="Width (in)"
+          fieldKey="freight_width"
+          value={values.freight_width}
+          onChange={setValue}
+        />
+        <FreightCell
+          label="Height (in)"
+          fieldKey="freight_height"
+          value={values.freight_height}
+          onChange={setValue}
+        />
       </div>
       </>) : null}
 
@@ -270,8 +300,8 @@ function DocumentsSection({ uploads }: { uploads: IntakeUploadAdminRow[] }) {
   if (uploads.length === 0) {
     return (
       <div className="px-4 py-3 sm:px-5">
-        <div className="border border-dashed border-zinc-400 bg-white px-3 py-4 text-center">
-          <p className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-black">
+        <div className="border border-dashed border-zinc-400 bg-card px-3 py-4 text-center">
+          <p className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-fg">
             No customer documents uploaded yet
           </p>
         </div>
@@ -280,8 +310,8 @@ function DocumentsSection({ uploads }: { uploads: IntakeUploadAdminRow[] }) {
   }
   return (
     <div className="px-4 pb-3 sm:px-5">
-      <div className="border border-black bg-white">
-        <div className="grid grid-cols-[54px_minmax(0,1fr)_120px_70px_90px] border-b border-black/30 px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-black">
+      <div className="border border-line bg-card">
+        <div className="grid grid-cols-[54px_minmax(0,1fr)_120px_70px_90px] border-b border-line/30 px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-fg">
           <span>Type</span>
           <span>Filename</span>
           <span>Source</span>
@@ -296,21 +326,21 @@ function DocumentsSection({ uploads }: { uploads: IntakeUploadAdminRow[] }) {
               (idx === uploads.length - 1 ? "" : "border-b border-zinc-300")
             }
           >
-            <span className="font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-black">
+            <span className="font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-fg">
               {u.mimeType.startsWith("image/") ? "IMG" : "PDF"}
             </span>
             <div className="min-w-0">
-              <p className="truncate text-[14px] text-black">{u.originalFilename}</p>
+              <p className="truncate text-[14px] text-fg">{u.originalFilename}</p>
               {u.note ? (
-                <p className="mt-0.5 truncate font-sans text-[12px] italic text-black">
+                <p className="mt-0.5 truncate font-sans text-[12px] italic text-fg">
                   {u.note}
                 </p>
               ) : null}
             </div>
-            <span className="font-mono text-[12px] text-black">
+            <span className="font-mono text-[12px] text-fg">
               {u.source === "quick_quote" ? "Quick Quote" : "Customer Intake"}
             </span>
-            <span className="text-right font-mono text-[12px] text-black tabular-nums">
+            <span className="text-right font-mono text-[12px] text-fg tabular-nums">
               {formatDocsSize(u.sizeBytes)}
             </span>
             {u.signedUrl ? (
@@ -318,12 +348,12 @@ function DocumentsSection({ uploads }: { uploads: IntakeUploadAdminRow[] }) {
                 href={u.signedUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-right font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-black hover:underline"
+                className="text-right font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-fg hover:underline"
               >
                 Open \u2197
               </a>
             ) : (
-              <span className="text-right font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-black">
+              <span className="text-right font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-fg">
                 Unavailable
               </span>
             )}
@@ -359,13 +389,13 @@ function CollapsibleBanner({
       type="button"
       onClick={onToggle}
       aria-expanded={open}
-      className="flex w-full items-center justify-between gap-2 border-t border-b border-black/30 bg-[#fafaf6] px-4 py-2 transition-colors hover:bg-[#f3f1e9] sm:px-5"
+      className="flex w-full items-center justify-between gap-2 border-t border-b border-line/30 bg-[#fafaf6] px-4 py-2 transition-colors hover:bg-[#f3f1e9] sm:px-5"
     >
       <span className="flex items-center gap-2">
-        <span className="font-mono text-[12px] font-bold uppercase tracking-[0.18em] text-black">
+        <span className="font-mono text-[12px] font-bold uppercase tracking-[0.18em] text-fg">
           {ordinal}
         </span>
-        <span className="font-mono text-[13px] font-bold uppercase tracking-[0.18em] text-black">
+        <span className="font-mono text-[13px] font-bold uppercase tracking-[0.18em] text-fg">
           {title}
         </span>
       </span>
@@ -385,7 +415,7 @@ function IconSectionChevron({ open }: { open: boolean }) {
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
-      className={"h-4 w-4 shrink-0 text-black transition-transform " + (open ? "" : "-rotate-90")}
+      className={"h-4 w-4 shrink-0 text-fg transition-transform " + (open ? "" : "-rotate-90")}
     >
       <polyline points="6 9 12 15 18 9" />
     </svg>
@@ -406,8 +436,8 @@ function LabelWithBar({
 }) {
   return (
     <span className="flex items-center gap-2">
-      <span aria-hidden className="inline-block h-[14px] w-[3px] shrink-0 bg-black" />
-      <span className="truncate font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-black">
+      <span aria-hidden className="inline-block h-[14px] w-[3px] shrink-0 bg-canvas" />
+      <span className="truncate font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-fg">
         {label}
       </span>
     </span>
@@ -483,7 +513,7 @@ function DateRangeRow({
         />
         <span
           aria-hidden
-          className="hidden text-center font-mono text-[15px] font-bold text-black sm:block"
+          className="hidden text-center font-mono text-[15px] font-bold text-fg sm:block"
         >
           &mdash;
         </span>
@@ -582,14 +612,14 @@ function EditableInput({
   type?: string;
 }) {
   return (
-    <div className="flex items-center border border-black bg-white focus-within:border-red-700">
+    <div className="flex items-center border border-line bg-card focus-within:border-red-300">
       <input
         type={type ?? "text"}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={advanceOnEnter}
         aria-label={ariaLabel}
-        className="min-w-0 flex-1 border-0 bg-transparent px-2.5 py-1.5 text-[16px] text-black placeholder:text-zinc-700 focus:outline-none sm:text-[15px]"
+        className="min-w-0 flex-1 border-0 bg-transparent px-2.5 py-1.5 text-[16px] text-fg placeholder:text-zinc-700 focus:outline-none sm:text-[15px]"
       />
     </div>
   );
@@ -639,10 +669,10 @@ function CopyButton({
       className={
         "inline-flex h-7 w-7 shrink-0 items-center justify-center border transition-colors " +
         (disabled
-          ? "cursor-not-allowed border-zinc-400 bg-white text-black"
+          ? "cursor-not-allowed border-zinc-400 bg-card text-fg"
           : copied
-            ? "border-emerald-700 bg-emerald-50 text-emerald-800"
-            : "border-black bg-white text-black hover:bg-[#f3f1e9]")
+            ? "border-emerald-300 bg-emerald-50 text-emerald-800"
+            : "border-line bg-card text-fg hover:bg-[#f3f1e9]")
       }
     >
       {copied ? (
@@ -711,13 +741,13 @@ function CityZipRow({
               ariaLabel="City"
             />
           </div>
-          <div className="border border-black bg-white focus-within:border-red-700">
+          <div className="border border-line bg-card focus-within:border-red-300">
             <select
               value={parsedState}
               onChange={(e) => onChange(cityKey, joinCityState(parsedCity, e.target.value))}
               onKeyDown={advanceOnEnter}
               aria-label="State"
-              className="block w-[58px] border-0 bg-transparent px-1.5 py-1.5 text-center font-mono text-[16px] font-medium text-black focus:outline-none sm:text-[15px]"
+              className="block w-[58px] border-0 bg-transparent px-1.5 py-1.5 text-center font-mono text-[16px] font-medium text-fg focus:outline-none sm:text-[15px]"
             >
               <option value=""></option>
               {US_STATES.map((s) => (
@@ -726,7 +756,7 @@ function CityZipRow({
             </select>
           </div>
         </div>
-        <div className="border border-black bg-white focus-within:border-red-700">
+        <div className="border border-line bg-card focus-within:border-red-300">
           <input
             type="text"
             inputMode="numeric"
@@ -736,7 +766,7 @@ function CityZipRow({
             onKeyDown={advanceOnEnter}
             aria-label="ZIP code"
             maxLength={5}
-            className="block w-full border-0 bg-transparent px-2.5 py-1.5 text-[16px] text-black placeholder:text-zinc-700 focus:outline-none sm:text-[15px]"
+            className="block w-full border-0 bg-transparent px-2.5 py-1.5 text-[16px] text-fg placeholder:text-zinc-700 focus:outline-none sm:text-[15px]"
           />
         </div>
       </div>

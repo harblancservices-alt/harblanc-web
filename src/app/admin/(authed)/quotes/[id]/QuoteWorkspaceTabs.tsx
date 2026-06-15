@@ -158,7 +158,7 @@ function TabBar({
     <div
       role="tablist"
       aria-label="Workspace sections"
-      className="fixed inset-x-0 top-0 z-40 border-b border-white/10 bg-black sm:sticky sm:top-14 sm:border-b sm:border-black sm:bg-white"
+      className="fixed inset-x-0 top-0 z-40 border-b border-white/10 bg-canvas sm:sticky sm:top-14 sm:border-b sm:border-line sm:bg-card"
     >
       <div className="flex">
         {TABS.map((t) => {
@@ -179,8 +179,8 @@ function TabBar({
                 // border for a flush rule.
                 "flex-1 whitespace-nowrap border-b-[3px] px-1.5 py-3 text-center font-mono text-[10.5px] font-bold uppercase tracking-[0.12em] transition-colors -mb-[1px] focus:outline-none sm:px-3 sm:text-[11px] sm:tracking-[0.14em] " +
                 (active
-                  ? "border-red-700 text-white sm:border-black sm:text-black"
-                  : "border-transparent text-white/70 hover:text-white sm:text-black sm:hover:text-black")
+                  ? "border-red-300 text-fg sm:border-line sm:text-fg"
+                  : "border-transparent text-fg/70 hover:text-fg sm:text-fg sm:hover:text-fg")
               }
             >
               {t.label}

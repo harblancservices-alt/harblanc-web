@@ -70,12 +70,12 @@ export function WorkflowProgress({
     return (
       <div
         aria-label="Workflow"
-        className="flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-2"
+        className="flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-md border border-line bg-card px-3 py-2"
       >
-        <p className="font-mono text-[9px] font-medium uppercase tracking-[0.22em] text-zinc-500">
+        <p className="font-mono text-[9px] font-medium uppercase tracking-[0.22em] text-fg-subtle">
           Workflow
         </p>
-        <p className="font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-300">
+        <p className="font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-fg-muted">
           Cancelled · Off the pipeline
         </p>
       </div>
@@ -87,9 +87,9 @@ export function WorkflowProgress({
   return (
     <div
       aria-label="Workflow"
-      className="rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-2"
+      className="rounded-md border border-line bg-card px-3 py-2"
     >
-      <p className="font-mono text-[9px] font-medium uppercase tracking-[0.22em] text-zinc-500">
+      <p className="font-mono text-[9px] font-medium uppercase tracking-[0.22em] text-fg-subtle">
         Workflow
       </p>
       <div className="-mx-1 mt-2 overflow-x-auto">
@@ -133,9 +133,9 @@ function StepDot({ state }: { state: StepState }) {
       case "current":
         return "h-[12px] w-[12px] rounded-full bg-red-500 ring-2 ring-red-900";
       case "future":
-        return "h-[10px] w-[10px] rounded-full border-2 border-zinc-700 bg-zinc-950";
+        return "h-[10px] w-[10px] rounded-full border-2 border-line-strong bg-canvas";
       case "disabled":
-        return "h-[10px] w-[10px] rounded-full border-2 border-dashed border-zinc-700 bg-zinc-950";
+        return "h-[10px] w-[10px] rounded-full border-2 border-dashed border-line-strong bg-canvas";
     }
   })();
   return <span aria-hidden className={"block " + inner} />;
@@ -146,13 +146,13 @@ function labelClass(state: StepState): string {
     "mt-1.5 block whitespace-nowrap font-mono text-[9.5px] font-medium uppercase tracking-[0.14em] ";
   switch (state) {
     case "past":
-      return base + "text-zinc-200";
+      return base + "text-fg";
     case "current":
-      return base + "text-red-300";
+      return base + "text-red-700";
     case "future":
-      return base + "text-zinc-500";
+      return base + "text-fg-subtle";
     case "disabled":
-      return base + "text-zinc-600";
+      return base + "text-fg-subtle";
   }
 }
 
@@ -163,7 +163,7 @@ function Connector({ state }: { state: StepState }) {
       aria-hidden
       className={
         "mt-[5px] h-[2px] w-6 self-start sm:w-9 " +
-        (after ? "bg-zinc-300" : "bg-zinc-800")
+        (after ? "bg-zinc-300" : "bg-elevated")
       }
     />
   );

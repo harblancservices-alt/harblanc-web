@@ -45,25 +45,25 @@ export default function DeclinePreviewPage() {
   const phoneHref = `tel:${company.dispatchPhone.replace(/[^\d+]/g, "")}`;
 
   return (
-    <div className="bg-neutral-950">
+    <div className="bg-canvas">
       {/* Preview banner */}
-      <div className="border-b border-red-700 bg-red-600 px-4 py-2 text-center font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-white sm:py-2.5">
+      <div className="border-b border-red-300 bg-red-600 px-4 py-2 text-center font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-white sm:py-2.5">
         Preview only &middot; no email sent &middot; no records changed
       </div>
 
-      <section className="border-b border-neutral-800 bg-neutral-950">
+      <section className="border-b border-line bg-canvas">
         <div className="mx-auto max-w-2xl px-4 py-12 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
           <p className="flex items-center gap-3 font-mono text-[11px] tracking-[0.22em] text-red-500 uppercase">
             <span aria-hidden className="inline-block h-3 w-1 bg-red-600" />
             Declining quote
           </p>
-          <h1 className="mt-5 text-3xl font-display leading-[1.05] tracking-[-0.02em] text-white sm:text-5xl">
+          <h1 className="mt-5 text-3xl font-display leading-[1.05] tracking-[-0.02em] text-fg sm:text-5xl">
             Decline this estimate.
           </h1>
-          <p className="mt-5 text-base leading-relaxed text-white sm:text-lg">
-            The estimate at <span className="font-mono text-white">{rate}</span>{" "}
+          <p className="mt-5 text-base leading-relaxed text-fg sm:text-lg">
+            The estimate at <span className="font-mono text-fg">{rate}</span>{" "}
             on{" "}
-            <span className="font-mono text-white">
+            <span className="font-mono text-fg">
               {SAMPLE_INTAKE_HEADER.pickupZip} &rarr;{" "}
               {SAMPLE_INTAKE_HEADER.deliveryZip}
             </span>{" "}
@@ -71,11 +71,11 @@ export default function DeclinePreviewPage() {
             note helps dispatch on the next quote, but it&rsquo;s optional.
           </p>
 
-          <p className="mt-6 font-mono text-[10px] tracking-[0.22em] text-white uppercase">
+          <p className="mt-6 font-mono text-[10px] tracking-[0.22em] text-fg uppercase">
             Want to talk first?{" "}
             <a
               href={phoneHref}
-              className="text-red-400 underline-offset-4 hover:underline"
+              className="text-red-600 underline-offset-4 hover:underline"
             >
               {company.dispatchPhone}
             </a>
@@ -86,7 +86,7 @@ export default function DeclinePreviewPage() {
       {/* DeclineForm wrapped in <fieldset disabled> so the server action
           cannot fire. token / initialReason / alreadyDeclined are stubbed
           for the preview only. */}
-      <section className="bg-neutral-950">
+      <section className="bg-canvas">
         <div className="mx-auto max-w-2xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8 lg:py-16">
           <fieldset
             disabled
@@ -100,11 +100,11 @@ export default function DeclinePreviewPage() {
             />
           </fieldset>
 
-          <p className="mt-8 font-mono text-[10px] tracking-[0.22em] text-white uppercase">
+          <p className="mt-8 font-mono text-[10px] tracking-[0.22em] text-fg uppercase">
             Changed your mind?{" "}
             <Link
               href="/admin/previews/confirm-shipment"
-              className="text-white underline-offset-4 hover:text-white hover:underline"
+              className="text-fg underline-offset-4 hover:text-fg hover:underline"
             >
               Accept and finalize instead
             </Link>

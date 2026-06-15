@@ -145,7 +145,7 @@ function SegmentedControl({
     <div
       role="tablist"
       aria-label="Pricing mode"
-      className="grid grid-cols-2 border border-zinc-700"
+      className="grid grid-cols-2 border border-line-strong"
     >
       <SegButton
         id="pricing-tab-range"
@@ -192,8 +192,8 @@ function SegButton({
         // White inactive with sand hover.
         "px-2 py-2.5 text-center font-mono text-[10.5px] font-bold uppercase tracking-[0.18em] transition-colors focus:outline-none sm:text-[11px] " +
         (active
-          ? "bg-black text-white"
-          : "bg-zinc-900 text-zinc-100 hover:bg-zinc-800/60")
+          ? "bg-canvas text-fg"
+          : "bg-card text-fg hover:bg-elevated")
       }
     >
       {label}

@@ -18,15 +18,52 @@
  *                           longer reads identical to Send. NOT YET wired
  *                           into components. */
 :root {
-  --background: #111111;
-  --foreground: #f4f4f5;
+  /* ============================================================== */
+  /* UNIFIED DARK PALETTE — single source of truth (warm charcoal).
+     Approved 2026-06-13. Every page (customer + admin) themes from
+     here; components consume the Tailwind utilities exposed in
+     @theme inline below (bg-canvas, bg-card, text-fg, border-line,
+     bg-accent, …) instead of hardcoded neutral-9xx / inline hex.
+     To re-skin the whole site, edit these values only. */
+
+  /* Surfaces — neutral gray, lifted lighter. No hue (true gray). */
+  --canvas: #2b2b2b;       /* page background             */
+  --panel: #353535;        /* section bands / title zones */
+  --card: #3f3f3f;         /* raised cards / inputs       */
+  --elevated: #4b4b4b;     /* hover / active surface      */
+  --line: #595959;         /* default border             */
+  --line-strong: #6b6b6b;  /* emphasized border          */
+
+  /* Text tiers — neutral */
+  --fg: #f4f4f4;           /* primary  (high contrast)    */
+  --fg-muted: #b5b5b5;     /* secondary (clearly legible) */
+  --fg-subtle: #858585;    /* captions / uppercase labels */
+
+  /* Accents — used with intent, never monotone */
+  --amber: #e2a33d;            /* highlights / dates / active */
+  --success: #5dae78;          /* paid / delivered / positive */
+  --success-soft: #19301e;     /* success pill background     */
+  --success-on: #6fc08c;       /* success pill text          */
+  --success-line: #2c4d35;     /* success pill border        */
+
+  /* Section-header bar (solid bar behind card titles). Dark by default;
+     the admin-light scope keeps it dark so titles read as solid bars on
+     white cards rather than blending in. */
+  --bar: #23252b;
+  --bar-fg: #f4f4f5;
+
+  /* Legacy aliases — kept pointing at the new palette so existing
+     token consumers (and the body bg) shift automatically. */
+  --background: var(--canvas);
+  --foreground: var(--fg);
   --accent: #dc2626;
   --accent-hover: #ef4444;
+  --accent-deep: #b3261f;
   --accent-destructive: #991b1b;
   --accent-destructive-hover: #b91c1c;
-  --border: #262626;
-  --surface: #171717;
-  --muted: #a1a1aa;
+  --border: var(--line);
+  --surface: var(--panel);
+  --muted: var(--fg-subtle);
   /* Phase READABILITY-2 / TYPO-1: --label-fg promoted again.
      Original: #d4d4d8 (zinc-300, ~2.5:1 on white) — dark-theme legacy.
      READABILITY-2: #3f3f46 (zinc-700, ~10.7:1) — light-theme baseline.
@@ -47,7 +84,53 @@
   --harblanc-rule: #d0cfc8;
 }
 
+/* ============================================================== */
+/* ADMIN LIGHT THEME — scoped override. Only the admin portal (the
+   PortalShell wrapper carries .admin-light) flips to light mode; the
+   public marketing site keeps the :root dark values above. Same
+   utility classes (bg-canvas / bg-card / text-fg / border-line / …)
+   resolve to these light values inside the admin. Depth comes from a
+   light-gray page behind WHITE cards; text is near-black; red stays
+   reserved for buttons + alert/notification bars only. */
+.admin-light {
+  --canvas: #e2e5e9;       /* page background (the gray between cards) */
+  --panel: #ffffff;        /* sidebar / top bar                       */
+  --card: #ffffff;         /* raised cards (pop off the gray page)     */
+  --elevated: #eef0f3;     /* hover / active                          */
+  --line: #cdd2d8;         /* borders (clearly visible)               */
+  --line-strong: #b3b9c1;
+  --fg: #15161a;           /* near-black primary text                 */
+  --fg-muted: #4b4e55;     /* dark secondary (readable, not washed)    */
+  --fg-subtle: #6c6f77;    /* labels / captions                        */
+  --bar: #23252b;          /* solid dark section-header bar            */
+  --bar-fg: #f4f4f5;
+}
+
 @theme inline {
+  /* Unified dark palette → Tailwind utilities.
+     Surfaces:  bg-canvas bg-panel bg-card bg-elevated
+     Borders:   border-line border-line-strong
+     Text:      text-fg text-fg-muted text-fg-subtle
+     Accents:   bg-accent/text-accent, bg-amber/text-amber,
+                bg-success/text-success (+ success-soft/on/line). */
+  --color-canvas: var(--canvas);
+  --color-panel: var(--panel);
+  --color-card: var(--card);
+  --color-elevated: var(--elevated);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-amber: var(--amber);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-success-on: var(--success-on);
+  --color-success-line: var(--success-line);
+  --color-accent-deep: var(--accent-deep);
+  --color-bar: var(--bar);
+  --color-bar-fg: var(--bar-fg);
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-accent: var(--accent);

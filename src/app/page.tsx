@@ -31,7 +31,7 @@ function Hero() {
   const heroVideo = assets.heroVideo;
   const heroImage = assets.heroImage;
   return (
-    <section className="relative isolate overflow-hidden border-b-2 border-[#dcd5c2]/30 bg-neutral-950">
+    <section className="relative isolate overflow-hidden border-b-2 border-[#dcd5c2]/30 bg-canvas">
       {/* Background media — full bleed, focal point biased toward the road */}
       {heroVideo ? (
         <HeroVideo
@@ -203,7 +203,7 @@ function Services() {
   return (
     <section
       id="services"
-      className="border-b-2 border-[#dcd5c2]/30 bg-black scroll-mt-16"
+      className="border-b-2 border-[#dcd5c2]/30 bg-canvas scroll-mt-16"
     >
 
       {/* ── MOBILE (<sm) ──────────────────────────────────────────
@@ -331,7 +331,7 @@ function ProcessSteps() {
   return (
     <section
       id="process"
-      className="relative overflow-hidden border-b-2 border-[#dcd5c2]/30 bg-black py-20 scroll-mt-16 sm:py-24 lg:py-28"
+      className="relative overflow-hidden border-b-2 border-[#dcd5c2]/30 bg-canvas py-20 scroll-mt-16 sm:py-24 lg:py-28"
     >
       {/* Topographic SVG layer — kept at low opacity behind everything */}
       <div
@@ -341,18 +341,18 @@ function ProcessSteps() {
       />
 
       <div className="relative z-10 mx-auto max-w-[1450px] px-5 sm:px-8 lg:px-10">
-        <div className="mb-10 max-w-3xl">
+        <div className="mb-10 max-w-3xl rounded-xl border border-line bg-panel px-7 py-6">
           <h2 className="font-mono text-3xl font-black uppercase tracking-tight text-red-500 sm:text-4xl">
             How it works
           </h2>
-          <p className="mt-4 text-xl font-medium leading-snug text-white sm:text-2xl">
+          <p className="mt-4 text-xl font-medium leading-snug text-fg sm:text-2xl">
             Simple freight coordination from request to delivery.
           </p>
         </div>
 
         <ol className="grid grid-cols-1 gap-6 md:grid-cols-2 2xl:grid-cols-4">
           {steps.map((step) => (
-            <li key={step.num} className="group relative min-h-[320px] overflow-hidden rounded-xl border border-neutral-800 bg-[#111111] px-8 py-10 shadow-[0_18px_45px_rgba(0,0,0,0.28)] lg:min-h-[340px]">
+            <li key={step.num} className="group relative min-h-[320px] overflow-hidden rounded-xl border border-line-strong bg-elevated px-8 py-10 shadow-[0_18px_45px_rgba(0,0,0,0.45)] lg:min-h-[340px]">
               <div className="pointer-events-none absolute inset-x-0 bottom-0 h-[3px] bg-red-600" />
               <div className="relative text-center">
                 <div className="font-mono text-5xl font-black leading-none tracking-tight text-red-500">
@@ -362,7 +362,7 @@ function ProcessSteps() {
                 <h3 className="mx-auto mt-6 max-w-[16rem] text-center text-2xl font-black uppercase leading-[1.02] tracking-tight text-white">
                   {step.title}
                 </h3>
-                <p className="mx-auto mt-6 max-w-[18rem] text-center text-base leading-7 text-neutral-300">
+                <p className="mx-auto mt-6 max-w-[18rem] text-center text-base leading-7 text-fg-muted">
                   {step.body}
                 </p>
               </div>
@@ -392,7 +392,7 @@ function ProcessSummary() {
   return (
     <section
       id="quote-cta"
-      className="relative overflow-hidden border-b-2 border-[#dcd5c2]/30 bg-black"
+      className="relative overflow-hidden border-b-2 border-[#dcd5c2]/30 bg-panel"
     >
       {/* Layer 1 — topographic SVG (matches Footer pattern) */}
       <div

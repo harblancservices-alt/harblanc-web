@@ -19,7 +19,7 @@ export function SectionTabs({ tabs }: { tabs: SectionTab[] }) {
   return (
     <nav
       aria-label="Section tabs"
-      className="flex border-b border-black"
+      className="flex border-b border-line"
     >
       {tabs.map((tab) => (
         <Link
@@ -27,9 +27,9 @@ export function SectionTabs({ tabs }: { tabs: SectionTab[] }) {
           href={tab.href}
           aria-current={tab.active ? "page" : undefined}
           className={
-            "inline-flex items-center gap-2 px-4 py-3 font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-black transition-colors -mb-px border-b-[3px] " +
+            "inline-flex items-center gap-2 px-4 py-3 font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-fg transition-colors -mb-px border-b-[3px] " +
             (tab.active
-              ? "border-black"
+              ? "border-line"
               : "border-transparent hover:opacity-70")
           }
         >
@@ -38,7 +38,7 @@ export function SectionTabs({ tabs }: { tabs: SectionTab[] }) {
             <span
               className={
                 "font-mono text-[10px] font-bold tabular-nums " +
-                (tab.active ? "text-black" : "text-black/55")
+                (tab.active ? "text-fg" : "text-fg-subtle")
               }
             >
               {tab.count}

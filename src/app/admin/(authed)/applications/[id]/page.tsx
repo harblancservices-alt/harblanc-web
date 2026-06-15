@@ -104,229 +104,241 @@ export default async function ApplicationDetailPage({
   if (years) metaTokens.push(`${years} YRS`);
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
-      {/* 1. Back link */}
-      <Link
-        href={isTrashed ? "/admin/applications/trash" : "/admin/applications"}
-        prefetch={false}
-        className="inline-flex items-center font-mono text-[10.5px] font-bold uppercase tracking-[0.18em] text-black transition-opacity hover:opacity-70"
-      >
-        ← All {isTrashed ? "trash" : "applications"}
-      </Link>
+    <div className="min-h-screen border-t border-line bg-canvas text-fg">
+      <div className="w-full px-4 py-6 sm:px-6 lg:px-10">
+        <div className="max-w-4xl">
+          {/* Back link */}
+          <Link
+            href={
+              isTrashed ? "/admin/applications/trash" : "/admin/applications"
+            }
+            prefetch={false}
+            className="inline-flex items-center font-mono text-[10.5px] font-bold uppercase tracking-[0.18em] text-fg-muted transition-colors hover:text-fg"
+          >
+            ← All {isTrashed ? "trash" : "applications"}
+          </Link>
 
-      {/* 2. V3 hero — eyebrow + bold name + right-aligned meta */}
-      <header className="mt-3 flex flex-wrap items-end justify-between gap-4 pb-5 sm:pb-6">
-        <div>
-          <p className="font-mono text-[10.5px] font-bold uppercase tracking-[0.28em] text-black">
-            Application
-          </p>
-          <h1 className="mt-1 text-[30px] font-bold leading-none tracking-tight text-black sm:text-[36px] lg:text-[40px]">
-            {row.name || "—"}
-          </h1>
-        </div>
-        <p
-          className="font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-black text-right leading-snug"
-          title={formatDateFull(row.created_at)}
-        >
-          Received {relativeTime(row.created_at)}
-          <br />
-          {shortAppId(row.id)}
-        </p>
-      </header>
-
-      {/* 3. Trash strip — compact retention pattern (only when trashed) */}
-      {isTrashed ? (
-        <section
-          aria-label="In trash"
-          className="mb-4 flex flex-wrap items-baseline gap-x-3 gap-y-1 border-l-[3px] border-black bg-[#fafaf6] px-4 py-2.5 sm:gap-x-4 sm:px-5"
-        >
-          <p className="shrink-0 font-mono text-[10.5px] font-bold uppercase tracking-[0.22em] text-black">
-            In trash
-          </p>
-          <p className="font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-black/70">
-            Moved {relativeTime(row.deleted_at!)}
-            {row.delete_after ? (
-              <>
-                <span aria-hidden className="mx-1.5 text-black/40">
-                  ·
-                </span>
-                Auto-purge {formatDateShort(row.delete_after).slice(0, 10)}
-              </>
-            ) : null}
-          </p>
-        </section>
-      ) : null}
-
-      {/* 4. Contact card — primary card. Phone + Email + actions */}
-      <section
-        aria-label="Contact"
-        className="border-2 border-black border-l-4 border-l-black bg-[#fafaf6] px-5 py-5 sm:px-6 sm:py-6"
-      >
-        <p className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-black">
-          Contact
-        </p>
-        <p className="mt-1.5 text-[22px] font-bold leading-tight text-black sm:text-[24px]">
-          {row.name || "—"}
-        </p>
-
-        <div className="mt-4 space-y-2">
-          {hasPhone ? (
-            <a
-              href={phoneHref}
-              aria-label={`Call ${row.name || "applicant"}`}
-              className="flex w-full items-center justify-center border-2 border-black bg-white px-3 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.16em] text-black transition-colors hover:bg-black hover:text-white"
+          {/* Hero — eyebrow + name + right-aligned meta */}
+          <header className="mb-4 mt-2 flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <p className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-indigo-600">
+                Application
+              </p>
+              <h1 className="mt-1 text-[26px] font-semibold leading-none tracking-tight text-fg sm:text-[30px]">
+                {row.name || "—"}
+              </h1>
+            </div>
+            <p
+              className="text-right font-mono text-[11px] leading-snug tabular-nums text-fg-subtle"
+              title={formatDateFull(row.created_at)}
             >
-              <span aria-hidden className="mr-2">
-                &#9742;
-              </span>
-              {row.phone}
-            </a>
-          ) : null}
-          {hasEmail ? (
-            <a
-              href={emailHref}
-              aria-label={`Email ${row.name || "applicant"}`}
-              className="flex w-full items-center justify-center break-all border-2 border-black bg-white px-3 py-2 text-center font-mono text-[12px] font-bold uppercase tracking-[0.16em] text-black transition-colors hover:bg-black hover:text-white"
-            >
-              <span aria-hidden className="mr-2">
-                &#9993;
-              </span>
-              {row.email}
-            </a>
-          ) : null}
-        </div>
+              Received {relativeTime(row.created_at)}
+              <br />
+              {shortAppId(row.id)}
+            </p>
+          </header>
 
-        {/* Action row inside the Contact card. Server-action forms preserve
-            the existing binding pattern (softDeleteApplication on active;
-            restoreApplication + permanentlyDeleteApplication when trashed). */}
-        <div className="mt-4 flex flex-wrap gap-2 border-t border-black/15 pt-4">
+          {/* Trash strip (only when trashed) */}
           {isTrashed ? (
-            <>
-              <form action={restoreApplication.bind(null, row.id)}>
-                <button
-                  type="submit"
-                  className="inline-flex items-center justify-center border-2 border-black bg-transparent px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-black transition-colors hover:bg-black hover:text-white"
-                >
-                  Restore
-                </button>
-              </form>
-              <form action={permanentlyDeleteApplication.bind(null, row.id)}>
-                <button
-                  type="submit"
-                  className="inline-flex items-center justify-center border-2 border-red-700 bg-transparent px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-red-700 transition-colors hover:bg-red-700 hover:text-white"
-                >
-                  Delete
-                </button>
-              </form>
-            </>
-          ) : (
-            <form action={softDeleteApplication.bind(null, row.id)}>
-              <button
-                type="submit"
-                className="inline-flex items-center justify-center border-2 border-red-700 bg-transparent px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-red-700 transition-colors hover:bg-red-700 hover:text-white"
+            <section
+              aria-label="In trash"
+              className="mb-4 flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-md border border-amber-300 bg-amber-50 px-4 py-2.5"
+            >
+              <p className="shrink-0 font-mono text-[10.5px] font-bold uppercase tracking-[0.18em] text-amber-800">
+                In trash
+              </p>
+              <p className="font-mono text-[11px] font-medium uppercase tracking-[0.1em] text-amber-700">
+                Moved {relativeTime(row.deleted_at!)}
+                {row.delete_after ? (
+                  <>
+                    <span aria-hidden className="mx-1.5 text-amber-700/50">
+                      ·
+                    </span>
+                    Auto-purge {formatDateShort(row.delete_after).slice(0, 10)}
+                  </>
+                ) : null}
+              </p>
+            </section>
+          ) : null}
+
+          {/* Contact card */}
+          <section
+            aria-label="Contact"
+            className="overflow-hidden rounded-md border border-line bg-card shadow-sm"
+          >
+            <div className="bg-bar px-4 py-2">
+              <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-bar-fg">
+                Contact
+              </span>
+            </div>
+            <div className="px-4 py-4 sm:px-5">
+              <p className="text-[18px] font-semibold text-fg">
+                {row.name || "—"}
+              </p>
+
+              <div className="mt-3 space-y-2">
+                {hasPhone ? (
+                  <a
+                    href={phoneHref}
+                    aria-label={`Call ${row.name || "applicant"}`}
+                    className="flex w-full items-center gap-2 rounded-md border border-line bg-elevated px-3 py-2 text-[13px] font-medium text-blue-700 transition-colors hover:bg-canvas"
+                  >
+                    <span aria-hidden>&#9742;</span>
+                    {row.phone}
+                  </a>
+                ) : null}
+                {hasEmail ? (
+                  <a
+                    href={emailHref}
+                    aria-label={`Email ${row.name || "applicant"}`}
+                    className="flex w-full items-center gap-2 break-all rounded-md border border-line bg-elevated px-3 py-2 text-[13px] font-medium text-blue-700 transition-colors hover:bg-canvas"
+                  >
+                    <span aria-hidden>&#9993;</span>
+                    {row.email}
+                  </a>
+                ) : null}
+              </div>
+
+              <div className="mt-4 flex flex-wrap gap-2 border-t border-line pt-4">
+                {isTrashed ? (
+                  <>
+                    <form action={restoreApplication.bind(null, row.id)}>
+                      <button
+                        type="submit"
+                        className="inline-flex items-center justify-center rounded-md border border-line-strong bg-card px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-fg transition-colors hover:bg-elevated"
+                      >
+                        Restore
+                      </button>
+                    </form>
+                    <form
+                      action={permanentlyDeleteApplication.bind(null, row.id)}
+                    >
+                      <button
+                        type="submit"
+                        className="inline-flex items-center justify-center rounded-md border border-red-300 bg-red-50 px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-red-700 transition-colors hover:bg-red-600 hover:text-white"
+                      >
+                        Delete
+                      </button>
+                    </form>
+                  </>
+                ) : (
+                  <form action={softDeleteApplication.bind(null, row.id)}>
+                    <button
+                      type="submit"
+                      className="inline-flex items-center justify-center rounded-md border border-red-300 bg-red-50 px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-red-700 transition-colors hover:bg-red-600 hover:text-white"
+                    >
+                      Trash
+                    </button>
+                  </form>
+                )}
+              </div>
+            </div>
+          </section>
+
+          {/* Operations */}
+          <section
+            aria-label="Operations"
+            className="mt-4 overflow-hidden rounded-md border border-line bg-card shadow-sm"
+          >
+            <div className="bg-bar px-4 py-2">
+              <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-bar-fg">
+                Operations
+              </span>
+            </div>
+            <div className="px-4 py-3 sm:px-5">
+              <p
+                className={
+                  "font-mono text-[13px] font-semibold uppercase tracking-[0.12em] " +
+                  (metaTokens.length > 0 ? "text-fg" : "text-fg-subtle")
+                }
               >
-                Trash
-              </button>
-            </form>
-          )}
-        </div>
-      </section>
+                {metaTokens.length > 0 ? metaTokens.join(" · ") : "—"}
+              </p>
+              {homeBase ? (
+                <p className="mt-1 text-[13px] text-fg-muted">{homeBase}</p>
+              ) : null}
+            </div>
+          </section>
 
-      {/* 5. Operations strip — inline metadata, no card chrome */}
-      <section
-        aria-label="Operations"
-        className="mt-5 border-t border-black/15 pt-3"
-      >
-        <p className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-black">
-          Operations
-        </p>
-        {metaTokens.length > 0 ? (
-          <p className="mt-1.5 font-mono text-[13px] font-bold uppercase tracking-[0.14em] text-black">
-            {metaTokens.join(" · ")}
-          </p>
-        ) : (
-          <p className="mt-1.5 font-mono text-[13px] uppercase tracking-[0.14em] text-black/50">
-            —
-          </p>
-        )}
-        {homeBase ? (
-          <p className="mt-1 text-[13px] text-black/80">{homeBase}</p>
-        ) : null}
-      </section>
+          {/* Message */}
+          {hasMessage ? (
+            <section
+              aria-label="Message"
+              className="mt-4 overflow-hidden rounded-md border border-line bg-card shadow-sm"
+            >
+              <div className="bg-bar px-4 py-2">
+                <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-bar-fg">
+                  Message
+                </span>
+              </div>
+              <div className="px-4 py-3 sm:px-5">
+                <p className="whitespace-pre-wrap text-[14px] leading-relaxed text-fg">
+                  {row.message}
+                </p>
+              </div>
+            </section>
+          ) : null}
 
-      {/* 6. Message card — conditional, standard cream feed chrome */}
-      {hasMessage ? (
-        <section
-          aria-label="Message"
-          className="mt-5 border-2 border-black border-l-4 border-l-black bg-[#fafaf6] px-5 py-4 sm:px-6 sm:py-5"
-        >
-          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-black">
-            Message
-          </p>
-          <p className="mt-2 whitespace-pre-wrap text-[14px] leading-relaxed text-black sm:text-[15px]">
-            {row.message}
-          </p>
-        </section>
-      ) : null}
-
-      {/* 7. Forensics — collapsed <details> disclosure */}
-      <details className="mt-5 border-t border-black/15 pt-3">
-        <summary className="cursor-pointer list-none font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-black/70 transition-colors hover:text-black">
-          ▾ Forensics
-        </summary>
-        <dl className="mt-2 grid grid-cols-1 gap-x-6 gap-y-1.5 sm:grid-cols-[120px_minmax(0,1fr)]">
-          <dt className="font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-black/60">
+          {/* Forensics — collapsed disclosure */}
+          <details className="mt-4 overflow-hidden rounded-md border border-line bg-card shadow-sm">
+            <summary className="cursor-pointer list-none px-4 py-2.5 font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-fg-muted transition-colors hover:text-fg">
+              Forensics
+            </summary>
+            <dl className="grid grid-cols-1 gap-x-6 gap-y-1.5 border-t border-line px-4 py-3 sm:grid-cols-[120px_minmax(0,1fr)]">
+          <dt className="font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-fg-subtle">
             Created
           </dt>
-          <dd className="font-mono text-[11px] text-black">
+          <dd className="font-mono text-[11px] text-fg">
             {formatDateFull(row.created_at)}
           </dd>
           {row.deleted_at ? (
             <>
-              <dt className="font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-black/60">
+              <dt className="font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-fg-subtle">
                 Deleted
               </dt>
-              <dd className="font-mono text-[11px] text-black">
+              <dd className="font-mono text-[11px] text-fg">
                 {formatDateFull(row.deleted_at)}
               </dd>
             </>
           ) : null}
           {row.delete_after ? (
             <>
-              <dt className="font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-black/60">
+              <dt className="font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-fg-subtle">
                 Auto-purge
               </dt>
-              <dd className="font-mono text-[11px] text-black">
+              <dd className="font-mono text-[11px] text-fg">
                 {formatDateFull(row.delete_after)}
               </dd>
             </>
           ) : null}
-          <dt className="font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-black/60">
+          <dt className="font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-fg-subtle">
             Lead ID
           </dt>
-          <dd className="font-mono text-[11px] text-black break-all">
+          <dd className="font-mono text-[11px] text-fg break-all">
             {row.id}
           </dd>
           {row.ip ? (
             <>
-              <dt className="font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-black/60">
+              <dt className="font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-fg-subtle">
                 IP
               </dt>
-              <dd className="font-mono text-[11px] text-black">{row.ip}</dd>
+              <dd className="font-mono text-[11px] text-fg">{row.ip}</dd>
             </>
           ) : null}
           {row.user_agent ? (
             <>
-              <dt className="font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-black/60">
+              <dt className="font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-fg-subtle">
                 User agent
               </dt>
-              <dd className="font-mono text-[11px] text-black break-all">
+              <dd className="font-mono text-[11px] text-fg break-all">
                 {row.user_agent}
               </dd>
             </>
           ) : null}
-        </dl>
-      </details>
+          </dl>
+          </details>
+        </div>
+      </div>
     </div>
   );
 }

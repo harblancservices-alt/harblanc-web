@@ -282,14 +282,14 @@ export function QuoteListTable({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search name, lane, commodity, ID..."
-            className="block w-full border border-black bg-white px-3 py-2 pr-10 text-[14px] text-black placeholder:text-black/55 focus:border-black focus:outline-none"
+            className="block w-full border border-line bg-card px-3 py-2 pr-10 text-[14px] text-fg placeholder:text-fg-subtle focus:border-line focus:outline-none"
             aria-label="Search quotes"
           />
           {searchQuery ? (
             <button
               type="button"
               onClick={() => setSearchQuery("")}
-              className="absolute inset-y-0 right-0 flex items-center px-3 text-black"
+              className="absolute inset-y-0 right-0 flex items-center px-3 text-fg"
               aria-label="Clear search"
             >
               ×
@@ -300,10 +300,10 @@ export function QuoteListTable({
           type="button"
           onClick={toggleSelectMode}
           className={
-            "inline-flex items-center justify-center border-2 border-black px-4 py-2 font-mono text-[10.5px] font-bold uppercase tracking-[0.18em] transition-colors " +
+            "inline-flex items-center justify-center border-2 border-line px-4 py-2 font-mono text-[10.5px] font-bold uppercase tracking-[0.18em] transition-colors " +
             (selectMode
-              ? "bg-black text-white"
-              : "bg-white text-black hover:bg-black hover:text-white")
+              ? "bg-canvas text-fg"
+              : "bg-card text-fg hover:bg-canvas hover:text-fg")
           }
         >
           {selectMode ? "Select · on" : "Select"}
@@ -312,8 +312,8 @@ export function QuoteListTable({
 
       {/* Bulk action bar — sticky when active */}
       {selectMode && selected.size > 0 ? (
-        <div className="sticky top-0 z-20 mt-3 flex flex-wrap items-center justify-between gap-3 border border-black bg-[#fafaf6] px-4 py-2.5">
-          <span className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-black">
+        <div className="sticky top-0 z-20 mt-3 flex flex-wrap items-center justify-between gap-3 border border-line bg-[#fafaf6] px-4 py-2.5">
+          <span className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-fg">
             {selected.size} selected
           </span>
           <div className="flex flex-wrap items-center gap-2">
@@ -321,14 +321,14 @@ export function QuoteListTable({
               type="button"
               onClick={bulkSoftDelete}
               disabled={isPending}
-              className="inline-flex items-center border-2 border-red-700 bg-transparent px-3.5 py-1.5 font-mono text-[10.5px] font-bold uppercase tracking-[0.16em] text-red-700 transition-colors hover:bg-red-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+              className="inline-flex items-center border-2 border-red-300 bg-transparent px-3.5 py-1.5 font-mono text-[10.5px] font-bold uppercase tracking-[0.16em] text-red-700 transition-colors hover:bg-red-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
             >
               Move to trash
             </button>
             <button
               type="button"
               onClick={clearSelection}
-              className="inline-flex items-center border border-black bg-white px-3.5 py-1.5 font-mono text-[10.5px] font-bold uppercase tracking-[0.16em] text-black transition-colors hover:bg-[#f3f1e9]"
+              className="inline-flex items-center border border-line bg-card px-3.5 py-1.5 font-mono text-[10.5px] font-bold uppercase tracking-[0.16em] text-fg transition-colors hover:bg-[#f3f1e9]"
             >
               Clear
             </button>
@@ -337,7 +337,7 @@ export function QuoteListTable({
       ) : null}
 
       {/* Filter chips */}
-      <div className="mt-3 flex flex-wrap gap-1.5 border-b border-black/15 pb-4 sm:gap-2">
+      <div className="mt-3 flex flex-wrap gap-1.5 border-b border-line pb-4 sm:gap-2">
         <FilterChipBtn
           label="All"
           count={searched.length}
@@ -492,8 +492,8 @@ export function QuoteListTable({
 
         {/* Empty state when nothing renders */}
         {!hasAnyResult ? (
-          <div className="mt-6 border border-black/30 bg-[#fafaf6] px-4 py-6 text-center">
-            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-black/55">
+          <div className="mt-6 border border-line/30 bg-[#fafaf6] px-4 py-6 text-center">
+            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-fg-subtle">
               {searchQuery.trim().length > 0
                 ? "No leads match your search"
                 : "No leads in this view"}
@@ -505,7 +505,7 @@ export function QuoteListTable({
                   setSearchQuery("");
                   setFilterChip("all");
                 }}
-                className="mt-3 inline-flex items-center border border-black bg-white px-3 py-1.5 font-mono text-[10.5px] font-bold uppercase tracking-[0.16em] text-black transition-colors hover:bg-[#f3f1e9]"
+                className="mt-3 inline-flex items-center border border-line bg-card px-3 py-1.5 font-mono text-[10.5px] font-bold uppercase tracking-[0.16em] text-fg transition-colors hover:bg-[#f3f1e9]"
               >
                 Clear filters
               </button>
@@ -529,7 +529,7 @@ function HeavyHeader({
   showMarker?: boolean;
 }) {
   return (
-    <div className="mt-2 flex items-center justify-between gap-3 border-b-2 border-black pb-2 pt-3 sm:pt-4">
+    <div className="mt-2 flex items-center justify-between gap-3 border-b-2 border-line pb-2 pt-3 sm:pt-4">
       <div className="flex items-center gap-3">
         {showMarker ? (
           <span
@@ -539,15 +539,15 @@ function HeavyHeader({
             !
           </span>
         ) : null}
-        <h2 className="font-mono text-[13px] font-bold uppercase tracking-[0.22em] text-black sm:text-[15px]">
+        <h2 className="font-mono text-[13px] font-bold uppercase tracking-[0.22em] text-fg sm:text-[15px]">
           {label}
         </h2>
         {count > 0 ? (
-          <span className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-black sm:text-[13px]">
+          <span className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-fg sm:text-[13px]">
             · {count} flagged
           </span>
         ) : (
-          <span className="font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-black/55 sm:text-[12px]">
+          <span className="font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-fg-subtle sm:text-[12px]">
             · All clear
           </span>
         )}
@@ -558,12 +558,12 @@ function HeavyHeader({
 
 function MediumHeader({ label, count }: { label: string; count: number }) {
   return (
-    <div className="mt-6 flex items-baseline justify-between gap-3 border-b border-black/30 pb-2">
+    <div className="mt-6 flex items-baseline justify-between gap-3 border-b border-line/30 pb-2">
       <div className="flex items-baseline gap-2">
-        <h2 className="font-mono text-[11.5px] font-bold uppercase tracking-[0.22em] text-black">
+        <h2 className="font-mono text-[11.5px] font-bold uppercase tracking-[0.22em] text-fg">
           {label}
         </h2>
-        <span className="font-mono text-[10.5px] font-bold uppercase tracking-[0.18em] text-black">
+        <span className="font-mono text-[10.5px] font-bold uppercase tracking-[0.18em] text-fg">
           · {count}
         </span>
       </div>
@@ -573,12 +573,12 @@ function MediumHeader({ label, count }: { label: string; count: number }) {
 
 function LightHeader({ label, count }: { label: string; count: number }) {
   return (
-    <div className="mt-5 flex items-baseline justify-between gap-3 border-b border-black/15 pb-1.5">
+    <div className="mt-5 flex items-baseline justify-between gap-3 border-b border-line pb-1.5">
       <div className="flex items-baseline gap-2">
-        <h2 className="font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-black">
+        <h2 className="font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-fg">
           {label}
         </h2>
-        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-black/65">
+        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-fg/65">
           · {count}
         </span>
       </div>
@@ -609,13 +609,13 @@ function AttentionCard({
   const top = row.topUrgency;
   const urgencyCls =
     top?.severity === "alert"
-      ? "border border-red-700 text-red-700"
-      : "border border-black text-black";
+      ? "border border-red-300 text-red-700"
+      : "border border-line text-fg";
 
   return (
     <div
       className={
-        "relative border-2 border-black bg-white px-5 py-4 transition-colors sm:px-6 sm:py-5 " +
+        "relative border-2 border-line bg-card px-5 py-4 transition-colors sm:px-6 sm:py-5 " +
         (isSelected ? "bg-[#f3f1e9]" : "hover:bg-[#fafaf6]")
       }
     >
@@ -638,23 +638,23 @@ function AttentionCard({
         ) : null}
         <div className="min-w-0 flex-1">
           <Link href={`/admin/quotes/${row.id}`} className="block">
-            <h3 className="truncate text-[22px] font-bold leading-tight text-black sm:text-[26px]">
+            <h3 className="truncate text-[22px] font-bold leading-tight text-fg sm:text-[26px]">
               {row.name}
             </h3>
           </Link>
         </div>
-        <p className="shrink-0 pt-1 font-mono text-[12px] font-bold tabular-nums text-black sm:text-[13px]">
+        <p className="shrink-0 pt-1 font-mono text-[12px] font-bold tabular-nums text-fg sm:text-[13px]">
           {since}
         </p>
       </div>
 
       {/* Lane zone */}
       <Link href={`/admin/quotes/${row.id}`} className="block">
-        <div className="mt-3 flex items-baseline gap-3 border-t border-dashed border-black/20 pt-3">
-          <span className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-black">
+        <div className="mt-3 flex items-baseline gap-3 border-t border-dashed border-line pt-3">
+          <span className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-fg">
             Lane
           </span>
-          <span className="truncate font-mono text-[18px] font-bold tabular-nums text-black sm:text-[22px]">
+          <span className="truncate font-mono text-[18px] font-bold tabular-nums text-fg sm:text-[22px]">
             {lane}
           </span>
         </div>
@@ -663,13 +663,13 @@ function AttentionCard({
       {/* Action zone */}
       <div className="mt-4 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="inline-flex items-center bg-black px-2 py-0.5 font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-white shadow-[inset_0_0_0_1.5px_#fff]">
+          <span className="inline-flex items-center bg-canvas px-2 py-0.5 font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-fg shadow-[inset_0_0_0_1.5px_#fff]">
             {LEAD_STATUS_LABELS[row.lead_status]}
           </span>
           {top ? (
             <span
               className={
-                "inline-flex items-center bg-white px-2 py-0.5 font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] " +
+                "inline-flex items-center bg-card px-2 py-0.5 font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] " +
                 urgencyCls
               }
             >
@@ -677,7 +677,7 @@ function AttentionCard({
             </span>
           ) : null}
           {freight ? (
-            <span className="inline-flex items-center border border-black/40 bg-white px-2 py-0.5 font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-black">
+            <span className="inline-flex items-center border border-line/40 bg-card px-2 py-0.5 font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-fg">
               {freight}
             </span>
           ) : null}
@@ -688,7 +688,7 @@ function AttentionCard({
               type="button"
               onClick={onTrash}
               disabled={isPending}
-              className="inline-flex items-center border border-black bg-white px-3 py-1.5 font-mono text-[10.5px] font-bold uppercase tracking-[0.16em] text-black transition-colors hover:bg-[#f3f1e9] disabled:cursor-not-allowed disabled:opacity-50"
+              className="inline-flex items-center border border-line bg-card px-3 py-1.5 font-mono text-[10.5px] font-bold uppercase tracking-[0.16em] text-fg transition-colors hover:bg-[#f3f1e9] disabled:cursor-not-allowed disabled:opacity-50"
               aria-label={`Move ${row.name} to trash`}
             >
               Trash
@@ -696,7 +696,7 @@ function AttentionCard({
           )}
           <Link
             href={`/admin/quotes/${row.id}`}
-            className="inline-flex items-center bg-black px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-white shadow-[inset_0_0_0_2.5px_#ffffff] transition-colors hover:bg-zinc-800"
+            className="inline-flex items-center bg-canvas px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-fg shadow-[inset_0_0_0_2.5px_#ffffff] transition-colors hover:bg-elevated"
           >
             Open lead →
           </Link>
@@ -770,7 +770,7 @@ function MediumCard({
   return (
     <div
       className={
-        "border border-black bg-white px-4 py-3 transition-colors sm:px-4 sm:py-3.5 " +
+        "border border-line bg-card px-4 py-3 transition-colors sm:px-4 sm:py-3.5 " +
         (isSelected ? "bg-[#f3f1e9]" : "hover:bg-[#fafaf6]")
       }
     >
@@ -788,26 +788,26 @@ function MediumCard({
         <div className="min-w-0 flex-1">
           <Link href={`/admin/quotes/${row.id}`} className="block">
             <div className="flex items-baseline justify-between gap-3">
-              <h3 className="truncate text-[15.5px] font-bold leading-tight text-black sm:text-[17px]">
+              <h3 className="truncate text-[15.5px] font-bold leading-tight text-fg sm:text-[17px]">
                 {row.name}
               </h3>
-              <p className="shrink-0 font-mono text-[11px] font-bold tabular-nums text-black">
+              <p className="shrink-0 font-mono text-[11px] font-bold tabular-nums text-fg">
                 {since}
               </p>
             </div>
-            <p className="mt-1 truncate font-mono text-[12.5px] font-bold tabular-nums text-black sm:text-[13px]">
+            <p className="mt-1 truncate font-mono text-[12.5px] font-bold tabular-nums text-fg sm:text-[13px]">
               {lane}
             </p>
             <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
               <div className="flex flex-wrap items-center gap-1.5">
                 <StatusBadge status={row.lead_status} />
                 {freight ? (
-                  <span className="font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-black">
+                  <span className="font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-fg">
                     {freight}
                   </span>
                 ) : null}
               </div>
-              <span className="font-mono text-[10.5px] font-bold uppercase tracking-[0.18em] text-black">
+              <span className="font-mono text-[10.5px] font-bold uppercase tracking-[0.18em] text-fg">
                 Open →
               </span>
             </div>
@@ -818,7 +818,7 @@ function MediumCard({
             type="button"
             onClick={onTrash}
             disabled={isPending}
-            className="shrink-0 self-start font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-black/55 transition-colors hover:text-black disabled:opacity-50"
+            className="shrink-0 self-start font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-fg-subtle transition-colors hover:text-fg disabled:opacity-50"
             aria-label={`Move ${row.name} to trash`}
             title="Move to trash"
           >
@@ -861,18 +861,18 @@ function CompactRow({ row }: { row: QuoteListRow }) {
     <li>
       <Link
         href={`/admin/quotes/${row.id}`}
-        className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-3 gap-y-0.5 border-t border-dashed border-black/15 px-1 py-2.5 transition-colors hover:bg-[#f3f1e9] sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto] sm:gap-x-4 sm:py-2"
+        className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-3 gap-y-0.5 border-t border-dashed border-line px-1 py-2.5 transition-colors hover:bg-[#f3f1e9] sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto] sm:gap-x-4 sm:py-2"
       >
-        <span className="truncate text-[14px] font-bold text-black sm:text-[14.5px]">
+        <span className="truncate text-[14px] font-bold text-fg sm:text-[14.5px]">
           {row.name}
         </span>
-        <span className="font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-black sm:order-3 sm:text-right">
+        <span className="font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-fg sm:order-3 sm:text-right">
           {LEAD_STATUS_LABELS[row.lead_status]}
         </span>
-        <span className="col-span-2 truncate font-mono text-[11.5px] font-bold tabular-nums text-black sm:col-span-1 sm:col-start-2 sm:row-start-1 sm:order-2">
+        <span className="col-span-2 truncate font-mono text-[11.5px] font-bold tabular-nums text-fg sm:col-span-1 sm:col-start-2 sm:row-start-1 sm:order-2">
           {lane}
         </span>
-        <span className="font-mono text-[10.5px] font-bold tabular-nums text-black sm:col-start-4 sm:order-4">
+        <span className="font-mono text-[10.5px] font-bold tabular-nums text-fg sm:col-start-4 sm:order-4">
           {since}
         </span>
       </Link>
@@ -902,23 +902,23 @@ function CollapsibleSection({
       <button
         type="button"
         onClick={onToggle}
-        className="mt-3 flex w-full items-center justify-between gap-3 border border-black/25 bg-[#fafaf6] px-4 py-2.5 transition-colors hover:bg-[#f3f1e9]"
+        className="mt-3 flex w-full items-center justify-between gap-3 border border-line/25 bg-[#fafaf6] px-4 py-2.5 transition-colors hover:bg-[#f3f1e9]"
         aria-expanded={expanded}
       >
         <div className="flex items-baseline gap-2">
           <span
             className={
               "font-mono text-[11px] font-bold uppercase tracking-[0.22em] " +
-              (muted ? "text-black/55" : "text-black/65")
+              (muted ? "text-fg-subtle" : "text-fg/65")
             }
           >
             {label}
           </span>
-          <span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-black/55">
+          <span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-fg-subtle">
             · {count}
           </span>
         </div>
-        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-black">
+        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-fg">
           {expanded ? "− Hide" : "+ Show"}
         </span>
       </button>
@@ -953,15 +953,15 @@ function FilterChipBtn({
       className={
         "inline-flex items-center gap-1.5 border px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.16em] transition-colors " +
         (active
-          ? "border-black bg-black text-white"
-          : "border-black/40 bg-white text-black hover:bg-[#f3f1e9]")
+          ? "border-line bg-canvas text-fg"
+          : "border-line/40 bg-card text-fg hover:bg-[#f3f1e9]")
       }
     >
       <span>{label}</span>
       <span
         className={
           "font-mono text-[10px] font-bold tabular-nums " +
-          (active ? "text-white/85" : "text-black/65")
+          (active ? "text-fg/85" : "text-fg/65")
         }
       >
         {count}

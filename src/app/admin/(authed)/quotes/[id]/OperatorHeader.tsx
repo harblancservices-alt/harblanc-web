@@ -76,13 +76,13 @@ export function OperatorHeader({
   return (
     <div className="space-y-3">
       {/* Block 1 (was Block 2) - Shipper of record */}
-      <section className="border border-black border-l-4 border-l-red-700 bg-[#fafaf6]">
-        <div className="flex items-center gap-2 border-b border-black bg-[#f3f1e9] px-3 py-1.5 sm:px-4">
+      <section className="border border-line border-l-4 border-l-red-700 bg-[#fafaf6]">
+        <div className="flex items-center gap-2 border-b border-line bg-[#f3f1e9] px-3 py-1.5 sm:px-4">
           <span
             aria-hidden
             className="inline-block h-3.5 w-1 shrink-0 bg-red-700"
           />
-          <p className="font-mono text-[12px] font-bold uppercase tracking-[0.18em] text-black">
+          <p className="font-mono text-[12px] font-bold uppercase tracking-[0.18em] text-fg">
             Shipper of record
           </p>
         </div>
@@ -116,25 +116,25 @@ export function OperatorHeader({
              Row A: ZIPs + arrow on the left, mileage + Map button on the right
              Row B: city sub-line (cities truncate on narrow widths)
              Row C: refined meta (received · date · ID) in a single line */}
-      <section className="border border-black border-l-4 border-l-red-700 bg-[#fafaf6]">
+      <section className="border border-line border-l-4 border-l-red-700 bg-[#fafaf6]">
         {lane.hasLane ? (
           <div className="px-4 py-3 sm:px-5">
             {/* Row A — ZIPs + Map cluster */}
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-              <span className="font-mono text-xl font-medium tabular-nums text-black sm:text-2xl">
+              <span className="font-mono text-xl font-medium tabular-nums text-fg sm:text-2xl">
                 {lane.pickupZip ?? "----"}
               </span>
               <span aria-hidden className="font-mono text-lg text-red-700 sm:text-xl">
                 &rarr;
               </span>
-              <span className="font-mono text-xl font-medium tabular-nums text-black sm:text-2xl">
+              <span className="font-mono text-xl font-medium tabular-nums text-fg sm:text-2xl">
                 {lane.deliveryZip ?? "----"}
               </span>
               <div className="ml-auto flex items-center gap-2">
                 {lane.miles != null ? (
-                  <span className="inline-flex items-baseline gap-1 font-mono text-sm font-bold tabular-nums text-black">
+                  <span className="inline-flex items-baseline gap-1 font-mono text-sm font-bold tabular-nums text-fg">
                     {lane.miles.toLocaleString()}
-                    <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-black">
+                    <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-fg">
                       mi
                     </span>
                   </span>
@@ -154,7 +154,7 @@ export function OperatorHeader({
               </div>
             </div>
             {/* Row B — city sub-line, truncates */}
-            <p className="mt-1 truncate text-[13px] text-black">
+            <p className="mt-1 truncate text-[13px] text-fg">
               {lane.pickupLabel}
               <span aria-hidden className="mx-1.5 text-red-700">&rarr;</span>
               {lane.deliveryLabel}
@@ -167,27 +167,27 @@ export function OperatorHeader({
           </div>
         ) : (
           <div className="px-4 py-3 sm:px-5">
-            <p className="font-mono text-lg font-medium text-black sm:text-xl">
+            <p className="font-mono text-lg font-medium text-fg sm:text-xl">
               Lane pending
             </p>
           </div>
         )}
 
         {/* Row C — meta footer, one line of dotted-separator data */}
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-black/15 bg-[#f3f1e9] px-4 py-1.5 sm:px-5">
-          <span className="font-mono text-[11px] font-medium text-black">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-line bg-[#f3f1e9] px-4 py-1.5 sm:px-5">
+          <span className="font-mono text-[11px] font-medium text-fg">
             {identity.receivedRelative}
           </span>
-          <span aria-hidden className="text-black/30">·</span>
-          <span className="font-mono text-[11px] font-medium text-black">
+          <span aria-hidden className="text-fg/30">·</span>
+          <span className="font-mono text-[11px] font-medium text-fg">
             {identity.receivedFull}
           </span>
-          <span aria-hidden className="text-black/30">·</span>
+          <span aria-hidden className="text-fg/30">·</span>
           <span className="inline-flex items-center gap-1.5">
             <span className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-red-700">
               ID
             </span>
-            <span className="font-mono text-[11px] font-medium text-black">
+            <span className="font-mono text-[11px] font-medium text-fg">
               {identity.requestId}
             </span>
             <CopyButton value={identity.requestIdFull} ariaLabel="request ID" />
@@ -220,11 +220,11 @@ function ContactRow({
   // (dispatch@har / blancservice / s.com). The copy button next to the
   // value still grabs the full address so nothing is lost.
   const valueCls =
-    "text-[16px] text-black truncate " + (mono ? "font-mono " : "");
+    "text-[16px] text-fg truncate " + (mono ? "font-mono " : "");
 
   const inner = (
     <div className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5 sm:px-4">
-      <div className="w-[80px] shrink-0 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-black">
+      <div className="w-[80px] shrink-0 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-fg">
         {label}
       </div>
       <div className="min-w-0 flex-1">
@@ -305,10 +305,10 @@ function CopyButton({
       className={
         "inline-flex h-6 w-6 shrink-0 items-center justify-center border transition-colors " +
         (disabled
-          ? "cursor-not-allowed border-zinc-300 text-black"
+          ? "cursor-not-allowed border-zinc-300 text-fg"
           : copied
-            ? "border-emerald-700 bg-emerald-50 text-emerald-800"
-            : "border-zinc-300 bg-white text-black hover:border-black")
+            ? "border-emerald-300 bg-emerald-50 text-emerald-800"
+            : "border-zinc-300 bg-card text-fg hover:border-line")
       }
     >
       {copied ? (

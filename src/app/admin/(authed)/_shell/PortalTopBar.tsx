@@ -21,7 +21,7 @@ import { IconSearch } from "./icons";
  */
 export function PortalTopBar() {
   return (
-    <header className="sticky top-0 z-30 hidden h-14 shrink-0 items-center justify-between gap-4 border-b border-black bg-black px-4 sm:flex sm:px-6">
+    <header className="sticky top-0 z-30 hidden h-14 shrink-0 items-center justify-between gap-4 border-b border-line bg-panel px-4 sm:flex sm:px-6">
       <Link
         href="/admin"
         prefetch={false}
@@ -32,7 +32,7 @@ export function PortalTopBar() {
       </Link>
       <span
         aria-hidden
-        className="inline-flex h-9 w-9 items-center justify-center text-white"
+        className="inline-flex h-9 w-9 items-center justify-center text-fg-subtle"
       >
         <IconSearch className="h-5 w-5" />
       </span>

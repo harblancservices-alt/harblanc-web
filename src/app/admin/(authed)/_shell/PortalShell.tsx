@@ -12,8 +12,8 @@ import { PortalBottomNav } from "./PortalBottomNav";
  *   - PortalBottomNav (mobile + tablet only, fixed bottom)
  *
  * Layout strategy:
- *   - Outer wrapper bg-white so the portal reads as a light surface on
- *     top of the root layout's bg-neutral-950 body (admin shell already
+ *   - Outer wrapper bg-card so the portal reads as a light surface on
+ *     top of the root layout's bg-canvas body (admin shell already
  *     overrode this with bg-zinc-50 in the old layout — same idea).
  *   - Top bar h-14, sticky. Sidebar sticks at top-14, full remaining
  *     viewport height.
@@ -32,7 +32,7 @@ export function PortalShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-white text-black">
+    <div className="admin-light min-h-screen bg-canvas text-fg">
       <PortalTopBar />
       <div className="flex">
         <PortalSidebar email={email} />

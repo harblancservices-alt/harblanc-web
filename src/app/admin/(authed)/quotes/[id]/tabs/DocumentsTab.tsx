@@ -1,4 +1,5 @@
 import { BolWorkspace, type BolState } from "../BolWorkspace";
+import { DocumentViewButton } from "../DocumentViewButton";
 import { resendEstimate } from "../../actions";
 import { resendFinalizedQuote } from "../../finalized-quote-actions";
 import { resendBol } from "../../bol-actions";
@@ -53,6 +54,16 @@ export type SentDocumentRow = {
   recipient: string;
   /** PDF route href when applicable; null for estimates. */
   pdfHref: string | null;
+  /** Sent email HTML (preview_html). Used for range proposals, which are
+   *  email-only — View renders this instead of a PDF so the customer-facing
+   *  email is shown and the internal fuel-surcharge PDF is never exposed. */
+  emailHtml?: string | null;
+  /** Display amount shown next to the label, e.g. "$1,200" or
+   *  "$750–$1,000". Null for documents without a price (BOLs). */
+  amount?: string | null;
+  /** True for the most recent estimate and the most recent finalized quote
+   *  — those rows get a highlight so the operator spots the live ones. */
+  highlight?: boolean;
 };
 
 export type DocumentsTabProps = {
@@ -97,23 +108,23 @@ function SentDocumentsSection({
   return (
     <section
       aria-label="Sent documents"
-      className="rounded-md border border-zinc-800 bg-zinc-900/40"
+      className="rounded-md border border-line bg-card"
     >
       <div className="flex items-baseline justify-between gap-3 px-4 pt-4 pb-2 sm:px-5">
-        <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-100">
+        <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-fg">
           Sent documents
         </h2>
-        <span className="font-mono text-[10.5px] font-bold uppercase tracking-[0.18em] text-zinc-100/60">
+        <span className="font-mono text-[10.5px] font-bold uppercase tracking-[0.18em] text-fg/60">
           {documents.length} {documents.length === 1 ? "doc" : "docs"}
         </span>
       </div>
 
       {documents.length === 0 ? (
-        <p className="px-4 pb-5 font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-zinc-100/60 sm:px-5">
+        <p className="px-4 pb-5 font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-fg/60 sm:px-5">
           No documents sent yet
         </p>
       ) : (
-        <ul className="border-t border-zinc-800/80">
+        <ul className="border-t border-line/80">
           {documents.map((doc, idx) => (
             <SentDocumentRowItem
               key={`${doc.type}-${doc.id}`}
@@ -134,87 +145,9 @@ function SentDocumentRowItem({
   doc: SentDocumentRow;
   isLast: boolean;
 }) {
-  const ts = formatDocTimestamp(doc.sentAt);
-  const typeBadge =
-    doc.type === "estimate"
-      ? "RANGE"
-      : doc.type === "finalized_quote"
-        ? "FQ"
-        : "BOL";
-
-  return (
-    <li
-      className={
-        "grid grid-cols-1 gap-3 px-4 py-3 sm:grid-cols-[110px_minmax(0,1fr)_auto] sm:items-center sm:px-5 " +
-        (isLast ? "" : "border-b border-zinc-800/80")
-      }
-    >
-      {/* Timestamp + type badge stack */}
-      <div className="flex items-center gap-3 sm:block">
-        <span className="font-mono text-[12px] font-bold uppercase tabular-nums tracking-[0.12em] text-zinc-100">
-          {ts}
-        </span>
-        <span className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-100 sm:mt-1 sm:block">
-          {typeBadge}
-        </span>
-      </div>
-
-      {/* Label + recipient */}
-      <div className="min-w-0">
-        <p className="truncate text-[14px] font-bold text-zinc-100">
-          {doc.label}
-        </p>
-        <p className="mt-0.5 truncate font-mono text-[11px] text-zinc-100">
-          {doc.recipient}
-        </p>
-      </div>
-
-      {/* Actions */}
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 sm:flex-nowrap sm:gap-x-4">
-        {doc.pdfHref ? (
-          <>
-            <a
-              href={doc.pdfHref}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1 font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-zinc-100 transition-colors hover:bg-black hover:text-white"
-              aria-label={`View ${doc.label}`}
-            >
-              View
-            </a>
-            <a
-              href={doc.pdfHref}
-              download
-              className="inline-flex items-center rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1 font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-zinc-100 transition-colors hover:bg-black hover:text-white"
-              aria-label={`Download ${doc.label}`}
-            >
-              Download
-            </a>
-          </>
-        ) : (
-          <span
-            className="inline-flex items-center border border-zinc-700 bg-zinc-900 px-2.5 py-1 font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-zinc-100/40"
-            title="No PDF available for this document"
-          >
-            Email
-          </span>
-        )}
-        <ResendForm doc={doc} />
-      </div>
-    </li>
-  );
-}
-
-/**
- * Tiny server-action form per row. Submits empty FormData so the
- * resend action falls back to the original preview_to recipient.
- *
- * Server actions can be bound with .bind(null, id); Next.js handles
- * the form-action wiring. No client-side JS required here, which keeps
- * this rendering path a pure server component.
- */
-function ResendForm({ doc }: { doc: SentDocumentRow }) {
-  const action =
+  const timeStr = formatDocClock(doc.sentAt);
+  const dateStr = formatDocDate(doc.sentAt);
+  const resendAction =
     doc.type === "estimate"
       ? resendEstimate.bind(null, doc.id)
       : doc.type === "finalized_quote"
@@ -222,47 +155,76 @@ function ResendForm({ doc }: { doc: SentDocumentRow }) {
         : resendBol.bind(null, doc.id);
 
   return (
-    <form action={action}>
-      <button
-        type="submit"
-        className="inline-flex items-center rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1 font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-zinc-100 transition-colors hover:bg-black hover:text-white"
-        aria-label={`Resend ${doc.label}`}
-      >
-        Resend
-      </button>
-    </form>
+    <li
+      className={
+        "grid grid-cols-1 gap-3 px-4 py-3 sm:grid-cols-[110px_minmax(0,1fr)_auto] sm:items-center sm:px-5 " +
+        (doc.highlight ? "bg-amber-50 " : "") +
+        (isLast ? "" : "border-b border-line/80")
+      }
+    >
+      {/* Time over date */}
+      <div className="flex items-center gap-3 sm:block">
+        <span className="font-mono text-[12px] font-bold uppercase tabular-nums tracking-[0.12em] text-fg">
+          {timeStr}
+        </span>
+        <span className="font-mono text-[11px] font-medium tabular-nums tracking-[0.1em] text-fg-subtle sm:mt-1 sm:block">
+          {dateStr}
+        </span>
+      </div>
+
+      {/* Label + amount + recipient */}
+      <div className="min-w-0">
+        <p className="truncate text-[14px] font-bold text-fg">
+          {doc.label}
+          {doc.amount ? (
+            <span className="ml-1.5 font-mono font-bold text-green-700">
+              — {doc.amount}
+            </span>
+          ) : null}
+          {doc.highlight ? (
+            <span className="ml-2 rounded bg-amber-500 px-1.5 py-[1px] align-middle font-mono text-[9px] font-bold uppercase tracking-[0.1em] text-white">
+              Latest
+            </span>
+          ) : null}
+        </p>
+        <p className="mt-0.5 truncate font-mono text-[11px] text-fg-subtle">
+          {doc.recipient}
+        </p>
+      </div>
+
+      {/* Action — single View button; download / resend / recipient email
+          live inside its popup. */}
+      <div className="flex items-center justify-end sm:justify-start">
+        <DocumentViewButton doc={doc} resendAction={resendAction} />
+      </div>
+    </li>
   );
 }
+
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-/**
- * Compact timestamp like:
- *   today:        "11:14"
- *   this year:    "Jun 5 10:23"
- *   prior years:  "2025-12-31 14:00"
- */
-function formatDocTimestamp(iso: string): string {
+/** Clock time, e.g. "19:01". */
+function formatDocClock(iso: string): string {
   if (!iso) return "";
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
-  const now = new Date();
-  const sameDay =
-    d.getFullYear() === now.getFullYear() &&
-    d.getMonth() === now.getMonth() &&
-    d.getDate() === now.getDate();
-  const sameYear = d.getFullYear() === now.getFullYear();
   const hh = String(d.getHours()).padStart(2, "0");
   const mm = String(d.getMinutes()).padStart(2, "0");
-  if (sameDay) return `${hh}:${mm}`;
-  if (sameYear) {
-    const month = d.toLocaleString("en-US", { month: "short" });
-    return `${month} ${d.getDate()} ${hh}:${mm}`;
-  }
-  const yyyy = d.getFullYear();
-  const mo = String(d.getMonth() + 1).padStart(2, "0");
-  const da = String(d.getDate()).padStart(2, "0");
-  return `${yyyy}-${mo}-${da} ${hh}:${mm}`;
+  return `${hh}:${mm}`;
+}
+
+/** Calendar date, e.g. "Jun 13" (adds the year for prior years). */
+function formatDocDate(iso: string): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  return d.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    ...(sameYear ? {} : { year: "numeric" }),
+  });
 }

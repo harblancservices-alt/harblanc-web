@@ -66,13 +66,13 @@ export function WorkspaceHeader({
         <Link
           href={backHref}
           prefetch={false}
-          className="inline-flex items-center gap-1.5 rounded-md border border-zinc-800 px-2 py-1 font-mono text-[10px] font-medium uppercase tracking-[0.16em] text-zinc-300 transition-colors hover:bg-zinc-900 hover:text-white"
+          className="inline-flex items-center gap-1.5 rounded-md border border-line px-2 py-1 font-mono text-[10px] font-medium uppercase tracking-[0.16em] text-fg-muted transition-colors hover:bg-card hover:text-fg"
         >
           <ArrowLeft />
           {backLabel}
         </Link>
         <p
-          className="font-mono text-[10px] tabular-nums text-zinc-500"
+          className="font-mono text-[10px] tabular-nums text-fg-subtle"
           title={receivedFull}
         >
           Received {receivedRelative}
@@ -80,23 +80,23 @@ export function WorkspaceHeader({
       </div>
 
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <p className="font-mono text-[9px] font-bold uppercase tracking-[0.24em] text-zinc-500">
+        <p className="font-mono text-[9px] font-bold uppercase tracking-[0.24em] text-fg-subtle">
           Load · {shortRequestId}
         </p>
       </div>
 
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <h1 className="text-[24px] font-semibold leading-tight tracking-tight text-white">
+        <h1 className="text-[24px] font-semibold leading-tight tracking-tight text-fg">
           {customerName}
         </h1>
         <div className="flex items-center gap-3">
           <StatusPill statusClasses={statusClasses} label={statusLabel} />
           {rateDisplay ? (
             <div className="text-right">
-              <p className="font-mono text-[8.5px] uppercase tracking-[0.18em] text-zinc-500">
+              <p className="font-mono text-[8.5px] uppercase tracking-[0.18em] text-fg-subtle">
                 Rate
               </p>
-              <p className="text-[18px] font-semibold tabular-nums leading-none text-white">
+              <p className="text-[18px] font-semibold tabular-nums leading-none text-fg">
                 {rateDisplay}
               </p>
             </div>
@@ -104,8 +104,8 @@ export function WorkspaceHeader({
         </div>
       </div>
 
-      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 font-mono text-[11px] tabular-nums text-zinc-400">
-        <span className="text-zinc-300">{lane}</span>
+      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 font-mono text-[11px] tabular-nums text-fg-subtle">
+        <span className="text-fg-muted">{lane}</span>
         {miles != null ? (
           <>
             <span aria-hidden className="text-zinc-700">

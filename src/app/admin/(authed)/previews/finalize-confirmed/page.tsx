@@ -68,9 +68,9 @@ export default function FinalizeConfirmedPreviewPage() {
   const phoneHref = `tel:${company.dispatchPhone.replace(/[^\d+]/g, "")}`;
 
   return (
-    <div className="bg-[#050505] text-zinc-100">
+    <div className="bg-[#050505] text-fg">
       {/* Preview banner */}
-      <div className="border-b border-red-700 bg-red-600 px-4 py-2 text-center font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-white sm:py-2.5">
+      <div className="border-b border-red-300 bg-red-600 px-4 py-2 text-center font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-white sm:py-2.5">
         Preview only &middot; no email sent &middot; no records changed
       </div>
 
@@ -80,10 +80,10 @@ export default function FinalizeConfirmedPreviewPage() {
             <span aria-hidden className="inline-block h-3 w-1 bg-red-600" />
             Rate confirmation
           </p>
-          <h1 className="mt-3 text-center text-3xl font-display leading-[1.05] tracking-[-0.02em] text-white sm:text-4xl lg:text-5xl">
+          <h1 className="mt-3 text-center text-3xl font-display leading-[1.05] tracking-[-0.02em] text-fg sm:text-4xl lg:text-5xl">
             Finalized Quote Confirmed
           </h1>
-          <p className="mx-auto mt-4 max-w-2xl text-center text-base leading-relaxed text-white sm:text-lg">
+          <p className="mx-auto mt-4 max-w-2xl text-center text-base leading-relaxed text-fg sm:text-lg">
             Dispatch has received your confirmation. A HARBLANC dispatcher
             will coordinate the next scheduling step.
           </p>
@@ -91,19 +91,19 @@ export default function FinalizeConfirmedPreviewPage() {
           {/* Summary card */}
           <dl className="mt-7 grid grid-cols-1 gap-x-8 gap-y-4 border-l-4 border-l-red-600 bg-[#1a1a1a] p-5 shadow-[0_6px_18px_-6px_rgba(0,0,0,0.7)] sm:grid-cols-2 sm:p-6 lg:grid-cols-[1fr_2fr_1fr_1fr]">
             <KV label="Quote #">
-              <span className="font-mono text-base font-semibold text-white tabular-nums">
+              <span className="font-mono text-base font-semibold text-fg tabular-nums">
                 {SAMPLE.finalizedQuoteNumber}
               </span>
             </KV>
             <KV label="Lane">
-              <span className="font-mono text-base font-semibold text-white">
+              <span className="font-mono text-base font-semibold text-fg">
                 {SAMPLE.pickupCity}, {SAMPLE.pickupState}
                 <span aria-hidden className="mx-2 text-red-600">
                   &rarr;
                 </span>
                 {SAMPLE.deliveryCity}, {SAMPLE.deliveryState}
               </span>
-              <span className="mt-1 block font-mono text-[11px] text-white tabular-nums">
+              <span className="mt-1 block font-mono text-[11px] text-fg tabular-nums">
                 {SAMPLE.pickupZip}
                 <span aria-hidden className="mx-1.5 text-red-600">
                   &rarr;
@@ -112,12 +112,12 @@ export default function FinalizeConfirmedPreviewPage() {
               </span>
             </KV>
             <KV label="Total rate">
-              <span className="font-mono text-base font-bold text-white tabular-nums">
+              <span className="font-mono text-base font-bold text-fg tabular-nums">
                 {formatUsd(SAMPLE.totalAmount)}
               </span>
             </KV>
             <KV label="Valid through">
-              <span className="font-mono text-base text-white tabular-nums">
+              <span className="font-mono text-base text-fg tabular-nums">
                 {formatHumanDate(SAMPLE.expirationAt)}
               </span>
             </KV>
@@ -129,13 +129,13 @@ export default function FinalizeConfirmedPreviewPage() {
               <span aria-hidden className="inline-block h-3 w-1 bg-green-500" />
               Confirmed
             </p>
-            <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.18em] text-white">
+            <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.18em] text-fg">
               Confirmed at
             </p>
-            <p className="mt-1 font-mono text-base text-white tabular-nums">
+            <p className="mt-1 font-mono text-base text-fg tabular-nums">
               {formatHumanDateTime(SAMPLE.confirmedAtConfirmed)}
             </p>
-            <p className="mt-4 max-w-2xl text-sm leading-relaxed text-white">
+            <p className="mt-4 max-w-2xl text-sm leading-relaxed text-fg">
               A dispatcher will reach out to coordinate pickup and
               delivery windows. Watch for a separate scheduling email
               or call from the dispatch number above.
@@ -145,13 +145,13 @@ export default function FinalizeConfirmedPreviewPage() {
           {/* Need help support panel */}
           <div className="mt-7 flex flex-col gap-3 border-l-2 border-l-neutral-600 bg-[#161616] p-4 shadow-[0_6px_18px_-6px_rgba(0,0,0,0.55)] sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-white">
+              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-fg">
                 Need dispatch help?
               </p>
             </div>
             <a
               href={phoneHref}
-              className="inline-flex items-center gap-1.5 py-1 text-[13px] font-semibold uppercase tracking-[0.1em] text-red-400 transition-colors hover:text-red-300 sm:shrink-0"
+              className="inline-flex items-center gap-1.5 py-1 text-[13px] font-semibold uppercase tracking-[0.1em] text-red-600 transition-colors hover:text-red-700 sm:shrink-0"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -174,11 +174,11 @@ export default function FinalizeConfirmedPreviewPage() {
 
       <section className="bg-[#050505]">
         <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-white">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-fg">
             Have the rate confirmation email handy?{" "}
             <Link
               href="/"
-              className="text-white underline-offset-4 hover:text-red-400 hover:underline"
+              className="text-fg underline-offset-4 hover:text-red-600 hover:underline"
             >
               Back to home
             </Link>
@@ -199,7 +199,7 @@ function KV({
 }) {
   return (
     <div>
-      <dt className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-white">
+      <dt className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-fg">
         {label}
       </dt>
       <dd className="mt-1.5">{children}</dd>

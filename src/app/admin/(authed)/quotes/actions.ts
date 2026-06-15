@@ -1132,7 +1132,13 @@ export async function buildEstimatePreview(
     },
   );
 
-  revalidatePath(`/admin/quotes/${input.quoteRequestId}`);
+  // NOTE: intentionally NO revalidatePath here. Building a preview is a
+  // read-only-to-the-page operation — the rendered email is returned to the
+  // client and shown in the modal from that return value. Revalidating the
+  // load route forced a server re-render of the whole page mid-edit, which
+  // raced with the Load Details auto-save and wiped freshly-typed stops &
+  // addresses. The draft estimate is still persisted above; the page picks
+  // up its new state on the next real navigation or on Send.
 
   return rendered;
 }
@@ -1359,10 +1365,26 @@ export async function saveLoadDetailsOverrides(
     return { ok: false, reason: "Missing quote_request_id." };
   }
 
-  // Collect every form field as a string. The action does not interpret
-  // values -- the workspace owns the shape. Empty strings ARE persisted
-  // (cleared fields stay cleared on refresh).
-  const overrides: LoadDetailsOverridesPayload = {};
+  const sb = createServiceRoleClient();
+
+  // MERGE into the existing overrides rather than replacing the whole blob.
+  // A full replace meant any save that posted a subset of fields wiped the
+  // rest — e.g. a partial/racing autosave erasing stops & addresses, or a
+  // form that omits dimensions clearing them. Reading the current blob and
+  // layering the posted fields on top preserves everything not in this post.
+  // "Cleared stays cleared" still holds: a cleared field posts "" and that
+  // empty string overwrites the prior value.
+  const { data: existing } = await sb
+    .from("quote_requests")
+    .select("load_details_overrides")
+    .eq("id", quoteRequestId)
+    .maybeSingle<{
+      load_details_overrides: Record<string, string> | null;
+    }>();
+
+  const overrides: LoadDetailsOverridesPayload = {
+    ...(existing?.load_details_overrides ?? {}),
+  };
   for (const [key, raw] of formData.entries()) {
     if (key === "quote_request_id") continue;
     if (typeof raw === "string") {
@@ -1370,7 +1392,6 @@ export async function saveLoadDetailsOverrides(
     }
   }
 
-  const sb = createServiceRoleClient();
   const { error } = await sb
     .from("quote_requests")
     .update({ load_details_overrides: overrides })

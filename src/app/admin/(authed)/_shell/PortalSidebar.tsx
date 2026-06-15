@@ -5,11 +5,15 @@ import { usePathname } from "next/navigation";
 import type { ComponentType } from "react";
 import {
   IconBadge,
+  IconBuilding,
   IconDashboard,
   IconDots,
   IconLogout,
   IconMail,
+  IconReceipt,
+  IconRoute,
   IconSettings,
+  IconStack,
   IconTruck,
 } from "./icons";
 
@@ -50,8 +54,15 @@ type NavItem = {
 
 const PRIMARY: NavItem[] = [
   { href: "/admin", label: "Dashboard", Icon: IconDashboard },
-  { href: "/admin/loads", label: "Loads", Icon: IconTruck },
+  { href: "/admin/loads", label: "Quotes", Icon: IconTruck },
   { href: "/admin/applications", label: "Applications", Icon: IconBadge },
+  { href: "/admin/accounting", label: "Accounting", Icon: IconReceipt },
+];
+
+const DISPATCH: NavItem[] = [
+  { href: "/admin/dispatch/loads", label: "Load Board", Icon: IconStack },
+  { href: "/admin/dispatch/trips", label: "Trips", Icon: IconRoute },
+  { href: "/admin/dispatch/brokers", label: "Brokers", Icon: IconBuilding },
 ];
 
 const MORE: NavItem[] = [
@@ -70,7 +81,7 @@ export function PortalSidebar({ email }: { email: string | null }) {
   return (
     <aside
       aria-label="Portal navigation"
-      className="sticky top-14 hidden h-[calc(100vh-3.5rem)] w-[200px] shrink-0 flex-col border-r border-black bg-black text-white lg:flex"
+      className="sticky top-14 hidden h-[calc(100vh-3.5rem)] w-[200px] shrink-0 flex-col border-r border-line bg-panel text-fg lg:flex"
     >
       <nav className="flex flex-1 flex-col py-2">
         {PRIMARY.map((item) => (
@@ -83,7 +94,22 @@ export function PortalSidebar({ email }: { email: string | null }) {
           />
         ))}
 
-        <div className="mt-4 flex items-center gap-2.5 px-4 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-white opacity-70">
+        <div className="mt-4 flex items-center gap-2.5 px-4 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.22em] text-fg">
+          <IconTruck className="h-4 w-4" />
+          <span>Dispatch</span>
+        </div>
+        {DISPATCH.map((item) => (
+          <SidebarLink
+            key={item.href}
+            href={item.href}
+            label={item.label}
+            Icon={item.Icon}
+            active={isActive(pathname, item.href)}
+            nested
+          />
+        ))}
+
+        <div className="mt-4 flex items-center gap-2.5 px-4 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.22em] text-fg">
           <IconDots className="h-4 w-4" />
           <span>More</span>
         </div>
@@ -99,10 +125,10 @@ export function PortalSidebar({ email }: { email: string | null }) {
         ))}
       </nav>
 
-      <div className="border-t border-white/15 px-4 pt-3 pb-4">
+      <div className="border-t border-line px-4 pt-3 pb-4">
         {email ? (
           <p
-            className="break-all font-mono text-[10px] font-medium tracking-[0.04em] text-white opacity-80"
+            className="break-all font-mono text-[12px] font-medium tracking-[0.04em] text-fg-muted"
             title={email}
           >
             {email}
@@ -111,7 +137,7 @@ export function PortalSidebar({ email }: { email: string | null }) {
         <form action="/admin/logout" method="post" className="mt-3">
           <button
             type="submit"
-            className="inline-flex items-center gap-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-white transition-colors hover:text-black"
+            className="inline-flex items-center gap-1.5 font-mono text-[12px] font-bold uppercase tracking-[0.22em] text-fg-muted transition-colors hover:text-accent"
           >
             <IconLogout className="h-3.5 w-3.5" />
             Sign out
@@ -141,11 +167,11 @@ function SidebarLink({
       prefetch={false}
       aria-current={active ? "page" : undefined}
       className={
-        "flex items-center gap-2.5 border-l-[3px] py-2.5 font-mono text-[11px] font-bold uppercase tracking-[0.18em] transition-colors " +
-        (nested ? "pl-9 pr-4 text-[10.5px] " : "pl-4 pr-4 ") +
+        "flex items-center gap-2.5 mx-2 my-1 rounded-md border py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.14em] transition-colors " +
+        (nested ? "ml-5 pl-5 pr-3 text-[12px] " : "px-3 ") +
         (active
-          ? "border-black bg-white/[0.06] text-black"
-          : "border-transparent text-white hover:bg-white/[0.04]")
+          ? "border-fg bg-bar text-bar-fg shadow-sm"
+          : "border-line bg-card text-fg shadow-sm hover:bg-elevated hover:border-line-strong")
       }
     >
       <Icon className={nested ? "h-3.5 w-3.5" : "h-4 w-4"} />

@@ -13,7 +13,7 @@ export function Navbar() {
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-40 overflow-hidden border-b-2 border-[#dcd5c2]/30 bg-black">
+    <header className="sticky top-0 z-40 overflow-hidden border-b-2 border-[#dcd5c2]/30 bg-canvas">
       {/* Topographic SVG layer — matches Footer / ProcessSteps /
           ProcessSummary so all dark-surface sections share the same
           background texture. */}
@@ -43,7 +43,7 @@ export function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                className="text-[15px] font-semibold uppercase tracking-[0.1em] text-white transition-colors hover:text-white"
+                className="text-[15px] font-semibold uppercase tracking-[0.1em] text-fg transition-colors hover:text-fg"
               >
                 {link.label}
               </Link>
@@ -51,16 +51,16 @@ export function Navbar() {
 
             <a
               href={`mailto:${company.dispatchEmail}`}
-              className="text-[15px] font-semibold uppercase tracking-[0.1em] text-white transition-colors hover:text-white"
+              className="text-[15px] font-semibold uppercase tracking-[0.1em] text-fg transition-colors hover:text-fg"
             >
               Contact
             </a>
           </nav>
-          <span aria-hidden className="h-6 w-px bg-white/15" />
+          <span aria-hidden className="h-6 w-px bg-line-strong" />
           <div className="flex items-center gap-2.5">
             <Link
               href="/quote"
-              className="btn-cut inline-flex items-center bg-red-600 px-5 py-2.5 text-[13px] font-bold uppercase tracking-[0.1em] text-white shadow-[inset_0_0_0_2px_#fff] transition-colors hover:bg-red-500"
+              className="btn-cut inline-flex items-center bg-accent px-5 py-2.5 text-[13px] font-bold uppercase tracking-[0.1em] text-white shadow-[inset_0_0_0_2px_#fff] transition-colors hover:bg-accent-hover"
             >
               Request a Quote
             </Link>
@@ -76,7 +76,7 @@ export function Navbar() {
         {/* MOBILE: hamburger */}
         <button
           type="button"
-          className="absolute right-3 top-1/2 inline-flex -translate-y-1/2 items-center justify-center p-2 text-white hover:bg-white/10 hover:text-white sm:right-4 md:hidden"
+          className="absolute right-3 top-1/2 inline-flex -translate-y-1/2 items-center justify-center p-2 text-fg hover:bg-elevated hover:text-fg sm:right-4 md:hidden"
           aria-label="Toggle navigation menu"
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
@@ -94,13 +94,13 @@ export function Navbar() {
       </div>
 
       {open && (
-        <div className="border-t border-neutral-800 bg-neutral-950 md:hidden">
-          <nav className="divide-y divide-neutral-900 px-4 py-2">
+        <div className="border-t border-line bg-canvas md:hidden">
+          <nav className="divide-y divide-line px-4 py-2">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                className="block px-1 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-white hover:text-red-400"
+                className="block px-1 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-fg hover:text-red-400"
                 onClick={() => setOpen(false)}
               >
                 {link.label}
@@ -109,14 +109,14 @@ export function Navbar() {
 
             <a
               href={`mailto:${company.dispatchEmail}`}
-              className="block px-1 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-white hover:text-red-400"
+              className="block px-1 py-3 text-sm font-semibold uppercase tracking-[0.12em] text-fg hover:text-red-400"
               onClick={() => setOpen(false)}
             >
               Contact
             </a>
             <Link
               href="/quote"
-              className="btn-cut mt-3 block bg-red-600 px-4 py-3 text-center text-sm font-bold uppercase tracking-[0.12em] text-white shadow-[inset_0_0_0_2px_#fff] hover:bg-red-500"
+              className="btn-cut mt-3 block bg-accent px-4 py-3 text-center text-sm font-bold uppercase tracking-[0.12em] text-white shadow-[inset_0_0_0_2px_#fff] hover:bg-accent-hover"
               onClick={() => setOpen(false)}
             >
               Request a Quote

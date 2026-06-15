@@ -37,13 +37,13 @@ export function QuoteHero({ identity }: QuoteHeroProps) {
   return (
     <header className="flex flex-wrap items-end justify-between gap-3 px-4 pt-4 pb-2 sm:px-6 sm:pt-5 sm:pb-2 lg:px-8 lg:pt-6 lg:pb-3">
       <h1
-        className="text-[20px] font-bold leading-none tracking-tight text-black sm:text-[22px] lg:text-[24px]"
+        className="text-[20px] font-bold leading-none tracking-tight text-fg sm:text-[22px] lg:text-[24px]"
         aria-label={`Request ${identity.requestId}`}
       >
         REQ {identity.requestId}
       </h1>
       {identity.receivedRelative ? (
-        <p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-black text-right leading-snug">
+        <p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-fg text-right leading-snug">
           Received {identity.receivedRelative}
         </p>
       ) : null}

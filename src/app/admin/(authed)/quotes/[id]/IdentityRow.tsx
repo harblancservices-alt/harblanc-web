@@ -35,7 +35,6 @@ export type IdentityRowProps = {
 export function IdentityRow({
   customerName,
   shortRequestId,
-  receivedRelative,
   receivedFull,
   leadStatus,
   rateDisplay,
@@ -50,60 +49,50 @@ export function IdentityRow({
 
   return (
     <div>
-      {/* Eyebrow */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-zinc-400">
+      {/* Identity command bar (top breadcrumb/received bar removed). Back
+          arrow + load id live inline here so navigation isn't lost. */}
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-md bg-bar px-3.5 py-2.5 shadow-md">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
           <Link
             href={backHref}
             prefetch={false}
-            className="inline-flex items-center gap-1.5 text-[12px] text-zinc-400 transition-colors hover:text-zinc-200 xl:text-[13px]"
+            aria-label={backLabel}
+            title={backLabel}
+            className="inline-flex items-center text-bar-fg/55 transition-colors hover:text-bar-fg"
           >
             <ArrowLeft />
-            <span>{backLabel}</span>
           </Link>
-          <span aria-hidden className="text-zinc-700">
-            /
-          </span>
-          <span className="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-zinc-500 xl:text-[12px]">
-            {shortRequestId}
-          </span>
-        </div>
-        <p
-          className="font-mono text-[10px] uppercase tracking-[0.18em] text-zinc-600 xl:text-[11px]"
-          title={receivedFull}
-        >
-          Received {receivedRelative}
-        </p>
-      </div>
-
-      {/* Identity */}
-      <div className="mt-2.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-zinc-800 pb-3">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-          <span className="text-[14px] text-zinc-200 xl:text-[16px]">{customerName}</span>
+          <span className="text-[15px] font-semibold text-bar-fg xl:text-[17px]">{customerName}</span>
           <span
             className={
-              "inline-flex items-center justify-center rounded-sm border px-2 py-[2px] font-mono text-[9px] font-medium uppercase tracking-[0.20em] xl:text-[10.5px] xl:px-2.5 xl:py-[3px] " +
+              "inline-flex items-center justify-center rounded-sm border px-2 py-[2px] font-mono text-[9px] font-semibold uppercase tracking-[0.16em] xl:text-[10.5px] xl:px-2.5 xl:py-[3px] " +
               statusClasses
             }
           >
             {statusLabel}
           </span>
+          <span
+            className="font-mono text-[10px] uppercase tracking-[0.12em] text-bar-fg/40"
+            title={receivedFull}
+          >
+            {shortRequestId}
+          </span>
         </div>
         {showRate ? (
           <div className="flex items-baseline gap-2">
-            <span className="font-mono text-[9px] font-medium uppercase tracking-[0.20em] text-zinc-500 xl:text-[10.5px]">
+            <span className="font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-bar-fg/55 xl:text-[11px]">
               {rateLabel ?? "Rate"}
             </span>
-            <span className="font-mono text-[13px] tabular-nums text-white xl:text-[15px]">
+            <span className="font-mono text-[15px] font-bold tabular-nums text-emerald-300 xl:text-[17px]">
               {rateDisplay}
             </span>
           </div>
         ) : (
           <div className="flex items-baseline gap-2">
-            <span className="font-mono text-[9px] font-medium uppercase tracking-[0.20em] text-zinc-500 xl:text-[10.5px]">
+            <span className="font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-bar-fg/55 xl:text-[11px]">
               Rate
             </span>
-            <span className="font-mono text-[13px] text-zinc-600 xl:text-[15px]">
+            <span className="font-mono text-[15px] text-bar-fg/50 xl:text-[17px]">
               Not priced
             </span>
           </div>

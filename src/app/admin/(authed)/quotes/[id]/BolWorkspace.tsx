@@ -298,18 +298,18 @@ function BlockedTab({
   body: string;
 }) {
   return (
-    <section className="rounded-md border border-zinc-800 bg-zinc-900/40">
+    <section className="rounded-md border border-line bg-card">
       <div className="flex items-baseline justify-between gap-3 px-4 pt-4 pb-2 sm:px-5">
-        <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-100">
+        <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-fg">
           Bill of lading
         </h2>
-        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-100/60">
+        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-fg/60">
           Blocked
         </p>
       </div>
       <div className="px-4 pb-6 sm:px-5">
-        <p className="text-[15px] font-semibold text-zinc-100">{headline}</p>
-        <p className="mt-2 max-w-lg text-[15px] leading-relaxed text-zinc-100">
+        <p className="text-[15px] font-semibold text-fg">{headline}</p>
+        <p className="mt-2 max-w-lg text-[15px] leading-relaxed text-fg">
           {body}
         </p>
       </div>
@@ -348,20 +348,20 @@ function ReadyToGenerateTab({
   }
 
   return (
-    <section className="rounded-md border border-zinc-800 bg-zinc-900/40">
+    <section className="rounded-md border border-line bg-card">
       <div className="flex items-baseline justify-between gap-3 px-4 pt-4 pb-2 sm:px-5">
-        <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-100">
+        <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-fg">
           Bill of lading
         </h2>
-        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-100/60">
+        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-fg/60">
           Ready to generate
         </p>
       </div>
       <div className="px-4 pb-6 sm:px-5">
-        <p className="text-[15px] font-semibold text-zinc-100">
+        <p className="text-[15px] font-semibold text-fg">
           Finalized quote sent &mdash; ready to draft the BOL.
         </p>
-        <p className="mt-2 max-w-lg text-[15px] leading-relaxed text-zinc-100">
+        <p className="mt-2 max-w-lg text-[15px] leading-relaxed text-fg">
           Generating opens a draft prefilled from the sent finalized quote
           (shipper, consignee, freight, operational handling). Dispatch
           fills in execution-specific fields (NMFC, class, references,
@@ -372,12 +372,12 @@ function ReadyToGenerateTab({
             type="button"
             onClick={onGenerate}
             disabled={isPending}
-            className="inline-flex items-center justify-center gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-5 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.16em] text-zinc-100 transition-colors hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-2 rounded-md border border-line-strong bg-card px-5 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.16em] text-fg transition-colors hover:bg-canvas hover:text-fg disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isPending ? "Generating…" : "Generate BOL"}
           </button>
           {error ? (
-            <p className="font-mono text-[12px] text-zinc-100">{error}</p>
+            <p className="font-mono text-[12px] text-fg">{error}</p>
           ) : null}
         </div>
       </div>
@@ -575,12 +575,12 @@ function DraftComposer({
   void quoteRequestId;
 
   return (
-    <section className="rounded-md border border-zinc-800 bg-zinc-900/40">
+    <section className="rounded-md border border-line bg-card">
       <div className="flex items-baseline justify-between gap-3 px-4 pt-4 pb-2 sm:px-5">
-        <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-100">
+        <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-fg">
           Bill of lading
         </h2>
-        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-100/60">
+        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-fg/60">
           {draft.bolNumber} &middot; Draft &middot; not sent
         </p>
       </div>
@@ -673,7 +673,7 @@ function DraftComposer({
           }
           rows={2}
           placeholder="Gate code, dock door, check-in protocol, etc."
-          className="block w-full resize-y border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-[15px] text-zinc-100 placeholder:text-zinc-700 focus:border-zinc-700 focus:outline-none"
+          className="block w-full resize-y border border-line-strong bg-card px-2.5 py-1.5 text-[15px] text-fg placeholder:text-zinc-700 focus:border-line-strong focus:outline-none"
         />
       </FieldRow>
 
@@ -748,7 +748,7 @@ function DraftComposer({
           }
           rows={2}
           placeholder="Receiving hours, dock #, signage, etc."
-          className="block w-full resize-y border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-[15px] text-zinc-100 placeholder:text-zinc-700 focus:border-zinc-700 focus:outline-none"
+          className="block w-full resize-y border border-line-strong bg-card px-2.5 py-1.5 text-[15px] text-fg placeholder:text-zinc-700 focus:border-line-strong focus:outline-none"
         />
       </FieldRow>
 
@@ -791,7 +791,7 @@ function DraftComposer({
             suffix="L"
             placeholder="0"
           />
-          <span aria-hidden className="text-center font-mono text-[15px] text-zinc-100">
+          <span aria-hidden className="text-center font-mono text-[15px] text-fg">
             ×
           </span>
           <NumberInput
@@ -800,7 +800,7 @@ function DraftComposer({
             suffix="W"
             placeholder="0"
           />
-          <span aria-hidden className="text-center font-mono text-[15px] text-zinc-100">
+          <span aria-hidden className="text-center font-mono text-[15px] text-fg">
             ×
           </span>
           <NumberInput
@@ -865,7 +865,7 @@ function DraftComposer({
           onChange={(e) => patchFreight("specialHandling", e.target.value)}
           rows={2}
           placeholder="Securement, this side up, do not stack, etc."
-          className="block w-full resize-y border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-[15px] text-zinc-100 placeholder:text-zinc-700 focus:border-zinc-700 focus:outline-none"
+          className="block w-full resize-y border border-line-strong bg-card px-2.5 py-1.5 text-[15px] text-fg placeholder:text-zinc-700 focus:border-line-strong focus:outline-none"
         />
       </FieldRow>
 
@@ -913,7 +913,7 @@ function DraftComposer({
           onChange={(e) => patchOps("specialInstructions", e.target.value)}
           rows={2}
           placeholder="Anything the driver needs to know at pickup or delivery."
-          className="block w-full resize-y border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-[15px] text-zinc-100 placeholder:text-zinc-700 focus:border-zinc-700 focus:outline-none"
+          className="block w-full resize-y border border-line-strong bg-card px-2.5 py-1.5 text-[15px] text-fg placeholder:text-zinc-700 focus:border-line-strong focus:outline-none"
         />
       </FieldRow>
 
@@ -925,7 +925,7 @@ function DraftComposer({
           onChange={(e) => patchTop("dispatchNotes", e.target.value)}
           rows={3}
           placeholder="Anything else the BOL paperwork should carry."
-          className="block w-full resize-y border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-[15px] text-zinc-100 placeholder:text-zinc-700 focus:border-zinc-700 focus:outline-none"
+          className="block w-full resize-y border border-line-strong bg-card px-2.5 py-1.5 text-[15px] text-fg placeholder:text-zinc-700 focus:border-line-strong focus:outline-none"
         />
       </FieldRow>
 
@@ -935,8 +935,8 @@ function DraftComposer({
           className={
             "font-mono text-[12px] sm:mr-auto " +
             (effectivePreviewState === "failed" && previewError
-              ? "text-zinc-100"
-              : "text-zinc-100")
+              ? "text-fg"
+              : "text-fg")
           }
         >
           {buildBlockedReason
@@ -955,7 +955,7 @@ function DraftComposer({
           type="button"
           onClick={runBuildPreview}
           disabled={!canBuild || isBuildPending}
-          className="inline-flex items-center justify-center gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-4 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.14em] text-zinc-100 transition-colors hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex items-center justify-center gap-2 rounded-md border border-line-strong bg-card px-4 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.14em] text-fg transition-colors hover:bg-canvas hover:text-fg disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isBuildPending
             ? "Building…"
@@ -1040,12 +1040,12 @@ function SentHistoryTab({
   }, [sent.sentAt]);
 
   return (
-    <section className="rounded-md border border-zinc-800 bg-zinc-900/40">
+    <section className="rounded-md border border-line bg-card">
       <div className="flex items-baseline justify-between gap-3 px-4 pt-4 pb-2 sm:px-5">
-        <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-100">
+        <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-fg">
           Bill of lading
         </h2>
-        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-100/60">
+        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-fg/60">
           {sent.bolNumber} &middot; Sent
         </p>
       </div>
@@ -1063,13 +1063,13 @@ function SentHistoryTab({
         ) : null}
       </div>
 
-      <div className="flex flex-col gap-2 border-t border-zinc-700 px-4 py-3 sm:flex-row sm:items-center sm:justify-end sm:gap-3 sm:px-5">
+      <div className="flex flex-col gap-2 border-t border-line-strong px-4 py-3 sm:flex-row sm:items-center sm:justify-end sm:gap-3 sm:px-5">
         {error ? (
-          <p className="font-mono text-[12px] text-zinc-100 sm:mr-auto">
+          <p className="font-mono text-[12px] text-fg sm:mr-auto">
             {error}
           </p>
         ) : (
-          <p className="font-mono text-[12px] text-zinc-100 sm:mr-auto">
+          <p className="font-mono text-[12px] text-fg sm:mr-auto">
             A revision opens a fresh BOL draft prefilled from the sent quote.
           </p>
         )}
@@ -1077,7 +1077,7 @@ function SentHistoryTab({
           <button
             type="button"
             onClick={() => setPreviewOpen(true)}
-            className="inline-flex items-center justify-center gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-4 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.14em] text-zinc-100 transition-colors hover:bg-black hover:text-white"
+            className="inline-flex items-center justify-center gap-2 rounded-md border border-line-strong bg-card px-4 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.14em] text-fg transition-colors hover:bg-canvas hover:text-fg"
           >
             View sent BOL
           </button>
@@ -1092,7 +1092,7 @@ function SentHistoryTab({
           href={`/admin/quotes/${quoteRequestId}/bol-pdf/${sent.id}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center justify-center gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-4 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.14em] text-zinc-100 transition-colors hover:bg-black hover:text-white"
+          className="inline-flex items-center justify-center gap-2 rounded-md border border-line-strong bg-card px-4 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.14em] text-fg transition-colors hover:bg-canvas hover:text-fg"
         >
           Download PDF
         </a>
@@ -1100,7 +1100,7 @@ function SentHistoryTab({
           type="button"
           onClick={onGenerateRevision}
           disabled={isPending}
-          className="inline-flex items-center justify-center gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-5 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.16em] text-zinc-100 transition-colors hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex items-center justify-center gap-2 rounded-md border border-line-strong bg-card px-5 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.16em] text-fg transition-colors hover:bg-canvas hover:text-fg disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isPending ? "Starting…" : "Generate revision"}
         </button>
@@ -1108,7 +1108,7 @@ function SentHistoryTab({
           <Link
             href={`/admin/quotes/${nextLeadId}`}
             prefetch={false}
-            className="inline-flex items-center justify-center gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-4 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.14em] text-zinc-100 transition-colors hover:bg-black hover:text-white"
+            className="inline-flex items-center justify-center gap-2 rounded-md border border-line-strong bg-card px-4 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.14em] text-fg transition-colors hover:bg-canvas hover:text-fg"
           >
             Save &amp; open next &rarr;
           </Link>
@@ -1133,8 +1133,8 @@ function SentHistoryTab({
 
 function SectionBanner({ title }: { title: string }) {
   return (
-    <div className="border-t border-zinc-700 px-4 pt-3 pb-1 sm:px-5">
-      <p className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-100">
+    <div className="border-t border-line-strong px-4 pt-3 pb-1 sm:px-5">
+      <p className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-fg">
         {title}
       </p>
     </div>
@@ -1162,11 +1162,11 @@ function FieldRow({
       <span className="flex items-center gap-2">
         <span
           aria-hidden
-          className="inline-block h-[14px] w-[3px] shrink-0 bg-black"
+          className="inline-block h-[14px] w-[3px] shrink-0 bg-canvas"
         />
-        <span className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-zinc-100">
+        <span className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-fg">
           {label}
-          {required ? <span className="ml-1 text-zinc-100">*</span> : null}
+          {required ? <span className="ml-1 text-fg">*</span> : null}
         </span>
       </span>
       <div className="min-w-0">{children}</div>
@@ -1194,7 +1194,7 @@ function TextInput({
       placeholder={placeholder}
       autoFocus={autoFocus}
       autoComplete="off"
-      className="block w-full border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-[15px] text-zinc-100 placeholder:text-zinc-700 focus:border-zinc-700 focus:outline-none"
+      className="block w-full border border-line-strong bg-card px-2.5 py-1.5 text-[15px] text-fg placeholder:text-zinc-700 focus:border-line-strong focus:outline-none"
     />
   );
 }
@@ -1211,7 +1211,7 @@ function NumberInput({
   suffix?: string;
 }) {
   return (
-    <div className="flex items-center border border-zinc-700 bg-zinc-900 focus-within:border-zinc-700">
+    <div className="flex items-center border border-line-strong bg-card focus-within:border-line-strong">
       <input
         type="text"
         inputMode="decimal"
@@ -1220,10 +1220,10 @@ function NumberInput({
             onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         autoComplete="off"
-        className="min-w-0 flex-1 border-none bg-transparent py-1.5 pl-2.5 font-mono text-[15px] font-medium text-zinc-100 tabular-nums placeholder:text-zinc-700 focus:outline-none"
+        className="min-w-0 flex-1 border-none bg-transparent py-1.5 pl-2.5 font-mono text-[15px] font-medium text-fg tabular-nums placeholder:text-zinc-700 focus:outline-none"
       />
       {suffix ? (
-        <span className="px-2 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-100">
+        <span className="px-2 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg">
           {suffix}
         </span>
       ) : null}
@@ -1244,7 +1244,7 @@ function DateInput({
       value={value}
       onKeyDown={advanceOnEnter}
             onChange={(e) => onChange(e.target.value)}
-      className="block w-full border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 font-mono text-[15px] font-medium text-zinc-100 focus:border-zinc-700 focus:outline-none"
+      className="block w-full border border-line-strong bg-card px-2.5 py-1.5 font-mono text-[15px] font-medium text-fg focus:border-line-strong focus:outline-none"
     />
   );
 }
@@ -1263,7 +1263,7 @@ function SelectInput({
       value={value}
       onKeyDown={advanceOnEnter}
             onChange={(e) => onChange(e.target.value)}
-      className="block w-full border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-[15px] font-medium text-zinc-100 focus:border-zinc-700 focus:outline-none"
+      className="block w-full border border-line-strong bg-card px-2.5 py-1.5 text-[15px] font-medium text-fg focus:border-line-strong focus:outline-none"
     >
       {options.map((opt) => (
         <option key={opt.value} value={opt.value}>
@@ -1286,7 +1286,7 @@ function BoolSelect({
       value={value ? "yes" : "no"}
       onKeyDown={advanceOnEnter}
             onChange={(e) => onChange(e.target.value === "yes")}
-      className="block w-full max-w-[180px] border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-[15px] font-medium text-zinc-100 focus:border-zinc-700 focus:outline-none"
+      className="block w-full max-w-[180px] border border-line-strong bg-card px-2.5 py-1.5 text-[15px] font-medium text-fg focus:border-line-strong focus:outline-none"
     >
       <option value="no">No</option>
       <option value="yes">Yes</option>
@@ -1303,10 +1303,10 @@ function SummaryRow({
 }) {
   return (
     <div className="grid grid-cols-[140px_minmax(0,1fr)] items-baseline gap-3">
-      <span className="font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-100">
+      <span className="font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-fg">
         {label}
       </span>
-      <span className="text-[15px] text-zinc-100">{value}</span>
+      <span className="text-[15px] text-fg">{value}</span>
     </div>
   );
 }

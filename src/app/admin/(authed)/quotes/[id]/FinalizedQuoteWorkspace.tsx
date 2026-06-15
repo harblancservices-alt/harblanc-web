@@ -2,7 +2,6 @@
 
 import { advanceOnEnter } from "@/lib/admin/form-utils";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { IconPlus, IconX } from "./icons";
@@ -491,20 +490,20 @@ function ReadyToGenerateTab({
   }
 
   return (
-    <section className="rounded-md border border-zinc-800 bg-zinc-900/40">
+    <section className="rounded-md border border-line bg-card">
       <div className="flex items-baseline justify-between gap-3 px-4 pt-4 pb-2 sm:px-5">
-        <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-100">
+        <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-fg">
           Finalized quote
         </h2>
-        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-100/60">
+        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-fg/60">
           Ready to generate
         </p>
       </div>
       <div className="px-4 pb-6 sm:px-5">
-        <p className="text-[15px] font-semibold text-zinc-100">
+        <p className="text-[14px] font-semibold text-fg">
           Intake submitted &mdash; ready to generate the rate confirmation.
         </p>
-        <p className="mt-2 max-w-lg text-[15px] leading-relaxed text-zinc-100">
+        <p className="mt-2 max-w-lg text-[14px] leading-relaxed text-fg">
           Generating opens a draft prefilled from the intake (pickup, delivery,
           freight, operational hints). Dispatch fills in the firm pricing,
           previews the document, and ships it to the customer.
@@ -514,12 +513,12 @@ function ReadyToGenerateTab({
             type="button"
             onClick={onGenerate}
             disabled={isPending}
-            className="inline-flex items-center justify-center gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-5 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.16em] text-zinc-100 transition-colors hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+            className="inline-flex items-center justify-center gap-2 rounded-md border border-line-strong bg-card px-5 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.16em] text-fg transition-colors hover:bg-canvas hover:text-fg disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isPending ? "Generating…" : "Generate finalized quote"}
           </button>
           {error ? (
-            <p className="font-mono text-[12px] text-zinc-100">{error}</p>
+            <p className="font-mono text-[12px] text-fg">{error}</p>
           ) : null}
         </div>
       </div>
@@ -552,6 +551,10 @@ function DraftComposer({
 
   // Modal / preview state.
   const [previewOpen, setPreviewOpen] = useState(false);
+  // Shipment-edit modal. The Finalized Quote panel itself is read-only;
+  // all field editing happens inside this modal, opened by the red "Edit"
+  // button in the action footer.
+  const [editOpen, setEditOpen] = useState(false);
   const [previewState, setPreviewState] = useState<PreviewModalState>(
     draft.previewBuiltAt ? "ready" : "building",
   );
@@ -770,12 +773,12 @@ function DraftComposer({
   // ── render ────────────────────────────────────────────────────────────
 
   return (
-    <section className="rounded-md border border-zinc-800 bg-zinc-900/40">
+    <section className="rounded-md border border-line bg-card">
       <div className="flex items-baseline justify-between gap-3 px-4 pt-4 pb-2 sm:px-5">
-        <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-100">
+        <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-fg">
           Finalized quote
         </h2>
-        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-100/60">
+        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-fg/60">
           {blocked
             ? blocked.label
             : `${draft.finalizedQuoteNumber} \u00b7 Draft \u00b7 not sent`}
@@ -783,16 +786,28 @@ function DraftComposer({
       </div>
 
       {blocked ? (
-        <div className="flex items-start gap-3 border-b border-zinc-700 bg-[#fbeaea] px-4 py-3 sm:px-5">
-          <span
+        <div className="flex items-start gap-3 border-y-2 border-amber-400 bg-amber-50 px-4 py-4 sm:px-5">
+          <svg
+            width="22"
+            height="22"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            strokeLinejoin="round"
             aria-hidden
-            className="mt-0.5 inline-block h-4 w-1 shrink-0 bg-black"
-          />
+            className="mt-0.5 shrink-0 text-amber-600"
+          >
+            <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
+            <path d="M12 9v4" />
+            <path d="M12 17h.01" />
+          </svg>
           <div className="min-w-0 flex-1">
-            <p className="font-mono text-[12px] font-bold uppercase tracking-[0.18em] text-zinc-100">
-              {blocked.label} \u00b7 {blocked.reason}
+            <p className="font-mono text-[14px] font-bold uppercase tracking-[0.16em] text-amber-800">
+              {blocked.label} \u2014 {blocked.reason}
             </p>
-            <p className="mt-1 max-w-2xl text-[15px] leading-relaxed text-zinc-100">
+            <p className="mt-1.5 max-w-2xl text-[14px] font-medium leading-relaxed text-amber-900">
               {blocked.detail}
             </p>
           </div>
@@ -830,26 +845,24 @@ function DraftComposer({
         />
       </FieldRow>
       </div>
-      <div className="border-t border-zinc-300 px-4 py-2 sm:px-5">
+      <div className="border-t border-line px-4 py-2 sm:px-5">
         <div className="flex items-center justify-between gap-3">
-          <span className="flex items-center gap-2">
-            <span
-              aria-hidden
-              className="inline-block h-[14px] w-[3px] shrink-0 bg-black"
-            />
-            <span className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-zinc-100">Accessorials</span>
+          <span className="flex items-center">
+            <span className="font-mono text-[9.5px] uppercase tracking-[0.12em] text-fg-subtle">
+              Accessorials
+            </span>
           </span>
           <button
             type="button"
             onClick={addAccessorial}
-            className="inline-flex items-center gap-1 rounded-md border border-zinc-700 bg-zinc-900 px-2.5 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-zinc-100 transition-colors hover:bg-black hover:text-white"
+            className="inline-flex items-center gap-1 rounded-md border border-line-strong bg-card px-2.5 py-1 font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-fg transition-colors hover:bg-canvas hover:text-fg"
           >
             <IconPlus className="h-3 w-3" />
             Add line
           </button>
         </div>
         {composer.accessorials.length === 0 ? (
-          <p className="mt-2 font-mono text-[12px] text-zinc-100">
+          <p className="mt-2 font-mono text-[12px] text-fg">
             No accessorials. Add detention, lumper, tarp, etc. if applicable.
           </p>
         ) : (
@@ -867,10 +880,10 @@ function DraftComposer({
                     updateAccessorial(a.id, { label: e.target.value })
                   }
                   placeholder="Detention, Lumper..."
-                  className="border border-zinc-700 bg-zinc-900 px-2 py-1.5 text-[15px] text-zinc-100 placeholder:text-zinc-700 focus:border-zinc-700 focus:outline-none"
+                  className="border border-line-strong bg-card px-2 py-1.5 text-[14px] text-fg placeholder:text-fg-subtle focus:border-line-strong focus:outline-none"
                 />
-                <div className="flex items-center border border-zinc-700 bg-zinc-900 focus-within:border-zinc-700">
-                  <span className="px-2 font-mono text-xs text-zinc-100">$</span>
+                <div className="flex items-center border border-line-strong bg-card focus-within:border-line-strong">
+                  <span className="px-2 font-mono text-xs text-fg">$</span>
                   <input
                     type="text"
                     inputMode="decimal"
@@ -880,14 +893,14 @@ function DraftComposer({
                       updateAccessorial(a.id, { amount: e.target.value })
                     }
                     placeholder="0.00"
-                    className="min-w-0 flex-1 border-none bg-transparent py-1.5 pr-2 text-right font-mono text-[15px] font-medium text-zinc-100 tabular-nums placeholder:text-zinc-700 focus:outline-none"
+                    className="min-w-0 flex-1 border-none bg-transparent py-1.5 pr-2 text-right font-mono text-[14px] font-medium text-fg tabular-nums placeholder:text-fg-subtle focus:outline-none"
                   />
                 </div>
                 <button
                   type="button"
                   onClick={() => removeAccessorial(a.id)}
                   aria-label={`Remove ${a.label || "accessorial"}`}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-zinc-700 bg-zinc-900 text-zinc-100 transition-colors hover:bg-black hover:text-white"
+                  className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-line-strong bg-card text-fg transition-colors hover:bg-canvas hover:text-fg"
                 >
                   <IconX className="h-3.5 w-3.5" />
                 </button>
@@ -898,21 +911,52 @@ function DraftComposer({
       </div>
 
       {/* Banded total — mirrors QuoteRangeWorkspace "Quoted total" card. */}
-      <div className="border-t-[3px] border-double border-zinc-700 bg-zinc-900/40 px-4 py-3 sm:px-5">
+      <div className="border-t-[3px] border-double border-line-strong bg-card px-4 py-3 sm:px-5">
         <div className="flex items-baseline justify-between gap-4">
-          <span className="font-mono text-xs font-bold uppercase tracking-[0.14em] text-zinc-100">
+          <span className="font-mono text-xs font-bold uppercase tracking-[0.14em] text-fg">
             Quoted total
           </span>
-          <span className="font-mono text-3xl font-bold text-zinc-100 tabular-nums">
+          <span className="font-mono text-3xl font-bold text-fg tabular-nums">
             {formatUsd(total)}
           </span>
         </div>
         {accessorialsTotal > 0 ? (
-          <p className="mt-1 text-right font-mono text-[12px] text-zinc-100">
+          <p className="mt-1 text-right font-mono text-[12px] text-fg">
             includes {formatUsd(accessorialsTotal)} accessorials
           </p>
         ) : null}
       </div>
+
+      {/* Shipment details are pre-filled from Load Details (edited there).
+          Nothing on the Finalized Quote panel is inline-editable; all field
+          editing happens inside this modal, opened by the red "Edit" button
+          in the action footer. Keeps the panel the same compact size across
+          dispatch stages so the layout never jumps. */}
+      {editOpen ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Edit shipment details"
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/55 p-3 sm:p-8"
+          onClick={() => setEditOpen(false)}
+        >
+          <div
+            className="my-2 w-full max-w-3xl overflow-hidden rounded-md border border-line-strong bg-card shadow-2xl sm:my-6"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-3 bg-bar px-4 py-2.5">
+              <span className="truncate font-mono text-[12px] font-semibold uppercase tracking-[0.14em] text-bar-fg">
+                Edit shipment details
+              </span>
+              <button
+                type="button"
+                onClick={() => setEditOpen(false)}
+                className="shrink-0 rounded-sm border border-white/25 px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-bar-fg transition-colors hover:bg-white/10"
+              >
+                Done
+              </button>
+            </div>
+            <div className="max-h-[78vh] overflow-y-auto pb-2">
 
       {/* ── Pickup ─────────────────────────────────────────────────── */}
       <SectionBanner title="Pickup" />
@@ -1078,7 +1122,7 @@ function DraftComposer({
           />
           <span
             aria-hidden
-            className="text-center font-mono text-[15px] text-zinc-100"
+            className="text-center font-mono text-[14px] text-fg"
           >
             ×
           </span>
@@ -1090,7 +1134,7 @@ function DraftComposer({
           />
           <span
             aria-hidden
-            className="text-center font-mono text-[15px] text-zinc-100"
+            className="text-center font-mono text-[14px] text-fg"
           >
             ×
           </span>
@@ -1153,9 +1197,13 @@ function DraftComposer({
           }
           rows={2}
           placeholder="Strap pattern, edge protection, tarp spec, etc."
-          className="block w-full resize-y border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-[15px] text-zinc-100 placeholder:text-zinc-700 focus:border-zinc-700 focus:outline-none"
+          className="block w-full resize-y border border-line-strong bg-card px-2.5 py-1.5 text-[14px] text-fg placeholder:text-fg-subtle focus:border-line-strong focus:outline-none"
         />
       </FieldRow>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {/* ── Action footer ───────────────────────────────────────────── */}
       <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-end sm:gap-3 sm:px-5">
@@ -1163,8 +1211,8 @@ function DraftComposer({
           className={
             "font-mono text-[12px] sm:mr-auto " +
             (effectivePreviewState === "failed" && previewError
-              ? "text-zinc-100"
-              : "text-zinc-100")
+              ? "text-fg"
+              : "text-fg")
           }
         >
           {buildBlockedReason
@@ -1181,9 +1229,16 @@ function DraftComposer({
         </p>
         <button
           type="button"
+          onClick={() => setEditOpen(true)}
+          className="inline-flex items-center justify-center gap-2 rounded-md border border-red-700 bg-red-600 px-4 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.14em] text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          Edit
+        </button>
+        <button
+          type="button"
           onClick={runBuildPreview}
           disabled={!canBuild || isBuildPending}
-          className="inline-flex items-center justify-center gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-4 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.14em] text-zinc-100 transition-colors hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex items-center justify-center gap-2 rounded-md border border-line-strong bg-card px-4 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.14em] text-fg transition-colors hover:bg-canvas hover:text-fg disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isBuildPending
             ? "Building…"
@@ -1218,11 +1273,12 @@ function DraftComposer({
 function SentHistoryTab({
   quoteRequestId,
   sent,
-  nextLeadId,
 }: {
   quoteRequestId: string;
   sent: FinalizedQuoteSentSnapshot;
-  nextLeadId: string | null;
+  /** Still accepted from the caller but no longer used — the "Save & open
+   *  next" CTA was removed from the sent view. */
+  nextLeadId?: string | null;
 }) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -1291,18 +1347,18 @@ function SentHistoryTab({
   }, [sent.confirmedAt]);
 
   return (
-    <section className="rounded-md border border-zinc-800 bg-zinc-900/40">
+    <section className="rounded-md border border-line bg-card">
       <div className="flex items-baseline justify-between gap-3 px-4 pt-4 pb-2 sm:px-5">
-        <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-100">
+        <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-fg">
           Finalized quote
         </h2>
-        <p className="flex items-center gap-2 font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-100/60">
+        <p className="flex items-center gap-2 font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-fg/60">
           <span>
             {sent.finalizedQuoteNumber} &middot;{" "}
             {sent.confirmedAt ? "Sent" : "Sent"}
           </span>
           {sent.confirmedAt ? (
-            <span className="inline-flex items-center border border-green-700 bg-green-50 px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-green-800">
+            <span className="inline-flex items-center border border-green-300 bg-green-50 px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-green-800">
               Confirmed
             </span>
           ) : null}
@@ -1320,6 +1376,7 @@ function SentHistoryTab({
         />
         <SummaryRow
           label="Total amount"
+          green
           value={
             sent.totalAmount === null ? "—" : formatUsd(Number(sent.totalAmount))
           }
@@ -1337,13 +1394,13 @@ function SentHistoryTab({
         ) : null}
       </div>
 
-      <div className="flex flex-col gap-2 border-t border-zinc-300 px-4 py-3 sm:flex-row sm:items-center sm:justify-end sm:gap-3 sm:px-5">
+      <div className="flex flex-col gap-2 border-t border-line px-4 py-3 sm:flex-row sm:items-center sm:justify-end sm:gap-3 sm:px-5">
         {error ? (
-          <p className="font-mono text-[12px] text-zinc-100 sm:mr-auto">
+          <p className="font-mono text-[12px] text-fg sm:mr-auto">
             {error}
           </p>
         ) : (
-          <p className="font-mono text-[12px] text-zinc-100 sm:mr-auto">
+          <p className="font-mono text-[12px] text-fg sm:mr-auto">
             Sending a revision opens a fresh draft prefilled from intake.
           </p>
         )}
@@ -1351,42 +1408,19 @@ function SentHistoryTab({
           <button
             type="button"
             onClick={() => setPreviewOpen(true)}
-            className="inline-flex items-center justify-center gap-2 border border-zinc-400 bg-zinc-900 px-4 py-2.5 text-[15px] font-semibold text-zinc-100 transition-colors hover:border-zinc-700 hover:text-zinc-100"
+            className="inline-flex items-center justify-center gap-2 border border-line-strong bg-card px-4 py-2.5 text-[14px] font-semibold text-fg transition-colors hover:border-line-strong hover:text-fg"
           >
             View sent document
           </button>
         ) : null}
-        {/* Phase 2C — on-demand PDF download. The GET route renders a
-            fresh PDF from current row state and streams it back with
-            an inline Content-Disposition so most browsers open it in
-            a viewer tab (where the operator can print, save, forward).
-            Email send pipeline is intentionally untouched — this is a
-            separate archive/print path. */}
-        <a
-          href={`/admin/quotes/${quoteRequestId}/finalized-quote-pdf/${sent.id}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex items-center justify-center gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-4 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.14em] text-zinc-100 transition-colors hover:bg-black hover:text-white"
-        >
-          Download PDF
-        </a>
         <button
           type="button"
           onClick={onGenerateRevision}
           disabled={isPending}
-          className="inline-flex items-center justify-center gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-5 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.16em] text-zinc-100 transition-colors hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex items-center justify-center gap-2 rounded-md border border-line-strong bg-card px-5 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.16em] text-fg transition-colors hover:bg-canvas hover:text-fg disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isPending ? "Starting…" : "Generate revision"}
         </button>
-        {nextLeadId ? (
-          <Link
-            href={`/admin/quotes/${nextLeadId}`}
-            prefetch={false}
-            className="inline-flex items-center justify-center gap-2 rounded-md border border-zinc-700 bg-zinc-900 px-4 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.14em] text-zinc-100 transition-colors hover:bg-black hover:text-white"
-          >
-            Save &amp; open next &rarr;
-          </Link>
-        ) : null}
       </div>
 
       <PreviewModal
@@ -1407,8 +1441,8 @@ function SentHistoryTab({
 
 function SectionBanner({ title }: { title: string }) {
   return (
-    <div className="border-t border-zinc-700 px-4 pt-3 pb-1 sm:px-5">
-      <p className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-zinc-100">
+    <div className="border-y border-line bg-elevated px-4 py-2 sm:px-5">
+      <p className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-fg-subtle">
         {title}
       </p>
     </div>
@@ -1427,31 +1461,28 @@ function FieldRow({
   align?: "center" | "start";
   children: React.ReactNode;
   /** Field originated in the customer Quick Quote form. Renders:
-   *  bg-zinc-900/70 row wash, 3px red left bar across the entire row,
+   *  bg-card/70 row wash, 3px red left bar across the entire row,
    *  red label text, and a "Q.Q." white-on-red pill next to the
    *  label. Stronger visual treatment than the LoadDetailsCard
    *  equivalent — meant to read across the room. */
   fromQuickQuote?: boolean;
 }) {
-  const tinted = fromQuickQuote || required;
   return (
     <div
       className={
-        "grid grid-cols-[110px_minmax(0,1fr)] gap-3 border-t border-zinc-300 px-3 py-2.5 sm:grid-cols-[140px_minmax(0,1fr)] sm:px-3 " +
+        "grid grid-cols-[110px_minmax(0,1fr)] gap-3 border-t border-line px-3 py-2.5 sm:grid-cols-[140px_minmax(0,1fr)] sm:px-3 " +
         (align === "start" ? "items-start " : "items-center ") +
-        (tinted ? "border-l-[5px] border-l-red-500" : "")
+        (fromQuickQuote ? "border-l-2 border-l-red-300 bg-red-50 " : "")
       }
-      style={tinted ? { backgroundColor: "#fca5a5" } : undefined}
     >
-      <span className="flex items-center gap-1.5">
-        <span
-          aria-hidden
-          className="inline-block h-[14px] w-[3px] shrink-0 bg-black"
-        />
-        <span className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-zinc-100">
-          {label}
-          {required ? <span className="ml-1 text-zinc-100">*</span> : null}
-        </span>
+      <span
+        className={
+          "font-mono text-[9.5px] uppercase tracking-[0.12em] " +
+          (fromQuickQuote ? "text-red-700" : "text-fg-subtle")
+        }
+      >
+        {label}
+        {required ? <span className="ml-0.5 text-red-600">*</span> : null}
       </span>
       <div className="min-w-0">{children}</div>
     </div>
@@ -1470,8 +1501,8 @@ function CurrencyInput({
   autoFocus?: boolean;
 }) {
   return (
-    <div className="flex items-center border border-zinc-700 bg-zinc-900 focus-within:border-zinc-700">
-      <span className="px-2.5 font-mono text-[15px] text-zinc-100">$</span>
+    <div className="flex items-center border border-line-strong bg-card focus-within:border-line-strong">
+      <span className="px-2.5 font-mono text-[14px] text-fg">$</span>
       <input
         type="text"
         inputMode="decimal"
@@ -1481,7 +1512,7 @@ function CurrencyInput({
         placeholder={placeholder}
         autoFocus={autoFocus}
         autoComplete="off"
-        className="min-w-0 flex-1 border-0 bg-transparent py-1.5 pr-2.5 font-mono text-[15px] font-medium text-zinc-100 tabular-nums placeholder:text-zinc-700 focus:outline-none"
+        className="min-w-0 flex-1 border-0 bg-transparent py-1.5 pr-2.5 font-mono text-[14px] font-medium text-fg tabular-nums placeholder:text-fg-subtle focus:outline-none"
       />
     </div>
   );
@@ -1504,7 +1535,7 @@ function TextInput({
             onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       autoComplete="off"
-      className="block w-full border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-[15px] text-zinc-100 placeholder:text-zinc-700 focus:border-zinc-700 focus:outline-none"
+      className="block w-full border border-line-strong bg-card px-2.5 py-1.5 text-[14px] text-fg placeholder:text-fg-subtle focus:border-line-strong focus:outline-none"
     />
   );
 }
@@ -1521,7 +1552,7 @@ function NumberInput({
   suffix?: string;
 }) {
   return (
-    <div className="flex items-center border border-zinc-700 bg-zinc-900 focus-within:border-zinc-700">
+    <div className="flex items-center border border-line-strong bg-card focus-within:border-line-strong">
       <input
         type="text"
         inputMode="decimal"
@@ -1530,10 +1561,10 @@ function NumberInput({
             onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         autoComplete="off"
-        className="min-w-0 flex-1 border-none bg-transparent py-1.5 pl-2.5 font-mono text-[15px] font-medium text-zinc-100 tabular-nums placeholder:text-zinc-700 focus:outline-none"
+        className="min-w-0 flex-1 border-none bg-transparent py-1.5 pl-2.5 font-mono text-[14px] font-medium text-fg tabular-nums placeholder:text-fg-subtle focus:outline-none"
       />
       {suffix ? (
-        <span className="px-2 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-100">
+        <span className="px-2 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg">
           {suffix}
         </span>
       ) : null}
@@ -1554,7 +1585,7 @@ function DateInput({
       value={value}
       onKeyDown={advanceOnEnter}
             onChange={(e) => onChange(e.target.value)}
-      className="block w-full border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 font-mono text-[15px] font-medium text-zinc-100 focus:border-zinc-700 focus:outline-none"
+      className="block w-full border border-line-strong bg-card px-2.5 py-1.5 font-mono text-[14px] font-medium text-fg focus:border-line-strong focus:outline-none"
     />
   );
 }
@@ -1573,7 +1604,7 @@ function SelectInput({
       value={value}
       onKeyDown={advanceOnEnter}
             onChange={(e) => onChange(e.target.value)}
-      className="block w-full border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-[15px] font-medium text-zinc-100 focus:border-zinc-700 focus:outline-none"
+      className="block w-full border border-line-strong bg-card px-2.5 py-1.5 text-[14px] font-medium text-fg focus:border-line-strong focus:outline-none"
     >
       {options.map((opt) => (
         <option key={opt.value} value={opt.value}>
@@ -1596,7 +1627,7 @@ function TriStateSelect({
       value={value}
       onKeyDown={advanceOnEnter}
             onChange={(e) => onChange(e.target.value as TriState)}
-      className="block w-full max-w-[180px] border border-zinc-700 bg-zinc-900 px-2.5 py-1.5 text-[15px] font-medium text-zinc-100 focus:border-zinc-700 focus:outline-none"
+      className="block w-full max-w-[180px] border border-line-strong bg-card px-2.5 py-1.5 text-[14px] font-medium text-fg focus:border-line-strong focus:outline-none"
     >
       <option value="">—</option>
       <option value="yes">Yes</option>
@@ -1608,16 +1639,23 @@ function TriStateSelect({
 function SummaryRow({
   label,
   value,
+  green = false,
 }: {
   label: string;
   value: string;
+  green?: boolean;
 }) {
   return (
-    <div className="flex items-baseline justify-between gap-3 border-t border-zinc-200 px-4 py-2 sm:px-5">
-      <span className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-zinc-100">
+    <div className="flex items-baseline justify-between gap-3 border-t border-line px-4 py-2 sm:px-5">
+      <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-fg-subtle">
         {label}
       </span>
-      <span className="font-mono text-[14px] font-bold tabular-nums text-zinc-100">
+      <span
+        className={
+          "font-mono text-[14px] font-bold tabular-nums " +
+          (green ? "text-green-700" : "text-fg")
+        }
+      >
         {value}
       </span>
     </div>

@@ -80,11 +80,11 @@ export default function ConfirmShipmentPreviewPage() {
     // on a deep #050505 shell. Keep this file in lockstep with
     // src/app/quote/accept/[token]/page.tsx so the Preview Lab reflects
     // the production-equivalent surface.
-    <div className="bg-[#050505] text-zinc-100">
+    <div className="bg-[#050505] text-fg">
       {/* Preview banner — visible to the operator inside the iframe so
           they can never confuse the preview view with the real customer
           screen. */}
-      <div className="border-b border-red-700 bg-red-600 px-4 py-2 text-center font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-white sm:py-2.5">
+      <div className="border-b border-red-300 bg-red-600 px-4 py-2 text-center font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-white sm:py-2.5">
         Preview only &middot; no email sent &middot; no records changed
       </div>
 
@@ -99,10 +99,10 @@ export default function ConfirmShipmentPreviewPage() {
               <span aria-hidden className="inline-block h-3 w-1 bg-red-600" />
               Shipment finalization
             </p>
-            <h1 className="mt-3 text-center text-3xl font-display leading-[1.05] tracking-[-0.02em] text-white sm:text-4xl lg:text-5xl">
+            <h1 className="mt-3 text-center text-3xl font-display leading-[1.05] tracking-[-0.02em] text-fg sm:text-4xl lg:text-5xl">
               Confirm Shipment Details
             </h1>
-            <p className="mx-auto mt-4 max-w-2xl text-center text-base leading-relaxed text-white sm:text-lg">
+            <p className="mx-auto mt-4 max-w-2xl text-center text-base leading-relaxed text-fg sm:text-lg">
               Providing accurate shipment details helps dispatch confirm the
               correct equipment, timing, and final rate before scheduling.
             </p>
@@ -110,12 +110,12 @@ export default function ConfirmShipmentPreviewPage() {
 
           <dl className="mt-7 grid grid-cols-1 gap-x-8 gap-y-4 border-l-4 border-l-red-600 bg-[#1a1a1a] p-5 shadow-[0_6px_18px_-6px_rgba(0,0,0,0.7)] sm:grid-cols-2 sm:p-6 lg:grid-cols-[1fr_2fr_1fr_1fr]">
             <KV label="Quote #">
-              <span className="font-mono text-base font-semibold text-white tabular-nums">
+              <span className="font-mono text-base font-semibold text-fg tabular-nums">
                 {SAMPLE_QUOTE_REF}
               </span>
             </KV>
             <KV label="Lane">
-              <span className="font-mono text-base font-semibold text-white">
+              <span className="font-mono text-base font-semibold text-fg">
                 {SAMPLE_INTAKE_HEADER.pickupCity},{" "}
                 {SAMPLE_INTAKE_HEADER.pickupState}
                 <span aria-hidden className="mx-2 text-red-600">
@@ -124,7 +124,7 @@ export default function ConfirmShipmentPreviewPage() {
                 {SAMPLE_INTAKE_HEADER.deliveryCity},{" "}
                 {SAMPLE_INTAKE_HEADER.deliveryState}
               </span>
-              <span className="mt-1 block font-mono text-[11px] text-white tabular-nums">
+              <span className="mt-1 block font-mono text-[11px] text-fg tabular-nums">
                 {SAMPLE_INTAKE_HEADER.pickupZip}
                 <span aria-hidden className="mx-1.5 text-red-600">
                   &rarr;
@@ -133,12 +133,12 @@ export default function ConfirmShipmentPreviewPage() {
               </span>
             </KV>
             <KV label="Estimate range">
-              <span className="font-mono text-base font-bold text-white tabular-nums">
+              <span className="font-mono text-base font-bold text-fg tabular-nums">
                 {rate}
               </span>
             </KV>
             <KV label="Valid through">
-              <span className="font-mono text-base text-white tabular-nums">
+              <span className="font-mono text-base text-fg tabular-nums">
                 {formatHumanDate(SAMPLE_INTAKE_HEADER.expirationAt)}
               </span>
             </KV>
@@ -146,13 +146,13 @@ export default function ConfirmShipmentPreviewPage() {
 
           <div className="mt-6 flex flex-col gap-3 border-l-2 border-l-neutral-600 bg-[#161616] p-4 shadow-[0_6px_18px_-6px_rgba(0,0,0,0.55)] sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="font-mono text-[10px] tracking-[0.22em] text-white uppercase">
+              <p className="font-mono text-[10px] tracking-[0.22em] text-fg uppercase">
                 Need dispatch help?
               </p>
             </div>
             <a
               href={phoneHref}
-              className="btn-outline-cut-light inline-flex items-center justify-center gap-2 whitespace-nowrap px-6 py-3 text-base font-bold uppercase tracking-[0.14em] text-white transition-colors sm:shrink-0 sm:text-lg"
+              className="btn-outline-cut-light inline-flex items-center justify-center gap-2 whitespace-nowrap px-6 py-3 text-base font-bold uppercase tracking-[0.14em] text-fg transition-colors sm:shrink-0 sm:text-lg"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -198,17 +198,17 @@ export default function ConfirmShipmentPreviewPage() {
       {/* Dispatch support + carrier authority footer */}
       <section className="border-t border-[#1a1a1a] bg-[#0a0a0a]">
         <div className="mx-auto max-w-3xl px-4 pb-10 pt-6 sm:px-6 sm:pb-12 sm:pt-8 lg:px-8 lg:pb-14 lg:pt-10">
-          <p className="flex items-center justify-center gap-2 font-mono text-base font-bold uppercase tracking-[0.16em] text-white sm:text-lg">
+          <p className="flex items-center justify-center gap-2 font-mono text-base font-bold uppercase tracking-[0.16em] text-fg sm:text-lg">
             <span aria-hidden className="inline-block h-5 w-1 bg-red-600 sm:h-6" />
             Need instant dispatch support?
           </p>
 
           <div className="mt-8 flex flex-col items-center gap-5 text-center">
             <div className="flex flex-col items-center gap-4">
-              <a href={phoneHref} className="btn-outline-cut-light mt-3 inline-flex min-w-[240px] items-center justify-center whitespace-nowrap px-6 py-3 text-base font-bold tabular-nums uppercase tracking-[0.14em] text-white transition-colors sm:text-lg">
+              <a href={phoneHref} className="btn-outline-cut-light mt-3 inline-flex min-w-[240px] items-center justify-center whitespace-nowrap px-6 py-3 text-base font-bold tabular-nums uppercase tracking-[0.14em] text-fg transition-colors sm:text-lg">
                 <span>{company.dispatchPhone.replace(/[^\d]/g, "").replace(/(\d{3})(\d{3})(\d{4})/, "($1) $2-$3")}</span>
               </a>
-              <a href={`mailto:${company.dispatchEmail}`} className="btn-outline-cut-light mt-3 inline-flex min-w-[240px] items-center justify-center px-6 py-3 text-base font-bold uppercase tracking-[0.14em] text-white transition-colors sm:text-lg">Email Us</a>
+              <a href={`mailto:${company.dispatchEmail}`} className="btn-outline-cut-light mt-3 inline-flex min-w-[240px] items-center justify-center px-6 py-3 text-base font-bold uppercase tracking-[0.14em] text-fg transition-colors sm:text-lg">Email Us</a>
             </div>
           </div>
         </div>
@@ -227,7 +227,7 @@ function KV({
 }) {
   return (
     <div>
-      <dt className="font-mono text-[10px] tracking-[0.22em] text-white uppercase">
+      <dt className="font-mono text-[10px] tracking-[0.22em] text-fg uppercase">
         {label}
       </dt>
       <dd className="mt-1.5">{children}</dd>

@@ -69,11 +69,11 @@ function classificationLabel(c: PreviewClassification): string {
 function classificationClasses(c: PreviewClassification): string {
   switch (c) {
     case "customer_email":
-      return "border border-red-700 bg-red-50 text-red-800";
+      return "border border-red-300 bg-red-50 text-red-800";
     case "customer_page":
-      return "border border-zinc-400 bg-white text-black";
+      return "border border-zinc-400 bg-card text-fg";
     case "in_house_doc":
-      return "border border-black bg-black text-white";
+      return "border border-line bg-canvas text-fg";
   }
 }
 
@@ -121,10 +121,10 @@ export function AdminPreviewLab({
       {/* Lab tabs — Standard (this page) + Previews 2 (email comparison) */}
       <nav
         aria-label="Preview lab tabs"
-        className="mb-3 flex items-stretch border border-zinc-300 bg-white"
+        className="mb-3 flex items-stretch border border-zinc-300 bg-card"
       >
         <span className="flex items-center gap-2 border-r border-zinc-300 bg-red-600 px-4 py-2.5 font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-white">
-          <span aria-hidden className="inline-block h-3 w-1 bg-white" />
+          <span aria-hidden className="inline-block h-3 w-1 bg-card" />
           Standard previews
         </span>
         <Link
@@ -134,7 +134,7 @@ export function AdminPreviewLab({
           Previews 2 &middot; email uniformity lab &rarr;
         </Link>
       </nav>
-      <p className="mb-4 flex items-center gap-2 border border-zinc-300 bg-zinc-100 px-3 py-2 font-mono text-[11px] uppercase tracking-[0.12em] text-black">
+      <p className="mb-4 flex items-center gap-2 border border-zinc-300 bg-zinc-100 px-3 py-2 font-mono text-[11px] uppercase tracking-[0.12em] text-fg">
         <span
           aria-hidden
           className="inline-block h-[12px] w-1 shrink-0 bg-red-600"
@@ -146,10 +146,10 @@ export function AdminPreviewLab({
         {targets.map((t) => (
           <li
             key={t.id}
-            className="flex flex-col border border-zinc-400 border-l-4 border-l-red-600 bg-white"
+            className="flex flex-col border border-zinc-400 border-l-4 border-l-red-600 bg-card"
           >
             <div className="flex items-center justify-between gap-3 border-b border-zinc-300 px-4 py-2.5">
-              <h2 className="text-[13px] font-bold uppercase tracking-[0.08em] text-black">
+              <h2 className="text-[13px] font-bold uppercase tracking-[0.08em] text-fg">
                 {formatTitle(t)}
               </h2>
               <span
@@ -161,18 +161,18 @@ export function AdminPreviewLab({
                 {classificationLabel(t.classification)}
               </span>
             </div>
-            <div className="flex-1 px-4 py-3 text-sm text-black">
+            <div className="flex-1 px-4 py-3 text-sm text-fg">
               <p>{t.subtitle}</p>
               {t.kind === "email" ? (
                 <dl className="mt-3 grid grid-cols-[60px_minmax(0,1fr)] gap-x-3 gap-y-1 font-mono text-[11px]">
-                  <dt className="text-zinc-600 uppercase tracking-[0.12em]">
+                  <dt className="text-fg-subtle uppercase tracking-[0.12em]">
                     To
                   </dt>
-                  <dd className="truncate text-black">{t.to}</dd>
-                  <dt className="text-zinc-600 uppercase tracking-[0.12em]">
+                  <dd className="truncate text-fg">{t.to}</dd>
+                  <dt className="text-fg-subtle uppercase tracking-[0.12em]">
                     Subj
                   </dt>
-                  <dd className="truncate text-black">{t.subject}</dd>
+                  <dd className="truncate text-fg">{t.subject}</dd>
                 </dl>
               ) : (
                 <p className="mt-3 font-mono text-[11px] text-zinc-700">
@@ -184,7 +184,7 @@ export function AdminPreviewLab({
               <button
                 type="button"
                 onClick={() => setOpenId(t.id)}
-                className="inline-flex items-center justify-center border border-zinc-400 bg-white px-4 py-2 text-sm font-semibold text-black transition-colors hover:border-red-600 hover:text-red-700"
+                className="inline-flex items-center justify-center border border-zinc-400 bg-card px-4 py-2 text-sm font-semibold text-fg transition-colors hover:border-red-600 hover:text-red-700"
               >
                 Preview
               </button>
@@ -258,7 +258,7 @@ function ResponsivePreview({ target }: { target: PreviewTarget }) {
         title={`${target.title} ${kind} preview`}
         srcDoc={target.html}
         sandbox="allow-same-origin"
-        className="block border-0 bg-white"
+        className="block border-0 bg-card"
         style={{ width: `${width}px`, height: "100%" }}
       />
     ) : (
@@ -267,7 +267,7 @@ function ResponsivePreview({ target }: { target: PreviewTarget }) {
         title={`${target.title} ${kind} preview`}
         src={target.route}
         sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-modals"
-        className="block border-0 bg-white"
+        className="block border-0 bg-card"
         style={{ width: `${width}px`, height: "100%" }}
       />
     );
@@ -296,14 +296,14 @@ function ResponsivePreview({ target }: { target: PreviewTarget }) {
             className="flex flex-col"
             style={{ width: `${MOBILE_FRAME_WIDTH}px` }}
           >
-            <p className="mb-3 flex items-center gap-2 font-mono text-sm font-bold uppercase tracking-[0.18em] text-zinc-600">
+            <p className="mb-3 flex items-center gap-2 font-mono text-sm font-bold uppercase tracking-[0.18em] text-fg-subtle">
               <span
                 aria-hidden
                 className="inline-block h-3 w-1 bg-red-600"
               />
               Mobile &middot; {MOBILE_FRAME_WIDTH}px
             </p>
-            <div className="flex-1 overflow-hidden bg-white shadow-[0_2px_0_0_#dc2626,0_0_0_1px_#d4d4d8]">
+            <div className="flex-1 overflow-hidden bg-card shadow-[0_2px_0_0_#dc2626,0_0_0_1px_#d4d4d8]">
               {renderIframe(MOBILE_FRAME_WIDTH, "mobile")}
             </div>
           </div>
@@ -312,14 +312,14 @@ function ResponsivePreview({ target }: { target: PreviewTarget }) {
             className="flex flex-col"
             style={{ width: `${DESKTOP_FRAME_WIDTH}px` }}
           >
-            <p className="mb-3 flex items-center gap-2 font-mono text-sm font-bold uppercase tracking-[0.18em] text-zinc-600">
+            <p className="mb-3 flex items-center gap-2 font-mono text-sm font-bold uppercase tracking-[0.18em] text-fg-subtle">
               <span
                 aria-hidden
                 className="inline-block h-3 w-1 bg-red-600"
               />
               Desktop &middot; {DESKTOP_FRAME_WIDTH}px
             </p>
-            <div className="flex-1 overflow-hidden bg-white shadow-[0_2px_0_0_#dc2626,0_0_0_1px_#d4d4d8]">
+            <div className="flex-1 overflow-hidden bg-card shadow-[0_2px_0_0_#dc2626,0_0_0_1px_#d4d4d8]">
               {renderIframe(DESKTOP_FRAME_WIDTH, "desktop")}
             </div>
           </div>
@@ -336,7 +336,7 @@ function ResponsivePreview({ target }: { target: PreviewTarget }) {
  * edge fullscreen.
  *
  *   ┌──────────────────────────────────────────────────────────────┐
- *   │ Backdrop (bg-black/85, padded)                                │
+ *   │ Backdrop (bg-canvas/85, padded)                                │
  *   │  ┌──────────────────────────────────────────────────────────┐ │
  *   │  │ Header — current target + close                          │ │
  *   │  ├──────────────────────────────────────────┬───────────────┤ │
@@ -372,7 +372,7 @@ function Modal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex bg-black/85 p-4 sm:p-8 lg:p-10"
+      className="fixed inset-0 z-50 flex bg-canvas/85 p-4 sm:p-8 lg:p-10"
       role="dialog"
       aria-modal="true"
       aria-label={`${target.title} preview`}
@@ -382,24 +382,24 @@ function Modal({
           side. onClick on backdrop closes; stopPropagation on the
           frame keeps inner clicks from bubbling up to the dismiss. */}
       <div
-        className="relative flex h-full w-full flex-col overflow-hidden border border-zinc-300 bg-white shadow-[0_24px_60px_-12px_rgba(0,0,0,0.6)]"
+        className="relative flex h-full w-full flex-col overflow-hidden border border-zinc-300 bg-card shadow-[0_24px_60px_-12px_rgba(0,0,0,0.6)]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <header className="relative flex shrink-0 items-center gap-3 border-b-2 border-red-600 bg-white px-4 py-2.5 sm:px-5 sm:py-3">
+        <header className="relative flex shrink-0 items-center gap-3 border-b-2 border-red-600 bg-card px-4 py-2.5 sm:px-5 sm:py-3">
           <span
             aria-hidden
             className="inline-block h-5 w-1 shrink-0 bg-red-600"
           />
           <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-black sm:text-[12px]">
+            <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-fg sm:text-[12px]">
               {formatTitle(target)}
             </p>
-            <p className="mt-0.5 truncate font-mono text-[10px] text-black sm:text-[11px]">
+            <p className="mt-0.5 truncate font-mono text-[10px] text-fg sm:text-[11px]">
               {target.kind === "email" ? (
                 <>
                   <span>{target.to}</span>
-                  <span className="px-1.5 text-zinc-400">&middot;</span>
+                  <span className="px-1.5 text-fg-subtle">&middot;</span>
                   <span className="text-zinc-700">{target.subject}</span>
                 </>
               ) : (
@@ -415,7 +415,7 @@ function Modal({
           >
             {classificationLabel(target.classification)}
           </span>
-          <span className="hidden shrink-0 items-center gap-1.5 border border-zinc-300 bg-zinc-100 px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-black sm:inline-flex">
+          <span className="hidden shrink-0 items-center gap-1.5 border border-zinc-300 bg-zinc-100 px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-fg sm:inline-flex">
             <span
               aria-hidden
               className="inline-block h-1.5 w-1.5 rounded-full bg-red-600"
@@ -427,7 +427,7 @@ function Modal({
             onClick={onClose}
             aria-label="Close preview"
             title="Close (Esc)"
-            className="inline-flex h-8 w-8 shrink-0 items-center justify-center border border-zinc-300 bg-white text-black transition-colors hover:border-red-600 hover:bg-red-50 hover:text-red-700"
+            className="inline-flex h-8 w-8 shrink-0 items-center justify-center border border-zinc-300 bg-card text-fg transition-colors hover:border-red-600 hover:bg-red-50 hover:text-red-700"
           >
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -464,11 +464,11 @@ function Modal({
             aria-label="Other previews"
             className="hidden w-64 shrink-0 flex-col overflow-y-auto border-l border-zinc-300 bg-zinc-50 md:flex"
           >
-            <div className="border-b border-zinc-300 bg-white px-4 py-3">
-              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-500">
+            <div className="border-b border-zinc-300 bg-card px-4 py-3">
+              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-fg-subtle">
                 All previews
               </p>
-              <p className="mt-1 text-[11px] text-zinc-600">
+              <p className="mt-1 text-[11px] text-fg-subtle">
                 Click any row to swap the viewer without closing.
               </p>
             </div>
@@ -480,7 +480,7 @@ function Modal({
                 if (items.length === 0) return null;
                 return (
                   <div key={group.classification} className="mb-4 last:mb-0">
-                    <p className="px-2 pt-1 pb-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">
+                    <p className="px-2 pt-1 pb-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-fg-subtle">
                       {group.label}
                     </p>
                     <ul>
@@ -495,8 +495,8 @@ function Modal({
                               className={
                                 "flex w-full items-start gap-2 border-l-2 px-3 py-2 text-left transition-colors " +
                                 (isActive
-                                  ? "border-l-red-600 bg-white text-black shadow-[inset_0_0_0_1px_#e4e4e7]"
-                                  : "border-l-transparent text-zinc-700 hover:border-l-zinc-400 hover:bg-white")
+                                  ? "border-l-red-600 bg-card text-fg shadow-[inset_0_0_0_1px_#e4e4e7]"
+                                  : "border-l-transparent text-zinc-700 hover:border-l-zinc-400 hover:bg-card")
                               }
                             >
                               <span
@@ -510,7 +510,7 @@ function Modal({
                                 <span className="block truncate text-[12px] font-semibold uppercase tracking-[0.06em]">
                                   {formatTitle(t)}
                                 </span>
-                                <span className="mt-0.5 block truncate font-mono text-[10px] text-zinc-500">
+                                <span className="mt-0.5 block truncate font-mono text-[10px] text-fg-subtle">
                                   {t.kind === "email" ? t.subject : t.route}
                                 </span>
                               </span>

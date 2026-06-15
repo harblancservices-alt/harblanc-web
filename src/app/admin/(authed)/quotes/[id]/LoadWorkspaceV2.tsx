@@ -1,18 +1,14 @@
 import type { ReactNode } from "react";
-import { IdentityRow, type IdentityRowProps } from "./IdentityRow";
-import { LaneHero, type LaneHeroProps } from "./LaneHero";
+import { type IdentityRowProps } from "./IdentityRow";
+import { type LaneHeroProps } from "./LaneHero";
 import {
-  StatusHero,
   type StatusHeroProps,
   type StatusHeroVariant,
 } from "./StatusHero";
-import { OpsStrip, type OpsStripProps } from "./OpsStrip";
-import { WorkflowProgressBar } from "./WorkflowProgressBar";
-import {
-  BolBlockerCard,
-  type BolBlockerPhase,
-} from "./BolBlockerCard";
+import { type OpsStripProps } from "./OpsStrip";
+import { type BolBlockerPhase } from "./BolBlockerCard";
 import { CollapsibleWorkspaceSection } from "./CollapsibleWorkspaceSection";
+import { DocumentsActivityTabs } from "./DocumentsActivityTabs";
 
 /**
  * LoadWorkspaceV2 -- workstation-style Load workspace surface.
@@ -60,12 +56,6 @@ export type LoadWorkspaceV2Props = {
 };
 
 export function LoadWorkspaceV2({
-  identity,
-  lane,
-  status,
-  workflowStatus,
-  ops,
-  bolBlockerPhase,
   attachmentsContent,
   attachmentsSummary,
   notesContent,
@@ -82,22 +72,12 @@ export function LoadWorkspaceV2({
 }: LoadWorkspaceV2Props) {
   const hasAttachments = attachmentsContent != null;
   const hasNotes = notesContent != null;
-  const hasBolBlocker = bolBlockerPhase != null && bolBlockerPhase !== "sent";
   return (
-    <div className="min-h-screen border-t border-zinc-800 bg-zinc-950 text-zinc-100">
-      <div className="mx-auto max-w-[1680px] px-4 py-5 sm:px-6 sm:py-6 lg:px-8 xl:px-12 xl:py-8 2xl:px-16">
-        <IdentityRow {...identity} />
-        <LaneHero {...lane} />
-        <StatusHero {...status} />
-        <div className="mt-3">
-          <WorkflowProgressBar currentStatus={workflowStatus} />
-        </div>
-        <div className="mt-3.5">
-          <OpsStrip {...ops} />
-        </div>
-
-        <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:gap-4 xl:gap-5">
-          <div className="space-y-3">
+    <div className="min-h-screen border-t border-line bg-canvas text-fg">
+      <div className="w-full px-4 py-5 sm:px-6 sm:py-6 lg:px-8 xl:px-10 xl:py-8">
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 lg:gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1.05fr)] xl:gap-4">
+          {/* LEFT — load details + reference */}
+          <div className="space-y-3 lg:col-span-2 xl:col-span-1">
             <CollapsibleWorkspaceSection
               title="Load details"
               defaultOpen
@@ -107,61 +87,73 @@ export function LoadWorkspaceV2({
               {detailsContent}
             </CollapsibleWorkspaceSection>
 
-            {hasNotes ? (
-              <CollapsibleWorkspaceSection
-                title="Customer notes"
-                defaultOpen
-                summary={notesSummary}
-              >
-                {notesContent}
-              </CollapsibleWorkspaceSection>
-            ) : null}
-
-            {hasAttachments ? (
-              <CollapsibleWorkspaceSection
-                title="Attachments"
-                summary={attachmentsSummary}
-              >
-                {attachmentsContent}
-              </CollapsibleWorkspaceSection>
-            ) : null}
+            <CollapsibleWorkspaceSection
+              title="Notes & attachments"
+              meta="Reference"
+              defaultOpen
+              summary={notesSummary ?? attachmentsSummary}
+            >
+              <div className="divide-y divide-line py-1">
+                <div className="py-2">
+                  <p className="mb-1 px-3 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-fg-subtle">
+                    Customer notes
+                  </p>
+                  {hasNotes ? (
+                    notesContent
+                  ) : (
+                    <p className="px-3 pb-1 text-[12px] text-fg-subtle">
+                      No notes from the customer.
+                    </p>
+                  )}
+                </div>
+                <div className="py-2">
+                  <div className="mb-1.5 flex items-center justify-between gap-2 px-3">
+                    <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-fg-subtle">
+                      Attachments
+                    </p>
+                    <span className="font-mono text-[9.5px] uppercase tracking-[0.1em] text-fg-subtle">
+                      {attachmentsSummary ?? "From customer intake"}
+                    </span>
+                  </div>
+                  {hasAttachments ? (
+                    attachmentsContent
+                  ) : (
+                    <div className="mx-3 mb-1 rounded-md border-2 border-dashed border-line-strong px-3 py-5 text-center">
+                      <p className="text-[12px] font-semibold text-fg-muted">
+                        No attachments yet
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-fg-subtle">
+                        Files the customer uploads (BOL, photos, permits) appear here.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </CollapsibleWorkspaceSection>
           </div>
 
+          {/* MIDDLE — pricing */}
+          <div id="workspace-pricing" className="space-y-3">
+            <CollapsibleWorkspaceSection
+              title="Pricing"
+              defaultOpen={!pricingCollapsedByDefault}
+              summary={pricingSummary}
+            >
+              {pricingContent}
+            </CollapsibleWorkspaceSection>
+          </div>
+
+          {/* RIGHT — documents + activity (tabbed) */}
           <div id="workspace-business" className="space-y-3">
-            {hasBolBlocker ? (
-              <BolBlockerCard phase={bolBlockerPhase!} />
-            ) : null}
-
             <div id="workspace-documents">
-              <CollapsibleWorkspaceSection
-                title="Documents"
-                defaultOpen
-                summary={documentsSummary}
-              >
-                {documentsContent}
-              </CollapsibleWorkspaceSection>
-            </div>
-
-            <div id="workspace-pricing">
-              <CollapsibleWorkspaceSection
-                title="Pricing"
-                defaultOpen={!pricingCollapsedByDefault}
-                summary={pricingSummary}
-              >
-                {pricingContent}
-              </CollapsibleWorkspaceSection>
+              <DocumentsActivityTabs
+                documentsContent={documentsContent}
+                documentsSummary={documentsSummary}
+                activityContent={activityContent}
+                activitySummary={activitySummary}
+              />
             </div>
           </div>
-        </div>
-
-        <div className="mt-3">
-          <CollapsibleWorkspaceSection
-            title="Activity"
-            defaultOpen
-            summary={activitySummary}
-          >
-            {activityContent}
-          </CollapsibleWorkspaceSection>
         </div>
       </div>
     </div>

@@ -42,32 +42,32 @@ const VARIANT_CLASSES: Record<
   }
 > = {
   amber: {
-    box: "border-amber-700/70 border-l-[4px] border-l-amber-500 bg-amber-950/30",
-    eyebrow: "text-amber-400",
-    headline: "text-amber-50",
-    detail: "text-amber-100/80",
-    meta: "text-amber-100/70",
+    box: "border-amber-300 border-l-[4px] border-l-amber-500 bg-amber-50",
+    eyebrow: "text-amber-700",
+    headline: "text-amber-900",
+    detail: "text-amber-800",
+    meta: "text-amber-700",
   },
   blue: {
-    box: "border-blue-700/70 border-l-[4px] border-l-blue-500 bg-blue-950/30",
-    eyebrow: "text-blue-400",
-    headline: "text-blue-50",
-    detail: "text-blue-100/85",
-    meta: "text-blue-100/70",
+    box: "border-blue-300 border-l-[4px] border-l-blue-500 bg-blue-50",
+    eyebrow: "text-blue-700",
+    headline: "text-blue-900",
+    detail: "text-blue-800",
+    meta: "text-blue-700",
   },
   emerald: {
-    box: "border-emerald-700/70 border-l-[4px] border-l-emerald-500 bg-emerald-950/30",
-    eyebrow: "text-emerald-400",
-    headline: "text-emerald-50",
-    detail: "text-emerald-100/80",
-    meta: "text-emerald-100/70",
+    box: "border-emerald-300 border-l-[4px] border-l-emerald-500 bg-emerald-50",
+    eyebrow: "text-emerald-700",
+    headline: "text-emerald-900",
+    detail: "text-emerald-800",
+    meta: "text-emerald-700",
   },
   neutral: {
-    box: "border-zinc-700 border-l-[4px] border-l-zinc-500 bg-zinc-900/50",
-    eyebrow: "text-zinc-400",
-    headline: "text-zinc-100",
-    detail: "text-zinc-300",
-    meta: "text-zinc-400",
+    box: "border-line-strong border-l-[4px] border-l-line-strong bg-elevated",
+    eyebrow: "text-fg-subtle",
+    headline: "text-fg",
+    detail: "text-fg-muted",
+    meta: "text-fg-subtle",
   },
 };
 
@@ -86,45 +86,42 @@ export function StatusHero({
     <section
       role="status"
       aria-label="Current status"
-      className={
-        "rounded-md border px-4 py-4 text-center sm:px-5 sm:py-5 xl:px-6 xl:py-6 " + c.box
-      }
+      className={"border-t px-4 py-2.5 sm:px-5 " + c.box}
     >
-      <p
-        className={
-          "font-mono text-[9.5px] font-medium uppercase tracking-[0.28em] xl:text-[11px] " +
-          c.eyebrow
-        }
-      >
-        {eyebrow ?? "Current status"}
-      </p>
-      <h2
-        className={
-          "mt-2 text-[19px] font-medium leading-tight tracking-tight sm:text-[21px] xl:text-[26px] 2xl:text-[28px] " +
-          c.headline
-        }
-      >
-        {headline}
-      </h2>
-      {detailText ? (
-        <p className={"mt-1 text-[12px] sm:text-[12.5px] xl:text-[14px] " + c.detail}>
-          {detailText}
-        </p>
-      ) : null}
-      {metaText ? (
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <p
           className={
-            "mt-0.5 font-mono text-[10.5px] uppercase tracking-[0.12em] xl:text-[12px] " +
-            c.meta
+            "font-mono text-[9px] font-semibold uppercase tracking-[0.18em] xl:text-[10px] " +
+            c.eyebrow
           }
         >
-          {metaText}
+          {eyebrow ?? "Current status"}
         </p>
-      ) : null}
-      {actions ? (
-        <div className="mt-3 flex flex-wrap items-center justify-center gap-2">
-          {actions}
-        </div>
+        <h2
+          className={
+            "text-[15px] font-semibold leading-tight tracking-tight sm:text-[16px] " +
+            c.headline
+          }
+        >
+          {headline}
+        </h2>
+        {metaText ? (
+          <p
+            className={
+              "font-mono text-[10px] uppercase tracking-[0.12em] " + c.meta
+            }
+          >
+            &middot; {metaText}
+          </p>
+        ) : null}
+        {actions ? (
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            {actions}
+          </div>
+        ) : null}
+      </div>
+      {detailText ? (
+        <p className={"mt-0.5 text-[12px] " + c.detail}>{detailText}</p>
       ) : null}
     </section>
   );

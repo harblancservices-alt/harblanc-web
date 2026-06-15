@@ -1,0 +1,8 @@
+﻿FIXED 6 FILES:
+LoadsListTable.tsx
+DemoEmbeddedCheckout.tsx
+page.tsx
+BolBlockerCard.tsx
+PreviewModal.tsx
+DetailsTab.tsx
+DONE

@@ -20,7 +20,7 @@ import { useId, useState, type ReactNode } from "react";
  * compact at-a-glance info like "$3,200 finalized" or "3 sent · BOL
  * pending" so the operator can scan the section without expanding it.
  *
- * The body uses `bg-white text-black` so the legacy V3 tab content
+ * The body uses `bg-card text-fg` so the legacy V3 tab content
  * has the light surface it expects. Phase B will port the inner
  * components to dark and this default body bg can flip then.
  */
@@ -44,30 +44,30 @@ export function CollapsibleWorkspaceSection({
   const panelId = useId();
 
   return (
-    <section className="overflow-hidden rounded-md border border-zinc-800 bg-zinc-900/40">
+    <section className="overflow-hidden rounded-md border border-line bg-card shadow-md">
       <button
         type="button"
         aria-expanded={open}
         aria-controls={panelId}
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center justify-between gap-3 border-b border-zinc-800 bg-zinc-900/60 px-3 py-2 text-left transition-colors hover:bg-zinc-900/80"
+        className="flex w-full items-center justify-between gap-3 bg-bar px-3 py-2.5 text-left transition-colors hover:bg-[#2e313a]"
       >
         <div className="flex min-w-0 items-center gap-2">
           <Chevron open={open} />
           <div className="min-w-0">
-            <h2 className="font-mono text-[10px] font-medium uppercase tracking-[0.22em] text-zinc-200">
+            <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-bar-fg">
               {title}
             </h2>
             {meta ? (
-              <p className="mt-[2px] truncate font-mono text-[9px] text-zinc-500">
+              <p className="mt-[2px] truncate font-mono text-[10px] text-bar-fg/60">
                 {meta}
               </p>
             ) : null}
           </div>
         </div>
         {summary ? (
-          <div className="shrink-0 truncate text-right">
-            <span className="font-mono text-[10.5px] tabular-nums text-zinc-300">
+          <div className="min-w-0 flex-1 truncate text-center">
+            <span className="font-mono text-[15px] leading-none tabular-nums text-bar-fg/85">
               {summary}
             </span>
           </div>
@@ -77,7 +77,7 @@ export function CollapsibleWorkspaceSection({
         id={panelId}
         role="region"
         aria-hidden={!open}
-        className={open ? "bg-zinc-950 text-zinc-100" : "hidden"}
+        className={open ? "bg-card text-fg" : "hidden"}
       >
         {children}
       </div>
@@ -98,7 +98,7 @@ function Chevron({ open }: { open: boolean }) {
       strokeLinejoin="round"
       aria-hidden
       className={
-        "shrink-0 text-zinc-500 transition-transform " +
+        "shrink-0 text-bar-fg/70 transition-transform " +
         (open ? "rotate-90" : "")
       }
     >

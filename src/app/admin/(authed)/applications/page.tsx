@@ -52,22 +52,22 @@ export default async function ApplicationsPage() {
   const { rows, trashCount } = await loadApplications();
 
   return (
-    <div className="min-h-screen border-t border-zinc-800 bg-zinc-950 text-zinc-100">
-      <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-6 lg:px-8">
+    <div className="min-h-screen border-t border-line bg-canvas text-fg">
+      <div className="w-full px-4 py-5 sm:px-6 sm:py-6 lg:px-10">
         <header className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <p className="font-mono text-[9px] font-bold uppercase tracking-[0.24em] text-zinc-500">
+            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-indigo-600">
               Applications
             </p>
             <div className="mt-1 flex flex-wrap items-baseline gap-3">
-              <h1 className="text-[22px] font-semibold leading-none tracking-tight text-white tabular-nums">
+              <h1 className="text-[24px] font-semibold leading-none tracking-tight text-fg tabular-nums">
                 {rows.length} active
               </h1>
               {trashCount > 0 ? (
                 <Link
                   href="/admin/applications/trash"
                   prefetch={false}
-                  className="font-mono text-[11px] font-medium text-zinc-400 hover:text-zinc-200"
+                  className="font-mono text-[12px] font-medium text-fg-muted hover:text-fg"
                 >
                   {trashCount} in trash →
                 </Link>
@@ -78,7 +78,7 @@ export default async function ApplicationsPage() {
 
         <ApplicationsDarkTable rows={rows} />
 
-        <p className="mt-3 px-1 font-mono text-[10px] text-zinc-500">
+        <p className="mt-3 px-1 font-mono text-[12px] text-fg-subtle">
           Sorted by most recent. Click any row to open the application.
         </p>
       </div>

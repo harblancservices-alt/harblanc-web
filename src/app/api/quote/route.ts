@@ -44,6 +44,24 @@ type Body = {
 /** Minimum time between form-mount and submit. Anything faster is a bot. */
 const MIN_SUBMIT_MS = 2000;
 
+const RATE_WINDOW_MS = 10 * 60 * 1000;
+const RATE_MAX = 5;
+
+/** True when this IP has already submitted RATE_MAX+ quotes in the window. */
+async function tooManyFromIp(
+  sb: ReturnType<typeof createServiceRoleClient>,
+  ip: string | null,
+): Promise<boolean> {
+  if (!ip) return false;
+  const since = new Date(Date.now() - RATE_WINDOW_MS).toISOString();
+  const { count } = await sb
+    .from("quote_requests")
+    .select("id", { count: "exact", head: true })
+    .eq("ip", ip)
+    .gte("created_at", since);
+  return (count ?? 0) >= RATE_MAX;
+}
+
 const MAX_LEN = {
   pickupZip: 10,
   deliveryZip: 10,
@@ -227,6 +245,15 @@ export async function POST(req: Request) {
   const ip = forwarded.split(",")[0]?.trim() || null;
 
   const supabase = createServiceRoleClient();
+
+  // Per-IP rate limit: throttle bursts from a single source.
+  if (await tooManyFromIp(supabase, ip)) {
+    return NextResponse.json(
+      { error: "Too many submissions. Please try again later." },
+      { status: 429 },
+    );
+  }
+
   const { data, error } = await supabase
     .from("quote_requests")
     .insert({

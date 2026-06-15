@@ -1,22 +1,8 @@
 import type { Metadata } from "next";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { computeUrgency, type UrgencyChip } from "@/lib/dispatch/urgency";
-import type { LeadStatus } from "@/lib/dispatch/status";
-import {
-  formatLoadRate,
-  formatPlace,
-  mapToDisplayStatus,
-  type LoadDisplayStatus,
-} from "@/lib/dispatch/loads-view";
-import {
-  chipToActionVerb,
-  chipToProblemLabel,
-  compareAttentionRows,
-  pickCurrentLoad,
-  pickPrimaryChip,
-  recentAgeLabel,
-  type AttentionRow,
-} from "@/lib/dispatch/dashboard-view";
+import { recentAgeLabel } from "@/lib/dispatch/dashboard-view";
+import { lookupZip, estimateLaneMiles } from "@/lib/dispatch/distance";
+import { formatLoadRate } from "@/lib/dispatch/loads-view";
 import { DashboardView, type DashboardData } from "./DashboardView";
 
 export const metadata: Metadata = {
@@ -25,405 +11,301 @@ export const metadata: Metadata = {
 };
 
 /**
- * Owner Dashboard — v0.
+ * Owner Dashboard — opportunity inbox.
  *
- * Reuses the same urgency engine, status taxonomy, and rate format
- * helpers as the Loads page so attention semantics stay consistent
- * across the two views. This page does the data load + KPI math;
- * `DashboardView` is the dumb render layer.
- *
- * Net Revenue MTD is intentionally left null — we don't track
- * expenses yet, and the brief said no fake placeholder data.
- * `DashboardView` renders "—" in that slot until expenses land.
- *
- * AR Open is computed as the sum of `total_amount` on finalized
- * quotes whose lead is in `delivered` state (delivered but not yet
- * archived). This is an honest proxy — once an `invoices` table
- * exists, swap this for actual unpaid invoice totals.
+ * HARBLANC is a small operation, so the dashboard answers one question:
+ * "what quote requests do I have right now?" It shows incoming quote
+ * requests as compact cards (name + lane + mileage) with new ones
+ * flagged, and keeps job applications in their own separate area below.
+ * No KPI walls, no dense tables — just the live opportunities.
  */
 
-type LeadRowDB = {
+type LeadRow = {
   id: string;
   created_at: string;
-  name: string;
-  commodity: string;
-  weight: string;
-  lead_status: LeadStatus;
-  lead_status_updated_at: string | null;
+  name: string | null;
+  lead_status: string;
+  first_viewed_at: string | null;
+  commodity: string | null;
+  weight: string | number | null;
   pickup_city: string | null;
   pickup_state: string | null;
   pickup_zip: string | null;
-  pickup_date: string | null;
   delivery_city: string | null;
   delivery_state: string | null;
   delivery_zip: string | null;
-};
-
-type EstimateRow = {
-  id: string;
-  quote_request_id: string;
-  sent_at: string | null;
-  linehaul_low: number | null;
-  linehaul_high: number | null;
-};
-
-type FqRow = {
-  quote_request_id: string;
-  sent_at: string | null;
-  total_amount: number | null;
-};
-
-type BolRow = {
-  quote_request_id: string;
-  sent_at: string | null;
-};
-
-type IntakeRow = {
-  dispatch_estimate_id: string;
-  status: "in_progress" | "submitted";
-  created_at: string;
-  submitted_at: string | null;
+  calculated_miles: number | string | null;
 };
 
 type ApplicationRow = {
   id: string;
   created_at: string;
-  name: string;
+  name: string | null;
   equipment_type: string | null;
   cdl_status: string | null;
+  phone: string | null;
+  email: string | null;
+  years_experience: string | number | null;
+  home_base: string | null;
 };
 
-const TERMINAL_STATUSES: ReadonlySet<LoadDisplayStatus> = new Set([
-  "archived",
-  "cancelled",
-]);
+// Closed-out leads never appear on the pipeline.
+const CLOSED_STATUSES = new Set(["archived", "lost"]);
 
-const OPEN_QUOTE_STATUSES: ReadonlySet<LoadDisplayStatus> = new Set([
-  "quoted",
-]);
+type PipelineStage =
+  | "new"
+  | "quote"
+  | "quote_sent"
+  | "send_finalized"
+  | "awaiting_payment"
+  | "booked";
+
+// Which pipeline column a quote sits in:
+//   New              = never opened — hasn't been looked at yet
+//   Quote            = opened, but no range proposal sent yet (build/send it)
+//   Quote sent       = range proposal out, waiting on the customer to accept
+//   Send finalized   = customer accepted — send the finalized quote
+//   Awaiting payment = finalized quote sent, waiting on the deposit
+//   Booked           = paid and rolling (dispatch → delivered)
+function stageFor(status: string, viewed: boolean): PipelineStage {
+  if (status === "new" || status === "contacted") {
+    return viewed ? "quote" : "new";
+  }
+  if (status === "estimate_sent") return "quote_sent";
+  if (status === "awaiting_confirmation") return "send_finalized";
+  if (status === "booked" || status === "awaiting_payment") {
+    return "awaiting_payment";
+  }
+  return "booked";
+}
+
+function placeLabel(city: string | null, state: string | null): string {
+  const parts: string[] = [];
+  if (city && city.trim()) parts.push(city.trim());
+  if (state && state.trim()) parts.push(state.trim());
+  return parts.join(", ");
+}
+
+function coerceMiles(v: number | string | null): number | null {
+  if (v == null) return null;
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function formatWeight(v: string | number | null): string {
+  if (v == null) return "—";
+  const n = typeof v === "number" ? v : Number(v);
+  if (!Number.isFinite(n) || n <= 0) {
+    const s = String(v).trim();
+    return s || "—";
+  }
+  return Math.round(n).toLocaleString() + " lbs";
+}
+
+// "Fri, Jun 13, 2026" — full date shown alongside the age on each card.
+function fullDate(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
 
 async function loadDashboard(): Promise<DashboardData> {
   const sb = createServiceRoleClient();
   const now = new Date();
-  const monthStart = new Date(
-    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0),
-  ).toISOString();
 
-  // 1. Leads + applications in parallel.
-  const [
-    { data: leadRows },
-    { data: appsRows },
-  ] = await Promise.all([
+  const [{ data: leadRows }, { data: appRows }] = await Promise.all([
     sb
       .from("quote_requests")
       .select(
-        "id, created_at, name, commodity, weight, lead_status, lead_status_updated_at, pickup_city, pickup_state, pickup_zip, pickup_date, delivery_city, delivery_state, delivery_zip",
+        "id, created_at, name, lead_status, first_viewed_at, commodity, weight, pickup_city, pickup_state, pickup_zip, delivery_city, delivery_state, delivery_zip, calculated_miles",
       )
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
-      .returns<LeadRowDB[]>(),
+      .limit(60)
+      .returns<LeadRow[]>(),
     sb
       .from("applications")
-      .select("id, created_at, name, equipment_type, cdl_status")
+      .select(
+        "id, created_at, name, equipment_type, cdl_status, phone, email, years_experience, home_base",
+      )
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
-      .limit(4)
+      .limit(8)
       .returns<ApplicationRow[]>(),
   ]);
 
-  const leads = leadRows ?? [];
-  const apps = appsRows ?? [];
-  const leadIds = leads.map((l) => l.id);
+  const openLeads = (leadRows ?? []).filter(
+    (l) => !CLOSED_STATUSES.has(l.lead_status),
+  );
 
-  // 2. Artifact aggregations.
-  let estimates: EstimateRow[] = [];
-  let fqs: FqRow[] = [];
-  let bols: BolRow[] = [];
-  let intakes: IntakeRow[] = [];
-
-  if (leadIds.length > 0) {
-    const [
-      { data: e },
-      { data: f },
-      { data: b },
-    ] = await Promise.all([
-      sb
-        .from("dispatch_estimates")
-        .select("id, quote_request_id, sent_at, linehaul_low, linehaul_high")
-        .in("quote_request_id", leadIds)
-        .order("sent_at", { ascending: false, nullsFirst: false })
-        .returns<EstimateRow[]>(),
-      sb
-        .from("finalized_quotes")
-        .select("quote_request_id, sent_at, total_amount")
-        .in("quote_request_id", leadIds)
-        .order("sent_at", { ascending: false, nullsFirst: false })
-        .returns<FqRow[]>(),
-      sb
-        .from("bills_of_lading")
-        .select("quote_request_id, sent_at")
-        .in("quote_request_id", leadIds)
-        .not("sent_at", "is", null)
-        .order("sent_at", { ascending: false })
-        .returns<BolRow[]>(),
-    ]);
-    estimates = e ?? [];
-    fqs = f ?? [];
-    bols = b ?? [];
-
-    const estimateIds = estimates.map((row) => row.id);
-    if (estimateIds.length > 0) {
-      const { data: ir } = await sb
-        .from("shipment_intake")
-        .select("dispatch_estimate_id, status, created_at, submitted_at")
-        .in("dispatch_estimate_id", estimateIds)
-        .returns<IntakeRow[]>();
-      intakes = ir ?? [];
-    }
-  }
-
-  // 3. Per-lead lookups (latest-of-each).
+  // Latest sent estimate per open lead — drives the 24h follow-up flag and
+  // the 48h "expired" flag (expiration_at is the quote's validity window;
+  // accepted_at tells us the customer already took it, so it can't expire).
   const latestEstSent = new Map<string, string>();
+  const latestEstExpires = new Map<string, string | null>();
+  const latestEstAccepted = new Map<string, string | null>();
   const latestEstLow = new Map<string, number | null>();
   const latestEstHigh = new Map<string, number | null>();
-  const estIdToLead = new Map<string, string>();
-  for (const e of estimates) {
-    estIdToLead.set(e.id, e.quote_request_id);
-    if (!latestEstSent.has(e.quote_request_id)) {
-      if (e.sent_at) latestEstSent.set(e.quote_request_id, e.sent_at);
-      latestEstLow.set(e.quote_request_id, e.linehaul_low ?? null);
-      latestEstHigh.set(e.quote_request_id, e.linehaul_high ?? null);
+  const openIds = openLeads.map((l) => l.id);
+  if (openIds.length > 0) {
+    const { data: estRows } = await sb
+      .from("dispatch_estimates")
+      .select(
+        "quote_request_id, sent_at, expiration_at, accepted_at, linehaul_low, linehaul_high",
+      )
+      .in("quote_request_id", openIds)
+      .not("sent_at", "is", null)
+      .order("sent_at", { ascending: false })
+      .returns<
+        {
+          quote_request_id: string;
+          sent_at: string | null;
+          expiration_at: string | null;
+          accepted_at: string | null;
+          linehaul_low: number | null;
+          linehaul_high: number | null;
+        }[]
+      >();
+    for (const e of estRows ?? []) {
+      if (e.sent_at && !latestEstSent.has(e.quote_request_id)) {
+        latestEstSent.set(e.quote_request_id, e.sent_at);
+        latestEstExpires.set(e.quote_request_id, e.expiration_at);
+        latestEstAccepted.set(e.quote_request_id, e.accepted_at);
+        latestEstLow.set(e.quote_request_id, e.linehaul_low ?? null);
+        latestEstHigh.set(e.quote_request_id, e.linehaul_high ?? null);
+      }
     }
   }
 
-  const latestFqSent = new Map<string, string>();
-  const latestFqTotal = new Map<string, number | null>();
-  for (const r of fqs) {
-    if (!latestFqSent.has(r.quote_request_id)) {
-      if (r.sent_at) latestFqSent.set(r.quote_request_id, r.sent_at);
-      latestFqTotal.set(r.quote_request_id, r.total_amount ?? null);
+  // Latest finalized-quote total per lead — the confirmed price shown on the
+  // money-stage cards (Awaiting payment / Booked).
+  const latestFqTotal = new Map<string, number>();
+  if (openIds.length > 0) {
+    const { data: fqRows } = await sb
+      .from("finalized_quotes")
+      .select("quote_request_id, total_amount, sent_at")
+      .in("quote_request_id", openIds)
+      .not("sent_at", "is", null)
+      .order("sent_at", { ascending: false })
+      .returns<
+        {
+          quote_request_id: string;
+          total_amount: number | string | null;
+          sent_at: string | null;
+        }[]
+      >();
+    for (const f of fqRows ?? []) {
+      if (latestFqTotal.has(f.quote_request_id)) continue;
+      const t = f.total_amount == null ? null : Number(f.total_amount);
+      if (t != null && Number.isFinite(t)) latestFqTotal.set(f.quote_request_id, t);
     }
   }
 
-  const latestBolSent = new Map<string, string>();
-  for (const r of bols) {
-    if (r.sent_at && !latestBolSent.has(r.quote_request_id)) {
-      latestBolSent.set(r.quote_request_id, r.sent_at);
-    }
-  }
+  const FOLLOWUP_MS = 24 * 60 * 60 * 1000;
 
-  const intakeStarted = new Map<string, string>();
-  const intakeSubmitted = new Map<string, string>();
-  for (const r of intakes) {
-    const leadId = estIdToLead.get(r.dispatch_estimate_id);
-    if (!leadId) continue;
-    if (!intakeStarted.has(leadId)) {
-      intakeStarted.set(leadId, r.created_at);
-    }
-    if (r.submitted_at && !intakeSubmitted.has(leadId)) {
-      intakeSubmitted.set(leadId, r.submitted_at);
-    }
-  }
+  const quoteRequests = openLeads.slice(0, 24).map((l) => {
+    const oZip = l.pickup_zip?.trim() ?? "";
+    const dZip = l.delivery_zip?.trim() ?? "";
+    // City/state and lane miles are derived from the ZIP via the
+    // `zipcodes` dataset (same source the load-detail page uses) because
+    // the quote_requests columns aren't populated. Fall back to any
+    // stored value, then to blank.
+    const oLook = oZip ? lookupZip(oZip) : null;
+    const dLook = dZip ? lookupZip(dZip) : null;
+    const lane = oZip && dZip ? estimateLaneMiles(oZip, dZip) : null;
+    const miles = lane && lane.ok ? lane.miles : coerceMiles(l.calculated_miles);
 
-  // 4. Enrich each lead with urgency chips + display status.
-  type EnrichedLead = {
-    lead: LeadRowDB;
-    displayStatus: LoadDisplayStatus;
-    chips: UrgencyChip[];
-    rate: number | null;
-    rateDisplay: string | null;
-    laneLabel: string;
-  };
-  const enriched: EnrichedLead[] = leads.map((lead) => {
-    const chips = computeUrgency({
-      leadStatus: lead.lead_status,
-      createdAt: lead.created_at,
-      latestEstimateSentAt: latestEstSent.get(lead.id) ?? null,
-      intakeStartedAt: intakeStarted.get(lead.id) ?? null,
-      intakeSubmittedAt: intakeSubmitted.get(lead.id) ?? null,
-      latestFinalizedSentAt: latestFqSent.get(lead.id) ?? null,
-      latestBolSentAt: latestBolSent.get(lead.id) ?? null,
-      leadStatusUpdatedAt: lead.lead_status_updated_at,
-      now,
+    const stage = stageFor(l.lead_status, l.first_viewed_at != null);
+
+    // Status colour, simplest rules (highest priority first):
+    //   expired = quote sent, its 48h validity lapsed, never accepted (dead)
+    //   unseen  = never opened by the owner (first_viewed_at is null)
+    //   followup = opened, estimate sent 24h+ ago and still in play
+    //   ok      = everything else
+    const sentAt = latestEstSent.get(l.id);
+    const expiresAt = latestEstExpires.get(l.id) ?? null;
+    const acceptedAt = latestEstAccepted.get(l.id) ?? null;
+    const needsFollowUp =
+      sentAt != null && now.getTime() - new Date(sentAt).getTime() >= FOLLOWUP_MS;
+    const isExpired =
+      stage === "quote_sent" &&
+      acceptedAt == null &&
+      expiresAt != null &&
+      now.getTime() > new Date(expiresAt).getTime();
+
+    const status: "unseen" | "followup" | "expired" | "ok" = isExpired
+      ? "expired"
+      : l.first_viewed_at == null
+        ? "unseen"
+        : needsFollowUp
+          ? "followup"
+          : "ok";
+
+    const priceDisplay = formatLoadRate({
+      finalizedTotal: latestFqTotal.get(l.id) ?? null,
+      estimateLow: latestEstLow.get(l.id) ?? null,
+      estimateHigh: latestEstHigh.get(l.id) ?? null,
     });
-    const rateDisplay = formatLoadRate({
-      finalizedTotal: latestFqTotal.get(lead.id) ?? null,
-      estimateLow: latestEstLow.get(lead.id) ?? null,
-      estimateHigh: latestEstHigh.get(lead.id) ?? null,
-    });
-    const pickup =
-      formatPlace(lead.pickup_city, lead.pickup_state, lead.pickup_zip) ?? "";
-    const delivery =
-      formatPlace(
-        lead.delivery_city,
-        lead.delivery_state,
-        lead.delivery_zip,
-      ) ?? "";
-    const laneLabel =
-      pickup && delivery ? pickup + " → " + delivery : pickup || delivery || "Lane TBD";
 
     return {
-      lead,
-      displayStatus: mapToDisplayStatus(lead.lead_status),
-      chips,
-      rate: latestFqTotal.get(lead.id) ?? latestEstLow.get(lead.id) ?? null,
-      rateDisplay,
-      laneLabel,
+      leadId: l.id,
+      name: l.name?.trim() || "Unnamed request",
+      ageLabel: recentAgeLabel(l.created_at, now),
+      dateLabel: fullDate(l.created_at),
+      status,
+      stage,
+      commodity: l.commodity?.trim() || "—",
+      weight: formatWeight(l.weight),
+      priceDisplay,
+      originZip: oZip || "—",
+      originPlace:
+        (oLook ? placeLabel(oLook.city, oLook.state) : "") ||
+        placeLabel(l.pickup_city, l.pickup_state),
+      destZip: dZip || "—",
+      destPlace:
+        (dLook ? placeLabel(dLook.city, dLook.state) : "") ||
+        placeLabel(l.delivery_city, l.delivery_state),
+      miles,
     };
   });
 
-  // 5. KPIs.
-  let grossMtd = 0;
-  for (const f of fqs) {
-    if (f.sent_at && f.sent_at >= monthStart && f.total_amount != null) {
-      grossMtd += f.total_amount;
+  const applications = (appRows ?? []).map((a) => {
+    const yrs =
+      typeof a.years_experience === "number"
+        ? String(a.years_experience)
+        : (a.years_experience ?? "").toString().trim();
+    // Home base will be entered as a ZIP later; show it as City, State when
+    // it parses as a ZIP, otherwise show whatever's stored.
+    const hb = a.home_base?.trim() || "";
+    let homeBase = hb || "—";
+    if (/^\d{5}(-\d{4})?$/.test(hb)) {
+      const z = lookupZip(hb);
+      if (z) homeBase = placeLabel(z.city, z.state) || hb;
     }
-  }
-  const activeLoads = enriched.filter(
-    (e) => !TERMINAL_STATUSES.has(e.displayStatus),
-  ).length;
-  const openQuotes = enriched.filter(
-    (e) => OPEN_QUOTE_STATUSES.has(e.displayStatus),
-  ).length;
-  const arOpen = enriched
-    .filter((e) => e.displayStatus === "delivered")
-    .reduce((sum, e) => sum + (e.rate ?? 0), 0);
-  const applicationsCount = apps.length;
+    return {
+      id: a.id,
+      name: a.name?.trim() || "Applicant",
+      equipment: a.equipment_type?.trim() || a.cdl_status?.trim() || "—",
+      experience: yrs ? yrs + "y" : "—",
+      phone: a.phone?.trim() || "—",
+      email: a.email?.trim() || "—",
+      homeBase,
+      ageLabel: recentAgeLabel(a.created_at, now),
+      dateLabel: fullDate(a.created_at),
+    };
+  });
 
-  // 6. Attention rows — collapsed by lead.
-  const attentionRows: AttentionRow[] = [];
-  for (const e of enriched) {
-    if (e.chips.length === 0) continue;
-    const primary = pickPrimaryChip(e.chips);
-    const flagLabels = e.chips.map((c) => chipToProblemLabel(c.kind));
-    attentionRows.push({
-      leadId: e.lead.id,
-      problemLabel: chipToProblemLabel(primary.kind),
-      severity: primary.severity,
-      ageSubtitle: primary.label,
-      flagLabels,
-      customerName: e.lead.name,
-      laneLabel: e.laneLabel,
-      rateDisplay: e.rateDisplay,
-      actionVerb: chipToActionVerb(primary.kind),
-    });
-  }
-  attentionRows.sort(compareAttentionRows);
-  const attentionTotal = attentionRows.length;
-  const attentionTopFive = attentionRows.slice(0, 5);
+  // Expired quotes drop off the forward pipeline into their own section.
+  const pipelineQuotes = quoteRequests.filter((q) => q.status !== "expired");
+  const expiredQuotes = quoteRequests.filter((q) => q.status === "expired");
 
-  // 7. Current load.
-  const currentLoadPick = pickCurrentLoad(
-    enriched.map((e) => ({
-      leadId: e.lead.id,
-      displayStatus: e.displayStatus,
-      leadStatusUpdatedAt: e.lead.lead_status_updated_at,
-      createdAt: e.lead.created_at,
-    })),
-  );
-  const currentLoadEnriched = currentLoadPick
-    ? enriched.find((e) => e.lead.id === currentLoadPick.leadId) ?? null
-    : null;
-  const currentLoad = currentLoadEnriched
-    ? {
-        leadId: currentLoadEnriched.lead.id,
-        laneLabel: currentLoadEnriched.laneLabel,
-        customerName: currentLoadEnriched.lead.name,
-        rateDisplay: currentLoadEnriched.rateDisplay,
-        displayStatus: currentLoadEnriched.displayStatus,
-        pickupDate: currentLoadEnriched.lead.pickup_date,
-        nextActionVerb: chipToActionVerb(
-          currentLoadEnriched.chips.length > 0
-            ? pickPrimaryChip(currentLoadEnriched.chips).kind
-            : fallbackVerbKind(currentLoadEnriched.displayStatus),
-        ),
-      }
-    : null;
-
-  // 8. Recent quotes — newest 4.
-  const recentQuotes = enriched.slice(0, 4).map((e) => ({
-    leadId: e.lead.id,
-    ageLabel: recentAgeLabel(e.lead.created_at, now),
-    customerName: e.lead.name,
-    laneLabel: e.laneLabel,
-    rateDisplay: e.rateDisplay,
-    displayStatus: e.displayStatus,
-  }));
-
-  // 9. Recent applications — already limited to 4 in the query.
-  const recentApplications = apps.map((a) => ({
-    id: a.id,
-    ageLabel: recentAgeLabel(a.created_at, now),
-    name: a.name,
-    role: pickApplicantRole(a),
-  }));
-
-  return {
-    monthLabel: formatMonthLabel(now),
-    kpis: {
-      grossMtd,
-      netMtd: null,
-      activeLoads,
-      openQuotes,
-      arOpen,
-      applications: applicationsCount,
-    },
-    attentionRows: attentionTopFive,
-    attentionTotal,
-    currentLoad,
-    recentQuotes,
-    recentApplications,
-  };
-}
-
-function fallbackVerbKind(
-  status: LoadDisplayStatus,
-): UrgencyChip["kind"] {
-  switch (status) {
-    case "scheduled":
-    case "booked":
-      return "dispatched_no_pickup";
-    case "at_pickup":
-      return "dispatched_no_pickup";
-    case "in_transit":
-      return "in_transit_stale";
-    case "delivered":
-      return "delivered_unconfirmed";
-    case "quoted":
-      return "stale_estimate";
-    case "archived":
-    case "cancelled":
-      return "new_lead_stale";
-  }
-}
-
-function pickApplicantRole(row: ApplicationRow): string {
-  if (row.equipment_type && row.equipment_type.trim().length > 0) {
-    return row.equipment_type;
-  }
-  if (row.cdl_status && row.cdl_status.trim().length > 0) {
-    return "Driver · " + row.cdl_status;
-  }
-  return "Applicant";
-}
-
-const MONTHS = [
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
-
-function formatMonthLabel(d: Date): string {
-  return MONTHS[d.getUTCMonth()]! + " " + d.getUTCFullYear();
+  return { quoteRequests: pipelineQuotes, expiredQuotes, applications };
 }
 
 export default async function DashboardPage() {

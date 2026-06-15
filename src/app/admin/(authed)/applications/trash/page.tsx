@@ -53,14 +53,14 @@ export default async function ApplicationsTrashPage() {
       {/* L1: Page identity — mirrors Quotes Trash 6.5 exactly. */}
       <header className="flex flex-wrap items-end justify-between gap-4 pb-5 sm:pb-6">
         <div>
-          <p className="font-mono text-[10.5px] font-bold uppercase tracking-[0.28em] text-black">
+          <p className="font-mono text-[10.5px] font-bold uppercase tracking-[0.28em] text-fg">
             Trash
           </p>
-          <h1 className="mt-1 text-[30px] font-bold leading-none tracking-tight text-black sm:text-[36px] lg:text-[40px]">
+          <h1 className="mt-1 text-[30px] font-bold leading-none tracking-tight text-fg sm:text-[36px] lg:text-[40px]">
             Trashed applications
           </h1>
         </div>
-        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-black text-right leading-snug">
+        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-fg text-right leading-snug">
           {rows.length} trashed
           <br />
           {activeCount} active
@@ -70,12 +70,12 @@ export default async function ApplicationsTrashPage() {
       {/* L2: Retention strip — single compact cream line. */}
       <section
         aria-label="Retention policy"
-        className="mb-4 flex items-baseline gap-3 border-l-[3px] border-black bg-[#fafaf6] px-4 py-2.5 sm:gap-4 sm:px-5"
+        className="mb-4 flex items-baseline gap-3 border-l-[3px] border-line bg-[#fafaf6] px-4 py-2.5 sm:gap-4 sm:px-5"
       >
-        <p className="shrink-0 font-mono text-[10.5px] font-bold uppercase tracking-[0.22em] text-black">
+        <p className="shrink-0 font-mono text-[10.5px] font-bold uppercase tracking-[0.22em] text-fg">
           Retention
         </p>
-        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-black/70">
+        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-fg-muted">
           Recoverable for 30 days · Auto-removed after expiration
         </p>
       </section>
@@ -97,7 +97,7 @@ export default async function ApplicationsTrashPage() {
       />
 
       {rows.length === 0 ? (
-        <p className="mt-12 font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-black/55">
+        <p className="mt-12 font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-fg-subtle">
           Trash is empty.
         </p>
       ) : (

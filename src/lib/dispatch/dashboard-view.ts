@@ -23,7 +23,7 @@ import { mapToDisplayStatus, type LoadDisplayStatus } from "./loads-view";
 export function chipToProblemLabel(kind: UrgencyChipKind): string {
   switch (kind) {
     case "new_lead_stale":
-      return "Lead untouched";
+      return "New quote";
     case "stale_estimate":
       return "Quote follow-up";
     case "intake_in_progress":
@@ -48,7 +48,7 @@ export function chipToProblemLabel(kind: UrgencyChipKind): string {
 export function chipToActionVerb(kind: UrgencyChipKind): string {
   switch (kind) {
     case "new_lead_stale":
-      return "Reach out";
+      return "Send estimate";
     case "stale_estimate":
       return "Follow up";
     case "intake_in_progress":
@@ -84,15 +84,18 @@ export function chipKindPriority(kind: UrgencyChipKind): number {
       return 1;
     case "ready_to_dispatch_long":
       return 2;
-    case "delivered_unconfirmed":
-      return 3;
-    case "awaiting_payment_long":
-      return 4;
-    case "intake_in_progress":
-      return 5;
-    case "stale_estimate":
-      return 6;
+    // A brand-new quote awaiting its first response ranks just below the
+    // live-truck issues and above all back-office hygiene — respond fast
+    // or lose the freight.
     case "new_lead_stale":
+      return 3;
+    case "delivered_unconfirmed":
+      return 4;
+    case "awaiting_payment_long":
+      return 5;
+    case "intake_in_progress":
+      return 6;
+    case "stale_estimate":
       return 7;
   }
 }

@@ -49,20 +49,20 @@ export function BolBlockerCard({ phase }: { phase: BolBlockerPhase }) {
     <section
       role="alert"
       aria-label="BOL status"
-      className="rounded-md border border-amber-700/70 border-l-[4px] border-l-amber-500 bg-amber-950/20 px-3 py-2.5"
+      className="rounded-md border border-amber-300/70 border-l-[4px] border-l-amber-500 bg-amber-50 px-3 py-2.5"
     >
       <div className="flex items-center gap-2">
         <AlertTriangle />
-        <span className="font-mono text-[10.5px] font-medium uppercase tracking-[0.22em] text-amber-300">
+        <span className="font-mono text-[10.5px] font-medium uppercase tracking-[0.22em] text-amber-700">
           {headline}
         </span>
       </div>
-      <p className="mt-1 text-[11.5px] leading-relaxed text-amber-100/80">
+      <p className="mt-1 text-[11.5px] leading-relaxed text-amber-800">
         {body}
       </p>
       <a
         href="#workspace-documents"
-        className="mt-1.5 inline-block font-mono text-[9.5px] font-medium uppercase tracking-[0.16em] text-amber-300 transition-colors hover:text-amber-200"
+        className="mt-1.5 inline-block font-mono text-[9.5px] font-medium uppercase tracking-[0.16em] text-amber-700 transition-colors hover:text-amber-700"
       >
         {ctaLabel}
       </a>
@@ -82,7 +82,7 @@ function AlertTriangle() {
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
-      className="shrink-0 text-amber-400"
+      className="shrink-0 text-amber-600"
     >
       <path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z" />
       <path d="M12 9v4" />

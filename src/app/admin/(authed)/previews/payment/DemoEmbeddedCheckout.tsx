@@ -28,7 +28,7 @@ export function DemoEmbeddedCheckout({
 }) {
   if (!stripePromise) {
     return (
-      <div className="border border-amber-700 bg-amber-900/20 px-4 py-3 font-mono text-[11px] text-amber-200">
+      <div className="border border-amber-300 bg-amber-100 px-4 py-3 font-mono text-[11px] text-amber-700">
         NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY not configured. Stripe
         Elements cannot mount in the browser.
       </div>
@@ -85,19 +85,19 @@ function DemoPaymentForm() {
       <button
         type="submit"
         disabled={!stripe || !elements || submitting}
-        className="mt-5 inline-flex w-full items-center justify-center gap-2 border-0 bg-black px-5 py-3.5 font-mono text-[13px] font-bold uppercase tracking-[0.16em] text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
+        className="mt-5 inline-flex w-full items-center justify-center gap-2 border-0 bg-canvas px-5 py-3.5 font-mono text-[13px] font-bold uppercase tracking-[0.16em] text-fg transition-colors hover:bg-elevated disabled:cursor-not-allowed disabled:opacity-70 sm:w-auto"
       >
         {submitting ? "Processing payment..." : "Pay $3,050.00 \u2192"}
       </button>
       {formError ? (
         <p
           role="alert"
-          className="mt-3 font-mono text-[11px] uppercase tracking-[0.14em] text-red-400"
+          className="mt-3 font-mono text-[11px] uppercase tracking-[0.14em] text-red-600"
         >
           {formError}
         </p>
       ) : null}
-      <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.18em] text-zinc-500">
+      <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.18em] text-fg-subtle">
         Sandbox demo &middot; test card 4242 4242 4242 4242
       </p>
     </form>

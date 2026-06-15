@@ -65,7 +65,7 @@ export function EmailComparisonLab({ emails }: { emails: EmailItem[] }) {
   return (
     <div className="flex min-h-screen flex-col bg-zinc-200">
       {/* ── Header bar ─────────────────────────────────────────────── */}
-      <header className="border-b border-zinc-300 bg-white px-6 py-4">
+      <header className="border-b border-zinc-300 bg-card px-6 py-4">
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="font-mono text-[11px] font-bold uppercase tracking-[0.28em] text-red-600">
@@ -74,7 +74,7 @@ export function EmailComparisonLab({ emails }: { emails: EmailItem[] }) {
             <h1 className="mt-1 font-display text-2xl font-black uppercase tracking-tight text-zinc-900">
               Email uniformity lab
             </h1>
-            <p className="mt-1 text-sm text-zinc-600">
+            <p className="mt-1 text-sm text-fg-subtle">
               All {emails.length} email templates rendered at their native
               600&nbsp;px width, side by side. Iterate on shell, typography,
               CTAs, and spacing here, then jump to{" "}
@@ -89,7 +89,7 @@ export function EmailComparisonLab({ emails }: { emails: EmailItem[] }) {
           </div>
           <Link
             href="/admin/previews"
-            className="shrink-0 rounded-sm bg-zinc-900 px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-white transition-colors hover:bg-zinc-800"
+            className="shrink-0 rounded-sm bg-card px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-fg transition-colors hover:bg-elevated"
           >
             &larr; Standard previews
           </Link>
@@ -131,7 +131,7 @@ export function EmailComparisonLab({ emails }: { emails: EmailItem[] }) {
                     <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-zinc-700">
                       {email.title}
                     </p>
-                    <p className="font-mono text-[11px] text-zinc-500">
+                    <p className="font-mono text-[11px] text-fg-subtle">
                       Subject &middot; {email.subject}
                     </p>
                   </div>

@@ -246,12 +246,12 @@ function MetadataStrip({
   return (
     <p
       aria-label="Quote summary"
-      className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-black sm:text-[12px]"
+      className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-fg sm:text-[12px]"
     >
       {tokens.map((t, i) => (
         <span key={i} className="flex items-center gap-x-2">
           {i > 0 ? (
-            <span aria-hidden className="text-black/40">
+            <span aria-hidden className="text-fg/40">
               ·
             </span>
           ) : null}
@@ -276,20 +276,20 @@ function AlertBanner({
   return (
     <section
       aria-label="Action required"
-      className="flex items-center gap-3 border-2 border-black border-l-4 border-l-black bg-red-700 px-4 py-3 text-white sm:gap-4 sm:px-5"
+      className="flex items-center gap-3 border-2 border-line border-l-4 border-l-black bg-red-700 px-4 py-3 text-white sm:gap-4 sm:px-5"
     >
       <span
         aria-hidden
-        className="inline-block h-[14px] w-1 shrink-0 bg-white"
+        className="inline-block h-[14px] w-1 shrink-0 bg-card"
       />
       <div className="min-w-0 flex-1">
-        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-white sm:text-[12px]">
+        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-fg sm:text-[12px]">
           Action required
         </p>
-        <p className="mt-0.5 text-[13px] font-bold text-white sm:text-[14px]">
+        <p className="mt-0.5 text-[13px] font-bold text-fg sm:text-[14px]">
           {headline}
         </p>
-        <p className="mt-0.5 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-white/80">
+        <p className="mt-0.5 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-fg/80">
           Received {receivedRelative}
         </p>
       </div>
@@ -321,12 +321,12 @@ function CustomerCard({
   return (
     <section
       aria-label="Customer"
-      className="border-2 border-black border-l-4 border-l-black bg-[#fafaf6] px-5 py-5 sm:px-6 sm:py-6"
+      className="border-2 border-line border-l-4 border-l-black bg-[#fafaf6] px-5 py-5 sm:px-6 sm:py-6"
     >
-      <p className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-black">
+      <p className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-fg">
         Customer
       </p>
-      <p className="mt-1.5 text-[22px] font-bold leading-tight text-black sm:text-[24px]">
+      <p className="mt-1.5 text-[22px] font-bold leading-tight text-fg sm:text-[24px]">
         {hasName ? name : "—"}
       </p>
 
@@ -335,7 +335,7 @@ function CustomerCard({
           <a
             href={phoneHref}
             aria-label={`Call ${name || "customer"}`}
-            className="flex w-full items-center justify-center border-2 border-black bg-white px-3 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.16em] text-black transition-colors hover:bg-[#f3f1e9]"
+            className="flex w-full items-center justify-center border-2 border-line bg-card px-3 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.16em] text-fg transition-colors hover:bg-[#f3f1e9]"
           >
             <span aria-hidden className="mr-2">
               &#9742;
@@ -347,7 +347,7 @@ function CustomerCard({
           <a
             href={emailHref}
             aria-label={`Draft email to ${name || "customer"}`}
-            className="flex w-full items-center justify-center border-2 border-black bg-white px-3 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.16em] text-black transition-colors hover:bg-[#f3f1e9]"
+            className="flex w-full items-center justify-center border-2 border-line bg-card px-3 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.16em] text-fg transition-colors hover:bg-[#f3f1e9]"
           >
             <span aria-hidden className="mr-2">
               &#9993;
@@ -374,22 +374,22 @@ function ContextBlock({
   const hasNotes = notes != null && notes.trim().length > 0;
 
   return (
-    <section aria-label="Context" className="border-t border-black/15 pt-3">
-      <p className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-black">
+    <section aria-label="Context" className="border-t border-line pt-3">
+      <p className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-fg">
         Context
       </p>
 
       {/* Notes row */}
       <div className="mt-2 grid grid-cols-[60px_minmax(0,1fr)] items-baseline gap-x-3">
-        <p className="font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-black/60">
+        <p className="font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-fg-subtle">
           Notes
         </p>
         {hasNotes ? (
-          <p className="whitespace-pre-wrap text-[13px] leading-snug text-black">
+          <p className="whitespace-pre-wrap text-[13px] leading-snug text-fg">
             {notes}
           </p>
         ) : (
-          <p className="text-[13px] leading-snug text-black/50">
+          <p className="text-[13px] leading-snug text-fg-subtle">
             No customer notes
           </p>
         )}
@@ -397,11 +397,11 @@ function ContextBlock({
 
       {/* Files row */}
       <div className="mt-1.5 grid grid-cols-[60px_minmax(0,1fr)] items-baseline gap-x-3">
-        <p className="font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-black/60">
+        <p className="font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-fg-subtle">
           Files
         </p>
         {uploads.length === 0 ? (
-          <p className="text-[13px] leading-snug text-black/50">
+          <p className="text-[13px] leading-snug text-fg-subtle">
             No customer documents uploaded
           </p>
         ) : (
@@ -411,10 +411,10 @@ function ContextBlock({
               const typeBadge = isImg ? "IMG" : "PDF";
               return (
                 <li key={u.id} className="flex items-baseline gap-2">
-                  <span className="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-black/50">
+                  <span className="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-fg-subtle">
                     {typeBadge}
                   </span>
-                  <span className="min-w-0 flex-1 truncate text-[13px] text-black">
+                  <span className="min-w-0 flex-1 truncate text-[13px] text-fg">
                     {u.originalFilename}
                   </span>
                   {u.signedUrl ? (
@@ -423,7 +423,7 @@ function ContextBlock({
                       target="_blank"
                       rel="noopener noreferrer"
                       aria-label={`Open ${u.originalFilename} in a new tab`}
-                      className="shrink-0 font-mono text-[10.5px] font-bold uppercase tracking-[0.12em] text-black/70 hover:text-black hover:underline"
+                      className="shrink-0 font-mono text-[10.5px] font-bold uppercase tracking-[0.12em] text-fg-muted hover:text-fg hover:underline"
                     >
                       Open &nearr;
                     </a>
@@ -458,21 +458,21 @@ function ActivityBlock({
   return (
     <section
       aria-label="Recent activity"
-      className="border-t border-black/15 pt-3"
+      className="border-t border-line pt-3"
     >
       <div className="flex items-baseline justify-between gap-3">
-        <p className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-black">
+        <p className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-fg">
           Recent activity
         </p>
         {hasMore && !showAll ? (
-          <p className="font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-black/50">
+          <p className="font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-fg-subtle">
             Top 3 of {events.length}
           </p>
         ) : null}
       </div>
 
       {events.length === 0 ? (
-        <p className="mt-2 text-[13px] leading-snug text-black/50">
+        <p className="mt-2 text-[13px] leading-snug text-fg-subtle">
           No events yet
         </p>
       ) : (
@@ -497,31 +497,31 @@ function ActivityBlock({
                   className="grid grid-cols-[60px_minmax(0,1fr)_auto] items-start gap-x-3 py-1.5 sm:grid-cols-[72px_minmax(0,1fr)_auto_auto] sm:gap-x-4"
                 >
                   <span
-                    className="flex flex-col font-mono text-[11px] tabular-nums leading-tight text-black/70"
+                    className="flex flex-col font-mono text-[11px] tabular-nums leading-tight text-fg-muted"
                     aria-label="Event timestamp"
                   >
                     {ts.date ? (
-                      <span className="font-bold uppercase tracking-[0.08em] text-black">
+                      <span className="font-bold uppercase tracking-[0.08em] text-fg">
                         {ts.date}
                       </span>
                     ) : null}
                     {ts.time ? (
-                      <span className="text-black/55">{ts.time}</span>
+                      <span className="text-fg-subtle">{ts.time}</span>
                     ) : null}
                     {!ts.date && !ts.time ? <span>—</span> : null}
                   </span>
                   <div className="min-w-0">
-                    <span className="block truncate text-[13px] font-bold text-black">
+                    <span className="block truncate text-[13px] font-bold text-fg">
                       {label}
                     </span>
                     {description ? (
-                      <span className="block truncate font-mono text-[11px] text-black/60 sm:hidden">
+                      <span className="block truncate font-mono text-[11px] text-fg-subtle sm:hidden">
                         {description}
                       </span>
                     ) : null}
                   </div>
                   {description ? (
-                    <span className="hidden truncate font-mono text-[11px] text-black/60 sm:inline sm:max-w-[260px] lg:max-w-[360px]">
+                    <span className="hidden truncate font-mono text-[11px] text-fg-subtle sm:inline sm:max-w-[260px] lg:max-w-[360px]">
                       {description}
                     </span>
                   ) : null}
@@ -545,7 +545,7 @@ function ActivityBlock({
               <button
                 type="button"
                 onClick={() => setShowAll((v) => !v)}
-                className="font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-black/70 hover:text-black hover:underline"
+                className="font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-fg-muted hover:text-fg hover:underline"
               >
                 {showAll ? "Show top 3 ↑" : "View all →"}
               </button>
@@ -683,7 +683,7 @@ function ViewEmailButton({
         type="button"
         onClick={() => setOpen(true)}
         aria-label={`View ${label} email`}
-        className="shrink-0 self-baseline inline-flex items-center border-2 border-black bg-white px-2.5 py-1 font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-black transition-colors hover:bg-black hover:text-white"
+        className="shrink-0 self-baseline inline-flex items-center border-2 border-line bg-card px-2.5 py-1 font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-fg transition-colors hover:bg-canvas hover:text-fg"
       >
         View
       </button>
@@ -759,15 +759,15 @@ function EmailViewerModal({
       className="fixed inset-0 z-50 flex flex-col overflow-hidden bg-[#fafaf6]"
     >
         {/* Header strip */}
-        <div className="flex items-center justify-between gap-3 border-b-2 border-black bg-[#fafaf6] px-4 py-3 sm:px-5">
-          <p className="truncate font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-black">
+        <div className="flex items-center justify-between gap-3 border-b-2 border-line bg-[#fafaf6] px-4 py-3 sm:px-5">
+          <p className="truncate font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-fg">
             {label} — Email
           </p>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close email viewer"
-            className="inline-flex items-center border-2 border-black bg-white px-2.5 py-1 font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-black transition-colors hover:bg-black hover:text-white"
+            className="inline-flex items-center border-2 border-line bg-card px-2.5 py-1 font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-fg transition-colors hover:bg-canvas hover:text-fg"
           >
             Close
           </button>
@@ -777,17 +777,17 @@ function EmailViewerModal({
         <iframe
           src={href}
           title={`${label} email`}
-          className="min-h-0 flex-1 bg-white"
+          className="min-h-0 flex-1 bg-card"
         />
 
         {/* Footer action row: Resend. Empty FormData → resend action
             falls back to the original preview_to recipient. */}
-        <div className="flex items-center justify-end gap-3 border-t-2 border-black bg-[#fafaf6] px-4 py-3 sm:px-5">
+        <div className="flex items-center justify-end gap-3 border-t-2 border-line bg-[#fafaf6] px-4 py-3 sm:px-5">
           <form action={action}>
             <button
               type="submit"
               aria-label={`Resend ${label}`}
-              className="inline-flex items-center border-2 border-black bg-white px-3.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-black transition-colors hover:bg-black hover:text-white"
+              className="inline-flex items-center border-2 border-line bg-card px-3.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-fg transition-colors hover:bg-canvas hover:text-fg"
             >
               Resend
             </button>

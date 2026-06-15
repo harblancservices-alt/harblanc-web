@@ -1,0 +1,32 @@
+﻿index.lock exists: False
+--- root contents ---
+.git
+.next
+.vercel
+docs
+node_modules
+public
+recovery
+src
+supabase
+.env.local
+.gitignore
+.gitignore.append
+AGENTS.md
+ASSET_GUIDE.md
+CLAUDE.md
+dump.sql
+ersbharbDocumentsClaudeProjectsHarblancWeb2-clean
+eslint.config.mjs
+next-env.d.ts
+next.config.ts
+package-lock.json
+package.json
+postcss.config.mjs
+README.md
+tsconfig.json
+tsconfig.tsbuildinfo
+_cleanup.bat
+_cleanup.ps1
+_cleanup_done.txt
+DONE

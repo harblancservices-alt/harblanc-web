@@ -124,33 +124,35 @@ export function PreviewModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col bg-black/85"
+      className="fixed inset-0 z-50 flex flex-col bg-black/55"
       role="dialog"
       aria-modal="true"
       aria-label="Quote range preview"
+      onClick={onClose}
     >
       {/* ─── Sticky top bar ─── */}
       <header
-        className="relative flex shrink-0 items-center gap-3 border-b border-zinc-800 bg-zinc-900 px-3 py-2.5 sm:px-5 sm:py-3"
+        className="relative flex shrink-0 items-center gap-3 border-b border-line bg-card px-3 py-2.5 sm:px-5 sm:py-3"
+        onClick={(e) => e.stopPropagation()}
       >
         {/* Red accent bar (matches admin section-title pattern) */}
         <span
           aria-hidden
-          className="inline-block h-5 w-1 shrink-0 bg-black"
+          className="inline-block h-5 w-1 shrink-0 bg-canvas"
         />
 
         <div className="min-w-0 flex-1">
-          <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-zinc-100 sm:text-[13px]">
+          <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-fg sm:text-[13px]">
             Quote range preview
           </p>
           {/* Meta strip — subject + recipient. Tabular numerics so it
               reads like a dispatch document header, not a SaaS modal
               title. */}
           {state !== "building" && (subject || to) ? (
-            <p className="mt-0.5 truncate font-mono text-[11px] text-zinc-100 sm:text-[12px]">
+            <p className="mt-0.5 truncate font-mono text-[11px] text-fg sm:text-[12px]">
               {to ? <span>{to}</span> : null}
-              {to && subject ? <span className="px-1.5 text-zinc-400">·</span> : null}
-              {subject ? <span className="text-zinc-100">{subject}</span> : null}
+              {to && subject ? <span className="px-1.5 text-fg-subtle">·</span> : null}
+              {subject ? <span className="text-fg">{subject}</span> : null}
             </p>
           ) : null}
         </div>
@@ -162,7 +164,7 @@ export function PreviewModal({
           <button
             type="button"
             onClick={onRebuild}
-            className="hidden shrink-0 items-center gap-1.5 border border-amber-700/70 bg-amber-950/30 px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-amber-200 transition-colors hover:bg-amber-900/40 sm:inline-flex"
+            className="hidden shrink-0 items-center gap-1.5 border border-amber-300/70 bg-amber-50 px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-amber-700 transition-colors hover:bg-amber-100 sm:inline-flex"
           >
             <span aria-hidden className="inline-block h-1.5 w-1.5 rounded-full bg-amber-700" />
             Stale — rebuild
@@ -170,31 +172,10 @@ export function PreviewModal({
         ) : null}
 
         {state === "rebuilding" ? (
-          <span className="hidden shrink-0 items-center gap-1.5 border border-zinc-700 bg-zinc-900 px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-100 sm:inline-flex">
+          <span className="hidden shrink-0 items-center gap-1.5 border border-line-strong bg-card px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg sm:inline-flex">
             <Spinner className="h-3 w-3" />
             Rebuilding
           </span>
-        ) : null}
-
-        {showSendButton ? (
-          <button
-            type="button"
-            onClick={onSend}
-            disabled={sendDisabled}
-            className="inline-flex shrink-0 items-center gap-1.5 border border-zinc-700 bg-black px-3 py-1.5 text-[13px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60 sm:px-4"
-          >
-            {sendPending ? (
-              <>
-                <Spinner className="h-3.5 w-3.5" />
-                Sending
-              </>
-            ) : (
-              <>
-                <IconSend className="h-3.5 w-3.5" />
-                Send range
-              </>
-            )}
-          </button>
         ) : null}
 
         <button
@@ -202,7 +183,7 @@ export function PreviewModal({
           onClick={onClose}
           aria-label="Close preview"
           title="Close (Esc)"
-          className="inline-flex h-8 w-8 shrink-0 items-center justify-center border border-zinc-700 bg-zinc-900 text-zinc-100 transition-colors hover:border-zinc-700 hover:bg-zinc-800/60 hover:text-zinc-100"
+          className="inline-flex h-8 w-8 shrink-0 items-center justify-center border border-line-strong bg-card text-fg transition-colors hover:border-line-strong hover:bg-elevated hover:text-fg"
         >
           <IconX className="h-4 w-4" />
         </button>
@@ -210,18 +191,18 @@ export function PreviewModal({
 
       {/* ─── Mobile-only secondary action row ─── */}
       {state === "stale" || state === "rebuilding" ? (
-        <div className="flex shrink-0 items-center gap-2 border-b border-zinc-700 bg-zinc-900/60 px-3 py-2 sm:hidden">
+        <div className="flex shrink-0 items-center gap-2 border-b border-line-strong bg-panel px-3 py-2 sm:hidden">
           {state === "stale" ? (
             <button
               type="button"
               onClick={onRebuild}
-              className="inline-flex items-center gap-1.5 border border-amber-700/70 bg-amber-950/30 px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-amber-200"
+              className="inline-flex items-center gap-1.5 border border-amber-300/70 bg-amber-50 px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-amber-700"
             >
               Stale — rebuild
             </button>
           ) : null}
           {state === "rebuilding" ? (
-            <span className="inline-flex items-center gap-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-100">
+            <span className="inline-flex items-center gap-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg">
               <Spinner className="h-3 w-3" />
               Rebuilding preview
             </span>
@@ -230,19 +211,19 @@ export function PreviewModal({
       ) : null}
 
       {/* ─── Document area ─── */}
-      <main className="relative flex-1 overflow-auto bg-zinc-900 px-2 py-3 sm:px-6 sm:py-6">
+      <main className="relative flex-1 overflow-auto px-2 py-3 sm:px-6 sm:py-6">
         {state === "building" ? (
           <BuildingState />
         ) : state === "failed" ? (
           <FailedState message={errorMessage} onRetry={onRebuild} />
         ) : html ? (
-          <div className="mx-auto w-full max-w-[680px] bg-white shadow-[0_2px_0_0_#dc2626,0_0_0_1px_#d4d4d8]">
+          <div className="mx-auto w-full max-w-[680px] bg-card shadow-[0_2px_0_0_#dc2626,0_0_0_1px_#d4d4d8]" onClick={(e) => e.stopPropagation()}>
             <iframe
               title="Quote range document preview"
               srcDoc={html}
               sandbox="allow-same-origin"
               scrolling="no"
-              className="block w-full border-0 bg-white"
+              className="block w-full border-0 bg-card"
               style={{ height: iframeHeight > 0 ? `${iframeHeight}px` : "400px" }}
               onLoad={(e) => {
                 const ifr = e.currentTarget;
@@ -277,6 +258,48 @@ export function PreviewModal({
                 });
               }}
             />
+
+            {/* Operations panel — attached directly to the bottom of the
+                render so the document and its actions read as ONE card. */}
+            <div className="flex flex-wrap items-center justify-end gap-3 border-t border-line bg-card px-4 py-3">
+              {to ? (
+                <span className="mr-auto min-w-0 truncate font-mono text-[11px] text-fg-subtle sm:text-[12px]">
+                  To: <span className="text-fg">{to}</span>
+                </span>
+              ) : null}
+
+              {state === "stale" ? (
+                <button
+                  type="button"
+                  onClick={onRebuild}
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-amber-700 transition-colors hover:bg-amber-100"
+                >
+                  <span aria-hidden className="inline-block h-1.5 w-1.5 rounded-full bg-amber-700" />
+                  Rebuild preview
+                </button>
+              ) : null}
+
+              {showSendButton ? (
+                <button
+                  type="button"
+                  onClick={onSend}
+                  disabled={sendDisabled}
+                  className="inline-flex shrink-0 items-center gap-2 rounded-md border border-red-700 bg-red-600 px-5 py-2.5 text-[13px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {sendPending ? (
+                    <>
+                      <Spinner className="h-4 w-4" />
+                      Sending
+                    </>
+                  ) : (
+                    <>
+                      <IconSend className="h-4 w-4" />
+                      Send range
+                    </>
+                  )}
+                </button>
+              ) : null}
+            </div>
           </div>
         ) : (
           <EmptyState />
@@ -290,12 +313,12 @@ export function PreviewModal({
 
 function BuildingState() {
   return (
-    <div className="mx-auto flex h-full max-w-[680px] flex-col items-center justify-center gap-3 bg-zinc-900 px-6 py-12">
-      <Spinner className="h-6 w-6 text-zinc-100" />
-      <p className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-zinc-100">
+    <div className="mx-auto flex h-full max-w-[680px] flex-col items-center justify-center gap-3 bg-card px-6 py-12">
+      <Spinner className="h-6 w-6 text-fg" />
+      <p className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-fg">
         Building preview
       </p>
-      <p className="max-w-sm text-center text-xs text-zinc-100">
+      <p className="max-w-sm text-center text-xs text-fg">
         Rendering the document the customer would receive.
       </p>
     </div>
@@ -310,18 +333,18 @@ function FailedState({
   onRetry: () => void;
 }) {
   return (
-    <div className="mx-auto flex max-w-[680px] flex-col items-start gap-3 border border-zinc-700 bg-zinc-900/70 px-5 py-5">
-      <p className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-zinc-100">
+    <div className="mx-auto flex max-w-[680px] flex-col items-start gap-3 border border-line-strong bg-card/70 px-5 py-5">
+      <p className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-fg">
         Preview failed
       </p>
-      <p className="text-[15px] text-zinc-100">
+      <p className="text-[15px] text-fg">
         {message ??
           "The preview build did not return a document. Check the rate fields and try again."}
       </p>
       <button
         type="button"
         onClick={onRetry}
-        className="inline-flex items-center gap-1.5 border border-zinc-700 bg-zinc-900 px-3 py-1.5 font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-zinc-100 transition-colors hover:bg-zinc-800/60"
+        className="inline-flex items-center gap-1.5 border border-line-strong bg-card px-3 py-1.5 font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-fg transition-colors hover:bg-elevated"
       >
         Try again
       </button>
@@ -331,11 +354,11 @@ function FailedState({
 
 function EmptyState() {
   return (
-    <div className="mx-auto max-w-[680px] border border-zinc-700 bg-zinc-900 px-5 py-12 text-center">
-      <p className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-zinc-100">
+    <div className="mx-auto max-w-[680px] border border-line-strong bg-card px-5 py-12 text-center">
+      <p className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-fg">
         No preview yet
       </p>
-      <p className="mt-2 text-xs text-zinc-100">
+      <p className="mt-2 text-xs text-fg">
         Press Preview in the workspace to render a document.
       </p>
     </div>

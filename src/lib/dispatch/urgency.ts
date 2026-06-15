@@ -89,14 +89,19 @@ export function computeUrgency(input: UrgencyInputs): UrgencyChip[] {
   const chips: UrgencyChip[] = [];
   const { leadStatus, now } = input;
 
-  // ── New lead stale: untouched for > 2 hours ───────────────────────────
+  // ── New quote needs a first response: surface IMMEDIATELY ─────────────
+  //
+  // A brand-new quote request with no estimate sent yet is the most
+  // time-sensitive commercial signal — respond fast or lose the freight.
+  // No staleness gate: it appears the moment it lands (age 0) and
+  // escalates amber → red the longer it sits unquoted.
   if (leadStatus === "new") {
     const h = hoursSince(input.createdAt, now);
-    if (h !== null && h >= 2) {
+    if (h !== null) {
       chips.push({
         kind: "new_lead_stale",
-        label: `New lead ${fmtAge(h)} no response`,
-        severity: h >= 24 ? "alert" : "warn",
+        label: `New quote ${fmtAge(h)} — send estimate`,
+        severity: h >= 12 ? "alert" : "warn",
         ageHours: h,
       });
     }

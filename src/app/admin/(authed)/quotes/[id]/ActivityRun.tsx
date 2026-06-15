@@ -25,20 +25,20 @@ export type ActivityRunProps = {
 export function ActivityRun({ events, limit = 4 }: ActivityRunProps) {
   if (events.length === 0) {
     return (
-      <p className="px-3 py-2 font-mono text-[10.5px] uppercase tracking-[0.14em] text-zinc-600">
+      <p className="px-3 py-2 font-mono text-[10.5px] uppercase tracking-[0.14em] text-fg-subtle">
         No activity yet
       </p>
     );
   }
   const slice = events.slice(0, limit);
   return (
-    <p className="px-3 py-2 text-[11px] leading-relaxed text-zinc-400">
+    <p className="px-3 py-2 text-[11px] leading-relaxed text-fg-subtle">
       {slice.map((event, i) => {
         const rel = relativeShort(event.createdAt);
         const { label } = describeEvent(event.kind, event.payload);
         return (
           <span key={event.id}>
-            <span className="font-mono tabular-nums text-zinc-600">{rel}</span>
+            <span className="font-mono tabular-nums text-fg-subtle">{rel}</span>
             <span> {label}</span>
             {i < slice.length - 1 ? (
               <span aria-hidden className="px-1.5 text-zinc-700">

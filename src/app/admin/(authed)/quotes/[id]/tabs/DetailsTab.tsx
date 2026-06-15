@@ -7,6 +7,7 @@ import {
   useState,
   type ChangeEvent,
   type KeyboardEvent,
+  type ReactNode,
 } from "react";
 import {
   saveLoadDetailsOverrides,
@@ -79,6 +80,10 @@ const EDITABLE_KEYS = [
   "delivery_window_end",
   "freight_commodity",
   "freight_weight",
+  "freight_pieces",
+  "freight_length",
+  "freight_width",
+  "freight_height",
 ] as const satisfies ReadonlyArray<keyof LoadDetailsInitial>;
 
 type EditableKey = (typeof EDITABLE_KEYS)[number];
@@ -278,6 +283,8 @@ export function DetailsTab({
   const valuesRef = useRef<LoadDetailsInitial>(values);
   valuesRef.current = values;
 
+  const [editOpen, setEditOpen] = useState(false);
+
   const { scheduleSave, status, errorMessage, lastSavedAt } =
     useDebouncedSave(quoteRequestId, valuesRef);
 
@@ -289,7 +296,7 @@ export function DetailsTab({
   );
 
   return (
-    <div className="space-y-3 bg-zinc-950 px-3 py-3 text-zinc-100 sm:space-y-4 sm:px-4 sm:py-4">
+    <div className="space-y-3 bg-card px-3 py-3 text-fg sm:space-y-4 sm:px-4 sm:py-4">
       <LaneContextStrip values={values} miles={miles} />
 
       <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-[1.3fr_1fr]">
@@ -297,18 +304,271 @@ export function DetailsTab({
         <FreightSummaryCard
           commodity={values.freight_commodity}
           weight={values.freight_weight}
+          pieces={values.freight_pieces}
+          length={values.freight_length}
+          width={values.freight_width}
+          height={values.freight_height}
         />
       </div>
 
-      <EditableLoadDetailsCard
+      {/* Read-only stops/addresses display. Click Edit (corner) to open the
+          editable form as a modal — the form is unchanged, just relocated. */}
+      <LoadAddressDisplay
         values={values}
-        setValue={setValue}
-        scheduleSave={scheduleSave}
+        onEdit={() => setEditOpen(true)}
         saveStatus={status}
-        errorMessage={errorMessage}
         lastSavedAt={lastSavedAt}
       />
+
+      {editOpen ? (
+        <EditDetailsModal onClose={() => setEditOpen(false)}>
+          <EditableLoadDetailsCard
+            values={values}
+            setValue={setValue}
+            scheduleSave={scheduleSave}
+            saveStatus={status}
+            errorMessage={errorMessage}
+            lastSavedAt={lastSavedAt}
+          />
+        </EditDetailsModal>
+      ) : null}
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// LoadAddressDisplay — read-only TMS display of pickup/delivery addresses.
+// The dense edit form now lives behind the Edit button (opens a modal).
+// ---------------------------------------------------------------------------
+
+function LoadAddressDisplay({
+  values,
+  onEdit,
+  saveStatus,
+  lastSavedAt,
+}: {
+  values: LoadDetailsInitial;
+  onEdit: () => void;
+  saveStatus: SaveStatus;
+  lastSavedAt: Date | null;
+}) {
+  const pickupWindow = formatWindow(
+    values.pickup_window,
+    values.pickup_window_end,
+  );
+  const deliveryWindow = formatWindow(
+    values.delivery_window,
+    values.delivery_window_end,
+  );
+  const savedLabel =
+    saveStatus === "saving"
+      ? "Saving…"
+      : saveStatus === "error"
+        ? "Save failed"
+        : lastSavedAt
+          ? `Saved ${lastSavedAt.getHours().toString().padStart(2, "0")}:${lastSavedAt.getMinutes().toString().padStart(2, "0")}`
+          : null;
+
+  return (
+    <div className="overflow-hidden rounded-md border border-line bg-card shadow-sm">
+      <div className="flex items-center justify-between border-b border-line bg-elevated px-3 py-2">
+        <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-fg-subtle">
+          Stops &amp; addresses
+        </span>
+        <div className="flex items-center gap-3">
+          {savedLabel ? (
+            <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-fg-subtle">
+              {savedLabel}
+            </span>
+          ) : null}
+          <button
+            type="button"
+            onClick={onEdit}
+            className="inline-flex items-center gap-1.5 rounded-sm border border-line-strong bg-card px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg transition-colors hover:bg-elevated"
+          >
+            <PencilIcon />
+            Edit
+          </button>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 divide-y divide-line sm:grid-cols-2 sm:divide-x sm:divide-y-0">
+        <AddressBlock
+          title="Pickup"
+          accentBar="border-l-amber-500"
+          eyebrow="text-amber-700"
+          company={values.pickup_company}
+          address={values.pickup_address}
+          cityState={values.pickup_city_state}
+          zip={values.pickup_zip}
+          contact={values.pickup_contact}
+          phone={values.pickup_phone}
+          windowText={pickupWindow}
+        />
+        <AddressBlock
+          title="Delivery"
+          accentBar="border-l-blue-500"
+          eyebrow="text-blue-700"
+          company={values.delivery_company}
+          address={values.delivery_address}
+          cityState={values.delivery_city_state}
+          zip={values.delivery_zip}
+          contact={values.delivery_contact}
+          phone={values.delivery_phone}
+          windowText={deliveryWindow}
+        />
+      </div>
+    </div>
+  );
+}
+
+function AddressBlock({
+  title,
+  accentBar,
+  eyebrow,
+  company,
+  address,
+  cityState,
+  zip,
+  contact,
+  phone,
+  windowText,
+}: {
+  title: string;
+  accentBar: string;
+  eyebrow: string;
+  company: string;
+  address: string;
+  cityState: string;
+  zip: string;
+  contact: string;
+  phone: string;
+  windowText: string | null;
+}) {
+  const cityZip = [cityState, zip].map((s) => (s ?? "").trim()).filter(Boolean).join("  ").trim();
+  const companyText = (company ?? "").trim();
+  return (
+    <div className={"border-l-[3px] px-4 py-3.5 " + accentBar}>
+      <p className={"font-mono text-[10px] font-semibold uppercase tracking-[0.20em] " + eyebrow}>
+        {title}
+      </p>
+      <p
+        className={
+          "mt-1 text-[15px] font-semibold leading-tight " +
+          (companyText ? "text-fg" : "text-fg-subtle")
+        }
+      >
+        {companyText || "Company not set"}
+      </p>
+      <dl className="mt-2 space-y-1.5">
+        <DisplayRow label="Address" value={address} />
+        <DisplayRow label="City / ZIP" value={cityZip} accentValue="text-blue-700 font-medium" />
+        <DisplayRow label="Contact" value={contact} />
+        <DisplayRow label="Phone" value={phone} />
+        <DisplayRow label="Window" value={windowText} />
+      </dl>
+    </div>
+  );
+}
+
+function DisplayRow({
+  label,
+  value,
+  accentValue,
+}: {
+  label: string;
+  value: string | null;
+  accentValue?: string;
+}) {
+  const text = (value ?? "").trim();
+  return (
+    <div className="grid grid-cols-[84px_minmax(0,1fr)] items-baseline gap-2">
+      <dt className="font-mono text-[9.5px] uppercase tracking-[0.12em] text-fg-subtle">
+        {label}
+      </dt>
+      <dd
+        className={
+          "truncate text-[13px] " +
+          (text ? accentValue ?? "text-fg" : "text-fg-subtle")
+        }
+      >
+        {text || "—"}
+      </dd>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// EditDetailsModal — pops the editable form over the page. The form inside
+// is the existing EditableLoadDetailsCard, unchanged; state + auto-save live
+// in the parent DetailsTab, so editing here updates the display behind it.
+// ---------------------------------------------------------------------------
+
+function EditDetailsModal({
+  onClose,
+  children,
+}: {
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  useEffect(() => {
+    function onKey(e: globalThis.KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Edit load details"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/45 p-3 sm:p-8"
+      onClick={onClose}
+    >
+      <div
+        className="my-2 w-full max-w-5xl overflow-hidden rounded-md border border-line-strong bg-card shadow-2xl sm:my-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between bg-bar px-4 py-2.5">
+          <h2 className="font-mono text-[12px] font-semibold uppercase tracking-[0.16em] text-bar-fg">
+            Edit load details
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-sm border border-white/25 px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-bar-fg transition-colors hover:bg-white/10"
+          >
+            Done
+          </button>
+        </div>
+        <div className="max-h-[82vh] overflow-y-auto">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function PencilIcon() {
+  return (
+    <svg
+      width="11"
+      height="11"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+    </svg>
   );
 }
 
@@ -345,7 +605,7 @@ export function LaneContextStrip({
   return (
     <section
       aria-label="Lane edit context"
-      className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-md border border-zinc-800 bg-zinc-900/50 px-3 py-2 sm:grid-cols-4"
+      className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-md border border-line bg-elevated px-3 py-2 sm:grid-cols-4"
     >
       <Cell
         label="Pickup window"
@@ -366,26 +626,35 @@ export function LaneContextStrip({
         emptyTone="muted"
         mono
       />
-      <div className="min-w-0">
-        <p className="font-mono text-[9px] font-medium uppercase tracking-[0.20em] text-zinc-500">
-          Route
-        </p>
+      <div className="flex min-w-0 items-center">
         {mapHref ? (
           <a
             href={mapHref}
             target="_blank"
             rel="noopener noreferrer"
-            className="mt-0.5 inline-flex items-center gap-1 font-mono text-[11.5px] font-medium uppercase tracking-[0.12em] text-zinc-200 transition-colors hover:text-white"
+            aria-label="Open route in Maps"
+            className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-accent px-3 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-white transition-colors hover:bg-accent-hover"
           >
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden
+            >
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0Z" />
+              <circle cx="12" cy="10" r="3" />
+            </svg>
             Open in Maps
-            <span aria-hidden className="text-zinc-500">
-              {"\u2197"}
-            </span>
           </a>
         ) : (
-          <p className="mt-0.5 font-mono text-[11.5px] uppercase tracking-[0.12em] text-zinc-600">
+          <span className="inline-flex w-full items-center justify-center rounded-md border border-line bg-card px-3 py-2 font-mono text-[10px] uppercase tracking-[0.1em] text-fg-subtle">
             Needs both ZIPs
-          </p>
+          </span>
         )}
       </div>
     </section>
@@ -410,13 +679,13 @@ function Cell({
     "mt-0.5 truncate text-[12.5px] " +
     (mono ? "font-mono tabular-nums " : "") +
     (hasValue
-      ? "text-zinc-100"
+      ? "text-fg"
       : emptyTone === "warn"
-        ? "font-mono text-[11.5px] uppercase tracking-[0.12em] text-red-300"
-        : "font-mono text-[11.5px] uppercase tracking-[0.12em] text-zinc-500");
+        ? "font-mono text-[11.5px] uppercase tracking-[0.12em] text-red-700"
+        : "font-mono text-[11.5px] uppercase tracking-[0.12em] text-fg-subtle");
   return (
     <div className="min-w-0">
-      <p className="font-mono text-[9px] font-medium uppercase tracking-[0.20em] text-zinc-500">
+      <p className="font-mono text-[9px] font-medium uppercase tracking-[0.20em] text-fg-subtle">
         {label}
       </p>
       <p className={valueClass}>{hasValue ? value : emptyHint}</p>
@@ -436,9 +705,9 @@ function ShipperOfRecordCard({
   const phoneHref = "tel:" + contact.phone.replace(/[^\d+]/g, "");
   const mailHref = "mailto:" + contact.email;
   return (
-    <section className="overflow-hidden rounded-md border border-zinc-800 bg-zinc-900/40">
-      <header className="border-b border-zinc-800 bg-zinc-900/70 px-3 py-2">
-        <p className="font-mono text-[10px] font-medium uppercase tracking-[0.22em] text-zinc-300">
+    <section className="overflow-hidden rounded-md border border-line bg-card">
+      <header className="border-b border-line bg-card/70 px-3 py-2">
+        <p className="font-mono text-[10px] font-medium uppercase tracking-[0.22em] text-fg-muted">
           Shipper of record
         </p>
       </header>
@@ -487,10 +756,10 @@ function ContactRow({
   topBorder?: boolean;
 }) {
   const valueCls =
-    "truncate text-[13.5px] text-zinc-100 " + (mono ? "font-mono " : "");
+    "truncate text-[13.5px] text-fg " + (mono ? "font-mono " : "");
   const inner = (
     <div className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2">
-      <div className="w-[68px] shrink-0 font-mono text-[9.5px] font-medium uppercase tracking-[0.18em] text-zinc-500">
+      <div className="w-[68px] shrink-0 font-mono text-[9.5px] font-medium uppercase tracking-[0.18em] text-fg-subtle">
         {label}
       </div>
       <div className="min-w-0 flex-1">
@@ -501,13 +770,13 @@ function ContactRow({
   return (
     <div
       className={
-        "flex items-stretch " + (topBorder ? "border-t border-zinc-800" : "")
+        "flex items-stretch " + (topBorder ? "border-t border-line" : "")
       }
     >
       {actionHref ? (
         <a
           href={actionHref}
-          className="flex min-w-0 flex-1 transition-colors hover:bg-zinc-900/60"
+          className="flex min-w-0 flex-1 transition-colors hover:bg-elevated"
         >
           {inner}
         </a>
@@ -518,7 +787,7 @@ function ContactRow({
         {actionHref && actionLabel ? (
           <a
             href={actionHref}
-            className="hidden font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-400 transition-colors hover:text-zinc-100 sm:inline-block"
+            className="hidden font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-fg-subtle transition-colors hover:text-fg sm:inline-block"
           >
             {actionLabel}
           </a>
@@ -536,47 +805,79 @@ function ContactRow({
 function FreightSummaryCard({
   commodity,
   weight,
+  pieces,
+  length,
+  width,
+  height,
 }: {
   commodity: string;
   weight: string;
+  pieces: string;
+  length: string;
+  width: string;
+  height: string;
 }) {
   const display = toTitleCase(commodity);
   const wt = formatFreightWeight(weight);
-  const hasAny = display.length > 0 || wt.length > 0;
+  const clean = (v: string) => {
+    const t = v.trim();
+    return t.length > 0 ? t : null;
+  };
   return (
     <section
       aria-label="Freight summary"
-      className="overflow-hidden rounded-md border border-zinc-800 bg-zinc-900/40"
+      className="overflow-hidden rounded-md border border-line bg-card"
     >
-      <header className="border-b border-zinc-800 bg-zinc-900/70 px-3 py-2">
-        <p className="font-mono text-[10px] font-medium uppercase tracking-[0.22em] text-zinc-300">
+      <header className="border-b border-line bg-card/70 px-3 py-2">
+        <p className="font-mono text-[10px] font-medium uppercase tracking-[0.22em] text-fg-muted">
           Freight
         </p>
       </header>
       <div className="px-3 py-3">
-        {hasAny ? (
-          <>
-            {display.length > 0 ? (
-              <p className="text-[16px] font-medium leading-tight text-zinc-100">
-                {display}
-              </p>
-            ) : null}
-            {wt.length > 0 ? (
-              <p
-                className={
-                  "font-mono text-[12px] tabular-nums text-zinc-300 " +
-                  (display.length > 0 ? "mt-1" : "")
-                }
-              >
-                {wt}
-              </p>
-            ) : null}
-          </>
-        ) : (
-          <p className="text-[12px] text-zinc-500">{"\u2014"}</p>
-        )}
+        <p
+          className={
+            "text-[15px] font-semibold leading-tight " +
+            (display.length > 0 ? "text-fg" : "text-fg-subtle")
+          }
+        >
+          {display.length > 0 ? display : "Commodity not set"}
+        </p>
+        <dl className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-1.5">
+          <FreightSpec label="Weight" value={wt.length > 0 ? wt : null} />
+          <FreightSpec label="Pieces" value={clean(pieces)} />
+          <FreightSpec label="Length" value={clean(length)} unit="in" />
+          <FreightSpec label="Width" value={clean(width)} unit="in" />
+          <FreightSpec label="Height" value={clean(height)} unit="in" />
+        </dl>
       </div>
     </section>
+  );
+}
+
+function FreightSpec({
+  label,
+  value,
+  unit,
+}: {
+  label: string;
+  value: string | null;
+  unit?: string;
+}) {
+  const text = (value ?? "").trim();
+  return (
+    <div className="grid grid-cols-[60px_minmax(0,1fr)] items-baseline gap-2">
+      <dt className="font-mono text-[9.5px] uppercase tracking-[0.12em] text-fg-subtle">
+        {label}
+      </dt>
+      <dd
+        className={
+          "font-mono text-[12px] tabular-nums " +
+          (text ? "text-fg" : "text-fg-subtle")
+        }
+      >
+        {text ? text + (unit ? " " + unit : "") : "\u2014"}
+      </dd>
+    </div>
   );
 }
 
@@ -605,9 +906,9 @@ function EditableLoadDetailsCard({
   lastSavedAt: Date | null;
 }) {
   return (
-    <section className="overflow-hidden rounded-md border border-zinc-800 bg-zinc-900/40">
-      <header className="flex items-center justify-between gap-3 border-b border-zinc-800 bg-zinc-900/70 px-3 py-2">
-        <p className="font-mono text-[10px] font-medium uppercase tracking-[0.22em] text-zinc-300">
+    <section className="overflow-hidden rounded-md border border-line bg-card">
+      <header className="flex items-center justify-between gap-3 border-b border-line bg-card/70 px-3 py-2">
+        <p className="font-mono text-[10px] font-medium uppercase tracking-[0.22em] text-fg-muted">
           Edit load details
         </p>
         <SaveStatusPill
@@ -740,6 +1041,36 @@ function EditableLoadDetailsCard({
                 fromQuickQuote
               />
             </div>
+            <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+              <FreightCell
+                label="Pieces"
+                fieldKey="freight_pieces"
+                value={values.freight_pieces}
+                onChange={setValue}
+                onBlur={scheduleSave}
+              />
+              <FreightCell
+                label="Length (in)"
+                fieldKey="freight_length"
+                value={values.freight_length}
+                onChange={setValue}
+                onBlur={scheduleSave}
+              />
+              <FreightCell
+                label="Width (in)"
+                fieldKey="freight_width"
+                value={values.freight_width}
+                onChange={setValue}
+                onBlur={scheduleSave}
+              />
+              <FreightCell
+                label="Height (in)"
+                fieldKey="freight_height"
+                value={values.freight_height}
+                onChange={setValue}
+                onBlur={scheduleSave}
+              />
+            </div>
           </Subgroup>
         </div>
       </div>
@@ -758,8 +1089,8 @@ function Subgroup({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-md border border-zinc-800/80 bg-zinc-900/30">
-      <p className="border-b border-zinc-800 px-3 py-1.5 font-mono text-[10px] font-medium uppercase tracking-[0.22em] text-zinc-400">
+    <div className="rounded-md border border-line/80 bg-card">
+      <p className="border-b border-line px-3 py-1.5 font-mono text-[10px] font-medium uppercase tracking-[0.22em] text-fg-subtle">
         {kicker}
       </p>
       <div className="px-3 py-1">{children}</div>
@@ -783,7 +1114,7 @@ function SaveStatusPill({
   if (status === "error") {
     return (
       <span
-        className="rounded-sm border border-red-700/70 bg-red-950/30 px-2 py-[3px] font-mono text-[10px] font-medium uppercase tracking-[0.16em] text-red-200"
+        className="rounded-sm border border-red-300/70 bg-red-50 px-2 py-[3px] font-mono text-[10px] font-medium uppercase tracking-[0.16em] text-red-700"
         title={errorMessage ?? "Save failed"}
       >
         Save failed
@@ -792,20 +1123,20 @@ function SaveStatusPill({
   }
   if (status === "saving") {
     return (
-      <span className="rounded-sm border border-zinc-700 bg-zinc-900 px-2 py-[3px] font-mono text-[10px] font-medium uppercase tracking-[0.16em] text-zinc-200">
+      <span className="rounded-sm border border-line-strong bg-card px-2 py-[3px] font-mono text-[10px] font-medium uppercase tracking-[0.16em] text-fg">
         Saving
       </span>
     );
   }
   if (status === "saved" && lastSavedAt) {
     return (
-      <span className="rounded-sm border border-zinc-700 bg-zinc-900 px-2 py-[3px] font-mono text-[10px] font-medium uppercase tracking-[0.16em] text-zinc-200">
+      <span className="rounded-sm border border-line-strong bg-card px-2 py-[3px] font-mono text-[10px] font-medium uppercase tracking-[0.16em] text-fg">
         Saved {formatClockHHMM(lastSavedAt)}
       </span>
     );
   }
   return (
-    <span className="rounded-sm border border-zinc-800 bg-zinc-900 px-2 py-[3px] font-mono text-[10px] font-medium uppercase tracking-[0.16em] text-zinc-400">
+    <span className="rounded-sm border border-line bg-card px-2 py-[3px] font-mono text-[10px] font-medium uppercase tracking-[0.16em] text-fg-subtle">
       Auto-save on
     </span>
   );
@@ -816,9 +1147,9 @@ function SaveStatusPill({
 // ---------------------------------------------------------------------------
 
 const ROW_BASE =
-  "grid grid-cols-[88px_minmax(0,1fr)_28px] items-center gap-2 border-t border-zinc-800/80 py-1.5";
+  "grid grid-cols-[88px_minmax(0,1fr)_28px] items-center gap-2 border-t border-line/80 py-1.5";
 const ROW_BASE_QQ =
-  "grid grid-cols-[88px_minmax(0,1fr)_28px] items-center gap-2 border-t border-zinc-800/80 py-1.5 border-l-[3px] border-l-red-600/80 bg-red-950/25 pl-2";
+  "grid grid-cols-[88px_minmax(0,1fr)_28px] items-center gap-2 border-t border-line/80 py-1.5 border-l-[3px] border-l-red-600/80 bg-red-50 pl-2";
 
 function LabelWithBar({
   label,
@@ -839,7 +1170,7 @@ function LabelWithBar({
       <span
         className={
           "truncate font-mono text-[10px] font-medium uppercase tracking-[0.16em] " +
-          (fromQuickQuote ? "text-red-300" : "text-zinc-400")
+          (fromQuickQuote ? "text-red-700" : "text-fg-subtle")
         }
       >
         {label}
@@ -935,7 +1266,7 @@ function DateRangeRow({
         />
         <span
           aria-hidden
-          className="hidden text-center font-mono text-[12px] text-zinc-600 sm:block"
+          className="hidden text-center font-mono text-[12px] text-fg-subtle sm:block"
         >
           {"\u2014"}
         </span>
@@ -972,7 +1303,7 @@ function FreightCell({
       className={
         "grid grid-cols-[80px_minmax(0,1fr)_28px] items-center gap-2 py-1.5 " +
         (fromQuickQuote
-          ? "border-l-[3px] border-l-red-600/80 bg-red-950/25 pl-2"
+          ? "border-l-[3px] border-l-red-600/80 bg-red-50 pl-2"
           : "")
       }
     >
@@ -1027,7 +1358,7 @@ function CityZipRow({
   return (
     <div className={fromQuickQuote ? ROW_BASE_QQ : ROW_BASE}>
       <LabelWithBar label="City / ZIP" fromQuickQuote={fromQuickQuote} />
-      <div className="flex flex-col gap-1.5 sm:grid sm:grid-cols-[minmax(0,3fr)_minmax(0,1fr)] sm:items-center sm:gap-2">
+      <div className="flex flex-col gap-1.5 sm:grid sm:grid-cols-[minmax(0,1fr)_84px] sm:items-center sm:gap-2">
         <div className="flex items-stretch gap-1.5">
           <div className="min-w-0 flex-1">
             <EditableInput
@@ -1039,7 +1370,7 @@ function CityZipRow({
               ariaLabel="City"
             />
           </div>
-          <div className="rounded-sm border border-zinc-700 bg-zinc-900 focus-within:border-zinc-500">
+          <div className="rounded-sm border border-line-strong bg-card focus-within:border-fg">
             <select
               value={parsedState}
               onChange={(e) =>
@@ -1048,7 +1379,7 @@ function CityZipRow({
               onBlur={onBlur}
               onKeyDown={advanceOnEnter}
               aria-label="State"
-              className="block w-[44px] border-0 bg-transparent px-1 py-1.5 text-center font-mono text-[14px] font-medium text-zinc-100 focus:outline-none sm:text-[13.5px]"
+              className="block w-[44px] border-0 bg-transparent px-1 py-1.5 text-center font-mono text-[14px] font-medium text-fg focus:outline-none sm:text-[13.5px]"
             >
               <option value=""></option>
               {US_STATES.map((s) => (
@@ -1059,7 +1390,7 @@ function CityZipRow({
             </select>
           </div>
         </div>
-        <div className="rounded-sm border border-zinc-700 bg-zinc-900 focus-within:border-zinc-500">
+        <div className="rounded-sm border border-line-strong bg-card focus-within:border-fg">
           <input
             type="text"
             inputMode="numeric"
@@ -1070,7 +1401,7 @@ function CityZipRow({
             aria-label="ZIP code"
             maxLength={5}
             placeholder="ZIP"
-            className="block w-full border-0 bg-transparent px-2 py-1.5 font-mono text-[14px] tabular-nums text-zinc-100 placeholder:text-zinc-600 focus:outline-none sm:text-[13.5px]"
+            className="block w-full border-0 bg-transparent px-2 py-1.5 font-mono text-[14px] tabular-nums text-fg placeholder:text-fg-subtle focus:outline-none sm:text-[13.5px]"
           />
         </div>
       </div>
@@ -1099,7 +1430,7 @@ function EditableInput({
     advanceOnEnter(e);
   }
   return (
-    <div className="flex items-center rounded-sm border border-zinc-700 bg-zinc-900 focus-within:border-zinc-500">
+    <div className="flex items-center rounded-sm border border-line-strong bg-card focus-within:border-fg">
       <input
         type={type ?? "text"}
         value={value}
@@ -1107,7 +1438,7 @@ function EditableInput({
         onBlur={onBlur}
         onKeyDown={handleKey}
         aria-label={ariaLabel}
-        className="min-w-0 flex-1 border-0 bg-transparent px-2 py-1.5 text-[14px] text-zinc-100 placeholder:text-zinc-600 focus:outline-none sm:text-[13.5px]"
+        className="min-w-0 flex-1 border-0 bg-transparent px-2 py-1.5 text-[14px] text-fg placeholder:text-fg-subtle focus:outline-none sm:text-[13.5px]"
       />
     </div>
   );
@@ -1146,10 +1477,10 @@ function CopyButton({
       className={
         "inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-sm border transition-colors " +
         (disabled
-          ? "cursor-not-allowed border-zinc-800 bg-zinc-900/50 text-zinc-700"
+          ? "cursor-not-allowed border-line bg-elevated text-zinc-700"
           : copied
             ? "border-zinc-300 bg-zinc-100 text-zinc-900"
-            : "border-zinc-700 bg-zinc-900 text-zinc-300 hover:border-zinc-600 hover:text-zinc-100")
+            : "border-line-strong bg-card text-fg-muted hover:border-line-strong hover:text-fg")
       }
     >
       {copied ? (

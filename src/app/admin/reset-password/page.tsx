@@ -14,10 +14,10 @@ export default function ResetPasswordPage() {
           <span aria-hidden className="inline-block h-3 w-1 bg-red-600" />
           Dispatch
         </p>
-        <h1 className="mt-5 text-3xl font-display tracking-tight text-black sm:text-4xl">
+        <h1 className="mt-5 text-3xl font-display tracking-tight text-fg sm:text-4xl">
           Reset password
         </h1>
-        <p className="mt-3 text-sm leading-relaxed text-black">
+        <p className="mt-3 text-sm leading-relaxed text-fg">
           Enter your dispatch email. We will send you a link to set a new
           password.
         </p>

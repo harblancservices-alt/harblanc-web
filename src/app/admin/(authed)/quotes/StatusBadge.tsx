@@ -23,11 +23,11 @@ export function StatusBadge({
   return (
     <span
       className={
-        "inline-flex items-center gap-1.5 border border-black bg-white px-2 py-0.5 font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-black " +
+        "inline-flex items-center gap-1.5 border border-line bg-card px-2 py-0.5 font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-fg " +
         (muted ? "opacity-55" : "")
       }
     >
-      <span aria-hidden className="inline-block h-1.5 w-1.5 shrink-0 bg-black" />
+      <span aria-hidden className="inline-block h-1.5 w-1.5 shrink-0 bg-canvas" />
       {label}
     </span>
   );

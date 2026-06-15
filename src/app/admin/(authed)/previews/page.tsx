@@ -181,10 +181,10 @@ export default function AdminPreviewsPage() {
           <span aria-hidden className="inline-block h-3 w-1 bg-red-600" />
           Preview lab
         </p>
-        <h1 className="mt-2 text-2xl font-bold text-black">
+        <h1 className="mt-2 text-2xl font-bold text-fg">
           Visual QA for every customer-facing asset.
         </h1>
-        <p className="mt-2 max-w-2xl text-sm text-black">
+        <p className="mt-2 max-w-2xl text-sm text-fg">
           Click Preview on any tile to open the asset full-screen. Email
           previews render the exact bytes the production renderer
           produces from the sample payload. The Confirm shipment details

@@ -82,42 +82,42 @@ export default async function PaymentPreviewPage() {
   const demo = await createPreviewDemoSession();
 
   return (
-    <div className="bg-[#050505] text-zinc-100">
+    <div className="bg-[#050505] text-fg">
       {/* Preview banner */}
-      <div className="border-b border-red-700 bg-red-600 px-4 py-2 text-center font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-white sm:py-2.5">
+      <div className="border-b border-red-300 bg-red-600 px-4 py-2 text-center font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-white sm:py-2.5">
         Static Stripe sandbox demo only &middot; real payments use /quote/confirm/[token]
       </div>
 
       <section className="border-b border-[#1a1a1a] bg-gradient-to-b from-[#050505] via-[#0a0a0a] to-[#141414]">
         <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6 sm:py-14 lg:px-8 lg:py-16">
-          <p className="flex items-center justify-center gap-2 font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-white">
-            <span aria-hidden className="inline-block h-3 w-1 bg-white" />
+          <p className="flex items-center justify-center gap-2 font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-fg">
+            <span aria-hidden className="inline-block h-3 w-1 bg-card" />
             Rate confirmation &middot; payment
           </p>
-          <h1 className="mt-3 text-center text-3xl font-display leading-[1.05] tracking-[-0.02em] text-white sm:text-4xl lg:text-5xl">
+          <h1 className="mt-3 text-center text-3xl font-display leading-[1.05] tracking-[-0.02em] text-fg sm:text-4xl lg:text-5xl">
             Finalized Quote Confirmed
           </h1>
-          <p className="mx-auto mt-4 max-w-2xl text-center text-base leading-relaxed text-white sm:text-lg">
+          <p className="mx-auto mt-4 max-w-2xl text-center text-base leading-relaxed text-fg sm:text-lg">
             Dispatch has received your confirmation. Complete payment below
             to lock the lane on dispatch\u2019s schedule.
           </p>
 
           {/* Summary card */}
-          <dl className="mt-7 grid grid-cols-1 gap-x-8 gap-y-4 border-l-4 border-l-zinc-700 bg-[#1a1a1a] p-5 shadow-[0_6px_18px_-6px_rgba(0,0,0,0.7)] sm:grid-cols-2 sm:p-6 lg:grid-cols-[1fr_2fr_1fr_1fr]">
+          <dl className="mt-7 grid grid-cols-1 gap-x-8 gap-y-4 border-l-4 border-l-line-strong bg-[#1a1a1a] p-5 shadow-[0_6px_18px_-6px_rgba(0,0,0,0.7)] sm:grid-cols-2 sm:p-6 lg:grid-cols-[1fr_2fr_1fr_1fr]">
             <KV label="Quote #">
-              <span className="font-mono text-base font-semibold text-white tabular-nums">
+              <span className="font-mono text-base font-semibold text-fg tabular-nums">
                 {SAMPLE.finalizedQuoteNumber}
               </span>
             </KV>
             <KV label="Lane">
-              <span className="font-mono text-base font-semibold text-white">
+              <span className="font-mono text-base font-semibold text-fg">
                 {SAMPLE.pickupCity}, {SAMPLE.pickupState}
-                <span aria-hidden className="mx-2 text-white">
+                <span aria-hidden className="mx-2 text-fg">
                   &rarr;
                 </span>
                 {SAMPLE.deliveryCity}, {SAMPLE.deliveryState}
               </span>
-              <span className="mt-1 block font-mono text-[11px] text-white tabular-nums">
+              <span className="mt-1 block font-mono text-[11px] text-fg tabular-nums">
                 {SAMPLE.pickupZip}
                 <span aria-hidden className="mx-1.5 text-red-600">
                   &rarr;
@@ -126,12 +126,12 @@ export default async function PaymentPreviewPage() {
               </span>
             </KV>
             <KV label="Total due">
-              <span className="font-mono text-base font-bold text-white tabular-nums">
+              <span className="font-mono text-base font-bold text-fg tabular-nums">
                 {total}
               </span>
             </KV>
             <KV label="Valid through">
-              <span className="font-mono text-base text-white tabular-nums">
+              <span className="font-mono text-base text-fg tabular-nums">
                 {formatHumanDate(SAMPLE.expirationAt)}
               </span>
             </KV>
@@ -143,37 +143,37 @@ export default async function PaymentPreviewPage() {
               <span aria-hidden className="inline-block h-3 w-1 bg-green-500" />
               Confirmed
             </p>
-            <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.18em] text-white">
+            <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.18em] text-fg">
               Confirmed at
             </p>
-            <p className="mt-1 font-mono text-base text-white tabular-nums">
+            <p className="mt-1 font-mono text-base text-fg tabular-nums">
               {formatHumanDateTime(SAMPLE.confirmedAtConfirmed)}
             </p>
           </div>
 
           {/* Payment block */}
-          <div className="mt-7 border-l-4 border-l-zinc-700 bg-[#1a1a1a] p-5 shadow-[0_6px_18px_-6px_rgba(0,0,0,0.7)] sm:p-6">
+          <div className="mt-7 border-l-4 border-l-line-strong bg-[#1a1a1a] p-5 shadow-[0_6px_18px_-6px_rgba(0,0,0,0.7)] sm:p-6">
             <div className="flex items-baseline justify-between gap-4">
               <div>
-                <p className="flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-white">
-                  <span aria-hidden className="inline-block h-3 w-1 bg-white" />
+                <p className="flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-fg">
+                  <span aria-hidden className="inline-block h-3 w-1 bg-card" />
                   Balance due
                 </p>
-                <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.18em] text-white">
+                <p className="mt-3 font-mono text-[11px] uppercase tracking-[0.18em] text-fg">
                   Amount due
                 </p>
-                <p className="mt-1 font-mono text-2xl font-bold text-white tabular-nums sm:text-3xl">
+                <p className="mt-1 font-mono text-2xl font-bold text-fg tabular-nums sm:text-3xl">
                   {total}
                 </p>
-                <p className="mt-1 font-mono text-[11px] text-white">
+                <p className="mt-1 font-mono text-[11px] text-fg">
                   Due before pickup &middot; USD
                 </p>
               </div>
               <div className="hidden text-right sm:block">
-                <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-white">
+                <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-fg">
                   Status
                 </p>
-                <p className="mt-1 font-mono text-[12px] font-bold uppercase tracking-[0.16em] text-white">
+                <p className="mt-1 font-mono text-[12px] font-bold uppercase tracking-[0.16em] text-fg">
                   Awaiting payment
                 </p>
               </div>
@@ -187,12 +187,12 @@ export default async function PaymentPreviewPage() {
               {demo.ok ? (
                 <DemoEmbeddedCheckout clientSecret={demo.clientSecret} />
               ) : (
-                <div className="border border-amber-700 bg-amber-900/20 px-4 py-3 font-mono text-[11px] text-amber-200">
+                <div className="border border-amber-300 bg-amber-100 px-4 py-3 font-mono text-[11px] text-amber-700">
                   Embedded checkout demo unavailable &middot; {demo.reason}
                 </div>
               )}
             </div>
-            <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.18em] text-white">
+            <p className="mt-3 font-mono text-[10px] uppercase tracking-[0.18em] text-fg">
               Sandbox demo only &middot; production flow lives on the confirmed quote page &middot; test card 4242 4242 4242 4242
             </p>
           </div>
@@ -200,13 +200,13 @@ export default async function PaymentPreviewPage() {
           {/* Help support panel */}
           <div className="mt-7 flex flex-col gap-3 border-l-2 border-l-neutral-600 bg-[#161616] p-4 shadow-[0_6px_18px_-6px_rgba(0,0,0,0.55)] sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-white">
+              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-fg">
                 Need dispatch help?
               </p>
             </div>
             <a
               href={phoneHref}
-              className="inline-flex items-center gap-1.5 py-1 text-[13px] font-semibold uppercase tracking-[0.1em] text-white transition-colors hover:text-white sm:shrink-0"
+              className="inline-flex items-center gap-1.5 py-1 text-[13px] font-semibold uppercase tracking-[0.1em] text-fg transition-colors hover:text-fg sm:shrink-0"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -229,11 +229,11 @@ export default async function PaymentPreviewPage() {
 
       <section className="bg-[#050505]">
         <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8 lg:py-12">
-          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-white">
+          <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-fg">
             Have the rate confirmation email handy?{" "}
             <Link
               href="/"
-              className="text-white underline-offset-4 hover:text-white hover:underline"
+              className="text-fg underline-offset-4 hover:text-fg hover:underline"
             >
               Back to home
             </Link>
@@ -254,7 +254,7 @@ function KV({
 }) {
   return (
     <div>
-      <dt className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-white">
+      <dt className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-fg">
         {label}
       </dt>
       <dd className="mt-1.5">{children}</dd>

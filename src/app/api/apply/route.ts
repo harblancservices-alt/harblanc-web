@@ -13,7 +13,31 @@ type Body = {
   yearsExperience?: unknown;
   homeBase?: unknown;
   message?: unknown;
+  /** Honeypot — a hidden field humans never see/fill; bots fill everything. */
+  website?: unknown;
+  /** Client timestamp (ms) when the form mounted. Used to reject submits
+   *  that come back impossibly fast (a human can't fill this in <2.5s). */
+  formStartedAt?: unknown;
 };
+
+const MIN_FILL_MS = 2500;
+const RATE_WINDOW_MS = 10 * 60 * 1000;
+const RATE_MAX = 5;
+
+/** True when this IP has already submitted RATE_MAX+ times in the window. */
+async function tooManyFromIp(
+  sb: ReturnType<typeof createServiceRoleClient>,
+  ip: string | null,
+): Promise<boolean> {
+  if (!ip) return false;
+  const since = new Date(Date.now() - RATE_WINDOW_MS).toISOString();
+  const { count } = await sb
+    .from("applications")
+    .select("id", { count: "exact", head: true })
+    .eq("ip", ip)
+    .gte("created_at", since);
+  return (count ?? 0) >= RATE_MAX;
+}
 
 const MAX_LEN = {
   name: 200,
@@ -120,6 +144,21 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
 
+  // ── Bot defenses (silent) ──────────────────────────────────────────────
+  // Honeypot: the hidden `website` field is invisible to humans. Any value
+  // means an automated form-filler. Pretend success so the bot moves on.
+  if (asString(body.website).trim() !== "") {
+    return NextResponse.json({ ok: true }, { status: 201 });
+  }
+  // Too-fast submit: a person cannot complete this form in under 2.5s.
+  const startedAt =
+    typeof body.formStartedAt === "number" && Number.isFinite(body.formStartedAt)
+      ? body.formStartedAt
+      : null;
+  if (startedAt != null && Date.now() - startedAt < MIN_FILL_MS) {
+    return NextResponse.json({ ok: true }, { status: 201 });
+  }
+
   const result = validate(body);
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: 400 });
@@ -130,6 +169,14 @@ export async function POST(req: Request) {
   const ip = forwarded.split(",")[0]?.trim() || null;
 
   const supabase = createServiceRoleClient();
+
+  // Per-IP rate limit: throttle bursts from a single source.
+  if (await tooManyFromIp(supabase, ip)) {
+    return NextResponse.json(
+      { error: "Too many submissions. Please try again later." },
+      { status: 429 },
+    );
+  }
   const { data, error } = await supabase
     .from("applications")
     .insert({

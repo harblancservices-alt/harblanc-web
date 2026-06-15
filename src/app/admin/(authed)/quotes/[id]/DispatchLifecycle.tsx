@@ -170,23 +170,23 @@ export function DispatchLifecycle({
   return (
     <section
       aria-label="Dispatch lifecycle"
-      className="border-2 border-black border-l-4 border-l-black bg-[#f3f1e9]"
+      className="border-2 border-line border-l-4 border-l-black bg-[#f3f1e9]"
     >
       {/* Title + inline headline (desktop) / wraps to its own line (mobile) */}
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 pt-2.5 pb-2 sm:px-5">
         <span
           aria-hidden
-          className="inline-block h-3.5 w-1 shrink-0 self-center bg-black"
+          className="inline-block h-3.5 w-1 shrink-0 self-center bg-canvas"
         />
-        <p className="font-mono text-[12px] font-bold uppercase tracking-[0.2em] text-black">
+        <p className="font-mono text-[12px] font-bold uppercase tracking-[0.2em] text-fg">
           Dispatch lifecycle
         </p>
         <span aria-hidden className="hidden h-3 w-px self-center bg-zinc-400 sm:inline-block" />
-        <p className="text-[13px] text-black sm:text-[14px]">{headline}</p>
+        <p className="text-[13px] text-fg sm:text-[14px]">{headline}</p>
       </div>
 
       {/* Manifest strip - single bordered grid, 5 cells, no inter-arrow noise */}
-      <div className="mx-4 mb-3 grid grid-cols-2 border border-black bg-white sm:mx-5 sm:mb-4 sm:grid-cols-3 lg:grid-cols-5">
+      <div className="mx-4 mb-3 grid grid-cols-2 border border-line bg-card sm:mx-5 sm:mb-4 sm:grid-cols-3 lg:grid-cols-5">
         {STAGES.map((stage, idx) => {
           const s = stageStates[stage.id];
           const isLastCol = (idx + 1) % 5 === 0;
@@ -224,7 +224,7 @@ function StageCell({
   // crisply on every breakpoint without doubling up on the outer frame.
   const rightBorder =
     " border-b border-zinc-300 lg:border-b-0" +
-    (isLastCol ? "" : " lg:border-r lg:border-black") +
+    (isLastCol ? "" : " lg:border-r lg:border-line") +
     (isSmRightEdge ? "" : " sm:border-r sm:border-zinc-300");
 
   const base =
@@ -247,21 +247,21 @@ function StageCell({
   }
   if (state === "done") {
     return (
-      <div className={base + " bg-white text-black"}>
-        <p className="text-[11px] tracking-[0.18em] text-black">
+      <div className={base + " bg-card text-fg"}>
+        <p className="text-[11px] tracking-[0.18em] text-fg">
           {ordinal}
         </p>
         <p className="mt-0.5 text-[12px] font-bold uppercase tracking-[0.1em]">
           {label}
         </p>
-        <p className="mt-0.5 text-[11px] tracking-[0.18em] text-black">
+        <p className="mt-0.5 text-[11px] tracking-[0.18em] text-fg">
           DONE
         </p>
       </div>
     );
   }
   return (
-    <div className={base + " bg-white text-black"}>
+    <div className={base + " bg-card text-fg"}>
       <p className="text-[11px] tracking-[0.18em]">
         {ordinal}
       </p>

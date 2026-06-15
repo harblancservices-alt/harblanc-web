@@ -37,12 +37,12 @@ export function Footer() {
   // Shared link style — white, slightly smaller than the body data,
   // hovers to a subtle red. No underline by default.
   const link =
-    "text-sm font-medium text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)] transition-colors hover:text-red-400";
+    "text-sm font-medium text-fg drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)] transition-colors hover:text-red-400";
   // Plain data row (USDOT, MC, etc.) — same size as links but no hover.
-  const data = "text-sm font-medium text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]";
+  const data = "text-sm font-medium text-fg drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]";
 
   return (
-    <footer className="relative overflow-hidden border-t-2 border-[#dcd5c2]/30 bg-black">
+    <footer className="relative overflow-hidden border-t-2 border-[#dcd5c2]/30 bg-canvas">
       {/* Topographic contour background — fractal-noise SVG layered
           edge-to-edge behind all content. opacity baked into the SVG
           (~22%) so it reads as a faint operational map without
@@ -73,7 +73,7 @@ export function Footer() {
                 <BrandLogo variant="inverted" className="h-14 w-auto sm:h-16" />
               </Link>
             </div>
-            <div className="mt-5 space-y-1 font-mono text-[11px] uppercase tracking-[0.18em] text-white">
+            <div className="mt-5 space-y-1 font-mono text-[11px] uppercase tracking-[0.18em] text-fg">
               <p>Owner-Operated</p>
               <p>Licensed &amp; Insured</p>
               <p>Est. 2022</p>
@@ -112,7 +112,7 @@ export function Footer() {
         </div>
 
         {/* ── Bottom bar: copyright (left) / authority (right) ───────── */}
-        <div className="mt-16 flex flex-col items-center justify-between gap-3 border-t border-neutral-800 pt-6 text-center text-sm text-white sm:flex-row sm:items-center sm:text-left lg:mt-20">
+        <div className="mt-16 flex flex-col items-center justify-between gap-3 border-t border-line pt-6 text-center text-sm text-fg sm:flex-row sm:items-center sm:text-left lg:mt-20">
           <p className="font-medium">
             &copy; {year} {company.legalName}. All Rights Reserved.
           </p>

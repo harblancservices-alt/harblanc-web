@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { company } from "@/lib/company";
 
@@ -95,6 +95,14 @@ export function ApplyForm() {
   const [status, setStatus] = useState<Status>("idle");
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  // Anti-spam: a hidden honeypot field real users never fill, plus a
+  // form-mount timestamp so we can reject impossibly-fast (bot) submits.
+  const [honeypot, setHoneypot] = useState("");
+  const formStartedAtRef = useRef<number>(0);
+  useEffect(() => {
+    formStartedAtRef.current = Date.now();
+  }, []);
+
   function update<K extends keyof ApplyFormValues>(
     key: K,
     value: ApplyFormValues[K],
@@ -128,7 +136,11 @@ export function ApplyForm() {
       const res = await fetch("/api/apply", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
+        body: JSON.stringify({
+          ...values,
+          website: honeypot,
+          formStartedAt: formStartedAtRef.current,
+        }),
       });
       if (!res.ok) {
         const data = (await res.json().catch(() => ({}))) as { error?: string };
@@ -166,6 +178,31 @@ export function ApplyForm() {
       aria-busy={status === "submitting"}
       className="space-y-10"
     >
+      {/* Honeypot — off-screen, aria-hidden, tabIndex=-1 so humans never
+          touch it. Bots that auto-fill every input give themselves away. */}
+      <div
+        aria-hidden="true"
+        style={{
+          position: "absolute",
+          left: "-10000px",
+          top: "auto",
+          width: "1px",
+          height: "1px",
+          overflow: "hidden",
+        }}
+      >
+        <label htmlFor="website">Website (leave blank)</label>
+        <input
+          id="website"
+          name="website"
+          type="text"
+          autoComplete="off"
+          tabIndex={-1}
+          value={honeypot}
+          onChange={(e) => setHoneypot(e.target.value)}
+        />
+      </div>
+
       {/* 01 / Contact */}
       <Section number="01" title="Contact">
         <Field id="name" label="Name" required error={errors.name}>

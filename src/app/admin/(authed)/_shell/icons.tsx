@@ -159,6 +159,47 @@ export function IconMail({ className }: IconProps) {
   );
 }
 
+export function IconBuilding({ className }: IconProps) {
+  // Brokerage / company — the Brokers tab.
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <path d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16" />
+      <path d="M15 9h4a1 1 0 0 1 1 1v11" />
+      <path d="M2 21h20" />
+      <path d="M8 7h2M8 11h2M8 15h2" />
+    </svg>
+  );
+}
+
+export function IconReceipt({ className }: IconProps) {
+  // Receipt with a dollar mark — the Accounting tab.
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <path d="M5 3v18l2-1.4 2 1.4 2-1.4 2 1.4 2-1.4 2 1.4V3l-2 1.4-2-1.4-2 1.4-2-1.4-2 1.4Z" />
+      <path d="M14.5 9.5a2 2 0 0 0-2-1.5h-1a1.5 1.5 0 0 0 0 3h1a1.5 1.5 0 0 1 0 3h-1a2 2 0 0 1-2-1.5" />
+      <path d="M12 7v1M12 15v1" />
+    </svg>
+  );
+}
+
 export function IconSettings({ className }: IconProps) {
   // Simplified gear: a circle with six teeth. Loud detail isn't worth
   // the path length on a 16-20px icon.
@@ -182,6 +223,25 @@ export function IconSettings({ className }: IconProps) {
       <path d="m17 17 2.1 2.1" />
       <path d="m4.9 19.1 2.1-2.1" />
       <path d="m17 7 2.1-2.1" />
+    </svg>
+  );
+}
+
+export function IconRoute({ className }: IconProps) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <circle cx="6" cy="19" r="3" />
+      <circle cx="18" cy="5" r="3" />
+      <path d="M9 19h6a3 3 0 0 0 3-3V8M6 16V8a3 3 0 0 1 3-3h6" />
     </svg>
   );
 }

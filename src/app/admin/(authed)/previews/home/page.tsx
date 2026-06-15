@@ -30,9 +30,9 @@ export const metadata: Metadata = {
 
 export default function HomePreviewPage() {
   return (
-    <div className="bg-neutral-950 text-zinc-100">
+    <div className="bg-canvas text-fg">
       {/* Preview banner — operator-only visual marker. */}
-      <div className="border-b border-red-700 bg-red-600 px-4 py-2 text-center font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-white sm:py-2.5">
+      <div className="border-b border-red-300 bg-red-600 px-4 py-2 text-center font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-white sm:py-2.5">
         Preview only &middot; no email sent &middot; no records changed
       </div>
 

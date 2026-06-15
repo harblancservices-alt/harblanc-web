@@ -42,7 +42,7 @@ export function LoadSummaryCard({
   const subtitle = (nextActionSubtitle ?? "").trim();
 
   return (
-    <section className="rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-3 sm:px-4 sm:py-4">
+    <section className="rounded-md border border-line bg-card px-3 py-3 sm:px-4 sm:py-4">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <SummaryItem
           label="Pickup"
@@ -62,7 +62,7 @@ export function LoadSummaryCard({
         />
       </div>
 
-      <div className="mt-3 border-t border-zinc-800 pt-3">
+      <div className="mt-3 border-t border-line pt-3">
         <SummaryItem
           label="Next action"
           primary={nextActionVerb}
@@ -72,11 +72,11 @@ export function LoadSummaryCard({
       </div>
 
       {notes ? (
-        <div className="mt-3 border-t border-zinc-800 pt-3">
-          <p className="font-mono text-[9px] font-medium uppercase tracking-[0.18em] text-zinc-500">
+        <div className="mt-3 border-t border-line pt-3">
+          <p className="font-mono text-[9px] font-medium uppercase tracking-[0.18em] text-fg-subtle">
             Customer notes
           </p>
-          <p className="mt-1.5 whitespace-pre-wrap text-[12px] leading-relaxed text-zinc-200">
+          <p className="mt-1.5 whitespace-pre-wrap text-[12px] leading-relaxed text-fg">
             {notes}
           </p>
         </div>
@@ -104,18 +104,18 @@ function SummaryItem({
     "block truncate text-[13px] " +
     (mono ? "font-mono tabular-nums " : "") +
     (dim
-      ? "text-zinc-500"
+      ? "text-fg-subtle"
       : accentPrimary
-        ? "font-medium text-white"
-        : "font-medium text-zinc-100");
+        ? "font-medium text-fg"
+        : "font-medium text-fg");
   return (
     <div className="min-w-0">
-      <p className="font-mono text-[9px] font-medium uppercase tracking-[0.18em] text-zinc-500">
+      <p className="font-mono text-[9px] font-medium uppercase tracking-[0.18em] text-fg-subtle">
         {label}
       </p>
       <p className={"mt-1 " + primaryClass}>{primary}</p>
       {secondary ? (
-        <p className="mt-[2px] truncate text-[10.5px] text-zinc-500">
+        <p className="mt-[2px] truncate text-[10.5px] text-fg-subtle">
           {secondary}
         </p>
       ) : null}

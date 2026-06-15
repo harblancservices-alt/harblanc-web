@@ -499,14 +499,14 @@ export function EventHistorySection({ events }: EventHistorySectionProps) {
   return (
     <section
       aria-label="Event history"
-      className="border-2 border-black border-l-4 border-l-black bg-[#fafaf6] px-5 py-4 sm:px-6 sm:py-5"
+      className="border-2 border-line border-l-4 border-l-black bg-[#fafaf6] px-5 py-4 sm:px-6 sm:py-5"
     >
-      <p className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-black">
+      <p className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-fg">
         Event history
       </p>
 
       {events.length === 0 ? (
-        <p className="mt-3 font-mono text-[12px] text-black">
+        <p className="mt-3 font-mono text-[12px] text-fg">
           No events yet.
         </p>
       ) : (
@@ -529,11 +529,11 @@ export function EventHistorySection({ events }: EventHistorySectionProps) {
                   {ts || "—"}
                 </span>
                 <div className="min-w-0">
-                  <p className="text-[13px] font-bold text-black">
+                  <p className="text-[13px] font-bold text-fg">
                     {label}
                   </p>
                   {description ? (
-                    <p className="mt-0.5 break-words font-mono text-[11px] text-black">
+                    <p className="mt-0.5 break-words font-mono text-[11px] text-fg">
                       {description}
                     </p>
                   ) : null}

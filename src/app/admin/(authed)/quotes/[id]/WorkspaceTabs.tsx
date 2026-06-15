@@ -102,7 +102,7 @@ function TabBar({
     <div
       role="tablist"
       aria-label="Workspace sections"
-      className="overflow-x-auto border-b-2 border-black bg-[#fafaf6]"
+      className="overflow-x-auto border-b-2 border-line bg-[#fafaf6]"
     >
       <div className="flex min-w-fit">
         {TABS.map((t) => {
@@ -116,16 +116,16 @@ function TabBar({
               onClick={() => setTab(t.id)}
               className={
                 // Hierarchy:
-                //   Active   → solid red tab (bg-black) with white bold
+                //   Active   → solid red tab (bg-canvas) with white bold
                 //              text and a darker red underline. Reads as
                 //              a stamped/selected tab, not a label.
                 //   Inactive → cream bg, black bold text, no underline.
                 //   Placeholder → black text, not-allowed cursor.
                 "-mb-[2px] inline-flex shrink-0 items-center gap-2 border-b-[3px] px-3.5 py-2.5 font-mono text-[12px] font-bold uppercase tracking-[0.16em] transition-colors focus:outline-none sm:px-4 " +
                 (active
-                  ? "border-black bg-black font-black text-white"
-                  : "border-transparent text-black hover:bg-[#f3f1e9]") +
-                (t.placeholder ? " cursor-not-allowed text-black" : "")
+                  ? "border-line bg-canvas font-black text-fg"
+                  : "border-transparent text-fg hover:bg-[#f3f1e9]") +
+                (t.placeholder ? " cursor-not-allowed text-fg" : "")
               }
               disabled={t.placeholder}
             >
@@ -135,7 +135,7 @@ function TabBar({
                 aria-hidden
                 className={
                   "inline-block h-[12px] w-[3px] shrink-0 " +
-                  (active ? "bg-white" : "bg-transparent")
+                  (active ? "bg-card" : "bg-transparent")
                 }
               />
               {t.label}
@@ -155,14 +155,14 @@ function PlaceholderTab({
   subtitle: string;
 }) {
   return (
-    <section className="border border-black border-l-4 border-l-black bg-[#fafaf6] p-6 text-center sm:p-10">
-      <p className="font-mono text-[12px] font-bold uppercase tracking-[0.22em] text-black">
+    <section className="border border-line border-l-4 border-l-black bg-[#fafaf6] p-6 text-center sm:p-10">
+      <p className="font-mono text-[12px] font-bold uppercase tracking-[0.22em] text-fg">
         Not built yet
       </p>
-      <h2 className="mt-3 font-mono text-2xl font-bold uppercase tracking-[0.1em] text-black">
+      <h2 className="mt-3 font-mono text-2xl font-bold uppercase tracking-[0.1em] text-fg">
         {title}
       </h2>
-      <p className="mx-auto mt-3 max-w-md text-[15px] leading-relaxed text-black">
+      <p className="mx-auto mt-3 max-w-md text-[15px] leading-relaxed text-fg">
         {subtitle}
       </p>
     </section>

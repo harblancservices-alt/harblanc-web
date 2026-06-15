@@ -247,14 +247,14 @@ export default async function QuotesPage({
       {/* V3 hero — eyebrow + bold title + right-aligned meta */}
       <header className="flex flex-wrap items-end justify-between gap-4 pb-5 sm:pb-6">
         <div>
-          <p className="font-mono text-[10.5px] font-bold uppercase tracking-[0.28em] text-black">
+          <p className="font-mono text-[10.5px] font-bold uppercase tracking-[0.28em] text-fg">
             Quotes
           </p>
-          <h1 className="mt-1 text-[30px] font-bold leading-none tracking-tight text-black sm:text-[36px] lg:text-[40px]">
+          <h1 className="mt-1 text-[30px] font-bold leading-none tracking-tight text-fg sm:text-[36px] lg:text-[40px]">
             Active leads
           </h1>
         </div>
-        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-black text-right leading-snug">
+        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-fg text-right leading-snug">
           {rows.length} active
           <br />
           {newToday} new today
@@ -278,7 +278,7 @@ export default async function QuotesPage({
       />
 
       {rows.length === 0 ? (
-        <p className="mt-12 font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-black/55">
+        <p className="mt-12 font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-fg-subtle">
           No active quote requests.
         </p>
       ) : (

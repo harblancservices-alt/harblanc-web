@@ -28,14 +28,14 @@ export function OpsStrip({
 }: OpsStripProps) {
   const nextColor =
     nextTone === "blue"
-      ? "text-blue-300"
+      ? "text-blue-700"
       : nextTone === "amber"
-        ? "text-amber-300"
+        ? "text-amber-700"
         : nextTone === "emerald"
-          ? "text-emerald-300"
-          : "text-zinc-200";
+          ? "text-emerald-700"
+          : "text-fg";
   return (
-    <div className="grid grid-cols-2 items-baseline gap-x-5 gap-y-2 border-y border-zinc-800 px-1 py-2.5 sm:grid-cols-4 sm:gap-x-6 xl:py-3 xl:gap-x-8">
+    <div className="grid grid-cols-2 items-baseline gap-x-5 gap-y-2 border-y border-line px-1 py-2.5 sm:grid-cols-4 sm:gap-x-6 xl:py-3 xl:gap-x-8">
       <Cell label="Pickup" value={pickupLabel} />
       <Cell label="Delivery" value={deliveryLabel} />
       <Cell label="Contact" value={contactLabel} mono />
@@ -62,7 +62,7 @@ function Cell({
   const text = (value ?? "").trim();
   return (
     <div className="min-w-0">
-      <span className="mr-2 font-mono text-[9px] font-medium uppercase tracking-[0.20em] text-zinc-500 xl:text-[10.5px]">
+      <span className="mr-2 font-mono text-[9px] font-medium uppercase tracking-[0.20em] text-fg-subtle xl:text-[10.5px]">
         {label}
       </span>
       <span
@@ -70,7 +70,7 @@ function Cell({
           (mono
             ? "font-mono tabular-nums text-[11.5px] xl:text-[13px] "
             : "font-mono text-[11.5px] tabular-nums xl:text-[13px] ") +
-          (valueClassName ?? (text ? "text-zinc-200" : "text-zinc-600"))
+          (valueClassName ?? (text ? "text-fg" : "text-fg-subtle"))
         }
       >
         {text || "—"}
