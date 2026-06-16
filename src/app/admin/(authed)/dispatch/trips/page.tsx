@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { NewTripButton } from "./NewTripButton";
+import { TripsListTable } from "./TripsListTable";
 
 export const metadata: Metadata = {
   title: "Trips",
@@ -35,21 +35,6 @@ function num(v: number | string | null): number {
   const n = typeof v === "number" ? v : Number(v);
   return Number.isFinite(n) ? n : 0;
 }
-function usd(n: number): string {
-  return "$" + Math.round(n).toLocaleString("en-US");
-}
-function fmtDate(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
-
-const GRID = "minmax(0,1.6fr) 110px 70px 90px 130px minmax(0,1fr)";
-
 export default async function TripsPage() {
   const sb = createServiceRoleClient();
   const [{ data: tripRows }, { data: loadRows }] = await Promise.all([
@@ -89,12 +74,8 @@ export default async function TripsPage() {
     name: t.name?.trim() || "Untitled trip",
     status: t.status,
     notes: t.notes?.trim() || null,
-    created: fmtDate(t.created_at),
     ...(agg.get(t.id) ?? { loads: 0, gross: 0, net: 0, miles: 0 }),
   }));
-
-  const active = trips.filter((t) => t.status !== "closed");
-  const closed = trips.filter((t) => t.status === "closed");
 
   return (
     <div className="min-h-screen border-t border-line bg-canvas text-fg">
@@ -120,102 +101,9 @@ export default async function TripsPage() {
             load and it’ll appear here.
           </div>
         ) : (
-          <div className="overflow-hidden rounded-md border border-line bg-card shadow-md">
-            <div
-              className="grid items-center gap-2 bg-bar px-3.5 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-bar-fg"
-              style={{ gridTemplateColumns: GRID }}
-            >
-              <span>Trip name</span>
-              <span>Status</span>
-              <span className="text-right">Loads</span>
-              <span className="text-right">Gross</span>
-              <span className="text-right">Net profit</span>
-              <span>Notes</span>
-            </div>
-
-            <SectionLabel label="All trips" count={`${trips.length} trips`} />
-            {active.map((t) => (
-              <TripRowItem key={t.id} trip={t} />
-            ))}
-
-            {closed.length > 0 ? (
-              <>
-                <SectionLabel label="Closed trips" />
-                {closed.map((t) => (
-                  <TripRowItem key={t.id} trip={t} />
-                ))}
-              </>
-            ) : null}
-          </div>
+          <TripsListTable trips={trips} />
         )}
       </div>
     </div>
-  );
-}
-
-function SectionLabel({ label, count }: { label: string; count?: string }) {
-  return (
-    <div className="flex items-center justify-between border-b border-line bg-elevated px-3.5 py-1.5">
-      <span className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-fg-muted">
-        {label}
-      </span>
-      {count ? (
-        <span className="font-mono text-[10px] tabular-nums text-fg-subtle">
-          {count}
-        </span>
-      ) : null}
-    </div>
-  );
-}
-
-function TripRowItem({
-  trip,
-}: {
-  trip: {
-    id: string;
-    name: string;
-    status: string;
-    notes: string | null;
-    loads: number;
-    gross: number;
-    net: number;
-  };
-}) {
-  return (
-    <Link
-      href={`/admin/dispatch/trips/${trip.id}`}
-      prefetch={false}
-      className="grid items-center gap-2 border-b border-line px-3.5 py-2.5 text-[13px] transition-colors last:border-b-0 hover:bg-elevated"
-      style={{ gridTemplateColumns: GRID }}
-    >
-      <span className="truncate font-semibold text-fg">{trip.name}</span>
-      <span>
-        <StatusPill status={trip.status} />
-      </span>
-      <span className="text-right tabular-nums text-fg-muted">{trip.loads}</span>
-      <span className="text-right font-semibold tabular-nums text-green-700">
-        {usd(trip.gross)}
-      </span>
-      <span className="text-right font-bold tabular-nums text-green-700">
-        {usd(trip.net)}
-      </span>
-      <span className="truncate text-fg-subtle">{trip.notes ?? "—"}</span>
-    </Link>
-  );
-}
-
-function StatusPill({ status }: { status: string }) {
-  const closed = status === "closed";
-  return (
-    <span
-      className={
-        "rounded px-2 py-[2px] font-mono text-[10px] font-bold uppercase tracking-[0.06em] " +
-        (closed
-          ? "bg-violet-100 text-violet-700"
-          : "bg-green-100 text-green-700")
-      }
-    >
-      {closed ? "Closed" : "Active"}
-    </span>
   );
 }

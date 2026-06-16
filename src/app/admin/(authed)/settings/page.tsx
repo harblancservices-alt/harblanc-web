@@ -4,6 +4,7 @@ import { validateEnv } from "@/lib/env";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { IconLogout } from "../_shell/icons";
 import { updateFuelSettings } from "./actions";
+import { ThemeToggle } from "./ThemeToggle";
 
 /**
  * Level 4 — Settings page.
@@ -56,7 +57,17 @@ export default async function SettingsPage() {
         </h1>
       </header>
 
-      <section className="mt-6 border-2 border-line border-l-4 border-l-black bg-[#fafaf6] px-4 py-4 sm:px-5 sm:py-5">
+      <section className="mt-6 border-2 border-line border-l-4 border-l-fg bg-card px-4 py-4 sm:px-5 sm:py-5">
+        <p className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-fg">
+          Appearance
+        </p>
+        <p className="mt-1 text-[12px] text-fg/70">
+          Switch the admin portal between light and dark.
+        </p>
+        <ThemeToggle />
+      </section>
+
+      <section className="mt-4 border-2 border-line border-l-4 border-l-fg bg-card px-4 py-4 sm:px-5 sm:py-5">
         <p className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-fg">
           Email
         </p>
@@ -89,7 +100,7 @@ export default async function SettingsPage() {
 
       <form
         action={updateFuelSettings}
-        className="mt-4 border-2 border-line border-l-4 border-l-black bg-[#fafaf6] px-4 py-4 sm:px-5 sm:py-5"
+        className="mt-4 border-2 border-line border-l-4 border-l-fg bg-card px-4 py-4 sm:px-5 sm:py-5"
       >
         <p className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-fg">
           Fuel defaults
@@ -109,7 +120,7 @@ export default async function SettingsPage() {
               step="0.1"
               min="1"
               defaultValue={String(mpg)}
-              className="mt-1 block w-28 border-2 border-line bg-card px-3 py-2 font-mono text-[15px] text-fg focus:border-black focus:outline-none"
+              className="mt-1 block w-28 border-2 border-line bg-card px-3 py-2 font-mono text-[15px] text-fg focus:border-fg focus:outline-none"
             />
           </label>
           <label className="block">
@@ -122,7 +133,7 @@ export default async function SettingsPage() {
               step="0.01"
               min="0"
               defaultValue={String(ppg)}
-              className="mt-1 block w-28 border-2 border-line bg-card px-3 py-2 font-mono text-[15px] text-fg focus:border-black focus:outline-none"
+              className="mt-1 block w-28 border-2 border-line bg-card px-3 py-2 font-mono text-[15px] text-fg focus:border-fg focus:outline-none"
             />
           </label>
           <label className="block">
@@ -135,12 +146,12 @@ export default async function SettingsPage() {
               step="0.1"
               min="0"
               defaultValue={String(factoringPct)}
-              className="mt-1 block w-28 border-2 border-line bg-card px-3 py-2 font-mono text-[15px] text-fg focus:border-black focus:outline-none"
+              className="mt-1 block w-28 border-2 border-line bg-card px-3 py-2 font-mono text-[15px] text-fg focus:border-fg focus:outline-none"
             />
           </label>
           <button
             type="submit"
-            className="border-2 border-black bg-black px-5 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-white transition-colors hover:bg-[#222]"
+            className="border-2 border-fg bg-fg px-5 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-canvas transition-colors hover:opacity-90"
           >
             Save
           </button>
@@ -150,7 +161,7 @@ export default async function SettingsPage() {
       <form action="/admin/logout" method="post" className="mt-4">
         <button
           type="submit"
-          className="inline-flex w-full items-center justify-center gap-2 border-2 border-line bg-card px-4 py-3 font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-fg transition-colors hover:bg-[#f3f1e9] sm:w-auto"
+          className="inline-flex w-full items-center justify-center gap-2 border-2 border-line bg-card px-4 py-3 font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-fg transition-colors hover:bg-elevated sm:w-auto"
         >
           <IconLogout className="h-4 w-4" />
           Sign out

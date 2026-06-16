@@ -106,6 +106,60 @@
   --bar-fg: #f4f4f5;
 }
 
+/* ADMIN DARK THEME — opt-in via the Settings toggle. When the operator
+   picks Dark, an inline script sets html[data-admin-theme="dark"], which
+   re-applies the approved warm-charcoal palette over the .admin-light
+   scope (higher specificity wins). Same utilities, dark values. */
+.admin-dark,
+html[data-admin-theme="dark"] .admin-light {
+  --canvas: #2b2b2b;
+  --panel: #353535;
+  --card: #3f3f3f;
+  --elevated: #4b4b4b;
+  --line: #595959;
+  --line-strong: #6b6b6b;
+  --fg: #f4f4f4;
+  --fg-muted: #b5b5b5;
+  --fg-subtle: #858585;
+  --bar: #1f2024;
+  --bar-fg: #f4f4f5;
+}
+
+/* Dark-mode accent retune — the app uses light-tint pill/badge fills
+   (bg-amber-50, bg-green-100, …) and dark accent text (text-green-700, …)
+   that were tuned for white cards. On dark they read washed-out, so swap
+   the fills to translucent dark tints and lighten the accent text. Scoped
+   to .admin-dark so light mode is untouched. */
+.admin-dark .bg-amber-50,
+.admin-dark .bg-amber-100 { background-color: rgba(226, 163, 61, 0.16); }
+.admin-dark .bg-green-50,
+.admin-dark .bg-green-100 { background-color: rgba(93, 174, 120, 0.16); }
+.admin-dark .bg-blue-50,
+.admin-dark .bg-blue-100 { background-color: rgba(85, 150, 230, 0.16); }
+.admin-dark .bg-red-50,
+.admin-dark .bg-red-100 { background-color: rgba(226, 75, 74, 0.16); }
+.admin-dark .bg-violet-50,
+.admin-dark .bg-violet-100 { background-color: rgba(140, 130, 230, 0.16); }
+.admin-dark .bg-emerald-50,
+.admin-dark .bg-emerald-100 { background-color: rgba(45, 180, 140, 0.16); }
+
+.admin-dark .text-amber-700,
+.admin-dark .text-amber-800 { color: #f0b860; }
+.admin-dark .text-green-700,
+.admin-dark .text-green-800 { color: #82d09b; }
+.admin-dark .text-blue-700 { color: #74b2ef; }
+.admin-dark .text-red-600,
+.admin-dark .text-red-700 { color: #f1908f; }
+.admin-dark .text-indigo-600 { color: #9ea4ef; }
+.admin-dark .text-violet-700 { color: #b9b0ee; }
+.admin-dark .text-emerald-700 { color: #62cba7; }
+
+/* Light hairline borders on accent chips/buttons soften on dark. */
+.admin-dark .border-red-300,
+.admin-dark .border-blue-300,
+.admin-dark .border-amber-300,
+.admin-dark .border-green-300 { border-color: rgba(255, 255, 255, 0.18); }
+
 @theme inline {
   /* Unified dark palette → Tailwind utilities.
      Surfaces:  bg-canvas bg-panel bg-card bg-elevated

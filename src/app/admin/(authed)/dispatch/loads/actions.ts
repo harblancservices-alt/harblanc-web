@@ -52,22 +52,35 @@ const STAGE_ODO_COLUMN: Record<string, "odo_assigned" | "odo_loaded" | "odo_deli
 async function resolveBrokerId(
   sb: ReturnType<typeof createServiceRoleClient>,
   name: string,
-  mc?: string | null,
-  dot?: string | null,
+  contact?: {
+    mc?: string | null;
+    dot?: string | null;
+    email?: string | null;
+    phone?: string | null;
+  },
 ): Promise<string | null> {
   const key = name.trim().toLowerCase();
   if (!key) return null;
+  const c = contact ?? {};
   const { data: existing } = await sb
     .from("brokers")
-    .select("id, mc_number, dot_number")
+    .select("id, mc_number, dot_number, email, phone")
     .eq("name_key", key)
     .is("deleted_at", null)
-    .maybeSingle<{ id: string; mc_number: string | null; dot_number: string | null }>();
+    .maybeSingle<{
+      id: string;
+      mc_number: string | null;
+      dot_number: string | null;
+      email: string | null;
+      phone: string | null;
+    }>();
   if (existing?.id) {
-    // Backfill MC/DOT if we now have it and the record was missing it.
+    // Backfill any contact detail we now have but the record was missing.
     const patch: Record<string, string> = {};
-    if (mc && !existing.mc_number) patch.mc_number = mc;
-    if (dot && !existing.dot_number) patch.dot_number = dot;
+    if (c.mc && !existing.mc_number) patch.mc_number = c.mc;
+    if (c.dot && !existing.dot_number) patch.dot_number = c.dot;
+    if (c.email && !existing.email) patch.email = c.email;
+    if (c.phone && !existing.phone) patch.phone = c.phone;
     if (Object.keys(patch).length > 0) {
       await sb.from("brokers").update(patch).eq("id", existing.id);
     }
@@ -75,7 +88,13 @@ async function resolveBrokerId(
   }
   const { data: created } = await sb
     .from("brokers")
-    .insert({ name: name.trim(), mc_number: mc ?? null, dot_number: dot ?? null })
+    .insert({
+      name: name.trim(),
+      mc_number: c.mc ?? null,
+      dot_number: c.dot ?? null,
+      email: c.email ?? null,
+      phone: c.phone ?? null,
+    })
     .select("id")
     .maybeSingle<{ id: string }>();
   return created?.id ?? null;
@@ -111,12 +130,12 @@ export async function createLoad(formData: FormData): Promise<void> {
 
   const brokerName = str(formData, "broker_name");
   const brokerId = brokerName
-    ? await resolveBrokerId(
-        sb,
-        brokerName,
-        str(formData, "broker_mc"),
-        str(formData, "broker_dot"),
-      )
+    ? await resolveBrokerId(sb, brokerName, {
+        mc: str(formData, "broker_mc"),
+        dot: str(formData, "broker_dot"),
+        email: str(formData, "broker_email"),
+        phone: str(formData, "broker_phone"),
+      })
     : null;
 
   const tripName = str(formData, "trip_name");
@@ -408,6 +427,21 @@ export async function deleteLoadDocument(
   await sb.storage.from(DOC_BUCKET).remove([row.storage_path]);
   await sb.from("load_documents").delete().eq("id", row.id);
   revalidatePath(`/admin/dispatch/loads/${loadId}`);
+}
+
+/** Bulk soft-delete loads selected on the Load Board (multi-select). */
+export async function softDeleteLoads(formData: FormData): Promise<void> {
+  const ids = formData.getAll("ids").map(String).filter(Boolean);
+  if (ids.length === 0) return;
+  const sb = createServiceRoleClient();
+  const { error } = await sb
+    .from("loads")
+    .update({ deleted_at: new Date().toISOString() })
+    .in("id", ids);
+  if (error) throw new Error(`Could not delete loads: ${error.message}`);
+  revalidatePath("/admin/dispatch/loads");
+  revalidatePath("/admin/dispatch/brokers");
+  revalidatePath("/admin/dispatch/trips");
 }
 
 /** Soft-delete a load — removes it from the board, trips, and broker rollups. */

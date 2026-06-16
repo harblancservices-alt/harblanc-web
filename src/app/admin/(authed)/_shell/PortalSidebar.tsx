@@ -63,6 +63,7 @@ const DISPATCH: NavItem[] = [
   { href: "/admin/dispatch/loads", label: "Load Board", Icon: IconStack },
   { href: "/admin/dispatch/trips", label: "Trips", Icon: IconRoute },
   { href: "/admin/dispatch/brokers", label: "Brokers", Icon: IconBuilding },
+  { href: "/admin/dispatch/backhaul", label: "Backhaul", Icon: IconMail },
 ];
 
 const MORE: NavItem[] = [

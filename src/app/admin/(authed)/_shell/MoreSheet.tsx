@@ -33,16 +33,69 @@ import {
 type SheetItem = {
   href: string;
   label: string;
+  desc: string;
+  chip: string;
   Icon: ComponentType<{ className?: string }>;
 };
 
-const ITEMS: SheetItem[] = [
-  { href: "/admin/loads", label: "Quotes", Icon: IconTruck },
-  { href: "/admin/applications", label: "Applications", Icon: IconBadge },
-  { href: "/admin/dispatch/trips", label: "Trips", Icon: IconRoute },
-  { href: "/admin/accounting", label: "Accounting", Icon: IconReceipt },
-  { href: "/admin/previews", label: "Previews", Icon: IconMail },
-  { href: "/admin/settings", label: "Settings", Icon: IconSettings },
+const GROUPS: { title: string; items: SheetItem[] }[] = [
+  {
+    title: "Dispatch",
+    items: [
+      {
+        href: "/admin/dispatch/trips",
+        label: "Trips",
+        desc: "Group loads & track profit",
+        chip: "bg-emerald-50 text-emerald-700",
+        Icon: IconRoute,
+      },
+    ],
+  },
+  {
+    title: "Customers",
+    items: [
+      {
+        href: "/admin/loads",
+        label: "Quotes",
+        desc: "Customer quote requests",
+        chip: "bg-blue-50 text-blue-700",
+        Icon: IconTruck,
+      },
+      {
+        href: "/admin/applications",
+        label: "Applications",
+        desc: "Driver applications",
+        chip: "bg-violet-50 text-violet-700",
+        Icon: IconBadge,
+      },
+    ],
+  },
+  {
+    title: "Business",
+    items: [
+      {
+        href: "/admin/accounting",
+        label: "Accounting",
+        desc: "Payments, fees & A/R",
+        chip: "bg-green-50 text-green-700",
+        Icon: IconReceipt,
+      },
+      {
+        href: "/admin/previews",
+        label: "Previews",
+        desc: "Email previews",
+        chip: "bg-amber-50 text-amber-700",
+        Icon: IconMail,
+      },
+      {
+        href: "/admin/settings",
+        label: "Settings",
+        desc: "Fuel defaults & account",
+        chip: "bg-elevated text-fg-muted",
+        Icon: IconSettings,
+      },
+    ],
+  },
 ];
 
 function isActive(pathname: string, href: string): boolean {
@@ -99,38 +152,47 @@ export function MoreSheet({
         <p className="mt-3 px-5 font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-fg">
           More
         </p>
-        <ul className="mt-2 border-t border-line">
-          {ITEMS.map((item) => {
-            const active = isActive(pathname, item.href);
-            return (
-              <li key={item.href} className="border-b border-line">
-                <Link
-                  href={item.href}
-                  prefetch={false}
-                  onClick={onClose}
-                  aria-current={active ? "page" : undefined}
-                  className={
-                    "flex items-center gap-3.5 px-5 py-3.5 transition-colors " +
-                    (active ? "bg-[#fafaf6]" : "")
-                  }
-                >
-                  <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center border border-line text-fg">
-                    <item.Icon className="h-[18px] w-[18px]" />
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[15px] font-bold text-fg">
-                      {item.label}
-                    </p>
-                    <p className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-fg">
-                      {item.href}
-                    </p>
-                  </div>
-                  <IconChevronRight className="h-4 w-4 shrink-0 text-fg" />
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+        <div className="mt-2 max-h-[70vh] overflow-y-auto">
+          {GROUPS.map((group) => (
+            <div key={group.title}>
+              <p className="px-5 pt-3 pb-1 font-mono text-[9px] font-bold uppercase tracking-[0.18em] text-fg-subtle">
+                {group.title}
+              </p>
+              {group.items.map((item) => {
+                const active = isActive(pathname, item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    prefetch={false}
+                    onClick={onClose}
+                    aria-current={active ? "page" : undefined}
+                    className={
+                      "flex items-center gap-3 px-4 py-2.5 transition-colors " +
+                      (active ? "bg-elevated" : "active:bg-elevated")
+                    }
+                  >
+                    <span
+                      className={
+                        "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg " +
+                        item.chip
+                      }
+                    >
+                      <item.Icon className="h-[18px] w-[18px]" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[14.5px] font-semibold leading-tight text-fg">
+                        {item.label}
+                      </p>
+                      <p className="text-[11.5px] text-fg-muted">{item.desc}</p>
+                    </div>
+                    <IconChevronRight className="h-4 w-4 shrink-0 text-fg-subtle" />
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

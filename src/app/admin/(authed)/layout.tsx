@@ -25,5 +25,16 @@ export default async function AuthedAdminLayout({
 }) {
   const user = await requireAdmin();
 
-  return <PortalShell email={user.email ?? null}>{children}</PortalShell>;
+  return (
+    <>
+      {/* Apply the saved theme before paint so there's no light→dark flash. */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html:
+            "try{if(localStorage.getItem('harblanc-theme')==='dark'){document.documentElement.setAttribute('data-admin-theme','dark')}else{document.documentElement.removeAttribute('data-admin-theme')}}catch(e){}",
+        }}
+      />
+      <PortalShell email={user.email ?? null}>{children}</PortalShell>
+    </>
+  );
 }

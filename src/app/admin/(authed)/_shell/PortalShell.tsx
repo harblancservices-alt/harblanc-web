@@ -1,6 +1,7 @@
 import { PortalTopBar } from "./PortalTopBar";
 import { PortalSidebar } from "./PortalSidebar";
 import { PortalBottomNav } from "./PortalBottomNav";
+import { ThemeShell } from "./ThemeShell";
 
 /**
  * Level 4 — portal shell.
@@ -32,13 +33,13 @@ export function PortalShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="admin-light min-h-screen bg-canvas text-fg">
+    <ThemeShell>
       <PortalTopBar />
       <div className="flex">
         <PortalSidebar email={email} />
         <main className="min-w-0 flex-1 pb-20 lg:pb-0">{children}</main>
       </div>
       <PortalBottomNav />
-    </div>
+    </ThemeShell>
   );
 }

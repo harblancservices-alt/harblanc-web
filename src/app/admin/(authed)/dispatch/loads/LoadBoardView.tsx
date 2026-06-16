@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createLoad } from "./actions";
+import { createLoad, softDeleteLoads } from "./actions";
 
 export type LoadRow = {
   id: string;
@@ -68,12 +68,22 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const GRID =
-  "92px 90px minmax(0,1.2fr) minmax(0,1.4fr) 60px 60px minmax(0,0.9fr) 88px 64px 56px 96px 96px";
+  "30px 92px 90px minmax(0,1.2fr) minmax(0,1.4fr) 60px 60px minmax(0,0.9fr) 88px 64px 56px 96px 96px";
 
 export function LoadBoardView({ data }: { data: LoadBoardData }) {
   const { kpis, deadhead } = data;
   const router = useRouter();
   const [filter, setFilter] = useState<Filter>("all");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  function toggleSelected(id: string) {
+    setSelected((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
   const [query, setQuery] = useState("");
   const [addOpen, setAddOpen] = useState(false);
 
@@ -186,6 +196,47 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
           ))}
         </div>
 
+        {/* Selection / bulk delete bar */}
+        {selected.size > 0 && (
+          <div className="mb-2 flex flex-wrap items-center gap-3 rounded-md border border-line bg-elevated px-3 py-2">
+            <span className="font-mono text-[12px] font-bold text-fg">
+              {selected.size} selected
+            </span>
+            <button
+              type="button"
+              onClick={() => setSelected(new Set())}
+              className="font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-fg-muted hover:text-fg"
+            >
+              Clear
+            </button>
+            <form
+              action={softDeleteLoads}
+              onSubmit={(e) => {
+                if (
+                  !window.confirm(
+                    `Delete ${selected.size} load${selected.size === 1 ? "" : "s"}? They move to trash and can be restored for 30 days.`,
+                  )
+                ) {
+                  e.preventDefault();
+                } else {
+                  setSelected(new Set());
+                }
+              }}
+              className="ml-auto"
+            >
+              {[...selected].map((id) => (
+                <input key={id} type="hidden" name="ids" value={id} />
+              ))}
+              <button
+                type="submit"
+                className="rounded-md border-2 border-red-700 bg-red-600 px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-white hover:bg-red-700"
+              >
+                Delete {selected.size}
+              </button>
+            </form>
+          </div>
+        )}
+
         {/* Table (desktop) */}
         <div className="hidden overflow-x-auto rounded-md border border-line bg-card shadow-md md:block">
           <div className="min-w-[1040px]">
@@ -193,6 +244,26 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
               className="grid items-center gap-2 bg-bar px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-bar-fg"
               style={{ gridTemplateColumns: GRID }}
             >
+              <span className="flex items-center">
+                <input
+                  type="checkbox"
+                  aria-label="Select all loads"
+                  checked={rows.length > 0 && selected.size === rows.length}
+                  ref={(el) => {
+                    if (el)
+                      el.indeterminate =
+                        selected.size > 0 && selected.size < rows.length;
+                  }}
+                  onChange={(e) =>
+                    setSelected(
+                      e.target.checked
+                        ? new Set(rows.map((r) => r.id))
+                        : new Set(),
+                    )
+                  }
+                  className="h-3.5 w-3.5 cursor-pointer accent-red-600"
+                />
+              </span>
               <span>Status</span>
               <span>Load #</span>
               <span>Broker</span>
@@ -228,6 +299,18 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
                   }
                   style={{ gridTemplateColumns: GRID }}
                 >
+                  <span
+                    className="flex items-center"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <input
+                      type="checkbox"
+                      aria-label={`Select load ${r.loadNumber}`}
+                      checked={selected.has(r.id)}
+                      onChange={() => toggleSelected(r.id)}
+                      className="h-3.5 w-3.5 cursor-pointer accent-red-600"
+                    />
+                  </span>
                   <span>
                     <span
                       className={
@@ -298,13 +381,23 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
                 className="rounded-md border border-line bg-card p-3 shadow-sm transition-colors active:bg-elevated"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span
-                    className={
-                      "inline-block rounded-sm px-1.5 py-[1px] font-mono text-[10px] font-bold uppercase tracking-[0.06em] " +
-                      (STATUS_PILL[r.status] ?? "bg-elevated text-fg-subtle")
-                    }
-                  >
-                    {STATUS_LABEL[r.status] ?? r.status}
+                  <span className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      aria-label={`Select load ${r.loadNumber}`}
+                      checked={selected.has(r.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      onChange={() => toggleSelected(r.id)}
+                      className="h-4 w-4 cursor-pointer accent-red-600"
+                    />
+                    <span
+                      className={
+                        "inline-block rounded-sm px-1.5 py-[1px] font-mono text-[10px] font-bold uppercase tracking-[0.06em] " +
+                        (STATUS_PILL[r.status] ?? "bg-elevated text-fg-subtle")
+                      }
+                    >
+                      {STATUS_LABEL[r.status] ?? r.status}
+                    </span>
                   </span>
                   <span className="font-mono text-[15px] font-bold tabular-nums text-green-700">
                     {usd(r.rate)}
@@ -482,6 +575,9 @@ function AddLoadModal({
   const [broker, setBroker] = useState("");
   const [brokerMc, setBrokerMc] = useState("");
   const [brokerDot, setBrokerDot] = useState("");
+  const [brokerEmail, setBrokerEmail] = useState("");
+  const [brokerPhone, setBrokerPhone] = useState("");
+  const [status, setStatus] = useState("pending");
   const [lookupKind, setLookupKind] = useState<"mc" | "dot">("mc");
   const [lookupVal, setLookupVal] = useState("");
   const [lookupLoading, setLookupLoading] = useState(false);
@@ -570,6 +666,7 @@ function AddLoadModal({
       setBroker(data.name ?? data.dbaName ?? "");
       setBrokerMc(data.mcNumber ?? (lookupKind === "mc" ? v : ""));
       setBrokerDot(data.dotNumber ?? (lookupKind === "dot" ? v : ""));
+      if (data.phone) setBrokerPhone(data.phone);
       const op =
         data.allowedToOperate === false ? " — NOT allowed to operate" : "";
       setLookupMsg({
@@ -593,7 +690,14 @@ function AddLoadModal({
     >
       <form
         action={createLoad}
-        onClick={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation();
+          // Tap any blank area of the form to dismiss the mobile keyboard.
+          const t = e.target as HTMLElement;
+          if (!t.closest("input, select, textarea, button, a, label")) {
+            (document.activeElement as HTMLElement | null)?.blur();
+          }
+        }}
         className="my-2 w-full max-w-2xl overflow-hidden rounded-md border border-line-strong bg-card shadow-2xl sm:my-6"
       >
         <div className="flex items-center justify-between gap-3 bg-bar px-4 py-2.5">
@@ -619,181 +723,17 @@ function AddLoadModal({
           ))}
         </datalist>
 
-        <div className="grid grid-cols-1 gap-3 px-4 py-4 sm:grid-cols-2 sm:px-5">
-          {/* Broker + FMCSA MC/DOT lookup */}
-          <div className="sm:col-span-2">
-            <label className="block font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-fg-subtle">
-              Broker / customer<span className="ml-0.5 text-red-600">*</span>
-            </label>
-            <input
-              name="broker_name"
-              required
-              value={broker}
-              onChange={(e) => setBroker(e.target.value)}
-              list="broker-options"
-              placeholder="Type to search or add new…"
-              autoComplete="off"
-              className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
-            />
-            <input type="hidden" name="broker_mc" value={brokerMc} />
-            <input type="hidden" name="broker_dot" value={brokerDot} />
-
-            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-              <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-fg-subtle">
-                Have MC/DOT?
-              </span>
-              <div className="inline-flex overflow-hidden rounded border border-line-strong">
-                {(["mc", "dot"] as const).map((k) => (
-                  <button
-                    key={k}
-                    type="button"
-                    onClick={() => setLookupKind(k)}
-                    className={
-                      "px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.08em] transition-colors " +
-                      (lookupKind === k
-                        ? "bg-fg text-canvas"
-                        : "bg-card text-fg-muted hover:bg-elevated")
-                    }
-                  >
-                    {k}
-                  </button>
-                ))}
-              </div>
-              <input
-                value={lookupVal}
-                onChange={(e) => setLookupVal(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    void runBrokerLookup();
-                  }
-                }}
-                placeholder={lookupKind === "mc" ? "MC #" : "DOT #"}
-                inputMode="numeric"
-                autoComplete="off"
-                className="w-28 rounded border border-line-strong bg-card px-2 py-1 text-[12px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
-              />
-              <button
-                type="button"
-                onClick={() => void runBrokerLookup()}
-                disabled={lookupLoading || !lookupVal.trim()}
-                className="rounded border border-line-strong bg-card px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-fg transition-colors hover:bg-elevated disabled:opacity-40"
-              >
-                {lookupLoading ? "…" : "Look up"}
-              </button>
-              {lookupMsg ? (
-                <span
-                  className={
-                    "truncate text-[11px] " +
-                    (lookupMsg.tone === "err"
-                      ? "text-red-700"
-                      : "text-green-700")
-                  }
-                >
-                  {lookupMsg.text}
-                </span>
-              ) : brokerMc || brokerDot ? (
-                <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-fg-subtle">
-                  MC {brokerMc || "—"} · DOT {brokerDot || "—"}
-                </span>
-              ) : null}
-            </div>
-          </div>
-
-          <LField label="Load #" name="load_number" />
-
-          {/* Origin ZIP → city */}
+        <div className="space-y-3 bg-elevated px-4 py-4 sm:px-5">
+          {/* Status — dropdown, at the very top */}
           <div>
-            <label className="block font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-fg-subtle">
-              Origin ZIP<span className="ml-0.5 text-red-600">*</span>
-            </label>
-            <input
-              name="origin_zip"
-              required
-              value={originZip}
-              onChange={(e) => setOriginZip(e.target.value)}
-              inputMode="numeric"
-              placeholder="e.g. 30303"
-              autoComplete="off"
-              className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
-            />
-            <p className="mt-1 truncate text-[11px] text-fg-muted">
-              {originCity || "City, ST"}
-            </p>
-          </div>
-
-          {/* Destination ZIP → city */}
-          <div>
-            <label className="block font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-fg-subtle">
-              Destination ZIP<span className="ml-0.5 text-red-600">*</span>
-            </label>
-            <input
-              name="dest_zip"
-              required
-              value={destZip}
-              onChange={(e) => setDestZip(e.target.value)}
-              inputMode="numeric"
-              placeholder="e.g. 33101"
-              autoComplete="off"
-              className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
-            />
-            <p className="mt-1 truncate text-[11px] text-fg-muted">
-              {destCity || "City, ST"}
-            </p>
-          </div>
-
-          <LField label="Pickup date" name="pickup_date" type="date" />
-          <LField label="Delivery date" name="delivery_date" type="date" />
-
-          {/* Trip — active trips suggested, defaults to the only one */}
-          <div>
-            <label className="block font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-fg-subtle">
-              Trip
-            </label>
-            <input
-              name="trip_name"
-              value={trip}
-              onChange={(e) => setTrip(e.target.value)}
-              list="trip-options"
-              placeholder={
-                activeTrips.length
-                  ? "Pick an active trip or start new…"
-                  : "Start a new trip…"
-              }
-              autoComplete="off"
-              className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
-            />
-          </div>
-
-          <LField label="Rate ($)" name="rate" type="number" required />
-
-          {/* Loaded miles — auto from ZIPs, editable override */}
-          <div>
-            <label className="block font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-fg-subtle">
-              Loaded miles
-            </label>
-            <input
-              name="loaded_miles"
-              type="number"
-              value={miles}
-              onChange={(e) => setMiles(e.target.value)}
-              placeholder="Auto from ZIPs"
-              autoComplete="off"
-              className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
-            />
-            <p className="mt-1 truncate text-[11px] text-fg-muted">
-              {geoMsg ?? (miles ? "Auto-calculated · editable" : "")}
-            </p>
-          </div>
-
-          <div>
-            <label className="block font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-fg-subtle">
+            <label className="block font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-fg">
               Status
             </label>
             <select
               name="status"
-              defaultValue="pending"
-              className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg focus:border-fg focus:outline-none"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-2 text-[13px] text-fg focus:border-fg focus:outline-none"
             >
               <option value="pending">Pending</option>
               <option value="assigned">Rolling to pickup</option>
@@ -802,6 +742,201 @@ function AddLoadModal({
               <option value="cancelled">Cancelled</option>
             </select>
           </div>
+
+          {/* Broker card — load #, broker, contact */}
+          <section className="rounded-md border border-line bg-card p-3">
+            <p className="mb-2 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-fg">
+              Broker
+            </p>
+
+            <LField label="Load #" name="load_number" />
+
+            <div className="mt-3">
+              <label className="block font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-fg">
+                Broker / customer<span className="ml-1.5 rounded bg-red-100 px-1.5 py-[1px] align-middle font-mono text-[8.5px] font-bold uppercase tracking-[0.08em] text-red-700">Required</span>
+              </label>
+              <input
+                name="broker_name"
+                required
+                value={broker}
+                onChange={(e) => setBroker(e.target.value)}
+                list="broker-options"
+                autoComplete="off"
+                className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
+              />
+              <input type="hidden" name="broker_mc" value={brokerMc} />
+              <input type="hidden" name="broker_dot" value={brokerDot} />
+
+              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                <div className="inline-flex overflow-hidden rounded border border-line-strong">
+                  {(["mc", "dot"] as const).map((k) => (
+                    <button
+                      key={k}
+                      type="button"
+                      onClick={() => setLookupKind(k)}
+                      className={
+                        "px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.08em] transition-colors " +
+                        (lookupKind === k
+                          ? "bg-fg text-canvas"
+                          : "bg-card text-fg-muted hover:bg-elevated")
+                      }
+                    >
+                      {k}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  value={lookupVal}
+                  onChange={(e) => setLookupVal(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      void runBrokerLookup();
+                    }
+                  }}
+                  inputMode="numeric"
+                  autoComplete="off"
+                  className="w-28 rounded border border-line-strong bg-card px-2 py-1 text-[12px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => void runBrokerLookup()}
+                  disabled={lookupLoading || !lookupVal.trim()}
+                  className="rounded border border-line-strong bg-card px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-fg transition-colors hover:bg-elevated disabled:opacity-40"
+                >
+                  {lookupLoading ? "…" : "Look up"}
+                </button>
+                {lookupMsg ? (
+                  <span
+                    className={
+                      "truncate text-[11px] " +
+                      (lookupMsg.tone === "err"
+                        ? "text-red-700"
+                        : "text-green-700")
+                    }
+                  >
+                    {lookupMsg.text}
+                  </span>
+                ) : brokerMc || brokerDot ? (
+                  <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-fg-subtle">
+                    MC {brokerMc || "—"} · DOT {brokerDot || "—"}
+                  </span>
+                ) : null}
+              </div>
+            </div>
+
+            {/* Dispatcher contact — stacks on mobile, side-by-side on desktop */}
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label className="block font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-fg">
+                  Broker email
+                </label>
+                <input
+                  name="broker_email"
+                  type="email"
+                  value={brokerEmail}
+                  onChange={(e) => setBrokerEmail(e.target.value)}
+                  autoComplete="off"
+                  className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-fg">
+                  Broker phone
+                </label>
+                <input
+                  name="broker_phone"
+                  value={brokerPhone}
+                  onChange={(e) => setBrokerPhone(e.target.value)}
+                  autoComplete="off"
+                  className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* Lane & schedule card — ZIPs, dates, rate, trip */}
+          <section className="rounded-md border border-line bg-card p-3">
+            <p className="mb-2 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-fg">
+              Lane &amp; schedule
+            </p>
+
+            <div className="grid grid-cols-2 gap-2.5">
+              <div>
+                <label className="block font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-fg">
+                  Origin ZIP<span className="ml-1.5 rounded bg-red-100 px-1.5 py-[1px] align-middle font-mono text-[8.5px] font-bold uppercase tracking-[0.08em] text-red-700">Required</span>
+                </label>
+                <input
+                  name="origin_zip"
+                  required
+                  value={originZip}
+                  onChange={(e) => setOriginZip(e.target.value)}
+                  inputMode="numeric"
+                  autoComplete="off"
+                  className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
+                />
+                <p className="mt-1 truncate text-[11px] text-fg-muted">
+                  {originCity || "City, ST"}
+                </p>
+              </div>
+              <div>
+                <label className="block font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-fg">
+                  Destination ZIP<span className="ml-1.5 rounded bg-red-100 px-1.5 py-[1px] align-middle font-mono text-[8.5px] font-bold uppercase tracking-[0.08em] text-red-700">Required</span>
+                </label>
+                <input
+                  name="dest_zip"
+                  required
+                  value={destZip}
+                  onChange={(e) => setDestZip(e.target.value)}
+                  inputMode="numeric"
+                  autoComplete="off"
+                  className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
+                />
+                <p className="mt-1 truncate text-[11px] text-fg-muted">
+                  {destCity || "City, ST"}
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-2.5">
+              <LField label="Pickup date" name="pickup_date" type="date" />
+              <LField label="Delivery date" name="delivery_date" type="date" />
+            </div>
+
+            <div className="mt-3 grid grid-cols-2 gap-2.5">
+              <LField label="Rate ($)" name="rate" type="number" required />
+              <div>
+                <label className="block font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-fg">
+                  Loaded miles
+                </label>
+                <input
+                  name="loaded_miles"
+                  type="number"
+                  value={miles}
+                  onChange={(e) => setMiles(e.target.value)}
+                  autoComplete="off"
+                  className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
+                />
+              </div>
+            </div>
+            {geoMsg ? (
+              <p className="mt-1 truncate text-[11px] text-fg-muted">{geoMsg}</p>
+            ) : null}
+
+            <div className="mt-3">
+              <label className="block font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-fg">
+                Trip
+              </label>
+              <input
+                name="trip_name"
+                value={trip}
+                onChange={(e) => setTrip(e.target.value)}
+                list="trip-options"
+                autoComplete="off"
+                className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
+              />
+            </div>
+          </section>
         </div>
 
         <div className="flex items-center justify-between gap-2 border-t border-line bg-elevated px-4 py-3">
@@ -837,9 +972,9 @@ function LField({
 }) {
   return (
     <div>
-      <label className="block font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-fg-subtle">
+      <label className="block font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-fg">
         {label}
-        {required ? <span className="ml-0.5 text-red-600">*</span> : null}
+        {required ? <span className="ml-1.5 rounded bg-red-100 px-1.5 py-[1px] align-middle font-mono text-[8.5px] font-bold uppercase tracking-[0.08em] text-red-700">Required</span> : null}
       </label>
       <input
         name={name}

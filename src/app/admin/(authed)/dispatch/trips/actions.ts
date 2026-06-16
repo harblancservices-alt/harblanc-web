@@ -112,6 +112,20 @@ export async function setTripStatus(
   revalidatePath("/admin/dispatch/trips");
 }
 
+/** Bulk soft-delete trips selected on the Trips list (multi-select). */
+export async function softDeleteTrips(formData: FormData): Promise<void> {
+  const ids = formData.getAll("ids").map(String).filter(Boolean);
+  if (ids.length === 0) return;
+  const sb = createServiceRoleClient();
+  await sb.from("loads").update({ trip_id: null }).in("trip_id", ids);
+  const { error } = await sb
+    .from("trips")
+    .update({ deleted_at: new Date().toISOString() })
+    .in("id", ids);
+  if (error) throw new Error(`Could not delete trips: ${error.message}`);
+  revalidatePath("/admin/dispatch/trips");
+}
+
 /** Soft-delete a trip. Linked loads keep their trip_name; trip_id is cleared. */
 export async function deleteTrip(id: string): Promise<void> {
   const sb = createServiceRoleClient();
