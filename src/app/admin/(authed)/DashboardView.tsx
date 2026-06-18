@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { AddLoadButton } from "./dispatch/loads/AddLoadButton";
 
 /**
  * Owner Dashboard — opportunity inbox (render layer).
@@ -15,6 +16,8 @@ export type DashboardData = {
   expiredQuotes: ReadonlyArray<QuoteRequestCard>;
   applications: ReadonlyArray<ApplicationItem>;
   activeLoads: ReadonlyArray<ActiveLoadItem>;
+  brokerNames: ReadonlyArray<string>;
+  activeTrips: ReadonlyArray<string>;
 };
 
 export type ActiveLoadItem = {
@@ -193,7 +196,15 @@ export function DashboardView({ data }: { data: DashboardData }) {
         <div className="my-5 h-px bg-line" />
         <SectionLabel title="Active loads" count={data.activeLoads.length} />
         {data.activeLoads.length === 0 ? (
-          <EmptyCard text="No active loads." />
+          <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-line bg-card px-4 py-10 text-center">
+            <p className="font-mono text-[12px] text-fg-subtle">
+              No active loads.
+            </p>
+            <AddLoadButton
+              brokerNames={data.brokerNames}
+              activeTrips={data.activeTrips}
+            />
+          </div>
         ) : (
           <div className="overflow-hidden rounded-xl border border-line bg-card shadow-md">
             {data.activeLoads.map((l, i) => (

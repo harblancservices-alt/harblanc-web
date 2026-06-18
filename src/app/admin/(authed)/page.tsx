@@ -337,7 +337,39 @@ async function loadDashboard(): Promise<DashboardData> {
     };
   });
 
-  return { quoteRequests: pipelineQuotes, expiredQuotes, applications, activeLoads };
+  // Add-load modal data (broker autocomplete + active-trip picker) — the
+  // dashboard's "Active loads" empty state hosts the same Add Load flow as
+  // the Load Board, so it needs the same option lists.
+  const [{ data: brokerRows }, { data: tripRows }] = await Promise.all([
+    sb
+      .from("brokers")
+      .select("name")
+      .is("deleted_at", null)
+      .order("name", { ascending: true })
+      .returns<{ name: string | null }[]>(),
+    sb
+      .from("trips")
+      .select("name")
+      .eq("status", "active")
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .returns<{ name: string | null }[]>(),
+  ]);
+  const brokerNames = (brokerRows ?? [])
+    .map((b) => b.name?.trim() ?? "")
+    .filter((n) => n.length > 0);
+  const activeTrips = (tripRows ?? [])
+    .map((t) => t.name?.trim() ?? "")
+    .filter((n) => n.length > 0);
+
+  return {
+    quoteRequests: pipelineQuotes,
+    expiredQuotes,
+    applications,
+    activeLoads,
+    brokerNames,
+    activeTrips,
+  };
 }
 
 export default async function DashboardPage() {

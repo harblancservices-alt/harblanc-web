@@ -244,6 +244,9 @@ export async function createLoad(formData: FormData): Promise<void> {
   revalidatePath("/admin/dispatch/loads");
   revalidatePath("/admin/dispatch/brokers");
   revalidatePath("/admin/dispatch/trips");
+  // Dashboard "Active loads" can add loads too — refresh it so a new
+  // active load shows immediately (and its empty state clears).
+  revalidatePath("/admin");
 }
 
 /**
