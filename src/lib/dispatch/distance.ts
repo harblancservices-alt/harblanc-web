@@ -68,6 +68,17 @@ export function lookupCoords(lat: number, lon: number): ZipLookup | null {
   };
 }
 
+/**
+ * Great-circle miles between two ZIPs (rounded). Null if either ZIP is
+ * unknown. Backs Backhaul's "outbound freight within N miles" radius.
+ */
+export function zipDistanceMiles(zipA: string, zipB: string): number | null {
+  const a = zipA.split("-")[0];
+  const b = zipB.split("-")[0];
+  const gc = zipcodes.distance(a, b);
+  return gc == null ? null : Math.round(gc);
+}
+
 export function estimateLaneMiles(originZip: string, destZip: string): LaneMilesResult {
   const origin = lookupZip(originZip);
   const destination = lookupZip(destZip);

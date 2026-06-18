@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { lookupZip } from "@/lib/dispatch/distance";
+import { lookupZip, zipDistanceMiles } from "@/lib/dispatch/distance";
 import { BackhaulView, type BackhaulBroker } from "./BackhaulView";
 
 export const metadata: Metadata = {
@@ -9,9 +9,10 @@ export const metadata: Metadata = {
 };
 
 /**
- * Dispatch → Backhaul. Enter where you're sitting empty; rank your brokers by
- * how much freight you've actually hauled OUT of that state, flag who has an
- * email on file, and email the picks an availability blast.
+ * Dispatch → Backhaul. Enter where you're sitting empty (or tap "Use my
+ * location"); surface ONLY brokers who have hauled outbound freight within
+ * BACKHAUL_RADIUS_MI of that spot, rank them by how many such loads, flag who
+ * has an email on file, and email the picks an availability blast.
  */
 
 type BrokerRow = { id: string; name: string | null; email: string | null };
@@ -23,15 +24,8 @@ type LoadRow = {
 };
 type ContactRow = { broker_id: string | null; email: string | null };
 
-/** Best-effort 2-letter state for a load origin. */
-function originState(originZip: string | null, origin: string | null): string | null {
-  if (originZip) {
-    const z = lookupZip(originZip);
-    if (z?.state) return z.state.toUpperCase();
-  }
-  const m = /,\s*([A-Za-z]{2})\b/.exec(origin ?? "");
-  return m ? m[1].toUpperCase() : null;
-}
+/** How far out (great-circle miles) an origin counts as a backhaul lead. */
+const BACKHAUL_RADIUS_MI = 250;
 
 export default async function BackhaulPage({
   searchParams,
@@ -80,11 +74,13 @@ export default async function BackhaulPage({
       }
     }
 
-    // Count loads each broker has hauled out of the empty state.
+    // Count each broker's loads that ORIGINATED within the backhaul radius of
+    // where the truck is empty — a broker with real outbound freight near you.
     const fromHere = new Map<string, number>();
     for (const l of loadRows ?? []) {
-      if (!l.broker_id) continue;
-      if (originState(l.origin_zip, l.origin) === emptyState) {
+      if (!l.broker_id || !l.origin_zip) continue;
+      const miles = zipDistanceMiles(zip, l.origin_zip);
+      if (miles !== null && miles <= BACKHAUL_RADIUS_MI) {
         fromHere.set(l.broker_id, (fromHere.get(l.broker_id) ?? 0) + 1);
       }
     }
@@ -93,8 +89,7 @@ export default async function BackhaulPage({
       .map((b) => {
         const count = fromHere.get(b.id) ?? 0;
         const email = b.email?.trim() || contactEmail.get(b.id) || null;
-        const warmth: BackhaulBroker["warmth"] =
-          count >= 2 ? "hot" : count === 1 ? "warm" : "cold";
+        const warmth: BackhaulBroker["warmth"] = count >= 2 ? "hot" : "warm";
         return {
           id: b.id,
           name: b.name?.trim() || "Unnamed broker",
@@ -103,7 +98,9 @@ export default async function BackhaulPage({
           warmth,
         };
       })
-      // Rank: most history first, then brokers with an email, then the rest.
+      // Only brokers with outbound freight near you; most history first, then
+      // brokers with an email on file, then by name.
+      .filter((b) => b.loadsFromHere > 0)
       .sort((a, b) => {
         if (b.loadsFromHere !== a.loadsFromHere)
           return b.loadsFromHere - a.loadsFromHere;
@@ -119,6 +116,7 @@ export default async function BackhaulPage({
       locationLabel={locationLabel}
       zip={zip}
       date={date}
+      radiusMi={BACKHAUL_RADIUS_MI}
     />
   );
 }

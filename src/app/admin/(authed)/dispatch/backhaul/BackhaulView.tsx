@@ -25,12 +25,14 @@ export function BackhaulView({
   locationLabel,
   zip,
   date,
+  radiusMi,
 }: {
   brokers: BackhaulBroker[];
   emptyState: string | null;
   locationLabel: string | null;
   zip: string;
   date: string;
+  radiusMi: number;
 }) {
   const place = locationLabel ?? "the area";
   const when = date || "now";
@@ -203,7 +205,8 @@ export function BackhaulView({
           </div>
         ) : brokers.length === 0 ? (
           <div className="rounded-xl border border-dashed border-line bg-card px-4 py-10 text-center font-mono text-[12px] text-fg-subtle">
-            No brokers yet. Add brokers and book loads so Backhaul can rank them.
+            No brokers with outbound freight within {radiusMi} mi of{" "}
+            {locationLabel ?? "here"} yet.
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
@@ -211,8 +214,9 @@ export function BackhaulView({
             <div>
               <div className="mb-2 flex items-baseline justify-between">
                 <span className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-fg-muted">
-                  Out of {emptyState} · {brokers.length} brokers ·{" "}
-                  {selectableCount} with email
+                  Outbound within {radiusMi} mi · {brokers.length} broker
+                  {brokers.length === 1 ? "" : "s"} · {selectableCount} with
+                  email
                 </span>
                 <span className="font-mono text-[11px] text-fg-subtle">
                   {selected.size} selected
@@ -256,8 +260,8 @@ export function BackhaulView({
                           {b.loadsFromHere > 0 ? (
                             <span className="rounded bg-green-100 px-1.5 py-[1px] text-green-700">
                               {b.loadsFromHere} load
-                              {b.loadsFromHere === 1 ? "" : "s"} out of{" "}
-                              {emptyState}
+                              {b.loadsFromHere === 1 ? "" : "s"} within{" "}
+                              {radiusMi} mi
                             </span>
                           ) : (
                             <span className="text-fg-subtle">No history here</span>
