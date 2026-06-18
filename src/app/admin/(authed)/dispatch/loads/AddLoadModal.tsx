@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { createLoad } from "./actions";
 
 /**
@@ -43,6 +43,35 @@ export function AddLoadModal({
     activeTrips.length === 1 ? activeTrips[0] : "",
   );
   const reqId = useRef(0);
+
+  // Save lifecycle. Wrapping createLoad in useActionState gives us a pending
+  // flag (to disable the button + block double-submits), an inline error on
+  // failure instead of a silent throw, and an ok flag we close on. Closing
+  // unmounts the modal, so the next open starts from a fresh, empty form.
+  const [saveState, saveAction, saving] = useActionState<
+    { ok: boolean; error: string | null },
+    FormData
+  >(
+    async (_prev, formData) => {
+      try {
+        await createLoad(formData);
+        return { ok: true, error: null };
+      } catch (e) {
+        return {
+          ok: false,
+          error:
+            e instanceof Error
+              ? e.message
+              : "Could not save load. Please try again.",
+        };
+      }
+    },
+    { ok: false, error: null },
+  );
+
+  useEffect(() => {
+    if (saveState.ok) onClose();
+  }, [saveState.ok, onClose]);
 
   const five = (z: string) => /^\d{5}$/.test(z.trim());
 
@@ -139,7 +168,7 @@ export function AddLoadModal({
       onClick={onClose}
     >
       <form
-        action={createLoad}
+        action={saveAction}
         onClick={(e) => {
           e.stopPropagation();
           // Tap any blank area of the form to dismiss the mobile keyboard.
@@ -157,7 +186,8 @@ export function AddLoadModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-sm border border-white/25 px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-bar-fg transition-colors hover:bg-white/10"
+            disabled={saving}
+            className="rounded-sm border border-white/25 px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-bar-fg transition-colors hover:bg-white/10 disabled:opacity-50"
           >
             Cancel
           </button>
@@ -408,15 +438,36 @@ export function AddLoadModal({
           </section>
         </div>
 
-        <div className="flex items-center justify-between gap-2 border-t border-line bg-elevated px-4 py-3">
-          <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-fg-subtle">
-            Equipment: Hotshot
-          </span>
+        <div className="flex items-center justify-between gap-3 border-t border-line bg-elevated px-4 py-3">
+          {saveState.error ? (
+            <span
+              role="alert"
+              className="min-w-0 flex-1 font-mono text-[11px] font-semibold leading-snug text-red-700"
+            >
+              {saveState.error}
+            </span>
+          ) : (
+            <span className="font-mono text-[10px] uppercase tracking-[0.1em] text-fg-subtle">
+              Equipment: Hotshot
+            </span>
+          )}
           <button
             type="submit"
-            className="rounded-md border border-red-700 bg-red-600 px-4 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-red-700"
+            disabled={saving}
+            aria-busy={saving}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-red-700 bg-red-600 px-4 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-70"
           >
-            Save load
+            {saving ? (
+              <>
+                <span
+                  aria-hidden
+                  className="h-3 w-3 animate-spin rounded-full border-2 border-white/40 border-t-white"
+                />
+                Saving…
+              </>
+            ) : (
+              "Save load"
+            )}
           </button>
         </div>
       </form>
