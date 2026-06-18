@@ -9,6 +9,8 @@ import {
   nextAction,
 } from "@/lib/dispatch/loads-view";
 import { LoadsListTable, type LoadListRow } from "./LoadsListTable";
+import { QuotesPipeline } from "../quotes/QuotesPipeline";
+import { loadPipelineCards } from "@/lib/dispatch/pipeline";
 
 export const metadata: Metadata = {
   title: "Loads",
@@ -290,15 +292,20 @@ export default async function LoadsPage({
 }: {
   searchParams: Promise<{ filter?: string }>;
 }) {
-  const [{ rows, counts }, params] = await Promise.all([
+  const [{ rows, counts }, pipelineCards, params] = await Promise.all([
     loadLoads(),
+    loadPipelineCards(),
     searchParams,
   ]);
+  // Funnel shows the live pipeline; expired leads are a dead-end and stay off
+  // it (they surface in the dashboard's "Expired quotes" table).
+  const activePipeline = pipelineCards.filter((c) => c.status !== "expired");
   return (
     <LoadsListTable
       rows={rows}
       counts={counts}
       initialFilter={mapFilterParam(params.filter)}
+      pipeline={<QuotesPipeline cards={activePipeline} />}
     />
   );
 }

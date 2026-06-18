@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { softDeleteQuotes } from "../quotes/actions";
 import type { LeadStatus } from "@/lib/dispatch/status";
@@ -68,11 +68,14 @@ export function LoadsListTable({
   rows,
   counts,
   initialFilter = "all",
+  pipeline,
 }: {
   rows: LoadListRow[];
   counts: { active: number; attention: number };
   /** Initial filter chip, e.g. from a `?filter=attention` URL param. */
   initialFilter?: FilterChip;
+  /** Server-rendered quote pipeline, shown at the top of the page. */
+  pipeline?: ReactNode;
 }) {
   const router = useRouter();
   const [filter, setFilter] = useState<FilterChip>(initialFilter);
@@ -152,6 +155,7 @@ export function LoadsListTable({
   return (
     <div className="min-h-screen border-t border-line bg-canvas text-fg">
       <div className="w-full px-4 py-5 sm:px-6 sm:py-6 lg:px-10">
+        {pipeline}
         <header className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-indigo-600">
