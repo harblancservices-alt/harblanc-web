@@ -129,21 +129,24 @@ export function BrokerDetail({ data }: { data: BrokerDetailData }) {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Action row — on mobile a balanced 2×2 grid of equal-height,
+            full-width buttons (no two-line wrapping); from sm+ an inline
+            auto-width row. Keeps red primary vs outline secondary. */}
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center">
           <button
             type="button"
             onClick={() => {
               setTab("contacts");
               setAddingContact(true);
             }}
-            className="inline-flex items-center gap-1 rounded-md border border-red-700 bg-red-600 px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-red-700"
+            className="inline-flex h-9 w-full items-center justify-center gap-1 whitespace-nowrap rounded-md border border-red-700 bg-red-600 px-3 text-[12px] font-semibold text-white transition-colors hover:bg-red-700 sm:w-auto"
           >
-            <span className="text-[14px] leading-none">+</span> Add Contact
+            <span className="text-[15px] leading-none">+</span> Add Contact
           </button>
           <button
             type="button"
             onClick={() => setEditing(true)}
-            className="inline-flex items-center gap-1.5 rounded-md border border-red-700 bg-red-600 px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-red-700"
+            className="inline-flex h-9 w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-red-700 bg-red-600 px-3 text-[12px] font-semibold text-white transition-colors hover:bg-red-700 sm:w-auto"
           >
             ✎ Edit Broker
           </button>
@@ -151,15 +154,15 @@ export function BrokerDetail({ data }: { data: BrokerDetailData }) {
             href={saferUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 rounded-md border border-line-strong bg-card px-3 py-1.5 text-[12px] font-semibold text-fg transition-colors hover:bg-elevated"
+            className="inline-flex h-9 w-full items-center justify-center gap-1 whitespace-nowrap rounded-md border border-line-strong bg-card px-3 text-[12px] font-semibold text-fg transition-colors hover:bg-elevated sm:w-auto"
           >
             SAFER ↗
           </a>
-          <div className="relative">
+          <div className="relative w-full sm:w-auto">
             <button
               type="button"
               onClick={() => setMenuOpen((o) => !o)}
-              className="inline-flex items-center gap-1 rounded-md border border-line-strong bg-card px-3 py-1.5 text-[12px] font-semibold text-fg transition-colors hover:bg-elevated"
+              className="inline-flex h-9 w-full items-center justify-center gap-1 whitespace-nowrap rounded-md border border-line-strong bg-card px-3 text-[12px] font-semibold text-fg transition-colors hover:bg-elevated sm:w-auto"
             >
               More ▾
             </button>
