@@ -21,9 +21,16 @@ declare module "zipcodes" {
    */
   export function distance(zip1: string, zip2: string): number | null;
 
+  /** Nearest ZIP record to a GPS coordinate. Undefined if none found. */
+  export function lookupByCoords(
+    latitude: number,
+    longitude: number,
+  ): ZipResult | undefined;
+
   const zipcodes: {
     lookup: typeof lookup;
     distance: typeof distance;
+    lookupByCoords: typeof lookupByCoords;
   };
 
   export default zipcodes;

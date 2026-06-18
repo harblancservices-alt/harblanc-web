@@ -49,6 +49,25 @@ export function lookupZip(zip: string): ZipLookup | null {
   };
 }
 
+/**
+ * Reverse lookup: the nearest ZIP record to a GPS coordinate. Backs the
+ * "Use my location" button on Backhaul, turning the browser's lat/lon into
+ * a ZIP we can resolve to a state.
+ */
+export function lookupCoords(lat: number, lon: number): ZipLookup | null {
+  const r = zipcodes.lookupByCoords(lat, lon);
+  if (!r || typeof r.latitude !== "number" || typeof r.longitude !== "number") {
+    return null;
+  }
+  return {
+    zip: r.zip,
+    city: r.city ?? "",
+    state: r.state ?? "",
+    lat: r.latitude,
+    lon: r.longitude,
+  };
+}
+
 export function estimateLaneMiles(originZip: string, destZip: string): LaneMilesResult {
   const origin = lookupZip(originZip);
   const destination = lookupZip(destZip);

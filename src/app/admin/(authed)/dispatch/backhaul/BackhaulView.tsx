@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { sendBackhaul, type BackhaulSendResult } from "./actions";
 
@@ -33,6 +34,7 @@ export function BackhaulView({
 }) {
   const place = locationLabel ?? "the area";
   const when = date || "now";
+  const router = useRouter();
 
   const defaultSelected = useMemo(
     () =>
@@ -50,6 +52,8 @@ export function BackhaulView({
   );
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<BackhaulSendResult | null>(null);
+  const [locating, setLocating] = useState(false);
+  const [locateErr, setLocateErr] = useState<string | null>(null);
 
   // Reset selection + template when a new search runs.
   useEffect(() => {
@@ -57,6 +61,47 @@ export function BackhaulView({
     setSubject(`Hotshot empty ${place} — available ${when}`);
     setResult(null);
   }, [defaultSelected, place, when]);
+
+  useEffect(() => {
+    setLocating(false);
+  }, [zip]);
+
+  function onLocate() {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setLocateErr("Location isn't available on this device.");
+      return;
+    }
+    setLocateErr(null);
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const { latitude, longitude } = pos.coords;
+          const res = await fetch(
+            `/api/admin/dispatch/geo?lat=${latitude}&lon=${longitude}`,
+          );
+          if (!res.ok) {
+            setLocateErr("Couldn't find a ZIP near you. Enter it manually.");
+            setLocating(false);
+            return;
+          }
+          const j = (await res.json()) as { zip?: string };
+          const params = new URLSearchParams();
+          if (j.zip) params.set("zip", String(j.zip));
+          if (date) params.set("date", date);
+          router.push(`/admin/dispatch/backhaul?${params.toString()}`);
+        } catch {
+          setLocateErr("Couldn't look up your location. Enter it manually.");
+          setLocating(false);
+        }
+      },
+      () => {
+        setLocateErr("Location permission denied. Enter your ZIP manually.");
+        setLocating(false);
+      },
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 },
+    );
+  }
 
   function toggle(id: string) {
     setSelected((s) => {
@@ -135,7 +180,20 @@ export function BackhaulView({
           >
             Find
           </button>
+          <button
+            type="button"
+            onClick={onLocate}
+            disabled={locating}
+            className="inline-flex items-center gap-1.5 rounded-md border border-line-strong bg-card px-3 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-fg transition-colors hover:bg-elevated disabled:opacity-50"
+          >
+            {locating ? "Locating…" : "Use my location"}
+          </button>
         </form>
+        {locateErr ? (
+          <p className="mb-3 -mt-2 font-mono text-[11px] text-red-700">
+            {locateErr}
+          </p>
+        ) : null}
 
         {!emptyState ? (
           <div className="rounded-xl border border-dashed border-line bg-card px-4 py-10 text-center font-mono text-[12px] text-fg-subtle">

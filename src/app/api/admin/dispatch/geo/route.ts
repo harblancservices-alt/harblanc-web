@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin/auth";
-import { lookupZip, estimateLaneMiles } from "@/lib/dispatch/distance";
+import { lookupZip, lookupCoords, estimateLaneMiles } from "@/lib/dispatch/distance";
 
 /**
  * GET /api/admin/dispatch/geo
@@ -27,6 +27,24 @@ export async function GET(request: Request): Promise<Response> {
       dest: { city: res.destination.city, state: res.destination.state },
       miles: res.miles,
     });
+  }
+
+  const lat = searchParams.get("lat")?.trim();
+  const lon = searchParams.get("lon")?.trim();
+  if (lat && lon) {
+    const la = Number(lat);
+    const lo = Number(lon);
+    if (!Number.isFinite(la) || !Number.isFinite(lo)) {
+      return NextResponse.json({ error: "Invalid lat/lon." }, { status: 400 });
+    }
+    const r = lookupCoords(la, lo);
+    if (!r) {
+      return NextResponse.json(
+        { error: "No ZIP found near that location." },
+        { status: 422 },
+      );
+    }
+    return NextResponse.json({ zip: r.zip, city: r.city, state: r.state });
   }
 
   if (zip) {
