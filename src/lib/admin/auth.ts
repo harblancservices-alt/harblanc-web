@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { createServerComponentClient } from "@/lib/supabase/server";
 
 export type AdminUser = {
@@ -36,4 +37,26 @@ export async function requireAdmin(): Promise<AdminUser> {
   }
 
   return { id: user.id, email: user.email };
+}
+
+
+/**
+ * Fast admin gate for pages/layouts that always run behind the admin
+ * middleware (everything under /admin/**). The middleware already performed
+ * the authoritative getUser() + allowlist check and forwarded the verified
+ * identity as request headers, so we read those instead of making a second
+ * auth round-trip. Falls back to a login redirect if the headers are absent
+ * (which would mean the request bypassed the middleware).
+ *
+ * Do NOT use this outside middleware-covered routes (e.g. /api/admin/*),
+ * where the headers would be missing or client-supplied -- use requireAdmin().
+ */
+export async function adminFromMiddleware(): Promise<AdminUser> {
+  const h = await headers();
+  const id = h.get("x-admin-user-id");
+  const email = h.get("x-admin-user-email");
+  if (!id || !email) {
+    redirect("/admin/login");
+  }
+  return { id, email };
 }

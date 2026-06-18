@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
 /**
  * Auth middleware for /admin/** routes.
@@ -74,8 +74,6 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  let response = NextResponse.next({ request });
-
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   if (!url || !key) {
@@ -85,19 +83,18 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
+  // Collect any session cookies the refresh wants to set; they are applied to
+  // the final response below so cookie refresh keeps working.
+  const cookiesToSet: { name: string; value: string; options?: CookieOptions }[] =
+    [];
   const supabase = createServerClient(url, key, {
     cookies: {
       getAll() {
         return request.cookies.getAll();
       },
-      setAll(cookiesToSet) {
-        cookiesToSet.forEach(({ name, value }) =>
-          request.cookies.set(name, value),
-        );
-        response = NextResponse.next({ request });
-        cookiesToSet.forEach(({ name, value, options }) =>
-          response.cookies.set(name, value, options),
-        );
+      setAll(toSet) {
+        toSet.forEach(({ name, value }) => request.cookies.set(name, value));
+        cookiesToSet.push(...toSet);
       },
     },
   });
@@ -121,6 +118,16 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(redirectUrl);
   }
 
+  // Authenticated and on the allowlist. Forward the verified identity to
+  // server components as request headers (overwriting any client-supplied
+  // values) so the admin layout can skip a second getUser() round-trip.
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-admin-user-id", user.id);
+  requestHeaders.set("x-admin-user-email", user.email);
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  for (const { name, value, options } of cookiesToSet) {
+    response.cookies.set(name, value, options);
+  }
   return response;
 }
 

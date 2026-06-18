@@ -1,4 +1,4 @@
-import { requireAdmin } from "@/lib/admin/auth";
+import { adminFromMiddleware } from "@/lib/admin/auth";
 import { PortalShell } from "./_shell/PortalShell";
 
 /**
@@ -23,7 +23,7 @@ export default async function AuthedAdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const user = await requireAdmin();
+  const user = await adminFromMiddleware();
 
   return (
     <>
