@@ -39,8 +39,6 @@ const LOAD_STATUS_LABEL: Record<string, string> = {
   loaded: "Loaded",
 };
 
-const APP_GRID =
-  "180px 120px 44px 140px 200px 150px 230px minmax(0,1fr)";
 const EXP_GRID =
   "160px 176px 150px 160px 130px 88px 66px 120px minmax(0,1fr)";
 
@@ -76,44 +74,51 @@ export function DashboardView({ data }: { data: DashboardData }) {
         {data.applications.length === 0 ? (
           <EmptyCard text="No applications yet." />
         ) : (
+          // Same presentation as the Active loads list below: one card
+          // container, fluid flex rows that stack vertically and never scroll
+          // sideways. Primary + secondary detail on the left, the received
+          // date pill on the right.
           <div className="overflow-hidden rounded-xl border border-line bg-card shadow-md">
-            <ListHeader grid={APP_GRID}>
-              <span>Applicant</span>
-              <span>Equipment</span>
-              <span>Exp</span>
-              <span>Phone</span>
-              <span>Email</span>
-              <span>Home base</span>
-              <span>Received</span>
-              <span />
-            </ListHeader>
-            {data.applications.map((a, i) => (
-              <Link
-                key={a.id}
-                href={"/admin/applications/" + a.id}
-                prefetch={false}
-                className={
-                  "grid items-center gap-3 px-3.5 py-2 text-[12.5px] transition-colors hover:bg-elevated " +
-                  (i === data.applications.length - 1 ? "" : "border-b border-line")
-                }
-                style={{ gridTemplateColumns: APP_GRID }}
-              >
-                <span className="truncate font-semibold text-fg">{a.name}</span>
-                <span className="truncate text-fg">{a.equipment}</span>
-                <span className="truncate font-mono text-fg-muted">
-                  {a.experience}
-                </span>
-                <span className="truncate font-mono text-blue-700">
-                  {a.phone}
-                </span>
-                <span className="truncate text-blue-700">{a.email}</span>
-                <span className="truncate text-fg-muted">{a.homeBase}</span>
-                <span className="flex justify-start">
-                  <DatePill dateLabel={a.dateLabel} ageLabel={a.ageLabel} />
-                </span>
-                <span />
-              </Link>
-            ))}
+            {data.applications.map((a, i) => {
+              const spec = [a.equipment, a.experience, a.homeBase]
+                .filter((s) => s && s !== "—")
+                .join(" · ");
+              const contact = [a.phone, a.email]
+                .filter((s) => s && s !== "—")
+                .join(" · ");
+              return (
+                <Link
+                  key={a.id}
+                  href={"/admin/applications/" + a.id}
+                  prefetch={false}
+                  className={
+                    "flex items-center justify-between gap-3 px-3.5 py-2.5 transition-colors hover:bg-elevated " +
+                    (i === data.applications.length - 1
+                      ? ""
+                      : "border-b border-line")
+                  }
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-[13px] font-semibold text-fg">
+                      {a.name}
+                    </span>
+                    {spec ? (
+                      <span className="block truncate text-[11px] text-fg-muted">
+                        {spec}
+                      </span>
+                    ) : null}
+                    {contact ? (
+                      <span className="block truncate font-mono text-[11px] text-blue-700">
+                        {contact}
+                      </span>
+                    ) : null}
+                  </span>
+                  <span className="shrink-0">
+                    <DatePill dateLabel={a.dateLabel} ageLabel={a.ageLabel} />
+                  </span>
+                </Link>
+              );
+            })}
           </div>
         )}
 
