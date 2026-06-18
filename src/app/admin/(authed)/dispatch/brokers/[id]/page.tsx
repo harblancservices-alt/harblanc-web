@@ -151,6 +151,49 @@ export default async function BrokerDetailPage({
     }
   }
 
+  // Lane overview — aggregate this broker's booked (non-cancelled) loads by
+  // origin → destination. Lanes are broker-level (loads carry broker_id, not
+  // contact_id), so a contact card opens the broker's lane history.
+  const laneMap = new Map<
+    string,
+    {
+      origin: string;
+      destination: string;
+      count: number;
+      gross: number;
+      miles: number;
+      lastIso: string | null;
+    }
+  >();
+  for (const l of live) {
+    const origin = l.origin?.trim() || "—";
+    const destination = l.destination?.trim() || "—";
+    const key = `${origin} → ${destination}`;
+    const e =
+      laneMap.get(key) ??
+      { origin, destination, count: 0, gross: 0, miles: 0, lastIso: null };
+    e.count += 1;
+    e.gross += num(l.rate);
+    e.miles += l.loaded_miles ?? 0;
+    if (l.delivery_date && (!e.lastIso || l.delivery_date > e.lastIso)) {
+      e.lastIso = l.delivery_date;
+    }
+    laneMap.set(key, e);
+  }
+  const lanes = [...laneMap.values()]
+    .map((e) => ({
+      lane: `${e.origin} → ${e.destination}`,
+      origin: e.origin,
+      destination: e.destination,
+      count: e.count,
+      gross: e.gross,
+      avgRate: e.count ? e.gross / e.count : 0,
+      miles: e.miles,
+      avgRpm: e.miles > 0 ? e.gross / e.miles : 0,
+      lastDate: fmtDate(e.lastIso),
+    }))
+    .sort((a, b) => b.count - a.count || b.gross - a.gross);
+
   const data: BrokerDetailData = {
     broker: {
       id: broker.id,
@@ -205,6 +248,7 @@ export default async function BrokerDetailPage({
       ageDays: daysSince(l.delivery_date),
       unpaid: l.status === "delivered" && l.payment_status !== "paid",
     })),
+    lanes,
   };
 
   return <BrokerDetail data={data} />;

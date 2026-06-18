@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { brokerColor, brokerInitial, usd, usd2 } from "../_util";
+import { useEffect, useState } from "react";
+import { brokerColor, brokerInitial, formatPhone, telHref, usd, usd2 } from "../_util";
 import {
   updateBroker,
   softDeleteBroker,
@@ -19,6 +19,18 @@ export type BrokerContact = {
   title: string | null;
   phones: Phone[];
   emails: Email[];
+};
+
+export type Lane = {
+  lane: string;
+  origin: string;
+  destination: string;
+  count: number;
+  gross: number;
+  avgRate: number;
+  miles: number;
+  avgRpm: number;
+  lastDate: string;
 };
 
 export type BrokerDetailData = {
@@ -67,16 +79,19 @@ export type BrokerDetailData = {
     ageDays: number | null;
     unpaid: boolean;
   }[];
+  lanes: Lane[];
 };
 
 type Tab = "overview" | "contacts" | "documents" | "history";
 
 export function BrokerDetail({ data }: { data: BrokerDetailData }) {
-  const { broker, kpis, summary, receivables, aging, contacts, loads } = data;
+  const { broker, kpis, summary, receivables, aging, contacts, loads, lanes } =
+    data;
   const [tab, setTab] = useState<Tab>("overview");
   const [editing, setEditing] = useState(false);
   const [addingContact, setAddingContact] = useState(false);
   const [editContact, setEditContact] = useState<BrokerContact | null>(null);
+  const [lanesFor, setLanesFor] = useState<BrokerContact | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
 
   const active = broker.status?.toLowerCase() === "active";
@@ -205,7 +220,7 @@ export function BrokerDetail({ data }: { data: BrokerDetailData }) {
 
       {/* Contact / compliance strip */}
       <div className="mt-2 grid grid-cols-2 gap-px overflow-hidden rounded-md border border-line bg-line md:grid-cols-4 xl:grid-cols-8">
-        <Cell label="Phone" value={broker.phone} />
+        <Cell label="Phone" value={broker.phone ? formatPhone(broker.phone) : null} />
         <Cell label="Email" value={broker.email} />
         <Cell label="Office" value={broker.office} />
         <Cell label="Timezone" value={broker.timezone} />
@@ -294,7 +309,9 @@ export function BrokerDetail({ data }: { data: BrokerDetailData }) {
                   key={c.id}
                   contact={c}
                   brokerId={broker.id}
+                  laneCount={lanes.length}
                   onEdit={() => setEditContact(c)}
+                  onOpenLanes={() => setLanesFor(c)}
                 />
               ))}
             </div>
@@ -400,6 +417,16 @@ export function BrokerDetail({ data }: { data: BrokerDetailData }) {
           onClose={() => setEditContact(null)}
         />
       ) : null}
+
+      {/* Lane overview (opened from a contact card) */}
+      {lanesFor ? (
+        <LanesModal
+          brokerName={broker.name}
+          contactName={lanesFor.name}
+          lanes={lanes}
+          onClose={() => setLanesFor(null)}
+        />
+      ) : null}
     </div>
   );
 }
@@ -407,38 +434,60 @@ export function BrokerDetail({ data }: { data: BrokerDetailData }) {
 function ContactCard({
   contact,
   brokerId,
+  laneCount,
   onEdit,
+  onOpenLanes,
 }: {
   contact: BrokerContact;
   brokerId: string;
+  laneCount: number;
   onEdit: () => void;
+  onOpenLanes: () => void;
 }) {
   const hasMethods = contact.phones.length > 0 || contact.emails.length > 0;
   return (
-    <div className="overflow-hidden rounded-md border border-line bg-card shadow-sm">
-      <div className="flex items-start gap-2.5 px-3.5 py-3">
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onOpenLanes}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onOpenLanes();
+        }
+      }}
+      aria-label={`View lanes for ${contact.name || "this contact"}'s broker`}
+      className="group flex cursor-pointer flex-col overflow-hidden rounded-lg border border-line bg-card shadow-sm transition-colors hover:border-line-strong focus:outline-none focus-visible:border-fg focus-visible:ring-2 focus-visible:ring-fg/20"
+    >
+      {/* Header — avatar · name/role · edit/delete */}
+      <div className="flex items-start gap-3 px-3.5 py-3">
         <span
           className={
-            "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[13px] font-bold text-white " +
+            "flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[15px] font-bold text-white " +
             brokerColor(contact.name ?? "?")
           }
         >
           {brokerInitial(contact.name ?? "?")}
         </span>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[14px] font-semibold leading-tight text-fg">
+          <p className="truncate text-[14.5px] font-semibold leading-tight text-fg">
             {contact.name || "—"}
           </p>
           {contact.title ? (
-            <p className="truncate text-[12px] text-fg-muted">{contact.title}</p>
+            <p className="mt-0.5 truncate text-[12px] text-fg-muted">
+              {contact.title}
+            </p>
           ) : null}
         </div>
         <div className="flex items-center gap-1.5">
           <button
             type="button"
-            onClick={onEdit}
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit();
+            }}
             aria-label="Edit contact"
-            className="flex h-7 w-7 items-center justify-center rounded border border-line-strong bg-card text-[13px] leading-none text-fg-muted transition-colors hover:border-fg hover:text-fg"
+            className="flex h-8 w-8 items-center justify-center rounded-md border border-line-strong bg-card text-[13px] leading-none text-fg-muted transition-colors hover:border-fg hover:text-fg"
           >
             ✎
           </button>
@@ -447,6 +496,7 @@ function ContactCard({
               type="button"
               aria-label="Remove contact"
               onClick={(e) => {
+                e.stopPropagation();
                 if (
                   window.confirm(
                     `Delete ${contact.name || "this contact"}? This can't be undone.`,
@@ -455,34 +505,38 @@ function ContactCard({
                   e.currentTarget.form?.requestSubmit();
                 }
               }}
-              className="flex h-7 w-7 items-center justify-center rounded border border-line-strong bg-card text-[16px] leading-none text-fg-muted transition-colors hover:border-red-600 hover:bg-red-50 hover:text-red-700"
+              className="flex h-8 w-8 items-center justify-center rounded-md border border-line-strong bg-card text-[16px] leading-none text-fg-muted transition-colors hover:border-red-600 hover:bg-red-50 hover:text-red-700"
             >
               ×
             </button>
           </form>
         </div>
       </div>
+
+      {/* Contact methods */}
       {hasMethods ? (
-        <div className="space-y-1.5 border-t border-line px-3.5 py-2.5">
+        <div className="space-y-2 border-t border-line px-3.5 py-2.5">
           {contact.phones.map((p, i) => (
-            <div key={`p${i}`} className="flex items-baseline gap-2">
+            <div key={`p${i}`} className="flex items-center gap-2">
+              <IconPhoneSm className="h-3.5 w-3.5 shrink-0 text-fg-subtle" />
               <a
-                href={`tel:${p.number}${p.ext ? "," + p.ext : ""}`}
-                className="truncate font-mono text-[12px] text-blue-700 hover:underline"
+                href={`tel:${telHref(p.number)}${p.ext ? "," + p.ext : ""}`}
+                onClick={(e) => e.stopPropagation()}
+                className="truncate font-mono text-[12.5px] text-blue-700 hover:underline"
               >
-                {p.number}
-                {p.ext ? (
-                  <span className="text-fg-muted"> ×{p.ext}</span>
-                ) : null}
+                {formatPhone(p.number) || p.number}
+                {p.ext ? <span className="text-fg-muted"> ×{p.ext}</span> : null}
               </a>
               {p.label ? <MethodTag label={p.label} /> : null}
             </div>
           ))}
           {contact.emails.map((e, i) => (
-            <div key={`e${i}`} className="flex items-baseline gap-2">
+            <div key={`e${i}`} className="flex items-center gap-2">
+              <IconMailSm className="h-3.5 w-3.5 shrink-0 text-fg-subtle" />
               <a
                 href={`mailto:${e.address}`}
-                className="truncate font-mono text-[12px] text-blue-700 hover:underline"
+                onClick={(ev) => ev.stopPropagation()}
+                className="truncate font-mono text-[12.5px] text-blue-700 hover:underline"
               >
                 {e.address}
               </a>
@@ -491,6 +545,166 @@ function ContactCard({
           ))}
         </div>
       ) : null}
+
+      {/* Lane-overview affordance — the whole card is clickable */}
+      <div className="mt-auto flex items-center justify-between border-t border-line bg-elevated/40 px-3.5 py-2 text-fg-muted transition-colors group-hover:text-fg">
+        <span className="inline-flex items-center gap-1.5 font-mono text-[10.5px] font-bold uppercase tracking-[0.12em]">
+          <IconLaneSm className="h-3.5 w-3.5" />
+          Lane overview
+          {laneCount > 0 ? (
+            <span className="text-fg-subtle">· {laneCount}</span>
+          ) : null}
+        </span>
+        <IconChevronR className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
+      </div>
+    </div>
+  );
+}
+
+function IconPhoneSm({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+      <path d="M5 4h3l1.5 4-2 1.5a11 11 0 0 0 5 5l1.5-2 4 1.5v3a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z" />
+    </svg>
+  );
+}
+
+function IconMailSm({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+      <rect x="3" y="5" width="18" height="14" rx="1" />
+      <path d="m3 7 9 6 9-6" />
+    </svg>
+  );
+}
+
+function IconLaneSm({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+      <circle cx="5" cy="6" r="2" />
+      <circle cx="19" cy="18" r="2" />
+      <path d="M5 8v6a4 4 0 0 0 4 4h8" />
+    </svg>
+  );
+}
+
+function IconChevronR({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+      <polyline points="9 6 15 12 9 18" />
+    </svg>
+  );
+}
+
+function LanesModal({
+  brokerName,
+  contactName,
+  lanes,
+  onClose,
+}: {
+  brokerName: string;
+  contactName: string | null;
+  lanes: Lane[];
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const totalLoads = lanes.reduce((s, l) => s + l.count, 0);
+  const totalGross = lanes.reduce((s, l) => s + l.gross, 0);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 sm:p-8"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-lg overflow-hidden rounded-lg border border-line bg-card shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-start justify-between gap-3 border-b border-line bg-elevated px-4 py-3">
+          <div className="min-w-0">
+            <p className="font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-fg">
+              Lane overview
+            </p>
+            <p className="mt-0.5 truncate text-[12px] text-fg-muted">
+              {brokerName}
+              {contactName ? ` · via ${contactName}` : ""}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="shrink-0 text-[18px] leading-none text-fg-subtle transition-colors hover:text-fg"
+          >
+            ×
+          </button>
+        </div>
+
+        {lanes.length === 0 ? (
+          <div className="px-4 py-10 text-center">
+            <p className="text-[13px] text-fg-muted">
+              No lanes yet — this broker has no booked loads.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center gap-4 border-b border-line px-4 py-2.5 font-mono text-[11px] uppercase tracking-[0.08em] text-fg-muted">
+              <span>
+                {lanes.length} lane{lanes.length === 1 ? "" : "s"}
+              </span>
+              <span>
+                {totalLoads} load{totalLoads === 1 ? "" : "s"}
+              </span>
+              <span className="text-green-700">{usd(totalGross)} gross</span>
+            </div>
+            <div className="max-h-[60vh] overflow-y-auto">
+              {lanes.map((l) => (
+                <div
+                  key={l.lane}
+                  className="border-b border-line px-4 py-3 last:border-b-0"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="min-w-0 flex-1 truncate text-[13.5px] font-semibold text-fg">
+                      {l.origin} <span className="text-fg-subtle">→</span>{" "}
+                      {l.destination}
+                    </p>
+                    <span className="shrink-0 rounded bg-elevated px-1.5 py-[1px] font-mono text-[10px] font-bold uppercase tracking-[0.06em] text-fg-muted">
+                      {l.count} load{l.count === 1 ? "" : "s"}
+                    </span>
+                  </div>
+                  <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[11.5px] text-fg-muted">
+                    <span>
+                      Gross{" "}
+                      <span className="font-bold text-green-700">
+                        {usd(l.gross)}
+                      </span>
+                    </span>
+                    <span>
+                      Avg <span className="font-bold text-fg">{usd(l.avgRate)}</span>
+                    </span>
+                    <span>
+                      RPM{" "}
+                      <span className="font-bold text-fg">
+                        {l.avgRpm > 0 ? usd2(l.avgRpm) : "—"}
+                      </span>
+                    </span>
+                    <span>
+                      Last <span className="text-fg">{l.lastDate}</span>
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
