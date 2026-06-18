@@ -31,6 +31,28 @@ export type ApplicationDarkRow = {
 const GRID_TEMPLATE =
   "30px 4px 60px minmax(0,1.2fr) minmax(0,1fr) minmax(0,1.1fr) 18px";
 
+/** Shared equipment / experience summary used by both the row and the card. */
+function describe(row: ApplicationDarkRow): {
+  equipmentLine: string;
+  secondaryLine: string;
+} {
+  const equipment = (row.equipment_type ?? "").trim();
+  const cdl = (row.cdl_status ?? "").trim();
+  const yearsRaw =
+    typeof row.years_experience === "number"
+      ? String(row.years_experience)
+      : (row.years_experience ?? "").trim();
+
+  const equipmentLine = equipment || cdl || "—";
+  const secondaryParts: string[] = [];
+  if (equipment && cdl) secondaryParts.push(cdl);
+  if (yearsRaw) secondaryParts.push(yearsRaw + "y exp");
+  if (row.home_base && row.home_base.trim().length > 0) {
+    secondaryParts.push(row.home_base);
+  }
+  return { equipmentLine, secondaryLine: secondaryParts.join(" · ") };
+}
+
 export function ApplicationsDarkTable({
   rows,
 }: {
@@ -100,7 +122,8 @@ export function ApplicationsDarkTable({
         ) : null}
       </div>
 
-      <div className="overflow-x-auto rounded-md border border-line bg-card shadow-md">
+      {/* Table (tablet / desktop) — matches the Load Board's md+ table */}
+      <div className="hidden overflow-x-auto rounded-md border border-line bg-card shadow-md md:block">
         <div className="min-w-[640px]">
           <div
             role="row"
@@ -141,7 +164,104 @@ export function ApplicationsDarkTable({
           )}
         </div>
       </div>
+
+      {/* Cards (mobile) — match the Load Board's card-on-mobile pattern */}
+      <div className="space-y-2 md:hidden">
+        {rows.length === 0 ? (
+          <div className="rounded-md border border-line bg-card px-3 py-8 text-center font-mono text-[13px] text-fg-subtle">
+            No applications yet.
+          </div>
+        ) : (
+          rows.map((row) => (
+            <ApplicationCardItem
+              key={row.id}
+              row={row}
+              selected={selected.has(row.id)}
+              onToggle={() => toggle(row.id)}
+              onOpen={() => router.push("/admin/applications/" + row.id)}
+            />
+          ))
+        )}
+      </div>
     </>
+  );
+}
+
+function ApplicationCardItem({
+  row,
+  selected,
+  onToggle,
+  onOpen,
+}: {
+  row: ApplicationDarkRow;
+  selected: boolean;
+  onToggle: () => void;
+  onOpen: () => void;
+}) {
+  const { equipmentLine, secondaryLine } = describe(row);
+  const fresh = isWithinLast24h(row.created_at);
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
+      className={
+        "cursor-pointer rounded-md border p-3 shadow-sm transition-colors active:bg-elevated " +
+        (selected ? "border-red-400 bg-red-50" : "border-line bg-card")
+      }
+    >
+      <div className="flex items-start justify-between gap-2">
+        <span className="flex min-w-0 items-start gap-2.5">
+          <input
+            type="checkbox"
+            checked={selected}
+            aria-label={`Select ${row.name}`}
+            onClick={(e) => e.stopPropagation()}
+            onChange={onToggle}
+            className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-red-600"
+          />
+          <span className="min-w-0">
+            <span className="block truncate text-[15px] font-semibold text-fg">
+              {row.name}
+            </span>
+            {row.home_base && row.home_base.trim().length > 0 ? (
+              <span className="block truncate text-[12px] text-fg-subtle">
+                {row.home_base}
+              </span>
+            ) : null}
+          </span>
+        </span>
+        <span
+          className={
+            "shrink-0 rounded-sm px-1.5 py-[1px] font-mono text-[11px] font-bold tabular-nums " +
+            (fresh
+              ? "bg-indigo-100 text-indigo-700"
+              : "bg-elevated text-amber-700")
+          }
+        >
+          {ageLabel(row.created_at)}
+        </span>
+      </div>
+
+      <div className="mt-2 truncate text-[13.5px] font-medium text-fg">
+        {equipmentLine}
+      </div>
+      {secondaryLine ? (
+        <div className="truncate text-[12px] text-fg-subtle">{secondaryLine}</div>
+      ) : null}
+
+      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[12.5px]">
+        <span className="truncate text-blue-700">{row.email}</span>
+        <span className="font-mono text-fg-subtle">{row.phone}</span>
+      </div>
+    </div>
   );
 }
 
@@ -156,20 +276,7 @@ function ApplicationRowItem({
   onToggle: () => void;
   onOpen: () => void;
 }) {
-  const equipment = (row.equipment_type ?? "").trim();
-  const cdl = (row.cdl_status ?? "").trim();
-  const yearsRaw =
-    typeof row.years_experience === "number"
-      ? String(row.years_experience)
-      : (row.years_experience ?? "").trim();
-
-  const equipmentLine = equipment || cdl || "—";
-  const secondaryParts: string[] = [];
-  if (equipment && cdl) secondaryParts.push(cdl);
-  if (yearsRaw) secondaryParts.push(yearsRaw + "y exp");
-  if (row.home_base && row.home_base.trim().length > 0)
-    secondaryParts.push(row.home_base);
-  const secondaryLine = secondaryParts.join(" · ");
+  const { equipmentLine, secondaryLine } = describe(row);
 
   return (
     <div
