@@ -274,6 +274,7 @@ export async function updateLoadStatus(
       .from("loads")
       .select("odo_assigned, odo_loaded, odo_delivered")
       .eq("id", id)
+      .is("deleted_at", null)
       .maybeSingle<{
         odo_assigned: number | null;
         odo_loaded: number | null;
