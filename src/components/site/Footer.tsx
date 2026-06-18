@@ -42,7 +42,7 @@ export function Footer() {
   const data = "text-sm font-medium text-fg drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]";
 
   return (
-    <footer className="relative overflow-hidden border-t-2 border-[#dcd5c2]/30 bg-canvas">
+    <footer className="relative overflow-hidden border-t-2 border-[#dcd5c2]/30 bg-black text-white">
       {/* Topographic contour background — fractal-noise SVG layered
           edge-to-edge behind all content. opacity baked into the SVG
           (~22%) so it reads as a faint operational map without
