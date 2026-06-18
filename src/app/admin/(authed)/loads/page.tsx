@@ -253,49 +253,10 @@ async function loadLoads(): Promise<{
   return { rows, counts: { active, attention } };
 }
 
-/**
- * Map a `?filter=` URL param to the LoadsListTable's `FilterChip` union.
- *
- * Supports preselecting filters from links elsewhere in the admin
- * portal — most notably the Dashboard's "View all in Loads →" link
- * which lands here with `?filter=attention`. Unknown / missing values
- * silently fall through to "all" — same conservative behavior as the
- * Quotes page's `mapFilterParam`.
- */
-function mapFilterParam(
-  raw: string | undefined,
-):
-  | "all"
-  | "attention"
-  | "quoted"
-  | "booked"
-  | "scheduled"
-  | "at_pickup"
-  | "in_transit"
-  | "delivered" {
-  switch (raw) {
-    case "attention":
-    case "quoted":
-    case "booked":
-    case "scheduled":
-    case "at_pickup":
-    case "in_transit":
-    case "delivered":
-      return raw;
-    default:
-      return "all";
-  }
-}
-
-export default async function LoadsPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ filter?: string }>;
-}) {
-  const [{ rows, counts }, pipelineCards, params] = await Promise.all([
+export default async function LoadsPage() {
+  const [{ rows, counts }, pipelineCards] = await Promise.all([
     loadLoads(),
     loadPipelineCards(),
-    searchParams,
   ]);
   // Funnel shows the live pipeline; expired leads are a dead-end and stay off
   // it (they surface in the dashboard's "Expired quotes" table).
@@ -304,7 +265,6 @@ export default async function LoadsPage({
     <LoadsListTable
       rows={rows}
       counts={counts}
-      initialFilter={mapFilterParam(params.filter)}
       pipeline={<QuotesPipeline cards={activePipeline} />}
     />
   );

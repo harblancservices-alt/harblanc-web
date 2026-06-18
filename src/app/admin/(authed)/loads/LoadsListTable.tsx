@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
+import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
 import { softDeleteQuotes } from "../quotes/actions";
 import type { LeadStatus } from "@/lib/dispatch/status";
@@ -43,23 +44,8 @@ export type LoadListRow = {
   rateDisplay: string | null;
 };
 
-type FilterChip = "all" | "attention" | LoadDisplayStatus;
 type SortKey = "attention" | "date" | "rate";
 type SortDir = "asc" | "desc";
-
-const FILTER_BUTTONS: ReadonlyArray<{
-  key: FilterChip;
-  label: string;
-}> = [
-  { key: "all", label: "All" },
-  { key: "attention", label: "Attention" },
-  { key: "quoted", label: "Quoted" },
-  { key: "booked", label: "Booked" },
-  { key: "scheduled", label: "Scheduled" },
-  { key: "at_pickup", label: "At pickup" },
-  { key: "in_transit", label: "In transit" },
-  { key: "delivered", label: "Delivered" },
-];
 
 const GRID_TEMPLATE =
   "30px 4px 36px 84px minmax(0,1.2fr) minmax(0,0.5fr) 108px minmax(0,1.3fr) 18px";
@@ -67,41 +53,23 @@ const GRID_TEMPLATE =
 export function LoadsListTable({
   rows,
   counts,
-  initialFilter = "all",
   pipeline,
 }: {
   rows: LoadListRow[];
   counts: { active: number; attention: number };
-  /** Initial filter chip, e.g. from a `?filter=attention` URL param. */
-  initialFilter?: FilterChip;
   /** Server-rendered quote pipeline, shown at the top of the page. */
   pipeline?: ReactNode;
 }) {
   const router = useRouter();
-  const [filter, setFilter] = useState<FilterChip>(initialFilter);
   const [sortKey, setSortKey] = useState<SortKey>("attention");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
   const [selected, setSelected] = useState<Set<string>>(new Set());
-
-  const filterCounts = useMemo(() => {
-    const out: Record<string, number> = {
-      all: rows.length,
-      attention: counts.attention,
-    };
-    for (const r of rows) {
-      out[r.displayStatus] = (out[r.displayStatus] ?? 0) + 1;
-    }
-    return out;
-  }, [rows, counts.attention]);
-
-  const filtered = useMemo(() => {
-    if (filter === "all") return rows;
-    if (filter === "attention") return rows.filter((r) => r.topUrgency != null);
-    return rows.filter((r) => r.displayStatus === filter);
-  }, [rows, filter]);
+  // Selection only exists inside an explicit delete mode (mirrors the Load
+  // Board). Default off: tapping a load opens it, no checkboxes shown.
+  const [selectMode, setSelectMode] = useState(false);
 
   const sorted = useMemo(() => {
-    const arr = [...filtered];
+    const arr = [...rows];
     if (sortKey === "attention") {
       arr.sort(compareByAttentionThenDate);
       if (sortDir === "asc") arr.reverse();
@@ -121,7 +89,7 @@ export function LoadsListTable({
       });
     }
     return arr;
-  }, [filtered, sortKey, sortDir]);
+  }, [rows, sortKey, sortDir]);
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) {
@@ -152,6 +120,11 @@ export function LoadsListTable({
     );
   }
 
+  function exitSelectMode() {
+    setSelectMode(false);
+    setSelected(new Set());
+  }
+
   return (
     <div className="min-h-screen border-t border-line bg-canvas text-fg">
       <div className="w-full px-4 py-5 sm:px-6 sm:py-6 lg:px-10">
@@ -176,75 +149,58 @@ export function LoadsListTable({
               )}
             </div>
           </div>
+          {!selectMode && sorted.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => setSelectMode(true)}
+              className="inline-flex items-center gap-1.5 rounded-md border border-line-strong bg-card px-3.5 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-fg-muted transition-colors hover:bg-elevated hover:text-fg"
+            >
+              Delete
+            </button>
+          ) : null}
         </header>
 
-        <div className="mb-3 flex flex-wrap items-center gap-1.5">
-          {FILTER_BUTTONS.map((b) => {
-            const count = filterCounts[b.key] ?? 0;
-            const active = filter === b.key;
-            const isAttention = b.key === "attention";
-            return (
-              <button
-                key={b.key}
-                type="button"
-                onClick={() => setFilter(b.key)}
-                className={filterPillClass(active, isAttention, count)}
-              >
-                <span>{b.label}</span>
-                <span
-                  className={
-                    "tabular-nums " +
-                    countNumberClass(active, isAttention)
-                  }
-                >
-                  {count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="mb-2 flex items-center gap-2">
-          <button
-            type="button"
-            onClick={toggleAll}
-            className="rounded-md border border-line bg-card px-2.5 py-1 font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-fg-muted transition-colors hover:bg-elevated"
-          >
-            {allVisibleSelected ? "Clear" : "Select all"}
-          </button>
-
-          {selected.size > 0 ? (
-            <>
-              <span className="font-mono text-[11px] tabular-nums text-fg-subtle">
-                {selected.size} selected
-              </span>
-              <form
-                action={softDeleteQuotes}
-                onSubmit={(e) => {
-                  if (
-                    !window.confirm(
-                      `Delete ${selected.size} quote${selected.size === 1 ? "" : "s"}? They move to trash and can be restored for 30 days.`,
-                    )
-                  ) {
-                    e.preventDefault();
-                  } else {
-                    setSelected(new Set());
-                  }
-                }}
-              >
-                {[...selected].map((id) => (
-                  <input key={id} type="hidden" name="ids" value={id} />
-                ))}
-                <button
-                  type="submit"
-                  className="rounded-md border border-red-700 bg-red-600 px-2.5 py-1 font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-white transition-colors hover:bg-red-700"
-                >
-                  Delete {selected.size}
-                </button>
-              </form>
-            </>
-          ) : null}
-        </div>
+        {/* Delete-selection bar — only while in explicit delete mode. */}
+        {selectMode && (
+          <div className="mb-2 flex flex-wrap items-center gap-2 rounded-md border border-red-300 bg-red-50 px-3 py-2">
+            <span className="font-mono text-[12px] font-bold text-fg">
+              {selected.size} selected
+            </span>
+            <span className="font-mono text-[11px] text-fg-subtle">
+              · tap loads to select
+            </span>
+            <button
+              type="button"
+              onClick={exitSelectMode}
+              className="ml-auto rounded-md border border-line-strong bg-card px-3 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-fg-muted transition-colors hover:bg-elevated hover:text-fg"
+            >
+              Cancel
+            </button>
+            <form
+              action={softDeleteQuotes}
+              onSubmit={(e) => {
+                if (selected.size === 0) {
+                  e.preventDefault();
+                  return;
+                }
+                if (
+                  !window.confirm(
+                    `Delete ${selected.size} quote${selected.size === 1 ? "" : "s"}? They move to trash and can be restored for 30 days.`,
+                  )
+                ) {
+                  e.preventDefault();
+                } else {
+                  exitSelectMode();
+                }
+              }}
+            >
+              {[...selected].map((id) => (
+                <input key={id} type="hidden" name="ids" value={id} />
+              ))}
+              <BulkDeleteButton count={selected.size} />
+            </form>
+          </div>
+        )}
 
         {/* Table (tablet / desktop) — matches the Load Board's md+ table */}
         <div className="hidden overflow-x-auto rounded-md border border-line bg-card shadow-md md:block">
@@ -255,13 +211,15 @@ export function LoadsListTable({
               style={{ gridTemplateColumns: GRID_TEMPLATE }}
             >
               <div className="flex items-center justify-center">
-                <input
-                  type="checkbox"
-                  checked={allVisibleSelected}
-                  onChange={toggleAll}
-                  aria-label="Select all loads"
-                  className="h-3.5 w-3.5 cursor-pointer accent-red-600"
-                />
+                {selectMode ? (
+                  <input
+                    type="checkbox"
+                    checked={allVisibleSelected}
+                    onChange={toggleAll}
+                    aria-label="Select all loads"
+                    className="h-3.5 w-3.5 cursor-pointer accent-red-600"
+                  />
+                ) : null}
               </div>
               <div />
               <SortHeader
@@ -291,13 +249,14 @@ export function LoadsListTable({
 
             {sorted.length === 0 ? (
               <div className="px-3 py-8 text-center font-mono text-[13px] text-fg-subtle">
-                No loads match this filter.
+                No active loads.
               </div>
             ) : (
               sorted.map((row) => (
                 <LoadRow
                   key={row.id}
                   row={row}
+                  selectMode={selectMode}
                   selected={selected.has(row.id)}
                   onToggle={() => toggle(row.id)}
                   onOpen={() => router.push("/admin/quotes/" + row.id)}
@@ -311,13 +270,14 @@ export function LoadsListTable({
         <div className="space-y-2 md:hidden">
           {sorted.length === 0 ? (
             <div className="rounded-md border border-line bg-card px-3 py-8 text-center font-mono text-[13px] text-fg-subtle">
-              No loads match this filter.
+              No active loads.
             </div>
           ) : (
             sorted.map((row) => (
               <LoadCard
                 key={row.id}
                 row={row}
+                selectMode={selectMode}
                 selected={selected.has(row.id)}
                 onToggle={() => toggle(row.id)}
                 onOpen={() => router.push("/admin/quotes/" + row.id)}
@@ -340,41 +300,42 @@ function sortLabel(sortKey: SortKey): string {
   return "Sorted by rate.";
 }
 
-function filterPillClass(
-  active: boolean,
-  isAttention: boolean,
-  count: number,
-): string {
-  const base =
-    "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.12em] transition-colors ";
-  if (active && isAttention) {
-    return base + "border-red-600 bg-red-600 text-white";
-  }
-  if (active) {
-    return base + "border-fg bg-bar text-bar-fg";
-  }
-  if (isAttention && count > 0) {
-    return (
-      base +
-      "border-red-300 bg-red-50 text-red-700 hover:bg-red-100"
-    );
-  }
-  return base + "border-line bg-card text-fg shadow-sm hover:bg-elevated";
-}
-
-function countNumberClass(active: boolean, isAttention: boolean): string {
-  if (active && isAttention) return "text-red-100";
-  if (active) return "text-bar-fg/70";
-  return "text-fg-subtle";
+// Submit button for the bulk-delete form. useFormStatus disables it and shows
+// progress while the soft-delete server action is in flight, so the delete
+// can't be double-fired. (Mirrors the Load Board.)
+function BulkDeleteButton({ count }: { count: number }) {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      disabled={pending || count === 0}
+      aria-busy={pending}
+      className="inline-flex items-center gap-1.5 rounded-md border-2 border-red-700 bg-red-600 px-3.5 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      {pending ? (
+        <>
+          <span
+            aria-hidden
+            className="h-3 w-3 animate-spin rounded-full border-2 border-white/40 border-t-white"
+          />
+          Deleting…
+        </>
+      ) : (
+        "Delete Selected"
+      )}
+    </button>
+  );
 }
 
 function LoadRow({
   row,
+  selectMode,
   selected,
   onToggle,
   onOpen,
 }: {
   row: LoadListRow;
+  selectMode: boolean;
   selected: boolean;
   onToggle: () => void;
   onOpen: () => void;
@@ -406,12 +367,16 @@ function LoadRow({
     <div
       role="button"
       tabIndex={0}
-      onClick={onOpen}
+      aria-pressed={selectMode ? selected : undefined}
+      onClick={() => {
+        if (selectMode) onToggle();
+        else onOpen();
+      }}
       onKeyDown={(e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          onOpen();
-        }
+        if (e.key !== "Enter") return;
+        e.preventDefault();
+        if (selectMode) onToggle();
+        else onOpen();
       }}
       className={
         "group grid cursor-pointer items-center gap-2 border-b border-line px-3 py-2.5 text-[14px] transition-colors " +
@@ -419,15 +384,19 @@ function LoadRow({
       }
       style={{ gridTemplateColumns: GRID_TEMPLATE }}
     >
+      {/* Checkbox only in delete mode — visual mirror of the row's selected
+          state (the whole row toggles). */}
       <span className="flex items-center justify-center">
-        <input
-          type="checkbox"
-          checked={selected}
-          aria-label={`Select ${row.customerName}`}
-          onClick={(e) => e.stopPropagation()}
-          onChange={onToggle}
-          className="h-3.5 w-3.5 cursor-pointer accent-red-600"
-        />
+        {selectMode ? (
+          <input
+            type="checkbox"
+            readOnly
+            aria-hidden
+            tabIndex={-1}
+            checked={selected}
+            className="pointer-events-none h-3.5 w-3.5 accent-red-600"
+          />
+        ) : null}
       </span>
 
       <span
@@ -503,11 +472,13 @@ function LoadRow({
 
 function LoadCard({
   row,
+  selectMode,
   selected,
   onToggle,
   onOpen,
 }: {
   row: LoadListRow;
+  selectMode: boolean;
   selected: boolean;
   onToggle: () => void;
   onOpen: () => void;
@@ -534,12 +505,16 @@ function LoadCard({
     <div
       role="button"
       tabIndex={0}
-      onClick={onOpen}
+      aria-pressed={selectMode ? selected : undefined}
+      onClick={() => {
+        if (selectMode) onToggle();
+        else onOpen();
+      }}
       onKeyDown={(e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          onOpen();
-        }
+        if (e.key !== "Enter") return;
+        e.preventDefault();
+        if (selectMode) onToggle();
+        else onOpen();
       }}
       className={
         "cursor-pointer rounded-md border p-3 shadow-sm transition-colors active:bg-elevated " +
@@ -548,14 +523,16 @@ function LoadCard({
     >
       <div className="flex items-start justify-between gap-2">
         <span className="flex min-w-0 items-start gap-2.5">
-          <input
-            type="checkbox"
-            checked={selected}
-            aria-label={`Select ${row.customerName}`}
-            onClick={(e) => e.stopPropagation()}
-            onChange={onToggle}
-            className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-red-600"
-          />
+          {selectMode ? (
+            <input
+              type="checkbox"
+              readOnly
+              aria-hidden
+              tabIndex={-1}
+              checked={selected}
+              className="pointer-events-none mt-0.5 h-4 w-4 shrink-0 accent-red-600"
+            />
+          ) : null}
           <span className="min-w-0">
             <span className="block truncate text-[14.5px] font-medium text-blue-700">
               {laneLabel}
