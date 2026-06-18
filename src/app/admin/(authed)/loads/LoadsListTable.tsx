@@ -246,7 +246,8 @@ export function LoadsListTable({
           ) : null}
         </div>
 
-        <div className="overflow-x-auto rounded-md border border-line bg-card shadow-md">
+        {/* Table (tablet / desktop) — matches the Load Board's md+ table */}
+        <div className="hidden overflow-x-auto rounded-md border border-line bg-card shadow-md md:block">
           <div className="min-w-[640px]">
             <div
               role="row"
@@ -306,8 +307,27 @@ export function LoadsListTable({
           </div>
         </div>
 
+        {/* Cards (mobile) — match the Load Board's card-on-mobile pattern */}
+        <div className="space-y-2 md:hidden">
+          {sorted.length === 0 ? (
+            <div className="rounded-md border border-line bg-card px-3 py-8 text-center font-mono text-[13px] text-fg-subtle">
+              No loads match this filter.
+            </div>
+          ) : (
+            sorted.map((row) => (
+              <LoadCard
+                key={row.id}
+                row={row}
+                selected={selected.has(row.id)}
+                onToggle={() => toggle(row.id)}
+                onOpen={() => router.push("/admin/quotes/" + row.id)}
+              />
+            ))
+          )}
+        </div>
+
         <p className="mt-3 px-1 font-mono text-[12px] text-fg-subtle">
-          {sortLabel(sortKey)} Click any row to open the load workspace.
+          {sortLabel(sortKey)} Tap any load to open the workspace.
         </p>
       </div>
     </div>
@@ -477,6 +497,120 @@ function LoadRow({
       >
         <ChevronRight />
       </span>
+    </div>
+  );
+}
+
+function LoadCard({
+  row,
+  selected,
+  onToggle,
+  onOpen,
+}: {
+  row: LoadListRow;
+  selected: boolean;
+  onToggle: () => void;
+  onOpen: () => void;
+}) {
+  const pillClasses = LOAD_DISPLAY_STATUS_CLASSES[row.displayStatus];
+  const pillLabel = LOAD_DISPLAY_STATUS_LABELS[row.displayStatus];
+  const isAlert = row.topUrgency?.severity === "alert";
+  const hasAttention = row.topUrgency != null;
+
+  // Same attention coloring as the table row, plus the selected tint.
+  const cardTint = selected
+    ? "border-red-400 bg-red-50"
+    : isAlert
+      ? "border-red-300 bg-red-50"
+      : hasAttention
+        ? "border-amber-300 bg-amber-50"
+        : "border-line bg-card";
+
+  const laneLabel = buildLaneLabel(row);
+  const subtitleClass = isAlert ? "text-red-600" : "text-amber-700";
+  const fallbackSubtitle = timeAgo(row.lead_status_updated_at ?? row.created_at);
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
+      className={
+        "cursor-pointer rounded-md border p-3 shadow-sm transition-colors active:bg-elevated " +
+        cardTint
+      }
+    >
+      <div className="flex items-start justify-between gap-2">
+        <span className="flex min-w-0 items-start gap-2.5">
+          <input
+            type="checkbox"
+            checked={selected}
+            aria-label={`Select ${row.customerName}`}
+            onClick={(e) => e.stopPropagation()}
+            onChange={onToggle}
+            className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-red-600"
+          />
+          <span className="min-w-0">
+            <span className="block truncate text-[14.5px] font-medium text-blue-700">
+              {laneLabel}
+            </span>
+            <span className="block truncate text-[12px] text-fg-subtle">
+              {row.customerName}
+              {row.commodity ? " · " + row.commodity : ""}
+            </span>
+          </span>
+        </span>
+        <span
+          className={
+            "shrink-0 whitespace-nowrap text-right text-[15px] font-bold tabular-nums " +
+            (row.rateDisplay ? "text-green-700" : "text-fg-subtle")
+          }
+        >
+          {row.rateDisplay ?? "—"}
+        </span>
+      </div>
+
+      <div className="mt-2 flex items-center gap-2">
+        <span
+          className={
+            "inline-flex shrink-0 items-center rounded-sm border px-1.5 py-[3px] font-mono text-[11px] font-semibold uppercase tracking-[0.12em] " +
+            pillClasses
+          }
+        >
+          {pillLabel}
+        </span>
+        {row.urgencyChips.length > 0 ? (
+          <span
+            className="flex shrink-0 items-center gap-[3px]"
+            aria-label={flagAriaLabel(row.urgencyChips)}
+            title={flagTitle(row.urgencyChips)}
+          >
+            {row.urgencyChips.slice(0, 3).map((chip) => (
+              <FlagDot key={chip.kind} severity={chip.severity} />
+            ))}
+          </span>
+        ) : null}
+
+        <span className="ml-auto min-w-0 text-right">
+          <span className="block truncate text-[12.5px] font-medium text-fg">
+            {row.nextActionVerb}
+          </span>
+          <span
+            className={
+              "block truncate text-[11.5px] " +
+              (row.nextActionSubtitle ? subtitleClass : "text-fg-subtle")
+            }
+          >
+            {row.nextActionSubtitle || fallbackSubtitle}
+          </span>
+        </span>
+      </div>
     </div>
   );
 }
