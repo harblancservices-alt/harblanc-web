@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { SectionTabs } from "../SectionTabs";
 import { QuoteListTable, type QuoteListRow } from "./QuoteListTable";
+import { QuotesPipeline } from "./QuotesPipeline";
+import { loadPipelineCards } from "@/lib/dispatch/pipeline";
 import { computeUrgency, topUrgency } from "@/lib/dispatch/urgency";
 import type { LeadStatus } from "@/lib/dispatch/status";
 
@@ -238,12 +240,20 @@ export default async function QuotesPage({
 }: {
   searchParams: Promise<{ filter?: string }>;
 }) {
-  const { rows, trashCount, newToday } = await loadQuotes();
+  const [{ rows, trashCount, newToday }, pipelineCards] = await Promise.all([
+    loadQuotes(),
+    loadPipelineCards(),
+  ]);
   const params = await searchParams;
   const initialFilter = mapFilterParam(params.filter);
+  // The funnel shows the live pipeline; expired leads are a dead-end and stay
+  // off it (they surface in the dashboard's "Expired quotes" table).
+  const activePipeline = pipelineCards.filter((c) => c.status !== "expired");
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
+      <QuotesPipeline cards={activePipeline} />
+
       {/* V3 hero — eyebrow + bold title + right-aligned meta */}
       <header className="flex flex-wrap items-end justify-between gap-4 pb-5 sm:pb-6">
         <div>

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { AddLoadButton } from "./dispatch/loads/AddLoadButton";
+import type { PipelineCard } from "@/lib/dispatch/pipeline";
 
 /**
  * Owner Dashboard — opportunity inbox (render layer).
@@ -12,8 +13,7 @@ import { AddLoadButton } from "./dispatch/loads/AddLoadButton";
  */
 
 export type DashboardData = {
-  quoteRequests: ReadonlyArray<QuoteRequestCard>;
-  expiredQuotes: ReadonlyArray<QuoteRequestCard>;
+  expiredQuotes: ReadonlyArray<PipelineCard>;
   applications: ReadonlyArray<ApplicationItem>;
   activeLoads: ReadonlyArray<ActiveLoadItem>;
   brokerNames: ReadonlyArray<string>;
@@ -39,32 +39,6 @@ const LOAD_STATUS_LABEL: Record<string, string> = {
   loaded: "Loaded",
 };
 
-export type QuoteStatus = "unseen" | "followup" | "expired" | "ok";
-export type QuoteStage =
-  | "new"
-  | "quote"
-  | "quote_sent"
-  | "send_finalized"
-  | "awaiting_payment"
-  | "booked";
-
-export type QuoteRequestCard = {
-  leadId: string;
-  name: string;
-  ageLabel: string;
-  dateLabel: string;
-  status: QuoteStatus;
-  stage: QuoteStage;
-  commodity: string;
-  weight: string;
-  priceDisplay: string | null;
-  originZip: string;
-  originPlace: string;
-  destZip: string;
-  destPlace: string;
-  miles: number | null;
-};
-
 const APP_GRID =
   "180px 120px 44px 140px 200px 150px 230px minmax(0,1fr)";
 const EXP_GRID =
@@ -81,15 +55,6 @@ function spellAge(s: string): string {
   return `${n} ${unit}${n === 1 ? "" : "s"} ago`;
 }
 
-const STAGES: ReadonlyArray<{ key: QuoteStage; label: string }> = [
-  { key: "new", label: "New" },
-  { key: "quote", label: "Quote" },
-  { key: "quote_sent", label: "Quote sent" },
-  { key: "send_finalized", label: "Send finalized" },
-  { key: "awaiting_payment", label: "Awaiting payment" },
-  { key: "booked", label: "Booked" },
-];
-
 type ApplicationItem = {
   id: string;
   name: string;
@@ -102,51 +67,10 @@ type ApplicationItem = {
   dateLabel: string;
 };
 
-type CardTone = "red" | "orange" | "green" | "neutral";
-
-const CARD_CLASS: Record<CardTone, string> = {
-  red: "border-red-400 bg-red-50 hover:bg-red-100",
-  orange: "border-amber-400 bg-amber-50 hover:bg-amber-100",
-  green: "border-green-600 bg-green-100 hover:bg-green-200",
-  neutral: "border-line bg-card hover:bg-elevated",
-};
-
-// Card priority colour, matching the Quotes page's red/amber urgency:
-//   green  = money stage (finalized sent / paid)
-//   red    = never opened — act on it
-//   orange = estimate out 24h+ and needs a follow-up
-//   neutral = everything else
-function cardTone(q: QuoteRequestCard): CardTone {
-  if (q.stage === "awaiting_payment" || q.stage === "booked") return "green";
-  if (q.status === "expired") return "red";
-  if (q.status === "unseen") return "red";
-  if (q.status === "followup") return "orange";
-  return "neutral";
-}
-
 export function DashboardView({ data }: { data: DashboardData }) {
   return (
     <div className="min-h-screen border-t border-line bg-canvas text-fg">
       <div className="w-full px-4 py-4 sm:px-6 lg:px-8">
-        <SectionLabel title="Pipeline" count={data.quoteRequests.length} />
-
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6">
-          {STAGES.map((stage) => {
-            const cards = data.quoteRequests.filter(
-              (q) => q.stage === stage.key,
-            );
-            return (
-              <PipelineColumn
-                key={stage.key}
-                label={stage.label}
-                cards={cards}
-              />
-            );
-          })}
-        </div>
-
-        <div className="my-5 h-px bg-line" />
-
         <SectionLabel title="Job applications" count={data.applications.length} />
 
         {data.applications.length === 0 ? (
@@ -314,38 +238,6 @@ export function DashboardView({ data }: { data: DashboardData }) {
   );
 }
 
-function PipelineColumn({
-  label,
-  cards,
-}: {
-  label: string;
-  cards: ReadonlyArray<QuoteRequestCard>;
-}) {
-  return (
-    <div className="overflow-hidden rounded-xl border border-line bg-elevated shadow-md">
-      <div className="flex items-center justify-between bg-bar px-2.5 py-1.5">
-        <span className="font-mono text-[10.5px] font-bold uppercase tracking-[0.12em] text-bar-fg">
-          {label}
-        </span>
-        <span className="font-mono text-[10.5px] tabular-nums text-bar-fg/70">
-          {cards.length}
-        </span>
-      </div>
-      {cards.length === 0 ? (
-        <div className="m-1.5 rounded-lg border border-dashed border-line px-3 py-5 text-center font-mono text-[11px] text-fg-subtle">
-          Empty
-        </div>
-      ) : (
-        <div className="flex flex-col gap-1.5 p-1.5">
-          {cards.map((q) => (
-            <QuoteRequestCardItem key={q.leadId} q={q} />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 function ListHeader({
   grid,
   children,
@@ -389,76 +281,6 @@ function SectionLabel({ title, count }: { title: string; count: number }) {
       <span className="font-mono text-[11px] tabular-nums text-fg-subtle">
         · {count}
       </span>
-    </div>
-  );
-}
-
-function QuoteRequestCardItem({ q }: { q: QuoteRequestCard }) {
-  return (
-    <Link
-      href={"/admin/quotes/" + q.leadId}
-      prefetch={false}
-      className={
-        "block rounded-lg border p-2.5 shadow-md transition-all hover:shadow-lg " +
-        CARD_CLASS[cardTone(q)]
-      }
-    >
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <span className="truncate text-[14px] font-semibold text-fg">
-          {q.name}
-        </span>
-        {q.status === "expired" ? (
-          <span className="shrink-0 rounded-md bg-red-700 px-2 py-[2px] font-mono text-[11px] font-semibold uppercase tracking-[0.04em] text-white">
-            Expired
-          </span>
-        ) : q.status === "unseen" ? (
-          <span className="shrink-0 rounded-md bg-red-600 px-2 py-[2px] font-mono text-[11px] font-semibold uppercase tracking-[0.04em] text-white">
-            New
-          </span>
-        ) : q.status === "followup" ? (
-          <span className="shrink-0 rounded-md bg-amber-500 px-2 py-[2px] font-mono text-[11px] font-semibold uppercase tracking-[0.04em] text-white">
-            Follow up
-          </span>
-        ) : null}
-      </div>
-
-      <LanePoint zip={q.originZip} place={q.originPlace} />
-      <div className="my-1.5 flex items-center gap-2 text-fg-subtle">
-        <span aria-hidden className="text-[12px] leading-none">
-          ↓
-        </span>
-        <span aria-hidden className="h-px flex-1 bg-line" />
-        <span className="shrink-0 rounded-full bg-red-600 px-2 py-[1px] font-mono text-[11px] font-semibold tabular-nums text-white">
-          {q.miles != null ? Math.round(q.miles).toLocaleString() + " mi" : "— mi"}
-        </span>
-      </div>
-      <LanePoint zip={q.destZip} place={q.destPlace} />
-
-      <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-line/60 pt-2.5">
-        <span className="inline-flex items-baseline gap-1.5 rounded-full bg-amber-500 px-2.5 py-[3px] font-mono tabular-nums">
-          <span className="text-[12px] font-semibold text-white">
-            {q.dateLabel}
-          </span>
-          <span className="text-[11.5px] font-medium text-white/85">
-            · {q.ageLabel}
-          </span>
-        </span>
-        {(q.stage === "awaiting_payment" || q.stage === "booked") &&
-        q.priceDisplay ? (
-          <span className="shrink-0 font-mono text-[14px] font-bold tabular-nums text-fg">
-            {q.priceDisplay}
-          </span>
-        ) : null}
-      </div>
-    </Link>
-  );
-}
-
-function LanePoint({ zip, place }: { zip: string; place: string }) {
-  return (
-    <div className="truncate text-[13px] font-medium">
-      <span className="font-mono text-blue-700">{zip}</span>
-      {place ? <span className="text-fg-muted"> · {place}</span> : null}
     </div>
   );
 }
