@@ -22,13 +22,22 @@ export default function BrokersIndexPage() {
           Pick a broker from the list to view its profile, loads, and
           receivables — or add a new one.
         </p>
-        <Link
-          href="/admin/dispatch/brokers/new"
-          prefetch={false}
-          className="mt-4 inline-flex items-center gap-1 rounded-md bg-blue-600 px-3.5 py-2 text-[12px] font-bold text-white transition-colors hover:bg-blue-700"
-        >
-          <span className="text-[14px] leading-none">+</span> New Broker
-        </Link>
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+          <Link
+            href="/admin/dispatch/brokers/new"
+            prefetch={false}
+            className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-3.5 py-2 text-[12px] font-bold text-white transition-colors hover:bg-blue-700"
+          >
+            <span className="text-[14px] leading-none">+</span> New Broker
+          </Link>
+          <Link
+            href="/admin/dispatch/brokers/quick-add"
+            prefetch={false}
+            className="inline-flex items-center gap-1 rounded-md border border-line-strong bg-card px-3.5 py-2 text-[12px] font-bold text-fg transition-colors hover:bg-elevated"
+          >
+            <span className="text-[14px] leading-none">+</span> Quick add from load board
+          </Link>
+        </div>
       </div>
     </div>
   );

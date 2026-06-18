@@ -23,6 +23,7 @@ type LoadRow = {
   status: string;
 };
 type ContactRow = { broker_id: string | null; email: string | null };
+type PostedLaneRow = { broker_id: string | null; origin_zip: string | null };
 
 /** How far out (great-circle miles) an origin counts as a backhaul lead. */
 const BACKHAUL_RADIUS_MI = 250;
@@ -45,24 +46,33 @@ export default async function BackhaulPage({
   let brokers: BackhaulBroker[] = [];
   if (emptyState) {
     const sb = createServiceRoleClient();
-    const [{ data: brokerRows }, { data: loadRows }, { data: contactRows }] =
-      await Promise.all([
-        sb
-          .from("brokers")
-          .select("id, name, email")
-          .is("deleted_at", null)
-          .returns<BrokerRow[]>(),
-        sb
-          .from("loads")
-          .select("broker_id, origin, origin_zip, status")
-          .is("deleted_at", null)
-          .returns<LoadRow[]>(),
-        sb
-          .from("broker_contacts")
-          .select("broker_id, email")
-          .is("deleted_at", null)
-          .returns<ContactRow[]>(),
-      ]);
+    const [
+      { data: brokerRows },
+      { data: loadRows },
+      { data: contactRows },
+      { data: laneRows },
+    ] = await Promise.all([
+      sb
+        .from("brokers")
+        .select("id, name, email")
+        .is("deleted_at", null)
+        .returns<BrokerRow[]>(),
+      sb
+        .from("loads")
+        .select("broker_id, origin, origin_zip, status")
+        .is("deleted_at", null)
+        .returns<LoadRow[]>(),
+      sb
+        .from("broker_contacts")
+        .select("broker_id, email")
+        .is("deleted_at", null)
+        .returns<ContactRow[]>(),
+      sb
+        .from("broker_lanes")
+        .select("broker_id, origin_zip")
+        .is("deleted_at", null)
+        .returns<PostedLaneRow[]>(),
+    ]);
 
     // First email on file per broker from its dispatcher contacts — used as a
     // fallback now that dispatcher emails live on contacts, not broker.email.
@@ -78,6 +88,15 @@ export default async function BackhaulPage({
     // where the truck is empty — a broker with real outbound freight near you.
     const fromHere = new Map<string, number>();
     for (const l of loadRows ?? []) {
+      if (!l.broker_id || !l.origin_zip) continue;
+      const miles = zipDistanceMiles(zip, l.origin_zip);
+      if (miles !== null && miles <= BACKHAUL_RADIUS_MI) {
+        fromHere.set(l.broker_id, (fromHere.get(l.broker_id) ?? 0) + 1);
+      }
+    }
+
+    // Posted lanes captured off load boards count the same as booked loads.
+    for (const l of laneRows ?? []) {
       if (!l.broker_id || !l.origin_zip) continue;
       const miles = zipDistanceMiles(zip, l.origin_zip);
       if (miles !== null && miles <= BACKHAUL_RADIUS_MI) {

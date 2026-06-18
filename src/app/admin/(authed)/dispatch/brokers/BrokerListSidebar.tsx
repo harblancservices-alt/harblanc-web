@@ -58,13 +58,22 @@ export function BrokerListSidebar({ brokers }: { brokers: BrokerListItem[] }) {
         <span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-fg-subtle">
           Brokers
         </span>
-        <Link
-          href="/admin/dispatch/brokers/new"
-          prefetch={false}
-          className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2.5 py-1.5 text-[11px] font-bold text-white transition-colors hover:bg-blue-700"
-        >
-          <span className="text-[13px] leading-none">+</span> New Broker
-        </Link>
+        <div className="flex items-center gap-1.5">
+          <Link
+            href="/admin/dispatch/brokers/quick-add"
+            prefetch={false}
+            className="inline-flex items-center rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[11px] font-bold text-fg transition-colors hover:bg-elevated"
+          >
+            Quick add
+          </Link>
+          <Link
+            href="/admin/dispatch/brokers/new"
+            prefetch={false}
+            className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2.5 py-1.5 text-[11px] font-bold text-white transition-colors hover:bg-blue-700"
+          >
+            <span className="text-[13px] leading-none">+</span> New
+          </Link>
+        </div>
       </div>
 
       <div className="border-b border-line px-3 py-2">
