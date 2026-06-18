@@ -21,6 +21,7 @@ type LoadRow = {
   origin_zip: string | null;
   status: string;
 };
+type ContactRow = { broker_id: string | null; email: string | null };
 
 /** Best-effort 2-letter state for a load origin. */
 function originState(originZip: string | null, origin: string | null): string | null {
@@ -50,18 +51,34 @@ export default async function BackhaulPage({
   let brokers: BackhaulBroker[] = [];
   if (emptyState) {
     const sb = createServiceRoleClient();
-    const [{ data: brokerRows }, { data: loadRows }] = await Promise.all([
-      sb
-        .from("brokers")
-        .select("id, name, email")
-        .is("deleted_at", null)
-        .returns<BrokerRow[]>(),
-      sb
-        .from("loads")
-        .select("broker_id, origin, origin_zip, status")
-        .is("deleted_at", null)
-        .returns<LoadRow[]>(),
-    ]);
+    const [{ data: brokerRows }, { data: loadRows }, { data: contactRows }] =
+      await Promise.all([
+        sb
+          .from("brokers")
+          .select("id, name, email")
+          .is("deleted_at", null)
+          .returns<BrokerRow[]>(),
+        sb
+          .from("loads")
+          .select("broker_id, origin, origin_zip, status")
+          .is("deleted_at", null)
+          .returns<LoadRow[]>(),
+        sb
+          .from("broker_contacts")
+          .select("broker_id, email")
+          .is("deleted_at", null)
+          .returns<ContactRow[]>(),
+      ]);
+
+    // First email on file per broker from its dispatcher contacts — used as a
+    // fallback now that dispatcher emails live on contacts, not broker.email.
+    const contactEmail = new Map<string, string>();
+    for (const c of contactRows ?? []) {
+      const e = c.email?.trim();
+      if (c.broker_id && e && !contactEmail.has(c.broker_id)) {
+        contactEmail.set(c.broker_id, e);
+      }
+    }
 
     // Count loads each broker has hauled out of the empty state.
     const fromHere = new Map<string, number>();
@@ -75,7 +92,7 @@ export default async function BackhaulPage({
     brokers = (brokerRows ?? [])
       .map((b) => {
         const count = fromHere.get(b.id) ?? 0;
-        const email = b.email?.trim() || null;
+        const email = b.email?.trim() || contactEmail.get(b.id) || null;
         const warmth: BackhaulBroker["warmth"] =
           count >= 2 ? "hot" : count === 1 ? "warm" : "cold";
         return {

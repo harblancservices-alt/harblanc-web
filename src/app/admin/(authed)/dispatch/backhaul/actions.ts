@@ -39,16 +39,37 @@ export async function sendBackhaul(
   if (!subject || !body) return { ok: false, reason: "Subject and message are required." };
 
   const sb = createServiceRoleClient();
-  const { data: brokers } = await sb
-    .from("brokers")
-    .select("id, name, email")
-    .in("id", ids)
-    .is("deleted_at", null)
-    .returns<{ id: string; name: string | null; email: string | null }[]>();
+  const [{ data: brokers }, { data: contactRows }] = await Promise.all([
+    sb
+      .from("brokers")
+      .select("id, name, email")
+      .in("id", ids)
+      .is("deleted_at", null)
+      .returns<{ id: string; name: string | null; email: string | null }[]>(),
+    sb
+      .from("broker_contacts")
+      .select("broker_id, email")
+      .in("broker_id", ids)
+      .is("deleted_at", null)
+      .returns<{ broker_id: string | null; email: string | null }[]>(),
+  ]);
 
-  const recipients = (brokers ?? []).filter(
-    (b) => (b.email ?? "").trim().length > 0,
-  );
+  // Fall back to a dispatcher contact's email when the broker has no main
+  // email (dispatcher emails now live on contacts).
+  const contactEmail = new Map<string, string>();
+  for (const c of contactRows ?? []) {
+    const e = (c.email ?? "").trim();
+    if (c.broker_id && e && !contactEmail.has(c.broker_id)) {
+      contactEmail.set(c.broker_id, e);
+    }
+  }
+
+  const recipients = (brokers ?? [])
+    .map((b) => ({
+      ...b,
+      email: (b.email ?? "").trim() || contactEmail.get(b.id) || null,
+    }))
+    .filter((b) => (b.email ?? "").length > 0);
   if (recipients.length === 0) {
     return { ok: false, reason: "None of the selected brokers have an email on file." };
   }
