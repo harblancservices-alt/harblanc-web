@@ -1,13 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
 import { softDeleteLoads } from "./actions";
 import { AddLoadButton } from "./AddLoadButton";
-
-// Where the sticky bulk-delete selection is parked across navigations.
-const SELECTION_KEY = "loadboard.selection";
 
 export type LoadRow = {
   id: string;
@@ -80,6 +77,11 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
   const router = useRouter();
   const [filter, setFilter] = useState<Filter>("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  // Selection only exists inside an explicit delete mode. Default off: cards
+  // open the load on tap and show no checkboxes. The Delete button turns it
+  // on; Cancel or a completed delete turns it off and clears the picks.
+  const [selectMode, setSelectMode] = useState(false);
+  const [query, setQuery] = useState("");
 
   function toggleSelected(id: string) {
     setSelected((s) => {
@@ -89,37 +91,11 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
       return next;
     });
   }
-  const [query, setQuery] = useState("");
 
-  // Sticky multi-select: persist checked load ids across navigation so
-  // opening a load (or an accidental row tap) never wipes a bulk-delete
-  // selection. Restored once on mount, pruned to loads that still exist.
-  useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem(SELECTION_KEY);
-      if (!raw) return;
-      const ids = JSON.parse(raw) as string[];
-      const live = new Set(data.rows.map((r) => r.id));
-      const restored = new Set(ids.filter((id) => live.has(id)));
-      if (restored.size > 0) setSelected(restored);
-    } catch {
-      /* ignore malformed storage */
-    }
-    // Restore once on mount only.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  useEffect(() => {
-    try {
-      if (selected.size > 0) {
-        sessionStorage.setItem(SELECTION_KEY, JSON.stringify([...selected]));
-      } else {
-        sessionStorage.removeItem(SELECTION_KEY);
-      }
-    } catch {
-      /* ignore */
-    }
-  }, [selected]);
+  function exitSelectMode() {
+    setSelectMode(false);
+    setSelected(new Set());
+  }
 
   const rows = useMemo(() => {
     let r = [...data.rows];
@@ -158,10 +134,21 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
               Load board
             </h1>
           </div>
-          <AddLoadButton
-            brokerNames={data.brokerNames}
-            activeTrips={data.activeTrips}
-          />
+          <div className="flex items-center gap-2">
+            {!selectMode && rows.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => setSelectMode(true)}
+                className="inline-flex items-center gap-1.5 rounded-md border border-line-strong bg-card px-3.5 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-fg-muted transition-colors hover:bg-elevated hover:text-fg"
+              >
+                Delete
+              </button>
+            ) : null}
+            <AddLoadButton
+              brokerNames={data.brokerNames}
+              activeTrips={data.activeTrips}
+            />
+          </div>
         </header>
 
         <ProfitGoalBar net={kpis.net} />
@@ -227,22 +214,29 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
           ))}
         </div>
 
-        {/* Selection / bulk delete bar */}
-        {selected.size > 0 && (
-          <div className="mb-2 flex flex-wrap items-center gap-3 rounded-md border border-line bg-elevated px-3 py-2">
+        {/* Delete-selection bar — only while in explicit delete mode. */}
+        {selectMode && (
+          <div className="mb-2 flex flex-wrap items-center gap-2 rounded-md border border-red-300 bg-red-50 px-3 py-2">
             <span className="font-mono text-[12px] font-bold text-fg">
               {selected.size} selected
             </span>
+            <span className="font-mono text-[11px] text-fg-subtle">
+              · tap loads to select
+            </span>
             <button
               type="button"
-              onClick={() => setSelected(new Set())}
-              className="rounded-md border border-line-strong px-2.5 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-fg-muted transition-colors hover:bg-card hover:text-fg"
+              onClick={exitSelectMode}
+              className="ml-auto rounded-md border border-line-strong bg-card px-3 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-fg-muted transition-colors hover:bg-elevated hover:text-fg"
             >
-              Clear
+              Cancel
             </button>
             <form
               action={softDeleteLoads}
               onSubmit={(e) => {
+                if (selected.size === 0) {
+                  e.preventDefault();
+                  return;
+                }
                 if (
                   !window.confirm(
                     `Delete ${selected.size} load${selected.size === 1 ? "" : "s"}? They move to trash and can be restored for 30 days.`,
@@ -250,10 +244,9 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
                 ) {
                   e.preventDefault();
                 } else {
-                  setSelected(new Set());
+                  exitSelectMode();
                 }
               }}
-              className="ml-auto"
             >
               {[...selected].map((id) => (
                 <input key={id} type="hidden" name="ids" value={id} />
@@ -271,24 +264,26 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
               style={{ gridTemplateColumns: GRID }}
             >
               <span className="flex items-center">
-                <input
-                  type="checkbox"
-                  aria-label="Select all loads"
-                  checked={rows.length > 0 && selected.size === rows.length}
-                  ref={(el) => {
-                    if (el)
-                      el.indeterminate =
-                        selected.size > 0 && selected.size < rows.length;
-                  }}
-                  onChange={(e) =>
-                    setSelected(
-                      e.target.checked
-                        ? new Set(rows.map((r) => r.id))
-                        : new Set(),
-                    )
-                  }
-                  className="h-3.5 w-3.5 cursor-pointer accent-red-600"
-                />
+                {selectMode ? (
+                  <input
+                    type="checkbox"
+                    aria-label="Select all loads"
+                    checked={rows.length > 0 && selected.size === rows.length}
+                    ref={(el) => {
+                      if (el)
+                        el.indeterminate =
+                          selected.size > 0 && selected.size < rows.length;
+                    }}
+                    onChange={(e) =>
+                      setSelected(
+                        e.target.checked
+                          ? new Set(rows.map((r) => r.id))
+                          : new Set(),
+                      )
+                    }
+                    className="h-3.5 w-3.5 cursor-pointer accent-red-600"
+                  />
+                ) : null}
               </span>
               <span>Status</span>
               <span>Load #</span>
@@ -312,36 +307,41 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
               rows.map((r, i) => (
                 <div
                   key={r.id}
-                  role="link"
+                  role={selectMode ? "button" : "link"}
                   tabIndex={0}
-                  onClick={() => router.push(`/admin/dispatch/loads/${r.id}`)}
+                  aria-pressed={selectMode ? selected.has(r.id) : undefined}
+                  onClick={() => {
+                    if (selectMode) toggleSelected(r.id);
+                    else router.push(`/admin/dispatch/loads/${r.id}`);
+                  }}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter")
-                      router.push(`/admin/dispatch/loads/${r.id}`);
+                    if (e.key !== "Enter") return;
+                    if (selectMode) toggleSelected(r.id);
+                    else router.push(`/admin/dispatch/loads/${r.id}`);
                   }}
                   className={
                     "grid cursor-pointer items-center gap-2 px-3 py-2 text-[12.5px] transition-colors " +
-                    (selected.has(r.id)
+                    (selectMode && selected.has(r.id)
                       ? "bg-red-50 hover:bg-red-100 "
                       : "hover:bg-elevated ") +
                     (i === rows.length - 1 ? "" : "border-b border-line")
                   }
                   style={{ gridTemplateColumns: GRID }}
                 >
-                  {/* Enlarged, padded hit area so the checkbox is easy to
-                      click and never bubbles into opening the load. */}
-                  <label
-                    className="-my-2 flex cursor-pointer items-center py-2 pr-2"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <input
-                      type="checkbox"
-                      aria-label={`Select load ${r.loadNumber}`}
-                      checked={selected.has(r.id)}
-                      onChange={() => toggleSelected(r.id)}
-                      className="h-4 w-4 cursor-pointer accent-red-600"
-                    />
-                  </label>
+                  {/* Checkbox only in delete mode — visual mirror of the row's
+                      selected state (the whole row toggles). */}
+                  <span className="flex items-center">
+                    {selectMode ? (
+                      <input
+                        type="checkbox"
+                        readOnly
+                        aria-hidden
+                        tabIndex={-1}
+                        checked={selected.has(r.id)}
+                        className="pointer-events-none h-4 w-4 accent-red-600"
+                      />
+                    ) : null}
+                  </span>
                   <span>
                     <span
                       className={
@@ -400,46 +400,54 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
             </div>
           ) : (
             rows.map((r) => {
-              const isSel = selected.has(r.id);
+              const isSel = selectMode && selected.has(r.id);
               return (
                 <div
                   key={r.id}
+                  role={selectMode ? "button" : "link"}
+                  tabIndex={0}
+                  aria-pressed={selectMode ? selected.has(r.id) : undefined}
+                  onClick={() => {
+                    if (selectMode) toggleSelected(r.id);
+                    else router.push(`/admin/dispatch/loads/${r.id}`);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key !== "Enter") return;
+                    if (selectMode) toggleSelected(r.id);
+                    else router.push(`/admin/dispatch/loads/${r.id}`);
+                  }}
                   className={
-                    "flex items-stretch overflow-hidden rounded-md border shadow-sm transition-colors " +
+                    "flex cursor-pointer items-stretch overflow-hidden rounded-md border shadow-sm transition-colors active:bg-elevated " +
                     (isSel ? "border-red-400 bg-red-50" : "border-line bg-card")
                   }
                 >
-                  {/* Select target — full-height, wide tap zone. Toggles the
-                      checkbox only; it is a sibling of the navigate area, so
-                      tapping here never opens the load. */}
-                  <label
-                    className={
-                      "flex w-14 shrink-0 cursor-pointer items-center justify-center border-r transition-colors active:bg-elevated " +
-                      (isSel
-                        ? "border-red-300 bg-red-100"
-                        : "border-line bg-card")
-                    }
-                  >
-                    <input
-                      type="checkbox"
-                      aria-label={`Select load ${r.loadNumber}`}
-                      checked={isSel}
-                      onChange={() => toggleSelected(r.id)}
-                      className="h-5 w-5 cursor-pointer accent-red-600"
-                    />
-                  </label>
+                  {/* Selection indicator — only in delete mode. The whole card
+                      toggles, so this is a visual checkbox, not a hit target. */}
+                  {selectMode ? (
+                    <div
+                      aria-hidden
+                      className={
+                        "flex w-12 shrink-0 items-center justify-center border-r transition-colors " +
+                        (isSel
+                          ? "border-red-300 bg-red-100"
+                          : "border-line bg-card")
+                      }
+                    >
+                      <span
+                        className={
+                          "flex h-5 w-5 items-center justify-center rounded border-2 text-[12px] font-bold leading-none " +
+                          (isSel
+                            ? "border-red-600 bg-red-600 text-white"
+                            : "border-line-strong text-transparent")
+                        }
+                      >
+                        ✓
+                      </span>
+                    </div>
+                  ) : null}
 
-                  {/* Content — the only area that opens the load. */}
-                  <div
-                    role="link"
-                    tabIndex={0}
-                    onClick={() => router.push(`/admin/dispatch/loads/${r.id}`)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter")
-                        router.push(`/admin/dispatch/loads/${r.id}`);
-                    }}
-                    className="min-w-0 flex-1 cursor-pointer p-3 transition-colors active:bg-elevated"
-                  >
+                  {/* Content */}
+                  <div className="min-w-0 flex-1 p-3">
                     <div className="flex items-center justify-between gap-2">
                       <span
                         className={
@@ -501,9 +509,9 @@ function BulkDeleteButton({ count }: { count: number }) {
   return (
     <button
       type="submit"
-      disabled={pending}
+      disabled={pending || count === 0}
       aria-busy={pending}
-      className="inline-flex items-center gap-1.5 rounded-md border-2 border-red-700 bg-red-600 px-3.5 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-70"
+      className="inline-flex items-center gap-1.5 rounded-md border-2 border-red-700 bg-red-600 px-3.5 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
     >
       {pending ? (
         <>
@@ -514,7 +522,7 @@ function BulkDeleteButton({ count }: { count: number }) {
           Deleting…
         </>
       ) : (
-        `Delete ${count}`
+        "Delete Selected"
       )}
     </button>
   );
