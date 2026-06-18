@@ -71,7 +71,7 @@ export function PortalBottomNav() {
     <>
       <nav
         aria-label="Portal navigation"
-        className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-white/10 bg-canvas pb-[env(safe-area-inset-bottom)] lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-white/10 bg-black pb-[env(safe-area-inset-bottom)] lg:hidden"
       >
         {ITEMS.map((item) => {
           const active = isActive(pathname, item.href);
@@ -84,8 +84,8 @@ export function PortalBottomNav() {
               className={
                 "flex flex-col items-center justify-center gap-1 border-b-[2px] px-2 pt-2 pb-2.5 font-mono text-[9px] font-bold uppercase tracking-[0.16em] transition-colors " +
                 (active
-                  ? "border-red-300 text-fg"
-                  : "border-transparent text-fg")
+                  ? "border-red-300 text-white"
+                  : "border-transparent text-white")
               }
             >
               <item.Icon className="h-[18px] w-[18px]" />
@@ -101,8 +101,8 @@ export function PortalBottomNav() {
           className={
             "flex flex-col items-center justify-center gap-1 border-b-[2px] px-2 pt-2 pb-2.5 font-mono text-[9px] font-bold uppercase tracking-[0.16em] transition-colors " +
             (moreActive || sheetOpen
-              ? "border-red-300 text-fg"
-              : "border-transparent text-fg")
+              ? "border-red-300 text-white"
+              : "border-transparent text-white")
           }
         >
           <IconDots className="h-[18px] w-[18px]" />
