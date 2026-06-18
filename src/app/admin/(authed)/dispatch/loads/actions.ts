@@ -293,7 +293,14 @@ export async function updateLoadStatus(
     patch[odoCol] = odoRaw;
   }
 
-  const { error } = await sb.from("loads").update(patch).eq("id", id);
+  // Scope every load mutation to live rows. If the load was soft-deleted,
+  // this matches 0 rows and no-ops harmlessly (Supabase returns no error for
+  // a zero-row update), so an action can never resurrect a deleted load.
+  const { error } = await sb
+    .from("loads")
+    .update(patch)
+    .eq("id", id)
+    .is("deleted_at", null);
   if (error) throw new Error(`Could not update load: ${error.message}`);
   revalidatePath("/admin/dispatch/loads");
   revalidatePath(`/admin/dispatch/loads/${id}`);
@@ -327,7 +334,8 @@ export async function updateLoadOdometers(
   const { error } = await sb
     .from("loads")
     .update({ odo_assigned: a, odo_loaded: l, odo_delivered: d })
-    .eq("id", id);
+    .eq("id", id)
+    .is("deleted_at", null);
   if (error) throw new Error(`Could not save odometer: ${error.message}`);
   revalidatePath("/admin/dispatch/loads");
   revalidatePath(`/admin/dispatch/loads/${id}`);
@@ -385,7 +393,8 @@ export async function cancelLoad(
   const { error } = await sb
     .from("loads")
     .update({ status: "cancelled", tonu_amount: tonu })
-    .eq("id", id);
+    .eq("id", id)
+    .is("deleted_at", null);
   if (error) throw new Error(`Could not cancel load: ${error.message}`);
   revalidatePath("/admin/dispatch/loads");
   revalidatePath(`/admin/dispatch/loads/${id}`);
@@ -519,7 +528,8 @@ export async function markLoadPaid(id: string): Promise<void> {
   const { error } = await sb
     .from("loads")
     .update({ payment_status: "paid", paid_at: new Date().toISOString() })
-    .eq("id", id);
+    .eq("id", id)
+    .is("deleted_at", null);
   if (error) {
     throw new Error(`Could not mark paid: ${error.message}`);
   }
