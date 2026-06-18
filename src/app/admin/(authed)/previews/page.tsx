@@ -31,10 +31,8 @@ import { AdminPreviewLab, type PreviewTarget } from "./AdminPreviewLab";
  *     via <fieldset disabled> so no server actions can fire. The Lab
  *     loads it inside the modal's iframe.
  *
- * The PDF infrastructure (src/lib/pdf/QuotePDF.tsx) is wired to the
- * legacy Premium Carrier Quote pathway and is intentionally not
- * surfaced here. Finalized Quote and BOL ship as email-only documents
- * in the current workflow, so the email preview IS the document.
+ * Finalized Quote and BOL ship as email-only documents in the current
+ * workflow, so the email preview IS the document.
  */
 
 export const metadata: Metadata = {

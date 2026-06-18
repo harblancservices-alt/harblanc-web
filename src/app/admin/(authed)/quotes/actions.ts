@@ -4,8 +4,6 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin/auth";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { renderQuotePdfBuffer } from "@/lib/pdf/renderQuotePdf";
-import type { QuotePdfData } from "@/lib/pdf/QuotePDF";
 import { logDispatchEvent } from "@/lib/dispatch/events";
 import { isLeadStatus, type LeadStatus } from "@/lib/dispatch/status";
 import { computeRpm, lookupZip } from "@/lib/dispatch/distance";
@@ -34,7 +32,6 @@ function declineUrl(token: string): string {
 }
 
 const RETENTION_DAYS = 30;
-const QUOTES_BUCKET = "quotes";
 
 /**
  * Move a quote to trash. Sets deleted_at = now, delete_after = +30 days.
@@ -242,18 +239,6 @@ export async function permanentlyDeleteQuotes(formData: FormData): Promise<void>
   revalidatePath("/admin");
 }
 
-
-/* ────────────────────────────────────────────────────────────── */
-/* Phase 1 quote-generation action — Premium Carrier Quote.      */
-/*                                                                */
-/* Flow:                                                          */
-/*  1. INSERT row → DB assigns quote_number via next_quote_number */
-/*  2. RENDER PDF via @react-pdf/renderer (server-only)           */
-/*  3. UPLOAD PDF to private "quotes" bucket                      */
-/*  4. UPDATE row with pdf_storage_path + pdf_generated_at        */
-/*                                                                */
-/* If render/upload fails, the inserted row is deleted to avoid   */
-/* orphan rows without a PDF.                                     */
 /* ────────────────────────────────────────────────────────────── */
 
 type AccessorialInput = { label: string; amount: number };
@@ -293,201 +278,6 @@ function parseAccessorials(formData: FormData): AccessorialInput[] {
   return result;
 }
 
-export async function generateQuote(formData: FormData): Promise<void> {
-  // Phase INSTR: each stage logs with `[generateQuote] stage=X failed`
-  // before rethrowing so Vercel logs pinpoint the failing step.
-  const admin = await requireAdmin();
-  const quoteRequestId = parseString(formData.get("quote_request_id"));
-  if (!quoteRequestId) {
-    console.error("[generateQuote] stage=parse_request_id failed", {
-      stage: "parse_request_id",
-      errorMessage: "Missing quote_request_id.",
-    });
-    throw new Error("Missing quote_request_id.");
-  }
-
-  // Required fields
-  const linehaul = parseNumber(formData.get("linehaul"));
-  if (linehaul === null || linehaul <= 0) {
-    console.error("[generateQuote] stage=parse_form_data failed", {
-      quoteRequestId,
-      stage: "parse_form_data",
-      errorMessage: "Linehaul must be a positive number.",
-    });
-    throw new Error("Linehaul must be a positive number.");
-  }
-  const origin = parseString(formData.get("origin"));
-  const destination = parseString(formData.get("destination"));
-  if (!origin || !destination) {
-    console.error("[generateQuote] stage=parse_form_data failed", {
-      quoteRequestId,
-      stage: "parse_form_data",
-      errorMessage: "Origin and destination are required.",
-    });
-    throw new Error("Origin and destination are required.");
-  }
-
-  // Optional fields
-  const fuelSurcharge = parseNumber(formData.get("fuel_surcharge")) ?? 0;
-  const accessorials = parseAccessorials(formData);
-  const accessorialsTotal = accessorials.reduce((sum, a) => sum + a.amount, 0);
-  const totalAmount = linehaul + fuelSurcharge + accessorialsTotal;
-
-  const expiresAtRaw = parseString(formData.get("expires_at"));
-  const expiresAt = expiresAtRaw
-    ? new Date(expiresAtRaw).toISOString()
-    : null;
-
-  const sb = createServiceRoleClient();
-
-  // 1. INSERT — DB assigns quote_number via DEFAULT next_quote_number()
-  const { data: inserted, error: insertError } = await sb
-    .from("generated_quotes")
-    .insert({
-      quote_request_id: quoteRequestId,
-      customer_name: parseString(formData.get("customer_name")),
-      customer_contact: parseString(formData.get("customer_contact")),
-      customer_email: parseString(formData.get("customer_email")),
-      customer_phone: parseString(formData.get("customer_phone")),
-      origin,
-      destination,
-      pickup_window: parseString(formData.get("pickup_window")),
-      delivery_window: parseString(formData.get("delivery_window")),
-      commodity: parseString(formData.get("commodity")),
-      weight_lbs: parseInt32(formData.get("weight_lbs")),
-      pieces: parseInt32(formData.get("pieces")),
-      equipment_type: parseString(formData.get("equipment_type")),
-      special_instructions: parseString(formData.get("special_instructions")),
-      linehaul,
-      fuel_surcharge: fuelSurcharge,
-      accessorials,
-      total_amount: totalAmount,
-      payment_terms: parseString(formData.get("payment_terms")) ?? "Net 30",
-      expires_at: expiresAt,
-      prepared_by:
-        parseString(formData.get("prepared_by")) ?? admin.email,
-    })
-    .select(
-      "id, quote_number, issued_at, expires_at, customer_name, customer_contact, customer_email, customer_phone, origin, destination, pickup_window, delivery_window, commodity, weight_lbs, pieces, equipment_type, special_instructions, linehaul, fuel_surcharge, accessorials, total_amount, payment_terms, prepared_by",
-    )
-    .single();
-
-  if (insertError || !inserted) {
-    console.error("[generateQuote] stage=insert_generated_quote failed", {
-      quoteRequestId,
-      stage: "insert_generated_quote",
-      errorMessage: insertError?.message ?? "unknown error",
-    });
-    throw new Error(
-      `Could not save generated quote: ${insertError?.message ?? "unknown error"}`,
-    );
-  }
-
-  try {
-    // 2. RENDER PDF
-    const pdfData: QuotePdfData = {
-      quoteNumber: inserted.quote_number,
-      issuedAt: inserted.issued_at,
-      expiresAt: inserted.expires_at,
-      customerName: inserted.customer_name,
-      customerContact: inserted.customer_contact,
-      customerEmail: inserted.customer_email,
-      customerPhone: inserted.customer_phone,
-      origin: inserted.origin,
-      destination: inserted.destination,
-      pickupWindow: inserted.pickup_window,
-      deliveryWindow: inserted.delivery_window,
-      commodity: inserted.commodity,
-      weightLbs: inserted.weight_lbs,
-      pieces: inserted.pieces,
-      equipmentType: inserted.equipment_type,
-      linehaul: inserted.linehaul ? Number(inserted.linehaul) : null,
-      fuelSurcharge: inserted.fuel_surcharge
-        ? Number(inserted.fuel_surcharge)
-        : null,
-      accessorials: (inserted.accessorials as AccessorialInput[]) ?? [],
-      totalAmount: inserted.total_amount
-        ? Number(inserted.total_amount)
-        : null,
-      paymentTerms: inserted.payment_terms,
-      specialInstructions: inserted.special_instructions,
-      preparedBy: inserted.prepared_by,
-    };
-    let buffer;
-    try {
-      buffer = await renderQuotePdfBuffer(pdfData);
-    } catch (renderErr) {
-      console.error("[generateQuote] stage=render_pdf failed", {
-        quoteRequestId,
-        quoteId: inserted.id,
-        stage: "render_pdf",
-        errorMessage:
-          renderErr instanceof Error ? renderErr.message : String(renderErr),
-      });
-      throw renderErr;
-    }
-
-    // 3. UPLOAD PDF
-    const storagePath = `${inserted.quote_number}.pdf`;
-    const { error: uploadError } = await sb.storage
-      .from(QUOTES_BUCKET)
-      .upload(storagePath, buffer, {
-        contentType: "application/pdf",
-        upsert: true,
-      });
-    if (uploadError) {
-      console.error("[generateQuote] stage=storage_upload failed", {
-        quoteRequestId,
-        quoteId: inserted.id,
-        stage: "storage_upload",
-        errorMessage: uploadError.message,
-      });
-      throw new Error(`PDF upload failed: ${uploadError.message}`);
-    }
-
-    // 4. UPDATE row with path + timestamp
-    const { error: updateError } = await sb
-      .from("generated_quotes")
-      .update({
-        pdf_storage_path: storagePath,
-        pdf_generated_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", inserted.id);
-    if (updateError) {
-      console.error("[generateQuote] stage=update_pdf_path failed", {
-        quoteRequestId,
-        quoteId: inserted.id,
-        stage: "update_pdf_path",
-        errorMessage: updateError.message,
-      });
-      throw new Error(`Could not finalise quote: ${updateError.message}`);
-    }
-  } catch (err) {
-    // Phase INSTR: umbrella log so a single Vercel line identifies the
-    // failure even if the per-stage log above scrolled out of buffer.
-    console.error("[generateQuote] stage=render_upload_update failed (umbrella)", {
-      quoteRequestId,
-      quoteId: inserted.id,
-      stage: "render_upload_update",
-      errorMessage: err instanceof Error ? err.message : String(err),
-    });
-    // Clean up the orphan row so the next attempt starts fresh.
-    await sb.from("generated_quotes").delete().eq("id", inserted.id);
-    throw err instanceof Error
-      ? err
-      : new Error("Quote generation failed.");
-  }
-
-  // Log to the dispatch timeline. Failure is non-fatal — see logDispatchEvent.
-  await logDispatchEvent(sb, quoteRequestId, "pdf_generated", {
-    quoteNumber: inserted.quote_number,
-  });
-
-  revalidatePath(`/admin/quotes/${quoteRequestId}`);
-  revalidatePath("/admin/quotes");
-  revalidatePath("/admin");
-}
 
 
 /* ────────────────────────────────────────────────────────────── */
