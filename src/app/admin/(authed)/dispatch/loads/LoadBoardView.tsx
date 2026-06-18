@@ -575,6 +575,7 @@ function AddLoadModal({
   const [broker, setBroker] = useState("");
   const [brokerMc, setBrokerMc] = useState("");
   const [brokerDot, setBrokerDot] = useState("");
+  const [brokerMainPhone, setBrokerMainPhone] = useState("");
   const [brokerContactName, setBrokerContactName] = useState("");
   const [brokerEmail, setBrokerEmail] = useState("");
   const [brokerPhone, setBrokerPhone] = useState("");
@@ -667,7 +668,9 @@ function AddLoadModal({
       setBroker(data.name ?? data.dbaName ?? "");
       setBrokerMc(data.mcNumber ?? (lookupKind === "mc" ? v : ""));
       setBrokerDot(data.dotNumber ?? (lookupKind === "dot" ? v : ""));
-      if (data.phone) setBrokerPhone(data.phone);
+      // FMCSA returns the broker's own company line — keep it as broker-level
+      // info (saved onto the broker record), not a dispatcher contact.
+      if (data.phone) setBrokerMainPhone(data.phone);
       const op =
         data.allowedToOperate === false ? " — NOT allowed to operate" : "";
       setLookupMsg({
@@ -767,6 +770,11 @@ function AddLoadModal({
               />
               <input type="hidden" name="broker_mc" value={brokerMc} />
               <input type="hidden" name="broker_dot" value={brokerDot} />
+              <input
+                type="hidden"
+                name="broker_main_phone"
+                value={brokerMainPhone}
+              />
 
               <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                 <div className="inline-flex overflow-hidden rounded border border-line-strong">

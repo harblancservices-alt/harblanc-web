@@ -55,29 +55,33 @@ async function resolveBrokerId(
   identity?: {
     mc?: string | null;
     dot?: string | null;
+    phone?: string | null;
   },
 ): Promise<string | null> {
-  // Only broker-level identity (MC / DOT) is recorded on the broker itself.
-  // Phone/email captured on a load belong to a dispatcher AT the broker and
-  // are stored separately via addBrokerContactFromLoad.
+  // Broker-level identity (MC / DOT) and the broker's own main line (e.g. the
+  // company phone an FMCSA lookup returns) are recorded on the broker itself.
+  // A phone/email a user TYPES on a load belongs to a dispatcher AT the broker
+  // and is stored separately via addBrokerContactFromLoad.
   const key = name.trim().toLowerCase();
   if (!key) return null;
   const c = identity ?? {};
   const { data: existing } = await sb
     .from("brokers")
-    .select("id, mc_number, dot_number")
+    .select("id, mc_number, dot_number, phone")
     .eq("name_key", key)
     .is("deleted_at", null)
     .maybeSingle<{
       id: string;
       mc_number: string | null;
       dot_number: string | null;
+      phone: string | null;
     }>();
   if (existing?.id) {
-    // Backfill broker identity (MC / DOT) we now have but the record lacked.
+    // Backfill broker identity / main line we now have but the record lacked.
     const patch: Record<string, string> = {};
     if (c.mc && !existing.mc_number) patch.mc_number = c.mc;
     if (c.dot && !existing.dot_number) patch.dot_number = c.dot;
+    if (c.phone && !existing.phone) patch.phone = c.phone;
     if (Object.keys(patch).length > 0) {
       await sb.from("brokers").update(patch).eq("id", existing.id);
     }
@@ -89,6 +93,7 @@ async function resolveBrokerId(
       name: name.trim(),
       mc_number: c.mc ?? null,
       dot_number: c.dot ?? null,
+      phone: c.phone ?? null,
     })
     .select("id")
     .maybeSingle<{ id: string }>();
@@ -171,6 +176,7 @@ export async function createLoad(formData: FormData): Promise<void> {
     ? await resolveBrokerId(sb, brokerName, {
         mc: str(formData, "broker_mc"),
         dot: str(formData, "broker_dot"),
+        phone: str(formData, "broker_main_phone"),
       })
     : null;
 
