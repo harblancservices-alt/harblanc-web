@@ -49,6 +49,13 @@ const GROUPS: { title: string; items: SheetItem[] }[] = [
         chip: "bg-emerald-50 text-emerald-700",
         Icon: IconRoute,
       },
+      {
+        href: "/admin/dispatch/backhaul",
+        label: "Backhaul",
+        desc: "Find return loads",
+        chip: "bg-sky-50 text-sky-700",
+        Icon: IconMail,
+      },
     ],
   },
   {

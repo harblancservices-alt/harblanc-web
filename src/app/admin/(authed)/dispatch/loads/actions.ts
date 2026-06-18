@@ -52,35 +52,32 @@ const STAGE_ODO_COLUMN: Record<string, "odo_assigned" | "odo_loaded" | "odo_deli
 async function resolveBrokerId(
   sb: ReturnType<typeof createServiceRoleClient>,
   name: string,
-  contact?: {
+  identity?: {
     mc?: string | null;
     dot?: string | null;
-    email?: string | null;
-    phone?: string | null;
   },
 ): Promise<string | null> {
+  // Only broker-level identity (MC / DOT) is recorded on the broker itself.
+  // Phone/email captured on a load belong to a dispatcher AT the broker and
+  // are stored separately via addBrokerContactFromLoad.
   const key = name.trim().toLowerCase();
   if (!key) return null;
-  const c = contact ?? {};
+  const c = identity ?? {};
   const { data: existing } = await sb
     .from("brokers")
-    .select("id, mc_number, dot_number, email, phone")
+    .select("id, mc_number, dot_number")
     .eq("name_key", key)
     .is("deleted_at", null)
     .maybeSingle<{
       id: string;
       mc_number: string | null;
       dot_number: string | null;
-      email: string | null;
-      phone: string | null;
     }>();
   if (existing?.id) {
-    // Backfill any contact detail we now have but the record was missing.
+    // Backfill broker identity (MC / DOT) we now have but the record lacked.
     const patch: Record<string, string> = {};
     if (c.mc && !existing.mc_number) patch.mc_number = c.mc;
     if (c.dot && !existing.dot_number) patch.dot_number = c.dot;
-    if (c.email && !existing.email) patch.email = c.email;
-    if (c.phone && !existing.phone) patch.phone = c.phone;
     if (Object.keys(patch).length > 0) {
       await sb.from("brokers").update(patch).eq("id", existing.id);
     }
@@ -92,12 +89,53 @@ async function resolveBrokerId(
       name: name.trim(),
       mc_number: c.mc ?? null,
       dot_number: c.dot ?? null,
-      email: c.email ?? null,
-      phone: c.phone ?? null,
     })
     .select("id")
     .maybeSingle<{ id: string }>();
   return created?.id ?? null;
+}
+
+/**
+ * Record the dispatcher captured on the Add Load form as a contact under the
+ * broker (broker_contacts), rather than overwriting the broker's main line.
+ * Skips creation when a contact with the same phone or email already exists
+ * for this broker, so repeat loads for the same dispatcher don't pile up.
+ */
+async function addBrokerContactFromLoad(
+  sb: ReturnType<typeof createServiceRoleClient>,
+  brokerId: string,
+  c: { name: string | null; email: string | null; phone: string | null },
+): Promise<void> {
+  const phone = c.phone;
+  const email = c.email;
+  if (!phone && !email) return; // no way to reach a dispatcher -> nothing to save
+
+  const { data } = await sb
+    .from("broker_contacts")
+    .select("phone, email")
+    .eq("broker_id", brokerId)
+    .is("deleted_at", null);
+  const existing = (data ?? []) as { phone: string | null; email: string | null }[];
+
+  const digits = (s: string | null) => (s ?? "").replace(/\D/g, "");
+  const lower = (s: string | null) => (s ?? "").trim().toLowerCase();
+  const isDupe = existing.some(
+    (r) =>
+      (!!phone && digits(r.phone) !== "" && digits(r.phone) === digits(phone)) ||
+      (!!email && lower(r.email) !== "" && lower(r.email) === lower(email)),
+  );
+  if (isDupe) return;
+
+  const phones = phone ? [{ number: phone, ext: null, label: null }] : [];
+  const emails = email ? [{ address: email, label: null }] : [];
+  await sb.from("broker_contacts").insert({
+    broker_id: brokerId,
+    name: c.name ?? "Dispatcher",
+    phone: phone ?? null,
+    email: email ?? null,
+    phones,
+    emails,
+  });
 }
 
 /** Find a trip by normalized name, creating it (active) if it's new. */
@@ -133,10 +171,18 @@ export async function createLoad(formData: FormData): Promise<void> {
     ? await resolveBrokerId(sb, brokerName, {
         mc: str(formData, "broker_mc"),
         dot: str(formData, "broker_dot"),
-        email: str(formData, "broker_email"),
-        phone: str(formData, "broker_phone"),
       })
     : null;
+
+  // The phone/email on the load form are a dispatcher at the broker -> store
+  // them as a broker contact, not the broker's own main phone/email.
+  if (brokerId) {
+    await addBrokerContactFromLoad(sb, brokerId, {
+      name: str(formData, "broker_contact_name"),
+      email: str(formData, "broker_email"),
+      phone: str(formData, "broker_phone"),
+    });
+  }
 
   const tripName = str(formData, "trip_name");
   const tripId = tripName ? await resolveTripId(sb, tripName) : null;

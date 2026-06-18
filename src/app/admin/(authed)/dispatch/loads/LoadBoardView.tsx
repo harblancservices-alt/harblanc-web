@@ -575,6 +575,7 @@ function AddLoadModal({
   const [broker, setBroker] = useState("");
   const [brokerMc, setBrokerMc] = useState("");
   const [brokerDot, setBrokerDot] = useState("");
+  const [brokerContactName, setBrokerContactName] = useState("");
   const [brokerEmail, setBrokerEmail] = useState("");
   const [brokerPhone, setBrokerPhone] = useState("");
   const [status, setStatus] = useState("pending");
@@ -825,11 +826,25 @@ function AddLoadModal({
               </div>
             </div>
 
-            {/* Dispatcher contact — stacks on mobile, side-by-side on desktop */}
+            {/* Dispatcher contact — saved under the broker, not as its main
+                line. Stacks on mobile, side-by-side on desktop. */}
+            <div className="mt-3">
+              <label className="block font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-fg">
+                Dispatcher name
+              </label>
+              <input
+                name="broker_contact_name"
+                value={brokerContactName}
+                onChange={(e) => setBrokerContactName(e.target.value)}
+                autoComplete="off"
+                placeholder="e.g. Mike at Dispatch"
+                className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
+              />
+            </div>
             <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div>
                 <label className="block font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-fg">
-                  Broker email
+                  Dispatcher email
                 </label>
                 <input
                   name="broker_email"
@@ -842,7 +857,7 @@ function AddLoadModal({
               </div>
               <div>
                 <label className="block font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-fg">
-                  Broker phone
+                  Dispatcher phone
                 </label>
                 <input
                   name="broker_phone"
