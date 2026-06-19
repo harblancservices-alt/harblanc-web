@@ -91,22 +91,29 @@ function DocKindBlock({
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
 
   async function onPick(fileList: FileList | null) {
     const files = Array.from(fileList ?? []);
     if (files.length === 0) return;
+    const n = files.length;
     const fd = new FormData();
     for (const f of files) fd.append("files", f);
     fd.append("kind", kind);
     setBusy(true);
     setErr(null);
+    setOk(null);
     try {
       const res = await uploadLoadDocument(loadId, fd);
       if (!res.ok) {
         setErr(res.reason);
         return;
       }
+      setOk(`Saved ${n} file${n === 1 ? "" : "s"}`);
       router.refresh();
+    } catch (e) {
+      // A thrown action would otherwise fail silently here — surface inline.
+      setErr(e instanceof Error ? e.message : "Upload failed. Please try again.");
     } finally {
       setBusy(false);
       if (inputRef.current) inputRef.current.value = "";
@@ -117,6 +124,7 @@ function DocKindBlock({
     if (!window.confirm(`Delete this ${label.toLowerCase()} file?`)) return;
     setBusy(true);
     setErr(null);
+    setOk(null);
     try {
       await deleteLoadDocument(doc.id, loadId);
       router.refresh();
@@ -203,6 +211,15 @@ function DocKindBlock({
             </div>
           ))}
         </div>
+      ) : null}
+
+      {ok ? (
+        <p
+          className="mt-1.5 text-[11px] font-semibold text-green-700"
+          role="status"
+        >
+          ✓ {ok}
+        </p>
       ) : null}
 
       {err ? (

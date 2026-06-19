@@ -195,7 +195,6 @@ export function DashboardView({ data }: { data: DashboardData }) {
                   <OdometerStatusCard
                     loadId={l.id}
                     status={l.status}
-                    statusLabel={LOAD_STATUS_LABEL[l.status] ?? l.status}
                     lastReading={
                       Math.max(
                         l.odoAssigned ?? 0,
@@ -206,7 +205,6 @@ export function DashboardView({ data }: { data: DashboardData }) {
                     odoAssigned={l.odoAssigned}
                     odoLoaded={l.odoLoaded}
                     odoDelivered={l.odoDelivered}
-                    defaultOpen={false}
                   />
                 </div>
               </div>

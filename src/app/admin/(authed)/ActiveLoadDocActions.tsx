@@ -80,9 +80,11 @@ function DocModal({
 }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [staged, setStaged] = useState<StagedFile[]>([]);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [ok, setOk] = useState<string | null>(null);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -91,6 +93,13 @@ function DocModal({
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [busy, onClose]);
+
+  useEffect(
+    () => () => {
+      if (closeTimer.current) clearTimeout(closeTimer.current);
+    },
+    [],
+  );
 
   function onPick(fileList: FileList | null) {
     const picked = Array.from(fileList ?? []);
@@ -113,6 +122,7 @@ function DocModal({
       setErr("Add at least one photo or file.");
       return;
     }
+    const n = staged.length;
     const fd = new FormData();
     for (const s of staged) fd.append("files", s.file);
     fd.append("kind", kind);
@@ -124,8 +134,15 @@ function DocModal({
         setErr(res.reason);
         return;
       }
+      // Clear confirmation, then auto-close so Brent can move on.
+      setStaged([]);
+      setOk(`Saved ${n} file${n === 1 ? "" : "s"}`);
       router.refresh();
-      onClose();
+      closeTimer.current = setTimeout(onClose, 1200);
+    } catch (e) {
+      // A thrown action (not a returned {ok:false}) would otherwise fail
+      // silently in this click handler — surface it inline instead.
+      setErr(e instanceof Error ? e.message : "Upload failed. Please try again.");
     } finally {
       setBusy(false);
     }
@@ -205,6 +222,15 @@ function DocModal({
             files welcome.
           </p>
 
+          {ok ? (
+            <p
+              role="status"
+              className="flex items-center gap-1.5 rounded-md border border-green-300 bg-green-50 px-2.5 py-1.5 text-[12px] font-semibold text-green-700"
+            >
+              <span aria-hidden>✓</span> {ok}
+            </p>
+          ) : null}
+
           {err ? (
             <p role="alert" className="text-[12px] font-semibold text-red-700">
               {err}
@@ -224,11 +250,13 @@ function DocModal({
           <button
             type="button"
             onClick={onSubmit}
-            disabled={busy || staged.length === 0}
+            disabled={busy || staged.length === 0 || ok != null}
             aria-busy={busy}
             className="inline-flex items-center gap-1.5 rounded-md border border-red-700 bg-red-600 px-4 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {busy ? (
+            {ok ? (
+              "Saved ✓"
+            ) : busy ? (
               <>
                 <span
                   aria-hidden
