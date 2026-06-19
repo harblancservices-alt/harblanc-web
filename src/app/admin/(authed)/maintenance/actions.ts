@@ -68,6 +68,58 @@ function sanitizeFilename(name: string): string {
   );
 }
 
+export type CreateUploadUrlResult =
+  | { ok: true; bucket: string; path: string; token: string }
+  | { ok: false; reason: string };
+
+/**
+ * Mint a signed upload URL so the CLIENT can upload a receipt's bytes directly
+ * to the private maintenance-receipts bucket — bypassing the Server Action /
+ * Vercel request-body limit that phone photos exceed. The path isn't tied to a
+ * log id (the log is created later by addMaintenanceService); the stored
+ * file_path is all the read side needs.
+ */
+export async function createReceiptUploadUrl(
+  fileName: string,
+  mimeType: string,
+  sizeBytes: number,
+): Promise<CreateUploadUrlResult> {
+  try {
+    if (!RECEIPT_MIME.has(mimeType)) {
+      return {
+        ok: false,
+        reason: `Unsupported file "${fileName}" (${mimeType || "unknown"}). Use JPG, PNG, HEIC, WEBP, or PDF.`,
+      };
+    }
+    if (sizeBytes > RECEIPT_MAX_BYTES) {
+      return {
+        ok: false,
+        reason: `"${fileName}" is too large (${Math.round(sizeBytes / 1024 / 1024)} MB). Max 20 MB.`,
+      };
+    }
+    const group = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+    const prefix = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+    const path = `maintenance/uploads/${group}/${prefix}-${sanitizeFilename(fileName)}`;
+    const sb = createServiceRoleClient();
+    const { data, error } = await sb.storage
+      .from(RECEIPT_BUCKET)
+      .createSignedUploadUrl(path);
+    if (error || !data) {
+      return {
+        ok: false,
+        reason: `Could not start upload: ${error?.message ?? "unknown error"}`,
+      };
+    }
+    return { ok: true, bucket: RECEIPT_BUCKET, path: data.path, token: data.token };
+  } catch (e) {
+    console.error("[createReceiptUploadUrl] failed:", e);
+    return {
+      ok: false,
+      reason: `Could not start upload: ${e instanceof Error ? e.message : "unexpected error"}`,
+    };
+  }
+}
+
 /**
  * Add a service record (from the top "Add Service" flow). The service type is
  * either a seeded maintenance_item (item_id set) or a custom typed name
@@ -113,35 +165,52 @@ export async function addMaintenanceService(formData: FormData): Promise<void> {
   const category =
     rawCategory && EXPENSE_CATEGORIES.has(rawCategory) ? rawCategory : null;
 
-  // Validate every receipt up front so we don't half-create a record, pairing
-  // each file with its own amount + label (Brent's parts vs. labor receipts).
-  // The client appends files/amount/label in matching index order.
-  const rawFiles = formData.getAll("files");
-  const rawAmounts = formData.getAll("amount");
-  const rawLabels = formData.getAll("label");
-  const receipts: { file: File; amount: number | null; label: string | null }[] =
-    [];
-  for (let i = 0; i < rawFiles.length; i++) {
-    const f = rawFiles[i];
-    if (!(f instanceof File) || f.size <= 0) continue;
-    if (!RECEIPT_MIME.has(f.type)) {
-      throw new Error(
-        `Unsupported file "${f.name}" (${f.type || "unknown"}). Use JPG, PNG, HEIC, WEBP, or PDF.`,
-      );
+  // Receipts were uploaded directly to storage by the client (bypassing the
+  // body limit); the action receives only their metadata as JSON. Each carries
+  // its own amount + label (Brent's parts vs. labor receipts).
+  const receipts: {
+    storagePath: string;
+    name: string;
+    type: string;
+    size: number;
+    amount: number | null;
+    label: string | null;
+  }[] = [];
+  const rawReceipts = str(formData, "receipts");
+  if (rawReceipts) {
+    let parsed: unknown = [];
+    try {
+      parsed = JSON.parse(rawReceipts);
+    } catch {
+      throw new Error("Could not read the uploaded receipts.");
     }
-    if (f.size > RECEIPT_MAX_BYTES) {
-      throw new Error(
-        `"${f.name}" is too large (${Math.round(f.size / 1024 / 1024)} MB). Max 20 MB.`,
-      );
+    if (!Array.isArray(parsed)) parsed = [];
+    for (const raw of parsed as Record<string, unknown>[]) {
+      const storagePath =
+        typeof raw.storagePath === "string" ? raw.storagePath : "";
+      if (!storagePath) continue;
+      const name = typeof raw.name === "string" ? raw.name : "receipt";
+      const type = typeof raw.type === "string" ? raw.type : "";
+      const size = typeof raw.size === "number" ? raw.size : 0;
+      if (type && !RECEIPT_MIME.has(type)) {
+        throw new Error(
+          `Unsupported file "${name}" (${type || "unknown"}). Use JPG, PNG, HEIC, WEBP, or PDF.`,
+        );
+      }
+      if (size > RECEIPT_MAX_BYTES) {
+        throw new Error(`"${name}" is too large. Max 20 MB.`);
+      }
+      receipts.push({
+        storagePath,
+        name,
+        type,
+        size,
+        amount: moneyOrNull(typeof raw.amount === "string" ? raw.amount : null),
+        label:
+          (typeof raw.label === "string" ? raw.label.trim().slice(0, 60) : "") ||
+          null,
+      });
     }
-    const amt = rawAmounts[i];
-    const lbl = rawLabels[i];
-    receipts.push({
-      file: f,
-      amount: moneyOrNull(typeof amt === "string" ? amt : null),
-      label:
-        (typeof lbl === "string" ? lbl.trim().slice(0, 60) : "") || null,
-    });
   }
 
   // Total cost: a manual override wins; otherwise auto-sum the receipt amounts.
@@ -188,36 +257,22 @@ export async function addMaintenanceService(formData: FormData): Promise<void> {
     }
   }
 
-  // 3. Upload each receipt → maintenance/{log_id}/{file}, record an attachment
-  //    carrying its own amount + label (e.g. "Parts" $X, "Labor" $Y).
-  for (const { file: f, amount, label } of receipts) {
-    const path = `maintenance/${log.id}/${crypto
-      .randomUUID()
-      .replace(/-/g, "")
-      .slice(0, 12)}-${sanitizeFilename(f.name)}`;
-    const bytes = new Uint8Array(await f.arrayBuffer());
-    const { error: upErr } = await sb.storage
-      .from(RECEIPT_BUCKET)
-      .upload(path, bytes, { contentType: f.type, upsert: false });
-    if (upErr) {
-      throw new Error(`Receipt upload failed ("${f.name}"): ${upErr.message}`);
-    }
-
-    // No thumbnail generation in the request path (sharp crashed the function
-    // on Vercel). thumb_path stays null; the grid falls back to the original.
+  // 3. Record one attachment row per receipt (already uploaded to storage by
+  //    the client), carrying its own amount + label. No bytes, no thumbnails.
+  for (const r of receipts) {
     const { error: attErr } = await sb.from("maintenance_attachments").insert({
       log_id: log.id,
-      file_path: path,
+      file_path: r.storagePath,
       thumb_path: null,
-      file_name: f.name.slice(0, 240),
-      content_type: f.type,
-      size_bytes: f.size,
-      amount,
-      label,
+      file_name: r.name.slice(0, 240),
+      content_type: r.type || null,
+      size_bytes: r.size,
+      amount: r.amount,
+      label: r.label,
     });
     if (attErr) {
-      await sb.storage.from(RECEIPT_BUCKET).remove([path]);
-      throw new Error(`Could not record receipt ("${f.name}"): ${attErr.message}`);
+      await sb.storage.from(RECEIPT_BUCKET).remove([r.storagePath]);
+      throw new Error(`Could not record receipt ("${r.name}"): ${attErr.message}`);
     }
   }
 

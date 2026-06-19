@@ -432,94 +432,116 @@ function sanitizeFilename(name: string): string {
 
 export type DocUploadResult = { ok: true } | { ok: false; reason: string };
 
-export async function uploadLoadDocument(
+export type CreateUploadUrlResult =
+  | { ok: true; bucket: string; path: string; token: string }
+  | { ok: false; reason: string };
+
+export type RecordDoc = {
+  storagePath: string;
+  originalFilename: string;
+  mimeType: string;
+  sizeBytes: number;
+};
+
+/**
+ * Step 1 of a direct-to-storage upload: validate the file's type/size and mint
+ * a signed upload URL token for a fresh path in the load-documents bucket. The
+ * client then uploads the bytes straight to storage (bypassing the server
+ * action / Vercel body limits). No file bytes pass through this action.
+ */
+export async function createLoadDocUploadUrl(
   loadId: string,
-  formData: FormData,
-): Promise<DocUploadResult> {
-  // No thumbnail generation in the request path: sharp (a native module) crashed
-  // the serverless function on Vercel, breaking uploads. Uploads now just
-  // validate → upload original(s) → insert row(s) with thumb_path null. The
-  // whole body is wrapped so ANY unexpected failure returns a readable reason
-  // (not an opaque "unexpected error from the server"). Backfilled thumbnails
-  // still display; new rows fall back to the original signed URL.
+  fileName: string,
+  mimeType: string,
+  sizeBytes: number,
+): Promise<CreateUploadUrlResult> {
   try {
-    // Multi-file: the client appends each picked file under "files" (Brent
-    // photographs freight from several angles). Fall back to the legacy single
-    // "file" field so older callers keep working.
-    let files = formData
-      .getAll("files")
-      .filter((f): f is File => f instanceof File && f.size > 0);
-    if (files.length === 0) {
-      const single = formData.get("file");
-      if (single instanceof File && single.size > 0) files = [single];
-    }
-    if (files.length === 0) {
+    if (!DOC_MIME.has(mimeType)) {
       return {
         ok: false,
-        reason: "Choose at least one photo or file to upload.",
+        reason: `Unsupported type ${mimeType || "unknown"} ("${fileName}"). Use JPG, PNG, WEBP, or PDF.`,
       };
     }
-
-    // Validate every file up front so a bad one doesn't half-upload the batch.
-    for (const file of files) {
-      if (!DOC_MIME.has(file.type)) {
-        return {
-          ok: false,
-          reason: `Unsupported type ${file.type || "unknown"} ("${file.name}"). Use JPG, PNG, WEBP, or PDF.`,
-        };
-      }
-      if (file.size > DOC_MAX_BYTES) {
-        return {
-          ok: false,
-          reason: `"${file.name}" is too large (${Math.round(file.size / 1024 / 1024)} MB). Max 15 MB.`,
-        };
-      }
+    if (sizeBytes > DOC_MAX_BYTES) {
+      return {
+        ok: false,
+        reason: `"${fileName}" is too large (${Math.round(sizeBytes / 1024 / 1024)} MB). Max 15 MB.`,
+      };
     }
-
-    const kindRaw = str(formData, "kind") ?? "other";
-    const kind = DOC_KINDS.has(kindRaw) ? kindRaw : "other";
-
+    const safe = sanitizeFilename(fileName);
+    const prefix = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+    const path = `${loadId}/${prefix}-${safe}`;
     const sb = createServiceRoleClient();
-    for (const file of files) {
-      const safe = sanitizeFilename(file.name);
-      const prefix = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
-      const storagePath = `${loadId}/${prefix}-${safe}`;
+    const { data, error } = await sb.storage
+      .from(DOC_BUCKET)
+      .createSignedUploadUrl(path);
+    if (error || !data) {
+      return {
+        ok: false,
+        reason: `Could not start upload: ${error?.message ?? "unknown error"}`,
+      };
+    }
+    return { ok: true, bucket: DOC_BUCKET, path: data.path, token: data.token };
+  } catch (e) {
+    console.error("[createLoadDocUploadUrl] failed:", e);
+    return {
+      ok: false,
+      reason: `Could not start upload: ${e instanceof Error ? e.message : "unexpected error"}`,
+    };
+  }
+}
 
-      const bytes = new Uint8Array(await file.arrayBuffer());
-      const { error: upErr } = await sb.storage
-        .from(DOC_BUCKET)
-        .upload(storagePath, bytes, { contentType: file.type, upsert: false });
-      if (upErr) {
+/**
+ * Step 2 of a direct-to-storage upload: insert the load_documents row(s) for
+ * files the client already uploaded to storage. Tiny JSON payload — no bytes.
+ * thumb_path is null (thumbnails are no longer generated in the request path).
+ */
+export async function recordLoadDocuments(
+  loadId: string,
+  kindRaw: string,
+  docs: RecordDoc[],
+): Promise<DocUploadResult> {
+  try {
+    if (!Array.isArray(docs) || docs.length === 0) {
+      return { ok: false, reason: "No documents to save." };
+    }
+    const kind = DOC_KINDS.has(kindRaw) ? kindRaw : "other";
+    for (const d of docs) {
+      if (!DOC_MIME.has(d.mimeType)) {
         return {
           ok: false,
-          reason: `Upload failed ("${file.name}"): ${upErr.message}`,
+          reason: `Unsupported type ${d.mimeType || "unknown"} ("${d.originalFilename}").`,
         };
       }
-
-      const { error: insErr } = await sb.from("load_documents").insert({
-        load_id: loadId,
-        kind,
-        storage_path: storagePath,
-        thumb_path: null,
-        original_filename: file.name.slice(0, 240),
-        mime_type: file.type,
-        size_bytes: file.size,
-      });
-      if (insErr) {
-        await sb.storage.from(DOC_BUCKET).remove([storagePath]);
+      if (d.sizeBytes > DOC_MAX_BYTES) {
         return {
           ok: false,
-          reason: `Save failed ("${file.name}"): ${insErr.message}`,
+          reason: `"${d.originalFilename}" is too large. Max 15 MB.`,
         };
       }
     }
-
+    const sb = createServiceRoleClient();
+    const rows = docs.map((d) => ({
+      load_id: loadId,
+      kind,
+      storage_path: d.storagePath,
+      thumb_path: null,
+      original_filename: d.originalFilename.slice(0, 240),
+      mime_type: d.mimeType,
+      size_bytes: d.sizeBytes,
+    }));
+    const { error } = await sb.from("load_documents").insert(rows);
+    if (error) {
+      // Remove the just-uploaded orphans so a failed insert leaves no junk.
+      await sb.storage.from(DOC_BUCKET).remove(docs.map((d) => d.storagePath));
+      return { ok: false, reason: `Save failed: ${error.message}` };
+    }
     revalidatePath(`/admin/dispatch/loads/${loadId}`);
     // POD can be added from the dashboard's active-loads list — keep it fresh.
     revalidatePath("/admin");
     return { ok: true };
   } catch (e) {
-    console.error("[uploadLoadDocument] failed:", e);
+    console.error("[recordLoadDocuments] failed:", e);
     return {
       ok: false,
       reason: `Could not save document: ${e instanceof Error ? e.message : "unexpected error"}`,

@@ -2,7 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { uploadLoadDocument } from "./dispatch/loads/actions";
+import {
+  createLoadDocUploadUrl,
+  recordLoadDocuments,
+  type RecordDoc,
+} from "./dispatch/loads/actions";
+import { uploadFileToSignedUrl } from "@/lib/storage/client-upload";
 
 // Same picker setup as the maintenance receipt / load-document uploaders:
 // image/* with NO capture → mobile offers Take Photo / Library / Choose File.
@@ -123,15 +128,40 @@ function DocModal({
       return;
     }
     const n = staged.length;
-    const fd = new FormData();
-    for (const s of staged) fd.append("files", s.file);
-    fd.append("kind", kind);
     setBusy(true);
     setErr(null);
     try {
-      const res = await uploadLoadDocument(loadId, fd);
-      if (!res.ok) {
-        setErr(res.reason);
+      // Direct-to-storage: upload each file's bytes straight to the bucket via
+      // a signed upload URL (bypasses the server-action / Vercel body limit),
+      // then record the rows in one tiny metadata-only action call.
+      const recorded: RecordDoc[] = [];
+      for (const s of staged) {
+        const f = s.file;
+        const urlRes = await createLoadDocUploadUrl(loadId, f.name, f.type, f.size);
+        if (!urlRes.ok) {
+          setErr(urlRes.reason);
+          return;
+        }
+        const upRes = await uploadFileToSignedUrl(
+          urlRes.bucket,
+          urlRes.path,
+          urlRes.token,
+          f,
+        );
+        if (!upRes.ok) {
+          setErr(`Upload failed ("${f.name}"): ${upRes.reason}`);
+          return;
+        }
+        recorded.push({
+          storagePath: urlRes.path,
+          originalFilename: f.name,
+          mimeType: f.type,
+          sizeBytes: f.size,
+        });
+      }
+      const recRes = await recordLoadDocuments(loadId, kind, recorded);
+      if (!recRes.ok) {
+        setErr(recRes.reason);
         return;
       }
       // Clear confirmation, then auto-close so Brent can move on.
@@ -140,8 +170,6 @@ function DocModal({
       router.refresh();
       closeTimer.current = setTimeout(onClose, 1200);
     } catch (e) {
-      // A thrown action (not a returned {ok:false}) would otherwise fail
-      // silently in this click handler — surface it inline instead.
       setErr(e instanceof Error ? e.message : "Upload failed. Please try again.");
     } finally {
       setBusy(false);

@@ -3,9 +3,11 @@
 import { useActionState, useEffect, useState } from "react";
 import {
   addMaintenanceService,
+  createReceiptUploadUrl,
   logMaintenance,
   updateMaintenanceInterval,
 } from "./actions";
+import { uploadFileToSignedUrl } from "@/lib/storage/client-upload";
 import { IntervalBar } from "./IntervalBar";
 
 export type MaintItem = {
@@ -485,6 +487,9 @@ function AddServiceModal({
   // it (then `totalDirty` pins their override).
   const [total, setTotal] = useState("");
   const [totalDirty, setTotalDirty] = useState(false);
+  // Direct-upload phase runs before the metadata action; its own busy + error.
+  const [uploading, setUploading] = useState(false);
+  const [uploadErr, setUploadErr] = useState<string | null>(null);
 
   const [state, action, pending] = useActionState<
     { ok: boolean; error: string | null },
@@ -510,11 +515,11 @@ function AddServiceModal({
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape" && !pending) onClose();
+      if (e.key === "Escape" && !pending && !uploading) onClose();
     }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [pending, onClose]);
+  }, [pending, uploading, onClose]);
 
   const today = new Date().toISOString().slice(0, 10);
   const sum = rows.reduce((s, r) => s + parseMoney(r.amount), 0);
@@ -544,24 +549,66 @@ function AddServiceModal({
     setRows((prev) => prev.filter((r) => r.id !== id));
   }
 
-  // Per-file metadata can't ride a native file input, so build the FormData by
-  // hand: append each File alongside its amount + label in matching index
-  // order, then dispatch the action.
-  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+  // Receipts upload DIRECTLY to storage (bypassing the body limit) before the
+  // action runs; only their metadata (path/name/type/size + amount/label) is
+  // sent to addMaintenanceService as JSON.
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (pending) return;
-    const fd = new FormData(e.currentTarget);
-    fd.set("total_cost", totalValue);
-    for (const r of rows) {
-      fd.append("files", r.file);
-      fd.append("amount", r.amount);
-      fd.append("label", r.label);
+    if (pending || uploading) return;
+    const form = e.currentTarget;
+    setUploading(true);
+    setUploadErr(null);
+    try {
+      const metas: {
+        storagePath: string;
+        name: string;
+        type: string;
+        size: number;
+        amount: string;
+        label: string;
+      }[] = [];
+      for (const r of rows) {
+        const f = r.file;
+        const urlRes = await createReceiptUploadUrl(f.name, f.type, f.size);
+        if (!urlRes.ok) {
+          setUploadErr(urlRes.reason);
+          return;
+        }
+        const upRes = await uploadFileToSignedUrl(
+          urlRes.bucket,
+          urlRes.path,
+          urlRes.token,
+          f,
+        );
+        if (!upRes.ok) {
+          setUploadErr(`Upload failed ("${f.name}"): ${upRes.reason}`);
+          return;
+        }
+        metas.push({
+          storagePath: urlRes.path,
+          name: f.name,
+          type: f.type,
+          size: f.size,
+          amount: r.amount,
+          label: r.label,
+        });
+      }
+      const fd = new FormData(form);
+      fd.set("total_cost", totalValue);
+      fd.set("receipts", JSON.stringify(metas));
+      action(fd);
+    } catch (err) {
+      setUploadErr(err instanceof Error ? err.message : "Upload failed.");
+    } finally {
+      setUploading(false);
     }
-    action(fd);
   }
 
+  const busy = pending || uploading;
+  const errorMsg = uploadErr ?? state.error;
+
   return (
-    <ModalShell title="Add service" pending={pending} onClose={onClose}>
+    <ModalShell title="Add service" pending={busy} onClose={onClose}>
       <form onSubmit={onSubmit} onClick={(e) => e.stopPropagation()}>
         <div className="space-y-3 bg-elevated px-4 py-4">
           <div>
@@ -731,13 +778,13 @@ function AddServiceModal({
             </p>
           </div>
 
-          {state.error ? (
+          {errorMsg ? (
             <p role="alert" className="text-[12px] font-semibold text-red-700">
-              {state.error}
+              {errorMsg}
             </p>
           ) : null}
         </div>
-        <ModalFooter pending={pending} onClose={onClose} label="Add service" />
+        <ModalFooter pending={busy} onClose={onClose} label="Add service" />
       </form>
     </ModalShell>
   );

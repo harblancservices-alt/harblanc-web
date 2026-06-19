@@ -2,7 +2,13 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { uploadLoadDocument, deleteLoadDocument } from "../actions";
+import {
+  createLoadDocUploadUrl,
+  recordLoadDocuments,
+  deleteLoadDocument,
+  type RecordDoc,
+} from "../actions";
+import { uploadFileToSignedUrl } from "@/lib/storage/client-upload";
 
 export type LoadDoc = {
   id: string;
@@ -97,22 +103,44 @@ function DocKindBlock({
     const files = Array.from(fileList ?? []);
     if (files.length === 0) return;
     const n = files.length;
-    const fd = new FormData();
-    for (const f of files) fd.append("files", f);
-    fd.append("kind", kind);
     setBusy(true);
     setErr(null);
     setOk(null);
     try {
-      const res = await uploadLoadDocument(loadId, fd);
-      if (!res.ok) {
-        setErr(res.reason);
+      // Direct-to-storage: upload each file's bytes via a signed upload URL
+      // (bypasses the server-action / Vercel body limit), then record the rows.
+      const recorded: RecordDoc[] = [];
+      for (const f of files) {
+        const urlRes = await createLoadDocUploadUrl(loadId, f.name, f.type, f.size);
+        if (!urlRes.ok) {
+          setErr(urlRes.reason);
+          return;
+        }
+        const upRes = await uploadFileToSignedUrl(
+          urlRes.bucket,
+          urlRes.path,
+          urlRes.token,
+          f,
+        );
+        if (!upRes.ok) {
+          setErr(`Upload failed ("${f.name}"): ${upRes.reason}`);
+          return;
+        }
+        recorded.push({
+          storagePath: urlRes.path,
+          originalFilename: f.name,
+          mimeType: f.type,
+          sizeBytes: f.size,
+        });
+      }
+      const recRes = await recordLoadDocuments(loadId, kind, recorded);
+      if (!recRes.ok) {
+        setErr(recRes.reason);
         return;
       }
       setOk(`Saved ${n} file${n === 1 ? "" : "s"}`);
       router.refresh();
     } catch (e) {
-      // A thrown action would otherwise fail silently here — surface inline.
       setErr(e instanceof Error ? e.message : "Upload failed. Please try again.");
     } finally {
       setBusy(false);
