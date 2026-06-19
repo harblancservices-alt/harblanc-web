@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link, { useLinkStatus } from "next/link";
 import { usePathname } from "next/navigation";
 import { useState, type ComponentType } from "react";
 import {
@@ -79,17 +79,11 @@ export function PortalBottomNav() {
             <Link
               key={item.href}
               href={item.href}
-              prefetch={false}
+              prefetch
               aria-current={active ? "page" : undefined}
-              className={
-                "flex flex-col items-center justify-center gap-1 border-b-[2px] px-2 pt-2 pb-2.5 font-mono text-[9px] font-bold uppercase tracking-[0.16em] transition-colors " +
-                (active
-                  ? "border-red-300 text-white"
-                  : "border-transparent text-white")
-              }
+              className="flex transition-colors active:bg-white/15"
             >
-              <item.Icon className="h-[18px] w-[18px]" />
-              <span>{item.label}</span>
+              <NavItemBody item={item} active={active} />
             </Link>
           );
         })}
@@ -99,9 +93,9 @@ export function PortalBottomNav() {
           aria-expanded={sheetOpen}
           aria-haspopup="dialog"
           className={
-            "flex flex-col items-center justify-center gap-1 border-b-[2px] px-2 pt-2 pb-2.5 font-mono text-[9px] font-bold uppercase tracking-[0.16em] transition-colors " +
+            "flex flex-col items-center justify-center gap-1 border-b-[2px] px-2 pt-2 pb-2.5 font-mono text-[9px] font-bold uppercase tracking-[0.16em] transition-colors active:bg-white/15 " +
             (moreActive || sheetOpen
-              ? "border-red-300 text-white"
+              ? "border-red-300 text-red-400"
               : "border-transparent text-white")
           }
         >
@@ -112,5 +106,41 @@ export function PortalBottomNav() {
 
       <MoreSheet open={sheetOpen} onClose={() => setSheetOpen(false)} />
     </>
+  );
+}
+
+/**
+ * Inner content of a nav Link. Lives inside <Link> so it can read
+ * useLinkStatus() — the tapped item lights up red and pulses the INSTANT the
+ * tap registers (while the destination loads), instead of only after the page
+ * arrives. Combined with the loading.tsx skeleton + prefetch, taps feel
+ * immediate. While pending it also shows a slim red progress bar at the very
+ * top of the screen.
+ */
+function NavItemBody({ item, active }: { item: NavItem; active: boolean }) {
+  const { pending } = useLinkStatus();
+  const lit = active || pending;
+  return (
+    <span
+      className={
+        "flex w-full flex-col items-center justify-center gap-1 border-b-[2px] px-2 pt-2 pb-2.5 font-mono text-[9px] font-bold uppercase tracking-[0.16em] transition-colors " +
+        (lit ? "border-red-300 text-red-400" : "border-transparent text-white") +
+        (pending ? " animate-pulse" : "")
+      }
+    >
+      <item.Icon className="h-[18px] w-[18px]" />
+      <span>{item.label}</span>
+      {pending ? <TopProgressBar /> : null}
+    </span>
+  );
+}
+
+/** Slim global progress bar shown while a nav tap is navigating. */
+function TopProgressBar() {
+  return (
+    <span
+      aria-hidden
+      className="fixed inset-x-0 top-0 z-50 h-[3px] animate-pulse bg-red-500"
+    />
   );
 }

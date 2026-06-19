@@ -184,7 +184,7 @@ export function MoreSheet({
                   <Link
                     key={item.href}
                     href={item.href}
-                    prefetch={false}
+                    prefetch
                     onClick={onClose}
                     aria-current={active ? "page" : undefined}
                     className={
