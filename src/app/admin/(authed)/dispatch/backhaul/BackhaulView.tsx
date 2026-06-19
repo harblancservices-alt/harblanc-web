@@ -54,6 +54,9 @@ export function BackhaulView({
   );
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<BackhaulSendResult | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  // Seconds left on the one-email-per-minute cooldown (0 = unlocked).
+  const [cooldown, setCooldown] = useState(0);
   const [locating, setLocating] = useState(false);
   const [locateErr, setLocateErr] = useState<string | null>(null);
 
@@ -67,6 +70,13 @@ export function BackhaulView({
   useEffect(() => {
     setLocating(false);
   }, [zip]);
+
+  // Tick the cooldown down to zero each second, then auto-unlock.
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const id = setTimeout(() => setCooldown((c) => Math.max(0, c - 1)), 1000);
+    return () => clearTimeout(id);
+  }, [cooldown]);
 
   function onLocate() {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
@@ -116,7 +126,7 @@ export function BackhaulView({
 
   async function onSend() {
     const ids = [...selected];
-    if (ids.length === 0) return;
+    if (ids.length === 0 || sending || cooldown > 0) return;
     setSending(true);
     setResult(null);
     try {
@@ -124,13 +134,24 @@ export function BackhaulView({
       fd.append("broker_ids", ids.join(","));
       fd.append("subject", subject);
       fd.append("body", body);
-      setResult(await sendBackhaul(fd));
+      const r = await sendBackhaul(fd);
+      setResult(r);
+      if (r.ok) {
+        // Lock for one minute and close the confirmation; the result shows
+        // below the button. On failure the dialog stays open to retry.
+        setCooldown(60);
+        setConfirmOpen(false);
+      }
     } finally {
       setSending(false);
     }
   }
 
   const selectableCount = brokers.filter((b) => b.email).length;
+  // The brokers each personalized email will actually go to.
+  const recipients = brokers
+    .filter((b) => selected.has(b.id) && !!b.email)
+    .map((b) => ({ name: b.name, email: b.email as string }));
 
   return (
     <div className="min-h-screen border-t border-line bg-canvas text-fg">
@@ -314,14 +335,21 @@ export function BackhaulView({
               />
               <button
                 type="button"
-                onClick={onSend}
-                disabled={sending || selected.size === 0}
-                className="mt-3 w-full rounded-md border border-red-700 bg-red-600 px-4 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+                onClick={() => {
+                  setResult(null);
+                  setConfirmOpen(true);
+                }}
+                disabled={sending || cooldown > 0 || selected.size === 0}
+                className="mt-3 w-full rounded-md border border-red-700 bg-red-600 px-4 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {sending ? "Sending…" : `Email ${selected.size} selected →`}
+                {cooldown > 0
+                  ? `Locked · ${cooldown}s`
+                  : `Email ${selected.size} selected →`}
               </button>
               <p className="mt-1.5 font-mono text-[10px] text-fg-subtle">
-                Sent from your dispatch address · replies land in your inbox.
+                {cooldown > 0
+                  ? `Rate-limited to one send per minute — unlocks in ${cooldown}s.`
+                  : "Review recipients before sending · replies land in your inbox."}
               </p>
               {result ? (
                 <p
@@ -335,9 +363,172 @@ export function BackhaulView({
                     : result.reason}
                 </p>
               ) : null}
+
+              {confirmOpen ? (
+                <ConfirmSendModal
+                  subject={subject}
+                  body={body}
+                  recipients={recipients}
+                  sending={sending}
+                  result={result}
+                  onConfirm={onSend}
+                  onClose={() => {
+                    if (!sending) setConfirmOpen(false);
+                  }}
+                />
+              ) : null}
             </div>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Confirmation dialog shown before a backhaul send. Lists every recipient
+ * and previews the exact subject + body that will go out (one personalized
+ * email per broker). Nothing sends until the operator hits Send.
+ */
+function ConfirmSendModal({
+  subject,
+  body,
+  recipients,
+  sending,
+  result,
+  onConfirm,
+  onClose,
+}: {
+  subject: string;
+  body: string;
+  recipients: { name: string; email: string }[];
+  sending: boolean;
+  result: BackhaulSendResult | null;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape" && !sending) onClose();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [sending, onClose]);
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Review backhaul email"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-3 sm:p-6"
+      onClick={() => {
+        if (!sending) onClose();
+      }}
+    >
+      <div
+        className="my-4 w-full max-w-lg overflow-hidden rounded-lg border border-line-strong bg-card shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between gap-3 bg-bar px-4 py-2.5">
+          <span className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-bar-fg">
+            Review backhaul email
+          </span>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={sending}
+            className="rounded-sm border border-white/25 px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-bar-fg transition-colors hover:bg-white/10 disabled:opacity-50"
+          >
+            Cancel
+          </button>
+        </div>
+
+        <div className="max-h-[70vh] space-y-3 overflow-y-auto bg-elevated px-4 py-4">
+          {/* Recipients */}
+          <section className="rounded-md border border-line bg-card p-3">
+            <p className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-fg">
+              Recipients · {recipients.length}
+            </p>
+            <p className="mb-2 mt-0.5 text-[11px] text-fg-subtle">
+              Each broker gets their own personalized copy — one email per
+              recipient.
+            </p>
+            {recipients.length === 0 ? (
+              <p className="text-[12px] text-amber-700">
+                None of the selected brokers have an email on file.
+              </p>
+            ) : (
+              <ul className="max-h-44 space-y-1 overflow-y-auto">
+                {recipients.map((r) => (
+                  <li
+                    key={r.email}
+                    className="flex items-baseline justify-between gap-3 text-[12px]"
+                  >
+                    <span className="truncate font-medium text-fg">
+                      {r.name}
+                    </span>
+                    <span className="shrink-0 font-mono text-[11.5px] text-blue-700">
+                      {r.email}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          {/* Email preview */}
+          <section className="rounded-md border border-line bg-card p-3">
+            <p className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-fg">
+              Email
+            </p>
+            <p className="mt-2 font-mono text-[9.5px] uppercase tracking-[0.12em] text-fg-subtle">
+              Subject
+            </p>
+            <p className="mt-0.5 text-[13px] font-semibold text-fg">{subject}</p>
+            <p className="mt-2.5 font-mono text-[9.5px] uppercase tracking-[0.12em] text-fg-subtle">
+              Body · {"{broker}"} fills each broker&apos;s name
+            </p>
+            <pre className="mt-1 whitespace-pre-wrap break-words font-sans text-[12.5px] leading-relaxed text-fg">
+              {body}
+            </pre>
+          </section>
+
+          {result && !result.ok ? (
+            <p role="alert" className="text-[12px] font-semibold text-red-700">
+              {result.reason}
+            </p>
+          ) : null}
+        </div>
+
+        <div className="flex items-center justify-end gap-2 border-t border-line bg-elevated px-4 py-3">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={sending}
+            className="rounded-md border border-line-strong bg-card px-4 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-fg transition-colors hover:bg-elevated disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={sending || recipients.length === 0}
+            aria-busy={sending}
+            className="inline-flex items-center gap-1.5 rounded-md border border-red-700 bg-red-600 px-4 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-70"
+          >
+            {sending ? (
+              <>
+                <span
+                  aria-hidden
+                  className="h-3 w-3 animate-spin rounded-full border-2 border-white/40 border-t-white"
+                />
+                Sending…
+              </>
+            ) : (
+              `Send to ${recipients.length} →`
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );
