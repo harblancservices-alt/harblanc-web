@@ -4,11 +4,6 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { lookupZip, estimateLaneMiles } from "@/lib/dispatch/distance";
-import {
-  THUMBNAILABLE_MIME,
-  makeThumbnail,
-  thumbPathFor,
-} from "@/lib/storage/thumbnail";
 
 /**
  * Dispatch → Load Board server actions. Insert a load and toggle its
@@ -441,90 +436,95 @@ export async function uploadLoadDocument(
   loadId: string,
   formData: FormData,
 ): Promise<DocUploadResult> {
-  // Multi-file: the client appends each picked file under "files" (Brent
-  // photographs freight from several angles). Fall back to the legacy single
-  // "file" field so older callers keep working.
-  let files = formData
-    .getAll("files")
-    .filter((f): f is File => f instanceof File && f.size > 0);
-  if (files.length === 0) {
-    const single = formData.get("file");
-    if (single instanceof File && single.size > 0) files = [single];
-  }
-  if (files.length === 0) {
-    return { ok: false, reason: "Choose at least one photo or file to upload." };
-  }
-
-  // Validate every file up front so a bad one doesn't half-upload the batch.
-  for (const file of files) {
-    if (!DOC_MIME.has(file.type)) {
+  // No thumbnail generation in the request path: sharp (a native module) crashed
+  // the serverless function on Vercel, breaking uploads. Uploads now just
+  // validate → upload original(s) → insert row(s) with thumb_path null. The
+  // whole body is wrapped so ANY unexpected failure returns a readable reason
+  // (not an opaque "unexpected error from the server"). Backfilled thumbnails
+  // still display; new rows fall back to the original signed URL.
+  try {
+    // Multi-file: the client appends each picked file under "files" (Brent
+    // photographs freight from several angles). Fall back to the legacy single
+    // "file" field so older callers keep working.
+    let files = formData
+      .getAll("files")
+      .filter((f): f is File => f instanceof File && f.size > 0);
+    if (files.length === 0) {
+      const single = formData.get("file");
+      if (single instanceof File && single.size > 0) files = [single];
+    }
+    if (files.length === 0) {
       return {
         ok: false,
-        reason: `Unsupported type ${file.type || "unknown"} ("${file.name}"). Use JPG, PNG, WEBP, or PDF.`,
+        reason: "Choose at least one photo or file to upload.",
       };
     }
-    if (file.size > DOC_MAX_BYTES) {
-      return {
-        ok: false,
-        reason: `"${file.name}" is too large (${Math.round(file.size / 1024 / 1024)} MB). Max 15 MB.`,
-      };
-    }
-  }
 
-  const kindRaw = str(formData, "kind") ?? "other";
-  const kind = DOC_KINDS.has(kindRaw) ? kindRaw : "other";
-
-  const sb = createServiceRoleClient();
-  for (const file of files) {
-    const safe = sanitizeFilename(file.name);
-    const prefix = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
-    const storagePath = `${loadId}/${prefix}-${safe}`;
-
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    const { error: upErr } = await sb.storage
-      .from(DOC_BUCKET)
-      .upload(storagePath, bytes, { contentType: file.type, upsert: false });
-    if (upErr) {
-      return { ok: false, reason: `Upload failed ("${file.name}"): ${upErr.message}` };
-    }
-
-    // Best-effort thumbnail (images only). Any failure leaves thumb_path null
-    // and keeps the original — the grid falls back to the full-size signed URL.
-    let thumbPath: string | null = null;
-    if (THUMBNAILABLE_MIME.has(file.type)) {
-      const thumbBytes = await makeThumbnail(bytes);
-      if (thumbBytes) {
-        const tp = thumbPathFor(storagePath);
-        const { error: tErr } = await sb.storage
-          .from(DOC_BUCKET)
-          .upload(tp, thumbBytes, {
-            contentType: "image/webp",
-            upsert: false,
-          });
-        if (!tErr) thumbPath = tp;
+    // Validate every file up front so a bad one doesn't half-upload the batch.
+    for (const file of files) {
+      if (!DOC_MIME.has(file.type)) {
+        return {
+          ok: false,
+          reason: `Unsupported type ${file.type || "unknown"} ("${file.name}"). Use JPG, PNG, WEBP, or PDF.`,
+        };
+      }
+      if (file.size > DOC_MAX_BYTES) {
+        return {
+          ok: false,
+          reason: `"${file.name}" is too large (${Math.round(file.size / 1024 / 1024)} MB). Max 15 MB.`,
+        };
       }
     }
 
-    const { error: insErr } = await sb.from("load_documents").insert({
-      load_id: loadId,
-      kind,
-      storage_path: storagePath,
-      thumb_path: thumbPath,
-      original_filename: file.name.slice(0, 240),
-      mime_type: file.type,
-      size_bytes: file.size,
-    });
-    if (insErr) {
-      await sb.storage.from(DOC_BUCKET).remove([storagePath]);
-      if (thumbPath) await sb.storage.from(DOC_BUCKET).remove([thumbPath]);
-      return { ok: false, reason: `Save failed ("${file.name}"): ${insErr.message}` };
-    }
-  }
+    const kindRaw = str(formData, "kind") ?? "other";
+    const kind = DOC_KINDS.has(kindRaw) ? kindRaw : "other";
 
-  revalidatePath(`/admin/dispatch/loads/${loadId}`);
-  // POD can be added from the dashboard's active-loads list — keep it fresh.
-  revalidatePath("/admin");
-  return { ok: true };
+    const sb = createServiceRoleClient();
+    for (const file of files) {
+      const safe = sanitizeFilename(file.name);
+      const prefix = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+      const storagePath = `${loadId}/${prefix}-${safe}`;
+
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const { error: upErr } = await sb.storage
+        .from(DOC_BUCKET)
+        .upload(storagePath, bytes, { contentType: file.type, upsert: false });
+      if (upErr) {
+        return {
+          ok: false,
+          reason: `Upload failed ("${file.name}"): ${upErr.message}`,
+        };
+      }
+
+      const { error: insErr } = await sb.from("load_documents").insert({
+        load_id: loadId,
+        kind,
+        storage_path: storagePath,
+        thumb_path: null,
+        original_filename: file.name.slice(0, 240),
+        mime_type: file.type,
+        size_bytes: file.size,
+      });
+      if (insErr) {
+        await sb.storage.from(DOC_BUCKET).remove([storagePath]);
+        return {
+          ok: false,
+          reason: `Save failed ("${file.name}"): ${insErr.message}`,
+        };
+      }
+    }
+
+    revalidatePath(`/admin/dispatch/loads/${loadId}`);
+    // POD can be added from the dashboard's active-loads list — keep it fresh.
+    revalidatePath("/admin");
+    return { ok: true };
+  } catch (e) {
+    console.error("[uploadLoadDocument] failed:", e);
+    return {
+      ok: false,
+      reason: `Could not save document: ${e instanceof Error ? e.message : "unexpected error"}`,
+    };
+  }
 }
 
 export async function deleteLoadDocument(

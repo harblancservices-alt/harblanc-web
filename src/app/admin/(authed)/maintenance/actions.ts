@@ -2,11 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import {
-  THUMBNAILABLE_MIME,
-  makeThumbnail,
-  thumbPathFor,
-} from "@/lib/storage/thumbnail";
 
 /**
  * Maintenance actions. Service-role client (admin-only, behind the authed
@@ -208,27 +203,12 @@ export async function addMaintenanceService(formData: FormData): Promise<void> {
       throw new Error(`Receipt upload failed ("${f.name}"): ${upErr.message}`);
     }
 
-    // Best-effort thumbnail (images only; HEIC/PDF get none). A failure leaves
-    // thumb_path null and the grid falls back to the full-size signed URL.
-    let thumbPath: string | null = null;
-    if (THUMBNAILABLE_MIME.has(f.type)) {
-      const thumbBytes = await makeThumbnail(bytes);
-      if (thumbBytes) {
-        const tp = thumbPathFor(path);
-        const { error: tErr } = await sb.storage
-          .from(RECEIPT_BUCKET)
-          .upload(tp, thumbBytes, {
-            contentType: "image/webp",
-            upsert: false,
-          });
-        if (!tErr) thumbPath = tp;
-      }
-    }
-
+    // No thumbnail generation in the request path (sharp crashed the function
+    // on Vercel). thumb_path stays null; the grid falls back to the original.
     const { error: attErr } = await sb.from("maintenance_attachments").insert({
       log_id: log.id,
       file_path: path,
-      thumb_path: thumbPath,
+      thumb_path: null,
       file_name: f.name.slice(0, 240),
       content_type: f.type,
       size_bytes: f.size,
@@ -237,7 +217,6 @@ export async function addMaintenanceService(formData: FormData): Promise<void> {
     });
     if (attErr) {
       await sb.storage.from(RECEIPT_BUCKET).remove([path]);
-      if (thumbPath) await sb.storage.from(RECEIPT_BUCKET).remove([thumbPath]);
       throw new Error(`Could not record receipt ("${f.name}"): ${attErr.message}`);
     }
   }
