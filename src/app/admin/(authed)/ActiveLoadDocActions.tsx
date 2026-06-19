@@ -10,21 +10,35 @@ const ACCEPT = "image/*,application/pdf";
 
 type StagedFile = { id: string; file: File };
 
+export type DocKind = "rate_con" | "bol" | "pod";
+
+const DOC_TITLE: Record<DocKind, string> = {
+  rate_con: "Add rate confirmation",
+  bol: "Add bill of lading",
+  pod: "Add proof of delivery",
+};
+
 /**
- * Per-active-load "Add POD" action on the dashboard. Opens a small modal with
- * the same multi-file (camera/library/file) uploader and saves the files as
- * proof-of-delivery docs on that load. Multiple angles supported.
+ * Per-active-load document upload button (Rate Con / BOL / POD) on the
+ * dashboard. Opens a staging multi-file (camera / library / file) uploader and
+ * saves the files under the given kind on that load via uploadLoadDocument —
+ * the same action and bucket the load page uses. The count folds into the
+ * label ("Rate Con · 2") like the original POD button did.
  */
-export function ActiveLoadPodAction({
+export function ActiveLoadDocButton({
   loadId,
   broker,
   lane,
-  podCount = 0,
+  kind,
+  label,
+  count = 0,
 }: {
   loadId: string;
   broker: string;
   lane: string;
-  podCount?: number;
+  kind: DocKind;
+  label: string;
+  count?: number;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -33,15 +47,17 @@ export function ActiveLoadPodAction({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex w-full items-center justify-center gap-1.5 rounded-md border border-red-700 bg-red-600 px-3 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-red-700"
+        className="flex w-full items-center justify-center gap-1 rounded-md border border-red-700 bg-red-600 px-2 py-2 text-center font-mono text-[10px] font-bold uppercase leading-tight tracking-[0.04em] text-white transition-colors hover:bg-red-700"
       >
-        + Add POD{podCount > 0 ? ` · ${podCount}` : ""}
+        + {label}
+        {count > 0 ? ` · ${count}` : ""}
       </button>
       {open ? (
-        <PodModal
+        <DocModal
           loadId={loadId}
           broker={broker}
           lane={lane}
+          kind={kind}
           onClose={() => setOpen(false)}
         />
       ) : null}
@@ -49,15 +65,17 @@ export function ActiveLoadPodAction({
   );
 }
 
-function PodModal({
+function DocModal({
   loadId,
   broker,
   lane,
+  kind,
   onClose,
 }: {
   loadId: string;
   broker: string;
   lane: string;
+  kind: DocKind;
   onClose: () => void;
 }) {
   const router = useRouter();
@@ -97,7 +115,7 @@ function PodModal({
     }
     const fd = new FormData();
     for (const s of staged) fd.append("files", s.file);
-    fd.append("kind", "pod");
+    fd.append("kind", kind);
     setBusy(true);
     setErr(null);
     try {
@@ -117,7 +135,7 @@ function PodModal({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Add proof of delivery"
+      aria-label={DOC_TITLE[kind]}
       className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-3 sm:p-6"
       onClick={() => {
         if (!busy) onClose();
@@ -129,7 +147,7 @@ function PodModal({
       >
         <div className="flex items-center justify-between gap-3 bg-bar px-4 py-2.5">
           <span className="truncate font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-bar-fg">
-            Add proof of delivery
+            {DOC_TITLE[kind]}
           </span>
           <button
             type="button"
@@ -184,7 +202,7 @@ function PodModal({
           </label>
           <p className="font-mono text-[10px] text-fg-subtle">
             Take a photo, choose from your library, or pick a PDF · multiple
-            angles welcome.
+            files welcome.
           </p>
 
           {err ? (

@@ -70,7 +70,9 @@ async function loadDashboard(): Promise<DashboardData> {
       .eq("lead_status", "new"),
     sb
       .from("loads")
-      .select("id, broker_name, origin, destination, rate, status")
+      .select(
+        "id, broker_name, origin, destination, rate, status, odo_assigned, odo_loaded, odo_delivered",
+      )
       .is("deleted_at", null)
       .in("status", ["pending", "assigned", "loaded"])
       .order("created_at", { ascending: false })
@@ -83,6 +85,9 @@ async function loadDashboard(): Promise<DashboardData> {
           destination: string | null;
           rate: number | string | null;
           status: string;
+          odo_assigned: number | null;
+          odo_loaded: number | null;
+          odo_delivered: number | null;
         }[]
       >(),
     sb
@@ -130,19 +135,23 @@ async function loadDashboard(): Promise<DashboardData> {
   // Expired quotes drop off the forward pipeline into their own section.
   const expiredQuotes = pipelineCards.filter((c) => c.status === "expired");
 
-  // POD counts for the active loads, so the dashboard's per-load "Add POD"
-  // action can reflect how many proof-of-delivery files are already attached.
+  // Per-kind document counts for the active loads, so each load's Rate Con /
+  // BOL / POD button reflects how many files are already attached. One query
+  // for all three kinds.
   const activeLoadIds = (loadRows ?? []).map((l) => l.id);
-  const podByLoad = new Map<string, number>();
+  const docCounts = new Map<string, { rate_con: number; bol: number; pod: number }>();
   if (activeLoadIds.length > 0) {
-    const { data: podRows } = await sb
+    const { data: docRows } = await sb
       .from("load_documents")
-      .select("load_id")
-      .eq("kind", "pod")
+      .select("load_id, kind")
+      .in("kind", ["rate_con", "bol", "pod"])
       .in("load_id", activeLoadIds)
-      .returns<{ load_id: string }[]>();
-    for (const r of podRows ?? []) {
-      podByLoad.set(r.load_id, (podByLoad.get(r.load_id) ?? 0) + 1);
+      .returns<{ load_id: string; kind: "rate_con" | "bol" | "pod" }[]>();
+    for (const r of docRows ?? []) {
+      const c =
+        docCounts.get(r.load_id) ?? { rate_con: 0, bol: 0, pod: 0 };
+      c[r.kind] += 1;
+      docCounts.set(r.load_id, c);
     }
   }
 
@@ -154,13 +163,19 @@ async function loadDashboard(): Promise<DashboardData> {
         : typeof l.rate === "number"
           ? l.rate
           : Number(l.rate) || 0;
+    const c = docCounts.get(l.id) ?? { rate_con: 0, bol: 0, pod: 0 };
     return {
       id: l.id,
       broker: l.broker_name?.trim() || "No broker",
       lane: `${l.origin?.trim() || "—"} → ${l.destination?.trim() || "—"}`,
       status: l.status,
       rateDisplay: "$" + Math.round(rateN).toLocaleString("en-US"),
-      podCount: podByLoad.get(l.id) ?? 0,
+      rateConCount: c.rate_con,
+      bolCount: c.bol,
+      podCount: c.pod,
+      odoAssigned: l.odo_assigned,
+      odoLoaded: l.odo_loaded,
+      odoDelivered: l.odo_delivered,
     };
   });
 

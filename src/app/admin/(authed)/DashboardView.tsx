@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { AddLoadButton } from "./dispatch/loads/AddLoadButton";
-import { ActiveLoadPodAction } from "./ActiveLoadPodAction";
+import { ActiveLoadDocButton } from "./ActiveLoadDocActions";
+import { OdometerStatusCard } from "./dispatch/loads/[id]/OdometerStatusCard";
 import type { PipelineCard } from "@/lib/dispatch/pipeline";
 import type { MaintStatus } from "@/lib/dispatch/maintenance";
 import { IntervalBar } from "./maintenance/IntervalBar";
@@ -69,7 +70,12 @@ export type ActiveLoadItem = {
   lane: string;
   status: string;
   rateDisplay: string;
+  rateConCount: number;
+  bolCount: number;
   podCount: number;
+  odoAssigned: number | null;
+  odoLoaded: number | null;
+  odoDelivered: number | null;
 };
 
 const LOAD_STATUS_PILL: Record<string, string> = {
@@ -153,12 +159,54 @@ export function DashboardView({ data }: { data: DashboardData }) {
                     {l.rateDisplay}
                   </span>
                 </div>
-                <div className="mt-2.5">
-                  <ActiveLoadPodAction
+                {/* Three doc-upload buttons — same multi-file flow + action
+                    as the load page, one per kind. */}
+                <div className="mt-2.5 grid grid-cols-3 gap-2">
+                  <ActiveLoadDocButton
                     loadId={l.id}
                     broker={l.broker}
                     lane={l.lane}
-                    podCount={l.podCount}
+                    kind="rate_con"
+                    label="Rate Con"
+                    count={l.rateConCount}
+                  />
+                  <ActiveLoadDocButton
+                    loadId={l.id}
+                    broker={l.broker}
+                    lane={l.lane}
+                    kind="bol"
+                    label="BOL"
+                    count={l.bolCount}
+                  />
+                  <ActiveLoadDocButton
+                    loadId={l.id}
+                    broker={l.broker}
+                    lane={l.lane}
+                    kind="pod"
+                    label="POD"
+                    count={l.podCount}
+                  />
+                </div>
+
+                {/* Inline odometer — the EXACT same component + action the load
+                    page uses, so the two always mirror. Collapsed by default;
+                    the pencil opens straight into the odometer entry. */}
+                <div className="mt-2.5">
+                  <OdometerStatusCard
+                    loadId={l.id}
+                    status={l.status}
+                    statusLabel={LOAD_STATUS_LABEL[l.status] ?? l.status}
+                    lastReading={
+                      Math.max(
+                        l.odoAssigned ?? 0,
+                        l.odoLoaded ?? 0,
+                        l.odoDelivered ?? 0,
+                      ) || null
+                    }
+                    odoAssigned={l.odoAssigned}
+                    odoLoaded={l.odoLoaded}
+                    odoDelivered={l.odoDelivered}
+                    defaultOpen={false}
                   />
                 </div>
               </div>

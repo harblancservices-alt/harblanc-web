@@ -17,6 +17,7 @@ export function OdometerStatusCard({
   odoAssigned,
   odoLoaded,
   odoDelivered,
+  defaultOpen = true,
 }: {
   loadId: string;
   status: string;
@@ -25,8 +26,10 @@ export function OdometerStatusCard({
   odoAssigned: number | null;
   odoLoaded: number | null;
   odoDelivered: number | null;
+  /** Start collapsed on the dashboard (load page stays expanded). */
+  defaultOpen?: boolean;
 }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(defaultOpen);
   const [editing, setEditing] = useState(false);
 
   return (
@@ -201,6 +204,12 @@ function OdoField({
   name: string;
   value: number | null;
 }) {
+  // Comma-formatted as you type (e.g. 292,891). A text input is required —
+  // <input type="number"> rejects the comma. The submitted string keeps its
+  // commas; the server's numOrNull strips them back to an integer.
+  const [display, setDisplay] = useState(
+    value != null ? value.toLocaleString("en-US") : "",
+  );
   return (
     <div className="grid grid-cols-[88px_minmax(0,1fr)] items-center gap-2">
       <label className="font-mono text-[9.5px] uppercase tracking-[0.12em] text-fg-subtle">
@@ -208,9 +217,16 @@ function OdoField({
       </label>
       <input
         name={name}
-        type="number"
+        type="text"
         inputMode="numeric"
-        defaultValue={value ?? undefined}
+        autoComplete="off"
+        value={display}
+        onChange={(e) => {
+          const digits = e.target.value.replace(/[^\d]/g, "");
+          setDisplay(
+            digits === "" ? "" : Number(digits).toLocaleString("en-US"),
+          );
+        }}
         placeholder="—"
         onFocus={(e) => e.currentTarget.select()}
         className="w-full rounded-md border border-line-strong bg-card px-2 py-1 font-mono text-[12.5px] tabular-nums text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"

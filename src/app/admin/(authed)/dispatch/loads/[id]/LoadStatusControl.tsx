@@ -36,6 +36,7 @@ export function LoadStatusControl({
   lastReading: number | null;
 }) {
   const [target, setTarget] = useState(current);
+  const [odo, setOdo] = useState("");
   const showOdo = NEEDS_ODO.has(target);
 
   return (
@@ -68,8 +69,16 @@ export function LoadStatusControl({
           </label>
           <input
             name="odometer"
-            type="number"
+            type="text"
             inputMode="numeric"
+            autoComplete="off"
+            value={odo}
+            onChange={(e) => {
+              const digits = e.target.value.replace(/[^\d]/g, "");
+              setOdo(
+                digits === "" ? "" : Number(digits).toLocaleString("en-US"),
+              );
+            }}
             placeholder={
               lastReading != null
                 ? lastReading.toLocaleString()
