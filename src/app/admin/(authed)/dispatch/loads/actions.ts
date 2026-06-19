@@ -436,50 +436,70 @@ export async function uploadLoadDocument(
   loadId: string,
   formData: FormData,
 ): Promise<DocUploadResult> {
-  const file = formData.get("file");
-  if (!(file instanceof File) || file.size <= 0) {
-    return { ok: false, reason: "Choose a file to upload." };
+  // Multi-file: the client appends each picked file under "files" (Brent
+  // photographs freight from several angles). Fall back to the legacy single
+  // "file" field so older callers keep working.
+  let files = formData
+    .getAll("files")
+    .filter((f): f is File => f instanceof File && f.size > 0);
+  if (files.length === 0) {
+    const single = formData.get("file");
+    if (single instanceof File && single.size > 0) files = [single];
   }
-  if (!DOC_MIME.has(file.type)) {
-    return {
-      ok: false,
-      reason: `Unsupported type ${file.type || "unknown"}. Use JPG, PNG, WEBP, or PDF.`,
-    };
+  if (files.length === 0) {
+    return { ok: false, reason: "Choose at least one photo or file to upload." };
   }
-  if (file.size > DOC_MAX_BYTES) {
-    return {
-      ok: false,
-      reason: `File too large (${Math.round(file.size / 1024 / 1024)} MB). Max 15 MB.`,
-    };
+
+  // Validate every file up front so a bad one doesn't half-upload the batch.
+  for (const file of files) {
+    if (!DOC_MIME.has(file.type)) {
+      return {
+        ok: false,
+        reason: `Unsupported type ${file.type || "unknown"} ("${file.name}"). Use JPG, PNG, WEBP, or PDF.`,
+      };
+    }
+    if (file.size > DOC_MAX_BYTES) {
+      return {
+        ok: false,
+        reason: `"${file.name}" is too large (${Math.round(file.size / 1024 / 1024)} MB). Max 15 MB.`,
+      };
+    }
   }
+
   const kindRaw = str(formData, "kind") ?? "other";
   const kind = DOC_KINDS.has(kindRaw) ? kindRaw : "other";
 
   const sb = createServiceRoleClient();
-  const safe = sanitizeFilename(file.name);
-  const prefix = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
-  const storagePath = `${loadId}/${prefix}-${safe}`;
+  for (const file of files) {
+    const safe = sanitizeFilename(file.name);
+    const prefix = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+    const storagePath = `${loadId}/${prefix}-${safe}`;
 
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  const { error: upErr } = await sb.storage
-    .from(DOC_BUCKET)
-    .upload(storagePath, bytes, { contentType: file.type, upsert: false });
-  if (upErr) return { ok: false, reason: `Upload failed: ${upErr.message}` };
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const { error: upErr } = await sb.storage
+      .from(DOC_BUCKET)
+      .upload(storagePath, bytes, { contentType: file.type, upsert: false });
+    if (upErr) {
+      return { ok: false, reason: `Upload failed ("${file.name}"): ${upErr.message}` };
+    }
 
-  const { error: insErr } = await sb.from("load_documents").insert({
-    load_id: loadId,
-    kind,
-    storage_path: storagePath,
-    original_filename: file.name.slice(0, 240),
-    mime_type: file.type,
-    size_bytes: file.size,
-  });
-  if (insErr) {
-    await sb.storage.from(DOC_BUCKET).remove([storagePath]);
-    return { ok: false, reason: `Save failed: ${insErr.message}` };
+    const { error: insErr } = await sb.from("load_documents").insert({
+      load_id: loadId,
+      kind,
+      storage_path: storagePath,
+      original_filename: file.name.slice(0, 240),
+      mime_type: file.type,
+      size_bytes: file.size,
+    });
+    if (insErr) {
+      await sb.storage.from(DOC_BUCKET).remove([storagePath]);
+      return { ok: false, reason: `Save failed ("${file.name}"): ${insErr.message}` };
+    }
   }
 
   revalidatePath(`/admin/dispatch/loads/${loadId}`);
+  // POD can be added from the dashboard's active-loads list — keep it fresh.
+  revalidatePath("/admin");
   return { ok: true };
 }
 
@@ -498,6 +518,7 @@ export async function deleteLoadDocument(
   await sb.storage.from(DOC_BUCKET).remove([row.storage_path]);
   await sb.from("load_documents").delete().eq("id", row.id);
   revalidatePath(`/admin/dispatch/loads/${loadId}`);
+  revalidatePath("/admin");
 }
 
 /** Bulk soft-delete loads selected on the Load Board (multi-select). */

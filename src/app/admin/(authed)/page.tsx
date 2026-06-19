@@ -130,6 +130,22 @@ async function loadDashboard(): Promise<DashboardData> {
   // Expired quotes drop off the forward pipeline into their own section.
   const expiredQuotes = pipelineCards.filter((c) => c.status === "expired");
 
+  // POD counts for the active loads, so the dashboard's per-load "Add POD"
+  // action can reflect how many proof-of-delivery files are already attached.
+  const activeLoadIds = (loadRows ?? []).map((l) => l.id);
+  const podByLoad = new Map<string, number>();
+  if (activeLoadIds.length > 0) {
+    const { data: podRows } = await sb
+      .from("load_documents")
+      .select("load_id")
+      .eq("kind", "pod")
+      .in("load_id", activeLoadIds)
+      .returns<{ load_id: string }[]>();
+    for (const r of podRows ?? []) {
+      podByLoad.set(r.load_id, (podByLoad.get(r.load_id) ?? 0) + 1);
+    }
+  }
+
   // Active dispatch loads (not delivered/cancelled) for the at-a-glance card.
   const activeLoads = (loadRows ?? []).map((l) => {
     const rateN =
@@ -144,6 +160,7 @@ async function loadDashboard(): Promise<DashboardData> {
       lane: `${l.origin?.trim() || "—"} → ${l.destination?.trim() || "—"}`,
       status: l.status,
       rateDisplay: "$" + Math.round(rateN).toLocaleString("en-US"),
+      podCount: podByLoad.get(l.id) ?? 0,
     };
   });
 

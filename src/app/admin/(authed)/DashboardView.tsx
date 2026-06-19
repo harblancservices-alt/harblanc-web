@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { AddLoadButton } from "./dispatch/loads/AddLoadButton";
+import { ActiveLoadPodAction } from "./ActiveLoadPodAction";
 import type { PipelineCard } from "@/lib/dispatch/pipeline";
 import type { MaintStatus } from "@/lib/dispatch/maintenance";
 import { IntervalBar } from "./maintenance/IntervalBar";
@@ -68,6 +69,7 @@ export type ActiveLoadItem = {
   lane: string;
   status: string;
   rateDisplay: string;
+  podCount: number;
 };
 
 const LOAD_STATUS_PILL: Record<string, string> = {
@@ -117,16 +119,18 @@ export function DashboardView({ data }: { data: DashboardData }) {
         ) : (
           <div className="overflow-hidden rounded-xl border border-line bg-card shadow-md">
             {data.activeLoads.map((l, i) => (
-              <Link
+              <div
                 key={l.id}
-                href={"/admin/dispatch/loads/" + l.id}
-                prefetch={false}
                 className={
-                  "flex items-center justify-between gap-3 px-3.5 py-2.5 transition-colors hover:bg-elevated " +
+                  "flex items-center justify-between gap-3 px-3.5 py-2.5 " +
                   (i === data.activeLoads.length - 1 ? "" : "border-b border-line")
                 }
               >
-                <span className="flex min-w-0 items-center gap-2.5">
+                <Link
+                  href={"/admin/dispatch/loads/" + l.id}
+                  prefetch={false}
+                  className="flex min-w-0 flex-1 items-center gap-2.5 transition-opacity hover:opacity-80"
+                >
                   <span
                     className={
                       "shrink-0 rounded-sm px-1.5 py-[1px] font-mono text-[10px] font-bold uppercase tracking-[0.06em] " +
@@ -143,11 +147,25 @@ export function DashboardView({ data }: { data: DashboardData }) {
                       {l.lane}
                     </span>
                   </span>
+                </Link>
+                <span className="flex shrink-0 flex-col items-end gap-1.5">
+                  <span className="font-mono text-[13px] font-bold tabular-nums text-green-700">
+                    {l.rateDisplay}
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    {l.podCount > 0 ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-1.5 py-[1px] font-mono text-[9.5px] font-bold uppercase tracking-[0.06em] text-green-700">
+                        POD · {l.podCount}
+                      </span>
+                    ) : null}
+                    <ActiveLoadPodAction
+                      loadId={l.id}
+                      broker={l.broker}
+                      lane={l.lane}
+                    />
+                  </span>
                 </span>
-                <span className="shrink-0 font-mono text-[13px] font-bold tabular-nums text-green-700">
-                  {l.rateDisplay}
-                </span>
-              </Link>
+              </div>
             ))}
           </div>
         )}

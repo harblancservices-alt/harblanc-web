@@ -19,9 +19,16 @@ const KINDS: { kind: string; label: string }[] = [
   { kind: "pod", label: "Proof of delivery" },
 ];
 
-const ACCEPT = "image/jpeg,image/png,image/webp,application/pdf";
+// image/* (with NO capture attribute) is what makes mobile offer
+// Take Photo / Photo Library / Choose File; application/pdf adds PDFs. Same
+// setup Brent liked on the maintenance receipt uploader.
+const ACCEPT = "image/*,application/pdf";
 
-/** Documents card — one fixed row per paperwork type, each with its own upload. */
+/**
+ * Documents card — one block per paperwork type (rate con / BOL / POD). Each
+ * supports MULTIPLE photos/files (multi-angle freight shots), uploaded via
+ * the camera/library/file picker, shown back as thumbnails with view + delete.
+ */
 export function DocumentsCard({
   loadId,
   docs,
@@ -40,12 +47,12 @@ export function DocumentsCard({
       </header>
       <div className="px-3">
         {KINDS.map((k, i) => (
-          <DocRow
+          <DocKindBlock
             key={k.kind}
             loadId={loadId}
             kind={k.kind}
             label={k.label}
-            doc={docs.find((d) => d.kind === k.kind) ?? null}
+            docs={docs.filter((d) => d.kind === k.kind)}
             last={i === KINDS.length - 1}
             onView={setViewing}
           />
@@ -59,8 +66,150 @@ export function DocumentsCard({
   );
 }
 
+function isImageDoc(doc: LoadDoc): boolean {
+  return (doc.mime ?? "").startsWith("image/");
+}
+
+function DocKindBlock({
+  loadId,
+  kind,
+  label,
+  docs,
+  last,
+  onView,
+}: {
+  loadId: string;
+  kind: string;
+  label: string;
+  docs: LoadDoc[];
+  last: boolean;
+  onView: (doc: LoadDoc) => void;
+}) {
+  const router = useRouter();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function onPick(fileList: FileList | null) {
+    const files = Array.from(fileList ?? []);
+    if (files.length === 0) return;
+    const fd = new FormData();
+    for (const f of files) fd.append("files", f);
+    fd.append("kind", kind);
+    setBusy(true);
+    setErr(null);
+    try {
+      const res = await uploadLoadDocument(loadId, fd);
+      if (!res.ok) {
+        setErr(res.reason);
+        return;
+      }
+      router.refresh();
+    } finally {
+      setBusy(false);
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  }
+
+  async function onDelete(doc: LoadDoc) {
+    if (!window.confirm(`Delete this ${label.toLowerCase()} file?`)) return;
+    setBusy(true);
+    setErr(null);
+    try {
+      await deleteLoadDocument(doc.id, loadId);
+      router.refresh();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const hasDocs = docs.length > 0;
+
+  return (
+    <div className={last ? "py-2.5" : "border-b border-line py-2.5"}>
+      <div className="flex items-center justify-between gap-2">
+        <span className="flex min-w-0 items-center gap-2">
+          {hasDocs ? (
+            <CheckIcon />
+          ) : (
+            <span className="h-[15px] w-[15px] shrink-0 rounded-full border border-line-strong" />
+          )}
+          <span className="text-[13px] text-fg">{label}</span>
+          {hasDocs ? (
+            <span className="shrink-0 rounded-full bg-elevated px-1.5 py-[1px] font-mono text-[10px] font-bold tabular-nums text-fg-muted">
+              {docs.length}
+            </span>
+          ) : null}
+        </span>
+
+        <span className="shrink-0">
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            disabled={busy}
+            className="rounded-md border border-red-700 bg-red-600 px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+          >
+            {busy ? "Uploading…" : hasDocs ? "+ Add" : "+ Add photo / file"}
+          </button>
+          <input
+            ref={inputRef}
+            type="file"
+            accept={ACCEPT}
+            multiple
+            className="hidden"
+            onChange={(e) => onPick(e.target.files)}
+          />
+        </span>
+      </div>
+
+      {hasDocs ? (
+        <div className="mt-2 flex flex-wrap gap-2">
+          {docs.map((d) => (
+            <div key={d.id} className="relative w-16">
+              <button
+                type="button"
+                onClick={() => onView(d)}
+                title={d.name}
+                className="block h-16 w-16 overflow-hidden rounded-md border border-line bg-elevated"
+              >
+                {d.url && isImageDoc(d) ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={d.url}
+                    alt={d.name}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <span className="flex h-full w-full items-center justify-center font-mono text-[11px] font-bold text-red-700">
+                    PDF
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => onDelete(d)}
+                disabled={busy}
+                aria-label={`Delete ${d.name}`}
+                className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-red-300 bg-card text-[11px] font-bold leading-none text-red-700 shadow-sm transition-colors hover:bg-red-50 disabled:opacity-50"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {err ? (
+        <p className="mt-1.5 text-[11px] text-red-700" role="alert">
+          {err}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 function DocViewer({ doc, onClose }: { doc: LoadDoc; onClose: () => void }) {
-  const isImage = (doc.mime ?? "").startsWith("image/");
+  const isImage = isImageDoc(doc);
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
@@ -112,124 +261,6 @@ function DocViewer({ doc, onClose }: { doc: LoadDoc; onClose: () => void }) {
           )}
         </div>
       </div>
-    </div>
-  );
-}
-
-function DocRow({
-  loadId,
-  kind,
-  label,
-  doc,
-  last,
-  onView,
-}: {
-  loadId: string;
-  kind: string;
-  label: string;
-  doc: LoadDoc | null;
-  last: boolean;
-  onView: (doc: LoadDoc) => void;
-}) {
-  const router = useRouter();
-  const inputRef = useRef<HTMLInputElement>(null);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
-
-  async function onPick(file: File | undefined) {
-    if (!file) return;
-    const fd = new FormData();
-    fd.append("file", file);
-    fd.append("kind", kind);
-    setBusy(true);
-    setErr(null);
-    try {
-      const res = await uploadLoadDocument(loadId, fd);
-      if (!res.ok) {
-        setErr(res.reason);
-        return;
-      }
-      router.refresh();
-    } finally {
-      setBusy(false);
-      if (inputRef.current) inputRef.current.value = "";
-    }
-  }
-
-  async function onDelete() {
-    if (!doc) return;
-    if (!window.confirm(`Delete the ${label.toLowerCase()} file?`)) return;
-    setBusy(true);
-    try {
-      await deleteLoadDocument(doc.id, loadId);
-      router.refresh();
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div className={last ? "py-2.5" : "border-b border-line py-2.5"}>
-    <div className="flex items-center justify-between gap-2">
-      <span className="flex min-w-0 items-center gap-2">
-        {doc ? (
-          <CheckIcon />
-        ) : (
-          <span className="h-[15px] w-[15px] shrink-0 rounded-full border border-line-strong" />
-        )}
-        <span className="min-w-0">
-          <span className="block text-[13px] text-fg">{label}</span>
-          {doc ? (
-            <span className="block truncate font-mono text-[10px] text-fg-subtle">
-              {doc.name}
-            </span>
-          ) : null}
-        </span>
-      </span>
-
-      <span className="flex shrink-0 items-center gap-1.5">
-        {doc ? (
-          <>
-            <button
-              type="button"
-              onClick={() => onView(doc)}
-              className="rounded-md border border-line-strong bg-card px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-blue-700 transition-colors hover:bg-elevated"
-            >
-              View
-            </button>
-            <button
-              type="button"
-              onClick={onDelete}
-              disabled={busy}
-              className="rounded-md border border-red-300 bg-card px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-red-700 transition-colors hover:bg-red-50 disabled:opacity-50"
-            >
-              Delete file
-            </button>
-          </>
-        ) : (
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            disabled={busy}
-            className="rounded-md border border-red-700 bg-red-600 px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-red-700 disabled:opacity-50"
-          >
-            {busy ? "Uploading…" : "Upload file"}
-          </button>
-        )}
-        <input
-          ref={inputRef}
-          type="file"
-          accept={ACCEPT}
-          className="hidden"
-          onChange={(e) => onPick(e.target.files?.[0])}
-        />
-      </span>
-    </div>
-      {err ? (
-        <p className="mt-1.5 text-[11px] text-red-700" role="alert">
-          {err}
-        </p>
-      ) : null}
     </div>
   );
 }
