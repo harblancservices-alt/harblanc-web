@@ -9,6 +9,8 @@ export type LoadDoc = {
   kind: string;
   name: string;
   url: string | null;
+  /** Small WebP thumbnail signed URL; falls back to `url` on the server. */
+  thumbUrl: string | null;
   sizeBytes: number | null;
   mime: string | null;
 };
@@ -172,10 +174,10 @@ function DocKindBlock({
                 title={d.name}
                 className="block h-16 w-16 overflow-hidden rounded-md border border-line bg-elevated"
               >
-                {d.url && isImageDoc(d) ? (
+                {d.thumbUrl && isImageDoc(d) ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={d.url}
+                    src={d.thumbUrl}
                     alt={d.name}
                     width={64}
                     height={64}

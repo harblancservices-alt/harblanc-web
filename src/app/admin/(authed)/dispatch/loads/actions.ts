@@ -4,6 +4,11 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { lookupZip, estimateLaneMiles } from "@/lib/dispatch/distance";
+import {
+  THUMBNAILABLE_MIME,
+  makeThumbnail,
+  thumbPathFor,
+} from "@/lib/storage/thumbnail";
 
 /**
  * Dispatch → Load Board server actions. Insert a load and toggle its
@@ -483,16 +488,35 @@ export async function uploadLoadDocument(
       return { ok: false, reason: `Upload failed ("${file.name}"): ${upErr.message}` };
     }
 
+    // Best-effort thumbnail (images only). Any failure leaves thumb_path null
+    // and keeps the original — the grid falls back to the full-size signed URL.
+    let thumbPath: string | null = null;
+    if (THUMBNAILABLE_MIME.has(file.type)) {
+      const thumbBytes = await makeThumbnail(bytes);
+      if (thumbBytes) {
+        const tp = thumbPathFor(storagePath);
+        const { error: tErr } = await sb.storage
+          .from(DOC_BUCKET)
+          .upload(tp, thumbBytes, {
+            contentType: "image/webp",
+            upsert: false,
+          });
+        if (!tErr) thumbPath = tp;
+      }
+    }
+
     const { error: insErr } = await sb.from("load_documents").insert({
       load_id: loadId,
       kind,
       storage_path: storagePath,
+      thumb_path: thumbPath,
       original_filename: file.name.slice(0, 240),
       mime_type: file.type,
       size_bytes: file.size,
     });
     if (insErr) {
       await sb.storage.from(DOC_BUCKET).remove([storagePath]);
+      if (thumbPath) await sb.storage.from(DOC_BUCKET).remove([thumbPath]);
       return { ok: false, reason: `Save failed ("${file.name}"): ${insErr.message}` };
     }
   }

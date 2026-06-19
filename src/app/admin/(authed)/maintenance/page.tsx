@@ -55,6 +55,7 @@ type AttRow = {
   id: string;
   log_id: string;
   file_path: string;
+  thumb_path: string | null;
   file_name: string | null;
   content_type: string | null;
   amount: number | string | null;
@@ -152,23 +153,26 @@ async function loadMaintenance(): Promise<{
   if (logs.length > 0) {
     const { data: attRows } = await sb
       .from("maintenance_attachments")
-      .select("id, log_id, file_path, file_name, content_type, amount, label")
+      .select(
+        "id, log_id, file_path, thumb_path, file_name, content_type, amount, label",
+      )
       .in(
         "log_id",
         logs.map((l) => l.id),
       )
       .returns<AttRow[]>();
     const atts = attRows ?? [];
-    // Sign every receipt path in ONE storage request (was an N+1 of per-file
-    // createSignedUrl calls across the last 100 logs). Map back by path.
+    // Sign originals (tap-to-view) and thumbnails (grid) in ONE storage request
+    // (was an N+1 of per-file createSignedUrl calls across the last 100 logs).
     const signedByPath = new Map<string, string>();
     if (atts.length > 0) {
+      const paths = [
+        ...atts.map((a) => a.file_path),
+        ...atts.map((a) => a.thumb_path).filter((p): p is string => !!p),
+      ];
       const { data: signedList } = await sb.storage
         .from(RECEIPT_BUCKET)
-        .createSignedUrls(
-          atts.map((a) => a.file_path),
-          3600,
-        );
+        .createSignedUrls(paths, 3600);
       for (const s of signedList ?? []) {
         if (s.path && s.signedUrl && !s.error) {
           signedByPath.set(s.path, s.signedUrl);
@@ -177,10 +181,14 @@ async function loadMaintenance(): Promise<{
     }
     for (const a of atts) {
       const list = attByLog.get(a.log_id) ?? [];
+      const url = signedByPath.get(a.file_path) ?? null;
+      const thumbUrl =
+        (a.thumb_path ? signedByPath.get(a.thumb_path) : null) ?? url;
       list.push({
         id: a.id,
         name: a.file_name ?? "receipt",
-        url: signedByPath.get(a.file_path) ?? null,
+        url,
+        thumbUrl,
         isImage: (a.content_type ?? "").startsWith("image/"),
         amount: num(a.amount),
         label: a.label,

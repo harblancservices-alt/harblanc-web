@@ -35,6 +35,8 @@ export type ServiceHistoryEntry = {
     id: string;
     name: string;
     url: string | null;
+    /** Small WebP thumbnail signed URL; falls back to `url` on the server. */
+    thumbUrl: string | null;
     isImage: boolean;
     amount: number | null;
     label: string | null;
@@ -410,7 +412,7 @@ function ServiceHistory({
                           >
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
-                              src={a.url}
+                              src={a.thumbUrl ?? a.url}
                               alt={a.name}
                               width={64}
                               height={64}

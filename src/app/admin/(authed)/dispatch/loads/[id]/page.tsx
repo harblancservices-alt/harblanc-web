@@ -144,7 +144,9 @@ export default async function LoadDetailPage({
 
   const { data: docRows } = await sb
     .from("load_documents")
-    .select("id, kind, original_filename, storage_path, size_bytes, mime_type")
+    .select(
+      "id, kind, original_filename, storage_path, thumb_path, size_bytes, mime_type",
+    )
     .eq("load_id", id)
     .order("created_at", { ascending: false })
     .returns<{
@@ -152,34 +154,42 @@ export default async function LoadDetailPage({
       kind: string;
       original_filename: string;
       storage_path: string;
+      thumb_path: string | null;
       size_bytes: number | null;
       mime_type: string | null;
     }[]>();
-  // Sign every document path in ONE storage request (was an N+1 of per-file
-  // createSignedUrl calls). Map results back to each row by path.
+  // Sign originals (tap-to-view) and thumbnails (grid) in ONE storage request.
   const docs = docRows ?? [];
   const signedByPath = new Map<string, string>();
   if (docs.length > 0) {
+    const paths = [
+      ...docs.map((d) => d.storage_path),
+      ...docs.map((d) => d.thumb_path).filter((p): p is string => !!p),
+    ];
     const { data: signedList } = await sb.storage
       .from("load-documents")
-      .createSignedUrls(
-        docs.map((d) => d.storage_path),
-        3600,
-      );
+      .createSignedUrls(paths, 3600);
     for (const s of signedList ?? []) {
       if (s.path && s.signedUrl && !s.error) {
         signedByPath.set(s.path, s.signedUrl);
       }
     }
   }
-  const loadDocs = docs.map((d) => ({
-    id: d.id,
-    kind: d.kind,
-    name: d.original_filename,
-    url: signedByPath.get(d.storage_path) ?? null,
-    sizeBytes: d.size_bytes,
-    mime: d.mime_type,
-  }));
+  const loadDocs = docs.map((d) => {
+    const url = signedByPath.get(d.storage_path) ?? null;
+    // Grid uses the thumb when present, falling back to the full-size original.
+    const thumbUrl =
+      (d.thumb_path ? signedByPath.get(d.thumb_path) : null) ?? url;
+    return {
+      id: d.id,
+      kind: d.kind,
+      name: d.original_filename,
+      url,
+      thumbUrl,
+      sizeBytes: d.size_bytes,
+      mime: d.mime_type,
+    };
+  });
 
   const [{ data: broker }, { data: trip }] = await Promise.all([
     load.broker_id
