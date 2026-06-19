@@ -62,9 +62,12 @@ export default async function BackhaulPage({
         .select("broker_id, origin, origin_zip, status")
         .is("deleted_at", null)
         .returns<LoadRow[]>(),
+      // Only backhaul-flagged contacts contribute the broker's backhaul email.
+      // General contacts (e.g. a caller-ID-only dispatcher) are ignored.
       sb
         .from("broker_contacts")
         .select("broker_id, email")
+        .eq("is_backhaul", true)
         .is("deleted_at", null)
         .returns<ContactRow[]>(),
       sb

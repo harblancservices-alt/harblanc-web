@@ -48,6 +48,7 @@ type LogRow = {
   service_date: string | null;
   notes: string | null;
   category: string | null;
+  payment_method: string | null;
   total_cost: number | string | null;
   created_at: string;
 };
@@ -104,7 +105,7 @@ async function loadMaintenance(): Promise<{
       sb
         .from("maintenance_log")
         .select(
-          "id, item_id, service_name, service_odo, service_date, notes, category, total_cost, created_at",
+          "id, item_id, service_name, service_odo, service_date, notes, category, payment_method, total_cost, created_at",
         )
         .order("service_date", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false })
@@ -199,6 +200,7 @@ async function loadMaintenance(): Promise<{
 
   const history: ServiceHistoryEntry[] = logs.map((l) => ({
     id: l.id,
+    itemId: l.item_id,
     serviceName:
       l.service_name ??
       (l.item_id ? itemName.get(l.item_id) ?? null : null) ??
@@ -207,6 +209,7 @@ async function loadMaintenance(): Promise<{
     odo: l.service_odo,
     notes: l.notes,
     category: l.category,
+    paymentMethod: l.payment_method,
     totalCost: num(l.total_cost),
     attachments: attByLog.get(l.id) ?? [],
   }));

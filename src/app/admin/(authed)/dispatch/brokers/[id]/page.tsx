@@ -51,6 +51,7 @@ type Contact = {
   email: string | null;
   phones: Phone[] | null;
   emails: Email[] | null;
+  is_backhaul: boolean | null;
 };
 
 function num(v: number | string | null): number {
@@ -97,7 +98,7 @@ export default async function BrokerDetailPage({
         .returns<LoadRow[]>(),
       sb
         .from("broker_contacts")
-        .select("id, name, title, phone, email, phones, emails")
+        .select("id, name, title, phone, email, phones, emails, is_backhaul")
         .eq("broker_id", id)
         .is("deleted_at", null)
         .order("created_at", { ascending: true })
@@ -234,7 +235,14 @@ export default async function BrokerDetailPage({
       if (emails.length === 0 && c.email) {
         emails = [{ address: c.email, label: null }];
       }
-      return { id: c.id, name: c.name, title: c.title, phones, emails };
+      return {
+        id: c.id,
+        name: c.name,
+        title: c.title,
+        phones,
+        emails,
+        is_backhaul: !!c.is_backhaul,
+      };
     }),
     loads: loads.map((l) => ({
       id: l.id,

@@ -37,6 +37,7 @@ export type BrokerContact = {
   title: string | null;
   phones: Phone[];
   emails: Email[];
+  is_backhaul: boolean;
 };
 
 export type Lane = {
@@ -482,19 +483,33 @@ function ContactCard({
   onOpenLanes: () => void;
 }) {
   const hasMethods = contact.phones.length > 0 || contact.emails.length > 0;
+  // Only backhaul/dispatch contacts are tied to the broker's lanes/loads. A
+  // general contact (e.g. a caller-ID-only dispatcher) is a plain card with no
+  // lane-overview affordance, so it never looks attached to an active load.
+  const backhaul = contact.is_backhaul;
+  const interactiveProps: React.HTMLAttributes<HTMLDivElement> = backhaul
+    ? {
+        role: "button",
+        tabIndex: 0,
+        onClick: onOpenLanes,
+        onKeyDown: (e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onOpenLanes();
+          }
+        },
+        "aria-label": `View lanes for ${contact.name || "this contact"}'s broker`,
+      }
+    : {};
   return (
     <div
-      role="button"
-      tabIndex={0}
-      onClick={onOpenLanes}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          onOpenLanes();
-        }
-      }}
-      aria-label={`View lanes for ${contact.name || "this contact"}'s broker`}
-      className="group flex cursor-pointer flex-col overflow-hidden rounded-lg border border-line bg-card shadow-sm transition-colors hover:border-line-strong focus:outline-none focus-visible:border-fg focus-visible:ring-2 focus-visible:ring-fg/20"
+      {...interactiveProps}
+      className={
+        "group flex flex-col overflow-hidden rounded-lg border border-line bg-card shadow-sm " +
+        (backhaul
+          ? "cursor-pointer transition-colors hover:border-line-strong focus:outline-none focus-visible:border-fg focus-visible:ring-2 focus-visible:ring-fg/20"
+          : "")
+      }
     >
       {/* Header — avatar · name/role · edit/delete */}
       <div className="flex items-start gap-3 px-3.5 py-3">
@@ -507,9 +522,16 @@ function ContactCard({
           {brokerInitial(contact.name ?? "?")}
         </span>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[14.5px] font-semibold leading-tight text-fg">
-            {contact.name || "—"}
-          </p>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <p className="truncate text-[14.5px] font-semibold leading-tight text-fg">
+              {contact.name || "—"}
+            </p>
+            {backhaul ? (
+              <span className="shrink-0 rounded-sm bg-indigo-100 px-1.5 py-[1px] font-mono text-[8.5px] font-bold uppercase tracking-[0.08em] text-indigo-700">
+                Backhaul
+              </span>
+            ) : null}
+          </div>
           {contact.title ? (
             <p className="mt-0.5 truncate text-[12px] text-fg-muted">
               {contact.title}
@@ -583,17 +605,19 @@ function ContactCard({
         </div>
       ) : null}
 
-      {/* Lane-overview affordance — the whole card is clickable */}
-      <div className="mt-auto flex items-center justify-between border-t border-line bg-elevated/40 px-3.5 py-2 text-fg-muted transition-colors group-hover:text-fg">
-        <span className="inline-flex items-center gap-1.5 font-mono text-[10.5px] font-bold uppercase tracking-[0.12em]">
-          <IconLaneSm className="h-3.5 w-3.5" />
-          Lane overview
-          {laneCount > 0 ? (
-            <span className="text-fg-subtle">· {laneCount}</span>
-          ) : null}
-        </span>
-        <IconChevronR className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
-      </div>
+      {/* Lane-overview affordance — backhaul/dispatch contacts only. */}
+      {backhaul ? (
+        <div className="mt-auto flex items-center justify-between border-t border-line bg-elevated/40 px-3.5 py-2 text-fg-muted transition-colors group-hover:text-fg">
+          <span className="inline-flex items-center gap-1.5 font-mono text-[10.5px] font-bold uppercase tracking-[0.12em]">
+            <IconLaneSm className="h-3.5 w-3.5" />
+            Lane overview
+            {laneCount > 0 ? (
+              <span className="text-fg-subtle">· {laneCount}</span>
+            ) : null}
+          </span>
+          <IconChevronR className="h-4 w-4 shrink-0 transition-transform group-hover:translate-x-0.5" />
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -933,6 +957,26 @@ function ContactModal({
               }
             />
           </fieldset>
+
+          {/* Backhaul flag — only flagged contacts feed backhaul recipients and
+              show the lane-overview affordance. */}
+          <label className="mt-4 flex cursor-pointer items-start gap-2.5 rounded-md border border-line bg-elevated/40 px-3 py-2.5">
+            <input
+              type="checkbox"
+              name="is_backhaul"
+              defaultChecked={contact?.is_backhaul ?? false}
+              className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-red-600"
+            />
+            <span className="min-w-0">
+              <span className="block text-[13px] font-semibold text-fg">
+                Use for backhaul / dispatch emails
+              </span>
+              <span className="block text-[11.5px] text-fg-muted">
+                Tie this contact to the broker&apos;s lanes and include them when
+                blasting backhaul availability. Leave off for general contacts.
+              </span>
+            </span>
+          </label>
 
           <div className="mt-5 flex justify-end gap-2">
             <button

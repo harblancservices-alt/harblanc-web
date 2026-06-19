@@ -13,6 +13,12 @@ function str(fd: FormData, key: string): string | null {
   return t.length > 0 ? t : null;
 }
 
+/** Checkbox → boolean (present/"on"/"true" → true). */
+function bool(fd: FormData, key: string): boolean {
+  const v = fd.get(key);
+  return v === "on" || v === "true" || v === "1";
+}
+
 /**
  * Create a broker directly from the Brokers directory (no load required).
  * Reuses the existing broker if the name already exists (matched on the
@@ -139,6 +145,7 @@ export async function addBrokerContact(
     phones,
     emails,
     notes: str(formData, "notes"),
+    is_backhaul: bool(formData, "is_backhaul"),
   });
   if (error) throw new Error(`Could not add contact: ${error.message}`);
   revalidatePath(`/admin/dispatch/brokers/${brokerId}`);
@@ -162,6 +169,7 @@ export async function updateBrokerContact(
       email: emails[0]?.address ?? null,
       phones,
       emails,
+      is_backhaul: bool(formData, "is_backhaul"),
     })
     .eq("id", contactId);
   if (error) throw new Error(`Could not update contact: ${error.message}`);

@@ -47,6 +47,62 @@ const EXPENSE_CATEGORIES = new Set([
   "Other",
 ]);
 
+// Payment methods (kept in sync with the client select). Stored verbatim in
+// maintenance_log.payment_method.
+const PAYMENT_METHODS = new Set(["Cash", "Credit", "Debit", "Check", "Other"]);
+
+type ReceiptMeta = {
+  storagePath: string;
+  name: string;
+  type: string;
+  size: number;
+  amount: number | null;
+  label: string | null;
+};
+
+/**
+ * Parse the receipts JSON the client sends after uploading each file directly
+ * to storage (no bytes in the action payload). Validates mime/size; throws on a
+ * bad file so the modal surfaces it inline.
+ */
+function parseReceiptMetas(formData: FormData): ReceiptMeta[] {
+  const out: ReceiptMeta[] = [];
+  const raw = str(formData, "receipts");
+  if (!raw) return out;
+  let parsed: unknown = [];
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error("Could not read the uploaded receipts.");
+  }
+  if (!Array.isArray(parsed)) return out;
+  for (const r of parsed as Record<string, unknown>[]) {
+    const storagePath = typeof r.storagePath === "string" ? r.storagePath : "";
+    if (!storagePath) continue;
+    const name = typeof r.name === "string" ? r.name : "receipt";
+    const type = typeof r.type === "string" ? r.type : "";
+    const size = typeof r.size === "number" ? r.size : 0;
+    if (type && !RECEIPT_MIME.has(type)) {
+      throw new Error(
+        `Unsupported file "${name}" (${type || "unknown"}). Use JPG, PNG, HEIC, WEBP, or PDF.`,
+      );
+    }
+    if (size > RECEIPT_MAX_BYTES) {
+      throw new Error(`"${name}" is too large. Max 20 MB.`);
+    }
+    out.push({
+      storagePath,
+      name,
+      type,
+      size,
+      amount: moneyOrNull(typeof r.amount === "string" ? r.amount : null),
+      label:
+        (typeof r.label === "string" ? r.label.trim().slice(0, 60) : "") || null,
+    });
+  }
+  return out;
+}
+
 // Receipt uploads → private maintenance-receipts bucket (signed URLs only).
 const RECEIPT_BUCKET = "maintenance-receipts";
 const RECEIPT_MIME = new Set([
@@ -159,59 +215,17 @@ export async function addMaintenanceService(formData: FormData): Promise<void> {
     }
   }
 
-  // Expense category (optional; falls back to "Other" if an unknown value
-  // somehow arrives).
+  // Expense category + payment method (optional; ignored if unknown).
   const rawCategory = str(formData, "category");
   const category =
     rawCategory && EXPENSE_CATEGORIES.has(rawCategory) ? rawCategory : null;
+  const rawPayment = str(formData, "payment_method");
+  const paymentMethod =
+    rawPayment && PAYMENT_METHODS.has(rawPayment) ? rawPayment : null;
 
   // Receipts were uploaded directly to storage by the client (bypassing the
-  // body limit); the action receives only their metadata as JSON. Each carries
-  // its own amount + label (Brent's parts vs. labor receipts).
-  const receipts: {
-    storagePath: string;
-    name: string;
-    type: string;
-    size: number;
-    amount: number | null;
-    label: string | null;
-  }[] = [];
-  const rawReceipts = str(formData, "receipts");
-  if (rawReceipts) {
-    let parsed: unknown = [];
-    try {
-      parsed = JSON.parse(rawReceipts);
-    } catch {
-      throw new Error("Could not read the uploaded receipts.");
-    }
-    if (!Array.isArray(parsed)) parsed = [];
-    for (const raw of parsed as Record<string, unknown>[]) {
-      const storagePath =
-        typeof raw.storagePath === "string" ? raw.storagePath : "";
-      if (!storagePath) continue;
-      const name = typeof raw.name === "string" ? raw.name : "receipt";
-      const type = typeof raw.type === "string" ? raw.type : "";
-      const size = typeof raw.size === "number" ? raw.size : 0;
-      if (type && !RECEIPT_MIME.has(type)) {
-        throw new Error(
-          `Unsupported file "${name}" (${type || "unknown"}). Use JPG, PNG, HEIC, WEBP, or PDF.`,
-        );
-      }
-      if (size > RECEIPT_MAX_BYTES) {
-        throw new Error(`"${name}" is too large. Max 20 MB.`);
-      }
-      receipts.push({
-        storagePath,
-        name,
-        type,
-        size,
-        amount: moneyOrNull(typeof raw.amount === "string" ? raw.amount : null),
-        label:
-          (typeof raw.label === "string" ? raw.label.trim().slice(0, 60) : "") ||
-          null,
-      });
-    }
-  }
+  // body limit); the action receives only their metadata as JSON.
+  const receipts = parseReceiptMetas(formData);
 
   // Total cost: a manual override wins; otherwise auto-sum the receipt amounts.
   const sumOfReceipts = receipts.reduce((s, r) => s + (r.amount ?? 0), 0);
@@ -233,6 +247,7 @@ export async function addMaintenanceService(formData: FormData): Promise<void> {
       service_date: date,
       notes,
       category,
+      payment_method: paymentMethod,
       total_cost: totalCost,
     })
     .select("id")
@@ -281,44 +296,131 @@ export async function addMaintenanceService(formData: FormData): Promise<void> {
 }
 
 /**
- * Log a completed service: append a maintenance_log row and roll the item's
- * last-service bookend forward so the next-due recalculates.
+ * Edit an existing service record: update its maintenance_log row (type,
+ * category, payment method, date, odometer, notes, total cost), add new
+ * receipts (uploaded directly to storage by the client), and remove receipts
+ * the user deleted. Does NOT roll the item's last-service bookend — editing a
+ * historical entry shouldn't move the schedule; it's for fixing cost / adding
+ * receipts after the fact.
  */
-export async function logMaintenance(formData: FormData): Promise<void> {
+export async function updateMaintenanceService(
+  logId: string,
+  formData: FormData,
+): Promise<void> {
   const sb = createServiceRoleClient();
-
-  const itemId = str(formData, "item_id");
-  if (!itemId) throw new Error("Missing maintenance item.");
 
   const odo = intOrNull(formData, "service_odo");
   if (odo == null || odo < 0) {
     throw new Error("Enter the odometer reading the service was done at.");
   }
-
-  const date = str(formData, "service_date") ?? new Date().toISOString().slice(0, 10);
+  const date =
+    str(formData, "service_date") ?? new Date().toISOString().slice(0, 10);
   const notes = str(formData, "notes");
 
-  const { error: logErr } = await sb.from("maintenance_log").insert({
-    item_id: itemId,
-    service_odo: odo,
-    service_date: date,
-    notes,
-  });
-  if (logErr) throw new Error(`Could not log service: ${logErr.message}`);
+  // Service type: a seeded item, or a custom typed name.
+  const rawItemId = str(formData, "item_id");
+  let itemId: string | null = null;
+  let serviceName: string | null = null;
+  if (rawItemId) {
+    const { data: item } = await sb
+      .from("maintenance_items")
+      .select("id, name")
+      .eq("id", rawItemId)
+      .is("deleted_at", null)
+      .maybeSingle<{ id: string; name: string }>();
+    if (!item) throw new Error("That maintenance item no longer exists.");
+    itemId = item.id;
+    serviceName = item.name;
+  } else {
+    serviceName = str(formData, "service_name");
+    if (!serviceName) {
+      throw new Error("Pick a service type or enter a custom service name.");
+    }
+  }
 
+  const rawCategory = str(formData, "category");
+  const category =
+    rawCategory && EXPENSE_CATEGORIES.has(rawCategory) ? rawCategory : null;
+  const rawPayment = str(formData, "payment_method");
+  const paymentMethod =
+    rawPayment && PAYMENT_METHODS.has(rawPayment) ? rawPayment : null;
+  const totalCost = moneyOrNull(str(formData, "total_cost"));
+
+  // 1. Update the log row.
   const { error: updErr } = await sb
-    .from("maintenance_items")
+    .from("maintenance_log")
     .update({
-      last_service_odo: odo,
-      last_service_date: date,
-      updated_at: new Date().toISOString(),
+      item_id: itemId,
+      service_name: serviceName,
+      service_odo: odo,
+      service_date: date,
+      notes,
+      category,
+      payment_method: paymentMethod,
+      total_cost: totalCost,
     })
-    .eq("id", itemId)
-    .is("deleted_at", null);
-  if (updErr) throw new Error(`Could not update item: ${updErr.message}`);
+    .eq("id", logId);
+  if (updErr) {
+    throw new Error(`Could not update service: ${updErr.message}`);
+  }
+
+  // 2. Remove attachments the user deleted (scoped to this log).
+  let removeIds: string[] = [];
+  const rawRemove = str(formData, "remove_attachment_ids");
+  if (rawRemove) {
+    try {
+      const parsed = JSON.parse(rawRemove);
+      if (Array.isArray(parsed)) {
+        removeIds = parsed.filter((v): v is string => typeof v === "string");
+      }
+    } catch {
+      // ignore malformed list — just don't remove anything
+    }
+  }
+  if (removeIds.length > 0) {
+    const { data: rows } = await sb
+      .from("maintenance_attachments")
+      .select("id, file_path")
+      .eq("log_id", logId)
+      .in("id", removeIds)
+      .returns<{ id: string; file_path: string }[]>();
+    const paths = (rows ?? []).map((r) => r.file_path).filter(Boolean);
+    if (paths.length > 0) {
+      await sb.storage.from(RECEIPT_BUCKET).remove(paths);
+    }
+    if (rows && rows.length > 0) {
+      await sb
+        .from("maintenance_attachments")
+        .delete()
+        .eq("log_id", logId)
+        .in(
+          "id",
+          rows.map((r) => r.id),
+        );
+    }
+  }
+
+  // 3. Insert new receipts (already uploaded to storage by the client).
+  const newReceipts = parseReceiptMetas(formData);
+  for (const r of newReceipts) {
+    const { error: attErr } = await sb.from("maintenance_attachments").insert({
+      log_id: logId,
+      file_path: r.storagePath,
+      thumb_path: null,
+      file_name: r.name.slice(0, 240),
+      content_type: r.type || null,
+      size_bytes: r.size,
+      amount: r.amount,
+      label: r.label,
+    });
+    if (attErr) {
+      await sb.storage.from(RECEIPT_BUCKET).remove([r.storagePath]);
+      throw new Error(`Could not record receipt ("${r.name}"): ${attErr.message}`);
+    }
+  }
 
   revalidatePath("/admin/maintenance");
-  revalidatePath("/admin"); // dashboard oil/fuel-filter widget
+  revalidatePath("/admin");
 }
 
 /** Adjust an item's mileage interval (and optional notes). */

@@ -46,10 +46,12 @@ export async function sendBackhaul(
       .in("id", ids)
       .is("deleted_at", null)
       .returns<{ id: string; name: string | null; email: string | null }[]>(),
+    // Only backhaul-flagged contacts can be backhaul recipients.
     sb
       .from("broker_contacts")
       .select("broker_id, email")
       .in("broker_id", ids)
+      .eq("is_backhaul", true)
       .is("deleted_at", null)
       .returns<{ broker_id: string | null; email: string | null }[]>(),
   ]);
