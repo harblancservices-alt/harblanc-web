@@ -2,15 +2,18 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useFormStatus } from "react-dom";
 import { softDeleteApplications } from "./actions";
 
 /**
  * Applications dark work-queue table.
  *
- * Dense dark surface matching Loads and the Dashboard, plus a bulk
- * select / delete toolbar for cleanup. Selecting rows and pressing Delete
- * posts the ids to the existing `softDeleteApplications` server action,
- * which moves them to trash (recoverable for 30 days).
+ * Dense dark surface matching Loads and the Dashboard, with the standardized
+ * mode-based delete (same as the Load Board / loads-under-quotes). Default:
+ * no checkboxes, tapping an application opens it, a "Delete" button enters
+ * selection mode. In selection mode tapping cards/rows toggles them and a bar
+ * shows the count + Delete Selected + Cancel. Delete posts the ids to the
+ * existing `softDeleteApplications` action (trash, recoverable for 30 days).
  *
  * STATUS COLUMN INTENTIONALLY OMITTED: the `applications` table has no
  * `status` / `approved` column today. We don't fake one.
@@ -60,8 +63,9 @@ export function ApplicationsDarkTable({
 }) {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
-
-  const allSelected = rows.length > 0 && selected.size === rows.length;
+  // Selection only exists inside an explicit delete mode (mirrors the Load
+  // Board). Default off: tapping an application opens it, no checkboxes shown.
+  const [selectMode, setSelectMode] = useState(false);
 
   function toggle(id: string) {
     setSelected((prev) => {
@@ -72,55 +76,71 @@ export function ApplicationsDarkTable({
     });
   }
 
-  function toggleAll() {
-    setSelected((prev) =>
-      prev.size === rows.length ? new Set() : new Set(rows.map((r) => r.id)),
-    );
+  function exitSelectMode() {
+    setSelectMode(false);
+    setSelected(new Set());
+  }
+
+  function openApplication(id: string) {
+    router.push("/admin/applications/" + id);
   }
 
   return (
     <>
-      <div className="mb-2 flex items-center gap-2">
-        <button
-          type="button"
-          onClick={toggleAll}
-          className="rounded-md border border-line bg-card px-2.5 py-1 font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-fg-muted transition-colors hover:bg-elevated"
-        >
-          {allSelected ? "Clear" : "Select all"}
-        </button>
+      {/* Default: a Delete button enters selection mode. */}
+      {!selectMode && rows.length > 0 ? (
+        <div className="mb-2 flex justify-end">
+          <button
+            type="button"
+            onClick={() => setSelectMode(true)}
+            className="inline-flex items-center gap-1.5 rounded-md border border-line-strong bg-card px-3.5 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-fg-muted transition-colors hover:bg-elevated hover:text-fg"
+          >
+            Delete
+          </button>
+        </div>
+      ) : null}
 
-        {selected.size > 0 ? (
-          <>
-            <span className="font-mono text-[11px] tabular-nums text-fg-subtle">
-              {selected.size} selected
-            </span>
-            <form
-              action={softDeleteApplications}
-              onSubmit={(e) => {
-                if (
-                  !window.confirm(
-                    `Delete ${selected.size} application${selected.size === 1 ? "" : "s"}? They move to trash and can be restored for 30 days.`,
-                  )
-                ) {
-                  e.preventDefault();
-                } else {
-                  setSelected(new Set());
-                }
-              }}
-            >
-              {[...selected].map((id) => (
-                <input key={id} type="hidden" name="ids" value={id} />
-              ))}
-              <button
-                type="submit"
-                className="rounded-md border border-red-700 bg-red-600 px-2.5 py-1 font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-white transition-colors hover:bg-red-700"
-              >
-                Delete {selected.size}
-              </button>
-            </form>
-          </>
-        ) : null}
-      </div>
+      {/* Delete-selection bar — only while in explicit delete mode. */}
+      {selectMode ? (
+        <div className="mb-2 flex flex-wrap items-center gap-2 rounded-md border border-red-300 bg-red-50 px-3 py-2">
+          <span className="font-mono text-[12px] font-bold text-fg">
+            {selected.size} selected
+          </span>
+          <span className="font-mono text-[11px] text-fg-subtle">
+            · tap to select
+          </span>
+          <button
+            type="button"
+            onClick={exitSelectMode}
+            className="ml-auto rounded-md border border-line-strong bg-card px-3 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-fg-muted transition-colors hover:bg-elevated hover:text-fg"
+          >
+            Cancel
+          </button>
+          <form
+            action={softDeleteApplications}
+            onSubmit={(e) => {
+              if (selected.size === 0) {
+                e.preventDefault();
+                return;
+              }
+              if (
+                !window.confirm(
+                  `Delete ${selected.size} application${selected.size === 1 ? "" : "s"}? They move to trash and can be restored for 30 days.`,
+                )
+              ) {
+                e.preventDefault();
+              } else {
+                exitSelectMode();
+              }
+            }}
+          >
+            {[...selected].map((id) => (
+              <input key={id} type="hidden" name="ids" value={id} />
+            ))}
+            <BulkDeleteButton count={selected.size} />
+          </form>
+        </div>
+      ) : null}
 
       {/* Table (tablet / desktop) — matches the Load Board's md+ table */}
       <div className="hidden overflow-x-auto rounded-md border border-line bg-card shadow-md md:block">
@@ -130,15 +150,7 @@ export function ApplicationsDarkTable({
             className="grid items-center gap-2 bg-bar px-3 py-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-bar-fg"
             style={{ gridTemplateColumns: GRID_TEMPLATE }}
           >
-            <div className="flex items-center justify-center">
-              <input
-                type="checkbox"
-                checked={allSelected}
-                onChange={toggleAll}
-                aria-label="Select all applications"
-                className="h-3.5 w-3.5 cursor-pointer accent-red-600"
-              />
-            </div>
+            <div />
             <div />
             <div>Age</div>
             <div>Applicant</div>
@@ -156,9 +168,10 @@ export function ApplicationsDarkTable({
               <ApplicationRowItem
                 key={row.id}
                 row={row}
+                selectMode={selectMode}
                 selected={selected.has(row.id)}
                 onToggle={() => toggle(row.id)}
-                onOpen={() => router.push("/admin/applications/" + row.id)}
+                onOpen={() => openApplication(row.id)}
               />
             ))
           )}
@@ -176,9 +189,10 @@ export function ApplicationsDarkTable({
             <ApplicationCardItem
               key={row.id}
               row={row}
+              selectMode={selectMode}
               selected={selected.has(row.id)}
               onToggle={() => toggle(row.id)}
-              onOpen={() => router.push("/admin/applications/" + row.id)}
+              onOpen={() => openApplication(row.id)}
             />
           ))
         )}
@@ -189,44 +203,55 @@ export function ApplicationsDarkTable({
 
 function ApplicationCardItem({
   row,
+  selectMode,
   selected,
   onToggle,
   onOpen,
 }: {
   row: ApplicationDarkRow;
+  selectMode: boolean;
   selected: boolean;
   onToggle: () => void;
   onOpen: () => void;
 }) {
   const { equipmentLine, secondaryLine } = describe(row);
   const fresh = isWithinLast24h(row.created_at);
+  const isSel = selectMode && selected;
 
   return (
     <div
-      role="button"
+      role={selectMode ? "button" : "link"}
       tabIndex={0}
-      onClick={onOpen}
+      aria-pressed={selectMode ? selected : undefined}
+      onClick={() => (selectMode ? onToggle() : onOpen())}
       onKeyDown={(e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          onOpen();
-        }
+        if (e.key !== "Enter") return;
+        e.preventDefault();
+        if (selectMode) onToggle();
+        else onOpen();
       }}
       className={
         "cursor-pointer rounded-md border p-3 shadow-sm transition-colors active:bg-elevated " +
-        (selected ? "border-red-400 bg-red-50" : "border-line bg-card")
+        (isSel ? "border-red-400 bg-red-50" : "border-line bg-card")
       }
     >
       <div className="flex items-start justify-between gap-2">
         <span className="flex min-w-0 items-start gap-2.5">
-          <input
-            type="checkbox"
-            checked={selected}
-            aria-label={`Select ${row.name}`}
-            onClick={(e) => e.stopPropagation()}
-            onChange={onToggle}
-            className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-red-600"
-          />
+          {/* Selection indicator — only in delete mode. The whole card
+              toggles, so this is a visual checkbox, not a hit target. */}
+          {selectMode ? (
+            <span
+              aria-hidden
+              className={
+                "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 text-[12px] font-bold leading-none " +
+                (selected
+                  ? "border-red-600 bg-red-600 text-white"
+                  : "border-line-strong text-transparent")
+              }
+            >
+              ✓
+            </span>
+          ) : null}
           <span className="min-w-0">
             <span className="block truncate text-[15px] font-semibold text-fg">
               {row.name}
@@ -267,11 +292,13 @@ function ApplicationCardItem({
 
 function ApplicationRowItem({
   row,
+  selectMode,
   selected,
   onToggle,
   onOpen,
 }: {
   row: ApplicationDarkRow;
+  selectMode: boolean;
   selected: boolean;
   onToggle: () => void;
   onOpen: () => void;
@@ -280,30 +307,35 @@ function ApplicationRowItem({
 
   return (
     <div
-      role="button"
+      role={selectMode ? "button" : "link"}
       tabIndex={0}
-      onClick={onOpen}
+      aria-pressed={selectMode ? selected : undefined}
+      onClick={() => (selectMode ? onToggle() : onOpen())}
       onKeyDown={(e) => {
-        if (e.key === "Enter") {
-          e.preventDefault();
-          onOpen();
-        }
+        if (e.key !== "Enter") return;
+        e.preventDefault();
+        if (selectMode) onToggle();
+        else onOpen();
       }}
       className={
         "group grid cursor-pointer items-center gap-2 border-b border-line px-3 py-2.5 text-[14px] transition-colors " +
-        (selected ? "bg-red-100 hover:bg-red-100" : "hover:bg-elevated")
+        (selectMode && selected ? "bg-red-100 hover:bg-red-100" : "hover:bg-elevated")
       }
       style={{ gridTemplateColumns: GRID_TEMPLATE }}
     >
+      {/* Checkbox only in delete mode — visual mirror of the row's selected
+          state (the whole row toggles). */}
       <span className="flex items-center justify-center">
-        <input
-          type="checkbox"
-          checked={selected}
-          aria-label={`Select ${row.name}`}
-          onClick={(e) => e.stopPropagation()}
-          onChange={onToggle}
-          className="h-3.5 w-3.5 cursor-pointer accent-red-600"
-        />
+        {selectMode ? (
+          <input
+            type="checkbox"
+            readOnly
+            aria-hidden
+            tabIndex={-1}
+            checked={selected}
+            className="pointer-events-none h-3.5 w-3.5 accent-red-600"
+          />
+        ) : null}
       </span>
 
       <span
@@ -353,9 +385,36 @@ function ApplicationRowItem({
         aria-hidden
         className="flex justify-center text-fg-subtle group-hover:text-fg"
       >
-        <ChevronRight />
+        {selectMode ? null : <ChevronRight />}
       </span>
     </div>
+  );
+}
+
+// Submit button for the bulk soft-delete form. useFormStatus() (from react-dom)
+// shows progress while the action is in flight, so the delete can't be
+// double-fired.
+function BulkDeleteButton({ count }: { count: number }) {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      disabled={pending || count === 0}
+      aria-busy={pending}
+      className="inline-flex items-center gap-1.5 rounded-md border-2 border-red-700 bg-red-600 px-3.5 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      {pending ? (
+        <>
+          <span
+            aria-hidden
+            className="h-3 w-3 animate-spin rounded-full border-2 border-white/40 border-t-white"
+          />
+          Deleting…
+        </>
+      ) : (
+        "Delete Selected"
+      )}
+    </button>
   );
 }
 
