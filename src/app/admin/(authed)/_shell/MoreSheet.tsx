@@ -11,6 +11,7 @@ import {
   IconRoute,
   IconSettings,
   IconTruck,
+  IconWrench,
 } from "./icons";
 
 /**
@@ -74,6 +75,18 @@ const GROUPS: { title: string; items: SheetItem[] }[] = [
         desc: "Driver applications",
         chip: "bg-violet-50 text-violet-700",
         Icon: IconBadge,
+      },
+    ],
+  },
+  {
+    title: "Truck",
+    items: [
+      {
+        href: "/admin/maintenance",
+        label: "Maintenance",
+        desc: "Preventative service schedule",
+        chip: "bg-orange-50 text-orange-700",
+        Icon: IconWrench,
       },
     ],
   },
