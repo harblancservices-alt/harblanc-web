@@ -41,8 +41,8 @@ export function IdentityRow({
   rateLabel,
   isTrashed,
 }: IdentityRowProps) {
-  const backHref = isTrashed ? "/admin/quotes/trash" : "/admin/loads";
-  const backLabel = isTrashed ? "All trash" : "All loads";
+  const backHref = isTrashed ? "/admin/quotes/trash" : "/admin/quotes";
+  const backLabel = isTrashed ? "All trash" : "All leads";
   const statusLabel = LEAD_STATUS_LABELS[leadStatus];
   const statusClasses = LEAD_STATUS_CLASSES[leadStatus];
   const showRate = Boolean(rateDisplay);

@@ -48,15 +48,6 @@ export type QuoteListRow = {
   topUrgency: UrgencyChip | null;
 };
 
-type FilterChip =
-  | "all"
-  | "needs"
-  | "new"
-  | "est"
-  | "pay"
-  | "ready"
-  | "motion";
-
 const NEW_STATUSES: LeadStatus[] = ["new", "contacted"];
 const EST_STATUSES: LeadStatus[] = ["estimate_sent", "awaiting_confirmation"];
 const MOTION_STATUSES: LeadStatus[] = ["dispatched", "picked_up", "in_transit"];
@@ -98,34 +89,8 @@ function byAttentionPriority(a: QuoteListRow, b: QuoteListRow): number {
   return ageB - ageA;
 }
 
-export function QuoteListTable({
-  rows,
-  initialFilter = "all",
-}: {
-  rows: QuoteListRow[];
-  /** Level 8.1: optional URL-driven initial filter from /admin/quotes
-   *  ?filter=… (set when arriving from a Dashboard counter link). Falls
-   *  back to "all" when omitted or unknown. */
-  initialFilter?: string;
-}) {
+export function QuoteListTable({ rows }: { rows: QuoteListRow[] }) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterChip, setFilterChip] = useState<FilterChip>(() => {
-    // Narrow the loose string param to the FilterChip union here so the
-    // useState initializer type-checks. Anything else falls through to
-    // "all".
-    const allowed: FilterChip[] = [
-      "all",
-      "needs",
-      "new",
-      "est",
-      "pay",
-      "ready",
-      "motion",
-    ];
-    return (allowed as string[]).includes(initialFilter)
-      ? (initialFilter as FilterChip)
-      : "all";
-  });
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [isPending, startTransition] = useTransition();
@@ -198,24 +163,15 @@ export function QuoteListTable({
     };
   }, [searched]);
 
-  // ── Chip filter mask ─────────────────────────────────────────
-  const showAll = filterChip === "all";
-  const showNeeds = showAll || filterChip === "needs";
-  const showNew = showAll || filterChip === "new";
-  const showEst = showAll || filterChip === "est";
-  const showPay = showAll || filterChip === "pay";
-  const showReady = showAll || filterChip === "ready";
-  const showMotion = showAll || filterChip === "motion";
-
   const hasAnyResult =
-    (showNeeds && groups.needsAttention.length > 0) ||
-    (showNew && groups.newLeads.length > 0) ||
-    (showEst && groups.estAwaiting.length > 0) ||
-    (showPay && groups.awaitingPay.length > 0) ||
-    (showReady && groups.readyToDispatch.length > 0) ||
-    (showMotion && groups.inMotion.length > 0) ||
-    (showAll &&
-      (groups.delivered.length > 0 || groups.archivedOrLost.length > 0));
+    groups.needsAttention.length > 0 ||
+    groups.newLeads.length > 0 ||
+    groups.estAwaiting.length > 0 ||
+    groups.awaitingPay.length > 0 ||
+    groups.readyToDispatch.length > 0 ||
+    groups.inMotion.length > 0 ||
+    groups.delivered.length > 0 ||
+    groups.archivedOrLost.length > 0;
 
   function toggleRow(id: string, checked: boolean) {
     setSelected((prev) => {
@@ -335,159 +291,95 @@ export function QuoteListTable({
         </div>
       ) : null}
 
-      {/* Filter chips */}
-      <div className="mt-3 flex flex-wrap gap-1.5 border-b border-line pb-4 sm:gap-2">
-        <FilterChipBtn
-          label="All"
-          count={searched.length}
-          active={filterChip === "all"}
-          onClick={() => setFilterChip("all")}
-        />
-        <FilterChipBtn
-          label="Needs attn"
-          count={groups.needsAttention.length}
-          active={filterChip === "needs"}
-          onClick={() => setFilterChip("needs")}
-        />
-        <FilterChipBtn
-          label="New"
-          count={groups.newLeads.length}
-          active={filterChip === "new"}
-          onClick={() => setFilterChip("new")}
-        />
-        <FilterChipBtn
-          label="Est sent"
-          count={groups.estAwaiting.length}
-          active={filterChip === "est"}
-          onClick={() => setFilterChip("est")}
-        />
-        <FilterChipBtn
-          label="Awaiting pay"
-          count={groups.awaitingPay.length}
-          active={filterChip === "pay"}
-          onClick={() => setFilterChip("pay")}
-        />
-        <FilterChipBtn
-          label="Ready"
-          count={groups.readyToDispatch.length}
-          active={filterChip === "ready"}
-          onClick={() => setFilterChip("ready")}
-        />
-        <FilterChipBtn
-          label="In motion"
-          count={groups.inMotion.length}
-          active={filterChip === "motion"}
-          onClick={() => setFilterChip("motion")}
-        />
-      </div>
-
-      {/* Feed */}
-      <div className="mt-4 sm:mt-5">
+      {/* Feed — all active leads, grouped (no filter pills) */}
+      <div className="mt-4 border-t border-line pt-4 sm:mt-5">
         {/* ── Tier 1 · Needs Attention ── */}
-        {showNeeds ? (
-          <>
-            <HeavyHeader
-              label="Needs attention"
-              count={groups.needsAttention.length}
-              showMarker
-            />
-            {groups.needsAttention.length > 0 ? (
-              <div className="mt-3 space-y-2.5 sm:mt-4">
-                {groups.needsAttention.map((row) => (
-                  <LeadCard
-                    key={row.id}
-                    row={row}
-                    selectMode={selectMode}
-                    isSelected={selected.has(row.id)}
-                    onToggle={(v) => toggleRow(row.id, v)}
-                    onTrash={() => rowSoftDelete(row)}
-                    isPending={isPending}
-                  />
-                ))}
-              </div>
-            ) : null}
-          </>
+        <HeavyHeader
+          label="Needs attention"
+          count={groups.needsAttention.length}
+          showMarker
+        />
+        {groups.needsAttention.length > 0 ? (
+          <div className="mt-3 space-y-2.5 sm:mt-4">
+            {groups.needsAttention.map((row) => (
+              <LeadCard
+                key={row.id}
+                row={row}
+                selectMode={selectMode}
+                isSelected={selected.has(row.id)}
+                onToggle={(v) => toggleRow(row.id, v)}
+                onTrash={() => rowSoftDelete(row)}
+                isPending={isPending}
+              />
+            ))}
+          </div>
         ) : null}
 
         {/* ── Tier 2 medium groups ── */}
-        {showNew ? (
-          <MediumGroup
-            label="New"
-            count={groups.newLeads.length}
-            rows={groups.newLeads}
-            selectMode={selectMode}
-            selected={selected}
-            onToggle={toggleRow}
-            onTrash={rowSoftDelete}
-            isPending={isPending}
-          />
-        ) : null}
-        {showEst ? (
-          <MediumGroup
-            label="Estimate sent · awaiting customer"
-            count={groups.estAwaiting.length}
-            rows={groups.estAwaiting}
-            selectMode={selectMode}
-            selected={selected}
-            onToggle={toggleRow}
-            onTrash={rowSoftDelete}
-            isPending={isPending}
-          />
-        ) : null}
-        {showPay ? (
-          <MediumGroup
-            label="Awaiting payment"
-            count={groups.awaitingPay.length}
-            rows={groups.awaitingPay}
-            selectMode={selectMode}
-            selected={selected}
-            onToggle={toggleRow}
-            onTrash={rowSoftDelete}
-            isPending={isPending}
-          />
-        ) : null}
-        {showReady ? (
-          <MediumGroup
-            label="Ready to dispatch"
-            count={groups.readyToDispatch.length}
-            rows={groups.readyToDispatch}
-            selectMode={selectMode}
-            selected={selected}
-            onToggle={toggleRow}
-            onTrash={rowSoftDelete}
-            isPending={isPending}
-          />
-        ) : null}
+        <MediumGroup
+          label="New"
+          count={groups.newLeads.length}
+          rows={groups.newLeads}
+          selectMode={selectMode}
+          selected={selected}
+          onToggle={toggleRow}
+          onTrash={rowSoftDelete}
+          isPending={isPending}
+        />
+        <MediumGroup
+          label="Estimate sent · awaiting customer"
+          count={groups.estAwaiting.length}
+          rows={groups.estAwaiting}
+          selectMode={selectMode}
+          selected={selected}
+          onToggle={toggleRow}
+          onTrash={rowSoftDelete}
+          isPending={isPending}
+        />
+        <MediumGroup
+          label="Awaiting payment"
+          count={groups.awaitingPay.length}
+          rows={groups.awaitingPay}
+          selectMode={selectMode}
+          selected={selected}
+          onToggle={toggleRow}
+          onTrash={rowSoftDelete}
+          isPending={isPending}
+        />
+        <MediumGroup
+          label="Ready to dispatch"
+          count={groups.readyToDispatch.length}
+          rows={groups.readyToDispatch}
+          selectMode={selectMode}
+          selected={selected}
+          onToggle={toggleRow}
+          onTrash={rowSoftDelete}
+          isPending={isPending}
+        />
 
         {/* ── Tier 3 · In motion ── */}
-        {showMotion ? (
-          <CompactGroup
-            label="In motion"
-            count={groups.inMotion.length}
-            rows={groups.inMotion}
-          />
-        ) : null}
+        <CompactGroup
+          label="In motion"
+          count={groups.inMotion.length}
+          rows={groups.inMotion}
+        />
 
         {/* ── Tier 4 · Collapsed history ── */}
-        {showAll ? (
-          <>
-            <CollapsibleSection
-              label="Delivered"
-              count={groups.delivered.length}
-              expanded={deliveredExpanded}
-              onToggle={() => setDeliveredExpanded((v) => !v)}
-              rows={groups.delivered}
-            />
-            <CollapsibleSection
-              label="Archived · Lost"
-              count={groups.archivedOrLost.length}
-              expanded={archivedExpanded}
-              onToggle={() => setArchivedExpanded((v) => !v)}
-              rows={groups.archivedOrLost}
-              muted
-            />
-          </>
-        ) : null}
+        <CollapsibleSection
+          label="Delivered"
+          count={groups.delivered.length}
+          expanded={deliveredExpanded}
+          onToggle={() => setDeliveredExpanded((v) => !v)}
+          rows={groups.delivered}
+        />
+        <CollapsibleSection
+          label="Archived · Lost"
+          count={groups.archivedOrLost.length}
+          expanded={archivedExpanded}
+          onToggle={() => setArchivedExpanded((v) => !v)}
+          rows={groups.archivedOrLost}
+          muted
+        />
 
         {/* Empty state when nothing renders */}
         {!hasAnyResult ? (
@@ -495,18 +387,15 @@ export function QuoteListTable({
             <p className="font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-fg-subtle">
               {searchQuery.trim().length > 0
                 ? "No leads match your search"
-                : "No leads in this view"}
+                : "No active leads."}
             </p>
-            {searchQuery.trim().length > 0 || filterChip !== "all" ? (
+            {searchQuery.trim().length > 0 ? (
               <button
                 type="button"
-                onClick={() => {
-                  setSearchQuery("");
-                  setFilterChip("all");
-                }}
+                onClick={() => setSearchQuery("")}
                 className="mt-3 inline-flex items-center border border-line bg-card px-3 py-1.5 font-mono text-[10.5px] font-bold uppercase tracking-[0.16em] text-fg transition-colors hover:bg-[#f3f1e9]"
               >
-                Clear filters
+                Clear search
               </button>
             ) : null}
           </div>
@@ -874,37 +763,3 @@ function CollapsibleSection({
 
 // ─── Filter chip button ─────────────────────────────────────────
 
-function FilterChipBtn({
-  label,
-  count,
-  active,
-  onClick,
-}: {
-  label: string;
-  count: number;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={
-        "inline-flex items-center gap-1.5 border px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.16em] transition-colors " +
-        (active
-          ? "border-line bg-canvas text-fg"
-          : "border-line/40 bg-card text-fg hover:bg-[#f3f1e9]")
-      }
-    >
-      <span>{label}</span>
-      <span
-        className={
-          "font-mono text-[10px] font-bold tabular-nums " +
-          (active ? "text-fg/85" : "text-fg/65")
-        }
-      >
-        {count}
-      </span>
-    </button>
-  );
-}

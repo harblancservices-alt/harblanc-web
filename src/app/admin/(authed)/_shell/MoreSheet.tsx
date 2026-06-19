@@ -63,7 +63,7 @@ const GROUPS: { title: string; items: SheetItem[] }[] = [
     title: "Customers",
     items: [
       {
-        href: "/admin/loads",
+        href: "/admin/quotes",
         label: "Quotes",
         desc: "Customer quote requests",
         chip: "bg-blue-50 text-blue-700",

@@ -1524,8 +1524,8 @@ export default async function QuoteDetailPage({
 
   const nextActionResult = nextAction(row.lead_status, null);
 
-  // Details section summary — lane + miles (matches the row format in
-  // /admin/loads so the operator's mental model stays consistent).
+  // Details section summary — lane + miles (matches the row format in the
+  // /admin/quotes leads list so the operator's mental model stays consistent).
   const lanePieces: string[] = [];
   if (headerProps.lane.pickupLabel) lanePieces.push(headerProps.lane.pickupLabel);
   if (headerProps.lane.deliveryLabel) lanePieces.push(headerProps.lane.deliveryLabel);

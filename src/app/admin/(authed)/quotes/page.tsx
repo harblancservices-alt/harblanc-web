@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { SectionTabs } from "../SectionTabs";
 import { QuoteListTable, type QuoteListRow } from "./QuoteListTable";
+import { QuotesPipeline } from "./QuotesPipeline";
 import { computeUrgency, topUrgency } from "@/lib/dispatch/urgency";
+import { loadPipelineCards } from "@/lib/dispatch/pipeline";
 import type { LeadStatus } from "@/lib/dispatch/status";
 
 export const metadata: Metadata = {
@@ -210,37 +212,16 @@ async function loadQuotes(): Promise<{
   return { rows: enriched, trashCount: trashCount ?? 0, newToday };
 }
 
-/**
- * Level 8.1 — dashboard counter links land here with a `?filter=` URL
- * param. Map the hyphenated dashboard slugs to the QuoteListTable
- * FilterChip union. Unknown / missing param defaults to "all".
- */
-function mapFilterParam(raw: string | undefined): string {
-  switch (raw) {
-    case "needs-attention":
-      return "needs";
-    case "new-today":
-      return "new";
-    case "in-motion":
-      return "motion";
-    case "est":
-    case "pay":
-    case "ready":
-    case "all":
-      return raw;
-    default:
-      return "all";
-  }
-}
-
-export default async function QuotesPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ filter?: string }>;
-}) {
-  const { rows, trashCount, newToday } = await loadQuotes();
-  const params = await searchParams;
-  const initialFilter = mapFilterParam(params.filter);
+export default async function QuotesPage() {
+  // The funnel reuses the same pipeline cards the old /admin/loads page showed;
+  // expired leads are a dead-end and stay off it (they surface in the
+  // dashboard's "Expired quotes" table). Any legacy ?filter= URL param is now a
+  // harmless no-op — the page always shows all active leads.
+  const [{ rows, trashCount, newToday }, pipelineCards] = await Promise.all([
+    loadQuotes(),
+    loadPipelineCards(),
+  ]);
+  const activePipeline = pipelineCards.filter((c) => c.status !== "expired");
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
@@ -277,12 +258,17 @@ export default async function QuotesPage({
         ]}
       />
 
+      {/* Pipeline funnel — moved here from the retired /admin/loads page. */}
+      <div className="mt-5">
+        <QuotesPipeline cards={activePipeline} />
+      </div>
+
       {rows.length === 0 ? (
-        <p className="mt-12 font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-fg-subtle">
+        <p className="mt-8 font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-fg-subtle">
           No active quote requests.
         </p>
       ) : (
-        <QuoteListTable rows={rows} initialFilter={initialFilter} />
+        <QuoteListTable rows={rows} />
       )}
     </div>
   );

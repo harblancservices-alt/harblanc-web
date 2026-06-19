@@ -54,7 +54,7 @@ type NavItem = {
 
 const PRIMARY: NavItem[] = [
   { href: "/admin", label: "Dashboard", Icon: IconDashboard },
-  { href: "/admin/loads", label: "Quotes", Icon: IconTruck },
+  { href: "/admin/quotes", label: "Quotes", Icon: IconTruck },
   { href: "/admin/applications", label: "Applications", Icon: IconBadge },
   { href: "/admin/accounting", label: "Accounting", Icon: IconReceipt },
 ];
