@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { brokerColor, brokerInitial, formatPhone, telHref, usd, usd2 } from "../_util";
 import {
   updateBroker,
@@ -10,6 +11,23 @@ import {
   deleteBrokerContact,
 } from "../actions";
 import { markLoadPaid } from "../../loads/actions";
+
+// Status pill styling for the broker's load-history cards, matching the
+// dashboard's Active loads pills.
+const HISTORY_STATUS_PILL: Record<string, string> = {
+  pending: "bg-amber-100 text-amber-700",
+  assigned: "bg-amber-100 text-amber-700",
+  loaded: "bg-blue-100 text-blue-700",
+  delivered: "bg-green-100 text-green-700",
+  cancelled: "bg-elevated text-fg-muted",
+};
+const HISTORY_STATUS_LABEL: Record<string, string> = {
+  pending: "Pending",
+  assigned: "Rolling",
+  loaded: "Loaded",
+  delivered: "Delivered",
+  cancelled: "Cancelled",
+};
 
 type Phone = { number: string; ext: string | null; label: string | null };
 type Email = { address: string; label: string | null };
@@ -87,6 +105,7 @@ type Tab = "overview" | "contacts" | "documents" | "history";
 export function BrokerDetail({ data }: { data: BrokerDetailData }) {
   const { broker, kpis, summary, receivables, aging, contacts, loads, lanes } =
     data;
+  const router = useRouter();
   const [tab, setTab] = useState<Tab>("overview");
   const [editing, setEditing] = useState(false);
   const [addingContact, setAddingContact] = useState(false);
@@ -332,65 +351,83 @@ export function BrokerDetail({ data }: { data: BrokerDetailData }) {
         ) : null}
 
         {tab === "history" ? (
-          <div className="overflow-x-auto rounded-md border border-line bg-card shadow-sm">
-            <div className="min-w-[720px]">
-              <div
-                className="grid items-center gap-2 bg-bar px-3.5 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-bar-fg"
-                style={{ gridTemplateColumns: GRID }}
-              >
-                <span>Date</span>
-                <span>Lane</span>
-                <span>Equipment</span>
-                <span className="text-right">Gross</span>
-                <span className="text-right">Net</span>
-                <span>Status</span>
-                <span className="text-right">Age</span>
-                <span />
-              </div>
-              {loads.length === 0 ? (
-                <p className="px-3.5 py-3 font-mono text-[12px] text-fg-subtle">
-                  No loads yet.
-                </p>
-              ) : (
-                loads.map((l, i) => (
-                  <div
-                    key={l.id}
-                    className={
-                      "grid items-center gap-2 px-3.5 py-2 text-[12.5px] " +
-                      (i === loads.length - 1 ? "" : "border-b border-line")
-                    }
-                    style={{ gridTemplateColumns: GRID }}
-                  >
-                    <span className="text-fg-muted">{l.date}</span>
-                    <span className="truncate text-fg">{l.lane}</span>
-                    <span className="truncate text-fg-muted">{l.equipment}</span>
-                    <span className="text-right font-bold tabular-nums text-green-700">{usd(l.rate)}</span>
-                    <span className="text-right tabular-nums text-fg">{usd(l.net)}</span>
-                    <span className="font-mono text-[10px] font-bold uppercase tracking-[0.06em] text-fg-muted">
-                      {l.status.replace("_", " ")}
-                    </span>
-                    <span className={"text-right tabular-nums " + (l.unpaid ? "text-amber-700" : "text-fg-subtle")}>
-                      {l.ageDays != null ? `${l.ageDays}d` : "—"}
-                    </span>
-                    <span className="flex justify-end">
-                      {l.unpaid ? (
-                        <form action={markLoadPaid.bind(null, l.id)}>
-                          <button
-                            type="submit"
-                            className="rounded-md border border-blue-300 bg-blue-50 px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-blue-700 transition-colors hover:bg-blue-100"
-                          >
-                            Mark paid
-                          </button>
-                        </form>
-                      ) : l.paymentStatus === "paid" ? (
-                        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-green-700">Paid</span>
-                      ) : null}
-                    </span>
-                  </div>
-                ))
-              )}
+          loads.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-line bg-card px-4 py-10 text-center font-mono text-[12px] text-fg-subtle">
+              No loads yet for this broker.
             </div>
-          </div>
+          ) : (
+            // Card list mirroring the dashboard's Active loads section: one
+            // card container, fluid flex rows that stack vertically and never
+            // scroll sideways. Tapping a card opens the load.
+            <div className="overflow-hidden rounded-xl border border-line bg-card shadow-md">
+              {loads.map((l, i) => (
+                <div
+                  key={l.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => router.push("/admin/dispatch/loads/" + l.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      router.push("/admin/dispatch/loads/" + l.id);
+                    }
+                  }}
+                  className={
+                    "flex cursor-pointer items-start justify-between gap-3 px-3.5 py-2.5 transition-colors hover:bg-elevated " +
+                    (i === loads.length - 1 ? "" : "border-b border-line")
+                  }
+                >
+                  <span className="flex min-w-0 items-start gap-2.5">
+                    <span
+                      className={
+                        "mt-px shrink-0 rounded-sm px-1.5 py-[1px] font-mono text-[10px] font-bold uppercase tracking-[0.06em] " +
+                        (HISTORY_STATUS_PILL[l.status] ??
+                          "bg-elevated text-fg-muted")
+                      }
+                    >
+                      {HISTORY_STATUS_LABEL[l.status] ?? l.status.replace("_", " ")}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-[13px] font-semibold text-fg">
+                        {l.lane}
+                      </span>
+                      <span className="block truncate text-[11px] text-fg-muted">
+                        {l.equipment}
+                        {l.date ? " · " + l.date : ""}
+                        {l.ageDays != null ? " · " + l.ageDays + "d" : ""}
+                      </span>
+                    </span>
+                  </span>
+                  <span className="flex shrink-0 flex-col items-end gap-1">
+                    <span className="font-mono text-[13px] font-bold tabular-nums text-green-700">
+                      {usd(l.rate)}
+                    </span>
+                    <span className="font-mono text-[11px] tabular-nums text-fg-muted">
+                      Net {usd(l.net)}
+                    </span>
+                    {l.unpaid ? (
+                      <form
+                        action={markLoadPaid.bind(null, l.id)}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <button
+                          type="submit"
+                          onClick={(e) => e.stopPropagation()}
+                          className="rounded-md border border-blue-300 bg-blue-50 px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-blue-700 transition-colors hover:bg-blue-100"
+                        >
+                          Mark paid
+                        </button>
+                      </form>
+                    ) : l.paymentStatus === "paid" ? (
+                      <span className="font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-green-700">
+                        Paid
+                      </span>
+                    ) : null}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )
         ) : null}
       </div>
 
@@ -971,7 +1008,6 @@ function CField({
   );
 }
 
-const GRID = "96px minmax(0,1.4fr) minmax(0,0.8fr) 84px 84px 86px 52px 84px";
 
 function TabBtn({
   id,
