@@ -23,6 +23,145 @@ function intOrNull(fd: FormData, key: string): number | null {
   return Number.isFinite(n) ? Math.round(n) : null;
 }
 
+// Receipt uploads → private maintenance-receipts bucket (signed URLs only).
+const RECEIPT_BUCKET = "maintenance-receipts";
+const RECEIPT_MIME = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/heic",
+  "image/webp",
+  "application/pdf",
+]);
+const RECEIPT_MAX_BYTES = 20 * 1024 * 1024;
+
+function sanitizeFilename(name: string): string {
+  const trimmed = name.trim().slice(0, 80);
+  return (
+    trimmed
+      .replace(/[^A-Za-z0-9._-]+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-+|-+$/g, "") || "upload"
+  );
+}
+
+/**
+ * Add a service record (from the top "Add Service" flow). The service type is
+ * either a seeded maintenance_item (item_id set) or a custom typed name
+ * (item_id null, service_name holds the text). Rolls a seeded item's
+ * last-service bookend forward, and uploads any receipt files to the private
+ * maintenance-receipts bucket, recording one maintenance_attachments row each.
+ */
+export async function addMaintenanceService(formData: FormData): Promise<void> {
+  const sb = createServiceRoleClient();
+
+  const odo = intOrNull(formData, "service_odo");
+  if (odo == null || odo < 0) {
+    throw new Error("Enter the odometer reading the service was done at.");
+  }
+  const date =
+    str(formData, "service_date") ?? new Date().toISOString().slice(0, 10);
+  const notes = str(formData, "notes");
+
+  // Resolve the service type: a seeded item, or a custom typed name.
+  const rawItemId = str(formData, "item_id");
+  let itemId: string | null = null;
+  let serviceName: string | null = null;
+  if (rawItemId) {
+    const { data: item } = await sb
+      .from("maintenance_items")
+      .select("id, name")
+      .eq("id", rawItemId)
+      .is("deleted_at", null)
+      .maybeSingle<{ id: string; name: string }>();
+    if (!item) throw new Error("That maintenance item no longer exists.");
+    itemId = item.id;
+    serviceName = item.name;
+  } else {
+    serviceName = str(formData, "service_name");
+    if (!serviceName) {
+      throw new Error("Pick a service type or enter a custom service name.");
+    }
+  }
+
+  // Validate every receipt up front so we don't half-create a record.
+  const files = formData
+    .getAll("files")
+    .filter((f): f is File => f instanceof File && f.size > 0);
+  for (const f of files) {
+    if (!RECEIPT_MIME.has(f.type)) {
+      throw new Error(
+        `Unsupported file "${f.name}" (${f.type || "unknown"}). Use JPG, PNG, HEIC, WEBP, or PDF.`,
+      );
+    }
+    if (f.size > RECEIPT_MAX_BYTES) {
+      throw new Error(
+        `"${f.name}" is too large (${Math.round(f.size / 1024 / 1024)} MB). Max 20 MB.`,
+      );
+    }
+  }
+
+  // 1. Insert the log row (need its id for the receipt path).
+  const { data: log, error: logErr } = await sb
+    .from("maintenance_log")
+    .insert({
+      item_id: itemId,
+      service_name: serviceName,
+      service_odo: odo,
+      service_date: date,
+      notes,
+    })
+    .select("id")
+    .single<{ id: string }>();
+  if (logErr || !log) {
+    throw new Error(`Could not save service: ${logErr?.message ?? "unknown error"}`);
+  }
+
+  // 2. Roll the seeded item forward so next-due recalculates.
+  if (itemId) {
+    const { error: updErr } = await sb
+      .from("maintenance_items")
+      .update({
+        last_service_odo: odo,
+        last_service_date: date,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", itemId)
+      .is("deleted_at", null);
+    if (updErr) {
+      throw new Error(`Service saved, but the item didn't update: ${updErr.message}`);
+    }
+  }
+
+  // 3. Upload each receipt → maintenance/{log_id}/{file}, record an attachment.
+  for (const f of files) {
+    const path = `maintenance/${log.id}/${crypto
+      .randomUUID()
+      .replace(/-/g, "")
+      .slice(0, 12)}-${sanitizeFilename(f.name)}`;
+    const bytes = new Uint8Array(await f.arrayBuffer());
+    const { error: upErr } = await sb.storage
+      .from(RECEIPT_BUCKET)
+      .upload(path, bytes, { contentType: f.type, upsert: false });
+    if (upErr) {
+      throw new Error(`Receipt upload failed ("${f.name}"): ${upErr.message}`);
+    }
+    const { error: attErr } = await sb.from("maintenance_attachments").insert({
+      log_id: log.id,
+      file_path: path,
+      file_name: f.name.slice(0, 240),
+      content_type: f.type,
+      size_bytes: f.size,
+    });
+    if (attErr) {
+      await sb.storage.from(RECEIPT_BUCKET).remove([path]);
+      throw new Error(`Could not record receipt ("${f.name}"): ${attErr.message}`);
+    }
+  }
+
+  revalidatePath("/admin/maintenance");
+  revalidatePath("/admin");
+}
+
 /**
  * Log a completed service: append a maintenance_log row and roll the item's
  * last-service bookend forward so the next-due recalculates.

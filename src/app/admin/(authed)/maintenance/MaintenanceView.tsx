@@ -1,7 +1,11 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
-import { logMaintenance, updateMaintenanceInterval } from "./actions";
+import {
+  addMaintenanceService,
+  logMaintenance,
+  updateMaintenanceInterval,
+} from "./actions";
 import { IntervalBar } from "./IntervalBar";
 
 export type MaintItem = {
@@ -17,6 +21,20 @@ export type MaintItem = {
   /** 0–100: miles since last service ÷ interval (0 if never serviced). */
   pct: number;
   notes: string | null;
+};
+
+export type ServiceHistoryEntry = {
+  id: string;
+  serviceName: string;
+  date: string | null;
+  odo: number | null;
+  notes: string | null;
+  attachments: {
+    id: string;
+    name: string;
+    url: string | null;
+    isImage: boolean;
+  }[];
 };
 
 const STATUS: Record<
@@ -71,12 +89,15 @@ function remaining(item: MaintItem): { value: string; label: string; color: stri
 export function MaintenanceView({
   currentOdo,
   items,
+  history,
 }: {
   currentOdo: number;
   items: MaintItem[];
+  history: ServiceHistoryEntry[];
 }) {
   const [logItem, setLogItem] = useState<MaintItem | null>(null);
   const [editItem, setEditItem] = useState<MaintItem | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
 
   const counts = {
     overdue: items.filter((i) => i.status === "overdue").length,
@@ -88,13 +109,22 @@ export function MaintenanceView({
   return (
     <div className="min-h-screen border-t border-line bg-canvas text-fg">
       <div className="w-full px-4 py-5 sm:px-6 lg:px-8">
-        <header className="mb-3">
-          <p className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-indigo-600">
-            Truck
-          </p>
-          <h1 className="mt-1 text-[22px] font-semibold leading-none tracking-tight text-fg">
-            Maintenance
-          </h1>
+        <header className="mb-3 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-indigo-600">
+              Truck
+            </p>
+            <h1 className="mt-1 text-[22px] font-semibold leading-none tracking-tight text-fg">
+              Maintenance
+            </h1>
+          </div>
+          <button
+            type="button"
+            onClick={() => setAddOpen(true)}
+            className="inline-flex items-center gap-1.5 rounded-md border border-red-700 bg-red-600 px-3.5 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-red-700"
+          >
+            + Add service
+          </button>
         </header>
 
         {/* Current odometer */}
@@ -225,6 +255,8 @@ export function MaintenanceView({
             })}
           </div>
         )}
+
+        <ServiceHistory history={history} />
       </div>
 
       {logItem ? (
@@ -237,7 +269,235 @@ export function MaintenanceView({
       {editItem ? (
         <EditIntervalModal item={editItem} onClose={() => setEditItem(null)} />
       ) : null}
+      {addOpen ? (
+        <AddServiceModal
+          items={items}
+          currentOdo={currentOdo}
+          onClose={() => setAddOpen(false)}
+        />
+      ) : null}
     </div>
+  );
+}
+
+function ServiceHistory({ history }: { history: ServiceHistoryEntry[] }) {
+  return (
+    <section className="mt-6">
+      <div className="mb-2 flex items-center gap-2">
+        <span className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-indigo-600">
+          Service history
+        </span>
+        <span className="font-mono text-[11px] tabular-nums text-fg-subtle">
+          · {history.length}
+        </span>
+      </div>
+      {history.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-line bg-card px-4 py-10 text-center font-mono text-[12px] text-fg-subtle">
+          No services logged yet.
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {history.map((h) => (
+            <div
+              key={h.id}
+              className="rounded-xl border border-line bg-card p-3.5 shadow-sm"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="truncate text-[14px] font-semibold text-fg">
+                    {h.serviceName}
+                  </h3>
+                  <p className="mt-0.5 font-mono text-[11px] text-fg-subtle">
+                    {h.date ?? "—"}
+                    {h.odo != null ? ` · ${h.odo.toLocaleString()} mi` : ""}
+                  </p>
+                </div>
+                {h.attachments.length > 0 ? (
+                  <span className="shrink-0 rounded-full bg-elevated px-2 py-[2px] font-mono text-[10px] font-bold uppercase tracking-[0.06em] text-fg-muted">
+                    {h.attachments.length} receipt
+                    {h.attachments.length === 1 ? "" : "s"}
+                  </span>
+                ) : null}
+              </div>
+              {h.notes ? (
+                <p className="mt-1.5 whitespace-pre-wrap text-[12px] text-fg-muted">
+                  {h.notes}
+                </p>
+              ) : null}
+              {h.attachments.length > 0 ? (
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {h.attachments.map((a) =>
+                    a.url ? (
+                      a.isImage ? (
+                        <a
+                          key={a.id}
+                          href={a.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title={a.name}
+                          className="block h-16 w-16 overflow-hidden rounded-md border border-line"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={a.url}
+                            alt={a.name}
+                            className="h-full w-full object-cover"
+                          />
+                        </a>
+                      ) : (
+                        <a
+                          key={a.id}
+                          href={a.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title={a.name}
+                          className="flex h-16 w-16 items-center justify-center rounded-md border border-line bg-elevated font-mono text-[11px] font-bold text-red-700"
+                        >
+                          PDF
+                        </a>
+                      )
+                    ) : (
+                      <span
+                        key={a.id}
+                        className="flex h-16 w-16 items-center justify-center rounded-md border border-dashed border-line text-center font-mono text-[9px] text-fg-subtle"
+                      >
+                        no link
+                      </span>
+                    ),
+                  )}
+                </div>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function AddServiceModal({
+  items,
+  currentOdo,
+  onClose,
+}: {
+  items: MaintItem[];
+  currentOdo: number;
+  onClose: () => void;
+}) {
+  const [custom, setCustom] = useState(items.length === 0);
+  const [state, action, pending] = useActionState<
+    { ok: boolean; error: string | null },
+    FormData
+  >(
+    async (_prev, fd) => {
+      try {
+        await addMaintenanceService(fd);
+        return { ok: true, error: null };
+      } catch (e) {
+        return {
+          ok: false,
+          error: e instanceof Error ? e.message : "Could not add service.",
+        };
+      }
+    },
+    { ok: false, error: null },
+  );
+
+  useEffect(() => {
+    if (state.ok) onClose();
+  }, [state.ok, onClose]);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape" && !pending) onClose();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [pending, onClose]);
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  return (
+    <ModalShell title="Add service" pending={pending} onClose={onClose}>
+      <form action={action} onClick={(e) => e.stopPropagation()}>
+        <div className="space-y-3 bg-elevated px-4 py-4">
+          <div>
+            <label className={LABEL}>Service type</label>
+            <select
+              name="item_id"
+              defaultValue={items[0]?.id ?? ""}
+              onChange={(e) => setCustom(e.target.value === "")}
+              className={FIELD}
+            >
+              {items.map((it) => (
+                <option key={it.id} value={it.id}>
+                  {it.name}
+                </option>
+              ))}
+              <option value="">+ Custom service…</option>
+            </select>
+          </div>
+          {custom ? (
+            <div>
+              <label className={LABEL}>Custom service name</label>
+              <input
+                name="service_name"
+                required
+                autoComplete="off"
+                placeholder="e.g. Front shocks"
+                className={FIELD}
+              />
+            </div>
+          ) : null}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={LABEL}>Date</label>
+              <input
+                name="service_date"
+                type="date"
+                defaultValue={today}
+                className={FIELD}
+              />
+            </div>
+            <div>
+              <label className={LABEL}>Odometer</label>
+              <input
+                name="service_odo"
+                type="number"
+                inputMode="numeric"
+                defaultValue={currentOdo}
+                required
+                autoComplete="off"
+                className={FIELD}
+              />
+            </div>
+          </div>
+          <div>
+            <label className={LABEL}>Notes (optional)</label>
+            <textarea name="notes" rows={2} autoComplete="off" className={FIELD} />
+          </div>
+          <div>
+            <label className={LABEL}>Receipts (optional)</label>
+            <input
+              name="files"
+              type="file"
+              multiple
+              accept="image/*,application/pdf,.heic"
+              className="mt-1 block w-full text-[12px] text-fg file:mr-3 file:rounded-md file:border file:border-line-strong file:bg-card file:px-3 file:py-1.5 file:font-mono file:text-[11px] file:font-bold file:uppercase file:tracking-[0.08em] file:text-fg-muted"
+            />
+            <p className="mt-1 font-mono text-[10px] text-fg-subtle">
+              Photos or PDF · up to 20 MB each.
+            </p>
+          </div>
+          {state.error ? (
+            <p role="alert" className="text-[12px] font-semibold text-red-700">
+              {state.error}
+            </p>
+          ) : null}
+        </div>
+        <ModalFooter pending={pending} onClose={onClose} label="Add service" />
+      </form>
+    </ModalShell>
   );
 }
 

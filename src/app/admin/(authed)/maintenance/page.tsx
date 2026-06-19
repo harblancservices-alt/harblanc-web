@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { MaintenanceView, type MaintItem } from "./MaintenanceView";
+import {
+  MaintenanceView,
+  type MaintItem,
+  type ServiceHistoryEntry,
+} from "./MaintenanceView";
 import {
   computeMaintenance,
   currentOdoFromLoads,
@@ -36,6 +40,25 @@ type OdoRow = {
   odo_delivered: number | null;
 };
 
+type LogRow = {
+  id: string;
+  item_id: string | null;
+  service_name: string | null;
+  service_odo: number | null;
+  service_date: string | null;
+  notes: string | null;
+  created_at: string;
+};
+type AttRow = {
+  id: string;
+  log_id: string;
+  file_path: string;
+  file_name: string | null;
+  content_type: string | null;
+};
+
+const RECEIPT_BUCKET = "maintenance-receipts";
+
 // Status priority for surfacing the urgent items first.
 const STATUS_RANK: Record<MaintItem["status"], number> = {
   overdue: 0,
@@ -47,24 +70,35 @@ const STATUS_RANK: Record<MaintItem["status"], number> = {
 async function loadMaintenance(): Promise<{
   currentOdo: number;
   items: MaintItem[];
+  history: ServiceHistoryEntry[];
 }> {
   const sb = createServiceRoleClient();
 
-  const [{ data: itemRows }, { data: odoRows }] = await Promise.all([
-    sb
-      .from("maintenance_items")
-      .select(
-        "id, name, interval_miles, last_service_odo, last_service_date, notes, sort_order",
-      )
-      .is("deleted_at", null)
-      .order("sort_order", { ascending: true })
-      .returns<ItemRow[]>(),
-    sb
-      .from("loads")
-      .select("odo_assigned, odo_loaded, odo_delivered")
-      .is("deleted_at", null)
-      .returns<OdoRow[]>(),
-  ]);
+  const [{ data: itemRows }, { data: odoRows }, { data: logRows }] =
+    await Promise.all([
+      sb
+        .from("maintenance_items")
+        .select(
+          "id, name, interval_miles, last_service_odo, last_service_date, notes, sort_order",
+        )
+        .is("deleted_at", null)
+        .order("sort_order", { ascending: true })
+        .returns<ItemRow[]>(),
+      sb
+        .from("loads")
+        .select("odo_assigned, odo_loaded, odo_delivered")
+        .is("deleted_at", null)
+        .returns<OdoRow[]>(),
+      sb
+        .from("maintenance_log")
+        .select(
+          "id, item_id, service_name, service_odo, service_date, notes, created_at",
+        )
+        .order("service_date", { ascending: false, nullsFirst: false })
+        .order("created_at", { ascending: false })
+        .limit(100)
+        .returns<LogRow[]>(),
+    ]);
 
   // Current odometer = GREATEST(MAX(odo_assigned), MAX(odo_loaded),
   // MAX(odo_delivered)) across non-deleted loads.
@@ -100,10 +134,54 @@ async function loadMaintenance(): Promise<{
     return am - bm;
   });
 
-  return { currentOdo, items };
+  // Service history (newest first) + each log's receipts as signed URLs.
+  const logs = logRows ?? [];
+  const itemName = new Map((itemRows ?? []).map((i) => [i.id, i.name]));
+  const attByLog = new Map<string, ServiceHistoryEntry["attachments"]>();
+  if (logs.length > 0) {
+    const { data: attRows } = await sb
+      .from("maintenance_attachments")
+      .select("id, log_id, file_path, file_name, content_type")
+      .in(
+        "log_id",
+        logs.map((l) => l.id),
+      )
+      .returns<AttRow[]>();
+    await Promise.all(
+      (attRows ?? []).map(async (a) => {
+        const { data: signed } = await sb.storage
+          .from(RECEIPT_BUCKET)
+          .createSignedUrl(a.file_path, 3600);
+        const list = attByLog.get(a.log_id) ?? [];
+        list.push({
+          id: a.id,
+          name: a.file_name ?? "receipt",
+          url: signed?.signedUrl ?? null,
+          isImage: (a.content_type ?? "").startsWith("image/"),
+        });
+        attByLog.set(a.log_id, list);
+      }),
+    );
+  }
+
+  const history: ServiceHistoryEntry[] = logs.map((l) => ({
+    id: l.id,
+    serviceName:
+      l.service_name ??
+      (l.item_id ? itemName.get(l.item_id) ?? null : null) ??
+      "Service",
+    date: l.service_date,
+    odo: l.service_odo,
+    notes: l.notes,
+    attachments: attByLog.get(l.id) ?? [],
+  }));
+
+  return { currentOdo, items, history };
 }
 
 export default async function MaintenancePage() {
-  const { currentOdo, items } = await loadMaintenance();
-  return <MaintenanceView currentOdo={currentOdo} items={items} />;
+  const { currentOdo, items, history } = await loadMaintenance();
+  return (
+    <MaintenanceView currentOdo={currentOdo} items={items} history={history} />
+  );
 }
