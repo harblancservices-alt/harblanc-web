@@ -12,6 +12,7 @@ import {
   IconMail,
   IconReceipt,
   IconRoute,
+  IconScan,
   IconSettings,
   IconStack,
   IconTruck,
@@ -60,6 +61,7 @@ const PRIMARY: NavItem[] = [
 ];
 
 const DISPATCH: NavItem[] = [
+  { href: "/admin/rate-check", label: "Rate Check", Icon: IconScan },
   { href: "/admin/dispatch/loads", label: "Load Board", Icon: IconStack },
   { href: "/admin/dispatch/trips", label: "Trips", Icon: IconRoute },
   { href: "/admin/dispatch/brokers", label: "Brokers", Icon: IconBuilding },

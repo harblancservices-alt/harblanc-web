@@ -9,6 +9,7 @@ import {
   IconMail,
   IconReceipt,
   IconRoute,
+  IconScan,
   IconSettings,
   IconTruck,
   IconWrench,
@@ -43,6 +44,13 @@ const GROUPS: { title: string; items: SheetItem[] }[] = [
   {
     title: "Dispatch",
     items: [
+      {
+        href: "/admin/rate-check",
+        label: "Rate Check",
+        desc: "Paste a posting — take it or pass",
+        chip: "bg-red-50 text-red-700",
+        Icon: IconScan,
+      },
       {
         href: "/admin/dispatch/trips",
         label: "Trips",
