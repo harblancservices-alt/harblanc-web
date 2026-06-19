@@ -23,6 +23,30 @@ function intOrNull(fd: FormData, key: string): number | null {
   return Number.isFinite(n) ? Math.round(n) : null;
 }
 
+// Parse a dollar amount string ("$1,250.50" → 1250.5). Null when blank/invalid
+// or negative. Rounded to cents for numeric(10,2).
+function moneyOrNull(raw: string | null | undefined): number | null {
+  if (typeof raw !== "string") return null;
+  const cleaned = raw.replace(/[$,\s]/g, "");
+  if (cleaned.length === 0) return null;
+  const n = Number(cleaned);
+  if (!Number.isFinite(n) || n < 0) return null;
+  return Math.round(n * 100) / 100;
+}
+
+// Expense categories offered on the Add Service form (kept in sync with the
+// client select). The category is stored verbatim in maintenance_log.category.
+const EXPENSE_CATEGORIES = new Set([
+  "Suspension",
+  "Tires",
+  "Engine",
+  "Drivetrain/Transmission",
+  "Brakes",
+  "Fluids & Filters",
+  "Electrical",
+  "Other",
+]);
+
 // Receipt uploads → private maintenance-receipts bucket (signed URLs only).
 const RECEIPT_BUCKET = "maintenance-receipts";
 const RECEIPT_MIME = new Set([
@@ -83,11 +107,23 @@ export async function addMaintenanceService(formData: FormData): Promise<void> {
     }
   }
 
-  // Validate every receipt up front so we don't half-create a record.
-  const files = formData
-    .getAll("files")
-    .filter((f): f is File => f instanceof File && f.size > 0);
-  for (const f of files) {
+  // Expense category (optional; falls back to "Other" if an unknown value
+  // somehow arrives).
+  const rawCategory = str(formData, "category");
+  const category =
+    rawCategory && EXPENSE_CATEGORIES.has(rawCategory) ? rawCategory : null;
+
+  // Validate every receipt up front so we don't half-create a record, pairing
+  // each file with its own amount + label (Brent's parts vs. labor receipts).
+  // The client appends files/amount/label in matching index order.
+  const rawFiles = formData.getAll("files");
+  const rawAmounts = formData.getAll("amount");
+  const rawLabels = formData.getAll("label");
+  const receipts: { file: File; amount: number | null; label: string | null }[] =
+    [];
+  for (let i = 0; i < rawFiles.length; i++) {
+    const f = rawFiles[i];
+    if (!(f instanceof File) || f.size <= 0) continue;
     if (!RECEIPT_MIME.has(f.type)) {
       throw new Error(
         `Unsupported file "${f.name}" (${f.type || "unknown"}). Use JPG, PNG, HEIC, WEBP, or PDF.`,
@@ -98,7 +134,25 @@ export async function addMaintenanceService(formData: FormData): Promise<void> {
         `"${f.name}" is too large (${Math.round(f.size / 1024 / 1024)} MB). Max 20 MB.`,
       );
     }
+    const amt = rawAmounts[i];
+    const lbl = rawLabels[i];
+    receipts.push({
+      file: f,
+      amount: moneyOrNull(typeof amt === "string" ? amt : null),
+      label:
+        (typeof lbl === "string" ? lbl.trim().slice(0, 60) : "") || null,
+    });
   }
+
+  // Total cost: a manual override wins; otherwise auto-sum the receipt amounts.
+  const sumOfReceipts = receipts.reduce((s, r) => s + (r.amount ?? 0), 0);
+  const overrideTotal = moneyOrNull(str(formData, "total_cost"));
+  const totalCost =
+    overrideTotal != null
+      ? overrideTotal
+      : sumOfReceipts > 0
+        ? Math.round(sumOfReceipts * 100) / 100
+        : null;
 
   // 1. Insert the log row (need its id for the receipt path).
   const { data: log, error: logErr } = await sb
@@ -109,6 +163,8 @@ export async function addMaintenanceService(formData: FormData): Promise<void> {
       service_odo: odo,
       service_date: date,
       notes,
+      category,
+      total_cost: totalCost,
     })
     .select("id")
     .single<{ id: string }>();
@@ -132,8 +188,9 @@ export async function addMaintenanceService(formData: FormData): Promise<void> {
     }
   }
 
-  // 3. Upload each receipt → maintenance/{log_id}/{file}, record an attachment.
-  for (const f of files) {
+  // 3. Upload each receipt → maintenance/{log_id}/{file}, record an attachment
+  //    carrying its own amount + label (e.g. "Parts" $X, "Labor" $Y).
+  for (const { file: f, amount, label } of receipts) {
     const path = `maintenance/${log.id}/${crypto
       .randomUUID()
       .replace(/-/g, "")
@@ -151,6 +208,8 @@ export async function addMaintenanceService(formData: FormData): Promise<void> {
       file_name: f.name.slice(0, 240),
       content_type: f.type,
       size_bytes: f.size,
+      amount,
+      label,
     });
     if (attErr) {
       await sb.storage.from(RECEIPT_BUCKET).remove([path]);

@@ -29,13 +29,48 @@ export type ServiceHistoryEntry = {
   date: string | null;
   odo: number | null;
   notes: string | null;
+  category: string | null;
+  totalCost: number | null;
   attachments: {
     id: string;
     name: string;
     url: string | null;
     isImage: boolean;
+    amount: number | null;
+    label: string | null;
   }[];
 };
+
+// Expense categories offered on the Add Service form (kept in sync with the
+// server's EXPENSE_CATEGORIES allow-list).
+const EXPENSE_CATEGORIES = [
+  "Suspension",
+  "Tires",
+  "Engine",
+  "Drivetrain/Transmission",
+  "Brakes",
+  "Fluids & Filters",
+  "Electrical",
+  "Other",
+];
+const DEFAULT_CATEGORY = "Fluids & Filters";
+
+// "$1,250.00" — null/blank renders nothing.
+function money(n: number | null | undefined): string {
+  if (n == null) return "";
+  return (
+    "$" +
+    n.toLocaleString("en-US", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })
+  );
+}
+
+function parseMoney(raw: string): number {
+  const n = Number(raw.replace(/[$,\s]/g, ""));
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
 
 const STATUS: Record<
   MaintItem["status"],
@@ -90,10 +125,12 @@ export function MaintenanceView({
   currentOdo,
   items,
   history,
+  totalSpend,
 }: {
   currentOdo: number;
   items: MaintItem[];
   history: ServiceHistoryEntry[];
+  totalSpend: number;
 }) {
   const [logItem, setLogItem] = useState<MaintItem | null>(null);
   const [editItem, setEditItem] = useState<MaintItem | null>(null);
@@ -256,7 +293,7 @@ export function MaintenanceView({
           </div>
         )}
 
-        <ServiceHistory history={history} />
+        <ServiceHistory history={history} totalSpend={totalSpend} />
       </div>
 
       {logItem ? (
@@ -280,16 +317,32 @@ export function MaintenanceView({
   );
 }
 
-function ServiceHistory({ history }: { history: ServiceHistoryEntry[] }) {
+function ServiceHistory({
+  history,
+  totalSpend,
+}: {
+  history: ServiceHistoryEntry[];
+  totalSpend: number;
+}) {
   return (
     <section className="mt-6">
-      <div className="mb-2 flex items-center gap-2">
-        <span className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-indigo-600">
-          Service history
-        </span>
-        <span className="font-mono text-[11px] tabular-nums text-fg-subtle">
-          · {history.length}
-        </span>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <span className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-indigo-600">
+            Service history
+          </span>
+          <span className="font-mono text-[11px] tabular-nums text-fg-subtle">
+            · {history.length}
+          </span>
+        </div>
+        {totalSpend > 0 ? (
+          <div className="rounded-full bg-elevated px-3 py-[3px] font-mono text-[11px] font-bold text-fg">
+            <span className="text-fg-subtle">Total spend </span>
+            <span className="tabular-nums text-emerald-700">
+              {money(totalSpend)}
+            </span>
+          </div>
+        ) : null}
       </div>
       {history.length === 0 ? (
         <div className="rounded-xl border border-dashed border-line bg-card px-4 py-10 text-center font-mono text-[12px] text-fg-subtle">
@@ -304,20 +357,38 @@ function ServiceHistory({ history }: { history: ServiceHistoryEntry[] }) {
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <h3 className="truncate text-[14px] font-semibold text-fg">
-                    {h.serviceName}
-                  </h3>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="truncate text-[14px] font-semibold text-fg">
+                      {h.serviceName}
+                    </h3>
+                    {h.category ? (
+                      <span className="shrink-0 rounded-sm bg-indigo-100 px-1.5 py-[1px] font-mono text-[9.5px] font-bold uppercase tracking-[0.06em] text-indigo-700">
+                        {h.category}
+                      </span>
+                    ) : null}
+                  </div>
                   <p className="mt-0.5 font-mono text-[11px] text-fg-subtle">
                     {h.date ?? "—"}
                     {h.odo != null ? ` · ${h.odo.toLocaleString()} mi` : ""}
                   </p>
                 </div>
-                {h.attachments.length > 0 ? (
-                  <span className="shrink-0 rounded-full bg-elevated px-2 py-[2px] font-mono text-[10px] font-bold uppercase tracking-[0.06em] text-fg-muted">
-                    {h.attachments.length} receipt
-                    {h.attachments.length === 1 ? "" : "s"}
-                  </span>
-                ) : null}
+                <div className="shrink-0 text-right">
+                  {h.totalCost != null ? (
+                    <div className="text-[17px] font-bold leading-none tabular-nums text-emerald-700">
+                      {money(h.totalCost)}
+                    </div>
+                  ) : (
+                    <div className="font-mono text-[11px] text-fg-subtle">
+                      no cost
+                    </div>
+                  )}
+                  {h.attachments.length > 0 ? (
+                    <div className="mt-1 font-mono text-[9px] font-bold uppercase tracking-[0.08em] text-fg-subtle">
+                      {h.attachments.length} receipt
+                      {h.attachments.length === 1 ? "" : "s"}
+                    </div>
+                  ) : null}
+                </div>
               </div>
               {h.notes ? (
                 <p className="mt-1.5 whitespace-pre-wrap text-[12px] text-fg-muted">
@@ -325,46 +396,57 @@ function ServiceHistory({ history }: { history: ServiceHistoryEntry[] }) {
                 </p>
               ) : null}
               {h.attachments.length > 0 ? (
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {h.attachments.map((a) =>
-                    a.url ? (
-                      a.isImage ? (
-                        <a
-                          key={a.id}
-                          href={a.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          title={a.name}
-                          className="block h-16 w-16 overflow-hidden rounded-md border border-line"
-                        >
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img
-                            src={a.url}
-                            alt={a.name}
-                            className="h-full w-full object-cover"
-                          />
-                        </a>
+                <div className="mt-2 flex flex-wrap gap-3">
+                  {h.attachments.map((a) => (
+                    <div key={a.id} className="w-16">
+                      {a.url ? (
+                        a.isImage ? (
+                          <a
+                            href={a.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title={a.name}
+                            className="block h-16 w-16 overflow-hidden rounded-md border border-line"
+                          >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={a.url}
+                              alt={a.name}
+                              className="h-full w-full object-cover"
+                            />
+                          </a>
+                        ) : (
+                          <a
+                            href={a.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title={a.name}
+                            className="flex h-16 w-16 items-center justify-center rounded-md border border-line bg-elevated font-mono text-[11px] font-bold text-red-700"
+                          >
+                            PDF
+                          </a>
+                        )
                       ) : (
-                        <a
-                          key={a.id}
-                          href={a.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          title={a.name}
-                          className="flex h-16 w-16 items-center justify-center rounded-md border border-line bg-elevated font-mono text-[11px] font-bold text-red-700"
-                        >
-                          PDF
-                        </a>
-                      )
-                    ) : (
-                      <span
-                        key={a.id}
-                        className="flex h-16 w-16 items-center justify-center rounded-md border border-dashed border-line text-center font-mono text-[9px] text-fg-subtle"
-                      >
-                        no link
-                      </span>
-                    ),
-                  )}
+                        <span className="flex h-16 w-16 items-center justify-center rounded-md border border-dashed border-line text-center font-mono text-[9px] text-fg-subtle">
+                          no link
+                        </span>
+                      )}
+                      {a.label || a.amount != null ? (
+                        <div className="mt-1 leading-tight">
+                          {a.label ? (
+                            <div className="truncate font-mono text-[9.5px] font-bold uppercase tracking-[0.04em] text-fg-muted">
+                              {a.label}
+                            </div>
+                          ) : null}
+                          {a.amount != null ? (
+                            <div className="font-mono text-[10px] font-bold tabular-nums text-emerald-700">
+                              {money(a.amount)}
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
+                  ))}
                 </div>
               ) : null}
             </div>
@@ -374,6 +456,13 @@ function ServiceHistory({ history }: { history: ServiceHistoryEntry[] }) {
     </section>
   );
 }
+
+type ReceiptRow = {
+  id: string;
+  file: File;
+  amount: string;
+  label: string;
+};
 
 function AddServiceModal({
   items,
@@ -385,6 +474,12 @@ function AddServiceModal({
   onClose: () => void;
 }) {
   const [custom, setCustom] = useState(items.length === 0);
+  const [rows, setRows] = useState<ReceiptRow[]>([]);
+  // The total cost auto-tracks the sum of receipt amounts until the user edits
+  // it (then `totalDirty` pins their override).
+  const [total, setTotal] = useState("");
+  const [totalDirty, setTotalDirty] = useState(false);
+
   const [state, action, pending] = useActionState<
     { ok: boolean; error: string | null },
     FormData
@@ -416,10 +511,52 @@ function AddServiceModal({
   }, [pending, onClose]);
 
   const today = new Date().toISOString().slice(0, 10);
+  const sum = rows.reduce((s, r) => s + parseMoney(r.amount), 0);
+  const totalValue = totalDirty ? total : sum > 0 ? sum.toFixed(2) : "";
+
+  function onPickFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const picked = Array.from(e.target.files ?? []);
+    if (picked.length > 0) {
+      setRows((prev) => [
+        ...prev,
+        ...picked.map((file) => ({
+          id: crypto.randomUUID(),
+          file,
+          amount: "",
+          label: "",
+        })),
+      ]);
+    }
+    e.target.value = ""; // allow re-selecting the same file
+  }
+
+  function patchRow(id: string, patch: Partial<ReceiptRow>) {
+    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
+  }
+
+  function removeRow(id: string) {
+    setRows((prev) => prev.filter((r) => r.id !== id));
+  }
+
+  // Per-file metadata can't ride a native file input, so build the FormData by
+  // hand: append each File alongside its amount + label in matching index
+  // order, then dispatch the action.
+  function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (pending) return;
+    const fd = new FormData(e.currentTarget);
+    fd.set("total_cost", totalValue);
+    for (const r of rows) {
+      fd.append("files", r.file);
+      fd.append("amount", r.amount);
+      fd.append("label", r.label);
+    }
+    action(fd);
+  }
 
   return (
     <ModalShell title="Add service" pending={pending} onClose={onClose}>
-      <form action={action} onClick={(e) => e.stopPropagation()}>
+      <form onSubmit={onSubmit} onClick={(e) => e.stopPropagation()}>
         <div className="space-y-3 bg-elevated px-4 py-4">
           <div>
             <label className={LABEL}>Service type</label>
@@ -449,6 +586,20 @@ function AddServiceModal({
               />
             </div>
           ) : null}
+          <div>
+            <label className={LABEL}>Expense category</label>
+            <select
+              name="category"
+              defaultValue={DEFAULT_CATEGORY}
+              className={FIELD}
+            >
+              {EXPENSE_CATEGORIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={LABEL}>Date</label>
@@ -476,19 +627,104 @@ function AddServiceModal({
             <label className={LABEL}>Notes (optional)</label>
             <textarea name="notes" rows={2} autoComplete="off" className={FIELD} />
           </div>
+
+          {/* Receipts — each carries its own amount + label (e.g. Parts/Labor) */}
           <div>
             <label className={LABEL}>Receipts (optional)</label>
-            <input
-              name="files"
-              type="file"
-              multiple
-              accept="image/*,application/pdf,.heic"
-              className="mt-1 block w-full text-[12px] text-fg file:mr-3 file:rounded-md file:border file:border-line-strong file:bg-card file:px-3 file:py-1.5 file:font-mono file:text-[11px] file:font-bold file:uppercase file:tracking-[0.08em] file:text-fg-muted"
-            />
+            {rows.length > 0 ? (
+              <div className="mt-1.5 space-y-2">
+                {rows.map((r) => (
+                  <div
+                    key={r.id}
+                    className="rounded-md border border-line bg-card p-2.5"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-fg-muted">
+                        {r.file.name}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeRow(r.id)}
+                        className="shrink-0 rounded-sm border border-line-strong px-1.5 py-[1px] font-mono text-[11px] font-bold text-fg-subtle transition-colors hover:bg-elevated hover:text-red-700"
+                        aria-label={`Remove ${r.file.name}`}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      <div className="relative">
+                        <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 font-mono text-[12px] text-fg-subtle">
+                          $
+                        </span>
+                        <input
+                          value={r.amount}
+                          onChange={(e) =>
+                            patchRow(r.id, { amount: e.target.value })
+                          }
+                          inputMode="decimal"
+                          autoComplete="off"
+                          placeholder="0.00"
+                          aria-label="Amount"
+                          className="w-full rounded-md border border-line-strong bg-card py-1.5 pl-5 pr-2 text-[13px] tabular-nums text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
+                        />
+                      </div>
+                      <input
+                        value={r.label}
+                        onChange={(e) =>
+                          patchRow(r.id, { label: e.target.value })
+                        }
+                        autoComplete="off"
+                        placeholder="Parts / Labor"
+                        aria-label="Label"
+                        className="w-full rounded-md border border-line-strong bg-card px-2 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+            <label className="mt-1.5 inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-line-strong bg-card px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-fg-muted transition-colors hover:bg-elevated hover:text-fg">
+              + Add receipt
+              <input
+                type="file"
+                multiple
+                accept="image/*,application/pdf,.heic"
+                onChange={onPickFiles}
+                className="hidden"
+              />
+            </label>
             <p className="mt-1 font-mono text-[10px] text-fg-subtle">
-              Photos or PDF · up to 20 MB each.
+              Photos or PDF · up to 20 MB each · one amount + label per receipt.
             </p>
           </div>
+
+          {/* Total cost — defaults to the receipt sum, editable */}
+          <div>
+            <label className={LABEL}>Total cost</label>
+            <div className="relative mt-1">
+              <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 font-mono text-[13px] text-fg-subtle">
+                $
+              </span>
+              <input
+                value={totalValue}
+                onChange={(e) => {
+                  setTotalDirty(true);
+                  setTotal(e.target.value);
+                }}
+                inputMode="decimal"
+                autoComplete="off"
+                placeholder="0.00"
+                className="w-full rounded-md border border-line-strong bg-card py-1.5 pl-6 pr-2 text-[13px] font-semibold tabular-nums text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
+              />
+            </div>
+            <p className="mt-1 font-mono text-[10px] text-fg-subtle">
+              {sum > 0
+                ? `Auto-summed from receipts: ${money(sum)}` +
+                  (totalDirty ? " · overridden" : " · edit to override")
+                : "No receipt amounts — enter a total for cash/no-receipt jobs."}
+            </p>
+          </div>
+
           {state.error ? (
             <p role="alert" className="text-[12px] font-semibold text-red-700">
               {state.error}

@@ -47,6 +47,8 @@ type LogRow = {
   service_odo: number | null;
   service_date: string | null;
   notes: string | null;
+  category: string | null;
+  total_cost: number | string | null;
   created_at: string;
 };
 type AttRow = {
@@ -55,7 +57,15 @@ type AttRow = {
   file_path: string;
   file_name: string | null;
   content_type: string | null;
+  amount: number | string | null;
+  label: string | null;
 };
+
+function num(v: number | string | null): number | null {
+  if (v == null) return null;
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+}
 
 const RECEIPT_BUCKET = "maintenance-receipts";
 
@@ -71,6 +81,7 @@ async function loadMaintenance(): Promise<{
   currentOdo: number;
   items: MaintItem[];
   history: ServiceHistoryEntry[];
+  totalSpend: number;
 }> {
   const sb = createServiceRoleClient();
 
@@ -92,7 +103,7 @@ async function loadMaintenance(): Promise<{
       sb
         .from("maintenance_log")
         .select(
-          "id, item_id, service_name, service_odo, service_date, notes, created_at",
+          "id, item_id, service_name, service_odo, service_date, notes, category, total_cost, created_at",
         )
         .order("service_date", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false })
@@ -141,7 +152,7 @@ async function loadMaintenance(): Promise<{
   if (logs.length > 0) {
     const { data: attRows } = await sb
       .from("maintenance_attachments")
-      .select("id, log_id, file_path, file_name, content_type")
+      .select("id, log_id, file_path, file_name, content_type, amount, label")
       .in(
         "log_id",
         logs.map((l) => l.id),
@@ -158,6 +169,8 @@ async function loadMaintenance(): Promise<{
           name: a.file_name ?? "receipt",
           url: signed?.signedUrl ?? null,
           isImage: (a.content_type ?? "").startsWith("image/"),
+          amount: num(a.amount),
+          label: a.label,
         });
         attByLog.set(a.log_id, list);
       }),
@@ -173,15 +186,25 @@ async function loadMaintenance(): Promise<{
     date: l.service_date,
     odo: l.service_odo,
     notes: l.notes,
+    category: l.category,
+    totalCost: num(l.total_cost),
     attachments: attByLog.get(l.id) ?? [],
   }));
 
-  return { currentOdo, items, history };
+  // Total maintenance spend across every logged service.
+  const totalSpend = history.reduce((s, h) => s + (h.totalCost ?? 0), 0);
+
+  return { currentOdo, items, history, totalSpend };
 }
 
 export default async function MaintenancePage() {
-  const { currentOdo, items, history } = await loadMaintenance();
+  const { currentOdo, items, history, totalSpend } = await loadMaintenance();
   return (
-    <MaintenanceView currentOdo={currentOdo} items={items} history={history} />
+    <MaintenanceView
+      currentOdo={currentOdo}
+      items={items}
+      history={history}
+      totalSpend={totalSpend}
+    />
   );
 }
