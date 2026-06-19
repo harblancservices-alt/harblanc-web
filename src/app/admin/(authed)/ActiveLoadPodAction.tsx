@@ -19,10 +19,12 @@ export function ActiveLoadPodAction({
   loadId,
   broker,
   lane,
+  podCount = 0,
 }: {
   loadId: string;
   broker: string;
   lane: string;
+  podCount?: number;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -31,9 +33,9 @@ export function ActiveLoadPodAction({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="shrink-0 rounded-md border border-line-strong bg-card px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-fg-muted transition-colors hover:bg-elevated hover:text-fg"
+        className="flex w-full items-center justify-center gap-1.5 rounded-md border border-red-700 bg-red-600 px-3 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-red-700"
       >
-        + POD
+        + Add POD{podCount > 0 ? ` · ${podCount}` : ""}
       </button>
       {open ? (
         <PodModal

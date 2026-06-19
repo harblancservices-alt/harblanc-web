@@ -122,49 +122,45 @@ export function DashboardView({ data }: { data: DashboardData }) {
               <div
                 key={l.id}
                 className={
-                  "flex items-center justify-between gap-3 px-3.5 py-2.5 " +
+                  "px-3.5 py-2.5 " +
                   (i === data.activeLoads.length - 1 ? "" : "border-b border-line")
                 }
               >
-                <Link
-                  href={"/admin/dispatch/loads/" + l.id}
-                  prefetch={false}
-                  className="flex min-w-0 flex-1 items-center gap-2.5 transition-opacity hover:opacity-80"
-                >
-                  <span
-                    className={
-                      "shrink-0 rounded-sm px-1.5 py-[1px] font-mono text-[10px] font-bold uppercase tracking-[0.06em] " +
-                      (LOAD_STATUS_PILL[l.status] ?? "bg-elevated text-fg-muted")
-                    }
+                <div className="flex items-center justify-between gap-3">
+                  <Link
+                    href={"/admin/dispatch/loads/" + l.id}
+                    prefetch={false}
+                    className="flex min-w-0 flex-1 items-center gap-2.5 transition-opacity hover:opacity-80"
                   >
-                    {LOAD_STATUS_LABEL[l.status] ?? l.status}
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block truncate text-[13px] font-semibold text-fg">
-                      {l.broker}
+                    <span
+                      className={
+                        "shrink-0 rounded-sm px-1.5 py-[1px] font-mono text-[10px] font-bold uppercase tracking-[0.06em] " +
+                        (LOAD_STATUS_PILL[l.status] ?? "bg-elevated text-fg-muted")
+                      }
+                    >
+                      {LOAD_STATUS_LABEL[l.status] ?? l.status}
                     </span>
-                    <span className="block truncate text-[11px] text-fg-muted">
-                      {l.lane}
+                    <span className="min-w-0">
+                      <span className="block truncate text-[13px] font-semibold text-fg">
+                        {l.broker}
+                      </span>
+                      <span className="block truncate text-[11px] text-fg-muted">
+                        {l.lane}
+                      </span>
                     </span>
-                  </span>
-                </Link>
-                <span className="flex shrink-0 flex-col items-end gap-1.5">
-                  <span className="font-mono text-[13px] font-bold tabular-nums text-green-700">
+                  </Link>
+                  <span className="shrink-0 font-mono text-[13px] font-bold tabular-nums text-green-700">
                     {l.rateDisplay}
                   </span>
-                  <span className="flex items-center gap-1.5">
-                    {l.podCount > 0 ? (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-1.5 py-[1px] font-mono text-[9.5px] font-bold uppercase tracking-[0.06em] text-green-700">
-                        POD · {l.podCount}
-                      </span>
-                    ) : null}
-                    <ActiveLoadPodAction
-                      loadId={l.id}
-                      broker={l.broker}
-                      lane={l.lane}
-                    />
-                  </span>
-                </span>
+                </div>
+                <div className="mt-2.5">
+                  <ActiveLoadPodAction
+                    loadId={l.id}
+                    broker={l.broker}
+                    lane={l.lane}
+                    podCount={l.podCount}
+                  />
+                </div>
               </div>
             ))}
           </div>
