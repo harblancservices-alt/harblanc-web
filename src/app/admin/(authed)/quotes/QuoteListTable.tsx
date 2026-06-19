@@ -4,7 +4,6 @@ import { useState, useTransition, useMemo } from "react";
 import Link from "next/link";
 import { relativeTime } from "@/lib/admin/format";
 import { softDeleteQuote, softDeleteQuotes } from "./actions";
-import { StatusBadge } from "./StatusBadge";
 import {
   LEAD_STATUS_LABELS,
   type LeadStatus,
@@ -393,9 +392,9 @@ export function QuoteListTable({
               showMarker
             />
             {groups.needsAttention.length > 0 ? (
-              <div className="mt-3 space-y-3 sm:mt-4 sm:space-y-4">
+              <div className="mt-3 space-y-2.5 sm:mt-4">
                 {groups.needsAttention.map((row) => (
-                  <AttentionCard
+                  <LeadCard
                     key={row.id}
                     row={row}
                     selectMode={selectMode}
@@ -586,9 +585,32 @@ function LightHeader({ label, count }: { label: string; count: number }) {
   );
 }
 
-// ─── Tier 1 · Attention card ─────────────────────────────────────
+// ─── Lead card — standardized site card style ────────────────────
+//
+// One card shape for every lead (Needs-attention and Medium tiers), matching
+// the cards used on the loads list, applications, broker loads, and the
+// dashboard: rounded-md border border-line bg-card p-3 shadow-sm, a mono
+// status pill, mono lane, muted freight, and a footer with Trash + Open lead.
+// The urgency chip only shows when a lead is flagged; an alert-severity flag
+// tints the card border red.
 
-function AttentionCard({
+// Lead-status → pill colours, in the same family as the load-status pills.
+const LEAD_PILL: Partial<Record<LeadStatus, string>> = {
+  new: "bg-amber-100 text-amber-700",
+  contacted: "bg-amber-100 text-amber-700",
+  estimate_sent: "bg-blue-100 text-blue-700",
+  awaiting_confirmation: "bg-blue-100 text-blue-700",
+  awaiting_payment: "bg-indigo-100 text-indigo-700",
+  ready_to_dispatch: "bg-green-100 text-green-700",
+  dispatched: "bg-blue-100 text-blue-700",
+  picked_up: "bg-blue-100 text-blue-700",
+  in_transit: "bg-blue-100 text-blue-700",
+  delivered: "bg-green-100 text-green-700",
+  archived: "bg-elevated text-fg-muted",
+  lost: "bg-elevated text-fg-muted",
+};
+
+function LeadCard({
   row,
   selectMode,
   isSelected,
@@ -607,101 +629,100 @@ function AttentionCard({
   const since = sinceLabel(row);
   const freight = freightLabel(row);
   const top = row.topUrgency;
-  const urgencyCls =
-    top?.severity === "alert"
-      ? "border border-red-300 text-red-700"
-      : "border border-line text-fg";
+  const alert = top?.severity === "alert";
+  const pill = LEAD_PILL[row.lead_status] ?? "bg-elevated text-fg-muted";
+  const href = `/admin/quotes/${row.id}`;
 
   return (
     <div
       className={
-        "relative border-2 border-line bg-card px-5 py-4 transition-colors sm:px-6 sm:py-5 " +
-        (isSelected ? "bg-[#f3f1e9]" : "hover:bg-[#fafaf6]")
+        "rounded-md border bg-card p-3 shadow-sm transition-colors " +
+        (isSelected
+          ? "border-line bg-elevated"
+          : alert
+            ? "border-red-200 hover:bg-elevated"
+            : "border-line hover:bg-elevated")
       }
     >
-      {/* Red corner mark — admin palette sanctioned alert signal */}
-      <span
-        aria-hidden
-        className="pointer-events-none absolute -left-0.5 -top-0.5 inline-block h-4 w-4 bg-red-700"
-      />
-
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex items-start gap-2.5">
         {selectMode ? (
           <input
             type="checkbox"
             checked={isSelected}
             onChange={(e) => onToggle(e.target.checked)}
             onClick={(e) => e.stopPropagation()}
-            className="mt-2 h-4 w-4 shrink-0 cursor-pointer accent-black"
+            className="mt-1 h-4 w-4 shrink-0 cursor-pointer accent-black"
             aria-label={`Select ${row.name}`}
           />
         ) : null}
-        <div className="min-w-0 flex-1">
-          <Link href={`/admin/quotes/${row.id}`} className="block">
-            <h3 className="truncate text-[22px] font-bold leading-tight text-fg sm:text-[26px]">
-              {row.name}
-            </h3>
-          </Link>
-        </div>
-        <p className="shrink-0 pt-1 font-mono text-[12px] font-bold tabular-nums text-fg sm:text-[13px]">
-          {since}
-        </p>
+
+        <Link href={href} className="block min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-3">
+            <span className="flex min-w-0 items-center gap-2">
+              <span
+                className={
+                  "shrink-0 rounded-sm px-1.5 py-[1px] font-mono text-[10px] font-bold uppercase tracking-[0.06em] " +
+                  pill
+                }
+              >
+                {LEAD_STATUS_LABELS[row.lead_status]}
+              </span>
+              <h3 className="truncate text-[14px] font-semibold text-fg">
+                {row.name}
+              </h3>
+            </span>
+            <span className="shrink-0 font-mono text-[11px] tabular-nums text-fg-subtle">
+              {since}
+            </span>
+          </div>
+
+          <p className="mt-1 truncate font-mono text-[12px] tabular-nums text-fg-muted">
+            {lane}
+          </p>
+
+          {top || freight ? (
+            <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+              {top ? (
+                <span
+                  className={
+                    "rounded-sm px-1.5 py-[1px] font-mono text-[10px] font-bold uppercase tracking-[0.06em] " +
+                    (alert
+                      ? "bg-red-100 text-red-700"
+                      : "bg-amber-100 text-amber-700")
+                  }
+                >
+                  {top.label}
+                </span>
+              ) : null}
+              {freight ? (
+                <span className="truncate text-[11px] text-fg-muted">
+                  {freight}
+                </span>
+              ) : null}
+            </div>
+          ) : null}
+        </Link>
       </div>
 
-      {/* Lane zone */}
-      <Link href={`/admin/quotes/${row.id}`} className="block">
-        <div className="mt-3 flex items-baseline gap-3 border-t border-dashed border-line pt-3">
-          <span className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-fg">
-            Lane
-          </span>
-          <span className="truncate font-mono text-[18px] font-bold tabular-nums text-fg sm:text-[22px]">
-            {lane}
-          </span>
-        </div>
-      </Link>
-
-      {/* Action zone */}
-      <div className="mt-4 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="inline-flex items-center bg-canvas px-2 py-0.5 font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-fg shadow-[inset_0_0_0_1.5px_#fff]">
-            {LEAD_STATUS_LABELS[row.lead_status]}
-          </span>
-          {top ? (
-            <span
-              className={
-                "inline-flex items-center bg-card px-2 py-0.5 font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] " +
-                urgencyCls
-              }
-            >
-              {top.label}
-            </span>
-          ) : null}
-          {freight ? (
-            <span className="inline-flex items-center border border-line/40 bg-card px-2 py-0.5 font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-fg">
-              {freight}
-            </span>
-          ) : null}
-        </div>
-        <div className="flex items-center justify-end gap-2">
-          {selectMode ? null : (
-            <button
-              type="button"
-              onClick={onTrash}
-              disabled={isPending}
-              className="inline-flex items-center border border-line bg-card px-3 py-1.5 font-mono text-[10.5px] font-bold uppercase tracking-[0.16em] text-fg transition-colors hover:bg-[#f3f1e9] disabled:cursor-not-allowed disabled:opacity-50"
-              aria-label={`Move ${row.name} to trash`}
-            >
-              Trash
-            </button>
-          )}
+      {selectMode ? null : (
+        <div className="mt-2.5 flex items-center justify-end gap-2 border-t border-line pt-2.5">
+          <button
+            type="button"
+            onClick={onTrash}
+            disabled={isPending}
+            className="rounded-md border border-red-300 bg-card px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-red-700 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+            aria-label={`Move ${row.name} to trash`}
+          >
+            Trash
+          </button>
           <Link
-            href={`/admin/quotes/${row.id}`}
-            className="inline-flex items-center bg-canvas px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-fg shadow-[inset_0_0_0_2.5px_#ffffff] transition-colors hover:bg-elevated"
+            href={href}
+            className="rounded-md border border-red-700 bg-red-600 px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-red-700"
           >
             Open lead →
           </Link>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -731,9 +752,9 @@ function MediumGroup({
   return (
     <>
       <MediumHeader label={label} count={count} />
-      <div className="mt-3 space-y-2 sm:mt-3.5">
+      <div className="mt-3 space-y-2.5 sm:mt-3.5">
         {rows.map((row) => (
-          <MediumCard
+          <LeadCard
             key={row.id}
             row={row}
             selectMode={selectMode}
@@ -745,88 +766,6 @@ function MediumGroup({
         ))}
       </div>
     </>
-  );
-}
-
-function MediumCard({
-  row,
-  selectMode,
-  isSelected,
-  onToggle,
-  onTrash,
-  isPending,
-}: {
-  row: QuoteListRow;
-  selectMode: boolean;
-  isSelected: boolean;
-  onToggle: (v: boolean) => void;
-  onTrash: () => void;
-  isPending: boolean;
-}) {
-  const lane = laneLabel(row);
-  const since = sinceLabel(row);
-  const freight = freightLabel(row);
-
-  return (
-    <div
-      className={
-        "border border-line bg-card px-4 py-3 transition-colors sm:px-4 sm:py-3.5 " +
-        (isSelected ? "bg-[#f3f1e9]" : "hover:bg-[#fafaf6]")
-      }
-    >
-      <div className="flex items-start justify-between gap-3">
-        {selectMode ? (
-          <input
-            type="checkbox"
-            checked={isSelected}
-            onChange={(e) => onToggle(e.target.checked)}
-            onClick={(e) => e.stopPropagation()}
-            className="mt-1.5 h-4 w-4 shrink-0 cursor-pointer accent-black"
-            aria-label={`Select ${row.name}`}
-          />
-        ) : null}
-        <div className="min-w-0 flex-1">
-          <Link href={`/admin/quotes/${row.id}`} className="block">
-            <div className="flex items-baseline justify-between gap-3">
-              <h3 className="truncate text-[15.5px] font-bold leading-tight text-fg sm:text-[17px]">
-                {row.name}
-              </h3>
-              <p className="shrink-0 font-mono text-[11px] font-bold tabular-nums text-fg">
-                {since}
-              </p>
-            </div>
-            <p className="mt-1 truncate font-mono text-[12.5px] font-bold tabular-nums text-fg sm:text-[13px]">
-              {lane}
-            </p>
-            <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <StatusBadge status={row.lead_status} />
-                {freight ? (
-                  <span className="font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-fg">
-                    {freight}
-                  </span>
-                ) : null}
-              </div>
-              <span className="font-mono text-[10.5px] font-bold uppercase tracking-[0.18em] text-fg">
-                Open →
-              </span>
-            </div>
-          </Link>
-        </div>
-        {selectMode ? null : (
-          <button
-            type="button"
-            onClick={onTrash}
-            disabled={isPending}
-            className="shrink-0 self-start font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-fg-subtle transition-colors hover:text-fg disabled:opacity-50"
-            aria-label={`Move ${row.name} to trash`}
-            title="Move to trash"
-          >
-            ×
-          </button>
-        )}
-      </div>
-    </div>
   );
 }
 
