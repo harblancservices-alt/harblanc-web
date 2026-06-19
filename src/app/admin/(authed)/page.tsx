@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { recentAgeLabel } from "@/lib/dispatch/dashboard-view";
-import { lookupZip } from "@/lib/dispatch/distance";
 import { loadPipelineCards } from "@/lib/dispatch/pipeline";
 import {
   computeMaintenance,
@@ -24,50 +22,32 @@ export const metadata: Metadata = {
  * Owner Dashboard — opportunity inbox.
  *
  * The quote pipeline funnel now lives at the top of the Quotes page
- * (QuotesPipeline + loadPipelineCards). The dashboard keeps job
- * applications, active loads, and the "Expired quotes" table — the last of
- * which still derives from the shared pipeline cards.
+ * (QuotesPipeline + loadPipelineCards). The dashboard keeps active loads, the
+ * truck-maintenance widget, and the "Expired quotes" table — the last of
+ * which still derives from the shared pipeline cards — under a top alert bar
+ * that flags new job applications and new quote requests.
  */
 
-type ApplicationRow = {
-  id: string;
-  created_at: string;
-  name: string | null;
-  equipment_type: string | null;
-  cdl_status: string | null;
-  phone: string | null;
-  email: string | null;
-  years_experience: string | number | null;
-  home_base: string | null;
-};
-
-function placeLabel(city: string | null, state: string | null): string {
-  const parts: string[] = [];
-  if (city && city.trim()) parts.push(city.trim());
-  if (state && state.trim()) parts.push(state.trim());
-  return parts.join(", ");
-}
-
-// "Fri, Jun 13, 2026" — full date shown alongside the age on each row.
-function fullDate(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC",
-  });
-}
+// "New / not yet handled" definitions for the top alert bar:
+//   - Applications have no reviewed/handled field (schema is created_at +
+//     deleted_at only), so "new" = active and received within the last 24h,
+//     matching the <24h "indigo" convention already used on the apps table.
+//   - Quote requests carry a lead_status that defaults to 'new' on intake and
+//     advances ('contacted', 'estimate_sent', …) the moment Brent works them,
+//     so "new" = active (not trashed) and still lead_status = 'new'.
+const NEW_APPLICATION_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 async function loadDashboard(): Promise<DashboardData> {
   const sb = createServiceRoleClient();
   const now = new Date();
+  const appCutoff = new Date(
+    now.getTime() - NEW_APPLICATION_WINDOW_MS,
+  ).toISOString();
 
   const [
     pipelineCards,
-    { data: appRows },
+    { count: newApplicationCount },
+    { count: newQuoteCount },
     { data: loadRows },
     { data: brokerRows },
     { data: tripRows },
@@ -76,15 +56,18 @@ async function loadDashboard(): Promise<DashboardData> {
   ] = await Promise.all([
     // Shared pipeline cards — the dashboard only renders the expired ones.
     loadPipelineCards(),
+    // New job applications: active + received in the last 24h.
     sb
       .from("applications")
-      .select(
-        "id, created_at, name, equipment_type, cdl_status, phone, email, years_experience, home_base",
-      )
+      .select("*", { count: "exact", head: true })
       .is("deleted_at", null)
-      .order("created_at", { ascending: false })
-      .limit(8)
-      .returns<ApplicationRow[]>(),
+      .gte("created_at", appCutoff),
+    // New quote requests: active + still at the default 'new' lead_status.
+    sb
+      .from("quote_requests")
+      .select("*", { count: "exact", head: true })
+      .is("deleted_at", null)
+      .eq("lead_status", "new"),
     sb
       .from("loads")
       .select("id, broker_name, origin, destination, rate, status")
@@ -147,32 +130,6 @@ async function loadDashboard(): Promise<DashboardData> {
   // Expired quotes drop off the forward pipeline into their own section.
   const expiredQuotes = pipelineCards.filter((c) => c.status === "expired");
 
-  const applications = (appRows ?? []).map((a) => {
-    const yrs =
-      typeof a.years_experience === "number"
-        ? String(a.years_experience)
-        : (a.years_experience ?? "").toString().trim();
-    // Home base will be entered as a ZIP later; show it as City, State when
-    // it parses as a ZIP, otherwise show whatever's stored.
-    const hb = a.home_base?.trim() || "";
-    let homeBase = hb || "—";
-    if (/^\d{5}(-\d{4})?$/.test(hb)) {
-      const z = lookupZip(hb);
-      if (z) homeBase = placeLabel(z.city, z.state) || hb;
-    }
-    return {
-      id: a.id,
-      name: a.name?.trim() || "Applicant",
-      equipment: a.equipment_type?.trim() || a.cdl_status?.trim() || "—",
-      experience: yrs ? yrs + "y" : "—",
-      phone: a.phone?.trim() || "—",
-      email: a.email?.trim() || "—",
-      homeBase,
-      ageLabel: recentAgeLabel(a.created_at, now),
-      dateLabel: fullDate(a.created_at),
-    };
-  });
-
   // Active dispatch loads (not delivered/cancelled) for the at-a-glance card.
   const activeLoads = (loadRows ?? []).map((l) => {
     const rateN =
@@ -216,8 +173,9 @@ async function loadDashboard(): Promise<DashboardData> {
   });
 
   return {
+    newApplicationCount: newApplicationCount ?? 0,
+    newQuoteCount: newQuoteCount ?? 0,
     expiredQuotes,
-    applications,
     activeLoads,
     maintenance,
     brokerNames,

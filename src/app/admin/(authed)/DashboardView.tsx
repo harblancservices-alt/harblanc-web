@@ -8,10 +8,10 @@ import { IntervalBar } from "./maintenance/IntervalBar";
 /**
  * Owner Dashboard — opportunity inbox (render layer).
  *
- * Two sections only: incoming quote requests as colour-coded cards (red =
- * never opened, amber = sent 24h+ ago and needs follow-up), and job
- * applications in their own separate area below. Bulk cleanup lives on the
- * Quotes and Applications tabs, not here.
+ * A slim alert bar sits at the very top: quiet/muted when nothing is waiting,
+ * and a prominent red bar when there are new job applications and/or new
+ * quote requests (each part deep-links to its tab). Below it: active loads,
+ * the truck-maintenance widget, and the expired-quotes table.
  */
 
 export type MaintWidgetItem = {
@@ -24,8 +24,9 @@ export type MaintWidgetItem = {
 };
 
 export type DashboardData = {
+  newApplicationCount: number;
+  newQuoteCount: number;
   expiredQuotes: ReadonlyArray<PipelineCard>;
-  applications: ReadonlyArray<ApplicationItem>;
   activeLoads: ReadonlyArray<ActiveLoadItem>;
   maintenance: ReadonlyArray<MaintWidgetItem>;
   brokerNames: ReadonlyArray<string>;
@@ -94,76 +95,14 @@ function spellAge(s: string): string {
   return `${n} ${unit}${n === 1 ? "" : "s"} ago`;
 }
 
-type ApplicationItem = {
-  id: string;
-  name: string;
-  equipment: string;
-  experience: string;
-  phone: string;
-  email: string;
-  homeBase: string;
-  ageLabel: string;
-  dateLabel: string;
-};
-
 export function DashboardView({ data }: { data: DashboardData }) {
   return (
     <div className="min-h-screen border-t border-line bg-canvas text-fg">
+      <AlertBar
+        newApplications={data.newApplicationCount}
+        newQuotes={data.newQuoteCount}
+      />
       <div className="w-full px-4 py-4 sm:px-6 lg:px-8">
-        <SectionLabel title="Job applications" count={data.applications.length} />
-
-        {data.applications.length === 0 ? (
-          <EmptyCard text="No applications yet." />
-        ) : (
-          // Same presentation as the Active loads list below: one card
-          // container, fluid flex rows that stack vertically and never scroll
-          // sideways. Primary + secondary detail on the left, the received
-          // date pill on the right.
-          <div className="overflow-hidden rounded-xl border border-line bg-card shadow-md">
-            {data.applications.map((a, i) => {
-              const spec = [a.equipment, a.experience, a.homeBase]
-                .filter((s) => s && s !== "—")
-                .join(" · ");
-              const contact = [a.phone, a.email]
-                .filter((s) => s && s !== "—")
-                .join(" · ");
-              return (
-                <Link
-                  key={a.id}
-                  href={"/admin/applications/" + a.id}
-                  prefetch={false}
-                  className={
-                    "flex items-center justify-between gap-3 px-3.5 py-2.5 transition-colors hover:bg-elevated " +
-                    (i === data.applications.length - 1
-                      ? ""
-                      : "border-b border-line")
-                  }
-                >
-                  <span className="min-w-0">
-                    <span className="block truncate text-[13px] font-semibold text-fg">
-                      {a.name}
-                    </span>
-                    {spec ? (
-                      <span className="block truncate text-[11px] text-fg-muted">
-                        {spec}
-                      </span>
-                    ) : null}
-                    {contact ? (
-                      <span className="block truncate font-mono text-[11px] text-blue-700">
-                        {contact}
-                      </span>
-                    ) : null}
-                  </span>
-                  <span className="shrink-0">
-                    <DatePill dateLabel={a.dateLabel} ageLabel={a.ageLabel} />
-                  </span>
-                </Link>
-              );
-            })}
-          </div>
-        )}
-
-        <div className="my-5 h-px bg-line" />
         <SectionLabel title="Active loads" count={data.activeLoads.length} />
         {data.activeLoads.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-line bg-card px-4 py-10 text-center">
@@ -341,6 +280,98 @@ export function DashboardView({ data }: { data: DashboardData }) {
   );
 }
 
+/**
+ * Top-of-dashboard alert bar. Quiet/slim when nothing is waiting; a prominent
+ * red bar the moment there's a new job application or a new quote request,
+ * with each count deep-linking to its tab.
+ */
+function AlertBar({
+  newApplications,
+  newQuotes,
+}: {
+  newApplications: number;
+  newQuotes: number;
+}) {
+  const hasAlerts = newApplications > 0 || newQuotes > 0;
+
+  if (!hasAlerts) {
+    return (
+      <div className="flex items-center justify-center gap-1.5 border-b border-line bg-elevated px-4 py-1.5">
+        <span
+          aria-hidden
+          className="h-1.5 w-1.5 rounded-full bg-green-500"
+        />
+        <span className="font-mono text-[10.5px] font-medium uppercase tracking-[0.12em] text-fg-subtle">
+          All clear · no new applications or quote requests
+        </span>
+      </div>
+    );
+  }
+
+  const segments: ReactNode[] = [];
+  if (newApplications > 0) {
+    segments.push(
+      <Link
+        key="apps"
+        href="/admin/applications"
+        prefetch={false}
+        className="whitespace-nowrap underline-offset-2 hover:underline"
+      >
+        <span className="font-bold tabular-nums">{newApplications}</span> new job
+        application{newApplications === 1 ? "" : "s"}
+      </Link>,
+    );
+  }
+  if (newQuotes > 0) {
+    segments.push(
+      <Link
+        key="quotes"
+        href="/admin/quotes"
+        prefetch={false}
+        className="whitespace-nowrap underline-offset-2 hover:underline"
+      >
+        <span className="font-bold tabular-nums">{newQuotes}</span> new quote
+        request{newQuotes === 1 ? "" : "s"}
+      </Link>,
+    );
+  }
+
+  return (
+    <div
+      role="alert"
+      className="border-b border-red-800 bg-red-600 text-white shadow-sm"
+    >
+      <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 px-4 py-2.5 text-[13px] font-semibold">
+        <span className="inline-flex items-center gap-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-white/85">
+          <svg
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            aria-hidden
+            className="h-3.5 w-3.5"
+          >
+            <path
+              fillRule="evenodd"
+              d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 10 5zm0 9a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"
+              clipRule="evenodd"
+            />
+          </svg>
+          Needs attention
+        </span>
+        {segments.map((seg, i) => (
+          <span key={i} className="inline-flex items-center gap-3">
+            {i > 0 ? (
+              <span aria-hidden className="text-white/50">
+                ·
+              </span>
+            ) : null}
+            {seg}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function ListHeader({
   grid,
   children,
@@ -388,10 +419,3 @@ function SectionLabel({ title, count }: { title: string; count: number }) {
   );
 }
 
-function EmptyCard({ text }: { text: string }) {
-  return (
-    <div className="rounded-xl border border-dashed border-line bg-card px-4 py-6 text-center font-mono text-[12px] text-fg-subtle">
-      {text}
-    </div>
-  );
-}
