@@ -412,6 +412,10 @@ function ServiceHistory({
                             <img
                               src={a.url}
                               alt={a.name}
+                              width={64}
+                              height={64}
+                              loading="lazy"
+                              decoding="async"
                               className="h-full w-full object-cover"
                             />
                           </a>

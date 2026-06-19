@@ -158,23 +158,35 @@ async function loadMaintenance(): Promise<{
         logs.map((l) => l.id),
       )
       .returns<AttRow[]>();
-    await Promise.all(
-      (attRows ?? []).map(async (a) => {
-        const { data: signed } = await sb.storage
-          .from(RECEIPT_BUCKET)
-          .createSignedUrl(a.file_path, 3600);
-        const list = attByLog.get(a.log_id) ?? [];
-        list.push({
-          id: a.id,
-          name: a.file_name ?? "receipt",
-          url: signed?.signedUrl ?? null,
-          isImage: (a.content_type ?? "").startsWith("image/"),
-          amount: num(a.amount),
-          label: a.label,
-        });
-        attByLog.set(a.log_id, list);
-      }),
-    );
+    const atts = attRows ?? [];
+    // Sign every receipt path in ONE storage request (was an N+1 of per-file
+    // createSignedUrl calls across the last 100 logs). Map back by path.
+    const signedByPath = new Map<string, string>();
+    if (atts.length > 0) {
+      const { data: signedList } = await sb.storage
+        .from(RECEIPT_BUCKET)
+        .createSignedUrls(
+          atts.map((a) => a.file_path),
+          3600,
+        );
+      for (const s of signedList ?? []) {
+        if (s.path && s.signedUrl && !s.error) {
+          signedByPath.set(s.path, s.signedUrl);
+        }
+      }
+    }
+    for (const a of atts) {
+      const list = attByLog.get(a.log_id) ?? [];
+      list.push({
+        id: a.id,
+        name: a.file_name ?? "receipt",
+        url: signedByPath.get(a.file_path) ?? null,
+        isImage: (a.content_type ?? "").startsWith("image/"),
+        amount: num(a.amount),
+        label: a.label,
+      });
+      attByLog.set(a.log_id, list);
+    }
   }
 
   const history: ServiceHistoryEntry[] = logs.map((l) => ({

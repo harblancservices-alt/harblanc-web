@@ -146,26 +146,48 @@ export async function loadPipelineCards(): Promise<PipelineCard[]> {
   const latestEstAccepted = new Map<string, string | null>();
   const latestEstLow = new Map<string, number | null>();
   const latestEstHigh = new Map<string, number | null>();
+  // Latest finalized-quote total per lead — the confirmed price shown on the
+  // money-stage cards (Awaiting payment / Booked).
+  const latestFqTotal = new Map<string, number>();
+
   const openIds = openLeads.map((l) => l.id);
   if (openIds.length > 0) {
-    const { data: estRows } = await sb
-      .from("dispatch_estimates")
-      .select(
-        "quote_request_id, sent_at, expiration_at, accepted_at, linehaul_low, linehaul_high",
-      )
-      .in("quote_request_id", openIds)
-      .not("sent_at", "is", null)
-      .order("sent_at", { ascending: false })
-      .returns<
-        {
-          quote_request_id: string;
-          sent_at: string | null;
-          expiration_at: string | null;
-          accepted_at: string | null;
-          linehaul_low: number | null;
-          linehaul_high: number | null;
-        }[]
-      >();
+    // Estimates and finalized quotes both only depend on openIds, so fetch
+    // them together in one round-trip pair instead of sequentially.
+    const [{ data: estRows }, { data: fqRows }] = await Promise.all([
+      sb
+        .from("dispatch_estimates")
+        .select(
+          "quote_request_id, sent_at, expiration_at, accepted_at, linehaul_low, linehaul_high",
+        )
+        .in("quote_request_id", openIds)
+        .not("sent_at", "is", null)
+        .order("sent_at", { ascending: false })
+        .returns<
+          {
+            quote_request_id: string;
+            sent_at: string | null;
+            expiration_at: string | null;
+            accepted_at: string | null;
+            linehaul_low: number | null;
+            linehaul_high: number | null;
+          }[]
+        >(),
+      sb
+        .from("finalized_quotes")
+        .select("quote_request_id, total_amount, sent_at")
+        .in("quote_request_id", openIds)
+        .not("sent_at", "is", null)
+        .order("sent_at", { ascending: false })
+        .returns<
+          {
+            quote_request_id: string;
+            total_amount: number | string | null;
+            sent_at: string | null;
+          }[]
+        >(),
+    ]);
+
     for (const e of estRows ?? []) {
       if (e.sent_at && !latestEstSent.has(e.quote_request_id)) {
         latestEstSent.set(e.quote_request_id, e.sent_at);
@@ -175,25 +197,7 @@ export async function loadPipelineCards(): Promise<PipelineCard[]> {
         latestEstHigh.set(e.quote_request_id, e.linehaul_high ?? null);
       }
     }
-  }
 
-  // Latest finalized-quote total per lead — the confirmed price shown on the
-  // money-stage cards (Awaiting payment / Booked).
-  const latestFqTotal = new Map<string, number>();
-  if (openIds.length > 0) {
-    const { data: fqRows } = await sb
-      .from("finalized_quotes")
-      .select("quote_request_id, total_amount, sent_at")
-      .in("quote_request_id", openIds)
-      .not("sent_at", "is", null)
-      .order("sent_at", { ascending: false })
-      .returns<
-        {
-          quote_request_id: string;
-          total_amount: number | string | null;
-          sent_at: string | null;
-        }[]
-      >();
     for (const f of fqRows ?? []) {
       if (latestFqTotal.has(f.quote_request_id)) continue;
       const t = f.total_amount == null ? null : Number(f.total_amount);

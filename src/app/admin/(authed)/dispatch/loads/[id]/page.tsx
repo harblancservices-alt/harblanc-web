@@ -155,21 +155,31 @@ export default async function LoadDetailPage({
       size_bytes: number | null;
       mime_type: string | null;
     }[]>();
-  const loadDocs = await Promise.all(
-    (docRows ?? []).map(async (d) => {
-      const { data: signed } = await sb.storage
-        .from("load-documents")
-        .createSignedUrl(d.storage_path, 3600);
-      return {
-        id: d.id,
-        kind: d.kind,
-        name: d.original_filename,
-        url: signed?.signedUrl ?? null,
-        sizeBytes: d.size_bytes,
-        mime: d.mime_type,
-      };
-    }),
-  );
+  // Sign every document path in ONE storage request (was an N+1 of per-file
+  // createSignedUrl calls). Map results back to each row by path.
+  const docs = docRows ?? [];
+  const signedByPath = new Map<string, string>();
+  if (docs.length > 0) {
+    const { data: signedList } = await sb.storage
+      .from("load-documents")
+      .createSignedUrls(
+        docs.map((d) => d.storage_path),
+        3600,
+      );
+    for (const s of signedList ?? []) {
+      if (s.path && s.signedUrl && !s.error) {
+        signedByPath.set(s.path, s.signedUrl);
+      }
+    }
+  }
+  const loadDocs = docs.map((d) => ({
+    id: d.id,
+    kind: d.kind,
+    name: d.original_filename,
+    url: signedByPath.get(d.storage_path) ?? null,
+    sizeBytes: d.size_bytes,
+    mime: d.mime_type,
+  }));
 
   const [{ data: broker }, { data: trip }] = await Promise.all([
     load.broker_id

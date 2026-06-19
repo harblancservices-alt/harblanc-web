@@ -177,6 +177,10 @@ function DocKindBlock({
                   <img
                     src={d.url}
                     alt={d.name}
+                    width={64}
+                    height={64}
+                    loading="lazy"
+                    decoding="async"
                     className="h-full w-full object-cover"
                   />
                 ) : (
