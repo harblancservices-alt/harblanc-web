@@ -427,7 +427,7 @@ export default async function LoadDetailPage({
                     <Link
                       href={`/admin/dispatch/brokers/${load.broker_id}`}
                       prefetch={false}
-                      className="mt-1.5 inline-block font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-blue-700 hover:underline"
+                      className="mt-2 inline-flex items-center rounded-md border border-red-700 bg-red-600 px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-red-700"
                     >
                       Open broker →
                     </Link>
@@ -445,7 +445,7 @@ export default async function LoadDetailPage({
                     <Link
                       href={`/admin/dispatch/trips/${load.trip_id}`}
                       prefetch={false}
-                      className="mt-1.5 inline-block font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-blue-700 hover:underline"
+                      className="mt-2 inline-flex items-center rounded-md border border-red-700 bg-red-600 px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-red-700"
                     >
                       Open trip →
                     </Link>

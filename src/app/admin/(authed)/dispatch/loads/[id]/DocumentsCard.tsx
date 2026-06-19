@@ -232,7 +232,7 @@ function DocKindBlock({
                 onClick={() => onDelete(d)}
                 disabled={busy}
                 aria-label={`Delete ${d.name}`}
-                className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-red-300 bg-card text-[11px] font-bold leading-none text-red-700 shadow-sm transition-colors hover:bg-red-50 disabled:opacity-50"
+                className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-red-700 bg-red-600 text-[11px] font-bold leading-none text-white shadow-sm transition-colors hover:bg-red-700 disabled:opacity-50"
               >
                 ×
               </button>
@@ -280,7 +280,7 @@ function DocViewer({ doc, onClose }: { doc: LoadDoc; onClose: () => void }) {
                 href={doc.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-blue-700 hover:underline"
+                className="inline-flex items-center rounded-md border border-red-700 bg-red-600 px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-red-700"
               >
                 Open ↗
               </a>
@@ -288,7 +288,8 @@ function DocViewer({ doc, onClose }: { doc: LoadDoc; onClose: () => void }) {
             <button
               type="button"
               onClick={onClose}
-              className="text-[18px] leading-none text-fg-subtle transition-colors hover:text-fg"
+              aria-label="Close"
+              className="flex h-7 w-7 items-center justify-center rounded-md border border-red-300 bg-card text-[16px] font-bold leading-none text-red-700 transition-colors hover:bg-red-50"
             >
               ×
             </button>

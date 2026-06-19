@@ -76,14 +76,10 @@ function FullOdometerStatus({
             aria-pressed={editing}
             aria-label="Edit odometer"
             title="Edit odometer"
-            className={
-              "flex h-6 w-6 items-center justify-center rounded border text-[12px] transition-colors " +
-              (editing
-                ? "border-white/40 bg-white/15 text-bar-fg"
-                : "border-white/20 text-bar-fg/70 hover:bg-white/10 hover:text-bar-fg")
-            }
+            className="inline-flex items-center gap-1 rounded-md border border-red-700 bg-red-600 px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-red-700"
           >
             <PencilIcon />
+            {editing ? "Close" : "Edit"}
           </button>
         </div>
       </div>
