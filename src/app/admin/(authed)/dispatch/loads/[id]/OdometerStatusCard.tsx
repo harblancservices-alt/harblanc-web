@@ -5,122 +5,254 @@ import { updateLoadOdometers } from "../actions";
 import { LoadStatusControl } from "./LoadStatusControl";
 
 /**
- * Odometer & status panel. The status control is always interactive; the
- * odometer readings show read-only until you hit Edit. No dark header bar —
- * just the two white inner cards (Status, Odometer). A failed save shows an
- * inline error rather than throwing to an error page.
+ * Odometer (& status) panel, shared by the load detail page and the dashboard
+ * active-loads list but with two distinct looks:
+ *
+ *  - variant="full" (load page, default): the original dark "Odometer &
+ *    status" header bar with the Edit toggle, a Status section, and the
+ *    odometer readings underneath.
+ *  - variant="dashboard": a clean white card — no dark bar, no status section —
+ *    just the three odometer readings and a working Edit button.
+ *
+ * Both edit inline through the SAME updateLoadOdometers action (so the two
+ * pages mirror), keep comma-formatted inputs, and surface a failed save inline
+ * instead of throwing to an error page.
  */
-export function OdometerStatusCard({
-  loadId,
-  status,
-  lastReading,
-  odoAssigned,
-  odoLoaded,
-  odoDelivered,
-}: {
+type OdometerStatusCardProps = {
   loadId: string;
   status: string;
+  statusLabel?: string;
   lastReading: number | null;
   odoAssigned: number | null;
   odoLoaded: number | null;
   odoDelivered: number | null;
-}) {
+  variant?: "full" | "dashboard";
+};
+
+export function OdometerStatusCard(props: OdometerStatusCardProps) {
+  if (props.variant === "dashboard") return <DashboardOdometer {...props} />;
+  return <FullOdometerStatus {...props} />;
+}
+
+// ── Load detail (full): dark bar + Edit + Status + Odometer ──────────────────
+function FullOdometerStatus({
+  loadId,
+  status,
+  statusLabel,
+  lastReading,
+  odoAssigned,
+  odoLoaded,
+  odoDelivered,
+}: OdometerStatusCardProps) {
+  const [open, setOpen] = useState(true);
   const [editing, setEditing] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
 
   return (
-    <div className="space-y-3 text-fg">
-      <InnerCard title="Status">
-        <LoadStatusControl
-          loadId={loadId}
-          current={status}
-          lastReading={lastReading}
-        />
-      </InnerCard>
-
-      <InnerCard
-        title="Odometer"
-        action={
+    <section className="overflow-hidden rounded-md border border-line bg-card shadow-md">
+      <div className="flex items-center justify-between gap-2 bg-bar px-3 py-2.5">
+        <button
+          type="button"
+          aria-expanded={open}
+          onClick={() => setOpen((o) => !o)}
+          className="flex min-w-0 items-center gap-2 text-left"
+        >
+          <Chevron open={open} />
+          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-bar-fg">
+            Odometer &amp; status
+          </h2>
+        </button>
+        <div className="flex items-center gap-2.5">
+          {statusLabel ? (
+            <span className="font-mono text-[11px] uppercase tracking-[0.1em] text-bar-fg/70">
+              {statusLabel}
+            </span>
+          ) : null}
           <button
             type="button"
             onClick={() => {
-              setErr(null);
               setEditing((e) => !e);
+              setOpen(true);
             }}
             aria-pressed={editing}
-            className="font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-fg-muted transition-colors hover:text-fg"
+            aria-label="Edit odometer"
+            title="Edit odometer"
+            className={
+              "flex h-6 w-6 items-center justify-center rounded border text-[12px] transition-colors " +
+              (editing
+                ? "border-white/40 bg-white/15 text-bar-fg"
+                : "border-white/20 text-bar-fg/70 hover:bg-white/10 hover:text-bar-fg")
+            }
           >
-            {editing ? "Cancel" : "Edit"}
+            <PencilIcon />
           </button>
+        </div>
+      </div>
+
+      {open ? (
+        <div className="space-y-3 bg-card p-3 text-fg">
+          <InnerCard title="Status">
+            <LoadStatusControl
+              loadId={loadId}
+              current={status}
+              lastReading={lastReading}
+            />
+          </InnerCard>
+
+          <InnerCard title="Odometer">
+            {editing ? (
+              <OdometerEditForm
+                loadId={loadId}
+                odoAssigned={odoAssigned}
+                odoLoaded={odoLoaded}
+                odoDelivered={odoDelivered}
+                onSaved={() => setEditing(false)}
+              />
+            ) : (
+              <OdometerTable
+                odoAssigned={odoAssigned}
+                odoLoaded={odoLoaded}
+                odoDelivered={odoDelivered}
+              />
+            )}
+          </InnerCard>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+// ── Dashboard: white card, no bar, no status, just odometer + Edit ───────────
+function DashboardOdometer({
+  loadId,
+  odoAssigned,
+  odoLoaded,
+  odoDelivered,
+}: OdometerStatusCardProps) {
+  const [editing, setEditing] = useState(false);
+
+  return (
+    <InnerCard
+      title="Odometer"
+      action={
+        <button
+          type="button"
+          onClick={() => setEditing((e) => !e)}
+          aria-pressed={editing}
+          className="font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-fg-muted transition-colors hover:text-fg"
+        >
+          {editing ? "Cancel" : "Edit"}
+        </button>
+      }
+    >
+      {editing ? (
+        <OdometerEditForm
+          loadId={loadId}
+          odoAssigned={odoAssigned}
+          odoLoaded={odoLoaded}
+          odoDelivered={odoDelivered}
+          onSaved={() => setEditing(false)}
+        />
+      ) : (
+        <OdometerTable
+          odoAssigned={odoAssigned}
+          odoLoaded={odoLoaded}
+          odoDelivered={odoDelivered}
+        />
+      )}
+    </InnerCard>
+  );
+}
+
+// ── Shared pieces ────────────────────────────────────────────────────────────
+
+function OdometerEditForm({
+  loadId,
+  odoAssigned,
+  odoLoaded,
+  odoDelivered,
+  onSaved,
+}: {
+  loadId: string;
+  odoAssigned: number | null;
+  odoLoaded: number | null;
+  odoDelivered: number | null;
+  onSaved: () => void;
+}) {
+  const [err, setErr] = useState<string | null>(null);
+  return (
+    <form
+      key={`${odoAssigned}-${odoLoaded}-${odoDelivered}`}
+      action={async (fd) => {
+        // Catch so a rejected save (e.g. monotonicity) shows inline instead of
+        // bubbling to an error page.
+        try {
+          await updateLoadOdometers(loadId, fd);
+          setErr(null);
+          onSaved();
+        } catch (e) {
+          setErr(e instanceof Error ? e.message : "Could not save odometer.");
         }
+      }}
+      className="space-y-2"
+    >
+      <OdoField label="Assigned" name="odo_assigned" value={odoAssigned} />
+      <OdoField label="Loaded" name="odo_loaded" value={odoLoaded} />
+      <OdoField label="Delivered" name="odo_delivered" value={odoDelivered} />
+      <button
+        type="submit"
+        className="mt-1 w-full rounded-md border border-red-700 bg-red-600 px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-red-700"
       >
-        {editing ? (
-          <form
-            key={`${odoAssigned}-${odoLoaded}-${odoDelivered}`}
-            action={async (fd) => {
-              // Catch so a rejected save (e.g. monotonicity) shows inline
-              // instead of bubbling to an error page.
-              try {
-                await updateLoadOdometers(loadId, fd);
-                setErr(null);
-                setEditing(false);
-              } catch (e) {
-                setErr(
-                  e instanceof Error ? e.message : "Could not save odometer.",
-                );
-              }
-            }}
-            className="space-y-2"
-          >
-            <OdoField label="Assigned" name="odo_assigned" value={odoAssigned} />
-            <OdoField label="Loaded" name="odo_loaded" value={odoLoaded} />
-            <OdoField label="Delivered" name="odo_delivered" value={odoDelivered} />
-            <button
-              type="submit"
-              className="mt-1 w-full rounded-md border border-red-700 bg-red-600 px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-red-700"
-            >
-              Save odometer · Enter
-            </button>
-            {err ? (
-              <p role="alert" className="text-[11px] font-semibold text-red-700">
-                {err}
-              </p>
-            ) : null}
-          </form>
-        ) : (
-          <table className="w-full border-collapse text-fg">
-            <thead>
-              <tr className="border-b border-line">
-                <th className="py-1 pr-2 text-left font-mono text-[9px] font-medium uppercase tracking-[0.12em] text-fg-subtle">
-                  Stage
-                </th>
-                <th className="py-1 px-2 text-right font-mono text-[9px] font-medium uppercase tracking-[0.12em] text-fg-subtle">
-                  Odometer
-                </th>
-                <th className="py-1 pl-2 text-right font-mono text-[9px] font-medium uppercase tracking-[0.12em] text-fg-subtle">
-                  + Miles
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <OdoTableRow label="Assigned" value={odoAssigned} />
-              <OdoTableRow
-                label="Loaded"
-                value={odoLoaded}
-                delta={delta(odoAssigned, odoLoaded)}
-                tone="amber"
-              />
-              <OdoTableRow
-                label="Delivered"
-                value={odoDelivered}
-                delta={delta(odoLoaded, odoDelivered)}
-                tone="green"
-              />
-            </tbody>
-          </table>
-        )}
-      </InnerCard>
-    </div>
+        Save odometer · Enter
+      </button>
+      {err ? (
+        <p role="alert" className="text-[11px] font-semibold text-red-700">
+          {err}
+        </p>
+      ) : null}
+    </form>
+  );
+}
+
+function OdometerTable({
+  odoAssigned,
+  odoLoaded,
+  odoDelivered,
+}: {
+  odoAssigned: number | null;
+  odoLoaded: number | null;
+  odoDelivered: number | null;
+}) {
+  return (
+    <table className="w-full border-collapse text-fg">
+      <thead>
+        <tr className="border-b border-line">
+          <th className="py-1 pr-2 text-left font-mono text-[9px] font-medium uppercase tracking-[0.12em] text-fg-subtle">
+            Stage
+          </th>
+          <th className="py-1 px-2 text-right font-mono text-[9px] font-medium uppercase tracking-[0.12em] text-fg-subtle">
+            Odometer
+          </th>
+          <th className="py-1 pl-2 text-right font-mono text-[9px] font-medium uppercase tracking-[0.12em] text-fg-subtle">
+            + Miles
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <OdoTableRow label="Assigned" value={odoAssigned} />
+        <OdoTableRow
+          label="Loaded"
+          value={odoLoaded}
+          delta={delta(odoAssigned, odoLoaded)}
+          tone="amber"
+        />
+        <OdoTableRow
+          label="Delivered"
+          value={odoDelivered}
+          delta={delta(odoLoaded, odoDelivered)}
+          tone="green"
+        />
+      </tbody>
+    </table>
   );
 }
 
@@ -228,3 +360,42 @@ function OdoField({
   );
 }
 
+function Chevron({ open }: { open: boolean }) {
+  return (
+    <svg
+      width="11"
+      height="11"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+      className={
+        "shrink-0 text-bar-fg/70 transition-transform " + (open ? "rotate-90" : "")
+      }
+    >
+      <path d="m9 6 6 6-6 6" />
+    </svg>
+  );
+}
+
+function PencilIcon() {
+  return (
+    <svg
+      width="12"
+      height="12"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+    </svg>
+  );
+}

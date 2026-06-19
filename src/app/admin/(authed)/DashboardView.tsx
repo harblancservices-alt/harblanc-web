@@ -193,6 +193,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
                     the pencil opens straight into the odometer entry. */}
                 <div className="mt-2.5">
                   <OdometerStatusCard
+                    variant="dashboard"
                     loadId={l.id}
                     status={l.status}
                     lastReading={

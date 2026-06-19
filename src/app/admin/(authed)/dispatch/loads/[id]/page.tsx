@@ -390,6 +390,7 @@ export default async function LoadDetailPage({
             <OdometerStatusCard
               loadId={load.id}
               status={load.status}
+              statusLabel={STATUS_LABEL[load.status] ?? load.status}
               lastReading={lastReading > 0 ? lastReading : null}
               odoAssigned={load.odo_assigned}
               odoLoaded={load.odo_loaded}
