@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { AddLoadButton } from "./dispatch/loads/AddLoadButton";
 import type { PipelineCard } from "@/lib/dispatch/pipeline";
+import type { MaintStatus } from "@/lib/dispatch/maintenance";
+import { IntervalBar } from "./maintenance/IntervalBar";
 
 /**
  * Owner Dashboard — opportunity inbox (render layer).
@@ -12,13 +14,52 @@ import type { PipelineCard } from "@/lib/dispatch/pipeline";
  * Quotes and Applications tabs, not here.
  */
 
+export type MaintWidgetItem = {
+  id: string;
+  name: string;
+  status: MaintStatus;
+  milesRemaining: number | null;
+  pct: number;
+  neverServiced: boolean;
+};
+
 export type DashboardData = {
   expiredQuotes: ReadonlyArray<PipelineCard>;
   applications: ReadonlyArray<ApplicationItem>;
   activeLoads: ReadonlyArray<ActiveLoadItem>;
+  maintenance: ReadonlyArray<MaintWidgetItem>;
   brokerNames: ReadonlyArray<string>;
   activeTrips: ReadonlyArray<string>;
 };
+
+const MAINT_PILL: Record<MaintStatus, string> = {
+  overdue: "bg-red-100 text-red-700",
+  soon: "bg-amber-100 text-amber-700",
+  ok: "bg-green-100 text-green-700",
+  baseline: "bg-blue-100 text-blue-700",
+};
+const MAINT_LABEL: Record<MaintStatus, string> = {
+  overdue: "Overdue",
+  soon: "Due soon",
+  ok: "OK",
+  baseline: "Set baseline",
+};
+
+function maintRemaining(m: MaintWidgetItem): { text: string; color: string } {
+  if (m.milesRemaining == null) {
+    return { text: "no baseline", color: "text-blue-700" };
+  }
+  if (m.milesRemaining <= 0) {
+    return {
+      text: `${Math.abs(m.milesRemaining).toLocaleString()} mi over`,
+      color: "text-red-700",
+    };
+  }
+  return {
+    text: `${m.milesRemaining.toLocaleString()} mi left`,
+    color: m.status === "soon" ? "text-amber-700" : "text-green-700",
+  };
+}
 
 export type ActiveLoadItem = {
   id: string;
@@ -171,6 +212,63 @@ export function DashboardView({ data }: { data: DashboardData }) {
             ))}
           </div>
         )}
+
+        {data.maintenance.length > 0 ? (
+          <>
+            <div className="my-5 h-px bg-line" />
+            <SectionLabel
+              title="Truck maintenance"
+              count={data.maintenance.length}
+            />
+            <div className="overflow-hidden rounded-xl border border-line bg-card shadow-md">
+              {data.maintenance.map((m) => {
+                const rem = maintRemaining(m);
+                return (
+                  <Link
+                    key={m.id}
+                    href="/admin/maintenance"
+                    prefetch={false}
+                    className="block border-b border-line px-3.5 py-2.5 transition-colors hover:bg-elevated"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span
+                          className={
+                            "shrink-0 rounded-sm px-1.5 py-[1px] font-mono text-[10px] font-bold uppercase tracking-[0.06em] " +
+                            MAINT_PILL[m.status]
+                          }
+                        >
+                          {MAINT_LABEL[m.status]}
+                        </span>
+                        <span className="truncate text-[13px] font-semibold text-fg">
+                          {m.name}
+                        </span>
+                      </span>
+                      <span
+                        className={
+                          "shrink-0 font-mono text-[12px] font-bold tabular-nums " +
+                          rem.color
+                        }
+                      >
+                        {rem.text}
+                      </span>
+                    </div>
+                    <div className="mt-1.5">
+                      <IntervalBar pct={m.pct} status={m.status} className="h-2" />
+                    </div>
+                  </Link>
+                );
+              })}
+              <Link
+                href="/admin/maintenance"
+                prefetch={false}
+                className="block px-3.5 py-2 text-center font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-indigo-600 transition-colors hover:bg-elevated"
+              >
+                View full schedule →
+              </Link>
+            </div>
+          </>
+        ) : null}
 
         {data.expiredQuotes.length > 0 ? (
           <>

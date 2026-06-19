@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { logMaintenance, updateMaintenanceInterval } from "./actions";
+import { IntervalBar } from "./IntervalBar";
 
 export type MaintItem = {
   id: string;
@@ -13,6 +14,8 @@ export type MaintItem = {
   nextDue: number | null;
   milesRemaining: number | null;
   status: "overdue" | "soon" | "ok" | "baseline";
+  /** 0–100: miles since last service ÷ interval (0 if never serviced). */
+  pct: number;
   notes: string | null;
 };
 
@@ -190,6 +193,15 @@ export function MaintenanceView({
                         </div>
                       ) : null}
                     </div>
+                  </div>
+
+                  <div className="mt-2.5">
+                    <IntervalBar pct={item.pct} status={item.status} />
+                    <p className="mt-1 font-mono text-[9.5px] text-fg-subtle">
+                      {item.neverServiced
+                        ? "Awaiting first service"
+                        : `${Math.round(item.pct)}% through ${item.interval.toLocaleString()} mi interval`}
+                    </p>
                   </div>
 
                   <div className="mt-2.5 flex items-center justify-end gap-2 border-t border-line pt-2.5">

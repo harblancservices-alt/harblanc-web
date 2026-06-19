@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { MaintenanceView, type MaintItem } from "./MaintenanceView";
+import {
+  computeMaintenance,
+  currentOdoFromLoads,
+} from "@/lib/dispatch/maintenance";
 
 export const metadata: Metadata = {
   title: "Maintenance",
@@ -64,42 +68,25 @@ async function loadMaintenance(): Promise<{
 
   // Current odometer = GREATEST(MAX(odo_assigned), MAX(odo_loaded),
   // MAX(odo_delivered)) across non-deleted loads.
-  let currentOdo = 0;
-  for (const l of odoRows ?? []) {
-    currentOdo = Math.max(
-      currentOdo,
-      l.odo_assigned ?? 0,
-      l.odo_loaded ?? 0,
-      l.odo_delivered ?? 0,
-    );
-  }
+  const currentOdo = currentOdoFromLoads(odoRows);
 
   const items: MaintItem[] = (itemRows ?? []).map((it) => {
-    const neverServiced = it.last_service_odo == null;
-    const nextDue = neverServiced
-      ? null
-      : (it.last_service_odo as number) + it.interval_miles;
-    const milesRemaining = nextDue == null ? null : nextDue - currentOdo;
-
-    // due soon = within 1,000 mi OR past 90% of the interval.
-    const soonThreshold = Math.max(1000, Math.round(it.interval_miles * 0.1));
-
-    let status: MaintItem["status"];
-    if (neverServiced) status = "baseline";
-    else if ((milesRemaining as number) <= 0) status = "overdue";
-    else if ((milesRemaining as number) <= soonThreshold) status = "soon";
-    else status = "ok";
-
+    const m = computeMaintenance(
+      it.interval_miles,
+      it.last_service_odo,
+      currentOdo,
+    );
     return {
       id: it.id,
       name: it.name,
       interval: it.interval_miles,
       lastOdo: it.last_service_odo,
       lastDate: it.last_service_date,
-      neverServiced,
-      nextDue,
-      milesRemaining,
-      status,
+      neverServiced: m.neverServiced,
+      nextDue: m.nextDue,
+      milesRemaining: m.milesRemaining,
+      status: m.status,
+      pct: m.pct,
       notes: it.notes,
     };
   });

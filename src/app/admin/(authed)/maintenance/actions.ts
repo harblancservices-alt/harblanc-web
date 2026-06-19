@@ -61,6 +61,7 @@ export async function logMaintenance(formData: FormData): Promise<void> {
   if (updErr) throw new Error(`Could not update item: ${updErr.message}`);
 
   revalidatePath("/admin/maintenance");
+  revalidatePath("/admin"); // dashboard oil/fuel-filter widget
 }
 
 /** Adjust an item's mileage interval (and optional notes). */
@@ -90,4 +91,5 @@ export async function updateMaintenanceInterval(
   if (error) throw new Error(`Could not update interval: ${error.message}`);
 
   revalidatePath("/admin/maintenance");
+  revalidatePath("/admin"); // dashboard oil/fuel-filter widget
 }

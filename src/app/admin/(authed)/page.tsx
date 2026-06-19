@@ -3,7 +3,17 @@ import { createServiceRoleClient } from "@/lib/supabase/server";
 import { recentAgeLabel } from "@/lib/dispatch/dashboard-view";
 import { lookupZip } from "@/lib/dispatch/distance";
 import { loadPipelineCards } from "@/lib/dispatch/pipeline";
+import {
+  computeMaintenance,
+  currentOdoFromLoads,
+} from "@/lib/dispatch/maintenance";
 import { DashboardView, type DashboardData } from "./DashboardView";
+
+// The two items surfaced on the dashboard's quick maintenance widget.
+const DASH_MAINT_NAMES = [
+  "Engine oil & filter",
+  "Fuel filters (engine + chassis)",
+];
 
 export const metadata: Metadata = {
   title: "Dashboard",
@@ -61,6 +71,8 @@ async function loadDashboard(): Promise<DashboardData> {
     { data: loadRows },
     { data: brokerRows },
     { data: tripRows },
+    { data: maintRows },
+    { data: odoRows },
   ] = await Promise.all([
     // Shared pipeline cards — the dashboard only renders the expired ones.
     loadPipelineCards(),
@@ -103,6 +115,33 @@ async function loadDashboard(): Promise<DashboardData> {
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .returns<{ name: string | null }[]>(),
+    // Maintenance widget: oil + fuel filters only.
+    sb
+      .from("maintenance_items")
+      .select("id, name, interval_miles, last_service_odo")
+      .is("deleted_at", null)
+      .in("name", DASH_MAINT_NAMES)
+      .order("sort_order", { ascending: true })
+      .returns<
+        {
+          id: string;
+          name: string;
+          interval_miles: number;
+          last_service_odo: number | null;
+        }[]
+      >(),
+    // Odometer readings across all non-deleted loads → current odometer.
+    sb
+      .from("loads")
+      .select("odo_assigned, odo_loaded, odo_delivered")
+      .is("deleted_at", null)
+      .returns<
+        {
+          odo_assigned: number | null;
+          odo_loaded: number | null;
+          odo_delivered: number | null;
+        }[]
+      >(),
   ]);
 
   // Expired quotes drop off the forward pipeline into their own section.
@@ -161,10 +200,26 @@ async function loadDashboard(): Promise<DashboardData> {
     .map((t) => t.name?.trim() ?? "")
     .filter((n) => n.length > 0);
 
+  // Maintenance widget — oil + fuel filters against the truck's current
+  // odometer (highest reading across non-deleted loads).
+  const maintOdo = currentOdoFromLoads(odoRows);
+  const maintenance = (maintRows ?? []).map((m) => {
+    const c = computeMaintenance(m.interval_miles, m.last_service_odo, maintOdo);
+    return {
+      id: m.id,
+      name: m.name,
+      status: c.status,
+      milesRemaining: c.milesRemaining,
+      pct: c.pct,
+      neverServiced: c.neverServiced,
+    };
+  });
+
   return {
     expiredQuotes,
     applications,
     activeLoads,
+    maintenance,
     brokerNames,
     activeTrips,
   };

@@ -306,6 +306,10 @@ export async function updateLoadStatus(
   revalidatePath(`/admin/dispatch/loads/${id}`);
   revalidatePath("/admin/dispatch/brokers");
   revalidatePath("/admin/dispatch/trips");
+  // Current odometer (and the maintenance schedule) derive from the highest
+  // load reading — refresh the dashboard + maintenance views too.
+  revalidatePath("/admin");
+  revalidatePath("/admin/maintenance");
 }
 
 /**
@@ -341,6 +345,8 @@ export async function updateLoadOdometers(
   revalidatePath(`/admin/dispatch/loads/${id}`);
   revalidatePath("/admin/dispatch/brokers");
   revalidatePath("/admin/dispatch/trips");
+  revalidatePath("/admin");
+  revalidatePath("/admin/maintenance");
 }
 
 /** Add a manual expense to a load (category autofills from prior ones). */
@@ -507,6 +513,9 @@ export async function softDeleteLoads(formData: FormData): Promise<void> {
   revalidatePath("/admin/dispatch/loads");
   revalidatePath("/admin/dispatch/brokers");
   revalidatePath("/admin/dispatch/trips");
+  // Deleting loads can drop the highest odometer — refresh maintenance too.
+  revalidatePath("/admin");
+  revalidatePath("/admin/maintenance");
 }
 
 /** Soft-delete a load — removes it from the board, trips, and broker rollups. */
@@ -520,6 +529,8 @@ export async function deleteLoad(id: string): Promise<void> {
   revalidatePath("/admin/dispatch/loads");
   revalidatePath("/admin/dispatch/brokers");
   revalidatePath("/admin/dispatch/trips");
+  revalidatePath("/admin");
+  revalidatePath("/admin/maintenance");
   redirect("/admin/dispatch/loads");
 }
 
