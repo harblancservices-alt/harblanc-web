@@ -292,6 +292,7 @@ export async function addMaintenanceService(formData: FormData): Promise<void> {
   }
 
   revalidatePath("/admin/maintenance");
+  if (itemId) revalidatePath(`/admin/maintenance/${itemId}`);
   revalidatePath("/admin");
 }
 
@@ -420,6 +421,7 @@ export async function updateMaintenanceService(
   }
 
   revalidatePath("/admin/maintenance");
+  if (itemId) revalidatePath(`/admin/maintenance/${itemId}`);
   revalidatePath("/admin");
 }
 
@@ -450,5 +452,33 @@ export async function updateMaintenanceInterval(
   if (error) throw new Error(`Could not update interval: ${error.message}`);
 
   revalidatePath("/admin/maintenance");
+  revalidatePath(`/admin/maintenance/${itemId}`);
   revalidatePath("/admin"); // dashboard oil/fuel-filter widget
+}
+
+/**
+ * Reset an item's last-service baseline — clears last_service_odo and
+ * last_service_date so the item returns to "Set baseline" and the next-due
+ * recalculates from the next service logged. Used from the item detail page
+ * when Brent wants to start the interval clock over (e.g. a wrong odometer
+ * was entered, or the schedule drifted). Does NOT touch the service log —
+ * the logged history and its receipts/costs stay intact.
+ */
+export async function resetMaintenanceBaseline(itemId: string): Promise<void> {
+  if (!itemId) throw new Error("Missing maintenance item.");
+  const sb = createServiceRoleClient();
+  const { error } = await sb
+    .from("maintenance_items")
+    .update({
+      last_service_odo: null,
+      last_service_date: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", itemId)
+    .is("deleted_at", null);
+  if (error) throw new Error(`Could not reset baseline: ${error.message}`);
+
+  revalidatePath("/admin/maintenance");
+  revalidatePath(`/admin/maintenance/${itemId}`);
+  revalidatePath("/admin");
 }

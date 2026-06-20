@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useEffect, useState } from "react";
 import {
   addMaintenanceService,
@@ -67,7 +68,7 @@ const DEFAULT_CATEGORY = "Fluids & Filters";
 const PAYMENT_METHODS = ["Cash", "Credit", "Debit", "Check", "Other"];
 
 // "$1,250.00" — null/blank renders nothing.
-function money(n: number | null | undefined): string {
+export function money(n: number | null | undefined): string {
   if (n == null) return "";
   return (
     "$" +
@@ -83,7 +84,7 @@ function parseMoney(raw: string): number {
   return Number.isFinite(n) && n > 0 ? n : 0;
 }
 
-const STATUS: Record<
+export const STATUS: Record<
   MaintItem["status"],
   { label: string; pill: string; border: string; value: string }
 > = {
@@ -113,7 +114,7 @@ const STATUS: Record<
   },
 };
 
-function remaining(item: MaintItem): { value: string; label: string; color: string } {
+export function remaining(item: MaintItem): { value: string; label: string; color: string } {
   if (item.milesRemaining == null) {
     return { value: "—", label: "no history", color: "text-blue-700" };
   }
@@ -234,58 +235,72 @@ export function MaintenanceView({
                     s.border
                   }
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span
+                  {/* Card body navigates to the item's detail/profile page —
+                      where Brent sees the full service log, prices, receipts,
+                      and can log/reset. The footer buttons stay separate (not
+                      nested in the link) so quick actions still work. */}
+                  <Link
+                    href={`/admin/maintenance/${item.id}`}
+                    className="-m-1 block rounded-lg p-1 transition-colors hover:bg-elevated"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            className={
+                              "shrink-0 rounded-sm px-1.5 py-[1px] font-mono text-[10px] font-bold uppercase tracking-[0.06em] " +
+                              s.pill
+                            }
+                          >
+                            {s.label}
+                          </span>
+                          <h3 className="truncate text-[15px] font-semibold text-fg">
+                            {item.name}
+                          </h3>
+                        </div>
+                        <p className="mt-1 text-[12px] text-fg-muted">
+                          Every {item.interval.toLocaleString()} mi
+                        </p>
+                        <p className="text-[11.5px] text-fg-subtle">
+                          {item.neverServiced
+                            ? "Never serviced"
+                            : `Last ${item.lastOdo!.toLocaleString()} mi${item.lastDate ? " · " + item.lastDate : ""}`}
+                        </p>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <div
                           className={
-                            "shrink-0 rounded-sm px-1.5 py-[1px] font-mono text-[10px] font-bold uppercase tracking-[0.06em] " +
-                            s.pill
+                            "text-[17px] font-bold leading-none tabular-nums " +
+                            rem.color
                           }
                         >
-                          {s.label}
-                        </span>
-                        <h3 className="truncate text-[15px] font-semibold text-fg">
-                          {item.name}
-                        </h3>
-                      </div>
-                      <p className="mt-1 text-[12px] text-fg-muted">
-                        Every {item.interval.toLocaleString()} mi
-                      </p>
-                      <p className="text-[11.5px] text-fg-subtle">
-                        {item.neverServiced
-                          ? "Never serviced"
-                          : `Last ${item.lastOdo!.toLocaleString()} mi${item.lastDate ? " · " + item.lastDate : ""}`}
-                      </p>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <div
-                        className={
-                          "text-[17px] font-bold leading-none tabular-nums " +
-                          rem.color
-                        }
-                      >
-                        {rem.value}
-                      </div>
-                      <div className="mt-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.08em] text-fg-subtle">
-                        {rem.label}
-                      </div>
-                      {item.nextDue != null ? (
-                        <div className="mt-1 font-mono text-[10px] text-fg-subtle">
-                          Due {item.nextDue.toLocaleString()} mi
+                          {rem.value}
                         </div>
-                      ) : null}
+                        <div className="mt-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.08em] text-fg-subtle">
+                          {rem.label}
+                        </div>
+                        {item.nextDue != null ? (
+                          <div className="mt-1 font-mono text-[10px] text-fg-subtle">
+                            Due {item.nextDue.toLocaleString()} mi
+                          </div>
+                        ) : null}
+                      </div>
                     </div>
-                  </div>
 
-                  <div className="mt-2.5">
-                    <IntervalBar pct={item.pct} status={item.status} />
-                    <p className="mt-1 font-mono text-[9.5px] text-fg-subtle">
-                      {item.neverServiced
-                        ? "Awaiting first service"
-                        : `${Math.round(item.pct)}% through ${item.interval.toLocaleString()} mi interval`}
-                    </p>
-                  </div>
+                    <div className="mt-2.5">
+                      <IntervalBar pct={item.pct} status={item.status} />
+                      <p className="mt-1 flex items-center justify-between gap-2 font-mono text-[9.5px] text-fg-subtle">
+                        <span>
+                          {item.neverServiced
+                            ? "Awaiting first service"
+                            : `${Math.round(item.pct)}% through ${item.interval.toLocaleString()} mi interval`}
+                        </span>
+                        <span className="font-bold uppercase tracking-[0.08em] text-indigo-600">
+                          View →
+                        </span>
+                      </p>
+                    </div>
+                  </Link>
 
                   <div className="mt-2.5 flex items-center justify-end gap-2 border-t border-line pt-2.5">
                     <button
@@ -503,7 +518,7 @@ type ReceiptRow = {
   label: string;
 };
 
-function ServiceModal({
+export function ServiceModal({
   items,
   currentOdo,
   presetItemId,
@@ -985,7 +1000,7 @@ const FIELD =
 const LABEL =
   "block font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-fg";
 
-function EditIntervalModal({
+export function EditIntervalModal({
   item,
   onClose,
 }: {
