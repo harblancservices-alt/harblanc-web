@@ -47,60 +47,156 @@ const EXPENSE_CATEGORIES = new Set([
   "Other",
 ]);
 
-// Payment methods (kept in sync with the client select). Stored verbatim in
-// maintenance_log.payment_method.
-const PAYMENT_METHODS = new Set(["Cash", "Credit", "Debit", "Check", "Other"]);
+// Payment method was removed from the maintenance UI. The
+// maintenance_log.payment_method column stays in place but is no longer
+// written or read.
+
+type SB = ReturnType<typeof createServiceRoleClient>;
 
 type ReceiptMeta = {
   storagePath: string;
   name: string;
   type: string;
   size: number;
-  amount: number | null;
-  label: string | null;
 };
 
 /**
- * Parse the receipts JSON the client sends after uploading each file directly
- * to storage (no bytes in the action payload). Validates mime/size; throws on a
- * bad file so the modal surfaces it inline.
+ * One expense LINE on a service: a description + amount, plus its receipts.
+ * `newReceipts` were uploaded directly to storage this session (only metadata
+ * reaches the action — no bytes). `existingReceiptIds` (edit mode) are
+ * attachment ids already saved that belong to this line.
  */
-function parseReceiptMetas(formData: FormData): ReceiptMeta[] {
-  const out: ReceiptMeta[] = [];
-  const raw = str(formData, "receipts");
-  if (!raw) return out;
+type ExpenseInput = {
+  description: string | null;
+  amount: number | null;
+  newReceipts: ReceiptMeta[];
+  existingReceiptIds: string[];
+};
+
+/** Validate one uploaded-receipt metadata blob; throws on bad mime/size. */
+function validateReceiptMeta(r: Record<string, unknown>): ReceiptMeta | null {
+  const storagePath = typeof r.storagePath === "string" ? r.storagePath : "";
+  if (!storagePath) return null;
+  const name = typeof r.name === "string" ? r.name : "receipt";
+  const type = typeof r.type === "string" ? r.type : "";
+  const size = typeof r.size === "number" ? r.size : 0;
+  if (type && !RECEIPT_MIME.has(type)) {
+    throw new Error(
+      `Unsupported file "${name}" (${type || "unknown"}). Use JPG, PNG, HEIC, WEBP, or PDF.`,
+    );
+  }
+  if (size > RECEIPT_MAX_BYTES) {
+    throw new Error(`"${name}" is too large. Max 20 MB.`);
+  }
+  return { storagePath, name, type, size };
+}
+
+/**
+ * Parse the `expenses` JSON the client sends — the expense lines for a service.
+ * Each line carries description + amount + its receipts. Fully-empty lines (no
+ * description, amount, or receipts) are dropped. Throws on a bad receipt so the
+ * modal surfaces it inline.
+ */
+function parseExpenses(formData: FormData): ExpenseInput[] {
+  const raw = str(formData, "expenses");
+  if (!raw) return [];
   let parsed: unknown = [];
   try {
     parsed = JSON.parse(raw);
   } catch {
-    throw new Error("Could not read the uploaded receipts.");
+    throw new Error("Could not read the expense lines.");
   }
-  if (!Array.isArray(parsed)) return out;
-  for (const r of parsed as Record<string, unknown>[]) {
-    const storagePath = typeof r.storagePath === "string" ? r.storagePath : "";
-    if (!storagePath) continue;
-    const name = typeof r.name === "string" ? r.name : "receipt";
-    const type = typeof r.type === "string" ? r.type : "";
-    const size = typeof r.size === "number" ? r.size : 0;
-    if (type && !RECEIPT_MIME.has(type)) {
-      throw new Error(
-        `Unsupported file "${name}" (${type || "unknown"}). Use JPG, PNG, HEIC, WEBP, or PDF.`,
-      );
+  if (!Array.isArray(parsed)) return [];
+  const out: ExpenseInput[] = [];
+  for (const e of parsed as Record<string, unknown>[]) {
+    const description =
+      (typeof e.description === "string"
+        ? e.description.trim().slice(0, 200)
+        : "") || null;
+    const amount = moneyOrNull(
+      typeof e.amount === "string"
+        ? e.amount
+        : typeof e.amount === "number"
+          ? String(e.amount)
+          : null,
+    );
+    const newReceipts: ReceiptMeta[] = [];
+    if (Array.isArray(e.newReceipts)) {
+      for (const r of e.newReceipts as Record<string, unknown>[]) {
+        const meta = validateReceiptMeta(r);
+        if (meta) newReceipts.push(meta);
+      }
     }
-    if (size > RECEIPT_MAX_BYTES) {
-      throw new Error(`"${name}" is too large. Max 20 MB.`);
+    const existingReceiptIds = Array.isArray(e.existingReceiptIds)
+      ? (e.existingReceiptIds as unknown[]).filter(
+          (v): v is string => typeof v === "string",
+        )
+      : [];
+    if (
+      description == null &&
+      amount == null &&
+      newReceipts.length === 0 &&
+      existingReceiptIds.length === 0
+    ) {
+      continue; // drop fully-empty line
     }
-    out.push({
-      storagePath,
-      name,
-      type,
-      size,
-      amount: moneyOrNull(typeof r.amount === "string" ? r.amount : null),
-      label:
-        (typeof r.label === "string" ? r.label.trim().slice(0, 60) : "") || null,
-    });
+    out.push({ description, amount, newReceipts, existingReceiptIds });
   }
   return out;
+}
+
+/**
+ * Create one maintenance_expenses row per expense line on a log, then tie each
+ * receipt to its line via maintenance_attachments.expense_id — newly-uploaded
+ * receipts get inserted with the line's id, and edit-mode receipts that were
+ * kept get re-pointed to it. Shared by add + update.
+ */
+async function persistExpenseLines(
+  sb: SB,
+  logId: string,
+  expenses: ExpenseInput[],
+): Promise<void> {
+  for (const e of expenses) {
+    const { data: exp, error: expErr } = await sb
+      .from("maintenance_expenses")
+      .insert({ log_id: logId, description: e.description, amount: e.amount })
+      .select("id")
+      .single<{ id: string }>();
+    if (expErr || !exp) {
+      throw new Error(
+        `Could not save expense: ${expErr?.message ?? "unknown error"}`,
+      );
+    }
+    for (const r of e.newReceipts) {
+      const { error: attErr } = await sb.from("maintenance_attachments").insert({
+        log_id: logId,
+        expense_id: exp.id,
+        file_path: r.storagePath,
+        thumb_path: null,
+        file_name: r.name.slice(0, 240),
+        content_type: r.type || null,
+        size_bytes: r.size,
+        amount: null,
+        label: null,
+      });
+      if (attErr) {
+        await sb.storage.from(RECEIPT_BUCKET).remove([r.storagePath]);
+        throw new Error(
+          `Could not record receipt ("${r.name}"): ${attErr.message}`,
+        );
+      }
+    }
+    if (e.existingReceiptIds.length > 0) {
+      const { error: relErr } = await sb
+        .from("maintenance_attachments")
+        .update({ expense_id: exp.id })
+        .eq("log_id", logId)
+        .in("id", e.existingReceiptIds);
+      if (relErr) {
+        throw new Error(`Could not link receipts: ${relErr.message}`);
+      }
+    }
+  }
 }
 
 // Receipt uploads → private maintenance-receipts bucket (signed URLs only).
@@ -215,29 +311,19 @@ export async function addMaintenanceService(formData: FormData): Promise<void> {
     }
   }
 
-  // Expense category + payment method (optional; ignored if unknown).
+  // Expense category (optional; ignored if unknown). Payment method removed
+  // from the UI — the column stays but is no longer written.
   const rawCategory = str(formData, "category");
   const category =
     rawCategory && EXPENSE_CATEGORIES.has(rawCategory) ? rawCategory : null;
-  const rawPayment = str(formData, "payment_method");
-  const paymentMethod =
-    rawPayment && PAYMENT_METHODS.has(rawPayment) ? rawPayment : null;
 
-  // Receipts were uploaded directly to storage by the client (bypassing the
-  // body limit); the action receives only their metadata as JSON.
-  const receipts = parseReceiptMetas(formData);
+  // Expense lines (each with optional receipts already uploaded to storage by
+  // the client). The service total auto-sums the line amounts.
+  const expenses = parseExpenses(formData);
+  const total = expenses.reduce((s, e) => s + (e.amount ?? 0), 0);
+  const totalCost = total > 0 ? Math.round(total * 100) / 100 : null;
 
-  // Total cost: a manual override wins; otherwise auto-sum the receipt amounts.
-  const sumOfReceipts = receipts.reduce((s, r) => s + (r.amount ?? 0), 0);
-  const overrideTotal = moneyOrNull(str(formData, "total_cost"));
-  const totalCost =
-    overrideTotal != null
-      ? overrideTotal
-      : sumOfReceipts > 0
-        ? Math.round(sumOfReceipts * 100) / 100
-        : null;
-
-  // 1. Insert the log row (need its id for the receipt path).
+  // 1. Insert the log row (need its id for the expense + receipt rows).
   const { data: log, error: logErr } = await sb
     .from("maintenance_log")
     .insert({
@@ -247,7 +333,6 @@ export async function addMaintenanceService(formData: FormData): Promise<void> {
       service_date: date,
       notes,
       category,
-      payment_method: paymentMethod,
       total_cost: totalCost,
     })
     .select("id")
@@ -272,24 +357,8 @@ export async function addMaintenanceService(formData: FormData): Promise<void> {
     }
   }
 
-  // 3. Record one attachment row per receipt (already uploaded to storage by
-  //    the client), carrying its own amount + label. No bytes, no thumbnails.
-  for (const r of receipts) {
-    const { error: attErr } = await sb.from("maintenance_attachments").insert({
-      log_id: log.id,
-      file_path: r.storagePath,
-      thumb_path: null,
-      file_name: r.name.slice(0, 240),
-      content_type: r.type || null,
-      size_bytes: r.size,
-      amount: r.amount,
-      label: r.label,
-    });
-    if (attErr) {
-      await sb.storage.from(RECEIPT_BUCKET).remove([r.storagePath]);
-      throw new Error(`Could not record receipt ("${r.name}"): ${attErr.message}`);
-    }
-  }
+  // 3. Create each expense line and tie its receipts to it.
+  await persistExpenseLines(sb, log.id, expenses);
 
   revalidatePath("/admin/maintenance");
   if (itemId) revalidatePath(`/admin/maintenance/${itemId}`);
@@ -342,10 +411,11 @@ export async function updateMaintenanceService(
   const rawCategory = str(formData, "category");
   const category =
     rawCategory && EXPENSE_CATEGORIES.has(rawCategory) ? rawCategory : null;
-  const rawPayment = str(formData, "payment_method");
-  const paymentMethod =
-    rawPayment && PAYMENT_METHODS.has(rawPayment) ? rawPayment : null;
-  const totalCost = moneyOrNull(str(formData, "total_cost"));
+
+  // Expense lines drive the total now (manual total + payment method removed).
+  const expenses = parseExpenses(formData);
+  const total = expenses.reduce((s, e) => s + (e.amount ?? 0), 0);
+  const totalCost = total > 0 ? Math.round(total * 100) / 100 : null;
 
   // 1. Update the log row.
   const { error: updErr } = await sb
@@ -357,7 +427,6 @@ export async function updateMaintenanceService(
       service_date: date,
       notes,
       category,
-      payment_method: paymentMethod,
       total_cost: totalCost,
     })
     .eq("id", logId);
@@ -401,24 +470,17 @@ export async function updateMaintenanceService(
     }
   }
 
-  // 3. Insert new receipts (already uploaded to storage by the client).
-  const newReceipts = parseReceiptMetas(formData);
-  for (const r of newReceipts) {
-    const { error: attErr } = await sb.from("maintenance_attachments").insert({
-      log_id: logId,
-      file_path: r.storagePath,
-      thumb_path: null,
-      file_name: r.name.slice(0, 240),
-      content_type: r.type || null,
-      size_bytes: r.size,
-      amount: r.amount,
-      label: r.label,
-    });
-    if (attErr) {
-      await sb.storage.from(RECEIPT_BUCKET).remove([r.storagePath]);
-      throw new Error(`Could not record receipt ("${r.name}"): ${attErr.message}`);
-    }
+  // 3. Rebuild this log's expense lines from the payload: delete the old rows
+  //    (receipts survive — attachment.expense_id is set NULL on cascade) and
+  //    recreate, re-tying each receipt (kept or newly uploaded) to its line.
+  const { error: delExpErr } = await sb
+    .from("maintenance_expenses")
+    .delete()
+    .eq("log_id", logId);
+  if (delExpErr) {
+    throw new Error(`Could not update expenses: ${delExpErr.message}`);
   }
+  await persistExpenseLines(sb, logId, expenses);
 
   revalidatePath("/admin/maintenance");
   if (itemId) revalidatePath(`/admin/maintenance/${itemId}`);

@@ -2,14 +2,16 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import { IntervalBar } from "../IntervalBar";
 import { resetMaintenanceBaseline } from "../actions";
 import {
   EditIntervalModal,
+  ExpenseLines,
   ServiceModal,
   STATUS,
   money,
+  receiptCount,
   remaining,
   type MaintItem,
   type ServiceHistoryEntry,
@@ -309,7 +311,7 @@ function LogEntryCard({
           onEdit();
         }
       }}
-      title="Tap to edit · add receipts / fix price"
+      title="Tap to edit · expenses / receipts"
       className="cursor-pointer rounded-xl border border-line bg-card p-3.5 shadow-sm transition-colors hover:border-line-strong hover:bg-elevated focus:outline-none focus-visible:border-fg focus-visible:ring-2 focus-visible:ring-fg/20"
     >
       <div className="flex items-start justify-between gap-3">
@@ -321,11 +323,6 @@ function LogEntryCard({
             {h.category ? (
               <span className="shrink-0 rounded-sm bg-indigo-100 px-1.5 py-[1px] font-mono text-[9.5px] font-bold uppercase tracking-[0.06em] text-indigo-700">
                 {h.category}
-              </span>
-            ) : null}
-            {h.paymentMethod ? (
-              <span className="shrink-0 rounded-sm bg-elevated px-1.5 py-[1px] font-mono text-[9.5px] font-bold uppercase tracking-[0.06em] text-fg-muted">
-                {h.paymentMethod}
               </span>
             ) : null}
           </div>
@@ -342,10 +339,10 @@ function LogEntryCard({
           ) : (
             <div className="font-mono text-[11px] text-fg-subtle">no cost</div>
           )}
-          {h.attachments.length > 0 ? (
+          {receiptCount(h) > 0 ? (
             <div className="mt-1 font-mono text-[9px] font-bold uppercase tracking-[0.08em] text-fg-subtle">
-              {h.attachments.length} receipt
-              {h.attachments.length === 1 ? "" : "s"}
+              {receiptCount(h)} receipt
+              {receiptCount(h) === 1 ? "" : "s"}
             </div>
           ) : null}
         </div>
@@ -355,66 +352,7 @@ function LogEntryCard({
           {h.notes}
         </p>
       ) : null}
-      {h.attachments.length > 0 ? (
-        <div className="mt-2 flex flex-wrap gap-3">
-          {h.attachments.map((a) => (
-            <div key={a.id} className="w-16">
-              {a.url ? (
-                a.isImage ? (
-                  <a
-                    href={a.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title={a.name}
-                    onClick={(e) => e.stopPropagation()}
-                    className="block h-16 w-16 overflow-hidden rounded-md border border-line"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={a.thumbUrl ?? a.url}
-                      alt={a.name}
-                      width={64}
-                      height={64}
-                      loading="lazy"
-                      decoding="async"
-                      className="h-full w-full object-cover"
-                    />
-                  </a>
-                ) : (
-                  <a
-                    href={a.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title={a.name}
-                    onClick={(e) => e.stopPropagation()}
-                    className="flex h-16 w-16 items-center justify-center rounded-md border border-line bg-elevated font-mono text-[11px] font-bold text-red-700"
-                  >
-                    PDF
-                  </a>
-                )
-              ) : (
-                <span className="flex h-16 w-16 items-center justify-center rounded-md border border-dashed border-line text-center font-mono text-[9px] text-fg-subtle">
-                  no link
-                </span>
-              )}
-              {a.label || a.amount != null ? (
-                <div className="mt-1 leading-tight">
-                  {a.label ? (
-                    <div className="truncate font-mono text-[9.5px] font-bold uppercase tracking-[0.04em] text-fg-muted">
-                      {a.label}
-                    </div>
-                  ) : null}
-                  {a.amount != null ? (
-                    <div className="font-mono text-[10px] font-bold tabular-nums text-emerald-700">
-                      {money(a.amount)}
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-            </div>
-          ))}
-        </div>
-      ) : null}
+      <ExpenseLines expenses={h.expenses} unlinked={h.unlinkedAttachments} />
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { createServiceRoleClient } from "@/lib/supabase/server";
 import {
   MaintenanceView,
   type MaintItem,
+  type ServiceExpenseLine,
   type ServiceHistoryEntry,
 } from "./MaintenanceView";
 import {
@@ -48,19 +49,26 @@ type LogRow = {
   service_date: string | null;
   notes: string | null;
   category: string | null;
-  payment_method: string | null;
   total_cost: number | string | null;
   created_at: string;
 };
 type AttRow = {
   id: string;
   log_id: string;
+  expense_id: string | null;
   file_path: string;
   thumb_path: string | null;
   file_name: string | null;
   content_type: string | null;
   amount: number | string | null;
   label: string | null;
+};
+type ExpRow = {
+  id: string;
+  log_id: string;
+  description: string | null;
+  amount: number | string | null;
+  created_at: string;
 };
 
 function num(v: number | string | null): number | null {
@@ -105,7 +113,7 @@ async function loadMaintenance(): Promise<{
       sb
         .from("maintenance_log")
         .select(
-          "id, item_id, service_name, service_odo, service_date, notes, category, payment_method, total_cost, created_at",
+          "id, item_id, service_name, service_odo, service_date, notes, category, total_cost, created_at",
         )
         .order("service_date", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false })
@@ -147,24 +155,32 @@ async function loadMaintenance(): Promise<{
     return am - bm;
   });
 
-  // Service history (newest first) + each log's receipts as signed URLs.
+  // Service history (newest first). Each log → its expense LINES, each line →
+  // its receipts (signed). Receipts not tied to a line (legacy) are kept under
+  // the log as "unlinked".
   const logs = logRows ?? [];
   const itemName = new Map((itemRows ?? []).map((i) => [i.id, i.name]));
-  const attByLog = new Map<string, ServiceHistoryEntry["attachments"]>();
+  const expensesByLog = new Map<string, ServiceExpenseLine[]>();
+  const unlinkedByLog = new Map<string, ServiceHistoryEntry["unlinkedAttachments"]>();
   if (logs.length > 0) {
-    const { data: attRows } = await sb
-      .from("maintenance_attachments")
-      .select(
-        "id, log_id, file_path, thumb_path, file_name, content_type, amount, label",
-      )
-      .in(
-        "log_id",
-        logs.map((l) => l.id),
-      )
-      .returns<AttRow[]>();
+    const logIds = logs.map((l) => l.id);
+    const [{ data: attRows }, { data: expRows }] = await Promise.all([
+      sb
+        .from("maintenance_attachments")
+        .select(
+          "id, log_id, expense_id, file_path, thumb_path, file_name, content_type, amount, label",
+        )
+        .in("log_id", logIds)
+        .returns<AttRow[]>(),
+      sb
+        .from("maintenance_expenses")
+        .select("id, log_id, description, amount, created_at")
+        .in("log_id", logIds)
+        .order("created_at", { ascending: true })
+        .returns<ExpRow[]>(),
+    ]);
     const atts = attRows ?? [];
-    // Sign originals (tap-to-view) and thumbnails (grid) in ONE storage request
-    // (was an N+1 of per-file createSignedUrl calls across the last 100 logs).
+    // Sign originals (tap-to-view) and thumbnails (grid) in ONE storage request.
     const signedByPath = new Map<string, string>();
     if (atts.length > 0) {
       const paths = [
@@ -180,12 +196,13 @@ async function loadMaintenance(): Promise<{
         }
       }
     }
+    // Group attachments by expense line; ones with no expense_id are "unlinked".
+    const attByExpense = new Map<string, ServiceExpenseLine["attachments"]>();
     for (const a of atts) {
-      const list = attByLog.get(a.log_id) ?? [];
       const url = signedByPath.get(a.file_path) ?? null;
       const thumbUrl =
         (a.thumb_path ? signedByPath.get(a.thumb_path) : null) ?? url;
-      list.push({
+      const sa = {
         id: a.id,
         name: a.file_name ?? "receipt",
         url,
@@ -193,8 +210,26 @@ async function loadMaintenance(): Promise<{
         isImage: (a.content_type ?? "").startsWith("image/"),
         amount: num(a.amount),
         label: a.label,
+      };
+      if (a.expense_id) {
+        const list = attByExpense.get(a.expense_id) ?? [];
+        list.push(sa);
+        attByExpense.set(a.expense_id, list);
+      } else {
+        const list = unlinkedByLog.get(a.log_id) ?? [];
+        list.push(sa);
+        unlinkedByLog.set(a.log_id, list);
+      }
+    }
+    for (const e of expRows ?? []) {
+      const list = expensesByLog.get(e.log_id) ?? [];
+      list.push({
+        id: e.id,
+        description: e.description,
+        amount: num(e.amount),
+        attachments: attByExpense.get(e.id) ?? [],
       });
-      attByLog.set(a.log_id, list);
+      expensesByLog.set(e.log_id, list);
     }
   }
 
@@ -209,9 +244,9 @@ async function loadMaintenance(): Promise<{
     odo: l.service_odo,
     notes: l.notes,
     category: l.category,
-    paymentMethod: l.payment_method,
     totalCost: num(l.total_cost),
-    attachments: attByLog.get(l.id) ?? [],
+    expenses: expensesByLog.get(l.id) ?? [],
+    unlinkedAttachments: unlinkedByLog.get(l.id) ?? [],
   }));
 
   // Total maintenance spend across every logged service.

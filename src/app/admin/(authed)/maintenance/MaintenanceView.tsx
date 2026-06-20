@@ -37,6 +37,14 @@ export type ServiceAttachment = {
   label: string | null;
 };
 
+/** One expense line on a service: description + amount + its receipts. */
+export type ServiceExpenseLine = {
+  id: string;
+  description: string | null;
+  amount: number | null;
+  attachments: ServiceAttachment[];
+};
+
 export type ServiceHistoryEntry = {
   id: string;
   itemId: string | null;
@@ -45,10 +53,20 @@ export type ServiceHistoryEntry = {
   odo: number | null;
   notes: string | null;
   category: string | null;
-  paymentMethod: string | null;
   totalCost: number | null;
-  attachments: ServiceAttachment[];
+  /** Expense line items (description + amount), each with its own receipts. */
+  expenses: ServiceExpenseLine[];
+  /** Legacy receipts not tied to any expense line (pre-line-items data). */
+  unlinkedAttachments: ServiceAttachment[];
 };
+
+/** Total receipt count across a service's expense lines + any unlinked ones. */
+export function receiptCount(h: ServiceHistoryEntry): number {
+  return (
+    h.expenses.reduce((s, e) => s + e.attachments.length, 0) +
+    h.unlinkedAttachments.length
+  );
+}
 
 // Expense categories offered on the Add Service form (kept in sync with the
 // server's EXPENSE_CATEGORIES allow-list).
@@ -63,9 +81,6 @@ const EXPENSE_CATEGORIES = [
   "Other",
 ];
 const DEFAULT_CATEGORY = "Fluids & Filters";
-
-// Payment methods (kept in sync with the server's PAYMENT_METHODS allow-list).
-const PAYMENT_METHODS = ["Cash", "Credit", "Debit", "Check", "Other"];
 
 // "$1,250.00" — null/blank renders nothing.
 export function money(n: number | null | undefined): string {
@@ -82,6 +97,102 @@ export function money(n: number | null | undefined): string {
 function parseMoney(raw: string): number {
   const n = Number(raw.replace(/[$,\s]/g, ""));
   return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+/**
+ * Read-only display of a service's expense line items (description + amount)
+ * with each line's receipts as signed-URL thumbnails, plus any legacy receipts
+ * not tied to a line. Shared by the global Service History and the per-item
+ * detail page so they stay identical.
+ */
+export function ExpenseLines({
+  expenses,
+  unlinked,
+}: {
+  expenses: ServiceExpenseLine[];
+  unlinked: ServiceAttachment[];
+}) {
+  if (expenses.length === 0 && unlinked.length === 0) return null;
+  return (
+    <div className="mt-2 space-y-1.5">
+      {expenses.map((e) => (
+        <div
+          key={e.id}
+          className="rounded-md border border-line bg-elevated px-2.5 py-2"
+        >
+          <div className="flex items-center justify-between gap-2">
+            <span className="truncate text-[12.5px] font-medium text-fg">
+              {e.description || "Expense"}
+            </span>
+            {e.amount != null ? (
+              <span className="shrink-0 font-mono text-[12.5px] font-bold tabular-nums text-emerald-700">
+                {money(e.amount)}
+              </span>
+            ) : null}
+          </div>
+          {e.attachments.length > 0 ? <ReceiptThumbs atts={e.attachments} /> : null}
+        </div>
+      ))}
+      {unlinked.length > 0 ? (
+        <div className="rounded-md border border-line bg-elevated px-2.5 py-2">
+          <span className="font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-fg-subtle">
+            Other receipts
+          </span>
+          <ReceiptThumbs atts={unlinked} />
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** Receipt thumbnail row (images open in a new tab; PDFs show a PDF box). */
+function ReceiptThumbs({ atts }: { atts: ServiceAttachment[] }) {
+  return (
+    <div className="mt-1.5 flex flex-wrap gap-2">
+      {atts.map((a) => (
+        <div key={a.id} className="w-14">
+          {a.url ? (
+            a.isImage ? (
+              <a
+                href={a.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={a.name}
+                onClick={(e) => e.stopPropagation()}
+                className="block h-14 w-14 overflow-hidden rounded-md border border-line"
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={a.thumbUrl ?? a.url}
+                  alt={a.name}
+                  width={56}
+                  height={56}
+                  loading="lazy"
+                  decoding="async"
+                  className="h-full w-full object-cover"
+                />
+              </a>
+            ) : (
+              <a
+                href={a.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={a.name}
+                onClick={(e) => e.stopPropagation()}
+                className="flex h-14 w-14 items-center justify-center rounded-md border border-line bg-card font-mono text-[11px] font-bold text-red-700"
+              >
+                PDF
+              </a>
+            )
+          ) : (
+            <span className="flex h-14 w-14 items-center justify-center rounded-md border border-dashed border-line text-center font-mono text-[9px] text-fg-subtle">
+              no link
+            </span>
+          )}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export const STATUS: Record<
@@ -394,7 +505,7 @@ function ServiceHistory({
                   onEditEntry(h);
                 }
               }}
-              title="Tap to edit · add receipts / payment"
+              title="Tap to edit · expenses / receipts"
               className="cursor-pointer rounded-xl border border-line bg-card p-3.5 shadow-sm transition-colors hover:border-line-strong hover:bg-elevated focus:outline-none focus-visible:border-fg focus-visible:ring-2 focus-visible:ring-fg/20"
             >
               <div className="flex items-start justify-between gap-3">
@@ -406,11 +517,6 @@ function ServiceHistory({
                     {h.category ? (
                       <span className="shrink-0 rounded-sm bg-indigo-100 px-1.5 py-[1px] font-mono text-[9.5px] font-bold uppercase tracking-[0.06em] text-indigo-700">
                         {h.category}
-                      </span>
-                    ) : null}
-                    {h.paymentMethod ? (
-                      <span className="shrink-0 rounded-sm bg-elevated px-1.5 py-[1px] font-mono text-[9.5px] font-bold uppercase tracking-[0.06em] text-fg-muted">
-                        {h.paymentMethod}
                       </span>
                     ) : null}
                   </div>
@@ -430,10 +536,10 @@ function ServiceHistory({
                       no cost
                     </div>
                   )}
-                  {h.attachments.length > 0 ? (
+                  {receiptCount(h) > 0 ? (
                     <div className="mt-1 font-mono text-[9px] font-bold uppercase tracking-[0.08em] text-fg-subtle">
-                      {h.attachments.length} receipt
-                      {h.attachments.length === 1 ? "" : "s"}
+                      {receiptCount(h)} receipt
+                      {receiptCount(h) === 1 ? "" : "s"}
                     </div>
                   ) : null}
                 </div>
@@ -443,66 +549,10 @@ function ServiceHistory({
                   {h.notes}
                 </p>
               ) : null}
-              {h.attachments.length > 0 ? (
-                <div className="mt-2 flex flex-wrap gap-3">
-                  {h.attachments.map((a) => (
-                    <div key={a.id} className="w-16">
-                      {a.url ? (
-                        a.isImage ? (
-                          <a
-                            href={a.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            title={a.name}
-                            onClick={(e) => e.stopPropagation()}
-                            className="block h-16 w-16 overflow-hidden rounded-md border border-line"
-                          >
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={a.thumbUrl ?? a.url}
-                              alt={a.name}
-                              width={64}
-                              height={64}
-                              loading="lazy"
-                              decoding="async"
-                              className="h-full w-full object-cover"
-                            />
-                          </a>
-                        ) : (
-                          <a
-                            href={a.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            title={a.name}
-                            onClick={(e) => e.stopPropagation()}
-                            className="flex h-16 w-16 items-center justify-center rounded-md border border-line bg-elevated font-mono text-[11px] font-bold text-red-700"
-                          >
-                            PDF
-                          </a>
-                        )
-                      ) : (
-                        <span className="flex h-16 w-16 items-center justify-center rounded-md border border-dashed border-line text-center font-mono text-[9px] text-fg-subtle">
-                          no link
-                        </span>
-                      )}
-                      {a.label || a.amount != null ? (
-                        <div className="mt-1 leading-tight">
-                          {a.label ? (
-                            <div className="truncate font-mono text-[9.5px] font-bold uppercase tracking-[0.04em] text-fg-muted">
-                              {a.label}
-                            </div>
-                          ) : null}
-                          {a.amount != null ? (
-                            <div className="font-mono text-[10px] font-bold tabular-nums text-emerald-700">
-                              {money(a.amount)}
-                            </div>
-                          ) : null}
-                        </div>
-                      ) : null}
-                    </div>
-                  ))}
-                </div>
-              ) : null}
+              <ExpenseLines
+                expenses={h.expenses}
+                unlinked={h.unlinkedAttachments}
+              />
             </div>
           ))}
         </div>
@@ -511,12 +561,55 @@ function ServiceHistory({
   );
 }
 
-type ReceiptRow = {
-  id: string;
-  file: File;
+/** Editable state for one expense line in the ServiceModal. */
+type ExpenseLineState = {
+  key: string;
+  description: string;
   amount: string;
-  label: string;
+  /** Receipts already saved (edit mode) that belong to this line. */
+  existing: ServiceAttachment[];
+  /** New files picked this session, to upload on submit. */
+  files: { id: string; file: File }[];
 };
+
+/**
+ * Seed the modal's expense lines. Edit mode prefills the saved lines (with
+ * their receipts); any legacy receipts not tied to a line are folded into one
+ * extra line so they're preserved. Add mode starts with a single blank line.
+ */
+function initialLines(editEntry: ServiceHistoryEntry | null): ExpenseLineState[] {
+  if (!editEntry) {
+    return [
+      { key: crypto.randomUUID(), description: "", amount: "", existing: [], files: [] },
+    ];
+  }
+  const lines: ExpenseLineState[] = editEntry.expenses.map((e) => ({
+    key: crypto.randomUUID(),
+    description: e.description ?? "",
+    amount: e.amount != null ? String(e.amount) : "",
+    existing: e.attachments,
+    files: [],
+  }));
+  if (editEntry.unlinkedAttachments.length > 0) {
+    lines.push({
+      key: crypto.randomUUID(),
+      description: "",
+      amount: "",
+      existing: editEntry.unlinkedAttachments,
+      files: [],
+    });
+  }
+  if (lines.length === 0) {
+    lines.push({
+      key: crypto.randomUUID(),
+      description: "",
+      amount: "",
+      existing: [],
+      files: [],
+    });
+  }
+  return lines;
+}
 
 export function ServiceModal({
   items,
@@ -552,28 +645,15 @@ export function ServiceModal({
     editEntry?.category && EXPENSE_CATEGORIES.includes(editEntry.category)
       ? editEntry.category
       : DEFAULT_CATEGORY;
-  const defaultPayment =
-    editEntry?.paymentMethod &&
-    PAYMENT_METHODS.includes(editEntry.paymentMethod)
-      ? editEntry.paymentMethod
-      : "";
 
-  // New receipts to upload this session.
-  const [rows, setRows] = useState<ReceiptRow[]>([]);
-  // Existing attachments (edit mode), with removal tracking.
-  const [existing, setExisting] = useState<ServiceAttachment[]>(
-    editEntry?.attachments ?? [],
+  // Expense lines — each = description + amount + optional receipts. In edit
+  // mode, prefill from the saved lines (and fold any legacy receipts not tied
+  // to a line into one extra line so they're preserved).
+  const [lines, setLines] = useState<ExpenseLineState[]>(() =>
+    initialLines(editEntry),
   );
+  // Existing attachments the user removed (deleted on save).
   const [removedIds, setRemovedIds] = useState<string[]>([]);
-
-  // Total cost — prefilled from the entry in edit mode; otherwise auto-sums the
-  // new receipt amounts until the user edits it.
-  const [total, setTotal] = useState(
-    editEntry?.totalCost != null ? String(editEntry.totalCost) : "",
-  );
-  const [totalDirty, setTotalDirty] = useState(
-    isEdit && editEntry?.totalCost != null,
-  );
 
   // Direct-upload phase runs before the metadata action; its own busy + error.
   const [uploading, setUploading] = useState(false);
@@ -610,41 +690,73 @@ export function ServiceModal({
     return () => document.removeEventListener("keydown", onKey);
   }, [pending, uploading, onClose]);
 
-  const sum = rows.reduce((s, r) => s + parseMoney(r.amount), 0);
-  const totalValue = totalDirty ? total : sum > 0 ? sum.toFixed(2) : "";
+  const total = lines.reduce((s, l) => s + parseMoney(l.amount), 0);
 
-  function onPickFiles(e: React.ChangeEvent<HTMLInputElement>) {
-    const picked = Array.from(e.target.files ?? []);
-    if (picked.length > 0) {
-      setRows((prev) => [
-        ...prev,
-        ...picked.map((file) => ({
-          id: crypto.randomUUID(),
-          file,
-          amount: "",
-          label: "",
-        })),
-      ]);
-    }
-    e.target.value = ""; // allow re-selecting the same file
+  function addLine() {
+    setLines((prev) => [
+      ...prev,
+      {
+        key: crypto.randomUUID(),
+        description: "",
+        amount: "",
+        existing: [],
+        files: [],
+      },
+    ]);
+  }
+  function patchLine(key: string, patch: Partial<ExpenseLineState>) {
+    setLines((prev) => prev.map((l) => (l.key === key ? { ...l, ...patch } : l)));
+  }
+  function removeLine(key: string) {
+    setLines((prev) => {
+      const line = prev.find((l) => l.key === key);
+      if (line && line.existing.length > 0) {
+        const ids = line.existing.map((a) => a.id);
+        setRemovedIds((r) => [...r, ...ids.filter((id) => !r.includes(id))]);
+      }
+      return prev.filter((l) => l.key !== key);
+    });
+  }
+  function addFilesToLine(key: string, fileList: FileList | null) {
+    const picked = Array.from(fileList ?? []);
+    if (picked.length === 0) return;
+    setLines((prev) =>
+      prev.map((l) =>
+        l.key === key
+          ? {
+              ...l,
+              files: [
+                ...l.files,
+                ...picked.map((file) => ({ id: crypto.randomUUID(), file })),
+              ],
+            }
+          : l,
+      ),
+    );
+  }
+  function removeFile(key: string, fileId: string) {
+    setLines((prev) =>
+      prev.map((l) =>
+        l.key === key
+          ? { ...l, files: l.files.filter((f) => f.id !== fileId) }
+          : l,
+      ),
+    );
+  }
+  function removeExistingFromLine(key: string, attId: string) {
+    setRemovedIds((r) => (r.includes(attId) ? r : [...r, attId]));
+    setLines((prev) =>
+      prev.map((l) =>
+        l.key === key
+          ? { ...l, existing: l.existing.filter((a) => a.id !== attId) }
+          : l,
+      ),
+    );
   }
 
-  function patchRow(id: string, patch: Partial<ReceiptRow>) {
-    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)));
-  }
-
-  function removeRow(id: string) {
-    setRows((prev) => prev.filter((r) => r.id !== id));
-  }
-
-  function removeExisting(id: string) {
-    setExisting((prev) => prev.filter((a) => a.id !== id));
-    setRemovedIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
-  }
-
-  // Receipts upload DIRECTLY to storage (bypassing the body limit) before the
-  // action runs; only their metadata (path/name/type/size + amount/label) is
-  // sent to the action as JSON.
+  // Each line's receipt files upload DIRECTLY to storage (bypassing the body
+  // limit) before the action runs; only their metadata is sent, grouped under
+  // the line so the server can set each attachment's expense_id.
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (pending || uploading) return;
@@ -652,43 +764,67 @@ export function ServiceModal({
     setUploading(true);
     setUploadErr(null);
     try {
-      const metas: {
-        storagePath: string;
-        name: string;
-        type: string;
-        size: number;
+      const payload: {
+        description: string;
         amount: string;
-        label: string;
+        newReceipts: {
+          storagePath: string;
+          name: string;
+          type: string;
+          size: number;
+        }[];
+        existingReceiptIds: string[];
       }[] = [];
-      for (const r of rows) {
-        const f = r.file;
-        const urlRes = await createReceiptUploadUrl(f.name, f.type, f.size);
-        if (!urlRes.ok) {
-          setUploadErr(urlRes.reason);
-          return;
+      for (const l of lines) {
+        const metas: {
+          storagePath: string;
+          name: string;
+          type: string;
+          size: number;
+        }[] = [];
+        for (const f of l.files) {
+          const file = f.file;
+          const urlRes = await createReceiptUploadUrl(
+            file.name,
+            file.type,
+            file.size,
+          );
+          if (!urlRes.ok) {
+            setUploadErr(urlRes.reason);
+            return;
+          }
+          const upRes = await uploadFileToSignedUrl(
+            urlRes.bucket,
+            urlRes.path,
+            urlRes.token,
+            file,
+          );
+          if (!upRes.ok) {
+            setUploadErr(`Upload failed ("${file.name}"): ${upRes.reason}`);
+            return;
+          }
+          metas.push({
+            storagePath: urlRes.path,
+            name: file.name,
+            type: file.type,
+            size: file.size,
+          });
         }
-        const upRes = await uploadFileToSignedUrl(
-          urlRes.bucket,
-          urlRes.path,
-          urlRes.token,
-          f,
-        );
-        if (!upRes.ok) {
-          setUploadErr(`Upload failed ("${f.name}"): ${upRes.reason}`);
-          return;
+        const desc = l.description.trim();
+        const amt = l.amount.trim();
+        // Drop fully-empty lines.
+        if (!desc && !amt && metas.length === 0 && l.existing.length === 0) {
+          continue;
         }
-        metas.push({
-          storagePath: urlRes.path,
-          name: f.name,
-          type: f.type,
-          size: f.size,
-          amount: r.amount,
-          label: r.label,
+        payload.push({
+          description: desc,
+          amount: amt,
+          newReceipts: metas,
+          existingReceiptIds: l.existing.map((a) => a.id),
         });
       }
       const fd = new FormData(form);
-      fd.set("total_cost", totalValue);
-      fd.set("receipts", JSON.stringify(metas));
+      fd.set("expenses", JSON.stringify(payload));
       if (isEdit) fd.set("remove_attachment_ids", JSON.stringify(removedIds));
       action(fd);
     } catch (err) {
@@ -745,36 +881,19 @@ export function ServiceModal({
               />
             </div>
           ) : null}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={LABEL}>Expense category</label>
-              <select
-                name="category"
-                defaultValue={defaultCategory}
-                className={FIELD}
-              >
-                {EXPENSE_CATEGORIES.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className={LABEL}>Payment method</label>
-              <select
-                name="payment_method"
-                defaultValue={defaultPayment}
-                className={FIELD}
-              >
-                <option value="">— none —</option>
-                {PAYMENT_METHODS.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div>
+            <label className={LABEL}>Expense category</label>
+            <select
+              name="category"
+              defaultValue={defaultCategory}
+              className={FIELD}
+            >
+              {EXPENSE_CATEGORIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -810,159 +929,162 @@ export function ServiceModal({
             />
           </div>
 
-          {/* Saved receipts (edit) — tap × to remove */}
-          {existing.length > 0 ? (
-            <div>
-              <label className={LABEL}>Saved receipts</label>
-              <div className="mt-1.5 flex flex-wrap gap-2">
-                {existing.map((a) => (
-                  <div key={a.id} className="relative w-16">
-                    {a.url && a.isImage ? (
-                      <a
-                        href={a.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="block h-16 w-16 overflow-hidden rounded-md border border-line"
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={a.thumbUrl ?? a.url}
-                          alt={a.name}
-                          width={64}
-                          height={64}
-                          loading="lazy"
-                          decoding="async"
-                          className="h-full w-full object-cover"
-                        />
-                      </a>
-                    ) : (
-                      <a
-                        href={a.url ?? "#"}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        className="flex h-16 w-16 items-center justify-center rounded-md border border-line bg-elevated font-mono text-[11px] font-bold text-red-700"
-                      >
-                        PDF
-                      </a>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => removeExisting(a.id)}
-                      aria-label={`Remove ${a.name}`}
-                      className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-red-700 bg-red-600 text-[11px] font-bold leading-none text-white shadow-sm transition-colors hover:bg-red-700"
-                    >
-                      ×
-                    </button>
-                    {a.amount != null ? (
-                      <div className="mt-1 font-mono text-[10px] font-bold tabular-nums text-emerald-700">
-                        {money(a.amount)}
-                      </div>
-                    ) : null}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) : null}
-
-          {/* Receipts — each carries its own amount + label (e.g. Parts/Labor) */}
+          {/* Expense line items — each a description + amount + optional
+              receipts. Brent's case: "Sensor $X" (with its receipt) AND
+              "Filters $Y" (with its receipt) as two lines on one service. */}
           <div>
-            <label className={LABEL}>
-              {isEdit ? "Add receipts" : "Receipts (optional)"}
-            </label>
-            {rows.length > 0 ? (
-              <div className="mt-1.5 space-y-2">
-                {rows.map((r) => (
-                  <div
-                    key={r.id}
-                    className="rounded-md border border-line bg-card p-2.5"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-fg-muted">
-                        {r.file.name}
+            <div className="flex items-center justify-between">
+              <label className={LABEL}>Expenses</label>
+              <button
+                type="button"
+                onClick={addLine}
+                className="rounded-md border border-line-strong bg-card px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-fg-muted transition-colors hover:text-fg"
+              >
+                + Add expense
+              </button>
+            </div>
+            {lines.length === 0 ? (
+              <p className="mt-1.5 font-mono text-[11px] text-fg-subtle">
+                No expenses yet — add a line (e.g. Sensor, Filters, Oil).
+              </p>
+            ) : null}
+            <div className="mt-1.5 space-y-2">
+              {lines.map((l) => (
+                <div
+                  key={l.key}
+                  className="rounded-md border border-line bg-card p-2.5"
+                >
+                  <div className="flex items-center gap-2">
+                    <input
+                      value={l.description}
+                      onChange={(e) =>
+                        patchLine(l.key, { description: e.target.value })
+                      }
+                      autoComplete="off"
+                      placeholder="Description (e.g. Sensor, Filters, Oil)"
+                      aria-label="Expense description"
+                      className="min-w-0 flex-1 rounded-md border border-line-strong bg-card px-2 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
+                    />
+                    <div className="relative w-24 shrink-0">
+                      <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 font-mono text-[12px] text-fg-subtle">
+                        $
                       </span>
-                      <button
-                        type="button"
-                        onClick={() => removeRow(r.id)}
-                        className="shrink-0 rounded-sm border border-line-strong px-1.5 py-[1px] font-mono text-[11px] font-bold text-fg-subtle transition-colors hover:bg-elevated hover:text-red-700"
-                        aria-label={`Remove ${r.file.name}`}
-                      >
-                        ✕
-                      </button>
-                    </div>
-                    <div className="mt-2 grid grid-cols-2 gap-2">
-                      <div className="relative">
-                        <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 font-mono text-[12px] text-fg-subtle">
-                          $
-                        </span>
-                        <input
-                          value={r.amount}
-                          onChange={(e) =>
-                            patchRow(r.id, { amount: e.target.value })
-                          }
-                          inputMode="decimal"
-                          autoComplete="off"
-                          placeholder="0.00"
-                          aria-label="Amount"
-                          className="w-full rounded-md border border-line-strong bg-card py-1.5 pl-5 pr-2 text-[13px] tabular-nums text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
-                        />
-                      </div>
                       <input
-                        value={r.label}
+                        value={l.amount}
                         onChange={(e) =>
-                          patchRow(r.id, { label: e.target.value })
+                          patchLine(l.key, { amount: e.target.value })
                         }
+                        inputMode="decimal"
                         autoComplete="off"
-                        placeholder="Parts / Labor"
-                        aria-label="Label"
-                        className="w-full rounded-md border border-line-strong bg-card px-2 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
+                        placeholder="0.00"
+                        aria-label="Amount"
+                        className="w-full rounded-md border border-line-strong bg-card py-1.5 pl-5 pr-2 text-[13px] tabular-nums text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
                       />
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => removeLine(l.key)}
+                      aria-label="Remove expense line"
+                      className="shrink-0 rounded-sm border border-line-strong px-1.5 py-[3px] font-mono text-[12px] font-bold text-fg-subtle transition-colors hover:bg-elevated hover:text-red-700"
+                    >
+                      ✕
+                    </button>
                   </div>
-                ))}
-              </div>
-            ) : null}
-            <label className="mt-1.5 inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-line-strong bg-card px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-fg-muted transition-colors hover:bg-elevated hover:text-fg">
-              + Add receipt
-              <input
-                type="file"
-                multiple
-                accept="image/*,application/pdf,.heic"
-                onChange={onPickFiles}
-                className="hidden"
-              />
-            </label>
+
+                  {/* This line's receipts: saved (edit) + newly picked. */}
+                  {l.existing.length > 0 || l.files.length > 0 ? (
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      {l.existing.map((a) => (
+                        <div key={a.id} className="relative w-12">
+                          {a.url && a.isImage ? (
+                            <a
+                              href={a.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="block h-12 w-12 overflow-hidden rounded-md border border-line"
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={a.thumbUrl ?? a.url}
+                                alt={a.name}
+                                width={48}
+                                height={48}
+                                loading="lazy"
+                                decoding="async"
+                                className="h-full w-full object-cover"
+                              />
+                            </a>
+                          ) : (
+                            <a
+                              href={a.url ?? "#"}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="flex h-12 w-12 items-center justify-center rounded-md border border-line bg-elevated font-mono text-[10px] font-bold text-red-700"
+                            >
+                              PDF
+                            </a>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => removeExistingFromLine(l.key, a.id)}
+                            aria-label={`Remove ${a.name}`}
+                            className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-red-700 bg-red-600 text-[11px] font-bold leading-none text-white shadow-sm transition-colors hover:bg-red-700"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                      {l.files.map((f) => (
+                        <span
+                          key={f.id}
+                          className="inline-flex max-w-[10rem] items-center gap-1.5 rounded-md border border-line-strong bg-elevated px-2 py-1"
+                        >
+                          <span className="truncate font-mono text-[10.5px] text-fg-muted">
+                            {f.file.name}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => removeFile(l.key, f.id)}
+                            aria-label={`Remove ${f.file.name}`}
+                            className="shrink-0 font-mono text-[11px] font-bold text-fg-subtle hover:text-red-700"
+                          >
+                            ✕
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  ) : null}
+
+                  <label className="mt-2 inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-line-strong bg-elevated px-2.5 py-1 font-mono text-[10.5px] font-bold uppercase tracking-[0.08em] text-fg-muted transition-colors hover:text-fg">
+                    + Receipt
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*,application/pdf,.heic"
+                      onChange={(e) => {
+                        addFilesToLine(l.key, e.target.files);
+                        e.target.value = "";
+                      }}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+              ))}
+            </div>
             <p className="mt-1 font-mono text-[10px] text-fg-subtle">
-              Photos or PDF · up to 20 MB each · one amount + label per receipt.
+              One line per transaction (e.g. Sensor + Filters). Attach a receipt
+              photo/PDF to a line, or leave it amount-only. Up to 20 MB each.
             </p>
           </div>
 
-          {/* Total cost — defaults to the receipt sum, editable */}
-          <div>
-            <label className={LABEL}>Total cost</label>
-            <div className="relative mt-1">
-              <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 font-mono text-[13px] text-fg-subtle">
-                $
-              </span>
-              <input
-                value={totalValue}
-                onChange={(e) => {
-                  setTotalDirty(true);
-                  setTotal(e.target.value);
-                }}
-                inputMode="decimal"
-                autoComplete="off"
-                placeholder="0.00"
-                className="w-full rounded-md border border-line-strong bg-card py-1.5 pl-6 pr-2 text-[13px] font-semibold tabular-nums text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
-              />
-            </div>
-            <p className="mt-1 font-mono text-[10px] text-fg-subtle">
-              {sum > 0
-                ? `Auto-summed from receipts: ${money(sum)}` +
-                  (totalDirty ? " · overridden" : " · edit to override")
-                : "No receipt amounts — enter a total for cash/no-receipt jobs."}
-            </p>
+          {/* Total — auto-summed from the line amounts (read-only). */}
+          <div className="flex items-center justify-between rounded-md border border-line-strong bg-card px-3 py-2">
+            <span className={LABEL}>Total</span>
+            <span className="font-mono text-[16px] font-bold tabular-nums text-emerald-700">
+              {total > 0 ? money(total) : "$0.00"}
+            </span>
           </div>
 
           {errorMsg ? (

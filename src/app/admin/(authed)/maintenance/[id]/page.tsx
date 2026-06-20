@@ -7,6 +7,7 @@ import {
 } from "@/lib/dispatch/maintenance";
 import type {
   MaintItem,
+  ServiceExpenseLine,
   ServiceHistoryEntry,
 } from "../MaintenanceView";
 import { MaintenanceItemDetail } from "./MaintenanceItemDetail";
@@ -54,7 +55,6 @@ type LogRow = {
   service_date: string | null;
   notes: string | null;
   category: string | null;
-  payment_method: string | null;
   total_cost: number | string | null;
   created_at: string;
 };
@@ -62,12 +62,21 @@ type LogRow = {
 type AttRow = {
   id: string;
   log_id: string;
+  expense_id: string | null;
   file_path: string;
   thumb_path: string | null;
   file_name: string | null;
   content_type: string | null;
   amount: number | string | null;
   label: string | null;
+};
+
+type ExpRow = {
+  id: string;
+  log_id: string;
+  description: string | null;
+  amount: number | string | null;
+  created_at: string;
 };
 
 function num(v: number | string | null): number | null {
@@ -106,7 +115,7 @@ async function loadItemDetail(itemId: string): Promise<{
       sb
         .from("maintenance_log")
         .select(
-          "id, item_id, service_name, service_odo, service_date, notes, category, payment_method, total_cost, created_at",
+          "id, item_id, service_name, service_odo, service_date, notes, category, total_cost, created_at",
         )
         .eq("item_id", itemId)
         .order("service_date", { ascending: false, nullsFirst: false })
@@ -144,20 +153,28 @@ async function loadItemDetail(itemId: string): Promise<{
   const allItems = rows.map(toMaintItem);
   const item = toMaintItem(focused);
 
-  // Sign this item's receipts (originals + thumbnails) in one storage request.
+  // Build each log's expense LINES (with their signed receipts). Receipts not
+  // tied to a line (legacy) are kept under the log as "unlinked".
   const logs = logRows ?? [];
-  const attByLog = new Map<string, ServiceHistoryEntry["attachments"]>();
+  const expensesByLog = new Map<string, ServiceExpenseLine[]>();
+  const unlinkedByLog = new Map<string, ServiceHistoryEntry["unlinkedAttachments"]>();
   if (logs.length > 0) {
-    const { data: attRows } = await sb
-      .from("maintenance_attachments")
-      .select(
-        "id, log_id, file_path, thumb_path, file_name, content_type, amount, label",
-      )
-      .in(
-        "log_id",
-        logs.map((l) => l.id),
-      )
-      .returns<AttRow[]>();
+    const logIds = logs.map((l) => l.id);
+    const [{ data: attRows }, { data: expRows }] = await Promise.all([
+      sb
+        .from("maintenance_attachments")
+        .select(
+          "id, log_id, expense_id, file_path, thumb_path, file_name, content_type, amount, label",
+        )
+        .in("log_id", logIds)
+        .returns<AttRow[]>(),
+      sb
+        .from("maintenance_expenses")
+        .select("id, log_id, description, amount, created_at")
+        .in("log_id", logIds)
+        .order("created_at", { ascending: true })
+        .returns<ExpRow[]>(),
+    ]);
     const atts = attRows ?? [];
     const signedByPath = new Map<string, string>();
     if (atts.length > 0) {
@@ -174,12 +191,12 @@ async function loadItemDetail(itemId: string): Promise<{
         }
       }
     }
+    const attByExpense = new Map<string, ServiceExpenseLine["attachments"]>();
     for (const a of atts) {
-      const list = attByLog.get(a.log_id) ?? [];
       const url = signedByPath.get(a.file_path) ?? null;
       const thumbUrl =
         (a.thumb_path ? signedByPath.get(a.thumb_path) : null) ?? url;
-      list.push({
+      const sa = {
         id: a.id,
         name: a.file_name ?? "receipt",
         url,
@@ -187,8 +204,26 @@ async function loadItemDetail(itemId: string): Promise<{
         isImage: (a.content_type ?? "").startsWith("image/"),
         amount: num(a.amount),
         label: a.label,
+      };
+      if (a.expense_id) {
+        const list = attByExpense.get(a.expense_id) ?? [];
+        list.push(sa);
+        attByExpense.set(a.expense_id, list);
+      } else {
+        const list = unlinkedByLog.get(a.log_id) ?? [];
+        list.push(sa);
+        unlinkedByLog.set(a.log_id, list);
+      }
+    }
+    for (const e of expRows ?? []) {
+      const list = expensesByLog.get(e.log_id) ?? [];
+      list.push({
+        id: e.id,
+        description: e.description,
+        amount: num(e.amount),
+        attachments: attByExpense.get(e.id) ?? [],
       });
-      attByLog.set(a.log_id, list);
+      expensesByLog.set(e.log_id, list);
     }
   }
 
@@ -200,9 +235,9 @@ async function loadItemDetail(itemId: string): Promise<{
     odo: l.service_odo,
     notes: l.notes,
     category: l.category,
-    paymentMethod: l.payment_method,
     totalCost: num(l.total_cost),
-    attachments: attByLog.get(l.id) ?? [],
+    expenses: expensesByLog.get(l.id) ?? [],
+    unlinkedAttachments: unlinkedByLog.get(l.id) ?? [],
   }));
 
   const totalSpent = log.reduce((s, h) => s + (h.totalCost ?? 0), 0);
