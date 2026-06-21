@@ -1098,7 +1098,7 @@ export function ServiceModal({
                       type="button"
                       onClick={() => removeLine(l.key)}
                       aria-label="Remove expense line"
-                      className="ml-auto shrink-0 rounded-md border border-line-strong px-2.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.06em] text-fg-subtle transition-colors hover:bg-elevated hover:text-red-700"
+                      className="ml-auto shrink-0 rounded-md border border-red-700 bg-red-600 px-2.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.06em] text-white transition-colors hover:bg-red-700"
                     >
                       Remove
                     </button>
@@ -1170,7 +1170,7 @@ export function ServiceModal({
                     </div>
                   ) : null}
 
-                  <label className="mt-2 inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-line-strong bg-elevated px-2.5 py-1 font-mono text-[10.5px] font-bold uppercase tracking-[0.08em] text-fg-muted transition-colors hover:text-fg">
+                  <label className="mt-2 inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-blue-700 bg-blue-600 px-2.5 py-1 font-mono text-[10.5px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-blue-700">
                     + Receipt
                     <input
                       type="file"
