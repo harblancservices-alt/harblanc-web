@@ -384,14 +384,18 @@ export function MaintenanceView({
                             {item.name}
                           </h3>
                         </div>
-                        <p className="mt-1 text-[12px] text-fg-muted">
-                          Every {item.interval.toLocaleString()} mi
-                        </p>
-                        <p className="text-[11.5px] text-fg-subtle">
-                          {item.neverServiced
-                            ? "Never serviced"
-                            : `Last ${item.lastOdo!.toLocaleString()} mi${item.lastDate ? " · " + item.lastDate : ""}`}
-                        </p>
+                        {item.neverServiced ? (
+                          <p className="mt-1 text-[11.5px] text-fg-subtle">
+                            Never serviced
+                          </p>
+                        ) : (
+                          <p className="mt-1 font-mono text-[11.5px] font-semibold tabular-nums text-amber-700">
+                            Last {item.lastOdo!.toLocaleString()} mi
+                            {item.lastDate
+                              ? " · " + (formatServiceDate(item.lastDate) ?? item.lastDate)
+                              : ""}
+                          </p>
+                        )}
                       </div>
                       <div className="shrink-0 text-right">
                         <div
@@ -415,15 +419,10 @@ export function MaintenanceView({
 
                     <div className="mt-2.5">
                       <IntervalBar pct={item.pct} status={item.status} />
-                      <p className="mt-1 flex items-center justify-between gap-2 font-mono text-[9.5px] text-fg-subtle">
-                        <span>
-                          {item.neverServiced
-                            ? "Awaiting first service"
-                            : `${Math.round(item.pct)}% through ${item.interval.toLocaleString()} mi interval`}
-                        </span>
-                        <span className="font-bold uppercase tracking-[0.08em] text-indigo-600">
-                          View →
-                        </span>
+                      <p className="mt-1 font-mono text-[9.5px] text-fg-subtle">
+                        {item.neverServiced
+                          ? "Awaiting first service"
+                          : `${Math.round(item.pct)}% through ${item.interval.toLocaleString()} mi interval`}
                       </p>
                     </div>
                   </Link>
