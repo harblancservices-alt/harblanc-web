@@ -255,10 +255,10 @@ export function MaintenanceView({
   history: ServiceHistoryEntry[];
   totalSpend: number;
 }) {
-  const [editItem, setEditItem] = useState<MaintItem | null>(null);
-  // Unified add / log / edit service modal. presetItemId = opened from an
-  // item's "Log" button (locked to that service type); editEntry = opened from
-  // a history entry (prefilled for editing).
+  // Unified add / log / edit service modal. presetItemId locks the type
+  // (used when opened for a specific item); editEntry = opened from a history
+  // entry (prefilled for editing). Per-item Edit / Log now live on the detail
+  // page — the list is browse + tap-to-open only.
   const [serviceModal, setServiceModal] = useState<{
     presetItemId?: string;
     editEntry?: ServiceHistoryEntry;
@@ -412,23 +412,6 @@ export function MaintenanceView({
                       </p>
                     </div>
                   </Link>
-
-                  <div className="mt-2.5 flex items-center justify-end gap-2 border-t border-line pt-2.5">
-                    <button
-                      type="button"
-                      onClick={() => setEditItem(item)}
-                      className="rounded-md border border-line-strong bg-card px-2.5 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-fg-muted transition-colors hover:bg-elevated hover:text-fg"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setServiceModal({ presetItemId: item.id })}
-                      className="rounded-md border border-red-700 bg-red-600 px-2.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-red-700"
-                    >
-                      Log service
-                    </button>
-                  </div>
                 </div>
               );
             })}
@@ -442,9 +425,6 @@ export function MaintenanceView({
         />
       </div>
 
-      {editItem ? (
-        <EditIntervalModal item={editItem} onClose={() => setEditItem(null)} />
-      ) : null}
       {serviceModal ? (
         <ServiceModal
           items={items}
@@ -654,6 +634,19 @@ export function ServiceModal({
   );
   // Existing attachments the user removed (deleted on save).
   const [removedIds, setRemovedIds] = useState<string[]>([]);
+
+  // Date + odometer as controlled inputs. Date defaults to today (new) or the
+  // entry's date (edit). Odometer is comma-formatted (e.g. 293,560) to match
+  // the app's number formatting; the action strips commas back to an integer.
+  const [serviceDate, setServiceDate] = useState(editEntry?.date ?? today);
+  const [odo, setOdo] = useState(() => {
+    const seed = editEntry?.odo ?? currentOdo;
+    return seed != null ? seed.toLocaleString("en-US") : "";
+  });
+  function onOdoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const digits = e.target.value.replace(/[^\d]/g, "");
+    setOdo(digits ? Number(digits).toLocaleString("en-US") : "");
+  }
 
   // Direct-upload phase runs before the metadata action; its own busy + error.
   const [uploading, setUploading] = useState(false);
@@ -901,7 +894,9 @@ export function ServiceModal({
               <input
                 name="service_date"
                 type="date"
-                defaultValue={editEntry?.date ?? today}
+                value={serviceDate}
+                onChange={(e) => setServiceDate(e.target.value)}
+                required
                 className={FIELD}
               />
             </div>
@@ -909,12 +904,14 @@ export function ServiceModal({
               <label className={LABEL}>Odometer</label>
               <input
                 name="service_odo"
-                type="number"
+                type="text"
                 inputMode="numeric"
-                defaultValue={editEntry?.odo ?? currentOdo}
+                value={odo}
+                onChange={onOdoChange}
                 required
                 autoComplete="off"
-                className={FIELD}
+                placeholder="0"
+                className={FIELD + " tabular-nums"}
               />
             </div>
           </div>

@@ -341,7 +341,11 @@ export async function addMaintenanceService(formData: FormData): Promise<void> {
     throw new Error(`Could not save service: ${logErr?.message ?? "unknown error"}`);
   }
 
-  // 2. Roll the seeded item forward so next-due recalculates.
+  // 2. Logging a service ALWAYS overrides the item's current reading: set its
+  //    last-service odometer/date to the entered values (no matter the prior
+  //    baseline) so next-due recomputes. This is why there's no "reset
+  //    baseline" button — logging a service is the reset. (Editing a past
+  //    entry, in updateMaintenanceService, deliberately does NOT do this.)
   if (itemId) {
     const { error: updErr } = await sb
       .from("maintenance_items")

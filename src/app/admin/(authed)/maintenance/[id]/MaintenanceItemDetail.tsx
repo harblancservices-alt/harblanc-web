@@ -1,10 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { IntervalBar } from "../IntervalBar";
-import { resetMaintenanceBaseline } from "../actions";
 import {
   EditIntervalModal,
   ExpenseLines,
@@ -29,9 +27,10 @@ import {
  *     signed-URL thumbnails. Tap an entry to edit it (prices, payment,
  *     category, date/odo/notes, add/remove receipts) via the shared
  *     ServiceModal + updateMaintenanceService.
- *   - Log service (locked to this item) → adds more services/receipts.
+ *   - Log service (locked to this item) → adds more services/receipts, and
+ *     ALWAYS overrides the item's reading (last_service_odo/date) so next-due
+ *     recomputes — that's the reset (no separate button needed).
  *   - Edit intervals & notes.
- *   - Reset baseline → clears last-service odo/date so next-due recalcs.
  *
  * Everything routes through the SAME ServiceModal + actions the main
  * /admin/maintenance page uses, including the direct-to-storage signed
@@ -52,14 +51,11 @@ export function MaintenanceItemDetail({
   log: ServiceHistoryEntry[];
   totalSpent: number;
 }) {
-  const router = useRouter();
   const [serviceModal, setServiceModal] = useState<{
     presetItemId?: string;
     editEntry?: ServiceHistoryEntry;
   } | null>(null);
   const [editInterval, setEditInterval] = useState(false);
-  const [resetErr, setResetErr] = useState<string | null>(null);
-  const [resetting, startReset] = useTransition();
 
   const s = STATUS[item.status];
   const rem = remaining(item);
@@ -67,27 +63,6 @@ export function MaintenanceItemDetail({
     item.neverServiced || item.lastOdo == null
       ? null
       : Math.max(0, currentOdo - item.lastOdo);
-
-  function onReset() {
-    if (
-      !confirm(
-        `Reset the baseline for "${item.name}"?\n\nThis clears the last-service odometer and date so the interval clock starts over from the next service you log. Your logged service history and receipts are kept.`,
-      )
-    ) {
-      return;
-    }
-    setResetErr(null);
-    startReset(async () => {
-      try {
-        await resetMaintenanceBaseline(item.id);
-        router.refresh();
-      } catch (e) {
-        setResetErr(
-          e instanceof Error ? e.message : "Could not reset baseline.",
-        );
-      }
-    });
-  }
 
   return (
     <div className="min-h-screen border-t border-line bg-canvas text-fg">
@@ -203,28 +178,10 @@ export function MaintenanceItemDetail({
           >
             Edit intervals &amp; notes
           </button>
-          <button
-            type="button"
-            onClick={onReset}
-            disabled={resetting || item.neverServiced}
-            title={
-              item.neverServiced
-                ? "No baseline set yet — nothing to reset."
-                : "Clear the last-service baseline"
-            }
-            className="rounded-md border border-amber-300 bg-card px-3.5 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-amber-700 transition-colors hover:bg-amber-50 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {resetting ? "Resetting…" : "Reset baseline"}
-          </button>
         </div>
         {item.notes ? (
           <p className="mt-2 whitespace-pre-wrap rounded-md border border-line bg-elevated px-3 py-2 text-[12px] text-fg-muted">
             {item.notes}
-          </p>
-        ) : null}
-        {resetErr ? (
-          <p role="alert" className="mt-2 text-[12px] font-semibold text-red-700">
-            {resetErr}
           </p>
         ) : null}
 
