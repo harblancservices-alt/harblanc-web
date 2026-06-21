@@ -72,7 +72,7 @@ export function MaintenanceItemDetail({
         <Link
           href="/admin/maintenance"
           prefetch={false}
-          className="inline-flex items-center gap-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted transition-colors hover:text-fg"
+          className="inline-flex items-center gap-1.5 rounded-md border border-blue-700 bg-blue-600 px-2.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-white transition-colors hover:bg-blue-700"
         >
           ← All maintenance
         </Link>
@@ -175,7 +175,7 @@ export function MaintenanceItemDetail({
           <button
             type="button"
             onClick={() => setEditInterval(true)}
-            className="rounded-md border border-line-strong bg-card px-3.5 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-fg-muted transition-colors hover:bg-elevated hover:text-fg"
+            className="rounded-md border border-blue-700 bg-blue-600 px-3.5 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-blue-700"
           >
             Edit intervals &amp; notes
           </button>
