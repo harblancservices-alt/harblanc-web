@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect, useState, useTransition } from "react";
 import {
   addMaintenanceService,
   createReceiptUploadUrl,
+  deleteMaintenanceService,
   updateMaintenanceInterval,
   updateMaintenanceService,
 } from "./actions";
@@ -778,6 +779,32 @@ export function ServiceModal({
   const [uploading, setUploading] = useState(false);
   const [uploadErr, setUploadErr] = useState<string | null>(null);
 
+  // Delete (edit mode only) — its own transition + error.
+  const [deleting, startDelete] = useTransition();
+  const [deleteErr, setDeleteErr] = useState<string | null>(null);
+
+  function onDelete() {
+    if (!editEntry) return;
+    if (
+      !confirm(
+        "Delete this service entry?\n\nThis removes the service and its expense lines + receipts. This can't be undone.",
+      )
+    ) {
+      return;
+    }
+    setDeleteErr(null);
+    startDelete(async () => {
+      try {
+        await deleteMaintenanceService(editEntry.id);
+        onClose();
+      } catch (e) {
+        setDeleteErr(
+          e instanceof Error ? e.message : "Could not delete service.",
+        );
+      }
+    });
+  }
+
   const [state, action, pending] = useActionState<
     { ok: boolean; error: string | null },
     FormData
@@ -953,8 +980,8 @@ export function ServiceModal({
     }
   }
 
-  const busy = pending || uploading;
-  const errorMsg = uploadErr ?? state.error;
+  const busy = pending || uploading || deleting;
+  const errorMsg = uploadErr ?? deleteErr ?? state.error;
   const title = isEdit
     ? "Edit service"
     : lockType
@@ -1210,6 +1237,8 @@ export function ServiceModal({
           pending={busy}
           onClose={onClose}
           label={isEdit ? "Save changes" : "Add service"}
+          onDelete={isEdit ? onDelete : undefined}
+          deleting={deleting}
         />
       </form>
     </ModalShell>
@@ -1359,13 +1388,28 @@ function ModalFooter({
   pending,
   onClose,
   label,
+  onDelete,
+  deleting,
 }: {
   pending: boolean;
   onClose: () => void;
   label: string;
+  /** When provided (edit mode), renders a red Delete button on the left. */
+  onDelete?: () => void;
+  deleting?: boolean;
 }) {
   return (
     <div className="flex items-center justify-end gap-2 border-t border-line bg-elevated px-4 py-3">
+      {onDelete ? (
+        <button
+          type="button"
+          onClick={onDelete}
+          disabled={pending}
+          className="mr-auto rounded-md border border-red-700 bg-red-600 px-4 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+        >
+          {deleting ? "Deleting…" : "Delete"}
+        </button>
+      ) : null}
       <button
         type="button"
         onClick={onClose}

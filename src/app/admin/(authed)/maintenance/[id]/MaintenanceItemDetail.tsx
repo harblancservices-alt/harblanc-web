@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useState, useTransition } from "react";
 import { IntervalBar } from "../IntervalBar";
+import { deleteMaintenanceItem } from "../actions";
 import {
   EditIntervalModal,
   ExpenseLines,
@@ -52,11 +54,14 @@ export function MaintenanceItemDetail({
   log: ServiceHistoryEntry[];
   totalSpent: number;
 }) {
+  const router = useRouter();
   const [serviceModal, setServiceModal] = useState<{
     presetItemId?: string;
     editEntry?: ServiceHistoryEntry;
   } | null>(null);
   const [editInterval, setEditInterval] = useState(false);
+  const [deleting, startDelete] = useTransition();
+  const [deleteErr, setDeleteErr] = useState<string | null>(null);
 
   const s = STATUS[item.status];
   const rem = remaining(item);
@@ -64,6 +69,25 @@ export function MaintenanceItemDetail({
     item.neverServiced || item.lastOdo == null
       ? null
       : Math.max(0, currentOdo - item.lastOdo);
+
+  function onDeleteItem() {
+    if (
+      !confirm(
+        `Delete "${item.name}"?\n\nThis removes it from the maintenance list. Services you've already logged for it stay in your service history. This can't be undone from the app.`,
+      )
+    ) {
+      return;
+    }
+    setDeleteErr(null);
+    startDelete(async () => {
+      try {
+        await deleteMaintenanceItem(item.id);
+        router.push("/admin/maintenance");
+      } catch (e) {
+        setDeleteErr(e instanceof Error ? e.message : "Could not delete item.");
+      }
+    });
+  }
 
   return (
     <div className="min-h-screen border-t border-line bg-canvas text-fg">
@@ -179,7 +203,20 @@ export function MaintenanceItemDetail({
           >
             Edit intervals &amp; notes
           </button>
+          <button
+            type="button"
+            onClick={onDeleteItem}
+            disabled={deleting}
+            className="rounded-md border border-red-700 bg-red-600 px-3.5 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-red-700 disabled:opacity-60"
+          >
+            {deleting ? "Deleting…" : "Delete item"}
+          </button>
         </div>
+        {deleteErr ? (
+          <p role="alert" className="mt-2 text-[12px] font-semibold text-red-700">
+            {deleteErr}
+          </p>
+        ) : null}
         {item.notes ? (
           <p className="mt-2 whitespace-pre-wrap rounded-md border border-line bg-elevated px-3 py-2 text-[12px] text-fg-muted">
             {item.notes}

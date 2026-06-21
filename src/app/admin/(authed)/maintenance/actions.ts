@@ -528,3 +528,66 @@ export async function resetMaintenanceBaseline(itemId: string): Promise<void> {
   revalidatePath(`/admin/maintenance/${itemId}`);
   revalidatePath("/admin");
 }
+
+/**
+ * Soft-delete a maintenance ITEM (set deleted_at) so it drops off the list and
+ * its detail page 404s. Logged services for it stay in the global service
+ * history (their item_id still points here, but the item is hidden). Lets Brent
+ * remove items himself instead of asking for a SQL delete.
+ */
+export async function deleteMaintenanceItem(itemId: string): Promise<void> {
+  if (!itemId) throw new Error("Missing maintenance item.");
+  const sb = createServiceRoleClient();
+  const { error } = await sb
+    .from("maintenance_items")
+    .update({
+      deleted_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", itemId)
+    .is("deleted_at", null);
+  if (error) throw new Error(`Could not delete item: ${error.message}`);
+
+  revalidatePath("/admin/maintenance");
+  revalidatePath(`/admin/maintenance/${itemId}`);
+  revalidatePath("/admin");
+}
+
+/**
+ * Hard-delete a logged SERVICE entry (maintenance_log row). The DB FK cascades
+ * remove its maintenance_expenses and maintenance_attachments rows; we also
+ * best-effort delete the receipt storage objects first so the private bucket
+ * doesn't accumulate orphans. The item's last-service baseline is NOT touched
+ * (deleting a historical entry shouldn't move the schedule).
+ */
+export async function deleteMaintenanceService(logId: string): Promise<void> {
+  if (!logId) throw new Error("Missing service entry.");
+  const sb = createServiceRoleClient();
+
+  // Grab item_id (for revalidation) + receipt paths (for storage cleanup)
+  // before the row + its cascades disappear.
+  const { data: logRow } = await sb
+    .from("maintenance_log")
+    .select("item_id")
+    .eq("id", logId)
+    .maybeSingle<{ item_id: string | null }>();
+
+  const { data: atts } = await sb
+    .from("maintenance_attachments")
+    .select("file_path, thumb_path")
+    .eq("log_id", logId)
+    .returns<{ file_path: string | null; thumb_path: string | null }[]>();
+  const paths = (atts ?? [])
+    .flatMap((a) => [a.file_path, a.thumb_path])
+    .filter((p): p is string => !!p);
+  if (paths.length > 0) {
+    await sb.storage.from(RECEIPT_BUCKET).remove(paths);
+  }
+
+  const { error } = await sb.from("maintenance_log").delete().eq("id", logId);
+  if (error) throw new Error(`Could not delete service: ${error.message}`);
+
+  revalidatePath("/admin/maintenance");
+  if (logRow?.item_id) revalidatePath(`/admin/maintenance/${logRow.item_id}`);
+  revalidatePath("/admin");
+}
