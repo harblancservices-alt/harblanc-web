@@ -467,6 +467,7 @@ export async function updateMaintenanceService(
   await persistExpenseLines(sb, logId, expenses);
 
   revalidatePath("/admin/maintenance");
+  revalidatePath(`/admin/maintenance/service/${logId}`);
   if (itemId) revalidatePath(`/admin/maintenance/${itemId}`);
   revalidatePath("/admin");
 }
@@ -588,6 +589,7 @@ export async function deleteMaintenanceService(logId: string): Promise<void> {
   if (error) throw new Error(`Could not delete service: ${error.message}`);
 
   revalidatePath("/admin/maintenance");
+  revalidatePath(`/admin/maintenance/service/${logId}`);
   if (logRow?.item_id) revalidatePath(`/admin/maintenance/${logRow.item_id}`);
   revalidatePath("/admin");
 }

@@ -386,11 +386,7 @@ export function MaintenanceView({
           </div>
         )}
 
-        <ServiceHistory
-          history={history}
-          totalSpend={totalSpend}
-          onEditEntry={(h) => setServiceModal({ editEntry: h })}
-        />
+        <ServiceHistory history={history} totalSpend={totalSpend} />
       </div>
 
       {serviceModal ? (
@@ -592,11 +588,9 @@ function SummaryBand({ summary }: { summary: MaintSummary }) {
 function ServiceHistory({
   history,
   totalSpend,
-  onEditEntry,
 }: {
   history: ServiceHistoryEntry[];
   totalSpend: number;
-  onEditEntry: (h: ServiceHistoryEntry) => void;
 }) {
   return (
     <section className="mt-6">
@@ -625,19 +619,16 @@ function ServiceHistory({
       ) : (
         <div className="space-y-2">
           {history.map((h) => (
-            <div
+            <Link
               key={h.id}
-              role="button"
-              tabIndex={0}
-              onClick={() => onEditEntry(h)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  onEditEntry(h);
-                }
-              }}
-              title="Tap to edit · expenses / receipts"
-              className="cursor-pointer rounded-xl border border-line bg-card p-3.5 shadow-sm transition-colors hover:border-line-strong hover:bg-elevated focus:outline-none focus-visible:border-fg focus-visible:ring-2 focus-visible:ring-fg/20"
+              href={
+                h.itemId
+                  ? `/admin/maintenance/${h.itemId}`
+                  : `/admin/maintenance/service/${h.id}`
+              }
+              prefetch={false}
+              title="View service"
+              className="block rounded-xl border border-line bg-card p-3.5 shadow-sm transition-colors hover:border-line-strong hover:bg-elevated focus:outline-none focus-visible:border-fg focus-visible:ring-2 focus-visible:ring-fg/20"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -661,10 +652,10 @@ function ServiceHistory({
                   )}
                 </div>
               </div>
-              {/* Collapsed: name + date · mileage + total only. The full
-                  expense line-item breakdown lives on the per-item detail page
-                  (/admin/maintenance/[id]); tap an entry to edit it there. */}
-            </div>
+              {/* Collapsed: name + date · mileage + total only. Opens a detail
+                  view (item detail for tracked items; per-service page for
+                  custom/one-off services) — never straight into edit. */}
+            </Link>
           ))}
         </div>
       )}
@@ -728,12 +719,16 @@ export function ServiceModal({
   presetItemId,
   editEntry,
   onClose,
+  onDeleted,
 }: {
   items: MaintItem[];
   currentOdo: number;
   presetItemId: string | null;
   editEntry: ServiceHistoryEntry | null;
   onClose: () => void;
+  /** Called instead of onClose after a successful delete. Use it to navigate
+   *  away when the modal lives on the deleted service's own page. */
+  onDeleted?: () => void;
 }) {
   const isEdit = !!editEntry;
   // Lock the type when logging from a specific item's "Log" button.
@@ -796,7 +791,7 @@ export function ServiceModal({
     startDelete(async () => {
       try {
         await deleteMaintenanceService(editEntry.id);
-        onClose();
+        (onDeleted ?? onClose)();
       } catch (e) {
         setDeleteErr(
           e instanceof Error ? e.message : "Could not delete service.",
