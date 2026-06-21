@@ -100,17 +100,30 @@ function parseMoney(raw: string): number {
 }
 
 /**
- * Read-only display of a service's expense line items (description + amount)
- * with each line's receipts as signed-URL thumbnails, plus any legacy receipts
- * not tied to a line. Shared by the global Service History and the per-item
- * detail page so they stay identical.
+ * Format a stored service_date ("2026-06-20") as M/D/Y ("06/20/2026").
+ * String-split (no Date parsing) so it can't drift across time zones.
+ */
+export function formatServiceDate(date: string | null): string | null {
+  if (!date) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(date);
+  if (!m) return date;
+  return `${m[2]}/${m[3]}/${m[1]}`;
+}
+
+/**
+ * Read-only display of a service's expense line items (description + amount).
+ * `showReceipts` (default true) controls whether each line's receipts render as
+ * signed-URL thumbnails — the per-item detail page keeps them (it's the
+ * receipt-management surface); the global Service History hides them.
  */
 export function ExpenseLines({
   expenses,
   unlinked,
+  showReceipts = true,
 }: {
   expenses: ServiceExpenseLine[];
   unlinked: ServiceAttachment[];
+  showReceipts?: boolean;
 }) {
   if (expenses.length === 0 && unlinked.length === 0) return null;
   return (
@@ -130,10 +143,12 @@ export function ExpenseLines({
               </span>
             ) : null}
           </div>
-          {e.attachments.length > 0 ? <ReceiptThumbs atts={e.attachments} /> : null}
+          {showReceipts && e.attachments.length > 0 ? (
+            <ReceiptThumbs atts={e.attachments} />
+          ) : null}
         </div>
       ))}
-      {unlinked.length > 0 ? (
+      {showReceipts && unlinked.length > 0 ? (
         <div className="rounded-md border border-line bg-elevated px-2.5 py-2">
           <span className="font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-fg-subtle">
             Other receipts
@@ -490,20 +505,12 @@ function ServiceHistory({
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="truncate text-[14px] font-semibold text-fg">
-                      {h.serviceName}
-                    </h3>
-                    {h.category ? (
-                      <span className="shrink-0 rounded-sm bg-indigo-100 px-1.5 py-[1px] font-mono text-[9.5px] font-bold uppercase tracking-[0.06em] text-indigo-700">
-                        {h.category}
-                      </span>
-                    ) : null}
-                  </div>
-                  <p className="mt-0.5 font-mono text-[11px] text-fg-subtle">
-                    {h.date ?? "—"}
+                  <h3 className="truncate text-[14px] font-semibold text-fg">
+                    {h.serviceName}
+                  </h3>
+                  <p className="mt-0.5 font-mono text-[11px] font-semibold tabular-nums text-amber-700">
+                    {formatServiceDate(h.date) ?? "—"}
                     {h.odo != null ? ` · ${h.odo.toLocaleString()} mi` : ""}
-                    <span className="ml-1.5 text-indigo-600">· tap to edit</span>
                   </p>
                 </div>
                 <div className="shrink-0 text-right">
@@ -516,12 +523,6 @@ function ServiceHistory({
                       no cost
                     </div>
                   )}
-                  {receiptCount(h) > 0 ? (
-                    <div className="mt-1 font-mono text-[9px] font-bold uppercase tracking-[0.08em] text-fg-subtle">
-                      {receiptCount(h)} receipt
-                      {receiptCount(h) === 1 ? "" : "s"}
-                    </div>
-                  ) : null}
                 </div>
               </div>
               {h.notes ? (
@@ -529,9 +530,12 @@ function ServiceHistory({
                   {h.notes}
                 </p>
               ) : null}
+              {/* Expense lines retained; receipt thumbnails hidden in this list
+                  (receipts stay on the per-item detail page). */}
               <ExpenseLines
                 expenses={h.expenses}
                 unlinked={h.unlinkedAttachments}
+                showReceipts={false}
               />
             </div>
           ))}

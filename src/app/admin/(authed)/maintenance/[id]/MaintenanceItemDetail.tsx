@@ -8,6 +8,7 @@ import {
   ExpenseLines,
   ServiceModal,
   STATUS,
+  formatServiceDate,
   money,
   receiptCount,
   remaining,
@@ -268,25 +269,15 @@ function LogEntryCard({
           onEdit();
         }
       }}
-      title="Tap to edit · expenses / receipts"
+      title="Edit service"
       className="cursor-pointer rounded-xl border border-line bg-card p-3.5 shadow-sm transition-colors hover:border-line-strong hover:bg-elevated focus:outline-none focus-visible:border-fg focus-visible:ring-2 focus-visible:ring-fg/20"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="truncate text-[14px] font-semibold text-fg">
-              {h.date ?? "Undated"}
-            </h3>
-            {h.category ? (
-              <span className="shrink-0 rounded-sm bg-indigo-100 px-1.5 py-[1px] font-mono text-[9.5px] font-bold uppercase tracking-[0.06em] text-indigo-700">
-                {h.category}
-              </span>
-            ) : null}
-          </div>
-          <p className="mt-0.5 font-mono text-[11px] text-fg-subtle">
-            {h.odo != null ? `${h.odo.toLocaleString()} mi` : "no odometer"}
-            <span className="ml-1.5 text-indigo-600">· tap to edit</span>
-          </p>
+          <h3 className="truncate font-mono text-[13px] font-bold tabular-nums text-amber-700">
+            {formatServiceDate(h.date) ?? "Undated"}
+            {h.odo != null ? ` · ${h.odo.toLocaleString()} mi` : ""}
+          </h3>
         </div>
         <div className="shrink-0 text-right">
           {h.totalCost != null ? (
