@@ -41,9 +41,16 @@ const plexSans = IBM_Plex_Sans({
 // actual width instead of the default ~980px desktop viewport. Without
 // this, pinch-zooming to fit the page on mobile reveals the body's dark
 // bg-neutral-950 as a gap on the side.
+//
+// maximumScale: 1 + userScalable: false stop iOS Safari from auto-zooming
+// into a field on focus (Brent had to pinch back out after every tap).
+// The >=16px input font-size backstop in globals.css covers the same case
+// for any browser that ignores user-scalable.
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
   viewportFit: "cover",
 };
 

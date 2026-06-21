@@ -1,5 +1,21 @@
 @import "tailwindcss";
 
+/* No zoom on input focus (mobile).
+ *
+ * iOS Safari auto-zooms into a focused form control when its font-size is
+ * < 16px — Brent had to pinch back out after every tap. The primary guard is
+ * the viewport `maximumScale: 1` / `userScalable: false` in layout.tsx; this
+ * is the backstop for browsers that honor font-size but ignore user-scalable.
+ * Scoped to coarse (touch) pointers so the desktop admin keeps its compact
+ * input sizing. Unlayered so it wins over Tailwind's text-[..] utilities. */
+@media (pointer: coarse) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
 /* Fixed dark theme — charcoal/near-black with red accent.
  *
  * Phase A note: background lifted from #0a0a0a to #111111 (one notch

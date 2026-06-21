@@ -525,18 +525,9 @@ function ServiceHistory({
                   )}
                 </div>
               </div>
-              {h.notes ? (
-                <p className="mt-1.5 whitespace-pre-wrap text-[12px] text-fg-muted">
-                  {h.notes}
-                </p>
-              ) : null}
-              {/* Expense lines retained; receipt thumbnails hidden in this list
-                  (receipts stay on the per-item detail page). */}
-              <ExpenseLines
-                expenses={h.expenses}
-                unlinked={h.unlinkedAttachments}
-                showReceipts={false}
-              />
+              {/* Collapsed: name + date · mileage + total only. The full
+                  expense line-item breakdown lives on the per-item detail page
+                  (/admin/maintenance/[id]); tap an entry to edit it there. */}
             </div>
           ))}
         </div>
