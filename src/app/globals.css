@@ -16,6 +16,20 @@
   }
 }
 
+/* Native date/time inputs ship an intrinsic min-width (the rendered value +
+ * picker control) that overflows narrow flex/grid columns on iOS Safari —
+ * clipping the date at the right edge. Let them shrink to their container and
+ * keep the value left-aligned so the whole date stays visible. */
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"],
+input[type="month"] {
+  min-width: 0;
+}
+input[type="date"]::-webkit-date-and-time-value {
+  text-align: left;
+}
+
 /* Fixed dark theme — charcoal/near-black with red accent.
  *
  * Phase A note: background lifted from #0a0a0a to #111111 (one notch

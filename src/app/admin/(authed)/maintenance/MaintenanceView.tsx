@@ -1000,32 +1000,33 @@ export function ServiceModal({
               />
             </div>
           ) : null}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={LABEL}>Date</label>
-              <input
-                name="service_date"
-                type="date"
-                value={serviceDate}
-                onChange={(e) => setServiceDate(e.target.value)}
-                required
-                className={FIELD}
-              />
-            </div>
-            <div>
-              <label className={LABEL}>Odometer</label>
-              <input
-                name="service_odo"
-                type="text"
-                inputMode="numeric"
-                value={odo}
-                onChange={onOdoChange}
-                required
-                autoComplete="off"
-                placeholder="0"
-                className={FIELD + " tabular-nums"}
-              />
-            </div>
+          {/* Date + odometer stacked full-width. The native date control has
+              an intrinsic min-width that clips inside a half-width grid column
+              on iOS, so each gets its own full-width row (block + min-w-0). */}
+          <div>
+            <label className={LABEL}>Date</label>
+            <input
+              name="service_date"
+              type="date"
+              value={serviceDate}
+              onChange={(e) => setServiceDate(e.target.value)}
+              required
+              className={FIELD + " block min-w-0"}
+            />
+          </div>
+          <div>
+            <label className={LABEL}>Odometer</label>
+            <input
+              name="service_odo"
+              type="text"
+              inputMode="numeric"
+              value={odo}
+              onChange={onOdoChange}
+              required
+              autoComplete="off"
+              placeholder="0"
+              className={FIELD + " tabular-nums"}
+            />
           </div>
           <div>
             <label className={LABEL}>Notes (optional)</label>
