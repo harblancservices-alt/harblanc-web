@@ -32,6 +32,62 @@ export function currentOdoFromLoads(
   return max;
 }
 
+/**
+ * Lowest positive odometer reading across the given load rows (null if none).
+ * Zeros/nulls are ignored — they'd otherwise falsely peg the start at 0.
+ */
+export function earliestOdoFromLoads(
+  rows: ReadonlyArray<{
+    odo_assigned: number | null;
+    odo_loaded: number | null;
+    odo_delivered: number | null;
+  }> | null,
+): number | null {
+  let min: number | null = null;
+  for (const l of rows ?? []) {
+    for (const v of [l.odo_assigned, l.odo_loaded, l.odo_delivered]) {
+      if (v != null && v > 0) min = min == null ? v : Math.min(min, v);
+    }
+  }
+  return min;
+}
+
+export type MaintCostPerMile = {
+  /** Lifetime maintenance spend (sum of service totals). */
+  totalSpend: number;
+  /** Miles between the earliest known odometer and the current odometer. */
+  milesDriven: number | null;
+  /** Dollars of maintenance per mile driven. Null when it can't be computed. */
+  costPerMile: number | null;
+};
+
+/**
+ * Maintenance cost-per-mile = total spend ÷ miles driven.
+ *
+ * `earliestOdo` is the smaller of the earliest load odometer and the earliest
+ * logged service odometer (the caller picks it). Returns costPerMile = null
+ * when there's no spend yet or miles-driven is 0/unknown, so the UI can show
+ * "—" instead of dividing by zero.
+ *
+ * Kept here (not inline in the page) so the rate-check tool can reuse the same
+ * cost basis later without re-deriving it.
+ */
+export function computeCostPerMile(
+  totalSpend: number,
+  currentOdo: number,
+  earliestOdo: number | null,
+): MaintCostPerMile {
+  const milesDriven =
+    earliestOdo != null && currentOdo > earliestOdo
+      ? currentOdo - earliestOdo
+      : null;
+  const costPerMile =
+    milesDriven != null && milesDriven > 0 && totalSpend > 0
+      ? totalSpend / milesDriven
+      : null;
+  return { totalSpend, milesDriven, costPerMile };
+}
+
 export function computeMaintenance(
   intervalMiles: number,
   lastServiceOdo: number | null,

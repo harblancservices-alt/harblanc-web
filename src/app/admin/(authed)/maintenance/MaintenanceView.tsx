@@ -26,6 +26,17 @@ export type MaintItem = {
   notes: string | null;
 };
 
+/** Top-of-page summary band: cost/mile, lifetime spend, next-due item. */
+export type MaintSummary = {
+  /** Dollars of maintenance per mile driven; null when not yet computable. */
+  costPerMile: number | null;
+  /** Miles between earliest known odometer and now; null if unknown. */
+  milesDriven: number | null;
+  totalSpend: number;
+  /** Most urgent serviced item (fewest miles remaining), or null. */
+  nextDue: { name: string; milesRemaining: number } | null;
+};
+
 export type ServiceAttachment = {
   id: string;
   name: string;
@@ -264,11 +275,13 @@ export function MaintenanceView({
   items,
   history,
   totalSpend,
+  summary,
 }: {
   currentOdo: number;
   items: MaintItem[];
   history: ServiceHistoryEntry[];
   totalSpend: number;
+  summary: MaintSummary;
 }) {
   // Unified add / log / edit service modal. presetItemId locks the type
   // (used when opened for a specific item); editEntry = opened from a history
@@ -306,6 +319,9 @@ export function MaintenanceView({
             + Add service
           </button>
         </header>
+
+        {/* Summary band — turns the logged data into useful numbers. */}
+        <SummaryBand summary={summary} />
 
         {/* Current odometer */}
         <div className="rounded-xl border border-line bg-card p-4 shadow-md">
@@ -448,6 +464,85 @@ export function MaintenanceView({
           onClose={() => setServiceModal(null)}
         />
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * Top-of-page stat band: maintenance cost/mile (headline), lifetime total
+ * spent, and the single most-urgent item. 3 tiles across, readable on mobile.
+ */
+function SummaryBand({ summary }: { summary: MaintSummary }) {
+  const { costPerMile, milesDriven, totalSpend, nextDue } = summary;
+
+  const cpmValue = costPerMile != null ? `$${costPerMile.toFixed(2)}` : "—";
+  const cpmNote =
+    costPerMile != null && milesDriven != null
+      ? `${milesDriven.toLocaleString()} mi driven`
+      : "needs more data";
+
+  let nextValue = "—";
+  let nextNote = "no serviced items";
+  let nextColor = "text-fg";
+  if (nextDue) {
+    if (nextDue.milesRemaining <= 0) {
+      nextValue = `${Math.abs(nextDue.milesRemaining).toLocaleString()} mi`;
+      nextNote = `${nextDue.name} · overdue`;
+      nextColor = "text-red-700";
+    } else {
+      nextValue = `${nextDue.milesRemaining.toLocaleString()} mi`;
+      nextNote = `${nextDue.name} · left`;
+      nextColor =
+        nextDue.milesRemaining <= 1000 ? "text-amber-700" : "text-green-700";
+    }
+  }
+
+  return (
+    <div className="mb-2 grid grid-cols-3 divide-x divide-line overflow-hidden rounded-xl border border-line bg-card shadow-md">
+      <div className="min-w-0 px-3 py-3">
+        <p className="font-mono text-[9px] font-bold uppercase tracking-[0.1em] text-indigo-600">
+          Cost / mile
+        </p>
+        <p className="mt-1 leading-none">
+          <span className="text-[22px] font-bold tabular-nums text-fg">
+            {cpmValue}
+          </span>
+          {costPerMile != null ? (
+            <span className="ml-0.5 text-[12px] font-semibold text-fg-muted">
+              /mi
+            </span>
+          ) : null}
+        </p>
+        <p className="mt-1 truncate font-mono text-[9px] text-fg-subtle">
+          {cpmNote}
+        </p>
+      </div>
+
+      <div className="min-w-0 px-3 py-3">
+        <p className="font-mono text-[9px] font-bold uppercase tracking-[0.1em] text-indigo-600">
+          Total spent
+        </p>
+        <p className="mt-1 text-[19px] font-bold leading-none tabular-nums text-emerald-700">
+          {totalSpend > 0 ? money(totalSpend) : "$0.00"}
+        </p>
+        <p className="mt-1 font-mono text-[9px] text-fg-subtle">lifetime</p>
+      </div>
+
+      <div className="min-w-0 px-3 py-3">
+        <p className="font-mono text-[9px] font-bold uppercase tracking-[0.1em] text-indigo-600">
+          Next due
+        </p>
+        <p
+          className={
+            "mt-1 text-[17px] font-bold leading-none tabular-nums " + nextColor
+          }
+        >
+          {nextValue}
+        </p>
+        <p className="mt-1 truncate font-mono text-[9px] text-fg-subtle">
+          {nextNote}
+        </p>
+      </div>
     </div>
   );
 }

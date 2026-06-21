@@ -3,12 +3,15 @@ import { createServiceRoleClient } from "@/lib/supabase/server";
 import {
   MaintenanceView,
   type MaintItem,
+  type MaintSummary,
   type ServiceExpenseLine,
   type ServiceHistoryEntry,
 } from "./MaintenanceView";
 import {
+  computeCostPerMile,
   computeMaintenance,
   currentOdoFromLoads,
+  earliestOdoFromLoads,
 } from "@/lib/dispatch/maintenance";
 
 export const metadata: Metadata = {
@@ -92,34 +95,45 @@ async function loadMaintenance(): Promise<{
   items: MaintItem[];
   history: ServiceHistoryEntry[];
   totalSpend: number;
+  summary: MaintSummary;
 }> {
   const sb = createServiceRoleClient();
 
-  const [{ data: itemRows }, { data: odoRows }, { data: logRows }] =
-    await Promise.all([
-      sb
-        .from("maintenance_items")
-        .select(
-          "id, name, interval_miles, last_service_odo, last_service_date, notes, sort_order",
-        )
-        .is("deleted_at", null)
-        .order("sort_order", { ascending: true })
-        .returns<ItemRow[]>(),
-      sb
-        .from("loads")
-        .select("odo_assigned, odo_loaded, odo_delivered")
-        .is("deleted_at", null)
-        .returns<OdoRow[]>(),
-      sb
-        .from("maintenance_log")
-        .select(
-          "id, item_id, service_name, service_odo, service_date, notes, category, total_cost, created_at",
-        )
-        .order("service_date", { ascending: false, nullsFirst: false })
-        .order("created_at", { ascending: false })
-        .limit(100)
-        .returns<LogRow[]>(),
-    ]);
+  const [
+    { data: itemRows },
+    { data: odoRows },
+    { data: logRows },
+    { data: logAggRows },
+  ] = await Promise.all([
+    sb
+      .from("maintenance_items")
+      .select(
+        "id, name, interval_miles, last_service_odo, last_service_date, notes, sort_order",
+      )
+      .is("deleted_at", null)
+      .order("sort_order", { ascending: true })
+      .returns<ItemRow[]>(),
+    sb
+      .from("loads")
+      .select("odo_assigned, odo_loaded, odo_delivered")
+      .is("deleted_at", null)
+      .returns<OdoRow[]>(),
+    sb
+      .from("maintenance_log")
+      .select(
+        "id, item_id, service_name, service_odo, service_date, notes, category, total_cost, created_at",
+      )
+      .order("service_date", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false })
+      .limit(100)
+      .returns<LogRow[]>(),
+    // Unbounded aggregate over EVERY log (the list above is capped at 100):
+    // lifetime spend + earliest service odometer for the cost-per-mile band.
+    sb
+      .from("maintenance_log")
+      .select("total_cost, service_odo")
+      .returns<{ total_cost: number | string | null; service_odo: number | null }[]>(),
+  ]);
 
   // Current odometer = GREATEST(MAX(odo_assigned), MAX(odo_loaded),
   // MAX(odo_delivered)) across non-deleted loads.
@@ -249,20 +263,64 @@ async function loadMaintenance(): Promise<{
     unlinkedAttachments: unlinkedByLog.get(l.id) ?? [],
   }));
 
-  // Total maintenance spend across every logged service.
-  const totalSpend = history.reduce((s, h) => s + (h.totalCost ?? 0), 0);
+  // Lifetime maintenance spend across EVERY logged service (not just the 100
+  // shown in the history list).
+  const aggLogs = logAggRows ?? [];
+  const totalSpend = aggLogs.reduce((s, l) => s + (num(l.total_cost) ?? 0), 0);
 
-  return { currentOdo, items, history, totalSpend };
+  // Earliest known odometer = the smaller of the earliest load reading and the
+  // earliest logged service reading. Drives miles-driven for cost/mile.
+  const earliestLoadOdo = earliestOdoFromLoads(odoRows);
+  let earliestServiceOdo: number | null = null;
+  for (const l of aggLogs) {
+    if (l.service_odo != null && l.service_odo > 0) {
+      earliestServiceOdo =
+        earliestServiceOdo == null
+          ? l.service_odo
+          : Math.min(earliestServiceOdo, l.service_odo);
+    }
+  }
+  const earliestOdo =
+    earliestLoadOdo == null
+      ? earliestServiceOdo
+      : earliestServiceOdo == null
+        ? earliestLoadOdo
+        : Math.min(earliestLoadOdo, earliestServiceOdo);
+
+  const cpm = computeCostPerMile(totalSpend, currentOdo, earliestOdo);
+
+  // Next due = the single most urgent serviced item (fewest miles remaining;
+  // overdue, i.e. most-negative, first). Never-serviced items have no
+  // milesRemaining, so they're excluded.
+  const serviced = items.filter((i) => i.milesRemaining != null);
+  serviced.sort(
+    (a, b) => (a.milesRemaining as number) - (b.milesRemaining as number),
+  );
+  const top = serviced[0];
+  const nextDue = top
+    ? { name: top.name, milesRemaining: top.milesRemaining as number }
+    : null;
+
+  const summary: MaintSummary = {
+    costPerMile: cpm.costPerMile,
+    milesDriven: cpm.milesDriven,
+    totalSpend,
+    nextDue,
+  };
+
+  return { currentOdo, items, history, totalSpend, summary };
 }
 
 export default async function MaintenancePage() {
-  const { currentOdo, items, history, totalSpend } = await loadMaintenance();
+  const { currentOdo, items, history, totalSpend, summary } =
+    await loadMaintenance();
   return (
     <MaintenanceView
       currentOdo={currentOdo}
       items={items}
       history={history}
       totalSpend={totalSpend}
+      summary={summary}
     />
   );
 }
