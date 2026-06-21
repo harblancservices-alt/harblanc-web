@@ -26,12 +26,8 @@ export type MaintItem = {
   notes: string | null;
 };
 
-/** Top-of-page summary band: cost/mile, lifetime spend, next-due item. */
+/** Top-of-page summary band: lifetime spend + next-due item. */
 export type MaintSummary = {
-  /** Dollars of maintenance per mile driven; null when not yet computable. */
-  costPerMile: number | null;
-  /** Miles between earliest known odometer and now; null if unknown. */
-  milesDriven: number | null;
   totalSpend: number;
   /** Most urgent serviced item (fewest miles remaining), or null. */
   nextDue: { name: string; milesRemaining: number } | null;
@@ -63,7 +59,6 @@ export type ServiceHistoryEntry = {
   date: string | null;
   odo: number | null;
   notes: string | null;
-  category: string | null;
   totalCost: number | null;
   /** Expense line items (description + amount), each with its own receipts. */
   expenses: ServiceExpenseLine[];
@@ -78,20 +73,6 @@ export function receiptCount(h: ServiceHistoryEntry): number {
     h.unlinkedAttachments.length
   );
 }
-
-// Expense categories offered on the Add Service form (kept in sync with the
-// server's EXPENSE_CATEGORIES allow-list).
-const EXPENSE_CATEGORIES = [
-  "Suspension",
-  "Tires",
-  "Engine",
-  "Drivetrain/Transmission",
-  "Brakes",
-  "Fluids & Filters",
-  "Electrical",
-  "Other",
-];
-const DEFAULT_CATEGORY = "Fluids & Filters";
 
 // "$1,250.00" — null/blank renders nothing.
 export function money(n: number | null | undefined): string {
@@ -299,6 +280,20 @@ export function MaintenanceView({
     ok: items.filter((i) => i.status === "ok").length,
   };
 
+  // Two tiers: items that are overdue OR ≥75% through their interval get
+  // promoted to big attention cards at the top; everything else is a compact
+  // row. Each tier is sorted most-urgent first (fewest miles remaining;
+  // never-serviced items have no milesRemaining → sort last).
+  const byUrgency = (a: MaintItem, b: MaintItem) =>
+    (a.milesRemaining ?? Number.POSITIVE_INFINITY) -
+    (b.milesRemaining ?? Number.POSITIVE_INFINITY);
+  const bigItems = items
+    .filter((i) => i.status === "overdue" || i.pct >= 75)
+    .sort(byUrgency);
+  const compactItems = items
+    .filter((i) => !(i.status === "overdue" || i.pct >= 75))
+    .sort(byUrgency);
+
   return (
     <div className="min-h-screen border-t border-line bg-canvas text-fg">
       <div className="w-full px-4 py-5 sm:px-6 lg:px-8">
@@ -359,92 +354,34 @@ export function MaintenanceView({
           <SummaryChip n={counts.ok} label="ok" cls="bg-green-100 text-green-700" />
         </div>
 
-        {/* Item cards */}
+        {/* Item list — two tiers. Big attention cards (overdue or ≥75% through
+            interval) on top; compact rows for everything else below. Both tap
+            through to the item detail page. */}
         {items.length === 0 ? (
           <div className="mt-3 rounded-xl border border-dashed border-line bg-card px-4 py-10 text-center font-mono text-[12px] text-fg-subtle">
             No maintenance items yet.
           </div>
         ) : (
-          <div className="mt-3 grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
-            {items.map((item) => {
-              const s = STATUS[item.status];
-              const rem = remaining(item);
-              return (
-                <div
-                  key={item.id}
-                  className={
-                    "flex flex-col rounded-xl border bg-card p-3.5 shadow-sm " +
-                    s.border
-                  }
-                >
-                  {/* Card body navigates to the item's detail/profile page —
-                      where Brent sees the full service log, prices, receipts,
-                      and can log/reset. The footer buttons stay separate (not
-                      nested in the link) so quick actions still work. */}
-                  <Link
-                    href={`/admin/maintenance/${item.id}`}
-                    className="-m-1 block rounded-lg p-1 transition-colors hover:bg-elevated"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span
-                            className={
-                              "shrink-0 rounded-sm px-1.5 py-[1px] font-mono text-[10px] font-bold uppercase tracking-[0.06em] " +
-                              s.pill
-                            }
-                          >
-                            {s.label}
-                          </span>
-                          <h3 className="truncate text-[15px] font-semibold text-fg">
-                            {item.name}
-                          </h3>
-                        </div>
-                        {item.neverServiced ? (
-                          <p className="mt-1 text-[11.5px] text-fg-subtle">
-                            Never serviced
-                          </p>
-                        ) : (
-                          <p className="mt-1 font-mono text-[11.5px] font-semibold tabular-nums text-amber-700">
-                            Last {item.lastOdo!.toLocaleString()} mi
-                            {item.lastDate
-                              ? " · " + (formatServiceDate(item.lastDate) ?? item.lastDate)
-                              : ""}
-                          </p>
-                        )}
-                      </div>
-                      <div className="shrink-0 text-right">
-                        <div
-                          className={
-                            "text-[17px] font-bold leading-none tabular-nums " +
-                            rem.color
-                          }
-                        >
-                          {rem.value}
-                        </div>
-                        <div className="mt-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.08em] text-fg-subtle">
-                          {rem.label}
-                        </div>
-                        {item.nextDue != null ? (
-                          <div className="mt-1 font-mono text-[10px] text-fg-subtle">
-                            Due {item.nextDue.toLocaleString()} mi
-                          </div>
-                        ) : null}
-                      </div>
-                    </div>
-
-                    <div className="mt-2.5">
-                      <IntervalBar pct={item.pct} status={item.status} />
-                      <p className="mt-1 font-mono text-[9.5px] text-fg-subtle">
-                        {item.neverServiced
-                          ? "Awaiting first service"
-                          : `${Math.round(item.pct)}% through ${item.interval.toLocaleString()} mi interval`}
-                      </p>
-                    </div>
-                  </Link>
-                </div>
-              );
-            })}
+          <div className="mt-3 space-y-2.5">
+            {bigItems.length > 0 ? (
+              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
+                {bigItems.map((item) => (
+                  <BigItemCard key={item.id} item={item} />
+                ))}
+              </div>
+            ) : null}
+            {compactItems.length > 0 ? (
+              <div className="space-y-2">
+                {bigItems.length > 0 ? (
+                  <p className="pt-1 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-fg-subtle">
+                    On schedule · {compactItems.length}
+                  </p>
+                ) : null}
+                {compactItems.map((item) => (
+                  <CompactItemRow key={item.id} item={item} />
+                ))}
+              </div>
+            ) : null}
           </div>
         )}
 
@@ -468,18 +405,139 @@ export function MaintenanceView({
   );
 }
 
+/** Big "attention" card — overdue or ≥75% through interval. Full progress bar. */
+function BigItemCard({ item }: { item: MaintItem }) {
+  const s = STATUS[item.status];
+  const rem = remaining(item);
+  return (
+    <div
+      className={
+        "flex flex-col rounded-xl border bg-card p-3.5 shadow-sm " + s.border
+      }
+    >
+      <Link
+        href={`/admin/maintenance/${item.id}`}
+        className="-m-1 block rounded-lg p-1 transition-colors hover:bg-elevated"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className={
+                  "shrink-0 rounded-sm px-1.5 py-[1px] font-mono text-[10px] font-bold uppercase tracking-[0.06em] " +
+                  s.pill
+                }
+              >
+                {s.label}
+              </span>
+              <h3 className="truncate text-[15px] font-semibold text-fg">
+                {item.name}
+              </h3>
+            </div>
+            {item.neverServiced ? (
+              <p className="mt-1 text-[11.5px] text-fg-subtle">Never serviced</p>
+            ) : (
+              <p className="mt-1 font-mono text-[11.5px] font-semibold tabular-nums text-amber-700">
+                Last {item.lastOdo!.toLocaleString()} mi
+                {item.lastDate
+                  ? " · " + (formatServiceDate(item.lastDate) ?? item.lastDate)
+                  : ""}
+              </p>
+            )}
+          </div>
+          <div className="shrink-0 text-right">
+            <div
+              className={
+                "text-[17px] font-bold leading-none tabular-nums " + rem.color
+              }
+            >
+              {rem.value}
+            </div>
+            <div className="mt-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.08em] text-fg-subtle">
+              {rem.label}
+            </div>
+            {item.nextDue != null ? (
+              <div className="mt-1 font-mono text-[10px] text-fg-subtle">
+                Due {item.nextDue.toLocaleString()} mi
+              </div>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="mt-2.5">
+          <IntervalBar pct={item.pct} status={item.status} />
+          <p className="mt-1 font-mono text-[9.5px] text-fg-subtle">
+            {item.neverServiced
+              ? "Awaiting first service"
+              : `${Math.round(item.pct)}% through ${item.interval.toLocaleString()} mi interval`}
+          </p>
+        </div>
+      </Link>
+    </div>
+  );
+}
+
+/** Compact row — calmer items (<75% through interval). History-row styling. */
+function CompactItemRow({ item }: { item: MaintItem }) {
+  const s = STATUS[item.status];
+  const rem = remaining(item);
+  return (
+    <Link
+      href={`/admin/maintenance/${item.id}`}
+      className="block rounded-xl border border-line bg-card p-3 shadow-sm transition-colors hover:border-line-strong hover:bg-elevated"
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span
+              className={
+                "shrink-0 rounded-sm px-1.5 py-[1px] font-mono text-[9px] font-bold uppercase tracking-[0.06em] " +
+                s.pill
+              }
+            >
+              {s.label}
+            </span>
+            <h3 className="truncate text-[14px] font-semibold text-fg">
+              {item.name}
+            </h3>
+          </div>
+          {item.neverServiced ? (
+            <p className="mt-0.5 font-mono text-[10.5px] text-fg-subtle">
+              Never serviced
+            </p>
+          ) : (
+            <p className="mt-0.5 font-mono text-[10.5px] font-semibold tabular-nums text-amber-700">
+              Last {item.lastOdo!.toLocaleString()} mi
+              {item.lastDate
+                ? " · " + (formatServiceDate(item.lastDate) ?? item.lastDate)
+                : ""}
+            </p>
+          )}
+        </div>
+        <div className="shrink-0 text-right">
+          <div
+            className={
+              "text-[15px] font-bold leading-none tabular-nums " + rem.color
+            }
+          >
+            {rem.value}
+          </div>
+          <div className="mt-0.5 font-mono text-[8.5px] font-bold uppercase tracking-[0.08em] text-fg-subtle">
+            {rem.label}
+          </div>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
 /**
- * Top-of-page stat band: maintenance cost/mile (headline), lifetime total
- * spent, and the single most-urgent item. 3 tiles across, readable on mobile.
+ * Top-of-page stat band: lifetime total spent + the single most-urgent item.
+ * 2 tiles across, readable on mobile. (Cost-per-mile was removed — not
+ * accurate enough yet; the computeCostPerMile helper stays in lib for later.)
  */
 function SummaryBand({ summary }: { summary: MaintSummary }) {
-  const { costPerMile, milesDriven, totalSpend, nextDue } = summary;
-
-  const cpmValue = costPerMile != null ? `$${costPerMile.toFixed(2)}` : "—";
-  const cpmNote =
-    costPerMile != null && milesDriven != null
-      ? `${milesDriven.toLocaleString()} mi driven`
-      : "needs more data";
+  const { totalSpend, nextDue } = summary;
 
   let nextValue = "—";
   let nextNote = "no serviced items";
@@ -498,43 +556,26 @@ function SummaryBand({ summary }: { summary: MaintSummary }) {
   }
 
   return (
-    <div className="mb-2 grid grid-cols-3 divide-x divide-line overflow-hidden rounded-xl border border-line bg-card shadow-md">
-      <div className="min-w-0 px-3 py-3">
-        <p className="font-mono text-[9px] font-bold uppercase tracking-[0.1em] text-indigo-600">
-          Cost / mile
-        </p>
-        <p className="mt-1 leading-none">
-          <span className="text-[22px] font-bold tabular-nums text-fg">
-            {cpmValue}
-          </span>
-          {costPerMile != null ? (
-            <span className="ml-0.5 text-[12px] font-semibold text-fg-muted">
-              /mi
-            </span>
-          ) : null}
-        </p>
-        <p className="mt-1 truncate font-mono text-[9px] text-fg-subtle">
-          {cpmNote}
-        </p>
-      </div>
-
-      <div className="min-w-0 px-3 py-3">
+    <div className="mb-2 grid grid-cols-2 divide-x divide-line overflow-hidden rounded-xl border border-line bg-card shadow-md">
+      <div className="min-w-0 px-3.5 py-3">
         <p className="font-mono text-[9px] font-bold uppercase tracking-[0.1em] text-indigo-600">
           Total spent
         </p>
-        <p className="mt-1 text-[19px] font-bold leading-none tabular-nums text-emerald-700">
+        <p className="mt-1 text-[24px] font-bold leading-none tabular-nums text-emerald-700">
           {totalSpend > 0 ? money(totalSpend) : "$0.00"}
         </p>
-        <p className="mt-1 font-mono text-[9px] text-fg-subtle">lifetime</p>
+        <p className="mt-1 font-mono text-[9px] text-fg-subtle">
+          lifetime maintenance
+        </p>
       </div>
 
-      <div className="min-w-0 px-3 py-3">
+      <div className="min-w-0 px-3.5 py-3">
         <p className="font-mono text-[9px] font-bold uppercase tracking-[0.1em] text-indigo-600">
           Next due
         </p>
         <p
           className={
-            "mt-1 text-[17px] font-bold leading-none tabular-nums " + nextColor
+            "mt-1 text-[22px] font-bold leading-none tabular-nums " + nextColor
           }
         >
           {nextValue}
@@ -710,10 +751,6 @@ export function ServiceModal({
   const custom = selectedItemId === "";
 
   const today = new Date().toISOString().slice(0, 10);
-  const defaultCategory =
-    editEntry?.category && EXPENSE_CATEGORIES.includes(editEntry.category)
-      ? editEntry.category
-      : DEFAULT_CATEGORY;
 
   // Expense lines — each = description + amount + optional receipts. In edit
   // mode, prefill from the saved lines (and fold any legacy receipts not tied
@@ -963,20 +1000,6 @@ export function ServiceModal({
               />
             </div>
           ) : null}
-          <div>
-            <label className={LABEL}>Expense category</label>
-            <select
-              name="category"
-              defaultValue={defaultCategory}
-              className={FIELD}
-            >
-              {EXPENSE_CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={LABEL}>Date</label>
@@ -1011,7 +1034,8 @@ export function ServiceModal({
               rows={2}
               defaultValue={editEntry?.notes ?? ""}
               autoComplete="off"
-              className={FIELD}
+              placeholder="Anything worth remembering about this service…"
+              className={FIELD + " resize-none"}
             />
           </div>
 
@@ -1024,7 +1048,7 @@ export function ServiceModal({
               <button
                 type="button"
                 onClick={addLine}
-                className="rounded-md border border-line-strong bg-card px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-fg-muted transition-colors hover:text-fg"
+                className="rounded-md border border-blue-700 bg-blue-600 px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-blue-700"
               >
                 + Add expense
               </button>
@@ -1040,18 +1064,20 @@ export function ServiceModal({
                   key={l.key}
                   className="rounded-md border border-line bg-card p-2.5"
                 >
-                  <div className="flex items-center gap-2">
-                    <input
-                      value={l.description}
-                      onChange={(e) =>
-                        patchLine(l.key, { description: e.target.value })
-                      }
-                      autoComplete="off"
-                      placeholder="Description (e.g. Sensor, Filters, Oil)"
-                      aria-label="Expense description"
-                      className="min-w-0 flex-1 rounded-md border border-line-strong bg-card px-2 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
-                    />
-                    <div className="relative w-24 shrink-0">
+                  {/* Description on its own full-width line so the placeholder
+                      never truncates on mobile; amount + remove sit below. */}
+                  <input
+                    value={l.description}
+                    onChange={(e) =>
+                      patchLine(l.key, { description: e.target.value })
+                    }
+                    autoComplete="off"
+                    placeholder="Description (e.g. Sensor)"
+                    aria-label="Expense description"
+                    className="block w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
+                  />
+                  <div className="mt-2 flex items-center gap-2">
+                    <div className="relative w-32 shrink-0">
                       <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 font-mono text-[12px] text-fg-subtle">
                         $
                       </span>
@@ -1071,9 +1097,9 @@ export function ServiceModal({
                       type="button"
                       onClick={() => removeLine(l.key)}
                       aria-label="Remove expense line"
-                      className="shrink-0 rounded-sm border border-line-strong px-1.5 py-[3px] font-mono text-[12px] font-bold text-fg-subtle transition-colors hover:bg-elevated hover:text-red-700"
+                      className="ml-auto shrink-0 rounded-md border border-line-strong px-2.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.06em] text-fg-subtle transition-colors hover:bg-elevated hover:text-red-700"
                     >
-                      ✕
+                      Remove
                     </button>
                   </div>
 
@@ -1317,7 +1343,7 @@ function ModalShell({
             type="button"
             onClick={onClose}
             disabled={pending}
-            className="rounded-sm border border-white/25 px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-bar-fg transition-colors hover:bg-white/10 disabled:opacity-50"
+            className="rounded-sm border border-blue-500 bg-blue-600 px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
           >
             Cancel
           </button>
@@ -1343,7 +1369,7 @@ function ModalFooter({
         type="button"
         onClick={onClose}
         disabled={pending}
-        className="rounded-md border border-line-strong bg-card px-4 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-fg transition-colors hover:bg-elevated disabled:opacity-50"
+        className="rounded-md border border-blue-700 bg-blue-600 px-4 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
       >
         Cancel
       </button>

@@ -54,7 +54,6 @@ type LogRow = {
   service_odo: number | null;
   service_date: string | null;
   notes: string | null;
-  category: string | null;
   total_cost: number | string | null;
   created_at: string;
 };
@@ -115,7 +114,7 @@ async function loadItemDetail(itemId: string): Promise<{
       sb
         .from("maintenance_log")
         .select(
-          "id, item_id, service_name, service_odo, service_date, notes, category, total_cost, created_at",
+          "id, item_id, service_name, service_odo, service_date, notes, total_cost, created_at",
         )
         .eq("item_id", itemId)
         .order("service_date", { ascending: false, nullsFirst: false })
@@ -234,7 +233,6 @@ async function loadItemDetail(itemId: string): Promise<{
     date: l.service_date,
     odo: l.service_odo,
     notes: l.notes,
-    category: l.category,
     totalCost: num(l.total_cost),
     expenses: expensesByLog.get(l.id) ?? [],
     unlinkedAttachments: unlinkedByLog.get(l.id) ?? [],

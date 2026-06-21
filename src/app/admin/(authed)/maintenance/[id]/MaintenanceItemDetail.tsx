@@ -24,10 +24,10 @@ import {
  *     miles remaining / next-due, progress bar.
  *   - Total spent on this item (sum of every logged service's total_cost).
  *   - The full service log for this item (newest first) — each entry shows
- *     date, odometer, cost, payment, category, notes, and its receipts as
- *     signed-URL thumbnails. Tap an entry to edit it (prices, payment,
- *     category, date/odo/notes, add/remove receipts) via the shared
- *     ServiceModal + updateMaintenanceService.
+ *     date, odometer, cost, notes, expense line items, and its receipts as
+ *     signed-URL thumbnails. Tap an entry to edit it (prices, date/odo/notes,
+ *     add/remove receipts) via the shared ServiceModal +
+ *     updateMaintenanceService.
  *   - Log service (locked to this item) → adds more services/receipts, and
  *     ALWAYS overrides the item's reading (last_service_odo/date) so next-due
  *     recomputes — that's the reset (no separate button needed).
@@ -248,8 +248,8 @@ function Stat({ label, value }: { label: string; value: string }) {
 
 /**
  * One service-log entry on the item detail page. Tap-to-edit opens the shared
- * ServiceModal prefilled. Shows date, odometer, cost, payment, category,
- * notes, and receipts as signed-URL thumbnails (private bucket).
+ * ServiceModal prefilled. Shows date, odometer, cost, notes, expense line
+ * items, and receipts as signed-URL thumbnails (private bucket).
  */
 function LogEntryCard({
   entry: h,

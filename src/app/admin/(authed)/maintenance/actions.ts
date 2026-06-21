@@ -34,18 +34,8 @@ function moneyOrNull(raw: string | null | undefined): number | null {
   return Math.round(n * 100) / 100;
 }
 
-// Expense categories offered on the Add Service form (kept in sync with the
-// client select). The category is stored verbatim in maintenance_log.category.
-const EXPENSE_CATEGORIES = new Set([
-  "Suspension",
-  "Tires",
-  "Engine",
-  "Drivetrain/Transmission",
-  "Brakes",
-  "Fluids & Filters",
-  "Electrical",
-  "Other",
-]);
+// Expense category was removed from the maintenance UI. The
+// maintenance_log.category column stays in the DB but is no longer written.
 
 // Payment method was removed from the maintenance UI. The
 // maintenance_log.payment_method column stays in place but is no longer
@@ -311,14 +301,9 @@ export async function addMaintenanceService(formData: FormData): Promise<void> {
     }
   }
 
-  // Expense category (optional; ignored if unknown). Payment method removed
-  // from the UI — the column stays but is no longer written.
-  const rawCategory = str(formData, "category");
-  const category =
-    rawCategory && EXPENSE_CATEGORIES.has(rawCategory) ? rawCategory : null;
-
   // Expense lines (each with optional receipts already uploaded to storage by
-  // the client). The service total auto-sums the line amounts.
+  // the client). The service total auto-sums the line amounts. (Category +
+  // payment method removed from the UI — those columns are no longer written.)
   const expenses = parseExpenses(formData);
   const total = expenses.reduce((s, e) => s + (e.amount ?? 0), 0);
   const totalCost = total > 0 ? Math.round(total * 100) / 100 : null;
@@ -332,7 +317,6 @@ export async function addMaintenanceService(formData: FormData): Promise<void> {
       service_odo: odo,
       service_date: date,
       notes,
-      category,
       total_cost: totalCost,
     })
     .select("id")
@@ -371,7 +355,7 @@ export async function addMaintenanceService(formData: FormData): Promise<void> {
 
 /**
  * Edit an existing service record: update its maintenance_log row (type,
- * category, payment method, date, odometer, notes, total cost), add new
+ * date, odometer, notes, total cost), add new
  * receipts (uploaded directly to storage by the client), and remove receipts
  * the user deleted. Does NOT roll the item's last-service bookend — editing a
  * historical entry shouldn't move the schedule; it's for fixing cost / adding
@@ -412,11 +396,8 @@ export async function updateMaintenanceService(
     }
   }
 
-  const rawCategory = str(formData, "category");
-  const category =
-    rawCategory && EXPENSE_CATEGORIES.has(rawCategory) ? rawCategory : null;
-
-  // Expense lines drive the total now (manual total + payment method removed).
+  // Expense lines drive the total now (manual total + payment method + category
+  // removed from the UI; those columns are no longer written).
   const expenses = parseExpenses(formData);
   const total = expenses.reduce((s, e) => s + (e.amount ?? 0), 0);
   const totalCost = total > 0 ? Math.round(total * 100) / 100 : null;
@@ -430,7 +411,6 @@ export async function updateMaintenanceService(
       service_odo: odo,
       service_date: date,
       notes,
-      category,
       total_cost: totalCost,
     })
     .eq("id", logId);
