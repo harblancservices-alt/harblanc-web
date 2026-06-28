@@ -196,7 +196,7 @@ export default async function TripDetailPage({
   }
   const pcDiesel = dieselCost(pcMiles, fuel);
 
-  const miles = loadedTotal;
+  const totalMiles = loadedTotal + deadheadTotal + pcMiles;
   const closed = trip.status === "closed";
 
   return (
@@ -214,7 +214,7 @@ export default async function TripDetailPage({
           {/* Header */}
           <header className="mb-4 mt-3 flex flex-wrap items-start justify-between gap-3">
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-[22px] font-semibold leading-none text-fg">
                   {trip.name}
                 </h1>
@@ -227,6 +227,9 @@ export default async function TripDetailPage({
                   }
                 >
                   {closed ? "Closed" : "Active"}
+                </span>
+                <span className="font-mono text-[11px] font-semibold tabular-nums text-fg-muted">
+                  {fin.loads} load{fin.loads === 1 ? "" : "s"}
                 </span>
               </div>
               <p className="mt-1.5 font-mono text-[11px] uppercase tracking-[0.08em] text-fg-subtle">
@@ -257,75 +260,58 @@ export default async function TripDetailPage({
             </div>
           </header>
 
-          {/* KPIs */}
-          <div className="grid grid-cols-2 divide-x divide-line overflow-hidden rounded-md border border-line bg-card shadow-sm lg:grid-cols-4">
-            <Kpi label="Loads" value={String(fin.loads)} />
-            <Kpi label="Gross" value={usd(gross)} tone="green" />
-            <Kpi label="Net profit" value={usd(net)} tone="green" />
-            <Kpi label="Loaded mi" value={miles.toLocaleString()} />
-          </div>
-
-          {/* Mileage & diesel rollup */}
-          <div className="mt-3 grid grid-cols-2 divide-x divide-line overflow-hidden rounded-md border border-line bg-card shadow-sm lg:grid-cols-4">
-            <MileCell
-              label="Loaded"
-              accent="text-green-700"
-              miles={loadedTotal}
-              sub={usd(dieselCost(loadedTotal, fuel)) + " diesel"}
-            />
-            <MileCell
-              label="Deadhead"
-              accent="text-amber-700"
-              miles={deadheadTotal}
-              sub={usd(dieselCost(deadheadTotal, fuel)) + " diesel"}
-            />
-            <div className="bg-blue-50 px-4 py-3">
-              <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-blue-700">
-                PC bucket
-              </div>
-              <div className="mt-1 text-[20px] font-bold tabular-nums leading-none text-blue-700">
-                {pcMiles.toLocaleString()} mi
-              </div>
-              <div className="mt-1 font-mono text-[10px] text-blue-700/80">
-                {usd(pcDiesel)} · not in net
-              </div>
+          {/* Stat grid — grouped by type for readability: every dollar figure
+              in the LEFT column, every mileage figure in the RIGHT column,
+              each stacked top to bottom. Values come from computeTripFinancials
+              so they match the trip card. */}
+          <div className="grid grid-cols-2 divide-x divide-line overflow-hidden rounded-md border border-line bg-card shadow-sm">
+            {/* LEFT — money */}
+            <div className="divide-y divide-line">
+              <StatTile label="Gross" value={usd(gross)} tone="green" />
+              <StatTile
+                label="Net"
+                value={usd(net)}
+                tone="green"
+                sub={`−${usd(loadDieselTotal)} diesel`}
+              />
+              <StatTile
+                label="Spent"
+                value={usd(spent)}
+                tone="red"
+                sub="diesel + factoring + expenses"
+              />
+              <StatTile
+                label="Profit %"
+                value={profitPct != null ? `${Math.round(profitPct)}%` : "—"}
+                tone="green"
+                sub="net ÷ gross"
+              />
             </div>
-            <div className="px-4 py-3">
-              <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
-                Trip net
-              </div>
-              <div className="mt-1 text-[20px] font-bold tabular-nums leading-none text-green-700">
-                {usd(net)}
-              </div>
-              <div className="mt-1 font-mono text-[10px] text-fg-subtle">
-                −{usd(loadDieselTotal)} diesel
-              </div>
-            </div>
-          </div>
-
-          {/* Profit % + Spent — margin and total costs (gross − net). */}
-          <div className="mt-3 grid grid-cols-2 divide-x divide-line overflow-hidden rounded-md border border-line bg-card shadow-sm">
-            <div className="px-4 py-3">
-              <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
-                Profit %
-              </div>
-              <div className="mt-1 text-[22px] font-bold tabular-nums leading-none text-green-700">
-                {profitPct != null ? `${Math.round(profitPct)}%` : "—"}
-              </div>
-              <div className="mt-1 font-mono text-[10px] text-fg-subtle">
-                net ÷ gross
-              </div>
-            </div>
-            <div className="px-4 py-3">
-              <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
-                Spent
-              </div>
-              <div className="mt-1 text-[22px] font-bold tabular-nums leading-none text-red-700">
-                {usd(spent)}
-              </div>
-              <div className="mt-1 font-mono text-[10px] text-fg-subtle">
-                diesel + factoring + expenses
-              </div>
+            {/* RIGHT — mileage */}
+            <div className="divide-y divide-line">
+              <StatTile
+                label="Total miles"
+                value={`${totalMiles.toLocaleString()} mi`}
+                sub={`${usd(loadDieselTotal + pcDiesel)} diesel`}
+              />
+              <StatTile
+                label="Loaded"
+                value={`${loadedTotal.toLocaleString()} mi`}
+                accent="text-green-700"
+                sub={`${usd(dieselCost(loadedTotal, fuel))} diesel`}
+              />
+              <StatTile
+                label="Deadhead"
+                value={`${deadheadTotal.toLocaleString()} mi`}
+                accent="text-amber-700"
+                sub={`${usd(dieselCost(deadheadTotal, fuel))} diesel`}
+              />
+              <StatTile
+                label="PC"
+                value={`${pcMiles.toLocaleString()} mi`}
+                highlight
+                sub={`${usd(pcDiesel)} · not in net`}
+              />
             </div>
           </div>
 
@@ -470,52 +456,60 @@ export default async function TripDetailPage({
   );
 }
 
-function Kpi({
+/**
+ * One stat tile used for every cell in the money / mileage grid. `tone` colors
+ * the value; `accent` optionally colors the label (e.g. green Loaded, amber
+ * Deadhead); `highlight` gives the PC cell its blue accent surface. The sub
+ * line always renders (a non-breaking space when empty) so the four tiles in
+ * each column line up row-for-row across the two columns.
+ */
+function StatTile({
   label,
   value,
   tone = "default",
+  accent,
+  sub,
+  highlight = false,
 }: {
   label: string;
   value: string;
-  tone?: "default" | "green";
+  tone?: "default" | "green" | "red" | "blue" | "amber";
+  accent?: string;
+  sub?: string;
+  highlight?: boolean;
 }) {
+  const valueColor =
+    tone === "green"
+      ? "text-green-700"
+      : tone === "red"
+        ? "text-red-700"
+        : tone === "blue"
+          ? "text-blue-700"
+          : tone === "amber"
+            ? "text-amber-700"
+            : "text-fg";
+  const labelColor = accent ?? (highlight ? "text-blue-700" : "text-fg-subtle");
+  const subColor = highlight ? "text-blue-700/80" : "text-fg-subtle";
   return (
-    <div className="px-4 py-3">
-      <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
+    <div className={"px-4 py-3 " + (highlight ? "bg-blue-50" : "")}>
+      <div
+        className={
+          "font-mono text-[10px] font-semibold uppercase tracking-[0.1em] " +
+          labelColor
+        }
+      >
         {label}
       </div>
       <div
         className={
-          "mt-1 text-[22px] font-bold tabular-nums leading-none " +
-          (tone === "green" ? "text-green-700" : "text-fg")
+          "mt-1 text-[20px] font-bold tabular-nums leading-none " + valueColor
         }
       >
         {value}
       </div>
-    </div>
-  );
-}
-
-function MileCell({
-  label,
-  miles,
-  sub,
-  accent,
-}: {
-  label: string;
-  miles: number;
-  sub: string;
-  accent: string;
-}) {
-  return (
-    <div className="px-4 py-3">
-      <div className={"font-mono text-[10px] font-semibold uppercase tracking-[0.1em] " + accent}>
-        {label}
+      <div className={"mt-1 font-mono text-[10px] " + subColor}>
+        {sub ?? " "}
       </div>
-      <div className="mt-1 text-[20px] font-bold tabular-nums leading-none text-fg">
-        {miles.toLocaleString()} mi
-      </div>
-      <div className="mt-1 font-mono text-[10px] text-fg-subtle">{sub}</div>
     </div>
   );
 }
