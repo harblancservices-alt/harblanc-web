@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { NewTripButton } from "./NewTripButton";
-import { TripsListTable } from "./TripsListTable";
+import { TripsListView } from "./TripsListView";
 
 export const metadata: Metadata = {
   title: "Trips",
@@ -101,7 +101,7 @@ export default async function TripsPage() {
             load and it’ll appear here.
           </div>
         ) : (
-          <TripsListTable trips={trips} />
+          <TripsListView trips={trips} />
         )}
       </div>
     </div>
