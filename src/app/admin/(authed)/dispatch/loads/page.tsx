@@ -45,12 +45,24 @@ type LoadRowDB = {
   misc_cost: number | string | null;
   status: string;
   payment_status: string;
+  created_at: string;
 };
 
 function num(v: number | string | null): number {
   if (v == null) return 0;
   const n = typeof v === "number" ? v : Number(v);
   return Number.isFinite(n) ? n : 0;
+}
+
+/**
+ * Calendar month (0–11) a load belongs to for the board's month filter:
+ * delivery_date, falling back to pickup_date, then created_at. String-sliced
+ * from the YYYY-MM prefix so it's time-zone-safe.
+ */
+function monthIndex(l: LoadRowDB): number {
+  const d = l.delivery_date ?? l.pickup_date ?? l.created_at ?? "";
+  const m = /^\d{4}-(\d{2})/.exec(d);
+  return m ? Number(m[1]) - 1 : -1;
 }
 
 function fmtDate(iso: string | null): string {
@@ -69,7 +81,7 @@ async function loadBoard(): Promise<LoadBoardData> {
   const { data } = await sb
     .from("loads")
     .select(
-      "id, load_number, broker_name, broker_id, equipment, origin, destination, pickup_date, delivery_date, trip_name, rate, tonu_amount, loaded_miles, deadhead_to_miles, deadhead_from_miles, odo_assigned, odo_loaded, odo_delivered, fuel_cost, factoring_fee, misc_cost, status, payment_status",
+      "id, load_number, broker_name, broker_id, equipment, origin, destination, pickup_date, delivery_date, trip_name, rate, tonu_amount, loaded_miles, deadhead_to_miles, deadhead_from_miles, odo_assigned, odo_loaded, odo_delivered, fuel_cost, factoring_fee, misc_cost, status, payment_status, created_at",
     )
     .is("deleted_at", null)
     .order("delivery_date", { ascending: false, nullsFirst: false })
@@ -146,8 +158,7 @@ async function loadBoard(): Promise<LoadBoardData> {
       net,
       loadedMiles: md.loaded,
       dhMiles,
-      deadheadTo: md.deadhead ?? 0,
-      deadheadFrom: 0,
+      month: monthIndex(l),
       status: l.status,
       paymentStatus: l.payment_status,
     };
@@ -177,53 +188,11 @@ async function loadBoard(): Promise<LoadBoardData> {
     .map((t) => t.name?.trim() ?? "")
     .filter((n) => n.length > 0);
 
-  const live = rows.filter((r) => r.status !== "cancelled");
-  const delivered = rows.filter((r) => r.status === "delivered");
-  const inTransit = rows.filter(
-    (r) => r.status === "assigned" || r.status === "loaded",
-  ).length;
-  const openAssigned = rows.filter((r) => r.status === "pending").length;
-
-  // Gross / net span every row: cancelled loads contribute only their TONU
-  // (0 if none), live loads contribute their rate / net.
-  const gross = rows.reduce((s, r) => s + r.rate, 0);
-  const net = rows.reduce((s, r) => s + r.net, 0);
-  const ar = delivered
-    .filter((r) => r.paymentStatus !== "paid")
-    .reduce((s, r) => s + r.rate, 0);
-  const totalLoadedMiles = live.reduce((s, r) => s + (r.loadedMiles ?? 0), 0);
-  const avgNetPerMile = totalLoadedMiles > 0 ? net / totalLoadedMiles : 0;
-  const avgGrossPerMile = totalLoadedMiles > 0 ? gross / totalLoadedMiles : 0;
-
-  const toPickup = rows.reduce((s, r) => s + r.deadheadTo, 0);
-  const fromDelivery = rows.reduce((s, r) => s + r.deadheadFrom, 0);
-  const totalDh = toPickup + fromDelivery;
-
-  return {
-    rows,
-    brokerNames,
-    activeTrips,
-    kpis: {
-      totalLoads: rows.length,
-      inTransit,
-      openAssigned,
-      delivered: delivered.length,
-      completionPct:
-        rows.length > 0 ? Math.round((delivered.length / rows.length) * 100) : 0,
-      gross,
-      net,
-      ar,
-      arCount: delivered.filter((r) => r.paymentStatus !== "paid").length,
-      avgNetPerMile,
-      avgGrossPerMile,
-    },
-    deadhead: {
-      toPickup,
-      fromDelivery,
-      totalDh,
-      dhFuelCost: Math.round((totalDh / fuel.mpg) * fuel.ppg),
-    },
-  };
+  // Summary stats (Net profit goal, Total loads, A/R, Delivered, Gross, Net,
+  // Avg/mi) are computed client-side in LoadBoardView so they react to the
+  // month filter. The page-level mileage/deadhead summary aggregates were
+  // removed with their cards.
+  return { rows, brokerNames, activeTrips };
 }
 
 export default async function LoadBoardPage() {

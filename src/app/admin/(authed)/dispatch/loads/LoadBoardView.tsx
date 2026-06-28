@@ -20,8 +20,8 @@ export type LoadRow = {
   net: number;
   loadedMiles: number | null;
   dhMiles: number;
-  deadheadTo: number;
-  deadheadFrom: number;
+  /** Calendar month 0–11 (delivery → pickup → created_at) for the month filter. */
+  month: number;
   status: string;
   paymentStatus: string;
 };
@@ -30,28 +30,22 @@ export type LoadBoardData = {
   rows: ReadonlyArray<LoadRow>;
   brokerNames: ReadonlyArray<string>;
   activeTrips: ReadonlyArray<string>;
-  kpis: {
-    totalLoads: number;
-    inTransit: number;
-    openAssigned: number;
-    delivered: number;
-    completionPct: number;
-    gross: number;
-    net: number;
-    ar: number;
-    arCount: number;
-    avgNetPerMile: number;
-    avgGrossPerMile: number;
-  };
-  deadhead: {
-    toPickup: number;
-    fromDelivery: number;
-    totalDh: number;
-    dhFuelCost: number;
-  };
 };
 
-type Filter = "all" | "active" | "delivered" | "cancelled";
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
 
 const STATUS_PILL: Record<string, string> = {
   pending: "bg-amber-50 text-amber-700",
@@ -73,9 +67,9 @@ const GRID =
   "30px 92px 90px minmax(0,1.2fr) minmax(0,1.4fr) 60px 60px minmax(0,0.9fr) 88px 64px 56px 96px 96px";
 
 export function LoadBoardView({ data }: { data: LoadBoardData }) {
-  const { kpis, deadhead } = data;
   const router = useRouter();
-  const [filter, setFilter] = useState<Filter>("all");
+  // Month filter (the new primary slice). Drives BOTH the stats and the list.
+  const [month, setMonth] = useState<number | "all">("all");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   // Selection only exists inside an explicit delete mode. Default off: cards
   // open the load on tap and show no checkboxes. The Delete button turns it
@@ -97,30 +91,48 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
     setSelected(new Set());
   }
 
+  // Month slice — feeds the summary stats.
+  const monthRows = useMemo(
+    () =>
+      month === "all"
+        ? [...data.rows]
+        : data.rows.filter((r) => r.month === month),
+    [data.rows, month],
+  );
+
+  // The list is the month slice further narrowed by the search box.
   const rows = useMemo(() => {
-    let r = [...data.rows];
-    if (filter === "active")
-      r = r.filter(
-        (x) =>
-          x.status === "pending" ||
-          x.status === "assigned" ||
-          x.status === "loaded",
-      );
-    else if (filter === "delivered")
-      r = r.filter((x) => x.status === "delivered");
-    else if (filter === "cancelled")
-      r = r.filter((x) => x.status === "cancelled");
     const q = query.trim().toLowerCase();
-    if (q) {
-      r = r.filter((x) =>
-        [x.loadNumber, x.broker, x.origin, x.destination, x.trip]
-          .join(" ")
-          .toLowerCase()
-          .includes(q),
-      );
-    }
-    return r;
-  }, [data.rows, filter, query]);
+    if (!q) return monthRows;
+    return monthRows.filter((x) =>
+      [x.loadNumber, x.broker, x.origin, x.destination, x.trip]
+        .join(" ")
+        .toLowerCase()
+        .includes(q),
+    );
+  }, [monthRows, query]);
+
+  // Summary stats recompute for the selected month (same math the server used,
+  // moved here so the cards react to the month dropdown).
+  const stats = useMemo(() => {
+    const delivered = monthRows.filter((x) => x.status === "delivered");
+    const live = monthRows.filter((x) => x.status !== "cancelled");
+    const gross = monthRows.reduce((s, x) => s + x.rate, 0);
+    const net = monthRows.reduce((s, x) => s + x.net, 0);
+    const ar = delivered
+      .filter((x) => x.paymentStatus !== "paid")
+      .reduce((s, x) => s + x.rate, 0);
+    const totalLoadedMiles = live.reduce((s, x) => s + (x.loadedMiles ?? 0), 0);
+    return {
+      totalLoads: monthRows.length,
+      delivered: delivered.length,
+      gross,
+      net,
+      ar,
+      avgNetPerMile: totalLoadedMiles > 0 ? net / totalLoadedMiles : 0,
+      avgGrossPerMile: totalLoadedMiles > 0 ? gross / totalLoadedMiles : 0,
+    };
+  }, [monthRows]);
 
   return (
     <div className="min-h-screen border-t border-line bg-canvas text-fg">
@@ -134,61 +146,58 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
               Load board
             </h1>
           </div>
-          <div className="flex items-center gap-2">
-            {!selectMode && rows.length > 0 ? (
-              <button
-                type="button"
-                onClick={() => setSelectMode(true)}
-                className="inline-flex items-center gap-1.5 rounded-md border border-line-strong bg-card px-3.5 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-fg-muted transition-colors hover:bg-elevated hover:text-fg"
-              >
-                Delete
-              </button>
-            ) : null}
-            <AddLoadButton
-              brokerNames={data.brokerNames}
-              activeTrips={data.activeTrips}
-            />
-          </div>
+          {/* Month filter — slices the whole board (stats + list) by month. */}
+          <label className="flex items-center gap-2">
+            <span className="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-fg-subtle">
+              Month
+            </span>
+            <select
+              value={month === "all" ? "all" : String(month)}
+              onChange={(e) =>
+                setMonth(e.target.value === "all" ? "all" : Number(e.target.value))
+              }
+              className="rounded-md border border-line-strong bg-card px-3 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.08em] text-fg transition-colors focus:border-fg focus:outline-none"
+            >
+              <option value="all">All months</option>
+              {MONTHS.map((m, i) => (
+                <option key={m} value={i}>
+                  {m}
+                </option>
+              ))}
+            </select>
+          </label>
         </header>
 
-        <ProfitGoalBar net={kpis.net} />
+        <ProfitGoalBar net={stats.net} />
 
         {/* KPI strip */}
-        <div className="mb-2 grid grid-cols-3 gap-px overflow-hidden rounded-md border border-line bg-line shadow-sm sm:grid-cols-6">
-          <Kpi label="Total loads" value={String(kpis.totalLoads)} tone="count" />
+        <div className="mb-4 grid grid-cols-3 gap-px overflow-hidden rounded-md border border-line bg-line shadow-sm sm:grid-cols-6">
+          <Kpi label="Total loads" value={String(stats.totalLoads)} tone="count" />
           <Kpi
             label="A/R"
-            value={usd(kpis.ar)}
-            tone={kpis.ar > 0 ? "red" : "muted"}
+            value={usd(stats.ar)}
+            tone={stats.ar > 0 ? "red" : "muted"}
           />
-          <Kpi label="Delivered" value={String(kpis.delivered)} tone="green" />
-          <Kpi label="Gross" value={usd(kpis.gross)} tone="green" />
-          <Kpi label="Net profit" value={usd(kpis.net)} tone="green" />
+          <Kpi label="Delivered" value={String(stats.delivered)} tone="green" />
+          <Kpi label="Gross" value={usd(stats.gross)} tone="green" />
+          <Kpi label="Net profit" value={usd(stats.net)} tone="green" />
           <div className="min-w-0 bg-card px-3 py-2.5">
             <div className="truncate font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-indigo-600">
               Avg / mi
             </div>
             <div className="mt-1 truncate text-[16px] font-bold tabular-nums leading-none text-green-700 sm:text-[18px]">
-              ${kpis.avgNetPerMile.toFixed(2)}
+              ${stats.avgNetPerMile.toFixed(2)}
               <span className="ml-1 text-[10px] font-medium text-fg-subtle">net</span>
             </div>
             <div className="mt-1 truncate text-[13px] font-bold tabular-nums leading-none text-green-700">
-              ${kpis.avgGrossPerMile.toFixed(2)}
+              ${stats.avgGrossPerMile.toFixed(2)}
               <span className="ml-1 text-[10px] font-medium text-fg-subtle">gross</span>
             </div>
           </div>
         </div>
 
-        {/* Deadhead strip */}
-        <div className="mb-4 grid grid-cols-2 gap-px overflow-hidden rounded-md border border-line bg-line shadow-sm sm:grid-cols-5">
-          <DhCell label="Deadhead" value="" muted />
-          <DhCell label="To pickup" value={`${deadhead.toPickup.toLocaleString()} mi`} />
-          <DhCell label="From delivery" value={`${deadhead.fromDelivery.toLocaleString()} mi`} />
-          <DhCell label="Total DH" value={`${deadhead.totalDh.toLocaleString()} mi`} />
-          <DhCell label="DH fuel cost" value={`-${usd(deadhead.dhFuelCost)}`} tone="red" />
-        </div>
-
-        {/* Toolbar */}
+        {/* Toolbar — search + (relocated) Delete + Add Load. The old filter
+            pills were removed; the month dropdown above is the filter now. */}
         <div className="mb-2 flex flex-wrap items-center gap-2">
           <input
             type="text"
@@ -197,21 +206,19 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
             placeholder="Search load #, broker, origin, destination…"
             className="min-w-0 flex-1 rounded-md border border-line bg-card px-3 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-line-strong focus:outline-none sm:max-w-sm"
           />
-          {(["all", "active", "delivered", "cancelled"] as Filter[]).map((f) => (
+          {!selectMode && rows.length > 0 ? (
             <button
-              key={f}
               type="button"
-              onClick={() => setFilter(f)}
-              className={
-                "rounded-full border px-3 py-1 font-mono text-[11px] font-semibold uppercase tracking-[0.08em] transition-colors " +
-                (filter === f
-                  ? "border-fg bg-bar text-bar-fg"
-                  : "border-line bg-card text-fg-muted hover:bg-elevated")
-              }
+              onClick={() => setSelectMode(true)}
+              className="inline-flex items-center gap-1.5 rounded-md border border-line-strong bg-card px-3.5 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-fg-muted transition-colors hover:bg-elevated hover:text-fg"
             >
-              {f}
+              Delete
             </button>
-          ))}
+          ) : null}
+          <AddLoadButton
+            brokerNames={data.brokerNames}
+            activeTrips={data.activeTrips}
+          />
         </div>
 
         {/* Delete-selection bar — only while in explicit delete mode. */}
@@ -603,40 +610,6 @@ function Kpi({
       {hint ? (
         <div className="mt-1 truncate font-mono text-[10px] uppercase tracking-[0.08em] text-amber-700">
           {hint}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function DhCell({
-  label,
-  value,
-  tone,
-  muted = false,
-}: {
-  label: string;
-  value: string;
-  tone?: "red";
-  muted?: boolean;
-}) {
-  return (
-    <div
-      className={
-        "min-w-0 px-3 py-2 " + (muted ? "bg-elevated" : "bg-card")
-      }
-    >
-      <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-fg-subtle">
-        {label}
-      </div>
-      {value ? (
-        <div
-          className={
-            "mt-0.5 text-[14px] font-bold tabular-nums " +
-            (tone === "red" ? "text-red-700" : "text-fg")
-          }
-        >
-          {value}
         </div>
       ) : null}
     </div>
