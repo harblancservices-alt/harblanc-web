@@ -247,17 +247,37 @@ export default async function LoadDetailPage({
         <div className="overflow-hidden rounded-md bg-bar shadow-md">
           {/* Tier 1: back button + cancel / delete actions */}
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-3.5 py-2.5">
-            <Link
-              href="/admin/dispatch/loads"
-              prefetch={false}
-              aria-label="Back to all loads"
-              className="inline-flex items-center gap-1 rounded-md border border-red-700 bg-red-600 px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-red-700"
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <path d="M19 12H5M11 18l-6-6 6-6" />
-              </svg>
-              Loads
-            </Link>
+            <div className="flex flex-wrap items-center gap-2">
+              <Link
+                href="/admin/dispatch/loads"
+                prefetch={false}
+                aria-label="Back to all loads"
+                className="inline-flex items-center gap-1 rounded-md border border-red-700 bg-red-600 px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-red-700"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M19 12H5M11 18l-6-6 6-6" />
+                </svg>
+                Loads
+              </Link>
+              {load.trip_id ? (
+                <Link
+                  href={`/admin/dispatch/trips/${load.trip_id}`}
+                  prefetch={false}
+                  className="inline-flex items-center rounded-md border border-blue-700 bg-blue-600 px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-blue-700"
+                >
+                  Trip
+                </Link>
+              ) : null}
+              {load.broker_id ? (
+                <Link
+                  href={`/admin/dispatch/brokers/${load.broker_id}`}
+                  prefetch={false}
+                  className="inline-flex items-center rounded-md border border-blue-700 bg-blue-600 px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-blue-700"
+                >
+                  Broker
+                </Link>
+              ) : null}
+            </div>
             <div className="flex items-center gap-2">
               {!isCancelled ? <CancelLoadButton loadId={load.id} /> : null}
               <DeleteLoadButton loadId={load.id} />
@@ -271,7 +291,7 @@ export default async function LoadDetailPage({
                 {load.origin?.trim() || "—"}
               </div>
               {load.origin_zip ? (
-                <div className="font-mono text-[11px] tabular-nums text-bar-fg/45">
+                <div className="font-mono text-[11px] tabular-nums text-bar-fg">
                   {load.origin_zip}
                 </div>
               ) : null}
@@ -284,7 +304,7 @@ export default async function LoadDetailPage({
                 {load.destination?.trim() || "—"}
               </div>
               {load.dest_zip ? (
-                <div className="font-mono text-[11px] tabular-nums text-bar-fg/45">
+                <div className="font-mono text-[11px] tabular-nums text-bar-fg">
                   {load.dest_zip}
                 </div>
               ) : null}
@@ -343,15 +363,16 @@ export default async function LoadDetailPage({
                     }
                   />
                   <Spec label="Broker" value={load.broker_name} />
-                  <Spec
-                    label="Mileage"
-                    value={miles != null ? `${miles.toLocaleString()} mi` : null}
-                  />
+                  <Spec label="Trip" value={trip?.name ?? load.trip_name} />
                 </InnerCard>
 
                 <InnerCard title="Schedule">
                   <Spec label="Pickup" value={dateLabel(load.pickup_date)} />
                   <Spec label="Delivery" value={dateLabel(load.delivery_date)} />
+                  <Spec
+                    label="Mileage"
+                    value={miles != null ? `${miles.toLocaleString()} mi` : null}
+                  />
                   <Spec
                     label="Origin"
                     value={
@@ -402,44 +423,6 @@ export default async function LoadDetailPage({
           </div>
 
           <div className="space-y-3">
-            <CollapsibleWorkspaceSection title="Broker & trip" defaultOpen>
-              <div className="space-y-3 p-3">
-                <InnerCard title="Broker">
-                  <Spec label="Name" value={load.broker_name} />
-                  <Spec label="MC" value={broker?.mc_number ?? null} />
-                  <Spec label="DOT" value={broker?.dot_number ?? null} />
-                  <Spec label="Phone" value={broker?.phone ?? null} />
-                  {load.broker_id ? (
-                    <Link
-                      href={`/admin/dispatch/brokers/${load.broker_id}`}
-                      prefetch={false}
-                      className="mt-2 inline-flex items-center rounded-md border border-blue-700 bg-blue-600 px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-blue-700"
-                    >
-                      Open broker →
-                    </Link>
-                  ) : null}
-                </InnerCard>
-
-                {load.trip_id ? (
-                  <InnerCard title="Trip">
-                    <Spec label="Name" value={trip?.name ?? load.trip_name} />
-                    <Spec
-                      label="Status"
-                      value={trip?.status === "closed" ? "Closed" : "Active"}
-                      tone={trip?.status === "closed" ? undefined : "green"}
-                    />
-                    <Link
-                      href={`/admin/dispatch/trips/${load.trip_id}`}
-                      prefetch={false}
-                      className="mt-2 inline-flex items-center rounded-md border border-blue-700 bg-blue-600 px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-blue-700"
-                    >
-                      Open trip →
-                    </Link>
-                  </InnerCard>
-                ) : null}
-              </div>
-            </CollapsibleWorkspaceSection>
-
             <CollapsibleWorkspaceSection title="Documents" defaultOpen>
               <div className="p-3">
                 <DocumentsCard loadId={load.id} docs={loadDocs} />
