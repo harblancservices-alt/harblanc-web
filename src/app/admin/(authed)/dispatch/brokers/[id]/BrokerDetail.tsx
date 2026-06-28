@@ -69,6 +69,7 @@ export type BrokerDetailData = {
     w9: string | null;
     ten99: string | null;
     notes: string | null;
+    factoring: boolean;
   };
   kpis: { loads: number; gross: number; net: number; ar: number };
   summary: {
@@ -156,6 +157,11 @@ export function BrokerDetail({ data }: { data: BrokerDetailData }) {
               >
                 {broker.status}
               </span>
+              {broker.factoring ? (
+                <span className="rounded bg-blue-100 px-2 py-[2px] font-mono text-[10px] font-bold uppercase tracking-[0.06em] text-blue-700">
+                  Factoring
+                </span>
+              ) : null}
             </div>
             <p className="mt-1 font-mono text-[11px] uppercase tracking-[0.08em] text-fg-muted">
               MC {broker.mc ?? "—"} · DOT {broker.dot ?? "—"} ·{" "}
@@ -1264,6 +1270,22 @@ function EditModal({
           action={updateBroker.bind(null, broker.id)}
           className="grid grid-cols-1 gap-3 px-4 py-4 sm:grid-cols-3"
         >
+          <label className="flex items-start gap-2.5 rounded-md border border-line-strong bg-elevated px-3 py-2.5 sm:col-span-3">
+            <input
+              type="checkbox"
+              name="factoring"
+              defaultChecked={broker.factoring}
+              className="mt-0.5 h-4 w-4 shrink-0 accent-blue-600"
+            />
+            <span className="min-w-0">
+              <span className="block font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-fg">
+                Factoring
+              </span>
+              <span className="block text-[11.5px] text-fg-subtle">
+                This broker&apos;s loads are factored.
+              </span>
+            </span>
+          </label>
           <EField name="name" label="Name" defaultValue={broker.name} required />
           <EField name="status" label="Status" defaultValue={broker.status} />
           <EField name="broker_type" label="Type" defaultValue={broker.type} />

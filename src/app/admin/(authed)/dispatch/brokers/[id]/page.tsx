@@ -24,6 +24,7 @@ type Broker = {
   w9: string | null;
   ten99: string | null;
   notes: string | null;
+  factoring: boolean | null;
 };
 
 type LoadRow = {
@@ -212,6 +213,7 @@ export default async function BrokerDetailPage({
       w9: broker.w9,
       ten99: broker.ten99,
       notes: broker.notes,
+      factoring: broker.factoring ?? false,
     },
     kpis: { loads: live.length, gross, net, ar },
     summary: {

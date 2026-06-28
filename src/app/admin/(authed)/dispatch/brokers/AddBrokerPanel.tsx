@@ -178,6 +178,21 @@ export function AddBrokerPanel({ forceOpen = false }: { forceOpen?: boolean }) {
         action={createBroker}
         className="grid grid-cols-1 gap-3 px-3.5 py-4 sm:grid-cols-3"
       >
+        <label className="flex items-start gap-2.5 rounded-md border border-line-strong bg-elevated px-3 py-2.5 sm:col-span-3">
+          <input
+            type="checkbox"
+            name="factoring"
+            className="mt-0.5 h-4 w-4 shrink-0 accent-blue-600"
+          />
+          <span className="min-w-0">
+            <span className="block font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-fg">
+              Factoring
+            </span>
+            <span className="block text-[11.5px] text-fg-subtle">
+              This broker&apos;s loads are factored.
+            </span>
+          </span>
+        </label>
         <In name="name" label="Broker name" value={fields.name} onChange={(v) => set("name", v)} required />
         <In name="broker_type" label="Type" value={fields.broker_type} onChange={(v) => set("broker_type", v)} />
         <In name="dot_number" label="DOT number" value={fields.dot_number} onChange={(v) => set("dot_number", v)} />

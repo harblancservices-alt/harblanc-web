@@ -49,6 +49,7 @@ export async function createBroker(formData: FormData): Promise<void> {
         broker_type: str(formData, "broker_type") ?? "Brokerage",
         phone: str(formData, "phone"),
         email: str(formData, "email"),
+        factoring: bool(formData, "factoring"),
       })
       .select("id")
       .maybeSingle<{ id: string }>();
@@ -72,6 +73,7 @@ export async function updateBroker(
       dot_number: str(formData, "dot_number"),
       broker_type: str(formData, "broker_type") ?? "Brokerage",
       status: str(formData, "status") ?? "active",
+      factoring: bool(formData, "factoring"),
       phone: str(formData, "phone"),
       email: str(formData, "email"),
       office: str(formData, "office"),
