@@ -23,6 +23,9 @@ export type TripListItem = {
   loads: number;
   gross: number;
   net: number;
+  spent: number;
+  /** net ÷ gross × 100, or null when gross is 0. */
+  profitPct: number | null;
 };
 
 function usd(n: number): string {
@@ -260,6 +263,11 @@ function TripCard({
             {trip.loads} load{trip.loads === 1 ? "" : "s"}
           </span>
           <span className="font-bold text-green-700">Net {usd(trip.net)}</span>
+          {trip.profitPct != null ? (
+            <span className="font-bold text-green-700">
+              {Math.round(trip.profitPct)}%
+            </span>
+          ) : null}
           {trip.notes ? <span className="truncate">{trip.notes}</span> : null}
         </div>
       </div>

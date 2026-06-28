@@ -1,5 +1,10 @@
 import type { Metadata } from "next";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { FUEL_DEFAULTS, type FuelSettings } from "@/lib/dispatch/fuel";
+import {
+  computeTripFinancials,
+  type TripRollupLoad,
+} from "@/lib/dispatch/trip-rollup";
 import { NewTripButton } from "./NewTripButton";
 import { TripsListView } from "./TripsListView";
 
@@ -11,6 +16,11 @@ export const metadata: Metadata = {
 /**
  * Dispatch → Trips. Group loads into trips (an OTR run, out & back) and
  * track profitability. Active trips up top, closed trips below.
+ *
+ * Gross / net / spent use the shared computeTripFinancials rollup — the SAME
+ * math the trip detail page uses — so the cards and the detail page always
+ * agree. (Net is rate − diesel − factoring − expenses, NOT the unpopulated
+ * fuel_cost/factoring_fee/misc_cost columns, which made net read as gross.)
  */
 
 type TripRow = {
@@ -20,15 +30,7 @@ type TripRow = {
   notes: string | null;
   created_at: string;
 };
-type LoadAgg = {
-  trip_id: string | null;
-  rate: number | string | null;
-  fuel_cost: number | string | null;
-  factoring_fee: number | string | null;
-  misc_cost: number | string | null;
-  loaded_miles: number | null;
-  status: string;
-};
+type LoadAgg = TripRollupLoad & { trip_id: string | null };
 
 function num(v: number | string | null): number {
   if (v == null) return 0;
@@ -37,45 +39,88 @@ function num(v: number | string | null): number {
 }
 export default async function TripsPage() {
   const sb = createServiceRoleClient();
-  const [{ data: tripRows }, { data: loadRows }] = await Promise.all([
-    sb
-      .from("trips")
-      .select("id, name, status, notes, created_at")
-      .is("deleted_at", null)
-      .order("created_at", { ascending: false })
-      .returns<TripRow[]>(),
-    sb
-      .from("loads")
-      .select("trip_id, rate, fuel_cost, factoring_fee, misc_cost, loaded_miles, status")
-      .is("deleted_at", null)
-      .not("trip_id", "is", null)
-      .returns<LoadAgg[]>(),
-  ]);
+  const [{ data: tripRows }, { data: loadRows }, { data: fuelRow }, { data: factoringBrokers }] =
+    await Promise.all([
+      sb
+        .from("trips")
+        .select("id, name, status, notes, created_at")
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false })
+        .returns<TripRow[]>(),
+      sb
+        .from("loads")
+        .select(
+          "id, trip_id, rate, loaded_miles, odo_assigned, odo_loaded, odo_delivered, broker_id, status",
+        )
+        .is("deleted_at", null)
+        .not("trip_id", "is", null)
+        .returns<LoadAgg[]>(),
+      sb
+        .from("dispatch_settings")
+        .select("mpg, diesel_price_per_gallon, factoring_pct")
+        .eq("id", true)
+        .maybeSingle<{
+          mpg: number | string;
+          diesel_price_per_gallon: number | string;
+          factoring_pct: number | string;
+        }>(),
+      sb
+        .from("brokers")
+        .select("id")
+        .eq("factoring", true)
+        .is("deleted_at", null)
+        .returns<{ id: string }[]>(),
+    ]);
 
-  const agg = new Map<
-    string,
-    { loads: number; gross: number; net: number; miles: number }
-  >();
-  for (const l of loadRows ?? []) {
-    if (!l.trip_id) continue;
-    const a = agg.get(l.trip_id) ?? { loads: 0, gross: 0, net: 0, miles: 0 };
-    a.loads += 1;
-    if (l.status !== "cancelled") {
-      a.gross += num(l.rate);
-      a.net +=
-        num(l.rate) - num(l.fuel_cost) - num(l.factoring_fee) - num(l.misc_cost);
-      a.miles += l.loaded_miles ?? 0;
-    }
-    agg.set(l.trip_id, a);
+  const fuel: FuelSettings = {
+    mpg: num(fuelRow?.mpg ?? null) || FUEL_DEFAULTS.mpg,
+    ppg: num(fuelRow?.diesel_price_per_gallon ?? null) || FUEL_DEFAULTS.ppg,
+    factoringPct:
+      fuelRow?.factoring_pct != null ? num(fuelRow.factoring_pct) : FUEL_DEFAULTS.factoringPct,
+  };
+  const factoringIds = new Set((factoringBrokers ?? []).map((b) => b.id));
+
+  // Manual expenses per load (across all trip loads), keyed by load id.
+  const loadIds = (loadRows ?? []).map((l) => l.id);
+  const { data: expRows } = await sb
+    .from("load_expenses")
+    .select("load_id, amount")
+    .in("load_id", loadIds.length ? loadIds : ["00000000-0000-0000-0000-000000000000"])
+    .is("deleted_at", null)
+    .returns<{ load_id: string; amount: number | string }[]>();
+  const expByLoad = new Map<string, number>();
+  for (const e of expRows ?? []) {
+    expByLoad.set(e.load_id, (expByLoad.get(e.load_id) ?? 0) + num(e.amount));
   }
 
-  const trips = (tripRows ?? []).map((t) => ({
-    id: t.id,
-    name: t.name?.trim() || "Untitled trip",
-    status: t.status,
-    notes: t.notes?.trim() || null,
-    ...(agg.get(t.id) ?? { loads: 0, gross: 0, net: 0, miles: 0 }),
-  }));
+  // Group the trip loads by trip, then roll up each trip with the shared math.
+  const loadsByTrip = new Map<string, LoadAgg[]>();
+  for (const l of loadRows ?? []) {
+    if (!l.trip_id) continue;
+    const arr = loadsByTrip.get(l.trip_id) ?? [];
+    arr.push(l);
+    loadsByTrip.set(l.trip_id, arr);
+  }
+
+  const trips = (tripRows ?? []).map((t) => {
+    const fin = computeTripFinancials(
+      loadsByTrip.get(t.id) ?? [],
+      fuel,
+      factoringIds,
+      expByLoad,
+    );
+    return {
+      id: t.id,
+      name: t.name?.trim() || "Untitled trip",
+      status: t.status,
+      notes: t.notes?.trim() || null,
+      loads: fin.loads,
+      gross: fin.gross,
+      net: fin.net,
+      spent: fin.spent,
+      profitPct: fin.profitPct,
+    };
+  });
 
   return (
     <div className="min-h-screen border-t border-line bg-canvas text-fg">

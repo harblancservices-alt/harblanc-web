@@ -12,6 +12,7 @@ import {
   FUEL_DEFAULTS,
   type FuelSettings,
 } from "@/lib/dispatch/fuel";
+import { computeTripFinancials } from "@/lib/dispatch/trip-rollup";
 
 export const metadata: Metadata = {
   title: "Trip",
@@ -145,9 +146,9 @@ export default async function TripDetailPage({
     .returns<{ id: string }[]>();
   const factoringIds = new Set((factoringBrokers ?? []).map((b) => b.id));
 
-  const live = loads.filter((l) => l.status !== "cancelled");
-
-  // Per-load deadhead + loaded + diesel, and the load's true net.
+  // Per-load deadhead + loaded + diesel, and the load's true net — used by the
+  // linked-loads list below. The trip aggregates come from the shared
+  // computeTripFinancials so the card and this page agree on every number.
   const calc = (l: LoadRow) =>
     loadDiesel(
       {
@@ -165,11 +166,14 @@ export default async function TripDetailPage({
       l.broker_id != null && factoringIds.has(l.broker_id),
     ).net;
 
-  const gross = live.reduce((s, l) => s + num(l.rate), 0);
-  const net = live.reduce((s, l) => s + netOf(l), 0);
-  const loadedTotal = live.reduce((s, l) => s + (calc(l).loaded ?? 0), 0);
-  const deadheadTotal = live.reduce((s, l) => s + (calc(l).deadhead ?? 0), 0);
-  const loadDieselTotal = live.reduce((s, l) => s + calc(l).diesel, 0);
+  const fin = computeTripFinancials(loads, fuel, factoringIds, expByLoad);
+  const gross = fin.gross;
+  const net = fin.net;
+  const loadedTotal = fin.loadedMiles;
+  const deadheadTotal = fin.deadheadMiles;
+  const loadDieselTotal = fin.loadDieselTotal;
+  const spent = fin.spent; // gross − net = diesel + factoring + expenses
+  const profitPct = fin.profitPct; // net ÷ gross × 100, or null when gross is 0
 
   // Personal conveyance = the empty gaps. Order loads by their assigned
   // odometer; PC is trip-start → first assigned, each delivered → next
@@ -255,7 +259,7 @@ export default async function TripDetailPage({
 
           {/* KPIs */}
           <div className="grid grid-cols-2 divide-x divide-line overflow-hidden rounded-md border border-line bg-card shadow-sm lg:grid-cols-4">
-            <Kpi label="Loads" value={String(live.length)} />
+            <Kpi label="Loads" value={String(fin.loads)} />
             <Kpi label="Gross" value={usd(gross)} tone="green" />
             <Kpi label="Net profit" value={usd(net)} tone="green" />
             <Kpi label="Loaded mi" value={miles.toLocaleString()} />
@@ -295,6 +299,32 @@ export default async function TripDetailPage({
               </div>
               <div className="mt-1 font-mono text-[10px] text-fg-subtle">
                 −{usd(loadDieselTotal)} diesel
+              </div>
+            </div>
+          </div>
+
+          {/* Profit % + Spent — margin and total costs (gross − net). */}
+          <div className="mt-3 grid grid-cols-2 divide-x divide-line overflow-hidden rounded-md border border-line bg-card shadow-sm">
+            <div className="px-4 py-3">
+              <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
+                Profit %
+              </div>
+              <div className="mt-1 text-[22px] font-bold tabular-nums leading-none text-green-700">
+                {profitPct != null ? `${Math.round(profitPct)}%` : "—"}
+              </div>
+              <div className="mt-1 font-mono text-[10px] text-fg-subtle">
+                net ÷ gross
+              </div>
+            </div>
+            <div className="px-4 py-3">
+              <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
+                Spent
+              </div>
+              <div className="mt-1 text-[22px] font-bold tabular-nums leading-none text-red-700">
+                {usd(spent)}
+              </div>
+              <div className="mt-1 font-mono text-[10px] text-fg-subtle">
+                diesel + factoring + expenses
               </div>
             </div>
           </div>
