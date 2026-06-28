@@ -153,47 +153,37 @@ export function ExpenseLines({
   );
 }
 
-/** Receipt thumbnail row (images open in a new tab; PDFs show a PDF box). */
+/**
+ * Receipt list — one compact row per receipt: a type chip (IMG/PDF), the file
+ * name, and a blue "View" button that opens the file in a new tab. No image
+ * preview is rendered (Brent only wants a View button).
+ */
 function ReceiptThumbs({ atts }: { atts: ServiceAttachment[] }) {
   return (
-    <div className="mt-1.5 flex flex-wrap gap-2">
+    <div className="mt-1.5 space-y-1">
       {atts.map((a) => (
-        <div key={a.id} className="w-14">
+        <div
+          key={a.id}
+          className="flex items-center gap-2 rounded-md border border-line bg-card px-2 py-1"
+        >
+          <span className="shrink-0 rounded-sm bg-elevated px-1.5 py-[1px] font-mono text-[9px] font-bold uppercase tracking-[0.06em] text-fg-muted">
+            {a.isImage ? "IMG" : "PDF"}
+          </span>
+          <span className="min-w-0 flex-1 truncate text-[11.5px] text-fg">
+            {a.name}
+          </span>
           {a.url ? (
-            a.isImage ? (
-              <a
-                href={a.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                title={a.name}
-                onClick={(e) => e.stopPropagation()}
-                className="block h-14 w-14 overflow-hidden rounded-md border border-line"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={a.thumbUrl ?? a.url}
-                  alt={a.name}
-                  width={56}
-                  height={56}
-                  loading="lazy"
-                  decoding="async"
-                  className="h-full w-full object-cover"
-                />
-              </a>
-            ) : (
-              <a
-                href={a.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                title={a.name}
-                onClick={(e) => e.stopPropagation()}
-                className="flex h-14 w-14 items-center justify-center rounded-md border border-line bg-card font-mono text-[11px] font-bold text-red-700"
-              >
-                PDF
-              </a>
-            )
+            <a
+              href={a.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="shrink-0 rounded-md border border-blue-700 bg-blue-600 px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.06em] text-white transition-colors hover:bg-blue-700"
+            >
+              View
+            </a>
           ) : (
-            <span className="flex h-14 w-14 items-center justify-center rounded-md border border-dashed border-line text-center font-mono text-[9px] text-fg-subtle">
+            <span className="shrink-0 font-mono text-[9px] text-fg-subtle">
               no link
             </span>
           )}
@@ -1128,66 +1118,61 @@ export function ServiceModal({
 
                   {/* This line's receipts: saved (edit) + newly picked. */}
                   {l.existing.length > 0 || l.files.length > 0 ? (
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <div className="mt-2 space-y-1">
+                      {/* Saved receipts — name + View (no image preview) + Remove. */}
                       {l.existing.map((a) => (
-                        <div key={a.id} className="relative w-12">
-                          {a.url && a.isImage ? (
+                        <div
+                          key={a.id}
+                          className="flex items-center gap-2 rounded-md border border-line bg-elevated px-2 py-1"
+                        >
+                          <span className="shrink-0 rounded-sm bg-card px-1.5 py-[1px] font-mono text-[9px] font-bold uppercase tracking-[0.06em] text-fg-muted">
+                            {a.isImage ? "IMG" : "PDF"}
+                          </span>
+                          <span className="min-w-0 flex-1 truncate text-[11.5px] text-fg">
+                            {a.name}
+                          </span>
+                          {a.url ? (
                             <a
                               href={a.url}
                               target="_blank"
                               rel="noopener noreferrer"
                               onClick={(e) => e.stopPropagation()}
-                              className="block h-12 w-12 overflow-hidden rounded-md border border-line"
+                              className="shrink-0 rounded-md border border-blue-700 bg-blue-600 px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.06em] text-white transition-colors hover:bg-blue-700"
                             >
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img
-                                src={a.thumbUrl ?? a.url}
-                                alt={a.name}
-                                width={48}
-                                height={48}
-                                loading="lazy"
-                                decoding="async"
-                                className="h-full w-full object-cover"
-                              />
+                              View
                             </a>
-                          ) : (
-                            <a
-                              href={a.url ?? "#"}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="flex h-12 w-12 items-center justify-center rounded-md border border-line bg-elevated font-mono text-[10px] font-bold text-red-700"
-                            >
-                              PDF
-                            </a>
-                          )}
+                          ) : null}
                           <button
                             type="button"
                             onClick={() => removeExistingFromLine(l.key, a.id)}
                             aria-label={`Remove ${a.name}`}
-                            className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-red-700 bg-red-600 text-[11px] font-bold leading-none text-white shadow-sm transition-colors hover:bg-red-700"
+                            className="shrink-0 rounded-md border border-red-700 bg-red-600 px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.06em] text-white transition-colors hover:bg-red-700"
                           >
-                            ×
+                            Remove
                           </button>
                         </div>
                       ))}
+                      {/* Newly-picked files (not yet uploaded) — name + Remove. */}
                       {l.files.map((f) => (
-                        <span
+                        <div
                           key={f.id}
-                          className="inline-flex max-w-[10rem] items-center gap-1.5 rounded-md border border-line-strong bg-elevated px-2 py-1"
+                          className="flex items-center gap-2 rounded-md border border-line-strong bg-elevated px-2 py-1"
                         >
-                          <span className="truncate font-mono text-[10.5px] text-fg-muted">
+                          <span className="shrink-0 rounded-sm bg-card px-1.5 py-[1px] font-mono text-[9px] font-bold uppercase tracking-[0.06em] text-blue-700">
+                            New
+                          </span>
+                          <span className="min-w-0 flex-1 truncate font-mono text-[10.5px] text-fg-muted">
                             {f.file.name}
                           </span>
                           <button
                             type="button"
                             onClick={() => removeFile(l.key, f.id)}
                             aria-label={`Remove ${f.file.name}`}
-                            className="shrink-0 font-mono text-[11px] font-bold text-fg-subtle hover:text-red-700"
+                            className="shrink-0 rounded-md border border-red-700 bg-red-600 px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.06em] text-white transition-colors hover:bg-red-700"
                           >
-                            ✕
+                            Remove
                           </button>
-                        </span>
+                        </div>
                       ))}
                     </div>
                   ) : null}

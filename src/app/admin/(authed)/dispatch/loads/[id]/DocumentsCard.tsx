@@ -201,40 +201,35 @@ function DocKindBlock({
       </div>
 
       {hasDocs ? (
-        <div className="mt-2 flex flex-wrap gap-2">
+        <div className="mt-2 space-y-1.5">
+          {/* One compact row per file: type chip + name + View + Delete. No
+              image preview is rendered — View opens the doc in the viewer. */}
           {docs.map((d) => (
-            <div key={d.id} className="relative w-16">
+            <div
+              key={d.id}
+              className="flex items-center gap-2 rounded-md border border-line bg-elevated px-2 py-1"
+            >
+              <span className="shrink-0 rounded-sm bg-card px-1.5 py-[1px] font-mono text-[9px] font-bold uppercase tracking-[0.06em] text-fg-muted">
+                {isImageDoc(d) ? "IMG" : "PDF"}
+              </span>
+              <span className="min-w-0 flex-1 truncate text-[11.5px] text-fg">
+                {d.name}
+              </span>
               <button
                 type="button"
                 onClick={() => onView(d)}
-                title={d.name}
-                className="block h-16 w-16 overflow-hidden rounded-md border border-line bg-elevated"
+                className="shrink-0 rounded-md border border-blue-700 bg-blue-600 px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.06em] text-white transition-colors hover:bg-blue-700"
               >
-                {d.thumbUrl && isImageDoc(d) ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={d.thumbUrl}
-                    alt={d.name}
-                    width={64}
-                    height={64}
-                    loading="lazy"
-                    decoding="async"
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <span className="flex h-full w-full items-center justify-center font-mono text-[11px] font-bold text-red-700">
-                    PDF
-                  </span>
-                )}
+                View
               </button>
               <button
                 type="button"
                 onClick={() => onDelete(d)}
                 disabled={busy}
                 aria-label={`Delete ${d.name}`}
-                className="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-red-700 bg-red-600 text-[11px] font-bold leading-none text-white shadow-sm transition-colors hover:bg-red-700 disabled:opacity-50"
+                className="shrink-0 rounded-md border border-red-700 bg-red-600 px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.06em] text-white transition-colors hover:bg-red-700 disabled:opacity-50"
               >
-                ×
+                Delete
               </button>
             </div>
           ))}
