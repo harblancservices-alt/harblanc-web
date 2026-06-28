@@ -76,13 +76,6 @@ const STATUS_LABEL: Record<string, string> = {
   delivered: "Delivered",
   cancelled: "Cancelled",
 };
-const STATUS_BAR_PILL: Record<string, string> = {
-  pending: "border-amber-300/40 bg-amber-300/10 text-amber-200",
-  assigned: "border-amber-300/40 bg-amber-300/10 text-amber-200",
-  loaded: "border-blue-300/40 bg-blue-300/10 text-blue-200",
-  delivered: "border-emerald-300/40 bg-emerald-300/10 text-emerald-200",
-  cancelled: "border-white/20 bg-white/5 text-bar-fg/60",
-};
 
 export default async function LoadDetailPage({
   params,
@@ -250,81 +243,50 @@ export default async function LoadDetailPage({
   return (
     <div className="min-h-screen border-t border-line bg-canvas text-fg">
       <div className="w-full px-4 py-5 sm:px-6 sm:py-6 lg:px-8">
-        {/* Command bar — load # emphasized, assignment + compact lane folded in */}
+        {/* Command bar — back + actions, clean lane, financial tiles */}
         <div className="overflow-hidden rounded-md bg-bar shadow-md">
-          {/* Tier 1: load # + status + rate */}
+          {/* Tier 1: back button + cancel / delete actions */}
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-3.5 py-2.5">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-              <Link
-                href="/admin/dispatch/loads"
-                prefetch={false}
-                aria-label="Back to all loads"
-                className="inline-flex items-center gap-1 rounded-md border border-red-700 bg-red-600 px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-red-700"
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                  <path d="M19 12H5M11 18l-6-6 6-6" />
-                </svg>
-                Loads
-              </Link>
-              <span className="font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-bar-fg/45">
-                Load
-              </span>
-              <span className="text-[20px] font-bold leading-none tabular-nums text-bar-fg xl:text-[23px]">
-                #{load.load_number?.trim() || "—"}
-              </span>
-              <span
-                className={
-                  "inline-flex items-center justify-center rounded-sm border px-2 py-[2px] font-mono text-[9px] font-semibold uppercase tracking-[0.16em] xl:text-[10.5px] " +
-                  (STATUS_BAR_PILL[load.status] ?? STATUS_BAR_PILL.cancelled)
-                }
-              >
-                {STATUS_LABEL[load.status] ?? load.status}
-              </span>
-            </div>
+            <Link
+              href="/admin/dispatch/loads"
+              prefetch={false}
+              aria-label="Back to all loads"
+              className="inline-flex items-center gap-1 rounded-md border border-red-700 bg-red-600 px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-red-700"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M19 12H5M11 18l-6-6 6-6" />
+              </svg>
+              Loads
+            </Link>
             <div className="flex items-center gap-2">
               {!isCancelled ? <CancelLoadButton loadId={load.id} /> : null}
               <DeleteLoadButton loadId={load.id} />
             </div>
           </div>
 
-          {/* Tier 2: assignment (no equipment) + compact pickup → delivery */}
-          <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-t border-white/10 px-3.5 py-2">
-            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 font-mono text-[11px] text-bar-fg/65">
-              <span className="font-semibold tracking-[0.02em] text-bar-fg">
-                {load.broker_name?.trim() || "No broker"}
-              </span>
-              {load.trip_name ? (
-                <span>
-                  · Trip{" "}
-                  <span className="text-bar-fg/90">{load.trip_name}</span>
-                </span>
+          {/* Tier 2: clean origin → destination with ZIPs underneath each city */}
+          <div className="flex items-start gap-3 border-t border-white/10 px-3.5 py-2.5">
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-[15px] font-semibold text-bar-fg">
+                {load.origin?.trim() || "—"}
+              </div>
+              {load.origin_zip ? (
+                <div className="font-mono text-[11px] tabular-nums text-bar-fg/45">
+                  {load.origin_zip}
+                </div>
               ) : null}
             </div>
-
-            <div className="flex items-center gap-2 text-[13px]">
-              <span className="font-semibold text-bar-fg">
-                {load.origin?.trim() || "—"}
-              </span>
-              {load.origin_zip ? (
-                <span className="font-mono text-[11px] tabular-nums text-bar-fg/45">
-                  {load.origin_zip}
-                </span>
-              ) : null}
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden className="text-bar-fg/45">
-                <path d="M5 12h14M13 5l7 7-7 7" />
-              </svg>
-              <span className="font-semibold text-bar-fg">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden className="mt-0.5 shrink-0 text-bar-fg/45">
+              <path d="M5 12h14M13 5l7 7-7 7" />
+            </svg>
+            <div className="min-w-0 flex-1 text-right">
+              <div className="truncate text-[15px] font-semibold text-bar-fg">
                 {load.destination?.trim() || "—"}
-              </span>
+              </div>
               {load.dest_zip ? (
-                <span className="font-mono text-[11px] tabular-nums text-bar-fg/45">
+                <div className="font-mono text-[11px] tabular-nums text-bar-fg/45">
                   {load.dest_zip}
-                </span>
-              ) : null}
-              {miles != null ? (
-                <span className="font-mono text-[11px] tabular-nums text-bar-fg/55">
-                  · {miles.toLocaleString()} mi
-                </span>
+                </div>
               ) : null}
             </div>
           </div>
@@ -371,6 +333,22 @@ export default async function LoadDetailPage({
           <div className="space-y-3">
             <CollapsibleWorkspaceSection title="Load details" defaultOpen>
               <div className="space-y-3 p-3">
+                <InnerCard title="Load">
+                  <Spec
+                    label="Load #"
+                    value={
+                      load.load_number?.trim()
+                        ? `#${load.load_number.trim()}`
+                        : null
+                    }
+                  />
+                  <Spec label="Broker" value={load.broker_name} />
+                  <Spec
+                    label="Mileage"
+                    value={miles != null ? `${miles.toLocaleString()} mi` : null}
+                  />
+                </InnerCard>
+
                 <InnerCard title="Schedule">
                   <Spec label="Pickup" value={dateLabel(load.pickup_date)} />
                   <Spec label="Delivery" value={dateLabel(load.delivery_date)} />
