@@ -1252,9 +1252,9 @@ function EditModal({
   onClose: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-40 flex items-start justify-center overflow-y-auto bg-black/40 p-4 sm:p-8">
-      <div className="w-full max-w-2xl overflow-hidden rounded-lg border border-line bg-card shadow-xl">
-        <div className="flex items-center justify-between border-b border-line bg-elevated px-4 py-2.5">
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 sm:p-8">
+      <div className="flex max-h-[calc(100dvh-2rem)] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-line bg-card shadow-xl sm:max-h-[calc(100dvh-4rem)]">
+        <div className="flex shrink-0 items-center justify-between border-b border-line bg-elevated px-4 py-2.5">
           <span className="font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-fg">
             Edit broker
           </span>
@@ -1268,8 +1268,9 @@ function EditModal({
         </div>
         <form
           action={updateBroker.bind(null, broker.id)}
-          className="grid grid-cols-1 gap-3 px-4 py-4 sm:grid-cols-3"
+          className="flex min-h-0 flex-1 flex-col"
         >
+          <div className="grid grid-cols-1 gap-3 overflow-y-auto px-4 py-4 sm:grid-cols-3">
           <label className="flex items-start gap-2.5 rounded-md border border-line-strong bg-elevated px-3 py-2.5 sm:col-span-3">
             <input
               type="checkbox"
@@ -1310,11 +1311,14 @@ function EditModal({
               className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
             />
           </div>
-          <div className="flex justify-end gap-2 sm:col-span-3">
+          </div>
+          {/* Sticky footer so Save/Cancel stay reachable above the bottom nav
+              even when the form is taller than the viewport. */}
+          <div className="flex shrink-0 justify-end gap-2 border-t border-line bg-card px-4 py-3 pb-[max(env(safe-area-inset-bottom),0.75rem)]">
             <button
               type="button"
               onClick={onClose}
-              className="rounded-md border border-line-strong bg-card px-4 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-fg transition-colors hover:bg-elevated"
+              className="rounded-md border border-blue-700 bg-blue-600 px-4 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-blue-700"
             >
               Cancel
             </button>

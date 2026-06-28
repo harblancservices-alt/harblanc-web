@@ -182,6 +182,7 @@ export function AddBrokerPanel({ forceOpen = false }: { forceOpen?: boolean }) {
           <input
             type="checkbox"
             name="factoring"
+            defaultChecked
             className="mt-0.5 h-4 w-4 shrink-0 accent-blue-600"
           />
           <span className="min-w-0">
