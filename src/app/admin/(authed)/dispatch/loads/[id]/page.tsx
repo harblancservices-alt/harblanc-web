@@ -247,37 +247,17 @@ export default async function LoadDetailPage({
         <div className="overflow-hidden rounded-md bg-bar shadow-md">
           {/* Tier 1: back button + cancel / delete actions */}
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-3.5 py-2.5">
-            <div className="flex flex-wrap items-center gap-2">
-              <Link
-                href="/admin/dispatch/loads"
-                prefetch={false}
-                aria-label="Back to all loads"
-                className="inline-flex items-center gap-1 rounded-md border border-red-700 bg-red-600 px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-red-700"
-              >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                  <path d="M19 12H5M11 18l-6-6 6-6" />
-                </svg>
-                Loads
-              </Link>
-              {load.trip_id ? (
-                <Link
-                  href={`/admin/dispatch/trips/${load.trip_id}`}
-                  prefetch={false}
-                  className="inline-flex items-center rounded-md border border-blue-700 bg-blue-600 px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-blue-700"
-                >
-                  Trip
-                </Link>
-              ) : null}
-              {load.broker_id ? (
-                <Link
-                  href={`/admin/dispatch/brokers/${load.broker_id}`}
-                  prefetch={false}
-                  className="inline-flex items-center rounded-md border border-blue-700 bg-blue-600 px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-blue-700"
-                >
-                  Broker
-                </Link>
-              ) : null}
-            </div>
+            <Link
+              href="/admin/dispatch/loads"
+              prefetch={false}
+              aria-label="Back to all loads"
+              className="inline-flex items-center gap-1 rounded-md border border-red-700 bg-red-600 px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-red-700"
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <path d="M19 12H5M11 18l-6-6 6-6" />
+              </svg>
+              Loads
+            </Link>
             <div className="flex items-center gap-2">
               {!isCancelled ? <CancelLoadButton loadId={load.id} /> : null}
               <DeleteLoadButton loadId={load.id} />
@@ -351,7 +331,34 @@ export default async function LoadDetailPage({
         {/* Panels */}
         <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-3">
           <div className="space-y-3">
-            <CollapsibleWorkspaceSection title="Load details" defaultOpen>
+            <CollapsibleWorkspaceSection
+              title="Load details"
+              defaultOpen
+              actions={
+                load.trip_id || load.broker_id ? (
+                  <>
+                    {load.trip_id ? (
+                      <Link
+                        href={`/admin/dispatch/trips/${load.trip_id}`}
+                        prefetch={false}
+                        className="inline-flex items-center rounded-md border border-blue-700 bg-blue-600 px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-blue-700"
+                      >
+                        Trip
+                      </Link>
+                    ) : null}
+                    {load.broker_id ? (
+                      <Link
+                        href={`/admin/dispatch/brokers/${load.broker_id}`}
+                        prefetch={false}
+                        className="inline-flex items-center rounded-md border border-blue-700 bg-blue-600 px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-blue-700"
+                      >
+                        Broker
+                      </Link>
+                    ) : null}
+                  </>
+                ) : undefined
+              }
+            >
               <div className="space-y-3 p-3">
                 <InnerCard title="Load">
                   <Spec

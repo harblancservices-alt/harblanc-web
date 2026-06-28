@@ -30,6 +30,7 @@ export function CollapsibleWorkspaceSection({
   defaultOpen = false,
   summary,
   meta,
+  actions,
   children,
 }: {
   title: string;
@@ -38,6 +39,9 @@ export function CollapsibleWorkspaceSection({
   summary?: ReactNode;
   /** Optional sub-line under the title — e.g. "Auto-saves on edit". */
   meta?: ReactNode;
+  /** Right-side interactive controls (e.g. links) rendered OUTSIDE the
+   *  collapse toggle so they don't nest interactives inside a <button>. */
+  actions?: ReactNode;
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -45,34 +49,41 @@ export function CollapsibleWorkspaceSection({
 
   return (
     <section className="overflow-hidden rounded-md border border-line bg-card shadow-md">
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-controls={panelId}
-        onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center justify-between gap-3 bg-bar px-3 py-2.5 text-left transition-colors hover:bg-[#2e313a]"
-      >
-        <div className="flex min-w-0 items-center gap-2">
-          <Chevron open={open} />
-          <div className="min-w-0">
-            <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-bar-fg">
-              {title}
-            </h2>
-            {meta ? (
-              <p className="mt-[2px] truncate font-mono text-[10px] text-bar-fg/60">
-                {meta}
-              </p>
-            ) : null}
+      <div className="flex items-stretch bg-bar">
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls={panelId}
+          onClick={() => setOpen((o) => !o)}
+          className="flex min-w-0 flex-1 items-center justify-between gap-3 px-3 py-2.5 text-left transition-colors hover:bg-[#2e313a]"
+        >
+          <div className="flex min-w-0 items-center gap-2">
+            <Chevron open={open} />
+            <div className="min-w-0">
+              <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-bar-fg">
+                {title}
+              </h2>
+              {meta ? (
+                <p className="mt-[2px] truncate font-mono text-[10px] text-bar-fg/60">
+                  {meta}
+                </p>
+              ) : null}
+            </div>
           </div>
-        </div>
-        {summary ? (
-          <div className="min-w-0 flex-1 truncate text-center">
-            <span className="font-mono text-[15px] leading-none tabular-nums text-bar-fg/85">
-              {summary}
-            </span>
+          {summary ? (
+            <div className="min-w-0 flex-1 truncate text-center">
+              <span className="font-mono text-[15px] leading-none tabular-nums text-bar-fg/85">
+                {summary}
+              </span>
+            </div>
+          ) : null}
+        </button>
+        {actions ? (
+          <div className="flex shrink-0 items-center gap-2 pl-2 pr-3">
+            {actions}
           </div>
         ) : null}
-      </button>
+      </div>
       <div
         id={panelId}
         role="region"
