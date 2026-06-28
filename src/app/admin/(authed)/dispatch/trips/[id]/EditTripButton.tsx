@@ -1,0 +1,133 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { updateTrip, deleteTrip } from "../actions";
+
+/**
+ * Red "✎ Edit trip" button + modal — matches the edit affordance on the
+ * broker and maintenance detail pages (a red Edit button that opens a modal).
+ * The modal hosts the trip's name / status / notes form (updateTrip) and the
+ * Delete trip action (deleteTrip); both are the same server actions the page
+ * used before, just moved out of an inline <details> into a proper modal.
+ */
+export function EditTripButton({
+  tripId,
+  name,
+  status,
+  notes,
+}: {
+  tripId: string;
+  name: string;
+  status: string;
+  notes: string | null;
+}) {
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    if (open) document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-red-700 bg-red-600 px-3 text-[12px] font-semibold text-white transition-colors hover:bg-red-700"
+      >
+        ✎ Edit trip
+      </button>
+
+      {open ? (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Edit trip"
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-3 sm:p-6"
+          onClick={() => setOpen(false)}
+        >
+          <div
+            className="my-4 w-full max-w-md overflow-hidden rounded-lg border border-line-strong bg-card shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-3 bg-bar px-4 py-2.5">
+              <span className="truncate font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-bar-fg">
+                Edit trip
+              </span>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="rounded-sm border border-white/25 px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-bar-fg transition-colors hover:bg-white/10"
+              >
+                Cancel
+              </button>
+            </div>
+
+            <form
+              action={updateTrip.bind(null, tripId)}
+              className="space-y-3 bg-elevated px-4 py-4"
+            >
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="block font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
+                    Trip name<span className="text-red-600"> *</span>
+                  </label>
+                  <input
+                    name="name"
+                    defaultValue={name}
+                    required
+                    autoComplete="off"
+                    className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg focus:border-fg focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
+                    Status
+                  </label>
+                  <select
+                    name="status"
+                    defaultValue={status}
+                    className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg focus:border-fg focus:outline-none"
+                  >
+                    <option value="active">Active</option>
+                    <option value="closed">Closed</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
+                  Notes
+                </label>
+                <textarea
+                  name="notes"
+                  defaultValue={notes ?? ""}
+                  rows={3}
+                  className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg focus:border-fg focus:outline-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-between gap-2 border-t border-line pt-3">
+                <button
+                  type="submit"
+                  className="rounded-md border border-blue-700 bg-blue-600 px-4 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-blue-700"
+                >
+                  Save trip
+                </button>
+                <button
+                  type="submit"
+                  formAction={deleteTrip.bind(null, tripId)}
+                  className="rounded-md border border-red-300 bg-card px-3 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-red-700 transition-colors hover:bg-red-50"
+                >
+                  Delete trip
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
+    </>
+  );
+}

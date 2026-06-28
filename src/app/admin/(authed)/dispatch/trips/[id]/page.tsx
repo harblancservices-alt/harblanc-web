@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { setTripStatus, updateTrip, deleteTrip, updateTripOdometer } from "../actions";
+import { setTripStatus, updateTripOdometer } from "../actions";
 import { markLoadPaid } from "../../loads/actions";
+import { EditTripButton } from "./EditTripButton";
 import {
   loadDiesel,
   dieselCost,
@@ -63,7 +64,22 @@ function fmtDate(iso: string | null): string {
   });
 }
 
-const GRID = "100px 96px minmax(0,1.6fr) 96px 72px 96px 92px";
+// Load status pill colors / labels — same mapping as the load board cards so a
+// load looks identical wherever it appears (load board, broker, dashboard).
+const STATUS_PILL: Record<string, string> = {
+  pending: "bg-amber-50 text-amber-700",
+  assigned: "bg-amber-50 text-amber-700",
+  loaded: "bg-blue-50 text-blue-700",
+  delivered: "bg-green-50 text-green-700",
+  cancelled: "bg-elevated text-fg-subtle",
+};
+const STATUS_LABEL: Record<string, string> = {
+  pending: "Pending",
+  assigned: "Rolling",
+  loaded: "Loaded",
+  delivered: "Delivered",
+  cancelled: "Cancelled",
+};
 
 export default async function TripDetailPage({
   params,
@@ -186,13 +202,13 @@ export default async function TripDetailPage({
           <Link
             href="/admin/dispatch/trips"
             prefetch={false}
-            className="inline-flex items-center font-mono text-[10.5px] font-bold uppercase tracking-[0.18em] text-fg-muted transition-colors hover:text-fg"
+            className="inline-flex items-center gap-1.5 rounded-md border border-blue-700 bg-blue-600 px-2.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-white transition-colors hover:bg-blue-700"
           >
             ← All trips
           </Link>
 
           {/* Header */}
-          <header className="mb-4 mt-2 flex flex-wrap items-start justify-between gap-3">
+          <header className="mb-4 mt-3 flex flex-wrap items-start justify-between gap-3">
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-[22px] font-semibold leading-none text-fg">
@@ -223,11 +239,17 @@ export default async function TripDetailPage({
               >
                 <button
                   type="submit"
-                  className="rounded-md border border-line-strong bg-card px-3 py-1.5 text-[12px] font-semibold text-fg transition-colors hover:bg-elevated"
+                  className="inline-flex h-9 items-center justify-center whitespace-nowrap rounded-md border border-line-strong bg-card px-3 text-[12px] font-semibold text-fg transition-colors hover:bg-elevated"
                 >
                   {closed ? "Reopen trip" : "Close trip"}
                 </button>
               </form>
+              <EditTripButton
+                tripId={trip.id}
+                name={trip.name}
+                status={trip.status}
+                notes={trip.notes}
+              />
             </div>
           </header>
 
@@ -324,145 +346,94 @@ export default async function TripDetailPage({
                 · {loads.length}
               </span>
             </div>
-            <div className="overflow-x-auto rounded-md border border-line bg-card shadow-sm">
-              <div className="min-w-[680px]">
-                <div
-                  className="grid items-center gap-2 bg-bar px-3.5 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-bar-fg"
-                  style={{ gridTemplateColumns: GRID }}
-                >
-                  <span>Load #</span>
-                  <span>Status</span>
-                  <span>Route</span>
-                  <span className="text-right">Rate</span>
-                  <span className="text-right">Miles</span>
-                  <span className="text-right">Net</span>
-                  <span />
-                </div>
-                {loads.length === 0 ? (
-                  <p className="px-3.5 py-3 font-mono text-[12px] text-fg-subtle">
-                    No loads linked yet. Add a load and set this trip’s name on it.
-                  </p>
-                ) : (
-                  loads.map((l, i) => {
-                    const unpaid =
-                      l.status === "delivered" && l.payment_status !== "paid";
-                    return (
-                      <div
-                        key={l.id}
-                        className={
-                          "grid items-center gap-2 px-3.5 py-2 text-[12.5px] " +
-                          (i === loads.length - 1 ? "" : "border-b border-line")
-                        }
-                        style={{ gridTemplateColumns: GRID }}
+            {loads.length === 0 ? (
+              <div className="rounded-md border border-line bg-card px-3.5 py-3 font-mono text-[12px] text-fg-subtle shadow-sm">
+                No loads linked yet. Add a load and set this trip’s name on it.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {loads.map((l) => {
+                  const unpaid =
+                    l.status === "delivered" && l.payment_status !== "paid";
+                  return (
+                    <div
+                      key={l.id}
+                      className="flex items-stretch overflow-hidden rounded-md border border-line bg-card shadow-sm transition-colors hover:bg-elevated"
+                    >
+                      <Link
+                        href={"/admin/dispatch/loads/" + l.id}
+                        prefetch={false}
+                        className="min-w-0 flex-1 p-3"
                       >
-                        <span className="truncate font-mono text-fg-muted">
-                          {l.load_number?.trim() || "—"}
-                        </span>
-                        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.06em] text-fg-muted">
-                          {l.status.replace("_", " ")}
-                        </span>
-                        <span className="truncate text-fg">
+                        <div className="flex items-center justify-between gap-2">
+                          <span
+                            className={
+                              "inline-block rounded-sm px-1.5 py-[1px] font-mono text-[10px] font-bold uppercase tracking-[0.06em] " +
+                              (STATUS_PILL[l.status] ??
+                                "bg-elevated text-fg-subtle")
+                            }
+                          >
+                            {STATUS_LABEL[l.status] ?? l.status.replace("_", " ")}
+                          </span>
+                          <span className="font-mono text-[15px] font-bold tabular-nums text-green-700">
+                            {usd(num(l.rate))}
+                          </span>
+                        </div>
+                        <div className="mt-1.5 truncate text-[14px] font-semibold text-fg">
                           {l.origin ?? "—"}{" "}
                           <span className="text-fg-subtle">→</span>{" "}
                           {l.destination ?? "—"}
-                        </span>
-                        <span className="text-right font-bold tabular-nums text-green-700">
-                          {usd(num(l.rate))}
-                        </span>
-                        <span className="text-right tabular-nums text-fg-muted">
-                          {l.loaded_miles != null
-                            ? l.loaded_miles.toLocaleString()
-                            : "—"}
-                        </span>
-                        <span className="text-right tabular-nums text-fg">
-                          {usd(netOf(l))}
-                        </span>
-                        <span className="flex justify-end">
+                        </div>
+                        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] text-fg-subtle">
+                          {l.load_number?.trim() ? (
+                            <span>#{l.load_number.trim()}</span>
+                          ) : null}
+                          {l.delivery_date ? (
+                            <span>{fmtDate(l.delivery_date)}</span>
+                          ) : null}
+                          {l.loaded_miles != null ? (
+                            <span>{l.loaded_miles.toLocaleString()} mi</span>
+                          ) : null}
+                          <span className="font-bold text-green-700">
+                            Net {usd(netOf(l))}
+                          </span>
+                        </div>
+                      </Link>
+                      {unpaid || l.payment_status === "paid" ? (
+                        <div className="flex shrink-0 items-center border-l border-line px-3">
                           {unpaid ? (
                             <form action={markLoadPaid.bind(null, l.id)}>
                               <button
                                 type="submit"
-                                className="rounded-md border border-blue-300 bg-blue-50 px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-blue-700 transition-colors hover:bg-blue-100"
+                                className="rounded-md border border-blue-300 bg-blue-50 px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-blue-700 transition-colors hover:bg-blue-100"
                               >
                                 Mark paid
                               </button>
                             </form>
-                          ) : l.payment_status === "paid" ? (
+                          ) : (
                             <span className="font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-green-700">
                               Paid
                             </span>
-                          ) : null}
-                        </span>
-                      </div>
-                    );
-                  })
-                )}
+                          )}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
               </div>
-            </div>
+            )}
           </div>
 
-          {/* Edit / notes */}
-          <details className="mt-4 overflow-hidden rounded-md border border-line bg-card shadow-sm">
-            <summary className="cursor-pointer list-none px-4 py-2.5 font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-fg-muted transition-colors hover:text-fg">
-              Edit trip details
-            </summary>
-            <form
-              action={updateTrip.bind(null, trip.id)}
-              className="border-t border-line px-4 py-4"
-            >
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div>
-                  <label className="block font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
-                    Trip name<span className="text-red-600"> *</span>
-                  </label>
-                  <input
-                    name="name"
-                    defaultValue={trip.name}
-                    required
-                    autoComplete="off"
-                    className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg focus:border-fg focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
-                    Status
-                  </label>
-                  <select
-                    name="status"
-                    defaultValue={trip.status}
-                    className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg focus:border-fg focus:outline-none"
-                  >
-                    <option value="active">Active</option>
-                    <option value="closed">Closed</option>
-                  </select>
-                </div>
-              </div>
-              <label className="mt-3 block font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
+          {trip.notes ? (
+            <div className="mt-4 rounded-md border border-line bg-card px-4 py-3 shadow-sm">
+              <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-fg-subtle">
                 Notes
-              </label>
-              <textarea
-                name="notes"
-                defaultValue={trip.notes ?? ""}
-                rows={2}
-                className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg focus:border-fg focus:outline-none"
-              />
-              <div className="mt-4 flex items-center justify-between gap-2">
-                <button
-                  type="submit"
-                  className="rounded-md border border-blue-700 bg-blue-600 px-4 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-blue-700"
-                >
-                  Save trip
-                </button>
-                <button
-                  type="submit"
-                  formAction={deleteTrip.bind(null, trip.id)}
-                  className="rounded-md border border-red-300 bg-card px-3 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-red-700 transition-colors hover:bg-red-50"
-                >
-                  Delete trip
-                </button>
               </div>
-            </form>
-          </details>
+              <p className="mt-1 whitespace-pre-wrap text-[13px] text-fg">
+                {trip.notes}
+              </p>
+            </div>
+          ) : null}
         </div>
       </div>
     </div>
