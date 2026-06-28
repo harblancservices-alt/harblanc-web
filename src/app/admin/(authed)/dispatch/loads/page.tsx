@@ -25,6 +25,7 @@ type LoadRowDB = {
   id: string;
   load_number: string | null;
   broker_name: string | null;
+  broker_id: string | null;
   equipment: string | null;
   origin: string | null;
   destination: string | null;
@@ -68,7 +69,7 @@ async function loadBoard(): Promise<LoadBoardData> {
   const { data } = await sb
     .from("loads")
     .select(
-      "id, load_number, broker_name, equipment, origin, destination, pickup_date, delivery_date, trip_name, rate, tonu_amount, loaded_miles, deadhead_to_miles, deadhead_from_miles, odo_assigned, odo_loaded, odo_delivered, fuel_cost, factoring_fee, misc_cost, status, payment_status",
+      "id, load_number, broker_name, broker_id, equipment, origin, destination, pickup_date, delivery_date, trip_name, rate, tonu_amount, loaded_miles, deadhead_to_miles, deadhead_from_miles, odo_assigned, odo_loaded, odo_delivered, fuel_cost, factoring_fee, misc_cost, status, payment_status",
     )
     .is("deleted_at", null)
     .order("delivery_date", { ascending: false, nullsFirst: false })
@@ -101,6 +102,15 @@ async function loadBoard(): Promise<LoadBoardData> {
     expByLoad.set(e.load_id, (expByLoad.get(e.load_id) ?? 0) + num(e.amount));
   }
 
+  // Brokers that factor — only their loads incur a factoring fee.
+  const { data: factoringBrokers } = await sb
+    .from("brokers")
+    .select("id")
+    .eq("factoring", true)
+    .is("deleted_at", null)
+    .returns<{ id: string }[]>();
+  const factoringIds = new Set((factoringBrokers ?? []).map((b) => b.id));
+
   const rows = (data ?? []).map((l) => {
     const cancelled = l.status === "cancelled";
     // A cancelled load earns only a TONU fee (if any); otherwise its rate.
@@ -119,6 +129,7 @@ async function loadBoard(): Promise<LoadBoardData> {
       : loadNet(
           { rate, diesel: md.diesel, expensesTotal: expByLoad.get(l.id) ?? 0 },
           fuel,
+          l.broker_id != null && factoringIds.has(l.broker_id),
         ).net;
     const dhMiles = md.deadhead ?? 0;
     return {

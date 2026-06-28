@@ -16,8 +16,18 @@ export type FuelSettings = { mpg: number; ppg: number; factoringPct: number };
 
 export const FUEL_DEFAULTS: FuelSettings = { mpg: 13, ppg: 4.7, factoringPct: 3 };
 
-/** Factoring fee = rate × factoring %. */
-export function factoringFee(rate: number, s: FuelSettings): number {
+/**
+ * Factoring fee = rate × factoring %, but ONLY when the load's broker is a
+ * factoring broker (`brokerFactoring === true`). Non-factoring brokers never
+ * incur a factoring fee — the global factoring % is the rate to apply *when*
+ * a broker factors, not a blanket deduction on every load.
+ */
+export function factoringFee(
+  rate: number,
+  s: FuelSettings,
+  brokerFactoring: boolean,
+): number {
+  if (!brokerFactoring) return 0;
   if (!Number.isFinite(rate) || rate <= 0 || !s.factoringPct) return 0;
   return (rate * s.factoringPct) / 100;
 }
@@ -75,9 +85,13 @@ export function loadDiesel(
 }
 
 /**
- * Full load net: rate minus diesel, factoring (auto % of rate), and the sum
- * of manually-entered expenses. The single source of truth for "true net"
- * across the load page, Load Board, trip rollup, and Accounting.
+ * Full load net: rate minus diesel, factoring (only when the broker factors),
+ * and the sum of manually-entered expenses. The single source of truth for
+ * "true net" across the load page, Load Board, trip rollup, and Accounting.
+ *
+ * `brokerFactoring` MUST reflect the load's broker `factoring` flag — pass
+ * false for any load whose broker isn't a factoring broker so no factoring fee
+ * is deducted (and the P&L shows no factoring line).
  */
 export function loadNet(
   args: {
@@ -86,8 +100,9 @@ export function loadNet(
     expensesTotal: number;
   },
   s: FuelSettings,
+  brokerFactoring: boolean,
 ): { factoring: number; net: number } {
-  const factoring = factoringFee(args.rate, s);
+  const factoring = factoringFee(args.rate, s, brokerFactoring);
   const net = args.rate - args.diesel - factoring - args.expensesTotal;
   return { factoring, net };
 }

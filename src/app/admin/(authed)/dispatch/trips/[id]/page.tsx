@@ -30,6 +30,7 @@ type Trip = {
 type LoadRow = {
   id: string;
   load_number: string | null;
+  broker_id: string | null;
   origin: string | null;
   destination: string | null;
   delivery_date: string | null;
@@ -80,7 +81,7 @@ export default async function TripDetailPage({
     sb
       .from("loads")
       .select(
-        "id, load_number, origin, destination, delivery_date, rate, loaded_miles, odo_assigned, odo_loaded, odo_delivered, status, payment_status",
+        "id, load_number, broker_id, origin, destination, delivery_date, rate, loaded_miles, odo_assigned, odo_loaded, odo_delivered, status, payment_status",
       )
       .eq("trip_id", id)
       .is("deleted_at", null)
@@ -119,6 +120,15 @@ export default async function TripDetailPage({
     expByLoad.set(e.load_id, (expByLoad.get(e.load_id) ?? 0) + num(e.amount));
   }
 
+  // Brokers that factor — only their loads incur a factoring fee.
+  const { data: factoringBrokers } = await sb
+    .from("brokers")
+    .select("id")
+    .eq("factoring", true)
+    .is("deleted_at", null)
+    .returns<{ id: string }[]>();
+  const factoringIds = new Set((factoringBrokers ?? []).map((b) => b.id));
+
   const live = loads.filter((l) => l.status !== "cancelled");
 
   // Per-load deadhead + loaded + diesel, and the load's true net.
@@ -136,6 +146,7 @@ export default async function TripDetailPage({
     loadNet(
       { rate: num(l.rate), diesel: calc(l).diesel, expensesTotal: expByLoad.get(l.id) ?? 0 },
       fuel,
+      l.broker_id != null && factoringIds.has(l.broker_id),
     ).net;
 
   const gross = live.reduce((s, l) => s + num(l.rate), 0);

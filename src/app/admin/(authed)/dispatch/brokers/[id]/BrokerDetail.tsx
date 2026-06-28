@@ -126,7 +126,7 @@ export function BrokerDetail({ data }: { data: BrokerDetailData }) {
     <div className="px-4 py-4 sm:px-6">
       <a
         href="/admin/dispatch/brokers"
-        className="mb-3 inline-flex items-center gap-1 font-mono text-[10.5px] font-bold uppercase tracking-[0.16em] text-fg-muted transition-colors hover:text-fg md:hidden"
+        className="mb-3 inline-flex items-center gap-1.5 rounded-md border border-blue-700 bg-blue-600 px-2.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-white transition-colors hover:bg-blue-700 md:hidden"
       >
         ← All brokers
       </a>

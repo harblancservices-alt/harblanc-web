@@ -195,7 +195,7 @@ export default async function LoadDetailPage({
     load.broker_id
       ? sb
           .from("brokers")
-          .select("id, name, mc_number, dot_number, phone, email")
+          .select("id, name, mc_number, dot_number, phone, email, factoring")
           .eq("id", load.broker_id)
           .maybeSingle<{
             id: string;
@@ -204,6 +204,7 @@ export default async function LoadDetailPage({
             dot_number: string | null;
             phone: string | null;
             email: string | null;
+            factoring: boolean | null;
           }>()
       : Promise.resolve({ data: null }),
     load.trip_id
@@ -230,7 +231,13 @@ export default async function LoadDetailPage({
   );
   const diesel = mileage.diesel;
   const expensesTotal = expenses.reduce((s, e) => s + e.amount, 0);
-  const { factoring, net } = loadNet({ rate, diesel, expensesTotal }, fuel);
+  // Factoring is applied ONLY when this load's broker is a factoring broker.
+  const brokerFactoring = broker?.factoring === true;
+  const { factoring, net } = loadNet(
+    { rate, diesel, expensesTotal },
+    fuel,
+    brokerFactoring,
+  );
   const miles = mileage.loaded;
   const ratePerMile = miles && miles > 0 ? rate / miles : null;
   const netPerMile = miles && miles > 0 ? net / miles : null;
@@ -409,6 +416,7 @@ export default async function LoadDetailPage({
                 totalDiesel={diesel}
                 factoringPct={fuel.factoringPct}
                 factoring={factoring}
+                brokerFactoring={brokerFactoring}
                 expenses={expenses}
                 expensesTotal={expensesTotal}
               />
@@ -427,7 +435,7 @@ export default async function LoadDetailPage({
                     <Link
                       href={`/admin/dispatch/brokers/${load.broker_id}`}
                       prefetch={false}
-                      className="mt-2 inline-flex items-center rounded-md border border-red-700 bg-red-600 px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-red-700"
+                      className="mt-2 inline-flex items-center rounded-md border border-blue-700 bg-blue-600 px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-blue-700"
                     >
                       Open broker →
                     </Link>
@@ -445,7 +453,7 @@ export default async function LoadDetailPage({
                     <Link
                       href={`/admin/dispatch/trips/${load.trip_id}`}
                       prefetch={false}
-                      className="mt-2 inline-flex items-center rounded-md border border-red-700 bg-red-600 px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-red-700"
+                      className="mt-2 inline-flex items-center rounded-md border border-blue-700 bg-blue-600 px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-blue-700"
                     >
                       Open trip →
                     </Link>

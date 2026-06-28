@@ -31,6 +31,7 @@ export function LoadPnlCard({
   totalDiesel,
   factoringPct,
   factoring,
+  brokerFactoring,
   expenses,
   expensesTotal,
 }: {
@@ -42,6 +43,8 @@ export function LoadPnlCard({
   totalDiesel: number;
   factoringPct: number;
   factoring: number;
+  /** Only show the factoring line when this load's broker actually factors. */
+  brokerFactoring: boolean;
   expenses: Expense[];
   expensesTotal: number;
 }) {
@@ -84,14 +87,19 @@ export function LoadPnlCard({
           </span>
         </div>
 
-        {/* Factoring (auto) */}
-        <div className="flex items-center justify-between py-[3px] text-[13px]">
-          <span className="flex items-center gap-1.5">
-            <span className="text-fg">Factoring</span>
-            <span className="text-[11px] text-fg-subtle">{factoringPct}%</span>
-          </span>
-          <span className="font-mono tabular-nums text-red-700">−{usd(factoring)}</span>
-        </div>
+        {/* Factoring (auto) — only when this load's broker is a factoring
+            broker. Non-factoring brokers show no factoring line at all. */}
+        {brokerFactoring ? (
+          <div className="flex items-center justify-between py-[3px] text-[13px]">
+            <span className="flex items-center gap-1.5">
+              <span className="text-fg">Factoring</span>
+              <span className="text-[11px] text-fg-subtle">{factoringPct}%</span>
+            </span>
+            <span className="font-mono tabular-nums text-red-700">
+              −{usd(factoring)}
+            </span>
+          </div>
+        ) : null}
 
         {/* Manual expenses */}
         {expenses.map((e) => (
