@@ -8,8 +8,8 @@ import { lookupZip } from "@/lib/dispatch/distance";
  * Farm a broker contact off a load board into the contact list with a
  * zip-coded lane that feeds Backhaul. Same storage shapes as the existing
  * quick-add (brokers + broker_contacts + broker_lanes); this variant matches
- * the broker by MC first, flags the contact is_backhaul, and folds equipment
- * into the lane note. Nothing here touches loads / P&L.
+ * the broker by MC first and flags the contact is_backhaul. Nothing here
+ * touches loads / P&L.
  */
 
 function str(fd: FormData, key: string): string | null {
@@ -17,13 +17,6 @@ function str(fd: FormData, key: string): string | null {
   if (typeof v !== "string") return null;
   const t = v.trim();
   return t.length > 0 ? t : null;
-}
-
-function numOrNull(fd: FormData, key: string): number | null {
-  const s = str(fd, key);
-  if (s == null) return null;
-  const n = Number(s.replace(/[$,]/g, ""));
-  return Number.isFinite(n) ? n : null;
 }
 
 export type FarmContactResult =
@@ -144,21 +137,13 @@ export async function farmBrokerContact(
 
   // Lane → broker_lanes (dedup per broker + origin + dest). ZIP comes from the
   // city typeahead; when only a state was confirmed, the ZIP is null but the
-  // state is still recorded. Equipment + note fold into the lane note.
+  // state is still recorded.
   const originZip = str(formData, "origin_zip");
   const originCity = str(formData, "origin_city");
   const originState = str(formData, "origin_state");
   const destZip = str(formData, "dest_zip");
   const destCity = str(formData, "dest_city");
   const destState = str(formData, "dest_state");
-  const rate = numOrNull(formData, "rate");
-  const equipment = str(formData, "equipment");
-  const note = str(formData, "note");
-  const laneNote =
-    [equipment ? `Equipment: ${equipment}` : null, note]
-      .filter(Boolean)
-      .join(" · ") || null;
-
   const hasOrigin = !!(originZip || originState);
   const hasDest = !!(destZip || destState);
   if (hasOrigin || hasDest) {
@@ -181,12 +166,11 @@ export async function farmBrokerContact(
         norm(l.dest_zip) === norm(destZip),
     );
     if (match) {
-      const patch: Record<string, unknown> = {
-        last_seen_at: new Date().toISOString(),
-      };
-      if (rate !== null) patch.rate = rate;
-      if (laneNote) patch.notes = laneNote;
-      await sb.from("broker_lanes").update(patch).eq("id", match.id);
+      // Lane already on file — just refresh when it was last seen.
+      await sb
+        .from("broker_lanes")
+        .update({ last_seen_at: new Date().toISOString() })
+        .eq("id", match.id);
     } else {
       await sb.from("broker_lanes").insert({
         broker_id: brokerId,
@@ -196,8 +180,6 @@ export async function farmBrokerContact(
         dest_zip: destZip,
         dest_city: d?.city ?? destCity ?? null,
         dest_state: d?.state ?? destState ?? null,
-        rate,
-        notes: laneNote,
         source: "load_board",
       });
     }

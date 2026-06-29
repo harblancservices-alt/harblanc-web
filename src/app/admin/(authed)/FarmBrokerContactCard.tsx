@@ -98,15 +98,13 @@ function FarmModal({ onClose }: { onClose: () => void }) {
   const [brokerName, setBrokerName] = useState("");
   const [dot, setDot] = useState("");
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
 
   const [origin, setOrigin] = useState<CityHit | null>(null);
   const [originState, setOriginState] = useState("");
   const [dest, setDest] = useState<CityHit | null>(null);
   const [destState, setDestState] = useState("");
 
-  const [rate, setRate] = useState("");
-  const [equipment, setEquipment] = useState("");
-  const [note, setNote] = useState("");
   const [isBackhaul, setIsBackhaul] = useState(true);
 
   const [busy, setBusy] = useState(false);
@@ -120,6 +118,16 @@ function FarmModal({ onClose }: { onClose: () => void }) {
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [busy, onClose]);
+
+  // Lock background scroll while the modal is open; restore on close. The modal
+  // overlay scrolls internally (overflow-y-auto) so tall content isn't cut off.
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
 
   useEffect(
     () => () => {
@@ -187,10 +195,10 @@ function FarmModal({ onClose }: { onClose: () => void }) {
       fd.set("broker_name", brokerName.trim());
       if (mc.trim()) fd.set("mc_number", mc.trim());
       if (dot.trim()) fd.set("dot_number", dot.trim());
-      if (phone.trim()) {
-        fd.set("contact_phone", phone.trim());
-        fd.set("contact_name", "Dispatch");
-      }
+      // Contact = the broker's name + phone + email (email is the priority).
+      fd.set("contact_name", brokerName.trim());
+      if (phone.trim()) fd.set("contact_phone", phone.trim());
+      if (email.trim()) fd.set("contact_email", email.trim());
       fd.set("is_backhaul", isBackhaul ? "true" : "false");
 
       if (origin) {
@@ -207,10 +215,6 @@ function FarmModal({ onClose }: { onClose: () => void }) {
       } else if (destState) {
         fd.set("dest_state", destState);
       }
-
-      if (rate.trim()) fd.set("rate", rate.trim());
-      if (equipment.trim()) fd.set("equipment", equipment.trim());
-      if (note.trim()) fd.set("note", note.trim());
 
       const res = await farmBrokerContact(fd);
       if (!res.ok) {
@@ -321,23 +325,6 @@ function FarmModal({ onClose }: { onClose: () => void }) {
             </div>
           ) : null}
 
-          {/* Broker name (editable / manual fallback) */}
-          <div>
-            <label className="block font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-fg">
-              Broker / customer
-              <span className="ml-1.5 rounded bg-red-100 px-1.5 py-[1px] align-middle font-mono text-[8.5px] font-bold uppercase tracking-[0.08em] text-red-700">
-                Required
-              </span>
-            </label>
-            <input
-              value={brokerName}
-              onChange={(e) => setBrokerName(e.target.value)}
-              autoComplete="off"
-              placeholder="Type the broker name"
-              className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
-            />
-          </div>
-
           {/* Lane — city typeaheads (selection only) */}
           <div className="rounded-md border border-line bg-card p-3">
             <p className="mb-2 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-fg">
@@ -361,45 +348,55 @@ function FarmModal({ onClose }: { onClose: () => void }) {
             </div>
           </div>
 
-          {/* Optional */}
-          <div className="grid grid-cols-2 gap-2.5">
-            <div className="min-w-0">
+          {/* Contact — name / phone / email (email is the priority capture).
+              FMCSA fills name + phone; all three stay editable. */}
+          <div className="rounded-md border border-line bg-card p-3">
+            <p className="mb-2 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-fg">
+              Contact
+            </p>
+            <div>
               <label className="block font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-fg">
-                Posted rate ($)
+                Name
+                <span className="ml-1.5 rounded bg-red-100 px-1.5 py-[1px] align-middle font-mono text-[8.5px] font-bold uppercase tracking-[0.08em] text-red-700">
+                  Required
+                </span>
               </label>
               <input
-                value={rate}
-                onChange={(e) => setRate(e.target.value)}
-                inputMode="numeric"
+                value={brokerName}
+                onChange={(e) => setBrokerName(e.target.value)}
                 autoComplete="off"
-                className="mt-1 block w-full min-w-0 rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
+                placeholder="Broker / contact name"
+                className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
               />
             </div>
-            <div className="min-w-0">
+            <div className="mt-3">
               <label className="block font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-fg">
-                Equipment
+                Phone
               </label>
               <input
-                value={equipment}
-                onChange={(e) => setEquipment(e.target.value)}
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                type="tel"
+                inputMode="tel"
                 autoComplete="off"
-                placeholder="Reefer, Flatbed…"
-                className="mt-1 block w-full min-w-0 rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
+                placeholder="(xxx) xxx-xxxx"
+                className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
               />
             </div>
-          </div>
-
-          <div>
-            <label className="block font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-fg">
-              Note
-            </label>
-            <input
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              autoComplete="off"
-              placeholder="Anything worth remembering"
-              className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
-            />
+            <div className="mt-3">
+              <label className="block font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-fg">
+                Email
+              </label>
+              <input
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                type="email"
+                inputMode="email"
+                autoComplete="off"
+                placeholder="dispatch@broker.com"
+                className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
+              />
+            </div>
           </div>
 
           <label className="flex cursor-pointer items-center gap-2">
