@@ -143,12 +143,12 @@ async function loadBoard(): Promise<LoadBoardData> {
   const factoringIds = new Set((factoringBrokers ?? []).map((b) => b.id));
 
   // The Net-profit-goal gauge is MONTHLY and resets at the start of each
-  // month: it sums the net of DELIVERED (closed-out) loads whose goal-month
-  // (close-out date − 1 day) is the current calendar month. Only delivered
-  // loads count — once closed out, a load's expenses are finalized, so only
-  // then does its net count toward the goal. A load closed out on the 1st
-  // lands in the previous month, so on the 1st the new month's gauge starts
-  // fresh.
+  // month: it sums the net of ALL loads — delivered AND in-progress
+  // (pending/assigned/loaded/…) — whose goal-month (close-out date − 1 day) is
+  // the current calendar month. Including in-progress loads keeps it a LIVE
+  // figure: the current load's running net counts and drops in real time as
+  // expenses are added. A load closed out on the 1st lands in the previous
+  // month, so on the 1st the new month's gauge starts fresh.
   const now = new Date();
   const curYear = now.getFullYear();
   const curMonth = now.getMonth();
@@ -176,12 +176,7 @@ async function loadBoard(): Promise<LoadBoardData> {
         ).net;
     const dhMiles = md.deadhead ?? 0;
     const goal = goalMonthParts(closeOutDate(l));
-    if (
-      l.status === "delivered" &&
-      goal &&
-      goal.year === curYear &&
-      goal.month === curMonth
-    ) {
+    if (goal && goal.year === curYear && goal.month === curMonth) {
       monthGoalNet += net;
     }
     return {
