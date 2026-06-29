@@ -20,7 +20,9 @@ export function FinancialsPanel({
   categories: string[];
   children: ReactNode;
 }) {
-  const [open, setOpen] = useState(true);
+  // Collapsed by default (like Load details) — the header bar with Edit /
+  // + Add expense stays visible; tapping the bar, or either action, expands it.
+  const [open, setOpen] = useState(false);
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(false);
 
