@@ -89,9 +89,6 @@ const LOAD_STATUS_LABEL: Record<string, string> = {
   loaded: "Loaded",
 };
 
-const EXP_GRID =
-  "160px 176px 150px 160px 130px 88px 66px 120px minmax(0,1fr)";
-
 // "3w" → "3 weeks ago", "1h" → "1 hour ago", etc. Falls back to the raw
 // label for non-numeric forms like "now" / "<1h".
 function spellAge(s: string): string {
@@ -132,12 +129,16 @@ export function DashboardView({ data }: { data: DashboardData }) {
                   (i === data.activeLoads.length - 1 ? "" : "border-b border-line")
                 }
               >
-                <div className="flex items-center justify-between gap-3">
-                  <Link
-                    href={"/admin/dispatch/loads/" + l.id}
-                    prefetch={false}
-                    className="flex min-w-0 flex-1 items-center gap-2.5 transition-opacity hover:opacity-80"
-                  >
+                {/* Whole top info area opens the load — broker, lane AND the
+                    rate are one big tap target. The odometer + doc buttons
+                    below are separate siblings, so their own controls run
+                    without navigating. */}
+                <Link
+                  href={"/admin/dispatch/loads/" + l.id}
+                  prefetch={false}
+                  className="-mx-1 flex items-center justify-between gap-3 rounded-md px-1 py-1 transition-colors hover:bg-elevated"
+                >
+                  <span className="flex min-w-0 flex-1 items-center gap-2.5">
                     <span
                       className={
                         "shrink-0 rounded-sm px-1.5 py-[1px] font-mono text-[10px] font-bold uppercase tracking-[0.06em] " +
@@ -154,13 +155,37 @@ export function DashboardView({ data }: { data: DashboardData }) {
                         {l.lane}
                       </span>
                     </span>
-                  </Link>
+                  </span>
                   <span className="shrink-0 font-mono text-[13px] font-bold tabular-nums text-green-700">
                     {l.rateDisplay}
                   </span>
+                </Link>
+
+                {/* Inline odometer — the EXACT same component + action the load
+                    page uses, so the two always mirror. Collapsed by default;
+                    the pencil opens straight into the odometer entry. Sits
+                    ABOVE the doc buttons. */}
+                <div className="mt-2.5">
+                  <OdometerStatusCard
+                    variant="dashboard"
+                    loadId={l.id}
+                    status={l.status}
+                    lastReading={
+                      Math.max(
+                        l.odoAssigned ?? 0,
+                        l.odoLoaded ?? 0,
+                        l.odoDelivered ?? 0,
+                      ) || null
+                    }
+                    odoAssigned={l.odoAssigned}
+                    odoLoaded={l.odoLoaded}
+                    odoDelivered={l.odoDelivered}
+                  />
                 </div>
-                {/* Three doc-upload buttons — same multi-file flow + action
-                    as the load page, one per kind. */}
+
+                {/* Three doc-upload buttons — same multi-file flow + action as
+                    the load page, one per kind. Moved to the bottom, below the
+                    odometer. */}
                 <div className="mt-2.5 grid grid-cols-3 gap-2">
                   <ActiveLoadDocButton
                     loadId={l.id}
@@ -185,27 +210,6 @@ export function DashboardView({ data }: { data: DashboardData }) {
                     kind="pod"
                     label="POD"
                     count={l.podCount}
-                  />
-                </div>
-
-                {/* Inline odometer — the EXACT same component + action the load
-                    page uses, so the two always mirror. Collapsed by default;
-                    the pencil opens straight into the odometer entry. */}
-                <div className="mt-2.5">
-                  <OdometerStatusCard
-                    variant="dashboard"
-                    loadId={l.id}
-                    status={l.status}
-                    lastReading={
-                      Math.max(
-                        l.odoAssigned ?? 0,
-                        l.odoLoaded ?? 0,
-                        l.odoDelivered ?? 0,
-                      ) || null
-                    }
-                    odoAssigned={l.odoAssigned}
-                    odoLoaded={l.odoLoaded}
-                    odoDelivered={l.odoDelivered}
                   />
                 </div>
               </div>
@@ -277,60 +281,51 @@ export function DashboardView({ data }: { data: DashboardData }) {
               title="Expired quotes"
               count={data.expiredQuotes.length}
             />
-            <div className="overflow-hidden rounded-xl border border-line bg-card shadow-md">
-              <ListHeader grid={EXP_GRID}>
-                <span>Customer</span>
-                <span>Expired</span>
-                <span>Origin</span>
-                <span>Destination</span>
-                <span>Commodity</span>
-                <span>Weight</span>
-                <span>Miles</span>
-                <span>Price</span>
-                <span />
-              </ListHeader>
-              {data.expiredQuotes.map((q, i) => (
+            {/* Standardized cards — same shape as the loads / leads cards. */}
+            <div className="space-y-2">
+              {data.expiredQuotes.map((q) => (
                 <Link
                   key={q.leadId}
                   href={"/admin/quotes/" + q.leadId}
                   prefetch={false}
-                  className={
-                    "grid items-center gap-3 px-3.5 py-2 text-[12.5px] transition-colors hover:bg-elevated " +
-                    (i === data.expiredQuotes.length - 1
-                      ? ""
-                      : "border-b border-line")
-                  }
-                  style={{ gridTemplateColumns: EXP_GRID }}
+                  className="block rounded-md border border-line bg-card p-3 shadow-sm transition-colors hover:bg-elevated"
                 >
-                  <span className="truncate font-semibold text-fg">{q.name}</span>
-                  <span>
-                    <DatePill dateLabel={q.dateLabel} ageLabel={q.ageLabel} />
-                  </span>
-                  <span className="truncate font-mono text-blue-700">
-                    {q.originZip}
+                  <div className="flex items-start justify-between gap-3">
+                    <span className="flex min-w-0 items-center gap-2">
+                      <span className="shrink-0 rounded-sm bg-amber-100 px-1.5 py-[1px] font-mono text-[10px] font-bold uppercase tracking-[0.06em] text-amber-700">
+                        Expired
+                      </span>
+                      <h3 className="truncate text-[14px] font-semibold text-fg">
+                        {q.name}
+                      </h3>
+                    </span>
+                    <span className="shrink-0 font-mono text-[15px] font-bold tabular-nums text-green-700">
+                      {q.priceDisplay ?? "—"}
+                    </span>
+                  </div>
+
+                  <p className="mt-1 truncate font-mono text-[12px] tabular-nums text-fg-muted">
+                    <span className="text-blue-700">{q.originZip}</span>
                     {q.originPlace ? (
-                      <span className="text-fg-muted"> · {q.originPlace}</span>
+                      <span> · {q.originPlace}</span>
                     ) : null}
-                  </span>
-                  <span className="truncate font-mono text-blue-700">
-                    {q.destZip}
-                    {q.destPlace ? (
-                      <span className="text-fg-muted"> · {q.destPlace}</span>
+                    <span className="text-fg-subtle"> → </span>
+                    <span className="text-blue-700">{q.destZip}</span>
+                    {q.destPlace ? <span> · {q.destPlace}</span> : null}
+                  </p>
+
+                  <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] text-fg-muted">
+                    {q.commodity ? (
+                      <span className="truncate">{q.commodity}</span>
                     ) : null}
-                  </span>
-                  <span className="truncate text-fg">{q.commodity}</span>
-                  <span className="font-mono tabular-nums text-fg-muted">
-                    {q.weight}
-                  </span>
-                  <span className="font-mono tabular-nums text-fg-muted">
-                    {q.miles != null
-                      ? Math.round(q.miles).toLocaleString() + " mi"
-                      : "—"}
-                  </span>
-                  <span className="whitespace-nowrap font-bold tabular-nums text-green-700">
-                    {q.priceDisplay ?? "—"}
-                  </span>
-                  <span />
+                    <span className="font-mono tabular-nums">{q.weight}</span>
+                    {q.miles != null ? (
+                      <span className="font-mono tabular-nums">
+                        {Math.round(q.miles).toLocaleString()} mi
+                      </span>
+                    ) : null}
+                    <DatePill dateLabel={q.dateLabel} ageLabel={q.ageLabel} />
+                  </div>
                 </Link>
               ))}
             </div>
@@ -429,23 +424,6 @@ function AlertBar({
           </span>
         ))}
       </div>
-    </div>
-  );
-}
-
-function ListHeader({
-  grid,
-  children,
-}: {
-  grid: string;
-  children: ReactNode;
-}) {
-  return (
-    <div
-      className="grid items-center gap-3 bg-bar px-3.5 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-bar-fg"
-      style={{ gridTemplateColumns: grid }}
-    >
-      {children}
     </div>
   );
 }
