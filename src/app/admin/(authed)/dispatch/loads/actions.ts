@@ -313,9 +313,13 @@ export async function updateLoadStatus(
 }
 
 /**
- * Directly edit a load's three odometer readings (corrections / fat-fingers).
- * Blank clears a reading; present values must climb (assigned ≤ loaded ≤
- * delivered) since the truck odometer only goes up.
+ * Edit a load's three odometer readings AND advance its status. The three
+ * odometer stage lines (assigned / loaded / delivered) are the load's status —
+ * there's no separate status dropdown — so the status is derived here as the
+ * highest stage that has a reading: delivered → "delivered", else loaded →
+ * "loaded", else assigned → "assigned", else "pending". A cancelled load is
+ * left cancelled (cancellation has its own flow). Blank clears a reading;
+ * present values must climb (assigned ≤ loaded ≤ delivered).
  */
 export async function updateLoadOdometers(
   id: string,
@@ -335,9 +339,28 @@ export async function updateLoadOdometers(
     }
   }
 
+  // Derive the status from the readings — the highest stage with a reading.
+  const derivedStatus =
+    d != null ? "delivered" : l != null ? "loaded" : a != null ? "assigned" : "pending";
+
+  // Don't flip a cancelled load back to an active status.
+  const { data: cur } = await sb
+    .from("loads")
+    .select("status")
+    .eq("id", id)
+    .is("deleted_at", null)
+    .maybeSingle<{ status: string }>();
+
+  const patch: Record<string, string | number | null> = {
+    odo_assigned: a,
+    odo_loaded: l,
+    odo_delivered: d,
+  };
+  if (cur?.status !== "cancelled") patch.status = derivedStatus;
+
   const { error } = await sb
     .from("loads")
-    .update({ odo_assigned: a, odo_loaded: l, odo_delivered: d })
+    .update(patch)
     .eq("id", id)
     .is("deleted_at", null);
   if (error) throw new Error(`Could not save odometer: ${error.message}`);
