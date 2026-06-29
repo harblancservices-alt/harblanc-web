@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { Button } from "@/components/ui/Button";
 import {
   ExpenseLines,
   ServiceModal,
@@ -36,13 +36,14 @@ export function ServiceDetail({
     <div className="min-h-screen border-t border-line bg-canvas text-fg">
       <div className="mx-auto w-full max-w-3xl px-4 py-5 sm:px-6 lg:px-8">
         {/* Back */}
-        <Link
+        <Button
           href="/admin/maintenance"
           prefetch={false}
-          className="inline-flex items-center gap-1.5 rounded-md border border-blue-700 bg-blue-600 px-2.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-white transition-colors hover:bg-blue-700"
+          variant="navigate"
+          size="sm"
         >
           ← All maintenance
-        </Link>
+        </Button>
 
         {/* Header card */}
         <div className="mt-3 rounded-xl border border-line bg-card p-4 shadow-md">
@@ -89,13 +90,13 @@ export function ServiceDetail({
 
         {/* Actions */}
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <button
+          <Button
             type="button"
             onClick={() => setEditing(true)}
-            className="rounded-md border border-blue-700 bg-blue-600 px-3.5 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-blue-700"
+            variant="edit"
           >
             Edit service
-          </button>
+          </Button>
         </div>
 
         {/* Expense lines + receipts */}

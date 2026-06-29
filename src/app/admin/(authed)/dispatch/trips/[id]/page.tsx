@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Button } from "@/components/ui/Button";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { setTripStatus, updateTripOdometer } from "../actions";
 import { markLoadPaid } from "../../loads/actions";
@@ -189,13 +190,14 @@ export default async function TripDetailPage({
     <div className="min-h-screen border-t border-line bg-canvas text-fg">
       <div className="w-full px-4 py-5 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-5xl">
-          <Link
+          <Button
+            variant="navigate"
+            size="sm"
             href="/admin/dispatch/trips"
             prefetch={false}
-            className="inline-flex items-center gap-1.5 rounded-md border border-blue-700 bg-blue-600 px-2.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-white transition-colors hover:bg-blue-700"
           >
             ← All trips
-          </Link>
+          </Button>
 
           {/* Header */}
           <header className="mb-4 mt-3 flex flex-wrap items-start justify-between gap-3">
@@ -230,12 +232,9 @@ export default async function TripDetailPage({
                   closed ? "active" : "closed",
                 )}
               >
-                <button
-                  type="submit"
-                  className="inline-flex h-9 items-center justify-center whitespace-nowrap rounded-md border border-line-strong bg-card px-3 text-[12px] font-semibold text-fg transition-colors hover:bg-elevated"
-                >
+                <Button variant="cancel" type="submit" className="h-9">
                   {closed ? "Reopen trip" : "Close trip"}
-                </button>
+                </Button>
               </form>
               <EditTripButton
                 tripId={trip.id}
@@ -330,12 +329,9 @@ export default async function TripDetailPage({
                 className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 font-mono text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
               />
             </div>
-            <button
-              type="submit"
-              className="rounded-md border border-line-strong bg-card px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-fg transition-colors hover:bg-canvas"
-            >
+            <Button variant="primary" type="submit">
               Save odometer
-            </button>
+            </Button>
           </form>
 
           {/* Linked loads */}
@@ -405,12 +401,9 @@ export default async function TripDetailPage({
                         <div className="flex shrink-0 items-center border-l border-line px-3">
                           {unpaid ? (
                             <form action={markLoadPaid.bind(null, l.id)}>
-                              <button
-                                type="submit"
-                                className="rounded-md border border-blue-300 bg-blue-50 px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-blue-700 transition-colors hover:bg-blue-100"
-                              >
+                              <Button variant="primary" size="sm" type="submit">
                                 Mark paid
-                              </button>
+                              </Button>
                             </form>
                           ) : (
                             <span className="font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-green-700">

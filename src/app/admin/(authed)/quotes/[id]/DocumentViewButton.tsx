@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/Button";
 import type { SentDocumentRow } from "./tabs/DocumentsTab";
 
 /**
@@ -49,14 +50,15 @@ export function DocumentViewButton({
 
   return (
     <>
-      <button
+      <Button
+        variant="navigate"
+        size="sm"
         type="button"
         onClick={() => setOpen(true)}
         aria-label={`View ${doc.label}`}
-        className="inline-flex items-center rounded-md border border-blue-300 bg-blue-50 px-3 py-1 font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-blue-700 transition-colors hover:bg-blue-100"
       >
         View
-      </button>
+      </Button>
 
       {open ? (
         <div
@@ -74,13 +76,15 @@ export function DocumentViewButton({
               <span className="truncate font-mono text-[12px] font-semibold uppercase tracking-[0.14em] text-bar-fg">
                 {doc.label}
               </span>
-              <button
+              <Button
+                variant="cancel"
+                size="sm"
                 type="button"
                 onClick={() => setOpen(false)}
-                className="shrink-0 rounded-sm border border-white/25 px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-bar-fg transition-colors hover:bg-white/10"
+                className="shrink-0"
               >
                 Close
-              </button>
+              </Button>
             </div>
 
             {/* Preview. Range proposals are email-only: render the actual
@@ -140,22 +144,25 @@ export function DocumentViewButton({
                 actions read as one operations card. */}
             <div className="flex flex-wrap items-center gap-3 border-t border-line bg-elevated px-4 py-3">
               {doc.pdfHref ? (
-                <a
+                <Button
+                  variant="primary"
+                  size="sm"
                   href={doc.pdfHref}
                   download
-                  className="inline-flex items-center rounded-md border border-orange-300 bg-orange-50 px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-orange-700 transition-colors hover:bg-orange-100"
                 >
                   Download
-                </a>
+                </Button>
               ) : null}
 
               <form action={resendAction} className="flex flex-1 items-center gap-2">
-                <button
+                <Button
+                  variant="primary"
+                  size="sm"
                   type="submit"
-                  className="inline-flex shrink-0 items-center rounded-md border border-red-300 bg-red-50 px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-red-700 transition-colors hover:bg-red-100"
+                  className="shrink-0"
                 >
                   Resend
-                </button>
+                </Button>
                 <input
                   type="email"
                   name="recipient_email"

@@ -2,9 +2,9 @@
 
 import { advanceOnEnter } from "@/lib/admin/form-utils";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
+import { Button } from "@/components/ui/Button";
 import {
   PreviewModal,
   type PreviewModalState,
@@ -368,14 +368,14 @@ function ReadyToGenerateTab({
           driver notes) before previewing and sending.
         </p>
         <div className="mt-4 flex items-center gap-3">
-          <button
+          <Button
+            variant="primary"
             type="button"
             onClick={onGenerate}
             disabled={isPending}
-            className="inline-flex items-center justify-center gap-2 rounded-md border border-line-strong bg-card px-5 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.16em] text-fg transition-colors hover:bg-canvas hover:text-fg disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isPending ? "Generating…" : "Generate BOL"}
-          </button>
+          </Button>
           {error ? (
             <p className="font-mono text-[12px] text-fg">{error}</p>
           ) : null}
@@ -951,11 +951,11 @@ function DraftComposer({
                     ? "Building preview…"
                     : ""}
         </p>
-        <button
+        <Button
+          variant="primary"
           type="button"
           onClick={runBuildPreview}
           disabled={!canBuild || isBuildPending}
-          className="inline-flex items-center justify-center gap-2 rounded-md border border-line-strong bg-card px-4 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.14em] text-fg transition-colors hover:bg-canvas hover:text-fg disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isBuildPending
             ? "Building…"
@@ -964,7 +964,7 @@ function DraftComposer({
               : effectivePreviewState === "ready" && previewData
                 ? "Open preview"
                 : "Preview"}
-        </button>
+        </Button>
       </div>
 
       <PreviewModal
@@ -1074,13 +1074,13 @@ function SentHistoryTab({
           </p>
         )}
         {sent.previewHtml ? (
-          <button
+          <Button
+            variant="navigate"
             type="button"
             onClick={() => setPreviewOpen(true)}
-            className="inline-flex items-center justify-center gap-2 rounded-md border border-line-strong bg-card px-4 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.14em] text-fg transition-colors hover:bg-canvas hover:text-fg"
           >
             View sent BOL
-          </button>
+          </Button>
         ) : null}
         {/* Phase 3A — on-demand BOL PDF download. The GET route renders
             a fresh Straight Bill of Lading PDF from current row state
@@ -1088,30 +1088,30 @@ function SentHistoryTab({
             browsers open it in a viewer tab (operator can print for
             the driver's clipboard packet or save for archive). Email
             send pipeline is intentionally untouched. */}
-        <a
+        <Button
+          variant="navigate"
           href={`/admin/quotes/${quoteRequestId}/bol-pdf/${sent.id}`}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center justify-center gap-2 rounded-md border border-line-strong bg-card px-4 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.14em] text-fg transition-colors hover:bg-canvas hover:text-fg"
         >
           Download PDF
-        </a>
-        <button
+        </Button>
+        <Button
+          variant="primary"
           type="button"
           onClick={onGenerateRevision}
           disabled={isPending}
-          className="inline-flex items-center justify-center gap-2 rounded-md border border-line-strong bg-card px-5 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.16em] text-fg transition-colors hover:bg-canvas hover:text-fg disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isPending ? "Starting…" : "Generate revision"}
-        </button>
+        </Button>
         {nextLeadId ? (
-          <Link
+          <Button
+            variant="navigate"
             href={`/admin/quotes/${nextLeadId}`}
             prefetch={false}
-            className="inline-flex items-center justify-center gap-2 rounded-md border border-line-strong bg-card px-4 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.14em] text-fg transition-colors hover:bg-canvas hover:text-fg"
           >
             Save &amp; open next &rarr;
-          </Link>
+          </Button>
         ) : null}
       </div>
 

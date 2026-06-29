@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import { Button } from "@/components/ui/Button";
 import { addLoadExpense } from "../actions";
 
 /** Add-expense dialog: category autofills from prior ones, Enter jumps to amount. */
@@ -98,19 +99,12 @@ export function AddExpenseDialog({
           />
 
           <div className="mt-4 flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-md border border-line-strong bg-card px-4 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-fg transition-colors hover:bg-elevated"
-            >
+            <Button type="button" variant="cancel" size="md" onClick={onClose}>
               Cancel
-            </button>
-            <button
-              type="submit"
-              className="rounded-md border border-red-700 bg-red-600 px-4 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-red-700"
-            >
+            </Button>
+            <Button type="submit" variant="primary" size="md">
               Add expense
-            </button>
+            </Button>
           </div>
         </form>
       </div>

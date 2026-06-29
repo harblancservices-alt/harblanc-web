@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/Button";
 import { brokerColor, brokerInitial, formatPhone, telHref, usd, usd2 } from "../_util";
 import {
   updateBroker,
@@ -124,12 +125,14 @@ export function BrokerDetail({ data }: { data: BrokerDetailData }) {
 
   return (
     <div className="px-4 py-4 sm:px-6">
-      <a
+      <Button
         href="/admin/dispatch/brokers"
-        className="mb-3 inline-flex items-center gap-1.5 rounded-md border border-blue-700 bg-blue-600 px-2.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-white transition-colors hover:bg-blue-700 md:hidden"
+        variant="navigate"
+        size="sm"
+        className="mb-3 md:hidden"
       >
         ← All brokers
-      </a>
+      </Button>
 
       {/* Header */}
       <header className="mb-4 flex flex-wrap items-start justify-between gap-3">
@@ -174,39 +177,44 @@ export function BrokerDetail({ data }: { data: BrokerDetailData }) {
             full-width buttons (no two-line wrapping); from sm+ an inline
             auto-width row. Keeps red primary vs outline secondary. */}
         <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center">
-          <button
+          <Button
             type="button"
+            variant="primary"
             onClick={() => {
               setTab("contacts");
               setAddingContact(true);
             }}
-            className="inline-flex h-9 w-full items-center justify-center gap-1 whitespace-nowrap rounded-md border border-red-700 bg-red-600 px-3 text-[12px] font-semibold text-white transition-colors hover:bg-red-700 sm:w-auto"
+            className="h-9 w-full sm:w-auto"
+            leftIcon={<span className="text-[15px] leading-none">+</span>}
           >
-            <span className="text-[15px] leading-none">+</span> Add Contact
-          </button>
-          <button
+            Add Contact
+          </Button>
+          <Button
             type="button"
+            variant="edit"
             onClick={() => setEditing(true)}
-            className="inline-flex h-9 w-full items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-red-700 bg-red-600 px-3 text-[12px] font-semibold text-white transition-colors hover:bg-red-700 sm:w-auto"
+            className="h-9 w-full sm:w-auto"
           >
             ✎ Edit Broker
-          </button>
-          <a
+          </Button>
+          <Button
             href={saferUrl}
+            variant="navigate"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex h-9 w-full items-center justify-center gap-1 whitespace-nowrap rounded-md border border-line-strong bg-card px-3 text-[12px] font-semibold text-fg transition-colors hover:bg-elevated sm:w-auto"
+            className="h-9 w-full sm:w-auto"
           >
             SAFER ↗
-          </a>
+          </Button>
           <div className="relative w-full sm:w-auto">
-            <button
+            <Button
               type="button"
+              variant="cancel"
               onClick={() => setMenuOpen((o) => !o)}
-              className="inline-flex h-9 w-full items-center justify-center gap-1 whitespace-nowrap rounded-md border border-line-strong bg-card px-3 text-[12px] font-semibold text-fg transition-colors hover:bg-elevated sm:w-auto"
+              className="h-9 w-full sm:w-auto"
             >
               More ▾
-            </button>
+            </Button>
             {menuOpen ? (
               <>
                 <button
@@ -216,14 +224,17 @@ export function BrokerDetail({ data }: { data: BrokerDetailData }) {
                   onClick={() => setMenuOpen(false)}
                   className="fixed inset-0 z-10 cursor-default"
                 />
-                <div className="absolute right-0 z-20 mt-1 w-48 overflow-hidden rounded-md border border-line bg-card shadow-lg">
+                <div className="absolute right-0 z-20 mt-1 w-48 overflow-hidden rounded-md border border-line bg-card p-1 shadow-lg">
                   <form action={softDeleteBroker.bind(null, broker.id)}>
-                    <button
+                    <Button
                       type="submit"
-                      className="block w-full px-3 py-2 text-left text-[12px] font-semibold text-red-700 transition-colors hover:bg-red-50"
+                      variant="destructive"
+                      size="sm"
+                      fullWidth
+                      className="justify-start"
                     >
                       Delete broker
-                    </button>
+                    </Button>
                   </form>
                 </div>
               </>
@@ -320,13 +331,16 @@ export function BrokerDetail({ data }: { data: BrokerDetailData }) {
           contacts.length === 0 ? (
             <div className="rounded-md border border-dashed border-line bg-card px-4 py-10 text-center">
               <p className="text-[13px] text-fg-muted">No contacts yet.</p>
-              <button
+              <Button
                 type="button"
+                variant="primary"
+                size="sm"
                 onClick={() => setAddingContact(true)}
-                className="mt-3 inline-flex items-center gap-1 rounded-md border border-line-strong bg-card px-3 py-1.5 text-[12px] font-semibold text-fg transition-colors hover:bg-elevated"
+                className="mt-3"
+                leftIcon={<span className="text-[14px] leading-none">+</span>}
               >
-                <span className="text-[14px] leading-none">+</span> Add Contact
-              </button>
+                Add Contact
+              </Button>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
@@ -545,20 +559,24 @@ function ContactCard({
           ) : null}
         </div>
         <div className="flex items-center gap-1.5">
-          <button
+          <Button
             type="button"
+            variant="edit"
+            size="sm"
             onClick={(e) => {
               e.stopPropagation();
               onEdit();
             }}
             aria-label="Edit contact"
-            className="flex h-8 w-8 items-center justify-center rounded-md border border-line-strong bg-card text-[13px] leading-none text-fg-muted transition-colors hover:border-fg hover:text-fg"
+            className="h-8 w-8 px-0"
           >
             ✎
-          </button>
+          </Button>
           <form action={deleteBrokerContact.bind(null, contact.id, brokerId)}>
-            <button
+            <Button
               type="button"
+              variant="destructive"
+              size="sm"
               aria-label="Remove contact"
               onClick={(e) => {
                 e.stopPropagation();
@@ -570,10 +588,10 @@ function ContactCard({
                   e.currentTarget.form?.requestSubmit();
                 }
               }}
-              className="flex h-8 w-8 items-center justify-center rounded-md border border-line-strong bg-card text-[16px] leading-none text-fg-muted transition-colors hover:border-red-600 hover:bg-red-50 hover:text-red-700"
+              className="h-8 w-8 px-0 text-[16px]"
             >
               ×
-            </button>
+            </Button>
           </form>
         </div>
       </div>
@@ -704,14 +722,16 @@ function LanesModal({
               {contactName ? ` · via ${contactName}` : ""}
             </p>
           </div>
-          <button
+          <Button
             type="button"
+            variant="cancel"
+            size="sm"
             onClick={onClose}
             aria-label="Close"
-            className="shrink-0 text-[18px] leading-none text-fg-subtle transition-colors hover:text-fg"
+            className="shrink-0 px-2 text-[18px]"
           >
             ×
-          </button>
+          </Button>
         </div>
 
         {lanes.length === 0 ? (
@@ -828,13 +848,16 @@ function ContactModal({
           <span className="font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-fg">
             {isEdit ? "Edit contact" : "Add contact"} · {brokerName}
           </span>
-          <button
+          <Button
             type="button"
+            variant="cancel"
+            size="sm"
             onClick={onClose}
-            className="text-[18px] leading-none text-fg-subtle transition-colors hover:text-fg"
+            aria-label="Close"
+            className="px-2 text-[18px]"
           >
             ×
-          </button>
+          </Button>
         </div>
         <form action={action} className="px-4 py-4">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -985,19 +1008,12 @@ function ContactModal({
           </label>
 
           <div className="mt-5 flex justify-end gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-md border border-line-strong bg-card px-4 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-fg transition-colors hover:bg-elevated"
-            >
+            <Button type="button" variant="cancel" onClick={onClose}>
               Cancel
-            </button>
-            <button
-              type="submit"
-              className="rounded-md border border-blue-700 bg-blue-600 px-4 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-blue-700"
-            >
+            </Button>
+            <Button type="submit" variant="primary">
               {isEdit ? "Save contact" : "Add contact"}
-            </button>
+            </Button>
           </div>
         </form>
       </div>
@@ -1258,13 +1274,16 @@ function EditModal({
           <span className="font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-fg">
             Edit broker
           </span>
-          <button
+          <Button
             type="button"
+            variant="cancel"
+            size="sm"
             onClick={onClose}
-            className="text-[18px] leading-none text-fg-subtle transition-colors hover:text-fg"
+            aria-label="Close"
+            className="px-2 text-[18px]"
           >
             ×
-          </button>
+          </Button>
         </div>
         <form
           action={updateBroker.bind(null, broker.id)}
@@ -1315,19 +1334,12 @@ function EditModal({
           {/* Sticky footer so Save/Cancel stay reachable above the bottom nav
               even when the form is taller than the viewport. */}
           <div className="flex shrink-0 justify-end gap-2 border-t border-line bg-card px-4 py-3 pb-[max(env(safe-area-inset-bottom),0.75rem)]">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-md border border-blue-700 bg-blue-600 px-4 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-blue-700"
-            >
+            <Button type="button" variant="cancel" onClick={onClose}>
               Cancel
-            </button>
-            <button
-              type="submit"
-              className="rounded-md border border-red-700 bg-red-600 px-4 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-red-700"
-            >
+            </Button>
+            <Button type="submit" variant="primary">
               Save broker
-            </button>
+            </Button>
           </div>
         </form>
       </div>

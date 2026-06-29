@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { Button } from "@/components/ui/Button";
 import { brokerColor, brokerInitial, usd } from "./_util";
 
 export type BrokerListItem = {
@@ -59,20 +60,23 @@ export function BrokerListSidebar({ brokers }: { brokers: BrokerListItem[] }) {
           Brokers
         </span>
         <div className="flex items-center gap-1.5">
-          <Link
+          <Button
             href="/admin/dispatch/brokers/quick-add"
             prefetch={false}
-            className="inline-flex items-center rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[11px] font-bold text-fg transition-colors hover:bg-elevated"
+            variant="navigate"
+            size="sm"
           >
             Quick add
-          </Link>
-          <Link
+          </Button>
+          <Button
             href="/admin/dispatch/brokers/new"
             prefetch={false}
-            className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2.5 py-1.5 text-[11px] font-bold text-white transition-colors hover:bg-blue-700"
+            variant="primary"
+            size="sm"
+            leftIcon={<span className="text-[13px] leading-none">+</span>}
           >
-            <span className="text-[13px] leading-none">+</span> New
-          </Link>
+            New
+          </Button>
         </div>
       </div>
 

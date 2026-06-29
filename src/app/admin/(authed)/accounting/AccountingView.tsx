@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { Button } from "@/components/ui/Button";
 import { PAYMENT_METHOD_LABELS, type PaymentMethod } from "@/lib/dispatch/payment";
 
 /**
@@ -63,15 +64,16 @@ export function AccountingView({ data }: { data: AccountingData }) {
               · {data.monthLabel}
             </span>
           </h1>
-          <a
+          <Button
+            variant="navigate"
+            size="sm"
             href={data.stripeDashboardUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 rounded-md border border-line-strong bg-card px-3 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-muted transition-colors hover:bg-elevated"
           >
             Open in Stripe
             <ExternalIcon />
-          </a>
+          </Button>
         </header>
 
         <div className="mb-5 grid grid-cols-2 gap-2 lg:grid-cols-4">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/Button";
 import { updateLoadOdometers } from "../actions";
 
 /**
@@ -61,8 +62,10 @@ function FullOdometerStatus({
             Odometer &amp; status
           </h2>
         </button>
-        <button
+        <Button
           type="button"
+          variant="edit"
+          size="sm"
           onClick={() => {
             setEditing((e) => !e);
             setOpen(true);
@@ -70,11 +73,10 @@ function FullOdometerStatus({
           aria-pressed={editing}
           aria-label="Edit odometer"
           title="Edit odometer"
-          className="inline-flex items-center gap-1 rounded-md border border-red-700 bg-red-600 px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-red-700"
+          leftIcon={<PencilIcon />}
         >
-          <PencilIcon />
           {editing ? "Close" : "Edit"}
-        </button>
+        </Button>
       </div>
 
       {open ? (
@@ -177,12 +179,9 @@ function OdometerEditForm({
       <OdoField label="Assigned" name="odo_assigned" value={odoAssigned} />
       <OdoField label="Loaded" name="odo_loaded" value={odoLoaded} />
       <OdoField label="Delivered" name="odo_delivered" value={odoDelivered} />
-      <button
-        type="submit"
-        className="mt-1 w-full rounded-md border border-red-700 bg-red-600 px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-red-700"
-      >
+      <Button type="submit" variant="primary" size="sm" fullWidth className="mt-1">
         Save odometer · Enter
-      </button>
+      </Button>
       {err ? (
         <p role="alert" className="text-[11px] font-semibold text-red-700">
           {err}

@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useMemo } from "react";
 import Link from "next/link";
+import { Button } from "@/components/ui/Button";
 import { relativeTime } from "@/lib/admin/format";
 import { softDeleteQuote, softDeleteQuotes } from "./actions";
 import {
@@ -251,18 +252,13 @@ export function QuoteListTable({ rows }: { rows: QuoteListRow[] }) {
             </button>
           ) : null}
         </div>
-        <button
+        <Button
+          variant={selectMode ? "cancel" : "destructive"}
           type="button"
           onClick={toggleSelectMode}
-          className={
-            "inline-flex items-center justify-center border-2 border-line px-4 py-2 font-mono text-[10.5px] font-bold uppercase tracking-[0.18em] transition-colors " +
-            (selectMode
-              ? "bg-canvas text-fg"
-              : "bg-card text-fg hover:bg-canvas hover:text-fg")
-          }
         >
           {selectMode ? "Select · on" : "Select"}
-        </button>
+        </Button>
       </div>
 
       {/* Bulk action bar — sticky when active */}
@@ -272,21 +268,23 @@ export function QuoteListTable({ rows }: { rows: QuoteListRow[] }) {
             {selected.size} selected
           </span>
           <div className="flex flex-wrap items-center gap-2">
-            <button
+            <Button
+              variant="destructive"
+              size="sm"
               type="button"
               onClick={bulkSoftDelete}
               disabled={isPending}
-              className="inline-flex items-center border-2 border-red-300 bg-transparent px-3.5 py-1.5 font-mono text-[10.5px] font-bold uppercase tracking-[0.16em] text-red-700 transition-colors hover:bg-red-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
             >
               Move to trash
-            </button>
-            <button
+            </Button>
+            <Button
+              variant="cancel"
+              size="sm"
               type="button"
               onClick={clearSelection}
-              className="inline-flex items-center border border-line bg-card px-3.5 py-1.5 font-mono text-[10.5px] font-bold uppercase tracking-[0.16em] text-fg transition-colors hover:bg-[#f3f1e9]"
             >
               Clear
-            </button>
+            </Button>
           </div>
         </div>
       ) : null}
@@ -390,13 +388,15 @@ export function QuoteListTable({ rows }: { rows: QuoteListRow[] }) {
                 : "No active leads."}
             </p>
             {searchQuery.trim().length > 0 ? (
-              <button
+              <Button
+                variant="cancel"
+                size="sm"
                 type="button"
                 onClick={() => setSearchQuery("")}
-                className="mt-3 inline-flex items-center border border-line bg-card px-3 py-1.5 font-mono text-[10.5px] font-bold uppercase tracking-[0.16em] text-fg transition-colors hover:bg-[#f3f1e9]"
+                className="mt-3"
               >
                 Clear search
-              </button>
+              </Button>
             ) : null}
           </div>
         ) : null}
@@ -595,21 +595,19 @@ function LeadCard({
 
       {selectMode ? null : (
         <div className="mt-2.5 flex items-center justify-end gap-2 border-t border-line pt-2.5">
-          <button
+          <Button
+            variant="destructive"
+            size="sm"
             type="button"
             onClick={onTrash}
             disabled={isPending}
-            className="rounded-md border border-red-300 bg-card px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-red-700 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
             aria-label={`Move ${row.name} to trash`}
           >
             Trash
-          </button>
-          <Link
-            href={href}
-            className="rounded-md border border-red-700 bg-red-600 px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-red-700"
-          >
+          </Button>
+          <Button variant="navigate" size="sm" href={href}>
             Open lead →
-          </Link>
+          </Button>
         </div>
       )}
     </div>

@@ -15,6 +15,7 @@ import {
 } from "../../actions";
 import type { LoadDetailsInitial } from "../LoadDetailsCard";
 import { advanceOnEnter, formatPhoneDisplay } from "@/lib/admin/form-utils";
+import { Button } from "@/components/ui/Button";
 import { IconCheck, IconCopy } from "../icons";
 
 /**
@@ -381,14 +382,15 @@ function LoadAddressDisplay({
               {savedLabel}
             </span>
           ) : null}
-          <button
+          <Button
+            variant="edit"
+            size="sm"
             type="button"
             onClick={onEdit}
-            className="inline-flex items-center gap-1.5 rounded-sm border border-line-strong bg-card px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg transition-colors hover:bg-elevated"
+            leftIcon={<PencilIcon />}
           >
-            <PencilIcon />
             Edit
-          </button>
+          </Button>
         </div>
       </div>
       <div className="grid grid-cols-1 divide-y divide-line sm:grid-cols-2 sm:divide-x sm:divide-y-0">
@@ -539,13 +541,14 @@ function EditDetailsModal({
           <h2 className="font-mono text-[12px] font-semibold uppercase tracking-[0.16em] text-bar-fg">
             Edit load details
           </h2>
-          <button
+          <Button
+            variant="cancel"
+            size="sm"
             type="button"
             onClick={onClose}
-            className="rounded-sm border border-white/25 px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-bar-fg transition-colors hover:bg-white/10"
           >
             Done
-          </button>
+          </Button>
         </div>
         <div className="max-h-[82vh] overflow-y-auto">{children}</div>
       </div>
@@ -628,29 +631,33 @@ export function LaneContextStrip({
       />
       <div className="flex min-w-0 items-center">
         {mapHref ? (
-          <a
+          <Button
+            variant="navigate"
+            size="sm"
+            fullWidth
             href={mapHref}
             target="_blank"
             rel="noopener noreferrer"
             aria-label="Open route in Maps"
-            className="inline-flex w-full items-center justify-center gap-1.5 rounded-md bg-accent px-3 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-white transition-colors hover:bg-accent-hover"
+            leftIcon={
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden
+              >
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0Z" />
+                <circle cx="12" cy="10" r="3" />
+              </svg>
+            }
           >
-            <svg
-              width="13"
-              height="13"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth={2}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden
-            >
-              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0Z" />
-              <circle cx="12" cy="10" r="3" />
-            </svg>
             Open in Maps
-          </a>
+          </Button>
         ) : (
           <span className="inline-flex w-full items-center justify-center rounded-md border border-line bg-card px-3 py-2 font-mono text-[10px] uppercase tracking-[0.1em] text-fg-subtle">
             Needs both ZIPs

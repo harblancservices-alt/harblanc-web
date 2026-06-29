@@ -10,6 +10,7 @@ import {
   updateMaintenanceService,
 } from "./actions";
 import { uploadFileToSignedUrl } from "@/lib/storage/client-upload";
+import { Button } from "@/components/ui/Button";
 import { IntervalBar } from "./IntervalBar";
 
 export type MaintItem = {
@@ -173,15 +174,17 @@ function ReceiptThumbs({ atts }: { atts: ServiceAttachment[] }) {
             {a.name}
           </span>
           {a.url ? (
-            <a
+            <Button
               href={a.url}
               target="_blank"
               rel="noopener noreferrer"
               onClick={(e) => e.stopPropagation()}
-              className="shrink-0 rounded-md border border-blue-700 bg-blue-600 px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.06em] text-white transition-colors hover:bg-blue-700"
+              variant="navigate"
+              size="sm"
+              className="shrink-0"
             >
               View
-            </a>
+            </Button>
           ) : (
             <span className="shrink-0 font-mono text-[9px] text-fg-subtle">
               no link
@@ -297,13 +300,13 @@ export function MaintenanceView({
               Maintenance
             </h1>
           </div>
-          <button
+          <Button
             type="button"
             onClick={() => setServiceModal({})}
-            className="inline-flex items-center gap-1.5 rounded-md border border-red-700 bg-red-600 px-3.5 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-red-700"
+            variant="primary"
           >
             + Add service
-          </button>
+          </Button>
         </header>
 
         {/* Summary band — turns the logged data into useful numbers. */}
@@ -1058,13 +1061,14 @@ export function ServiceModal({
           <div>
             <div className="flex items-center justify-between">
               <label className={LABEL}>Expenses</label>
-              <button
+              <Button
                 type="button"
                 onClick={addLine}
-                className="rounded-md border border-blue-700 bg-blue-600 px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-blue-700"
+                variant="primary"
+                size="sm"
               >
                 + Add expense
-              </button>
+              </Button>
             </div>
             {lines.length === 0 ? (
               <p className="mt-1.5 font-mono text-[11px] text-fg-subtle">
@@ -1106,14 +1110,16 @@ export function ServiceModal({
                         className="w-full rounded-md border border-line-strong bg-card py-1.5 pl-5 pr-2 text-[13px] tabular-nums text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
                       />
                     </div>
-                    <button
+                    <Button
                       type="button"
                       onClick={() => removeLine(l.key)}
                       aria-label="Remove expense line"
-                      className="ml-auto shrink-0 rounded-md border border-red-700 bg-red-600 px-2.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.06em] text-white transition-colors hover:bg-red-700"
+                      variant="destructive"
+                      size="sm"
+                      className="ml-auto shrink-0"
                     >
                       Remove
-                    </button>
+                    </Button>
                   </div>
 
                   {/* This line's receipts: saved (edit) + newly picked. */}
@@ -1132,24 +1138,28 @@ export function ServiceModal({
                             {a.name}
                           </span>
                           {a.url ? (
-                            <a
+                            <Button
                               href={a.url}
                               target="_blank"
                               rel="noopener noreferrer"
                               onClick={(e) => e.stopPropagation()}
-                              className="shrink-0 rounded-md border border-blue-700 bg-blue-600 px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.06em] text-white transition-colors hover:bg-blue-700"
+                              variant="navigate"
+                              size="sm"
+                              className="shrink-0"
                             >
                               View
-                            </a>
+                            </Button>
                           ) : null}
-                          <button
+                          <Button
                             type="button"
                             onClick={() => removeExistingFromLine(l.key, a.id)}
                             aria-label={`Remove ${a.name}`}
-                            className="shrink-0 rounded-md border border-red-700 bg-red-600 px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.06em] text-white transition-colors hover:bg-red-700"
+                            variant="destructive"
+                            size="sm"
+                            className="shrink-0"
                           >
                             Remove
-                          </button>
+                          </Button>
                         </div>
                       ))}
                       {/* Newly-picked files (not yet uploaded) — name + Remove. */}
@@ -1164,14 +1174,16 @@ export function ServiceModal({
                           <span className="min-w-0 flex-1 truncate font-mono text-[10.5px] text-fg-muted">
                             {f.file.name}
                           </span>
-                          <button
+                          <Button
                             type="button"
                             onClick={() => removeFile(l.key, f.id)}
                             aria-label={`Remove ${f.file.name}`}
-                            className="shrink-0 rounded-md border border-red-700 bg-red-600 px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.06em] text-white transition-colors hover:bg-red-700"
+                            variant="destructive"
+                            size="sm"
+                            className="shrink-0"
                           >
                             Remove
-                          </button>
+                          </Button>
                         </div>
                       ))}
                     </div>
@@ -1349,14 +1361,15 @@ function ModalShell({
           <span className="truncate font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-bar-fg">
             {title}
           </span>
-          <button
+          <Button
             type="button"
             onClick={onClose}
             disabled={pending}
-            className="rounded-sm border border-blue-500 bg-blue-600 px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+            variant="cancel"
+            size="sm"
           >
             Cancel
-          </button>
+          </Button>
         </div>
         {children}
       </div>
@@ -1381,41 +1394,40 @@ function ModalFooter({
   return (
     <div className="flex items-center justify-end gap-2 border-t border-line bg-elevated px-4 py-3">
       {onDelete ? (
-        <button
+        <Button
           type="button"
           onClick={onDelete}
           disabled={pending}
-          className="mr-auto rounded-md border border-red-700 bg-red-600 px-4 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+          variant="destructive"
+          className="mr-auto"
         >
           {deleting ? "Deleting…" : "Delete"}
-        </button>
+        </Button>
       ) : null}
-      <button
+      <Button
         type="button"
         onClick={onClose}
         disabled={pending}
-        className="rounded-md border border-blue-700 bg-blue-600 px-4 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
+        variant="cancel"
       >
         Cancel
-      </button>
-      <button
+      </Button>
+      <Button
         type="submit"
         disabled={pending}
         aria-busy={pending}
-        className="inline-flex items-center gap-1.5 rounded-md border border-red-700 bg-red-600 px-4 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-70"
-      >
-        {pending ? (
-          <>
+        variant="primary"
+        leftIcon={
+          pending ? (
             <span
               aria-hidden
               className="h-3 w-3 animate-spin rounded-full border-2 border-white/40 border-t-white"
             />
-            Saving…
-          </>
-        ) : (
-          label
-        )}
-      </button>
+          ) : undefined
+        }
+      >
+        {pending ? "Saving…" : label}
+      </Button>
     </div>
   );
 }

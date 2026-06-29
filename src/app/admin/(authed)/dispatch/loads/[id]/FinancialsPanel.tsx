@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useState, type ReactNode } from "react";
+import { Button } from "@/components/ui/Button";
 import { AddExpenseDialog } from "./AddExpenseDialog";
 
 /** True when the panel is in "edit" mode (expense delete controls visible). */
@@ -41,32 +42,30 @@ export function FinancialsPanel({
           </h2>
         </button>
         <div className="flex items-center gap-2">
-          <button
+          <Button
             type="button"
+            variant="edit"
+            size="sm"
             onClick={() => {
               setEditing((e) => !e);
               setOpen(true);
             }}
             aria-pressed={editing}
-            className={
-              "inline-flex items-center gap-1 rounded border px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.08em] transition-colors " +
-              (editing
-                ? "border-white/40 bg-white/15 text-bar-fg"
-                : "border-white/25 text-bar-fg hover:bg-white/10")
-            }
           >
             {editing ? "Done" : "Edit"}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="primary"
+            size="sm"
             onClick={() => {
               setAdding(true);
               setOpen(true);
             }}
-            className="inline-flex items-center gap-1 rounded border border-red-700 bg-red-600 px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-red-700"
+            leftIcon={<span className="text-[12px] leading-none">+</span>}
           >
-            <span className="text-[12px] leading-none">+</span> Add expense
-          </button>
+            Add expense
+          </Button>
         </div>
       </div>
 

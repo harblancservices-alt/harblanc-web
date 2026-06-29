@@ -3,6 +3,7 @@
 import { advanceOnEnter } from "@/lib/admin/form-utils";
 
 import { useId, useMemo, useState, useTransition } from "react";
+import { Button } from "@/components/ui/Button";
 import { IconPlus, IconX } from "./icons";
 import {
   PreviewModal,
@@ -723,11 +724,11 @@ export function QuoteRangeWorkspace({
                       : "Ready to build"}
           </p>
         </div>
-        <button
+        <Button
+          variant="primary"
           type="button"
           onClick={runBuildPreview}
           disabled={!canBuild || isBuildPending}
-          className="inline-flex items-center justify-center gap-2 rounded-md border border-transparent bg-accent px-5 py-2.5 font-mono text-[12px] font-bold uppercase tracking-[0.16em] text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isBuildPending
             ? "Building..."
@@ -736,7 +737,7 @@ export function QuoteRangeWorkspace({
               : effectivePreviewState === "ready" && previewData
                 ? "Open preview \u2192"
                 : "Build preview \u2192"}
-        </button>
+        </Button>
       </div>
 
       <PreviewModal

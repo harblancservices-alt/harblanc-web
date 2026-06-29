@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { Button } from "@/components/ui/Button";
 import { AddLoadButton } from "./dispatch/loads/AddLoadButton";
 import { ActiveLoadDocButton } from "./ActiveLoadDocActions";
 import { OdometerStatusCard } from "./dispatch/loads/[id]/OdometerStatusCard";
@@ -263,13 +264,17 @@ export function DashboardView({ data }: { data: DashboardData }) {
                   </Link>
                 );
               })}
-              <Link
-                href="/admin/maintenance"
-                prefetch={false}
-                className="block px-3.5 py-2 text-center font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-indigo-600 transition-colors hover:bg-elevated"
-              >
-                View full schedule →
-              </Link>
+              <div className="px-3.5 py-2">
+                <Button
+                  href="/admin/maintenance"
+                  prefetch={false}
+                  variant="navigate"
+                  size="sm"
+                  fullWidth
+                >
+                  View full schedule →
+                </Button>
+              </div>
             </div>
           </>
         ) : null}

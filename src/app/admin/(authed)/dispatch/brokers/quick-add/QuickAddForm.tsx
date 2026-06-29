@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/Button";
 import { quickAddBrokerLane } from "./actions";
 
 const FIELD =
@@ -263,22 +264,23 @@ export function QuickAddForm({ brokerNames }: { brokerNames: string[] }) {
         ) : null}
 
         <div className="mt-4 flex gap-2">
-          <button
+          <Button
             type="button"
+            variant="primary"
             onClick={() => void save(true)}
             disabled={saving}
-            className="flex-1 rounded-md border border-red-700 bg-red-600 px-4 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+            className="flex-1"
           >
             {saving ? "Saving…" : "Save & add another"}
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="primary"
             onClick={() => void save(false)}
             disabled={saving}
-            className="rounded-md border border-line-strong bg-card px-4 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-fg transition-colors hover:bg-elevated disabled:opacity-50"
           >
             Save
-          </button>
+          </Button>
         </div>
       </div>
     </div>

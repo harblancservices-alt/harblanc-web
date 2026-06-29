@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/Button";
 import { softDeleteTrips } from "./actions";
 
 /**
@@ -61,13 +62,13 @@ export function TripsListView({ trips }: { trips: TripListItem[] }) {
       {/* Toolbar — Delete enters selection mode. */}
       {!selectMode && trips.length > 0 ? (
         <div className="mb-2 flex items-center justify-end">
-          <button
+          <Button
+            variant="destructive"
             type="button"
             onClick={() => setSelectMode(true)}
-            className="inline-flex items-center gap-1.5 rounded-md border border-line-strong bg-card px-3.5 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-fg-muted transition-colors hover:bg-elevated hover:text-fg"
           >
             Delete
-          </button>
+          </Button>
         </div>
       ) : null}
 
@@ -80,13 +81,15 @@ export function TripsListView({ trips }: { trips: TripListItem[] }) {
           <span className="font-mono text-[11px] text-fg-subtle">
             · tap trips to select
           </span>
-          <button
+          <Button
+            variant="cancel"
+            size="sm"
             type="button"
             onClick={exitSelectMode}
-            className="ml-auto rounded-md border border-line-strong bg-card px-3 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-fg-muted transition-colors hover:bg-elevated hover:text-fg"
+            className="ml-auto"
           >
             Cancel
-          </button>
+          </Button>
           <form
             action={softDeleteTrips}
             onSubmit={(e) => {
@@ -295,23 +298,22 @@ function StatusPill({ status }: { status: string }) {
 function BulkDeleteButton({ count }: { count: number }) {
   const { pending } = useFormStatus();
   return (
-    <button
+    <Button
+      variant="destructive"
+      size="sm"
       type="submit"
       disabled={pending || count === 0}
       aria-busy={pending}
-      className="inline-flex items-center gap-1.5 rounded-md border-2 border-red-700 bg-red-600 px-3.5 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
-    >
-      {pending ? (
-        <>
+      leftIcon={
+        pending ? (
           <span
             aria-hidden
-            className="h-3 w-3 animate-spin rounded-full border-2 border-white/40 border-t-white"
+            className="h-3 w-3 animate-spin rounded-full border-2 border-red-600/40 border-t-red-600"
           />
-          Deleting…
-        </>
-      ) : (
-        `Delete ${count}`
-      )}
-    </button>
+        ) : undefined
+      }
+    >
+      {pending ? "Deleting…" : `Delete ${count}`}
+    </Button>
   );
 }

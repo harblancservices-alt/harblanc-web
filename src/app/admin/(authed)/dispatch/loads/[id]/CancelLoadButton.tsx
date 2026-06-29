@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/Button";
 import { cancelLoad } from "../actions";
 
 /**
@@ -13,13 +14,14 @@ export function CancelLoadButton({ loadId }: { loadId: string }) {
 
   return (
     <>
-      <button
+      <Button
         type="button"
+        variant="destructive"
+        size="sm"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1 rounded-md border border-blue-700 bg-blue-600 px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-blue-700"
       >
         Cancel load
-      </button>
+      </Button>
 
       {open ? (
         <div
@@ -72,33 +74,30 @@ export function CancelLoadButton({ loadId }: { loadId: string }) {
                       />
                     </div>
                   </div>
-                  <button
-                    type="submit"
-                    className="mt-2.5 w-full rounded-md border border-red-700 bg-red-600 px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-red-700"
-                  >
+                  <Button type="submit" variant="destructive" size="sm" fullWidth className="mt-2.5">
                     Cancel + TONU
-                  </button>
+                  </Button>
                 </div>
               </form>
 
               {/* Plain cancel */}
               <form action={cancelLoad.bind(null, loadId)} className="mt-3">
                 <input type="hidden" name="mode" value="cancel" />
-                <button
-                  type="submit"
-                  className="w-full rounded-md border border-line-strong bg-card px-3 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-fg transition-colors hover:bg-elevated"
-                >
+                <Button type="submit" variant="destructive" size="sm" fullWidth>
                   Cancel — no charge
-                </button>
+                </Button>
               </form>
 
-              <button
+              <Button
                 type="button"
+                variant="cancel"
+                size="sm"
+                fullWidth
                 onClick={() => setOpen(false)}
-                className="mt-3 w-full text-center font-mono text-[11px] uppercase tracking-[0.1em] text-fg-subtle transition-colors hover:text-fg"
+                className="mt-3"
               >
                 Keep load
-              </button>
+              </Button>
             </div>
           </div>
         </div>

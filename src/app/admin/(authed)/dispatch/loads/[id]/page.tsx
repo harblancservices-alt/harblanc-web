@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Button } from "@/components/ui/Button";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { CollapsibleWorkspaceSection } from "../../../quotes/[id]/CollapsibleWorkspaceSection";
 import { OdometerStatusCard } from "./OdometerStatusCard";
@@ -247,17 +247,20 @@ export default async function LoadDetailPage({
         <div className="overflow-hidden rounded-md bg-bar shadow-md">
           {/* Tier 1: back button + cancel / delete actions */}
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-3.5 py-2.5">
-            <Link
+            <Button
               href="/admin/dispatch/loads"
               prefetch={false}
+              variant="navigate"
+              size="sm"
               aria-label="Back to all loads"
-              className="inline-flex items-center gap-1 rounded-md border border-red-700 bg-red-600 px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-red-700"
+              leftIcon={
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M19 12H5M11 18l-6-6 6-6" />
+                </svg>
+              }
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                <path d="M19 12H5M11 18l-6-6 6-6" />
-              </svg>
               Loads
-            </Link>
+            </Button>
             <div className="flex items-center gap-2">
               {!isCancelled ? <CancelLoadButton loadId={load.id} /> : null}
               <DeleteLoadButton loadId={load.id} />
@@ -338,22 +341,24 @@ export default async function LoadDetailPage({
                 load.trip_id || load.broker_id ? (
                   <>
                     {load.trip_id ? (
-                      <Link
+                      <Button
                         href={`/admin/dispatch/trips/${load.trip_id}`}
                         prefetch={false}
-                        className="inline-flex items-center rounded-md border border-blue-700 bg-blue-600 px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-blue-700"
+                        variant="navigate"
+                        size="sm"
                       >
                         Trip
-                      </Link>
+                      </Button>
                     ) : null}
                     {load.broker_id ? (
-                      <Link
+                      <Button
                         href={`/admin/dispatch/brokers/${load.broker_id}`}
                         prefetch={false}
-                        className="inline-flex items-center rounded-md border border-blue-700 bg-blue-600 px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-blue-700"
+                        variant="navigate"
+                        size="sm"
                       >
                         Broker
-                      </Link>
+                      </Button>
                     ) : null}
                   </>
                 ) : undefined

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Button } from "@/components/ui/Button";
 import { createBroker } from "./actions";
 
 /**
@@ -86,13 +87,15 @@ export function AddBrokerPanel({ forceOpen = false }: { forceOpen?: boolean }) {
 
   if (!open) {
     return (
-      <button
+      <Button
         type="button"
+        variant="primary"
         onClick={() => setOpen(true)}
-        className="mb-3 inline-flex items-center gap-2 rounded-md border border-red-700 bg-red-600 px-3.5 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-white transition-colors hover:bg-red-700"
+        className="mb-3"
+        leftIcon={<span className="text-[14px] leading-none">+</span>}
       >
-        <span className="text-[14px] leading-none">+</span> Add broker
-      </button>
+        Add broker
+      </Button>
     );
   }
 
@@ -103,16 +106,17 @@ export function AddBrokerPanel({ forceOpen = false }: { forceOpen?: boolean }) {
           Add broker
         </span>
         {forceOpen ? null : (
-          <button
+          <Button
             type="button"
+            variant="cancel"
+            size="sm"
             onClick={() => {
               setOpen(false);
               setMsg(null);
             }}
-            className="font-mono text-[11px] uppercase tracking-[0.1em] text-bar-fg/70 transition-colors hover:text-bar-fg"
           >
             Cancel
-          </button>
+          </Button>
         )}
       </div>
 
@@ -201,12 +205,9 @@ export function AddBrokerPanel({ forceOpen = false }: { forceOpen?: boolean }) {
         <In name="phone" label="Phone" value={fields.phone} onChange={(v) => set("phone", v)} />
         <In name="authority" label="Authority" value={fields.authority} onChange={(v) => set("authority", v)} />
         <div className="flex items-end sm:col-span-3 sm:justify-end">
-          <button
-            type="submit"
-            className="rounded-md border border-red-700 bg-red-600 px-4 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-red-700"
-          >
+          <Button type="submit" variant="primary">
             Create broker
-          </button>
+          </Button>
         </div>
       </form>
     </div>

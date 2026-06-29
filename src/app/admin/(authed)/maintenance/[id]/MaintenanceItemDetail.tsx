@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
+import { Button } from "@/components/ui/Button";
 import { IntervalBar } from "../IntervalBar";
 import { deleteMaintenanceItem } from "../actions";
 import {
@@ -93,13 +93,14 @@ export function MaintenanceItemDetail({
     <div className="min-h-screen border-t border-line bg-canvas text-fg">
       <div className="mx-auto w-full max-w-3xl px-4 py-5 sm:px-6 lg:px-8">
         {/* Back */}
-        <Link
+        <Button
           href="/admin/maintenance"
           prefetch={false}
-          className="inline-flex items-center gap-1.5 rounded-md border border-blue-700 bg-blue-600 px-2.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-white transition-colors hover:bg-blue-700"
+          variant="navigate"
+          size="sm"
         >
           ← All maintenance
-        </Link>
+        </Button>
 
         {/* Header card */}
         <div
@@ -189,28 +190,28 @@ export function MaintenanceItemDetail({
 
         {/* Actions */}
         <div className="mt-3 flex flex-wrap items-center gap-2">
-          <button
+          <Button
             type="button"
             onClick={() => setServiceModal({ presetItemId: item.id })}
-            className="inline-flex items-center gap-1.5 rounded-md border border-red-700 bg-red-600 px-3.5 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-red-700"
+            variant="primary"
           >
             + Log service
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             onClick={() => setEditInterval(true)}
-            className="rounded-md border border-blue-700 bg-blue-600 px-3.5 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-blue-700"
+            variant="edit"
           >
             Edit intervals &amp; notes
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
             onClick={onDeleteItem}
             disabled={deleting}
-            className="rounded-md border border-red-700 bg-red-600 px-3.5 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-red-700 disabled:opacity-60"
+            variant="destructive"
           >
             {deleting ? "Deleting…" : "Delete item"}
-          </button>
+          </Button>
         </div>
         {deleteErr ? (
           <p role="alert" className="mt-2 text-[12px] font-semibold text-red-700">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/Button";
 import { updateTrip, deleteTrip } from "../actions";
 
 /**
@@ -33,13 +34,14 @@ export function EditTripButton({
 
   return (
     <>
-      <button
+      <Button
+        variant="edit"
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-red-700 bg-red-600 px-3 text-[12px] font-semibold text-white transition-colors hover:bg-red-700"
+        className="h-9"
       >
         ✎ Edit trip
-      </button>
+      </Button>
 
       {open ? (
         <div
@@ -57,13 +59,14 @@ export function EditTripButton({
               <span className="truncate font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-bar-fg">
                 Edit trip
               </span>
-              <button
+              <Button
+                variant="cancel"
+                size="sm"
                 type="button"
                 onClick={() => setOpen(false)}
-                className="rounded-sm border border-white/25 px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-bar-fg transition-colors hover:bg-white/10"
               >
                 Cancel
-              </button>
+              </Button>
             </div>
 
             <form
@@ -110,19 +113,16 @@ export function EditTripButton({
               </div>
 
               <div className="flex items-center justify-between gap-2 border-t border-line pt-3">
-                <button
-                  type="submit"
-                  className="rounded-md border border-blue-700 bg-blue-600 px-4 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-blue-700"
-                >
+                <Button variant="primary" type="submit">
                   Save trip
-                </button>
-                <button
+                </Button>
+                <Button
+                  variant="destructive"
                   type="submit"
                   formAction={deleteTrip.bind(null, tripId)}
-                  className="rounded-md border border-red-300 bg-card px-3 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-red-700 transition-colors hover:bg-red-50"
                 >
                   Delete trip
-                </button>
+                </Button>
               </div>
             </form>
           </div>

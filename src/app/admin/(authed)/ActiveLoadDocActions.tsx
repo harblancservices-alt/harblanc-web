@@ -8,6 +8,7 @@ import {
   type RecordDoc,
 } from "./dispatch/loads/actions";
 import { uploadFileToSignedUrl } from "@/lib/storage/client-upload";
+import { Button } from "@/components/ui/Button";
 
 // Same picker setup as the maintenance receipt / load-document uploaders:
 // image/* with NO capture → mobile offers Take Photo / Library / Choose File.
@@ -49,14 +50,16 @@ export function ActiveLoadDocButton({
 
   return (
     <>
-      <button
+      <Button
         type="button"
+        variant="utility"
+        size="sm"
+        fullWidth
         onClick={() => setOpen(true)}
-        className="flex w-full items-center justify-center gap-1 rounded-md border border-red-700 bg-red-600 px-2 py-2 text-center font-mono text-[10px] font-bold uppercase leading-tight tracking-[0.04em] text-white transition-colors hover:bg-red-700"
       >
         + {label}
         {count > 0 ? ` · ${count}` : ""}
-      </button>
+      </Button>
       {open ? (
         <DocModal
           loadId={loadId}
@@ -194,14 +197,15 @@ function DocModal({
           <span className="truncate font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-bar-fg">
             {DOC_TITLE[kind]}
           </span>
-          <button
+          <Button
             type="button"
+            variant="cancel"
+            size="sm"
             onClick={onClose}
             disabled={busy}
-            className="rounded-sm border border-white/25 px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-bar-fg transition-colors hover:bg-white/10 disabled:opacity-50"
           >
             Cancel
-          </button>
+          </Button>
         </div>
 
         <div className="space-y-3 bg-elevated px-4 py-4">
@@ -267,35 +271,37 @@ function DocModal({
         </div>
 
         <div className="flex items-center justify-end gap-2 border-t border-line bg-elevated px-4 py-3">
-          <button
+          <Button
             type="button"
+            variant="cancel"
             onClick={onClose}
             disabled={busy}
-            className="rounded-md border border-line-strong bg-card px-4 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-fg transition-colors hover:bg-elevated disabled:opacity-50"
           >
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="primary"
             onClick={onSubmit}
             disabled={busy || staged.length === 0 || ok != null}
             aria-busy={busy}
-            className="inline-flex items-center gap-1.5 rounded-md border border-red-700 bg-red-600 px-4 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-70"
-          >
-            {ok ? (
-              "Saved ✓"
-            ) : busy ? (
-              <>
+            leftIcon={
+              busy ? (
                 <span
                   aria-hidden
                   className="h-3 w-3 animate-spin rounded-full border-2 border-white/40 border-t-white"
                 />
-                Uploading…
-              </>
+              ) : undefined
+            }
+          >
+            {ok ? (
+              "Saved ✓"
+            ) : busy ? (
+              "Uploading…"
             ) : (
               `Upload${staged.length > 0 ? ` ${staged.length}` : ""}`
             )}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

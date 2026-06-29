@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Button } from "@/components/ui/Button";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import {
   formatDateFull,
@@ -203,32 +204,23 @@ export default async function ApplicationDetailPage({
                 {isTrashed ? (
                   <>
                     <form action={restoreApplication.bind(null, row.id)}>
-                      <button
-                        type="submit"
-                        className="inline-flex items-center justify-center rounded-md border border-line-strong bg-card px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-fg transition-colors hover:bg-elevated"
-                      >
+                      <Button variant="primary" size="md" type="submit">
                         Restore
-                      </button>
+                      </Button>
                     </form>
                     <form
                       action={permanentlyDeleteApplication.bind(null, row.id)}
                     >
-                      <button
-                        type="submit"
-                        className="inline-flex items-center justify-center rounded-md border border-red-300 bg-red-50 px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-red-700 transition-colors hover:bg-red-600 hover:text-white"
-                      >
+                      <Button variant="destructive" size="md" type="submit">
                         Delete
-                      </button>
+                      </Button>
                     </form>
                   </>
                 ) : (
                   <form action={softDeleteApplication.bind(null, row.id)}>
-                    <button
-                      type="submit"
-                      className="inline-flex items-center justify-center rounded-md border border-red-300 bg-red-50 px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-red-700 transition-colors hover:bg-red-600 hover:text-white"
-                    >
+                    <Button variant="destructive" size="md" type="submit">
                       Trash
-                    </button>
+                    </Button>
                   </form>
                 )}
               </div>

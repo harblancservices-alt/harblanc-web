@@ -21,6 +21,7 @@ import type { SentArtifactIndex } from "../page";
 import { resendEstimate } from "../../actions";
 import { resendFinalizedQuote } from "../../finalized-quote-actions";
 import { resendBol } from "../../bol-actions";
+import { Button } from "@/components/ui/Button";
 
 /**
  * Level 6.4 — V5 Overview tab.
@@ -679,14 +680,16 @@ function ViewEmailButton({
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button
+      <Button
+        variant="navigate"
+        size="sm"
         type="button"
         onClick={() => setOpen(true)}
         aria-label={`View ${label} email`}
-        className="shrink-0 self-baseline inline-flex items-center border-2 border-line bg-card px-2.5 py-1 font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-fg transition-colors hover:bg-canvas hover:text-fg"
+        className="shrink-0 self-baseline"
       >
         View
-      </button>
+      </Button>
       {open ? (
         <EmailViewerModal
           href={href}
@@ -763,14 +766,15 @@ function EmailViewerModal({
           <p className="truncate font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-fg">
             {label} — Email
           </p>
-          <button
+          <Button
+            variant="cancel"
+            size="sm"
             type="button"
             onClick={onClose}
             aria-label="Close email viewer"
-            className="inline-flex items-center border-2 border-line bg-card px-2.5 py-1 font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-fg transition-colors hover:bg-canvas hover:text-fg"
           >
             Close
-          </button>
+          </Button>
         </div>
 
         {/* Iframe body — loads the email-view route. */}
@@ -784,13 +788,14 @@ function EmailViewerModal({
             falls back to the original preview_to recipient. */}
         <div className="flex items-center justify-end gap-3 border-t-2 border-line bg-[#fafaf6] px-4 py-3 sm:px-5">
           <form action={action}>
-            <button
+            <Button
+              variant="primary"
+              size="sm"
               type="submit"
               aria-label={`Resend ${label}`}
-              className="inline-flex items-center border-2 border-line bg-card px-3.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-fg transition-colors hover:bg-canvas hover:text-fg"
             >
               Resend
-            </button>
+            </Button>
           </form>
         </div>
     </div>

@@ -4,6 +4,7 @@ import { advanceOnEnter } from "@/lib/admin/form-utils";
 
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
+import { Button } from "@/components/ui/Button";
 import { IconPlus, IconX } from "./icons";
 import {
   PreviewModal,
@@ -509,14 +510,14 @@ function ReadyToGenerateTab({
           previews the document, and ships it to the customer.
         </p>
         <div className="mt-4 flex items-center gap-3">
-          <button
+          <Button
+            variant="primary"
             type="button"
             onClick={onGenerate}
             disabled={isPending}
-            className="inline-flex items-center justify-center gap-2 rounded-md border border-line-strong bg-card px-5 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.16em] text-fg transition-colors hover:bg-canvas hover:text-fg disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isPending ? "Generating…" : "Generate finalized quote"}
-          </button>
+          </Button>
           {error ? (
             <p className="font-mono text-[12px] text-fg">{error}</p>
           ) : null}
@@ -948,13 +949,15 @@ function DraftComposer({
               <span className="truncate font-mono text-[12px] font-semibold uppercase tracking-[0.14em] text-bar-fg">
                 Edit shipment details
               </span>
-              <button
+              <Button
+                variant="cancel"
+                size="sm"
                 type="button"
                 onClick={() => setEditOpen(false)}
-                className="shrink-0 rounded-sm border border-white/25 px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-bar-fg transition-colors hover:bg-white/10"
+                className="shrink-0"
               >
                 Done
-              </button>
+              </Button>
             </div>
             <div className="max-h-[78vh] overflow-y-auto pb-2">
 
@@ -1227,18 +1230,18 @@ function DraftComposer({
                     ? "Building preview…"
                     : ""}
         </p>
-        <button
+        <Button
+          variant="edit"
           type="button"
           onClick={() => setEditOpen(true)}
-          className="inline-flex items-center justify-center gap-2 rounded-md border border-red-700 bg-red-600 px-4 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.14em] text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
         >
           Edit
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="primary"
           type="button"
           onClick={runBuildPreview}
           disabled={!canBuild || isBuildPending}
-          className="inline-flex items-center justify-center gap-2 rounded-md border border-line-strong bg-card px-4 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.14em] text-fg transition-colors hover:bg-canvas hover:text-fg disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isBuildPending
             ? "Building…"
@@ -1247,7 +1250,7 @@ function DraftComposer({
               : effectivePreviewState === "ready" && previewData
                 ? "Open preview"
                 : "Preview"}
-        </button>
+        </Button>
       </div>
 
       </fieldset>
@@ -1405,22 +1408,22 @@ function SentHistoryTab({
           </p>
         )}
         {sent.previewHtml ? (
-          <button
+          <Button
+            variant="navigate"
             type="button"
             onClick={() => setPreviewOpen(true)}
-            className="inline-flex items-center justify-center gap-2 border border-line-strong bg-card px-4 py-2.5 text-[14px] font-semibold text-fg transition-colors hover:border-line-strong hover:text-fg"
           >
             View sent document
-          </button>
+          </Button>
         ) : null}
-        <button
+        <Button
+          variant="primary"
           type="button"
           onClick={onGenerateRevision}
           disabled={isPending}
-          className="inline-flex items-center justify-center gap-2 rounded-md border border-line-strong bg-card px-5 py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.16em] text-fg transition-colors hover:bg-canvas hover:text-fg disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isPending ? "Starting…" : "Generate revision"}
-        </button>
+        </Button>
       </div>
 
       <PreviewModal

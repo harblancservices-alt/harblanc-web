@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/Button";
 import { IconSend, IconX } from "./icons";
 
 /**
@@ -178,15 +179,17 @@ export function PreviewModal({
           </span>
         ) : null}
 
-        <button
+        <Button
+          variant="cancel"
+          size="sm"
           type="button"
           onClick={onClose}
           aria-label="Close preview"
           title="Close (Esc)"
-          className="inline-flex h-8 w-8 shrink-0 items-center justify-center border border-line-strong bg-card text-fg transition-colors hover:border-line-strong hover:bg-elevated hover:text-fg"
+          className="h-8 w-8 shrink-0 p-0"
         >
           <IconX className="h-4 w-4" />
-        </button>
+        </Button>
       </header>
 
       {/* ─── Mobile-only secondary action row ─── */}
@@ -280,11 +283,12 @@ export function PreviewModal({
               ) : null}
 
               {showSendButton ? (
-                <button
+                <Button
+                  variant="primary"
                   type="button"
                   onClick={onSend}
                   disabled={sendDisabled}
-                  className="inline-flex shrink-0 items-center gap-2 rounded-md border border-red-700 bg-red-600 px-5 py-2.5 text-[13px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="shrink-0"
                 >
                   {sendPending ? (
                     <>
@@ -297,7 +301,7 @@ export function PreviewModal({
                       Send range
                     </>
                   )}
-                </button>
+                </Button>
               ) : null}
             </div>
           </div>
@@ -341,13 +345,14 @@ function FailedState({
         {message ??
           "The preview build did not return a document. Check the rate fields and try again."}
       </p>
-      <button
+      <Button
+        variant="primary"
+        size="sm"
         type="button"
         onClick={onRetry}
-        className="inline-flex items-center gap-1.5 border border-line-strong bg-card px-3 py-1.5 font-mono text-[12px] font-bold uppercase tracking-[0.12em] text-fg transition-colors hover:bg-elevated"
       >
         Try again
-      </button>
+      </Button>
     </div>
   );
 }

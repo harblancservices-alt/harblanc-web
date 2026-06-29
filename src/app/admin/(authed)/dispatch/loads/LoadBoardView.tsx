@@ -5,6 +5,7 @@ import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
 import { softDeleteLoads } from "./actions";
 import { AddLoadButton } from "./AddLoadButton";
+import { Button } from "@/components/ui/Button";
 
 export type LoadRow = {
   id: string;
@@ -215,13 +216,13 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
             className="min-w-0 flex-1 rounded-md border border-line bg-card px-3 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-line-strong focus:outline-none sm:max-w-sm"
           />
           {!selectMode && rows.length > 0 ? (
-            <button
+            <Button
               type="button"
+              variant="destructive"
               onClick={() => setSelectMode(true)}
-              className="inline-flex items-center gap-1.5 rounded-md border border-line-strong bg-card px-3.5 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-fg-muted transition-colors hover:bg-elevated hover:text-fg"
             >
               Delete
-            </button>
+            </Button>
           ) : null}
           <AddLoadButton
             brokerNames={data.brokerNames}
@@ -238,13 +239,15 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
             <span className="font-mono text-[11px] text-fg-subtle">
               · tap loads to select
             </span>
-            <button
+            <Button
               type="button"
+              variant="cancel"
+              size="sm"
               onClick={exitSelectMode}
-              className="ml-auto rounded-md border border-line-strong bg-card px-3 py-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.08em] text-fg-muted transition-colors hover:bg-elevated hover:text-fg"
+              className="ml-auto"
             >
               Cancel
-            </button>
+            </Button>
             <form
               action={softDeleteLoads}
               onSubmit={(e) => {
@@ -522,24 +525,23 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
 function BulkDeleteButton({ count }: { count: number }) {
   const { pending } = useFormStatus();
   return (
-    <button
+    <Button
+      variant="destructive"
+      size="sm"
       type="submit"
       disabled={pending || count === 0}
       aria-busy={pending}
-      className="inline-flex items-center gap-1.5 rounded-md border-2 border-red-700 bg-red-600 px-3.5 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
-    >
-      {pending ? (
-        <>
+      leftIcon={
+        pending ? (
           <span
             aria-hidden
-            className="h-3 w-3 animate-spin rounded-full border-2 border-white/40 border-t-white"
+            className="h-3 w-3 animate-spin rounded-full border-2 border-red-600/30 border-t-red-600"
           />
-          Deleting…
-        </>
-      ) : (
-        "Delete Selected"
-      )}
-    </button>
+        ) : undefined
+      }
+    >
+      {pending ? "Deleting…" : "Delete Selected"}
+    </Button>
   );
 }
 

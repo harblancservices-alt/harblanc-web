@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { Button } from "@/components/ui/Button";
 
 export const metadata: Metadata = {
   title: "Brokers",
@@ -23,20 +23,22 @@ export default function BrokersIndexPage() {
           receivables — or add a new one.
         </p>
         <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-          <Link
+          <Button
             href="/admin/dispatch/brokers/new"
             prefetch={false}
-            className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-3.5 py-2 text-[12px] font-bold text-white transition-colors hover:bg-blue-700"
+            variant="primary"
+            leftIcon={<span className="text-[14px] leading-none">+</span>}
           >
-            <span className="text-[14px] leading-none">+</span> New Broker
-          </Link>
-          <Link
+            New Broker
+          </Button>
+          <Button
             href="/admin/dispatch/brokers/quick-add"
             prefetch={false}
-            className="inline-flex items-center gap-1 rounded-md border border-line-strong bg-card px-3.5 py-2 text-[12px] font-bold text-fg transition-colors hover:bg-elevated"
+            variant="navigate"
+            leftIcon={<span className="text-[14px] leading-none">+</span>}
           >
-            <span className="text-[14px] leading-none">+</span> Quick add from load board
-          </Link>
+            Quick add from load board
+          </Button>
         </div>
       </div>
     </div>

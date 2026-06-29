@@ -9,6 +9,7 @@ import {
   type RecordDoc,
 } from "../actions";
 import { uploadFileToSignedUrl } from "@/lib/storage/client-upload";
+import { Button } from "@/components/ui/Button";
 
 export type LoadDoc = {
   id: string;
@@ -215,22 +216,26 @@ function DocKindBlock({
               <span className="min-w-0 flex-1 truncate text-[11.5px] text-fg">
                 {d.name}
               </span>
-              <button
+              <Button
                 type="button"
+                variant="navigate"
+                size="sm"
                 onClick={() => onView(d)}
-                className="shrink-0 rounded-md border border-blue-700 bg-blue-600 px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.06em] text-white transition-colors hover:bg-blue-700"
+                className="shrink-0"
               >
                 View
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant="destructive"
+                size="sm"
                 onClick={() => onDelete(d)}
                 disabled={busy}
                 aria-label={`Delete ${d.name}`}
-                className="shrink-0 rounded-md border border-red-700 bg-red-600 px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.06em] text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+                className="shrink-0"
               >
                 Delete
-              </button>
+              </Button>
             </div>
           ))}
         </div>
@@ -271,23 +276,26 @@ function DocViewer({ doc, onClose }: { doc: LoadDoc; onClose: () => void }) {
           </span>
           <div className="flex shrink-0 items-center gap-2">
             {doc.url ? (
-              <a
+              <Button
                 href={doc.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center rounded-md border border-red-700 bg-red-600 px-3 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-red-700"
+                variant="navigate"
+                size="sm"
               >
                 Open ↗
-              </a>
+              </Button>
             ) : null}
-            <button
+            <Button
               type="button"
+              variant="cancel"
+              size="sm"
               onClick={onClose}
               aria-label="Close"
-              className="flex h-7 w-7 items-center justify-center rounded-md border border-red-300 bg-card text-[16px] font-bold leading-none text-red-700 transition-colors hover:bg-red-50"
+              className="h-7 w-7 px-0 py-0 text-[16px]"
             >
               ×
-            </button>
+            </Button>
           </div>
         </div>
         <div className="min-h-0 flex-1 overflow-auto bg-canvas">

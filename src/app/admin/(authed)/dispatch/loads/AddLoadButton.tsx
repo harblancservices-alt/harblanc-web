@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import { AddLoadModal } from "./AddLoadModal";
+import { Button } from "@/components/ui/Button";
 
 /**
  * The single "Add load" trigger used across the admin — the Load Board
@@ -10,8 +11,6 @@ import { AddLoadModal } from "./AddLoadModal";
  * server action. `className`/`children` let each call site style the trigger
  * without forking the behavior.
  */
-const DEFAULT_BTN =
-  "inline-flex items-center gap-1.5 rounded-md border border-red-700 bg-red-600 px-3.5 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-red-700";
 
 export function AddLoadButton({
   brokerNames,
@@ -27,13 +26,14 @@ export function AddLoadButton({
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button
+      <Button
         type="button"
+        variant="primary"
         onClick={() => setOpen(true)}
-        className={className ?? DEFAULT_BTN}
+        className={className}
       >
         {children ?? "+ Add load"}
-      </button>
+      </Button>
       {open ? (
         <AddLoadModal
           onClose={() => setOpen(false)}

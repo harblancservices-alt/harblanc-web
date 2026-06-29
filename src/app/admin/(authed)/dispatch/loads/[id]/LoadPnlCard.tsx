@@ -1,6 +1,7 @@
 "use client";
 
 import { useContext } from "react";
+import { Button } from "@/components/ui/Button";
 import { deleteLoadExpense } from "../actions";
 import { ExpenseEditContext } from "./FinancialsPanel";
 
@@ -114,13 +115,15 @@ export function LoadPnlCard({
               <span className="font-mono tabular-nums text-red-700">−{usd(e.amount)}</span>
               {editing ? (
                 <form action={deleteLoadExpense.bind(null, e.id, loadId)}>
-                  <button
+                  <Button
                     type="submit"
+                    variant="destructive"
+                    size="sm"
                     aria-label="Remove expense"
-                    className="flex h-5 w-5 items-center justify-center rounded border border-red-300 text-[13px] leading-none text-red-700 transition-colors hover:bg-red-50"
+                    className="h-5 w-5 px-0 py-0 text-[13px]"
                   >
                     ×
-                  </button>
+                  </Button>
                 </form>
               ) : null}
             </span>

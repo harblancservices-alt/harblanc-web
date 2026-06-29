@@ -2,6 +2,7 @@
 
 import { useState, useTransition, useMemo } from "react";
 import Link from "next/link";
+import { Button } from "@/components/ui/Button";
 import { formatDateShort } from "@/lib/admin/format";
 import { restoreQuote, permanentlyDeleteQuote } from "../actions";
 
@@ -209,24 +210,26 @@ function TrashRow({
 
       {/* Action row: Restore (black outline) + Delete (red outline) */}
       <div className="mt-3 flex flex-wrap gap-2">
-        <button
+        <Button
+          variant="primary"
+          size="sm"
           type="button"
           onClick={onRestore}
           disabled={isPending}
           aria-label={`Restore ${row.name}`}
-          className="inline-flex items-center justify-center border-2 border-line bg-transparent px-3.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-fg transition-colors hover:bg-canvas hover:text-fg disabled:cursor-not-allowed disabled:opacity-50"
         >
           Restore
-        </button>
-        <button
+        </Button>
+        <Button
+          variant="destructive"
+          size="sm"
           type="button"
           onClick={onDelete}
           disabled={isPending}
           aria-label={`Permanently delete ${row.name}`}
-          className="inline-flex items-center justify-center border-2 border-red-300 bg-transparent px-3.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-red-700 transition-colors hover:bg-red-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
         >
           Delete
-        </button>
+        </Button>
       </div>
     </li>
   );
