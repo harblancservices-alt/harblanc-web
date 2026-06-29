@@ -264,9 +264,10 @@ export default async function LoadDetailPage({
             </div>
           </div>
 
-          {/* Tier 2: clean origin → destination with ZIPs underneath each city */}
-          <div className="flex items-start gap-3 border-t border-white/10 px-3.5 py-2.5">
-            <div className="min-w-0 flex-1">
+          {/* Tier 2: compact origin → destination — the two cities hug the
+              arrow in a centered group (ZIPs stacked white under each city). */}
+          <div className="flex items-start justify-center gap-4 border-t border-white/10 px-3.5 py-2.5">
+            <div className="min-w-0 text-right">
               <div className="truncate text-[15px] font-semibold text-bar-fg">
                 {load.origin?.trim() || "—"}
               </div>
@@ -279,7 +280,7 @@ export default async function LoadDetailPage({
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round" aria-hidden className="mt-0.5 shrink-0 text-bar-fg/45">
               <path d="M5 12h14M13 5l7 7-7 7" />
             </svg>
-            <div className="min-w-0 flex-1 text-right">
+            <div className="min-w-0 text-left">
               <div className="truncate text-[15px] font-semibold text-bar-fg">
                 {load.destination?.trim() || "—"}
               </div>
@@ -333,7 +334,6 @@ export default async function LoadDetailPage({
           <div className="space-y-3">
             <CollapsibleWorkspaceSection
               title="Load details"
-              defaultOpen
               actions={
                 load.trip_id || load.broker_id ? (
                   <>

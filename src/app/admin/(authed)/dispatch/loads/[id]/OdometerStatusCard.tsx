@@ -34,57 +34,38 @@ export function OdometerStatusCard(props: OdometerStatusCardProps) {
   return <FullOdometerStatus {...props} />;
 }
 
-// ── Load detail (full): dark bar + Edit + Status + Odometer ──────────────────
+// ── Load detail (full): skinny bar with an Edit button. Tapping Edit reveals
+//    the Status control + Odometer input; saving collapses back to the bar. ───
 function FullOdometerStatus({
   loadId,
   status,
-  statusLabel,
   lastReading,
   odoAssigned,
   odoLoaded,
   odoDelivered,
 }: OdometerStatusCardProps) {
-  const [open, setOpen] = useState(true);
   const [editing, setEditing] = useState(false);
 
   return (
     <section className="overflow-hidden rounded-md border border-line bg-card shadow-md">
-      <div className="flex items-center justify-between gap-2 bg-bar px-3 py-2.5">
+      <div className="flex items-center justify-between gap-2 bg-bar px-3 py-2">
+        <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-bar-fg">
+          Odometer &amp; status
+        </h2>
         <button
           type="button"
-          aria-expanded={open}
-          onClick={() => setOpen((o) => !o)}
-          className="flex min-w-0 items-center gap-2 text-left"
+          onClick={() => setEditing((e) => !e)}
+          aria-expanded={editing}
+          aria-label="Edit odometer & status"
+          title="Edit odometer & status"
+          className="inline-flex items-center gap-1 rounded-md border border-red-700 bg-red-600 px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-red-700"
         >
-          <Chevron open={open} />
-          <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-bar-fg">
-            Odometer &amp; status
-          </h2>
+          <PencilIcon />
+          {editing ? "Close" : "Edit"}
         </button>
-        <div className="flex items-center gap-2.5">
-          {statusLabel ? (
-            <span className="font-mono text-[11px] uppercase tracking-[0.1em] text-bar-fg/70">
-              {statusLabel}
-            </span>
-          ) : null}
-          <button
-            type="button"
-            onClick={() => {
-              setEditing((e) => !e);
-              setOpen(true);
-            }}
-            aria-pressed={editing}
-            aria-label="Edit odometer"
-            title="Edit odometer"
-            className="inline-flex items-center gap-1 rounded-md border border-red-700 bg-red-600 px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-red-700"
-          >
-            <PencilIcon />
-            {editing ? "Close" : "Edit"}
-          </button>
-        </div>
       </div>
 
-      {open ? (
+      {editing ? (
         <div className="space-y-3 bg-card p-3 text-fg">
           <InnerCard title="Status">
             <LoadStatusControl
@@ -95,21 +76,13 @@ function FullOdometerStatus({
           </InnerCard>
 
           <InnerCard title="Odometer">
-            {editing ? (
-              <OdometerEditForm
-                loadId={loadId}
-                odoAssigned={odoAssigned}
-                odoLoaded={odoLoaded}
-                odoDelivered={odoDelivered}
-                onSaved={() => setEditing(false)}
-              />
-            ) : (
-              <OdometerTable
-                odoAssigned={odoAssigned}
-                odoLoaded={odoLoaded}
-                odoDelivered={odoDelivered}
-              />
-            )}
+            <OdometerEditForm
+              loadId={loadId}
+              odoAssigned={odoAssigned}
+              odoLoaded={odoLoaded}
+              odoDelivered={odoDelivered}
+              onSaved={() => setEditing(false)}
+            />
           </InnerCard>
         </div>
       ) : null}
@@ -353,27 +326,6 @@ function OdoField({
         className="w-full rounded-md border border-line-strong bg-card px-2 py-1 font-mono text-[12.5px] tabular-nums text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
       />
     </div>
-  );
-}
-
-function Chevron({ open }: { open: boolean }) {
-  return (
-    <svg
-      width="11"
-      height="11"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden
-      className={
-        "shrink-0 text-bar-fg/70 transition-transform " + (open ? "rotate-90" : "")
-      }
-    >
-      <path d="m9 6 6 6-6 6" />
-    </svg>
   );
 }
 
