@@ -95,7 +95,11 @@ function FarmModal({ onClose }: { onClose: () => void }) {
     { tone: "ok" | "err"; text: string } | null
   >(null);
 
+  // brokerName = the company (from FMCSA, shown in the auto-fill card and used
+  // as the broker record). contactName = the actual person — starts EMPTY and
+  // is never auto-filled from the company name.
   const [brokerName, setBrokerName] = useState("");
+  const [contactName, setContactName] = useState("");
   const [dot, setDot] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -184,19 +188,22 @@ function FarmModal({ onClose }: { onClose: () => void }) {
 
   async function onSave() {
     if (busy) return;
-    if (!brokerName.trim()) {
-      setErr("Add a broker name (search MC or type it).");
+    // Broker = the company from FMCSA; fall back to the contact name only when
+    // there was no lookup, so the save is never blocked.
+    const broker = brokerName.trim() || contactName.trim();
+    if (!broker) {
+      setErr("Search an MC, or enter a contact name, to save.");
       return;
     }
     setBusy(true);
     setErr(null);
     try {
       const fd = new FormData();
-      fd.set("broker_name", brokerName.trim());
+      fd.set("broker_name", broker);
       if (mc.trim()) fd.set("mc_number", mc.trim());
       if (dot.trim()) fd.set("dot_number", dot.trim());
-      // Contact = the broker's name + phone + email (email is the priority).
-      fd.set("contact_name", brokerName.trim());
+      // Contact = the actual person + phone + email (email is the priority).
+      if (contactName.trim()) fd.set("contact_name", contactName.trim());
       if (phone.trim()) fd.set("contact_phone", phone.trim());
       if (email.trim()) fd.set("contact_email", email.trim());
       fd.set("is_backhaul", isBackhaul ? "true" : "false");
@@ -325,31 +332,9 @@ function FarmModal({ onClose }: { onClose: () => void }) {
             </div>
           ) : null}
 
-          {/* Lane — city typeaheads (selection only) */}
-          <div className="rounded-md border border-line bg-card p-3">
-            <p className="mb-2 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-fg">
-              Lane
-            </p>
-            <CityPicker
-              label="Origin city"
-              value={origin}
-              onChange={setOrigin}
-              stateOnly={originState}
-              onStateOnly={setOriginState}
-            />
-            <div className="mt-3">
-              <CityPicker
-                label="Destination city"
-                value={dest}
-                onChange={setDest}
-                stateOnly={destState}
-                onStateOnly={setDestState}
-              />
-            </div>
-          </div>
-
           {/* Contact — name / phone / email (email is the priority capture).
-              FMCSA fills name + phone; all three stay editable. */}
+              Name is the actual PERSON; it starts empty and is never auto-filled
+              from the company name. FMCSA fills Phone; Email is manual. */}
           <div className="rounded-md border border-line bg-card p-3">
             <p className="mb-2 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-fg">
               Contact
@@ -357,15 +342,12 @@ function FarmModal({ onClose }: { onClose: () => void }) {
             <div>
               <label className="block font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-fg">
                 Name
-                <span className="ml-1.5 rounded bg-red-100 px-1.5 py-[1px] align-middle font-mono text-[8.5px] font-bold uppercase tracking-[0.08em] text-red-700">
-                  Required
-                </span>
               </label>
               <input
-                value={brokerName}
-                onChange={(e) => setBrokerName(e.target.value)}
+                value={contactName}
+                onChange={(e) => setContactName(e.target.value)}
                 autoComplete="off"
-                placeholder="Broker / contact name"
+                placeholder="Contact / dispatcher name"
                 className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
               />
             </div>
@@ -399,17 +381,39 @@ function FarmModal({ onClose }: { onClose: () => void }) {
             </div>
           </div>
 
-          <label className="flex cursor-pointer items-center gap-2">
-            <input
-              type="checkbox"
-              checked={isBackhaul}
-              onChange={(e) => setIsBackhaul(e.target.checked)}
-              className="h-4 w-4 accent-emerald-600"
+          {/* Lane — city typeaheads (selection only) + backhaul toggle */}
+          <div className="rounded-md border border-line bg-card p-3">
+            <p className="mb-2 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-fg">
+              Lane
+            </p>
+            <CityPicker
+              label="Origin city"
+              value={origin}
+              onChange={setOrigin}
+              stateOnly={originState}
+              onStateOnly={setOriginState}
             />
-            <span className="text-[12.5px] font-semibold text-fg">
-              Mark as backhaul lane
-            </span>
-          </label>
+            <div className="mt-3">
+              <CityPicker
+                label="Destination city"
+                value={dest}
+                onChange={setDest}
+                stateOnly={destState}
+                onStateOnly={setDestState}
+              />
+            </div>
+            <label className="mt-3 flex cursor-pointer items-center gap-2">
+              <input
+                type="checkbox"
+                checked={isBackhaul}
+                onChange={(e) => setIsBackhaul(e.target.checked)}
+                className="h-4 w-4 accent-emerald-600"
+              />
+              <span className="text-[12.5px] font-semibold text-fg">
+                Mark as backhaul lane
+              </span>
+            </label>
+          </div>
 
           {ok ? (
             <p

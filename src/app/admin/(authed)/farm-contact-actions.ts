@@ -91,8 +91,10 @@ export async function farmBrokerContact(
   const isBackhaul = str(formData, "is_backhaul") === "true";
   const phone = str(formData, "contact_phone");
   const email = str(formData, "contact_email");
-  const contactName = str(formData, "contact_name") ?? "Dispatch";
-  if (phone || email) {
+  const contactName = str(formData, "contact_name");
+  // Create a contact when ANY of name / phone / email is given, so a name-only
+  // contact still persists. Dedup is still keyed on phone/email.
+  if (phone || email || contactName) {
     const { data: cRows } = await sb
       .from("broker_contacts")
       .select("id, phone, email, is_backhaul")
@@ -124,7 +126,7 @@ export async function farmBrokerContact(
       const emails = email ? [{ address: email, label: null }] : [];
       await sb.from("broker_contacts").insert({
         broker_id: brokerId,
-        name: contactName,
+        name: contactName ?? "Dispatch",
         title: "Backhaul",
         phone: phone ?? null,
         email: email ?? null,
