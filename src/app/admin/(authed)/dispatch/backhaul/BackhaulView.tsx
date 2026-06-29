@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { sendBackhaul, type BackhaulSendResult } from "./actions";
+import { FarmContactButton } from "../../FarmBrokerContactCard";
 
 export type BackhaulBroker = {
   id: string;
@@ -156,16 +157,20 @@ export function BackhaulView({
   return (
     <div className="min-h-screen border-t border-line bg-canvas text-fg">
       <div className="w-full px-4 py-5 sm:px-6 lg:px-8">
-        <header className="mb-3">
-          <p className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-indigo-600">
-            Dispatch
-          </p>
-          <h1 className="mt-1 text-[22px] font-semibold leading-none tracking-tight text-fg">
-            Backhaul
-          </h1>
-          <p className="mt-1.5 text-[13px] text-fg-muted">
-            Email brokers for freight out of where you&apos;re sitting empty.
-          </p>
+        <header className="mb-3 flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-indigo-600">
+              Dispatch
+            </p>
+            <h1 className="mt-1 text-[22px] font-semibold leading-none tracking-tight text-fg">
+              Backhaul
+            </h1>
+            <p className="mt-1.5 text-[13px] text-fg-muted">
+              Email brokers for freight out of where you&apos;re sitting empty.
+            </p>
+          </div>
+          {/* Farm a broker contact anytime — same flow as the dashboard card. */}
+          <FarmContactButton />
         </header>
 
         {/* Search */}

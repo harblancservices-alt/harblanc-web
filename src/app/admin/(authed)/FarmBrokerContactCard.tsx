@@ -38,8 +38,31 @@ const US_STATES = [
   "VA","WA","WV","WI","WY","DC",
 ];
 
-export function FarmBrokerContactCard() {
+const TEAL_BTN =
+  "inline-flex shrink-0 items-center gap-1.5 rounded-md border border-emerald-700 bg-emerald-600 px-3.5 py-2 font-mono text-[12px] font-bold uppercase leading-none tracking-[0.08em] text-white transition-colors hover:bg-emerald-700";
+
+/**
+ * Standalone teal "+ Quick Add Contact" trigger + modal — reused on the
+ * dashboard card AND the Backhaul page so the same farming flow is reachable
+ * anytime (including while a load is rolling). Same modal, same save action.
+ */
+export function FarmContactButton({ className }: { className?: string }) {
   const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className={TEAL_BTN + (className ? " " + className : "")}
+      >
+        + Quick Add Contact
+      </button>
+      {open ? <FarmModal onClose={() => setOpen(false)} /> : null}
+    </>
+  );
+}
+
+export function FarmBrokerContactCard() {
   return (
     <>
       <div className="my-5 h-px bg-line" />
@@ -54,17 +77,9 @@ export function FarmBrokerContactCard() {
               can match it later.
             </p>
           </div>
-          <button
-            type="button"
-            onClick={() => setOpen(true)}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-emerald-700 bg-emerald-600 px-3.5 py-2 font-mono text-[12px] font-bold uppercase leading-none tracking-[0.08em] text-white transition-colors hover:bg-emerald-700"
-          >
-            + Quick Add Contact
-          </button>
+          <FarmContactButton />
         </div>
       </section>
-
-      {open ? <FarmModal onClose={() => setOpen(false)} /> : null}
     </>
   );
 }
