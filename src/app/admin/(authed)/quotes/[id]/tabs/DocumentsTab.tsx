@@ -1,5 +1,6 @@
 import { BolWorkspace, type BolState } from "../BolWorkspace";
 import { DocumentViewButton } from "../DocumentViewButton";
+import { quoteAgo, quoteClock, quoteDate } from "../quoteTime";
 import { resendEstimate } from "../../actions";
 import { resendFinalizedQuote } from "../../finalized-quote-actions";
 import { resendBol } from "../../bol-actions";
@@ -145,8 +146,9 @@ function SentDocumentRowItem({
   doc: SentDocumentRow;
   isLast: boolean;
 }) {
-  const timeStr = formatDocClock(doc.sentAt);
-  const dateStr = formatDocDate(doc.sentAt);
+  const timeStr = quoteClock(doc.sentAt);
+  const dateStr = quoteDate(doc.sentAt);
+  const agoStr = quoteAgo(doc.sentAt);
   const resendAction =
     doc.type === "estimate"
       ? resendEstimate.bind(null, doc.id)
@@ -157,19 +159,24 @@ function SentDocumentRowItem({
   return (
     <li
       className={
-        "grid grid-cols-1 gap-3 px-4 py-3 sm:grid-cols-[110px_minmax(0,1fr)_auto] sm:items-center sm:px-5 " +
+        "grid grid-cols-1 gap-3 px-4 py-3 sm:grid-cols-[150px_minmax(0,1fr)_auto] sm:items-center sm:px-5 " +
         (doc.highlight ? "bg-amber-50 " : "") +
         (isLast ? "" : "border-b border-line/80")
       }
     >
-      {/* Time over date */}
-      <div className="flex items-center gap-3 sm:block">
-        <span className="font-mono text-[12px] font-bold uppercase tabular-nums tracking-[0.12em] text-fg">
+      {/* Date · time · days-ago — same format as the Activity tab. */}
+      <div className="font-mono text-[11px] tabular-nums leading-snug text-fg-subtle">
+        <span>{dateStr}</span>
+        <span aria-hidden className="px-1 text-fg-subtle/60">
+          ·
+        </span>
+        <span className="text-[12px] font-bold uppercase tracking-[0.1em] text-fg">
           {timeStr}
         </span>
-        <span className="font-mono text-[11px] font-medium tabular-nums tracking-[0.1em] text-fg-subtle sm:mt-1 sm:block">
-          {dateStr}
+        <span aria-hidden className="px-1 text-fg-subtle/60">
+          ·
         </span>
+        <span>{agoStr}</span>
       </div>
 
       {/* Label + amount + recipient */}
@@ -202,29 +209,3 @@ function SentDocumentRowItem({
 }
 
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-/** Clock time, e.g. "19:01". */
-function formatDocClock(iso: string): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mm = String(d.getMinutes()).padStart(2, "0");
-  return `${hh}:${mm}`;
-}
-
-/** Calendar date, e.g. "Jun 13" (adds the year for prior years). */
-function formatDocDate(iso: string): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const sameYear = d.getFullYear() === new Date().getFullYear();
-  return d.toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    ...(sameYear ? {} : { year: "numeric" }),
-  });
-}

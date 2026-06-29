@@ -1,24 +1,23 @@
 import { describeEvent, type TimelineEventRow } from "./tabs/TimelineTab";
+import { quoteAgo, quoteClock, quoteDate } from "./quoteTime";
 
 /**
- * ActivityRun — compact single-line activity readout.
+ * ActivityRun — the recent-activity readout for the workstation bottom card.
  *
- * Replaces the full EventHistorySection visual treatment with a dense
- * inline run of the most-recent events for the workstation-style
- * bottom card. The full timeline remains reachable from the existing
- * Activity collapsible (toggleable via "View all").
+ * One ROW per event, each showing a consistent "Jun 21 · 18:42 · 1w ago"
+ * timestamp (date · time · days-ago) followed by the activity label, e.g.:
  *
- *   12m  Range proposal sent · 28m  Details edited · 1h  Status →
- *   Review needed · 3h  Intake submitted              View all 12 →
+ *   Jun 21 · 18:42 · 1w ago    Range proposal sent
+ *   Jun 14 · 09:30 · 2w ago    Status changed
  *
- * Renders nothing when there are no events (the wrapping card hides
- * itself in that case so the workstation surface doesn't get a stub).
+ * The full timeline remains reachable from the Activity collapsible. Renders
+ * nothing-of-substance when there are no events.
  */
 
 export type ActivityRunProps = {
   /** Newest-first. Parent supplies LIMIT 100. */
   events: ReadonlyArray<TimelineEventRow>;
-  /** How many of the newest events to inline. Default 4. */
+  /** How many of the newest events to show. Default 4. */
   limit?: number;
 };
 
@@ -32,43 +31,33 @@ export function ActivityRun({ events, limit = 4 }: ActivityRunProps) {
   }
   const slice = events.slice(0, limit);
   return (
-    <p className="px-3 py-2 text-[11px] leading-relaxed text-fg-subtle">
-      {slice.map((event, i) => {
-        const rel = relativeShort(event.createdAt);
+    <ul className="divide-y divide-line/80">
+      {slice.map((event) => {
         const { label } = describeEvent(event.kind, event.payload);
         return (
-          <span key={event.id}>
-            <span className="font-mono tabular-nums text-fg-subtle">{rel}</span>
-            <span> {label}</span>
-            {i < slice.length - 1 ? (
-              <span aria-hidden className="px-1.5 text-zinc-700">
+          <li
+            key={event.id}
+            className="flex items-baseline gap-3 px-3 py-2"
+          >
+            <span className="shrink-0 font-mono text-[11px] tabular-nums text-fg-subtle">
+              {quoteDate(event.createdAt)}
+              <span aria-hidden className="px-1 text-fg-subtle/60">
                 ·
               </span>
-            ) : null}
-          </span>
+              <span className="font-semibold text-fg">
+                {quoteClock(event.createdAt)}
+              </span>
+              <span aria-hidden className="px-1 text-fg-subtle/60">
+                ·
+              </span>
+              {quoteAgo(event.createdAt)}
+            </span>
+            <span className="min-w-0 flex-1 text-[12.5px] leading-snug text-fg">
+              {label}
+            </span>
+          </li>
         );
       })}
-    </p>
+    </ul>
   );
-}
-
-/**
- * Tight relative-time formatter — "12m", "1h", "3d", etc. Keeps the
- * inline run scanning fast.
- */
-function relativeShort(iso: string): string {
-  const t = Date.parse(iso);
-  if (Number.isNaN(t)) return "";
-  const deltaMs = Date.now() - t;
-  if (deltaMs < 60_000) return "now";
-  const mins = Math.round(deltaMs / 60_000);
-  if (mins < 60) return mins + "m";
-  const hrs = Math.round(mins / 60);
-  if (hrs < 24) return hrs + "h";
-  const days = Math.round(hrs / 24);
-  if (days < 7) return days + "d";
-  const weeks = Math.round(days / 7);
-  if (weeks < 5) return weeks + "w";
-  const months = Math.round(days / 30);
-  return months + "mo";
 }
