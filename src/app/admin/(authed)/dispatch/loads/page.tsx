@@ -55,14 +55,33 @@ function num(v: number | string | null): number {
 }
 
 /**
- * Calendar month (0–11) a load belongs to for the board's month filter:
- * delivery_date, falling back to pickup_date, then created_at. String-sliced
- * from the YYYY-MM prefix so it's time-zone-safe.
+ * A load's "close-out" date — the date its net profit is attributed to a
+ * month. We use delivery_date (the load is closed out when it delivers),
+ * falling back to pickup_date then created_at for loads not yet delivered.
+ * (paid_at exists too — a cash-basis alternative — but delivery is the
+ * accrual "profit earned this month" date the board has always used.)
  */
-function monthIndex(l: LoadRowDB): number {
-  const d = l.delivery_date ?? l.pickup_date ?? l.created_at ?? "";
-  const m = /^\d{4}-(\d{2})/.exec(d);
-  return m ? Number(m[1]) - 1 : -1;
+function closeOutDate(l: LoadRowDB): string | null {
+  return l.delivery_date ?? l.pickup_date ?? l.created_at ?? null;
+}
+
+/**
+ * The {year, month} a close-out date is attributed to, applying the
+ * month-boundary rule: a load closed out on the 1st of a month counts toward
+ * the PREVIOUS month; the 2nd or later counts toward that month. Implemented
+ * as the calendar month of (close-out date − 1 day). Parsed from the
+ * YYYY-MM-DD prefix in UTC so it's time-zone-safe.
+ *   Closed Jul 1 → Jun 30 → June; Jul 2 → Jul 1 → July; Jul 15 → July.
+ */
+function goalMonthParts(
+  dateStr: string | null,
+): { year: number; month: number } | null {
+  if (!dateStr) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateStr);
+  if (!m) return null;
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+  d.setUTCDate(d.getUTCDate() - 1);
+  return { year: d.getUTCFullYear(), month: d.getUTCMonth() };
 }
 
 function fmtDate(iso: string | null): string {
@@ -123,6 +142,15 @@ async function loadBoard(): Promise<LoadBoardData> {
     .returns<{ id: string }[]>();
   const factoringIds = new Set((factoringBrokers ?? []).map((b) => b.id));
 
+  // The Net-profit-goal gauge is MONTHLY and resets at the start of each
+  // month: it sums the net of loads whose goal-month (close-out date − 1 day)
+  // is the current calendar month. A load closed out on the 1st lands in the
+  // previous month, so on the 1st the new month's gauge starts fresh.
+  const now = new Date();
+  const curYear = now.getFullYear();
+  const curMonth = now.getMonth();
+  let monthGoalNet = 0;
+
   const rows = (data ?? []).map((l) => {
     const cancelled = l.status === "cancelled";
     // A cancelled load earns only a TONU fee (if any); otherwise its rate.
@@ -144,6 +172,10 @@ async function loadBoard(): Promise<LoadBoardData> {
           l.broker_id != null && factoringIds.has(l.broker_id),
         ).net;
     const dhMiles = md.deadhead ?? 0;
+    const goal = goalMonthParts(closeOutDate(l));
+    if (goal && goal.year === curYear && goal.month === curMonth) {
+      monthGoalNet += net;
+    }
     return {
       id: l.id,
       loadNumber: l.load_number?.trim() || "—",
@@ -158,11 +190,12 @@ async function loadBoard(): Promise<LoadBoardData> {
       net,
       loadedMiles: md.loaded,
       dhMiles,
-      month: monthIndex(l),
+      month: goal ? goal.month : -1,
       status: l.status,
       paymentStatus: l.payment_status,
     };
   });
+  const goalMonthLabel = now.toLocaleString("en-US", { month: "long" });
 
   // Existing brokers for the Add-load autocomplete.
   const { data: brokerRows } = await sb
@@ -192,7 +225,7 @@ async function loadBoard(): Promise<LoadBoardData> {
   // Avg/mi) are computed client-side in LoadBoardView so they react to the
   // month filter. The page-level mileage/deadhead summary aggregates were
   // removed with their cards.
-  return { rows, brokerNames, activeTrips };
+  return { rows, brokerNames, activeTrips, monthGoalNet, goalMonthLabel };
 }
 
 export default async function LoadBoardPage() {

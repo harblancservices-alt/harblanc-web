@@ -20,7 +20,11 @@ export type LoadRow = {
   net: number;
   loadedMiles: number | null;
   dhMiles: number;
-  /** Calendar month 0–11 (delivery → pickup → created_at) for the month filter. */
+  /**
+   * Calendar month 0–11 the load is attributed to, by close-out date
+   * (delivery → pickup → created_at) MINUS 1 day — so a load closed out on the
+   * 1st falls into the previous month. Drives the month dropdown.
+   */
   month: number;
   status: string;
   paymentStatus: string;
@@ -30,6 +34,10 @@ export type LoadBoardData = {
   rows: ReadonlyArray<LoadRow>;
   brokerNames: ReadonlyArray<string>;
   activeTrips: ReadonlyArray<string>;
+  /** Net profit of loads attributed to the CURRENT month (resets monthly). */
+  monthGoalNet: number;
+  /** Full name of the current goal month, e.g. "June". */
+  goalMonthLabel: string;
 };
 
 const MONTHS = [
@@ -168,7 +176,7 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
           </label>
         </header>
 
-        <ProfitGoalBar net={stats.net} />
+        <ProfitGoalBar net={data.monthGoalNet} monthLabel={data.goalMonthLabel} />
 
         {/* KPI strip */}
         <div className="mb-4 grid grid-cols-3 gap-px overflow-hidden rounded-md border border-line bg-line shadow-sm sm:grid-cols-6">
@@ -535,7 +543,7 @@ function BulkDeleteButton({ count }: { count: number }) {
   );
 }
 
-function ProfitGoalBar({ net }: { net: number }) {
+function ProfitGoalBar({ net, monthLabel }: { net: number; monthLabel: string }) {
   const GOAL = 10000;
   const pct = Math.max(0, Math.min(100, (net / GOAL) * 100));
   const reached = net >= GOAL;
@@ -546,7 +554,7 @@ function ProfitGoalBar({ net }: { net: number }) {
     <div className="mb-2 rounded-md border border-line bg-card px-3.5 py-3 shadow-sm">
       <div className="flex items-baseline justify-between gap-2">
         <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-indigo-600">
-          Net profit goal
+          Net profit goal · {monthLabel}
         </span>
         <span className="font-mono text-[12px] tabular-nums">
           <span className="font-bold text-green-700">{usd(net)}</span>
