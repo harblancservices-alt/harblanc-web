@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { AddLoadButton } from "./dispatch/loads/AddLoadButton";
+import { FarmBrokerContactCard } from "./FarmBrokerContactCard";
 import { ActiveLoadDocButton } from "./ActiveLoadDocActions";
 import { OdometerStatusCard } from "./dispatch/loads/[id]/OdometerStatusCard";
 import type { PipelineCard } from "@/lib/dispatch/pipeline";
@@ -217,6 +218,10 @@ export function DashboardView({ data }: { data: DashboardData }) {
             ))}
           </div>
         )}
+
+        {/* Empty-truck nudge: farm a broker/lane off the board for Backhaul.
+            Only when there are NO active loads (between Add Load + maintenance). */}
+        {data.activeLoads.length === 0 ? <FarmBrokerContactCard /> : null}
 
         {data.maintenance.length > 0 ? (
           <>

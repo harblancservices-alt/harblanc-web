@@ -33,6 +33,94 @@ export type ZipLookup = {
   lon: number;
 };
 
+export type CityHit = {
+  city: string;
+  state: string;
+  /** Representative (lowest) ZIP for this city+state — regional accuracy is
+   *  fine for backhaul radius matching. */
+  zip: string;
+  lat: number;
+  lon: number;
+};
+
+type RawZip = {
+  zip: string;
+  latitude: number;
+  longitude: number;
+  city: string;
+  state: string;
+  country?: string;
+};
+
+// Built once per server process from the bundled zipcodes dataset: one entry
+// per (city, state), keyed to its lowest ZIP, sorted by city name. Stays
+// server-side (the dataset never reaches the client bundle).
+let CITY_INDEX:
+  | { city: string; state: string; zip: string; lat: number; lon: number; lc: string }[]
+  | null = null;
+
+function cityIndex() {
+  if (CITY_INDEX) return CITY_INDEX;
+  const codes =
+    (zipcodes as unknown as { codes?: Record<string, RawZip> }).codes ?? {};
+  const best = new Map<
+    string,
+    { city: string; state: string; zip: string; lat: number; lon: number }
+  >();
+  for (const zip in codes) {
+    const r = codes[zip];
+    if (!r || !r.city || !r.state) continue;
+    if (typeof r.latitude !== "number" || typeof r.longitude !== "number") continue;
+    if ((r.country ?? "US") !== "US") continue;
+    const key = r.city.toLowerCase() + "|" + r.state;
+    const prev = best.get(key);
+    // Lowest ZIP string = deterministic representative (same-length numeric).
+    if (!prev || zip < prev.zip) {
+      best.set(key, {
+        city: r.city,
+        state: r.state,
+        zip,
+        lat: r.latitude,
+        lon: r.longitude,
+      });
+    }
+  }
+  CITY_INDEX = [...best.values()]
+    .map((v) => ({ ...v, lc: v.city.toLowerCase() }))
+    .sort((a, b) =>
+      a.lc < b.lc ? -1 : a.lc > b.lc ? 1 : a.state < b.state ? -1 : 1,
+    );
+  return CITY_INDEX;
+}
+
+/**
+ * Typeahead city search over the bundled US ZIP dataset. Prefix matches first
+ * (sorted), then substring matches, capped at `limit`. Server-side only.
+ */
+export function searchCities(query: string, limit = 12): CityHit[] {
+  const q = query.trim().toLowerCase();
+  if (q.length < 2) return [];
+  const idx = cityIndex();
+  const starts: CityHit[] = [];
+  const contains: CityHit[] = [];
+  for (const c of idx) {
+    const hit: CityHit = {
+      city: c.city,
+      state: c.state,
+      zip: c.zip,
+      lat: c.lat,
+      lon: c.lon,
+    };
+    if (c.lc.startsWith(q)) {
+      starts.push(hit);
+      if (starts.length >= limit) break;
+    } else if (contains.length < limit && c.lc.includes(q)) {
+      contains.push(hit);
+    }
+  }
+  return [...starts, ...contains].slice(0, limit);
+}
+
 export function lookupZip(zip: string): ZipLookup | null {
   // zipcodes accepts 5-digit ZIPs; strip ZIP+4 if present.
   const five = zip.split("-")[0];
