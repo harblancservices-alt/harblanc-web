@@ -7,12 +7,17 @@
  * the legacy `fuel_cost` / `factoring_fee` / `misc_cost` columns on `loads`
  * (the app never populates those — reading them made the card show net == gross).
  *
- * Cancelled loads are excluded from every figure (they earn nothing at the
- * trip level). PC (personal-conveyance) diesel is intentionally NOT part of
- * net or spent — it's tracked separately on the detail page.
+ * Net is ALL-IN at the trip level:
+ *   net = gross − (loaded/deadhead diesel + factoring + load expenses + PC diesel)
+ * PC (personal-conveyance, the empty miles between loads + the home bookends)
+ * diesel is folded in here — this is a TRIP-level concept, so per-load net
+ * (loadNet, used by the load page / board) is unchanged.
+ *
+ * Cancelled loads are excluded from every dollar figure (they earn nothing at
+ * the trip level).
  */
 
-import { loadDiesel, loadNet, type FuelSettings } from "./fuel";
+import { loadDiesel, loadNet, dieselCost, type FuelSettings } from "./fuel";
 
 export type TripRollupLoad = {
   id: string;
@@ -30,9 +35,9 @@ export type TripFinancials = {
   loads: number;
   /** Sum of load rates. */
   gross: number;
-  /** gross − diesel − factoring − expenses (the true net). */
+  /** gross − (load diesel + factoring + expenses + PC diesel) — all-in net. */
   net: number;
-  /** Total spent = gross − net = diesel + factoring + expenses. */
+  /** Total spent = gross − net = load diesel + factoring + expenses + PC diesel. */
   spent: number;
   /** net ÷ gross × 100, or null when gross is 0 (avoid divide-by-zero). */
   profitPct: number | null;
@@ -42,7 +47,41 @@ export type TripFinancials = {
   loadDieselTotal: number;
   factoringTotal: number;
   expensesTotal: number;
+  /** Personal-conveyance (empty) miles for the trip. */
+  pcMiles: number;
+  /** PC diesel — now included in net/spent. */
+  pcDiesel: number;
 };
+
+/**
+ * Personal-conveyance miles for a trip: the empty gaps where the truck moved
+ * but no load was on. Order the loads by their assigned odometer; PC is
+ * start-odometer → first assigned, each delivered → next assigned, and last
+ * delivered → end-odometer. Only non-negative gaps count.
+ */
+function computePcMiles(
+  loads: TripRollupLoad[],
+  startOdometer: number | null,
+  endOdometer: number | null,
+): number {
+  const seq = loads
+    .filter((l) => l.odo_assigned != null && l.odo_delivered != null)
+    .sort((a, b) => (a.odo_assigned ?? 0) - (b.odo_assigned ?? 0));
+  let pc = 0;
+  if (startOdometer != null && seq.length > 0) {
+    const g = (seq[0].odo_assigned ?? 0) - startOdometer;
+    if (g > 0) pc += g;
+  }
+  for (let i = 1; i < seq.length; i++) {
+    const g = (seq[i].odo_assigned ?? 0) - (seq[i - 1].odo_delivered ?? 0);
+    if (g > 0) pc += g;
+  }
+  if (endOdometer != null && seq.length > 0) {
+    const g = endOdometer - (seq[seq.length - 1].odo_delivered ?? 0);
+    if (g > 0) pc += g;
+  }
+  return pc;
+}
 
 function num(v: number | string | null): number {
   if (v == null) return 0;
@@ -55,11 +94,12 @@ export function computeTripFinancials(
   fuel: FuelSettings,
   factoringIds: Set<string>,
   expByLoad: Map<string, number>,
+  tripOdometer?: { start: number | null; end: number | null },
 ): TripFinancials {
   const live = loads.filter((l) => l.status !== "cancelled");
 
   let gross = 0;
-  let net = 0;
+  let loadNetSum = 0; // sum of per-load nets (before PC)
   let loadedMiles = 0;
   let deadheadMiles = 0;
   let loadDieselTotal = 0;
@@ -87,7 +127,7 @@ export function computeTripFinancials(
     );
 
     gross += rate;
-    net += loadNetValue;
+    loadNetSum += loadNetValue;
     loadedMiles += d.loaded ?? 0;
     deadheadMiles += d.deadhead ?? 0;
     loadDieselTotal += d.diesel;
@@ -95,7 +135,18 @@ export function computeTripFinancials(
     expensesTotal += expenses;
   }
 
-  const spent = gross - net;
+  // PC diesel is a TRIP-level cost — fold it into net so net is all-in. PC
+  // counts gaps over ALL loads with odometer readings (incl. cancelled), the
+  // same basis the detail page has always used to show the PC bucket.
+  const pcMiles = computePcMiles(
+    loads,
+    tripOdometer?.start ?? null,
+    tripOdometer?.end ?? null,
+  );
+  const pcDiesel = dieselCost(pcMiles, fuel);
+
+  const net = loadNetSum - pcDiesel;
+  const spent = gross - net; // = loadDiesel + factoring + expenses + PC diesel
   const profitPct = gross > 0 ? (net / gross) * 100 : null;
 
   return {
@@ -109,5 +160,7 @@ export function computeTripFinancials(
     loadDieselTotal,
     factoringTotal,
     expensesTotal,
+    pcMiles,
+    pcDiesel,
   };
 }

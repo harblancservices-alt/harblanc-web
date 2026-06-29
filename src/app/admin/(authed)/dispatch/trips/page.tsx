@@ -29,6 +29,8 @@ type TripRow = {
   status: string;
   notes: string | null;
   created_at: string;
+  start_odometer: number | null;
+  end_odometer: number | null;
 };
 type LoadAgg = TripRollupLoad & { trip_id: string | null };
 
@@ -43,7 +45,7 @@ export default async function TripsPage() {
     await Promise.all([
       sb
         .from("trips")
-        .select("id, name, status, notes, created_at")
+        .select("id, name, status, notes, created_at, start_odometer, end_odometer")
         .is("deleted_at", null)
         .order("created_at", { ascending: false })
         .returns<TripRow[]>(),
@@ -108,6 +110,7 @@ export default async function TripsPage() {
       fuel,
       factoringIds,
       expByLoad,
+      { start: t.start_odometer, end: t.end_odometer },
     );
     return {
       id: t.id,

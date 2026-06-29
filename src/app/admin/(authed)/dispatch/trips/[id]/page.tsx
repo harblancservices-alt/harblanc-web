@@ -166,35 +166,21 @@ export default async function TripDetailPage({
       l.broker_id != null && factoringIds.has(l.broker_id),
     ).net;
 
-  const fin = computeTripFinancials(loads, fuel, factoringIds, expByLoad);
+  // PC diesel is now folded into net by computeTripFinancials, so the rollup
+  // takes the trip's odometer bookends and returns pcMiles / pcDiesel too.
+  const fin = computeTripFinancials(loads, fuel, factoringIds, expByLoad, {
+    start: trip.start_odometer,
+    end: trip.end_odometer,
+  });
   const gross = fin.gross;
-  const net = fin.net;
+  const net = fin.net; // all-in: minus load diesel + factoring + expenses + PC diesel
   const loadedTotal = fin.loadedMiles;
   const deadheadTotal = fin.deadheadMiles;
   const loadDieselTotal = fin.loadDieselTotal;
-  const spent = fin.spent; // gross − net = diesel + factoring + expenses
+  const spent = fin.spent; // gross − net = load diesel + factoring + expenses + PC diesel
   const profitPct = fin.profitPct; // net ÷ gross × 100, or null when gross is 0
-
-  // Personal conveyance = the empty gaps. Order loads by their assigned
-  // odometer; PC is trip-start → first assigned, each delivered → next
-  // assigned, and last delivered → trip-end. Only count non-negative gaps.
-  const seq = loads
-    .filter((l) => l.odo_assigned != null && l.odo_delivered != null)
-    .sort((a, b) => (a.odo_assigned ?? 0) - (b.odo_assigned ?? 0));
-  let pcMiles = 0;
-  if (trip.start_odometer != null && seq.length > 0) {
-    const g = (seq[0].odo_assigned ?? 0) - trip.start_odometer;
-    if (g > 0) pcMiles += g;
-  }
-  for (let i = 1; i < seq.length; i++) {
-    const g = (seq[i].odo_assigned ?? 0) - (seq[i - 1].odo_delivered ?? 0);
-    if (g > 0) pcMiles += g;
-  }
-  if (trip.end_odometer != null && seq.length > 0) {
-    const g = trip.end_odometer - (seq[seq.length - 1].odo_delivered ?? 0);
-    if (g > 0) pcMiles += g;
-  }
-  const pcDiesel = dieselCost(pcMiles, fuel);
+  const pcMiles = fin.pcMiles;
+  const pcDiesel = fin.pcDiesel;
 
   const totalMiles = loadedTotal + deadheadTotal + pcMiles;
   const closed = trip.status === "closed";
@@ -272,7 +258,7 @@ export default async function TripDetailPage({
                 label="Net"
                 value={usd(net)}
                 tone="green"
-                sub={`−${usd(loadDieselTotal)} diesel`}
+                sub={`−${usd(loadDieselTotal + pcDiesel)} diesel`}
               />
               <StatTile
                 label="Spent"
@@ -310,7 +296,7 @@ export default async function TripDetailPage({
                 label="PC"
                 value={`${pcMiles.toLocaleString()} mi`}
                 highlight
-                sub={`${usd(pcDiesel)} · not in net`}
+                sub={`${usd(pcDiesel)} · in net`}
               />
             </div>
           </div>
