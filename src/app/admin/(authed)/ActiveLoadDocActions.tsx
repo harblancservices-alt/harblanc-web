@@ -108,6 +108,12 @@ function DocModal({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
+  const [askCamera, setAskCamera] = useState(false);
+
+  // POD = delivery photos: go straight to the rear camera (accept="image/*"
+  // capture="environment") behind a quick "Open camera?" confirm. Rate Con /
+  // BOL keep the normal photo/library/PDF picker.
+  const isPod = kind === "pod";
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -253,20 +259,34 @@ function DocModal({
             </div>
           ) : null}
 
-          <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-line-strong bg-card px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-fg-muted transition-colors hover:bg-elevated hover:text-fg">
-            {staged.length > 0 ? "+ Add more" : "+ Add photo / file"}
-            <input
-              ref={inputRef}
-              type="file"
-              accept={ACCEPT}
-              multiple
-              onChange={(e) => onPick(e.target.files)}
-              className="hidden"
-            />
-          </label>
+          <button
+            type="button"
+            onClick={() =>
+              isPod ? setAskCamera(true) : inputRef.current?.click()
+            }
+            className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-line-strong bg-card px-3 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-fg-muted transition-colors hover:bg-elevated hover:text-fg"
+          >
+            {isPod
+              ? staged.length > 0
+                ? "Take another photo"
+                : "Open camera"
+              : staged.length > 0
+                ? "+ Add more"
+                : "+ Add photo / file"}
+          </button>
+          <input
+            ref={inputRef}
+            type="file"
+            accept={isPod ? "image/*" : ACCEPT}
+            capture={isPod ? "environment" : undefined}
+            multiple
+            onChange={(e) => onPick(e.target.files)}
+            className="hidden"
+          />
           <p className="font-mono text-[10px] text-fg-subtle">
-            Take a photo, choose from your library, or pick a PDF · multiple
-            files welcome.
+            {isPod
+              ? "Opens your camera for a delivery photo · take more if you need."
+              : "Take a photo, choose from your library, or pick a PDF · multiple files welcome."}
           </p>
 
           {ok ? (
@@ -319,6 +339,51 @@ function DocModal({
           </Button>
         </div>
       </div>
+
+      {/* POD-only: "Open camera?" yes/no before launching the rear camera. */}
+      {askCamera ? (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
+          onClick={(e) => {
+            e.stopPropagation();
+            setAskCamera(false);
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Open camera"
+            className="w-full max-w-xs rounded-lg border border-line-strong bg-card p-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-[15px] font-semibold text-fg">Open camera?</p>
+            <p className="mt-1 text-[12px] text-fg-muted">
+              Take a proof-of-delivery photo with your camera.
+            </p>
+            <div className="mt-3 flex items-center justify-end gap-2">
+              <Button
+                type="button"
+                variant="cancel"
+                size="sm"
+                onClick={() => setAskCamera(false)}
+              >
+                No
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                onClick={() => {
+                  setAskCamera(false);
+                  inputRef.current?.click();
+                }}
+              >
+                Open Camera
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

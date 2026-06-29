@@ -99,6 +99,12 @@ function DocKindBlock({
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
+  const [askCamera, setAskCamera] = useState(false);
+
+  // POD = delivery photos: jump straight to the rear camera (accept="image/*"
+  // capture="environment") behind a quick "Open camera?" confirm, instead of
+  // the OS file chooser. Rate Con / BOL keep the normal photo/library/PDF picker.
+  const isPod = kind === "pod";
 
   async function onPick(fileList: FileList | null) {
     const files = Array.from(fileList ?? []);
@@ -184,22 +190,73 @@ function DocKindBlock({
         <span className="shrink-0">
           <button
             type="button"
-            onClick={() => inputRef.current?.click()}
+            onClick={() => (isPod ? setAskCamera(true) : inputRef.current?.click())}
             disabled={busy}
             className="rounded-md border border-red-700 bg-red-600 px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-red-700 disabled:opacity-50"
           >
-            {busy ? "Uploading…" : hasDocs ? "+ Add" : "+ Add photo / file"}
+            {busy
+              ? "Uploading…"
+              : isPod
+                ? hasDocs
+                  ? "+ Photo"
+                  : "+ Take photo"
+                : hasDocs
+                  ? "+ Add"
+                  : "+ Add photo / file"}
           </button>
           <input
             ref={inputRef}
             type="file"
-            accept={ACCEPT}
+            accept={isPod ? "image/*" : ACCEPT}
+            capture={isPod ? "environment" : undefined}
             multiple
             className="hidden"
             onChange={(e) => onPick(e.target.files)}
           />
         </span>
       </div>
+
+      {/* POD-only: "Open camera?" yes/no before launching the rear camera. */}
+      {askCamera ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setAskCamera(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Open camera"
+            className="w-full max-w-xs rounded-lg border border-line-strong bg-card p-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-[15px] font-semibold text-fg">Open camera?</p>
+            <p className="mt-1 text-[12px] text-fg-muted">
+              Take a proof-of-delivery photo with your camera.
+            </p>
+            <div className="mt-3 flex items-center justify-end gap-2">
+              <Button
+                type="button"
+                variant="cancel"
+                size="sm"
+                onClick={() => setAskCamera(false)}
+              >
+                No
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                onClick={() => {
+                  setAskCamera(false);
+                  inputRef.current?.click();
+                }}
+              >
+                Open Camera
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {hasDocs ? (
         <div className="mt-2 space-y-1.5">
