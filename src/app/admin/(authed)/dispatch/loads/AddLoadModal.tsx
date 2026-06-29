@@ -361,7 +361,7 @@ export function AddLoadModal({
             </p>
 
             <div className="grid grid-cols-2 gap-2.5">
-              <div>
+              <div className="min-w-0">
                 <label className="block font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-fg">
                   Origin ZIP<span className="ml-1.5 rounded bg-red-100 px-1.5 py-[1px] align-middle font-mono text-[8.5px] font-bold uppercase tracking-[0.08em] text-red-700">Required</span>
                 </label>
@@ -372,13 +372,13 @@ export function AddLoadModal({
                   onChange={(e) => setOriginZip(e.target.value)}
                   inputMode="numeric"
                   autoComplete="off"
-                  className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
+                  className="mt-1 block w-full min-w-0 rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
                 />
                 <p className="mt-1 truncate text-[11px] text-fg-muted">
                   {originCity || "City, ST"}
                 </p>
               </div>
-              <div>
+              <div className="min-w-0">
                 <label className="block font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-fg">
                   Destination ZIP<span className="ml-1.5 rounded bg-red-100 px-1.5 py-[1px] align-middle font-mono text-[8.5px] font-bold uppercase tracking-[0.08em] text-red-700">Required</span>
                 </label>
@@ -389,7 +389,7 @@ export function AddLoadModal({
                   onChange={(e) => setDestZip(e.target.value)}
                   inputMode="numeric"
                   autoComplete="off"
-                  className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
+                  className="mt-1 block w-full min-w-0 rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
                 />
                 <p className="mt-1 truncate text-[11px] text-fg-muted">
                   {destCity || "City, ST"}
@@ -404,7 +404,7 @@ export function AddLoadModal({
 
             <div className="mt-3 grid grid-cols-2 gap-2.5">
               <LField label="Rate ($)" name="rate" type="number" required />
-              <div>
+              <div className="min-w-0">
                 <label className="block font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-fg">
                   Loaded miles
                 </label>
@@ -414,7 +414,7 @@ export function AddLoadModal({
                   value={miles}
                   onChange={(e) => setMiles(e.target.value)}
                   autoComplete="off"
-                  className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
+                  className="mt-1 block w-full min-w-0 rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
                 />
               </div>
             </div>
@@ -491,7 +491,7 @@ function LField({
   list?: string;
 }) {
   return (
-    <div>
+    <div className="min-w-0">
       <label className="block font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-fg">
         {label}
         {required ? <span className="ml-1.5 rounded bg-red-100 px-1.5 py-[1px] align-middle font-mono text-[8.5px] font-bold uppercase tracking-[0.08em] text-red-700">Required</span> : null}
@@ -504,7 +504,7 @@ function LField({
         list={list}
         autoComplete="off"
         step={type === "number" ? "any" : undefined}
-        className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
+        className="mt-1 block w-full min-w-0 rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
       />
     </div>
   );

@@ -26,10 +26,14 @@ const DOC_TITLE: Record<DocKind, string> = {
 
 /**
  * Per-active-load document upload button (Rate Con / BOL / POD) on the
- * dashboard. Opens a staging multi-file (camera / library / file) uploader and
- * saves the files under the given kind on that load via uploadLoadDocument —
- * the same action and bucket the load page uses. The count folds into the
- * label ("Rate Con · 2") like the original POD button did.
+ * dashboard.
+ *
+ *  - NONE attached yet → the "+ <Doc>" uploader button: opens a staging
+ *    multi-file (camera / library / file) picker and saves under the given
+ *    kind on that load (same action + bucket the load page uses).
+ *  - ALREADY attached → a muted, NON-tappable "✓ <Doc>" indicator that just
+ *    shows it's in there (no count, no add action). To add more of that kind,
+ *    open the load detail (the card's top area links there).
  */
 export function ActiveLoadDocButton({
   loadId,
@@ -48,6 +52,18 @@ export function ActiveLoadDocButton({
 }) {
   const [open, setOpen] = useState(false);
 
+  // Already attached → grayed-out "it's in there" indicator, not an add button.
+  if (count > 0) {
+    return (
+      <span
+        aria-label={`${label} attached`}
+        className="inline-flex w-full items-center justify-center gap-1.5 rounded-md border border-line bg-elevated px-2.5 py-1.5 font-mono text-[11px] font-bold uppercase leading-none tracking-[0.08em] text-fg-subtle"
+      >
+        <span aria-hidden>✓</span> {label}
+      </span>
+    );
+  }
+
   return (
     <>
       <Button
@@ -58,7 +74,6 @@ export function ActiveLoadDocButton({
         onClick={() => setOpen(true)}
       >
         + {label}
-        {count > 0 ? ` · ${count}` : ""}
       </Button>
       {open ? (
         <DocModal
