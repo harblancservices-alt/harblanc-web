@@ -127,19 +127,23 @@ export function DashboardView({ data }: { data: DashboardData }) {
               <div
                 key={l.id}
                 className={
-                  "px-3.5 py-2.5 " +
+                  "relative px-3.5 py-2.5 transition-colors hover:bg-elevated " +
                   (i === data.activeLoads.length - 1 ? "" : "border-b border-line")
                 }
               >
-                {/* Whole top info area opens the load — broker, lane AND the
-                    rate are one big tap target. The odometer + doc buttons
-                    below are separate siblings, so their own controls run
-                    without navigating. */}
+                {/* Stretched link — the WHOLE card opens the load. The odometer
+                    and the three doc buttons sit ABOVE it (relative z-10) so
+                    they act as their own controls and never navigate. */}
                 <Link
                   href={"/admin/dispatch/loads/" + l.id}
                   prefetch={false}
-                  className="-mx-1 flex items-center justify-between gap-3 rounded-md px-1 py-1 transition-colors hover:bg-elevated"
-                >
+                  aria-label={`Open load — ${l.broker}`}
+                  className="absolute inset-0 z-0"
+                />
+
+                {/* Top info — status, broker/lane, rate. Static (below the
+                    stretched link), so tapping anywhere here opens the load. */}
+                <div className="flex items-center justify-between gap-3">
                   <span className="flex min-w-0 flex-1 items-center gap-2.5">
                     <span
                       className={
@@ -161,13 +165,12 @@ export function DashboardView({ data }: { data: DashboardData }) {
                   <span className="shrink-0 font-mono text-[13px] font-bold tabular-nums text-green-700">
                     {l.rateDisplay}
                   </span>
-                </Link>
+                </div>
 
                 {/* Inline odometer — the EXACT same component + action the load
-                    page uses, so the two always mirror. Collapsed by default;
-                    the pencil opens straight into the odometer entry. Sits
-                    ABOVE the doc buttons. */}
-                <div className="mt-2.5">
+                    page uses. Lifted above the stretched link (relative z-10)
+                    so its Edit + entry form work without opening the load. */}
+                <div className="relative z-10 mt-2.5">
                   <OdometerStatusCard
                     variant="dashboard"
                     loadId={l.id}
@@ -185,10 +188,10 @@ export function DashboardView({ data }: { data: DashboardData }) {
                   />
                 </div>
 
-                {/* Three doc-upload buttons — same multi-file flow + action as
-                    the load page, one per kind. Moved to the bottom, below the
-                    odometer. */}
-                <div className="mt-2.5 grid grid-cols-3 gap-2">
+                {/* Three doc buttons — lifted above the stretched link so each
+                    acts as its own button (and the "attached" indicator state
+                    doesn't navigate either). */}
+                <div className="relative z-10 mt-2.5 grid grid-cols-3 gap-2">
                   <ActiveLoadDocButton
                     loadId={l.id}
                     broker={l.broker}

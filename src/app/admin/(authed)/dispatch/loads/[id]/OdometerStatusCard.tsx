@@ -115,14 +115,16 @@ function DashboardOdometer({
     <InnerCard
       title="Odometer"
       action={
-        <button
+        <Button
           type="button"
+          variant={editing ? "cancel" : "edit"}
+          size="sm"
           onClick={() => setEditing((e) => !e)}
           aria-pressed={editing}
-          className="font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-fg-muted transition-colors hover:text-fg"
+          leftIcon={editing ? undefined : <PencilIcon />}
         >
           {editing ? "Cancel" : "Edit"}
-        </button>
+        </Button>
       }
     >
       {editing ? (
