@@ -1,3 +1,4 @@
-# Vendored OpenCV.js (self-hosted scanner engine, ~10 MB with embedded wasm).
-# Treat as binary so git never applies EOL normalization to the large asset.
-public/vendor/opencv.js -text
+# Vendored OpenCV split build (self-hosted scanner engine).
+# Treat as binary so git never applies EOL normalization to these large assets.
+public/vendor/opencv.wasm -text
+public/vendor/opencv-core.js -text

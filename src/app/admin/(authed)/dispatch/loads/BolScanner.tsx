@@ -27,24 +27,30 @@ import { detectCorners, extractPaper, type Corners, type Pt } from "@/lib/dispat
  * into @/lib/dispatch/scan so we don't pull jscanify's native `canvas` dep.
  */
 
-// OpenCV.js is self-hosted (same-origin /public) and lazy-loaded only when the
-// scanner opens — never in the initial bundle. We fetch it with a streaming
-// reader so we can show a real progress bar, and persist it in the Cache API
-// (not just the HTTP cache, whose Cache-Control: max-age=0, must-revalidate
-// header would re-validate every session and never work offline). So: first
-// open shows download progress; every open after is instant from cache,
-// including with no signal. (The earlier docs.opencv.org/4.10.0 path 404'd,
-// which is why window.cv never appeared and the loader failed instantly.)
-const OPENCV_URL = "/vendor/opencv.js";
-// Cache-API store, versioned so bumping the engine busts old copies.
-const OPENCV_CACHE = "harblanc-scanner";
-const OPENCV_VERSION = "4.9.0";
-const OPENCV_KEY = `${OPENCV_URL}?v=${OPENCV_VERSION}`;
-// Raw (decompressed) byte count of the vendored file — the progress denominator
-// (Content-Length on the wire is the ~3.2 MB brotli size, not the decoded size
-// the streaming reader yields, so we track against the known decoded total).
-const OPENCV_BYTES = 10_257_309;
-const READY_TIMEOUT_MS = 90_000;
+// OpenCV is self-hosted (same-origin /public) and lazy-loaded only when the
+// scanner opens — never in the initial bundle.
+//
+// We use the SPLIT build (a 404 KB JS glue + a separate 6.6 MB binary
+// opencv.wasm) instead of the old single-file build that embedded the wasm as
+// ~10 MB of base64. The embedded build hung on iOS Safari: it had to parse a
+// 10 MB JS string and base64-decode ~7.7 MB into a buffer before a non-
+// streaming compile, which on a phone's tight memory budget could stall or be
+// killed silently. The split build parses a tiny glue, and we hand it the raw
+// wasm bytes (Module.wasmBinary) so it compiles them directly via the async
+// WebAssembly path — far lighter on mobile Safari.
+//
+// We fetch the wasm with a streaming reader (real progress bar) and persist
+// both files in the Cache API (not just the HTTP cache, whose Cache-Control:
+// max-age=0, must-revalidate would re-validate every session and never work
+// offline). First open shows download progress; every open after is instant
+// from cache, including with no signal.
+const WASM_URL = "/vendor/opencv.wasm";
+const GLUE_URL = "/vendor/opencv-core.js";
+// Cache-API store + version tag, bumped when the vendored engine changes.
+const SCANNER_CACHE = "harblanc-scanner-v2";
+const SCANNER_VERSION = "ocvwasm-4.3.0";
+const WASM_BYTES = 6_955_332; // raw (decompressed) size — the progress total
+const INIT_TIMEOUT_MS = 60_000; // hard cap so init never spins forever
 const MAX_SRC_DIM = 1800; // cap captured-photo resolution for speed
 type Mode = "bw" | "gray" | "color";
 type Page = { color: HTMLCanvasElement };
@@ -54,25 +60,23 @@ export type CvProgress = {
   total: number;
 };
 
-// Get the engine source bytes — Cache API first (cross-session + offline),
-// else a streaming network fetch that drives the progress bar, then cache it.
-async function fetchOpenCvSource(
-  onProgress?: (p: CvProgress) => void,
-): Promise<string> {
+// Fetch a vendored asset — Cache API first (cross-session + offline), else a
+// streaming network fetch (driving the progress bar via onChunk), then cached.
+async function fetchCachedBlob(
+  key: string,
+  onChunk?: (received: number) => void,
+): Promise<{ blob: Blob; cached: boolean }> {
   try {
     if ("caches" in window) {
-      const cache = await caches.open(OPENCV_CACHE);
-      const hit = await cache.match(OPENCV_KEY);
-      if (hit) {
-        onProgress?.({ phase: "done", received: OPENCV_BYTES, total: OPENCV_BYTES });
-        return await hit.text();
-      }
+      const cache = await caches.open(SCANNER_CACHE);
+      const hit = await cache.match(key);
+      if (hit) return { blob: await hit.blob(), cached: true };
     }
   } catch {
     /* Cache API unavailable — fall through to the network. */
   }
 
-  const res = await fetch(OPENCV_KEY);
+  const res = await fetch(key);
   if (!res.ok || !res.body) {
     throw new Error("Could not download the scanner engine.");
   }
@@ -85,70 +89,87 @@ async function fetchOpenCvSource(
     if (value) {
       chunks.push(value);
       received += value.length;
-      onProgress?.({ phase: "download", received, total: OPENCV_BYTES });
+      onChunk?.(received);
     }
   }
-  const blob = new Blob(chunks as BlobPart[], { type: "text/javascript" });
+  const blob = new Blob(chunks as BlobPart[]);
   try {
     if ("caches" in window) {
-      const cache = await caches.open(OPENCV_CACHE);
-      await cache.put(
-        OPENCV_KEY,
-        new Response(blob, { headers: { "Content-Type": "text/javascript" } }),
-      );
+      const cache = await caches.open(SCANNER_CACHE);
+      await cache.put(key, new Response(blob));
     }
   } catch {
     /* best-effort cache; ignore quota/availability errors. */
   }
-  return await blob.text();
+  return { blob, cached: false };
 }
 
-// Instantiate cv from the fetched source via a blob <script>, then poll for the
-// wasm to finish compiling (cv.Mat ready). Times out / errors genuinely.
+// Instantiate cv from the glue + pre-fetched wasm bytes. We DON'T poll for
+// cv.Mat — we hand Emscripten our Module with the real onRuntimeInitialized
+// (fires exactly when the runtime is ready) and onAbort (surfaces a genuine
+// failure), plus a hard timeout so a stalled/killed init reports an error
+// instead of spinning on "Initializing…" forever.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function instantiateOpenCv(text: string, onProgress?: (p: CvProgress) => void): Promise<any> {
+function instantiateOpenCv(wasmBinary: ArrayBuffer, glueText: string): Promise<any> {
   return new Promise((resolve, reject) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const w = window as any;
     if (w.cv && w.cv.Mat) return resolve(w.cv);
-    onProgress?.({ phase: "init", received: OPENCV_BYTES, total: OPENCV_BYTES });
-    const blobUrl = URL.createObjectURL(new Blob([text], { type: "text/javascript" }));
-    const start = Date.now();
+
     let settled = false;
-    const poll = () => {
+    let blobUrl = "";
+    const timer = window.setTimeout(
+      () =>
+        finish(
+          null,
+          "Scanner engine timed out while initializing. Reopen on Wi-Fi and try again.",
+        ),
+      INIT_TIMEOUT_MS,
+    );
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    function finish(cv: any, errMsg?: string) {
       if (settled) return;
-      if (w.cv && w.cv.Mat) {
-        settled = true;
-        URL.revokeObjectURL(blobUrl);
-        onProgress?.({ phase: "done", received: OPENCV_BYTES, total: OPENCV_BYTES });
-        resolve(w.cv);
-        return;
-      }
-      if (Date.now() - start > READY_TIMEOUT_MS) {
-        settled = true;
-        reject(new Error("Scanner engine timed out while initializing."));
-        return;
-      }
-      window.setTimeout(poll, 60);
-    };
-    if (!document.querySelector("script[data-opencv]")) {
-      const s = document.createElement("script");
-      s.src = blobUrl;
-      s.async = true;
-      s.dataset.opencv = "1";
-      s.onerror = () => {
-        if (!settled) {
-          settled = true;
-          reject(new Error("Could not initialize the scanner engine."));
-        }
-      };
-      document.body.appendChild(s);
+      settled = true;
+      window.clearTimeout(timer);
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+      if (cv) resolve(cv);
+      else reject(new Error(errMsg || "Scanner engine failed to start."));
     }
-    poll();
+
+    // Our vendored glue reads its Emscripten Module from globalThis.__ocvModule
+    // (a one-line patch to the upstream file). Providing wasmBinary makes it
+    // compile our already-downloaded bytes and skip any wasm fetch.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const g = globalThis as any;
+    g.__ocvModule = {
+      wasmBinary,
+      // Belt-and-suspenders: if it ever does fetch, hit the vendored file.
+      locateFile: (path: string) => (path.endsWith(".wasm") ? WASM_URL : path),
+      onRuntimeInitialized: () => {
+        const cv = w.cv;
+        if (cv && cv.Mat) finish(cv);
+        else finish(null, "Scanner engine started without an image core.");
+      },
+      onAbort: (reason: unknown) =>
+        finish(
+          null,
+          `Scanner engine failed to start${reason ? ` (${String(reason)})` : ""}.`,
+        ),
+      print: () => {},
+      printErr: () => {},
+    };
+
+    blobUrl = URL.createObjectURL(new Blob([glueText], { type: "text/javascript" }));
+    const s = document.createElement("script");
+    s.src = blobUrl;
+    s.async = true;
+    s.dataset.opencv = "1";
+    s.onerror = () => finish(null, "Could not initialize the scanner engine.");
+    document.body.appendChild(s);
   });
 }
 
-// ── OpenCV.js lazy loader (module singleton) ─────────────────────────────────
+// ── OpenCV lazy loader (module singleton) ────────────────────────────────────
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let cvPromise: Promise<any> | null = null;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -161,8 +182,36 @@ function loadOpenCv(onProgress?: (p: CvProgress) => void): Promise<any> {
   const w = window as any;
   const p = (async () => {
     if (w.cv && w.cv.Mat) return w.cv;
-    const text = await fetchOpenCvSource(onProgress);
-    return await instantiateOpenCv(text, onProgress);
+
+    // Drop the old single-file build's cache entry (frees ~10 MB) once.
+    try {
+      if ("caches" in window) await caches.delete("harblanc-scanner");
+    } catch {
+      /* ignore */
+    }
+
+    // 1. The binary wasm — the big download → drives the progress bar.
+    const wasmKey = `${WASM_URL}?v=${SCANNER_VERSION}`;
+    const { blob: wasmBlob, cached } = await fetchCachedBlob(wasmKey, (received) =>
+      onProgress?.({
+        phase: "download",
+        received: Math.min(received, WASM_BYTES),
+        total: WASM_BYTES,
+      }),
+    );
+    onProgress?.({ phase: cached ? "init" : "download", received: WASM_BYTES, total: WASM_BYTES });
+    const wasmBinary = await wasmBlob.arrayBuffer();
+
+    // 2. The small JS glue — fetch (cached) as text.
+    onProgress?.({ phase: "init", received: WASM_BYTES, total: WASM_BYTES });
+    const glueKey = `${GLUE_URL}?v=${SCANNER_VERSION}`;
+    const { blob: glueBlob } = await fetchCachedBlob(glueKey);
+    const glueText = await glueBlob.text();
+
+    // 3. Compile + initialize from our bytes.
+    const cv = await instantiateOpenCv(wasmBinary, glueText);
+    onProgress?.({ phase: "done", received: WASM_BYTES, total: WASM_BYTES });
+    return cv;
   })();
   // On failure clear the cache so reopening retries from scratch.
   p.catch(() => {
@@ -666,7 +715,7 @@ export function BolScanner({
 // "Initializing engine…" label while the wasm compiles. From cache it jumps
 // straight to done.
 function EngineProgress({ progress }: { progress: CvProgress | null }) {
-  const totalMb = (OPENCV_BYTES / 1048576).toFixed(1);
+  const totalMb = (WASM_BYTES / 1048576).toFixed(1);
   const phase = progress?.phase ?? "download";
   const pct =
     phase === "download" && progress && progress.total > 0
