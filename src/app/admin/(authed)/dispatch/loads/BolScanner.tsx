@@ -28,65 +28,143 @@ import { detectCorners, extractPaper, type Corners, type Pt } from "@/lib/dispat
  */
 
 // OpenCV.js is self-hosted (same-origin /public) and lazy-loaded only when the
-// scanner opens — never in the initial bundle, and it works at no-signal job
-// sites once the browser has cached it. (Earlier it was loaded from
-// docs.opencv.org, whose pinned path 404'd, so window.cv never appeared and the
-// loader failed instantly.)
+// scanner opens — never in the initial bundle. We fetch it with a streaming
+// reader so we can show a real progress bar, and persist it in the Cache API
+// (not just the HTTP cache, whose Cache-Control: max-age=0, must-revalidate
+// header would re-validate every session and never work offline). So: first
+// open shows download progress; every open after is instant from cache,
+// including with no signal. (The earlier docs.opencv.org/4.10.0 path 404'd,
+// which is why window.cv never appeared and the loader failed instantly.)
 const OPENCV_URL = "/vendor/opencv.js";
-const READY_TIMEOUT_MS = 90_000; // generous: the wasm is ~10 MB on first load
+// Cache-API store, versioned so bumping the engine busts old copies.
+const OPENCV_CACHE = "harblanc-scanner";
+const OPENCV_VERSION = "4.9.0";
+const OPENCV_KEY = `${OPENCV_URL}?v=${OPENCV_VERSION}`;
+// Raw (decompressed) byte count of the vendored file — the progress denominator
+// (Content-Length on the wire is the ~3.2 MB brotli size, not the decoded size
+// the streaming reader yields, so we track against the known decoded total).
+const OPENCV_BYTES = 10_257_309;
+const READY_TIMEOUT_MS = 90_000;
 const MAX_SRC_DIM = 1800; // cap captured-photo resolution for speed
 type Mode = "bw" | "gray" | "color";
 type Page = { color: HTMLCanvasElement };
+export type CvProgress = {
+  phase: "download" | "init" | "done";
+  received: number;
+  total: number;
+};
 
-// ── OpenCV.js lazy loader (module singleton) ─────────────────────────────────
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let cvPromise: Promise<any> | null = null;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function loadOpenCv(): Promise<any> {
-  if (typeof window === "undefined") {
-    return Promise.reject(new Error("Scanner needs a browser."));
+// Get the engine source bytes — Cache API first (cross-session + offline),
+// else a streaming network fetch that drives the progress bar, then cache it.
+async function fetchOpenCvSource(
+  onProgress?: (p: CvProgress) => void,
+): Promise<string> {
+  try {
+    if ("caches" in window) {
+      const cache = await caches.open(OPENCV_CACHE);
+      const hit = await cache.match(OPENCV_KEY);
+      if (hit) {
+        onProgress?.({ phase: "done", received: OPENCV_BYTES, total: OPENCV_BYTES });
+        return await hit.text();
+      }
+    }
+  } catch {
+    /* Cache API unavailable — fall through to the network. */
   }
-  if (cvPromise) return cvPromise;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const w = window as any;
-  const p = new Promise((resolve, reject) => {
+
+  const res = await fetch(OPENCV_KEY);
+  if (!res.ok || !res.body) {
+    throw new Error("Could not download the scanner engine.");
+  }
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let received = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (value) {
+      chunks.push(value);
+      received += value.length;
+      onProgress?.({ phase: "download", received, total: OPENCV_BYTES });
+    }
+  }
+  const blob = new Blob(chunks as BlobPart[], { type: "text/javascript" });
+  try {
+    if ("caches" in window) {
+      const cache = await caches.open(OPENCV_CACHE);
+      await cache.put(
+        OPENCV_KEY,
+        new Response(blob, { headers: { "Content-Type": "text/javascript" } }),
+      );
+    }
+  } catch {
+    /* best-effort cache; ignore quota/availability errors. */
+  }
+  return await blob.text();
+}
+
+// Instantiate cv from the fetched source via a blob <script>, then poll for the
+// wasm to finish compiling (cv.Mat ready). Times out / errors genuinely.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function instantiateOpenCv(text: string, onProgress?: (p: CvProgress) => void): Promise<any> {
+  return new Promise((resolve, reject) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const w = window as any;
+    if (w.cv && w.cv.Mat) return resolve(w.cv);
+    onProgress?.({ phase: "init", received: OPENCV_BYTES, total: OPENCV_BYTES });
+    const blobUrl = URL.createObjectURL(new Blob([text], { type: "text/javascript" }));
     const start = Date.now();
     let settled = false;
-    // The UMD build sets window.cv synchronously, but its wasm initializes
-    // asynchronously — cv.Mat only exists once it's ready. Poll for it (covers
-    // both the onRuntimeInitialized hook firing before AND after we'd attach
-    // it), and only fail after a real timeout or a hard script-load error.
     const poll = () => {
       if (settled) return;
       if (w.cv && w.cv.Mat) {
         settled = true;
+        URL.revokeObjectURL(blobUrl);
+        onProgress?.({ phase: "done", received: OPENCV_BYTES, total: OPENCV_BYTES });
         resolve(w.cv);
         return;
       }
       if (Date.now() - start > READY_TIMEOUT_MS) {
         settled = true;
-        reject(new Error("Scanner engine timed out while loading."));
+        reject(new Error("Scanner engine timed out while initializing."));
         return;
       }
       window.setTimeout(poll, 60);
     };
     if (!document.querySelector("script[data-opencv]")) {
       const s = document.createElement("script");
-      s.src = OPENCV_URL;
+      s.src = blobUrl;
       s.async = true;
       s.dataset.opencv = "1";
       s.onerror = () => {
         if (!settled) {
           settled = true;
-          reject(new Error("Could not load the scanner engine."));
+          reject(new Error("Could not initialize the scanner engine."));
         }
       };
       document.body.appendChild(s);
     }
     poll();
   });
-  // Cache the in-flight/successful promise; on failure clear it so reopening
-  // the scanner retries from scratch instead of replaying the rejection.
+}
+
+// ── OpenCV.js lazy loader (module singleton) ─────────────────────────────────
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let cvPromise: Promise<any> | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function loadOpenCv(onProgress?: (p: CvProgress) => void): Promise<any> {
+  if (typeof window === "undefined") {
+    return Promise.reject(new Error("Scanner needs a browser."));
+  }
+  if (cvPromise) return cvPromise;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const w = window as any;
+  const p = (async () => {
+    if (w.cv && w.cv.Mat) return w.cv;
+    const text = await fetchOpenCvSource(onProgress);
+    return await instantiateOpenCv(text, onProgress);
+  })();
+  // On failure clear the cache so reopening retries from scratch.
   p.catch(() => {
     cvPromise = null;
   });
@@ -185,6 +263,7 @@ export function BolScanner({
   const [pages, setPages] = useState<Page[]>([]);
   const [mode, setMode] = useState<Mode>("bw");
   const [engine, setEngine] = useState<"loading" | "ready" | "error">("loading");
+  const [progress, setProgress] = useState<CvProgress | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -195,10 +274,12 @@ export function BolScanner({
   const [corners, setCorners] = useState<Pt[]>([]); // display-space, ordered TL,TR,BR,BL
   const dragging = useRef<number | null>(null);
 
-  // Warm the engine the moment the scanner opens.
+  // Warm the engine the moment the scanner opens, driving the progress bar.
   useEffect(() => {
     let cancelled = false;
-    getCv()
+    loadOpenCv((p) => {
+      if (!cancelled) setProgress(p);
+    })
       .then(() => !cancelled && setEngine("ready"))
       .catch(() => !cancelled && setEngine("error"));
     return () => {
@@ -431,15 +512,7 @@ export function BolScanner({
                   Review {pages.length} page{pages.length === 1 ? "" : "s"} →
                 </Button>
               ) : null}
-              {engine === "loading" ? (
-                <p className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.1em] text-fg-subtle">
-                  <span
-                    aria-hidden
-                    className="h-3 w-3 animate-spin rounded-full border-2 border-fg-subtle/40 border-t-fg-subtle"
-                  />
-                  Loading scanner… (one-time download)
-                </p>
-              ) : null}
+              {engine === "loading" ? <EngineProgress progress={progress} /> : null}
             </div>
           ) : null}
 
@@ -584,6 +657,48 @@ export function BolScanner({
           </Button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// Real download/init progress for the scanner engine. The bar tracks decoded
+// bytes against the known total during download, then sits at 100% with an
+// "Initializing engine…" label while the wasm compiles. From cache it jumps
+// straight to done.
+function EngineProgress({ progress }: { progress: CvProgress | null }) {
+  const totalMb = (OPENCV_BYTES / 1048576).toFixed(1);
+  const phase = progress?.phase ?? "download";
+  const pct =
+    phase === "download" && progress && progress.total > 0
+      ? Math.min(99, Math.round((progress.received / progress.total) * 100))
+      : 100;
+  const receivedMb = progress ? (progress.received / 1048576).toFixed(1) : "0.0";
+  const left =
+    phase === "init"
+      ? "Initializing engine…"
+      : phase === "done"
+        ? "Ready"
+        : "Downloading scanner…";
+  const right = phase === "download" ? `${receivedMb} / ${totalMb} MB` : `${pct}%`;
+  return (
+    <div className="w-full space-y-1.5">
+      <div
+        className="h-2 w-full overflow-hidden rounded-full bg-elevated"
+        role="progressbar"
+        aria-valuenow={pct}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-label="Loading scanner engine"
+      >
+        <div
+          className="h-full rounded-full bg-emerald-600 transition-[width] duration-150"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <p className="flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.08em] text-fg-subtle">
+        <span>{left}</span>
+        <span className="tabular-nums">{right}</span>
+      </p>
     </div>
   );
 }
