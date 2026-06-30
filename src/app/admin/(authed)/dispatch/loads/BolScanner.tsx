@@ -27,49 +27,71 @@ import { detectCorners, extractPaper, type Corners, type Pt } from "@/lib/dispat
  * into @/lib/dispatch/scan so we don't pull jscanify's native `canvas` dep.
  */
 
-// OpenCV.js is fetched on demand (static asset, no API). Pinned version.
-const OPENCV_URL = "https://docs.opencv.org/4.10.0/opencv.js";
+// OpenCV.js is self-hosted (same-origin /public) and lazy-loaded only when the
+// scanner opens — never in the initial bundle, and it works at no-signal job
+// sites once the browser has cached it. (Earlier it was loaded from
+// docs.opencv.org, whose pinned path 404'd, so window.cv never appeared and the
+// loader failed instantly.)
+const OPENCV_URL = "/vendor/opencv.js";
+const READY_TIMEOUT_MS = 90_000; // generous: the wasm is ~10 MB on first load
 const MAX_SRC_DIM = 1800; // cap captured-photo resolution for speed
 type Mode = "bw" | "gray" | "color";
 type Page = { color: HTMLCanvasElement };
 
 // ── OpenCV.js lazy loader (module singleton) ─────────────────────────────────
-let cvPromise: Promise<unknown> | null = null;
-function loadOpenCv(): Promise<unknown> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let cvPromise: Promise<any> | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function loadOpenCv(): Promise<any> {
   if (typeof window === "undefined") {
     return Promise.reject(new Error("Scanner needs a browser."));
   }
   if (cvPromise) return cvPromise;
-  cvPromise = new Promise((resolve, reject) => {
-    const w = window as unknown as { cv?: { Mat?: unknown; onRuntimeInitialized?: () => void } };
-    const ready = () => !!(w.cv && w.cv.Mat);
-    const settle = () => {
-      if (ready()) return resolve(w.cv);
-      if (w.cv) {
-        w.cv.onRuntimeInitialized = () => resolve(w.cv);
-      } else {
-        reject(new Error("Scanner engine failed to initialize."));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const w = window as any;
+  const p = new Promise((resolve, reject) => {
+    const start = Date.now();
+    let settled = false;
+    // The UMD build sets window.cv synchronously, but its wasm initializes
+    // asynchronously — cv.Mat only exists once it's ready. Poll for it (covers
+    // both the onRuntimeInitialized hook firing before AND after we'd attach
+    // it), and only fail after a real timeout or a hard script-load error.
+    const poll = () => {
+      if (settled) return;
+      if (w.cv && w.cv.Mat) {
+        settled = true;
+        resolve(w.cv);
+        return;
       }
+      if (Date.now() - start > READY_TIMEOUT_MS) {
+        settled = true;
+        reject(new Error("Scanner engine timed out while loading."));
+        return;
+      }
+      window.setTimeout(poll, 60);
     };
-    if (ready()) return resolve(w.cv);
-    const existing = document.querySelector<HTMLScriptElement>("script[data-opencv]");
-    if (existing) {
-      existing.addEventListener("load", settle);
-      existing.addEventListener("error", () =>
-        reject(new Error("Could not load the scanner engine.")),
-      );
-      return;
+    if (!document.querySelector("script[data-opencv]")) {
+      const s = document.createElement("script");
+      s.src = OPENCV_URL;
+      s.async = true;
+      s.dataset.opencv = "1";
+      s.onerror = () => {
+        if (!settled) {
+          settled = true;
+          reject(new Error("Could not load the scanner engine."));
+        }
+      };
+      document.body.appendChild(s);
     }
-    const s = document.createElement("script");
-    s.src = OPENCV_URL;
-    s.async = true;
-    s.dataset.opencv = "1";
-    s.onload = settle;
-    s.onerror = () =>
-      reject(new Error("Could not load the scanner engine (offline?)."));
-    document.body.appendChild(s);
+    poll();
   });
-  return cvPromise;
+  // Cache the in-flight/successful promise; on failure clear it so reopening
+  // the scanner retries from scratch instead of replaying the rejection.
+  p.catch(() => {
+    cvPromise = null;
+  });
+  cvPromise = p;
+  return p;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -393,10 +415,16 @@ export function BolScanner({
                 type="button"
                 variant="primary"
                 onClick={() => fileRef.current?.click()}
-                disabled={busy}
+                disabled={busy || engine === "loading"}
                 fullWidth
               >
-                {busy ? "Working…" : pages.length === 0 ? "Snap BOL page" : "Snap next page"}
+                {engine === "loading"
+                  ? "Loading scanner…"
+                  : busy
+                    ? "Working…"
+                    : pages.length === 0
+                      ? "Snap BOL page"
+                      : "Snap next page"}
               </Button>
               {pages.length > 0 ? (
                 <Button type="button" variant="navigate" size="sm" onClick={() => setStep("review")}>
@@ -404,8 +432,12 @@ export function BolScanner({
                 </Button>
               ) : null}
               {engine === "loading" ? (
-                <p className="font-mono text-[10px] uppercase tracking-[0.1em] text-fg-subtle">
-                  Preparing scanner…
+                <p className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.1em] text-fg-subtle">
+                  <span
+                    aria-hidden
+                    className="h-3 w-3 animate-spin rounded-full border-2 border-fg-subtle/40 border-t-fg-subtle"
+                  />
+                  Loading scanner… (one-time download)
                 </p>
               ) : null}
             </div>
