@@ -10,6 +10,7 @@ import {
 } from "../actions";
 import { uploadFileToSignedUrl } from "@/lib/storage/client-upload";
 import { Button } from "@/components/ui/Button";
+import { BolScanner } from "../BolScanner";
 
 export type LoadDoc = {
   id: string;
@@ -100,11 +101,14 @@ function DocKindBlock({
   const [err, setErr] = useState<string | null>(null);
   const [ok, setOk] = useState<string | null>(null);
   const [askCamera, setAskCamera] = useState(false);
+  const [scanning, setScanning] = useState(false);
 
   // POD = delivery photos: jump straight to the rear camera (accept="image/*"
-  // capture="environment") behind a quick "Open camera?" confirm, instead of
-  // the OS file chooser. Rate Con / BOL keep the normal photo/library/PDF picker.
+  // capture="environment") behind a quick "Open camera?" confirm.
+  // BOL = always the in-browser document scanner (no plain file picker).
+  // Rate Con keeps the normal photo/library/PDF picker.
   const isPod = kind === "pod";
+  const isBol = kind === "bol";
 
   async function onPick(fileList: FileList | null) {
     const files = Array.from(fileList ?? []);
@@ -190,31 +194,49 @@ function DocKindBlock({
         <span className="shrink-0">
           <button
             type="button"
-            onClick={() => (isPod ? setAskCamera(true) : inputRef.current?.click())}
+            onClick={() =>
+              isBol
+                ? setScanning(true)
+                : isPod
+                  ? setAskCamera(true)
+                  : inputRef.current?.click()
+            }
             disabled={busy}
             className="rounded-md border border-red-700 bg-red-600 px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-red-700 disabled:opacity-50"
           >
             {busy
               ? "Uploading…"
-              : isPod
+              : isBol
                 ? hasDocs
-                  ? "+ Photo"
-                  : "+ Take photo"
-                : hasDocs
-                  ? "+ Add"
-                  : "+ Add photo / file"}
+                  ? "+ Scan"
+                  : "+ Scan BOL"
+                : isPod
+                  ? hasDocs
+                    ? "+ Photo"
+                    : "+ Take photo"
+                  : hasDocs
+                    ? "+ Add"
+                    : "+ Add photo / file"}
           </button>
-          <input
-            ref={inputRef}
-            type="file"
-            accept={isPod ? "image/*" : ACCEPT}
-            capture={isPod ? "environment" : undefined}
-            multiple
-            className="hidden"
-            onChange={(e) => onPick(e.target.files)}
-          />
+          {/* BOL never uses the plain file picker — it scans. */}
+          {!isBol ? (
+            <input
+              ref={inputRef}
+              type="file"
+              accept={isPod ? "image/*" : ACCEPT}
+              capture={isPod ? "environment" : undefined}
+              multiple
+              className="hidden"
+              onChange={(e) => onPick(e.target.files)}
+            />
+          ) : null}
         </span>
       </div>
+
+      {/* BOL scanner — replaces the file picker for bills of lading. */}
+      {scanning ? (
+        <BolScanner loadId={loadId} onClose={() => setScanning(false)} />
+      ) : null}
 
       {/* POD-only: "Open camera?" yes/no before launching the rear camera. */}
       {askCamera ? (

@@ -9,6 +9,7 @@ import {
 } from "./dispatch/loads/actions";
 import { uploadFileToSignedUrl } from "@/lib/storage/client-upload";
 import { Button } from "@/components/ui/Button";
+import { BolScanner } from "./dispatch/loads/BolScanner";
 
 // Same picker setup as the maintenance receipt / load-document uploaders:
 // image/* with NO capture → mobile offers Take Photo / Library / Choose File.
@@ -73,16 +74,21 @@ export function ActiveLoadDocButton({
         fullWidth
         onClick={() => setOpen(true)}
       >
-        + {label}
+        {kind === "bol" ? "+ Scan BOL" : `+ ${label}`}
       </Button>
       {open ? (
-        <DocModal
-          loadId={loadId}
-          broker={broker}
-          lane={lane}
-          kind={kind}
-          onClose={() => setOpen(false)}
-        />
+        kind === "bol" ? (
+          // BOL is always a scan now — go straight into the scanner.
+          <BolScanner loadId={loadId} onClose={() => setOpen(false)} />
+        ) : (
+          <DocModal
+            loadId={loadId}
+            broker={broker}
+            lane={lane}
+            kind={kind}
+            onClose={() => setOpen(false)}
+          />
+        )
       ) : null}
     </>
   );
