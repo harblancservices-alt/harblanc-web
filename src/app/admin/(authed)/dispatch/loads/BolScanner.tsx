@@ -48,29 +48,64 @@ const WASM_URL = "/vendor/opencv.wasm";
 const GLUE_URL = "/vendor/opencv-core.js";
 // Cache-API store + version tag, bumped when the vendored engine changes.
 const SCANNER_CACHE = "harblanc-scanner-v2";
-const SCANNER_VERSION = "ocvwasm-4.3.0";
+// Bump to force a fresh cache key — evicts any poisoned/partial entry written
+// by the earlier build that cached downloads without validating them.
+const SCANNER_VERSION = "ocvwasm-4.3.0-r2";
 const WASM_BYTES = 6_955_332; // raw (decompressed) size — the progress total
-const INIT_TIMEOUT_MS = 60_000; // hard cap so init never spins forever
+const GLUE_BYTES = 404_490; // patched glue size — validated to reject bad fetches
+const INIT_TIMEOUT_MS = 60_000; // hard cap so wasm compile never spins forever
+const ENGINE_TIMEOUT_MS = 80_000; // overall cap (download + init) for the warm-up
 const MAX_SRC_DIM = 1800; // cap captured-photo resolution for speed
 type Mode = "bw" | "gray" | "color";
-type Page = { color: HTMLCanvasElement };
+// A captured page. `source` is the raw straight photo (always present, never
+// needs OpenCV). `cropped` is the OpenCV perspective-dewarped version, or null
+// when the engine wasn't available — in which case we save the straight photo.
+type Page = { source: HTMLCanvasElement; cropped: HTMLCanvasElement | null };
 export type CvProgress = {
   phase: "download" | "init" | "done";
   received: number;
   total: number;
 };
 
+// Validate a downloaded/cached asset: exact byte count, and (for the wasm) the
+// "\0asm" magic header. A truncated download or a 200-with-error-HTML fails
+// here so it's never used OR cached — a poisoned cache entry would otherwise
+// make the engine fail forever until manually cleared.
+async function isValidAsset(
+  blob: Blob,
+  expectedBytes: number,
+  checkWasmMagic: boolean,
+): Promise<boolean> {
+  if (blob.size !== expectedBytes) return false;
+  if (checkWasmMagic) {
+    const head = new Uint8Array(await blob.slice(0, 4).arrayBuffer());
+    if (head[0] !== 0x00 || head[1] !== 0x61 || head[2] !== 0x73 || head[3] !== 0x6d) {
+      return false;
+    }
+  }
+  return true;
+}
+
 // Fetch a vendored asset — Cache API first (cross-session + offline), else a
-// streaming network fetch (driving the progress bar via onChunk), then cached.
+// streaming network fetch (driving the progress bar via onChunk). Only a FULLY
+// downloaded, validated asset is returned or cached; a bad cache hit is evicted.
 async function fetchCachedBlob(
   key: string,
+  expectedBytes: number,
+  checkWasmMagic: boolean,
   onChunk?: (received: number) => void,
 ): Promise<{ blob: Blob; cached: boolean }> {
   try {
     if ("caches" in window) {
       const cache = await caches.open(SCANNER_CACHE);
       const hit = await cache.match(key);
-      if (hit) return { blob: await hit.blob(), cached: true };
+      if (hit) {
+        const blob = await hit.blob();
+        if (await isValidAsset(blob, expectedBytes, checkWasmMagic)) {
+          return { blob, cached: true };
+        }
+        await cache.delete(key); // poisoned/partial — evict and re-fetch
+      }
     }
   } catch {
     /* Cache API unavailable — fall through to the network. */
@@ -93,10 +128,13 @@ async function fetchCachedBlob(
     }
   }
   const blob = new Blob(chunks as BlobPart[]);
+  if (!(await isValidAsset(blob, expectedBytes, checkWasmMagic))) {
+    throw new Error("Scanner engine download was incomplete.");
+  }
   try {
     if ("caches" in window) {
       const cache = await caches.open(SCANNER_CACHE);
-      await cache.put(key, new Response(blob));
+      await cache.put(key, new Response(blob)); // only cached after validation
     }
   } catch {
     /* best-effort cache; ignore quota/availability errors. */
@@ -191,21 +229,26 @@ function loadOpenCv(onProgress?: (p: CvProgress) => void): Promise<any> {
     }
 
     // 1. The binary wasm — the big download → drives the progress bar.
+    //    Validated against its exact size + "\0asm" magic before use/cache.
     const wasmKey = `${WASM_URL}?v=${SCANNER_VERSION}`;
-    const { blob: wasmBlob, cached } = await fetchCachedBlob(wasmKey, (received) =>
-      onProgress?.({
-        phase: "download",
-        received: Math.min(received, WASM_BYTES),
-        total: WASM_BYTES,
-      }),
+    const { blob: wasmBlob, cached } = await fetchCachedBlob(
+      wasmKey,
+      WASM_BYTES,
+      true,
+      (received) =>
+        onProgress?.({
+          phase: "download",
+          received: Math.min(received, WASM_BYTES),
+          total: WASM_BYTES,
+        }),
     );
     onProgress?.({ phase: cached ? "init" : "download", received: WASM_BYTES, total: WASM_BYTES });
     const wasmBinary = await wasmBlob.arrayBuffer();
 
-    // 2. The small JS glue — fetch (cached) as text.
+    // 2. The small JS glue — fetch (cached) as text, validated by exact size.
     onProgress?.({ phase: "init", received: WASM_BYTES, total: WASM_BYTES });
     const glueKey = `${GLUE_URL}?v=${SCANNER_VERSION}`;
-    const { blob: glueBlob } = await fetchCachedBlob(glueKey);
+    const { blob: glueBlob } = await fetchCachedBlob(glueKey, GLUE_BYTES, false);
     const glueText = await glueBlob.text();
 
     // 3. Compile + initialize from our bytes.
@@ -279,6 +322,69 @@ function renderMode(cv: any, color: HTMLCanvasElement, mode: Mode): HTMLCanvasEl
   return out;
 }
 
+// No-OpenCV fallback renderer (plain 2D canvas). "color" returns the photo as-
+// is; "gray" desaturates; "bw" desaturates then contrast-stretches (2nd/98th
+// percentile) for a clean, scan-like high-contrast look that survives uneven
+// job-site lighting without the blotching a hard global threshold would cause.
+function renderModePlain(src: HTMLCanvasElement, mode: Mode): HTMLCanvasElement {
+  if (mode === "color") return src;
+  const c = document.createElement("canvas");
+  c.width = src.width;
+  c.height = src.height;
+  const ctx = c.getContext("2d")!;
+  ctx.drawImage(src, 0, 0);
+  const img = ctx.getImageData(0, 0, c.width, c.height);
+  const d = img.data;
+  const n = c.width * c.height;
+  const lum = new Uint8ClampedArray(n);
+  const hist = new Uint32Array(256);
+  for (let i = 0, j = 0; i < d.length; i += 4, j++) {
+    const g = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) | 0;
+    lum[j] = g;
+    hist[g]++;
+  }
+  let lo = 0;
+  let hi = 255;
+  if (mode === "bw") {
+    const cut = n * 0.02;
+    let acc = 0;
+    for (lo = 0; lo < 255; lo++) {
+      acc += hist[lo];
+      if (acc >= cut) break;
+    }
+    acc = 0;
+    for (hi = 255; hi > 0; hi--) {
+      acc += hist[hi];
+      if (acc >= cut) break;
+    }
+  }
+  const range = Math.max(1, hi - lo);
+  for (let i = 0, j = 0; i < d.length; i += 4, j++) {
+    let v = lum[j];
+    if (mode === "bw") v = ((v - lo) / range) * 255;
+    d[i] = d[i + 1] = d[i + 2] = v;
+  }
+  ctx.putImageData(img, 0, 0);
+  return c;
+}
+
+// Render a page in the chosen mode — OpenCV (crisp adaptive B&W) when the
+// engine is ready, else the plain-canvas fallback. Uses cropped if we have it,
+// otherwise the straight photo. Never throws; never requires the engine.
+function renderPageCanvas(page: Page, mode: Mode): HTMLCanvasElement {
+  const base = page.cropped ?? page.source;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const cv = (window as any).cv;
+  if (cv && cv.Mat) {
+    try {
+      return renderMode(cv, base, mode);
+    } catch {
+      /* fall back to plain rendering on any OpenCV error */
+    }
+  }
+  return renderModePlain(base, mode);
+}
+
 function quadSize(c: Corners): { w: number; h: number } {
   const d = (a: Pt, b: Pt) => Math.hypot(a.x - b.x, a.y - b.y);
   const w = (d(c.topLeftCorner, c.topRightCorner) + d(c.bottomLeftCorner, c.bottomRightCorner)) / 2;
@@ -311,10 +417,19 @@ export function BolScanner({
   const [step, setStep] = useState<Step>("capture");
   const [pages, setPages] = useState<Page[]>([]);
   const [mode, setMode] = useState<Mode>("bw");
+  // Engine = an OPTIONAL enhancement (auto-crop/clean). Capture + PDF + upload
+  // never depend on it; "error"/"loading" just means we save the straight photo.
   const [engine, setEngine] = useState<"loading" | "ready" | "error">("loading");
-  const [progress, setProgress] = useState<CvProgress | null>(null);
-  const [busy, setBusy] = useState(false);
+  // The one busy flag — mutually exclusive states so the UI can never show two
+  // contradictory labels (e.g. "Working…" and "Saving…") at once.
+  const [status, setStatus] = useState<"idle" | "processing" | "saving">("idle");
   const [err, setErr] = useState<string | null>(null);
+
+  // Always-current engine snapshot for async handlers (avoids stale closures).
+  const engineRef = useRef(engine);
+  useEffect(() => {
+    engineRef.current = engine;
+  }, [engine]);
 
   // Adjust-step display geometry.
   const [dispW, setDispW] = useState(0);
@@ -323,16 +438,25 @@ export function BolScanner({
   const [corners, setCorners] = useState<Pt[]>([]); // display-space, ordered TL,TR,BR,BL
   const dragging = useRef<number | null>(null);
 
-  // Warm the engine the moment the scanner opens, driving the progress bar.
+  // Warm the OPTIONAL engine in the background the moment the scanner opens.
+  // It never blocks capture; if it hangs past the timeout or fails, we mark it
+  // "error" and silently fall back to straight-photo saves.
   useEffect(() => {
     let cancelled = false;
-    loadOpenCv((p) => {
-      if (!cancelled) setProgress(p);
-    })
-      .then(() => !cancelled && setEngine("ready"))
-      .catch(() => !cancelled && setEngine("error"));
+    const timeout = window.setTimeout(() => {
+      if (!cancelled) setEngine((e) => (e === "loading" ? "error" : e));
+    }, ENGINE_TIMEOUT_MS);
+    loadOpenCv()
+      .then(() => {
+        if (!cancelled) setEngine("ready");
+      })
+      .catch(() => {
+        if (!cancelled) setEngine("error");
+      })
+      .finally(() => window.clearTimeout(timeout));
     return () => {
       cancelled = true;
+      window.clearTimeout(timeout);
     };
   }, []);
 
@@ -348,31 +472,39 @@ export function BolScanner({
   const onCapture = useCallback(async (file: File | undefined) => {
     if (!file) return;
     setErr(null);
-    setBusy(true);
+    setStatus("processing");
     try {
       const src = await fileToCanvas(file);
-      sourceRef.current = src;
-      const cv = await getCv();
-      setEngine("ready");
-      const detected = detectCorners(cv, src);
-
-      // Fit the source into the viewport for the adjust step.
-      const maxW = Math.min(window.innerWidth - 48, 460);
-      const maxH = window.innerHeight - 230;
-      const s = Math.min(maxW / src.width, maxH / src.height, 1);
-      const w = Math.round(src.width * s);
-      const h = Math.round(src.height * s);
-      setScale(s);
-      setDispW(w);
-      setDispH(h);
-      setCorners(
-        HANDLES.map((k) => ({ x: detected[k].x * s, y: detected[k].y * s })),
-      );
-      setStep("adjust");
+      // Auto-crop ONLY if the engine is ready right now. Otherwise fall back to
+      // the straight photo so the BOL is always captured and saveable.
+      if (engineRef.current === "ready") {
+        try {
+          const cv = await getCv();
+          const detected = detectCorners(cv, src);
+          const maxW = Math.min(window.innerWidth - 48, 460);
+          const maxH = window.innerHeight - 230;
+          const s = Math.min(maxW / src.width, maxH / src.height, 1);
+          sourceRef.current = src;
+          setScale(s);
+          setDispW(Math.round(src.width * s));
+          setDispH(Math.round(src.height * s));
+          setCorners(
+            HANDLES.map((k) => ({ x: detected[k].x * s, y: detected[k].y * s })),
+          );
+          setStep("adjust");
+          return;
+        } catch {
+          /* engine hiccup mid-capture — fall through to straight photo */
+        }
+      }
+      // Fallback: keep the straight photo (no dewarp) and go to review.
+      sourceRef.current = null;
+      setPages((p) => [...p, { source: src, cropped: null }]);
+      setStep("review");
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Could not start the scan.");
+      setErr(e instanceof Error ? e.message : "Could not read that photo.");
     } finally {
-      setBusy(false);
+      setStatus("idle");
       if (fileRef.current) fileRef.current.value = "";
     }
   }, []);
@@ -408,8 +540,9 @@ export function BolScanner({
     dragging.current = null;
   }
 
-  // Map current display corners back to source space, dewarp + store the page.
-  async function capturePage(): Promise<boolean> {
+  // Map display corners back to source space, dewarp + store the page. If the
+  // dewarp fails we keep the straight photo rather than losing the page.
+  async function commitAdjusted(): Promise<boolean> {
     const src = sourceRef.current;
     if (!src) return false;
     try {
@@ -421,19 +554,19 @@ export function BolScanner({
         bottomLeftCorner: { x: corners[3].x / scale, y: corners[3].y / scale },
       };
       const { w, h } = quadSize(srcCorners);
-      const color = extractPaper(cv, src, w, h, srcCorners);
-      setPages((p) => [...p, { color }]);
+      const cropped = extractPaper(cv, src, w, h, srcCorners);
+      setPages((p) => [...p, { source: src, cropped }]);
       return true;
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : "Could not process that page.");
-      return false;
+    } catch {
+      setPages((p) => [...p, { source: src, cropped: null }]);
+      return true;
     }
   }
 
   async function onAddPage() {
-    setBusy(true);
-    const ok = await capturePage();
-    setBusy(false);
+    setStatus("processing");
+    const ok = await commitAdjusted();
+    setStatus("idle");
     if (ok) {
       sourceRef.current = null;
       setStep("capture");
@@ -442,9 +575,9 @@ export function BolScanner({
     }
   }
   async function onDonePage() {
-    setBusy(true);
-    const ok = await capturePage();
-    setBusy(false);
+    setStatus("processing");
+    const ok = await commitAdjusted();
+    setStatus("idle");
     if (ok) {
       sourceRef.current = null;
       setStep("review");
@@ -452,16 +585,16 @@ export function BolScanner({
   }
 
   async function onSave() {
-    if (busy || pages.length === 0) return;
-    setBusy(true);
+    if (status !== "idle" || pages.length === 0) return;
+    setStatus("saving");
     setErr(null);
     try {
-      const cv = await getCv();
       const { jsPDF } = await import("jspdf"); // lazy — keep it off initial load
       const fmtPng = mode === "bw";
       let pdf: JsPdfDoc | null = null;
       for (let i = 0; i < pages.length; i++) {
-        const rendered = renderMode(cv, pages[i].color, mode);
+        // OpenCV clean when the engine is up, plain-canvas clean otherwise.
+        const rendered = renderPageCanvas(pages[i], mode);
         const w = rendered.width;
         const h = rendered.height;
         const orientation = w > h ? "landscape" : "portrait";
@@ -498,7 +631,7 @@ export function BolScanner({
       onClose();
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Could not save the scan.");
-      setBusy(false);
+      setStatus("idle"); // reset cleanly so the buttons recover
     }
   }
 
@@ -509,7 +642,7 @@ export function BolScanner({
       aria-label="Scan bill of lading"
       className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-3 sm:p-6"
       onClick={() => {
-        if (!busy) onClose();
+        if (status === "idle") onClose();
       }}
     >
       <div
@@ -520,16 +653,19 @@ export function BolScanner({
           <span className="truncate font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-bar-fg">
             Scan BOL{pages.length > 0 ? ` · ${pages.length} page${pages.length === 1 ? "" : "s"}` : ""}
           </span>
-          <Button type="button" variant="cancel" size="sm" onClick={onClose} disabled={busy}>
+          {/* Cancel always closes — never disabled. */}
+          <Button type="button" variant="cancel" size="sm" onClick={onClose}>
             Cancel
           </Button>
         </div>
 
         <div className="space-y-3 bg-elevated px-4 py-4">
-          {engine === "error" ? (
-            <p className="rounded-md border border-red-300 bg-red-50 px-2.5 py-2 text-[12px] font-semibold text-red-700">
-              The scanner engine couldn&apos;t load. Check your connection and
-              reopen — it needs to download once, then works on the job.
+          {/* Engine is optional — a soft, non-blocking note (never a red error). */}
+          {engine !== "ready" && step === "capture" ? (
+            <p className="rounded-md border border-line bg-card px-2.5 py-1.5 text-center text-[11px] text-fg-muted">
+              {engine === "loading"
+                ? "Setting up auto-crop… you can snap now."
+                : "Auto-crop unavailable — BOL will save as a straight photo."}
             </p>
           ) : null}
 
@@ -545,23 +681,20 @@ export function BolScanner({
                 type="button"
                 variant="primary"
                 onClick={() => fileRef.current?.click()}
-                disabled={busy || engine === "loading"}
+                disabled={status !== "idle"}
                 fullWidth
               >
-                {engine === "loading"
-                  ? "Loading scanner…"
-                  : busy
-                    ? "Working…"
-                    : pages.length === 0
-                      ? "Snap BOL page"
-                      : "Snap next page"}
+                {status === "processing"
+                  ? "Working…"
+                  : pages.length === 0
+                    ? "Snap BOL page"
+                    : "Snap next page"}
               </Button>
               {pages.length > 0 ? (
                 <Button type="button" variant="navigate" size="sm" onClick={() => setStep("review")}>
                   Review {pages.length} page{pages.length === 1 ? "" : "s"} →
                 </Button>
               ) : null}
-              {engine === "loading" ? <EngineProgress progress={progress} /> : null}
             </div>
           ) : null}
 
@@ -618,15 +751,15 @@ export function BolScanner({
                     setStep("capture");
                     setTimeout(() => fileRef.current?.click(), 50);
                   }}
-                  disabled={busy}
+                  disabled={status !== "idle"}
                 >
                   Retake
                 </Button>
-                <Button type="button" variant="navigate" size="sm" onClick={onAddPage} disabled={busy}>
+                <Button type="button" variant="navigate" size="sm" onClick={onAddPage} disabled={status !== "idle"}>
                   + Add page
                 </Button>
-                <Button type="button" variant="primary" size="sm" onClick={onDonePage} disabled={busy}>
-                  {busy ? "…" : "Done"}
+                <Button type="button" variant="primary" size="sm" onClick={onDonePage} disabled={status !== "idle"}>
+                  {status === "processing" ? "…" : "Done"}
                 </Button>
               </div>
             </div>
@@ -668,7 +801,7 @@ export function BolScanner({
                   setStep("capture");
                   setTimeout(() => fileRef.current?.click(), 50);
                 }}
-                disabled={busy}
+                disabled={status !== "idle"}
               >
                 + Add another page
               </Button>
@@ -692,17 +825,18 @@ export function BolScanner({
         </div>
 
         <div className="flex items-center justify-end gap-2 border-t border-line bg-elevated px-4 py-3">
-          <Button type="button" variant="cancel" onClick={onClose} disabled={busy}>
+          {/* Cancel always closes — never disabled. */}
+          <Button type="button" variant="cancel" onClick={onClose}>
             Cancel
           </Button>
           <Button
             type="button"
             variant="primary"
             onClick={onSave}
-            disabled={busy || pages.length === 0 || step !== "review"}
-            aria-busy={busy}
+            disabled={status !== "idle" || pages.length === 0 || step !== "review"}
+            aria-busy={status === "saving"}
           >
-            {busy ? "Saving…" : `Save BOL${pages.length ? ` · ${pages.length}p` : ""}`}
+            {status === "saving" ? "Saving…" : `Save BOL${pages.length ? ` · ${pages.length}p` : ""}`}
           </Button>
         </div>
       </div>
@@ -710,67 +844,17 @@ export function BolScanner({
   );
 }
 
-// Real download/init progress for the scanner engine. The bar tracks decoded
-// bytes against the known total during download, then sits at 100% with an
-// "Initializing engine…" label while the wasm compiles. From cache it jumps
-// straight to done.
-function EngineProgress({ progress }: { progress: CvProgress | null }) {
-  const totalMb = (WASM_BYTES / 1048576).toFixed(1);
-  const phase = progress?.phase ?? "download";
-  const pct =
-    phase === "download" && progress && progress.total > 0
-      ? Math.min(99, Math.round((progress.received / progress.total) * 100))
-      : 100;
-  const receivedMb = progress ? (progress.received / 1048576).toFixed(1) : "0.0";
-  const left =
-    phase === "init"
-      ? "Initializing engine…"
-      : phase === "done"
-        ? "Ready"
-        : "Downloading scanner…";
-  const right = phase === "download" ? `${receivedMb} / ${totalMb} MB` : `${pct}%`;
-  return (
-    <div className="w-full space-y-1.5">
-      <div
-        className="h-2 w-full overflow-hidden rounded-full bg-elevated"
-        role="progressbar"
-        aria-valuenow={pct}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-label="Loading scanner engine"
-      >
-        <div
-          className="h-full rounded-full bg-emerald-600 transition-[width] duration-150"
-          style={{ width: `${pct}%` }}
-        />
-      </div>
-      <p className="flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.08em] text-fg-subtle">
-        <span>{left}</span>
-        <span className="tabular-nums">{right}</span>
-      </p>
-    </div>
-  );
-}
-
-// Renders one stored (color) page in the chosen mode for the review grid.
+// Renders one stored page in the chosen mode for the review grid — OpenCV
+// clean when the engine is up, plain-canvas clean otherwise. Never throws.
 function PagePreview({ page, mode }: { page: Page; mode: Mode }) {
   const ref = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
-    let cancelled = false;
-    getCv()
-      .then((cv) => {
-        if (cancelled) return;
-        const rendered = renderMode(cv, page.color, mode);
-        const c = ref.current;
-        if (!c) return;
-        c.width = rendered.width;
-        c.height = rendered.height;
-        c.getContext("2d")!.drawImage(rendered, 0, 0);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
+    const rendered = renderPageCanvas(page, mode);
+    const c = ref.current;
+    if (!c) return;
+    c.width = rendered.width;
+    c.height = rendered.height;
+    c.getContext("2d")!.drawImage(rendered, 0, 0);
   }, [page, mode]);
   return (
     <canvas
