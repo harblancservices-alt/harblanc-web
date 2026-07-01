@@ -55,6 +55,8 @@ const WASM_BYTES = 6_955_332; // raw (decompressed) size — the progress total
 const GLUE_BYTES = 404_490; // patched glue size — validated to reject bad fetches
 const INIT_TIMEOUT_MS = 60_000; // hard cap so wasm compile never spins forever
 const ENGINE_TIMEOUT_MS = 80_000; // overall cap (download + init) for the warm-up
+const CAPTURE_ENGINE_WAIT_MS = 25_000; // after a snap, how long to wait for the
+// engine before falling back to a straight photo (it's usually already warm)
 const MAX_SRC_DIM = 1800; // cap captured-photo resolution for speed
 type Mode = "bw" | "gray" | "color";
 // A captured page. `source` is the raw straight photo (always present, never
@@ -425,12 +427,6 @@ export function BolScanner({
   const [status, setStatus] = useState<"idle" | "processing" | "saving">("idle");
   const [err, setErr] = useState<string | null>(null);
 
-  // Always-current engine snapshot for async handlers (avoids stale closures).
-  const engineRef = useRef(engine);
-  useEffect(() => {
-    engineRef.current = engine;
-  }, [engine]);
-
   // Adjust-step display geometry.
   const [dispW, setDispW] = useState(0);
   const [dispH, setDispH] = useState(0);
@@ -475,29 +471,34 @@ export function BolScanner({
     setStatus("processing");
     try {
       const src = await fileToCanvas(file);
-      // Auto-crop ONLY if the engine is ready right now. Otherwise fall back to
-      // the straight photo so the BOL is always captured and saveable.
-      if (engineRef.current === "ready") {
-        try {
-          const cv = await getCv();
-          const detected = detectCorners(cv, src);
-          const maxW = Math.min(window.innerWidth - 48, 460);
-          const maxH = window.innerHeight - 230;
-          const s = Math.min(maxW / src.width, maxH / src.height, 1);
-          sourceRef.current = src;
-          setScale(s);
-          setDispW(Math.round(src.width * s));
-          setDispH(Math.round(src.height * s));
-          setCorners(
-            HANDLES.map((k) => ({ x: detected[k].x * s, y: detected[k].y * s })),
-          );
-          setStep("adjust");
-          return;
-        } catch {
-          /* engine hiccup mid-capture — fall through to straight photo */
-        }
+      // Give the engine a bounded chance to be ready so the corner-adjust step
+      // reliably appears — do NOT gate on a stale "ready" snapshot (the engine
+      // is often still finishing its background load at snap time). Only fall
+      // back to a straight photo if the engine genuinely isn't available.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const cv: any = await Promise.race([
+        getCv().catch(() => null),
+        new Promise<null>((res) =>
+          window.setTimeout(() => res(null), CAPTURE_ENGINE_WAIT_MS),
+        ),
+      ]);
+      if (cv && cv.Mat) {
+        const detected = detectCorners(cv, src);
+        const maxW = Math.min(window.innerWidth - 48, 460);
+        const maxH = window.innerHeight - 230;
+        const s = Math.min(maxW / src.width, maxH / src.height, 1);
+        sourceRef.current = src;
+        setScale(s);
+        setDispW(Math.round(src.width * s));
+        setDispH(Math.round(src.height * s));
+        setCorners(
+          HANDLES.map((k) => ({ x: detected[k].x * s, y: detected[k].y * s })),
+        );
+        setStep("adjust");
+        return;
       }
-      // Fallback: keep the straight photo (no dewarp) and go to review.
+      // Engine unavailable — keep the straight photo (no dewarp) and go to
+      // review so the BOL is still captured and saveable.
       sourceRef.current = null;
       setPages((p) => [...p, { source: src, cropped: null }]);
       setStep("review");
@@ -698,11 +699,12 @@ export function BolScanner({
             </div>
           ) : null}
 
-          {/* ADJUST corners */}
+          {/* ADJUST corners — always shown before dewarp when the engine is up */}
           {step === "adjust" ? (
             <div className="space-y-3">
               <p className="text-center text-[12px] text-fg-muted">
-                Drag the corners to the edges of the page.
+                Drag the four corners to the edges of the BOL, then Crop &amp;
+                clean.
               </p>
               <div
                 className="relative mx-auto touch-none select-none"
@@ -717,27 +719,37 @@ export function BolScanner({
                   onPointerMove={onPointerMove}
                   onPointerUp={onPointerUp}
                   onPointerLeave={onPointerUp}
+                  onPointerCancel={onPointerUp}
                 >
                   {corners.length === 4 ? (
                     <polygon
                       points={corners.map((c) => `${c.x},${c.y}`).join(" ")}
-                      fill="rgba(16,185,129,0.12)"
+                      fill="rgba(16,185,129,0.14)"
                       stroke="#10b981"
                       strokeWidth={2}
                     />
                   ) : null}
                   {corners.map((c, i) => (
-                    <circle
-                      key={i}
-                      cx={c.x}
-                      cy={c.y}
-                      r={13}
-                      fill="rgba(16,185,129,0.9)"
-                      stroke="#fff"
-                      strokeWidth={2.5}
-                      style={{ cursor: "grab", touchAction: "none" }}
-                      onPointerDown={(e) => onHandleDown(i, e)}
-                    />
+                    <g key={i} onPointerDown={(e) => onHandleDown(i, e)}>
+                      {/* Big invisible touch target for fat-finger dragging */}
+                      <circle
+                        cx={c.x}
+                        cy={c.y}
+                        r={30}
+                        fill="transparent"
+                        style={{ cursor: "grab", touchAction: "none" }}
+                      />
+                      {/* Visible handle */}
+                      <circle
+                        cx={c.x}
+                        cy={c.y}
+                        r={12}
+                        fill="rgba(16,185,129,0.95)"
+                        stroke="#fff"
+                        strokeWidth={3}
+                        style={{ pointerEvents: "none" }}
+                      />
+                    </g>
                   ))}
                 </svg>
               </div>
@@ -759,7 +771,7 @@ export function BolScanner({
                   + Add page
                 </Button>
                 <Button type="button" variant="primary" size="sm" onClick={onDonePage} disabled={status !== "idle"}>
-                  {status === "processing" ? "…" : "Done"}
+                  {status === "processing" ? "…" : "Crop & clean"}
                 </Button>
               </div>
             </div>
