@@ -1,40 +1,17 @@
 import { describe, it, expect } from "vitest";
+import {
+  closeOutDate,
+  goalMonthParts,
+  currentGoalMonth,
+  currentGoalMonthLabel,
+} from "./goal-month";
 
 /**
- * Goal-month attribution rule for the $10k net-profit goal gauge.
- *
- * NOTE: the production implementation (`goalMonthParts` / `closeOutDate`) lives
- * NON-exported inside the server page
- *   src/app/admin/(authed)/dispatch/loads/page.tsx
- * which can't be imported into a unit test (it pulls in the Supabase service
- * client). These two functions are an EXACT mirror of that source, kept here as
- * the executable specification of the boundary rule. If the rule ever changes,
- * update both — and this test documents what "today" does.
- *
- * Recommendation (reported separately): extract these to a pure lib module so
- * the page and this test share one implementation.
+ * Goal-month attribution rule for the $10k net-profit goal gauge. The
+ * production implementation now lives in @/lib/dispatch/goal-month and is
+ * imported directly here (previously mirrored inline). This spec is the
+ * executable definition of the boundary rule + the timezone rule.
  */
-
-// Mirror of src/app/admin/(authed)/dispatch/loads/page.tsx
-function closeOutDate(l: {
-  delivery_date: string | null;
-  pickup_date: string | null;
-  created_at: string | null;
-}): string | null {
-  return l.delivery_date ?? l.pickup_date ?? l.created_at ?? null;
-}
-
-// Mirror of src/app/admin/(authed)/dispatch/loads/page.tsx
-function goalMonthParts(
-  dateStr: string | null,
-): { year: number; month: number } | null {
-  if (!dateStr) return null;
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateStr);
-  if (!m) return null;
-  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
-  d.setUTCDate(d.getUTCDate() - 1);
-  return { year: d.getUTCFullYear(), month: d.getUTCMonth() };
-}
 
 // month is 0-based (0 = Jan … 11 = Dec)
 describe("goal-month attribution (close-out date − 1 day)", () => {
@@ -116,5 +93,41 @@ describe("close-out date selection", () => {
       created_at: "2026-06-15",
     });
     expect(goalMonthParts(pickupSecond)).toEqual({ year: 2026, month: 6 }); // July
+  });
+});
+
+/**
+ * The gauge's "current month" is resolved in the BUSINESS timezone
+ * (America/Chicago), NOT the server's UTC clock. This is the regression that
+ * zeroed Brent's June figure: on 2026-07-01 01:31 UTC it was still 8:31 PM
+ * June 30 in Central, but UTC-based new Date().getMonth() reported July, so the
+ * June loads no longer matched and the gauge showed $0 / July.
+ */
+describe("current goal month (business-timezone)", () => {
+  it("late June-30 evening Central (already Jul 1 UTC) is still JUNE — the bug", () => {
+    const now = new Date("2026-07-01T01:31:00Z"); // 8:31 PM CDT, Jun 30
+    expect(currentGoalMonth(now)).toEqual({ year: 2026, month: 5 }); // June
+    expect(currentGoalMonthLabel(now)).toBe("June");
+    // A naive UTC read would have said July (the bug):
+    expect(now.getUTCMonth()).toBe(6);
+  });
+
+  it("rolls to JULY only at local Central midnight (Jul 1 05:00 UTC in CDT)", () => {
+    const before = new Date("2026-07-01T04:59:00Z"); // 11:59 PM CDT, Jun 30
+    const after = new Date("2026-07-01T05:00:00Z"); // 12:00 AM CDT, Jul 1
+    expect(currentGoalMonth(before)).toEqual({ year: 2026, month: 5 }); // June
+    expect(currentGoalMonth(after)).toEqual({ year: 2026, month: 6 }); // July
+    expect(currentGoalMonthLabel(after)).toBe("July");
+  });
+
+  it("crosses the year boundary in Central (Jan 1 morning UTC still Dec 31)", () => {
+    const now = new Date("2027-01-01T03:00:00Z"); // 9:00 PM CST, Dec 31 2026
+    expect(currentGoalMonth(now)).toEqual({ year: 2026, month: 11 }); // Dec 2026
+    expect(currentGoalMonthLabel(now)).toBe("December");
+  });
+
+  it("mid-month is unaffected by the timezone offset", () => {
+    const now = new Date("2026-06-15T18:00:00Z");
+    expect(currentGoalMonth(now)).toEqual({ year: 2026, month: 5 }); // June
   });
 });

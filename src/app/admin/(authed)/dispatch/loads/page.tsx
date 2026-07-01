@@ -7,6 +7,12 @@ import {
   FUEL_DEFAULTS,
   type FuelSettings,
 } from "@/lib/dispatch/fuel";
+import {
+  closeOutDate,
+  goalMonthParts,
+  currentGoalMonth,
+  currentGoalMonthLabel,
+} from "@/lib/dispatch/goal-month";
 
 export const metadata: Metadata = {
   title: "Load Board",
@@ -54,35 +60,8 @@ function num(v: number | string | null): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-/**
- * A load's "close-out" date — the date its net profit is attributed to a
- * month. We use delivery_date (the load is closed out when it delivers),
- * falling back to pickup_date then created_at for loads not yet delivered.
- * (paid_at exists too — a cash-basis alternative — but delivery is the
- * accrual "profit earned this month" date the board has always used.)
- */
-function closeOutDate(l: LoadRowDB): string | null {
-  return l.delivery_date ?? l.pickup_date ?? l.created_at ?? null;
-}
-
-/**
- * The {year, month} a close-out date is attributed to, applying the
- * month-boundary rule: a load closed out on the 1st of a month counts toward
- * the PREVIOUS month; the 2nd or later counts toward that month. Implemented
- * as the calendar month of (close-out date − 1 day). Parsed from the
- * YYYY-MM-DD prefix in UTC so it's time-zone-safe.
- *   Closed Jul 1 → Jun 30 → June; Jul 2 → Jul 1 → July; Jul 15 → July.
- */
-function goalMonthParts(
-  dateStr: string | null,
-): { year: number; month: number } | null {
-  if (!dateStr) return null;
-  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateStr);
-  if (!m) return null;
-  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
-  d.setUTCDate(d.getUTCDate() - 1);
-  return { year: d.getUTCFullYear(), month: d.getUTCMonth() };
-}
+// closeOutDate + goalMonthParts moved to @/lib/dispatch/goal-month (shared with
+// the Vitest spec so the boundary rule has one implementation).
 
 function fmtDate(iso: string | null): string {
   if (!iso) return "—";
@@ -149,9 +128,12 @@ async function loadBoard(): Promise<LoadBoardData> {
   // figure: the current load's running net counts and drops in real time as
   // expenses are added. A load closed out on the 1st lands in the previous
   // month, so on the 1st the new month's gauge starts fresh.
+  //
+  // "Current month" is resolved in the BUSINESS timezone, not the server's UTC
+  // clock — otherwise on the last evening of a month (already next-month in UTC)
+  // the gauge would zero the still-current month for a Central-time operator.
   const now = new Date();
-  const curYear = now.getFullYear();
-  const curMonth = now.getMonth();
+  const { year: curYear, month: curMonth } = currentGoalMonth(now);
   let monthGoalNet = 0;
 
   const rows = (data ?? []).map((l) => {
@@ -198,7 +180,7 @@ async function loadBoard(): Promise<LoadBoardData> {
       paymentStatus: l.payment_status,
     };
   });
-  const goalMonthLabel = now.toLocaleString("en-US", { month: "long" });
+  const goalMonthLabel = currentGoalMonthLabel(now);
 
   // Existing brokers for the Add-load autocomplete.
   const { data: brokerRows } = await sb
