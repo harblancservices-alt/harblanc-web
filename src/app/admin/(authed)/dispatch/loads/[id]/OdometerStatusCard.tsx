@@ -49,7 +49,7 @@ function FullOdometerStatus({
   const [editing, setEditing] = useState(false);
 
   return (
-    <section className="overflow-hidden rounded-md border border-line bg-card shadow-md">
+    <section className="overflow-hidden rounded-md border border-line bg-card shadow-e2">
       <div className="flex items-center justify-between gap-2 bg-bar px-3 py-2">
         <button
           type="button"

@@ -48,7 +48,7 @@ export function CollapsibleWorkspaceSection({
   const panelId = useId();
 
   return (
-    <section className="overflow-hidden rounded-md border border-line bg-card shadow-md">
+    <section className="overflow-hidden rounded-md border border-line bg-card shadow-e2">
       <div className="flex items-stretch bg-bar">
         <button
           type="button"

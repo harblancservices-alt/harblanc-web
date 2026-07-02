@@ -244,7 +244,7 @@ export default async function LoadDetailPage({
     <div className="min-h-screen border-t border-line bg-canvas text-fg">
       <div className="w-full px-4 py-5 sm:px-6 sm:py-6 lg:px-8">
         {/* Command bar — back + actions, clean lane, financial tiles */}
-        <div className="overflow-hidden rounded-md bg-bar shadow-md">
+        <div className="overflow-hidden rounded-md bg-bar shadow-e2">
           {/* Tier 1: back button + cancel / delete actions */}
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-3.5 py-2.5">
             <Button
@@ -308,6 +308,7 @@ export default async function LoadDetailPage({
               value={usd(net)}
               tone="green"
               border
+              accent
               sub={netPerMile != null ? `$${netPerMile.toFixed(2)}/mi` : undefined}
             />
             <OverviewStat
@@ -420,6 +421,7 @@ export default async function LoadDetailPage({
             <FinancialsPanel loadId={load.id} categories={expenseCategories}>
               <LoadPnlCard
                 loadId={load.id}
+                net={net}
                 loadedMiles={mileage.loaded}
                 loadedDiesel={mileage.loaded != null ? dieselCost(mileage.loaded, fuel) : 0}
                 deadheadMiles={mileage.deadhead}
@@ -480,11 +482,11 @@ function Spec({
   const text = (value ?? "").trim();
   const color =
     tone === "green"
-      ? "text-green-700"
+      ? "text-ok"
       : tone === "red"
-        ? "text-red-700"
+        ? "text-bad"
         : money
-          ? "text-green-700"
+          ? "text-ok"
           : text
             ? "text-fg"
             : "text-fg-subtle";
@@ -505,12 +507,15 @@ function OverviewStat({
   value,
   tone,
   border = false,
+  accent = false,
   sub,
 }: {
   label: string;
   value: string;
   tone?: "green" | "amber";
   border?: boolean;
+  /** 3px accent left edge — marks the focal metric (Net). */
+  accent?: boolean;
   sub?: string;
 }) {
   const color =
@@ -520,7 +525,13 @@ function OverviewStat({
         ? "text-amber-300"
         : "text-bar-fg";
   return (
-    <div className={"px-3.5 py-2 text-center " + (border ? "border-l border-white/10" : "")}>
+    <div className={"relative px-3.5 py-2 text-center " + (border ? "border-l border-white/10" : "")}>
+      {accent ? (
+        <span
+          aria-hidden
+          className="absolute inset-y-1 left-0 w-[3px] rounded-full bg-accent"
+        />
+      ) : null}
       <div className="font-mono text-[9px] font-medium uppercase tracking-[0.1em] text-bar-fg/45">
         {label}
       </div>

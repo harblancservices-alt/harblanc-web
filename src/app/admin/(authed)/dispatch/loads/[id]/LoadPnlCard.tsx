@@ -25,6 +25,7 @@ function usd(n: number): string {
 
 export function LoadPnlCard({
   loadId,
+  net,
   loadedMiles,
   loadedDiesel,
   deadheadMiles,
@@ -37,6 +38,9 @@ export function LoadPnlCard({
   expensesTotal,
 }: {
   loadId: string;
+  /** The load's net (revenue − fuel − factoring − expenses); already shown in
+   *  the command bar. Re-presented here as the P&L bottom-line band. */
+  net: number;
   loadedMiles: number | null;
   loadedDiesel: number;
   deadheadMiles: number | null;
@@ -74,7 +78,7 @@ export function LoadPnlCard({
         />
         <div className="mt-1 flex items-baseline justify-between border-t border-dashed border-line pt-1 pl-2.5">
           <span className="text-[12.5px] font-semibold text-fg">Total fuel</span>
-          <span className="font-mono text-[12.5px] font-semibold tabular-nums text-red-700">
+          <span className="font-mono text-[12.5px] font-semibold tabular-nums text-bad">
             −{usd(totalDiesel)}
           </span>
         </div>
@@ -96,7 +100,7 @@ export function LoadPnlCard({
               <span className="text-fg">Factoring</span>
               <span className="text-[11px] text-fg-subtle">{factoringPct}%</span>
             </span>
-            <span className="font-mono tabular-nums text-red-700">
+            <span className="font-mono tabular-nums text-bad">
               −{usd(factoring)}
             </span>
           </div>
@@ -112,7 +116,7 @@ export function LoadPnlCard({
               ) : null}
             </span>
             <span className="flex items-center gap-2">
-              <span className="font-mono tabular-nums text-red-700">−{usd(e.amount)}</span>
+              <span className="font-mono tabular-nums text-bad">−{usd(e.amount)}</span>
               {editing ? (
                 <form action={deleteLoadExpense.bind(null, e.id, loadId)}>
                   <Button
@@ -129,6 +133,22 @@ export function LoadPnlCard({
             </span>
           </div>
         ))}
+      </div>
+
+      {/* Net — the P&L bottom line on an inset total band. Same number the
+          command bar shows; re-presented here to close out the ledger. */}
+      <div className="flex items-baseline justify-between gap-2 border-t border-line bg-inset px-3 py-2.5">
+        <span className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-ink-3">
+          Net
+        </span>
+        <span
+          className={
+            "font-mono text-[17px] font-bold tabular-nums " +
+            (net >= 0 ? "text-ok" : "text-bad")
+          }
+        >
+          {usd(net)}
+        </span>
       </div>
     </section>
   );
@@ -178,7 +198,7 @@ function CostRow({
       <span
         className={
           "min-w-[52px] text-right font-mono tabular-nums " +
-          (value != null ? "text-red-700" : "text-fg-subtle")
+          (value != null ? "text-bad" : "text-fg-subtle")
         }
       >
         {value != null ? `−${usd(value)}` : "—"}

@@ -202,7 +202,7 @@ function DocKindBlock({
                   : inputRef.current?.click()
             }
             disabled={busy}
-            className="rounded-md border border-red-700 bg-red-600 px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-red-700 disabled:opacity-50"
+            className="rounded-md border border-accent bg-accent px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-accent-hover hover:border-accent-hover disabled:opacity-50"
           >
             {busy
               ? "Uploading…"
@@ -322,7 +322,7 @@ function DocKindBlock({
 
       {ok ? (
         <p
-          className="mt-1.5 text-[11px] font-semibold text-green-700"
+          className="mt-1.5 text-[11px] font-semibold text-ok"
           role="status"
         >
           ✓ {ok}
@@ -330,7 +330,7 @@ function DocKindBlock({
       ) : null}
 
       {err ? (
-        <p className="mt-1.5 text-[11px] text-red-700" role="alert">
+        <p className="mt-1.5 text-[11px] text-bad" role="alert">
           {err}
         </p>
       ) : null}
@@ -401,7 +401,7 @@ function DocViewer({ doc, onClose }: { doc: LoadDoc; onClose: () => void }) {
 
 function CheckIcon() {
   return (
-    <span className="flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded-full bg-green-600 text-white">
+    <span className="flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded-full bg-ok text-white">
       <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={3.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
         <path d="M20 6 9 17l-5-5" />
       </svg>
