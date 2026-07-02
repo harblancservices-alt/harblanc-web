@@ -2,29 +2,27 @@ import Link from "next/link";
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
 
 /**
- * Site-wide admin button — one component, six variants chosen BY FUNCTION so
- * buttons are coloured consistently across every admin page regardless of who
- * built the page.
+ * Site-wide admin button — one component, six variants. The variant names are
+ * kept (chosen BY FUNCTION so pages don't have to re-pick), but under the V2
+ * "Fleet Ops" system the saturated blue/amber/slate FILLS are neutralized: the
+ * accent red is now reserved for the single primary action, everything neutral
+ * shares one calm secondary look, and destructive stays red-outlined.
  *
- *   navigate    → BLUE filled. Back buttons (← Loads) and jump-to-page buttons
- *                 (Trip, Broker, Open lead). Anything that goes to another page.
- *   edit        → AMBER/orange filled. Every "edit this thing" control.
- *   primary     → RED filled. The main do-it/commit actions (Save, Update,
- *                 Add load, New trip, Send, + Add expense, Build preview …).
- *   destructive → RED border, WHITE fill, BLACK text. Delete / Remove / Trash /
+ *   primary     → SOLID accent red, white text. The main do-it/commit action
+ *                 (Save, Update, Add load, New trip, Send, Build preview …).
+ *   navigate    → NEUTRAL secondary (white fill + line-strong border + ink
+ *                 text). Was blue-filled. Back / jump-to-page buttons.
+ *   edit        → NEUTRAL secondary. Was amber-filled. "Edit this thing".
+ *   utility     → NEUTRAL secondary. Was slate-filled. Document-add buttons
+ *                 (+ Rate Con / + BOL / + POD).
+ *   cancel      → NEUTRAL secondary. Modal Cancel / dismiss buttons.
+ *   destructive → RED border, WHITE fill, RED text. Delete / Remove / Trash /
  *                 Cancel load — distinct from primary so a delete never reads
  *                 like a save.
- *   cancel      → NEUTRAL gray. Modal Cancel / dismiss buttons that just close.
- *   utility     → SLATE filled. The document-add buttons (+ Rate Con / + BOL /
- *                 + POD). A tasteful neutral that reads well on both the dark
- *                 dashboard active-load card and the light load-detail page,
- *                 and is clearly none of red / blue / orange.
  *
- * Renders a real <button> by default; pass `href` to render a Next <Link>
- * (for navigate buttons that are links) with the identical styling. All native
- * button/anchor props (type, formAction, onClick, disabled, target, aria-*…)
- * pass straight through, so behaviour/links/actions are unchanged — this is a
- * styling layer only.
+ * Only colors/radius/height change here; every variant name, prop, icon, and
+ * the button-vs-Link behaviour are identical. This is a styling layer only —
+ * behaviour/links/actions/form submission are unchanged.
  */
 
 export type ButtonVariant =
@@ -40,22 +38,27 @@ export type ButtonSize = "sm" | "md";
 const BASE =
   "inline-flex items-center justify-center gap-1.5 rounded-md font-mono font-bold uppercase leading-none tracking-[0.08em] transition-colors disabled:cursor-not-allowed disabled:opacity-60 whitespace-nowrap";
 
+// The neutralized secondary look shared by navigate / edit / utility / cancel:
+// white surface, strong hairline, ink text, inset hover. No saturated fill.
+const SECONDARY =
+  "border border-line-strong bg-card text-ink hover:bg-inset disabled:hover:bg-card";
+
 const VARIANT: Record<ButtonVariant, string> = {
-  navigate: "border border-blue-700 bg-blue-600 text-white hover:bg-blue-700",
-  edit: "border border-amber-700 bg-amber-600 text-white hover:bg-amber-700",
-  primary: "border border-red-700 bg-red-600 text-white hover:bg-red-700",
+  primary:
+    "border border-accent bg-accent text-white hover:bg-accent-hover hover:border-accent-hover",
+  navigate: SECONDARY,
+  edit: SECONDARY,
+  utility: SECONDARY,
+  cancel: SECONDARY,
   destructive:
-    "border border-red-600 bg-white text-black hover:bg-red-50 disabled:hover:bg-white",
-  cancel:
-    "border border-line-strong bg-card text-fg hover:bg-elevated",
-  utility:
-    "border border-slate-500 bg-slate-600 text-white hover:bg-slate-700",
+    "border border-bad bg-card text-bad hover:bg-bad-bg disabled:hover:bg-card",
 };
 
-// Mobile-friendly tap targets: sm ≈ 30px tall, md ≈ 36px tall.
+// 6px radius (rounded-md). Height ≈ 36px on desktop; 44px minimum tap target
+// on mobile (min-h relaxes at the sm breakpoint).
 const SIZE: Record<ButtonSize, string> = {
-  sm: "px-2.5 py-1.5 text-[11px]",
-  md: "px-3.5 py-2 text-[12px]",
+  sm: "px-3 min-h-[38px] sm:min-h-[30px] py-1.5 text-[11px]",
+  md: "px-4 min-h-[44px] sm:min-h-[36px] py-2 text-[12px]",
 };
 
 type BaseProps = {
