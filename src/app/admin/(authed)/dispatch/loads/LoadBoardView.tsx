@@ -7,6 +7,8 @@ import Link from "next/link";
 import { softDeleteLoads } from "./actions";
 import { AddLoadButton } from "./AddLoadButton";
 import { Button } from "@/components/ui/Button";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { StatusTag, type StatusTone } from "@/components/ui/StatusTag";
 
 export type LoadRow = {
   id: string;
@@ -64,12 +66,12 @@ const MONTHS = [
   "December",
 ];
 
-const STATUS_PILL: Record<string, string> = {
-  pending: "bg-amber-50 text-amber-700",
-  assigned: "bg-amber-50 text-amber-700",
-  loaded: "bg-blue-50 text-blue-700",
-  delivered: "bg-green-50 text-green-700",
-  cancelled: "bg-elevated text-fg-subtle",
+const STATUS_TONE: Record<string, StatusTone> = {
+  pending: "amber",
+  assigned: "amber",
+  loaded: "steel",
+  delivered: "green",
+  cancelled: "slate",
 };
 
 const STATUS_LABEL: Record<string, string> = {
@@ -154,36 +156,33 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
   return (
     <div className="min-h-screen border-t border-line bg-canvas text-fg">
       <div className="w-full px-4 py-5 sm:px-6 lg:px-8">
-        <header className="mb-3 flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-indigo-600">
-              Dispatch
-            </p>
-            <h1 className="mt-1 text-[22px] font-semibold leading-none tracking-tight text-fg">
-              Load board
-            </h1>
-          </div>
-          {/* Month filter — slices the whole board (stats + list) by month. */}
-          <label className="flex items-center gap-2">
-            <span className="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-fg-subtle">
-              Month
-            </span>
-            <select
-              value={month === "all" ? "all" : String(month)}
-              onChange={(e) =>
-                setMonth(e.target.value === "all" ? "all" : Number(e.target.value))
-              }
-              className="rounded-md border border-line-strong bg-card px-3 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.08em] text-fg transition-colors focus:border-fg focus:outline-none"
-            >
-              <option value="all">All months</option>
-              {MONTHS.map((m, i) => (
-                <option key={m} value={i}>
-                  {m}
-                </option>
-              ))}
-            </select>
-          </label>
-        </header>
+        <PageHeader
+          eyebrow="Dispatch"
+          title="Load board"
+          className="mb-3"
+          actions={
+            /* Month filter — slices the whole board (stats + list) by month. */
+            <label className="flex items-center gap-2">
+              <span className="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-ink-3">
+                Month
+              </span>
+              <select
+                value={month === "all" ? "all" : String(month)}
+                onChange={(e) =>
+                  setMonth(e.target.value === "all" ? "all" : Number(e.target.value))
+                }
+                className="h-[34px] rounded-md border border-line-strong bg-card px-3 font-mono text-[12px] font-bold uppercase tracking-[0.08em] text-ink outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent/40"
+              >
+                <option value="all">All months</option>
+                {MONTHS.map((m, i) => (
+                  <option key={m} value={i}>
+                    {m}
+                  </option>
+                ))}
+              </select>
+            </label>
+          }
+        />
 
         {/* Profit-toward-goal bar follows the SELECTED month (same net the KPI
             strip + list use). The $10k monthly goal is meaningless across "All
@@ -193,8 +192,8 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
           <ProfitGoalBar net={stats.net} monthLabel={MONTHS[month]} />
         ) : null}
 
-        {/* KPI strip */}
-        <div className="mb-4 grid grid-cols-3 gap-px overflow-hidden rounded-md border border-line bg-line shadow-sm sm:grid-cols-6">
+        {/* KPI strip — Net profit is the focal (graphite) tile. */}
+        <div className="mb-4 grid grid-cols-3 gap-px overflow-hidden rounded-md border border-line bg-line shadow-e2 sm:grid-cols-6">
           <Kpi label="Total loads" value={String(stats.totalLoads)} tone="count" />
           {/* A/R is all-time (same on every month) and links to the full
               Accounts Receivable page where loads get marked paid. */}
@@ -206,18 +205,18 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
           />
           <Kpi label="Delivered" value={String(stats.delivered)} tone="green" />
           <Kpi label="Gross" value={usd(stats.gross)} tone="green" />
-          <Kpi label="Net profit" value={usd(stats.net)} tone="green" />
+          <Kpi label="Net profit" value={usd(stats.net)} tone="focal" />
           <div className="min-w-0 bg-card px-3 py-2.5">
-            <div className="truncate font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-indigo-600">
+            <div className="truncate font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-3">
               Avg / mi
             </div>
-            <div className="mt-1 truncate text-[16px] font-bold tabular-nums leading-none text-green-700 sm:text-[18px]">
+            <div className="mt-1 truncate text-[16px] font-bold tabular-nums leading-none text-ok sm:text-[18px]">
               ${stats.avgNetPerMile.toFixed(2)}
-              <span className="ml-1 text-[10px] font-medium text-fg-subtle">net</span>
+              <span className="ml-1 text-[10px] font-medium text-ink-3">net</span>
             </div>
-            <div className="mt-1 truncate text-[13px] font-bold tabular-nums leading-none text-green-700">
+            <div className="mt-1 truncate text-[13px] font-bold tabular-nums leading-none text-ok">
               ${stats.avgGrossPerMile.toFixed(2)}
-              <span className="ml-1 text-[10px] font-medium text-fg-subtle">gross</span>
+              <span className="ml-1 text-[10px] font-medium text-ink-3">gross</span>
             </div>
           </div>
         </div>
@@ -230,7 +229,7 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search load #, broker, origin, destination…"
-            className="min-w-0 flex-1 rounded-md border border-line bg-card px-3 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-line-strong focus:outline-none sm:max-w-sm"
+            className="h-[34px] min-w-0 flex-1 rounded-md border border-line-strong bg-card px-3 text-[13px] text-ink outline-none placeholder:text-ink-3 focus:border-accent focus:ring-2 focus:ring-accent/40 sm:max-w-sm"
           />
           {!selectMode && rows.length > 0 ? (
             <Button
@@ -249,11 +248,11 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
 
         {/* Delete-selection bar — only while in explicit delete mode. */}
         {selectMode && (
-          <div className="mb-2 flex flex-wrap items-center gap-2 rounded-md border border-red-300 bg-red-50 px-3 py-2">
-            <span className="font-mono text-[12px] font-bold text-fg">
+          <div className="mb-2 flex flex-wrap items-center gap-2 rounded-md border border-bad/40 bg-bad-bg px-3 py-2">
+            <span className="font-mono text-[12px] font-bold text-ink">
               {selected.size} selected
             </span>
-            <span className="font-mono text-[11px] text-fg-subtle">
+            <span className="font-mono text-[11px] text-ink-3">
               · tap loads to select
             </span>
             <Button
@@ -292,10 +291,10 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
         )}
 
         {/* Table (desktop) */}
-        <div className="hidden overflow-x-auto rounded-md border border-line bg-card shadow-md md:block">
+        <div className="hidden overflow-x-auto rounded-md border border-line bg-card shadow-e2 md:block">
           <div className="min-w-[1040px]">
             <div
-              className="grid items-center gap-2 bg-bar px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-bar-fg"
+              className="grid items-center gap-2 border-b-2 border-line-strong bg-inset px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-ink-3"
               style={{ gridTemplateColumns: GRID }}
             >
               <span className="flex items-center">
@@ -357,8 +356,8 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
                   className={
                     "grid cursor-pointer items-center gap-2 px-3 py-2 text-[12.5px] transition-colors " +
                     (selectMode && selected.has(r.id)
-                      ? "bg-red-50 hover:bg-red-100 "
-                      : "hover:bg-elevated ") +
+                      ? "bg-bad-bg hover:bg-bad-bg "
+                      : (i % 2 === 0 ? "bg-card " : "bg-inset ") + "hover:bg-inset ") +
                     (i === rows.length - 1 ? "" : "border-b border-line")
                   }
                   style={{ gridTemplateColumns: GRID }}
@@ -378,45 +377,40 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
                     ) : null}
                   </span>
                   <span>
-                    <span
-                      className={
-                        "inline-block rounded-sm px-1.5 py-[1px] font-mono text-[10px] font-bold uppercase tracking-[0.06em] " +
-                        (STATUS_PILL[r.status] ?? "bg-elevated text-fg-subtle")
-                      }
-                    >
+                    <StatusTag tone={STATUS_TONE[r.status] ?? "slate"}>
                       {STATUS_LABEL[r.status] ?? r.status}
-                    </span>
+                    </StatusTag>
                   </span>
-                  <span className="truncate font-mono text-fg-muted">
+                  <span className="truncate font-mono text-ink-3">
                     {r.loadNumber}
                   </span>
-                  <span className="truncate font-semibold text-fg">
+                  <span className="truncate font-semibold text-ink">
                     {r.broker}
                   </span>
-                  <span className="truncate text-fg">
-                    {r.origin} <span className="text-fg-subtle">→</span>{" "}
+                  <span className="truncate text-ink">
+                    {r.origin} <span className="text-ink-3">→</span>{" "}
                     {r.destination}
                   </span>
-                  <span className="text-fg-muted">{r.pickup}</span>
-                  <span className="text-fg-muted">{r.delivery}</span>
-                  <span className="truncate text-blue-700">{r.trip}</span>
-                  <span className="text-right font-bold tabular-nums text-green-700">
+                  <span className="text-ink-2">{r.pickup}</span>
+                  <span className="text-ink-2">{r.delivery}</span>
+                  <span className="truncate text-steel">{r.trip}</span>
+                  <span className="text-right font-bold tabular-nums text-ok">
                     {usd(r.rate)}
                   </span>
-                  <span className="text-right tabular-nums text-fg-muted">
+                  <span className="text-right tabular-nums text-ink-2">
                     {r.loadedMiles != null
                       ? r.loadedMiles.toLocaleString()
                       : "—"}
                   </span>
-                  <span className="text-right tabular-nums text-red-600">
+                  <span className="text-right tabular-nums text-bad">
                     {r.dhMiles > 0 ? r.dhMiles.toLocaleString() : "—"}
                   </span>
-                  <span className="text-right font-bold tabular-nums text-green-700">
+                  <span className="text-right font-bold tabular-nums text-ok">
                     {usd(r.net)}
                   </span>
                   <span className="flex justify-end">
                     {r.paymentStatus === "paid" ? (
-                      <span className="font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-green-700">
+                      <span className="font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-ok">
                         Paid
                       </span>
                     ) : null}
@@ -452,8 +446,8 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
                     else router.push(`/admin/dispatch/loads/${r.id}`);
                   }}
                   className={
-                    "flex cursor-pointer items-stretch overflow-hidden rounded-md border shadow-sm transition-colors active:bg-elevated " +
-                    (isSel ? "border-red-400 bg-red-50" : "border-line bg-card")
+                    "flex cursor-pointer items-stretch overflow-hidden rounded-md border shadow-e1 transition-colors active:bg-inset " +
+                    (isSel ? "border-bad bg-bad-bg" : "border-line bg-card")
                   }
                 >
                   {/* Selection indicator — only in delete mode. The whole card
@@ -464,7 +458,7 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
                       className={
                         "flex w-12 shrink-0 items-center justify-center border-r transition-colors " +
                         (isSel
-                          ? "border-red-300 bg-red-100"
+                          ? "border-bad/40 bg-bad-bg"
                           : "border-line bg-card")
                       }
                     >
@@ -472,7 +466,7 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
                         className={
                           "flex h-5 w-5 items-center justify-center rounded border-2 text-[12px] font-bold leading-none " +
                           (isSel
-                            ? "border-red-600 bg-red-600 text-white"
+                            ? "border-bad bg-bad text-white"
                             : "border-line-strong text-transparent")
                         }
                       >
@@ -484,15 +478,10 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
                   {/* Content */}
                   <div className="min-w-0 flex-1 p-3">
                     <div className="flex items-center justify-between gap-2">
-                      <span
-                        className={
-                          "inline-block rounded-sm px-1.5 py-[1px] font-mono text-[10px] font-bold uppercase tracking-[0.06em] " +
-                          (STATUS_PILL[r.status] ?? "bg-elevated text-fg-subtle")
-                        }
-                      >
+                      <StatusTag tone={STATUS_TONE[r.status] ?? "slate"}>
                         {STATUS_LABEL[r.status] ?? r.status}
-                      </span>
-                      <span className="font-mono text-[15px] font-bold tabular-nums text-green-700">
+                      </StatusTag>
+                      <span className="font-mono text-[15px] font-bold tabular-nums text-ok">
                         {usd(r.rate)}
                       </span>
                     </div>
@@ -514,13 +503,13 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
                       {r.loadedMiles != null ? (
                         <span>{r.loadedMiles.toLocaleString()} mi</span>
                       ) : null}
-                      <span className="font-bold text-green-700">
+                      <span className="font-bold text-ok">
                         Net {usd(r.net)}
                       </span>
                     </div>
 
                     {r.paymentStatus === "paid" ? (
-                      <div className="mt-2 text-right font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-green-700">
+                      <div className="mt-2 text-right font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-ok">
                         Paid
                       </div>
                     ) : null}
@@ -570,24 +559,24 @@ function ProfitGoalBar({ net, monthLabel }: { net: number; monthLabel: string })
   const marks = [25, 50, 75];
   const labels = ["$0", "$2.5k", "$5k", "$7.5k", "$10k"];
   return (
-    <div className="mb-2 rounded-md border border-line bg-card px-3.5 py-3 shadow-sm">
+    <div className="mb-2 rounded-md border border-line bg-card px-3.5 py-3 shadow-e1">
       <div className="flex items-baseline justify-between gap-2">
-        <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-indigo-600">
+        <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-3">
           Net profit goal · {monthLabel}
         </span>
         <span className="font-mono text-[12px] tabular-nums">
-          <span className="font-bold text-green-700">{usd(net)}</span>
-          <span className="text-fg-subtle"> / {usd(GOAL)}</span>
+          <span className="font-bold text-ok">{usd(net)}</span>
+          <span className="text-ink-3"> / {usd(GOAL)}</span>
           {reached ? (
-            <span className="ml-2 rounded bg-green-100 px-1.5 py-[1px] text-[10px] font-bold uppercase tracking-[0.06em] text-green-700">
+            <span className="ml-2 rounded bg-ok-bg px-1.5 py-[1px] text-[10px] font-bold uppercase tracking-[0.06em] text-ok">
               Goal!
             </span>
           ) : null}
         </span>
       </div>
-      <div className="relative mt-2 h-3.5 overflow-hidden rounded-full bg-elevated">
+      <div className="relative mt-2 h-3.5 overflow-hidden rounded-full bg-inset">
         <div
-          className="h-full rounded-full bg-green-600 transition-all"
+          className="h-full rounded-full bg-ok transition-all"
           style={{ width: `${pct}%` }}
         />
         {marks.map((m) => (
@@ -598,7 +587,7 @@ function ProfitGoalBar({ net, monthLabel }: { net: number; monthLabel: string })
           />
         ))}
       </div>
-      <div className="mt-1 flex justify-between font-mono text-[9px] tabular-nums text-fg-subtle">
+      <div className="mt-1 flex justify-between font-mono text-[9px] tabular-nums text-ink-3">
         {labels.map((l) => (
           <span key={l}>{l}</span>
         ))}
@@ -616,29 +605,43 @@ function Kpi({
 }: {
   label: string;
   value: string;
-  tone: "count" | "green" | "red" | "muted";
+  tone: "count" | "green" | "red" | "muted" | "focal";
   hint?: string;
   href?: string;
 }) {
+  // Focal — the graphite hero cell with a 3px accent left edge.
+  if (tone === "focal") {
+    return (
+      <div className="relative min-w-0 overflow-hidden bg-graphite px-3 py-2.5 pl-4">
+        <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-accent" />
+        <div className="truncate font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-on-dark-dim">
+          {label}
+        </div>
+        <div className="mt-1 truncate text-[18px] font-bold tabular-nums leading-none text-white sm:text-[20px]">
+          {value}
+        </div>
+      </div>
+    );
+  }
   const color =
     tone === "green"
-      ? "text-green-700"
+      ? "text-ok"
       : tone === "red"
-        ? "text-red-700"
+        ? "text-bad"
         : tone === "muted"
-          ? "text-fg-subtle"
-          : "text-blue-700";
+          ? "text-ink-3"
+          : "text-steel";
   const inner = (
     <>
-      <div className="truncate font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-indigo-600">
+      <div className="truncate font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-3">
         {label}
-        {href ? <span aria-hidden className="ml-1 text-fg-subtle">›</span> : null}
+        {href ? <span aria-hidden className="ml-1 text-ink-3">›</span> : null}
       </div>
       <div className={"mt-1 truncate text-[18px] font-bold tabular-nums leading-none sm:text-[20px] " + color}>
         {value}
       </div>
       {hint ? (
-        <div className="mt-1 truncate font-mono text-[10px] uppercase tracking-[0.08em] text-amber-700">
+        <div className="mt-1 truncate font-mono text-[10px] uppercase tracking-[0.08em] text-warn">
           {hint}
         </div>
       ) : null}
@@ -648,7 +651,7 @@ function Kpi({
     return (
       <Link
         href={href}
-        className="min-w-0 bg-card px-3 py-2.5 transition-colors hover:bg-elevated"
+        className="min-w-0 bg-card px-3 py-2.5 transition-colors hover:bg-inset"
       >
         {inner}
       </Link>
