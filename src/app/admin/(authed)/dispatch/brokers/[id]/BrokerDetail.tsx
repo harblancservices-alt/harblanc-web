@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
+import { StatusTag, type StatusTone } from "@/components/ui/StatusTag";
 import { brokerColor, brokerInitial, formatPhone, telHref, usd, usd2 } from "../_util";
 import {
   updateBroker,
@@ -15,12 +16,12 @@ import { markLoadPaid } from "../../loads/actions";
 
 // Status pill styling for the broker's load-history cards, matching the
 // dashboard's Active loads pills.
-const HISTORY_STATUS_PILL: Record<string, string> = {
-  pending: "bg-amber-100 text-amber-700",
-  assigned: "bg-amber-100 text-amber-700",
-  loaded: "bg-blue-100 text-blue-700",
-  delivered: "bg-green-100 text-green-700",
-  cancelled: "bg-elevated text-fg-muted",
+const HISTORY_STATUS_TONE: Record<string, StatusTone> = {
+  pending: "amber",
+  assigned: "amber",
+  loaded: "steel",
+  delivered: "green",
+  cancelled: "slate",
 };
 const HISTORY_STATUS_LABEL: Record<string, string> = {
   pending: "Pending",
@@ -150,20 +151,13 @@ export function BrokerDetail({ data }: { data: BrokerDetailData }) {
               <h1 className="truncate text-[21px] font-semibold leading-none text-fg">
                 {broker.name}
               </h1>
-              <span
-                className={
-                  "rounded px-2 py-[2px] font-mono text-[10px] font-bold uppercase tracking-[0.06em] " +
-                  (active
-                    ? "bg-green-100 text-green-700"
-                    : "bg-elevated text-fg-muted")
-                }
-              >
+              <StatusTag tone={active ? "green" : "slate"}>
                 {broker.status}
-              </span>
+              </StatusTag>
               {broker.factoring ? (
-                <span className="rounded bg-blue-100 px-2 py-[2px] font-mono text-[10px] font-bold uppercase tracking-[0.06em] text-blue-700">
+                <StatusTag tone="steel" hideDot>
                   Factoring
-                </span>
+                </StatusTag>
               ) : null}
             </div>
             <p className="mt-1 font-mono text-[11px] uppercase tracking-[0.08em] text-fg-muted">
@@ -243,11 +237,11 @@ export function BrokerDetail({ data }: { data: BrokerDetailData }) {
         </div>
       </header>
 
-      {/* KPI row */}
-      <div className="grid grid-cols-2 divide-x divide-line overflow-hidden rounded-md border border-line bg-card shadow-sm lg:grid-cols-4">
+      {/* KPI row — Net is the focal (graphite) tile. */}
+      <div className="grid grid-cols-2 divide-x divide-line overflow-hidden rounded-md border border-line bg-card shadow-e2 lg:grid-cols-4">
         <Kpi label="Total loads" value={String(kpis.loads)} />
         <Kpi label="Gross" value={usd2(kpis.gross)} tone="green" />
-        <Kpi label="Net" value={usd2(kpis.net)} tone="green" />
+        <Kpi label="Net" value={usd2(kpis.net)} tone="focal" />
         <Kpi
           label="Accounts receivable"
           value={usd2(kpis.ar)}
@@ -380,7 +374,7 @@ export function BrokerDetail({ data }: { data: BrokerDetailData }) {
             // Card list mirroring the dashboard's Active loads section: one
             // card container, fluid flex rows that stack vertically and never
             // scroll sideways. Tapping a card opens the load.
-            <div className="overflow-hidden rounded-xl border border-line bg-card shadow-md">
+            <div className="overflow-hidden rounded-md border border-line bg-card shadow-e2">
               {loads.map((l, i) => (
                 <div
                   key={l.id}
@@ -394,20 +388,18 @@ export function BrokerDetail({ data }: { data: BrokerDetailData }) {
                     }
                   }}
                   className={
-                    "flex cursor-pointer items-start justify-between gap-3 px-3.5 py-2.5 transition-colors hover:bg-elevated " +
+                    "flex cursor-pointer items-start justify-between gap-3 px-3.5 py-2.5 transition-colors hover:bg-inset " +
+                    (i % 2 === 1 ? "bg-inset " : "bg-card ") +
                     (i === loads.length - 1 ? "" : "border-b border-line")
                   }
                 >
                   <span className="flex min-w-0 items-start gap-2.5">
-                    <span
-                      className={
-                        "mt-px shrink-0 rounded-sm px-1.5 py-[1px] font-mono text-[10px] font-bold uppercase tracking-[0.06em] " +
-                        (HISTORY_STATUS_PILL[l.status] ??
-                          "bg-elevated text-fg-muted")
-                      }
+                    <StatusTag
+                      tone={HISTORY_STATUS_TONE[l.status] ?? "slate"}
+                      className="mt-px shrink-0"
                     >
                       {HISTORY_STATUS_LABEL[l.status] ?? l.status.replace("_", " ")}
-                    </span>
+                    </StatusTag>
                     <span className="min-w-0">
                       <span className="block truncate text-[13px] font-semibold text-fg">
                         {l.lane}
@@ -420,7 +412,7 @@ export function BrokerDetail({ data }: { data: BrokerDetailData }) {
                     </span>
                   </span>
                   <span className="flex shrink-0 flex-col items-end gap-1">
-                    <span className="font-mono text-[13px] font-bold tabular-nums text-green-700">
+                    <span className="font-mono text-[13px] font-bold tabular-nums text-ok">
                       {usd(l.rate)}
                     </span>
                     <span className="font-mono text-[11px] tabular-nums text-fg-muted">
@@ -434,13 +426,13 @@ export function BrokerDetail({ data }: { data: BrokerDetailData }) {
                         <button
                           type="submit"
                           onClick={(e) => e.stopPropagation()}
-                          className="rounded-md border border-blue-300 bg-blue-50 px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-blue-700 transition-colors hover:bg-blue-100"
+                          className="rounded-md border border-steel/40 bg-steel-bg px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-steel transition-colors hover:bg-steel-bg/70"
                         >
                           Mark paid
                         </button>
                       </form>
                     ) : l.paymentStatus === "paid" ? (
-                      <span className="font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-green-700">
+                      <span className="font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-ok">
                         Paid
                       </span>
                     ) : null}
@@ -749,7 +741,7 @@ function LanesModal({
               <span>
                 {totalLoads} load{totalLoads === 1 ? "" : "s"}
               </span>
-              <span className="text-green-700">{usd(totalGross)} gross</span>
+              <span className="text-ok">{usd(totalGross)} gross</span>
             </div>
             <div className="max-h-[60vh] overflow-y-auto">
               {lanes.map((l) => (
@@ -769,7 +761,7 @@ function LanesModal({
                   <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[11.5px] text-fg-muted">
                     <span>
                       Gross{" "}
-                      <span className="font-bold text-green-700">
+                      <span className="font-bold text-ok">
                         {usd(l.gross)}
                       </span>
                     </span>
@@ -1027,7 +1019,7 @@ function RowRemove({ onClick }: { onClick: () => void }) {
       type="button"
       onClick={onClick}
       aria-label="Remove row"
-      className="shrink-0 px-1 text-[16px] leading-none text-fg-subtle transition-colors hover:text-red-700"
+      className="shrink-0 px-1 text-[16px] leading-none text-fg-subtle transition-colors hover:text-bad"
     >
       ×
     </button>
@@ -1061,7 +1053,7 @@ function CField({
     <div>
       <label className="block font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
         {label}
-        {required ? <span className="text-red-600"> *</span> : null}
+        {required ? <span className="text-bad"> *</span> : null}
       </label>
       <input
         name={name}
@@ -1110,10 +1102,23 @@ function Kpi({
 }: {
   label: string;
   value: string;
-  tone?: "default" | "green" | "red";
+  tone?: "default" | "green" | "red" | "focal";
 }) {
+  if (tone === "focal") {
+    return (
+      <div className="relative overflow-hidden bg-graphite px-4 py-3 pl-5">
+        <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-accent" />
+        <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-on-dark-dim">
+          {label}
+        </div>
+        <div className="mt-1 text-[22px] font-bold tabular-nums leading-none text-white">
+          {value}
+        </div>
+      </div>
+    );
+  }
   const color =
-    tone === "green" ? "text-green-700" : tone === "red" ? "text-red-700" : "text-fg";
+    tone === "green" ? "text-ok" : tone === "red" ? "text-bad" : "text-fg";
   return (
     <div className="px-4 py-3">
       <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-fg-muted">
@@ -1179,9 +1184,9 @@ function Row({
   divider?: boolean;
 }) {
   const color = green
-    ? "text-green-700"
+    ? "text-ok"
     : red
-      ? "text-red-700"
+      ? "text-bad"
       : muted
         ? "italic text-fg-subtle"
         : "text-fg";
@@ -1251,7 +1256,7 @@ function DocRow({
       <span
         className={
           "rounded px-2 py-[2px] font-mono text-[10px] font-bold uppercase tracking-[0.06em] " +
-          (onFile ? "bg-green-100 text-green-700" : "bg-elevated text-fg-subtle")
+          (onFile ? "bg-green-100 text-ok" : "bg-elevated text-fg-subtle")
         }
       >
         {onFile ? value : "Not on file"}
@@ -1362,7 +1367,7 @@ function EField({
     <div>
       <label className="block font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
         {label}
-        {required ? <span className="text-red-600"> *</span> : null}
+        {required ? <span className="text-bad"> *</span> : null}
       </label>
       <input
         name={name}

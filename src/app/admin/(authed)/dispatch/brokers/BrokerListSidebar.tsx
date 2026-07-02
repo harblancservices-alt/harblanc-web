@@ -86,7 +86,7 @@ export function BrokerListSidebar({ brokers }: { brokers: BrokerListItem[] }) {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search by name, MC, or DOT"
-            className="min-w-0 flex-1 rounded-md border border-line-strong bg-canvas px-2.5 py-1.5 text-[12px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
+            className="min-w-0 flex-1 rounded-md border border-line-strong bg-canvas px-2.5 py-1.5 text-[12px] text-ink outline-none placeholder:text-ink-3 focus:border-accent focus:ring-2 focus:ring-accent/40"
           />
         </div>
       </div>
@@ -115,7 +115,7 @@ export function BrokerListSidebar({ brokers }: { brokers: BrokerListItem[] }) {
               : `No match for “${q}”.`}
           </p>
         ) : (
-          rows.map((b) => {
+          rows.map((b, i) => {
             const active = b.id === activeId;
             return (
               <Link
@@ -125,9 +125,8 @@ export function BrokerListSidebar({ brokers }: { brokers: BrokerListItem[] }) {
                 className={
                   "flex items-center gap-2.5 border-b border-line px-3 py-2.5 transition-colors " +
                   (active
-                    ? "bg-elevated"
-                    : "hover:bg-elevated/60") +
-                  (active ? " border-l-[3px] border-l-red-600 pl-[9px]" : "")
+                    ? "border-l-[3px] border-l-accent bg-inset pl-[9px]"
+                    : (i % 2 === 1 ? "bg-inset " : "bg-card ") + "hover:bg-inset")
                 }
               >
                 <span
@@ -146,7 +145,7 @@ export function BrokerListSidebar({ brokers }: { brokers: BrokerListItem[] }) {
                     {b.loads} {b.loads === 1 ? "load" : "loads"}
                   </span>
                 </span>
-                <span className="shrink-0 text-[12px] font-bold tabular-nums text-green-700">
+                <span className="shrink-0 text-[12px] font-bold tabular-nums text-ok">
                   {usd(b.gross)}
                 </span>
               </Link>
