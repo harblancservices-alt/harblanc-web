@@ -253,10 +253,15 @@ export function MoreSheet({
                       onClick={onClose}
                       aria-current={active ? "page" : undefined}
                       className={
-                        "flex items-center gap-2.5 rounded-xl border px-3 py-3 transition-colors " +
+                        // Raised, tactile buttons: a soft resting shadow lifts
+                        // the tile off the sheet, a subtle top-to-bottom
+                        // gradient + stronger border give it body, hover adds a
+                        // little more lift (desktop), and a tap depresses it
+                        // (scale down + shadow drops) so it feels pressed.
+                        "flex items-center gap-2.5 rounded-xl border border-line-strong px-3 py-3 shadow-md transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 active:scale-[0.97] active:shadow-sm " +
                         (active
-                          ? "border-line-strong bg-elevated"
-                          : "border-line bg-card active:bg-elevated")
+                          ? "bg-elevated ring-1 ring-line-strong"
+                          : "bg-gradient-to-b from-card to-elevated")
                       }
                     >
                       <span
