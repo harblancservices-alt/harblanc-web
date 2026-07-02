@@ -49,12 +49,37 @@ function fmtDate(iso: string | null): string {
   // Date-only columns are parsed at UTC midnight to avoid a TZ off-by-one.
   const d = new Date(iso.length <= 10 ? iso + "T00:00:00" : iso);
   if (Number.isNaN(d.getTime())) return iso;
+  // M/D/YYYY — clean and legible, e.g. "3/5/2026".
   return d.toLocaleString("en-US", {
-    month: "short",
+    month: "numeric",
     day: "numeric",
     year: "numeric",
     timeZone: "UTC",
   });
+}
+
+/**
+ * Whole days a load has been outstanding — from its DELIVERY date (when it
+ * became receivable) to today. Both anchored to UTC midnight so it counts
+ * calendar days, not partial-day fractions. Returns null when there's no
+ * delivery date or it parses to a future/invalid value.
+ */
+function daysOutstanding(iso: string | null, now: Date): number | null {
+  if (!iso) return null;
+  const d = new Date(iso.length <= 10 ? iso + "T00:00:00Z" : iso);
+  if (Number.isNaN(d.getTime())) return null;
+  const today = Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate(),
+  );
+  const delivered = Date.UTC(
+    d.getUTCFullYear(),
+    d.getUTCMonth(),
+    d.getUTCDate(),
+  );
+  const days = Math.floor((today - delivered) / 86_400_000);
+  return days >= 0 ? days : 0;
 }
 
 async function loadReceivables() {
@@ -94,6 +119,7 @@ async function loadReceivables() {
 
 export default async function ReceivablesPage() {
   const { outstanding, recentlyPaid, arTotal } = await loadReceivables();
+  const now = new Date();
 
   return (
     <div className="min-h-screen border-t border-line bg-canvas text-fg">
@@ -134,37 +160,65 @@ export default async function ReceivablesPage() {
           </div>
         ) : (
           <div className="space-y-2">
-            {outstanding.map((l) => (
-              <div
-                key={l.id}
-                className="flex items-stretch overflow-hidden rounded-md border border-line bg-card shadow-sm"
-              >
-                <div className="min-w-0 flex-1 p-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="truncate text-[14px] font-semibold text-fg">
-                      {l.broker_name?.trim() || "—"}
-                    </span>
-                    <span className="shrink-0 font-mono text-[15px] font-bold tabular-nums text-red-700">
-                      {usd(num(l.rate))}
-                    </span>
+            {outstanding.map((l) => {
+              const age = daysOutstanding(l.delivery_date, now);
+              // Understated aging — subtle by default, a gentle amber/red once
+              // it's been sitting a while. Age is what Brent wants to see.
+              const ageColor =
+                age == null
+                  ? "text-fg-subtle"
+                  : age > 45
+                    ? "text-red-600"
+                    : age > 30
+                      ? "text-amber-600"
+                      : "text-fg-subtle";
+              return (
+                <div
+                  key={l.id}
+                  className="flex items-stretch overflow-hidden rounded-md border border-line bg-card shadow-sm"
+                >
+                  <div className="min-w-0 flex-1 p-3">
+                    <div className="flex items-start justify-between gap-2">
+                      <span className="truncate text-[14px] font-semibold text-fg">
+                        {l.broker_name?.trim() || "—"}
+                      </span>
+                      <div className="shrink-0 text-right">
+                        <div className="font-mono text-[15px] font-bold tabular-nums text-red-700">
+                          {usd(num(l.rate))}
+                        </div>
+                        {age != null ? (
+                          <div
+                            className={
+                              "mt-0.5 font-mono text-[10px] tabular-nums " + ageColor
+                            }
+                          >
+                            {age} day{age === 1 ? "" : "s"}
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                    <div className="mt-1 truncate text-[12.5px] text-fg-muted">
+                      {l.origin?.trim() || "—"}{" "}
+                      <span className="text-fg-subtle">→</span>{" "}
+                      {l.destination?.trim() || "—"}
+                    </div>
+                    <div className="mt-1.5 text-[12.5px] text-fg-muted">
+                      <span className="font-mono text-[11px] text-fg-subtle">
+                        #{l.load_number?.trim() || "—"}
+                      </span>
+                      <span className="ml-2">
+                        Delivered {fmtDate(l.delivery_date)}
+                      </span>
+                    </div>
+                    <form action={markLoadPaid.bind(null, l.id)} className="mt-2.5">
+                      <Button type="submit" variant="primary" size="sm">
+                        Mark paid
+                      </Button>
+                    </form>
                   </div>
-                  <div className="mt-1 truncate text-[12.5px] text-fg-muted">
-                    {l.origin?.trim() || "—"}{" "}
-                    <span className="text-fg-subtle">→</span>{" "}
-                    {l.destination?.trim() || "—"}
-                  </div>
-                  <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] text-fg-subtle">
-                    <span>#{l.load_number?.trim() || "—"}</span>
-                    <span>Delivered {fmtDate(l.delivery_date)}</span>
-                  </div>
-                  <form action={markLoadPaid.bind(null, l.id)} className="mt-2.5">
-                    <Button type="submit" variant="primary" size="sm">
-                      Mark paid
-                    </Button>
-                  </form>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
