@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { lookupZip, zipDistanceMiles } from "@/lib/dispatch/distance";
 import { BackhaulView, type BackhaulBroker } from "./BackhaulView";
+import { loadEmailPresets } from "./actions";
 
 export const metadata: Metadata = {
   title: "Backhaul",
@@ -42,6 +43,10 @@ export default async function BackhaulPage({
   const locationLabel = resolved
     ? `${resolved.city}, ${resolved.state}`
     : zip || null;
+
+  // Editable email templates for the compose box (falls back to the in-memory
+  // starters when the email_presets table hasn't been migrated yet).
+  const { presets, available: presetsAvailable } = await loadEmailPresets();
 
   let brokers: BackhaulBroker[] = [];
   if (emptyState) {
@@ -139,6 +144,8 @@ export default async function BackhaulPage({
       zip={zip}
       date={date}
       radiusMi={BACKHAUL_RADIUS_MI}
+      presets={presets}
+      presetsAvailable={presetsAvailable}
     />
   );
 }
