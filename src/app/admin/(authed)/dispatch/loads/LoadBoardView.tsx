@@ -35,10 +35,11 @@ export type LoadBoardData = {
   rows: ReadonlyArray<LoadRow>;
   brokerNames: ReadonlyArray<string>;
   activeTrips: ReadonlyArray<string>;
-  /** Net profit of loads attributed to the CURRENT month (resets monthly). */
-  monthGoalNet: number;
-  /** Full name of the current goal month, e.g. "June". */
-  goalMonthLabel: string;
+  /**
+   * Current calendar month (0–11) in the business timezone (America/Chicago) —
+   * the month the dropdown defaults to when the board opens.
+   */
+  currentMonth: number;
 };
 
 const MONTHS = [
@@ -77,8 +78,10 @@ const GRID =
 
 export function LoadBoardView({ data }: { data: LoadBoardData }) {
   const router = useRouter();
-  // Month filter (the new primary slice). Drives BOTH the stats and the list.
-  const [month, setMonth] = useState<number | "all">("all");
+  // Month filter — the primary slice, driving the goal bar, KPI stats AND the
+  // list off one value. Defaults to the CURRENT (business-timezone) month so the
+  // board opens on this month's loads + this month's profit-toward-goal.
+  const [month, setMonth] = useState<number | "all">(data.currentMonth);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   // Selection only exists inside an explicit delete mode. Default off: cards
   // open the load on tap and show no checkboxes. The Delete button turns it
@@ -177,7 +180,13 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
           </label>
         </header>
 
-        <ProfitGoalBar net={data.monthGoalNet} monthLabel={data.goalMonthLabel} />
+        {/* Profit-toward-goal bar follows the SELECTED month (same net the KPI
+            strip + list use). The $10k monthly goal is meaningless across "All
+            months", so the bar is hidden there — the combined Net profit KPI
+            still shows the total. */}
+        {month !== "all" ? (
+          <ProfitGoalBar net={stats.net} monthLabel={MONTHS[month]} />
+        ) : null}
 
         {/* KPI strip */}
         <div className="mb-4 grid grid-cols-3 gap-px overflow-hidden rounded-md border border-line bg-line shadow-sm sm:grid-cols-6">

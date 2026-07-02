@@ -11,7 +11,6 @@ import {
   closeOutDate,
   goalMonthParts,
   currentGoalMonth,
-  currentGoalMonthLabel,
 } from "@/lib/dispatch/goal-month";
 
 export const metadata: Metadata = {
@@ -121,20 +120,14 @@ async function loadBoard(): Promise<LoadBoardData> {
     .returns<{ id: string }[]>();
   const factoringIds = new Set((factoringBrokers ?? []).map((b) => b.id));
 
-  // The Net-profit-goal gauge is MONTHLY and resets at the start of each
-  // month: it sums the net of ALL loads — delivered AND in-progress
-  // (pending/assigned/loaded/…) — whose goal-month (close-out date − 1 day) is
-  // the current calendar month. Including in-progress loads keeps it a LIVE
-  // figure: the current load's running net counts and drops in real time as
-  // expenses are added. A load closed out on the 1st lands in the previous
-  // month, so on the 1st the new month's gauge starts fresh.
-  //
-  // "Current month" is resolved in the BUSINESS timezone, not the server's UTC
-  // clock — otherwise on the last evening of a month (already next-month in UTC)
-  // the gauge would zero the still-current month for a Central-time operator.
+  // The month dropdown defaults to the CURRENT month, resolved in the business
+  // timezone (America/Chicago) — not the server's UTC clock, which on the last
+  // evening of a month is already next-month and would default the board wrong.
+  // Per-month net (the goal bar + KPIs) is computed client-side in
+  // LoadBoardView from each load's attributed month, so every month is its own
+  // self-contained bucket that the dropdown slices.
   const now = new Date();
-  const { year: curYear, month: curMonth } = currentGoalMonth(now);
-  let monthGoalNet = 0;
+  const { month: currentMonth } = currentGoalMonth(now);
 
   const rows = (data ?? []).map((l) => {
     const cancelled = l.status === "cancelled";
@@ -158,9 +151,6 @@ async function loadBoard(): Promise<LoadBoardData> {
         ).net;
     const dhMiles = md.deadhead ?? 0;
     const goal = goalMonthParts(closeOutDate(l));
-    if (goal && goal.year === curYear && goal.month === curMonth) {
-      monthGoalNet += net;
-    }
     return {
       id: l.id,
       loadNumber: l.load_number?.trim() || "—",
@@ -180,8 +170,6 @@ async function loadBoard(): Promise<LoadBoardData> {
       paymentStatus: l.payment_status,
     };
   });
-  const goalMonthLabel = currentGoalMonthLabel(now);
-
   // Existing brokers for the Add-load autocomplete.
   const { data: brokerRows } = await sb
     .from("brokers")
@@ -206,11 +194,10 @@ async function loadBoard(): Promise<LoadBoardData> {
     .map((t) => t.name?.trim() ?? "")
     .filter((n) => n.length > 0);
 
-  // Summary stats (Net profit goal, Total loads, A/R, Delivered, Gross, Net,
-  // Avg/mi) are computed client-side in LoadBoardView so they react to the
-  // month filter. The page-level mileage/deadhead summary aggregates were
-  // removed with their cards.
-  return { rows, brokerNames, activeTrips, monthGoalNet, goalMonthLabel };
+  // Summary stats (the per-month profit-goal bar, Total loads, A/R, Delivered,
+  // Gross, Net, Avg/mi) are all computed client-side in LoadBoardView from the
+  // selected month's rows, so every figure on screen agrees for that month.
+  return { rows, brokerNames, activeTrips, currentMonth };
 }
 
 export default async function LoadBoardPage() {
