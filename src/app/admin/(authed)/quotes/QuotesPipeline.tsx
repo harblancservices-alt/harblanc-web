@@ -10,10 +10,10 @@ import { PIPELINE_STAGES, type PipelineCard } from "@/lib/dispatch/pipeline";
 type CardTone = "red" | "orange" | "green" | "neutral";
 
 const CARD_CLASS: Record<CardTone, string> = {
-  red: "border-red-400 bg-red-50 hover:bg-red-100",
-  orange: "border-amber-400 bg-amber-50 hover:bg-amber-100",
-  green: "border-green-600 bg-green-100 hover:bg-green-200",
-  neutral: "border-line bg-card hover:bg-elevated",
+  red: "border-bad/40 bg-bad-bg hover:bg-bad-bg/70",
+  orange: "border-warn/40 bg-warn-bg hover:bg-warn-bg/70",
+  green: "border-ok/40 bg-ok-bg hover:bg-ok-bg/70",
+  neutral: "border-line bg-card hover:bg-inset",
 };
 
 // Card priority colour, matching the Quotes page's red/amber urgency:
@@ -37,7 +37,7 @@ export function QuotesPipeline({
   return (
     <section className="mb-6">
       <div className="mb-2 flex items-center gap-2">
-        <span className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-indigo-600">
+        <span className="font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-ink-3">
           Pipeline
         </span>
         <span className="font-mono text-[11px] tabular-nums text-fg-subtle">
@@ -65,7 +65,7 @@ function PipelineColumn({
   cards: ReadonlyArray<PipelineCard>;
 }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-line bg-elevated shadow-md">
+    <div className="overflow-hidden rounded-md border border-line bg-inset shadow-e1">
       <div className="flex items-center justify-between bg-bar px-2.5 py-1.5">
         <span className="font-mono text-[10.5px] font-bold uppercase tracking-[0.12em] text-bar-fg">
           {label}
@@ -75,7 +75,7 @@ function PipelineColumn({
         </span>
       </div>
       {cards.length === 0 ? (
-        <div className="m-1.5 rounded-lg border border-dashed border-line px-3 py-5 text-center font-mono text-[11px] text-fg-subtle">
+        <div className="m-1.5 rounded-md border border-dashed border-line-strong px-3 py-5 text-center font-mono text-[11px] text-ink-3">
           Empty
         </div>
       ) : (
@@ -95,7 +95,7 @@ function QuoteRequestCardItem({ q }: { q: PipelineCard }) {
       href={"/admin/quotes/" + q.leadId}
       prefetch={false}
       className={
-        "block rounded-lg border p-2.5 shadow-md transition-all hover:shadow-lg " +
+        "block rounded-md border p-2.5 shadow-e1 transition-all hover:shadow-e2 " +
         CARD_CLASS[cardTone(q)]
       }
     >
@@ -104,15 +104,15 @@ function QuoteRequestCardItem({ q }: { q: PipelineCard }) {
           {q.name}
         </span>
         {q.status === "expired" ? (
-          <span className="shrink-0 rounded-md bg-red-700 px-2 py-[2px] font-mono text-[11px] font-semibold uppercase tracking-[0.04em] text-white">
+          <span className="shrink-0 rounded bg-bad-bg px-1.5 py-[1px] font-mono text-[10px] font-bold uppercase tracking-[0.06em] text-bad">
             Expired
           </span>
         ) : q.status === "unseen" ? (
-          <span className="shrink-0 rounded-md bg-red-600 px-2 py-[2px] font-mono text-[11px] font-semibold uppercase tracking-[0.04em] text-white">
+          <span className="shrink-0 rounded bg-bad-bg px-1.5 py-[1px] font-mono text-[10px] font-bold uppercase tracking-[0.06em] text-bad">
             New
           </span>
         ) : q.status === "followup" ? (
-          <span className="shrink-0 rounded-md bg-amber-500 px-2 py-[2px] font-mono text-[11px] font-semibold uppercase tracking-[0.04em] text-white">
+          <span className="shrink-0 rounded bg-warn-bg px-1.5 py-[1px] font-mono text-[10px] font-bold uppercase tracking-[0.06em] text-warn">
             Follow up
           </span>
         ) : null}
@@ -124,7 +124,7 @@ function QuoteRequestCardItem({ q }: { q: PipelineCard }) {
           ↓
         </span>
         <span aria-hidden className="h-px flex-1 bg-line" />
-        <span className="shrink-0 rounded-full bg-red-600 px-2 py-[1px] font-mono text-[11px] font-semibold tabular-nums text-white">
+        <span className="shrink-0 rounded-full bg-inset px-2 py-[1px] font-mono text-[11px] font-semibold tabular-nums text-ink-2">
           {q.miles != null ? Math.round(q.miles).toLocaleString() + " mi" : "— mi"}
         </span>
       </div>
@@ -153,7 +153,7 @@ function QuoteRequestCardItem({ q }: { q: PipelineCard }) {
 function LanePoint({ zip, place }: { zip: string; place: string }) {
   return (
     <div className="truncate text-[13px] font-medium">
-      <span className="font-mono text-blue-700">{zip}</span>
+      <span className="font-mono text-steel">{zip}</span>
       {place ? <span className="text-fg-muted"> · {place}</span> : null}
     </div>
   );

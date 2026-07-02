@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { SectionTabs } from "../SectionTabs";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { QuoteListTable, type QuoteListRow } from "./QuoteListTable";
 import { QuotesPipeline } from "./QuotesPipeline";
 import { computeUrgency, topUrgency } from "@/lib/dispatch/urgency";
@@ -225,22 +226,12 @@ export default async function QuotesPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
-      {/* V3 hero — eyebrow + bold title + right-aligned meta */}
-      <header className="flex flex-wrap items-end justify-between gap-4 pb-5 sm:pb-6">
-        <div>
-          <p className="font-mono text-[10.5px] font-bold uppercase tracking-[0.28em] text-fg">
-            Quotes
-          </p>
-          <h1 className="mt-1 text-[30px] font-bold leading-none tracking-tight text-fg sm:text-[36px] lg:text-[40px]">
-            Active leads
-          </h1>
-        </div>
-        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-fg text-right leading-snug">
-          {rows.length} active
-          <br />
-          {newToday} new today
-        </p>
-      </header>
+      <PageHeader
+        eyebrow="Quotes"
+        title="Active leads"
+        className="mb-5 sm:mb-6"
+        date={`${rows.length} active · ${newToday} new today`}
+      />
 
       <SectionTabs
         tabs={[

@@ -238,7 +238,7 @@ export function QuoteListTable({ rows }: { rows: QuoteListRow[] }) {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search name, lane, commodity, ID..."
-            className="block w-full border border-line bg-card px-3 py-2 pr-10 text-[14px] text-fg placeholder:text-fg-subtle focus:border-line focus:outline-none"
+            className="block w-full rounded-md border border-line-strong bg-card px-3 py-2 pr-10 text-[14px] text-ink outline-none placeholder:text-ink-3 focus:border-accent focus:ring-2 focus:ring-accent/40"
             aria-label="Search quotes"
           />
           {searchQuery ? (
@@ -422,7 +422,7 @@ function HeavyHeader({
         {showMarker ? (
           <span
             aria-hidden
-            className="inline-flex h-6 w-6 shrink-0 items-center justify-center bg-red-700 font-mono text-[14px] font-bold text-white sm:h-7 sm:w-7 sm:text-[15px]"
+            className="inline-flex h-6 w-6 shrink-0 items-center justify-center bg-bad font-mono text-[14px] font-bold text-white sm:h-7 sm:w-7 sm:text-[15px]"
           >
             !
           </span>
@@ -485,18 +485,18 @@ function LightHeader({ label, count }: { label: string; count: number }) {
 
 // Lead-status → pill colours, in the same family as the load-status pills.
 const LEAD_PILL: Partial<Record<LeadStatus, string>> = {
-  new: "bg-amber-100 text-amber-700",
-  contacted: "bg-amber-100 text-amber-700",
-  estimate_sent: "bg-blue-100 text-blue-700",
-  awaiting_confirmation: "bg-blue-100 text-blue-700",
-  awaiting_payment: "bg-indigo-100 text-indigo-700",
-  ready_to_dispatch: "bg-green-100 text-green-700",
-  dispatched: "bg-blue-100 text-blue-700",
-  picked_up: "bg-blue-100 text-blue-700",
-  in_transit: "bg-blue-100 text-blue-700",
-  delivered: "bg-green-100 text-green-700",
-  archived: "bg-elevated text-fg-muted",
-  lost: "bg-elevated text-fg-muted",
+  new: "bg-warn-bg text-warn",
+  contacted: "bg-warn-bg text-warn",
+  estimate_sent: "bg-steel-bg text-steel",
+  awaiting_confirmation: "bg-steel-bg text-steel",
+  awaiting_payment: "bg-steel-bg text-steel",
+  ready_to_dispatch: "bg-ok-bg text-ok",
+  dispatched: "bg-steel-bg text-steel",
+  picked_up: "bg-steel-bg text-steel",
+  in_transit: "bg-steel-bg text-steel",
+  delivered: "bg-ok-bg text-ok",
+  archived: "bg-slate-bg text-slate",
+  lost: "bg-slate-bg text-slate",
 };
 
 function LeadCard({
@@ -525,12 +525,12 @@ function LeadCard({
   return (
     <div
       className={
-        "rounded-md border bg-card p-3 shadow-sm transition-colors " +
+        "rounded-md border bg-card p-3 shadow-e1 transition-colors " +
         (isSelected
-          ? "border-line bg-elevated"
+          ? "border-line bg-inset"
           : alert
-            ? "border-red-200 hover:bg-elevated"
-            : "border-line hover:bg-elevated")
+            ? "border-bad/40 hover:bg-inset"
+            : "border-line hover:bg-inset")
       }
     >
       <div className="flex items-start gap-2.5">
@@ -576,8 +576,8 @@ function LeadCard({
                   className={
                     "rounded-sm px-1.5 py-[1px] font-mono text-[10px] font-bold uppercase tracking-[0.06em] " +
                     (alert
-                      ? "bg-red-100 text-red-700"
-                      : "bg-amber-100 text-amber-700")
+                      ? "bg-bad-bg text-bad"
+                      : "bg-warn-bg text-warn")
                   }
                 >
                   {top.label}
