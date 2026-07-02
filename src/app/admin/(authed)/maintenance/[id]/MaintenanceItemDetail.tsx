@@ -128,14 +128,18 @@ export function MaintenanceItemDetail({
           </Button>
         </div>
         {deleteErr ? (
-          <p role="alert" className="mt-2 text-[12px] font-semibold text-red-700">
+          <p role="alert" className="mt-2 text-[12px] font-semibold text-bad">
             {deleteErr}
           </p>
         ) : null}
 
         {/* Header card */}
         <div
-          className={"mt-3 rounded-xl border bg-card p-4 shadow-md " + s.border}
+          className={
+            "mt-3 rounded-md border bg-card p-4 shadow-e2 " +
+            (item.status === "overdue" ? "border-l-[3px] border-l-bad " : "") +
+            s.border
+          }
         >
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
@@ -197,16 +201,16 @@ export function MaintenanceItemDetail({
         </div>
 
         {/* Total spent — prominent */}
-        <div className="mt-3 flex items-center justify-between rounded-xl border border-line bg-card p-4 shadow-sm">
+        <div className="mt-3 flex items-center justify-between rounded-md border border-line bg-card p-4 shadow-e1">
           <div>
-            <p className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-indigo-600">
+            <p className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-ink-3">
               Total spent on this item
             </p>
             <p className="mt-0.5 font-mono text-[11px] text-fg-subtle">
               {log.length} service{log.length === 1 ? "" : "s"} logged
             </p>
           </div>
-          <p className="text-[28px] font-bold leading-none tabular-nums text-emerald-700">
+          <p className="text-[28px] font-bold leading-none tabular-nums text-ok">
             {totalSpent > 0 ? money(totalSpent) : "$0.00"}
           </p>
         </div>
@@ -229,8 +233,8 @@ export function MaintenanceItemDetail({
           </Button>
         </div>
         {item.notes ? (
-          <div className="mt-3 rounded-xl border border-line bg-card p-4 shadow-sm">
-            <p className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-indigo-600">
+          <div className="mt-3 rounded-md border border-line bg-card p-4 shadow-e1">
+            <p className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-ink-3">
               Notes
             </p>
             <p className="mt-1.5 whitespace-pre-wrap text-[13.5px] leading-relaxed text-fg">
@@ -242,7 +246,7 @@ export function MaintenanceItemDetail({
         {/* Service log */}
         <section className="mt-6">
           <div className="mb-2 flex items-center gap-2">
-            <span className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-indigo-600">
+            <span className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-ink-3">
               Service log
             </span>
             <span className="font-mono text-[11px] tabular-nums text-fg-subtle">
@@ -251,7 +255,7 @@ export function MaintenanceItemDetail({
           </div>
 
           {log.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-line bg-card px-4 py-10 text-center font-mono text-[12px] text-fg-subtle">
+            <div className="rounded-md border border-dashed border-line bg-card px-4 py-10 text-center font-mono text-[12px] text-fg-subtle">
               No services logged for this item yet.
               <br />
               Tap “Log service” to record one (with cost + receipts).
@@ -323,7 +327,7 @@ function LogEntryCard({
         }
       }}
       title="Edit service"
-      className="cursor-pointer rounded-xl border border-line bg-card p-3.5 shadow-sm transition-colors hover:border-line-strong hover:bg-elevated focus:outline-none focus-visible:border-fg focus-visible:ring-2 focus-visible:ring-fg/20"
+      className="cursor-pointer rounded-md border border-line bg-card p-3.5 shadow-e1 transition-colors hover:border-line-strong hover:bg-inset focus:outline-none focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/40"
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
@@ -338,7 +342,7 @@ function LogEntryCard({
         </div>
         <div className="shrink-0 text-right">
           {h.totalCost != null ? (
-            <div className="text-[18px] font-bold leading-none tabular-nums text-emerald-700">
+            <div className="text-[18px] font-bold leading-none tabular-nums text-ok">
               {money(h.totalCost)}
             </div>
           ) : (

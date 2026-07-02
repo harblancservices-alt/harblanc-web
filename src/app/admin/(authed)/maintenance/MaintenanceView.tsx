@@ -11,6 +11,7 @@ import {
 } from "./actions";
 import { uploadFileToSignedUrl } from "@/lib/storage/client-upload";
 import { Button } from "@/components/ui/Button";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { IntervalBar } from "./IntervalBar";
 
 export type MaintItem = {
@@ -132,7 +133,7 @@ export function ExpenseLines({
               {e.description || "Expense"}
             </span>
             {e.amount != null ? (
-              <span className="shrink-0 font-mono text-[12.5px] font-bold tabular-nums text-emerald-700">
+              <span className="shrink-0 font-mono text-[12.5px] font-bold tabular-nums text-ok">
                 {money(e.amount)}
               </span>
             ) : null}
@@ -202,46 +203,46 @@ export const STATUS: Record<
 > = {
   overdue: {
     label: "Overdue",
-    pill: "bg-red-100 text-red-700",
-    border: "border-red-300",
-    value: "text-red-700",
+    pill: "bg-bad-bg text-bad",
+    border: "border-bad/40",
+    value: "text-bad",
   },
   soon: {
     label: "Due soon",
-    pill: "bg-amber-100 text-amber-700",
-    border: "border-amber-300",
-    value: "text-amber-700",
+    pill: "bg-warn-bg text-warn",
+    border: "border-warn/40",
+    value: "text-warn",
   },
   baseline: {
     label: "Set baseline",
-    pill: "bg-blue-100 text-blue-700",
+    pill: "bg-steel-bg text-steel",
     border: "border-line",
-    value: "text-blue-700",
+    value: "text-steel",
   },
   ok: {
     label: "OK",
-    pill: "bg-green-100 text-green-700",
+    pill: "bg-ok-bg text-ok",
     border: "border-line",
-    value: "text-green-700",
+    value: "text-ok",
   },
 };
 
 export function remaining(item: MaintItem): { value: string; label: string; color: string } {
   if (item.milesRemaining == null) {
-    return { value: "—", label: "no history", color: "text-blue-700" };
+    return { value: "—", label: "no history", color: "text-steel" };
   }
   const r = item.milesRemaining;
   if (r <= 0) {
     return {
       value: `${Math.abs(r).toLocaleString()} mi`,
       label: "overdue by",
-      color: "text-red-700",
+      color: "text-bad",
     };
   }
   return {
     value: `${r.toLocaleString()} mi`,
     label: "remaining",
-    color: item.status === "soon" ? "text-amber-700" : "text-green-700",
+    color: item.status === "soon" ? "text-warn" : "text-ok",
   };
 }
 
@@ -291,30 +292,28 @@ export function MaintenanceView({
   return (
     <div className="min-h-screen border-t border-line bg-canvas text-fg">
       <div className="w-full px-4 py-5 sm:px-6 lg:px-8">
-        <header className="mb-3 flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-indigo-600">
-              Truck
-            </p>
-            <h1 className="mt-1 text-[22px] font-semibold leading-none tracking-tight text-fg">
-              Maintenance
-            </h1>
-          </div>
-          <Button
-            type="button"
-            onClick={() => setServiceModal({})}
-            variant="primary"
-          >
-            + Add service
-          </Button>
-        </header>
+        <PageHeader
+          eyebrow="Truck"
+          title="Maintenance"
+          className="mb-3"
+          actions={
+            <Button
+              type="button"
+              onClick={() => setServiceModal({})}
+              variant="primary"
+            >
+              + Add service
+            </Button>
+          }
+        />
 
-        {/* Summary band — turns the logged data into useful numbers. */}
-        <SummaryBand summary={summary} />
+        {/* Summary band — turns the logged data into useful numbers, led by the
+            focal Overdue count. */}
+        <SummaryBand summary={summary} overdue={counts.overdue} />
 
         {/* Current odometer */}
-        <div className="rounded-xl border border-line bg-card p-4 shadow-md">
-          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-indigo-600">
+        <div className="rounded-md border border-line bg-card p-4 shadow-e2">
+          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-ink-3">
             Current odometer
           </p>
           <p className="mt-1 text-[30px] font-bold leading-none tabular-nums text-fg">
@@ -331,28 +330,28 @@ export function MaintenanceView({
           <SummaryChip
             n={counts.overdue}
             label="overdue"
-            cls="bg-red-100 text-red-700"
+            cls="bg-bad-bg text-bad"
           />
           <SummaryChip
             n={counts.soon}
             label="due soon"
-            cls="bg-amber-100 text-amber-700"
+            cls="bg-warn-bg text-warn"
           />
           {counts.baseline > 0 ? (
             <SummaryChip
               n={counts.baseline}
               label="need baseline"
-              cls="bg-blue-100 text-blue-700"
+              cls="bg-steel-bg text-steel"
             />
           ) : null}
-          <SummaryChip n={counts.ok} label="ok" cls="bg-green-100 text-green-700" />
+          <SummaryChip n={counts.ok} label="ok" cls="bg-ok-bg text-ok" />
         </div>
 
         {/* Item list — two tiers. Big attention cards (overdue or ≥75% through
             interval) on top; compact rows for everything else below. Both tap
             through to the item detail page. */}
         {items.length === 0 ? (
-          <div className="mt-3 rounded-xl border border-dashed border-line bg-card px-4 py-10 text-center font-mono text-[12px] text-fg-subtle">
+          <div className="mt-3 rounded-md border border-dashed border-line-strong bg-card px-4 py-10 text-center font-mono text-[12px] text-ink-3 shadow-e1">
             No maintenance items yet.
           </div>
         ) : (
@@ -399,15 +398,20 @@ export function MaintenanceView({
 function BigItemCard({ item }: { item: MaintItem }) {
   const s = STATUS[item.status];
   const rem = remaining(item);
+  const overdue = item.status === "overdue";
   return (
     <div
       className={
-        "flex flex-col rounded-xl border bg-card p-3.5 shadow-sm " + s.border
+        "flex flex-col rounded-md border bg-card p-3.5 " +
+        (overdue
+          ? "border-l-[3px] border-l-bad shadow-e2 "
+          : "shadow-e1 ") +
+        s.border
       }
     >
       <Link
         href={`/admin/maintenance/${item.id}`}
-        className="-m-1 block rounded-lg p-1 transition-colors hover:bg-elevated"
+        className="-m-1 block rounded-lg p-1 transition-colors hover:bg-inset"
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -427,7 +431,7 @@ function BigItemCard({ item }: { item: MaintItem }) {
             {item.neverServiced ? (
               <p className="mt-1 text-[11.5px] text-fg-subtle">Never serviced</p>
             ) : (
-              <p className="mt-1 font-mono text-[11.5px] font-semibold tabular-nums text-amber-700">
+              <p className="mt-1 font-mono text-[11.5px] font-semibold tabular-nums text-warn">
                 Last {item.lastOdo!.toLocaleString()} mi
                 {item.lastDate
                   ? " · " + (formatServiceDate(item.lastDate) ?? item.lastDate)
@@ -474,7 +478,7 @@ function CompactItemRow({ item }: { item: MaintItem }) {
   return (
     <Link
       href={`/admin/maintenance/${item.id}`}
-      className="block rounded-xl border border-line bg-card p-3 shadow-sm transition-colors hover:border-line-strong hover:bg-elevated"
+      className="block rounded-md border border-line bg-card p-3 shadow-e1 transition-colors hover:border-line-strong hover:bg-inset"
     >
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
@@ -496,7 +500,7 @@ function CompactItemRow({ item }: { item: MaintItem }) {
               Never serviced
             </p>
           ) : (
-            <p className="mt-0.5 font-mono text-[10.5px] font-semibold tabular-nums text-amber-700">
+            <p className="mt-0.5 font-mono text-[10.5px] font-semibold tabular-nums text-warn">
               Last {item.lastOdo!.toLocaleString()} mi
               {item.lastDate
                 ? " · " + (formatServiceDate(item.lastDate) ?? item.lastDate)
@@ -526,7 +530,13 @@ function CompactItemRow({ item }: { item: MaintItem }) {
  * 2 tiles across, readable on mobile. (Cost-per-mile was removed — not
  * accurate enough yet; the computeCostPerMile helper stays in lib for later.)
  */
-function SummaryBand({ summary }: { summary: MaintSummary }) {
+function SummaryBand({
+  summary,
+  overdue,
+}: {
+  summary: MaintSummary;
+  overdue: number;
+}) {
   const { totalSpend, nextDue } = summary;
 
   let nextValue = "—";
@@ -536,22 +546,41 @@ function SummaryBand({ summary }: { summary: MaintSummary }) {
     if (nextDue.milesRemaining <= 0) {
       nextValue = `${Math.abs(nextDue.milesRemaining).toLocaleString()} mi`;
       nextNote = `${nextDue.name} · overdue`;
-      nextColor = "text-red-700";
+      nextColor = "text-bad";
     } else {
       nextValue = `${nextDue.milesRemaining.toLocaleString()} mi`;
       nextNote = `${nextDue.name} · left`;
       nextColor =
-        nextDue.milesRemaining <= 1000 ? "text-amber-700" : "text-green-700";
+        nextDue.milesRemaining <= 1000 ? "text-warn" : "text-ok";
     }
   }
 
   return (
-    <div className="mb-2 grid grid-cols-2 divide-x divide-line overflow-hidden rounded-xl border border-line bg-card shadow-md">
+    <div className="mb-2 grid grid-cols-3 divide-x divide-line overflow-hidden rounded-md border border-line bg-card shadow-e2">
+      {/* Focal — Overdue count on the graphite hero cell with an accent edge. */}
+      <div className="relative min-w-0 overflow-hidden bg-graphite px-3.5 py-3 pl-4">
+        <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-accent" />
+        <p className="font-mono text-[9px] font-bold uppercase tracking-[0.1em] text-on-dark-dim">
+          Overdue
+        </p>
+        <p
+          className={
+            "mt-1 text-[24px] font-bold leading-none tabular-nums " +
+            (overdue > 0 ? "text-white" : "text-on-dark-dim")
+          }
+        >
+          {overdue}
+        </p>
+        <p className="mt-1 truncate font-mono text-[9px] text-on-dark-dim">
+          {overdue > 0 ? "items past due" : "all current"}
+        </p>
+      </div>
+
       <div className="min-w-0 px-3.5 py-3">
-        <p className="font-mono text-[9px] font-bold uppercase tracking-[0.1em] text-indigo-600">
+        <p className="font-mono text-[9px] font-bold uppercase tracking-[0.1em] text-ink-3">
           Total spent
         </p>
-        <p className="mt-1 text-[24px] font-bold leading-none tabular-nums text-emerald-700">
+        <p className="mt-1 text-[24px] font-bold leading-none tabular-nums text-ok">
           {totalSpend > 0 ? money(totalSpend) : "$0.00"}
         </p>
         <p className="mt-1 font-mono text-[9px] text-fg-subtle">
@@ -560,7 +589,7 @@ function SummaryBand({ summary }: { summary: MaintSummary }) {
       </div>
 
       <div className="min-w-0 px-3.5 py-3">
-        <p className="font-mono text-[9px] font-bold uppercase tracking-[0.1em] text-indigo-600">
+        <p className="font-mono text-[9px] font-bold uppercase tracking-[0.1em] text-ink-3">
           Next due
         </p>
         <p
@@ -589,7 +618,7 @@ function ServiceHistory({
     <section className="mt-6">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <span className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-indigo-600">
+          <span className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-ink-3">
             Service history
           </span>
           <span className="font-mono text-[11px] tabular-nums text-fg-subtle">
@@ -599,14 +628,14 @@ function ServiceHistory({
         {totalSpend > 0 ? (
           <div className="rounded-full bg-elevated px-3 py-[3px] font-mono text-[11px] font-bold text-fg">
             <span className="text-fg-subtle">Total spend </span>
-            <span className="tabular-nums text-emerald-700">
+            <span className="tabular-nums text-ok">
               {money(totalSpend)}
             </span>
           </div>
         ) : null}
       </div>
       {history.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-line bg-card px-4 py-10 text-center font-mono text-[12px] text-fg-subtle">
+        <div className="rounded-md border border-dashed border-line-strong bg-card px-4 py-10 text-center font-mono text-[12px] text-ink-3 shadow-e1">
           No services logged yet.
         </div>
       ) : (
@@ -621,21 +650,21 @@ function ServiceHistory({
               }
               prefetch={false}
               title="View service"
-              className="block rounded-xl border border-line bg-card p-3.5 shadow-sm transition-colors hover:border-line-strong hover:bg-elevated focus:outline-none focus-visible:border-fg focus-visible:ring-2 focus-visible:ring-fg/20"
+              className="block rounded-md border border-line bg-card p-3.5 shadow-e1 transition-colors hover:border-line-strong hover:bg-inset focus:outline-none focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/40"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <h3 className="truncate text-[14px] font-semibold text-fg">
                     {h.serviceName}
                   </h3>
-                  <p className="mt-0.5 font-mono text-[11px] font-semibold tabular-nums text-amber-700">
+                  <p className="mt-0.5 font-mono text-[11px] font-semibold tabular-nums text-warn">
                     {formatServiceDate(h.date) ?? "—"}
                     {h.odo != null ? ` · ${h.odo.toLocaleString()} mi` : ""}
                   </p>
                 </div>
                 <div className="shrink-0 text-right">
                   {h.totalCost != null ? (
-                    <div className="text-[17px] font-bold leading-none tabular-nums text-emerald-700">
+                    <div className="text-[17px] font-bold leading-none tabular-nums text-ok">
                       {money(h.totalCost)}
                     </div>
                   ) : (
@@ -1168,7 +1197,7 @@ export function ServiceModal({
                           key={f.id}
                           className="flex items-center gap-2 rounded-md border border-line-strong bg-elevated px-2 py-1"
                         >
-                          <span className="shrink-0 rounded-sm bg-card px-1.5 py-[1px] font-mono text-[9px] font-bold uppercase tracking-[0.06em] text-blue-700">
+                          <span className="shrink-0 rounded-sm bg-card px-1.5 py-[1px] font-mono text-[9px] font-bold uppercase tracking-[0.06em] text-steel">
                             New
                           </span>
                           <span className="min-w-0 flex-1 truncate font-mono text-[10.5px] text-fg-muted">
@@ -1189,7 +1218,7 @@ export function ServiceModal({
                     </div>
                   ) : null}
 
-                  <label className="mt-2 inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-blue-700 bg-blue-600 px-2.5 py-1 font-mono text-[10.5px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:bg-blue-700">
+                  <label className="mt-2 inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-steel/50 bg-steel-bg px-2.5 py-1 font-mono text-[10.5px] font-bold uppercase tracking-[0.08em] text-steel transition-colors hover:bg-steel-bg/70">
                     + Receipt
                     <input
                       type="file"
@@ -1214,13 +1243,13 @@ export function ServiceModal({
           {/* Total — auto-summed from the line amounts (read-only). */}
           <div className="flex items-center justify-between rounded-md border border-line-strong bg-card px-3 py-2">
             <span className={LABEL}>Total</span>
-            <span className="font-mono text-[16px] font-bold tabular-nums text-emerald-700">
+            <span className="font-mono text-[16px] font-bold tabular-nums text-ok">
               {total > 0 ? money(total) : "$0.00"}
             </span>
           </div>
 
           {errorMsg ? (
-            <p role="alert" className="text-[12px] font-semibold text-red-700">
+            <p role="alert" className="text-[12px] font-semibold text-bad">
               {errorMsg}
             </p>
           ) : null}
@@ -1252,7 +1281,7 @@ function SummaryChip({ n, label, cls }: { n: number; label: string; cls: string 
 }
 
 const FIELD =
-  "mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none";
+  "mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-ink outline-none placeholder:text-ink-3 focus:border-accent focus:ring-2 focus:ring-accent/40";
 const LABEL =
   "block font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-fg";
 
@@ -1321,7 +1350,7 @@ export function EditIntervalModal({
             />
           </div>
           {state.error ? (
-            <p role="alert" className="text-[12px] font-semibold text-red-700">
+            <p role="alert" className="text-[12px] font-semibold text-bad">
               {state.error}
             </p>
           ) : null}
