@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Button } from "@/components/ui/Button";
+import { StatusTag, type StatusTone } from "@/components/ui/StatusTag";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { setTripStatus, updateTripOdometer } from "../actions";
 import { markLoadPaid } from "../../loads/actions";
@@ -68,12 +69,12 @@ function fmtDate(iso: string | null): string {
 
 // Load status pill colors / labels — same mapping as the load board cards so a
 // load looks identical wherever it appears (load board, broker, dashboard).
-const STATUS_PILL: Record<string, string> = {
-  pending: "bg-amber-50 text-amber-700",
-  assigned: "bg-amber-50 text-amber-700",
-  loaded: "bg-blue-50 text-blue-700",
-  delivered: "bg-green-50 text-green-700",
-  cancelled: "bg-elevated text-fg-subtle",
+const STATUS_TONE: Record<string, StatusTone> = {
+  pending: "amber",
+  assigned: "amber",
+  loaded: "steel",
+  delivered: "green",
+  cancelled: "slate",
 };
 const STATUS_LABEL: Record<string, string> = {
   pending: "Pending",
@@ -206,16 +207,9 @@ export default async function TripDetailPage({
                 <h1 className="text-[22px] font-semibold leading-none text-fg">
                   {trip.name}
                 </h1>
-                <span
-                  className={
-                    "rounded px-2 py-[2px] font-mono text-[10px] font-bold uppercase tracking-[0.06em] " +
-                    (closed
-                      ? "bg-violet-100 text-violet-700"
-                      : "bg-green-100 text-green-700")
-                  }
-                >
+                <StatusTag tone={closed ? "slate" : "green"}>
                   {closed ? "Closed" : "Active"}
-                </span>
+                </StatusTag>
                 <span className="font-mono text-[11px] font-semibold tabular-nums text-fg-muted">
                   {fin.loads} load{fin.loads === 1 ? "" : "s"}
                 </span>
@@ -249,14 +243,14 @@ export default async function TripDetailPage({
               in the LEFT column, every mileage figure in the RIGHT column,
               each stacked top to bottom. Values come from computeTripFinancials
               so they match the trip card. */}
-          <div className="grid grid-cols-2 divide-x divide-line overflow-hidden rounded-md border border-line bg-card shadow-sm">
+          <div className="grid grid-cols-2 divide-x divide-line overflow-hidden rounded-md border border-line bg-card shadow-e2">
             {/* LEFT — money */}
             <div className="divide-y divide-line">
               <StatTile label="Gross" value={usd(gross)} tone="green" />
               <StatTile
                 label="Net"
                 value={usd(net)}
-                tone="green"
+                tone="focal"
                 sub={`−${usd(loadDieselTotal + pcDiesel)} diesel`}
               />
               <StatTile
@@ -282,13 +276,13 @@ export default async function TripDetailPage({
               <StatTile
                 label="Loaded"
                 value={`${loadedTotal.toLocaleString()} mi`}
-                accent="text-green-700"
+                accent="text-ok"
                 sub={`${usd(dieselCost(loadedTotal, fuel))} diesel`}
               />
               <StatTile
                 label="Deadhead"
                 value={`${deadheadTotal.toLocaleString()} mi`}
-                accent="text-amber-700"
+                accent="text-warn"
                 sub={`${usd(dieselCost(deadheadTotal, fuel))} diesel`}
               />
               <StatTile
@@ -303,7 +297,7 @@ export default async function TripDetailPage({
           {/* Trip odometer bookends */}
           <form
             action={updateTripOdometer.bind(null, trip.id)}
-            className="mt-3 flex flex-wrap items-end gap-3 rounded-md border border-line bg-elevated px-3.5 py-3 shadow-sm"
+            className="mt-3 flex flex-wrap items-end gap-3 rounded-md border border-line bg-inset px-3.5 py-3 shadow-e1"
           >
             <div className="flex-1 min-w-[150px]">
               <label className="block font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-fg-subtle">
@@ -314,7 +308,7 @@ export default async function TripDetailPage({
                 type="number"
                 defaultValue={trip.start_odometer ?? undefined}
                 placeholder="Leaving home"
-                className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 font-mono text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
+                className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 font-mono text-[13px] text-ink outline-none placeholder:text-ink-3 focus:border-accent focus:ring-2 focus:ring-accent/40"
               />
             </div>
             <div className="flex-1 min-w-[150px]">
@@ -326,7 +320,7 @@ export default async function TripDetailPage({
                 type="number"
                 defaultValue={trip.end_odometer ?? undefined}
                 placeholder="Back home (closes PC)"
-                className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 font-mono text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
+                className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 font-mono text-[13px] text-ink outline-none placeholder:text-ink-3 focus:border-accent focus:ring-2 focus:ring-accent/40"
               />
             </div>
             <Button variant="primary" type="submit">
@@ -337,15 +331,15 @@ export default async function TripDetailPage({
           {/* Linked loads */}
           <div className="mt-4">
             <div className="mb-2 flex items-center gap-2">
-              <span className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-indigo-600">
+              <span className="font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-ink-3">
                 Linked loads
               </span>
-              <span className="font-mono text-[11px] tabular-nums text-fg-subtle">
+              <span className="font-mono text-[11px] tabular-nums text-ink-3">
                 · {loads.length}
               </span>
             </div>
             {loads.length === 0 ? (
-              <div className="rounded-md border border-line bg-card px-3.5 py-3 font-mono text-[12px] text-fg-subtle shadow-sm">
+              <div className="rounded-md border border-line bg-card px-3.5 py-3 font-mono text-[12px] text-ink-3 shadow-e1">
                 No loads linked yet. Add a load and set this trip’s name on it.
               </div>
             ) : (
@@ -356,7 +350,7 @@ export default async function TripDetailPage({
                   return (
                     <div
                       key={l.id}
-                      className="flex items-stretch overflow-hidden rounded-md border border-line bg-card shadow-sm transition-colors hover:bg-elevated"
+                      className="flex items-stretch overflow-hidden rounded-md border border-line bg-card shadow-e1 transition-colors hover:bg-inset"
                     >
                       <Link
                         href={"/admin/dispatch/loads/" + l.id}
@@ -364,16 +358,10 @@ export default async function TripDetailPage({
                         className="min-w-0 flex-1 p-3"
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <span
-                            className={
-                              "inline-block rounded-sm px-1.5 py-[1px] font-mono text-[10px] font-bold uppercase tracking-[0.06em] " +
-                              (STATUS_PILL[l.status] ??
-                                "bg-elevated text-fg-subtle")
-                            }
-                          >
+                          <StatusTag tone={STATUS_TONE[l.status] ?? "slate"}>
                             {STATUS_LABEL[l.status] ?? l.status.replace("_", " ")}
-                          </span>
-                          <span className="font-mono text-[15px] font-bold tabular-nums text-green-700">
+                          </StatusTag>
+                          <span className="font-mono text-[15px] font-bold tabular-nums text-ok">
                             {usd(num(l.rate))}
                           </span>
                         </div>
@@ -392,7 +380,7 @@ export default async function TripDetailPage({
                           {l.loaded_miles != null ? (
                             <span>{l.loaded_miles.toLocaleString()} mi</span>
                           ) : null}
-                          <span className="font-bold text-green-700">
+                          <span className="font-bold text-ok">
                             Net {usd(netOf(l))}
                           </span>
                         </div>
@@ -406,7 +394,7 @@ export default async function TripDetailPage({
                               </Button>
                             </form>
                           ) : (
-                            <span className="font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-green-700">
+                            <span className="font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-ok">
                               Paid
                             </span>
                           )}
@@ -420,7 +408,7 @@ export default async function TripDetailPage({
           </div>
 
           {trip.notes ? (
-            <div className="mt-4 rounded-md border border-line bg-card px-4 py-3 shadow-sm">
+            <div className="mt-4 rounded-md border border-line bg-card px-4 py-3 shadow-e1">
               <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-fg-subtle">
                 Notes
               </div>
@@ -452,25 +440,42 @@ function StatTile({
 }: {
   label: string;
   value: string;
-  tone?: "default" | "green" | "red" | "blue" | "amber";
+  tone?: "default" | "green" | "red" | "blue" | "amber" | "focal";
   accent?: string;
   sub?: string;
   highlight?: boolean;
 }) {
+  // Focal — the graphite hero tile (Net) with a 3px accent left edge.
+  if (tone === "focal") {
+    return (
+      <div className="relative overflow-hidden bg-graphite px-4 py-3 pl-5">
+        <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-accent" />
+        <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-on-dark-dim">
+          {label}
+        </div>
+        <div className="mt-1 text-[20px] font-bold tabular-nums leading-none text-white">
+          {value}
+        </div>
+        <div className="mt-1 font-mono text-[10px] text-on-dark-dim">
+          {sub ?? " "}
+        </div>
+      </div>
+    );
+  }
   const valueColor =
     tone === "green"
-      ? "text-green-700"
+      ? "text-ok"
       : tone === "red"
-        ? "text-red-700"
+        ? "text-bad"
         : tone === "blue"
-          ? "text-blue-700"
+          ? "text-steel"
           : tone === "amber"
-            ? "text-amber-700"
+            ? "text-warn"
             : "text-fg";
-  const labelColor = accent ?? (highlight ? "text-blue-700" : "text-fg-subtle");
-  const subColor = highlight ? "text-blue-700/80" : "text-fg-subtle";
+  const labelColor = accent ?? (highlight ? "text-steel" : "text-fg-subtle");
+  const subColor = highlight ? "text-steel/80" : "text-fg-subtle";
   return (
-    <div className={"px-4 py-3 " + (highlight ? "bg-blue-50" : "")}>
+    <div className={"px-4 py-3 " + (highlight ? "bg-steel-bg" : "")}>
       <div
         className={
           "font-mono text-[10px] font-semibold uppercase tracking-[0.1em] " +

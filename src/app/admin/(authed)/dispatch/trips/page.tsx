@@ -7,6 +7,7 @@ import {
 } from "@/lib/dispatch/trip-rollup";
 import { NewTripButton } from "./NewTripButton";
 import { TripsListView } from "./TripsListView";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 export const metadata: Metadata = {
   title: "Trips",
@@ -128,23 +129,18 @@ export default async function TripsPage() {
   return (
     <div className="min-h-screen border-t border-line bg-canvas text-fg">
       <div className="w-full px-4 py-5 sm:px-6 lg:px-8">
-        <header className="mb-3 flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-indigo-600">
-              Dispatch
-            </p>
-            <h1 className="mt-1 text-[22px] font-semibold leading-none tracking-tight text-fg">
-              Trips
-            </h1>
-            <p className="mt-1.5 text-[13px] text-fg-muted">
-              Group loads into trips and track performance.
-            </p>
-          </div>
-          <NewTripButton />
-        </header>
+        <PageHeader
+          eyebrow="Dispatch"
+          title="Trips"
+          className="mb-1.5"
+          actions={<NewTripButton />}
+        />
+        <p className="mb-3 text-[13px] text-fg-muted">
+          Group loads into trips and track performance.
+        </p>
 
         {trips.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-line bg-card px-4 py-10 text-center font-mono text-[12px] text-fg-subtle">
+          <div className="rounded-md border border-dashed border-line-strong bg-card px-4 py-10 text-center font-mono text-[12px] text-ink-3 shadow-e1">
             No trips yet — hit “New Trip”, or just type a trip name when adding a
             load and it’ll appear here.
           </div>

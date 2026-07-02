@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
+import { StatusTag } from "@/components/ui/StatusTag";
 import { softDeleteTrips } from "./actions";
 
 /**
@@ -74,11 +75,11 @@ export function TripsListView({ trips }: { trips: TripListItem[] }) {
 
       {/* Delete-selection bar — only while in explicit delete mode. */}
       {selectMode ? (
-        <div className="mb-2 flex flex-wrap items-center gap-2 rounded-md border border-red-300 bg-red-50 px-3 py-2">
-          <span className="font-mono text-[12px] font-bold text-fg">
+        <div className="mb-2 flex flex-wrap items-center gap-2 rounded-md border border-bad/40 bg-bad-bg px-3 py-2">
+          <span className="font-mono text-[12px] font-bold text-ink">
             {selected.size} selected
           </span>
-          <span className="font-mono text-[11px] text-fg-subtle">
+          <span className="font-mono text-[11px] text-ink-3">
             · tap trips to select
           </span>
           <Button
@@ -174,7 +175,7 @@ function TripSection({
       </div>
       {trips.length === 0 ? (
         emptyHint ? (
-          <div className="rounded-md border border-line bg-card px-3 py-6 text-center font-mono text-[12px] text-fg-subtle shadow-sm">
+          <div className="rounded-md border border-line bg-card px-3 py-6 text-center font-mono text-[12px] text-ink-3 shadow-e1">
             {emptyHint}
           </div>
         ) : null
@@ -221,8 +222,8 @@ function TripCard({
         else onOpen(trip.id);
       }}
       className={
-        "flex cursor-pointer items-stretch overflow-hidden rounded-md border shadow-sm transition-colors active:bg-elevated " +
-        (isSel ? "border-red-400 bg-red-50" : "border-line bg-card")
+        "flex cursor-pointer items-stretch overflow-hidden rounded-md border shadow-e1 transition-colors active:bg-inset " +
+        (isSel ? "border-bad bg-bad-bg" : "border-line bg-card")
       }
     >
       {/* Selection indicator — only in delete mode. The whole card toggles, so
@@ -232,14 +233,14 @@ function TripCard({
           aria-hidden
           className={
             "flex w-12 shrink-0 items-center justify-center border-r transition-colors " +
-            (isSel ? "border-red-300 bg-red-100" : "border-line bg-card")
+            (isSel ? "border-bad/40 bg-bad-bg" : "border-line bg-card")
           }
         >
           <span
             className={
               "flex h-5 w-5 items-center justify-center rounded border-2 text-[12px] font-bold leading-none " +
               (isSel
-                ? "border-red-600 bg-red-600 text-white"
+                ? "border-bad bg-bad text-white"
                 : "border-line-strong text-transparent")
             }
           >
@@ -252,7 +253,7 @@ function TripCard({
       <div className="min-w-0 flex-1 p-3">
         <div className="flex items-center justify-between gap-2">
           <StatusPill status={trip.status} />
-          <span className="font-mono text-[15px] font-bold tabular-nums text-green-700">
+          <span className="font-mono text-[15px] font-bold tabular-nums text-ok">
             {usd(trip.gross)}
           </span>
         </div>
@@ -265,9 +266,9 @@ function TripCard({
           <span>
             {trip.loads} load{trip.loads === 1 ? "" : "s"}
           </span>
-          <span className="font-bold text-green-700">Net {usd(trip.net)}</span>
+          <span className="font-bold text-ok">Net {usd(trip.net)}</span>
           {trip.profitPct != null ? (
-            <span className="font-bold text-green-700">
+            <span className="font-bold text-ok">
               {Math.round(trip.profitPct)}%
             </span>
           ) : null}
@@ -281,14 +282,9 @@ function TripCard({
 function StatusPill({ status }: { status: string }) {
   const closed = status === "closed";
   return (
-    <span
-      className={
-        "inline-block rounded-sm px-1.5 py-[1px] font-mono text-[10px] font-bold uppercase tracking-[0.06em] " +
-        (closed ? "bg-violet-100 text-violet-700" : "bg-green-100 text-green-700")
-      }
-    >
+    <StatusTag tone={closed ? "slate" : "green"}>
       {closed ? "Closed" : "Active"}
-    </span>
+    </StatusTag>
   );
 }
 
