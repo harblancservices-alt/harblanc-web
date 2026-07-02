@@ -364,59 +364,69 @@ function AlertBar({
   const hasAlerts = newApplications > 0 || newQuotes > 0;
 
   if (!hasAlerts) {
+    // All clear — a friendly, positive green banner (not a bare gray line).
     return (
-      <div className="flex items-center justify-center gap-1.5 border-b border-line bg-elevated px-4 py-1.5">
+      <div className="flex items-center justify-center gap-2 border-b border-green-200 bg-green-50 px-4 py-2">
         <span
           aria-hidden
-          className="h-1.5 w-1.5 rounded-full bg-green-500"
-        />
-        <span className="font-mono text-[10.5px] font-medium uppercase tracking-[0.12em] text-fg-subtle">
-          All clear · no new applications or quote requests
+          className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-green-600 text-white shadow-sm"
+        >
+          <svg
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            aria-hidden
+            className="h-3 w-3"
+          >
+            <path
+              fillRule="evenodd"
+              d="M16.704 5.29a1 1 0 0 1 .006 1.414l-7.5 7.6a1 1 0 0 1-1.42.006l-3.5-3.5a1 1 0 1 1 1.414-1.414l2.79 2.79 6.796-6.886a1 1 0 0 1 1.414-.006z"
+              clipRule="evenodd"
+            />
+          </svg>
+        </span>
+        <span className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-green-800">
+          All clear — you&apos;re caught up
         </span>
       </div>
     );
   }
 
+  // Attention state — bolder, with a count badge per segment and a clear
+  // tap affordance to the relevant tab.
   const segments: ReactNode[] = [];
   if (newApplications > 0) {
     segments.push(
-      <Link
+      <AlertChip
         key="apps"
         href="/admin/applications"
-        prefetch={false}
-        className="whitespace-nowrap underline-offset-2 hover:underline"
-      >
-        <span className="font-bold tabular-nums">{newApplications}</span> new job
-        application{newApplications === 1 ? "" : "s"}
-      </Link>,
+        count={newApplications}
+        label={`new job application${newApplications === 1 ? "" : "s"}`}
+      />,
     );
   }
   if (newQuotes > 0) {
     segments.push(
-      <Link
+      <AlertChip
         key="quotes"
         href="/admin/quotes"
-        prefetch={false}
-        className="whitespace-nowrap underline-offset-2 hover:underline"
-      >
-        <span className="font-bold tabular-nums">{newQuotes}</span> new quote
-        request{newQuotes === 1 ? "" : "s"}
-      </Link>,
+        count={newQuotes}
+        label={`new quote request${newQuotes === 1 ? "" : "s"}`}
+      />,
     );
   }
 
   return (
     <div
       role="alert"
-      className="border-b border-red-800 bg-red-600 text-white shadow-sm"
+      className="border-b border-red-800 bg-gradient-to-b from-red-600 to-red-700 text-white shadow-md"
     >
-      <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 px-4 py-2.5 text-[13px] font-semibold">
-        <span className="inline-flex items-center gap-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-white/85">
+      <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 px-4 py-2.5">
+        <span className="inline-flex items-center gap-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-white/90">
           <svg
             viewBox="0 0 20 20"
             fill="currentColor"
             aria-hidden
-            className="h-3.5 w-3.5"
+            className="h-4 w-4"
           >
             <path
               fillRule="evenodd"
@@ -426,18 +436,48 @@ function AlertBar({
           </svg>
           Needs attention
         </span>
-        {segments.map((seg, i) => (
-          <span key={i} className="inline-flex items-center gap-3">
-            {i > 0 ? (
-              <span aria-hidden className="text-white/50">
-                ·
-              </span>
-            ) : null}
-            {seg}
-          </span>
-        ))}
+        {segments}
       </div>
     </div>
+  );
+}
+
+/**
+ * One tappable alert segment: a count badge + label pill that deep-links to
+ * its tab, with a chevron affordance so it clearly reads as actionable.
+ */
+function AlertChip({
+  href,
+  count,
+  label,
+}: {
+  href: string;
+  count: number;
+  label: string;
+}) {
+  return (
+    <Link
+      href={href}
+      prefetch={false}
+      className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/15 py-1 pl-1 pr-2.5 text-[13px] font-semibold text-white shadow-sm transition-colors hover:bg-white/25 active:bg-white/30"
+    >
+      <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-white px-1.5 text-[12px] font-bold tabular-nums text-red-700">
+        {count}
+      </span>
+      <span className="whitespace-nowrap">{label}</span>
+      <svg
+        viewBox="0 0 20 20"
+        fill="currentColor"
+        aria-hidden
+        className="h-3.5 w-3.5 text-white/70"
+      >
+        <path
+          fillRule="evenodd"
+          d="M7.21 4.29a1 1 0 0 1 1.42 0l5 5a1 1 0 0 1 0 1.42l-5 5a1 1 0 1 1-1.42-1.42L11.5 10 7.21 5.71a1 1 0 0 1 0-1.42z"
+          clipRule="evenodd"
+        />
+      </svg>
+    </Link>
   );
 }
 
