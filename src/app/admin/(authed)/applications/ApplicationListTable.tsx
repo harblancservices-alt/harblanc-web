@@ -148,7 +148,7 @@ export function ApplicationListTable({
           <button
             type="button"
             onClick={clearFilters}
-            className="inline-flex items-center justify-center border-2 border-line bg-card px-4 py-2.5 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-fg transition-colors hover:bg-canvas hover:text-fg sm:w-auto"
+            className="inline-flex items-center justify-center border-2 border-line bg-card px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-fg transition-colors hover:bg-canvas hover:text-fg sm:w-auto"
           >
             Clear
           </button>

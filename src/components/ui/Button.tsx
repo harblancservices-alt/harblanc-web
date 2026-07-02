@@ -36,7 +36,7 @@ export type ButtonVariant =
 export type ButtonSize = "sm" | "md";
 
 const BASE =
-  "inline-flex items-center justify-center gap-1.5 rounded-md font-mono font-bold uppercase leading-none tracking-[0.08em] transition-colors disabled:cursor-not-allowed disabled:opacity-60 whitespace-nowrap";
+  "inline-flex items-center justify-center gap-1.5 rounded-md font-mono font-semibold uppercase leading-none tracking-[0.08em] transition-colors disabled:cursor-not-allowed disabled:opacity-60 whitespace-nowrap";
 
 // The neutralized secondary look shared by navigate / edit / utility / cancel:
 // white surface, strong hairline, ink text, inset hover. No saturated fill.
@@ -54,11 +54,12 @@ const VARIANT: Record<ButtonVariant, string> = {
     "border border-bad bg-card text-bad hover:bg-bad-bg disabled:hover:bg-card",
 };
 
-// 6px radius (rounded-md). Height ≈ 36px on desktop; 44px minimum tap target
-// on mobile (min-h relaxes at the sm breakpoint).
+// 6px radius (rounded-md). Compact, refined proportions — a fixed height keeps
+// them tidy on mobile (no ballooning min-height): md ≈ 34px, sm ≈ 30px. Label
+// ~13px / 600 weight. Comfortable to tap without dominating the screen.
 const SIZE: Record<ButtonSize, string> = {
-  sm: "px-3 min-h-[38px] sm:min-h-[30px] py-1.5 text-[11px]",
-  md: "px-4 min-h-[44px] sm:min-h-[36px] py-2 text-[12px]",
+  sm: "h-[30px] px-3 text-[12px]",
+  md: "h-[34px] px-3.5 text-[13px]",
 };
 
 type BaseProps = {

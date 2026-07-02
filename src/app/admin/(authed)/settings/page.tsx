@@ -151,7 +151,7 @@ export default async function SettingsPage() {
           </label>
           <button
             type="submit"
-            className="border-2 border-fg bg-fg px-5 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-canvas transition-colors hover:opacity-90"
+            className="border-2 border-fg bg-fg px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-canvas transition-colors hover:opacity-90"
           >
             Save
           </button>
@@ -161,7 +161,7 @@ export default async function SettingsPage() {
       <form action="/admin/logout" method="post" className="mt-4">
         <button
           type="submit"
-          className="inline-flex w-full items-center justify-center gap-2 border-2 border-line bg-card px-4 py-3 font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-fg transition-colors hover:bg-elevated sm:w-auto"
+          className="inline-flex w-full items-center justify-center gap-2 border-2 border-line bg-card px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-fg transition-colors hover:bg-elevated sm:w-auto"
         >
           <IconLogout className="h-4 w-4" />
           Sign out
