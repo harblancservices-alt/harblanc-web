@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { sendBackhaul, type BackhaulSendResult } from "./actions";
 import { FarmContactButton } from "../../FarmBrokerContactCard";
+import { PageHeader } from "@/components/ui/PageHeader";
 
 export type BackhaulBroker = {
   id: string;
@@ -15,9 +16,9 @@ export type BackhaulBroker = {
 };
 
 const WARMTH_PILL: Record<string, string> = {
-  hot: "bg-red-100 text-red-700",
-  warm: "bg-amber-100 text-amber-700",
-  cold: "bg-elevated text-fg-muted",
+  hot: "bg-bad-bg text-bad",
+  warm: "bg-warn-bg text-warn",
+  cold: "bg-slate-bg text-slate",
 };
 
 export function BackhaulView({
@@ -157,27 +158,21 @@ export function BackhaulView({
   return (
     <div className="min-h-screen border-t border-line bg-canvas text-fg">
       <div className="w-full px-4 py-5 sm:px-6 lg:px-8">
-        <header className="mb-3 flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-indigo-600">
-              Dispatch
-            </p>
-            <h1 className="mt-1 text-[22px] font-semibold leading-none tracking-tight text-fg">
-              Backhaul
-            </h1>
-            <p className="mt-1.5 text-[13px] text-fg-muted">
-              Email brokers for freight out of where you&apos;re sitting empty.
-            </p>
-          </div>
-          {/* Farm a broker contact anytime — same flow as the dashboard card. */}
-          <FarmContactButton />
-        </header>
+        <PageHeader
+          eyebrow="Dispatch"
+          title="Backhaul"
+          className="mb-1.5"
+          actions={<FarmContactButton />}
+        />
+        <p className="mb-3 text-[13px] text-fg-muted">
+          Email brokers for freight out of where you&apos;re sitting empty.
+        </p>
 
         {/* Search */}
         <form
           method="get"
           action="/admin/dispatch/backhaul"
-          className="mb-4 flex flex-wrap items-end gap-2 rounded-md border border-line bg-card px-3.5 py-3 shadow-sm"
+          className="mb-4 flex flex-wrap items-end gap-2 rounded-md border border-line bg-card px-3.5 py-3 shadow-e1"
         >
           <div className="flex-1 min-w-[140px]">
             <label className="block font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-fg-subtle">
@@ -188,7 +183,7 @@ export function BackhaulView({
               defaultValue={zip}
               inputMode="numeric"
               placeholder="e.g. 38101"
-              className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
+              className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-ink outline-none placeholder:text-ink-3 focus:border-accent focus:ring-2 focus:ring-accent/40"
             />
           </div>
           <div className="flex-1 min-w-[120px]">
@@ -199,12 +194,12 @@ export function BackhaulView({
               name="date"
               defaultValue={date}
               placeholder="Today"
-              className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
+              className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-ink outline-none placeholder:text-ink-3 focus:border-accent focus:ring-2 focus:ring-accent/40"
             />
           </div>
           <button
             type="submit"
-            className="rounded-md border border-red-700 bg-red-600 px-4 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-red-700"
+            className="rounded-md border border-accent bg-accent px-4 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-accent-hover hover:border-accent-hover"
           >
             Find
           </button>
@@ -212,25 +207,25 @@ export function BackhaulView({
             type="button"
             onClick={onLocate}
             disabled={locating}
-            className="inline-flex items-center gap-1.5 rounded-md border border-line-strong bg-card px-3 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-fg transition-colors hover:bg-elevated disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-md border border-line-strong bg-card px-3 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-fg transition-colors hover:bg-inset disabled:opacity-50"
           >
             {locating ? "Locating…" : "Use my location"}
           </button>
         </form>
         {locateErr ? (
-          <p className="mb-3 -mt-2 font-mono text-[11px] text-red-700">
+          <p className="mb-3 -mt-2 font-mono text-[11px] text-bad">
             {locateErr}
           </p>
         ) : null}
 
         {!emptyState ? (
-          <div className="rounded-xl border border-dashed border-line bg-card px-4 py-10 text-center font-mono text-[12px] text-fg-subtle">
+          <div className="rounded-md border border-dashed border-line-strong bg-card px-4 py-10 text-center font-mono text-[12px] text-ink-3 shadow-e1">
             {zip
               ? `Couldn't resolve "${zip}" to a state. Try a 5-digit ZIP.`
               : "Enter the ZIP where you're empty to rank brokers."}
           </div>
         ) : brokers.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-line bg-card px-4 py-10 text-center font-mono text-[12px] text-fg-subtle">
+          <div className="rounded-md border border-dashed border-line-strong bg-card px-4 py-10 text-center font-mono text-[12px] text-ink-3 shadow-e1">
             No brokers with outbound freight within {radiusMi} mi of{" "}
             {locationLabel ?? "here"} yet.
           </div>
@@ -248,7 +243,7 @@ export function BackhaulView({
                   {selected.size} selected
                 </span>
               </div>
-              <div className="overflow-hidden rounded-md border border-line bg-card shadow-sm">
+              <div className="overflow-hidden rounded-md border border-line bg-card shadow-e2">
                 {brokers.map((b, i) => {
                   const hasEmail = !!b.email;
                   const checked = selected.has(b.id);
@@ -256,9 +251,12 @@ export function BackhaulView({
                     <label
                       key={b.id}
                       className={
-                        "flex items-start gap-2.5 px-3 py-2.5 " +
-                        (i === brokers.length - 1 ? "" : "border-b border-line") +
-                        (hasEmail ? " cursor-pointer hover:bg-elevated" : " opacity-70")
+                        "flex items-start gap-2.5 border-l-[3px] px-3 py-2.5 transition-colors " +
+                        (i === brokers.length - 1 ? "" : "border-b border-line ") +
+                        (checked
+                          ? "border-l-accent bg-inset "
+                          : "border-l-transparent ") +
+                        (hasEmail ? "cursor-pointer hover:bg-inset" : "opacity-70")
                       }
                     >
                       <input
@@ -266,7 +264,7 @@ export function BackhaulView({
                         checked={checked}
                         disabled={!hasEmail}
                         onChange={() => toggle(b.id)}
-                        className="mt-1"
+                        className="mt-1 accent-accent"
                       />
                       <span className="min-w-0 flex-1">
                         <span className="flex flex-wrap items-center gap-2">
@@ -284,7 +282,7 @@ export function BackhaulView({
                         </span>
                         <span className="mt-1 flex flex-wrap items-center gap-2 text-[11px]">
                           {b.loadsFromHere > 0 ? (
-                            <span className="rounded bg-green-100 px-1.5 py-[1px] text-green-700">
+                            <span className="rounded bg-ok-bg px-1.5 py-[1px] text-ok">
                               {b.loadsFromHere} load
                               {b.loadsFromHere === 1 ? "" : "s"} within{" "}
                               {radiusMi} mi
@@ -293,16 +291,16 @@ export function BackhaulView({
                             <span className="text-fg-subtle">No history here</span>
                           )}
                           {hasEmail ? (
-                            <span className="font-mono text-blue-700">
+                            <span className="font-mono text-steel">
                               {b.email}
                             </span>
                           ) : (
-                            <span className="flex items-center gap-1.5 text-amber-700">
+                            <span className="flex items-center gap-1.5 text-warn">
                               No email on file
                               <Link
                                 href={`/admin/dispatch/brokers/${b.id}`}
                                 prefetch={false}
-                                className="font-mono font-bold uppercase tracking-[0.06em] text-blue-700 hover:underline"
+                                className="font-mono font-bold uppercase tracking-[0.06em] text-steel hover:underline"
                               >
                                 + Add
                               </Link>
@@ -317,7 +315,7 @@ export function BackhaulView({
             </div>
 
             {/* Compose */}
-            <div className="rounded-md border border-line bg-card p-3 shadow-sm">
+            <div className="rounded-md border border-line bg-card p-3 shadow-e2">
               <div className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-fg-muted">
                 Message
               </div>
@@ -327,7 +325,7 @@ export function BackhaulView({
               <input
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
-                className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg focus:border-fg focus:outline-none"
+                className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/40"
               />
               <label className="mt-2.5 block font-mono text-[9.5px] uppercase tracking-[0.12em] text-fg-subtle">
                 Body · {"{broker}"} fills each name
@@ -336,7 +334,7 @@ export function BackhaulView({
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
                 rows={9}
-                className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg focus:border-fg focus:outline-none"
+                className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/40"
               />
               <button
                 type="button"
@@ -345,7 +343,7 @@ export function BackhaulView({
                   setConfirmOpen(true);
                 }}
                 disabled={sending || cooldown > 0 || selected.size === 0}
-                className="mt-3 w-full rounded-md border border-red-700 bg-red-600 px-4 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                className="mt-3 w-full rounded-md border border-accent bg-accent px-4 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-accent-hover hover:border-accent-hover disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {cooldown > 0
                   ? `Locked · ${cooldown}s`
@@ -360,7 +358,7 @@ export function BackhaulView({
                 <p
                   className={
                     "mt-2 text-[12px] " +
-                    (result.ok ? "text-green-700" : "text-red-700")
+                    (result.ok ? "text-ok" : "text-bad")
                   }
                 >
                   {result.ok
@@ -459,7 +457,7 @@ function ConfirmSendModal({
               recipient.
             </p>
             {recipients.length === 0 ? (
-              <p className="text-[12px] text-amber-700">
+              <p className="text-[12px] text-warn">
                 None of the selected brokers have an email on file.
               </p>
             ) : (
@@ -472,7 +470,7 @@ function ConfirmSendModal({
                     <span className="truncate font-medium text-fg">
                       {r.name}
                     </span>
-                    <span className="shrink-0 font-mono text-[11.5px] text-blue-700">
+                    <span className="shrink-0 font-mono text-[11.5px] text-steel">
                       {r.email}
                     </span>
                   </li>
@@ -499,7 +497,7 @@ function ConfirmSendModal({
           </section>
 
           {result && !result.ok ? (
-            <p role="alert" className="text-[12px] font-semibold text-red-700">
+            <p role="alert" className="text-[12px] font-semibold text-bad">
               {result.reason}
             </p>
           ) : null}
@@ -519,7 +517,7 @@ function ConfirmSendModal({
             onClick={onConfirm}
             disabled={sending || recipients.length === 0}
             aria-busy={sending}
-            className="inline-flex items-center gap-1.5 rounded-md border border-red-700 bg-red-600 px-4 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-70"
+            className="inline-flex items-center gap-1.5 rounded-md border border-accent bg-accent px-4 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-accent-hover hover:border-accent-hover disabled:cursor-not-allowed disabled:opacity-70"
           >
             {sending ? (
               <>
