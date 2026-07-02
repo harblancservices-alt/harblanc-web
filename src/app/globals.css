@@ -112,6 +112,55 @@ input[type="date"]::-webkit-date-and-time-value {
   --harblanc-paper: #fafaf6;
   --harblanc-sand: #f3f1e9;
   --harblanc-rule: #d0cfc8;
+
+  /* ============================================================== */
+  /* V2 "FLEET OPS" DESIGN SYSTEM — foundation tokens (Phase 1).
+     Approved 2026-07. A light operations palette (gray canvas, white
+     cards, near-black ink) with deep-graphite chrome and a single
+     disciplined accent red used ONLY for the primary action + critical
+     state. These are the canonical raw values; the admin surface/text
+     tokens below are repointed to them, and the semantic aliases +
+     @theme utilities expose them to components (bg-inset, bg-graphite,
+     text-ok, shadow-e2, …). Rolled across pages phase-by-phase. */
+  --v2-canvas: #e9ecef;
+  --v2-card: #ffffff;
+  --v2-inset: #f1f4f6;
+  --v2-graphite: #14171d;
+  --v2-graphite-2: #20242c;
+  --v2-graphite-line: #2c313a;
+  --v2-ink: #12151a;
+  --v2-ink-2: #454c55;
+  --v2-ink-3: #727a84;
+  --v2-line: #d9dde2;
+  --v2-line-strong: #b7bec7;
+  --v2-on-dark-dim: #8a93a0;
+
+  --v2-accent: #c0272d;        /* primary action + critical only */
+  --v2-accent-hover: #a82227;
+  --v2-green: #157347;   --v2-green-bg: #e5f0ea;
+  --v2-amber: #b45309;   --v2-amber-bg: #f6ecda;
+  --v2-red: #b42318;     --v2-red-bg: #f6e4e2;
+  --v2-steel: #2f5d80;   --v2-steel-bg: #e3eaf1;
+  --v2-slate: #5a6570;   --v2-slate-bg: #e5e8ec;
+
+  /* Elevation — E1 resting card, E2 KPI/interactive, E3 modal.
+     Flat shadows only; the hairline border is applied by the component. */
+  --v2-e1: 0 1px 2px rgba(18, 21, 26, 0.08);
+  --v2-e2: 0 1px 2px rgba(18, 21, 26, 0.08), 0 6px 14px rgba(18, 21, 26, 0.06);
+  --v2-e3: 0 12px 32px rgba(18, 21, 26, 0.18);
+
+  /* Semantic aliases (theme-independent) so components can consume the V2
+     graphite/inset/status tokens through @theme utilities everywhere. */
+  --inset: var(--v2-inset);
+  --graphite: var(--v2-graphite);
+  --graphite-2: var(--v2-graphite-2);
+  --graphite-line: var(--v2-graphite-line);
+  --on-dark-dim: var(--v2-on-dark-dim);
+  --ok: var(--v2-green);     --ok-bg: var(--v2-green-bg);
+  --warn: var(--v2-amber);   --warn-bg: var(--v2-amber-bg);
+  --bad: var(--v2-red);      --bad-bg: var(--v2-red-bg);
+  --steel: var(--v2-steel);  --steel-bg: var(--v2-steel-bg);
+  --slate: var(--v2-slate);  --slate-bg: var(--v2-slate-bg);
 }
 
 /* ============================================================== */
@@ -123,17 +172,23 @@ input[type="date"]::-webkit-date-and-time-value {
    light-gray page behind WHITE cards; text is near-black; red stays
    reserved for buttons + alert/notification bars only. */
 .admin-light {
-  --canvas: #e2e5e9;       /* page background (the gray between cards) */
-  --panel: #ffffff;        /* sidebar / top bar                       */
-  --card: #ffffff;         /* raised cards (pop off the gray page)     */
-  --elevated: #eef0f3;     /* hover / active                          */
-  --line: #cdd2d8;         /* borders (clearly visible)               */
-  --line-strong: #b3b9c1;
-  --fg: #15161a;           /* near-black primary text                 */
-  --fg-muted: #4b4e55;     /* dark secondary (readable, not washed)    */
-  --fg-subtle: #6c6f77;    /* labels / captions                        */
-  --bar: #23252b;          /* solid dark section-header bar            */
+  /* Repointed to the V2 "Fleet Ops" palette. Values are near-identical to
+     the prior admin-light grays, so existing pages shift imperceptibly while
+     the shell + new primitives adopt the canonical V2 tokens. */
+  --canvas: var(--v2-canvas);      /* page background (gray between cards) */
+  --panel: #ffffff;                /* top bar (sidebar goes graphite)     */
+  --card: var(--v2-card);          /* raised white cards                  */
+  --elevated: #eef0f3;             /* hover / active                      */
+  --line: var(--v2-line);          /* borders                            */
+  --line-strong: var(--v2-line-strong);
+  --fg: var(--v2-ink);             /* near-black primary text            */
+  --fg-muted: var(--v2-ink-2);     /* secondary                          */
+  --fg-subtle: var(--v2-ink-3);    /* labels / captions                  */
+  --bar: var(--v2-graphite);       /* solid graphite section-header bar   */
   --bar-fg: #f4f4f5;
+  /* Admin-scoped accent → V2 red (public marketing site keeps :root red). */
+  --accent: var(--v2-accent);
+  --accent-hover: var(--v2-accent-hover);
 }
 
 /* ADMIN DARK THEME — opt-in via the Settings toggle. When the operator
@@ -245,6 +300,36 @@ html[data-admin-theme="dark"] .admin-light {
   --color-harblanc-paper: var(--harblanc-paper);
   --color-harblanc-sand: var(--harblanc-sand);
   --color-harblanc-rule: var(--harblanc-rule);
+
+  /* V2 "Fleet Ops" utilities.
+     Surfaces:  bg-inset  bg-graphite  bg-graphite-2  border-graphite-line
+     On-dark:   text-on-dark-dim
+     Ink tiers: text-ink text-ink-2 text-ink-3 (aliases of the fg tiers)
+     Status:    text-ok/bg-ok-bg, text-warn/bg-warn-bg, text-bad/bg-bad-bg,
+                text-steel/bg-steel-bg, text-slate/bg-slate-bg
+     Elevation: shadow-e1 shadow-e2 shadow-e3 */
+  --color-inset: var(--inset);
+  --color-graphite: var(--graphite);
+  --color-graphite-2: var(--graphite-2);
+  --color-graphite-line: var(--graphite-line);
+  --color-on-dark-dim: var(--on-dark-dim);
+  --color-ink: var(--v2-ink);
+  --color-ink-2: var(--v2-ink-2);
+  --color-ink-3: var(--v2-ink-3);
+  --color-ok: var(--ok);
+  --color-ok-bg: var(--ok-bg);
+  --color-warn: var(--warn);
+  --color-warn-bg: var(--warn-bg);
+  --color-bad: var(--bad);
+  --color-bad-bg: var(--bad-bg);
+  --color-steel: var(--steel);
+  --color-steel-bg: var(--steel-bg);
+  --color-slate: var(--slate);
+  --color-slate-bg: var(--slate-bg);
+
+  --shadow-e1: var(--v2-e1);
+  --shadow-e2: var(--v2-e2);
+  --shadow-e3: var(--v2-e3);
 }
 
 html {
