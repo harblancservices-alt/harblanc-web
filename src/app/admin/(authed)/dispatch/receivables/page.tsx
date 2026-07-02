@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/Button";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { FocalKPI } from "@/components/ui/Card";
 import { markLoadPaid, markLoadUnpaid } from "../loads/actions";
 
 export const metadata: Metadata = {
@@ -124,38 +126,28 @@ export default async function ReceivablesPage() {
   return (
     <div className="min-h-screen border-t border-line bg-canvas text-fg">
       <div className="mx-auto w-full max-w-3xl px-4 py-5 sm:px-6 lg:px-8">
-        <header className="mb-4 flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-indigo-600">
-              Dispatch
-            </p>
-            <h1 className="mt-1 text-[22px] font-semibold leading-none tracking-tight text-fg">
-              Accounts receivable
-            </h1>
-          </div>
-          <Button href="/admin/dispatch/loads" variant="navigate" size="sm">
-            ← Load board
-          </Button>
-        </header>
+        <PageHeader
+          eyebrow="Dispatch"
+          title="Accounts receivable"
+          className="mb-4"
+          actions={
+            <Button href="/admin/dispatch/loads" variant="navigate" size="sm">
+              ← Load board
+            </Button>
+          }
+        />
 
-        {/* Running total — the all-time outstanding A/R. */}
-        <section className="mb-4 rounded-md border border-line bg-card px-4 py-3.5 shadow-sm">
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-indigo-600">
-              Outstanding · all time
-            </span>
-            <span className="font-mono text-[12px] tabular-nums text-fg-subtle">
-              {outstanding.length} load{outstanding.length === 1 ? "" : "s"}
-            </span>
-          </div>
-          <div className="mt-1 text-[28px] font-bold tabular-nums leading-none text-red-700">
-            {usd(arTotal)}
-          </div>
-        </section>
+        {/* Running total — the all-time outstanding A/R, as the focal metric. */}
+        <FocalKPI
+          label="Outstanding · all time"
+          value={usd(arTotal)}
+          sub={`${outstanding.length} load${outstanding.length === 1 ? "" : "s"}`}
+          className="mb-4"
+        />
 
         {/* Outstanding list — oldest delivery first. */}
         {outstanding.length === 0 ? (
-          <div className="rounded-md border border-line bg-card px-3 py-10 text-center font-mono text-[13px] text-fg-subtle">
+          <div className="rounded-md border border-line bg-card px-3 py-10 text-center font-mono text-[13px] text-ink-3 shadow-e1">
             All caught up — nothing outstanding. 🎉
           </div>
         ) : (
@@ -168,14 +160,14 @@ export default async function ReceivablesPage() {
                 age == null
                   ? "text-fg-subtle"
                   : age > 45
-                    ? "text-red-600"
+                    ? "text-bad"
                     : age > 30
-                      ? "text-amber-600"
+                      ? "text-warn"
                       : "text-fg-subtle";
               return (
                 <div
                   key={l.id}
-                  className="flex items-stretch overflow-hidden rounded-md border border-line bg-card shadow-sm"
+                  className="flex items-stretch overflow-hidden rounded-md border border-line bg-card shadow-e1"
                 >
                   <div className="min-w-0 flex-1 p-3">
                     <div className="flex items-start justify-between gap-2">
@@ -183,7 +175,7 @@ export default async function ReceivablesPage() {
                         {l.broker_name?.trim() || "—"}
                       </span>
                       <div className="shrink-0 text-right">
-                        <div className="font-mono text-[15px] font-bold tabular-nums text-red-700">
+                        <div className="font-mono text-[15px] font-bold tabular-nums text-bad">
                           {usd(num(l.rate))}
                         </div>
                         {age != null ? (
@@ -225,14 +217,14 @@ export default async function ReceivablesPage() {
         {/* Recently paid — undo an accidental mark-paid. */}
         {recentlyPaid.length > 0 ? (
           <section className="mt-6">
-            <p className="mb-2 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-fg-subtle">
+            <p className="mb-2 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-ink-3">
               Recently paid
             </p>
             <div className="space-y-1.5">
               {recentlyPaid.map((l) => (
                 <div
                   key={l.id}
-                  className="flex items-center justify-between gap-3 rounded-md border border-line bg-elevated px-3 py-2"
+                  className="flex items-center justify-between gap-3 rounded-md border border-line bg-inset px-3 py-2"
                 >
                   <div className="min-w-0">
                     <span className="truncate text-[12.5px] font-semibold text-fg">

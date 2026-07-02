@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { StatusTag } from "@/components/ui/StatusTag";
 import { PAYMENT_METHOD_LABELS, type PaymentMethod } from "@/lib/dispatch/payment";
 
 /**
@@ -57,24 +59,24 @@ export function AccountingView({ data }: { data: AccountingData }) {
   return (
     <div className="min-h-screen border-t border-line bg-canvas text-fg">
       <div className="w-full px-4 py-5 sm:px-6 lg:px-10">
-        <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h1 className="text-[20px] font-semibold leading-none tracking-tight text-fg">
-            Accounting{" "}
-            <span className="text-[13px] font-normal text-fg-subtle">
-              · {data.monthLabel}
-            </span>
-          </h1>
-          <Button
-            variant="navigate"
-            size="sm"
-            href={data.stripeDashboardUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Open in Stripe
-            <ExternalIcon />
-          </Button>
-        </header>
+        <PageHeader
+          eyebrow="Finance"
+          title="Accounting"
+          date={data.monthLabel}
+          className="mb-4"
+          actions={
+            <Button
+              variant="navigate"
+              size="sm"
+              href={data.stripeDashboardUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Open in Stripe
+              <ExternalIcon />
+            </Button>
+          }
+        />
 
         <div className="mb-5 grid grid-cols-2 gap-2 lg:grid-cols-4">
           <Kpi label="Collected MTD" value={usd(summary.collectedMtd)} tone="green" />
@@ -115,22 +117,22 @@ export function AccountingView({ data }: { data: AccountingData }) {
             {data.ledger.length === 0 ? (
               <EmptyCard text="No payments recorded yet." />
             ) : (
-              <div className="overflow-hidden rounded-xl border border-line bg-card shadow-sm">
+              <div className="overflow-hidden rounded-md border border-line bg-card shadow-e2">
                 <Row grid={LEDGER_GRID} head>
                   <span>Date</span>
                   <span>Customer</span>
                   <span className="text-right">Amount</span>
                   <span>Method</span>
                 </Row>
-                {data.ledger.map((p) => (
-                  <Row key={p.id} grid={LEDGER_GRID}>
+                {data.ledger.map((p, i) => (
+                  <Row key={p.id} grid={LEDGER_GRID} alt={i % 2 === 1}>
                     <span className="font-mono text-fg-subtle">
                       {shortDate(p.date)}
                     </span>
                     <span className="truncate font-medium text-fg">
                       {p.customerName}
                     </span>
-                    <span className="text-right font-bold tabular-nums text-green-700">
+                    <span className="text-right font-bold tabular-nums text-ok">
                       {usd(p.amount)}
                     </span>
                     <span>
@@ -150,14 +152,14 @@ export function AccountingView({ data }: { data: AccountingData }) {
             {!data.stripeOk ? (
               <EmptyCard text="Stripe not connected in this environment — payouts, fees, and balance will appear once the secret key is set." />
             ) : (
-              <div className="overflow-hidden rounded-xl border border-line bg-card shadow-sm">
+              <div className="overflow-hidden rounded-md border border-line bg-card shadow-e2">
                 {data.balance ? (
-                  <div className="flex items-center justify-between gap-3 border-b border-line bg-elevated px-3.5 py-2 text-[12px]">
+                  <div className="flex items-center justify-between gap-3 border-b border-line bg-inset px-3.5 py-2 text-[12px]">
                     <span className="font-mono uppercase tracking-[0.08em] text-fg-muted">
                       Balance
                     </span>
                     <span className="tabular-nums">
-                      <span className="font-bold text-green-700">
+                      <span className="font-bold text-ok">
                         {usd(data.balance.available)}
                       </span>
                       <span className="text-fg-subtle"> available · </span>
@@ -178,8 +180,8 @@ export function AccountingView({ data }: { data: AccountingData }) {
                       <span>Status</span>
                       <span className="text-right">Amount</span>
                     </Row>
-                    {data.payouts.map((p) => (
-                      <Row key={p.id} grid={PAYOUT_GRID}>
+                    {data.payouts.map((p, i) => (
+                      <Row key={p.id} grid={PAYOUT_GRID} alt={i % 2 === 1}>
                         <span className="font-mono text-fg-subtle">
                           {shortDate(p.date)}
                         </span>
@@ -189,7 +191,7 @@ export function AccountingView({ data }: { data: AccountingData }) {
                             tone={p.status === "paid" ? "green" : "amber"}
                           />
                         </span>
-                        <span className="text-right font-bold tabular-nums text-green-700">
+                        <span className="text-right font-bold tabular-nums text-ok">
                           {usd(p.amount)}
                         </span>
                       </Row>
@@ -226,20 +228,15 @@ function ReceivableCard({
             {r.customerName}
           </div>
           <div className="mt-0.5 flex flex-wrap items-center gap-x-2 text-[12px]">
-            <span className="font-mono text-blue-700">{r.lane}</span>
+            <span className="font-mono text-steel">{r.lane}</span>
             {r.number != null ? (
               <span className="text-fg-subtle">· FQ #{r.number}</span>
             ) : null}
           </div>
         </div>
-        <span
-          className={
-            "shrink-0 rounded-md px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.06em] text-white shadow-sm " +
-            (isDeposit ? "bg-amber-500" : "bg-red-600")
-          }
-        >
+        <StatusTag tone={isDeposit ? "amber" : "red"} className="shrink-0">
           {statusLabel}
-        </span>
+        </StatusTag>
       </div>
       <div className="mt-3 grid grid-cols-3 gap-2 border-t border-line pt-3">
         <MoneyStat label="Total" value={usd(r.total ?? 0)} tone="muted" />
@@ -255,7 +252,7 @@ function ReceivableCard({
   );
 
   const cls =
-    "block rounded-xl border border-line-strong bg-card p-4 shadow-lg ring-1 ring-black/5 transition-all hover:-translate-y-0.5 hover:shadow-xl";
+    "block rounded-md border border-line bg-card p-4 shadow-e2 transition-all hover:-translate-y-0.5 hover:shadow-e3";
 
   return r.leadId ? (
     <Link href={"/admin/quotes/" + r.leadId} prefetch={false} className={cls}>
@@ -279,9 +276,9 @@ function MoneyStat({
 }) {
   const color =
     tone === "green"
-      ? "text-green-700"
+      ? "text-ok"
       : tone === "red"
-        ? "text-red-700"
+        ? "text-bad"
         : "text-fg";
   return (
     <div>
@@ -306,10 +303,10 @@ const PAYOUT_GRID = "64px minmax(0,1fr) 100px";
 type Tone = "green" | "amber" | "red" | "blue" | "neutral" | "muted";
 
 const KPI_TONE: Record<"green" | "amber" | "red" | "muted", string> = {
-  green: "text-green-700",
-  amber: "text-amber-700",
-  red: "text-red-700",
-  muted: "text-fg-subtle",
+  green: "text-ok",
+  amber: "text-warn",
+  red: "text-bad",
+  muted: "text-ink-3",
 };
 
 function Kpi({
@@ -322,8 +319,8 @@ function Kpi({
   tone: "green" | "amber" | "red" | "muted";
 }) {
   return (
-    <div className="rounded-xl border border-line bg-card px-3.5 py-2.5 shadow-sm">
-      <div className="font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-indigo-600">
+    <div className="rounded-md border border-line bg-card px-3.5 py-2.5 shadow-e2">
+      <div className="font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-ink-3">
         {label}
       </div>
       <div
@@ -338,10 +335,13 @@ function Kpi({
 function Row({
   grid,
   head = false,
+  alt = false,
   children,
 }: {
   grid: string;
   head?: boolean;
+  /** Zebra: tint the odd body rows. */
+  alt?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -349,8 +349,9 @@ function Row({
       className={
         "grid items-center gap-2 px-3.5 py-2 " +
         (head
-          ? "border-b border-line bg-elevated font-mono text-[10.5px] font-bold uppercase tracking-[0.1em] text-fg-subtle"
-          : "border-b border-line text-[13px] last:border-b-0")
+          ? "border-b-2 border-line-strong bg-inset font-mono text-[10.5px] font-bold uppercase tracking-[0.1em] text-ink-3"
+          : "border-b border-line text-[13px] last:border-b-0 " +
+            (alt ? "bg-inset" : "bg-card"))
       }
       style={{ gridTemplateColumns: grid }}
     >
@@ -360,12 +361,12 @@ function Row({
 }
 
 const PILL_TONE: Record<Tone, string> = {
-  green: "bg-green-50 text-green-700",
-  amber: "bg-amber-50 text-amber-700",
-  red: "bg-red-50 text-red-700",
-  blue: "bg-blue-50 text-blue-700",
-  neutral: "bg-elevated text-fg-muted",
-  muted: "bg-elevated text-fg-subtle",
+  green: "bg-ok-bg text-ok",
+  amber: "bg-warn-bg text-warn",
+  red: "bg-bad-bg text-bad",
+  blue: "bg-steel-bg text-steel",
+  neutral: "bg-slate-bg text-slate",
+  muted: "bg-slate-bg text-slate",
 };
 
 function StatusPill({ label, tone }: { label: string; tone: Tone }) {
@@ -398,7 +399,7 @@ function SectionLabel({ title, note }: { title: string; note?: string }) {
 
 function EmptyCard({ text }: { text: string }) {
   return (
-    <div className="rounded-xl border border-dashed border-line bg-card px-4 py-5 text-center font-mono text-[12px] text-fg-subtle">
+    <div className="rounded-md border border-dashed border-line-strong bg-card px-4 py-5 text-center font-mono text-[12px] text-ink-3 shadow-e1">
       {text}
     </div>
   );
