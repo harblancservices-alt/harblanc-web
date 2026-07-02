@@ -8,7 +8,6 @@ import {
   IconBuilding,
   IconCoins,
   IconDashboard,
-  IconDots,
   IconLogout,
   IconMail,
   IconReceipt,
@@ -16,31 +15,23 @@ import {
   IconSettings,
   IconStack,
   IconTruck,
+  IconWrench,
 } from "./icons";
 
 /**
- * Level 4 — desktop sidebar.
+ * Level 4 — desktop sidebar (V2 "Fleet Ops" chrome).
  *
  * Hidden below lg (`hidden lg:flex`). Sticky at the top-bar's lower edge
  * (top-14), full remaining viewport height. The bottom nav handles the
  * mobile/tablet equivalent.
  *
- * Structure per Q7 approval:
- *
- *   Dashboard
- *   Quotes
- *   Applications
- *
- *   More
- *    └ Previews
- *    └ Settings
- *
- * No popup. No dropdown. Previews and Settings are nested rows always
- * visible inside the sidebar. One click to navigate. The "More" row
- * itself isn't a destination — it's a label for the nested group.
- *
- * Foot block carries the operator email + sign-out form. Sign-out posts
- * to the existing /admin/logout route (unchanged from prior layout).
+ * VISUAL: deep-graphite rail (bg-graphite) with grouped section labels.
+ * Active row = graphite-2 fill + a 3px accent left edge. Settings is
+ * pinned in the footer above an owner-operator identity chip. Every
+ * destination is a route that already exists — labels/grouping are
+ * cosmetic; no href, prop, or behaviour changed. Groups mirror the
+ * approved V2 scheme (Operations / Fleet / Partners) with the remaining
+ * existing destinations kept under "More" exactly as they linked before.
  *
  * prefetch={false} on every Link: the admin middleware re-issues
  * Supabase session cookies on every request, which the Next.js router
@@ -53,25 +44,50 @@ type NavItem = {
   Icon: ComponentType<{ className?: string }>;
 };
 
-const PRIMARY: NavItem[] = [
-  { href: "/admin", label: "Dashboard", Icon: IconDashboard },
-  { href: "/admin/quotes", label: "Quotes", Icon: IconTruck },
-  { href: "/admin/applications", label: "Applications", Icon: IconBadge },
-  { href: "/admin/accounting", label: "Accounting", Icon: IconReceipt },
+type NavGroup = {
+  title: string;
+  items: NavItem[];
+};
+
+const GROUPS: NavGroup[] = [
+  {
+    title: "Operations",
+    items: [
+      { href: "/admin", label: "Dashboard", Icon: IconDashboard },
+      { href: "/admin/dispatch/loads", label: "Loads", Icon: IconStack },
+      { href: "/admin/dispatch/trips", label: "Trips", Icon: IconRoute },
+    ],
+  },
+  {
+    title: "Fleet",
+    items: [
+      { href: "/admin/maintenance", label: "Maintenance", Icon: IconWrench },
+    ],
+  },
+  {
+    title: "Partners",
+    items: [
+      { href: "/admin/dispatch/brokers", label: "Brokers", Icon: IconBuilding },
+      { href: "/admin/quotes", label: "CRM / Quotes", Icon: IconTruck },
+    ],
+  },
+  {
+    title: "More",
+    items: [
+      { href: "/admin/applications", label: "Applications", Icon: IconBadge },
+      { href: "/admin/accounting", label: "Accounting", Icon: IconReceipt },
+      { href: "/admin/dispatch/backhaul", label: "Backhaul", Icon: IconMail },
+      { href: "/admin/dispatch/receivables", label: "Receivables", Icon: IconCoins },
+      { href: "/admin/previews", label: "Email Previews", Icon: IconMail },
+    ],
+  },
 ];
 
-const DISPATCH: NavItem[] = [
-  { href: "/admin/dispatch/loads", label: "Load Board", Icon: IconStack },
-  { href: "/admin/dispatch/trips", label: "Trips", Icon: IconRoute },
-  { href: "/admin/dispatch/brokers", label: "Brokers", Icon: IconBuilding },
-  { href: "/admin/dispatch/backhaul", label: "Backhaul", Icon: IconMail },
-  { href: "/admin/dispatch/receivables", label: "Receivables", Icon: IconCoins },
-];
-
-const MORE: NavItem[] = [
-  { href: "/admin/previews", label: "Email Previews", Icon: IconMail },
-  { href: "/admin/settings", label: "Settings", Icon: IconSettings },
-];
+const SETTINGS: NavItem = {
+  href: "/admin/settings",
+  label: "Settings",
+  Icon: IconSettings,
+};
 
 function isActive(pathname: string, href: string): boolean {
   if (href === "/admin") return pathname === "/admin";
@@ -84,68 +100,61 @@ export function PortalSidebar({ email }: { email: string | null }) {
   return (
     <aside
       aria-label="Portal navigation"
-      className="sticky top-14 hidden h-[calc(100vh-3.5rem)] w-[200px] shrink-0 flex-col border-r border-line bg-panel text-fg lg:flex"
+      className="sticky top-14 hidden h-[calc(100vh-3.5rem)] w-[212px] shrink-0 flex-col border-r border-graphite-line bg-graphite text-on-dark-dim lg:flex"
     >
-      <nav className="flex flex-1 flex-col py-2">
-        {PRIMARY.map((item) => (
-          <SidebarLink
-            key={item.href}
-            href={item.href}
-            label={item.label}
-            Icon={item.Icon}
-            active={isActive(pathname, item.href)}
-          />
-        ))}
-
-        <div className="mt-4 flex items-center gap-2.5 px-4 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.22em] text-fg">
-          <IconTruck className="h-4 w-4" />
-          <span>Dispatch</span>
-        </div>
-        {DISPATCH.map((item) => (
-          <SidebarLink
-            key={item.href}
-            href={item.href}
-            label={item.label}
-            Icon={item.Icon}
-            active={isActive(pathname, item.href)}
-            nested
-          />
-        ))}
-
-        <div className="mt-4 flex items-center gap-2.5 px-4 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.22em] text-fg">
-          <IconDots className="h-4 w-4" />
-          <span>More</span>
-        </div>
-        {MORE.map((item) => (
-          <SidebarLink
-            key={item.href}
-            href={item.href}
-            label={item.label}
-            Icon={item.Icon}
-            active={isActive(pathname, item.href)}
-            nested
-          />
+      <nav className="flex-1 overflow-y-auto py-2">
+        {GROUPS.map((group) => (
+          <div key={group.title} className="pb-1">
+            <p className="px-4 pt-4 pb-1 font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-on-dark-dim">
+              {group.title}
+            </p>
+            {group.items.map((item) => (
+              <SidebarLink
+                key={item.href}
+                href={item.href}
+                label={item.label}
+                Icon={item.Icon}
+                active={isActive(pathname, item.href)}
+              />
+            ))}
+          </div>
         ))}
       </nav>
 
-      <div className="border-t border-line px-4 pt-3 pb-4">
-        {email ? (
-          <p
-            className="break-all font-mono text-[12px] font-medium tracking-[0.04em] text-fg-muted"
-            title={email}
+      <div className="border-t border-graphite-line pt-1">
+        <SidebarLink
+          href={SETTINGS.href}
+          label={SETTINGS.label}
+          Icon={SETTINGS.Icon}
+          active={isActive(pathname, SETTINGS.href)}
+        />
+
+        <div className="mt-1 flex items-center gap-2.5 border-t border-graphite-line px-4 py-3">
+          <span
+            aria-hidden
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-graphite-2 font-mono text-[12px] font-bold tracking-[0.04em] text-white ring-1 ring-graphite-line"
           >
-            {email}
-          </p>
-        ) : null}
-        <form action="/admin/logout" method="post" className="mt-3">
-          <button
-            type="submit"
-            className="inline-flex items-center gap-1.5 font-mono text-[12px] font-bold uppercase tracking-[0.22em] text-fg-muted transition-colors hover:text-accent"
-          >
-            <IconLogout className="h-3.5 w-3.5" />
-            Sign out
-          </button>
-        </form>
+            BH
+          </span>
+          <div className="min-w-0 flex-1" title={email ?? undefined}>
+            <p className="truncate text-[13px] font-bold leading-tight text-white">
+              Brent H.
+            </p>
+            <p className="truncate text-[11px] leading-tight text-on-dark-dim">
+              Owner-operator
+            </p>
+          </div>
+          <form action="/admin/logout" method="post">
+            <button
+              type="submit"
+              aria-label="Sign out"
+              title="Sign out"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md text-on-dark-dim transition-colors hover:bg-white/[0.06] hover:text-accent"
+            >
+              <IconLogout className="h-4 w-4" />
+            </button>
+          </form>
+        </div>
       </div>
     </aside>
   );
@@ -156,13 +165,11 @@ function SidebarLink({
   label,
   Icon,
   active,
-  nested = false,
 }: {
   href: string;
   label: string;
   Icon: ComponentType<{ className?: string }>;
   active: boolean;
-  nested?: boolean;
 }) {
   return (
     <Link
@@ -170,15 +177,14 @@ function SidebarLink({
       prefetch={false}
       aria-current={active ? "page" : undefined}
       className={
-        "flex items-center gap-2.5 mx-2 my-1 rounded-md border py-2.5 font-mono text-[13px] font-bold uppercase tracking-[0.14em] transition-colors " +
-        (nested ? "ml-5 pl-5 pr-3 text-[12px] " : "px-3 ") +
+        "flex items-center gap-3 border-l-[3px] px-4 py-2.5 text-[13px] font-semibold tracking-[0.01em] transition-colors " +
         (active
-          ? "border-fg bg-bar text-bar-fg shadow-sm"
-          : "border-line bg-card text-fg shadow-sm hover:bg-elevated hover:border-line-strong")
+          ? "border-accent bg-graphite-2 text-white"
+          : "border-transparent text-on-dark-dim hover:bg-white/[0.06] hover:text-white")
       }
     >
-      <Icon className={nested ? "h-3.5 w-3.5" : "h-4 w-4"} />
-      <span>{label}</span>
+      <Icon className="h-[18px] w-[18px] shrink-0" />
+      <span className="truncate">{label}</span>
     </Link>
   );
 }

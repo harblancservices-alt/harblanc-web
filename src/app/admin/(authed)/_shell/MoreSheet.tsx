@@ -40,7 +40,6 @@ import {
 type SheetItem = {
   href: string;
   label: string;
-  chip: string;
   Icon: ComponentType<{ className?: string }>;
 };
 
@@ -48,22 +47,11 @@ const GROUPS: { title: string; items: SheetItem[] }[] = [
   {
     title: "Dispatch",
     items: [
-      {
-        href: "/admin/dispatch/trips",
-        label: "Trips",
-        chip: "bg-emerald-50 text-emerald-700",
-        Icon: IconRoute,
-      },
-      {
-        href: "/admin/dispatch/backhaul",
-        label: "Backhaul",
-        chip: "bg-sky-50 text-sky-700",
-        Icon: IconMail,
-      },
+      { href: "/admin/dispatch/trips", label: "Trips", Icon: IconRoute },
+      { href: "/admin/dispatch/backhaul", label: "Backhaul", Icon: IconMail },
       {
         href: "/admin/dispatch/receivables",
         label: "Receivables",
-        chip: "bg-red-50 text-red-700",
         Icon: IconCoins,
       },
     ],
@@ -71,52 +59,22 @@ const GROUPS: { title: string; items: SheetItem[] }[] = [
   {
     title: "Customers",
     items: [
-      {
-        href: "/admin/quotes",
-        label: "Quotes",
-        chip: "bg-blue-50 text-blue-700",
-        Icon: IconTruck,
-      },
-      {
-        href: "/admin/applications",
-        label: "Applications",
-        chip: "bg-violet-50 text-violet-700",
-        Icon: IconBadge,
-      },
+      { href: "/admin/quotes", label: "Quotes", Icon: IconTruck },
+      { href: "/admin/applications", label: "Applications", Icon: IconBadge },
     ],
   },
   {
     title: "Truck",
     items: [
-      {
-        href: "/admin/maintenance",
-        label: "Maintenance",
-        chip: "bg-orange-50 text-orange-700",
-        Icon: IconWrench,
-      },
+      { href: "/admin/maintenance", label: "Maintenance", Icon: IconWrench },
     ],
   },
   {
     title: "Business",
     items: [
-      {
-        href: "/admin/accounting",
-        label: "Accounting",
-        chip: "bg-green-50 text-green-700",
-        Icon: IconReceipt,
-      },
-      {
-        href: "/admin/previews",
-        label: "Email Previews",
-        chip: "bg-amber-50 text-amber-700",
-        Icon: IconMail,
-      },
-      {
-        href: "/admin/settings",
-        label: "Settings",
-        chip: "bg-elevated text-fg-muted",
-        Icon: IconSettings,
-      },
+      { href: "/admin/accounting", label: "Accounting", Icon: IconReceipt },
+      { href: "/admin/previews", label: "Email Previews", Icon: IconMail },
+      { href: "/admin/settings", label: "Settings", Icon: IconSettings },
     ],
   },
 ];
@@ -208,10 +166,10 @@ export function MoreSheet({
         type="button"
         aria-label="Close menu"
         onClick={onClose}
-        className="absolute inset-0 bg-canvas/45"
+        className="absolute inset-0 bg-black/55"
       />
       <div
-        className="absolute inset-x-0 bottom-0 border-t-2 border-line bg-card pb-[max(env(safe-area-inset-bottom),1rem)]"
+        className="absolute inset-x-0 bottom-0 border-t border-graphite-line bg-graphite pb-[max(env(safe-area-inset-bottom),1rem)]"
         style={{
           transform: dragY ? `translateY(${dragY}px)` : undefined,
           transition: dragging ? "none" : "transform 0.22s ease-out",
@@ -226,8 +184,8 @@ export function MoreSheet({
           className="touch-none pb-1"
           onTouchStart={(e) => beginDrag(e.touches[0].clientY, true)}
         >
-          <div className="mx-auto mt-3 h-1.5 w-10 rounded-full bg-line-strong" />
-          <p className="mt-3 px-5 font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-fg">
+          <div className="mx-auto mt-3 h-1.5 w-10 rounded-full bg-white/25" />
+          <p className="mt-3 px-5 font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-on-dark-dim">
             More
           </p>
         </div>
@@ -239,7 +197,7 @@ export function MoreSheet({
         >
           {GROUPS.map((group) => (
             <div key={group.title} className="mt-2">
-              <p className="px-1 pt-2 pb-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.18em] text-fg-subtle">
+              <p className="px-1 pt-2 pb-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.18em] text-on-dark-dim">
                 {group.title}
               </p>
               <div className="grid grid-cols-2 gap-2">
@@ -253,26 +211,27 @@ export function MoreSheet({
                       onClick={onClose}
                       aria-current={active ? "page" : undefined}
                       className={
-                        // Raised, tactile buttons: a soft resting shadow lifts
-                        // the tile off the sheet, a subtle top-to-bottom
-                        // gradient + stronger border give it body, hover adds a
+                        // Raised, tactile graphite tiles: a soft resting shadow
+                        // lifts the tile off the sheet, a subtle top-to-bottom
+                        // gradient + hairline border give it body, hover adds a
                         // little more lift (desktop), and a tap depresses it
-                        // (scale down + shadow drops) so it feels pressed.
-                        "flex items-center gap-2.5 rounded-xl border border-line-strong px-3 py-3 shadow-md transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 active:scale-[0.97] active:shadow-sm " +
+                        // (scale down + shadow drops) so it feels pressed. Active
+                        // tile carries the accent ring.
+                        "flex items-center gap-2.5 rounded-xl border px-3 py-3 shadow-md transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 active:scale-[0.97] active:shadow-sm " +
                         (active
-                          ? "bg-elevated ring-1 ring-line-strong"
-                          : "bg-gradient-to-b from-card to-elevated")
+                          ? "border-accent bg-graphite-2 ring-1 ring-accent"
+                          : "border-graphite-line bg-gradient-to-b from-graphite-2 to-graphite")
                       }
                     >
                       <span
                         className={
-                          "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg " +
-                          item.chip
+                          "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/[0.06] " +
+                          (active ? "text-accent" : "text-on-dark-dim")
                         }
                       >
                         <item.Icon className="h-[18px] w-[18px]" />
                       </span>
-                      <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold leading-tight text-fg">
+                      <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold leading-tight text-white">
                         {item.label}
                       </span>
                     </Link>
