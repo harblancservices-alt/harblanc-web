@@ -30,7 +30,7 @@ export function ThemeToggle() {
   }
 
   return (
-    <div className="mt-4 flex gap-2">
+    <div className="mt-4 inline-flex rounded-md border border-line-strong bg-inset p-0.5">
       {(["light", "dark"] as const).map((t) => (
         <button
           key={t}
@@ -38,10 +38,10 @@ export function ThemeToggle() {
           onClick={() => apply(t)}
           aria-pressed={theme === t}
           className={
-            "flex-1 border-2 px-4 py-3 font-mono text-[11px] font-bold uppercase tracking-[0.18em] transition-colors sm:flex-none sm:px-6 " +
+            "rounded px-6 py-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.16em] transition-colors " +
             (theme === t
-              ? "border-fg bg-fg text-canvas"
-              : "border-line bg-card text-fg hover:bg-elevated")
+              ? "bg-graphite text-white shadow-e1"
+              : "text-ink-2 hover:text-ink")
           }
         >
           {t === "light" ? "Light" : "Dark"}

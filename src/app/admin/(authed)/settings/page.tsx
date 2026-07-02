@@ -5,6 +5,10 @@ import { createServiceRoleClient } from "@/lib/supabase/server";
 import { IconLogout } from "../_shell/icons";
 import { updateFuelSettings } from "./actions";
 import { ThemeToggle } from "./ThemeToggle";
+import { Button } from "@/components/ui/Button";
+import { Card } from "@/components/ui/Card";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { field } from "@/components/ui/styles";
 
 /**
  * Level 4 — Settings page.
@@ -48,124 +52,107 @@ export default async function SettingsPage() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
-      <header>
-        <p className="font-mono text-[10.5px] font-bold uppercase tracking-[0.28em] text-fg">
-          Settings
-        </p>
-        <h1 className="mt-1 text-[30px] font-bold leading-none tracking-tight text-fg sm:text-[36px] lg:text-[40px]">
-          Account
-        </h1>
-      </header>
+      <PageHeader eyebrow="Settings" title="Account" className="mb-6" />
 
-      <section className="mt-6 border-2 border-line border-l-4 border-l-fg bg-card px-4 py-4 sm:px-5 sm:py-5">
-        <p className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-fg">
+      <Card className="mt-4">
+        <p className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-ink-3">
           Appearance
         </p>
-        <p className="mt-1 text-[12px] text-fg/70">
+        <p className="mt-1 text-[12px] text-ink-2">
           Switch the admin portal between light and dark.
         </p>
         <ThemeToggle />
-      </section>
+      </Card>
 
-      <section className="mt-4 border-2 border-line border-l-4 border-l-fg bg-card px-4 py-4 sm:px-5 sm:py-5">
-        <p className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-fg">
+      <Card className="mt-4">
+        <p className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-ink-3">
           Email
         </p>
-        <p className="mt-1 break-all text-[15px] text-fg sm:text-base">
+        <p className="mt-1 break-all text-[15px] text-ink sm:text-base">
           {email}
         </p>
-      </section>
+      </Card>
 
       {envIssues.length > 0 ? (
-        <section className="mt-4 border-2 border-amber-300 border-l-4 border-l-amber-700 bg-[#fdf6e3] px-4 py-4 sm:px-5 sm:py-5">
-          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-amber-900">
+        <Card className="mt-4 border-l-[3px] border-l-warn">
+          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-warn">
             System diagnostics
           </p>
-          <p className="mt-1 text-[12px] text-amber-900">
+          <p className="mt-1 text-[12px] text-ink-2">
             {envIssues.length} env var{envIssues.length === 1 ? "" : "s"} flagged.
             These affect background features only — the portal still works.
           </p>
-          <ul className="mt-3 space-y-2 text-[12px] text-fg">
+          <ul className="mt-3 space-y-2 text-[12px] text-ink">
             {envIssues.map((msg) => (
               <li
                 key={msg}
-                className="border-l-2 border-amber-300 pl-3 leading-snug"
+                className="border-l-2 border-warn/40 pl-3 leading-snug"
               >
                 {msg}
               </li>
             ))}
           </ul>
-        </section>
+        </Card>
       ) : null}
 
-      <form
-        action={updateFuelSettings}
-        className="mt-4 border-2 border-line border-l-4 border-l-fg bg-card px-4 py-4 sm:px-5 sm:py-5"
-      >
-        <p className="font-mono text-[10px] font-bold uppercase tracking-[0.24em] text-fg">
-          Fuel defaults
-        </p>
-        <p className="mt-1 text-[12px] text-fg/70">
-          Used to cost diesel per load and trip. Fuel CSV imports will refine
-          these later.
-        </p>
-        <div className="mt-4 flex flex-wrap items-end gap-4">
-          <label className="block">
-            <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-fg/70">
-              MPG
-            </span>
-            <input
-              name="mpg"
-              type="number"
-              step="0.1"
-              min="1"
-              defaultValue={String(mpg)}
-              className="mt-1 block w-28 border-2 border-line bg-card px-3 py-2 font-mono text-[15px] text-fg focus:border-fg focus:outline-none"
-            />
-          </label>
-          <label className="block">
-            <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-fg/70">
-              Diesel $/gal
-            </span>
-            <input
-              name="diesel_price_per_gallon"
-              type="number"
-              step="0.01"
-              min="0"
-              defaultValue={String(ppg)}
-              className="mt-1 block w-28 border-2 border-line bg-card px-3 py-2 font-mono text-[15px] text-fg focus:border-fg focus:outline-none"
-            />
-          </label>
-          <label className="block">
-            <span className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-fg/70">
-              Factoring %
-            </span>
-            <input
-              name="factoring_pct"
-              type="number"
-              step="0.1"
-              min="0"
-              defaultValue={String(factoringPct)}
-              className="mt-1 block w-28 border-2 border-line bg-card px-3 py-2 font-mono text-[15px] text-fg focus:border-fg focus:outline-none"
-            />
-          </label>
-          <button
-            type="submit"
-            className="border-2 border-fg bg-fg px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-canvas transition-colors hover:opacity-90"
-          >
-            Save
-          </button>
-        </div>
-      </form>
+      <Card className="mt-4">
+        <form action={updateFuelSettings}>
+          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-ink-3">
+            Fuel defaults
+          </p>
+          <p className="mt-1 text-[12px] text-ink-2">
+            Used to cost diesel per load and trip. Fuel CSV imports will refine
+            these later.
+          </p>
+          <div className="mt-4 flex flex-wrap items-end gap-4">
+            <label className="block">
+              <span className={field.label}>MPG</span>
+              <input
+                name="mpg"
+                type="number"
+                step="0.1"
+                min="1"
+                defaultValue={String(mpg)}
+                className={field.input + " w-28 tabular-nums"}
+              />
+            </label>
+            <label className="block">
+              <span className={field.label}>Diesel $/gal</span>
+              <input
+                name="diesel_price_per_gallon"
+                type="number"
+                step="0.01"
+                min="0"
+                defaultValue={String(ppg)}
+                className={field.input + " w-28 tabular-nums"}
+              />
+            </label>
+            <label className="block">
+              <span className={field.label}>Factoring %</span>
+              <input
+                name="factoring_pct"
+                type="number"
+                step="0.1"
+                min="0"
+                defaultValue={String(factoringPct)}
+                className={field.input + " w-28 tabular-nums"}
+              />
+            </label>
+            <Button type="submit" variant="primary">
+              Save
+            </Button>
+          </div>
+        </form>
+      </Card>
 
       <form action="/admin/logout" method="post" className="mt-4">
-        <button
+        <Button
           type="submit"
-          className="inline-flex w-full items-center justify-center gap-2 border-2 border-line bg-card px-4 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-fg transition-colors hover:bg-elevated sm:w-auto"
+          variant="navigate"
+          leftIcon={<IconLogout className="h-4 w-4" />}
         >
-          <IconLogout className="h-4 w-4" />
           Sign out
-        </button>
+        </Button>
       </form>
     </div>
   );
