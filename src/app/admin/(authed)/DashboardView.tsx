@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { StatusTag, type StatusTone } from "@/components/ui/StatusTag";
 import { AddLoadButton } from "./dispatch/loads/AddLoadButton";
 import { FarmBrokerContactCard } from "./FarmBrokerContactCard";
 import { ActiveLoadDocButton } from "./ActiveLoadDocActions";
@@ -37,11 +39,11 @@ export type DashboardData = {
   activeTrips: ReadonlyArray<string>;
 };
 
-const MAINT_PILL: Record<MaintStatus, string> = {
-  overdue: "bg-red-100 text-red-700",
-  soon: "bg-amber-100 text-amber-700",
-  ok: "bg-green-100 text-green-700",
-  baseline: "bg-blue-100 text-blue-700",
+const MAINT_TONE: Record<MaintStatus, StatusTone> = {
+  overdue: "red",
+  soon: "amber",
+  ok: "green",
+  baseline: "steel",
 };
 const MAINT_LABEL: Record<MaintStatus, string> = {
   overdue: "Overdue",
@@ -52,17 +54,17 @@ const MAINT_LABEL: Record<MaintStatus, string> = {
 
 function maintRemaining(m: MaintWidgetItem): { text: string; color: string } {
   if (m.milesRemaining == null) {
-    return { text: "no baseline", color: "text-blue-700" };
+    return { text: "no baseline", color: "text-steel" };
   }
   if (m.milesRemaining <= 0) {
     return {
       text: `${Math.abs(m.milesRemaining).toLocaleString()} mi over`,
-      color: "text-red-700",
+      color: "text-bad",
     };
   }
   return {
     text: `${m.milesRemaining.toLocaleString()} mi left`,
-    color: m.status === "soon" ? "text-amber-700" : "text-green-700",
+    color: m.status === "soon" ? "text-warn" : "text-ok",
   };
 }
 
@@ -80,10 +82,10 @@ export type ActiveLoadItem = {
   odoDelivered: number | null;
 };
 
-const LOAD_STATUS_PILL: Record<string, string> = {
-  pending: "bg-amber-100 text-amber-700",
-  assigned: "bg-amber-100 text-amber-700",
-  loaded: "bg-blue-100 text-blue-700",
+const LOAD_STATUS_TONE: Record<string, StatusTone> = {
+  pending: "amber",
+  assigned: "amber",
+  loaded: "steel",
 };
 const LOAD_STATUS_LABEL: Record<string, string> = {
   pending: "Pending",
@@ -110,10 +112,11 @@ export function DashboardView({ data }: { data: DashboardData }) {
         newQuotes={data.newQuoteCount}
       />
       <div className="w-full px-4 py-4 sm:px-6 lg:px-8">
+        <PageHeader eyebrow="Owner" title="Dashboard" className="mb-4" />
         <SectionLabel title="Active loads" count={data.activeLoads.length} />
         {data.activeLoads.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-line bg-card px-4 py-10 text-center">
-            <p className="font-mono text-[12px] text-fg-subtle">
+          <div className="flex flex-col items-center justify-center gap-3 rounded-md border border-dashed border-line-strong bg-card px-4 py-10 text-center shadow-e1">
+            <p className="font-mono text-[12px] text-ink-3">
               No active loads.
             </p>
             <AddLoadButton
@@ -122,12 +125,12 @@ export function DashboardView({ data }: { data: DashboardData }) {
             />
           </div>
         ) : (
-          <div className="overflow-hidden rounded-xl border border-line bg-card shadow-md">
+          <div className="overflow-hidden rounded-md border border-line bg-card shadow-e2">
             {data.activeLoads.map((l, i) => (
               <div
                 key={l.id}
                 className={
-                  "relative px-3.5 py-2.5 transition-colors hover:bg-elevated " +
+                  "relative px-3.5 py-2.5 transition-colors hover:bg-inset " +
                   (i === data.activeLoads.length - 1 ? "" : "border-b border-line")
                 }
               >
@@ -145,14 +148,12 @@ export function DashboardView({ data }: { data: DashboardData }) {
                     stretched link), so tapping anywhere here opens the load. */}
                 <div className="flex items-center justify-between gap-3">
                   <span className="flex min-w-0 flex-1 items-center gap-2.5">
-                    <span
-                      className={
-                        "shrink-0 rounded-sm px-1.5 py-[1px] font-mono text-[10px] font-bold uppercase tracking-[0.06em] " +
-                        (LOAD_STATUS_PILL[l.status] ?? "bg-elevated text-fg-muted")
-                      }
+                    <StatusTag
+                      tone={LOAD_STATUS_TONE[l.status] ?? "slate"}
+                      className="shrink-0"
                     >
                       {LOAD_STATUS_LABEL[l.status] ?? l.status}
-                    </span>
+                    </StatusTag>
                     <span className="min-w-0">
                       <span className="block truncate text-[13px] font-semibold text-fg">
                         {l.broker}
@@ -162,7 +163,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
                       </span>
                     </span>
                   </span>
-                  <span className="shrink-0 font-mono text-[13px] font-bold tabular-nums text-green-700">
+                  <span className="shrink-0 font-mono text-[13px] font-bold tabular-nums text-ok">
                     {l.rateDisplay}
                   </span>
                 </div>
@@ -233,7 +234,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
               title="Truck maintenance"
               count={data.maintenance.length}
             />
-            <div className="overflow-hidden rounded-xl border border-line bg-card shadow-md">
+            <div className="overflow-hidden rounded-md border border-line bg-card shadow-e2">
               {data.maintenance.map((m) => {
                 const rem = maintRemaining(m);
                 return (
@@ -241,18 +242,13 @@ export function DashboardView({ data }: { data: DashboardData }) {
                     key={m.id}
                     href="/admin/maintenance"
                     prefetch={false}
-                    className="block border-b border-line px-3.5 py-2.5 transition-colors hover:bg-elevated"
+                    className="block border-b border-line px-3.5 py-2.5 transition-colors hover:bg-inset"
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="flex min-w-0 items-center gap-2">
-                        <span
-                          className={
-                            "shrink-0 rounded-sm px-1.5 py-[1px] font-mono text-[10px] font-bold uppercase tracking-[0.06em] " +
-                            MAINT_PILL[m.status]
-                          }
-                        >
+                        <StatusTag tone={MAINT_TONE[m.status]} className="shrink-0">
                           {MAINT_LABEL[m.status]}
-                        </span>
+                        </StatusTag>
                         <span className="truncate text-[13px] font-semibold text-fg">
                           {m.name}
                         </span>
@@ -301,29 +297,29 @@ export function DashboardView({ data }: { data: DashboardData }) {
                   key={q.leadId}
                   href={"/admin/quotes/" + q.leadId}
                   prefetch={false}
-                  className="block rounded-md border border-line bg-card p-3 shadow-sm transition-colors hover:bg-elevated"
+                  className="block rounded-md border border-line bg-card p-3 shadow-e1 transition-colors hover:bg-inset"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <span className="flex min-w-0 items-center gap-2">
-                      <span className="shrink-0 rounded-sm bg-amber-100 px-1.5 py-[1px] font-mono text-[10px] font-bold uppercase tracking-[0.06em] text-amber-700">
+                      <StatusTag tone="amber" className="shrink-0">
                         Expired
-                      </span>
+                      </StatusTag>
                       <h3 className="truncate text-[14px] font-semibold text-fg">
                         {q.name}
                       </h3>
                     </span>
-                    <span className="shrink-0 font-mono text-[15px] font-bold tabular-nums text-green-700">
+                    <span className="shrink-0 font-mono text-[15px] font-bold tabular-nums text-ok">
                       {q.priceDisplay ?? "—"}
                     </span>
                   </div>
 
                   <p className="mt-1 truncate font-mono text-[12px] tabular-nums text-fg-muted">
-                    <span className="text-blue-700">{q.originZip}</span>
+                    <span className="text-steel">{q.originZip}</span>
                     {q.originPlace ? (
                       <span> · {q.originPlace}</span>
                     ) : null}
                     <span className="text-fg-subtle"> → </span>
-                    <span className="text-blue-700">{q.destZip}</span>
+                    <span className="text-steel">{q.destZip}</span>
                     {q.destPlace ? <span> · {q.destPlace}</span> : null}
                   </p>
 
@@ -366,10 +362,10 @@ function AlertBar({
   if (!hasAlerts) {
     // All clear — a friendly, positive green banner (not a bare gray line).
     return (
-      <div className="flex items-center justify-center gap-2 border-b border-green-200 bg-green-50 px-4 py-2">
+      <div className="flex items-center justify-center gap-2 border-b border-ok/25 bg-ok-bg px-4 py-2">
         <span
           aria-hidden
-          className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-green-600 text-white shadow-sm"
+          className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-ok text-white shadow-sm"
         >
           <svg
             viewBox="0 0 20 20"
@@ -384,7 +380,7 @@ function AlertBar({
             />
           </svg>
         </span>
-        <span className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-green-800">
+        <span className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-ok">
           All clear — you&apos;re caught up
         </span>
       </div>
@@ -418,7 +414,7 @@ function AlertBar({
   return (
     <div
       role="alert"
-      className="border-b border-red-800 bg-gradient-to-b from-red-600 to-red-700 text-white shadow-md"
+      className="border-b border-accent-hover bg-accent text-white shadow-e2"
     >
       <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 px-4 py-2.5">
         <span className="inline-flex items-center gap-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-white/90">
@@ -461,7 +457,7 @@ function AlertChip({
       prefetch={false}
       className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/15 py-1 pl-1 pr-2.5 text-[13px] font-semibold text-white shadow-sm transition-colors hover:bg-white/25 active:bg-white/30"
     >
-      <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-white px-1.5 text-[12px] font-bold tabular-nums text-red-700">
+      <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-white px-1.5 text-[12px] font-bold tabular-nums text-accent">
         {count}
       </span>
       <span className="whitespace-nowrap">{label}</span>
@@ -501,10 +497,10 @@ function DatePill({
 function SectionLabel({ title, count }: { title: string; count: number }) {
   return (
     <div className="mb-2 flex items-center gap-2">
-      <span className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-indigo-600">
+      <span className="font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-ink-3">
         {title}
       </span>
-      <span className="font-mono text-[11px] tabular-nums text-fg-subtle">
+      <span className="font-mono text-[11px] tabular-nums text-ink-3">
         · {count}
       </span>
     </div>
