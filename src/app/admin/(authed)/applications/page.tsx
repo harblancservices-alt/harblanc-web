@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { PageHeader } from "@/components/ui/PageHeader";
 import {
   ApplicationsDarkTable,
   type ApplicationDarkRow,
@@ -54,27 +55,22 @@ export default async function ApplicationsPage() {
   return (
     <div className="min-h-screen border-t border-line bg-canvas text-fg">
       <div className="w-full px-4 py-5 sm:px-6 sm:py-6 lg:px-10">
-        <header className="mb-4 flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-indigo-600">
-              Applications
-            </p>
-            <div className="mt-1 flex flex-wrap items-baseline gap-3">
-              <h1 className="text-[24px] font-semibold leading-none tracking-tight text-fg tabular-nums">
-                {rows.length} active
-              </h1>
-              {trashCount > 0 ? (
-                <Link
-                  href="/admin/applications/trash"
-                  prefetch={false}
-                  className="font-mono text-[12px] font-medium text-fg-muted hover:text-fg"
-                >
-                  {trashCount} in trash →
-                </Link>
-              ) : null}
-            </div>
-          </div>
-        </header>
+        <PageHeader
+          eyebrow="Applications"
+          title={`${rows.length} active`}
+          className="mb-4"
+          actions={
+            trashCount > 0 ? (
+              <Link
+                href="/admin/applications/trash"
+                prefetch={false}
+                className="font-mono text-[12px] font-medium text-fg-muted hover:text-fg"
+              >
+                {trashCount} in trash →
+              </Link>
+            ) : undefined
+          }
+        />
 
         <ApplicationsDarkTable rows={rows} />
 

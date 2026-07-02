@@ -104,11 +104,11 @@ export function ApplicationsDarkTable({
 
       {/* Delete-selection bar — only while in explicit delete mode. */}
       {selectMode ? (
-        <div className="mb-2 flex flex-wrap items-center gap-2 rounded-md border border-red-300 bg-red-50 px-3 py-2">
-          <span className="font-mono text-[12px] font-bold text-fg">
+        <div className="mb-2 flex flex-wrap items-center gap-2 rounded-md border border-bad/40 bg-bad-bg px-3 py-2">
+          <span className="font-mono text-[12px] font-bold text-ink">
             {selected.size} selected
           </span>
-          <span className="font-mono text-[11px] text-fg-subtle">
+          <span className="font-mono text-[11px] text-ink-3">
             · tap to select
           </span>
           <Button
@@ -147,11 +147,11 @@ export function ApplicationsDarkTable({
       ) : null}
 
       {/* Table (tablet / desktop) — matches the Load Board's md+ table */}
-      <div className="hidden overflow-x-auto rounded-md border border-line bg-card shadow-md md:block">
+      <div className="hidden overflow-x-auto rounded-md border border-line bg-card shadow-e2 md:block">
         <div className="min-w-[640px]">
           <div
             role="row"
-            className="grid items-center gap-2 bg-bar px-3 py-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-bar-fg"
+            className="grid items-center gap-2 border-b-2 border-line-strong bg-inset px-3 py-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-3"
             style={{ gridTemplateColumns: GRID_TEMPLATE }}
           >
             <div />
@@ -168,10 +168,11 @@ export function ApplicationsDarkTable({
               No applications yet.
             </div>
           ) : (
-            rows.map((row) => (
+            rows.map((row, i) => (
               <ApplicationRowItem
                 key={row.id}
                 row={row}
+                alt={i % 2 === 1}
                 selectMode={selectMode}
                 selected={selected.has(row.id)}
                 onToggle={() => toggle(row.id)}
@@ -235,8 +236,8 @@ function ApplicationCardItem({
         else onOpen();
       }}
       className={
-        "cursor-pointer rounded-md border p-3 shadow-sm transition-colors active:bg-elevated " +
-        (isSel ? "border-red-400 bg-red-50" : "border-line bg-card")
+        "cursor-pointer rounded-md border p-3 shadow-e1 transition-colors active:bg-inset " +
+        (isSel ? "border-bad bg-bad-bg" : "border-line bg-card")
       }
     >
       <div className="flex items-start justify-between gap-2">
@@ -249,7 +250,7 @@ function ApplicationCardItem({
               className={
                 "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 text-[12px] font-bold leading-none " +
                 (selected
-                  ? "border-red-600 bg-red-600 text-white"
+                  ? "border-bad bg-bad text-white"
                   : "border-line-strong text-transparent")
               }
             >
@@ -269,10 +270,10 @@ function ApplicationCardItem({
         </span>
         <span
           className={
-            "shrink-0 rounded-sm px-1.5 py-[1px] font-mono text-[11px] font-bold tabular-nums " +
+            "shrink-0 rounded px-1.5 py-[1px] font-mono text-[11px] font-bold tabular-nums " +
             (fresh
-              ? "bg-indigo-100 text-indigo-700"
-              : "bg-elevated text-amber-700")
+              ? "bg-steel-bg text-steel"
+              : "bg-warn-bg text-warn")
           }
         >
           {ageLabel(row.created_at)}
@@ -287,7 +288,7 @@ function ApplicationCardItem({
       ) : null}
 
       <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[12.5px]">
-        <span className="truncate text-blue-700">{row.email}</span>
+        <span className="truncate text-steel">{row.email}</span>
         <span className="font-mono text-fg-subtle">{row.phone}</span>
       </div>
     </div>
@@ -296,18 +297,21 @@ function ApplicationCardItem({
 
 function ApplicationRowItem({
   row,
+  alt,
   selectMode,
   selected,
   onToggle,
   onOpen,
 }: {
   row: ApplicationDarkRow;
+  alt: boolean;
   selectMode: boolean;
   selected: boolean;
   onToggle: () => void;
   onOpen: () => void;
 }) {
   const { equipmentLine, secondaryLine } = describe(row);
+  const fresh = isWithinLast24h(row.created_at);
 
   return (
     <div
@@ -323,7 +327,9 @@ function ApplicationRowItem({
       }}
       className={
         "group grid cursor-pointer items-center gap-2 border-b border-line px-3 py-2.5 text-[14px] transition-colors " +
-        (selectMode && selected ? "bg-red-100 hover:bg-red-100" : "hover:bg-elevated")
+        (selectMode && selected
+          ? "bg-bad-bg hover:bg-bad-bg"
+          : (alt ? "bg-inset " : "bg-card ") + "hover:bg-inset")
       }
       style={{ gridTemplateColumns: GRID_TEMPLATE }}
     >
@@ -337,20 +343,25 @@ function ApplicationRowItem({
             aria-hidden
             tabIndex={-1}
             checked={selected}
-            className="pointer-events-none h-3.5 w-3.5 accent-red-600"
+            className="pointer-events-none h-3.5 w-3.5 accent-accent"
           />
         ) : null}
       </span>
 
+      {/* Freshness anchor — accent bar for applications received in the
+          last 24h, otherwise a quiet hairline. */}
       <span
         aria-hidden
-        className="block h-[18px] w-[4px] self-stretch rounded-sm bg-line-strong"
+        className={
+          "block h-[18px] w-[4px] self-stretch rounded-sm " +
+          (fresh ? "bg-accent" : "bg-line-strong")
+        }
       />
 
       <span
         className={
-          "text-[12px] font-semibold tabular-nums " +
-          (isWithinLast24h(row.created_at) ? "text-indigo-600" : "text-amber-600")
+          "inline-flex w-fit items-center rounded bg-inset px-1.5 py-[1px] font-mono text-[11px] font-bold tabular-nums " +
+          (fresh ? "text-steel" : "text-warn")
         }
       >
         {ageLabel(row.created_at)}
@@ -379,7 +390,7 @@ function ApplicationRowItem({
       </span>
 
       <span className="min-w-0">
-        <span className="block truncate text-[13px] text-fg">{row.email}</span>
+        <span className="block truncate text-[13px] text-steel">{row.email}</span>
         <span className="block truncate font-mono text-[12px] text-fg-subtle">
           {row.phone}
         </span>
