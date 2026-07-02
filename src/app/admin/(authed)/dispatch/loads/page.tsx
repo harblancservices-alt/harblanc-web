@@ -194,10 +194,20 @@ async function loadBoard(): Promise<LoadBoardData> {
     .map((t) => t.name?.trim() ?? "")
     .filter((n) => n.length > 0);
 
-  // Summary stats (the per-month profit-goal bar, Total loads, A/R, Delivered,
-  // Gross, Net, Avg/mi) are all computed client-side in LoadBoardView from the
+  // Accounts receivable is ALL-TIME, not month-scoped: an unpaid load stays
+  // owed no matter which month it was delivered, so the A/R figure is the SAME
+  // on every month view (unlike the profit-goal bar). Sum the RATE of every
+  // delivered-but-unpaid load across all months. Computed on the server from
+  // the full row set so the month dropdown can never change it.
+  const arTotal = rows
+    .filter((r) => r.status === "delivered" && r.paymentStatus !== "paid")
+    .reduce((s, r) => s + r.rate, 0);
+
+  // Summary stats (the per-month profit-goal bar, Total loads, Delivered,
+  // Gross, Net, Avg/mi) are computed client-side in LoadBoardView from the
   // selected month's rows, so every figure on screen agrees for that month.
-  return { rows, brokerNames, activeTrips, currentMonth };
+  // A/R is the one exception — it's all-time and passed in from here.
+  return { rows, brokerNames, activeTrips, currentMonth, arTotal };
 }
 
 export default async function LoadBoardPage() {

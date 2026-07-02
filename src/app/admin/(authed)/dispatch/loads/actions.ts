@@ -636,6 +636,29 @@ export async function markLoadPaid(id: string): Promise<void> {
   }
   revalidatePath("/admin/dispatch/loads");
   revalidatePath(`/admin/dispatch/loads/${id}`);
+  revalidatePath("/admin/dispatch/receivables");
+  revalidatePath("/admin/dispatch/brokers");
+  revalidatePath("/admin/dispatch/trips");
+}
+
+/**
+ * Undo a mark-paid — flips a load back to unpaid so an accidental "Mark paid"
+ * on the Accounts Receivable page can be reversed. Clears paid_at so the load
+ * returns to the outstanding A/R total.
+ */
+export async function markLoadUnpaid(id: string): Promise<void> {
+  const sb = createServiceRoleClient();
+  const { error } = await sb
+    .from("loads")
+    .update({ payment_status: "unpaid", paid_at: null })
+    .eq("id", id)
+    .is("deleted_at", null);
+  if (error) {
+    throw new Error(`Could not undo paid: ${error.message}`);
+  }
+  revalidatePath("/admin/dispatch/loads");
+  revalidatePath(`/admin/dispatch/loads/${id}`);
+  revalidatePath("/admin/dispatch/receivables");
   revalidatePath("/admin/dispatch/brokers");
   revalidatePath("/admin/dispatch/trips");
 }

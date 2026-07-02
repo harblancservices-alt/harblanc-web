@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { softDeleteLoads } from "./actions";
 import { AddLoadButton } from "./AddLoadButton";
 import { Button } from "@/components/ui/Button";
@@ -40,6 +41,12 @@ export type LoadBoardData = {
    * the month the dropdown defaults to when the board opens.
    */
   currentMonth: number;
+  /**
+   * ALL-TIME accounts receivable: the total RATE owed across every
+   * delivered-but-unpaid load, regardless of month. Deliberately NOT
+   * month-scoped — the A/R card shows the same number on every month view.
+   */
+  arTotal: number;
 };
 
 const MONTHS = [
@@ -131,16 +138,14 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
     const live = monthRows.filter((x) => x.status !== "cancelled");
     const gross = monthRows.reduce((s, x) => s + x.rate, 0);
     const net = monthRows.reduce((s, x) => s + x.net, 0);
-    const ar = delivered
-      .filter((x) => x.paymentStatus !== "paid")
-      .reduce((s, x) => s + x.rate, 0);
+    // A/R is intentionally NOT here — it's all-time (data.arTotal), not scoped
+    // to the selected month.
     const totalLoadedMiles = live.reduce((s, x) => s + (x.loadedMiles ?? 0), 0);
     return {
       totalLoads: monthRows.length,
       delivered: delivered.length,
       gross,
       net,
-      ar,
       avgNetPerMile: totalLoadedMiles > 0 ? net / totalLoadedMiles : 0,
       avgGrossPerMile: totalLoadedMiles > 0 ? gross / totalLoadedMiles : 0,
     };
@@ -191,10 +196,13 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
         {/* KPI strip */}
         <div className="mb-4 grid grid-cols-3 gap-px overflow-hidden rounded-md border border-line bg-line shadow-sm sm:grid-cols-6">
           <Kpi label="Total loads" value={String(stats.totalLoads)} tone="count" />
+          {/* A/R is all-time (same on every month) and links to the full
+              Accounts Receivable page where loads get marked paid. */}
           <Kpi
-            label="A/R"
-            value={usd(stats.ar)}
-            tone={stats.ar > 0 ? "red" : "muted"}
+            label="A/R · all"
+            value={usd(data.arTotal)}
+            tone={data.arTotal > 0 ? "red" : "muted"}
+            href="/admin/dispatch/receivables"
           />
           <Kpi label="Delivered" value={String(stats.delivered)} tone="green" />
           <Kpi label="Gross" value={usd(stats.gross)} tone="green" />
@@ -604,11 +612,13 @@ function Kpi({
   value,
   tone,
   hint,
+  href,
 }: {
   label: string;
   value: string;
   tone: "count" | "green" | "red" | "muted";
   hint?: string;
+  href?: string;
 }) {
   const color =
     tone === "green"
@@ -618,10 +628,11 @@ function Kpi({
         : tone === "muted"
           ? "text-fg-subtle"
           : "text-blue-700";
-  return (
-    <div className="min-w-0 bg-card px-3 py-2.5">
+  const inner = (
+    <>
       <div className="truncate font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-indigo-600">
         {label}
+        {href ? <span aria-hidden className="ml-1 text-fg-subtle">›</span> : null}
       </div>
       <div className={"mt-1 truncate text-[18px] font-bold tabular-nums leading-none sm:text-[20px] " + color}>
         {value}
@@ -631,8 +642,19 @@ function Kpi({
           {hint}
         </div>
       ) : null}
-    </div>
+    </>
   );
+  if (href) {
+    return (
+      <Link
+        href={href}
+        className="min-w-0 bg-card px-3 py-2.5 transition-colors hover:bg-elevated"
+      >
+        {inner}
+      </Link>
+    );
+  }
+  return <div className="min-w-0 bg-card px-3 py-2.5">{inner}</div>;
 }
 
 function usd(n: number): string {
