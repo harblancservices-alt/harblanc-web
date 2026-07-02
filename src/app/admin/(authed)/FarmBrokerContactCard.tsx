@@ -66,8 +66,8 @@ export function FarmBrokerContactCard() {
   return (
     <>
       <div className="my-5 h-px bg-line" />
-      <section className="rounded-xl border border-emerald-300 bg-emerald-50 p-4 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      <section className="mx-auto max-w-md rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-center shadow-sm">
+        <div className="flex flex-col items-center gap-3">
           <div className="min-w-0">
             <p className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-700">
               Farm a broker contact
