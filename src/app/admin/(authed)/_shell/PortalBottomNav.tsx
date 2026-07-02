@@ -52,6 +52,7 @@ const MORE_ROUTES = [
   "/admin/accounting",
   "/admin/dispatch/trips",
   "/admin/dispatch/backhaul",
+  "/admin/dispatch/receivables",
   "/admin/previews",
   "/admin/settings",
 ];

@@ -200,6 +200,27 @@ export function IconReceipt({ className }: IconProps) {
   );
 }
 
+export function IconCoins({ className }: IconProps) {
+  // Stacked coins — accounts receivable (money owed / to collect).
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <ellipse cx="9" cy="6" rx="6" ry="3" />
+      <path d="M3 6v5c0 1.66 2.69 3 6 3s6-1.34 6-3V6" />
+      <path d="M15 10.5c2.5.35 6 1.5 6 3.5 0 1.66-2.69 3-6 3" />
+      <path d="M3 11v5c0 1.66 2.69 3 6 3 1.2 0 2.3-.18 3.2-.5" />
+    </svg>
+  );
+}
+
 export function IconSettings({ className }: IconProps) {
   // Simplified gear: a circle with six teeth. Loud detail isn't worth
   // the path length on a 16-20px icon.

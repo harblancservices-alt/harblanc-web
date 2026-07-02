@@ -6,6 +6,7 @@ import type { ComponentType } from "react";
 import {
   IconBadge,
   IconBuilding,
+  IconCoins,
   IconDashboard,
   IconDots,
   IconLogout,
@@ -64,10 +65,11 @@ const DISPATCH: NavItem[] = [
   { href: "/admin/dispatch/trips", label: "Trips", Icon: IconRoute },
   { href: "/admin/dispatch/brokers", label: "Brokers", Icon: IconBuilding },
   { href: "/admin/dispatch/backhaul", label: "Backhaul", Icon: IconMail },
+  { href: "/admin/dispatch/receivables", label: "Receivables", Icon: IconCoins },
 ];
 
 const MORE: NavItem[] = [
-  { href: "/admin/previews", label: "Previews", Icon: IconMail },
+  { href: "/admin/previews", label: "Email Previews", Icon: IconMail },
   { href: "/admin/settings", label: "Settings", Icon: IconSettings },
 ];
 
