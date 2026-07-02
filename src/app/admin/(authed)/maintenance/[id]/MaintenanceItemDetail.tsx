@@ -92,15 +92,46 @@ export function MaintenanceItemDetail({
   return (
     <div className="min-h-screen border-t border-line bg-canvas text-fg">
       <div className="mx-auto w-full max-w-3xl px-4 py-5 sm:px-6 lg:px-8">
-        {/* Back */}
-        <Button
-          href="/admin/maintenance"
-          prefetch={false}
-          variant="navigate"
-          size="sm"
-        >
-          ← All maintenance
-        </Button>
+        {/* Top bar — back (left) + delete (top-right). Delete lives here, not
+            buried under the action buttons, so it's a deliberate reach. */}
+        <div className="flex items-center justify-between gap-2">
+          <Button
+            href="/admin/maintenance"
+            prefetch={false}
+            variant="navigate"
+            size="sm"
+          >
+            ← All maintenance
+          </Button>
+          <Button
+            type="button"
+            onClick={onDeleteItem}
+            disabled={deleting}
+            variant="destructive"
+            size="sm"
+            leftIcon={
+              <svg
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                aria-hidden
+                className="h-3.5 w-3.5"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M8.75 1.75a.75.75 0 0 0-.75.75V3H4.5a.75.75 0 0 0 0 1.5h.53l.86 11.16A2 2 0 0 0 7.88 17.5h4.24a2 2 0 0 0 1.99-1.84L14.97 4.5h.53a.75.75 0 0 0 0-1.5H12v-.5a.75.75 0 0 0-.75-.75h-2.5zM8.5 7.25a.75.75 0 0 1 1.5 0v6a.75.75 0 0 1-1.5 0v-6zm3 0a.75.75 0 0 1 1.5 0v6a.75.75 0 0 1-1.5 0v-6z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            }
+          >
+            {deleting ? "Deleting…" : "Delete"}
+          </Button>
+        </div>
+        {deleteErr ? (
+          <p role="alert" className="mt-2 text-[12px] font-semibold text-red-700">
+            {deleteErr}
+          </p>
+        ) : null}
 
         {/* Header card */}
         <div
@@ -121,13 +152,9 @@ export function MaintenanceItemDetail({
                   {item.name}
                 </h1>
               </div>
-              <p className="mt-1 text-[12.5px] text-fg-muted">
-                Every {item.interval.toLocaleString()} mi
-                {item.neverServiced
-                  ? " · never serviced"
-                  : ` · last ${item.lastOdo!.toLocaleString()} mi${item.lastDate ? " · " + item.lastDate : ""}`}
-              </p>
             </div>
+            {/* REMAINING — the one big number. "Due X mi" lived here too; it's
+                dropped since the Next-due stat below already carries it. */}
             <div className="shrink-0 text-right">
               <div
                 className={
@@ -139,21 +166,17 @@ export function MaintenanceItemDetail({
               <div className="mt-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.08em] text-fg-subtle">
                 {rem.label}
               </div>
-              {item.nextDue != null ? (
-                <div className="mt-1 font-mono text-[10px] text-fg-subtle">
-                  Due {item.nextDue.toLocaleString()} mi
-                </div>
-              ) : null}
             </div>
           </div>
 
-          {/* Progress */}
+          {/* Progress — the interval lives here (single home; the old header
+              "Every X mi" line was removed as a duplicate). */}
           <div className="mt-3">
             <IntervalBar pct={item.pct} status={item.status} />
-            <p className="mt-1 font-mono text-[9.5px] text-fg-subtle">
+            <p className="mt-1.5 text-[12px] text-fg-muted">
               {item.neverServiced
                 ? "Awaiting first service — log one to set the baseline."
-                : `${Math.round(item.pct)}% through ${item.interval.toLocaleString()} mi interval`}
+                : `${Math.round(item.pct)}% through the ${item.interval.toLocaleString()} mi interval`}
             </p>
           </div>
 
@@ -188,7 +211,7 @@ export function MaintenanceItemDetail({
           </p>
         </div>
 
-        {/* Actions */}
+        {/* Actions (Delete moved to the top bar) */}
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <Button
             type="button"
@@ -204,24 +227,16 @@ export function MaintenanceItemDetail({
           >
             Edit intervals &amp; notes
           </Button>
-          <Button
-            type="button"
-            onClick={onDeleteItem}
-            disabled={deleting}
-            variant="destructive"
-          >
-            {deleting ? "Deleting…" : "Delete item"}
-          </Button>
         </div>
-        {deleteErr ? (
-          <p role="alert" className="mt-2 text-[12px] font-semibold text-red-700">
-            {deleteErr}
-          </p>
-        ) : null}
         {item.notes ? (
-          <p className="mt-2 whitespace-pre-wrap rounded-md border border-line bg-elevated px-3 py-2 text-[12px] text-fg-muted">
-            {item.notes}
-          </p>
+          <div className="mt-3 rounded-xl border border-line bg-card p-4 shadow-sm">
+            <p className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-indigo-600">
+              Notes
+            </p>
+            <p className="mt-1.5 whitespace-pre-wrap text-[13.5px] leading-relaxed text-fg">
+              {item.notes}
+            </p>
+          </div>
         ) : null}
 
         {/* Service log */}
@@ -312,21 +327,25 @@ function LogEntryCard({
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="truncate font-mono text-[13px] font-bold tabular-nums text-amber-700">
+          <h3 className="truncate text-[14.5px] font-semibold leading-tight text-fg">
             {formatServiceDate(h.date) ?? "Undated"}
-            {h.odo != null ? ` · ${h.odo.toLocaleString()} mi` : ""}
           </h3>
+          {h.odo != null ? (
+            <p className="mt-0.5 font-mono text-[11.5px] tabular-nums text-fg-muted">
+              {h.odo.toLocaleString()} mi
+            </p>
+          ) : null}
         </div>
         <div className="shrink-0 text-right">
           {h.totalCost != null ? (
-            <div className="text-[17px] font-bold leading-none tabular-nums text-emerald-700">
+            <div className="text-[18px] font-bold leading-none tabular-nums text-emerald-700">
               {money(h.totalCost)}
             </div>
           ) : (
             <div className="font-mono text-[11px] text-fg-subtle">no cost</div>
           )}
           {receiptCount(h) > 0 ? (
-            <div className="mt-1 font-mono text-[9px] font-bold uppercase tracking-[0.08em] text-fg-subtle">
+            <div className="mt-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.08em] text-fg-subtle">
               {receiptCount(h)} receipt
               {receiptCount(h) === 1 ? "" : "s"}
             </div>
@@ -334,7 +353,7 @@ function LogEntryCard({
         </div>
       </div>
       {h.notes ? (
-        <p className="mt-1.5 whitespace-pre-wrap text-[12px] text-fg-muted">
+        <p className="mt-2 whitespace-pre-wrap text-[13px] leading-relaxed text-fg-muted">
           {h.notes}
         </p>
       ) : null}
