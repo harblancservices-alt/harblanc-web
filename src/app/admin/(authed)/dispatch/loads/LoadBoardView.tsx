@@ -85,11 +85,11 @@ const STATUS_LABEL: Record<string, string> = {
   cancelled: "Cancelled",
 };
 
-// Compacted so all 13 columns — through PAID — fit without horizontal scroll on
-// a ~1080px-wide portrait screen (see min-w below). Fixed tracks are tightened
-// and the wide Broker/Lane/Trip columns flex + truncate.
+// 11 columns (Mi + DH removed), re-proportioned to fill the width evenly and
+// fit without horizontal scroll on a ~1080px-wide portrait screen (see min-w
+// below). The wide Broker/Lane/Trip columns flex + truncate.
 const GRID =
-  "24px 90px 76px minmax(0,1.1fr) minmax(0,1.35fr) 50px 50px minmax(0,0.7fr) 76px 52px 44px 76px 48px";
+  "24px 96px 84px minmax(0,1.5fr) minmax(0,1.8fr) 58px 58px minmax(0,1fr) 92px 92px 56px";
 
 export function LoadBoardView({ data }: { data: LoadBoardData }) {
   const router = useRouter();
@@ -300,7 +300,7 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
 
         {/* Table (desktop) */}
         <div className="hidden overflow-x-auto rounded-md border border-line bg-card shadow-e2 md:block">
-          <div className="min-w-[900px]">
+          <div className="min-w-[780px]">
             <div
               className="grid items-center gap-1.5 border-b-2 border-line-strong bg-inset px-2 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.06em] text-ink-3"
               style={{ gridTemplateColumns: GRID }}
@@ -335,8 +335,6 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
               <span>Del</span>
               <span>Trip</span>
               <span className="text-right">Rate</span>
-              <span className="text-right">Mi</span>
-              <span className="text-right">DH</span>
               <span className="text-right">Net</span>
               <span className="text-right">Paid</span>
             </div>
@@ -404,14 +402,6 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
                   <span className="truncate text-steel">{r.trip}</span>
                   <span className="text-right font-bold tabular-nums text-ok">
                     {usd(r.rate)}
-                  </span>
-                  <span className="text-right tabular-nums text-ink-2">
-                    {r.loadedMiles != null
-                      ? r.loadedMiles.toLocaleString()
-                      : "—"}
-                  </span>
-                  <span className="text-right tabular-nums text-bad">
-                    {r.dhMiles > 0 ? r.dhMiles.toLocaleString() : "—"}
                   </span>
                   <span className="text-right font-bold tabular-nums text-ok">
                     {usd(r.net)}
@@ -630,7 +620,10 @@ function Kpi({
   // Focal — the graphite hero cell with a 3px accent left edge.
   if (tone === "focal") {
     return (
-      <div className="relative min-w-0 overflow-hidden bg-graphite px-3 py-2.5 pl-4">
+      // Softer charcoal-grey than the near-black graphite token (which the side
+      // nav + command bar use) — this focal KPI only. Accent edge + white text
+      // kept.
+      <div className="relative min-w-0 overflow-hidden bg-[#262b33] px-3 py-2.5 pl-4">
         <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-accent" />
         <div className="truncate font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-on-dark-dim">
           {label}
