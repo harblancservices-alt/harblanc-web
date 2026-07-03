@@ -112,7 +112,10 @@ export function ReachView({
   const tpl = active ?? { ...fallbackTemplate(posture), id: "", posture, leverage };
 
   const marketWording = effectiveMarket?.wording || effectiveMarket?.name || "the area";
-  const equipment = settings.truckLine;
+  // Truck line lives here so the preview + send + settings input share one live
+  // value: editing it in Settings updates the {equipment} preview immediately,
+  // and Save persists it.
+  const [equipment, setEquipment] = useState(settings.truckLine);
 
   // Sample name for the live preview — the first selected broker so the operator
   // sees a real, personalized email (each send fills {broker} per-recipient).
@@ -290,6 +293,9 @@ export function ReachView({
                 templates={templates}
                 marketsAvailable={marketsAvailable}
                 templatesAvailable={templatesAvailable}
+                truckLine={equipment}
+                onTruckLineChange={setEquipment}
+                onSaved={() => router.refresh()}
               />
             </div>
           ) : null}

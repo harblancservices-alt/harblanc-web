@@ -31,16 +31,29 @@ export function ReachSettingsPanel({
   templates,
   marketsAvailable,
   templatesAvailable,
+  truckLine,
+  onTruckLineChange,
+  onSaved,
 }: {
   settings: ReachSettings;
   markets: ReachMarket[];
   templates: ReachTemplate[];
   marketsAvailable: boolean;
   templatesAvailable: boolean;
+  /** Lifted so the Reach preview's {equipment} updates live as he types. */
+  truckLine: string;
+  onTruckLineChange: (v: string) => void;
+  /** Called after a successful save so the parent can refresh server data. */
+  onSaved: () => void;
 }) {
   return (
     <div className="space-y-4">
-      <GeneralSettings settings={settings} />
+      <GeneralSettings
+        settings={settings}
+        truckLine={truckLine}
+        onTruckLineChange={onTruckLineChange}
+        onSaved={onSaved}
+      />
       <MarketsEditor markets={markets} available={marketsAvailable} />
       <TemplatesEditor templates={templates} available={templatesAvailable} />
     </div>
@@ -49,8 +62,17 @@ export function ReachSettingsPanel({
 
 // ── General ──────────────────────────────────────────────────────────────────
 
-function GeneralSettings({ settings }: { settings: ReachSettings }) {
-  const [truckLine, setTruckLine] = useState(settings.truckLine);
+function GeneralSettings({
+  settings,
+  truckLine,
+  onTruckLineChange,
+  onSaved,
+}: {
+  settings: ReachSettings;
+  truckLine: string;
+  onTruckLineChange: (v: string) => void;
+  onSaved: () => void;
+}) {
   const [replyToName, setReplyToName] = useState(settings.replyToName);
   const [showExactTown, setShowExactTown] = useState(settings.showExactTown);
   const [defaultLeverage, setDefaultLeverage] = useState<Leverage>(
@@ -75,6 +97,7 @@ function GeneralSettings({ settings }: { settings: ReachSettings }) {
           ? { ok: true, text: "Saved" }
           : { ok: false, text: res.reason },
       );
+      if (res.ok) onSaved();
     } finally {
       setBusy(false);
     }
@@ -90,7 +113,7 @@ function GeneralSettings({ settings }: { settings: ReachSettings }) {
           <label className={field.label}>Truck line</label>
           <input
             value={truckLine}
-            onChange={(e) => setTruckLine(e.target.value)}
+            onChange={(e) => onTruckLineChange(e.target.value)}
             className={field.input}
             placeholder="40' gooseneck hotshot, dually"
           />
