@@ -92,9 +92,10 @@ export function MaintenanceItemDetail({
   return (
     <div className="min-h-screen border-t border-line bg-canvas text-fg">
       <div className="mx-auto w-full max-w-3xl px-4 py-5 sm:px-6 lg:px-8">
-        {/* Top bar — back (left) + delete (top-right). Delete lives here, not
-            buried under the action buttons, so it's a deliberate reach. */}
-        <div className="flex items-center justify-between gap-2">
+        {/* Top bar — back (left) + top-level controls (top-right): Edit
+            intervals, then Delete. Delete lives here, not buried under the body
+            actions, so it's a deliberate reach. */}
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <Button
             href="/admin/maintenance"
             prefetch={false}
@@ -103,13 +104,22 @@ export function MaintenanceItemDetail({
           >
             ← All maintenance
           </Button>
-          <Button
-            type="button"
-            onClick={onDeleteItem}
-            disabled={deleting}
-            variant="destructive"
-            size="sm"
-            leftIcon={
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              onClick={() => setEditInterval(true)}
+              variant="edit"
+              size="sm"
+            >
+              Edit intervals &amp; notes
+            </Button>
+            <Button
+              type="button"
+              onClick={onDeleteItem}
+              disabled={deleting}
+              variant="destructive"
+              size="sm"
+              leftIcon={
               <svg
                 viewBox="0 0 20 20"
                 fill="currentColor"
@@ -123,9 +133,10 @@ export function MaintenanceItemDetail({
                 />
               </svg>
             }
-          >
-            {deleting ? "Deleting…" : "Delete"}
-          </Button>
+            >
+              {deleting ? "Deleting…" : "Delete"}
+            </Button>
+          </div>
         </div>
         {deleteErr ? (
           <p role="alert" className="mt-2 text-[12px] font-semibold text-bad">
@@ -215,21 +226,15 @@ export function MaintenanceItemDetail({
           </p>
         </div>
 
-        {/* Actions (Delete moved to the top bar) */}
-        <div className="mt-3 flex flex-wrap items-center gap-2">
+        {/* Actions — Log service, right-aligned. (Edit intervals + Delete live
+            in the top bar.) */}
+        <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
           <Button
             type="button"
             onClick={() => setServiceModal({ presetItemId: item.id })}
             variant="primary"
           >
             + Log service
-          </Button>
-          <Button
-            type="button"
-            onClick={() => setEditInterval(true)}
-            variant="edit"
-          >
-            Edit intervals &amp; notes
           </Button>
         </div>
         {item.notes ? (
