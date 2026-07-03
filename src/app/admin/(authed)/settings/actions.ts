@@ -38,3 +38,25 @@ export async function updateFuelSettings(formData: FormData): Promise<void> {
   revalidatePath("/admin/dispatch/loads");
   revalidatePath("/admin/dispatch/trips");
 }
+
+/**
+ * Net-profit goal-bar targets: the monthly goal (a specific month view) and the
+ * all-months annual goal. Separate action from the fuel form so the two forms
+ * never clobber each other's fields on save.
+ */
+export async function updateProfitGoals(formData: FormData): Promise<void> {
+  const sb = createServiceRoleClient();
+  const monthly = numOr(formData, "monthly_net_goal", 10000);
+  const annual = numOr(formData, "annual_net_goal", 120000);
+  const { error } = await sb
+    .from("dispatch_settings")
+    .update({
+      monthly_net_goal: monthly,
+      annual_net_goal: annual,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", true);
+  if (error) throw new Error(`Could not save profit goals: ${error.message}`);
+  revalidatePath("/admin/settings");
+  revalidatePath("/admin/dispatch/loads");
+}

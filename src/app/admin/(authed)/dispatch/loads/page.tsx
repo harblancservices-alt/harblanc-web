@@ -87,18 +87,25 @@ async function loadBoard(): Promise<LoadBoardData> {
 
   const { data: fuelRow } = await sb
     .from("dispatch_settings")
-    .select("mpg, diesel_price_per_gallon, factoring_pct")
+    .select(
+      "mpg, diesel_price_per_gallon, factoring_pct, monthly_net_goal, annual_net_goal",
+    )
     .eq("id", true)
     .maybeSingle<{
       mpg: number | string;
       diesel_price_per_gallon: number | string;
       factoring_pct: number | string;
+      monthly_net_goal: number | string | null;
+      annual_net_goal: number | string | null;
     }>();
   const fuel: FuelSettings = {
     mpg: num(fuelRow?.mpg ?? null) || FUEL_DEFAULTS.mpg,
     ppg: num(fuelRow?.diesel_price_per_gallon ?? null) || FUEL_DEFAULTS.ppg,
     factoringPct: fuelRow?.factoring_pct != null ? num(fuelRow.factoring_pct) : FUEL_DEFAULTS.factoringPct,
   };
+  // Editable goal-bar targets (fall back to the prior defaults pre-migration).
+  const monthlyGoal = num(fuelRow?.monthly_net_goal ?? null) || 10000;
+  const annualGoal = num(fuelRow?.annual_net_goal ?? null) || 120000;
 
   // Sum manual expenses per load.
   const { data: expRows } = await sb
@@ -207,7 +214,15 @@ async function loadBoard(): Promise<LoadBoardData> {
   // Gross, Net, Avg/mi) are computed client-side in LoadBoardView from the
   // selected month's rows, so every figure on screen agrees for that month.
   // A/R is the one exception — it's all-time and passed in from here.
-  return { rows, brokerNames, activeTrips, currentMonth, arTotal };
+  return {
+    rows,
+    brokerNames,
+    activeTrips,
+    currentMonth,
+    arTotal,
+    monthlyGoal,
+    annualGoal,
+  };
 }
 
 export default async function LoadBoardPage() {

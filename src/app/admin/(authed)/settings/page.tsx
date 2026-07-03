@@ -3,7 +3,7 @@ import { requireAdmin } from "@/lib/admin/auth";
 import { validateEnv } from "@/lib/env";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { IconLogout } from "../_shell/icons";
-import { updateFuelSettings } from "./actions";
+import { updateFuelSettings, updateProfitGoals } from "./actions";
 import { ThemeToggle } from "./ThemeToggle";
 import { DisplaySettings } from "./DisplaySettings";
 import { Button } from "@/components/ui/Button";
@@ -40,16 +40,22 @@ export default async function SettingsPage() {
   const sb = createServiceRoleClient();
   const { data: fuel } = await sb
     .from("dispatch_settings")
-    .select("mpg, diesel_price_per_gallon, factoring_pct")
+    .select(
+      "mpg, diesel_price_per_gallon, factoring_pct, monthly_net_goal, annual_net_goal",
+    )
     .eq("id", true)
     .maybeSingle<{
       mpg: number | string;
       diesel_price_per_gallon: number | string;
       factoring_pct: number | string;
+      monthly_net_goal: number | string | null;
+      annual_net_goal: number | string | null;
     }>();
   const mpg = fuel?.mpg ?? 13;
   const ppg = fuel?.diesel_price_per_gallon ?? 4.7;
   const factoringPct = fuel?.factoring_pct ?? 3;
+  const monthlyGoal = fuel?.monthly_net_goal ?? 10000;
+  const annualGoal = fuel?.annual_net_goal ?? 120000;
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
@@ -147,6 +153,45 @@ export default async function SettingsPage() {
                 min="0"
                 defaultValue={String(factoringPct)}
                 className={field.input + " w-28 tabular-nums"}
+              />
+            </label>
+            <Button type="submit" variant="primary">
+              Save
+            </Button>
+          </div>
+        </form>
+      </Card>
+
+      <Card className="mt-4">
+        <form action={updateProfitGoals}>
+          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-ink-3">
+            Net profit goals
+          </p>
+          <p className="mt-1 text-[12px] text-ink-2">
+            Targets for the Load Board goal bar — the monthly goal on a single
+            month, the annual goal on “All months”.
+          </p>
+          <div className="mt-4 flex flex-wrap items-end gap-4">
+            <label className="block">
+              <span className={field.label}>Monthly $</span>
+              <input
+                name="monthly_net_goal"
+                type="number"
+                step="100"
+                min="0"
+                defaultValue={String(monthlyGoal)}
+                className={field.input + " w-32 tabular-nums"}
+              />
+            </label>
+            <label className="block">
+              <span className={field.label}>Annual $ (all months)</span>
+              <input
+                name="annual_net_goal"
+                type="number"
+                step="1000"
+                min="0"
+                defaultValue={String(annualGoal)}
+                className={field.input + " w-32 tabular-nums"}
               />
             </label>
             <Button type="submit" variant="primary">

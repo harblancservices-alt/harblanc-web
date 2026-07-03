@@ -49,6 +49,9 @@ export type LoadBoardData = {
    * month-scoped — the A/R card shows the same number on every month view.
    */
   arTotal: number;
+  /** Editable goal-bar targets (Settings → Net profit goals). */
+  monthlyGoal: number;
+  annualGoal: number;
 };
 
 const MONTHS = [
@@ -187,13 +190,14 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
           }
         />
 
-        {/* Profit-toward-goal bar follows the SELECTED month (same net the KPI
-            strip + list use). The $10k monthly goal is meaningless across "All
-            months", so the bar is hidden there — the combined Net profit KPI
-            still shows the total. */}
-        {month !== "all" ? (
-          <ProfitGoalBar net={stats.net} monthLabel={MONTHS[month]} />
-        ) : null}
+        {/* Profit-toward-goal bar. A specific month tracks that month's net vs
+            the MONTHLY goal; "All months" tracks the all-months net vs the
+            ANNUAL goal. Both targets are editable in Settings. */}
+        <ProfitGoalBar
+          net={stats.net}
+          goal={month === "all" ? data.annualGoal : data.monthlyGoal}
+          label={month === "all" ? "All months" : MONTHS[month]}
+        />
 
         {/* KPI strip — Net profit is the focal (graphite) tile. */}
         <div className="mb-4 grid grid-cols-3 gap-px overflow-hidden rounded-md border border-line bg-line shadow-e2 sm:grid-cols-6">
@@ -555,22 +559,32 @@ function BulkDeleteButton({ count }: { count: number }) {
   );
 }
 
-function ProfitGoalBar({ net, monthLabel }: { net: number; monthLabel: string }) {
-  const GOAL = 10000;
-  const pct = Math.max(0, Math.min(100, (net / GOAL) * 100));
-  const reached = net >= GOAL;
-  // Inner slash marks at each $2,500 (25/50/75%).
+function ProfitGoalBar({
+  net,
+  goal,
+  label,
+}: {
+  net: number;
+  goal: number;
+  label: string;
+}) {
+  const target = goal > 0 ? goal : 10000;
+  const pct = Math.max(0, Math.min(100, (net / target) * 100));
+  const reached = net >= target;
+  // Inner slash marks at each quarter (25/50/75%).
   const marks = [25, 50, 75];
-  const labels = ["$0", "$2.5k", "$5k", "$7.5k", "$10k"];
+  // Tick labels derived from the goal so the scale matches the target ($10k
+  // monthly, $120k annual, or any edited value).
+  const labels = [0, 0.25, 0.5, 0.75, 1].map((f) => abbrUsd(target * f));
   return (
     <div className="mb-2 rounded-md border border-line bg-card px-3.5 py-3 shadow-e1">
       <div className="flex items-baseline justify-between gap-2">
         <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-3">
-          Net profit goal · {monthLabel}
+          Net profit goal · {label}
         </span>
         <span className="font-mono text-[12px] tabular-nums">
           <span className="font-bold text-ok">{usd(net)}</span>
-          <span className="text-ink-3"> / {usd(GOAL)}</span>
+          <span className="text-ink-3"> / {usd(target)}</span>
           {reached ? (
             <span className="ml-2 rounded bg-ok-bg px-1.5 py-[1px] text-[10px] font-bold uppercase tracking-[0.06em] text-ok">
               Goal!
@@ -667,4 +681,13 @@ function Kpi({
 function usd(n: number): string {
   if (!Number.isFinite(n)) return "—";
   return "$" + Math.round(n).toLocaleString("en-US");
+}
+
+/** Compact axis label: 0 → "$0", 2500 → "$2.5k", 10000 → "$10k", 120000 → "$120k". */
+function abbrUsd(n: number): string {
+  if (!Number.isFinite(n) || n === 0) return "$0";
+  if (n < 1000) return "$" + Math.round(n);
+  const k = n / 1000;
+  const s = Number.isInteger(k) ? String(k) : k.toFixed(1);
+  return "$" + s + "k";
 }
