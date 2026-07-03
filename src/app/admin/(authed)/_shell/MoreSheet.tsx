@@ -48,7 +48,7 @@ const GROUPS: { title: string; items: SheetItem[] }[] = [
     title: "Dispatch",
     items: [
       { href: "/admin/dispatch/trips", label: "Trips", Icon: IconRoute },
-      { href: "/admin/dispatch/backhaul", label: "Backhaul", Icon: IconMail },
+      { href: "/admin/dispatch/reach", label: "Reach", Icon: IconMail },
       {
         href: "/admin/dispatch/receivables",
         label: "Receivables",

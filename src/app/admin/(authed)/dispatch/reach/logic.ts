@@ -19,7 +19,12 @@ import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { lookupZip } from "@/lib/dispatch/distance";
 import { compass8, haversineMiles, townParen } from "@/lib/reach/geo";
-import type { Posture, ReachMarket } from "./types";
+import type {
+  Posture,
+  ReachMarket,
+  ReachRecipient,
+  Warmth,
+} from "./types";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 /** How recently a broker was reached before we hold them back by default. */
@@ -210,20 +215,7 @@ function stateOf(place: string | null): string {
 
 // ── Recipient auto-build ─────────────────────────────────────────────────────
 
-export type Warmth = "hot" | "warm" | "cold";
-
-export type ReachRecipient = {
-  brokerId: string;
-  name: string;
-  email: string | null;
-  /** Contact the fallback email came from (null when it's the broker's own). */
-  contactId: string | null;
-  /** How many lanes/loads tie this broker to the market. */
-  matchCount: number;
-  warmth: Warmth;
-  /** Set when held back: whole days since we last reached this broker. */
-  reachedDaysAgo: number | null;
-};
+export type { ReachRecipient, Warmth } from "./types";
 
 export type RecipientBuild = {
   /** Matching brokers not recently reached — pre-selected if they have email. */

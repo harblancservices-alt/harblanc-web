@@ -71,6 +71,23 @@ export type ReachTemplate = {
   body: string;
 };
 
+/** Broker warmth for a market — how much history ties them to it. */
+export type Warmth = "hot" | "warm" | "cold";
+
+/** A self-built recipient row (client-safe; the server build lives in logic.ts). */
+export type ReachRecipient = {
+  brokerId: string;
+  name: string;
+  email: string | null;
+  /** Contact the fallback email came from (null when it's the broker's own). */
+  contactId: string | null;
+  /** How many lanes/loads tie this broker to the market. */
+  matchCount: number;
+  warmth: Warmth;
+  /** Set when held back: whole days since we last reached this broker. */
+  reachedDaysAgo: number | null;
+};
+
 /**
  * Fill the four Reach tokens. {broker} is left for last (filled per-recipient
  * at send), so callers pass it only when rendering a concrete email; the live

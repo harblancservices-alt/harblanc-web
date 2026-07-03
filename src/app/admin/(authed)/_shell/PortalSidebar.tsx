@@ -76,7 +76,7 @@ const GROUPS: NavGroup[] = [
     items: [
       { href: "/admin/applications", label: "Applications", Icon: IconBadge },
       { href: "/admin/accounting", label: "Accounting", Icon: IconReceipt },
-      { href: "/admin/dispatch/backhaul", label: "Backhaul", Icon: IconMail },
+      { href: "/admin/dispatch/reach", label: "Reach", Icon: IconMail },
       { href: "/admin/dispatch/receivables", label: "Receivables", Icon: IconCoins },
       { href: "/admin/previews", label: "Email Previews", Icon: IconMail },
     ],
