@@ -10,6 +10,7 @@
 
 import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { builtInMarkets } from "./markets";
 import {
   DEFAULT_SETTINGS,
   isLeverage,
@@ -20,55 +21,16 @@ import {
   type ReachTemplate,
 } from "./types";
 
-type MarketRow = {
-  id: string;
-  name: string | null;
-  wording: string | null;
-  center_zip: string | null;
-  center_lat: number | null;
-  center_lon: number | null;
-  radius_mi: number | null;
-  towns: string | null;
-  notes: string | null;
-  sort_order: number | null;
-};
-
-const MARKET_COLS =
-  "id, name, wording, center_zip, center_lat, center_lon, radius_mi, towns, notes, sort_order";
-
-export function toMarket(r: MarketRow): ReachMarket {
-  return {
-    id: r.id,
-    name: r.name ?? "",
-    wording: (r.wording ?? "").trim() || (r.name ?? ""),
-    centerZip: r.center_zip,
-    centerLat: r.center_lat,
-    centerLon: r.center_lon,
-    radiusMi: r.radius_mi ?? 150,
-    towns: r.towns,
-    notes: r.notes,
-    sortOrder: r.sort_order ?? 0,
-  };
-}
-
+/**
+ * Markets are BUILT-IN (see ./markets) — Brent never creates or edits them.
+ * `available` stays true so the page always renders the auto-mapped experience.
+ * Kept async so callers (server component) don't need to change shape.
+ */
 export async function loadReachMarkets(): Promise<{
   markets: ReachMarket[];
   available: boolean;
 }> {
-  try {
-    const sb = createServiceRoleClient();
-    const { data, error } = await sb
-      .from("reach_markets")
-      .select(MARKET_COLS)
-      .is("deleted_at", null)
-      .order("sort_order", { ascending: true })
-      .order("created_at", { ascending: true })
-      .returns<MarketRow[]>();
-    if (error) return { markets: [], available: false };
-    return { markets: (data ?? []).map(toMarket), available: true };
-  } catch {
-    return { markets: [], available: false };
-  }
+  return { markets: builtInMarkets(), available: true };
 }
 
 type SettingsRow = {

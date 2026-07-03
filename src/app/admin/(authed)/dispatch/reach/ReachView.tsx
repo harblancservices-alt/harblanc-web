@@ -169,7 +169,9 @@ export function ReachView({
         brokerIds: ids,
         posture,
         leverage,
-        marketId: effectiveMarket?.id ?? null,
+        // Built-in markets aren't DB rows, so market_id (a uuid FK to
+        // reach_markets) stays null; the market_name snapshot records which one.
+        marketId: null,
         marketName: effectiveMarket?.name ?? marketWording,
         replyToName,
         ctx: {
@@ -294,9 +296,7 @@ export function ReachView({
             <div className="mt-3">
               <ReachSettingsPanel
                 settings={settings}
-                markets={markets}
                 templates={templates}
-                marketsAvailable={marketsAvailable}
                 templatesAvailable={templatesAvailable}
                 truckLine={equipment}
                 onTruckLineChange={setEquipment}
