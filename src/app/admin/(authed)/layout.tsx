@@ -27,11 +27,18 @@ export default async function AuthedAdminLayout({
 
   return (
     <>
-      {/* Apply the saved theme before paint so there's no light→dark flash. */}
+      {/* Apply the saved theme + display prefs before paint so there's no
+          flash / layout jump (theme class, orientation, UI scale). */}
       <script
         dangerouslySetInnerHTML={{
           __html:
-            "try{if(localStorage.getItem('harblanc-theme')==='dark'){document.documentElement.setAttribute('data-admin-theme','dark')}else{document.documentElement.removeAttribute('data-admin-theme')}}catch(e){}",
+            "try{var d=document.documentElement;" +
+            "if(localStorage.getItem('harblanc-theme')==='dark'){d.setAttribute('data-admin-theme','dark')}else{d.removeAttribute('data-admin-theme')}" +
+            "var o=localStorage.getItem('harblanc-orientation');" +
+            "if(o==='portrait'||o==='landscape'){d.setAttribute('data-layout',o)}else{d.removeAttribute('data-layout')}" +
+            "var s=parseInt(localStorage.getItem('harblanc-ui-scale'),10);" +
+            "if(!s||isNaN(s)){s=100}d.style.setProperty('--admin-ui-scale',(s/100).toString());" +
+            "}catch(e){}",
         }}
       />
       <PortalShell email={user.email ?? null}>{children}</PortalShell>

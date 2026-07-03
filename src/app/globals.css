@@ -245,6 +245,45 @@ html[data-admin-theme="dark"] .admin-light {
 .admin-dark .border-amber-300,
 .admin-dark .border-green-300 { border-color: rgba(255, 255, 255, 0.18); }
 
+/* ── Display settings (Settings → Display) ─────────────────────────────────
+   Two per-user, localStorage-persisted controls, mirroring the theme mechanism
+   (inline no-flash script in the admin layout + live JS on the settings page).
+
+   1. UI SCALE — the admin shell wrapper (.admin-shell-root) is zoomed by the
+      --admin-ui-scale factor (default 1). Applied to the SUBTREE, not <html>,
+      so the public site and the media-query viewport are untouched (Auto keeps
+      following the real viewport width). Chrome `zoom` is fine here (Brent is
+      on Chrome). */
+.admin-shell-root { zoom: var(--admin-ui-scale, 1); }
+
+/* 2. ORIENTATION — html[data-layout] forces the layout regardless of viewport
+      width. Rules target the shell's [data-shell] markers, so they only bite
+      inside the admin portal.
+
+      Portrait = force the NARROW/mobile layout at any width (his 1080-wide
+      portrait monitor): hide the desktop sidebar, show the bottom nav, restore
+      the main's bottom clearance, and collapse multi-column grids to one so the
+      content stacks and flows DOWN the tall screen. */
+html[data-layout="portrait"] [data-shell="sidebar"] { display: none !important; }
+html[data-layout="portrait"] [data-shell="bottomnav"] { display: grid !important; }
+html[data-layout="portrait"] [data-shell="main"] { padding-bottom: 5rem !important; }
+html[data-layout="portrait"] [data-shell="main"] .sm\:grid-cols-2,
+html[data-layout="portrait"] [data-shell="main"] .md\:grid-cols-2,
+html[data-layout="portrait"] [data-shell="main"] .lg\:grid-cols-2,
+html[data-layout="portrait"] [data-shell="main"] .md\:grid-cols-3,
+html[data-layout="portrait"] [data-shell="main"] .lg\:grid-cols-3,
+html[data-layout="portrait"] [data-shell="main"] .xl\:grid-cols-3,
+html[data-layout="portrait"] [data-shell="main"] .md\:grid-cols-4,
+html[data-layout="portrait"] [data-shell="main"] .lg\:grid-cols-4 {
+  grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
+}
+
+/* Landscape = force the DESKTOP layout regardless of viewport: show the
+   sidebar, hide the bottom nav, drop the mobile bottom padding. */
+html[data-layout="landscape"] [data-shell="sidebar"] { display: flex !important; }
+html[data-layout="landscape"] [data-shell="bottomnav"] { display: none !important; }
+html[data-layout="landscape"] [data-shell="main"] { padding-bottom: 0 !important; }
+
 @theme inline {
   /* Unified dark palette → Tailwind utilities.
      Surfaces:  bg-canvas bg-panel bg-card bg-elevated

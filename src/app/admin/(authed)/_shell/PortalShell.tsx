@@ -37,7 +37,9 @@ export function PortalShell({
       <PortalTopBar />
       <div className="flex">
         <PortalSidebar email={email} />
-        <main className="min-w-0 flex-1 pb-20 lg:pb-0">{children}</main>
+        <main data-shell="main" className="min-w-0 flex-1 pb-20 lg:pb-0">
+          {children}
+        </main>
       </div>
       <PortalBottomNav />
     </ThemeShell>

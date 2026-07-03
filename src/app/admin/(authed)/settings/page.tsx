@@ -5,6 +5,7 @@ import { createServiceRoleClient } from "@/lib/supabase/server";
 import { IconLogout } from "../_shell/icons";
 import { updateFuelSettings } from "./actions";
 import { ThemeToggle } from "./ThemeToggle";
+import { DisplaySettings } from "./DisplaySettings";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -62,6 +63,16 @@ export default async function SettingsPage() {
           Switch the admin portal between light and dark.
         </p>
         <ThemeToggle />
+      </Card>
+
+      <Card className="mt-4">
+        <p className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-ink-3">
+          Display
+        </p>
+        <p className="mt-1 text-[12px] text-ink-2">
+          Fit the portal to your monitor — orientation and scale.
+        </p>
+        <DisplaySettings />
       </Card>
 
       <Card className="mt-4">

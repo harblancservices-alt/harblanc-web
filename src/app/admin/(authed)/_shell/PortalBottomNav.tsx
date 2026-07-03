@@ -72,6 +72,7 @@ export function PortalBottomNav() {
     <>
       <nav
         aria-label="Portal navigation"
+        data-shell="bottomnav"
         className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-graphite-line bg-graphite pb-[env(safe-area-inset-bottom)] lg:hidden"
       >
         {ITEMS.map((item) => {

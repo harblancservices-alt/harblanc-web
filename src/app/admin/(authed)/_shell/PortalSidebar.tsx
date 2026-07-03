@@ -100,6 +100,7 @@ export function PortalSidebar({ email }: { email: string | null }) {
   return (
     <aside
       aria-label="Portal navigation"
+      data-shell="sidebar"
       className="sticky top-14 hidden h-[calc(100vh-3.5rem)] w-[212px] shrink-0 flex-col border-r border-graphite-line bg-graphite text-on-dark-dim lg:flex"
     >
       <nav className="flex-1 overflow-y-auto py-2">

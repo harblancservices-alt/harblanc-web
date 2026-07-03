@@ -35,7 +35,10 @@ export function ThemeShell({ children }: { children: ReactNode }) {
     <div
       className={
         (theme === "dark" ? "admin-dark" : "admin-light") +
-        " min-h-screen bg-canvas text-fg"
+        // admin-shell-root hosts the Display UI-scale zoom (see globals.css:
+        // zoom: var(--admin-ui-scale)). Scoped to the admin subtree so the
+        // public site and the media-query viewport are unaffected.
+        " admin-shell-root min-h-screen bg-canvas text-fg"
       }
     >
       {children}
