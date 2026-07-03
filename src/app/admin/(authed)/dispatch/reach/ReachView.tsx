@@ -112,10 +112,11 @@ export function ReachView({
   const tpl = active ?? { ...fallbackTemplate(posture), id: "", posture, leverage };
 
   const marketWording = effectiveMarket?.wording || effectiveMarket?.name || "the area";
-  // Truck line lives here so the preview + send + settings input share one live
-  // value: editing it in Settings updates the {equipment} preview immediately,
-  // and Save persists it.
+  // Truck line + reply-to name live here so the preview/send + settings input
+  // share one live value (editing truck line updates the {equipment} preview
+  // immediately; the reply-to name is the sender/reply display name at send).
   const [equipment, setEquipment] = useState(settings.truckLine);
+  const [replyToName, setReplyToName] = useState(settings.replyToName);
 
   // Sample name for the live preview — the first selected broker so the operator
   // sees a real, personalized email (each send fills {broker} per-recipient).
@@ -170,6 +171,7 @@ export function ReachView({
         leverage,
         marketId: effectiveMarket?.id ?? null,
         marketName: effectiveMarket?.name ?? marketWording,
+        replyToName,
         ctx: {
           market: marketWording,
           equipment,
@@ -194,13 +196,16 @@ export function ReachView({
     setTesting(true);
     setTestMsg(null);
     try {
-      const r = await sendReachTest({
-        market: marketWording,
-        equipment,
-        townParen,
-        subjectTemplate: tpl.subject,
-        bodyTemplate: tpl.body,
-      });
+      const r = await sendReachTest(
+        {
+          market: marketWording,
+          equipment,
+          townParen,
+          subjectTemplate: tpl.subject,
+          bodyTemplate: tpl.body,
+        },
+        replyToName,
+      );
       setTestMsg(
         r.ok
           ? { ok: true, text: `Test sent to ${r.to}` }
@@ -295,6 +300,8 @@ export function ReachView({
                 templatesAvailable={templatesAvailable}
                 truckLine={equipment}
                 onTruckLineChange={setEquipment}
+                replyToName={replyToName}
+                onReplyToNameChange={setReplyToName}
                 onSaved={() => router.refresh()}
               />
             </div>

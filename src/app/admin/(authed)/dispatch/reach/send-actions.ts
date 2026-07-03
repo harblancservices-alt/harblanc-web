@@ -14,6 +14,26 @@ import { renderTemplate } from "./types";
 /** Where "Send test to myself" delivers — the owner's own inbox. */
 const TEST_RECIPIENT = "harblancservices@gmail.com";
 
+/**
+ * Put a display name on an address spec. `addressSpec` may be a bare address
+ * ("dispatch@x.com") or already "Name <addr>"; either way we keep the address
+ * and swap in `name`. Empty name → the spec is returned untouched.
+ *
+ * Used for both the From and Reply-To so the broker sees the reply-to NAME
+ * (e.g. "HARBLANC") as the sender and on replies — the address stays the
+ * verified sending domain / owner inbox.
+ */
+function withDisplayName(name: string, addressSpec: string): string {
+  const spec = addressSpec.trim();
+  const n = name.trim();
+  if (!n) return spec;
+  const m = spec.match(/<([^>]+)>/);
+  const addr = (m ? m[1] : spec).trim();
+  // Quote the name when it contains characters that must be quoted in a header.
+  const safe = /[",<>@]/.test(n) ? `"${n.replace(/"/g, "")}"` : n;
+  return `${safe} <${addr}>`;
+}
+
 export type ReachSendContext = {
   /** Rendered market phrase ({market} token), e.g. "Houston, TX area". */
   market: string;
@@ -66,6 +86,8 @@ export async function sendReach(input: {
   leverage: string;
   marketId: string | null;
   marketName: string;
+  /** reach_settings.reply_to_name — the sender/reply display name. */
+  replyToName: string;
   ctx: ReachSendContext;
 }): Promise<ReachSendResult> {
   const apiKey = process.env.RESEND_API_KEY;
@@ -132,10 +154,13 @@ export async function sendReach(input: {
     };
   }
 
-  const from =
+  const fromSpec =
     process.env.RESEND_FROM_ADDRESS ??
     "Harblanc Dispatch <dispatch@harblancservices.com>";
-  const replyTo = process.env.ADMIN_EMAIL ?? TEST_RECIPIENT;
+  const replyAddr = process.env.ADMIN_EMAIL ?? TEST_RECIPIENT;
+  // Reply-to NAME becomes the display name on both the From and the Reply-To.
+  const from = withDisplayName(input.replyToName, fromSpec);
+  const replyTo = withDisplayName(input.replyToName, replyAddr);
   const resend = new Resend(apiKey);
 
   const base = {
@@ -206,6 +231,7 @@ export type ReachTestResult =
  */
 export async function sendReachTest(
   ctx: ReachSendContext,
+  replyToName: string,
 ): Promise<ReachTestResult> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return { ok: false, reason: "RESEND_API_KEY not configured." };
@@ -217,10 +243,12 @@ export async function sendReachTest(
     return { ok: false, reason: "The message template is empty." };
   }
 
-  const from =
+  const fromSpec =
     process.env.RESEND_FROM_ADDRESS ??
     "Harblanc Dispatch <dispatch@harblancservices.com>";
-  const replyTo = process.env.ADMIN_EMAIL ?? TEST_RECIPIENT;
+  const replyAddr = process.env.ADMIN_EMAIL ?? TEST_RECIPIENT;
+  const from = withDisplayName(replyToName, fromSpec);
+  const replyTo = withDisplayName(replyToName, replyAddr);
   const resend = new Resend(apiKey);
 
   try {

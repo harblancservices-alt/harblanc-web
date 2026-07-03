@@ -33,6 +33,8 @@ export function ReachSettingsPanel({
   templatesAvailable,
   truckLine,
   onTruckLineChange,
+  replyToName,
+  onReplyToNameChange,
   onSaved,
 }: {
   settings: ReachSettings;
@@ -43,6 +45,9 @@ export function ReachSettingsPanel({
   /** Lifted so the Reach preview's {equipment} updates live as he types. */
   truckLine: string;
   onTruckLineChange: (v: string) => void;
+  /** Lifted so the send uses the current sender/reply display name. */
+  replyToName: string;
+  onReplyToNameChange: (v: string) => void;
   /** Called after a successful save so the parent can refresh server data. */
   onSaved: () => void;
 }) {
@@ -52,6 +57,8 @@ export function ReachSettingsPanel({
         settings={settings}
         truckLine={truckLine}
         onTruckLineChange={onTruckLineChange}
+        replyToName={replyToName}
+        onReplyToNameChange={onReplyToNameChange}
         onSaved={onSaved}
       />
       <MarketsEditor markets={markets} available={marketsAvailable} />
@@ -66,14 +73,17 @@ function GeneralSettings({
   settings,
   truckLine,
   onTruckLineChange,
+  replyToName,
+  onReplyToNameChange,
   onSaved,
 }: {
   settings: ReachSettings;
   truckLine: string;
   onTruckLineChange: (v: string) => void;
+  replyToName: string;
+  onReplyToNameChange: (v: string) => void;
   onSaved: () => void;
 }) {
-  const [replyToName, setReplyToName] = useState(settings.replyToName);
   const [showExactTown, setShowExactTown] = useState(settings.showExactTown);
   const [defaultLeverage, setDefaultLeverage] = useState<Leverage>(
     settings.defaultLeverage,
@@ -106,7 +116,7 @@ function GeneralSettings({
   return (
     <Card>
       <p className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-ink-3">
-        Truck
+        General
       </p>
       <div className="mt-3 space-y-3">
         <div>
@@ -119,13 +129,16 @@ function GeneralSettings({
           />
         </div>
         <div>
-          <label className={field.label}>Reply-to name</label>
+          <label className={field.label}>From name</label>
           <input
             value={replyToName}
-            onChange={(e) => setReplyToName(e.target.value)}
+            onChange={(e) => onReplyToNameChange(e.target.value)}
             className={field.input}
             placeholder="HARBLANC"
           />
+          <p className="mt-1 text-[11px] text-fg-subtle">
+            Sender name brokers see + on replies. Not the subject.
+          </p>
         </div>
         <label className="flex cursor-pointer items-center gap-2.5">
           <input
