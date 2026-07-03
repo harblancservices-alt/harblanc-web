@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { field } from "@/components/ui/styles";
@@ -83,11 +83,11 @@ function GeneralSettings({ settings }: { settings: ReachSettings }) {
   return (
     <Card>
       <p className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-ink-3">
-        Truck & wording
+        Truck
       </p>
       <div className="mt-3 space-y-3">
         <div>
-          <label className={field.label}>Truck line ({"{equipment}"})</label>
+          <label className={field.label}>Truck line</label>
           <input
             value={truckLine}
             onChange={(e) => setTruckLine(e.target.value)}
@@ -111,12 +111,7 @@ function GeneralSettings({ settings }: { settings: ReachSettings }) {
             onChange={(e) => setShowExactTown(e.target.checked)}
             className="accent-accent"
           />
-          <span className="text-[13px] text-fg">
-            Show exact town + distance{" "}
-            <span className="text-fg-subtle">
-              — “{"{market}"} (Kingwood, 22 mi NE)”
-            </span>
-          </span>
+          <span className="text-[13px] text-fg">Show exact town + distance</span>
         </label>
         <div>
           <label className={field.label}>Default leverage</label>
@@ -135,7 +130,7 @@ function GeneralSettings({ settings }: { settings: ReachSettings }) {
       </div>
       <div className="mt-3 flex items-center gap-2">
         <Button size="sm" variant="primary" onClick={onSave} disabled={busy}>
-          {busy ? "Saving…" : "Save settings"}
+          {busy ? "Saving…" : "Save"}
         </Button>
         {flash ? (
           <span
@@ -153,34 +148,18 @@ function GeneralSettings({ settings }: { settings: ReachSettings }) {
 
 // ── Markets ──────────────────────────────────────────────────────────────────
 
-type MarketDraft = {
-  name: string;
-  wording: string;
-  centerZip: string;
-  radiusMi: string;
-  towns: string;
-  notes: string;
+type CityHit = {
+  city: string;
+  state: string;
+  zip: string;
+  lat: number;
+  lon: number;
 };
 
-function marketToDraft(m: ReachMarket): MarketDraft {
-  return {
-    name: m.name,
-    wording: m.wording,
-    centerZip: m.centerZip ?? "",
-    radiusMi: String(m.radiusMi),
-    towns: m.towns ?? "",
-    notes: m.notes ?? "",
-  };
+/** A picked city becomes the market: "Houston, TX area". */
+function marketNameFor(c: CityHit): string {
+  return `${c.city}, ${c.state} area`;
 }
-
-const EMPTY_DRAFT: MarketDraft = {
-  name: "",
-  wording: "",
-  centerZip: "",
-  radiusMi: "150",
-  towns: "",
-  notes: "",
-};
 
 function MarketsEditor({
   markets,
@@ -203,24 +182,30 @@ function MarketsEditor({
           onClick={() => setAdding((v) => !v)}
           disabled={!available}
         >
-          {adding ? "Close" : "+ Add market"}
+          {adding ? "Close" : "+ Add"}
         </Button>
       </div>
       {!available ? (
         <p className="mt-2 font-mono text-[10px] text-warn">
-          Markets need the reach_* migration applied.
+          Needs the reach_* migration.
         </p>
       ) : null}
 
       {adding ? (
         <div className="mt-3">
-          <MarketRow draft={EMPTY_DRAFT} onDone={() => setAdding(false)} isNew />
+          <MarketRow isNew onDone={() => setAdding(false)} />
         </div>
       ) : null}
 
       <div className="mt-3 space-y-2">
         {markets.map((m) => (
-          <MarketRow key={m.id} id={m.id} draft={marketToDraft(m)} />
+          <MarketRow
+            key={m.id}
+            id={m.id}
+            name={m.name}
+            centerZip={m.centerZip ?? ""}
+            radiusMi={m.radiusMi}
+          />
         ))}
       </div>
     </Card>
@@ -229,36 +214,44 @@ function MarketsEditor({
 
 function MarketRow({
   id,
-  draft: initial,
+  name,
+  centerZip,
+  radiusMi,
   isNew,
   onDone,
 }: {
   id?: string;
-  draft: MarketDraft;
+  name?: string;
+  centerZip?: string;
+  radiusMi?: number;
   isNew?: boolean;
   onDone?: () => void;
 }) {
-  const [draft, setDraft] = useState<MarketDraft>(initial);
+  // A newly-picked city overrides the market's name + center. Left null on an
+  // existing market until he changes it.
+  const [city, setCity] = useState<CityHit | null>(null);
+  const [radius, setRadius] = useState(String(radiusMi ?? 150));
   const [open, setOpen] = useState(!!isNew);
   const [busy, setBusy] = useState(false);
   const [flash, setFlash] = useState<Flash>(null);
 
-  function set<K extends keyof MarketDraft>(k: K, v: MarketDraft[K]) {
-    setDraft((d) => ({ ...d, [k]: v }));
-  }
-
   async function onSave() {
     if (busy) return;
+    // New markets need a city; existing ones keep theirs unless he picks a new.
+    const marketName = city ? marketNameFor(city) : (name ?? "");
+    const zip = city ? city.zip : (centerZip ?? "");
+    if (!marketName || !zip) {
+      setFlash({ ok: false, text: "Pick a city." });
+      return;
+    }
     setBusy(true);
     setFlash(null);
     try {
       const input = {
-        name: draft.name,
-        wording: draft.wording,
-        centerZip: draft.centerZip,
-        radiusMi: Number(draft.radiusMi) || 150,
-        towns: draft.towns,
-        notes: draft.notes,
+        name: marketName,
+        wording: marketName,
+        centerZip: zip,
+        radiusMi: Number(radius) || 150,
       };
       const res = id
         ? await updateReachMarket(id, input)
@@ -276,7 +269,7 @@ function MarketRow({
 
   async function onDelete() {
     if (!id || busy) return;
-    if (!window.confirm(`Delete the "${draft.name}" market?`)) return;
+    if (!window.confirm(`Delete "${name}"?`)) return;
     setBusy(true);
     try {
       await deleteReachMarket(id);
@@ -293,68 +286,23 @@ function MarketRow({
           onClick={() => setOpen((v) => !v)}
           className="flex w-full items-center justify-between text-left"
         >
-          <span className="text-[13px] font-semibold text-fg">
-            {draft.name || "Untitled market"}
-          </span>
+          <span className="text-[13px] font-semibold text-fg">{name}</span>
           <span className="font-mono text-[11px] text-ink-3">
-            {draft.centerZip || "—"} · {draft.radiusMi} mi {open ? "▲" : "▼"}
+            {radius} mi {open ? "▲" : "▼"}
           </span>
         </button>
-      ) : (
-        <p className="text-[12px] font-bold uppercase tracking-[0.08em] text-ink-3">
-          New market
-        </p>
-      )}
+      ) : null}
 
       {open ? (
-        <div className="mt-3 space-y-2.5">
-          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-            <div>
-              <label className={field.label}>Name</label>
-              <input
-                value={draft.name}
-                onChange={(e) => set("name", e.target.value)}
-                className={field.input}
-                placeholder="Houston, TX area"
-              />
-            </div>
-            <div>
-              <label className={field.label}>Wording ({"{market}"})</label>
-              <input
-                value={draft.wording}
-                onChange={(e) => set("wording", e.target.value)}
-                className={field.input}
-                placeholder="the Houston market"
-              />
-            </div>
-            <div>
-              <label className={field.label}>Center ZIP</label>
-              <input
-                value={draft.centerZip}
-                onChange={(e) => set("centerZip", e.target.value)}
-                inputMode="numeric"
-                className={field.input}
-                placeholder="77002"
-              />
-            </div>
-            <div>
-              <label className={field.label}>Radius (mi)</label>
-              <input
-                value={draft.radiusMi}
-                onChange={(e) => set("radiusMi", e.target.value)}
-                inputMode="numeric"
-                className={field.input}
-                placeholder="150"
-              />
-            </div>
-          </div>
-          <div>
-            <label className={field.label}>Towns it covers</label>
+        <div className={isNew ? "space-y-2.5" : "mt-3 space-y-2.5"}>
+          <CityPicker value={city} onChange={setCity} currentName={name} />
+          <div className="w-28">
+            <label className={field.label}>Radius (mi)</label>
             <input
-              value={draft.towns}
-              onChange={(e) => set("towns", e.target.value)}
+              value={radius}
+              onChange={(e) => setRadius(e.target.value)}
+              inputMode="numeric"
               className={field.input}
-              placeholder="Kingwood, Conroe, Baytown…"
             />
           </div>
           <div className="flex items-center gap-2">
@@ -373,9 +321,7 @@ function MarketRow({
             ) : null}
             {flash ? (
               <span
-                className={
-                  "text-[11px] " + (flash.ok ? "text-ok" : "text-bad")
-                }
+                className={"text-[11px] " + (flash.ok ? "text-ok" : "text-bad")}
               >
                 {flash.text}
               </span>
@@ -383,6 +329,108 @@ function MarketRow({
           </div>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * City typeahead over the bundled zipcodes dataset (same source as the
+ * farm-contact form). He types a city, picks one, and its coordinates + name
+ * flow into the market — no manual ZIPs, coordinates, or wording.
+ */
+function CityPicker({
+  value,
+  onChange,
+  currentName,
+}: {
+  value: CityHit | null;
+  onChange: (v: CityHit | null) => void;
+  currentName?: string;
+}) {
+  const [text, setText] = useState("");
+  const [hits, setHits] = useState<CityHit[]>([]);
+  const [openList, setOpenList] = useState(false);
+  const reqRef = useRef(0);
+
+  useEffect(() => {
+    if (value) return;
+    const q = text.trim();
+    const id = ++reqRef.current;
+    // All state updates happen inside the debounce (async), never synchronously
+    // in the effect body.
+    const t = setTimeout(() => {
+      if (id !== reqRef.current) return;
+      if (q.length < 2) {
+        setHits([]);
+        setOpenList(false);
+        return;
+      }
+      fetch(`/api/admin/dispatch/cities?q=${encodeURIComponent(q)}`)
+        .then((r) => r.json())
+        .then((j) => {
+          if (id !== reqRef.current) return;
+          setHits(j.cities ?? []);
+          setOpenList(true);
+        })
+        .catch(() => {});
+    }, 200);
+    return () => clearTimeout(t);
+  }, [text, value]);
+
+  return (
+    <div className="relative">
+      <label className={field.label}>City</label>
+      {value ? (
+        <div className="flex items-center justify-between gap-2 rounded-md border border-line-strong bg-card px-3 py-2">
+          <span className="truncate text-[13px] font-semibold text-ink">
+            {value.city}, {value.state}
+          </span>
+          <button
+            type="button"
+            onClick={() => {
+              onChange(null);
+              setText("");
+            }}
+            className="shrink-0 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-steel hover:underline"
+          >
+            Change
+          </button>
+        </div>
+      ) : (
+        <>
+          <input
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onFocus={() => hits.length > 0 && setOpenList(true)}
+            autoComplete="off"
+            placeholder={currentName || "Type a city…"}
+            className={field.input}
+          />
+          {openList && hits.length > 0 ? (
+            <ul className="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-md border border-line-strong bg-card shadow-e2">
+              {hits.map((h) => (
+                <li key={`${h.zip}-${h.city}`}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onChange(h);
+                      setOpenList(false);
+                    }}
+                    className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-[13px] text-ink transition-colors hover:bg-inset"
+                  >
+                    <span className="truncate">
+                      {h.city}, {h.state}
+                    </span>
+                    <span className="shrink-0 font-mono text-[11px] text-ink-3">
+                      {h.zip}
+                    </span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </>
+      )}
     </div>
   );
 }
@@ -402,16 +450,15 @@ function TemplatesEditor({
   return (
     <Card>
       <p className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-ink-3">
-        Templates · posture × leverage
+        Templates
       </p>
       {!available ? (
         <p className="mt-2 font-mono text-[10px] text-warn">
-          Templates need the reach_* migration applied.
+          Needs the reach_* migration.
         </p>
       ) : null}
       <p className="mt-1.5 text-[11px] text-fg-subtle">
-        Tokens — {"{broker}"} · {"{market}"} · {"{equipment}"} ·{" "}
-        {"{town_paren}"}
+        {"{broker}"} · {"{market}"} · {"{equipment}"} · {"{town_paren}"}
       </p>
       <div className="mt-3 space-y-2">
         {POSTURES.map((posture) =>

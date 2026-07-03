@@ -213,14 +213,10 @@ export function ReachView({
       <div className="mx-auto w-full max-w-3xl px-4 py-5 sm:px-6 lg:px-8">
         <PageHeader
           eyebrow="Dispatch"
-          title="Backhaul Reach"
-          className="mb-1.5"
+          title="Reach"
+          className="mb-3"
           actions={<FarmContactButton />}
         />
-        <p className="mb-3 text-[13px] text-fg-muted">
-          Market-aware broker outreach — auto-composed, leverage-safe. Nothing
-          sends until you tap.
-        </p>
 
         {!effectiveMarket ? (
           <div className="rounded-md border border-dashed border-line-strong bg-card px-4 py-10 text-center font-mono text-[12px] text-ink-3 shadow-e1">
@@ -248,7 +244,6 @@ export function ReachView({
             onLeverage={setLeverage}
             previewSubject={previewSubject}
             previewBody={previewBody}
-            sampleName={sampleName}
             sendCount={sendCount}
             cooldown={cooldown}
             onOpenSend={() => {
@@ -266,7 +261,6 @@ export function ReachView({
         {/* Self-building recipient list */}
         {effectiveMarket ? (
           <RecipientList
-            radiusMi={effectiveMarket.radiusMi}
             recipients={recipients}
             heldBack={heldBack}
             selected={selected}
@@ -282,7 +276,7 @@ export function ReachView({
             className="flex w-full items-center justify-between rounded-md border border-line bg-card px-4 py-3 text-left shadow-e1 transition-colors hover:bg-inset"
           >
             <span className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-ink-2">
-              Reach settings · markets · templates
+              Settings
             </span>
             <span aria-hidden className="font-mono text-[12px] text-ink-3">
               {showSettings ? "▲" : "▼"}
@@ -342,7 +336,6 @@ function ReachFocalCard({
   onLeverage,
   previewSubject,
   previewBody,
-  sampleName,
   sendCount,
   cooldown,
   onOpenSend,
@@ -368,7 +361,6 @@ function ReachFocalCard({
   onLeverage: (l: Leverage) => void;
   previewSubject: string;
   previewBody: string;
-  sampleName: string;
   sendCount: number;
   cooldown: number;
   onOpenSend: () => void;
@@ -488,17 +480,17 @@ function ReachFocalCard({
         </div>
         <p className="mt-1 text-[11px] text-on-dark-dim">
           {leverage === "confident"
-            ? "Vague on rate and timing — protects your number."
+            ? "Protects your rate."
             : leverage === "balanced"
-              ? "States availability, invites a rate."
-              : "Direct — asks what they're paying now."}
+              ? "Invites a rate."
+              : "Asks their number."}
         </p>
       </div>
 
       {/* Live preview */}
       <div className="mt-4 rounded-md border border-line bg-card p-3.5 text-ink shadow-e1">
         <p className="font-mono text-[9.5px] font-bold uppercase tracking-[0.12em] text-ink-3">
-          Preview · personalized per broker
+          Preview
         </p>
         <p className="mt-1.5 text-[13.5px] font-semibold text-ink">
           {previewSubject}
@@ -507,11 +499,11 @@ function ReachFocalCard({
           {previewBody}
         </pre>
         <p className="mt-2 font-mono text-[9.5px] text-ink-3">
-          Showing “{sampleName}” — each broker sees their own name.
+          Each broker sees their own name.
         </p>
         {!templatesAvailable ? (
           <p className="mt-1 font-mono text-[9.5px] text-warn">
-            Templates aren’t migrated — using built-in wording.
+            Using built-in wording.
           </p>
         ) : null}
       </div>
@@ -643,24 +635,20 @@ function RecipientRow({
 }
 
 function RecipientList({
-  radiusMi,
   recipients,
   heldBack,
   selected,
   onToggle,
 }: {
-  radiusMi: number;
   recipients: ReachRecipient[];
   heldBack: ReachRecipient[];
   selected: Set<string>;
   onToggle: (id: string, hasEmail: boolean) => void;
 }) {
-  const withEmail = recipients.filter((r) => r.email).length;
   if (recipients.length === 0 && heldBack.length === 0) {
     return (
       <div className="mt-4 rounded-md border border-dashed border-line-strong bg-card px-4 py-8 text-center font-mono text-[12px] text-ink-3 shadow-e1">
-        No farmed brokers touch this market within {radiusMi} mi yet. Use “+
-        Quick Add Contact” to farm one off the board.
+        No brokers in this market yet.
       </div>
     );
   }
@@ -668,7 +656,7 @@ function RecipientList({
     <div className="mt-4">
       <div className="mb-2 flex items-baseline justify-between">
         <span className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-fg-muted">
-          Recipients · {recipients.length} match · {withEmail} with email
+          Recipients · {recipients.length}
         </span>
         <span className="font-mono text-[11px] text-fg-subtle">
           {[...selected].length} selected
@@ -689,7 +677,7 @@ function RecipientList({
       {heldBack.length > 0 ? (
         <>
           <p className="mb-1.5 mt-3 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-fg-subtle">
-            Held back · reached recently · tap to include
+            Held back · tap to include
           </p>
           <div className="overflow-hidden rounded-md border border-line bg-card shadow-e1 divide-y divide-line">
             {heldBack.map((r) => (

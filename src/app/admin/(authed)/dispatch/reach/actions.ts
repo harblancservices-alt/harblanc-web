@@ -33,8 +33,6 @@ export type MarketInput = {
   wording: string;
   centerZip: string;
   radiusMi: number;
-  towns: string;
-  notes: string;
 };
 
 export type MarketMutation =
@@ -86,8 +84,6 @@ export async function createReachMarket(
         center_lat: lat,
         center_lon: lon,
         radius_mi: clampRadius(input.radiusMi),
-        towns: input.towns.trim() || null,
-        notes: input.notes.trim() || null,
         sort_order: nextSort,
       })
       .select(MARKET_COLS)
@@ -121,8 +117,6 @@ export async function updateReachMarket(
         center_lat: lat,
         center_lon: lon,
         radius_mi: clampRadius(input.radiusMi),
-        towns: input.towns.trim() || null,
-        notes: input.notes.trim() || null,
         updated_at: new Date().toISOString(),
       })
       .eq("id", id)
