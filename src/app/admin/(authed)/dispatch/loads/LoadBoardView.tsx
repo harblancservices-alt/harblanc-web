@@ -82,8 +82,11 @@ const STATUS_LABEL: Record<string, string> = {
   cancelled: "Cancelled",
 };
 
+// Compacted so all 13 columns — through PAID — fit without horizontal scroll on
+// a ~1080px-wide portrait screen (see min-w below). Fixed tracks are tightened
+// and the wide Broker/Lane/Trip columns flex + truncate.
 const GRID =
-  "30px 92px 90px minmax(0,1.2fr) minmax(0,1.4fr) 60px 60px minmax(0,0.9fr) 88px 64px 56px 96px 96px";
+  "24px 90px 76px minmax(0,1.1fr) minmax(0,1.35fr) 50px 50px minmax(0,0.7fr) 76px 52px 44px 76px 48px";
 
 export function LoadBoardView({ data }: { data: LoadBoardData }) {
   const router = useRouter();
@@ -194,15 +197,16 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
 
         {/* KPI strip — Net profit is the focal (graphite) tile. */}
         <div className="mb-4 grid grid-cols-3 gap-px overflow-hidden rounded-md border border-line bg-line shadow-e2 sm:grid-cols-6">
-          <Kpi label="Total loads" value={String(stats.totalLoads)} tone="count" />
           {/* A/R is all-time (same on every month) and links to the full
-              Accounts Receivable page where loads get marked paid. */}
+              Accounts Receivable page where loads get marked paid. Pinned
+              leftmost per Brent's request. */}
           <Kpi
             label="A/R · all"
             value={usd(data.arTotal)}
             tone={data.arTotal > 0 ? "red" : "muted"}
             href="/admin/dispatch/receivables"
           />
+          <Kpi label="Total loads" value={String(stats.totalLoads)} tone="count" />
           <Kpi label="Delivered" value={String(stats.delivered)} tone="green" />
           <Kpi label="Gross" value={usd(stats.gross)} tone="green" />
           <Kpi label="Net profit" value={usd(stats.net)} tone="focal" />
@@ -292,9 +296,9 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
 
         {/* Table (desktop) */}
         <div className="hidden overflow-x-auto rounded-md border border-line bg-card shadow-e2 md:block">
-          <div className="min-w-[1040px]">
+          <div className="min-w-[900px]">
             <div
-              className="grid items-center gap-2 border-b-2 border-line-strong bg-inset px-3 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-ink-3"
+              className="grid items-center gap-1.5 border-b-2 border-line-strong bg-inset px-2 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.06em] text-ink-3"
               style={{ gridTemplateColumns: GRID }}
             >
               <span className="flex items-center">
@@ -320,17 +324,17 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
                 ) : null}
               </span>
               <span>Status</span>
-              <span>Load #</span>
+              <span>Load#</span>
               <span>Broker</span>
-              <span>Origin → Dest</span>
-              <span>Pickup</span>
-              <span>Delivery</span>
+              <span>Lane</span>
+              <span>PU</span>
+              <span>Del</span>
               <span>Trip</span>
               <span className="text-right">Rate</span>
-              <span className="text-right">Miles</span>
+              <span className="text-right">Mi</span>
               <span className="text-right">DH</span>
               <span className="text-right">Net</span>
-              <span />
+              <span className="text-right">Paid</span>
             </div>
 
             {rows.length === 0 ? (
@@ -354,7 +358,7 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
                     else router.push(`/admin/dispatch/loads/${r.id}`);
                   }}
                   className={
-                    "grid cursor-pointer items-center gap-2 px-3 py-2 text-[12.5px] transition-colors " +
+                    "grid cursor-pointer items-center gap-1.5 px-2 py-2 text-[12px] transition-colors " +
                     (selectMode && selected.has(r.id)
                       ? "bg-bad-bg hover:bg-bad-bg "
                       : (i % 2 === 0 ? "bg-card " : "bg-inset ") + "hover:bg-inset ") +
@@ -391,8 +395,8 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
                     {r.origin} <span className="text-ink-3">→</span>{" "}
                     {r.destination}
                   </span>
-                  <span className="text-ink-2">{r.pickup}</span>
-                  <span className="text-ink-2">{r.delivery}</span>
+                  <span className="truncate text-ink-2">{r.pickup}</span>
+                  <span className="truncate text-ink-2">{r.delivery}</span>
                   <span className="truncate text-steel">{r.trip}</span>
                   <span className="text-right font-bold tabular-nums text-ok">
                     {usd(r.rate)}
