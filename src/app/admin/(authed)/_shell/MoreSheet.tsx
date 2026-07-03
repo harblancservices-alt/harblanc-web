@@ -160,6 +160,7 @@ export function MoreSheet({
       role="dialog"
       aria-modal="true"
       aria-label="More"
+      data-shell="moresheet"
       className="fixed inset-0 z-50 lg:hidden"
     >
       <button

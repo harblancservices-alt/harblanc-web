@@ -267,6 +267,11 @@ html[data-admin-theme="dark"] .admin-light {
 html[data-layout="portrait"] [data-shell="sidebar"] { display: none !important; }
 html[data-layout="portrait"] [data-shell="bottomnav"] { display: grid !important; }
 html[data-layout="portrait"] [data-shell="main"] { padding-bottom: 5rem !important; }
+/* The More sheet the bottom nav opens is `lg:hidden` too — at a wide portrait
+   viewport it would mount but stay display:none. Force it visible/interactive
+   (it's fixed inset-0 z-50, so restoring display is enough). Only bites when
+   React has mounted it (open), so it stays hidden when closed. */
+html[data-layout="portrait"] [data-shell="moresheet"] { display: block !important; }
 html[data-layout="portrait"] [data-shell="main"] .sm\:grid-cols-2,
 html[data-layout="portrait"] [data-shell="main"] .md\:grid-cols-2,
 html[data-layout="portrait"] [data-shell="main"] .lg\:grid-cols-2,
