@@ -12,6 +12,7 @@ import {
 import { uploadFileToSignedUrl } from "@/lib/storage/client-upload";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { StatusTag, type StatusTone } from "@/components/ui/StatusTag";
 import { IntervalBar } from "./IntervalBar";
 
 export type MaintItem = {
@@ -227,6 +228,14 @@ export const STATUS: Record<
   },
 };
 
+/** Status → V2 StatusTag tone (red/amber/green/steel). */
+const STATUS_TONE: Record<MaintItem["status"], StatusTone> = {
+  overdue: "red",
+  soon: "amber",
+  ok: "green",
+  baseline: "steel",
+};
+
 export function remaining(item: MaintItem): { value: string; label: string; color: string } {
   if (item.milesRemaining == null) {
     return { value: "—", label: "no history", color: "text-steel" };
@@ -251,12 +260,12 @@ export function MaintenanceView({
   items,
   history,
   totalSpend,
-  summary,
 }: {
   currentOdo: number;
   items: MaintItem[];
   history: ServiceHistoryEntry[];
   totalSpend: number;
+  /** Still passed by the page; the redesigned list no longer surfaces it. */
   summary: MaintSummary;
 }) {
   // Unified add / log / edit service modal. presetItemId locks the type
@@ -307,26 +316,26 @@ export function MaintenanceView({
           }
         />
 
-        {/* Summary band — turns the logged data into useful numbers, led by the
-            focal Overdue count. */}
-        <SummaryBand summary={summary} overdue={counts.overdue} />
-
-        {/* Current odometer */}
-        <div className="rounded-md border border-line bg-card p-4 shadow-e2">
+        {/* Hero — current odometer (elevated). Reading is derived from the
+            highest load odo; no manual update affordance exists today. */}
+        <div className="rounded-md border border-line bg-card p-4 shadow-e2 sm:p-5">
           <p className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-ink-3">
             Current odometer
           </p>
-          <p className="mt-1 text-[30px] font-bold leading-none tabular-nums text-fg">
-            {currentOdo.toLocaleString()}{" "}
-            <span className="text-[16px] font-semibold text-fg-muted">mi</span>
+          <p className="mt-1.5 font-mono text-[34px] font-bold leading-none tabular-nums text-fg sm:text-[40px]">
+            {currentOdo.toLocaleString()}
+            <span className="ml-1.5 text-[16px] font-semibold text-fg-muted">
+              mi
+            </span>
           </p>
-          <p className="mt-1.5 text-[11px] text-fg-subtle">
+          <p className="mt-2 text-[11.5px] text-fg-subtle">
             Highest reading across all loads · 2018 Ram 2500 · 6.7L Cummins
           </p>
         </div>
 
-        {/* Status summary */}
-        <div className="mt-2 flex flex-wrap items-center gap-2 font-mono text-[11px]">
+        {/* Status chips — one per tracked state (Need baseline kept). Display
+            only, same as before. */}
+        <div className="mt-3 flex flex-wrap items-center gap-2 font-mono text-[11px]">
           <SummaryChip
             n={counts.overdue}
             label="overdue"
@@ -337,44 +346,41 @@ export function MaintenanceView({
             label="due soon"
             cls="bg-warn-bg text-warn"
           />
-          {counts.baseline > 0 ? (
-            <SummaryChip
-              n={counts.baseline}
-              label="need baseline"
-              cls="bg-steel-bg text-steel"
-            />
-          ) : null}
+          <SummaryChip
+            n={counts.baseline}
+            label="need baseline"
+            cls="bg-steel-bg text-steel"
+          />
           <SummaryChip n={counts.ok} label="ok" cls="bg-ok-bg text-ok" />
         </div>
 
-        {/* Item list — two tiers. Big attention cards (overdue or ≥75% through
-            interval) on top; compact rows for everything else below. Both tap
-            through to the item detail page. */}
+        {/* Lifetime spend — a quiet right-aligned line, not a card. */}
+        <p className="mt-2 text-right text-[11px] text-fg-subtle">
+          Lifetime maintenance{" "}
+          <span className="font-mono font-bold tabular-nums text-ok">
+            {totalSpend > 0 ? money(totalSpend) : "$0.00"}
+          </span>
+        </p>
+
+        {/* Item list — clean rows, urgent (overdue / ≥75%) first, then on
+            schedule. Every row taps through to the item detail page. */}
         {items.length === 0 ? (
           <div className="mt-3 rounded-md border border-dashed border-line-strong bg-card px-4 py-10 text-center font-mono text-[12px] text-ink-3 shadow-e1">
             No maintenance items yet.
           </div>
         ) : (
-          <div className="mt-3 space-y-2.5">
-            {bigItems.length > 0 ? (
-              <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
-                {bigItems.map((item) => (
-                  <BigItemCard key={item.id} item={item} />
-                ))}
-              </div>
+          <div className="mt-3 space-y-2">
+            {bigItems.map((item) => (
+              <ItemRow key={item.id} item={item} />
+            ))}
+            {compactItems.length > 0 && bigItems.length > 0 ? (
+              <p className="pt-2 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-fg-subtle">
+                On schedule · {compactItems.length}
+              </p>
             ) : null}
-            {compactItems.length > 0 ? (
-              <div className="space-y-2">
-                {bigItems.length > 0 ? (
-                  <p className="pt-1 font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-fg-subtle">
-                    On schedule · {compactItems.length}
-                  </p>
-                ) : null}
-                {compactItems.map((item) => (
-                  <CompactItemRow key={item.id} item={item} />
-                ))}
-              </div>
-            ) : null}
+            {compactItems.map((item) => (
+              <ItemRow key={item.id} item={item} />
+            ))}
           </div>
         )}
 
@@ -394,217 +400,65 @@ export function MaintenanceView({
   );
 }
 
-/** Big "attention" card — overdue or ≥75% through interval. Full progress bar. */
-function BigItemCard({ item }: { item: MaintItem }) {
+/**
+ * One maintenance item as a clean row. Top line: status tag + name, with the
+ * miles-remaining (or overdue amount) right-aligned in the status colour. A
+ * muted "Last <odo> · <date>" line (or a "Set baseline" hint for never-serviced
+ * items), then a slim interval progress bar. Overdue rows get a 3px red left
+ * edge + stronger elevation. Taps through to the item detail page — unchanged.
+ */
+function ItemRow({ item }: { item: MaintItem }) {
   const s = STATUS[item.status];
   const rem = remaining(item);
   const overdue = item.status === "overdue";
-  return (
-    <div
-      className={
-        "flex flex-col rounded-md border bg-card p-3.5 " +
-        (overdue
-          ? "border-l-[3px] border-l-bad shadow-e2 "
-          : "shadow-e1 ") +
-        s.border
-      }
-    >
-      <Link
-        href={`/admin/maintenance/${item.id}`}
-        className="-m-1 block rounded-lg p-1 transition-colors hover:bg-inset"
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <span
-                className={
-                  "shrink-0 rounded-sm px-1.5 py-[1px] font-mono text-[10px] font-bold uppercase tracking-[0.06em] " +
-                  s.pill
-                }
-              >
-                {s.label}
-              </span>
-              <h3 className="truncate text-[15px] font-semibold text-fg">
-                {item.name}
-              </h3>
-            </div>
-            {item.neverServiced ? (
-              <p className="mt-1 text-[11.5px] text-fg-subtle">Never serviced</p>
-            ) : (
-              <p className="mt-1 font-mono text-[11.5px] font-semibold tabular-nums text-warn">
-                Last {item.lastOdo!.toLocaleString()} mi
-                {item.lastDate
-                  ? " · " + (formatServiceDate(item.lastDate) ?? item.lastDate)
-                  : ""}
-              </p>
-            )}
-          </div>
-          <div className="shrink-0 text-right">
-            <div
-              className={
-                "text-[17px] font-bold leading-none tabular-nums " + rem.color
-              }
-            >
-              {rem.value}
-            </div>
-            <div className="mt-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.08em] text-fg-subtle">
-              {rem.label}
-            </div>
-            {item.nextDue != null ? (
-              <div className="mt-1 font-mono text-[10px] text-fg-subtle">
-                Due {item.nextDue.toLocaleString()} mi
-              </div>
-            ) : null}
-          </div>
-        </div>
-
-        <div className="mt-2.5">
-          <IntervalBar pct={item.pct} status={item.status} />
-          <p className="mt-1 font-mono text-[9.5px] text-fg-subtle">
-            {item.neverServiced
-              ? "Awaiting first service"
-              : `${Math.round(item.pct)}% through ${item.interval.toLocaleString()} mi interval`}
-          </p>
-        </div>
-      </Link>
-    </div>
-  );
-}
-
-/** Compact row — calmer items (<75% through interval). History-row styling. */
-function CompactItemRow({ item }: { item: MaintItem }) {
-  const s = STATUS[item.status];
-  const rem = remaining(item);
+  const baseline = item.neverServiced || item.lastOdo == null;
+  const remNote =
+    item.milesRemaining == null
+      ? "no history"
+      : item.milesRemaining <= 0
+        ? "overdue"
+        : "left";
   return (
     <Link
       href={`/admin/maintenance/${item.id}`}
-      className="block rounded-md border border-line bg-card p-3 shadow-e1 transition-colors hover:border-line-strong hover:bg-inset"
+      className={
+        "block rounded-md border bg-card p-3 transition-colors hover:border-line-strong hover:bg-inset " +
+        (overdue
+          ? "border-line border-l-[3px] border-l-bad shadow-e2"
+          : "border-line shadow-e1")
+      }
     >
       <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <span
-              className={
-                "shrink-0 rounded-sm px-1.5 py-[1px] font-mono text-[9px] font-bold uppercase tracking-[0.06em] " +
-                s.pill
-              }
-            >
-              {s.label}
-            </span>
-            <h3 className="truncate text-[14px] font-semibold text-fg">
-              {item.name}
-            </h3>
-          </div>
-          {item.neverServiced ? (
-            <p className="mt-0.5 font-mono text-[10.5px] text-fg-subtle">
-              Never serviced
-            </p>
-          ) : (
-            <p className="mt-0.5 font-mono text-[10.5px] font-semibold tabular-nums text-warn">
-              Last {item.lastOdo!.toLocaleString()} mi
-              {item.lastDate
-                ? " · " + (formatServiceDate(item.lastDate) ?? item.lastDate)
-                : ""}
-            </p>
-          )}
+        <div className="flex min-w-0 items-center gap-2">
+          <StatusTag tone={STATUS_TONE[item.status]} className="shrink-0">
+            {s.label}
+          </StatusTag>
+          <h3 className="truncate text-[14px] font-semibold text-fg">
+            {item.name}
+          </h3>
         </div>
-        <div className="shrink-0 text-right">
-          <div
-            className={
-              "text-[15px] font-bold leading-none tabular-nums " + rem.color
-            }
-          >
+        <div className="shrink-0 whitespace-nowrap text-right">
+          <span className={"text-[14px] font-bold tabular-nums " + rem.color}>
             {rem.value}
-          </div>
-          <div className="mt-0.5 font-mono text-[8.5px] font-bold uppercase tracking-[0.08em] text-fg-subtle">
-            {rem.label}
-          </div>
+          </span>
+          <span className="ml-1 font-mono text-[9px] font-bold uppercase tracking-[0.08em] text-fg-subtle">
+            {remNote}
+          </span>
         </div>
       </div>
+
+      <p className="mt-1 font-mono text-[10.5px] tabular-nums text-fg-subtle">
+        {baseline
+          ? "Set baseline · never serviced"
+          : `Last ${item.lastOdo!.toLocaleString()} mi${
+              item.lastDate
+                ? " · " + (formatServiceDate(item.lastDate) ?? item.lastDate)
+                : ""
+            }`}
+      </p>
+
+      <IntervalBar pct={item.pct} status={item.status} className="mt-2 h-1.5" />
     </Link>
-  );
-}
-
-/**
- * Top-of-page stat band: lifetime total spent + the single most-urgent item.
- * 2 tiles across, readable on mobile. (Cost-per-mile was removed — not
- * accurate enough yet; the computeCostPerMile helper stays in lib for later.)
- */
-function SummaryBand({
-  summary,
-  overdue,
-}: {
-  summary: MaintSummary;
-  overdue: number;
-}) {
-  const { totalSpend, nextDue } = summary;
-
-  let nextValue = "—";
-  let nextNote = "no serviced items";
-  let nextColor = "text-fg";
-  if (nextDue) {
-    if (nextDue.milesRemaining <= 0) {
-      nextValue = `${Math.abs(nextDue.milesRemaining).toLocaleString()} mi`;
-      nextNote = `${nextDue.name} · overdue`;
-      nextColor = "text-bad";
-    } else {
-      nextValue = `${nextDue.milesRemaining.toLocaleString()} mi`;
-      nextNote = `${nextDue.name} · left`;
-      nextColor =
-        nextDue.milesRemaining <= 1000 ? "text-warn" : "text-ok";
-    }
-  }
-
-  return (
-    <div className="mb-2 grid grid-cols-1 divide-y divide-line overflow-hidden rounded-md border border-line bg-card shadow-e2 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-      {/* Focal — Overdue count on the graphite hero cell with an accent edge. */}
-      <div className="relative min-w-0 overflow-hidden bg-graphite px-3.5 py-3 pl-4">
-        <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-accent" />
-        <p className="font-mono text-[9px] font-bold uppercase tracking-[0.1em] text-on-dark-dim">
-          Overdue
-        </p>
-        <p
-          className={
-            "mt-1 text-[24px] font-bold leading-none tabular-nums " +
-            (overdue > 0 ? "text-white" : "text-on-dark-dim")
-          }
-        >
-          {overdue}
-        </p>
-        <p className="mt-1 truncate font-mono text-[9px] text-on-dark-dim">
-          {overdue > 0 ? "items past due" : "all current"}
-        </p>
-      </div>
-
-      <div className="min-w-0 px-3.5 py-3">
-        <p className="font-mono text-[9px] font-bold uppercase tracking-[0.1em] text-ink-3">
-          Total spent
-        </p>
-        <p className="mt-1 truncate text-[24px] font-bold leading-none tabular-nums text-ok">
-          {totalSpend > 0 ? money(totalSpend) : "$0.00"}
-        </p>
-        <p className="mt-1 font-mono text-[9px] text-fg-subtle">
-          lifetime maintenance
-        </p>
-      </div>
-
-      <div className="min-w-0 px-3.5 py-3">
-        <p className="font-mono text-[9px] font-bold uppercase tracking-[0.1em] text-ink-3">
-          Next due
-        </p>
-        <p
-          className={
-            "mt-1 truncate text-[22px] font-bold leading-none tabular-nums " +
-            nextColor
-          }
-        >
-          {nextValue}
-        </p>
-        <p className="mt-1 truncate font-mono text-[9px] text-fg-subtle">
-          {nextNote}
-        </p>
-      </div>
-    </div>
   );
 }
 
