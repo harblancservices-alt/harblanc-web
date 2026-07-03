@@ -556,7 +556,7 @@ function SummaryBand({
   }
 
   return (
-    <div className="mb-2 grid grid-cols-3 divide-x divide-line overflow-hidden rounded-md border border-line bg-card shadow-e2">
+    <div className="mb-2 grid grid-cols-1 divide-y divide-line overflow-hidden rounded-md border border-line bg-card shadow-e2 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
       {/* Focal — Overdue count on the graphite hero cell with an accent edge. */}
       <div className="relative min-w-0 overflow-hidden bg-graphite px-3.5 py-3 pl-4">
         <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-accent" />
@@ -580,7 +580,7 @@ function SummaryBand({
         <p className="font-mono text-[9px] font-bold uppercase tracking-[0.1em] text-ink-3">
           Total spent
         </p>
-        <p className="mt-1 text-[24px] font-bold leading-none tabular-nums text-ok">
+        <p className="mt-1 truncate text-[24px] font-bold leading-none tabular-nums text-ok">
           {totalSpend > 0 ? money(totalSpend) : "$0.00"}
         </p>
         <p className="mt-1 font-mono text-[9px] text-fg-subtle">
@@ -594,7 +594,8 @@ function SummaryBand({
         </p>
         <p
           className={
-            "mt-1 text-[22px] font-bold leading-none tabular-nums " + nextColor
+            "mt-1 truncate text-[22px] font-bold leading-none tabular-nums " +
+            nextColor
           }
         >
           {nextValue}
