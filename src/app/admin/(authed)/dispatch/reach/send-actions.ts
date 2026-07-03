@@ -3,15 +3,16 @@
 /**
  * Backhaul Reach — the SEND path. One personalized email per broker via the
  * app's Resend integration, reply-to the owner inbox so replies land in Gmail.
- * Nothing sends until the operator taps in the UI.
- *
- * Stage 3 wires the live send + preview; recording each send to reach_sends and
- * the "Send test to myself" option are finished in Stage 4.
+ * Nothing sends until the operator taps in the UI. Each successful send is
+ * logged to reach_sends, which powers the "reached Nd ago" suppression.
  */
 
 import { Resend } from "resend";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { renderTemplate } from "./types";
+
+/** Where "Send test to myself" delivers — the owner's own inbox. */
+const TEST_RECIPIENT = "harblancservices@gmail.com";
 
 export type ReachSendContext = {
   /** Rendered market phrase ({market} token), e.g. "Houston, TX area". */
@@ -47,18 +48,24 @@ function renderHtml(personalBody: string): string {
 }
 
 type BrokerRow = { id: string; name: string | null; email: string | null };
-type ContactRow = { broker_id: string | null; email: string | null };
+type ContactRow = {
+  id: string;
+  broker_id: string | null;
+  email: string | null;
+};
 
 /**
  * Send the outreach to the selected brokers. The client passes broker ids + the
  * chosen posture/leverage template and its resolved token context; the server
- * re-fetches broker names/emails (never trusting client-supplied addresses) and
- * renders {broker} per recipient.
+ * re-fetches broker names/emails (never trusting client-supplied addresses),
+ * renders {broker} per recipient, and logs each success to reach_sends.
  */
 export async function sendReach(input: {
   brokerIds: string[];
   posture: string;
   leverage: string;
+  marketId: string | null;
+  marketName: string;
   ctx: ReachSendContext;
 }): Promise<ReachSendResult> {
   const apiKey = process.env.RESEND_API_KEY;
@@ -82,7 +89,7 @@ export async function sendReach(input: {
       .returns<BrokerRow[]>(),
     sb
       .from("broker_contacts")
-      .select("broker_id, email")
+      .select("id, broker_id, email")
       .in("broker_id", ids)
       .eq("is_backhaul", true)
       .is("deleted_at", null)
@@ -90,21 +97,34 @@ export async function sendReach(input: {
   ]);
 
   // First backhaul-contact email per broker (fallback for a broker with no
-  // email of its own).
-  const contactEmail = new Map<string, string>();
+  // email of its own); track the contact id for the send log.
+  const contactEmail = new Map<string, { email: string; contactId: string }>();
   for (const c of contactRows ?? []) {
     const e = (c.email ?? "").trim();
     if (c.broker_id && e && !contactEmail.has(c.broker_id)) {
-      contactEmail.set(c.broker_id, e);
+      contactEmail.set(c.broker_id, { email: e, contactId: c.id });
     }
   }
 
-  const recipients = (brokers ?? [])
-    .map((b) => ({
-      name: b.name?.trim() || "there",
-      email: (b.email ?? "").trim() || contactEmail.get(b.id) || null,
-    }))
-    .filter((b): b is { name: string; email: string } => !!b.email);
+  type Recipient = {
+    brokerId: string;
+    contactId: string | null;
+    name: string;
+    email: string;
+  };
+  const recipients: Recipient[] = (brokers ?? [])
+    .map((b) => {
+      const own = (b.email ?? "").trim();
+      const fallback = contactEmail.get(b.id);
+      const email = own || fallback?.email || "";
+      return {
+        brokerId: b.id,
+        contactId: own ? null : (fallback?.contactId ?? null),
+        name: b.name?.trim() || "there",
+        email,
+      };
+    })
+    .filter((r) => r.email.length > 0);
   if (recipients.length === 0) {
     return {
       ok: false,
@@ -115,7 +135,7 @@ export async function sendReach(input: {
   const from =
     process.env.RESEND_FROM_ADDRESS ??
     "Harblanc Dispatch <dispatch@harblancservices.com>";
-  const replyTo = process.env.ADMIN_EMAIL ?? "harblancservices@gmail.com";
+  const replyTo = process.env.ADMIN_EMAIL ?? TEST_RECIPIENT;
   const resend = new Resend(apiKey);
 
   const base = {
@@ -124,6 +144,8 @@ export async function sendReach(input: {
     townParen: input.ctx.townParen,
   };
 
+  const nowIso = new Date().toISOString();
+  const logRows: Record<string, unknown>[] = [];
   let sent = 0;
   let failed = 0;
   for (const r of recipients) {
@@ -138,12 +160,83 @@ export async function sendReach(input: {
         html: renderHtml(body),
         replyTo,
       });
-      if (res.error) failed += 1;
-      else sent += 1;
+      if (res.error) {
+        failed += 1;
+      } else {
+        sent += 1;
+        logRows.push({
+          broker_id: r.brokerId,
+          broker_contact_id: r.contactId,
+          email: r.email,
+          market_id: input.marketId,
+          market_name: input.marketName,
+          posture: input.posture,
+          leverage: input.leverage,
+          sent_at: nowIso,
+        });
+      }
     } catch {
       failed += 1;
     }
   }
 
+  // Log successful sends for suppression. Best-effort: a logging failure must
+  // not report the emails (already delivered) as failed.
+  if (logRows.length > 0) {
+    try {
+      await sb.from("reach_sends").insert(logRows);
+    } catch {
+      // reach_sends unavailable (pre-migration) — sends still went out.
+    }
+  }
+
   return { ok: true, sent, failed };
+}
+
+// ── Test send ────────────────────────────────────────────────────────────────
+
+export type ReachTestResult =
+  | { ok: true; to: string }
+  | { ok: false; reason: string };
+
+/**
+ * Send the current rendered outreach to the operator's own inbox so he can
+ * preview exactly what a broker receives. {broker} renders as "there". Only
+ * ever goes to the owner's address (explicitly authorized) and is never logged.
+ */
+export async function sendReachTest(
+  ctx: ReachSendContext,
+): Promise<ReachTestResult> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) return { ok: false, reason: "RESEND_API_KEY not configured." };
+
+  const base = { market: ctx.market, equipment: ctx.equipment, townParen: ctx.townParen };
+  const subject = renderTemplate(ctx.subjectTemplate, { ...base, broker: "there" }).trim();
+  const body = renderTemplate(ctx.bodyTemplate, { ...base, broker: "there" }).trim();
+  if (!subject || !body) {
+    return { ok: false, reason: "The message template is empty." };
+  }
+
+  const from =
+    process.env.RESEND_FROM_ADDRESS ??
+    "Harblanc Dispatch <dispatch@harblancservices.com>";
+  const replyTo = process.env.ADMIN_EMAIL ?? TEST_RECIPIENT;
+  const resend = new Resend(apiKey);
+
+  try {
+    const res = await resend.emails.send({
+      from,
+      to: [TEST_RECIPIENT],
+      subject: `[TEST] ${subject}`,
+      text: body,
+      html: renderHtml(body),
+      replyTo,
+    });
+    if (res.error) {
+      return { ok: false, reason: res.error.message ?? "Resend rejected the send." };
+    }
+    return { ok: true, to: TEST_RECIPIENT };
+  } catch (e) {
+    return { ok: false, reason: e instanceof Error ? e.message : "Send failed." };
+  }
 }

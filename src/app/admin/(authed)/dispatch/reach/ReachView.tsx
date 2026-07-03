@@ -6,7 +6,11 @@ import Link from "next/link";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { FarmContactButton } from "../../FarmBrokerContactCard";
-import { sendReach, type ReachSendResult } from "./send-actions";
+import {
+  sendReach,
+  sendReachTest,
+  type ReachSendResult,
+} from "./send-actions";
 import { ReachSettingsPanel } from "./ReachSettingsPanel";
 import {
   LEVERAGES,
@@ -87,6 +91,10 @@ export function ReachView({
   const [cooldown, setCooldown] = useState(0);
   const [showSettings, setShowSettings] = useState(false);
   const [zipDraft, setZipDraft] = useState(anchorZip ?? "");
+  const [testing, setTesting] = useState(false);
+  const [testMsg, setTestMsg] = useState<{ ok: boolean; text: string } | null>(
+    null,
+  );
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -157,6 +165,8 @@ export function ReachView({
         brokerIds: ids,
         posture,
         leverage,
+        marketId: effectiveMarket?.id ?? null,
+        marketName: effectiveMarket?.name ?? marketWording,
         ctx: {
           market: marketWording,
           equipment,
@@ -173,6 +183,28 @@ export function ReachView({
       }
     } finally {
       setSending(false);
+    }
+  }
+
+  async function onTestSend() {
+    if (testing) return;
+    setTesting(true);
+    setTestMsg(null);
+    try {
+      const r = await sendReachTest({
+        market: marketWording,
+        equipment,
+        townParen,
+        subjectTemplate: tpl.subject,
+        bodyTemplate: tpl.body,
+      });
+      setTestMsg(
+        r.ok
+          ? { ok: true, text: `Test sent to ${r.to}` }
+          : { ok: false, text: r.reason },
+      );
+    } finally {
+      setTesting(false);
     }
   }
 
@@ -225,6 +257,9 @@ export function ReachView({
             }}
             result={result}
             templatesAvailable={templatesAvailable}
+            testing={testing}
+            testMsg={testMsg}
+            onTestSend={onTestSend}
           />
         )}
 
@@ -313,6 +348,9 @@ function ReachFocalCard({
   onOpenSend,
   result,
   templatesAvailable,
+  testing,
+  testMsg,
+  onTestSend,
 }: {
   posture: Posture;
   onFlipPosture: () => void;
@@ -336,6 +374,9 @@ function ReachFocalCard({
   onOpenSend: () => void;
   result: ReachSendResult | null;
   templatesAvailable: boolean;
+  testing: boolean;
+  testMsg: { ok: boolean; text: string } | null;
+  onTestSend: () => void;
 }) {
   const readyLine =
     posture === "planning" ? "inbound · will be open" : "ready to roll";
@@ -489,6 +530,25 @@ function ReachFocalCard({
       <p className="mt-1.5 text-center font-mono text-[10px] text-on-dark-dim">
         Replies land in your inbox · nothing sends until you tap.
       </p>
+      <div className="mt-2 flex items-center justify-center gap-2">
+        <button
+          type="button"
+          onClick={onTestSend}
+          disabled={testing}
+          className="font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-on-dark-dim underline-offset-2 hover:text-white hover:underline disabled:opacity-50"
+        >
+          {testing ? "Sending test…" : "Send test to myself"}
+        </button>
+        {testMsg ? (
+          <span
+            className={
+              "text-[11px] " + (testMsg.ok ? "text-white" : "text-accent")
+            }
+          >
+            {testMsg.text}
+          </span>
+        ) : null}
+      </div>
       {result ? (
         <p
           className={
