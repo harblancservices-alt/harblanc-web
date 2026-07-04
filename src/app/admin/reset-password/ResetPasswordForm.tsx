@@ -34,20 +34,24 @@ export function ResetPasswordForm() {
     setStatus("done");
   }
 
+  const labelClass =
+    "text-[10.5px] font-bold uppercase tracking-[0.8px] text-[#8790A0]";
+  const backLink =
+    "text-[11.5px] font-medium text-[#8790A0] transition-colors hover:text-[#EDEFF2]";
+
   if (status === "done") {
     return (
-      <div className="mt-10 border border-zinc-300 bg-zinc-100 p-5">
-        <p className="font-mono text-xs tracking-[0.12em] text-red-600 uppercase">
-          Sent
-        </p>
-        <p className="mt-3 text-sm leading-relaxed text-fg">
-          If that email is registered, a reset link is on its way. Check the
-          inbox and click the link to set a new password.
-        </p>
-        <Link
-          href="/admin/login"
-          className="mt-5 inline-block font-mono text-xs tracking-[0.12em] text-fg uppercase transition-colors hover:text-fg"
-        >
+      <div className="mt-8">
+        <div className="rounded-[9px] border border-[#242B35] bg-[#1B212A] p-5">
+          <p className="text-[10.5px] font-bold uppercase tracking-[0.8px] text-[#8790A0]">
+            Sent
+          </p>
+          <p className="mt-2.5 text-[12.5px] leading-relaxed text-[#C3C9D2]">
+            If that email is registered, a reset link is on its way. Check the
+            inbox and click the link to set a new password.
+          </p>
+        </div>
+        <Link href="/admin/login" className={`mt-6 inline-block ${backLink}`}>
           &larr; Back to sign in
         </Link>
       </div>
@@ -55,53 +59,49 @@ export function ResetPasswordForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="mt-10 space-y-6">
+    <form onSubmit={handleSubmit} noValidate className="mt-8">
       <div>
-        <label
-          htmlFor="email"
-          className="block font-mono text-xs tracking-[0.12em] text-fg uppercase"
-        >
+        <label htmlFor="email" className={`block ${labelClass}`}>
           Email
         </label>
         <input
           id="email"
           name="email"
           type="email"
-          autoComplete="username"
+          autoComplete="email"
           inputMode="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           required
-          className="mt-2.5 block w-full bg-card px-4 py-3.5 text-base text-fg placeholder:text-fg border border-zinc-300 focus:border-red-600 focus:outline-none"
-          placeholder="dispatch@harblancservices.com"
+          className="mt-2 block h-[50px] w-full rounded-[9px] border border-[#3A424D] bg-[#1B212A] pl-4 text-[13.5px] text-[#EDEFF2] placeholder:text-[#5A6472] transition-colors focus:border-[1.7px] focus:border-[#E5484D] focus:outline-none"
+          placeholder="name@example.com"
         />
       </div>
 
       {error ? (
         <div
           role="alert"
-          className="flex items-start gap-3 border border-red-300 bg-red-50 p-4"
+          className="mt-5 flex items-start gap-3 rounded-[9px] border border-[#E5484D]/40 bg-[#E5484D]/10 p-4"
         >
           <span
             aria-hidden
-            className="mt-0.5 inline-block h-3 w-1 shrink-0 bg-red-600"
+            className="mt-0.5 inline-block h-3 w-1 shrink-0 rounded-sm bg-[#E5484D]"
           />
-          <p className="text-sm leading-relaxed text-red-800">{error}</p>
+          <p className="text-[12.5px] leading-relaxed text-[#F1908F]">
+            {error}
+          </p>
         </div>
       ) : null}
 
       <button
         type="submit"
         disabled={status === "submitting"}
-        className="btn-cut inline-flex w-full items-center justify-center bg-red-600 px-6 py-3.5 text-sm font-semibold uppercase tracking-[0.12em] text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-70"
+        className="mt-6 inline-flex h-[52px] w-full items-center justify-center rounded-[9px] bg-[#E5484D] text-[14.5px] font-bold text-white transition-colors hover:bg-[#d13b40] disabled:cursor-not-allowed disabled:opacity-70"
       >
-        {status === "submitting" ? "Sending\u2026" : "Send reset link"}
+        {status === "submitting" ? "Sending…" : "Send reset link"}
       </button>
 
-      <Link
-        href="/admin/login"
-        className="block font-mono text-xs tracking-[0.12em] text-fg uppercase transition-colors hover:text-fg"
-      >
+      <Link href="/admin/login" className={`mt-6 block text-center ${backLink}`}>
         &larr; Back to sign in
       </Link>
     </form>

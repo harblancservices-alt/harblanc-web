@@ -125,8 +125,19 @@ export async function middleware(request: NextRequest) {
   requestHeaders.set("x-admin-user-id", user.id);
   requestHeaders.set("x-admin-user-email", user.email);
   const response = NextResponse.next({ request: { headers: requestHeaders } });
+  // Remember-me: if the login set hb-persist=0 (session-only), strip the
+  // Max-Age/Expires that @supabase/ssr hard-codes onto refreshed auth cookies
+  // so they stay session-scoped and clear on browser close. Any other value
+  // (or absence) keeps Supabase's default persistent cookies.
+  const sessionOnly = request.cookies.get("hb-persist")?.value === "0";
   for (const { name, value, options } of cookiesToSet) {
-    response.cookies.set(name, value, options);
+    // Only downgrade real writes; leave deletions (empty value / maxAge 0)
+    // alone so old cookie chunks still get cleared.
+    const opts =
+      sessionOnly && value !== ""
+        ? { ...options, maxAge: undefined, expires: undefined }
+        : options;
+    response.cookies.set(name, value, opts);
   }
   return response;
 }
