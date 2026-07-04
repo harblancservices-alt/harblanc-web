@@ -54,8 +54,9 @@ export async function loadReachSettings(): Promise<ReachSettings> {
     const lev: Leverage = isLeverage(data.default_leverage ?? "")
       ? (data.default_leverage as Leverage)
       : DEFAULT_SETTINGS.defaultLeverage;
-    // MC + phone live in columns added later; read them best-effort so the page
-    // still works (with defaults) before that migration lands.
+    // MC / phone / reply-to live in columns added by later migrations; read
+    // them best-effort so the page still works (with defaults) before those
+    // land. Reply-to is its own query so it survives even if mc/phone are absent.
     let mc = DEFAULT_SETTINGS.mc;
     let phone = DEFAULT_SETTINGS.phone;
     try {
@@ -71,6 +72,19 @@ export async function loadReachSettings(): Promise<ReachSettings> {
     } catch {
       // columns not present yet — keep the defaults
     }
+    let replyToEmail = DEFAULT_SETTINGS.replyToEmail;
+    try {
+      const { data: r } = await sb
+        .from("reach_settings")
+        .select("reply_to_email")
+        .eq("id", true)
+        .maybeSingle<{ reply_to_email: string | null }>();
+      if (r) {
+        replyToEmail = (r.reply_to_email ?? "").trim() || DEFAULT_SETTINGS.replyToEmail;
+      }
+    } catch {
+      // column not present yet — keep the default
+    }
     return {
       truckLine: (data.truck_line ?? "").trim() || DEFAULT_SETTINGS.truckLine,
       replyToName:
@@ -79,6 +93,7 @@ export async function loadReachSettings(): Promise<ReachSettings> {
       defaultLeverage: lev,
       mc,
       phone,
+      replyToEmail,
     };
   } catch {
     return DEFAULT_SETTINGS;

@@ -88,6 +88,8 @@ export type ReachSettings = {
   mc: string;
   /** Phone shown in every email signature, e.g. "832-445-8775". */
   phone: string;
+  /** Where replies land — reply-to on every send, e.g. "Dispatch@Harblancservices.com". */
+  replyToEmail: string;
 };
 
 /** A posture × leverage subject/body template. */
@@ -201,4 +203,5 @@ export const DEFAULT_SETTINGS: ReachSettings = {
   defaultLeverage: DEFAULT_STYLE,
   mc: "1467901",
   phone: "832-445-8775",
+  replyToEmail: "Dispatch@Harblancservices.com",
 };

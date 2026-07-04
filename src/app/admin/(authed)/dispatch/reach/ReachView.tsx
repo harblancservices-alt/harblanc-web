@@ -21,6 +21,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { sendReach, sendReachTest, type ReachSendResult } from "./send-actions";
 import { saveReachStyleEmail } from "./actions";
+import { reachSignatureHtml, REACH_PREVIEW_LOGO_URL } from "./signature";
 import { SetupModal } from "./SetupModal";
 import { ContactsTab } from "./ContactsTab";
 import type { ReachContact } from "./queries";
@@ -47,7 +48,7 @@ function fallbackTemplate(posture: Posture): { subject: string; body: string } {
     posture === "planning" ? "Headed Your Way" : "Available and Ready to Roll";
   return {
     subject: "Hotshot Capacity — {market}",
-    body: `Hi {broker},\n\nHARBLANC has a {equipment} ${lead} {town_paren} with Capacity opening up. What do you have coming out of the area?\n\nReply here or give me a call.\n\nThanks,\nHARBLANC\nMC {mc} · {phone}`,
+    body: `Hi {broker},\n\nHARBLANC has a {equipment} ${lead} {town_paren} with Capacity opening up. What do you have coming out of the area?\n\nReply here or give me a call.\n\nThanks,\nHARBLANC`,
   };
 }
 
@@ -108,12 +109,16 @@ export function ReachView({
   // Date drives posture: today = truck open now; any future date = planning.
   const posture: Posture = date > today ? "planning" : "available";
 
-  // Truck line, from name, and signature MC/phone live here so the email preview
-  // updates as they're edited in Setup, and the send uses the current values.
+  // Truck line, from name, and reply-to live here so the email preview updates
+  // as they're edited in Setup, and the send uses the current values.
   const [equipment, setEquipment] = useState(settings.truckLine);
   const [replyToName, setReplyToName] = useState(settings.replyToName);
-  const [mc, setMc] = useState(settings.mc);
-  const [phone, setPhone] = useState(settings.phone);
+  const [replyToEmail, setReplyToEmail] = useState(settings.replyToEmail);
+  // Legacy signature tokens — still filled for any template that uses
+  // {mc}/{phone}; the branded footer is the canonical signature now, so these
+  // aren't edited in Setup.
+  const mc = settings.mc;
+  const phone = settings.phone;
 
   const [setupOpen, setSetupOpen] = useState(false);
   const [sending, setSending] = useState(false);
@@ -231,6 +236,7 @@ export function ReachView({
         marketId: null,
         marketName: effectiveMarket?.name ?? marketWording,
         replyToName,
+        replyToEmail,
         ctx: {
           market: marketWording,
           equipment,
@@ -271,6 +277,7 @@ export function ReachView({
           bodyTemplate: tpl.body,
         },
         replyToName,
+        replyToEmail,
       );
       setTestMsg(
         r.ok
@@ -375,10 +382,8 @@ export function ReachView({
           onTruckLineChange={setEquipment}
           replyToName={replyToName}
           onReplyToNameChange={setReplyToName}
-          mc={mc}
-          onMcChange={setMc}
-          phone={phone}
-          onPhoneChange={setPhone}
+          replyToEmail={replyToEmail}
+          onReplyToEmailChange={setReplyToEmail}
           onSaved={() => router.refresh()}
           onClose={() => setSetupOpen(false)}
         />
@@ -811,6 +816,13 @@ function EmailForm({
         <pre className="mt-2 whitespace-pre-wrap break-words font-sans text-[12.5px] leading-relaxed text-ink-2">
           {previewBody}
         </pre>
+        {/* Branded signature footer — exactly what's appended to every email. */}
+        <div
+          className="mt-2 overflow-x-auto rounded-md bg-white p-3"
+          dangerouslySetInnerHTML={{
+            __html: reachSignatureHtml(REACH_PREVIEW_LOGO_URL),
+          }}
+        />
       </div>
     </div>
   );

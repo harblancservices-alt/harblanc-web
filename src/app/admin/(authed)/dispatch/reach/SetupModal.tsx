@@ -25,10 +25,8 @@ export function SetupModal({
   onTruckLineChange,
   replyToName,
   onReplyToNameChange,
-  mc,
-  onMcChange,
-  phone,
-  onPhoneChange,
+  replyToEmail,
+  onReplyToEmailChange,
   onSaved,
   onClose,
 }: {
@@ -37,10 +35,8 @@ export function SetupModal({
   onTruckLineChange: (v: string) => void;
   replyToName: string;
   onReplyToNameChange: (v: string) => void;
-  mc: string;
-  onMcChange: (v: string) => void;
-  phone: string;
-  onPhoneChange: (v: string) => void;
+  replyToEmail: string;
+  onReplyToEmailChange: (v: string) => void;
   onSaved: () => void;
   onClose: () => void;
 }) {
@@ -69,8 +65,7 @@ export function SetupModal({
         replyToName,
         showExactTown,
         defaultLeverage: defaultStyle,
-        mc,
-        phone,
+        replyToEmail,
       });
       if (res.ok) {
         setFlash({ ok: true, text: "Saved" });
@@ -138,30 +133,20 @@ export function SetupModal({
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={field.label}>MC number</label>
-              <input
-                value={mc}
-                onChange={(e) => onMcChange(e.target.value)}
-                className={field.input}
-                placeholder="1467901"
-              />
-            </div>
-            <div>
-              <label className={field.label}>Phone</label>
-              <input
-                value={phone}
-                onChange={(e) => onPhoneChange(e.target.value)}
-                className={field.input}
-                placeholder="832-445-8775"
-                inputMode="tel"
-              />
-            </div>
+          <div>
+            <label className={field.label}>Reply-to email</label>
+            <input
+              value={replyToEmail}
+              onChange={(e) => onReplyToEmailChange(e.target.value)}
+              className={field.input}
+              placeholder="Dispatch@Harblancservices.com"
+              inputMode="email"
+            />
+            <p className="mt-1 text-[11px] text-fg-subtle">
+              Where broker replies land. The branded signature (name, MC/DOT,
+              phone, emails) is added to every email automatically.
+            </p>
           </div>
-          <p className="-mt-1 text-[11px] text-fg-subtle">
-            Shown in every email&apos;s signature.
-          </p>
 
           <label className="flex cursor-pointer items-start gap-2.5 rounded-md border border-line bg-inset px-3 py-2.5">
             <input

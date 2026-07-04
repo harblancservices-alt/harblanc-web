@@ -10,6 +10,15 @@
 import { Resend } from "resend";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { renderTemplate } from "./types";
+import { reachSignatureHtml, REACH_TEXT_SIGNATURE } from "./signature";
+
+/** Absolute origin for the inline signature logo (emails need absolute URLs). */
+const PUBLIC_ORIGIN = (
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.harblancservices.com"
+).replace(/\/$/, "");
+
+/** Where replies land by default (editable via reach_settings.reply_to_email). */
+const DEFAULT_REPLY_TO = "Dispatch@Harblancservices.com";
 
 /** Where "Send test to myself" delivers — the owner's own inbox. */
 const TEST_RECIPIENT = "harblancservices@gmail.com";
@@ -70,12 +79,22 @@ function escapeHtml(s: string): string {
   );
 }
 
-/** Wrap a plain-text body (newlines → paragraphs) into the outreach email HTML. */
+/**
+ * Wrap a plain-text body (newlines → paragraphs) into the outreach email HTML,
+ * then append the branded signature footer with the logo as a plain inline
+ * <img> (absolute URL — never an attachment).
+ */
 function renderHtml(personalBody: string): string {
+  const footer = reachSignatureHtml(`${PUBLIC_ORIGIN}/reach-logo.png`);
   return `<!doctype html><html><body style="margin:0;padding:20px;font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#111;font-size:15px;line-height:1.6">${personalBody
     .split("\n")
     .map((line) => `<p style="margin:0 0 10px">${escapeHtml(line)}</p>`)
-    .join("")}</body></html>`;
+    .join("")}${footer}</body></html>`;
+}
+
+/** Append the plain-text signature to a message body (image-blocked fallback). */
+function withTextSignature(body: string): string {
+  return `${body.replace(/\s+$/, "")}\n\n${REACH_TEXT_SIGNATURE}`;
 }
 
 type BrokerRow = { id: string; name: string | null; email: string | null };
@@ -99,6 +118,8 @@ export async function sendReach(input: {
   marketName: string;
   /** reach_settings.reply_to_name — the sender/reply display name. */
   replyToName: string;
+  /** reach_settings.reply_to_email — where replies land (capital-D display). */
+  replyToEmail?: string;
   ctx: ReachSendContext;
 }): Promise<ReachSendResult> {
   const apiKey = process.env.RESEND_API_KEY;
@@ -168,10 +189,10 @@ export async function sendReach(input: {
   const fromSpec =
     process.env.RESEND_FROM_ADDRESS ??
     "Harblanc Dispatch <dispatch@harblancservices.com>";
-  const replyAddr = process.env.ADMIN_EMAIL ?? TEST_RECIPIENT;
-  // Reply-to NAME becomes the display name on both the From and the Reply-To.
+  // From display uses the reply-to NAME; replies route to the dispatch inbox
+  // (bare address preserves the capital-D "Dispatch@…" the broker sees).
   const from = withDisplayName(input.replyToName, fromSpec);
-  const replyTo = withDisplayName(input.replyToName, replyAddr);
+  const replyTo = (input.replyToEmail ?? "").trim() || DEFAULT_REPLY_TO;
   const resend = new Resend(apiKey);
 
   const base = {
@@ -194,7 +215,7 @@ export async function sendReach(input: {
         from,
         to: [r.email],
         subject,
-        text: body,
+        text: withTextSignature(body),
         html: renderHtml(body),
         replyTo,
       });
@@ -249,6 +270,7 @@ export type ReachTestResult =
 export async function sendReachTest(
   ctx: ReachSendContext,
   replyToName: string,
+  replyToEmail?: string,
 ): Promise<ReachTestResult> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return { ok: false, reason: "RESEND_API_KEY not configured." };
@@ -269,9 +291,8 @@ export async function sendReachTest(
   const fromSpec =
     process.env.RESEND_FROM_ADDRESS ??
     "Harblanc Dispatch <dispatch@harblancservices.com>";
-  const replyAddr = process.env.ADMIN_EMAIL ?? TEST_RECIPIENT;
   const from = withDisplayName(replyToName, fromSpec);
-  const replyTo = withDisplayName(replyToName, replyAddr);
+  const replyTo = (replyToEmail ?? "").trim() || DEFAULT_REPLY_TO;
   const resend = new Resend(apiKey);
 
   // One independent send per address — the same one-recipient-per-email shape
@@ -284,7 +305,7 @@ export async function sendReachTest(
         from,
         to: [addr],
         subject: `[TEST] ${subject}`,
-        text: body,
+        text: withTextSignature(body),
         html: renderHtml(body),
         replyTo,
       });

@@ -21,8 +21,11 @@ export type SettingsInput = {
   replyToName: string;
   showExactTown: boolean;
   defaultLeverage: Leverage;
-  mc: string;
-  phone: string;
+  /** Reply-to inbox for every send. */
+  replyToEmail: string;
+  /** Optional legacy signature tokens — only written when provided. */
+  mc?: string;
+  phone?: string;
 };
 
 export async function updateReachSettings(
@@ -47,15 +50,27 @@ export async function updateReachSettings(
       { onConflict: "id" },
     );
     if (error) return { ok: false, reason: error.message };
-    // MC + phone live in columns added by a later migration; write them
-    // best-effort so saving the rest still works before that lands.
+    // reply_to_email (and the legacy mc/phone) live in columns added by later
+    // migrations; write them best-effort so saving the rest still works before
+    // those land. Each in its own statement so a missing column can't block the
+    // others.
     try {
       await sb
         .from("reach_settings")
-        .update({ mc: input.mc.trim(), phone: input.phone.trim() })
+        .update({ reply_to_email: input.replyToEmail.trim() })
         .eq("id", true);
     } catch {
-      // columns not present yet — the other settings still saved
+      // column not present yet — the other settings still saved
+    }
+    if (input.mc !== undefined || input.phone !== undefined) {
+      try {
+        await sb
+          .from("reach_settings")
+          .update({ mc: (input.mc ?? "").trim(), phone: (input.phone ?? "").trim() })
+          .eq("id", true);
+      } catch {
+        // columns not present yet
+      }
     }
     revalidatePath(REACH_PATH);
     return { ok: true };
