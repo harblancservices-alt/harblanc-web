@@ -284,7 +284,8 @@ export function ReachView({
 
   return (
     <div className="min-h-screen border-t border-line bg-canvas text-fg">
-      <div className="mx-auto w-full max-w-3xl px-4 py-5 sm:px-6 lg:px-8">
+      {/* No portal top bar below sm, so clear the phone status bar / notch. */}
+      <div className="mx-auto w-full max-w-3xl px-4 pb-5 pt-[max(1.25rem,env(safe-area-inset-top))] sm:px-6 sm:py-5 lg:px-8">
         <PageHeader
           eyebrow="Dispatch"
           title="Reach"
@@ -455,8 +456,11 @@ function SituationCard({
   anchorReason: string;
 }) {
   return (
-    <div className="relative overflow-hidden rounded-lg bg-graphite p-5 pl-6 shadow-e2">
-      <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-accent" />
+    <div className="relative rounded-lg bg-graphite p-5 pl-6 shadow-e2">
+      <span
+        aria-hidden
+        className="absolute inset-y-0 left-0 w-[3px] rounded-l-lg bg-accent"
+      />
       <p className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-on-dark-dim">
         Your situation
       </p>
@@ -588,7 +592,7 @@ function CityTypeahead({
         </span>
       ) : null}
       {open && hits.length > 0 ? (
-        <ul className="absolute left-0 z-20 mt-1 max-h-56 w-[240px] overflow-auto rounded-md border border-line-strong bg-card text-ink shadow-e3">
+        <ul className="absolute left-0 z-20 mt-1 max-h-56 w-[240px] max-w-[calc(100vw-2.5rem)] overflow-auto rounded-md border border-line-strong bg-card text-ink shadow-e3">
           {hits.map((h) => (
             <li key={`${h.zip}-${h.city}`}>
               <button
