@@ -39,7 +39,7 @@ function esc(s: string): string {
  */
 export function reachSignatureHtml(logoUrl: string): string {
   const p = (inner: string, style = "") =>
-    `<p style="margin:0;font-family:${SIG_SANS};line-height:1.45;${style}">${inner}</p>`;
+    `<p style="margin:0;font-family:${SIG_SANS};line-height:1.3;${style}">${inner}</p>`;
   return `
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;width:100%;margin-top:26px">
   <tr><td style="border-top:1px solid #e2e2e2;padding-top:18px">
@@ -48,12 +48,12 @@ export function reachSignatureHtml(logoUrl: string): string {
         <td valign="middle" style="vertical-align:middle;padding-right:20px">
           <img src="${esc(logoUrl)}" alt="Harblanc Services LLC" width="180" style="display:block;width:180px;height:auto;max-width:180px;border:0;outline:0" />
         </td>
-        <td valign="middle" style="vertical-align:middle;padding-left:20px;border-left:1px solid #e2e2e2">
+        <td valign="middle" style="vertical-align:middle;padding-left:20px;border-left:2px solid ${SIG_RED}">
           ${p(`<span style="font-size:15px;font-weight:700;letter-spacing:0.02em;color:${SIG_INK}">BRENT HARBAUGH</span>`)}
-          ${p(`<span style="font-size:13px;color:${SIG_MUTED}">President of Harblanc Services</span>`, "margin-top:2px")}
-          ${p(`<a href="tel:8324458775" style="font-size:13px;color:${SIG_INK};text-decoration:none">(832) 445-8775</a>`, "margin-top:9px")}
-          ${p(`<a href="mailto:Brenth@Harblancservices.com" style="font-size:13px;color:${SIG_RED};text-decoration:none">Brenth@Harblancservices.com</a>`, "margin-top:3px")}
-          ${p(`<a href="mailto:Dispatch@Harblancservices.com" style="font-size:13px;color:${SIG_RED};text-decoration:none">Dispatch@Harblancservices.com</a>`, "margin-top:3px")}
+          ${p(`<span style="font-size:13px;color:${SIG_MUTED}">President of Harblanc Services</span>`, "margin-top:1px")}
+          ${p(`<a href="tel:8324458775" style="font-size:13px;color:${SIG_INK};text-decoration:none">(832) 445-8775</a>`, "margin-top:6px")}
+          ${p(`<a href="mailto:Brenth@Harblancservices.com" style="font-size:13px;color:${SIG_INK};text-decoration:none">Brenth@Harblancservices.com</a>`, "margin-top:2px")}
+          ${p(`<a href="mailto:Dispatch@Harblancservices.com" style="font-size:13px;color:${SIG_INK};text-decoration:none">Dispatch@Harblancservices.com</a>`, "margin-top:2px")}
         </td>
       </tr>
     </table>

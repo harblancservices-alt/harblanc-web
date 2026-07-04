@@ -48,7 +48,7 @@ function fallbackTemplate(posture: Posture): { subject: string; body: string } {
     posture === "planning" ? "Headed Your Way" : "Available and Ready to Roll";
   return {
     subject: "Hotshot Capacity — {market}",
-    body: `Hi {broker},\n\nHARBLANC has a {equipment} ${lead} {town_paren} with Capacity opening up. What do you have coming out of the area?\n\nReply here or give me a call.\n\nThanks,\nHARBLANC`,
+    body: `Hi {broker},\n\nHARBLANC has a {equipment} ${lead} {town_paren} with Capacity opening up. What do you have coming out of the area?\n\nReply here or give me a call.\n\nThanks,`,
   };
 }
 
