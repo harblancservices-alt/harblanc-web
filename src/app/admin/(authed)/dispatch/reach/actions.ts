@@ -113,6 +113,46 @@ export async function ensureReachTemplate(
   }
 }
 
+/**
+ * Save the (possibly edited) Send-tab email as the default for a style. The Send
+ * tab shows one email per posture×style; editing + saving persists it here so it
+ * auto-fills next time. Ensures the row exists first (idempotent), then updates.
+ */
+export async function saveReachStyleEmail(
+  posture: string,
+  leverage: string,
+  input: { subject: string; body: string },
+): Promise<{ ok: true } | { ok: false; reason: string }> {
+  const ens = await ensureReachTemplate(posture, leverage);
+  if (!ens.ok) return { ok: false, reason: ens.reason };
+  return updateReachTemplate(ens.id, input);
+}
+
+// ── Contacts (Include toggle) ────────────────────────────────────────────────
+
+/**
+ * Flip a contact's Include switch (broker_contacts.is_backhaul) — whether it's
+ * used for backhaul reach. Toggled from the Contacts tab.
+ */
+export async function setContactInclude(
+  contactId: string,
+  include: boolean,
+): Promise<{ ok: true } | { ok: false; reason: string }> {
+  if (!contactId) return { ok: false, reason: "Missing contact id." };
+  try {
+    const sb = createServiceRoleClient();
+    const { error } = await sb
+      .from("broker_contacts")
+      .update({ is_backhaul: include })
+      .eq("id", contactId);
+    if (error) return { ok: false, reason: error.message };
+    revalidatePath(REACH_PATH);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, reason: msg(e, "Contact storage unavailable.") };
+  }
+}
+
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 function msg(e: unknown, fallback: string): string {

@@ -36,6 +36,30 @@ export const LEVERAGE_LABEL: Record<Leverage, string> = {
   push: "Push",
 };
 
+/**
+ * Operator-facing STYLE names for the leverage presets — the Send-tab segmented
+ * toggle. The DB still stores the leverage value; only the label changes, so no
+ * data migration is needed. Ordered low → high (see LEVERAGES).
+ *   Low-key  ← confident (soft, protects the rate — never "empty")
+ *   Standard ← balanced  (the default)
+ *   Eager    ← push      (direct, asks their number)
+ */
+export const STYLE_LABEL: Record<Leverage, string> = {
+  confident: "Low-key",
+  balanced: "Standard",
+  push: "Eager",
+};
+
+/** One-line note under the style toggle describing what the wording does. */
+export const STYLE_BLURB: Record<Leverage, string> = {
+  confident: "Soft ask — protects your rate.",
+  balanced: "Invites a rate — the everyday choice.",
+  push: "Direct — asks their number.",
+};
+
+/** Brand default style (Standard). */
+export const DEFAULT_STYLE: Leverage = "balanced";
+
 /** A freight market brokers recognize. Emails name this, not the literal town. */
 export type ReachMarket = {
   id: string;
@@ -115,5 +139,5 @@ export const DEFAULT_SETTINGS: ReachSettings = {
   truckLine: "40' gooseneck hotshot, dually",
   replyToName: "HARBLANC",
   showExactTown: true,
-  defaultLeverage: "confident",
+  defaultLeverage: DEFAULT_STYLE,
 };

@@ -190,6 +190,7 @@ export async function farmBrokerContact(
   revalidatePath("/admin");
   revalidatePath("/admin/dispatch/brokers");
   revalidatePath("/admin/dispatch/backhaul");
+  revalidatePath("/admin/dispatch/reach");
   revalidatePath(`/admin/dispatch/brokers/${brokerId}`);
   return { ok: true, brokerId };
 }

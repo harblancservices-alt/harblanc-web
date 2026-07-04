@@ -985,16 +985,16 @@ function ContactModal({
             <input
               type="checkbox"
               name="is_backhaul"
-              defaultChecked={contact?.is_backhaul ?? false}
+              defaultChecked={contact?.is_backhaul ?? true}
               className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-red-600"
             />
             <span className="min-w-0">
               <span className="block text-[13px] font-semibold text-fg">
-                Use for backhaul / dispatch emails
+                Include in Reach
               </span>
               <span className="block text-[11.5px] text-fg-muted">
-                Tie this contact to the broker&apos;s lanes and include them when
-                blasting backhaul availability. Leave off for general contacts.
+                Tie this contact to the broker&apos;s lanes and reach out to them
+                with backhaul availability. Leave off for general contacts.
               </span>
             </span>
           </label>

@@ -110,6 +110,8 @@ export type ReachAnchor = {
   reason: string;
   /** The matched market, if the anchor fell inside one. */
   match: MarketMatch | null;
+  /** Load number the city auto-filled from (for the "from load #X" hint). */
+  loadNumber: string | null;
 };
 
 type LoadRow = {
@@ -117,6 +119,7 @@ type LoadRow = {
   dest_zip: string | null;
   status: string | null;
   created_at: string | null;
+  load_number: string | null;
 };
 
 /**
@@ -133,7 +136,7 @@ export async function detectPosture(
     const sb = createServiceRoleClient();
     const { data } = await sb
       .from("loads")
-      .select("destination, dest_zip, status, created_at")
+      .select("destination, dest_zip, status, created_at, load_number")
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(50)
@@ -173,6 +176,7 @@ export async function detectPosture(
     zip: null,
     reason: "No active load — pick where you're sitting",
     match: null,
+    loadNumber: null,
   };
 }
 
@@ -198,6 +202,7 @@ function anchorFromLoad(
     zip,
     reason,
     match,
+    loadNumber: (load.load_number ?? "").trim() || null,
   };
 }
 

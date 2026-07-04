@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
 import { lookupZip } from "@/lib/dispatch/distance";
 import { haversineMiles } from "@/lib/reach/geo";
-import { loadReachMarkets, loadReachSettings, loadReachTemplates } from "./queries";
+import {
+  loadReachContacts,
+  loadReachMarkets,
+  loadReachSettings,
+  loadReachTemplates,
+} from "./queries";
 import {
   buildRecipients,
   buildTownParen,
@@ -9,7 +14,6 @@ import {
   matchMarket,
   type ReachAnchor,
 } from "./logic";
-import { isPosture, type Posture } from "./types";
 import { ReachView } from "./ReachView";
 
 export const metadata: Metadata = {
@@ -28,16 +32,21 @@ export const metadata: Metadata = {
 export default async function ReachPage({
   searchParams,
 }: {
-  searchParams: Promise<{ market?: string; zip?: string; posture?: string }>;
+  searchParams: Promise<{ market?: string; zip?: string }>;
 }) {
   const sp = await searchParams;
 
-  const [{ markets, available: marketsAvailable }, settings, { templates, available: templatesAvailable }] =
-    await Promise.all([
-      loadReachMarkets(),
-      loadReachSettings(),
-      loadReachTemplates(),
-    ]);
+  const [
+    { markets, available: marketsAvailable },
+    settings,
+    { templates, available: templatesAvailable },
+    { contacts, available: contactsAvailable },
+  ] = await Promise.all([
+    loadReachMarkets(),
+    loadReachSettings(),
+    loadReachTemplates(),
+    loadReachContacts(),
+  ]);
 
   // Anchor: a manual ZIP overrides load-derived posture (operator says where
   // he's sitting); otherwise detect from loads.
@@ -56,6 +65,7 @@ export default async function ReachPage({
       zip,
       reason: "Set where you're sitting",
       match,
+      loadNumber: null,
     };
   } else {
     anchor = await detectPosture(markets);
@@ -99,10 +109,6 @@ export default async function ReachPage({
     }
   }
 
-  const posture: Posture = isPosture(sp.posture ?? "")
-    ? (sp.posture as Posture)
-    : anchor.posture;
-
   const { recipients, heldBack } = effectiveMarket
     ? await buildRecipients(effectiveMarket)
     : { recipients: [], heldBack: [] };
@@ -115,13 +121,15 @@ export default async function ReachPage({
       templates={templates}
       templatesAvailable={templatesAvailable}
       settings={settings}
-      detectedPosture={posture}
-      postureReason={anchor.reason}
       townParen={townParen}
       townLabel={townLabel}
       anchorZip={anchor.zip}
+      anchorLoadNumber={anchor.loadNumber}
+      anchorReason={anchor.reason}
       recipients={recipients}
       heldBack={heldBack}
+      contacts={contacts}
+      contactsAvailable={contactsAvailable}
     />
   );
 }
