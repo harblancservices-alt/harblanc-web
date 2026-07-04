@@ -24,11 +24,11 @@ const DEFAULT_REPLY_TO = "Dispatch@Harblancservices.com";
 const TEST_RECIPIENT = "harblancservices@gmail.com";
 
 /**
- * Test recipients. Each gets its OWN separate email (one send() call apiece,
- * mirroring the real blast) so the operator can confirm recipients are never
- * bundled into a shared To/CC. Every address here is explicitly authorized.
+ * Test recipients — a single authorized inbox. (Bundling was verified with a
+ * two-address test earlier; trimmed to one to save Resend quota.) Kept as an
+ * array so the send loop below is unchanged.
  */
-const TEST_RECIPIENTS = [TEST_RECIPIENT, "brenth@harblancservices.com"];
+const TEST_RECIPIENTS = [TEST_RECIPIENT];
 
 /**
  * Put a display name on an address spec. `addressSpec` may be a bare address
@@ -259,12 +259,11 @@ export type ReachTestResult =
   | { ok: false; reason: string };
 
 /**
- * Send the current rendered outreach to the operator's test inboxes so he can
- * preview exactly what a broker receives AND confirm the blast never bundles
- * recipients. Each address in TEST_RECIPIENTS gets its OWN separate send() call
- * (identical to the real per-broker loop), so the operator receives two
- * distinct emails — neither one lists the other's address. {broker} renders as
- * "there". Only ever goes to the explicitly-authorized test addresses and is
+ * Send the current rendered outreach to the operator's test inbox so he can
+ * preview exactly what a broker receives. Each address in TEST_RECIPIENTS gets
+ * its OWN separate send() call (identical to the real per-broker loop);
+ * TEST_RECIPIENTS is now a single authorized address. {broker} renders as
+ * "there". Only ever goes to the explicitly-authorized test address and is
  * never logged.
  */
 export async function sendReachTest(
