@@ -61,63 +61,38 @@ export function marketState(market: ReachMarket): string | null {
   return hit?.state?.toUpperCase() ?? null;
 }
 
-/** US state abbreviation → spelled-out name, for the natural town phrase. */
-const STATE_FULL: Record<string, string> = {
-  AL: "Alabama", AK: "Alaska", AZ: "Arizona", AR: "Arkansas", CA: "California",
-  CO: "Colorado", CT: "Connecticut", DE: "Delaware", FL: "Florida",
-  GA: "Georgia", HI: "Hawaii", ID: "Idaho", IL: "Illinois", IN: "Indiana",
-  IA: "Iowa", KS: "Kansas", KY: "Kentucky", LA: "Louisiana", ME: "Maine",
-  MD: "Maryland", MA: "Massachusetts", MI: "Michigan", MN: "Minnesota",
-  MS: "Mississippi", MO: "Missouri", MT: "Montana", NE: "Nebraska",
-  NV: "Nevada", NH: "New Hampshire", NJ: "New Jersey", NM: "New Mexico",
-  NY: "New York", NC: "North Carolina", ND: "North Dakota", OH: "Ohio",
-  OK: "Oklahoma", OR: "Oregon", PA: "Pennsylvania", RI: "Rhode Island",
-  SC: "South Carolina", SD: "South Dakota", TN: "Tennessee", TX: "Texas",
-  UT: "Utah", VT: "Vermont", VA: "Virginia", WA: "Washington",
-  WV: "West Virginia", WI: "Wisconsin", WY: "Wyoming", DC: "Washington, D.C.",
-};
-
-/** "MS" → "Mississippi"; unknown/empty → "". */
-export function fullStateName(abbrev: string | null | undefined): string {
-  return STATE_FULL[(abbrev ?? "").trim().toUpperCase()] ?? "";
-}
-
 /**
- * Precision town phrase relative to a market center — "6 miles east of Pearl,
- * Mississippi". `stateAbbrev` is spelled out for the email. Returns "" — so the
- * sentence collapses to just the market name — when exact-town display is off or
- * coordinates are missing.
+ * Compact precision parenthetical placing the truck relative to the market's own
+ * recognizable city — "(39 mi W of Indianapolis, IN)". Distance/direction are
+ * from the market center to the truck's anchor; the named city + state come from
+ * the market (the city brokers know), not the obscure anchor town. Returns "" —
+ * so the sentence collapses to just the market name — when exact-town display is
+ * off or the market has no resolvable center.
  */
 export function buildTownParen(
   market: ReachMarket,
-  town: string,
   townLat: number | null,
   townLon: number | null,
   showExactTown: boolean,
-  stateAbbrev = "",
 ): string {
   if (!showExactTown) return "";
-  const stateFull = fullStateName(stateAbbrev);
-  const t = town.trim();
+  const center = market.centerZip ? lookupZip(market.centerZip) : null;
+  const city = center?.city?.trim() ?? "";
+  const st = (center?.state ?? "").trim().toUpperCase();
+  if (!city) return "";
   if (
     townLat == null ||
     townLon == null ||
     market.centerLat == null ||
     market.centerLon == null
   ) {
-    if (!t) return "";
-    return stateFull ? `${t}, ${stateFull}` : t;
+    return townParen(city, 0, "N", st); // no anchor → just "(City, ST)"
   }
   const miles = Math.round(
     haversineMiles(market.centerLat, market.centerLon, townLat, townLon),
   );
-  const dir = compass8(
-    market.centerLat,
-    market.centerLon,
-    townLat,
-    townLon,
-  );
-  return townParen(town, miles, dir, stateFull);
+  const dir = compass8(market.centerLat, market.centerLon, townLat, townLon);
+  return townParen(city, miles, dir, st);
 }
 
 // ── Posture detection ────────────────────────────────────────────────────────

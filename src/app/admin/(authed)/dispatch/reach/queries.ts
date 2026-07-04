@@ -38,6 +38,8 @@ type SettingsRow = {
   reply_to_name: string | null;
   show_exact_town: boolean | null;
   default_leverage: string | null;
+  mc: string | null;
+  phone: string | null;
 };
 
 export async function loadReachSettings(): Promise<ReachSettings> {
@@ -47,17 +49,36 @@ export async function loadReachSettings(): Promise<ReachSettings> {
       .from("reach_settings")
       .select("truck_line, reply_to_name, show_exact_town, default_leverage")
       .eq("id", true)
-      .maybeSingle<SettingsRow>();
+      .maybeSingle<Omit<SettingsRow, "mc" | "phone">>();
     if (!data) return DEFAULT_SETTINGS;
     const lev: Leverage = isLeverage(data.default_leverage ?? "")
       ? (data.default_leverage as Leverage)
       : DEFAULT_SETTINGS.defaultLeverage;
+    // MC + phone live in columns added later; read them best-effort so the page
+    // still works (with defaults) before that migration lands.
+    let mc = DEFAULT_SETTINGS.mc;
+    let phone = DEFAULT_SETTINGS.phone;
+    try {
+      const { data: sig } = await sb
+        .from("reach_settings")
+        .select("mc, phone")
+        .eq("id", true)
+        .maybeSingle<{ mc: string | null; phone: string | null }>();
+      if (sig) {
+        mc = (sig.mc ?? "").trim() || DEFAULT_SETTINGS.mc;
+        phone = (sig.phone ?? "").trim() || DEFAULT_SETTINGS.phone;
+      }
+    } catch {
+      // columns not present yet — keep the defaults
+    }
     return {
       truckLine: (data.truck_line ?? "").trim() || DEFAULT_SETTINGS.truckLine,
       replyToName:
         (data.reply_to_name ?? "").trim() || DEFAULT_SETTINGS.replyToName,
       showExactTown: data.show_exact_town ?? true,
       defaultLeverage: lev,
+      mc,
+      phone,
     };
   } catch {
     return DEFAULT_SETTINGS;

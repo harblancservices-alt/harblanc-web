@@ -56,8 +56,21 @@ type RawZip = {
 // per (city, state), keyed to its lowest ZIP, sorted by city name. Stays
 // server-side (the dataset never reaches the client bundle).
 let CITY_INDEX:
-  | { city: string; state: string; zip: string; lat: number; lon: number; lc: string }[]
+  | {
+      city: string;
+      state: string;
+      zip: string;
+      lat: number;
+      lon: number;
+      lc: string;
+      norm: string;
+    }[]
   | null = null;
+
+/** Lowercase, alphanumeric-only — so "green castle" matches "Greencastle". */
+function normalizeCity(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
 
 function cityIndex() {
   if (CITY_INDEX) return CITY_INDEX;
@@ -86,7 +99,11 @@ function cityIndex() {
     }
   }
   CITY_INDEX = [...best.values()]
-    .map((v) => ({ ...v, lc: v.city.toLowerCase() }))
+    .map((v) => ({
+      ...v,
+      lc: v.city.toLowerCase(),
+      norm: normalizeCity(v.city),
+    }))
     .sort((a, b) =>
       a.lc < b.lc ? -1 : a.lc > b.lc ? 1 : a.state < b.state ? -1 : 1,
     );
@@ -100,6 +117,8 @@ function cityIndex() {
 export function searchCities(query: string, limit = 12): CityHit[] {
   const q = query.trim().toLowerCase();
   if (q.length < 2) return [];
+  // Space/punctuation-insensitive form so "green castle" finds "Greencastle".
+  const qn = normalizeCity(q);
   const idx = cityIndex();
   const starts: CityHit[] = [];
   const contains: CityHit[] = [];
@@ -111,10 +130,13 @@ export function searchCities(query: string, limit = 12): CityHit[] {
       lat: c.lat,
       lon: c.lon,
     };
-    if (c.lc.startsWith(q)) {
+    if (c.lc.startsWith(q) || (qn.length >= 2 && c.norm.startsWith(qn))) {
       starts.push(hit);
       if (starts.length >= limit) break;
-    } else if (contains.length < limit && c.lc.includes(q)) {
+    } else if (
+      contains.length < limit &&
+      (c.lc.includes(q) || (qn.length >= 2 && c.norm.includes(qn)))
+    ) {
       contains.push(hit);
     }
   }

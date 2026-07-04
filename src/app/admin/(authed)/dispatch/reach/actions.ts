@@ -21,6 +21,8 @@ export type SettingsInput = {
   replyToName: string;
   showExactTown: boolean;
   defaultLeverage: Leverage;
+  mc: string;
+  phone: string;
 };
 
 export async function updateReachSettings(
@@ -45,6 +47,16 @@ export async function updateReachSettings(
       { onConflict: "id" },
     );
     if (error) return { ok: false, reason: error.message };
+    // MC + phone live in columns added by a later migration; write them
+    // best-effort so saving the rest still works before that lands.
+    try {
+      await sb
+        .from("reach_settings")
+        .update({ mc: input.mc.trim(), phone: input.phone.trim() })
+        .eq("id", true);
+    } catch {
+      // columns not present yet — the other settings still saved
+    }
     revalidatePath(REACH_PATH);
     return { ok: true };
   } catch (e) {

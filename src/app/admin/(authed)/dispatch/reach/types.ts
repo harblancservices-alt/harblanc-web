@@ -81,9 +81,13 @@ export type ReachSettings = {
   /** e.g. "40' gooseneck hotshot, dually". */
   truckLine: string;
   replyToName: string;
-  /** Controls the "(Kingwood, 22 mi NE)" parenthetical. */
+  /** Controls the "(39 mi W of Indianapolis, IN)" parenthetical. */
   showExactTown: boolean;
   defaultLeverage: Leverage;
+  /** MC number shown in every email signature, e.g. "146-7901". */
+  mc: string;
+  /** Phone shown in every email signature, e.g. "832-445-8775". */
+  phone: string;
 };
 
 /** A posture × leverage subject/body template. */
@@ -120,18 +124,35 @@ export type ReachRecipient = {
  */
 export function renderTemplate(
   text: string,
-  ctx: { broker?: string; market: string; equipment: string; townParen: string },
+  ctx: {
+    broker?: string;
+    market: string;
+    equipment: string;
+    townParen: string;
+    /** Signature MC number, e.g. "146-7901". */
+    mc?: string;
+    /** Signature phone, e.g. "832-445-8775". */
+    phone?: string;
+  },
 ): string {
   const out = text
     .replace(/\{broker\}/g, ctx.broker ?? "{broker}")
     .replace(/\{market\}/g, ctx.market)
     .replace(/\{equipment\}/g, ctx.equipment)
-    .replace(/\{town_paren\}/g, ctx.townParen);
-  // Collapse runs of spaces/tabs (not newlines) and trim trailing space on each
-  // line — an empty {town_paren} otherwise leaves "market  with capacity".
+    .replace(/\{town_paren\}/g, ctx.townParen)
+    .replace(/\{mc\}/g, ctx.mc ?? "")
+    .replace(/\{phone\}/g, ctx.phone ?? "");
+  // Collapse runs of spaces/tabs (not newlines), drop a space left before
+  // punctuation, and trim trailing space on each line — an empty {town_paren}
+  // otherwise leaves "market  with capacity" or "Ready to Roll .".
   return out
     .split("\n")
-    .map((line) => line.replace(/[ \t]{2,}/g, " ").replace(/[ \t]+$/g, ""))
+    .map((line) =>
+      line
+        .replace(/[ \t]{2,}/g, " ")
+        .replace(/[ \t]+([.,;:!?])/g, "$1")
+        .replace(/[ \t]+$/g, ""),
+    )
     .join("\n");
 }
 
@@ -145,7 +166,13 @@ export function renderTemplate(
  */
 export function templatize(
   text: string,
-  ctx: { market: string; equipment: string; townParen: string },
+  ctx: {
+    market: string;
+    equipment: string;
+    townParen: string;
+    mc?: string;
+    phone?: string;
+  },
 ): string {
   let out = text;
   const subs: [string, string][] = (
@@ -153,6 +180,8 @@ export function templatize(
       [ctx.townParen, "{town_paren}"],
       [ctx.equipment, "{equipment}"],
       [ctx.market, "{market}"],
+      [ctx.mc ?? "", "{mc}"],
+      [ctx.phone ?? "", "{phone}"],
     ] as [string, string][]
   )
     .filter(([v]) => v.trim().length >= 2)
@@ -170,4 +199,6 @@ export const DEFAULT_SETTINGS: ReachSettings = {
   replyToName: "HARBLANC",
   showExactTown: true,
   defaultLeverage: DEFAULT_STYLE,
+  mc: "146-7901",
+  phone: "832-445-8775",
 };

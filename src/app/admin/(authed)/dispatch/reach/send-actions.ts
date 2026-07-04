@@ -48,6 +48,10 @@ export type ReachSendContext = {
   equipment: string;
   /** Precision parenthetical ({town_paren} token), possibly "". */
   townParen: string;
+  /** Signature MC number ({mc} token), e.g. "146-7901". */
+  mc: string;
+  /** Signature phone ({phone} token), e.g. "832-445-8775". */
+  phone: string;
   subjectTemplate: string;
   bodyTemplate: string;
 };
@@ -174,6 +178,8 @@ export async function sendReach(input: {
     market: input.ctx.market,
     equipment: input.ctx.equipment,
     townParen: input.ctx.townParen,
+    mc: input.ctx.mc,
+    phone: input.ctx.phone,
   };
 
   const nowIso = new Date().toISOString();
@@ -247,7 +253,13 @@ export async function sendReachTest(
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return { ok: false, reason: "RESEND_API_KEY not configured." };
 
-  const base = { market: ctx.market, equipment: ctx.equipment, townParen: ctx.townParen };
+  const base = {
+    market: ctx.market,
+    equipment: ctx.equipment,
+    townParen: ctx.townParen,
+    mc: ctx.mc,
+    phone: ctx.phone,
+  };
   const subject = renderTemplate(ctx.subjectTemplate, { ...base, broker: "there" }).trim();
   const body = renderTemplate(ctx.bodyTemplate, { ...base, broker: "there" }).trim();
   if (!subject || !body) {

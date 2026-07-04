@@ -43,10 +43,11 @@ type CityHit = { city: string; state: string; zip: string; lat: number; lon: num
 
 /** Last-ditch wording if a posture×style template row is missing. */
 function fallbackTemplate(posture: Posture): { subject: string; body: string } {
-  const verb = posture === "planning" ? "headed into" : "running in";
+  const lead =
+    posture === "planning" ? "Headed Your Way" : "Available and Ready to Roll";
   return {
-    subject: "Hotshot capacity — {market}",
-    body: `Hi {broker},\n\nHARBLANC has a {equipment} ${verb} {market} {town_paren} with capacity opening up. What do you have moving out of the area?\n\nReply here or give me a call.\n\nThanks,\nHARBLANC`,
+    subject: "Hotshot Capacity — {market}",
+    body: `Hi {broker},\n\nHARBLANC has a {equipment} ${lead} {town_paren} with Capacity opening up. What do you have coming out of the area?\n\nReply here or give me a call.\n\nThanks,\nHARBLANC\nMC {mc} · {phone}`,
   };
 }
 
@@ -107,10 +108,12 @@ export function ReachView({
   // Date drives posture: today = truck open now; any future date = planning.
   const posture: Posture = date > today ? "planning" : "available";
 
-  // Truck line + from name live here so the email preview updates as they're
-  // edited in Setup, and the send uses the current from-name.
+  // Truck line, from name, and signature MC/phone live here so the email preview
+  // updates as they're edited in Setup, and the send uses the current values.
   const [equipment, setEquipment] = useState(settings.truckLine);
   const [replyToName, setReplyToName] = useState(settings.replyToName);
+  const [mc, setMc] = useState(settings.mc);
+  const [phone, setPhone] = useState(settings.phone);
 
   const [setupOpen, setSetupOpen] = useState(false);
   const [sending, setSending] = useState(false);
@@ -143,8 +146,8 @@ export function ReachView({
   // token. On save/send we reverse it back to a token template with templatize()
   // so per-broker personalization + auto-fill survive an edit.
   const tokenCtx = useMemo(
-    () => ({ market: marketWording, equipment, townParen }),
-    [marketWording, equipment, townParen],
+    () => ({ market: marketWording, equipment, townParen, mc, phone }),
+    [marketWording, equipment, townParen, mc, phone],
   );
 
   const key = `${posture}-${style}`;
@@ -232,6 +235,8 @@ export function ReachView({
           market: marketWording,
           equipment,
           townParen,
+          mc,
+          phone,
           subjectTemplate: tpl.subject,
           bodyTemplate: tpl.body,
         },
@@ -260,6 +265,8 @@ export function ReachView({
           market: marketWording,
           equipment,
           townParen,
+          mc,
+          phone,
           subjectTemplate: tpl.subject,
           bodyTemplate: tpl.body,
         },
@@ -367,6 +374,10 @@ export function ReachView({
           onTruckLineChange={setEquipment}
           replyToName={replyToName}
           onReplyToNameChange={setReplyToName}
+          mc={mc}
+          onMcChange={setMc}
+          phone={phone}
+          onPhoneChange={setPhone}
           onSaved={() => router.refresh()}
           onClose={() => setSetupOpen(false)}
         />
@@ -550,7 +561,7 @@ function CityTypeahead({
         .finally(() => {
           if (id === reqRef.current) setLoading(false);
         });
-    }, 200);
+    }, 60);
     return () => clearTimeout(t);
   }, [text, touched]);
 

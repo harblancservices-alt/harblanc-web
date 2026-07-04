@@ -66,35 +66,23 @@ export function compass8(
   return COMPASS[idx];
 }
 
-/** Spelled-out compass word so the email reads naturally ("east", not "E"). */
-const DIRECTION_WORD: Record<Compass8, string> = {
-  N: "north",
-  NE: "northeast",
-  E: "east",
-  SE: "southeast",
-  S: "south",
-  SW: "southwest",
-  W: "west",
-  NW: "northwest",
-};
-
 /**
- * Build the precision town phrase in natural language, e.g.
- * "6 miles east of Pearl, Mississippi". `stateFull` is the spelled-out state
- * (empty ⇒ just the town). At the market center (< 1 mi) it's just the place.
- * Empty string when there's no town or exact-town display is off — callers embed
- * it in the sentence and collapse the resulting whitespace.
+ * Build the compact precision parenthetical, e.g. "(39 mi W of Indianapolis,
+ * IN)": distance as a number + "mi", the UPPERCASE compass abbreviation, the
+ * city in normal case, and the 2-letter UPPERCASE state. At the reference point
+ * itself (< 1 mi) it collapses to "(Indianapolis, IN)". Empty string when
+ * there's no city — callers embed it in the sentence and collapse whitespace.
  */
 export function townParen(
-  town: string,
+  city: string,
   miles: number,
   dir: Compass8,
-  stateFull = "",
+  stateAbbrev = "",
 ): string {
-  const t = town.trim();
-  if (!t) return "";
-  const place = stateFull.trim() ? `${t}, ${stateFull.trim()}` : t;
-  if (miles < 1) return place;
-  const unit = miles === 1 ? "mile" : "miles";
-  return `${miles} ${unit} ${DIRECTION_WORD[dir]} of ${place}`;
+  const c = city.trim();
+  if (!c) return "";
+  const st = stateAbbrev.trim().toUpperCase();
+  const place = st ? `${c}, ${st}` : c;
+  if (miles < 1) return `(${place})`;
+  return `(${miles} mi ${dir} of ${place})`;
 }

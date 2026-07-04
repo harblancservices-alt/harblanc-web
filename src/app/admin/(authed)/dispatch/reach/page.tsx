@@ -101,11 +101,9 @@ export default async function ReachPage({
     if (d <= effectiveMarket.radiusMi) {
       townParen = buildTownParen(
         effectiveMarket,
-        anchor.town,
         anchor.lat,
         anchor.lon,
         settings.showExactTown,
-        anchor.state,
       );
       townLabel = anchor.townLabel;
     }
