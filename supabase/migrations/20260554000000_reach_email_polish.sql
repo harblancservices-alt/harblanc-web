@@ -13,13 +13,13 @@
 
 -- ── 1. Signature columns ──────────────────────────────────────────────────────
 alter table public.reach_settings
-  add column if not exists mc text not null default '146-7901';
+  add column if not exists mc text not null default '1467901';
 alter table public.reach_settings
   add column if not exists phone text not null default '832-445-8775';
 
 -- Backfill the singleton if the columns pre-existed empty.
 update public.reach_settings
-  set mc = coalesce(nullif(btrim(mc), ''), '146-7901'),
+  set mc = coalesce(nullif(btrim(mc), ''), '1467901'),
       phone = coalesce(nullif(btrim(phone), ''), '832-445-8775'),
       updated_at = now()
   where id = true;

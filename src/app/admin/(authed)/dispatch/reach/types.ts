@@ -84,7 +84,7 @@ export type ReachSettings = {
   /** Controls the "(39 mi W of Indianapolis, IN)" parenthetical. */
   showExactTown: boolean;
   defaultLeverage: Leverage;
-  /** MC number shown in every email signature, e.g. "146-7901". */
+  /** MC number shown in every email signature, e.g. "1467901". */
   mc: string;
   /** Phone shown in every email signature, e.g. "832-445-8775". */
   phone: string;
@@ -129,7 +129,7 @@ export function renderTemplate(
     market: string;
     equipment: string;
     townParen: string;
-    /** Signature MC number, e.g. "146-7901". */
+    /** Signature MC number, e.g. "1467901". */
     mc?: string;
     /** Signature phone, e.g. "832-445-8775". */
     phone?: string;
@@ -199,6 +199,6 @@ export const DEFAULT_SETTINGS: ReachSettings = {
   replyToName: "HARBLANC",
   showExactTown: true,
   defaultLeverage: DEFAULT_STYLE,
-  mc: "146-7901",
+  mc: "1467901",
   phone: "832-445-8775",
 };

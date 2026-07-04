@@ -48,7 +48,7 @@ export type ReachSendContext = {
   equipment: string;
   /** Precision parenthetical ({town_paren} token), possibly "". */
   townParen: string;
-  /** Signature MC number ({mc} token), e.g. "146-7901". */
+  /** Signature MC number ({mc} token), e.g. "1467901". */
   mc: string;
   /** Signature phone ({phone} token), e.g. "832-445-8775". */
   phone: string;

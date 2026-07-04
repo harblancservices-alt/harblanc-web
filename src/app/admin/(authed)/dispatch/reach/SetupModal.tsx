@@ -145,7 +145,7 @@ export function SetupModal({
                 value={mc}
                 onChange={(e) => onMcChange(e.target.value)}
                 className={field.input}
-                placeholder="146-7901"
+                placeholder="1467901"
               />
             </div>
             <div>
