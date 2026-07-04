@@ -15,6 +15,13 @@ import { renderTemplate } from "./types";
 const TEST_RECIPIENT = "harblancservices@gmail.com";
 
 /**
+ * Test recipients. Each gets its OWN separate email (one send() call apiece,
+ * mirroring the real blast) so the operator can confirm recipients are never
+ * bundled into a shared To/CC. Every address here is explicitly authorized.
+ */
+const TEST_RECIPIENTS = [TEST_RECIPIENT, "brenth@harblancservices.com"];
+
+/**
  * Put a display name on an address spec. `addressSpec` may be a bare address
  * ("dispatch@x.com") or already "Name <addr>"; either way we keep the address
  * and swap in `name`. Empty name → the spec is returned untouched.
@@ -221,13 +228,17 @@ export async function sendReach(input: {
 // ── Test send ────────────────────────────────────────────────────────────────
 
 export type ReachTestResult =
-  | { ok: true; to: string }
+  | { ok: true; to: string[] }
   | { ok: false; reason: string };
 
 /**
- * Send the current rendered outreach to the operator's own inbox so he can
- * preview exactly what a broker receives. {broker} renders as "there". Only
- * ever goes to the owner's address (explicitly authorized) and is never logged.
+ * Send the current rendered outreach to the operator's test inboxes so he can
+ * preview exactly what a broker receives AND confirm the blast never bundles
+ * recipients. Each address in TEST_RECIPIENTS gets its OWN separate send() call
+ * (identical to the real per-broker loop), so the operator receives two
+ * distinct emails — neither one lists the other's address. {broker} renders as
+ * "there". Only ever goes to the explicitly-authorized test addresses and is
+ * never logged.
  */
 export async function sendReachTest(
   ctx: ReachSendContext,
@@ -251,20 +262,35 @@ export async function sendReachTest(
   const replyTo = withDisplayName(replyToName, replyAddr);
   const resend = new Resend(apiKey);
 
-  try {
-    const res = await resend.emails.send({
-      from,
-      to: [TEST_RECIPIENT],
-      subject: `[TEST] ${subject}`,
-      text: body,
-      html: renderHtml(body),
-      replyTo,
-    });
-    if (res.error) {
-      return { ok: false, reason: res.error.message ?? "Resend rejected the send." };
+  // One independent send per address — the same one-recipient-per-email shape
+  // as the real blast, so this genuinely proves recipients aren't bundled.
+  const sentTo: string[] = [];
+  const failures: string[] = [];
+  for (const addr of TEST_RECIPIENTS) {
+    try {
+      const res = await resend.emails.send({
+        from,
+        to: [addr],
+        subject: `[TEST] ${subject}`,
+        text: body,
+        html: renderHtml(body),
+        replyTo,
+      });
+      if (res.error) {
+        failures.push(`${addr} (${res.error.message ?? "rejected"})`);
+      } else {
+        sentTo.push(addr);
+      }
+    } catch (e) {
+      failures.push(`${addr} (${e instanceof Error ? e.message : "send failed"})`);
     }
-    return { ok: true, to: TEST_RECIPIENT };
-  } catch (e) {
-    return { ok: false, reason: e instanceof Error ? e.message : "Send failed." };
   }
+
+  if (sentTo.length === 0) {
+    return {
+      ok: false,
+      reason: `Send failed: ${failures.join("; ")}`,
+    };
+  }
+  return { ok: true, to: sentTo };
 }

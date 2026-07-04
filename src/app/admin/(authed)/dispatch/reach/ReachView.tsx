@@ -210,7 +210,7 @@ export function ReachView({
       );
       setTestMsg(
         r.ok
-          ? { ok: true, text: `Test sent to ${r.to}` }
+          ? { ok: true, text: `Test sent to ${r.to.join(" and ")}` }
           : { ok: false, text: r.reason },
       );
     } finally {
