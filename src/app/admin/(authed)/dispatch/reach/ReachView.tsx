@@ -15,7 +15,7 @@
  * and per-broker send path all carry over unchanged. Nothing sends until you tap.
  */
 
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
@@ -29,6 +29,7 @@ import {
   STYLE_BLURB,
   STYLE_LABEL,
   renderTemplate,
+  templatize,
   type Leverage,
   type Posture,
   type ReachMarket,
@@ -36,6 +37,9 @@ import {
   type ReachSettings,
   type ReachTemplate,
 } from "./types";
+
+/** A city typeahead hit from /api/admin/dispatch/cities. */
+type CityHit = { city: string; state: string; zip: string; lat: number; lon: number };
 
 /** Last-ditch wording if a posture×style template row is missing. */
 function fallbackTemplate(posture: Posture): { subject: string; body: string } {
@@ -64,7 +68,6 @@ function shortDate(iso: string): string {
 type Tab = "send" | "contacts";
 
 export function ReachView({
-  markets,
   effectiveMarket,
   marketsAvailable,
   templates,
@@ -72,7 +75,6 @@ export function ReachView({
   settings,
   townParen,
   townLabel,
-  anchorZip,
   anchorLoadNumber,
   anchorReason,
   recipients,
@@ -117,8 +119,6 @@ export function ReachView({
   const [cooldown, setCooldown] = useState(0);
   const [testing, setTesting] = useState(false);
   const [testMsg, setTestMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const [zipOpen, setZipOpen] = useState(false);
-  const [zipDraft, setZipDraft] = useState(anchorZip ?? "");
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -134,30 +134,62 @@ export function ReachView({
     return map;
   }, [templates]);
 
+  const marketWording = effectiveMarket?.wording || effectiveMarket?.name || "the area";
+  const cityLabel = townLabel || effectiveMarket?.name || "your area";
+  const radiusMi = effectiveMarket?.radiusMi ?? 0;
+
+  // Token context. The editable fields + preview show a fully-RENDERED email
+  // (every {token} filled, {broker} → "there") so the operator never sees a raw
+  // token. On save/send we reverse it back to a token template with templatize()
+  // so per-broker personalization + auto-fill survive an edit.
+  const tokenCtx = useMemo(
+    () => ({ market: marketWording, equipment, townParen }),
+    [marketWording, equipment, townParen],
+  );
+
   const key = `${posture}-${style}`;
-  const baseText = useMemo(() => {
+  // Base token template for this posture×style.
+  const baseTemplate = useMemo(() => {
     const t = templateFor.get(key);
     if (t) return { subject: t.subject, body: t.body };
     return fallbackTemplate(posture);
   }, [templateFor, key, posture]);
+  // What the form/preview show: the base template rendered for display.
+  const baseDisplay = useMemo(
+    () => ({
+      subject: renderTemplate(baseTemplate.subject, { ...tokenCtx, broker: "there" }),
+      body: renderTemplate(baseTemplate.body, { ...tokenCtx, broker: "there" }),
+    }),
+    [baseTemplate, tokenCtx],
+  );
 
+  // Drafts hold in-session edits as DISPLAY text, keyed by posture-style.
   const [drafts, setDrafts] = useState<Record<string, { subject: string; body: string }>>({});
-  const current = drafts[key] ?? baseText;
+  const current = drafts[key] ?? baseDisplay;
   const [saveFlash, setSaveFlash] = useState<string>("");
 
+  const isEdited =
+    !!drafts[key] &&
+    (drafts[key].subject !== baseDisplay.subject ||
+      drafts[key].body !== baseDisplay.body);
+
+  /** The token template to send/save: reverse-mapped when edited, else the base. */
+  function sendTemplates(): { subject: string; body: string } {
+    if (!isEdited) return baseTemplate;
+    return {
+      subject: templatize(current.subject, tokenCtx),
+      body: templatize(current.body, tokenCtx),
+    };
+  }
+
   function editField(patch: Partial<{ subject: string; body: string }>) {
-    setDrafts((d) => ({ ...d, [key]: { ...current, ...patch } }));
+    setDrafts((d) => ({ ...d, [key]: { ...(d[key] ?? baseDisplay), ...patch } }));
     setSaveFlash("");
   }
 
   async function saveDefault() {
-    const draft = drafts[key];
-    if (!draft) return; // untouched
-    if (draft.subject === baseText.subject && draft.body === baseText.body) return;
-    const res = await saveReachStyleEmail(posture, style, {
-      subject: draft.subject,
-      body: draft.body,
-    });
+    if (!isEdited) return; // untouched — keep the stored template as-is
+    const res = await saveReachStyleEmail(posture, style, sendTemplates());
     setSaveFlash(res.ok ? "Saved as default" : `Couldn’t save: ${res.reason}`);
   }
 
@@ -167,25 +199,16 @@ export function ReachView({
     [recipients],
   );
   const sendCount = sendRecipients.length;
-  const sampleName = sendRecipients[0]?.name ?? recipients[0]?.name ?? "there";
 
-  const marketWording = effectiveMarket?.wording || effectiveMarket?.name || "the area";
-  const cityLabel = townLabel || effectiveMarket?.name || "your area";
-  const radiusMi = effectiveMarket?.radiusMi ?? 0;
+  // Preview/editor are already fully rendered (display text); show them directly.
+  const previewSubject = current.subject;
+  const previewBody = current.body;
 
-  const ctx = { market: marketWording, equipment, townParen };
-  const previewSubject = renderTemplate(current.subject, { ...ctx, broker: sampleName });
-  const previewBody = renderTemplate(current.body, { ...ctx, broker: sampleName });
-
-  function changeMarket(id: string) {
+  // Picking a city from the typeahead re-anchors by ZIP; the server resolves the
+  // market, recipients, and town phrase for that spot.
+  function pickCity(hit: CityHit) {
     const params = new URLSearchParams();
-    if (id) params.set("market", id);
-    router.push(`/admin/dispatch/reach?${params.toString()}`);
-  }
-  function applyZip() {
-    const z = zipDraft.trim();
-    const params = new URLSearchParams();
-    if (/^\d{5}/.test(z)) params.set("zip", z);
+    if (/^\d{5}/.test(hit.zip)) params.set("zip", hit.zip);
     router.push(`/admin/dispatch/reach?${params.toString()}`);
   }
 
@@ -194,6 +217,7 @@ export function ReachView({
     if (ids.length === 0 || sending || cooldown > 0) return;
     setSending(true);
     setResult(null);
+    const tpl = sendTemplates();
     try {
       const r = await sendReach({
         brokerIds: ids,
@@ -208,8 +232,8 @@ export function ReachView({
           market: marketWording,
           equipment,
           townParen,
-          subjectTemplate: current.subject,
-          bodyTemplate: current.body,
+          subjectTemplate: tpl.subject,
+          bodyTemplate: tpl.body,
         },
       });
       setResult(r);
@@ -229,14 +253,15 @@ export function ReachView({
     if (testing) return;
     setTesting(true);
     setTestMsg(null);
+    const tpl = sendTemplates();
     try {
       const r = await sendReachTest(
         {
           market: marketWording,
           equipment,
           townParen,
-          subjectTemplate: current.subject,
-          bodyTemplate: current.body,
+          subjectTemplate: tpl.subject,
+          bodyTemplate: tpl.body,
         },
         replyToName,
       );
@@ -286,10 +311,8 @@ export function ReachView({
           ) : (
             <div className="space-y-4">
               <SituationCard
-                markets={markets}
-                effectiveMarketId={effectiveMarket.id}
-                onChangeMarket={changeMarket}
                 cityLabel={cityLabel}
+                onPickCity={pickCity}
                 townParen={townParen}
                 date={date}
                 today={today}
@@ -297,11 +320,6 @@ export function ReachView({
                 posture={posture}
                 anchorLoadNumber={anchorLoadNumber}
                 anchorReason={anchorReason}
-                zipOpen={zipOpen}
-                onToggleZip={() => setZipOpen((v) => !v)}
-                zipDraft={zipDraft}
-                onZipDraft={setZipDraft}
-                onApplyZip={applyZip}
               />
 
               <StyleToggle style={style} onStyle={setStyle} />
@@ -357,8 +375,7 @@ export function ReachView({
       {confirmOpen ? (
         <ConfirmSendModal
           subject={previewSubject}
-          bodyTemplate={current.body}
-          ctx={ctx}
+          body={previewBody}
           recipients={sendRecipients.map((r) => ({
             name: r.name,
             email: r.email as string,
@@ -406,10 +423,8 @@ function TabButton({
 // ── Situation card (graphite, with depth) ──────────────────────────────────────
 
 function SituationCard({
-  markets,
-  effectiveMarketId,
-  onChangeMarket,
   cityLabel,
+  onPickCity,
   townParen,
   date,
   today,
@@ -417,16 +432,9 @@ function SituationCard({
   posture,
   anchorLoadNumber,
   anchorReason,
-  zipOpen,
-  onToggleZip,
-  zipDraft,
-  onZipDraft,
-  onApplyZip,
 }: {
-  markets: ReachMarket[];
-  effectiveMarketId: string;
-  onChangeMarket: (id: string) => void;
   cityLabel: string;
+  onPickCity: (hit: CityHit) => void;
   townParen: string;
   date: string;
   today: string;
@@ -434,14 +442,7 @@ function SituationCard({
   posture: Posture;
   anchorLoadNumber: string | null;
   anchorReason: string;
-  zipOpen: boolean;
-  onToggleZip: () => void;
-  zipDraft: string;
-  onZipDraft: (v: string) => void;
-  onApplyZip: () => void;
 }) {
-  const dark =
-    "h-9 rounded-md border border-graphite-line bg-graphite-2 px-2.5 text-[14px] font-semibold text-white outline-none focus:border-accent";
   return (
     <div className="relative overflow-hidden rounded-lg bg-graphite p-5 pl-6 shadow-e2">
       <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-accent" />
@@ -451,18 +452,7 @@ function SituationCard({
 
       <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-2 text-[17px] font-semibold leading-tight text-white sm:text-[19px]">
         <span>Your truck opens up in</span>
-        <select
-          value={effectiveMarketId}
-          onChange={(e) => onChangeMarket(e.target.value)}
-          aria-label="City / market"
-          className={dark}
-        >
-          {markets.map((m) => (
-            <option key={m.id} value={m.id} className="text-ink">
-              {m.name}
-            </option>
-          ))}
-        </select>
+        <CityTypeahead currentLabel={cityLabel} onPick={onPickCity} />
         <span aria-hidden className="text-on-dark-dim">
           —
         </span>
@@ -472,13 +462,15 @@ function SituationCard({
           min={today}
           onChange={(e) => onDate(e.target.value || today)}
           aria-label="When the truck opens up"
-          className={dark + " [color-scheme:dark]"}
+          className="h-9 rounded-md border border-line-strong bg-card px-2.5 text-[14px] font-semibold text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/40"
         />
       </div>
 
       {/* Sub-line: precision town + posture meaning + load provenance */}
-      <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-on-dark-dim">
-        {townParen ? <span className="text-white/90">{townParen}</span> : null}
+      <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-on-dark-dim">
+        {townParen ? (
+          <span className="text-white/90">Sitting {townParen}</span>
+        ) : null}
         <span
           className={
             "inline-flex items-center gap-1.5 rounded px-2 py-0.5 text-[11px] font-bold uppercase tracking-[0.06em] " +
@@ -508,41 +500,110 @@ function SituationCard({
           </span>
         ) : null}
       </div>
-
-      {/* Sitting elsewhere — tucked away */}
-      <div className="mt-2.5">
-        {zipOpen ? (
-          <div className="flex items-center gap-1.5">
-            <input
-              value={zipDraft}
-              onChange={(e) => onZipDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") onApplyZip();
-              }}
-              inputMode="numeric"
-              placeholder="ZIP where you're sitting"
-              className="h-8 w-[180px] rounded-md border border-graphite-line bg-graphite-2 px-2.5 text-[13px] text-white outline-none placeholder:text-on-dark-dim/70 focus:border-accent"
-            />
-            <button
-              type="button"
-              onClick={onApplyZip}
-              className="h-8 rounded-md border border-graphite-line bg-graphite-2 px-3 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-white hover:bg-graphite-line"
-            >
-              Set
-            </button>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={onToggleZip}
-            className="font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-on-dark-dim underline-offset-2 hover:text-white hover:underline"
-          >
-            Sitting somewhere else? Set by ZIP →
-          </button>
-        )}
-      </div>
-      <p className="sr-only">Currently anchored on {cityLabel}.</p>
+      <p className="mt-1.5 font-mono text-[10px] text-on-dark-dim/70">
+        Type a town to change where you&apos;re reaching from.
+      </p>
     </div>
+  );
+}
+
+// ── City typeahead ──────────────────────────────────────────────────────────────
+
+/**
+ * Type-to-search location field (reuses /api/admin/dispatch/cities). Auto-fills
+ * from the active load's drop-off (currentLabel); type to override, pick a
+ * suggestion to re-anchor. Light-styled so it's readable on the graphite card.
+ */
+function CityTypeahead({
+  currentLabel,
+  onPick,
+}: {
+  currentLabel: string;
+  onPick: (hit: CityHit) => void;
+}) {
+  const [text, setText] = useState(currentLabel);
+  const [hits, setHits] = useState<CityHit[]>([]);
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [touched, setTouched] = useState(false);
+  const reqRef = useRef(0);
+
+  useEffect(() => {
+    if (!touched) return;
+    const q = text.trim();
+    const id = ++reqRef.current;
+    const t = setTimeout(() => {
+      if (q.length < 2) {
+        setHits([]);
+        setOpen(false);
+        return;
+      }
+      setLoading(true);
+      fetch(`/api/admin/dispatch/cities?q=${encodeURIComponent(q)}`)
+        .then((r) => r.json())
+        .then((j) => {
+          if (id !== reqRef.current) return;
+          setHits(j.cities ?? []);
+          setOpen(true);
+        })
+        .catch(() => {})
+        .finally(() => {
+          if (id === reqRef.current) setLoading(false);
+        });
+    }, 200);
+    return () => clearTimeout(t);
+  }, [text, touched]);
+
+  return (
+    <span className="relative inline-block">
+      <input
+        value={text}
+        onChange={(e) => {
+          setText(e.target.value);
+          setTouched(true);
+        }}
+        onFocus={(e) => {
+          e.currentTarget.select();
+          if (hits.length > 0) setOpen(true);
+        }}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        aria-label="City you're reaching from"
+        placeholder="Type a town…"
+        className="h-9 w-[190px] rounded-md border border-line-strong bg-card px-2.5 text-[14px] font-semibold text-ink outline-none placeholder:text-ink-3 focus:border-accent focus:ring-2 focus:ring-accent/40"
+      />
+      {loading ? (
+        <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 font-mono text-[10px] text-ink-3">
+          …
+        </span>
+      ) : null}
+      {open && hits.length > 0 ? (
+        <ul className="absolute left-0 z-20 mt-1 max-h-56 w-[240px] overflow-auto rounded-md border border-line-strong bg-card text-ink shadow-e3">
+          {hits.map((h) => (
+            <li key={`${h.zip}-${h.city}`}>
+              <button
+                type="button"
+                onMouseDown={(e) => {
+                  // mousedown (before blur) so the pick registers.
+                  e.preventDefault();
+                  setText(`${h.city}, ${h.state}`);
+                  setTouched(false);
+                  setOpen(false);
+                  onPick(h);
+                }}
+                className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-[13px] font-medium text-ink transition-colors hover:bg-inset"
+              >
+                <span className="truncate">
+                  {h.city}, {h.state}
+                </span>
+                <span className="shrink-0 font-mono text-[11px] text-ink-3">
+                  {h.zip}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </span>
   );
 }
 
@@ -713,9 +774,9 @@ function EmailForm({
           rows={9}
           className="w-full rounded-md border border-line-strong bg-card px-3 py-2 text-[14px] leading-relaxed text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/40"
         />
-        <p className="mt-1 font-mono text-[10px] text-ink-3">
-          {"{broker}"} · {"{market}"} · {"{equipment}"} · {"{town_paren}"} fill in
-          automatically.
+        <p className="mt-1 text-[11px] text-ink-3">
+          Your market, truck, and location are already filled in. On send, each
+          broker gets their own name in place of “there.”
         </p>
         {!templatesAvailable ? (
           <p className="mt-1 font-mono text-[10px] text-warn">
@@ -815,8 +876,7 @@ function ActionBar({
 
 function ConfirmSendModal({
   subject,
-  bodyTemplate,
-  ctx,
+  body,
   recipients,
   sending,
   result,
@@ -824,8 +884,8 @@ function ConfirmSendModal({
   onClose,
 }: {
   subject: string;
-  bodyTemplate: string;
-  ctx: { market: string; equipment: string; townParen: string };
+  /** Already-rendered display body (greeting shows "there"). */
+  body: string;
   recipients: { name: string; email: string }[];
   sending: boolean;
   result: ReachSendResult | null;
@@ -839,8 +899,6 @@ function ConfirmSendModal({
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [sending, onClose]);
-
-  const previewBody = renderTemplate(bodyTemplate, { ...ctx, broker: "{broker}" });
 
   return (
     <div
@@ -908,10 +966,10 @@ function ConfirmSendModal({
             </p>
             <p className="mt-0.5 text-[13px] font-semibold text-fg">{subject}</p>
             <p className="mt-2.5 font-mono text-[9.5px] uppercase tracking-[0.12em] text-fg-subtle">
-              Body · {"{broker}"} fills each broker’s name
+              Body · each broker gets their name in place of “there”
             </p>
             <pre className="mt-1 whitespace-pre-wrap break-words font-sans text-[12.5px] leading-relaxed text-fg">
-              {previewBody}
+              {body}
             </pre>
           </section>
 

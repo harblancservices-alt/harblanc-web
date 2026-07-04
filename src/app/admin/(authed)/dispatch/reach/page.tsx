@@ -60,6 +60,7 @@ export default async function ReachPage({
       posture: "available",
       town: hit?.city ?? "",
       townLabel: hit ? `${hit.city}, ${hit.state}` : zip,
+      state: (hit?.state ?? "").trim().toUpperCase(),
       lat: hit?.lat ?? null,
       lon: hit?.lon ?? null,
       zip,
@@ -104,6 +105,7 @@ export default async function ReachPage({
         anchor.lat,
         anchor.lon,
         settings.showExactTown,
+        anchor.state,
       );
       townLabel = anchor.townLabel;
     }

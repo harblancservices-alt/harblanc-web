@@ -66,18 +66,35 @@ export function compass8(
   return COMPASS[idx];
 }
 
+/** Spelled-out compass word so the email reads naturally ("east", not "E"). */
+const DIRECTION_WORD: Record<Compass8, string> = {
+  N: "north",
+  NE: "northeast",
+  E: "east",
+  SE: "southeast",
+  S: "south",
+  SW: "southwest",
+  W: "west",
+  NW: "northwest",
+};
+
 /**
- * Build the precision parenthetical. Empty string when the town coincides with
- * the market center (0 mi) or when exact-town display is off — callers render
- * "{market} {town_paren}" and collapse the resulting whitespace.
+ * Build the precision town phrase in natural language, e.g.
+ * "6 miles east of Pearl, Mississippi". `stateFull` is the spelled-out state
+ * (empty ⇒ just the town). At the market center (< 1 mi) it's just the place.
+ * Empty string when there's no town or exact-town display is off — callers embed
+ * it in the sentence and collapse the resulting whitespace.
  */
 export function townParen(
   town: string,
   miles: number,
   dir: Compass8,
+  stateFull = "",
 ): string {
   const t = town.trim();
   if (!t) return "";
-  if (miles < 1) return `(${t})`;
-  return `(${t}, ${miles} mi ${dir})`;
+  const place = stateFull.trim() ? `${t}, ${stateFull.trim()}` : t;
+  if (miles < 1) return place;
+  const unit = miles === 1 ? "mile" : "miles";
+  return `${miles} ${unit} ${DIRECTION_WORD[dir]} of ${place}`;
 }

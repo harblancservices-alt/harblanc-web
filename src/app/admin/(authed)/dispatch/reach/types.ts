@@ -135,6 +135,36 @@ export function renderTemplate(
     .join("\n");
 }
 
+/**
+ * Reverse of renderTemplate for the editable email: turn fully-rendered display
+ * text back into a token template so per-broker personalization + auto-fill
+ * survive an edit. The operator never sees a raw {token}; we re-insert them on
+ * save by matching the concrete values back to their tokens (longest first to
+ * avoid a shorter value matching inside a longer one), and the greeting's
+ * "there" (how {broker} renders for display) back to {broker} on the first line.
+ */
+export function templatize(
+  text: string,
+  ctx: { market: string; equipment: string; townParen: string },
+): string {
+  let out = text;
+  const subs: [string, string][] = (
+    [
+      [ctx.townParen, "{town_paren}"],
+      [ctx.equipment, "{equipment}"],
+      [ctx.market, "{market}"],
+    ] as [string, string][]
+  )
+    .filter(([v]) => v.trim().length >= 2)
+    .sort((a, b) => b[0].length - a[0].length);
+  for (const [val, tok] of subs) out = out.split(val).join(tok);
+  // Greeting name only: the first "there" on the first line becomes {broker}.
+  const nl = out.indexOf("\n");
+  const head = nl === -1 ? out : out.slice(0, nl);
+  const rest = nl === -1 ? "" : out.slice(nl);
+  return head.replace(/\bthere\b/i, "{broker}") + rest;
+}
+
 export const DEFAULT_SETTINGS: ReachSettings = {
   truckLine: "40' gooseneck hotshot, dually",
   replyToName: "HARBLANC",

@@ -61,10 +61,32 @@ export function marketState(market: ReachMarket): string | null {
   return hit?.state?.toUpperCase() ?? null;
 }
 
+/** US state abbreviation → spelled-out name, for the natural town phrase. */
+const STATE_FULL: Record<string, string> = {
+  AL: "Alabama", AK: "Alaska", AZ: "Arizona", AR: "Arkansas", CA: "California",
+  CO: "Colorado", CT: "Connecticut", DE: "Delaware", FL: "Florida",
+  GA: "Georgia", HI: "Hawaii", ID: "Idaho", IL: "Illinois", IN: "Indiana",
+  IA: "Iowa", KS: "Kansas", KY: "Kentucky", LA: "Louisiana", ME: "Maine",
+  MD: "Maryland", MA: "Massachusetts", MI: "Michigan", MN: "Minnesota",
+  MS: "Mississippi", MO: "Missouri", MT: "Montana", NE: "Nebraska",
+  NV: "Nevada", NH: "New Hampshire", NJ: "New Jersey", NM: "New Mexico",
+  NY: "New York", NC: "North Carolina", ND: "North Dakota", OH: "Ohio",
+  OK: "Oklahoma", OR: "Oregon", PA: "Pennsylvania", RI: "Rhode Island",
+  SC: "South Carolina", SD: "South Dakota", TN: "Tennessee", TX: "Texas",
+  UT: "Utah", VT: "Vermont", VA: "Virginia", WA: "Washington",
+  WV: "West Virginia", WI: "Wisconsin", WY: "Wyoming", DC: "Washington, D.C.",
+};
+
+/** "MS" → "Mississippi"; unknown/empty → "". */
+export function fullStateName(abbrev: string | null | undefined): string {
+  return STATE_FULL[(abbrev ?? "").trim().toUpperCase()] ?? "";
+}
+
 /**
- * Precision parenthetical for a town relative to a market center. Returns "" —
- * so the template collapses to just the market name — when exact-town display
- * is off or coordinates are missing.
+ * Precision town phrase relative to a market center — "6 miles east of Pearl,
+ * Mississippi". `stateAbbrev` is spelled out for the email. Returns "" — so the
+ * sentence collapses to just the market name — when exact-town display is off or
+ * coordinates are missing.
  */
 export function buildTownParen(
   market: ReachMarket,
@@ -72,15 +94,19 @@ export function buildTownParen(
   townLat: number | null,
   townLon: number | null,
   showExactTown: boolean,
+  stateAbbrev = "",
 ): string {
   if (!showExactTown) return "";
+  const stateFull = fullStateName(stateAbbrev);
+  const t = town.trim();
   if (
     townLat == null ||
     townLon == null ||
     market.centerLat == null ||
     market.centerLon == null
   ) {
-    return town.trim() ? `(${town.trim()})` : "";
+    if (!t) return "";
+    return stateFull ? `${t}, ${stateFull}` : t;
   }
   const miles = Math.round(
     haversineMiles(market.centerLat, market.centerLon, townLat, townLon),
@@ -91,7 +117,7 @@ export function buildTownParen(
     townLat,
     townLon,
   );
-  return townParen(town, miles, dir);
+  return townParen(town, miles, dir, stateFull);
 }
 
 // ── Posture detection ────────────────────────────────────────────────────────
@@ -102,6 +128,8 @@ export type ReachAnchor = {
   town: string;
   /** "Kingwood, TX" for display. */
   townLabel: string;
+  /** State abbreviation of the anchor town, e.g. "TX". */
+  state: string;
   lat: number | null;
   lon: number | null;
   /** ZIP the anchor resolved from, if any. */
@@ -171,6 +199,7 @@ export async function detectPosture(
     posture: "available",
     town: "",
     townLabel: "",
+    state: "",
     lat: null,
     lon: null,
     zip: null,
@@ -197,6 +226,7 @@ function anchorFromLoad(
     posture,
     town,
     townLabel: [town, state].filter(Boolean).join(", "),
+    state: (state ?? "").trim().toUpperCase(),
     lat,
     lon,
     zip,
