@@ -10,9 +10,46 @@
 
 import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { lookupCoords } from "@/lib/dispatch/distance";
 import { isLeverage, isPosture, type Leverage } from "./types";
 
 const REACH_PATH = "/admin/dispatch/reach";
+
+// ── Geolocation ──────────────────────────────────────────────────────────────
+
+export type ResolvedLocation = {
+  zip: string;
+  city: string;
+  state: string;
+  lat: number;
+  lon: number;
+};
+
+/**
+ * Reverse-geocode a browser lat/lon to the nearest town/ZIP (the bundled
+ * zipcodes dataset lives server-side, so this runs here). Backs the "Use my
+ * location" button — the client hands back the resolved ZIP the same way a
+ * typed-and-picked town would.
+ */
+export async function resolveLocation(
+  lat: number,
+  lon: number,
+): Promise<ResolvedLocation | null> {
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+  try {
+    const hit = lookupCoords(lat, lon);
+    if (!hit) return null;
+    return {
+      zip: hit.zip,
+      city: hit.city,
+      state: hit.state,
+      lat: hit.lat,
+      lon: hit.lon,
+    };
+  } catch {
+    return null;
+  }
+}
 
 // ── Settings ─────────────────────────────────────────────────────────────────
 

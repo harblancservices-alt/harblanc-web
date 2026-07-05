@@ -19,7 +19,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { sendReach, sendReachTest, type ReachSendResult } from "./send-actions";
-import { saveReachStyleEmail } from "./actions";
+import { saveReachStyleEmail, resolveLocation } from "./actions";
 import { reachSignatureHtml, REACH_PREVIEW_LOGO_URL } from "./signature";
 import { SetupModal } from "./SetupModal";
 import { ContactsTab } from "./ContactsTab";
@@ -58,6 +58,16 @@ function todayISO(): string {
   return local.toISOString().slice(0, 10);
 }
 
+/** Add `days` to a YYYY-MM-DD date, staying in local time. */
+function addDaysISO(iso: string, days: number): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(y ?? 2026, (m ?? 1) - 1, d ?? 1);
+  dt.setDate(dt.getDate() + days);
+  const mm = String(dt.getMonth() + 1).padStart(2, "0");
+  const dd = String(dt.getDate()).padStart(2, "0");
+  return `${dt.getFullYear()}-${mm}-${dd}`;
+}
+
 /** "Jul 9" style label for a YYYY-MM-DD date. */
 function shortDate(iso: string): string {
   const [y, m, d] = iso.split("-").map(Number);
@@ -78,6 +88,7 @@ export function ReachView({
   townLabel,
   anchorLoadNumber,
   anchorReason,
+  detectedPosture,
   recipients,
   heldBack,
   contacts,
@@ -94,6 +105,8 @@ export function ReachView({
   anchorZip: string | null;
   anchorLoadNumber: string | null;
   anchorReason: string;
+  /** Auto-detected posture — seeds the Open now / Planning ahead toggle. */
+  detectedPosture: Posture;
   recipients: ReachRecipient[];
   heldBack: ReachRecipient[];
   contacts: ReachContact[];
@@ -104,9 +117,18 @@ export function ReachView({
   const [tab, setTab] = useState<Tab>("send");
   const [style, setStyle] = useState<Leverage>(settings.defaultLeverage);
   const [today] = useState<string>(() => todayISO());
-  const [date, setDate] = useState<string>(() => todayISO());
-  // Date drives posture: today = truck open now; any future date = planning.
-  const posture: Posture = date > today ? "planning" : "available";
+  // Posture is now an explicit Open now / Planning ahead toggle, seeded from the
+  // auto-detect. It (not the date) drives the templates. The date is only the
+  // planning "opens on" display; it defaults to a near-future day.
+  const [posture, setPosture] = useState<Posture>(detectedPosture);
+  const [date, setDate] = useState<string>(() =>
+    detectedPosture === "planning" ? addDaysISO(todayISO(), 3) : todayISO(),
+  );
+
+  function chooseMode(m: Posture) {
+    setPosture(m);
+    if (m === "planning" && date <= today) setDate(addDaysISO(today, 3));
+  }
 
   // Truck line, from name, and reply-to live here so the email preview updates
   // as they're edited in Setup, and the send uses the current values.
@@ -337,6 +359,7 @@ export function ReachView({
                 today={today}
                 onDate={setDate}
                 posture={posture}
+                onMode={chooseMode}
                 anchorLoadNumber={anchorLoadNumber}
                 anchorReason={anchorReason}
               />
@@ -445,6 +468,25 @@ function TabButton({
 
 // ── Situation card (graphite, with depth) ──────────────────────────────────────
 
+function LocationPin() {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      width="13"
+      height="13"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 21s-6-5.686-6-10a6 6 0 1 1 12 0c0 4.314-6 10-6 10z" />
+      <circle cx="12" cy="11" r="2" />
+    </svg>
+  );
+}
+
 function SituationCard({
   cityLabel,
   onPickCity,
@@ -453,6 +495,7 @@ function SituationCard({
   today,
   onDate,
   posture,
+  onMode,
   anchorLoadNumber,
   anchorReason,
 }: {
@@ -463,9 +506,65 @@ function SituationCard({
   today: string;
   onDate: (v: string) => void;
   posture: Posture;
+  onMode: (m: Posture) => void;
   anchorLoadNumber: string | null;
   anchorReason: string;
 }) {
+  const [locating, setLocating] = useState(false);
+  const [geoError, setGeoError] = useState<string | null>(null);
+
+  // "Use my location": browser geolocation → server reverse-lookup → same
+  // re-anchor as a typed-and-picked town. Fails soft to a type-it message.
+  function onUseLocation() {
+    if (locating) return;
+    setGeoError(null);
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      setGeoError("Couldn't get your location — type your town instead.");
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        void resolveLocation(pos.coords.latitude, pos.coords.longitude)
+          .then((hit) => {
+            if (hit) onPickCity(hit);
+            else setGeoError("Couldn't find a town near you — type it instead.");
+          })
+          .catch(() =>
+            setGeoError("Couldn't get your location — type your town instead."),
+          )
+          .finally(() => setLocating(false));
+      },
+      () => {
+        setLocating(false);
+        setGeoError("Couldn't get your location — type your town instead.");
+      },
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 },
+    );
+  }
+
+  const modeBtn = (m: Posture, label: string) => {
+    const on = posture === m;
+    return (
+      <button
+        type="button"
+        onClick={() => onMode(m)}
+        aria-pressed={on}
+        className={
+          "rounded py-1.5 text-[12px] font-bold transition-colors " +
+          (on
+            ? "bg-accent text-white shadow-e1"
+            : "text-on-dark-dim hover:text-white")
+        }
+      >
+        {label}
+      </button>
+    );
+  };
+
+  const darkLabel =
+    "mb-1 block font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-on-dark-dim";
+
   return (
     <div className="relative rounded-lg bg-graphite p-5 pl-6 shadow-e2">
       <span
@@ -476,40 +575,54 @@ function SituationCard({
         Your situation
       </p>
 
-      {/* Mobile: two full-width labeled fields stacked (no dash). Desktop (sm+):
-          the inline "Your truck opens up in <city> — <date>" sentence. */}
-      <div className="mt-3 flex flex-col gap-3 sm:mt-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2 sm:gap-y-2 sm:text-[19px] sm:font-semibold sm:leading-tight sm:text-white">
-        <span className="hidden sm:inline">Your truck opens up in</span>
-
-        <div className="sm:contents">
-          <span className="mb-1 block font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-on-dark-dim sm:hidden">
-            Town
-          </span>
-          <CityTypeahead currentLabel={cityLabel} onPick={onPickCity} />
+      {/* Town (+ Use my location) and the Open now / Planning ahead toggle.
+          Stacks full-width on mobile, side by side on sm+. */}
+      <div className="mt-3 flex flex-col gap-4 sm:flex-row sm:gap-5">
+        <div className="min-w-0 sm:flex-1">
+          <span className={darkLabel}>Town</span>
+          <div className="flex items-center gap-2">
+            <CityTypeahead currentLabel={cityLabel} onPick={onPickCity} />
+            <button
+              type="button"
+              onClick={onUseLocation}
+              disabled={locating}
+              title="Use my current location"
+              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border border-graphite-line bg-graphite-2 px-2.5 text-[12px] font-semibold text-white transition-colors hover:bg-graphite-line disabled:opacity-60"
+            >
+              <LocationPin />
+              <span className="hidden sm:inline">
+                {locating ? "Locating…" : "Use my location"}
+              </span>
+              <span className="sm:hidden">{locating ? "…" : "Locate"}</span>
+            </button>
+          </div>
+          {geoError ? (
+            <p className="mt-1.5 text-[11px] text-white/90">{geoError}</p>
+          ) : null}
         </div>
 
-        <span aria-hidden className="hidden text-on-dark-dim sm:inline">
-          —
-        </span>
-
-        <div className="sm:contents">
-          <span className="mb-1 block font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-on-dark-dim sm:hidden">
-            Date
-          </span>
-          <input
-            type="date"
-            value={date}
-            min={today}
-            onChange={(e) => onDate(e.target.value || today)}
-            aria-label="When the truck opens up"
-            className="h-9 w-full rounded-md border border-line-strong bg-card px-2.5 text-[14px] font-semibold text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/40 sm:w-auto"
-          />
+        <div className="min-w-0 sm:w-[260px]">
+          <span className={darkLabel}>When</span>
+          <div className="grid grid-cols-2 gap-1 rounded-md border border-graphite-line bg-graphite-2 p-0.5">
+            {modeBtn("available", "Open now")}
+            {modeBtn("planning", "Planning ahead")}
+          </div>
+          {posture === "planning" ? (
+            <input
+              type="date"
+              value={date}
+              min={today}
+              onChange={(e) => onDate(e.target.value || today)}
+              aria-label="When the truck will be open"
+              className="mt-2 h-9 w-full rounded-md border border-line-strong bg-card px-2.5 text-[14px] font-semibold text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/40"
+            />
+          ) : null}
         </div>
       </div>
 
       {/* Sub-line: precision town + posture meaning + load provenance. On mobile
           these stack so the pill never crowds the location text. */}
-      <div className="mt-3 flex flex-col items-start gap-1.5 text-[12px] text-on-dark-dim sm:mt-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2 sm:gap-y-1">
+      <div className="mt-3 flex flex-col items-start gap-1.5 text-[12px] text-on-dark-dim sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2 sm:gap-y-1">
         {townParen ? (
           <span className="text-white/90">Sitting {townParen}</span>
         ) : null}
@@ -542,8 +655,9 @@ function SituationCard({
           </span>
         ) : null}
       </div>
-      <p className="mt-1.5 font-mono text-[10px] text-on-dark-dim/70">
-        Type a town to change where you&apos;re reaching from.
+      <p className="mt-2 font-mono text-[10px] text-on-dark-dim/70">
+        Type a town or tap Use my location. Switch to Planning ahead to reach out
+        before you get there.
       </p>
     </div>
   );
@@ -597,7 +711,7 @@ function CityTypeahead({
   }, [text, touched]);
 
   return (
-    <span className="relative block w-full sm:inline-block sm:w-auto">
+    <span className="relative block min-w-0 flex-1">
       <input
         value={text}
         onChange={(e) => {
@@ -611,7 +725,7 @@ function CityTypeahead({
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         aria-label="City you're reaching from"
         placeholder="Type a town…"
-        className="h-9 w-full rounded-md border border-line-strong bg-card px-2.5 text-[14px] font-semibold text-ink outline-none placeholder:text-ink-3 focus:border-accent focus:ring-2 focus:ring-accent/40 sm:w-[190px]"
+        className="h-9 w-full rounded-md border border-line-strong bg-card px-2.5 text-[14px] font-semibold text-ink outline-none placeholder:text-ink-3 focus:border-accent focus:ring-2 focus:ring-accent/40"
       />
       {loading ? (
         <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 font-mono text-[10px] text-ink-3">
@@ -619,7 +733,7 @@ function CityTypeahead({
         </span>
       ) : null}
       {open && hits.length > 0 ? (
-        <ul className="absolute left-0 z-20 mt-1 max-h-56 w-full max-w-[calc(100vw-2.5rem)] overflow-auto rounded-md border border-line-strong bg-card text-ink shadow-e3 sm:w-[240px]">
+        <ul className="absolute left-0 z-20 mt-1 max-h-56 w-full min-w-[200px] max-w-[calc(100vw-2.5rem)] overflow-auto rounded-md border border-line-strong bg-card text-ink shadow-e3">
           {hits.map((h) => (
             <li key={`${h.zip}-${h.city}`}>
               <button

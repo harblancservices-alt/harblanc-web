@@ -126,6 +126,7 @@ export default async function ReachPage({
       anchorZip={anchor.zip}
       anchorLoadNumber={anchor.loadNumber}
       anchorReason={anchor.reason}
+      detectedPosture={anchor.posture}
       recipients={recipients}
       heldBack={heldBack}
       contacts={contacts}
