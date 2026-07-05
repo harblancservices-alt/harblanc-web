@@ -212,16 +212,15 @@ export function MoreSheet({
                       onClick={onClose}
                       aria-current={active ? "page" : undefined}
                       className={
-                        // Raised, tactile graphite tiles: a soft resting shadow
-                        // lifts the tile off the sheet, a subtle top-to-bottom
-                        // gradient + hairline border give it body, hover adds a
-                        // little more lift (desktop), and a tap depresses it
-                        // (scale down + shadow drops) so it feels pressed. Active
-                        // tile carries the accent ring.
-                        "flex items-center gap-2.5 rounded-xl border px-3 py-3 shadow-md transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 active:scale-[0.97] active:shadow-sm " +
+                        // Tiles sit on a clearly lighter surface than the dark
+                        // sheet behind them so each button stands out. A soft
+                        // resting shadow gives depth; on tap the tile sinks and
+                        // darkens (scale down + brightness drop + shadow drops)
+                        // so it feels pressed. Active tile keeps the accent ring.
+                        "flex items-center gap-2.5 rounded-xl border px-3 py-3 shadow-md transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 active:scale-[0.97] active:brightness-90 active:shadow-sm " +
                         (active
-                          ? "border-accent bg-graphite-2 ring-1 ring-accent"
-                          : "border-graphite-line bg-gradient-to-b from-graphite-2 to-graphite")
+                          ? "border-accent bg-white/[0.14] ring-1 ring-accent"
+                          : "border-white/10 bg-white/[0.09] hover:bg-white/[0.12]")
                       }
                     >
                       <span
