@@ -4,17 +4,15 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ComponentType } from "react";
 import {
-  IconBadge,
   IconBuilding,
+  IconClipboard,
   IconCoins,
   IconDashboard,
   IconLogout,
   IconMail,
-  IconReceipt,
   IconRoute,
   IconSettings,
   IconStack,
-  IconTruck,
   IconWrench,
 } from "./icons";
 
@@ -68,14 +66,12 @@ const GROUPS: NavGroup[] = [
     title: "Partners",
     items: [
       { href: "/admin/dispatch/brokers", label: "Brokers", Icon: IconBuilding },
-      { href: "/admin/quotes", label: "CRM / Quotes", Icon: IconTruck },
     ],
   },
   {
     title: "More",
     items: [
-      { href: "/admin/applications", label: "Applications", Icon: IconBadge },
-      { href: "/admin/accounting", label: "Accounting", Icon: IconReceipt },
+      { href: "/admin/operations", label: "Operations", Icon: IconClipboard },
       { href: "/admin/dispatch/reach", label: "Reach", Icon: IconMail },
       { href: "/admin/dispatch/receivables", label: "Receivables", Icon: IconCoins },
       { href: "/admin/previews", label: "Email Previews", Icon: IconMail },

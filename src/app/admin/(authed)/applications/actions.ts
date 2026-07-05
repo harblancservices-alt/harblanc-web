@@ -27,11 +27,11 @@ export async function softDeleteApplication(id: string): Promise<void> {
     throw new Error(`Soft delete failed: ${error.message}`);
   }
 
-  revalidatePath("/admin/applications");
+  revalidatePath("/admin/operations");
   revalidatePath("/admin/applications/trash");
   revalidatePath(`/admin/applications/${id}`);
   revalidatePath("/admin");
-  redirect("/admin/applications");
+  redirect("/admin/operations?tab=applications");
 }
 
 export async function restoreApplication(id: string): Promise<void> {
@@ -50,11 +50,11 @@ export async function restoreApplication(id: string): Promise<void> {
     throw new Error(`Restore failed: ${error.message}`);
   }
 
-  revalidatePath("/admin/applications");
+  revalidatePath("/admin/operations");
   revalidatePath("/admin/applications/trash");
   revalidatePath(`/admin/applications/${id}`);
   revalidatePath("/admin");
-  redirect("/admin/applications");
+  redirect("/admin/operations?tab=applications");
 }
 
 export async function permanentlyDeleteApplication(id: string): Promise<void> {

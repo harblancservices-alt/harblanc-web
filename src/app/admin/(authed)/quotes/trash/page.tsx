@@ -82,7 +82,7 @@ export default async function QuotesTrashPage() {
         tabs={[
           {
             label: "Active",
-            href: "/admin/quotes",
+            href: "/admin/operations?tab=quotes",
             count: activeCount,
           },
           {

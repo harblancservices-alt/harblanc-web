@@ -111,7 +111,9 @@ export default async function ApplicationDetailPage({
           {/* Back link */}
           <Link
             href={
-              isTrashed ? "/admin/applications/trash" : "/admin/applications"
+              isTrashed
+                ? "/admin/applications/trash"
+                : "/admin/operations?tab=applications"
             }
             prefetch={false}
             className="inline-flex items-center font-mono text-[10.5px] font-bold uppercase tracking-[0.18em] text-fg-muted transition-colors hover:text-fg"

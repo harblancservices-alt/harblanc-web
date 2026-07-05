@@ -394,7 +394,7 @@ function AlertBar({
     segments.push(
       <AlertChip
         key="apps"
-        href="/admin/applications"
+        href="/admin/operations?tab=applications"
         count={newApplications}
         label={`new job application${newApplications === 1 ? "" : "s"}`}
       />,
@@ -404,7 +404,7 @@ function AlertBar({
     segments.push(
       <AlertChip
         key="quotes"
-        href="/admin/quotes"
+        href="/admin/operations?tab=quotes"
         count={newQuotes}
         label={`new quote request${newQuotes === 1 ? "" : "s"}`}
       />,

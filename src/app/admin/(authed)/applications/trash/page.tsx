@@ -84,7 +84,7 @@ export default async function ApplicationsTrashPage() {
         tabs={[
           {
             label: "Active",
-            href: "/admin/applications",
+            href: "/admin/operations?tab=applications",
             count: activeCount,
           },
           {

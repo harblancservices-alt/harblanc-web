@@ -57,11 +57,11 @@ export async function softDeleteQuote(id: string): Promise<void> {
     throw new Error(`Soft delete failed: ${error.message}`);
   }
 
-  revalidatePath("/admin/quotes");
+  revalidatePath("/admin/operations");
   revalidatePath("/admin/quotes/trash");
   revalidatePath(`/admin/quotes/${id}`);
   revalidatePath("/admin");
-  redirect("/admin/quotes");
+  redirect("/admin/operations?tab=quotes");
 }
 
 /**
@@ -83,11 +83,11 @@ export async function restoreQuote(id: string): Promise<void> {
     throw new Error(`Restore failed: ${error.message}`);
   }
 
-  revalidatePath("/admin/quotes");
+  revalidatePath("/admin/operations");
   revalidatePath("/admin/quotes/trash");
   revalidatePath(`/admin/quotes/${id}`);
   revalidatePath("/admin");
-  redirect("/admin/quotes");
+  redirect("/admin/operations?tab=quotes");
 }
 
 /**

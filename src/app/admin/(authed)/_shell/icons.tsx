@@ -286,6 +286,27 @@ export function IconLogout({ className }: IconProps) {
   );
 }
 
+export function IconClipboard({ className }: IconProps) {
+  // Clipboard with lines — the Operations hub (quotes / applications /
+  // accounting rolled into one work queue).
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <rect x="5" y="4" width="14" height="17" rx="2" />
+      <path d="M9 4a3 3 0 0 1 6 0" />
+      <path d="M9 11h6M9 15h6" />
+    </svg>
+  );
+}
+
 export function IconWrench({ className }: IconProps) {
   // Maintenance / service.
   return (

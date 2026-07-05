@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
-import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusTag } from "@/components/ui/StatusTag";
 import { PAYMENT_METHOD_LABELS, type PaymentMethod } from "@/lib/dispatch/payment";
 
@@ -57,28 +56,26 @@ export type AccountingData = {
 export function AccountingView({ data }: { data: AccountingData }) {
   const { summary } = data;
   return (
-    <div className="min-h-screen border-t border-line bg-canvas text-fg">
-      <div className="w-full px-4 py-5 sm:px-6 lg:px-10">
-        <PageHeader
-          eyebrow="Finance"
-          title="Accounting"
-          date={data.monthLabel}
-          className="mb-4"
-          actions={
-            <Button
-              variant="navigate"
-              size="sm"
-              href={data.stripeDashboardUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Open in Stripe
-              <ExternalIcon />
-            </Button>
-          }
-        />
+    <div>
+      {/* Compact toolbar — the hub owns the page header, so the month label
+          and the Open-in-Stripe action live here instead. */}
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <span className="font-mono text-[11px] font-bold uppercase tracking-[0.16em] text-fg-muted">
+          Finance · {data.monthLabel}
+        </span>
+        <Button
+          variant="navigate"
+          size="sm"
+          href={data.stripeDashboardUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Open in Stripe
+          <ExternalIcon />
+        </Button>
+      </div>
 
-        <div className="mb-5 grid grid-cols-2 gap-2 lg:grid-cols-4">
+      <div className="mb-5 grid grid-cols-2 gap-2 lg:grid-cols-4">
           <Kpi label="Collected MTD" value={usd(summary.collectedMtd)} tone="green" />
           <Kpi
             label="Stripe fees"
@@ -203,7 +200,6 @@ export function AccountingView({ data }: { data: AccountingData }) {
           </div>
         </div>
       </div>
-    </div>
   );
 }
 

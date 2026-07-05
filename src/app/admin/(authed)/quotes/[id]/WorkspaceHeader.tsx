@@ -50,7 +50,9 @@ export function WorkspaceHeader({
   rateDisplay,
   isTrashed,
 }: WorkspaceHeaderProps) {
-  const backHref = isTrashed ? "/admin/quotes/trash" : "/admin/quotes";
+  const backHref = isTrashed
+    ? "/admin/quotes/trash"
+    : "/admin/operations?tab=quotes";
   const backLabel = isTrashed ? "All trash" : "All leads";
   const statusLabel = LEAD_STATUS_LABELS[leadStatus];
   const statusClasses = LEAD_STATUS_CLASSES[leadStatus];

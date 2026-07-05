@@ -4,13 +4,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ComponentType } from "react";
 import {
-  IconBadge,
+  IconClipboard,
   IconCoins,
   IconMail,
-  IconReceipt,
   IconRoute,
   IconSettings,
-  IconTruck,
   IconWrench,
 } from "./icons";
 
@@ -59,8 +57,7 @@ const GROUPS: { title: string; items: SheetItem[] }[] = [
   {
     title: "Customers",
     items: [
-      { href: "/admin/quotes", label: "Quotes", Icon: IconTruck },
-      { href: "/admin/applications", label: "Applications", Icon: IconBadge },
+      { href: "/admin/operations", label: "Operations", Icon: IconClipboard },
     ],
   },
   {
@@ -72,7 +69,6 @@ const GROUPS: { title: string; items: SheetItem[] }[] = [
   {
     title: "Business",
     items: [
-      { href: "/admin/accounting", label: "Accounting", Icon: IconReceipt },
       { href: "/admin/previews", label: "Email Previews", Icon: IconMail },
       { href: "/admin/settings", label: "Settings", Icon: IconSettings },
     ],
