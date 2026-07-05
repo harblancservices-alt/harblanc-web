@@ -15,8 +15,6 @@ import {
   POSITION_LABEL,
   categoryForText,
   isCategory,
-  money,
-  parseMoney,
   type Category,
 } from "@/lib/dispatch/repair-log";
 import type { ReceiptView, ServiceFull } from "./types";
@@ -120,7 +118,6 @@ export function LogServiceModal({
     const seed = editService?.odometer ?? currentOdo;
     return seed != null && seed > 0 ? seed.toLocaleString("en-US") : "";
   });
-  const [shop, setShop] = useState(editService?.shop ?? "");
   const [total, setTotal] = useState(
     editService?.totalCost != null ? String(editService.totalCost) : "",
   );
@@ -298,7 +295,6 @@ export function LogServiceModal({
 
   const busy = pending || uploading || deleting;
   const errorMsg = uploadErr ?? deleteErr ?? state.error;
-  const totalNum = parseMoney(total);
 
   return (
     <ModalShell
@@ -334,17 +330,6 @@ export function LogServiceModal({
                 className={FIELD + " tabular-nums"}
               />
             </div>
-          </div>
-          <div>
-            <label className={LABEL}>Shop (optional)</label>
-            <input
-              name="shop"
-              value={shop}
-              onChange={(e) => setShop(e.target.value)}
-              autoComplete="off"
-              placeholder="e.g. Cummins dealer, roadside, self"
-              className={FIELD}
-            />
           </div>
 
           {/* Parts replaced */}
@@ -449,10 +434,6 @@ export function LogServiceModal({
                 <option key={g} value={g} />
               ))}
             </datalist>
-            <p className="mt-1 font-mono text-[10px] text-fg-subtle">
-              Category is guessed from the part name — change it if needed. Set a
-              position for corner sets; add “remind mi” to make a part recurring.
-            </p>
           </div>
 
           {/* Receipt (service-level) */}
@@ -536,34 +517,24 @@ export function LogServiceModal({
                 ))}
               </div>
             ) : null}
-            <p className="mt-1 font-mono text-[10px] text-fg-subtle">
-              One receipt covers the whole visit — it holds the cost breakdown.
-            </p>
           </div>
 
           {/* One optional total + notes */}
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className={LABEL}>Total (optional)</label>
-              <div className="relative mt-1">
-                <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 font-mono text-[13px] text-ink-3">
-                  $
-                </span>
-                <input
-                  name="total_cost"
-                  value={total}
-                  onChange={(e) => setTotal(e.target.value)}
-                  inputMode="decimal"
-                  autoComplete="off"
-                  placeholder="0.00"
-                  className="w-full rounded-md border border-line-strong bg-card py-1.5 pl-6 pr-2.5 text-[13px] tabular-nums text-ink outline-none placeholder:text-ink-3 focus:border-accent focus:ring-2 focus:ring-accent/40"
-                />
-              </div>
-            </div>
-            <div className="flex items-end">
-              <span className="font-mono text-[11px] tabular-nums text-fg-subtle">
-                {totalNum > 0 ? money(totalNum) : ""}
+          <div>
+            <label className={LABEL}>Total (optional)</label>
+            <div className="relative mt-1">
+              <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 font-mono text-[13px] text-ink-3">
+                $
               </span>
+              <input
+                name="total_cost"
+                value={total}
+                onChange={(e) => setTotal(e.target.value)}
+                inputMode="decimal"
+                autoComplete="off"
+                placeholder="0.00"
+                className="w-full rounded-md border border-line-strong bg-card py-1.5 pl-6 pr-2.5 text-[13px] tabular-nums text-ink outline-none placeholder:text-ink-3 focus:border-accent focus:ring-2 focus:ring-accent/40"
+              />
             </div>
           </div>
           <div>
@@ -574,7 +545,6 @@ export function LogServiceModal({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               autoComplete="off"
-              placeholder="Anything worth remembering about this visit…"
               className={FIELD + " resize-none"}
             />
           </div>
@@ -639,17 +609,17 @@ function ModalShell({
       role="dialog"
       aria-modal="true"
       aria-label={title}
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-3 sm:p-6"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 px-3 pb-6 pt-[max(env(safe-area-inset-top),0.75rem)] sm:px-6 sm:pb-6 sm:pt-6"
       onClick={() => {
         if (!pending) onClose();
       }}
     >
       <div
-        className="my-4 w-full max-w-md overflow-hidden rounded-lg border border-line-strong bg-card shadow-2xl"
+        className="w-full max-w-md overflow-hidden rounded-xl border border-line-strong bg-card shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between gap-3 bg-bar px-4 py-2.5">
-          <span className="truncate font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-bar-fg">
+        <div className="flex items-center justify-between gap-3 rounded-t-xl bg-bar px-4 py-3">
+          <span className="truncate font-mono text-[12.5px] font-bold uppercase tracking-[0.14em] text-bar-fg">
             {title}
           </span>
           <Button

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import {
   CORNER_POSITIONS,
+  NON_CORNER_POSITIONS,
   POSITION_LABEL,
   computeFreshness,
   currentOdoFromLoads,
@@ -125,16 +126,16 @@ async function loadSet(groupParam: string): Promise<{
 
   // Latest part per position (parts are newest-first).
   const latestByPos = new Map<string, (typeof parts)[number]>();
-  const usedSides = new Set<string>();
+  const usedSides = new Set<Position>();
   for (const p of parts) {
     if (!isPosition(p.row.position)) continue;
     if (!latestByPos.has(p.row.position)) latestByPos.set(p.row.position, p);
-    if (p.row.position === "L" || p.row.position === "R") usedSides.add(p.row.position);
+    if (NON_CORNER_POSITIONS.includes(p.row.position)) usedSides.add(p.row.position);
   }
 
   const slotPositions: Position[] = [
     ...CORNER_POSITIONS,
-    ...(["L", "R"] as Position[]).filter((p) => usedSides.has(p)),
+    ...NON_CORNER_POSITIONS.filter((p) => usedSides.has(p)),
   ];
   const slots: SetSlot[] = slotPositions.map((pos) => {
     const p = latestByPos.get(pos) ?? null;

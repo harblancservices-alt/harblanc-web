@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import {
   CORNER_POSITIONS,
+  NON_CORNER_POSITIONS,
   POSITION_LABEL,
   categoryFromSlug,
   computeFreshness,
@@ -208,7 +209,7 @@ async function loadCategory(category: Category): Promise<{
     hasPositioned.add(key);
     const gk = `${key}|${p.row.position}`;
     if (!latestByGroupPos.has(gk)) latestByGroupPos.set(gk, p);
-    if (p.row.position === "L" || p.row.position === "R") {
+    if (NON_CORNER_POSITIONS.includes(p.row.position)) {
       const s = usedSides.get(key) ?? new Set<Position>();
       s.add(p.row.position);
       usedSides.set(key, s);
@@ -219,7 +220,7 @@ async function loadCategory(category: Category): Promise<{
   for (const key of hasPositioned) {
     const positions: Position[] = [
       ...CORNER_POSITIONS,
-      ...(["L", "R"] as Position[]).filter((p) => usedSides.get(key)?.has(p)),
+      ...NON_CORNER_POSITIONS.filter((p) => usedSides.get(key)?.has(p)),
     ];
     const slots: SetSlot[] = positions.map((pos) => {
       const p = latestByGroupPos.get(`${key}|${pos}`) ?? null;

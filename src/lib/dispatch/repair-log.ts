@@ -80,7 +80,16 @@ export const FRESHNESS_META: Record<
 // ---------------------------------------------------------------------------
 // Positions — a tiny fixed enum, NOT a taxonomy the user builds.
 
-export const POSITIONS = ["FL", "FR", "RL", "RR", "L", "R"] as const;
+export const POSITIONS = [
+  "FL",
+  "FR",
+  "RL",
+  "RR",
+  "FRONT",
+  "REAR",
+  "L",
+  "R",
+] as const;
 export type Position = (typeof POSITIONS)[number];
 
 export const POSITION_LABEL: Record<Position, string> = {
@@ -88,12 +97,17 @@ export const POSITION_LABEL: Record<Position, string> = {
   FR: "Front-Right",
   RL: "Rear-Left",
   RR: "Rear-Right",
+  FRONT: "Front",
+  REAR: "Rear",
   L: "Left",
   R: "Right",
 };
 
 /** The 2×2 corners shown in a set view, in grid order. */
 export const CORNER_POSITIONS: Position[] = ["FL", "FR", "RL", "RR"];
+
+/** Non-corner positions, appended to a set view only when the set uses them. */
+export const NON_CORNER_POSITIONS: Position[] = ["FRONT", "REAR", "L", "R"];
 
 export function isPosition(v: string | null | undefined): v is Position {
   return v != null && (POSITIONS as readonly string[]).includes(v);

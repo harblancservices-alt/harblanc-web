@@ -170,7 +170,6 @@ export async function createReceiptUploadUrl(
 type ServiceFields = {
   serviceDate: string;
   odometer: number | null;
-  shop: string | null;
   totalCost: number | null;
   notes: string | null;
 };
@@ -183,7 +182,6 @@ function parseServiceFields(fd: FormData): ServiceFields {
   return {
     serviceDate: str(fd, "service_date") ?? new Date().toISOString().slice(0, 10),
     odometer,
-    shop: str(fd, "shop"),
     totalCost: moneyOrNull(str(fd, "total_cost")),
     notes: str(fd, "notes"),
   };
@@ -303,18 +301,44 @@ async function insertPart(
   }
 }
 
+/** Original file extension (".jpg", ".pdf", …) or "" — kept on the display name. */
+function fileExt(name: string): string {
+  const m = /(\.[A-Za-z0-9]{1,8})$/.exec(name.trim());
+  return m ? m[1].toLowerCase() : "";
+}
+
+/**
+ * Meaningful stored file_name from the visit's parts + odometer, always
+ * including the miles, so exports/doc viewers read well. The real file +
+ * extension are preserved (extension re-appended; storage object untouched).
+ *   "Track bar — 265,008 mi — receipt.jpg"
+ *   "Track bar, Steering damper — 265,008 mi — receipt.pdf"
+ */
+function receiptDisplayName(
+  partNames: string[],
+  odometer: number | null,
+  originalName: string,
+): string {
+  const names = partNames.filter((n) => n.trim().length > 0).join(", ") || "Service";
+  const miles = odometer != null ? `${odometer.toLocaleString("en-US")} mi` : null;
+  const base = [names, miles, "receipt"].filter(Boolean).join(" — ");
+  return (base + fileExt(originalName)).slice(0, 240);
+}
+
 /** Insert repair_attachments rows for freshly-uploaded receipts (service). */
 async function persistReceipts(
   sb: SB,
   serviceId: string,
   receipts: ReceiptMeta[],
+  partNames: string[],
+  odometer: number | null,
 ): Promise<void> {
   for (const r of receipts) {
     const { error } = await sb.from("repair_attachments").insert({
       service_id: serviceId,
       file_path: r.storagePath,
       thumb_path: null,
-      file_name: r.name.slice(0, 240),
+      file_name: receiptDisplayName(partNames, odometer, r.name),
       content_type: r.type || null,
       size_bytes: r.size,
     });
@@ -322,6 +346,34 @@ async function persistReceipts(
       await sb.storage.from(RECEIPT_BUCKET).remove([r.storagePath]);
       throw new Error(`Could not record receipt ("${r.name}"): ${error.message}`);
     }
+  }
+}
+
+/**
+ * Same visit = automatically related. Link every pair of the service's parts
+ * (idempotent — existing links are ignored). Covers parts added on a later
+ * edit, since it re-links across ALL current parts of the service.
+ */
+async function autoLinkServiceParts(sb: SB, serviceId: string): Promise<void> {
+  const { data } = await sb
+    .from("repair_entries")
+    .select("id")
+    .eq("service_id", serviceId)
+    .is("deleted_at", null)
+    .returns<{ id: string }[]>();
+  const ids = (data ?? []).map((r) => r.id).sort();
+  if (ids.length < 2) return;
+  const rows: { a_id: string; b_id: string }[] = [];
+  for (let i = 0; i < ids.length; i++) {
+    for (let j = i + 1; j < ids.length; j++) {
+      rows.push({ a_id: ids[i], b_id: ids[j] });
+    }
+  }
+  const { error } = await sb
+    .from("repair_links")
+    .upsert(rows, { onConflict: "a_id,b_id", ignoreDuplicates: true });
+  if (error && !/duplicate|unique/i.test(error.message)) {
+    console.error("[autoLinkServiceParts] failed:", error.message);
   }
 }
 
@@ -368,7 +420,6 @@ export async function logService(formData: FormData): Promise<void> {
     .insert({
       service_date: f.serviceDate,
       odometer: f.odometer,
-      shop: f.shop,
       total_cost: f.totalCost,
       notes: f.notes,
     })
@@ -379,9 +430,16 @@ export async function logService(formData: FormData): Promise<void> {
   }
 
   for (const p of parts) await insertPart(sb, service.id, p);
-  await persistReceipts(sb, service.id, receipts);
+  await persistReceipts(
+    sb,
+    service.id,
+    receipts,
+    parts.map((p) => p.description),
+    f.odometer,
+  );
+  await autoLinkServiceParts(sb, service.id);
 
-  revalidatePath("/admin/maintenance");
+  revalidatePath("/admin/maintenance", "layout");
   revalidatePath("/admin");
 }
 
@@ -407,7 +465,6 @@ export async function updateService(
     .update({
       service_date: f.serviceDate,
       odometer: f.odometer,
-      shop: f.shop,
       total_cost: f.totalCost,
       notes: f.notes,
     })
@@ -456,7 +513,14 @@ export async function updateService(
     (v): v is string => typeof v === "string",
   );
   await removeReceipts(sb, serviceId, removeIds);
-  await persistReceipts(sb, serviceId, receipts);
+  await persistReceipts(
+    sb,
+    serviceId,
+    receipts,
+    parts.map((p) => p.description),
+    f.odometer,
+  );
+  await autoLinkServiceParts(sb, serviceId);
 
   revalidatePath("/admin/maintenance", "layout");
   revalidatePath("/admin");
