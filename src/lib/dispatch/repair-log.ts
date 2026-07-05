@@ -123,13 +123,15 @@ export function groupKey(partGroup: string | null | undefined): string | null {
 // ---------------------------------------------------------------------------
 // Categories — a fixed enum (this order) the whole log is organized under.
 
+// Display order (home grid + form dropdown). Preventative leads; the rest keep
+// their prior relative order.
 export const CATEGORIES = [
+  "Preventative",
   "Steering & Suspension",
   "Drivetrain",
   "Engine Bay",
   "Brakes",
   "Tires & Wheels",
-  "Preventative",
   "Trailer",
   "Other",
 ] as const;
@@ -186,6 +188,9 @@ const CATEGORY_RULES: { category: Category; keywords: string[] }[] = [
       "grease",
       "greasing",
       "def",
+      "ccv",
+      "crankcase vent",
+      "crankcase",
     ],
   },
   {
@@ -224,6 +229,7 @@ const CATEGORY_RULES: { category: Category; keywords: string[] }[] = [
       "shock",
       "damper",
       "links",
+      "suspension",
     ],
   },
   {
