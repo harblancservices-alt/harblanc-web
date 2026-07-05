@@ -219,15 +219,16 @@ export function ReachView({
     router.push(`/admin/dispatch/reach?${params.toString()}`);
   }
 
-  async function onSend() {
-    const ids = sendRecipients.map((r) => r.brokerId);
-    if (ids.length === 0 || sending || cooldown > 0) return;
+  // Sends only to the ids the user left checked in the confirm modal.
+  async function onSend(ids: string[]) {
+    const clean = ids.filter(Boolean);
+    if (clean.length === 0 || sending || cooldown > 0) return;
     setSending(true);
     setResult(null);
     const tpl = sendTemplates();
     try {
       const r = await sendReach({
-        brokerIds: ids,
+        brokerIds: clean,
         posture,
         leverage: style,
         // Built-in markets aren't DB rows, so market_id stays null; the
@@ -397,8 +398,10 @@ export function ReachView({
           subject={previewSubject}
           body={previewBody}
           recipients={sendRecipients.map((r) => ({
+            brokerId: r.brokerId,
             name: r.name,
             email: r.email as string,
+            area: r.area,
           }))}
           sending={sending}
           result={result}
@@ -932,12 +935,18 @@ function ConfirmSendModal({
   subject: string;
   /** Already-rendered display body (greeting shows "there"). */
   body: string;
-  recipients: { name: string; email: string }[];
+  recipients: { brokerId: string; name: string; email: string; area: string }[];
   sending: boolean;
   result: ReachSendResult | null;
-  onConfirm: () => void;
+  onConfirm: (ids: string[]) => void;
   onClose: () => void;
 }) {
+  // Every recipient starts CHECKED; unchecking drops them from this send.
+  const [checked, setChecked] = useState<Set<string>>(
+    () => new Set(recipients.map((r) => r.brokerId)),
+  );
+  const checkedCount = checked.size;
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape" && !sending) onClose();
@@ -946,23 +955,33 @@ function ConfirmSendModal({
     return () => document.removeEventListener("keydown", onKey);
   }, [sending, onClose]);
 
+  function toggle(id: string) {
+    setChecked((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
   return (
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Review reach"
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-3 sm:p-6"
+      aria-label="Review reach before sending"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))] sm:p-6"
       onClick={() => {
         if (!sending) onClose();
       }}
     >
       <div
-        className="my-4 w-full max-w-lg overflow-hidden rounded-lg border border-line-strong bg-card shadow-e3"
+        className="my-2 flex max-h-[calc(100dvh-1.5rem)] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-line-strong bg-card shadow-e3 sm:my-4 sm:max-h-[calc(100dvh-3rem)]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between gap-3 bg-bar px-4 py-2.5">
+        {/* Header — live count */}
+        <div className="flex shrink-0 items-center justify-between gap-3 bg-bar px-4 py-2.5">
           <span className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-bar-fg">
-            Review · {recipients.length} broker{recipients.length === 1 ? "" : "s"}
+            Review · {checkedCount} of {recipients.length}
           </span>
           <button
             type="button"
@@ -974,49 +993,98 @@ function ConfirmSendModal({
           </button>
         </div>
 
-        <div className="max-h-[70vh] space-y-3 overflow-y-auto bg-elevated px-4 py-4">
-          <section className="rounded-md border border-line bg-card p-3">
-            <p className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-fg">
-              Recipients · {recipients.length}
-            </p>
-            <p className="mb-2 mt-0.5 text-[11px] text-fg-subtle">
-              One personalized email per broker — never bundled.
-            </p>
+        {/* Scrollable body */}
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto bg-elevated px-4 py-4">
+          {/* The email — subject + full rendered body + branded footer */}
+          <details open className="group rounded-md border border-line bg-card">
+            <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2.5">
+              <span className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-fg">
+                The email
+              </span>
+              <span
+                aria-hidden
+                className="font-mono text-[11px] text-ink-3 group-open:hidden"
+              >
+                show ▾
+              </span>
+              <span
+                aria-hidden
+                className="hidden font-mono text-[11px] text-ink-3 group-open:inline"
+              >
+                hide ▴
+              </span>
+            </summary>
+            <div className="border-t border-line px-3 py-3">
+              <p className="font-mono text-[9.5px] uppercase tracking-[0.12em] text-fg-subtle">
+                Subject
+              </p>
+              <p className="mt-0.5 text-[13px] font-semibold text-fg">{subject}</p>
+              <p className="mt-2.5 font-mono text-[9.5px] uppercase tracking-[0.12em] text-fg-subtle">
+                Body · each broker gets their name in place of “there”
+              </p>
+              <pre className="mt-1 whitespace-pre-wrap break-words font-sans text-[12.5px] leading-relaxed text-fg">
+                {body}
+              </pre>
+              <div
+                className="mt-2 overflow-x-auto rounded-md bg-white p-3"
+                dangerouslySetInnerHTML={{
+                  __html: reachSignatureHtml(REACH_PREVIEW_LOGO_URL),
+                }}
+              />
+            </div>
+          </details>
+
+          {/* Recipients — one tappable card per broker, checked by default */}
+          <section>
+            <div className="mb-2 flex items-baseline justify-between gap-2">
+              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-fg">
+                Recipients · {checkedCount} selected
+              </p>
+              <p className="font-mono text-[10px] text-fg-subtle">
+                uncheck to skip
+              </p>
+            </div>
             {recipients.length === 0 ? (
               <p className="text-[12px] text-warn">
                 None of the brokers have an email on file.
               </p>
             ) : (
-              <ul className="max-h-44 space-y-1 overflow-y-auto">
-                {recipients.map((r) => (
-                  <li
-                    key={r.email}
-                    className="flex items-baseline justify-between gap-3 text-[12px]"
-                  >
-                    <span className="truncate font-medium text-fg">{r.name}</span>
-                    <span className="shrink-0 font-mono text-[11.5px] text-steel">
-                      {r.email}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              <div className="space-y-2">
+                {recipients.map((r) => {
+                  const on = checked.has(r.brokerId);
+                  return (
+                    <label
+                      key={r.brokerId}
+                      className={
+                        "flex cursor-pointer items-start gap-3 rounded-md border p-3 transition-colors " +
+                        (on
+                          ? "border-line-strong bg-card"
+                          : "border-line bg-inset opacity-55")
+                      }
+                    >
+                      <input
+                        type="checkbox"
+                        checked={on}
+                        disabled={sending}
+                        onChange={() => toggle(r.brokerId)}
+                        className="mt-0.5 h-5 w-5 shrink-0 accent-accent"
+                      />
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[13.5px] font-semibold text-fg">
+                          {r.name}
+                        </span>
+                        <span className="mt-0.5 block truncate font-mono text-[11.5px] text-steel">
+                          {r.email}
+                        </span>
+                        <span className="mt-0.5 block truncate text-[11px] text-fg-subtle">
+                          {r.area || "—"}
+                        </span>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
             )}
-          </section>
-
-          <section className="rounded-md border border-line bg-card p-3">
-            <p className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-fg">
-              Email
-            </p>
-            <p className="mt-2 font-mono text-[9.5px] uppercase tracking-[0.12em] text-fg-subtle">
-              Subject
-            </p>
-            <p className="mt-0.5 text-[13px] font-semibold text-fg">{subject}</p>
-            <p className="mt-2.5 font-mono text-[9.5px] uppercase tracking-[0.12em] text-fg-subtle">
-              Body · each broker gets their name in place of “there”
-            </p>
-            <pre className="mt-1 whitespace-pre-wrap break-words font-sans text-[12.5px] leading-relaxed text-fg">
-              {body}
-            </pre>
           </section>
 
           {result && !result.ok ? (
@@ -1026,14 +1094,15 @@ function ConfirmSendModal({
           ) : null}
         </div>
 
-        <div className="flex items-center justify-end gap-2 border-t border-line bg-elevated px-4 py-3">
+        {/* Footer — Cancel + confirm with the live count */}
+        <div className="flex shrink-0 items-center justify-end gap-2 border-t border-line bg-elevated px-4 py-3">
           <Button variant="cancel" onClick={onClose} disabled={sending}>
             Cancel
           </Button>
           <button
             type="button"
-            onClick={onConfirm}
-            disabled={sending || recipients.length === 0}
+            onClick={() => onConfirm([...checked])}
+            disabled={sending || checkedCount === 0}
             aria-busy={sending}
             className="inline-flex items-center gap-1.5 rounded-md border border-accent bg-accent px-4 py-2 font-mono text-[12px] font-bold uppercase tracking-[0.1em] text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-70"
           >
@@ -1046,7 +1115,7 @@ function ConfirmSendModal({
                 Sending…
               </>
             ) : (
-              `Send to ${recipients.length} →`
+              `Send to ${checkedCount} broker${checkedCount === 1 ? "" : "s"} →`
             )}
           </button>
         </div>

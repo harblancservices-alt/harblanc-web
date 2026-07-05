@@ -116,6 +116,8 @@ export type ReachRecipient = {
   warmth: Warmth;
   /** Set when held back: whole days since we last reached this broker. */
   reachedDaysAgo: number | null;
+  /** Representative "City, ST" from the broker's lanes — "" when unknown. */
+  area: string;
 };
 
 /**

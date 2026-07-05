@@ -244,6 +244,7 @@ type LaneRow = {
   broker_id: string | null;
   origin_zip: string | null;
   origin_state: string | null;
+  origin_city: string | null;
 };
 type OriginLoadRow = {
   broker_id: string | null;
@@ -295,7 +296,7 @@ export async function buildRecipients(
       .returns<ContactRow[]>(),
     sb
       .from("broker_lanes")
-      .select("broker_id, origin_zip, origin_state")
+      .select("broker_id, origin_zip, origin_state, origin_city")
       .is("deleted_at", null)
       .returns<LaneRow[]>(),
     sb
@@ -354,6 +355,22 @@ export async function buildRecipients(
     if (originInMarket(l.origin_zip, stateOf(l.origin))) bump(l.broker_id);
   }
 
+  // Representative area per broker — first lane/load origin as "City, ST".
+  const areaByBroker = new Map<string, string>();
+  const setArea = (bid: string | null, city: string, state: string) => {
+    if (!bid || areaByBroker.has(bid)) return;
+    const label = [city.trim(), state.trim().toUpperCase()]
+      .filter(Boolean)
+      .join(", ");
+    if (label) areaByBroker.set(bid, label);
+  };
+  for (const l of laneRows ?? []) {
+    setArea(l.broker_id, l.origin_city ?? "", l.origin_state ?? "");
+  }
+  for (const l of loadRows ?? []) {
+    setArea(l.broker_id, cityOf(l.origin), stateOf(l.origin));
+  }
+
   // Most-recent send per broker (by id) and per email, for suppression.
   const lastSendByBroker = new Map<string, number>();
   const lastSendByEmail = new Map<string, number>();
@@ -399,6 +416,7 @@ export async function buildRecipients(
       matchCount: count,
       warmth,
       reachedDaysAgo,
+      area: areaByBroker.get(b.id) ?? "",
     };
     if (reachedDaysAgo !== null) heldBack.push(rec);
     else recipients.push(rec);
