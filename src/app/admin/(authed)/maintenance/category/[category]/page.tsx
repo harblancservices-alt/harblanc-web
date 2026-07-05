@@ -1,37 +1,36 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { MaintenanceHome } from "./MaintenanceHome";
 import {
-  CATEGORIES,
-  CATEGORY_SLUG,
+  CORNER_POSITIONS,
+  POSITION_LABEL,
+  categoryFromSlug,
   computeFreshness,
   computeMaintenance,
   currentOdoFromLoads,
   groupKey,
-  isCategory,
   isPosition,
   type Category,
+  type Position,
 } from "@/lib/dispatch/repair-log";
+import { CategoryView } from "./CategoryView";
 import type {
-  CategoryCard,
-  CostRollups,
+  CategorySet,
   EntryLite,
   RepairEntry,
   ReminderView,
-} from "./types";
+  SetSlot,
+} from "../../types";
 
 export const metadata: Metadata = {
-  title: "Maintenance",
+  title: "Category",
   robots: { index: false, follow: false },
 };
 
 /**
- * Maintenance home — the truck's repair log organized under categories.
- *
- * Server component. Loads the flat repair_entries + reminder overlay + current
- * odometer, then derives per-category cards (count / spend / attention badge),
- * the cost rollups, the overdue/due-soon reminder alerts, and the full entry
- * list (for global cross-category search), and hands plain data to the client.
+ * Category view — every repair in one category, with its set-parts grouped up
+ * top (corners inline with freshness + combined cost) and an all-repairs list
+ * with a within-category search.
  */
 
 type EntryRow = {
@@ -68,16 +67,12 @@ function num(v: number | string | null): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-function cat(v: string): Category {
-  return isCategory(v) ? v : "Other";
-}
-
-async function loadHome(): Promise<{
-  currentOdo: number;
-  rollups: CostRollups;
-  categoryCards: CategoryCard[];
-  alertReminders: ReminderView[];
+async function loadCategory(category: Category): Promise<{
   entries: RepairEntry[];
+  sets: CategorySet[];
+  reminders: ReminderView[];
+  lifetime: number;
+  currentOdo: number;
   partGroups: string[];
   allEntries: EntryLite[];
 }> {
@@ -89,12 +84,14 @@ async function loadHome(): Promise<{
     { data: odoRows },
     { data: attRows },
     { data: linkRows },
+    { data: allRows },
   ] = await Promise.all([
     sb
       .from("repair_entries")
       .select(
         "id, description, odometer, service_date, cost, notes, position, part_group, category",
       )
+      .eq("category", category)
       .is("deleted_at", null)
       .order("service_date", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false })
@@ -104,6 +101,7 @@ async function loadHome(): Promise<{
       .select(
         "id, label, part_group, category, interval_miles, anchor_odo, anchor_date",
       )
+      .eq("category", category)
       .is("dismissed_at", null)
       .returns<ReminderRow[]>(),
     sb
@@ -116,10 +114,27 @@ async function loadHome(): Promise<{
       .from("repair_links")
       .select("a_id, b_id")
       .returns<{ a_id: string; b_id: string }[]>(),
+    // Lightweight list of every entry, for the shared modal's attach picker +
+    // part-group datalist (attach can span categories).
+    sb
+      .from("repair_entries")
+      .select("id, description, service_date, odometer, position, part_group")
+      .is("deleted_at", null)
+      .order("service_date", { ascending: false, nullsFirst: false })
+      .returns<
+        {
+          id: string;
+          description: string;
+          service_date: string | null;
+          odometer: number | null;
+          position: string | null;
+          part_group: string | null;
+        }[]
+      >(),
   ]);
 
-  const currentOdo = currentOdoFromLoads(odoRows);
   const rows = entryRows ?? [];
+  const currentOdo = currentOdoFromLoads(odoRows);
   const today = new Date().toISOString().slice(0, 10);
 
   const receiptCount = new Map<string, number>();
@@ -132,7 +147,7 @@ async function loadHome(): Promise<{
     relatedCount.set(l.b_id, (relatedCount.get(l.b_id) ?? 0) + 1);
   }
 
-  // Group aggregates (latest odo/date per part_group) for reminder next-due.
+  // Group aggregates (for reminder next-due) within this category.
   const groupMaxOdo = new Map<string, number>();
   const groupMaxDate = new Map<string, string>();
   for (const r of rows) {
@@ -159,7 +174,7 @@ async function loadHome(): Promise<{
       id: r.id,
       label: r.label,
       partGroup: r.part_group,
-      category: cat(r.category),
+      category,
       interval: r.interval_miles,
       status: m.status,
       milesRemaining: m.milesRemaining,
@@ -171,7 +186,6 @@ async function loadHome(): Promise<{
     };
   });
 
-  // Entries → row data (with per-row freshness + counts).
   const entries: RepairEntry[] = rows.map((r) => {
     const key = groupKey(r.part_group);
     return {
@@ -183,7 +197,7 @@ async function loadHome(): Promise<{
       partGroup: r.part_group,
       cost: num(r.cost),
       notes: r.notes,
-      category: cat(r.category),
+      category,
       freshness: computeFreshness(r.odometer, currentOdo, r.service_date, today),
       receiptCount: receiptCount.get(r.id) ?? 0,
       relatedCount: relatedCount.get(r.id) ?? 0,
@@ -191,85 +205,65 @@ async function loadHome(): Promise<{
     };
   });
 
-  // Cost rollups by service_date prefix (timezone-safe).
-  const now = new Date();
-  const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-  const yr = String(now.getFullYear());
-  const rollups: CostRollups = { month: 0, ytd: 0, lifetime: 0 };
+  // Sets — part groups with ≥1 positioned entry. Latest entry per position →
+  // corner slots (rows are newest-first); combined cost sums the whole group.
+  const setLabel = new Map<string, string>();
+  const latestByGroupPos = new Map<string, EntryRow>();
+  const usedSides = new Map<string, Set<Position>>();
+  const combinedByGroup = new Map<string, number>();
+  const hasPositioned = new Set<string>();
   for (const r of rows) {
-    const c = num(r.cost) ?? 0;
-    if (c === 0) continue;
-    rollups.lifetime += c;
-    const d = r.service_date ?? "";
-    if (d.startsWith(yr)) rollups.ytd += c;
-    if (d.startsWith(ym)) rollups.month += c;
-  }
-
-  // Per-category aging: the latest positioned entry per (group, position) that
-  // reads "aging" flags its category.
-  const latestPosSeen = new Set<string>();
-  const agingCategories = new Set<Category>();
-  for (const r of rows) {
+    const key = groupKey(r.part_group);
+    if (key == null) continue;
+    if (!setLabel.has(key) && r.part_group) setLabel.set(key, r.part_group);
+    combinedByGroup.set(key, (combinedByGroup.get(key) ?? 0) + (num(r.cost) ?? 0));
     if (!isPosition(r.position)) continue;
-    const key = `${groupKey(r.part_group) ?? ""}|${r.position}`;
-    if (latestPosSeen.has(key)) continue; // rows are newest-first → first = latest
-    latestPosSeen.add(key);
-    const f = computeFreshness(r.odometer, currentOdo, r.service_date, today);
-    if (f === "aging") agingCategories.add(cat(r.category));
-  }
-
-  // Per-category worst reminder state.
-  const remWorst = new Map<Category, "overdue" | "soon">();
-  for (const r of reminders) {
-    if (r.status === "overdue") remWorst.set(r.category, "overdue");
-    else if (r.status === "soon" && remWorst.get(r.category) !== "overdue") {
-      remWorst.set(r.category, "soon");
+    hasPositioned.add(key);
+    const gk = `${key}|${r.position}`;
+    if (!latestByGroupPos.has(gk)) latestByGroupPos.set(gk, r);
+    if (r.position === "L" || r.position === "R") {
+      const s = usedSides.get(key) ?? new Set<Position>();
+      s.add(r.position);
+      usedSides.set(key, s);
     }
   }
 
-  const countByCat = new Map<Category, number>();
-  const spendByCat = new Map<Category, number>();
-  for (const r of rows) {
-    const c = cat(r.category);
-    countByCat.set(c, (countByCat.get(c) ?? 0) + 1);
-    spendByCat.set(c, (spendByCat.get(c) ?? 0) + (num(r.cost) ?? 0));
-  }
-
-  const categoryCards: CategoryCard[] = CATEGORIES.map((c) => {
-    const worst = remWorst.get(c);
-    const badge: CategoryCard["badge"] = worst
-      ? worst
-      : agingCategories.has(c)
-        ? "aging"
-        : null;
-    return {
-      category: c,
-      slug: CATEGORY_SLUG[c],
-      count: countByCat.get(c) ?? 0,
-      spend: spendByCat.get(c) ?? 0,
-      badge,
-    };
-  });
-
-  // Alert strip — overdue/due-soon reminders, most urgent first.
-  const RANK: Record<ReminderView["status"], number> = {
-    overdue: 0,
-    soon: 1,
-    baseline: 2,
-    ok: 3,
-  };
-  const alertReminders = reminders
-    .filter((r) => r.status === "overdue" || r.status === "soon")
-    .sort((a, b) => {
-      const d = RANK[a.status] - RANK[b.status];
-      if (d !== 0) return d;
-      return (
-        (a.milesRemaining ?? Number.POSITIVE_INFINITY) -
-        (b.milesRemaining ?? Number.POSITIVE_INFINITY)
-      );
+  const sets: CategorySet[] = [];
+  for (const key of hasPositioned) {
+    const positions: Position[] = [
+      ...CORNER_POSITIONS,
+      ...(["L", "R"] as Position[]).filter((p) => usedSides.get(key)?.has(p)),
+    ];
+    const slots: SetSlot[] = positions.map((p) => {
+      const r = latestByGroupPos.get(`${key}|${p}`) ?? null;
+      return {
+        position: p,
+        label: POSITION_LABEL[p],
+        entry: r
+          ? {
+              id: r.id,
+              description: r.description,
+              date: r.service_date,
+              odometer: r.odometer,
+              cost: num(r.cost),
+            }
+          : null,
+        freshness: r
+          ? computeFreshness(r.odometer, currentOdo, r.service_date, today)
+          : "original",
+      };
     });
+    sets.push({
+      partGroup: setLabel.get(key) ?? key,
+      slots,
+      combinedCost: combinedByGroup.get(key) ?? 0,
+    });
+  }
+  sets.sort((a, b) => a.partGroup.localeCompare(b.partGroup));
 
-  const allEntries: EntryLite[] = rows.map((r) => ({
+  const lifetime = rows.reduce((s, r) => s + (num(r.cost) ?? 0), 0);
+
+  const allEntries: EntryLite[] = (allRows ?? []).map((r) => ({
     id: r.id,
     description: r.description,
     date: r.service_date,
@@ -280,35 +274,42 @@ async function loadHome(): Promise<{
 
   const partGroups = Array.from(
     new Map(
-      [
-        ...rows.map((r) => r.part_group),
-        ...(reminderRows ?? []).map((r) => r.part_group),
-      ]
+      (allRows ?? [])
+        .map((r) => r.part_group)
         .filter((g): g is string => !!g && g.trim().length > 0)
         .map((g) => [groupKey(g)!, g] as const),
     ).values(),
   ).sort((a, b) => a.localeCompare(b));
 
   return {
-    currentOdo,
-    rollups,
-    categoryCards,
-    alertReminders,
     entries,
+    sets,
+    reminders,
+    lifetime,
+    currentOdo,
     partGroups,
     allEntries,
   };
 }
 
-export default async function MaintenancePage() {
-  const data = await loadHome();
+export default async function CategoryPage({
+  params,
+}: {
+  params: Promise<{ category: string }>;
+}) {
+  const { category: slug } = await params;
+  const category = categoryFromSlug(slug);
+  if (!category) notFound();
+
+  const data = await loadCategory(category);
   return (
-    <MaintenanceHome
-      currentOdo={data.currentOdo}
-      rollups={data.rollups}
-      categoryCards={data.categoryCards}
-      alertReminders={data.alertReminders}
+    <CategoryView
+      category={category}
       entries={data.entries}
+      sets={data.sets}
+      reminders={data.reminders}
+      lifetime={data.lifetime}
+      currentOdo={data.currentOdo}
       partGroups={data.partGroups}
       allEntries={data.allEntries}
     />

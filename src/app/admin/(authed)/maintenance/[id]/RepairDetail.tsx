@@ -8,12 +8,14 @@ import { StatusTag } from "@/components/ui/StatusTag";
 import { LogRepairModal } from "../LogRepairModal";
 import { attachRelated, detachRelated } from "../actions";
 import {
+  CATEGORY_SLUG,
   FRESHNESS_META,
   POSITION_LABEL,
   formatDate,
   isPosition,
   money,
 } from "@/lib/dispatch/repair-log";
+import { CategoryIcon } from "../shared";
 import type { EntryLite, RelatedView, RepairEntryFull } from "../types";
 
 export function RepairDetail({
@@ -117,6 +119,13 @@ export function RepairDetail({
           </div>
 
           <div className="mt-3 flex flex-wrap items-center gap-1.5">
+            <Link
+              href={`/admin/maintenance/category/${CATEGORY_SLUG[entry.category]}`}
+              className="inline-flex items-center gap-1.5 rounded-full bg-inset px-2.5 py-[3px] font-mono text-[11px] font-semibold text-ink-2 hover:underline"
+            >
+              <CategoryIcon category={entry.category} className="h-3.5 w-3.5" />
+              {entry.category}
+            </Link>
             {entry.reminderInterval != null ? (
               <span className="inline-flex items-center gap-1 rounded-full bg-steel-bg px-2 py-[3px] font-mono text-[11px] font-semibold text-steel">
                 ↻ Every {entry.reminderInterval.toLocaleString()} mi

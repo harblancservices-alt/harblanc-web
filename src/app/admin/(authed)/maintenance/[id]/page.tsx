@@ -5,6 +5,7 @@ import {
   computeFreshness,
   currentOdoFromLoads,
   groupKey,
+  isCategory,
 } from "@/lib/dispatch/repair-log";
 import { RepairDetail } from "./RepairDetail";
 import type {
@@ -34,6 +35,7 @@ type EntryRow = {
   notes: string | null;
   position: string | null;
   part_group: string | null;
+  category: string;
 };
 
 type OdoRow = {
@@ -64,7 +66,7 @@ async function loadDetail(entryId: string): Promise<{
       sb
         .from("repair_entries")
         .select(
-          "id, description, odometer, service_date, cost, notes, position, part_group",
+          "id, description, odometer, service_date, cost, notes, position, part_group, category",
         )
         .eq("id", entryId)
         .is("deleted_at", null)
@@ -76,7 +78,9 @@ async function loadDetail(entryId: string): Promise<{
         .returns<OdoRow[]>(),
       sb
         .from("repair_entries")
-        .select("id, description, odometer, service_date, cost, position, part_group")
+        .select(
+          "id, description, odometer, service_date, cost, position, part_group, category",
+        )
         .is("deleted_at", null)
         .order("service_date", { ascending: false, nullsFirst: false })
         .order("created_at", { ascending: false })
@@ -139,6 +143,7 @@ async function loadDetail(entryId: string): Promise<{
     date: entryRow.service_date,
     cost: num(entryRow.cost),
     notes: entryRow.notes,
+    category: isCategory(entryRow.category) ? entryRow.category : "Other",
     position: entryRow.position,
     partGroup: entryRow.part_group,
     reminderInterval: remRows?.interval_miles ?? null,

@@ -2,7 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { groupKey, isPosition } from "@/lib/dispatch/repair-log";
+import {
+  categoryForText,
+  groupKey,
+  isCategory,
+  isPosition,
+  type Category,
+} from "@/lib/dispatch/repair-log";
 
 /**
  * Repair-log actions. Service-role client (admin-only, behind the authed
@@ -170,6 +176,7 @@ type RepairFields = {
   serviceDate: string;
   cost: number | null;
   notes: string | null;
+  category: Category;
   position: string | null;
   partGroup: string | null;
   reminderInterval: number | null;
@@ -190,6 +197,10 @@ function parseRepairFields(fd: FormData): RepairFields {
   const rawPos = str(fd, "position");
   const position = rawPos && isPosition(rawPos) ? rawPos : null;
 
+  // Category: the explicit pick if valid, else inferred from the description.
+  const rawCat = str(fd, "category");
+  const category = isCategory(rawCat) ? rawCat : categoryForText(description);
+
   let partGroup = str(fd, "part_group");
   const reminderInterval = intOrNull(fd, "reminder_interval_miles");
 
@@ -205,6 +216,7 @@ function parseRepairFields(fd: FormData): RepairFields {
     serviceDate,
     cost: moneyOrNull(str(fd, "cost")),
     notes: str(fd, "notes"),
+    category,
     position,
     partGroup: partGroup ? partGroup.slice(0, 120) : null,
     reminderInterval:
@@ -223,6 +235,7 @@ async function upsertReminder(
   sb: SB,
   partGroup: string,
   intervalMiles: number,
+  category: Category,
 ): Promise<void> {
   const key = groupKey(partGroup);
   if (!key) return;
@@ -239,6 +252,7 @@ async function upsertReminder(
       .update({
         interval_miles: intervalMiles,
         label: partGroup,
+        category,
         dismissed_at: null,
         updated_at: new Date().toISOString(),
       })
@@ -248,6 +262,7 @@ async function upsertReminder(
       label: partGroup,
       part_group: partGroup,
       interval_miles: intervalMiles,
+      category,
     });
   }
 }
@@ -306,6 +321,7 @@ export async function logRepair(formData: FormData): Promise<void> {
       service_date: f.serviceDate,
       cost: f.cost,
       notes: f.notes,
+      category: f.category,
       position: f.position,
       part_group: f.partGroup,
     })
@@ -318,7 +334,7 @@ export async function logRepair(formData: FormData): Promise<void> {
   await persistReceipts(sb, entry.id, receipts);
 
   if (f.reminderInterval != null && f.partGroup) {
-    await upsertReminder(sb, f.partGroup, f.reminderInterval);
+    await upsertReminder(sb, f.partGroup, f.reminderInterval, f.category);
   }
 
   for (const id of jsonArray(formData, "related_ids")) {
@@ -347,6 +363,7 @@ export async function updateRepair(
       service_date: f.serviceDate,
       cost: f.cost,
       notes: f.notes,
+      category: f.category,
       position: f.position,
       part_group: f.partGroup,
       updated_at: new Date().toISOString(),
@@ -382,7 +399,7 @@ export async function updateRepair(
   await persistReceipts(sb, entryId, receipts);
 
   if (f.reminderInterval != null && f.partGroup) {
-    await upsertReminder(sb, f.partGroup, f.reminderInterval);
+    await upsertReminder(sb, f.partGroup, f.reminderInterval, f.category);
   }
 
   revalidatePath("/admin/maintenance");

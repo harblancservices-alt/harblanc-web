@@ -1,4 +1,4 @@
-import type { Freshness, MaintStatus } from "@/lib/dispatch/repair-log";
+import type { Category, Freshness, MaintStatus } from "@/lib/dispatch/repair-log";
 
 /** A signed receipt (photo/PDF) on an entry. */
 export type ReceiptView = {
@@ -18,10 +18,13 @@ export type EntryLite = {
   partGroup: string | null;
 };
 
-/** A repair-log row as shown in the searchable list. */
+/** A repair-log row as shown in the searchable / category lists. */
 export type RepairEntry = EntryLite & {
   cost: number | null;
   notes: string | null;
+  category: Category;
+  /** Freshness of this repair vs the current odometer/today (null = n/a). */
+  freshness: Freshness | null;
   receiptCount: number;
   relatedCount: number;
   /** True when this entry's part_group has an active reminder. */
@@ -36,6 +39,7 @@ export type RepairEntryFull = {
   date: string | null;
   cost: number | null;
   notes: string | null;
+  category: Category;
   position: string | null;
   partGroup: string | null;
   /** Reminder interval for this entry's group, if a reminder exists. */
@@ -49,6 +53,7 @@ export type ReminderView = {
   id: string;
   label: string;
   partGroup: string;
+  category: Category;
   interval: number;
   status: MaintStatus;
   milesRemaining: number | null;
@@ -73,6 +78,16 @@ export type CostRollups = {
   lifetime: number;
 };
 
+/** One category card on the maintenance home grid. */
+export type CategoryCard = {
+  category: Category;
+  slug: string;
+  count: number;
+  spend: number;
+  /** Worst attention state inside the category (null = nothing pressing). */
+  badge: "overdue" | "soon" | "aging" | null;
+};
+
 /** One set (positioned part group) surfaced on the main page. */
 export type SetSummary = {
   partGroup: string;
@@ -92,4 +107,11 @@ export type SetSlot = {
     cost: number | null;
   } | null;
   freshness: Freshness;
+};
+
+/** A set within a category view: its corner slots inline + combined cost. */
+export type CategorySet = {
+  partGroup: string;
+  slots: SetSlot[];
+  combinedCost: number;
 };

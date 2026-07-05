@@ -107,6 +107,184 @@ export function groupKey(partGroup: string | null | undefined): string | null {
 }
 
 // ---------------------------------------------------------------------------
+// Categories — a fixed enum (this order) the whole log is organized under.
+
+export const CATEGORIES = [
+  "Steering & Suspension",
+  "Drivetrain",
+  "Engine Bay",
+  "Brakes",
+  "Tires & Wheels",
+  "Preventative",
+  "Trailer",
+  "Other",
+] as const;
+export type Category = (typeof CATEGORIES)[number];
+
+export function isCategory(v: string | null | undefined): v is Category {
+  return v != null && (CATEGORIES as readonly string[]).includes(v);
+}
+
+/** URL slug ⟷ category (spaces / ampersands aren't URL-friendly). */
+export const CATEGORY_SLUG: Record<Category, string> = {
+  "Steering & Suspension": "steering-suspension",
+  Drivetrain: "drivetrain",
+  "Engine Bay": "engine-bay",
+  Brakes: "brakes",
+  "Tires & Wheels": "tires-wheels",
+  Preventative: "preventative",
+  Trailer: "trailer",
+  Other: "other",
+};
+const SLUG_TO_CATEGORY: Record<string, Category> = Object.fromEntries(
+  (Object.entries(CATEGORY_SLUG) as [Category, string][]).map(([c, s]) => [
+    s,
+    c,
+  ]),
+) as Record<string, Category>;
+
+export function categoryFromSlug(slug: string): Category | null {
+  return SLUG_TO_CATEGORY[slug] ?? null;
+}
+
+/**
+ * Part → category keyword map. Ordered by PRECEDENCE (first match wins): a
+ * more-specific / consumable rule (the Trailer catch-all, then Preventative
+ * fluids & filters) is checked before the part categories that share words —
+ * e.g. "diff fluid" → Preventative beats "diff" → Drivetrain, and "wheel
+ * bearing" → Steering beats "wheel" → Tires. Matching is case-insensitive,
+ * word-boundaried, and plural-tolerant. The backfill migration mirrors this
+ * exact precedence in SQL.
+ */
+const CATEGORY_RULES: { category: Category; keywords: string[] }[] = [
+  { category: "Trailer", keywords: ["trailer"] },
+  {
+    category: "Preventative",
+    keywords: [
+      "engine oil",
+      "oil filter",
+      "fuel filter",
+      "air filter",
+      "transmission fluid",
+      "diff fluid",
+      "differential fluid",
+      "coolant flush",
+      "grease",
+      "greasing",
+      "def",
+    ],
+  },
+  {
+    category: "Brakes",
+    keywords: [
+      "brake pad",
+      "brake line",
+      "shoe",
+      "rotor",
+      "drum",
+      "caliper",
+      "abs",
+      "slack adjuster",
+      "air brake",
+    ],
+  },
+  {
+    category: "Steering & Suspension",
+    keywords: [
+      "wheel bearing",
+      "ball joint",
+      "upper control arm",
+      "lower control arm",
+      "control arm",
+      "track bar",
+      "sway bar",
+      "tie rod",
+      "drag link",
+      "pitman arm",
+      "idler arm",
+      "coil spring",
+      "leaf spring",
+      "kingpin",
+      "alignment",
+      "bushing",
+      "shock",
+      "damper",
+      "links",
+    ],
+  },
+  {
+    category: "Drivetrain",
+    keywords: [
+      "u-joint",
+      "u joint",
+      "driveshaft",
+      "carrier bearing",
+      "differential",
+      "diff",
+      "axle shaft",
+      "cv axle",
+      "transfer case",
+      "transmission",
+      "clutch",
+    ],
+  },
+  {
+    category: "Engine Bay",
+    keywords: [
+      "radiator",
+      "water pump",
+      "thermostat",
+      "coolant line",
+      "intercooler",
+      "boost line",
+      "fuel line",
+      "serpentine belt",
+      "tensioner",
+      "alternator",
+      "starter",
+      "battery",
+      "fuse",
+      "wiring",
+      "turbo",
+      "injector",
+      "valve lash",
+      "egr",
+      "hose",
+    ],
+  },
+  {
+    category: "Tires & Wheels",
+    keywords: ["tire", "wheel", "tpms", "rotation", "balance"],
+  },
+];
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// One boundaried, plural-tolerant regex per category, in precedence order.
+const COMPILED_RULES = CATEGORY_RULES.map((r) => ({
+  category: r.category,
+  re: new RegExp(
+    "\\b(?:" + r.keywords.map(escapeRegExp).join("|") + ")s?\\b",
+    "i",
+  ),
+}));
+
+/**
+ * Best-guess category for a free-text description/label. Returns 'Other' when
+ * nothing matches. Used for the log-form's smart default and the backfill.
+ */
+export function categoryForText(text: string | null | undefined): Category {
+  const t = (text ?? "").toLowerCase();
+  if (!t.trim()) return "Other";
+  for (const rule of COMPILED_RULES) {
+    if (rule.re.test(t)) return rule.category;
+  }
+  return "Other";
+}
+
+// ---------------------------------------------------------------------------
 // Formatting.
 
 /** "$1,250.00". null/blank → "". */

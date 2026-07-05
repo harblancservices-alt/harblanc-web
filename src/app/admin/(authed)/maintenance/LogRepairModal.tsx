@@ -11,10 +11,14 @@ import { logRepair, updateRepair, deleteRepair, createReceiptUploadUrl } from ".
 import { uploadFileToSignedUrl } from "@/lib/storage/client-upload";
 import { Button } from "@/components/ui/Button";
 import {
+  CATEGORIES,
   POSITIONS,
   POSITION_LABEL,
+  categoryForText,
+  isCategory,
   money,
   parseMoney,
+  type Category,
 } from "@/lib/dispatch/repair-log";
 import type { EntryLite, ReceiptView, RepairEntryFull } from "./types";
 
@@ -24,6 +28,7 @@ export type RepairPreset = {
   partGroup?: string;
   position?: string;
   reminderInterval?: number;
+  category?: Category;
 };
 
 const FIELD =
@@ -58,6 +63,21 @@ export function LogRepairModal({
   const [description, setDescription] = useState(
     editEntry?.description ?? preset?.description ?? "",
   );
+  // Category auto-follows the description until the user picks one by hand
+  // (edit mode and category-presets start "touched" so they don't drift).
+  const [category, setCategory] = useState<Category>(
+    editEntry?.category ??
+      preset?.category ??
+      categoryForText(editEntry?.description ?? preset?.description ?? ""),
+  );
+  const [categoryTouched, setCategoryTouched] = useState(
+    !!editEntry || !!preset?.category,
+  );
+  function onDescriptionChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const v = e.target.value;
+    setDescription(v);
+    if (!categoryTouched) setCategory(categoryForText(v));
+  }
   const [serviceDate, setServiceDate] = useState(editEntry?.date ?? today);
   const [odo, setOdo] = useState(() => {
     const seed = editEntry?.odometer ?? currentOdo;
@@ -249,12 +269,33 @@ export function LogRepairModal({
             <input
               name="description"
               value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              onChange={onDescriptionChange}
               required
               autoComplete="off"
               placeholder="e.g. Front wheel bearing"
               className={FIELD}
             />
+          </div>
+
+          <div>
+            <label className={LABEL}>Category</label>
+            <select
+              name="category"
+              value={category}
+              onChange={(e) => {
+                if (isCategory(e.target.value)) {
+                  setCategory(e.target.value);
+                  setCategoryTouched(true);
+                }
+              }}
+              className={FIELD}
+            >
+              {CATEGORIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="grid grid-cols-2 gap-2">

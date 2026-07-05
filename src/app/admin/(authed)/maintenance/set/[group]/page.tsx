@@ -7,7 +7,9 @@ import {
   computeFreshness,
   currentOdoFromLoads,
   groupKey,
+  isCategory,
   isPosition,
+  type Category,
   type Position,
 } from "@/lib/dispatch/repair-log";
 import { SetView } from "./SetView";
@@ -32,6 +34,7 @@ type EntryRow = {
   cost: number | string | null;
   position: string | null;
   part_group: string | null;
+  category: string;
 };
 
 type OdoRow = {
@@ -48,6 +51,7 @@ function num(v: number | string | null): number | null {
 
 async function loadSet(groupParam: string): Promise<{
   label: string;
+  category: Category;
   currentOdo: number;
   slots: SetSlot[];
   combinedCost: number;
@@ -69,7 +73,7 @@ async function loadSet(groupParam: string): Promise<{
       sb
         .from("repair_entries")
         .select(
-          "id, description, odometer, service_date, cost, position, part_group",
+          "id, description, odometer, service_date, cost, position, part_group, category",
         )
         .is("deleted_at", null)
         .ilike("part_group", groupParam)
@@ -95,6 +99,22 @@ async function loadSet(groupParam: string): Promise<{
   const label = rows.find((r) => r.part_group)?.part_group ?? groupParam;
   const currentOdo = currentOdoFromLoads(odoRows);
   const today = new Date().toISOString().slice(0, 10);
+
+  // The set's dominant category (presets the "Log a part" form).
+  const catCounts = new Map<Category, number>();
+  for (const r of rows) {
+    if (isCategory(r.category)) {
+      catCounts.set(r.category, (catCounts.get(r.category) ?? 0) + 1);
+    }
+  }
+  let category: Category = "Other";
+  let best = -1;
+  for (const [c, n] of catCounts) {
+    if (n > best) {
+      best = n;
+      category = c;
+    }
+  }
 
   // Latest entry per position (rows are already newest-first).
   const latestByPos = new Map<string, EntryRow>();
@@ -161,6 +181,7 @@ async function loadSet(groupParam: string): Promise<{
 
   return {
     label,
+    category,
     currentOdo,
     slots,
     combinedCost,
@@ -183,6 +204,7 @@ export default async function SetPage({
   return (
     <SetView
       label={data.label}
+      category={data.category}
       currentOdo={data.currentOdo}
       slots={data.slots}
       combinedCost={data.combinedCost}

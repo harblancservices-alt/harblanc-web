@@ -12,11 +12,13 @@ import {
   formatDate,
   isPosition,
   money,
+  type Category,
 } from "@/lib/dispatch/repair-log";
 import type { EntryLite, SetSlot } from "../../types";
 
 export function SetView({
   label,
+  category,
   currentOdo,
   slots,
   combinedCost,
@@ -25,6 +27,7 @@ export function SetView({
   allEntries,
 }: {
   label: string;
+  category: Category;
   currentOdo: number;
   slots: SetSlot[];
   combinedCost: number;
@@ -134,7 +137,7 @@ export function SetView({
           currentOdo={currentOdo}
           partGroups={partGroups}
           allEntries={allEntries}
-          preset={{ partGroup: label, position: "" }}
+          preset={{ partGroup: label, position: "", category }}
           onClose={() => setLogging(false)}
           onSaved={() => {
             setLogging(false);
