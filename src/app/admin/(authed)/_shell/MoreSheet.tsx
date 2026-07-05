@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ComponentType } from "react";
 import {
   IconBadge,
+  IconChevronRight,
   IconCoins,
   IconMail,
   IconReceipt,
@@ -12,6 +13,7 @@ import {
   IconSettings,
   IconTruck,
   IconWrench,
+  IconX,
 } from "./icons";
 
 /**
@@ -22,9 +24,11 @@ import {
  * Desktop expands these inline in PortalSidebar and never opens this sheet
  * (lg:hidden).
  *
- * Buttons, not a menu: items are a 2-column grid of icon tiles with a short
- * label and no prose description — tidier and more tappable than the old
- * icon+title+subtitle+chevron rows.
+ * A designed menu, not a black slab: an elevated rounded panel over the dark
+ * backdrop with a brand-red top accent strip, a header (title + close), and
+ * section-grouped rows — each a tappable icon-left row with a red-tinted icon,
+ * white label, and chevron. The active destination carries a red left bar,
+ * red-filled icon, and accent tint.
  *
  * Dismisses on:
  *   - Swipe / drag the sheet down past a threshold (follow-the-finger)
@@ -170,7 +174,7 @@ export function MoreSheet({
         className="absolute inset-0 bg-black/55"
       />
       <div
-        className="absolute inset-x-0 bottom-0 border-t border-graphite-line bg-graphite pb-[max(env(safe-area-inset-bottom),1rem)]"
+        className="absolute inset-x-0 bottom-0 overflow-hidden rounded-t-2xl bg-graphite-2 pb-[max(env(safe-area-inset-bottom),1rem)] shadow-[0_-12px_40px_rgba(0,0,0,0.6)]"
         style={{
           transform: dragY ? `translateY(${dragY}px)` : undefined,
           transition: dragging ? "none" : "transform 0.22s ease-out",
@@ -179,29 +183,52 @@ export function MoreSheet({
         onTouchEnd={endDrag}
         onTouchCancel={endDrag}
       >
-        {/* Drag handle + title — the primary grab zone. touch-none stops the
+        {/* Brand-red accent strip along the sheet's top edge. */}
+        <div
+          aria-hidden
+          className="h-1 w-full bg-gradient-to-r from-accent via-[#e0434a] to-accent"
+        />
+
+        {/* Drag handle + header — the primary grab zone. touch-none stops the
             browser from scrolling while the handle is being dragged. */}
         <div
-          className="touch-none pb-1"
+          className="touch-none"
           onTouchStart={(e) => beginDrag(e.touches[0].clientY, true)}
         >
-          <div className="mx-auto mt-3 h-1.5 w-10 rounded-full bg-white/25" />
-          <p className="mt-3 px-5 font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-on-dark-dim">
-            More
-          </p>
+          <div className="mx-auto mt-2.5 h-1.5 w-12 rounded-full bg-white/25" />
+          <div className="mt-2 flex items-center justify-between gap-3 px-5 pb-1">
+            <div className="min-w-0">
+              <p className="text-[15px] font-bold leading-tight text-white">
+                More
+              </p>
+              <p className="text-[11px] leading-tight text-on-dark-dim">
+                Jump anywhere in the portal
+              </p>
+            </div>
+            <button
+              type="button"
+              aria-label="Close menu"
+              onClick={onClose}
+              className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/[0.08] text-on-dark-dim transition-colors hover:bg-white/15 hover:text-white active:scale-95"
+            >
+              <IconX className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         <div
           ref={scrollRef}
-          className="mt-1 max-h-[70vh] overflow-y-auto px-4 pb-2"
+          className="mt-1 max-h-[66vh] space-y-4 overflow-y-auto px-4 pb-3 pt-1"
           onTouchStart={(e) => beginDrag(e.touches[0].clientY, false)}
         >
           {GROUPS.map((group) => (
-            <div key={group.title} className="mt-2">
-              <p className="px-1 pt-2 pb-1.5 font-mono text-[9px] font-bold uppercase tracking-[0.18em] text-on-dark-dim">
+            <div key={group.title}>
+              <p className="mb-1.5 px-1.5 font-mono text-[9.5px] font-bold uppercase tracking-[0.2em] text-[#e0434a]">
                 {group.title}
               </p>
-              <div className="grid grid-cols-2 gap-2">
+              {/* Grouped as a single elevated card with hairline row dividers —
+                  clear structure over the flat graphite backdrop. */}
+              <div className="divide-y divide-white/[0.06] overflow-hidden rounded-xl border border-white/[0.07] bg-white/[0.03]">
                 {group.items.map((item) => {
                   const active = isActive(pathname, item.href);
                   return (
@@ -212,29 +239,36 @@ export function MoreSheet({
                       onClick={onClose}
                       aria-current={active ? "page" : undefined}
                       className={
-                        // Raised, tactile graphite tiles: a soft resting shadow
-                        // lifts the tile off the sheet, a subtle top-to-bottom
-                        // gradient + hairline border give it body, hover adds a
-                        // little more lift (desktop), and a tap depresses it
-                        // (scale down + shadow drops) so it feels pressed. Active
-                        // tile carries the accent ring.
-                        "flex items-center gap-2.5 rounded-xl border px-3 py-3 shadow-md transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 active:scale-[0.97] active:shadow-sm " +
-                        (active
-                          ? "border-accent bg-graphite-2 ring-1 ring-accent"
-                          : "border-graphite-line bg-gradient-to-b from-graphite-2 to-graphite")
+                        "relative flex items-center gap-3 px-3.5 py-3 transition-colors active:bg-white/[0.07] " +
+                        (active ? "bg-accent/[0.14]" : "hover:bg-white/[0.04]")
                       }
                     >
+                      {/* Active row: brand-red left indicator. */}
+                      {active ? (
+                        <span
+                          aria-hidden
+                          className="absolute inset-y-2 left-0 w-[3px] rounded-r-full bg-accent"
+                        />
+                      ) : null}
                       <span
                         className={
-                          "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/[0.06] " +
-                          (active ? "text-accent" : "text-on-dark-dim")
+                          "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg " +
+                          (active
+                            ? "bg-accent text-white"
+                            : "bg-accent/15 text-[#e0434a]")
                         }
                       >
-                        <item.Icon className="h-[18px] w-[18px]" />
+                        <item.Icon className="h-[19px] w-[19px]" />
                       </span>
-                      <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold leading-tight text-white">
+                      <span className="min-w-0 flex-1 truncate text-[14.5px] font-semibold leading-tight text-white">
                         {item.label}
                       </span>
+                      <IconChevronRight
+                        className={
+                          "h-4 w-4 shrink-0 " +
+                          (active ? "text-[#e0434a]" : "text-white/25")
+                        }
+                      />
                     </Link>
                   );
                 })}
