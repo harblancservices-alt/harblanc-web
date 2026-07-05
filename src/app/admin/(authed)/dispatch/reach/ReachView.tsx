@@ -543,6 +543,9 @@ function SituationCard({
 }) {
   const [locating, setLocating] = useState(false);
   const [geoError, setGeoError] = useState<string | null>(null);
+  // The town field's displayed value — owned here so BOTH the typeahead pick
+  // and the Use-my-location button write the same visible string.
+  const [townText, setTownText] = useState(cityLabel);
 
   // "Use my location": browser geolocation → server reverse-lookup → same
   // re-anchor as a typed-and-picked town. Fails soft to a type-it message.
@@ -558,8 +561,14 @@ function SituationCard({
       (pos) => {
         void resolveLocation(pos.coords.latitude, pos.coords.longitude)
           .then((hit) => {
-            if (hit) onPickCity(hit);
-            else setGeoError("Couldn't find a town near you — type it instead.");
+            if (hit) {
+              // Show the resolved current-location town in the field, then
+              // re-anchor recipients + email/preview to it.
+              setTownText(`${hit.city}, ${hit.state}`);
+              onPickCity(hit);
+            } else {
+              setGeoError("Couldn't find a town near you — type it instead.");
+            }
           })
           .catch(() =>
             setGeoError("Couldn't get your location — type your town instead."),
@@ -612,7 +621,11 @@ function SituationCard({
         <div className="min-w-0 sm:flex-1">
           <span className={darkLabel}>Town</span>
           <div className="flex items-center gap-2">
-            <CityTypeahead currentLabel={cityLabel} onPick={onPickCity} />
+            <CityTypeahead
+              value={townText}
+              onValueChange={setTownText}
+              onPick={onPickCity}
+            />
             <button
               type="button"
               onClick={onUseLocation}
@@ -701,27 +714,32 @@ function SituationCard({
 // ── City typeahead ──────────────────────────────────────────────────────────────
 
 /**
- * Type-to-search location field (reuses /api/admin/dispatch/cities). Auto-fills
- * from the active load's drop-off (currentLabel); type to override, pick a
- * suggestion to re-anchor. Light-styled so it's readable on the graphite card.
+ * Type-to-search location field (reuses /api/admin/dispatch/cities). The
+ * displayed value is CONTROLLED by the parent (`value`/`onValueChange`) so the
+ * Use-my-location button and a typed-and-picked suggestion both drive the same
+ * visible string. Typing searches; picking (or an external set) re-anchors.
+ * Light-styled so it's readable on the graphite card.
  */
 function CityTypeahead({
-  currentLabel,
+  value,
+  onValueChange,
   onPick,
 }: {
-  currentLabel: string;
+  value: string;
+  onValueChange: (v: string) => void;
   onPick: (hit: CityHit) => void;
 }) {
-  const [text, setText] = useState(currentLabel);
   const [hits, setHits] = useState<CityHit[]>([]);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [touched, setTouched] = useState(false);
+  // Only search when the user is actively typing — external value changes
+  // (a pick, or the Use-my-location button) must NOT trigger a search.
+  const [typing, setTyping] = useState(false);
   const reqRef = useRef(0);
 
   useEffect(() => {
-    if (!touched) return;
-    const q = text.trim();
+    if (!typing) return;
+    const q = value.trim();
     const id = ++reqRef.current;
     const t = setTimeout(() => {
       if (q.length < 2) {
@@ -743,15 +761,15 @@ function CityTypeahead({
         });
     }, 60);
     return () => clearTimeout(t);
-  }, [text, touched]);
+  }, [value, typing]);
 
   return (
     <span className="relative block min-w-0 flex-1">
       <input
-        value={text}
+        value={value}
         onChange={(e) => {
-          setText(e.target.value);
-          setTouched(true);
+          onValueChange(e.target.value);
+          setTyping(true);
         }}
         onFocus={(e) => {
           e.currentTarget.select();
@@ -776,8 +794,8 @@ function CityTypeahead({
                 onMouseDown={(e) => {
                   // mousedown (before blur) so the pick registers.
                   e.preventDefault();
-                  setText(`${h.city}, ${h.state}`);
-                  setTouched(false);
+                  onValueChange(`${h.city}, ${h.state}`);
+                  setTyping(false);
                   setOpen(false);
                   onPick(h);
                 }}
