@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/Button";
-import { LogRepairModal, type RepairPreset } from "../../LogRepairModal";
+import { LogServiceModal, type ServicePreset } from "../../LogServiceModal";
 import {
   CategoryIcon,
   FreshnessBadge,
@@ -11,35 +11,25 @@ import {
   RepairRow,
   SectionLabel,
 } from "../../shared";
-import { formatDate, money, type Category } from "@/lib/dispatch/repair-log";
-import type {
-  CategorySet,
-  EntryLite,
-  RepairEntry,
-  ReminderView,
-  SetSlot,
-} from "../../types";
+import { formatDate, type Category } from "@/lib/dispatch/repair-log";
+import type { CategorySet, RepairEntry, ReminderView, SetSlot } from "../../types";
 
 export function CategoryView({
   category,
   entries,
   sets,
   reminders,
-  lifetime,
   currentOdo,
   partGroups,
-  allEntries,
 }: {
   category: Category;
   entries: RepairEntry[];
   sets: CategorySet[];
   reminders: ReminderView[];
-  lifetime: number;
   currentOdo: number;
   partGroups: string[];
-  allEntries: EntryLite[];
 }) {
-  const [modal, setModal] = useState<RepairPreset | null | undefined>(undefined);
+  const [modal, setModal] = useState<ServicePreset | null | undefined>(undefined);
   const [query, setQuery] = useState("");
 
   const q = query.trim().toLowerCase();
@@ -73,23 +63,16 @@ export function CategoryView({
                 {category}
               </h1>
               <p className="font-mono text-[11px] tabular-nums text-fg-subtle">
-                {entries.length} repair{entries.length === 1 ? "" : "s"}
-                {lifetime > 0 ? (
-                  <>
-                    {" · "}
-                    <span className="font-bold text-ok">{money(lifetime)}</span>
-                    {" lifetime"}
-                  </>
-                ) : null}
+                {entries.length} part{entries.length === 1 ? "" : "s"}
               </p>
             </div>
           </div>
           <Button
             type="button"
-            onClick={() => setModal({ category })}
+            onClick={() => setModal({ initialPart: { category } })}
             variant="primary"
           >
-            + Log repair
+            + Log a service
           </Button>
         </div>
 
@@ -104,10 +87,12 @@ export function CategoryView({
                   reminder={r}
                   onServiceNow={() =>
                     setModal({
-                      description: r.label,
-                      partGroup: r.partGroup,
-                      reminderInterval: r.interval,
-                      category: r.category,
+                      initialPart: {
+                        description: r.label,
+                        partGroup: r.partGroup,
+                        reminderInterval: r.interval,
+                        category: r.category,
+                      },
                     })
                   }
                 />
@@ -128,7 +113,7 @@ export function CategoryView({
           </section>
         ) : null}
 
-        {/* All repairs */}
+        {/* All parts */}
         <section className="mt-5">
           <div className="mb-2 flex items-center justify-between gap-3">
             <SectionLabel title="All repairs" count={entries.length} inline />
@@ -142,11 +127,11 @@ export function CategoryView({
           </div>
           {entries.length === 0 ? (
             <div className="rounded-md border border-dashed border-line-strong bg-card px-4 py-10 text-center font-mono text-[12px] text-ink-3 shadow-e1">
-              No repairs in this category yet.
+              No parts in this category yet.
             </div>
           ) : filtered.length === 0 ? (
             <div className="rounded-md border border-dashed border-line-strong bg-card px-4 py-8 text-center font-mono text-[12px] text-ink-3 shadow-e1">
-              No repairs match “{query}”.
+              No parts match “{query}”.
             </div>
           ) : (
             <div className="space-y-2">
@@ -159,10 +144,9 @@ export function CategoryView({
       </div>
 
       {modal !== undefined ? (
-        <LogRepairModal
+        <LogServiceModal
           currentOdo={currentOdo}
           partGroups={partGroups}
-          allEntries={allEntries}
           preset={modal}
           onClose={() => setModal(undefined)}
         />
@@ -177,16 +161,9 @@ function SetStrip({ set }: { set: CategorySet }) {
       href={`/admin/maintenance/set/${encodeURIComponent(set.partGroup)}`}
       className="block rounded-md border border-line bg-card p-3 shadow-e1 transition-colors hover:border-line-strong hover:bg-inset"
     >
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="truncate text-[13.5px] font-semibold text-fg">
-          {set.partGroup}
-        </h3>
-        {set.combinedCost > 0 ? (
-          <span className="shrink-0 font-mono text-[12.5px] font-bold tabular-nums text-ok">
-            {money(set.combinedCost)}
-          </span>
-        ) : null}
-      </div>
+      <h3 className="truncate text-[13.5px] font-semibold text-fg">
+        {set.partGroup}
+      </h3>
       <div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
         {set.slots.map((s) => (
           <SetCorner key={s.position} slot={s} />

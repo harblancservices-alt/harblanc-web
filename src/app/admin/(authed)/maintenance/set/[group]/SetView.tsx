@@ -4,43 +4,36 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
-import { StatusTag } from "@/components/ui/StatusTag";
-import { LogRepairModal } from "../../LogRepairModal";
+import { LogServiceModal } from "../../LogServiceModal";
+import { FreshnessBadge } from "../../shared";
 import {
-  FRESHNESS_META,
   POSITION_LABEL,
   formatDate,
   isPosition,
-  money,
   type Category,
 } from "@/lib/dispatch/repair-log";
-import type { EntryLite, SetSlot } from "../../types";
+import type { SetSlot } from "../../types";
 
 export function SetView({
   label,
   category,
   currentOdo,
   slots,
-  combinedCost,
   entries,
   partGroups,
-  allEntries,
 }: {
   label: string;
   category: Category;
   currentOdo: number;
   slots: SetSlot[];
-  combinedCost: number;
   entries: {
     id: string;
     description: string;
     date: string | null;
     odometer: number | null;
-    cost: number | null;
     position: string | null;
   }[];
   partGroups: string[];
-  allEntries: EntryLite[];
 }) {
   const router = useRouter();
   const [logging, setLogging] = useState(false);
@@ -67,19 +60,9 @@ export function SetView({
           <p className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-fg-subtle">
             Set
           </p>
-          <div className="mt-1 flex items-end justify-between gap-3">
-            <h1 className="text-[20px] font-bold leading-tight text-fg">
-              {label}
-            </h1>
-            <div className="shrink-0 text-right">
-              <p className="font-mono text-[9px] font-bold uppercase tracking-[0.1em] text-fg-subtle">
-                Combined
-              </p>
-              <p className="font-mono text-[18px] font-bold leading-none tabular-nums text-ok">
-                {combinedCost > 0 ? money(combinedCost) : "$0"}
-              </p>
-            </div>
-          </div>
+          <h1 className="mt-1 text-[20px] font-bold leading-tight text-fg">
+            {label}
+          </h1>
         </div>
 
         {/* Corners grid */}
@@ -89,7 +72,7 @@ export function SetView({
           ))}
         </div>
 
-        {/* All entries in the set */}
+        {/* All parts in the set */}
         <section className="mt-5">
           <div className="mb-2 flex items-center gap-2">
             <span className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-ink-3">
@@ -108,23 +91,14 @@ export function SetView({
                   href={`/admin/maintenance/${e.id}`}
                   className="flex items-center justify-between gap-2 rounded-md border border-line bg-card px-2.5 py-2 transition-colors hover:border-line-strong hover:bg-inset"
                 >
-                  <div className="min-w-0">
-                    <span className="block truncate text-[12.5px] font-medium text-fg">
-                      {pos ? `${POSITION_LABEL[pos]} · ` : ""}
-                      {e.description}
-                    </span>
-                    <span className="font-mono text-[10px] tabular-nums text-fg-subtle">
-                      {formatDate(e.date) ?? "—"}
-                      {e.odometer != null
-                        ? ` · ${e.odometer.toLocaleString()} mi`
-                        : ""}
-                    </span>
-                  </div>
-                  {e.cost != null ? (
-                    <span className="shrink-0 font-mono text-[12.5px] font-bold tabular-nums text-ok">
-                      {money(e.cost)}
-                    </span>
-                  ) : null}
+                  <span className="min-w-0 truncate text-[12.5px] font-medium text-fg">
+                    {pos ? `${POSITION_LABEL[pos]} · ` : ""}
+                    {e.description}
+                  </span>
+                  <span className="shrink-0 font-mono text-[10px] tabular-nums text-fg-subtle">
+                    {formatDate(e.date) ?? "—"}
+                    {e.odometer != null ? ` · ${e.odometer.toLocaleString()} mi` : ""}
+                  </span>
                 </Link>
               );
             })}
@@ -133,11 +107,10 @@ export function SetView({
       </div>
 
       {logging ? (
-        <LogRepairModal
+        <LogServiceModal
           currentOdo={currentOdo}
           partGroups={partGroups}
-          allEntries={allEntries}
-          preset={{ partGroup: label, position: "", category }}
+          preset={{ initialPart: { partGroup: label, category } }}
           onClose={() => setLogging(false)}
           onSaved={() => {
             setLogging(false);
@@ -150,16 +123,13 @@ export function SetView({
 }
 
 function SlotCard({ slot }: { slot: SetSlot }) {
-  const fm = FRESHNESS_META[slot.freshness];
   return (
     <div className="rounded-md border border-line bg-card p-3 shadow-e1">
       <div className="flex items-center justify-between gap-2">
         <span className="font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-fg-subtle">
           {slot.label}
         </span>
-        <StatusTag tone={fm.tone} className="shrink-0">
-          {fm.label}
-        </StatusTag>
+        <FreshnessBadge freshness={slot.freshness} />
       </div>
       {slot.entry ? (
         <Link href={`/admin/maintenance/${slot.entry.id}`} className="mt-1.5 block">
@@ -174,9 +144,7 @@ function SlotCard({ slot }: { slot: SetSlot }) {
           </span>
         </Link>
       ) : (
-        <p className="mt-1.5 font-mono text-[11px] text-fg-subtle">
-          Never logged
-        </p>
+        <p className="mt-1.5 font-mono text-[11px] text-fg-subtle">Never logged</p>
       )}
     </div>
   );

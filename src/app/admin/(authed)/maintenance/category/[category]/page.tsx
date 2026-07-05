@@ -14,13 +14,7 @@ import {
   type Position,
 } from "@/lib/dispatch/repair-log";
 import { CategoryView } from "./CategoryView";
-import type {
-  CategorySet,
-  EntryLite,
-  RepairEntry,
-  ReminderView,
-  SetSlot,
-} from "../../types";
+import type { CategorySet, RepairEntry, ReminderView, SetSlot } from "../../types";
 
 export const metadata: Metadata = {
   title: "Category",
@@ -28,21 +22,26 @@ export const metadata: Metadata = {
 };
 
 /**
- * Category view — every repair in one category, with its set-parts grouped up
- * top (corners inline with freshness + combined cost) and an all-repairs list
- * with a within-category search.
+ * Category view — every part in one category. Set-parts are grouped up top
+ * (corners inline with freshness), then an all-parts list with in-category
+ * search. Money is de-emphasized (no per-row cost).
  */
 
-type EntryRow = {
+type PartRow = {
   id: string;
   description: string;
-  odometer: number | null;
-  service_date: string | null;
-  cost: number | string | null;
-  notes: string | null;
   position: string | null;
   part_group: string | null;
   category: string;
+  service_id: string;
+  created_at: string;
+};
+
+type ServiceRow = {
+  id: string;
+  service_date: string | null;
+  odometer: number | null;
+  notes: string | null;
 };
 
 type ReminderRow = {
@@ -61,46 +60,37 @@ type OdoRow = {
   odo_delivered: number | null;
 };
 
-function num(v: number | string | null): number | null {
-  if (v == null) return null;
-  const n = typeof v === "number" ? v : Number(v);
-  return Number.isFinite(n) ? n : null;
-}
-
 async function loadCategory(category: Category): Promise<{
   entries: RepairEntry[];
   sets: CategorySet[];
   reminders: ReminderView[];
-  lifetime: number;
   currentOdo: number;
   partGroups: string[];
-  allEntries: EntryLite[];
 }> {
   const sb = createServiceRoleClient();
 
   const [
-    { data: entryRows },
+    { data: partRows },
+    { data: serviceRows },
     { data: reminderRows },
     { data: odoRows },
     { data: attRows },
     { data: linkRows },
-    { data: allRows },
+    { data: allGroupRows },
   ] = await Promise.all([
     sb
       .from("repair_entries")
-      .select(
-        "id, description, odometer, service_date, cost, notes, position, part_group, category",
-      )
+      .select("id, description, position, part_group, category, service_id, created_at")
       .eq("category", category)
       .is("deleted_at", null)
-      .order("service_date", { ascending: false, nullsFirst: false })
-      .order("created_at", { ascending: false })
-      .returns<EntryRow[]>(),
+      .returns<PartRow[]>(),
+    sb
+      .from("repair_services")
+      .select("id, service_date, odometer, notes")
+      .returns<ServiceRow[]>(),
     sb
       .from("repair_reminders")
-      .select(
-        "id, label, part_group, category, interval_miles, anchor_odo, anchor_date",
-      )
+      .select("id, label, part_group, category, interval_miles, anchor_odo, anchor_date")
       .eq("category", category)
       .is("dismissed_at", null)
       .returns<ReminderRow[]>(),
@@ -109,37 +99,29 @@ async function loadCategory(category: Category): Promise<{
       .select("odo_assigned, odo_loaded, odo_delivered")
       .is("deleted_at", null)
       .returns<OdoRow[]>(),
-    sb.from("repair_attachments").select("entry_id").returns<{ entry_id: string }[]>(),
+    sb.from("repair_attachments").select("service_id").returns<{ service_id: string }[]>(),
     sb
       .from("repair_links")
       .select("a_id, b_id")
       .returns<{ a_id: string; b_id: string }[]>(),
-    // Lightweight list of every entry, for the shared modal's attach picker +
-    // part-group datalist (attach can span categories).
     sb
       .from("repair_entries")
-      .select("id, description, service_date, odometer, position, part_group")
+      .select("part_group")
       .is("deleted_at", null)
-      .order("service_date", { ascending: false, nullsFirst: false })
-      .returns<
-        {
-          id: string;
-          description: string;
-          service_date: string | null;
-          odometer: number | null;
-          position: string | null;
-          part_group: string | null;
-        }[]
-      >(),
+      .not("part_group", "is", null)
+      .returns<{ part_group: string | null }[]>(),
   ]);
 
-  const rows = entryRows ?? [];
   const currentOdo = currentOdoFromLoads(odoRows);
   const today = new Date().toISOString().slice(0, 10);
+  const serviceById = new Map((serviceRows ?? []).map((s) => [s.id, s]));
 
-  const receiptCount = new Map<string, number>();
+  const receiptCountByService = new Map<string, number>();
   for (const a of attRows ?? []) {
-    receiptCount.set(a.entry_id, (receiptCount.get(a.entry_id) ?? 0) + 1);
+    receiptCountByService.set(
+      a.service_id,
+      (receiptCountByService.get(a.service_id) ?? 0) + 1,
+    );
   }
   const relatedCount = new Map<string, number>();
   for (const l of linkRows ?? []) {
@@ -147,17 +129,27 @@ async function loadCategory(category: Category): Promise<{
     relatedCount.set(l.b_id, (relatedCount.get(l.b_id) ?? 0) + 1);
   }
 
+  const parts = (partRows ?? []).map((p) => {
+    const s = serviceById.get(p.service_id);
+    return { row: p, date: s?.service_date ?? null, odometer: s?.odometer ?? null, notes: s?.notes ?? null };
+  });
+  parts.sort((a, b) => {
+    const d = (b.date ?? "").localeCompare(a.date ?? "");
+    if (d !== 0) return d;
+    return b.row.created_at.localeCompare(a.row.created_at);
+  });
+
   // Group aggregates (for reminder next-due) within this category.
   const groupMaxOdo = new Map<string, number>();
   const groupMaxDate = new Map<string, string>();
-  for (const r of rows) {
-    const key = groupKey(r.part_group);
+  for (const p of parts) {
+    const key = groupKey(p.row.part_group);
     if (key == null) continue;
-    if (r.odometer != null) {
-      groupMaxOdo.set(key, Math.max(groupMaxOdo.get(key) ?? 0, r.odometer));
+    if (p.odometer != null) {
+      groupMaxOdo.set(key, Math.max(groupMaxOdo.get(key) ?? 0, p.odometer));
     }
-    if (r.service_date && (groupMaxDate.get(key) ?? "") < r.service_date) {
-      groupMaxDate.set(key, r.service_date);
+    if (p.date && (groupMaxDate.get(key) ?? "") < p.date) {
+      groupMaxDate.set(key, p.date);
     }
   }
 
@@ -165,10 +157,8 @@ async function loadCategory(category: Category): Promise<{
   const reminders: ReminderView[] = (reminderRows ?? []).map((r) => {
     const key = groupKey(r.part_group);
     if (key) reminderGroupKeys.add(key);
-    const lastOdo =
-      (key ? groupMaxOdo.get(key) : undefined) ?? r.anchor_odo ?? null;
-    const lastDate =
-      (key ? groupMaxDate.get(key) : undefined) ?? r.anchor_date ?? null;
+    const lastOdo = (key ? groupMaxOdo.get(key) : undefined) ?? r.anchor_odo ?? null;
+    const lastDate = (key ? groupMaxDate.get(key) : undefined) ?? r.anchor_date ?? null;
     const m = computeMaintenance(r.interval_miles, lastOdo, currentOdo);
     return {
       id: r.id,
@@ -186,44 +176,41 @@ async function loadCategory(category: Category): Promise<{
     };
   });
 
-  const entries: RepairEntry[] = rows.map((r) => {
-    const key = groupKey(r.part_group);
+  const entries: RepairEntry[] = parts.map((p) => {
+    const key = groupKey(p.row.part_group);
     return {
-      id: r.id,
-      description: r.description,
-      date: r.service_date,
-      odometer: r.odometer,
-      position: r.position,
-      partGroup: r.part_group,
-      cost: num(r.cost),
-      notes: r.notes,
+      id: p.row.id,
+      description: p.row.description,
       category,
-      freshness: computeFreshness(r.odometer, currentOdo, r.service_date, today),
-      receiptCount: receiptCount.get(r.id) ?? 0,
-      relatedCount: relatedCount.get(r.id) ?? 0,
+      position: p.row.position,
+      partGroup: p.row.part_group,
+      date: p.date,
+      odometer: p.odometer,
+      notes: p.notes,
+      freshness: computeFreshness(p.odometer, currentOdo, p.date, today),
+      receiptCount: receiptCountByService.get(p.row.service_id) ?? 0,
+      relatedCount: relatedCount.get(p.row.id) ?? 0,
       hasReminder: key != null && reminderGroupKeys.has(key),
     };
   });
 
-  // Sets — part groups with ≥1 positioned entry. Latest entry per position →
-  // corner slots (rows are newest-first); combined cost sums the whole group.
+  // Sets — part groups with ≥1 positioned part. Latest part per position →
+  // corner slots (parts are newest-first).
   const setLabel = new Map<string, string>();
-  const latestByGroupPos = new Map<string, EntryRow>();
+  const latestByGroupPos = new Map<string, (typeof parts)[number]>();
   const usedSides = new Map<string, Set<Position>>();
-  const combinedByGroup = new Map<string, number>();
   const hasPositioned = new Set<string>();
-  for (const r of rows) {
-    const key = groupKey(r.part_group);
+  for (const p of parts) {
+    const key = groupKey(p.row.part_group);
     if (key == null) continue;
-    if (!setLabel.has(key) && r.part_group) setLabel.set(key, r.part_group);
-    combinedByGroup.set(key, (combinedByGroup.get(key) ?? 0) + (num(r.cost) ?? 0));
-    if (!isPosition(r.position)) continue;
+    if (!setLabel.has(key) && p.row.part_group) setLabel.set(key, p.row.part_group);
+    if (!isPosition(p.row.position)) continue;
     hasPositioned.add(key);
-    const gk = `${key}|${r.position}`;
-    if (!latestByGroupPos.has(gk)) latestByGroupPos.set(gk, r);
-    if (r.position === "L" || r.position === "R") {
+    const gk = `${key}|${p.row.position}`;
+    if (!latestByGroupPos.has(gk)) latestByGroupPos.set(gk, p);
+    if (p.row.position === "L" || p.row.position === "R") {
       const s = usedSides.get(key) ?? new Set<Position>();
-      s.add(r.position);
+      s.add(p.row.position);
       usedSides.set(key, s);
     }
   }
@@ -234,62 +221,31 @@ async function loadCategory(category: Category): Promise<{
       ...CORNER_POSITIONS,
       ...(["L", "R"] as Position[]).filter((p) => usedSides.get(key)?.has(p)),
     ];
-    const slots: SetSlot[] = positions.map((p) => {
-      const r = latestByGroupPos.get(`${key}|${p}`) ?? null;
+    const slots: SetSlot[] = positions.map((pos) => {
+      const p = latestByGroupPos.get(`${key}|${pos}`) ?? null;
       return {
-        position: p,
-        label: POSITION_LABEL[p],
-        entry: r
-          ? {
-              id: r.id,
-              description: r.description,
-              date: r.service_date,
-              odometer: r.odometer,
-              cost: num(r.cost),
-            }
+        position: pos,
+        label: POSITION_LABEL[pos],
+        entry: p
+          ? { id: p.row.id, description: p.row.description, date: p.date, odometer: p.odometer }
           : null,
-        freshness: r
-          ? computeFreshness(r.odometer, currentOdo, r.service_date, today)
-          : "original",
+        freshness: p ? computeFreshness(p.odometer, currentOdo, p.date, today) : "original",
       };
     });
-    sets.push({
-      partGroup: setLabel.get(key) ?? key,
-      slots,
-      combinedCost: combinedByGroup.get(key) ?? 0,
-    });
+    sets.push({ partGroup: setLabel.get(key) ?? key, slots });
   }
   sets.sort((a, b) => a.partGroup.localeCompare(b.partGroup));
 
-  const lifetime = rows.reduce((s, r) => s + (num(r.cost) ?? 0), 0);
-
-  const allEntries: EntryLite[] = (allRows ?? []).map((r) => ({
-    id: r.id,
-    description: r.description,
-    date: r.service_date,
-    odometer: r.odometer,
-    position: r.position,
-    partGroup: r.part_group,
-  }));
-
   const partGroups = Array.from(
     new Map(
-      (allRows ?? [])
+      (allGroupRows ?? [])
         .map((r) => r.part_group)
         .filter((g): g is string => !!g && g.trim().length > 0)
         .map((g) => [groupKey(g)!, g] as const),
     ).values(),
   ).sort((a, b) => a.localeCompare(b));
 
-  return {
-    entries,
-    sets,
-    reminders,
-    lifetime,
-    currentOdo,
-    partGroups,
-    allEntries,
-  };
+  return { entries, sets, reminders, currentOdo, partGroups };
 }
 
 export default async function CategoryPage({
@@ -308,10 +264,8 @@ export default async function CategoryPage({
       entries={data.entries}
       sets={data.sets}
       reminders={data.reminders}
-      lifetime={data.lifetime}
       currentOdo={data.currentOdo}
       partGroups={data.partGroups}
-      allEntries={data.allEntries}
     />
   );
 }

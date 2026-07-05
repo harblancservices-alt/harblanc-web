@@ -194,25 +194,40 @@ async function loadDashboard(): Promise<DashboardData> {
 
   // Maintenance widget — oil + fuel-filter reminders against the truck's
   // current odometer (highest reading across non-deleted loads). Each
-  // reminder's last-done odometer is the highest reading among the repair
-  // entries in its part_group, falling back to its anchor baseline.
+  // reminder's last-done odometer is the highest reading among the SERVICES of
+  // the parts in its part_group, falling back to its anchor baseline.
   const maintOdo = currentOdoFromLoads(odoRows);
   const reminders = reminderRows ?? [];
   const maxOdoByGroup = new Map<string, number>();
   if (reminders.length > 0) {
-    const { data: entryRows } = await sb
+    const { data: partRows } = await sb
       .from("repair_entries")
-      .select("odometer, part_group")
+      .select("service_id, part_group")
       .is("deleted_at", null)
       .in(
         "part_group",
         reminders.map((r) => r.part_group),
       )
-      .returns<{ odometer: number | null; part_group: string | null }[]>();
-    for (const e of entryRows ?? []) {
-      const key = groupKey(e.part_group);
-      if (key == null || e.odometer == null) continue;
-      maxOdoByGroup.set(key, Math.max(maxOdoByGroup.get(key) ?? 0, e.odometer));
+      .returns<{ service_id: string | null; part_group: string | null }[]>();
+    const svcIds = Array.from(
+      new Set((partRows ?? []).map((p) => p.service_id).filter((s): s is string => !!s)),
+    );
+    const odoByService = new Map<string, number>();
+    if (svcIds.length > 0) {
+      const { data: svcRows } = await sb
+        .from("repair_services")
+        .select("id, odometer")
+        .in("id", svcIds)
+        .returns<{ id: string; odometer: number | null }[]>();
+      for (const s of svcRows ?? []) {
+        if (s.odometer != null) odoByService.set(s.id, s.odometer);
+      }
+    }
+    for (const p of partRows ?? []) {
+      const key = groupKey(p.part_group);
+      const odo = p.service_id ? odoByService.get(p.service_id) : undefined;
+      if (key == null || odo == null) continue;
+      maxOdoByGroup.set(key, Math.max(maxOdoByGroup.get(key) ?? 0, odo));
     }
   }
   const maintenance = reminders.map((m) => {

@@ -1,6 +1,6 @@
 import type { Category, Freshness, MaintStatus } from "@/lib/dispatch/repair-log";
 
-/** A signed receipt (photo/PDF) on an entry. */
+/** A signed receipt (photo/PDF) on a service. */
 export type ReceiptView = {
   id: string;
   name: string;
@@ -8,7 +8,7 @@ export type ReceiptView = {
   isImage: boolean;
 };
 
-/** Minimal entry shape for pickers (attach-related) and list rows. */
+/** Minimal part shape for pickers (attach-related). */
 export type EntryLite = {
   id: string;
   description: string;
@@ -18,34 +18,81 @@ export type EntryLite = {
   partGroup: string | null;
 };
 
-/** A repair-log row as shown in the searchable / category lists. */
-export type RepairEntry = EntryLite & {
-  cost: number | null;
-  notes: string | null;
-  category: Category;
-  /** Freshness of this repair vs the current odometer/today (null = n/a). */
-  freshness: Freshness | null;
-  receiptCount: number;
-  relatedCount: number;
-  /** True when this entry's part_group has an active reminder. */
-  hasReminder: boolean;
-};
-
-/** Full entry for the detail + edit views. */
-export type RepairEntryFull = {
+/** Another part replaced in the same visit (shown on part detail). */
+export type PartLite = {
   id: string;
   description: string;
-  odometer: number | null;
+  category: Category;
+  position: string | null;
+};
+
+/** The service (visit) a part belongs to. */
+export type ServiceView = {
+  id: string;
   date: string | null;
-  cost: number | null;
+  odometer: number | null;
+  shop: string | null;
+  totalCost: number | null;
   notes: string | null;
+  receipts: ReceiptView[];
+};
+
+/**
+ * A part row in the searchable / category lists. Its date + odometer are read
+ * from the parent service (populated by the loader).
+ */
+export type RepairEntry = {
+  id: string;
+  description: string;
   category: Category;
   position: string | null;
   partGroup: string | null;
-  /** Reminder interval for this entry's group, if a reminder exists. */
+  date: string | null;
+  odometer: number | null;
+  /** Service notes, kept for global search only (not displayed on the row). */
+  notes: string | null;
+  freshness: Freshness | null;
+  /** Receipts on the part's service (>0 → the row shows a receipt icon). */
+  receiptCount: number;
+  relatedCount: number;
+  /** True when this part's part_group has an active reminder. */
+  hasReminder: boolean;
+};
+
+/** One part inside the log/edit service form. */
+export type ServiceFormPart = {
+  id?: string;
+  description: string;
+  category: Category;
+  position: string | null;
+  partGroup: string | null;
   reminderInterval: number | null;
+};
+
+/** Full service for the edit form. */
+export type ServiceFull = {
+  id: string;
+  date: string | null;
+  odometer: number | null;
+  shop: string | null;
+  totalCost: number | null;
+  notes: string | null;
   receipts: ReceiptView[];
-  relatedIds: string[];
+  parts: ServiceFormPart[];
+};
+
+/** Full part detail: the part + its service + siblings + related links. */
+export type RepairEntryFull = {
+  id: string;
+  description: string;
+  category: Category;
+  position: string | null;
+  partGroup: string | null;
+  reminderInterval: number | null;
+  freshness: Freshness | null;
+  service: ServiceView;
+  /** The other parts replaced in the same visit. */
+  otherParts: PartLite[];
 };
 
 /** An active reminder + its computed status against the current odometer. */
@@ -67,32 +114,16 @@ export type ReminderView = {
 
 /** A related repair on the detail view, with its freshness badge. */
 export type RelatedView = EntryLite & {
-  cost: number | null;
   freshness: Freshness;
 };
 
-/** Cost rollups shown as KPI tiles. */
-export type CostRollups = {
-  month: number;
-  ytd: number;
-  lifetime: number;
-};
-
-/** One category card on the maintenance home grid. */
+/** One category card on the maintenance home grid (parts-first — no $). */
 export type CategoryCard = {
   category: Category;
   slug: string;
   count: number;
-  spend: number;
   /** Worst attention state inside the category (null = nothing pressing). */
   badge: "overdue" | "soon" | "aging" | null;
-};
-
-/** One set (positioned part group) surfaced on the main page. */
-export type SetSummary = {
-  partGroup: string;
-  positions: number;
-  combinedCost: number;
 };
 
 /** One position slot in a set view (a corner or a side). */
@@ -104,14 +135,12 @@ export type SetSlot = {
     description: string;
     date: string | null;
     odometer: number | null;
-    cost: number | null;
   } | null;
   freshness: Freshness;
 };
 
-/** A set within a category view: its corner slots inline + combined cost. */
+/** A set within a category view: its corner slots inline. */
 export type CategorySet = {
   partGroup: string;
   slots: SetSlot[];
-  combinedCost: number;
 };

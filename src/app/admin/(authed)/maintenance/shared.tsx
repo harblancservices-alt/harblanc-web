@@ -8,12 +8,11 @@ import {
   POSITION_LABEL,
   formatDate,
   isPosition,
-  money,
   type Category,
   type Freshness,
   type MaintStatus,
 } from "@/lib/dispatch/repair-log";
-import type { CostRollups, RepairEntry, ReminderView } from "./types";
+import type { RepairEntry, ReminderView } from "./types";
 
 /**
  * Shared, presentational building blocks for the maintenance surfaces (home,
@@ -51,14 +50,8 @@ export function reminderRemaining(r: ReminderView): {
   };
 }
 
-// ── Odometer hero + cost KPI tiles ─────────────────────────────────────────
-export function OdometerHero({
-  currentOdo,
-  rollups,
-}: {
-  currentOdo: number;
-  rollups: CostRollups;
-}) {
+// ── Odometer hero (money de-emphasized — no cost KPIs) ─────────────────────
+export function OdometerHero({ currentOdo }: { currentOdo: number }) {
   return (
     <div className="relative overflow-hidden rounded-lg bg-graphite p-5 pl-6 shadow-e2">
       <span
@@ -76,24 +69,6 @@ export function OdometerHero({
       </p>
       <p className="mt-2 text-[11.5px] text-on-dark-dim">
         Highest reading across all loads · 2018 Ram 2500 · 6.7L Cummins
-      </p>
-      <div className="mt-4 grid grid-cols-3 gap-2">
-        <KpiTile label="This month" value={rollups.month} />
-        <KpiTile label="This year" value={rollups.ytd} />
-        <KpiTile label="Lifetime" value={rollups.lifetime} />
-      </div>
-    </div>
-  );
-}
-
-function KpiTile({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-md border border-graphite-line bg-graphite-2 px-3 py-2.5">
-      <p className="font-mono text-[9px] font-bold uppercase tracking-[0.1em] text-on-dark-dim">
-        {label}
-      </p>
-      <p className="mt-1 font-mono text-[17px] font-bold leading-none tabular-nums text-white">
-        {value > 0 ? money(value) : "$0"}
       </p>
     </div>
   );
@@ -244,53 +219,40 @@ export function RepairRow({
       href={`/admin/maintenance/${entry.id}`}
       className="block rounded-md border border-line bg-card p-3 shadow-e1 transition-colors hover:border-line-strong hover:bg-inset"
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h3 className="truncate text-[14px] font-semibold text-fg">
-            {entry.description}
-          </h3>
-          <p className="mt-0.5 font-mono text-[11px] font-semibold tabular-nums text-warn">
-            {formatDate(entry.date) ?? "—"}
-            {entry.odometer != null
-              ? ` · ${entry.odometer.toLocaleString()} mi`
-              : ""}
-          </p>
-          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-            {showCategory ? (
-              <span className="inline-flex items-center rounded-full bg-slate-bg px-2 py-[2px] font-mono text-[10px] font-semibold text-slate">
-                {entry.category}
-              </span>
-            ) : null}
-            {entry.freshness ? <FreshnessBadge freshness={entry.freshness} /> : null}
-            {entry.hasReminder ? (
-              <Indicator className="bg-steel-bg text-steel">↻ Recurring</Indicator>
-            ) : null}
-            {pos ? (
-              <Indicator className="bg-slate-bg text-slate">
-                {POSITION_LABEL[pos]}
-              </Indicator>
-            ) : null}
-            {entry.receiptCount > 0 ? (
-              <Indicator className="bg-elevated text-fg-muted">
-                📎 {entry.receiptCount}
-              </Indicator>
-            ) : null}
-            {entry.relatedCount > 0 ? (
-              <Indicator className="bg-elevated text-fg-muted">
-                ⛓ {entry.relatedCount}
-              </Indicator>
-            ) : null}
-          </div>
-        </div>
-        <div className="shrink-0 text-right">
-          {entry.cost != null ? (
-            <div className="text-[17px] font-bold leading-none tabular-nums text-ok">
-              {money(entry.cost)}
-            </div>
-          ) : (
-            <div className="font-mono text-[11px] text-fg-subtle">no cost</div>
-          )}
-        </div>
+      <div className="flex items-start justify-between gap-2">
+        <h3 className="min-w-0 truncate text-[14px] font-semibold text-fg">
+          {entry.description}
+        </h3>
+        {entry.receiptCount > 0 ? (
+          <span className="shrink-0 text-[13px] text-fg-subtle" title="Has a receipt">
+            📎
+          </span>
+        ) : null}
+      </div>
+      <p className="mt-0.5 font-mono text-[11px] font-semibold tabular-nums text-warn">
+        {formatDate(entry.date) ?? "—"}
+        {entry.odometer != null ? ` · ${entry.odometer.toLocaleString()} mi` : ""}
+      </p>
+      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+        {showCategory ? (
+          <span className="inline-flex items-center rounded-full bg-slate-bg px-2 py-[2px] font-mono text-[10px] font-semibold text-slate">
+            {entry.category}
+          </span>
+        ) : null}
+        {entry.freshness ? <FreshnessBadge freshness={entry.freshness} /> : null}
+        {entry.hasReminder ? (
+          <Indicator className="bg-steel-bg text-steel">↻ Recurring</Indicator>
+        ) : null}
+        {pos ? (
+          <Indicator className="bg-slate-bg text-slate">
+            {POSITION_LABEL[pos]}
+          </Indicator>
+        ) : null}
+        {entry.relatedCount > 0 ? (
+          <Indicator className="bg-elevated text-fg-muted">
+            ⛓ {entry.relatedCount}
+          </Indicator>
+        ) : null}
       </div>
     </Link>
   );

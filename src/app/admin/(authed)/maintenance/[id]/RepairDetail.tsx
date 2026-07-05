@@ -4,29 +4,34 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { Button } from "@/components/ui/Button";
-import { StatusTag } from "@/components/ui/StatusTag";
-import { LogRepairModal } from "../LogRepairModal";
-import { attachRelated, detachRelated } from "../actions";
+import { LogServiceModal } from "../LogServiceModal";
+import { CategoryIcon, FreshnessBadge } from "../shared";
+import { attachRelated, deletePart, detachRelated } from "../actions";
 import {
   CATEGORY_SLUG,
-  FRESHNESS_META,
   POSITION_LABEL,
   formatDate,
   isPosition,
   money,
 } from "@/lib/dispatch/repair-log";
-import { CategoryIcon } from "../shared";
-import type { EntryLite, RelatedView, RepairEntryFull } from "../types";
+import type {
+  EntryLite,
+  RelatedView,
+  RepairEntryFull,
+  ServiceFull,
+} from "../types";
 
 export function RepairDetail({
   entry,
   related,
+  service,
   currentOdo,
   partGroups,
   allEntries,
 }: {
   entry: RepairEntryFull;
   related: RelatedView[];
+  service: ServiceFull;
   currentOdo: number;
   partGroups: string[];
   allEntries: EntryLite[];
@@ -38,10 +43,7 @@ export function RepairDetail({
   const [err, setErr] = useState<string | null>(null);
 
   const pos = isPosition(entry.position) ? entry.position : null;
-  const relatedIds = useMemo(
-    () => new Set(related.map((r) => r.id)),
-    [related],
-  );
+  const relatedIds = useMemo(() => new Set(related.map((r) => r.id)), [related]);
 
   const attachMatches = useMemo(() => {
     const q = attachQuery.trim().toLowerCase();
@@ -75,6 +77,26 @@ export function RepairDetail({
       }
     });
   }
+  function runDeletePart() {
+    if (
+      !confirm(
+        "Remove this part?\n\nThe rest of the visit stays; if it's the only part, the whole service is removed.",
+      )
+    ) {
+      return;
+    }
+    setErr(null);
+    startTransition(async () => {
+      try {
+        await deletePart(entry.id);
+        router.push("/admin/maintenance");
+      } catch (e) {
+        setErr(e instanceof Error ? e.message : "Could not remove part.");
+      }
+    });
+  }
+
+  const s = entry.service;
 
   return (
     <div className="min-h-screen border-t border-line bg-canvas text-fg">
@@ -83,42 +105,36 @@ export function RepairDetail({
           <Button href="/admin/maintenance" variant="navigate" size="sm">
             ← Back
           </Button>
-          <Button
-            type="button"
-            onClick={() => setEditing(true)}
-            variant="edit"
-            size="sm"
-          >
-            Edit
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              onClick={runDeletePart}
+              disabled={busy}
+              variant="destructive"
+              size="sm"
+            >
+              Delete part
+            </Button>
+            <Button
+              type="button"
+              onClick={() => setEditing(true)}
+              variant="edit"
+              size="sm"
+            >
+              Edit service
+            </Button>
+          </div>
         </div>
 
-        {/* Header card */}
+        {/* Part header */}
         <div className="rounded-lg border border-line bg-card p-4 shadow-e2">
           <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h1 className="text-[20px] font-bold leading-tight text-fg">
-                {entry.description}
-              </h1>
-              <p className="mt-1 font-mono text-[12px] font-semibold tabular-nums text-warn">
-                {formatDate(entry.date) ?? "—"}
-                {entry.odometer != null
-                  ? ` · ${entry.odometer.toLocaleString()} mi`
-                  : ""}
-              </p>
-            </div>
-            <div className="shrink-0 text-right">
-              {entry.cost != null ? (
-                <div className="text-[22px] font-bold leading-none tabular-nums text-ok">
-                  {money(entry.cost)}
-                </div>
-              ) : (
-                <div className="font-mono text-[11px] text-fg-subtle">no cost</div>
-              )}
-            </div>
+            <h1 className="min-w-0 text-[20px] font-bold leading-tight text-fg">
+              {entry.description}
+            </h1>
+            {entry.freshness ? <FreshnessBadge freshness={entry.freshness} /> : null}
           </div>
-
-          <div className="mt-3 flex flex-wrap items-center gap-1.5">
+          <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
             <Link
               href={`/admin/maintenance/category/${CATEGORY_SLUG[entry.category]}`}
               className="inline-flex items-center gap-1.5 rounded-full bg-inset px-2.5 py-[3px] font-mono text-[11px] font-semibold text-ink-2 hover:underline"
@@ -144,100 +160,141 @@ export function RepairDetail({
               </span>
             ) : null}
           </div>
-
-          {entry.notes ? (
-            <p className="mt-3 whitespace-pre-wrap border-t border-line pt-3 text-[13px] leading-relaxed text-fg-muted">
-              {entry.notes}
-            </p>
-          ) : null}
         </div>
 
-        {/* Receipts */}
-        <Section title="Receipts" count={entry.receipts.length}>
-          {entry.receipts.length === 0 ? (
-            <Empty>No receipts attached.</Empty>
+        {/* This visit (the service) */}
+        <section className="mt-5">
+          <SectionLabel title="This visit" />
+          <div className="rounded-lg border border-line bg-card p-4 shadow-e1">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className="font-mono text-[13px] font-semibold tabular-nums text-warn">
+                  {formatDate(s.date) ?? "—"}
+                  {s.odometer != null ? ` · ${s.odometer.toLocaleString()} mi` : ""}
+                </p>
+                {s.shop ? (
+                  <p className="mt-0.5 text-[12.5px] text-fg-muted">{s.shop}</p>
+                ) : null}
+              </div>
+              {s.totalCost != null ? (
+                <div className="shrink-0 text-right">
+                  <p className="font-mono text-[9px] font-bold uppercase tracking-[0.1em] text-fg-subtle">
+                    Total
+                  </p>
+                  <p className="font-mono text-[15px] font-bold tabular-nums text-ok">
+                    {money(s.totalCost)}
+                  </p>
+                </div>
+              ) : null}
+            </div>
+
+            {/* Other parts replaced in this visit */}
+            {entry.otherParts.length > 0 ? (
+              <div className="mt-3 border-t border-line pt-3">
+                <p className="mb-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-fg-subtle">
+                  Also replaced this visit
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {entry.otherParts.map((p) => (
+                    <Link
+                      key={p.id}
+                      href={`/admin/maintenance/${p.id}`}
+                      className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-line bg-inset px-2.5 py-[3px] text-[12px] font-medium text-fg hover:border-line-strong"
+                    >
+                      <CategoryIcon category={p.category} className="h-3.5 w-3.5 shrink-0 text-ink-3" />
+                      <span className="truncate">
+                        {isPosition(p.position) ? `${POSITION_LABEL[p.position]} ` : ""}
+                        {p.description}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {/* Receipt */}
+            {s.receipts.length > 0 ? (
+              <div className="mt-3 border-t border-line pt-3">
+                <p className="mb-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-fg-subtle">
+                  Receipt
+                </p>
+                <div className="space-y-1.5">
+                  {s.receipts.map((a) => (
+                    <div
+                      key={a.id}
+                      className="flex items-center gap-2 rounded-md border border-line bg-card px-2.5 py-1.5"
+                    >
+                      <span className="shrink-0 rounded-sm bg-elevated px-1.5 py-[1px] font-mono text-[9px] font-bold uppercase tracking-[0.06em] text-fg-muted">
+                        {a.isImage ? "IMG" : "PDF"}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate text-[12.5px] text-fg">
+                        {a.name}
+                      </span>
+                      {a.url ? (
+                        <Button
+                          href={a.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          variant="navigate"
+                          size="sm"
+                          className="shrink-0"
+                        >
+                          View
+                        </Button>
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {s.notes ? (
+              <p className="mt-3 whitespace-pre-wrap border-t border-line pt-3 text-[13px] leading-relaxed text-fg-muted">
+                {s.notes}
+              </p>
+            ) : null}
+          </div>
+        </section>
+
+        {/* Related repairs */}
+        <section className="mt-5">
+          <SectionLabel title="Related repairs" count={related.length} />
+          {related.length === 0 ? (
+            <div className="rounded-md border border-dashed border-line-strong bg-card px-4 py-6 text-center font-mono text-[11.5px] text-ink-3">
+              Nothing linked yet.
+            </div>
           ) : (
             <div className="space-y-1.5">
-              {entry.receipts.map((a) => (
+              {related.map((r) => (
                 <div
-                  key={a.id}
-                  className="flex items-center gap-2 rounded-md border border-line bg-card px-2.5 py-1.5"
+                  key={r.id}
+                  className="flex items-center gap-2 rounded-md border border-line bg-card px-2.5 py-2"
                 >
-                  <span className="shrink-0 rounded-sm bg-elevated px-1.5 py-[1px] font-mono text-[9px] font-bold uppercase tracking-[0.06em] text-fg-muted">
-                    {a.isImage ? "IMG" : "PDF"}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-[12.5px] text-fg">
-                    {a.name}
-                  </span>
-                  {a.url ? (
-                    <Button
-                      href={a.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      variant="navigate"
-                      size="sm"
-                      className="shrink-0"
-                    >
-                      View
-                    </Button>
-                  ) : (
-                    <span className="shrink-0 font-mono text-[9px] text-fg-subtle">
-                      no link
+                  <FreshnessBadge freshness={r.freshness} />
+                  <Link href={`/admin/maintenance/${r.id}`} className="min-w-0 flex-1">
+                    <span className="block truncate text-[12.5px] font-medium text-fg hover:underline">
+                      {r.description}
                     </span>
-                  )}
+                    <span className="font-mono text-[10px] tabular-nums text-fg-subtle">
+                      {formatDate(r.date) ?? "—"}
+                      {r.odometer != null ? ` · ${r.odometer.toLocaleString()} mi` : ""}
+                    </span>
+                  </Link>
+                  <Button
+                    type="button"
+                    onClick={() => runDetach(r.id)}
+                    disabled={busy}
+                    variant="destructive"
+                    size="sm"
+                    className="shrink-0"
+                  >
+                    Unlink
+                  </Button>
                 </div>
               ))}
             </div>
           )}
-        </Section>
 
-        {/* Related repairs */}
-        <Section title="Related repairs" count={related.length}>
-          {related.length === 0 ? (
-            <Empty>Nothing linked yet.</Empty>
-          ) : (
-            <div className="space-y-1.5">
-              {related.map((r) => {
-                const fm = FRESHNESS_META[r.freshness];
-                return (
-                  <div
-                    key={r.id}
-                    className="flex items-center gap-2 rounded-md border border-line bg-card px-2.5 py-2"
-                  >
-                    <StatusTag tone={fm.tone} className="shrink-0">
-                      {fm.label}
-                    </StatusTag>
-                    <Link
-                      href={`/admin/maintenance/${r.id}`}
-                      className="min-w-0 flex-1"
-                    >
-                      <span className="block truncate text-[12.5px] font-medium text-fg hover:underline">
-                        {r.description}
-                      </span>
-                      <span className="font-mono text-[10px] tabular-nums text-fg-subtle">
-                        {formatDate(r.date) ?? "—"}
-                        {r.odometer != null
-                          ? ` · ${r.odometer.toLocaleString()} mi`
-                          : ""}
-                      </span>
-                    </Link>
-                    <Button
-                      type="button"
-                      onClick={() => runDetach(r.id)}
-                      disabled={busy}
-                      variant="destructive"
-                      size="sm"
-                      className="shrink-0"
-                    >
-                      Unlink
-                    </Button>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Attach picker */}
           <div className="mt-2">
             <input
               value={attachQuery}
@@ -273,15 +330,14 @@ export function RepairDetail({
               {err}
             </p>
           ) : null}
-        </Section>
+        </section>
       </div>
 
       {editing ? (
-        <LogRepairModal
+        <LogServiceModal
           currentOdo={currentOdo}
           partGroups={partGroups}
-          allEntries={allEntries}
-          editEntry={entry}
+          editService={service}
           onClose={() => setEditing(false)}
           onSaved={() => {
             setEditing(false);
@@ -294,34 +350,17 @@ export function RepairDetail({
   );
 }
 
-function Section({
-  title,
-  count,
-  children,
-}: {
-  title: string;
-  count: number;
-  children: React.ReactNode;
-}) {
+function SectionLabel({ title, count }: { title: string; count?: number }) {
   return (
-    <section className="mt-5">
-      <div className="mb-2 flex items-center gap-2">
-        <span className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-ink-3">
-          {title}
-        </span>
+    <div className="mb-2 flex items-center gap-2">
+      <span className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-ink-3">
+        {title}
+      </span>
+      {count != null ? (
         <span className="font-mono text-[11px] tabular-nums text-fg-subtle">
           · {count}
         </span>
-      </div>
-      {children}
-    </section>
-  );
-}
-
-function Empty({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="rounded-md border border-dashed border-line-strong bg-card px-4 py-6 text-center font-mono text-[11.5px] text-ink-3">
-      {children}
+      ) : null}
     </div>
   );
 }

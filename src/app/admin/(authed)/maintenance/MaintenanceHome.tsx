@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { LogRepairModal, type RepairPreset } from "./LogRepairModal";
+import { LogServiceModal, type ServicePreset } from "./LogServiceModal";
 import {
   CategoryBadge,
   CategoryIcon,
@@ -13,33 +13,22 @@ import {
   RepairRow,
   SectionLabel,
 } from "./shared";
-import { money } from "@/lib/dispatch/repair-log";
-import type {
-  CategoryCard,
-  CostRollups,
-  EntryLite,
-  RepairEntry,
-  ReminderView,
-} from "./types";
+import type { CategoryCard, RepairEntry, ReminderView } from "./types";
 
 export function MaintenanceHome({
   currentOdo,
-  rollups,
   categoryCards,
   alertReminders,
   entries,
   partGroups,
-  allEntries,
 }: {
   currentOdo: number;
-  rollups: CostRollups;
   categoryCards: CategoryCard[];
   alertReminders: ReminderView[];
   entries: RepairEntry[];
   partGroups: string[];
-  allEntries: EntryLite[];
 }) {
-  const [modal, setModal] = useState<RepairPreset | null | undefined>(undefined);
+  const [modal, setModal] = useState<ServicePreset | null | undefined>(undefined);
   const [query, setQuery] = useState("");
 
   const q = query.trim().toLowerCase();
@@ -62,12 +51,12 @@ export function MaintenanceHome({
           className="mb-3"
           actions={
             <Button type="button" onClick={() => setModal(null)} variant="primary">
-              + Log repair
+              + Log a service
             </Button>
           }
         />
 
-        <OdometerHero currentOdo={currentOdo} rollups={rollups} />
+        <OdometerHero currentOdo={currentOdo} />
 
         {/* Global search — spans every category. */}
         <div className="mt-4">
@@ -109,10 +98,12 @@ export function MaintenanceHome({
                       showCategory
                       onServiceNow={() =>
                         setModal({
-                          description: r.label,
-                          partGroup: r.partGroup,
-                          reminderInterval: r.interval,
-                          category: r.category,
+                          initialPart: {
+                            description: r.label,
+                            partGroup: r.partGroup,
+                            reminderInterval: r.interval,
+                            category: r.category,
+                          },
                         })
                       }
                     />
@@ -121,7 +112,7 @@ export function MaintenanceHome({
               </section>
             ) : null}
 
-            {/* Category grid. */}
+            {/* Category grid — parts-first (count + attention badge, no $). */}
             <section className="mt-5">
               <SectionLabel title="Categories" />
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
@@ -140,14 +131,9 @@ export function MaintenanceHome({
                     <h3 className="mt-3 text-[13.5px] font-semibold leading-tight text-fg">
                       {c.category}
                     </h3>
-                    <div className="mt-1 flex items-center justify-between gap-2">
-                      <span className="font-mono text-[10.5px] uppercase tracking-[0.06em] text-fg-subtle">
-                        {c.count} repair{c.count === 1 ? "" : "s"}
-                      </span>
-                      <span className="font-mono text-[12px] font-bold tabular-nums text-ok">
-                        {c.spend > 0 ? money(c.spend) : "$0"}
-                      </span>
-                    </div>
+                    <p className="mt-1 font-mono text-[11px] tabular-nums text-fg-subtle">
+                      {c.count} part{c.count === 1 ? "" : "s"}
+                    </p>
                   </Link>
                 ))}
               </div>
@@ -157,10 +143,9 @@ export function MaintenanceHome({
       </div>
 
       {modal !== undefined ? (
-        <LogRepairModal
+        <LogServiceModal
           currentOdo={currentOdo}
           partGroups={partGroups}
-          allEntries={allEntries}
           preset={modal}
           onClose={() => setModal(undefined)}
         />

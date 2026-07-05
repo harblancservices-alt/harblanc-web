@@ -11,14 +11,14 @@ import {
 } from "@/lib/dispatch/repair-log";
 
 /**
- * Repair-log actions. Service-role client (admin-only, behind the authed
- * shell), matching the loads/brokers posture. Actions throw on failure so the
- * modal surfaces the error inline instead of failing silently.
+ * Maintenance actions — SERVICE-based, parts-first. A repair_service is one
+ * shop/dealer visit that holds many parts (repair_entries). Date, odometer, the
+ * optional total, and receipts live on the service; each part carries just its
+ * identity (description, category, position, part_group).
  *
- * Receipts follow the SAME flow as the legacy maintenance / load-document
- * uploads: the client mints a signed upload URL (createReceiptUploadUrl),
- * uploads the bytes directly to the private `maintenance-receipts` bucket, then
- * sends only the file metadata here.
+ * Service-role client (admin-only, behind the authed shell). Actions throw on
+ * failure so the modal surfaces the error inline. Receipts follow the SAME
+ * signed-upload flow as before (private `maintenance-receipts` bucket).
  */
 
 type SB = ReturnType<typeof createServiceRoleClient>;
@@ -76,7 +76,6 @@ type ReceiptMeta = {
   size: number;
 };
 
-/** Validate one uploaded-receipt metadata blob; throws on bad mime/size. */
 function validateReceiptMeta(r: Record<string, unknown>): ReceiptMeta | null {
   const storagePath = typeof r.storagePath === "string" ? r.storagePath : "";
   if (!storagePath) return null;
@@ -120,11 +119,9 @@ export type CreateUploadUrlResult =
   | { ok: false; reason: string };
 
 /**
- * Mint a signed upload URL so the CLIENT can upload a receipt's bytes directly
- * to the private maintenance-receipts bucket — bypassing the Server Action /
- * Vercel request-body limit that phone photos exceed. The path isn't tied to an
- * entry id (the entry is created afterward); the stored file_path is all the
- * read side needs. (Identical to the legacy maintenance flow.)
+ * Mint a signed upload URL so the CLIENT uploads a receipt's bytes directly to
+ * the private maintenance-receipts bucket (bypassing the Server Action body
+ * limit). Unchanged from the previous flow.
  */
 export async function createReceiptUploadUrl(
   fileName: string,
@@ -168,68 +165,88 @@ export async function createReceiptUploadUrl(
 }
 
 // ---------------------------------------------------------------------------
-// Shared field parsing for the log-repair form.
+// Parse the service form.
 
-type RepairFields = {
-  description: string;
-  odometer: number | null;
+type ServiceFields = {
   serviceDate: string;
-  cost: number | null;
+  odometer: number | null;
+  shop: string | null;
+  totalCost: number | null;
   notes: string | null;
+};
+
+function parseServiceFields(fd: FormData): ServiceFields {
+  const odometer = intOrNull(fd, "odometer");
+  if (odometer != null && odometer < 0) {
+    throw new Error("Odometer can't be negative.");
+  }
+  return {
+    serviceDate: str(fd, "service_date") ?? new Date().toISOString().slice(0, 10),
+    odometer,
+    shop: str(fd, "shop"),
+    totalCost: moneyOrNull(str(fd, "total_cost")),
+    notes: str(fd, "notes"),
+  };
+}
+
+type ParsedPart = {
+  id: string | null;
+  description: string;
   category: Category;
   position: string | null;
   partGroup: string | null;
   reminderInterval: number | null;
 };
 
-function parseRepairFields(fd: FormData): RepairFields {
-  const description = str(fd, "description");
-  if (!description) throw new Error("Enter what was repaired or serviced.");
+/** Parse the repeatable "parts replaced" list; drops rows with no name. */
+function parseParts(fd: FormData): ParsedPart[] {
+  const out: ParsedPart[] = [];
+  for (const raw of jsonArray(fd, "parts")) {
+    if (!raw || typeof raw !== "object") continue;
+    const p = raw as Record<string, unknown>;
+    const description =
+      typeof p.description === "string" ? p.description.trim() : "";
+    if (!description) continue; // no name → not a part
 
-  const odometer = intOrNull(fd, "odometer");
-  if (odometer != null && odometer < 0) {
-    throw new Error("Odometer can't be negative.");
+    const rawCat = typeof p.category === "string" ? p.category : "";
+    const category = isCategory(rawCat) ? rawCat : categoryForText(description);
+
+    const rawPos = typeof p.position === "string" ? p.position : "";
+    const position = isPosition(rawPos) ? rawPos : null;
+
+    const rawRemind =
+      typeof p.reminderInterval === "number"
+        ? p.reminderInterval
+        : typeof p.reminderInterval === "string"
+          ? Number(p.reminderInterval.replace(/[,]/g, ""))
+          : NaN;
+    const reminderInterval =
+      Number.isFinite(rawRemind) && rawRemind > 0 ? Math.round(rawRemind) : null;
+
+    let partGroup =
+      typeof p.partGroup === "string" && p.partGroup.trim().length > 0
+        ? p.partGroup.trim()
+        : null;
+    // A positioned or recurring part needs a group; default it to the name.
+    if (!partGroup && (position || reminderInterval != null)) {
+      partGroup = description;
+    }
+
+    out.push({
+      id: typeof p.id === "string" && p.id ? p.id : null,
+      description: description.slice(0, 200),
+      category,
+      position,
+      partGroup: partGroup ? partGroup.slice(0, 120) : null,
+      reminderInterval,
+    });
   }
-
-  const serviceDate =
-    str(fd, "service_date") ?? new Date().toISOString().slice(0, 10);
-
-  const rawPos = str(fd, "position");
-  const position = rawPos && isPosition(rawPos) ? rawPos : null;
-
-  // Category: the explicit pick if valid, else inferred from the description.
-  const rawCat = str(fd, "category");
-  const category = isCategory(rawCat) ? rawCat : categoryForText(description);
-
-  let partGroup = str(fd, "part_group");
-  const reminderInterval = intOrNull(fd, "reminder_interval_miles");
-
-  // A set-part (has a position) or a reminder needs a group to hang off of;
-  // default it to the description so simple reminders need no extra field.
-  if (!partGroup && (position || (reminderInterval != null && reminderInterval > 0))) {
-    partGroup = description;
-  }
-
-  return {
-    description: description.slice(0, 200),
-    odometer,
-    serviceDate,
-    cost: moneyOrNull(str(fd, "cost")),
-    notes: str(fd, "notes"),
-    category,
-    position,
-    partGroup: partGroup ? partGroup.slice(0, 120) : null,
-    reminderInterval:
-      reminderInterval != null && reminderInterval > 0 ? reminderInterval : null,
-  };
+  return out;
 }
 
 /**
- * Create/refresh the reminder overlay for a part_group. Called after an entry
- * with a reminder interval is saved. Matches an existing reminder case-
- * insensitively by part_group; updates its interval + un-dismisses it, or
- * inserts a new one. The reminder's next-due derives from the group's entries,
- * so nothing else needs writing here.
+ * Create/refresh the reminder overlay for a part_group. Matches case-
+ * insensitively; updates the interval + un-dismisses, or inserts a new one.
  */
 async function upsertReminder(
   sb: SB,
@@ -267,15 +284,34 @@ async function upsertReminder(
   }
 }
 
-/** Insert repair_attachments rows for freshly-uploaded receipts. */
+/** Insert a part row for a service; upserts its reminder if flagged. */
+async function insertPart(
+  sb: SB,
+  serviceId: string,
+  p: ParsedPart,
+): Promise<void> {
+  const { error } = await sb.from("repair_entries").insert({
+    service_id: serviceId,
+    description: p.description,
+    category: p.category,
+    position: p.position,
+    part_group: p.partGroup,
+  });
+  if (error) throw new Error(`Could not save part: ${error.message}`);
+  if (p.reminderInterval != null && p.partGroup) {
+    await upsertReminder(sb, p.partGroup, p.reminderInterval, p.category);
+  }
+}
+
+/** Insert repair_attachments rows for freshly-uploaded receipts (service). */
 async function persistReceipts(
   sb: SB,
-  entryId: string,
+  serviceId: string,
   receipts: ReceiptMeta[],
 ): Promise<void> {
   for (const r of receipts) {
     const { error } = await sb.from("repair_attachments").insert({
-      entry_id: entryId,
+      service_id: serviceId,
       file_path: r.storagePath,
       thumb_path: null,
       file_name: r.name.slice(0, 240),
@@ -289,159 +325,222 @@ async function persistReceipts(
   }
 }
 
-// Canonical unordered link pair (a < b) so the same relation isn't stored twice.
-function linkPair(x: string, y: string): { a: string; b: string } {
-  return x < y ? { a: x, b: y } : { a: y, b: x };
-}
-
-async function linkEntries(sb: SB, entryId: string, otherId: string): Promise<void> {
-  if (!otherId || otherId === entryId) return;
-  const { a, b } = linkPair(entryId, otherId);
-  // Ignore duplicate-pair unique violations (already linked).
-  const { error } = await sb.from("repair_links").insert({ a_id: a, b_id: b });
-  if (error && !/duplicate|unique/i.test(error.message)) {
-    throw new Error(`Could not link repair: ${error.message}`);
+async function removeReceipts(
+  sb: SB,
+  serviceId: string,
+  ids: string[],
+): Promise<void> {
+  if (ids.length === 0) return;
+  const { data: rows } = await sb
+    .from("repair_attachments")
+    .select("id, file_path, thumb_path")
+    .eq("service_id", serviceId)
+    .in("id", ids)
+    .returns<{ id: string; file_path: string; thumb_path: string | null }[]>();
+  const paths = (rows ?? [])
+    .flatMap((r) => [r.file_path, r.thumb_path])
+    .filter((p): p is string => !!p);
+  if (paths.length > 0) await sb.storage.from(RECEIPT_BUCKET).remove(paths);
+  if (rows && rows.length > 0) {
+    await sb
+      .from("repair_attachments")
+      .delete()
+      .eq("service_id", serviceId)
+      .in("id", rows.map((r) => r.id));
   }
 }
 
 // ---------------------------------------------------------------------------
-// Entry CRUD.
+// Service CRUD.
 
-/** Log a new repair entry (+ receipts, optional reminder, optional links). */
-export async function logRepair(formData: FormData): Promise<void> {
+/** Log a new service (visit) with all of its parts at once. */
+export async function logService(formData: FormData): Promise<void> {
   const sb = createServiceRoleClient();
-  const f = parseRepairFields(formData);
+  const f = parseServiceFields(formData);
+  const parts = parseParts(formData);
+  if (parts.length === 0) {
+    throw new Error("Add at least one part that was replaced.");
+  }
   const receipts = parseReceipts(formData);
 
-  const { data: entry, error } = await sb
-    .from("repair_entries")
+  const { data: service, error } = await sb
+    .from("repair_services")
     .insert({
-      description: f.description,
-      odometer: f.odometer,
       service_date: f.serviceDate,
-      cost: f.cost,
+      odometer: f.odometer,
+      shop: f.shop,
+      total_cost: f.totalCost,
       notes: f.notes,
-      category: f.category,
-      position: f.position,
-      part_group: f.partGroup,
     })
     .select("id")
     .single<{ id: string }>();
-  if (error || !entry) {
-    throw new Error(`Could not save repair: ${error?.message ?? "unknown error"}`);
+  if (error || !service) {
+    throw new Error(`Could not save service: ${error?.message ?? "unknown error"}`);
   }
 
-  await persistReceipts(sb, entry.id, receipts);
-
-  if (f.reminderInterval != null && f.partGroup) {
-    await upsertReminder(sb, f.partGroup, f.reminderInterval, f.category);
-  }
-
-  for (const id of jsonArray(formData, "related_ids")) {
-    if (typeof id === "string") await linkEntries(sb, entry.id, id);
-  }
+  for (const p of parts) await insertPart(sb, service.id, p);
+  await persistReceipts(sb, service.id, receipts);
 
   revalidatePath("/admin/maintenance");
-  revalidatePath("/admin");
-}
-
-/** Edit an existing repair entry (+ add/remove receipts, refresh reminder). */
-export async function updateRepair(
-  entryId: string,
-  formData: FormData,
-): Promise<void> {
-  if (!entryId) throw new Error("Missing repair entry.");
-  const sb = createServiceRoleClient();
-  const f = parseRepairFields(formData);
-  const receipts = parseReceipts(formData);
-
-  const { error: updErr } = await sb
-    .from("repair_entries")
-    .update({
-      description: f.description,
-      odometer: f.odometer,
-      service_date: f.serviceDate,
-      cost: f.cost,
-      notes: f.notes,
-      category: f.category,
-      position: f.position,
-      part_group: f.partGroup,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", entryId)
-    .is("deleted_at", null);
-  if (updErr) throw new Error(`Could not update repair: ${updErr.message}`);
-
-  // Remove receipts the user deleted (storage first, then rows).
-  const removeIds = jsonArray(formData, "remove_receipt_ids").filter(
-    (v): v is string => typeof v === "string",
-  );
-  if (removeIds.length > 0) {
-    const { data: rows } = await sb
-      .from("repair_attachments")
-      .select("id, file_path, thumb_path")
-      .eq("entry_id", entryId)
-      .in("id", removeIds)
-      .returns<{ id: string; file_path: string; thumb_path: string | null }[]>();
-    const paths = (rows ?? [])
-      .flatMap((r) => [r.file_path, r.thumb_path])
-      .filter((p): p is string => !!p);
-    if (paths.length > 0) await sb.storage.from(RECEIPT_BUCKET).remove(paths);
-    if (rows && rows.length > 0) {
-      await sb
-        .from("repair_attachments")
-        .delete()
-        .eq("entry_id", entryId)
-        .in("id", rows.map((r) => r.id));
-    }
-  }
-
-  await persistReceipts(sb, entryId, receipts);
-
-  if (f.reminderInterval != null && f.partGroup) {
-    await upsertReminder(sb, f.partGroup, f.reminderInterval, f.category);
-  }
-
-  revalidatePath("/admin/maintenance");
-  revalidatePath(`/admin/maintenance/${entryId}`);
   revalidatePath("/admin");
 }
 
 /**
- * Delete a repair entry. Cascades remove its receipts + links (FKs); we
- * best-effort delete the receipt storage objects first so the private bucket
- * doesn't accumulate orphans.
+ * Edit a service: update its fields, reconcile its parts (add / update /
+ * remove), and add/remove receipts.
  */
-export async function deleteRepair(entryId: string): Promise<void> {
-  if (!entryId) throw new Error("Missing repair entry.");
+export async function updateService(
+  serviceId: string,
+  formData: FormData,
+): Promise<void> {
+  if (!serviceId) throw new Error("Missing service.");
+  const sb = createServiceRoleClient();
+  const f = parseServiceFields(formData);
+  const parts = parseParts(formData);
+  if (parts.length === 0) {
+    throw new Error("A service needs at least one part.");
+  }
+  const receipts = parseReceipts(formData);
+
+  const { error: updErr } = await sb
+    .from("repair_services")
+    .update({
+      service_date: f.serviceDate,
+      odometer: f.odometer,
+      shop: f.shop,
+      total_cost: f.totalCost,
+      notes: f.notes,
+    })
+    .eq("id", serviceId);
+  if (updErr) throw new Error(`Could not update service: ${updErr.message}`);
+
+  // Reconcile parts. Existing rows in the payload are updated in place; new
+  // rows are inserted; existing rows absent from the payload are deleted.
+  const { data: existingRows } = await sb
+    .from("repair_entries")
+    .select("id")
+    .eq("service_id", serviceId)
+    .is("deleted_at", null)
+    .returns<{ id: string }[]>();
+  const existingIds = new Set((existingRows ?? []).map((r) => r.id));
+  const keptIds = new Set<string>();
+
+  for (const p of parts) {
+    if (p.id && existingIds.has(p.id)) {
+      keptIds.add(p.id);
+      const { error } = await sb
+        .from("repair_entries")
+        .update({
+          description: p.description,
+          category: p.category,
+          position: p.position,
+          part_group: p.partGroup,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", p.id);
+      if (error) throw new Error(`Could not update part: ${error.message}`);
+      if (p.reminderInterval != null && p.partGroup) {
+        await upsertReminder(sb, p.partGroup, p.reminderInterval, p.category);
+      }
+    } else {
+      await insertPart(sb, serviceId, p);
+    }
+  }
+
+  const toDelete = [...existingIds].filter((id) => !keptIds.has(id));
+  if (toDelete.length > 0) {
+    await sb.from("repair_entries").delete().in("id", toDelete);
+  }
+
+  const removeIds = jsonArray(formData, "remove_receipt_ids").filter(
+    (v): v is string => typeof v === "string",
+  );
+  await removeReceipts(sb, serviceId, removeIds);
+  await persistReceipts(sb, serviceId, receipts);
+
+  revalidatePath("/admin/maintenance", "layout");
+  revalidatePath("/admin");
+}
+
+/**
+ * Delete a whole service (visit): its parts, their related links, and its
+ * receipts all cascade; the receipt storage objects are removed first.
+ */
+export async function deleteService(serviceId: string): Promise<void> {
+  if (!serviceId) throw new Error("Missing service.");
+  const sb = createServiceRoleClient();
+  await removeServiceStorage(sb, serviceId);
+  const { error } = await sb.from("repair_services").delete().eq("id", serviceId);
+  if (error) throw new Error(`Could not delete service: ${error.message}`);
+  revalidatePath("/admin/maintenance");
+  revalidatePath("/admin");
+}
+
+/**
+ * Delete a single PART. If it was the last part of its service, the now-empty
+ * service (and its receipts) is removed too.
+ */
+export async function deletePart(entryId: string): Promise<void> {
+  if (!entryId) throw new Error("Missing part.");
   const sb = createServiceRoleClient();
 
+  const { data: part } = await sb
+    .from("repair_entries")
+    .select("service_id")
+    .eq("id", entryId)
+    .maybeSingle<{ service_id: string | null }>();
+
+  const { error } = await sb.from("repair_entries").delete().eq("id", entryId);
+  if (error) throw new Error(`Could not delete part: ${error.message}`);
+
+  const serviceId = part?.service_id ?? null;
+  if (serviceId) {
+    const { count } = await sb
+      .from("repair_entries")
+      .select("id", { count: "exact", head: true })
+      .eq("service_id", serviceId)
+      .is("deleted_at", null);
+    if ((count ?? 0) === 0) {
+      await removeServiceStorage(sb, serviceId);
+      await sb.from("repair_services").delete().eq("id", serviceId);
+    }
+  }
+
+  revalidatePath("/admin/maintenance");
+  revalidatePath("/admin");
+}
+
+/** Best-effort delete of a service's receipt storage objects. */
+async function removeServiceStorage(sb: SB, serviceId: string): Promise<void> {
   const { data: atts } = await sb
     .from("repair_attachments")
     .select("file_path, thumb_path")
-    .eq("entry_id", entryId)
+    .eq("service_id", serviceId)
     .returns<{ file_path: string | null; thumb_path: string | null }[]>();
   const paths = (atts ?? [])
     .flatMap((a) => [a.file_path, a.thumb_path])
     .filter((p): p is string => !!p);
   if (paths.length > 0) await sb.storage.from(RECEIPT_BUCKET).remove(paths);
-
-  const { error } = await sb.from("repair_entries").delete().eq("id", entryId);
-  if (error) throw new Error(`Could not delete repair: ${error.message}`);
-
-  revalidatePath("/admin/maintenance");
-  revalidatePath("/admin");
 }
 
 // ---------------------------------------------------------------------------
-// Related links.
+// Related links (part ↔ part) — unchanged.
+
+function linkPair(x: string, y: string): { a: string; b: string } {
+  return x < y ? { a: x, b: y } : { a: y, b: x };
+}
 
 export async function attachRelated(
   entryId: string,
   otherId: string,
 ): Promise<void> {
+  if (!otherId || otherId === entryId) return;
   const sb = createServiceRoleClient();
-  await linkEntries(sb, entryId, otherId);
+  const { a, b } = linkPair(entryId, otherId);
+  const { error } = await sb.from("repair_links").insert({ a_id: a, b_id: b });
+  if (error && !/duplicate|unique/i.test(error.message)) {
+    throw new Error(`Could not link repair: ${error.message}`);
+  }
   revalidatePath(`/admin/maintenance/${entryId}`);
   revalidatePath(`/admin/maintenance/${otherId}`);
 }
@@ -466,7 +565,6 @@ export async function detachRelated(
 // ---------------------------------------------------------------------------
 // Reminders.
 
-/** Turn a reminder off (or back on) without touching the log history. */
 export async function setReminderDismissed(
   reminderId: string,
   dismissed: boolean,
