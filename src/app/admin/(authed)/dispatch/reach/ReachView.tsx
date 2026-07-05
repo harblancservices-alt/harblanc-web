@@ -41,6 +41,9 @@ import {
 /** A city typeahead hit from /api/admin/dispatch/cities. */
 type CityHit = { city: string; state: string; zip: string; lat: number; lon: number };
 
+/** Where "Send a test" delivers — the owner's own inbox (mirrors send-actions). */
+const TEST_INBOX = "harblancservices@gmail.com";
+
 /** Last-ditch wording if a posture×style template row is missing. */
 function fallbackTemplate(posture: Posture): { subject: string; body: string } {
   const lead =
@@ -144,7 +147,8 @@ export function ReachView({
   const [setupOpen, setSetupOpen] = useState(false);
   const [sending, setSending] = useState(false);
   const [result, setResult] = useState<ReachSendResult | null>(null);
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  // The confirm modal is shared by the real blast and the test send.
+  const [confirmMode, setConfirmMode] = useState<null | "real" | "test">(null);
   const [cooldown, setCooldown] = useState(0);
   const [testing, setTesting] = useState(false);
   const [testMsg, setTestMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -274,7 +278,7 @@ export function ReachView({
         // Persist any edits as the style default alongside the send.
         await saveDefault();
         setCooldown(60);
-        setConfirmOpen(false);
+        setConfirmMode(null);
         router.refresh();
       }
     } finally {
@@ -282,7 +286,9 @@ export function ReachView({
     }
   }
 
-  async function onTestSend() {
+  // Fired from the confirm modal (test mode) — same review gate as a real blast,
+  // just to the single test inbox.
+  async function onTestConfirm() {
     if (testing) return;
     setTesting(true);
     setTestMsg(null);
@@ -306,6 +312,7 @@ export function ReachView({
           ? { ok: true, text: `Test sent to ${r.to.join(" and ")}` }
           : { ok: false, text: r.reason },
       );
+      if (r.ok) setConfirmMode(null);
     } finally {
       setTesting(false);
     }
@@ -388,11 +395,14 @@ export function ReachView({
                 cooldown={cooldown}
                 onOpenSend={() => {
                   setResult(null);
-                  setConfirmOpen(true);
+                  setConfirmMode("real");
                 }}
                 testing={testing}
                 testMsg={testMsg}
-                onTestSend={onTestSend}
+                onTestSend={() => {
+                  setTestMsg(null);
+                  setConfirmMode("test");
+                }}
                 result={result}
               />
             </div>
@@ -416,21 +426,42 @@ export function ReachView({
         />
       ) : null}
 
-      {confirmOpen ? (
+      {confirmMode ? (
         <ConfirmSendModal
+          mode={confirmMode}
           subject={previewSubject}
           body={previewBody}
-          recipients={sendRecipients.map((r) => ({
-            brokerId: r.brokerId,
-            name: r.name,
-            email: r.email as string,
-            area: r.area,
-          }))}
-          sending={sending}
-          result={result}
-          onConfirm={onSend}
+          recipients={
+            confirmMode === "test"
+              ? [
+                  {
+                    brokerId: "test",
+                    name: "Test send",
+                    email: TEST_INBOX,
+                    area: "Goes only to you",
+                  },
+                ]
+              : sendRecipients.map((r) => ({
+                  brokerId: r.brokerId,
+                  name: r.name,
+                  email: r.email as string,
+                  area: r.area,
+                }))
+          }
+          sending={confirmMode === "test" ? testing : sending}
+          errorText={
+            confirmMode === "test"
+              ? testMsg && !testMsg.ok
+                ? testMsg.text
+                : null
+              : result && !result.ok
+                ? result.reason
+                : null
+          }
+          onConfirm={confirmMode === "test" ? () => onTestConfirm() : onSend}
           onClose={() => {
-            if (!sending) setConfirmOpen(false);
+            const busy = confirmMode === "test" ? testing : sending;
+            if (!busy) setConfirmMode(null);
           }}
         />
       ) : null}
@@ -1042,23 +1073,27 @@ function ActionBar({
 // ── Confirm send modal ──────────────────────────────────────────────────────────
 
 function ConfirmSendModal({
+  mode,
   subject,
   body,
   recipients,
   sending,
-  result,
+  errorText,
   onConfirm,
   onClose,
 }: {
+  /** "real" = the broker blast; "test" = the single test-inbox send. */
+  mode: "real" | "test";
   subject: string;
   /** Already-rendered display body (greeting shows "there"). */
   body: string;
   recipients: { brokerId: string; name: string; email: string; area: string }[];
   sending: boolean;
-  result: ReachSendResult | null;
+  errorText: string | null;
   onConfirm: (ids: string[]) => void;
   onClose: () => void;
 }) {
+  const isTest = mode === "test";
   // Every recipient starts CHECKED; unchecking drops them from this send.
   const [checked, setChecked] = useState<Set<string>>(
     () => new Set(recipients.map((r) => r.brokerId)),
@@ -1086,7 +1121,7 @@ function ConfirmSendModal({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Review reach before sending"
+      aria-label={isTest ? "Review test send" : "Review reach before sending"}
       className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-[max(0.75rem,env(safe-area-inset-top))] sm:p-6"
       onClick={() => {
         if (!sending) onClose();
@@ -1099,7 +1134,9 @@ function ConfirmSendModal({
         {/* Header — live count */}
         <div className="flex shrink-0 items-center justify-between gap-3 bg-bar px-4 py-2.5">
           <span className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-bar-fg">
-            Review · {checkedCount} of {recipients.length}
+            {isTest
+              ? "Test send"
+              : `Review · ${checkedCount} of ${recipients.length}`}
           </span>
           <button
             type="button"
@@ -1156,11 +1193,19 @@ function ConfirmSendModal({
           <section>
             <div className="mb-2 flex items-baseline justify-between gap-2">
               <p className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-fg">
-                Recipients · {checkedCount} selected
+                {isTest
+                  ? "Test recipient"
+                  : `Recipients · ${checkedCount} selected`}
               </p>
-              <p className="font-mono text-[10px] text-fg-subtle">
-                uncheck to skip
-              </p>
+              {isTest ? (
+                <p className="font-mono text-[10px] text-fg-subtle">
+                  only your inbox
+                </p>
+              ) : (
+                <p className="font-mono text-[10px] text-fg-subtle">
+                  uncheck to skip
+                </p>
+              )}
             </div>
             {recipients.length === 0 ? (
               <p className="text-[12px] text-warn">
@@ -1205,9 +1250,9 @@ function ConfirmSendModal({
             )}
           </section>
 
-          {result && !result.ok ? (
+          {errorText ? (
             <p role="alert" className="text-[12px] font-semibold text-bad">
-              {result.reason}
+              {errorText}
             </p>
           ) : null}
         </div>
@@ -1232,6 +1277,8 @@ function ConfirmSendModal({
                 />
                 Sending…
               </>
+            ) : isTest ? (
+              "Send test →"
             ) : (
               `Send to ${checkedCount} broker${checkedCount === 1 ? "" : "s"} →`
             )}
