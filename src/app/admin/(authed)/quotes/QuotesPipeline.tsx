@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PIPELINE_STAGES, type PipelineCard } from "@/lib/dispatch/pipeline";
+import { StatusTag } from "@/components/ui/StatusTag";
 
 /**
  * Quote pipeline funnel — the 6-stage board moved from the dashboard to the
@@ -104,17 +105,17 @@ function QuoteRequestCardItem({ q }: { q: PipelineCard }) {
           {q.name}
         </span>
         {q.status === "expired" ? (
-          <span className="shrink-0 rounded bg-bad-bg px-1.5 py-[1px] font-mono text-[10px] font-bold uppercase tracking-[0.06em] text-bad">
+          <StatusTag tone="red" hideDot className="shrink-0">
             Expired
-          </span>
+          </StatusTag>
         ) : q.status === "unseen" ? (
-          <span className="shrink-0 rounded bg-bad-bg px-1.5 py-[1px] font-mono text-[10px] font-bold uppercase tracking-[0.06em] text-bad">
+          <StatusTag tone="red" hideDot className="shrink-0">
             New
-          </span>
+          </StatusTag>
         ) : q.status === "followup" ? (
-          <span className="shrink-0 rounded bg-warn-bg px-1.5 py-[1px] font-mono text-[10px] font-bold uppercase tracking-[0.06em] text-warn">
+          <StatusTag tone="amber" hideDot className="shrink-0">
             Follow up
-          </span>
+          </StatusTag>
         ) : null}
       </div>
 
@@ -131,11 +132,11 @@ function QuoteRequestCardItem({ q }: { q: PipelineCard }) {
       <LanePoint zip={q.destZip} place={q.destPlace} />
 
       <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-line/60 pt-2.5">
-        <span className="inline-flex items-baseline gap-1.5 rounded-full bg-amber-500 px-2.5 py-[3px] font-mono tabular-nums">
+        <span className="inline-flex items-baseline gap-1.5 rounded-full bg-graphite px-2.5 py-[3px] font-mono tabular-nums shadow-e1">
           <span className="text-[12px] font-semibold text-white">
             {q.dateLabel}
           </span>
-          <span className="text-[11.5px] font-medium text-white/85">
+          <span className="text-[11.5px] font-medium text-on-dark-dim">
             · {q.ageLabel}
           </span>
         </span>

@@ -3,6 +3,7 @@
 import { useState, useTransition, useMemo } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
+import { StatusTag } from "@/components/ui/StatusTag";
 import { formatDateShort } from "@/lib/admin/format";
 import {
   restoreApplication,
@@ -107,14 +108,14 @@ export function ApplicationTrashTable({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search name, phone, email, equipment, ID…"
-            className="block w-full border-2 border-line bg-card px-3 py-2.5 font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-fg placeholder:text-fg/40 focus:outline-none"
+            className="block w-full rounded-md border border-line-strong bg-card px-3 py-2 text-[14px] text-ink outline-none placeholder:text-ink-3 focus:border-accent focus:ring-2 focus:ring-accent/40"
             aria-label="Search trashed applications"
           />
           {searchQuery ? (
             <button
               type="button"
               onClick={() => setSearchQuery("")}
-              className="absolute inset-y-0 right-0 flex items-center px-3 text-fg transition-colors hover:text-red-700"
+              className="absolute inset-y-0 right-0 flex items-center px-3 text-ink-3 transition-colors hover:text-ink"
               aria-label="Clear search"
             >
               ×
@@ -124,7 +125,7 @@ export function ApplicationTrashTable({
       </div>
 
       {hasFilter ? (
-        <p className="mt-2 font-mono text-[10.5px] font-bold uppercase tracking-[0.18em] text-fg-subtle">
+        <p className="mt-2 font-mono text-[10.5px] font-bold uppercase tracking-[0.18em] text-ink-3">
           Showing {filtered.length} of {rows.length}
         </p>
       ) : null}
@@ -132,7 +133,7 @@ export function ApplicationTrashTable({
       {/* Feed: one compact card per trashed application. */}
       <ul className="mt-4 space-y-3">
         {filtered.length === 0 ? (
-          <li className="border-2 border-dashed border-line/30 px-5 py-8 text-center font-mono text-[12px] font-bold uppercase tracking-[0.18em] text-fg-subtle">
+          <li className="rounded-md border border-dashed border-line-strong bg-card px-4 py-8 text-center font-mono text-[12px] text-ink-3 shadow-e1">
             {hasFilter
               ? "No trashed applications match your search"
               : "Trash is empty"}
@@ -171,40 +172,45 @@ function TrashRow({
   const equipment = row.equipment_type?.trim().toUpperCase() || null;
   const cdl = row.cdl_status?.trim().toUpperCase() || null;
 
-  const metaTokens: string[] = [];
-  if (equipment) metaTokens.push(equipment);
-  if (cdl) metaTokens.push(`CDL ${cdl}`);
+  const hasMeta = Boolean(equipment || cdl);
 
   return (
-    <li className="border-2 border-line border-l-4 border-l-black bg-[#fafaf6] px-4 py-3 sm:px-5 sm:py-4">
+    <li className="relative rounded-md border border-line bg-card p-4 shadow-e1">
+      {/* Accent-red left edge */}
+      <span
+        aria-hidden
+        className="absolute inset-y-0 left-0 w-[3px] rounded-l-md bg-accent"
+      />
+
       {/* Top row: name + deleted date */}
       <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
         <Link
           href={`/admin/applications/${row.id}`}
-          className="min-w-0 truncate text-[17px] font-bold leading-tight text-fg hover:underline sm:text-[18px]"
+          className="min-w-0 truncate text-[16px] font-semibold leading-tight text-ink hover:text-accent"
         >
           {row.name || "—"}
         </Link>
-        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-fg-muted">
+        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-ink-3">
           Deleted {deletedDate || "—"}
         </p>
       </div>
 
-      {/* Mid: equipment · CDL */}
-      {metaTokens.length > 0 ? (
-        <p className="mt-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-fg">
-          {metaTokens.join(" · ")}
-        </p>
+      {/* Mid: equipment · CDL chips */}
+      {hasMeta ? (
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          {equipment ? <StatusTag tone="steel">{equipment}</StatusTag> : null}
+          {cdl ? <StatusTag tone="slate">CDL {cdl}</StatusTag> : null}
+        </div>
       ) : null}
 
       {/* Sub: auto-purge */}
       {purgeDate ? (
-        <p className="mt-0.5 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-fg-subtle">
+        <p className="mt-2 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-ink-3">
           Auto purge {purgeDate}
         </p>
       ) : null}
 
-      {/* Actions: Restore (outlined black) + Delete (outlined red) */}
+      {/* Actions: Restore (primary) + Delete (destructive) */}
       <div className="mt-3 flex flex-wrap gap-2">
         <Button
           variant="primary"

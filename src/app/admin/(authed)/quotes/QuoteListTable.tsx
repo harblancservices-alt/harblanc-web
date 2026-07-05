@@ -3,6 +3,7 @@
 import { useState, useTransition, useMemo } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
+import { StatusTag, type StatusTone } from "@/components/ui/StatusTag";
 import { relativeTime } from "@/lib/admin/format";
 import { softDeleteQuote, softDeleteQuotes } from "./actions";
 import {
@@ -245,7 +246,7 @@ export function QuoteListTable({ rows }: { rows: QuoteListRow[] }) {
             <button
               type="button"
               onClick={() => setSearchQuery("")}
-              className="absolute inset-y-0 right-0 flex items-center px-3 text-fg"
+              className="absolute inset-y-0 right-0 flex items-center px-3 text-ink-3 transition-colors hover:text-ink"
               aria-label="Clear search"
             >
               ×
@@ -263,8 +264,8 @@ export function QuoteListTable({ rows }: { rows: QuoteListRow[] }) {
 
       {/* Bulk action bar — sticky when active */}
       {selectMode && selected.size > 0 ? (
-        <div className="sticky top-0 z-20 mt-3 flex flex-wrap items-center justify-between gap-3 border border-line bg-[#fafaf6] px-4 py-2.5">
-          <span className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-fg">
+        <div className="sticky top-0 z-20 mt-3 flex flex-wrap items-center justify-between gap-3 rounded-md border border-line bg-inset px-4 py-2.5 shadow-e1">
+          <span className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-ink">
             {selected.size} selected
           </span>
           <div className="flex flex-wrap items-center gap-2">
@@ -381,8 +382,8 @@ export function QuoteListTable({ rows }: { rows: QuoteListRow[] }) {
 
         {/* Empty state when nothing renders */}
         {!hasAnyResult ? (
-          <div className="mt-6 border border-line/30 bg-[#fafaf6] px-4 py-6 text-center">
-            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-fg-subtle">
+          <div className="mt-6 rounded-md border border-dashed border-line-strong bg-card px-4 py-8 text-center shadow-e1">
+            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-ink-3">
               {searchQuery.trim().length > 0
                 ? "No leads match your search"
                 : "No active leads."}
@@ -417,25 +418,25 @@ function HeavyHeader({
   showMarker?: boolean;
 }) {
   return (
-    <div className="mt-2 flex items-center justify-between gap-3 border-b-2 border-line pb-2 pt-3 sm:pt-4">
+    <div className="mt-2 flex items-center justify-between gap-3 border-b-2 border-line-strong pb-2 pt-3 sm:pt-4">
       <div className="flex items-center gap-3">
         {showMarker ? (
           <span
             aria-hidden
-            className="inline-flex h-6 w-6 shrink-0 items-center justify-center bg-bad font-mono text-[14px] font-bold text-white sm:h-7 sm:w-7 sm:text-[15px]"
+            className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-sm bg-bad font-mono text-[14px] font-bold text-white sm:h-7 sm:w-7 sm:text-[15px]"
           >
             !
           </span>
         ) : null}
-        <h2 className="font-mono text-[13px] font-bold uppercase tracking-[0.22em] text-fg sm:text-[15px]">
+        <h2 className="font-mono text-[13px] font-bold uppercase tracking-[0.22em] text-ink sm:text-[15px]">
           {label}
         </h2>
         {count > 0 ? (
-          <span className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-fg sm:text-[13px]">
+          <span className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-ink-2 sm:text-[13px]">
             · {count} flagged
           </span>
         ) : (
-          <span className="font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-fg-subtle sm:text-[12px]">
+          <span className="font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-ink-3 sm:text-[12px]">
             · All clear
           </span>
         )}
@@ -446,12 +447,12 @@ function HeavyHeader({
 
 function MediumHeader({ label, count }: { label: string; count: number }) {
   return (
-    <div className="mt-6 flex items-baseline justify-between gap-3 border-b border-line/30 pb-2">
+    <div className="mt-6 flex items-baseline justify-between gap-3 border-b border-line pb-2">
       <div className="flex items-baseline gap-2">
-        <h2 className="font-mono text-[11.5px] font-bold uppercase tracking-[0.22em] text-fg">
+        <h2 className="font-mono text-[11.5px] font-bold uppercase tracking-[0.22em] text-ink">
           {label}
         </h2>
-        <span className="font-mono text-[10.5px] font-bold uppercase tracking-[0.18em] text-fg">
+        <span className="font-mono text-[10.5px] font-bold uppercase tracking-[0.18em] text-ink-3">
           · {count}
         </span>
       </div>
@@ -463,10 +464,10 @@ function LightHeader({ label, count }: { label: string; count: number }) {
   return (
     <div className="mt-5 flex items-baseline justify-between gap-3 border-b border-line pb-1.5">
       <div className="flex items-baseline gap-2">
-        <h2 className="font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-fg">
+        <h2 className="font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-ink">
           {label}
         </h2>
-        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-fg/65">
+        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-ink-3">
           · {count}
         </span>
       </div>
@@ -483,20 +484,20 @@ function LightHeader({ label, count }: { label: string; count: number }) {
 // The urgency chip only shows when a lead is flagged; an alert-severity flag
 // tints the card border red.
 
-// Lead-status → pill colours, in the same family as the load-status pills.
-const LEAD_PILL: Partial<Record<LeadStatus, string>> = {
-  new: "bg-warn-bg text-warn",
-  contacted: "bg-warn-bg text-warn",
-  estimate_sent: "bg-steel-bg text-steel",
-  awaiting_confirmation: "bg-steel-bg text-steel",
-  awaiting_payment: "bg-steel-bg text-steel",
-  ready_to_dispatch: "bg-ok-bg text-ok",
-  dispatched: "bg-steel-bg text-steel",
-  picked_up: "bg-steel-bg text-steel",
-  in_transit: "bg-steel-bg text-steel",
-  delivered: "bg-ok-bg text-ok",
-  archived: "bg-slate-bg text-slate",
-  lost: "bg-slate-bg text-slate",
+// Lead-status → V2 StatusTag tone, in the same family as the load-status tags.
+const LEAD_TONE: Partial<Record<LeadStatus, StatusTone>> = {
+  new: "amber",
+  contacted: "amber",
+  estimate_sent: "steel",
+  awaiting_confirmation: "steel",
+  awaiting_payment: "steel",
+  ready_to_dispatch: "green",
+  dispatched: "steel",
+  picked_up: "steel",
+  in_transit: "steel",
+  delivered: "green",
+  archived: "slate",
+  lost: "slate",
 };
 
 function LeadCard({
@@ -519,7 +520,7 @@ function LeadCard({
   const freight = freightLabel(row);
   const top = row.topUrgency;
   const alert = top?.severity === "alert";
-  const pill = LEAD_PILL[row.lead_status] ?? "bg-elevated text-fg-muted";
+  const tone: StatusTone = LEAD_TONE[row.lead_status] ?? "slate";
   const href = `/admin/quotes/${row.id}`;
 
   return (
@@ -540,7 +541,7 @@ function LeadCard({
             checked={isSelected}
             onChange={(e) => onToggle(e.target.checked)}
             onClick={(e) => e.stopPropagation()}
-            className="mt-1 h-4 w-4 shrink-0 cursor-pointer accent-black"
+            className="mt-1 h-4 w-4 shrink-0 cursor-pointer accent-accent"
             aria-label={`Select ${row.name}`}
           />
         ) : null}
@@ -548,15 +549,10 @@ function LeadCard({
         <Link href={href} className="block min-w-0 flex-1">
           <div className="flex items-start justify-between gap-3">
             <span className="flex min-w-0 items-center gap-2">
-              <span
-                className={
-                  "shrink-0 rounded-sm px-1.5 py-[1px] font-mono text-[10px] font-bold uppercase tracking-[0.06em] " +
-                  pill
-                }
-              >
+              <StatusTag tone={tone} hideDot className="shrink-0">
                 {LEAD_STATUS_LABELS[row.lead_status]}
-              </span>
-              <h3 className="truncate text-[14px] font-semibold text-fg">
+              </StatusTag>
+              <h3 className="truncate text-[14px] font-semibold text-ink">
                 {row.name}
               </h3>
             </span>
@@ -565,26 +561,19 @@ function LeadCard({
             </span>
           </div>
 
-          <p className="mt-1 truncate font-mono text-[12px] tabular-nums text-fg-muted">
+          <p className="mt-1 truncate font-mono text-[12px] tabular-nums text-ink-2">
             {lane}
           </p>
 
           {top || freight ? (
             <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
               {top ? (
-                <span
-                  className={
-                    "rounded-sm px-1.5 py-[1px] font-mono text-[10px] font-bold uppercase tracking-[0.06em] " +
-                    (alert
-                      ? "bg-bad-bg text-bad"
-                      : "bg-warn-bg text-warn")
-                  }
-                >
+                <StatusTag tone={alert ? "red" : "amber"} hideDot>
                   {top.label}
-                </span>
+                </StatusTag>
               ) : null}
               {freight ? (
-                <span className="truncate text-[11px] text-fg-muted">
+                <span className="truncate text-[11px] text-ink-2">
                   {freight}
                 </span>
               ) : null}
@@ -687,7 +676,7 @@ function CompactRow({ row }: { row: QuoteListRow }) {
     <li>
       <Link
         href={`/admin/quotes/${row.id}`}
-        className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-3 gap-y-0.5 border-t border-dashed border-line px-1 py-2.5 transition-colors hover:bg-[#f3f1e9] sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto] sm:gap-x-4 sm:py-2"
+        className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-3 gap-y-0.5 border-t border-dashed border-line px-1 py-2.5 transition-colors hover:bg-inset sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto] sm:gap-x-4 sm:py-2"
       >
         <span className="truncate text-[14px] font-bold text-fg sm:text-[14.5px]">
           {row.name}
@@ -728,23 +717,23 @@ function CollapsibleSection({
       <button
         type="button"
         onClick={onToggle}
-        className="mt-3 flex w-full items-center justify-between gap-3 border border-line/25 bg-[#fafaf6] px-4 py-2.5 transition-colors hover:bg-[#f3f1e9]"
+        className="mt-3 flex w-full items-center justify-between gap-3 rounded-md border border-line bg-inset px-4 py-2.5 transition-colors hover:bg-card"
         aria-expanded={expanded}
       >
         <div className="flex items-baseline gap-2">
           <span
             className={
               "font-mono text-[11px] font-bold uppercase tracking-[0.22em] " +
-              (muted ? "text-fg-subtle" : "text-fg/65")
+              (muted ? "text-ink-3" : "text-ink-2")
             }
           >
             {label}
           </span>
-          <span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-fg-subtle">
+          <span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-ink-3">
             · {count}
           </span>
         </div>
-        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-fg">
+        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-accent">
           {expanded ? "− Hide" : "+ Show"}
         </span>
       </button>

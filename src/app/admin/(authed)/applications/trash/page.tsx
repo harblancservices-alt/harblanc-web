@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { SectionTabs } from "../../SectionTabs";
 import {
   ApplicationTrashTable,
@@ -12,13 +13,11 @@ export const metadata: Metadata = {
 };
 
 /**
- * Level 6.6 — Trashed applications page.
+ * Trashed applications — the Operations · Applications trash view.
  *
- * Mirrors Quotes Trash (6.5): max-w-4xl, V3 hero with right-aligned
- * counts, compact retention strip in place of the heavy retention card,
- * SectionTabs nav, then the trash feed itself.
- *
- * Loader unchanged. No server-action or retention-logic changes.
+ * V2 "Fleet Ops" chrome to match the Operations hub: canvas frame, PageHeader
+ * (eyebrow "Operations" + title), the shared Active/Trash SectionTabs, and a
+ * V2 retention strip. Loader and server actions are unchanged.
  */
 
 async function loadTrashedApplications(): Promise<{
@@ -49,60 +48,50 @@ export default async function ApplicationsTrashPage() {
   const { rows, activeCount } = await loadTrashedApplications();
 
   return (
-    <div className="mx-auto max-w-4xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8 lg:py-10">
-      {/* L1: Page identity — mirrors Quotes Trash 6.5 exactly. */}
-      <header className="flex flex-wrap items-end justify-between gap-4 pb-5 sm:pb-6">
-        <div>
-          <p className="font-mono text-[10.5px] font-bold uppercase tracking-[0.28em] text-fg">
-            Trash
+    <div className="min-h-screen border-t border-line bg-canvas text-fg">
+      <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+        <PageHeader
+          eyebrow="Operations"
+          title="Trashed applications"
+          className="mb-4"
+          date={`${rows.length} trashed · ${activeCount} active`}
+        />
+
+        {/* Retention — V2 inset strip with a 3px accent edge. */}
+        <div className="relative mb-4 overflow-hidden rounded-md border border-line bg-inset px-4 py-2.5 shadow-e1">
+          <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-accent" />
+          <p className="pl-2 font-mono text-[11px] text-ink-3">
+            <span className="font-bold uppercase tracking-[0.14em] text-ink-2">
+              Retention
+            </span>
+            {" · "}Recoverable for 30 days · auto-removed after expiration
           </p>
-          <h1 className="mt-1 text-[30px] font-bold leading-none tracking-tight text-fg sm:text-[36px] lg:text-[40px]">
-            Trashed applications
-          </h1>
         </div>
-        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-fg text-right leading-snug">
-          {rows.length} trashed
-          <br />
-          {activeCount} active
-        </p>
-      </header>
 
-      {/* L2: Retention strip — single compact cream line. */}
-      <section
-        aria-label="Retention policy"
-        className="mb-4 flex items-baseline gap-3 border-l-[3px] border-line bg-[#fafaf6] px-4 py-2.5 sm:gap-4 sm:px-5"
-      >
-        <p className="shrink-0 font-mono text-[10.5px] font-bold uppercase tracking-[0.22em] text-fg">
-          Retention
-        </p>
-        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-fg-muted">
-          Recoverable for 30 days · Auto-removed after expiration
-        </p>
-      </section>
+        <SectionTabs
+          tabs={[
+            {
+              label: "Active",
+              href: "/admin/operations?tab=applications",
+              count: activeCount,
+            },
+            {
+              label: "Trash",
+              href: "/admin/applications/trash",
+              count: rows.length,
+              active: true,
+            },
+          ]}
+        />
 
-      <SectionTabs
-        tabs={[
-          {
-            label: "Active",
-            href: "/admin/operations?tab=applications",
-            count: activeCount,
-          },
-          {
-            label: "Trash",
-            href: "/admin/applications/trash",
-            count: rows.length,
-            active: true,
-          },
-        ]}
-      />
-
-      {rows.length === 0 ? (
-        <p className="mt-12 font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-fg-subtle">
-          Trash is empty.
-        </p>
-      ) : (
-        <ApplicationTrashTable rows={rows} />
-      )}
+        {rows.length === 0 ? (
+          <p className="mt-8 font-mono text-[11px] font-bold uppercase tracking-[0.22em] text-ink-3">
+            Trash is empty.
+          </p>
+        ) : (
+          <ApplicationTrashTable rows={rows} />
+        )}
+      </div>
     </div>
   );
 }

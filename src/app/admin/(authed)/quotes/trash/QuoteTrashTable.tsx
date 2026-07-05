@@ -3,6 +3,7 @@
 import { useState, useTransition, useMemo } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
+import { StatusTag } from "@/components/ui/StatusTag";
 import { formatDateShort } from "@/lib/admin/format";
 import { restoreQuote, permanentlyDeleteQuote } from "../actions";
 
@@ -104,14 +105,14 @@ export function QuoteTrashTable({ rows }: { rows: QuoteTrashRow[] }) {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search name, phone, lane, commodity, ID…"
-            className="block w-full border-2 border-line bg-card px-3 py-2.5 font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-fg placeholder:text-fg/40 focus:outline-none"
+            className="block w-full rounded-md border border-line-strong bg-card px-3 py-2 text-[14px] text-ink outline-none placeholder:text-ink-3 focus:border-accent focus:ring-2 focus:ring-accent/40"
             aria-label="Search trashed quotes"
           />
           {searchQuery ? (
             <button
               type="button"
               onClick={() => setSearchQuery("")}
-              className="absolute inset-y-0 right-0 flex items-center px-3 text-fg transition-colors hover:text-red-700"
+              className="absolute inset-y-0 right-0 flex items-center px-3 text-ink-3 transition-colors hover:text-ink"
               aria-label="Clear search"
             >
               ×
@@ -121,7 +122,7 @@ export function QuoteTrashTable({ rows }: { rows: QuoteTrashRow[] }) {
       </div>
 
       {hasFilter ? (
-        <p className="mt-2 font-mono text-[10.5px] font-bold uppercase tracking-[0.18em] text-fg-subtle">
+        <p className="mt-2 font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-3">
           Showing {filtered.length} of {rows.length}
         </p>
       ) : null}
@@ -129,7 +130,7 @@ export function QuoteTrashTable({ rows }: { rows: QuoteTrashRow[] }) {
       {/* L4: Trash feed — one compact card per trashed quote. */}
       <ul className="mt-4 space-y-3">
         {filtered.length === 0 ? (
-          <li className="border-2 border-dashed border-line/30 px-5 py-8 text-center font-mono text-[12px] font-bold uppercase tracking-[0.18em] text-fg-subtle">
+          <li className="rounded-md border border-dashed border-line-strong bg-card px-4 py-8 text-center font-mono text-[12px] text-ink-3 shadow-e1">
             {hasFilter
               ? "No trashed records match your search"
               : "Trash is empty"}
@@ -176,19 +177,27 @@ function TrashRow({
   const commodity = row.commodity?.trim().toUpperCase() || null;
 
   return (
-    <li className="border-2 border-line border-l-4 border-l-black bg-[#fafaf6] px-4 py-3 sm:px-5 sm:py-4">
-      {/* Top row: name + deleted date + lane (lane right-aligned on sm+) */}
+    <li className="relative overflow-hidden rounded-md border border-line bg-card p-4 shadow-e1 sm:p-5">
+      {/* Accent-red left edge signals a trashed record. */}
+      <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-accent" />
+
+      {/* Top row: name + trashed tag + deleted date + lane (right-aligned on sm+) */}
       <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
-        <Link
-          href={`/admin/quotes/${row.id}`}
-          className="min-w-0 truncate text-[17px] font-bold leading-tight text-fg hover:underline sm:text-[18px]"
-        >
-          {row.name || "—"}
-        </Link>
-        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-fg-muted sm:flex-nowrap">
+        <div className="flex min-w-0 items-baseline gap-2">
+          <Link
+            href={`/admin/quotes/${row.id}`}
+            className="min-w-0 truncate text-[16px] font-semibold leading-tight text-ink transition-colors hover:text-accent"
+          >
+            {row.name || "—"}
+          </Link>
+          <StatusTag tone="slate" hideDot>
+            Trashed
+          </StatusTag>
+        </div>
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-3 sm:flex-nowrap">
           <span aria-label="Deleted">{deletedDate || "—"}</span>
           {lane ? (
-            <span className="text-fg tabular-nums" aria-label="Lane">
+            <span className="text-ink-2 tabular-nums" aria-label="Lane">
               {lane}
             </span>
           ) : null}
@@ -197,10 +206,10 @@ function TrashRow({
 
       {/* Meta row: commodity · auto-purge */}
       {commodity || purgeDate ? (
-        <p className="mt-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-fg-subtle">
-          {commodity ? <span className="text-fg">{commodity}</span> : null}
+        <p className="mt-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.12em] text-ink-3">
+          {commodity ? <span className="text-ink-2">{commodity}</span> : null}
           {commodity && purgeDate ? (
-            <span aria-hidden className="mx-2 text-fg/40">
+            <span aria-hidden className="mx-2 text-ink-3">
               ·
             </span>
           ) : null}
@@ -208,7 +217,7 @@ function TrashRow({
         </p>
       ) : null}
 
-      {/* Action row: Restore (black outline) + Delete (red outline) */}
+      {/* Action row: Restore (primary) + Delete (destructive) */}
       <div className="mt-3 flex flex-wrap gap-2">
         <Button
           variant="primary"

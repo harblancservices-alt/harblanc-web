@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
-import { StatusTag } from "@/components/ui/StatusTag";
+import { StatusTag, type StatusTone } from "@/components/ui/StatusTag";
 import { PAYMENT_METHOD_LABELS, type PaymentMethod } from "@/lib/dispatch/payment";
 
 /**
@@ -356,25 +356,22 @@ function Row({
   );
 }
 
-const PILL_TONE: Record<Tone, string> = {
-  green: "bg-ok-bg text-ok",
-  amber: "bg-warn-bg text-warn",
-  red: "bg-bad-bg text-bad",
-  blue: "bg-steel-bg text-steel",
-  neutral: "bg-slate-bg text-slate",
-  muted: "bg-slate-bg text-slate",
+// Map the ledger/payout tones onto the shared V2 StatusTag tones so every
+// badge in the portal reads the same (blue → steel, neutral/muted → slate).
+const PILL_TONE: Record<Tone, StatusTone> = {
+  green: "green",
+  amber: "amber",
+  red: "red",
+  blue: "steel",
+  neutral: "slate",
+  muted: "slate",
 };
 
 function StatusPill({ label, tone }: { label: string; tone: Tone }) {
   return (
-    <span
-      className={
-        "inline-block w-fit rounded-full px-2 py-[1px] font-mono text-[10.5px] font-semibold uppercase tracking-[0.04em] " +
-        PILL_TONE[tone]
-      }
-    >
+    <StatusTag tone={PILL_TONE[tone]} hideDot>
       {label}
-    </span>
+    </StatusTag>
   );
 }
 
