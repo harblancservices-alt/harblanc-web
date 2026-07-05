@@ -1,16 +1,19 @@
 import type { Metadata } from "next";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import {
-  MaintenanceView,
-  type MaintItem,
-  type MaintSummary,
-  type ServiceExpenseLine,
-  type ServiceHistoryEntry,
-} from "./MaintenanceView";
+import { RepairLogView } from "./RepairLogView";
 import {
   computeMaintenance,
   currentOdoFromLoads,
-} from "@/lib/dispatch/maintenance";
+  groupKey,
+  isPosition,
+} from "@/lib/dispatch/repair-log";
+import type {
+  CostRollups,
+  EntryLite,
+  RepairEntry,
+  ReminderView,
+  SetSummary,
+} from "./types";
 
 export const metadata: Metadata = {
   title: "Maintenance",
@@ -18,22 +21,33 @@ export const metadata: Metadata = {
 };
 
 /**
- * Maintenance — preventative service schedule for the 2018 Ram 2500 6.7L
- * Cummins. Server component: loads the non-deleted maintenance_items and the
- * truck's current odometer (the highest reading across all non-deleted
- * loads), computes each item's next-due / miles-remaining / status, and
- * hands plain data to the client view. Service-role client, same posture as
- * the load page.
+ * Maintenance — the truck's repair log (2018 Ram 2500 6.7L Cummins).
+ *
+ * Server component. Loads the flat repair_entries, the reminder overlay, and
+ * the truck's current odometer (highest reading across non-deleted loads),
+ * derives each reminder's status, the cost rollups, and the set summaries, then
+ * hands plain data to the client view. Service-role client, same posture as the
+ * loads page.
  */
 
-type ItemRow = {
+type EntryRow = {
   id: string;
-  name: string;
-  interval_miles: number;
-  last_service_odo: number | null;
-  last_service_date: string | null;
+  description: string;
+  odometer: number | null;
+  service_date: string | null;
+  cost: number | string | null;
   notes: string | null;
-  sort_order: number;
+  position: string | null;
+  part_group: string | null;
+};
+
+type ReminderRow = {
+  id: string;
+  label: string;
+  part_group: string;
+  interval_miles: number;
+  anchor_odo: number | null;
+  anchor_date: string | null;
 };
 
 type OdoRow = {
@@ -42,255 +56,226 @@ type OdoRow = {
   odo_delivered: number | null;
 };
 
-type LogRow = {
-  id: string;
-  item_id: string | null;
-  service_name: string | null;
-  service_odo: number | null;
-  service_date: string | null;
-  notes: string | null;
-  total_cost: number | string | null;
-  created_at: string;
-};
-type AttRow = {
-  id: string;
-  log_id: string;
-  expense_id: string | null;
-  file_path: string;
-  thumb_path: string | null;
-  file_name: string | null;
-  content_type: string | null;
-  amount: number | string | null;
-  label: string | null;
-};
-type ExpRow = {
-  id: string;
-  log_id: string;
-  description: string | null;
-  amount: number | string | null;
-  created_at: string;
-};
-
 function num(v: number | string | null): number | null {
   if (v == null) return null;
   const n = typeof v === "number" ? v : Number(v);
   return Number.isFinite(n) ? n : null;
 }
 
-const RECEIPT_BUCKET = "maintenance-receipts";
+/** Most-recent-first: latest odometer / date across a group's entries. */
+type GroupAgg = { maxOdo: number | null; maxDate: string | null; cost: number };
 
-// Status priority for surfacing the urgent items first.
-const STATUS_RANK: Record<MaintItem["status"], number> = {
-  overdue: 0,
-  soon: 1,
-  baseline: 2,
-  ok: 3,
-};
-
-async function loadMaintenance(): Promise<{
+async function loadRepairLog(): Promise<{
   currentOdo: number;
-  items: MaintItem[];
-  history: ServiceHistoryEntry[];
-  totalSpend: number;
-  summary: MaintSummary;
+  entries: RepairEntry[];
+  reminders: ReminderView[];
+  rollups: CostRollups;
+  sets: SetSummary[];
+  partGroups: string[];
+  allEntries: EntryLite[];
 }> {
   const sb = createServiceRoleClient();
 
   const [
-    { data: itemRows },
+    { data: entryRows },
+    { data: reminderRows },
     { data: odoRows },
-    { data: logRows },
-    { data: logAggRows },
+    { data: attRows },
+    { data: linkRows },
   ] = await Promise.all([
     sb
-      .from("maintenance_items")
+      .from("repair_entries")
       .select(
-        "id, name, interval_miles, last_service_odo, last_service_date, notes, sort_order",
+        "id, description, odometer, service_date, cost, notes, position, part_group",
       )
       .is("deleted_at", null)
-      .order("sort_order", { ascending: true })
-      .returns<ItemRow[]>(),
+      .order("service_date", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false })
+      .returns<EntryRow[]>(),
+    sb
+      .from("repair_reminders")
+      .select("id, label, part_group, interval_miles, anchor_odo, anchor_date")
+      .is("dismissed_at", null)
+      .returns<ReminderRow[]>(),
     sb
       .from("loads")
       .select("odo_assigned, odo_loaded, odo_delivered")
       .is("deleted_at", null)
       .returns<OdoRow[]>(),
     sb
-      .from("maintenance_log")
-      .select(
-        "id, item_id, service_name, service_odo, service_date, notes, total_cost, created_at",
-      )
-      .order("service_date", { ascending: false, nullsFirst: false })
-      .order("created_at", { ascending: false })
-      .limit(100)
-      .returns<LogRow[]>(),
-    // Unbounded aggregate over EVERY log (the list above is capped at 100):
-    // lifetime spend for the summary band's "Total spent".
+      .from("repair_attachments")
+      .select("entry_id")
+      .returns<{ entry_id: string }[]>(),
     sb
-      .from("maintenance_log")
-      .select("total_cost")
-      .returns<{ total_cost: number | string | null }[]>(),
+      .from("repair_links")
+      .select("a_id, b_id")
+      .returns<{ a_id: string; b_id: string }[]>(),
   ]);
 
-  // Current odometer = GREATEST(MAX(odo_assigned), MAX(odo_loaded),
-  // MAX(odo_delivered)) across non-deleted loads.
   const currentOdo = currentOdoFromLoads(odoRows);
+  const rows = entryRows ?? [];
 
-  const items: MaintItem[] = (itemRows ?? []).map((it) => {
-    const m = computeMaintenance(
-      it.interval_miles,
-      it.last_service_odo,
-      currentOdo,
-    );
-    return {
-      id: it.id,
-      name: it.name,
-      interval: it.interval_miles,
-      lastOdo: it.last_service_odo,
-      lastDate: it.last_service_date,
-      neverServiced: m.neverServiced,
-      nextDue: m.nextDue,
-      milesRemaining: m.milesRemaining,
-      status: m.status,
-      pct: m.pct,
-      notes: it.notes,
-    };
-  });
+  // Receipt + related counts per entry.
+  const receiptCount = new Map<string, number>();
+  for (const a of attRows ?? []) {
+    receiptCount.set(a.entry_id, (receiptCount.get(a.entry_id) ?? 0) + 1);
+  }
+  const relatedCount = new Map<string, number>();
+  for (const l of linkRows ?? []) {
+    relatedCount.set(l.a_id, (relatedCount.get(l.a_id) ?? 0) + 1);
+    relatedCount.set(l.b_id, (relatedCount.get(l.b_id) ?? 0) + 1);
+  }
 
-  // Surface overdue → due soon → needs baseline → ok, most-urgent first.
-  items.sort((a, b) => {
-    const r = STATUS_RANK[a.status] - STATUS_RANK[b.status];
-    if (r !== 0) return r;
-    const am = a.milesRemaining ?? Number.POSITIVE_INFINITY;
-    const bm = b.milesRemaining ?? Number.POSITIVE_INFINITY;
-    return am - bm;
-  });
-
-  // Service history (newest first). Each log → its expense LINES, each line →
-  // its receipts (signed). Receipts not tied to a line (legacy) are kept under
-  // the log as "unlinked".
-  const logs = logRows ?? [];
-  const itemName = new Map((itemRows ?? []).map((i) => [i.id, i.name]));
-  const expensesByLog = new Map<string, ServiceExpenseLine[]>();
-  const unlinkedByLog = new Map<string, ServiceHistoryEntry["unlinkedAttachments"]>();
-  if (logs.length > 0) {
-    const logIds = logs.map((l) => l.id);
-    const [{ data: attRows }, { data: expRows }] = await Promise.all([
-      sb
-        .from("maintenance_attachments")
-        .select(
-          "id, log_id, expense_id, file_path, thumb_path, file_name, content_type, amount, label",
-        )
-        .in("log_id", logIds)
-        .returns<AttRow[]>(),
-      sb
-        .from("maintenance_expenses")
-        .select("id, log_id, description, amount, created_at")
-        .in("log_id", logIds)
-        .order("created_at", { ascending: true })
-        .returns<ExpRow[]>(),
-    ]);
-    const atts = attRows ?? [];
-    // Sign originals (tap-to-view) and thumbnails (grid) in ONE storage request.
-    const signedByPath = new Map<string, string>();
-    if (atts.length > 0) {
-      const paths = [
-        ...atts.map((a) => a.file_path),
-        ...atts.map((a) => a.thumb_path).filter((p): p is string => !!p),
-      ];
-      const { data: signedList } = await sb.storage
-        .from(RECEIPT_BUCKET)
-        .createSignedUrls(paths, 3600);
-      for (const s of signedList ?? []) {
-        if (s.path && s.signedUrl && !s.error) {
-          signedByPath.set(s.path, s.signedUrl);
-        }
-      }
+  // Aggregate entries by group key (latest odo/date + combined cost).
+  const groups = new Map<string, GroupAgg>();
+  const groupLabel = new Map<string, string>();
+  const positionsByGroup = new Map<string, Set<string>>();
+  for (const r of rows) {
+    const key = groupKey(r.part_group);
+    if (key == null) continue;
+    if (!groupLabel.has(key) && r.part_group) groupLabel.set(key, r.part_group);
+    const g = groups.get(key) ?? { maxOdo: null, maxDate: null, cost: 0 };
+    const odo = r.odometer;
+    if (odo != null && (g.maxOdo == null || odo > g.maxOdo)) g.maxOdo = odo;
+    if (r.service_date && (g.maxDate == null || r.service_date > g.maxDate)) {
+      g.maxDate = r.service_date;
     }
-    // Group attachments by expense line; ones with no expense_id are "unlinked".
-    const attByExpense = new Map<string, ServiceExpenseLine["attachments"]>();
-    for (const a of atts) {
-      const url = signedByPath.get(a.file_path) ?? null;
-      const thumbUrl =
-        (a.thumb_path ? signedByPath.get(a.thumb_path) : null) ?? url;
-      const sa = {
-        id: a.id,
-        name: a.file_name ?? "receipt",
-        url,
-        thumbUrl,
-        isImage: (a.content_type ?? "").startsWith("image/"),
-        amount: num(a.amount),
-        label: a.label,
-      };
-      if (a.expense_id) {
-        const list = attByExpense.get(a.expense_id) ?? [];
-        list.push(sa);
-        attByExpense.set(a.expense_id, list);
-      } else {
-        const list = unlinkedByLog.get(a.log_id) ?? [];
-        list.push(sa);
-        unlinkedByLog.set(a.log_id, list);
-      }
-    }
-    for (const e of expRows ?? []) {
-      const list = expensesByLog.get(e.log_id) ?? [];
-      list.push({
-        id: e.id,
-        description: e.description,
-        amount: num(e.amount),
-        attachments: attByExpense.get(e.id) ?? [],
-      });
-      expensesByLog.set(e.log_id, list);
+    g.cost += num(r.cost) ?? 0;
+    groups.set(key, g);
+    if (isPosition(r.position)) {
+      const set = positionsByGroup.get(key) ?? new Set<string>();
+      set.add(r.position);
+      positionsByGroup.set(key, set);
     }
   }
 
-  const history: ServiceHistoryEntry[] = logs.map((l) => ({
-    id: l.id,
-    itemId: l.item_id,
-    serviceName:
-      l.service_name ??
-      (l.item_id ? itemName.get(l.item_id) ?? null : null) ??
-      "Service",
-    date: l.service_date,
-    odo: l.service_odo,
-    notes: l.notes,
-    totalCost: num(l.total_cost),
-    expenses: expensesByLog.get(l.id) ?? [],
-    unlinkedAttachments: unlinkedByLog.get(l.id) ?? [],
+  // Reminders → computed status. next-due uses the group's latest entry
+  // odometer, falling back to the reminder's anchor baseline.
+  const reminderGroupKeys = new Set<string>();
+  const reminders: ReminderView[] = (reminderRows ?? []).map((r) => {
+    const key = groupKey(r.part_group);
+    if (key) reminderGroupKeys.add(key);
+    const g = key ? groups.get(key) : undefined;
+    const lastOdo = g?.maxOdo ?? r.anchor_odo ?? null;
+    const lastDate = g?.maxDate ?? r.anchor_date ?? null;
+    const m = computeMaintenance(r.interval_miles, lastOdo, currentOdo);
+    return {
+      id: r.id,
+      label: r.label,
+      partGroup: r.part_group,
+      interval: r.interval_miles,
+      status: m.status,
+      milesRemaining: m.milesRemaining,
+      nextDue: m.nextDue,
+      lastOdo,
+      lastDate,
+      neverServiced: m.neverServiced,
+      pct: m.pct,
+    };
+  });
+  // Surface overdue → due soon → no-baseline → ok, most-urgent first.
+  const RANK: Record<ReminderView["status"], number> = {
+    overdue: 0,
+    soon: 1,
+    baseline: 2,
+    ok: 3,
+  };
+  reminders.sort((a, b) => {
+    const r = RANK[a.status] - RANK[b.status];
+    if (r !== 0) return r;
+    return (
+      (a.milesRemaining ?? Number.POSITIVE_INFINITY) -
+      (b.milesRemaining ?? Number.POSITIVE_INFINITY)
+    );
+  });
+
+  const entries: RepairEntry[] = rows.map((r) => {
+    const key = groupKey(r.part_group);
+    return {
+      id: r.id,
+      description: r.description,
+      date: r.service_date,
+      odometer: r.odometer,
+      position: r.position,
+      partGroup: r.part_group,
+      cost: num(r.cost),
+      notes: r.notes,
+      receiptCount: receiptCount.get(r.id) ?? 0,
+      relatedCount: relatedCount.get(r.id) ?? 0,
+      hasReminder: key != null && reminderGroupKeys.has(key),
+    };
+  });
+
+  const allEntries: EntryLite[] = rows.map((r) => ({
+    id: r.id,
+    description: r.description,
+    date: r.service_date,
+    odometer: r.odometer,
+    position: r.position,
+    partGroup: r.part_group,
   }));
 
-  // Lifetime maintenance spend across EVERY logged service (not just the 100
-  // shown in the history list).
-  const aggLogs = logAggRows ?? [];
-  const totalSpend = aggLogs.reduce((s, l) => s + (num(l.total_cost) ?? 0), 0);
+  // Cost rollups — month / YTD / lifetime by service_date (string compare on
+  // the YYYY-MM / YYYY prefix, timezone-safe).
+  const now = new Date();
+  const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const yr = String(now.getFullYear());
+  const rollups: CostRollups = { month: 0, ytd: 0, lifetime: 0 };
+  for (const r of rows) {
+    const c = num(r.cost) ?? 0;
+    if (c === 0) continue;
+    rollups.lifetime += c;
+    const d = r.service_date ?? "";
+    if (d.startsWith(yr)) rollups.ytd += c;
+    if (d.startsWith(ym)) rollups.month += c;
+  }
 
-  // Next due = the single most urgent serviced item (fewest miles remaining;
-  // overdue, i.e. most-negative, first). Never-serviced items have no
-  // milesRemaining, so they're excluded.
-  const serviced = items.filter((i) => i.milesRemaining != null);
-  serviced.sort(
-    (a, b) => (a.milesRemaining as number) - (b.milesRemaining as number),
-  );
-  const top = serviced[0];
-  const nextDue = top
-    ? { name: top.name, milesRemaining: top.milesRemaining as number }
-    : null;
+  // Sets — groups with at least one positioned entry.
+  const sets: SetSummary[] = [];
+  for (const [key, positions] of positionsByGroup) {
+    const g = groups.get(key);
+    sets.push({
+      partGroup: groupLabel.get(key) ?? key,
+      positions: positions.size,
+      combinedCost: g?.cost ?? 0,
+    });
+  }
+  sets.sort((a, b) => a.partGroup.localeCompare(b.partGroup));
 
-  const summary: MaintSummary = { totalSpend, nextDue };
+  // Distinct part-group labels for the form datalist.
+  const partGroups = Array.from(
+    new Map(
+      [
+        ...rows.map((r) => r.part_group),
+        ...(reminderRows ?? []).map((r) => r.part_group),
+      ]
+        .filter((g): g is string => !!g && g.trim().length > 0)
+        .map((g) => [groupKey(g)!, g] as const),
+    ).values(),
+  ).sort((a, b) => a.localeCompare(b));
 
-  return { currentOdo, items, history, totalSpend, summary };
+  return {
+    currentOdo,
+    entries,
+    reminders,
+    rollups,
+    sets,
+    partGroups,
+    allEntries,
+  };
 }
 
 export default async function MaintenancePage() {
-  const { currentOdo, items, history, totalSpend, summary } =
-    await loadMaintenance();
+  const data = await loadRepairLog();
   return (
-    <MaintenanceView
-      currentOdo={currentOdo}
-      items={items}
-      history={history}
-      totalSpend={totalSpend}
-      summary={summary}
+    <RepairLogView
+      currentOdo={data.currentOdo}
+      entries={data.entries}
+      reminders={data.reminders}
+      rollups={data.rollups}
+      sets={data.sets}
+      partGroups={data.partGroups}
+      allEntries={data.allEntries}
     />
   );
 }

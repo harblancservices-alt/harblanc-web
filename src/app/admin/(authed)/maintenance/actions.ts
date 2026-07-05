@@ -2,12 +2,20 @@
 
 import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { groupKey, isPosition } from "@/lib/dispatch/repair-log";
 
 /**
- * Maintenance actions. Service-role client (admin-only, behind the authed
- * shell), matching the loads/brokers posture. Actions throw on failure so
- * the modal surfaces the error inline instead of failing silently.
+ * Repair-log actions. Service-role client (admin-only, behind the authed
+ * shell), matching the loads/brokers posture. Actions throw on failure so the
+ * modal surfaces the error inline instead of failing silently.
+ *
+ * Receipts follow the SAME flow as the legacy maintenance / load-document
+ * uploads: the client mints a signed upload URL (createReceiptUploadUrl),
+ * uploads the bytes directly to the private `maintenance-receipts` bucket, then
+ * sends only the file metadata here.
  */
+
+type SB = ReturnType<typeof createServiceRoleClient>;
 
 function str(fd: FormData, key: string): string | null {
   const v = fd.get(key);
@@ -23,8 +31,7 @@ function intOrNull(fd: FormData, key: string): number | null {
   return Number.isFinite(n) ? Math.round(n) : null;
 }
 
-// Parse a dollar amount string ("$1,250.50" → 1250.5). Null when blank/invalid
-// or negative. Rounded to cents for numeric(10,2).
+/** "$1,250.50" → 1250.5. Null when blank/invalid/negative. Rounded to cents. */
 function moneyOrNull(raw: string | null | undefined): number | null {
   if (typeof raw !== "string") return null;
   const cleaned = raw.replace(/[$,\s]/g, "");
@@ -34,33 +41,33 @@ function moneyOrNull(raw: string | null | undefined): number | null {
   return Math.round(n * 100) / 100;
 }
 
-// Expense category was removed from the maintenance UI. The
-// maintenance_log.category column stays in the DB but is no longer written.
+function jsonArray(fd: FormData, key: string): unknown[] {
+  const raw = str(fd, key);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
 
-// Payment method was removed from the maintenance UI. The
-// maintenance_log.payment_method column stays in place but is no longer
-// written or read.
-
-type SB = ReturnType<typeof createServiceRoleClient>;
+// Receipt uploads → private maintenance-receipts bucket (signed URLs only).
+const RECEIPT_BUCKET = "maintenance-receipts";
+const RECEIPT_MIME = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/heic",
+  "image/webp",
+  "application/pdf",
+]);
+const RECEIPT_MAX_BYTES = 20 * 1024 * 1024;
 
 type ReceiptMeta = {
   storagePath: string;
   name: string;
   type: string;
   size: number;
-};
-
-/**
- * One expense LINE on a service: a description + amount, plus its receipts.
- * `newReceipts` were uploaded directly to storage this session (only metadata
- * reaches the action — no bytes). `existingReceiptIds` (edit mode) are
- * attachment ids already saved that belong to this line.
- */
-type ExpenseInput = {
-  description: string | null;
-  amount: number | null;
-  newReceipts: ReceiptMeta[];
-  existingReceiptIds: string[];
 };
 
 /** Validate one uploaded-receipt metadata blob; throws on bad mime/size. */
@@ -81,124 +88,16 @@ function validateReceiptMeta(r: Record<string, unknown>): ReceiptMeta | null {
   return { storagePath, name, type, size };
 }
 
-/**
- * Parse the `expenses` JSON the client sends — the expense lines for a service.
- * Each line carries description + amount + its receipts. Fully-empty lines (no
- * description, amount, or receipts) are dropped. Throws on a bad receipt so the
- * modal surfaces it inline.
- */
-function parseExpenses(formData: FormData): ExpenseInput[] {
-  const raw = str(formData, "expenses");
-  if (!raw) return [];
-  let parsed: unknown = [];
-  try {
-    parsed = JSON.parse(raw);
-  } catch {
-    throw new Error("Could not read the expense lines.");
-  }
-  if (!Array.isArray(parsed)) return [];
-  const out: ExpenseInput[] = [];
-  for (const e of parsed as Record<string, unknown>[]) {
-    const description =
-      (typeof e.description === "string"
-        ? e.description.trim().slice(0, 200)
-        : "") || null;
-    const amount = moneyOrNull(
-      typeof e.amount === "string"
-        ? e.amount
-        : typeof e.amount === "number"
-          ? String(e.amount)
-          : null,
-    );
-    const newReceipts: ReceiptMeta[] = [];
-    if (Array.isArray(e.newReceipts)) {
-      for (const r of e.newReceipts as Record<string, unknown>[]) {
-        const meta = validateReceiptMeta(r);
-        if (meta) newReceipts.push(meta);
-      }
+function parseReceipts(fd: FormData): ReceiptMeta[] {
+  const out: ReceiptMeta[] = [];
+  for (const r of jsonArray(fd, "receipts")) {
+    if (r && typeof r === "object") {
+      const meta = validateReceiptMeta(r as Record<string, unknown>);
+      if (meta) out.push(meta);
     }
-    const existingReceiptIds = Array.isArray(e.existingReceiptIds)
-      ? (e.existingReceiptIds as unknown[]).filter(
-          (v): v is string => typeof v === "string",
-        )
-      : [];
-    if (
-      description == null &&
-      amount == null &&
-      newReceipts.length === 0 &&
-      existingReceiptIds.length === 0
-    ) {
-      continue; // drop fully-empty line
-    }
-    out.push({ description, amount, newReceipts, existingReceiptIds });
   }
   return out;
 }
-
-/**
- * Create one maintenance_expenses row per expense line on a log, then tie each
- * receipt to its line via maintenance_attachments.expense_id — newly-uploaded
- * receipts get inserted with the line's id, and edit-mode receipts that were
- * kept get re-pointed to it. Shared by add + update.
- */
-async function persistExpenseLines(
-  sb: SB,
-  logId: string,
-  expenses: ExpenseInput[],
-): Promise<void> {
-  for (const e of expenses) {
-    const { data: exp, error: expErr } = await sb
-      .from("maintenance_expenses")
-      .insert({ log_id: logId, description: e.description, amount: e.amount })
-      .select("id")
-      .single<{ id: string }>();
-    if (expErr || !exp) {
-      throw new Error(
-        `Could not save expense: ${expErr?.message ?? "unknown error"}`,
-      );
-    }
-    for (const r of e.newReceipts) {
-      const { error: attErr } = await sb.from("maintenance_attachments").insert({
-        log_id: logId,
-        expense_id: exp.id,
-        file_path: r.storagePath,
-        thumb_path: null,
-        file_name: r.name.slice(0, 240),
-        content_type: r.type || null,
-        size_bytes: r.size,
-        amount: null,
-        label: null,
-      });
-      if (attErr) {
-        await sb.storage.from(RECEIPT_BUCKET).remove([r.storagePath]);
-        throw new Error(
-          `Could not record receipt ("${r.name}"): ${attErr.message}`,
-        );
-      }
-    }
-    if (e.existingReceiptIds.length > 0) {
-      const { error: relErr } = await sb
-        .from("maintenance_attachments")
-        .update({ expense_id: exp.id })
-        .eq("log_id", logId)
-        .in("id", e.existingReceiptIds);
-      if (relErr) {
-        throw new Error(`Could not link receipts: ${relErr.message}`);
-      }
-    }
-  }
-}
-
-// Receipt uploads → private maintenance-receipts bucket (signed URLs only).
-const RECEIPT_BUCKET = "maintenance-receipts";
-const RECEIPT_MIME = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/heic",
-  "image/webp",
-  "application/pdf",
-]);
-const RECEIPT_MAX_BYTES = 20 * 1024 * 1024;
 
 function sanitizeFilename(name: string): string {
   const trimmed = name.trim().slice(0, 80);
@@ -217,9 +116,9 @@ export type CreateUploadUrlResult =
 /**
  * Mint a signed upload URL so the CLIENT can upload a receipt's bytes directly
  * to the private maintenance-receipts bucket — bypassing the Server Action /
- * Vercel request-body limit that phone photos exceed. The path isn't tied to a
- * log id (the log is created later by addMaintenanceService); the stored
- * file_path is all the read side needs.
+ * Vercel request-body limit that phone photos exceed. The path isn't tied to an
+ * entry id (the entry is created afterward); the stored file_path is all the
+ * read side needs. (Identical to the legacy maintenance flow.)
  */
 export async function createReceiptUploadUrl(
   fileName: string,
@@ -262,334 +161,309 @@ export async function createReceiptUploadUrl(
   }
 }
 
-/**
- * Add a service record (from the top "Add Service" flow). The service type is
- * either a seeded maintenance_item (item_id set) or a custom typed name
- * (item_id null, service_name holds the text). Rolls a seeded item's
- * last-service bookend forward, and uploads any receipt files to the private
- * maintenance-receipts bucket, recording one maintenance_attachments row each.
- */
-export async function addMaintenanceService(formData: FormData): Promise<void> {
-  const sb = createServiceRoleClient();
+// ---------------------------------------------------------------------------
+// Shared field parsing for the log-repair form.
 
-  const odo = intOrNull(formData, "service_odo");
-  if (odo == null || odo < 0) {
-    throw new Error("Enter the odometer reading the service was done at.");
+type RepairFields = {
+  description: string;
+  odometer: number | null;
+  serviceDate: string;
+  cost: number | null;
+  notes: string | null;
+  position: string | null;
+  partGroup: string | null;
+  reminderInterval: number | null;
+};
+
+function parseRepairFields(fd: FormData): RepairFields {
+  const description = str(fd, "description");
+  if (!description) throw new Error("Enter what was repaired or serviced.");
+
+  const odometer = intOrNull(fd, "odometer");
+  if (odometer != null && odometer < 0) {
+    throw new Error("Odometer can't be negative.");
   }
-  const date =
-    str(formData, "service_date") ?? new Date().toISOString().slice(0, 10);
-  const notes = str(formData, "notes");
 
-  // Resolve the service type: a seeded item, or a custom typed name.
-  const rawItemId = str(formData, "item_id");
-  let itemId: string | null = null;
-  let serviceName: string | null = null;
-  if (rawItemId) {
-    const { data: item } = await sb
-      .from("maintenance_items")
-      .select("id, name")
-      .eq("id", rawItemId)
-      .is("deleted_at", null)
-      .maybeSingle<{ id: string; name: string }>();
-    if (!item) throw new Error("That maintenance item no longer exists.");
-    itemId = item.id;
-    serviceName = item.name;
+  const serviceDate =
+    str(fd, "service_date") ?? new Date().toISOString().slice(0, 10);
+
+  const rawPos = str(fd, "position");
+  const position = rawPos && isPosition(rawPos) ? rawPos : null;
+
+  let partGroup = str(fd, "part_group");
+  const reminderInterval = intOrNull(fd, "reminder_interval_miles");
+
+  // A set-part (has a position) or a reminder needs a group to hang off of;
+  // default it to the description so simple reminders need no extra field.
+  if (!partGroup && (position || (reminderInterval != null && reminderInterval > 0))) {
+    partGroup = description;
+  }
+
+  return {
+    description: description.slice(0, 200),
+    odometer,
+    serviceDate,
+    cost: moneyOrNull(str(fd, "cost")),
+    notes: str(fd, "notes"),
+    position,
+    partGroup: partGroup ? partGroup.slice(0, 120) : null,
+    reminderInterval:
+      reminderInterval != null && reminderInterval > 0 ? reminderInterval : null,
+  };
+}
+
+/**
+ * Create/refresh the reminder overlay for a part_group. Called after an entry
+ * with a reminder interval is saved. Matches an existing reminder case-
+ * insensitively by part_group; updates its interval + un-dismisses it, or
+ * inserts a new one. The reminder's next-due derives from the group's entries,
+ * so nothing else needs writing here.
+ */
+async function upsertReminder(
+  sb: SB,
+  partGroup: string,
+  intervalMiles: number,
+): Promise<void> {
+  const key = groupKey(partGroup);
+  if (!key) return;
+  const { data: existing } = await sb
+    .from("repair_reminders")
+    .select("id")
+    .ilike("part_group", partGroup)
+    .limit(1)
+    .maybeSingle<{ id: string }>();
+
+  if (existing) {
+    await sb
+      .from("repair_reminders")
+      .update({
+        interval_miles: intervalMiles,
+        label: partGroup,
+        dismissed_at: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", existing.id);
   } else {
-    serviceName = str(formData, "service_name");
-    if (!serviceName) {
-      throw new Error("Pick a service type or enter a custom service name.");
+    await sb.from("repair_reminders").insert({
+      label: partGroup,
+      part_group: partGroup,
+      interval_miles: intervalMiles,
+    });
+  }
+}
+
+/** Insert repair_attachments rows for freshly-uploaded receipts. */
+async function persistReceipts(
+  sb: SB,
+  entryId: string,
+  receipts: ReceiptMeta[],
+): Promise<void> {
+  for (const r of receipts) {
+    const { error } = await sb.from("repair_attachments").insert({
+      entry_id: entryId,
+      file_path: r.storagePath,
+      thumb_path: null,
+      file_name: r.name.slice(0, 240),
+      content_type: r.type || null,
+      size_bytes: r.size,
+    });
+    if (error) {
+      await sb.storage.from(RECEIPT_BUCKET).remove([r.storagePath]);
+      throw new Error(`Could not record receipt ("${r.name}"): ${error.message}`);
     }
   }
+}
 
-  // Expense lines (each with optional receipts already uploaded to storage by
-  // the client). The service total auto-sums the line amounts. (Category +
-  // payment method removed from the UI — those columns are no longer written.)
-  const expenses = parseExpenses(formData);
-  const total = expenses.reduce((s, e) => s + (e.amount ?? 0), 0);
-  const totalCost = total > 0 ? Math.round(total * 100) / 100 : null;
+// Canonical unordered link pair (a < b) so the same relation isn't stored twice.
+function linkPair(x: string, y: string): { a: string; b: string } {
+  return x < y ? { a: x, b: y } : { a: y, b: x };
+}
 
-  // 1. Insert the log row (need its id for the expense + receipt rows).
-  const { data: log, error: logErr } = await sb
-    .from("maintenance_log")
+async function linkEntries(sb: SB, entryId: string, otherId: string): Promise<void> {
+  if (!otherId || otherId === entryId) return;
+  const { a, b } = linkPair(entryId, otherId);
+  // Ignore duplicate-pair unique violations (already linked).
+  const { error } = await sb.from("repair_links").insert({ a_id: a, b_id: b });
+  if (error && !/duplicate|unique/i.test(error.message)) {
+    throw new Error(`Could not link repair: ${error.message}`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Entry CRUD.
+
+/** Log a new repair entry (+ receipts, optional reminder, optional links). */
+export async function logRepair(formData: FormData): Promise<void> {
+  const sb = createServiceRoleClient();
+  const f = parseRepairFields(formData);
+  const receipts = parseReceipts(formData);
+
+  const { data: entry, error } = await sb
+    .from("repair_entries")
     .insert({
-      item_id: itemId,
-      service_name: serviceName,
-      service_odo: odo,
-      service_date: date,
-      notes,
-      total_cost: totalCost,
+      description: f.description,
+      odometer: f.odometer,
+      service_date: f.serviceDate,
+      cost: f.cost,
+      notes: f.notes,
+      position: f.position,
+      part_group: f.partGroup,
     })
     .select("id")
     .single<{ id: string }>();
-  if (logErr || !log) {
-    throw new Error(`Could not save service: ${logErr?.message ?? "unknown error"}`);
+  if (error || !entry) {
+    throw new Error(`Could not save repair: ${error?.message ?? "unknown error"}`);
   }
 
-  // 2. Logging a service ALWAYS overrides the item's current reading: set its
-  //    last-service odometer/date to the entered values (no matter the prior
-  //    baseline) so next-due recomputes. This is why there's no "reset
-  //    baseline" button — logging a service is the reset. (Editing a past
-  //    entry, in updateMaintenanceService, deliberately does NOT do this.)
-  if (itemId) {
-    const { error: updErr } = await sb
-      .from("maintenance_items")
-      .update({
-        last_service_odo: odo,
-        last_service_date: date,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", itemId)
-      .is("deleted_at", null);
-    if (updErr) {
-      throw new Error(`Service saved, but the item didn't update: ${updErr.message}`);
-    }
+  await persistReceipts(sb, entry.id, receipts);
+
+  if (f.reminderInterval != null && f.partGroup) {
+    await upsertReminder(sb, f.partGroup, f.reminderInterval);
   }
 
-  // 3. Create each expense line and tie its receipts to it.
-  await persistExpenseLines(sb, log.id, expenses);
+  for (const id of jsonArray(formData, "related_ids")) {
+    if (typeof id === "string") await linkEntries(sb, entry.id, id);
+  }
 
   revalidatePath("/admin/maintenance");
-  if (itemId) revalidatePath(`/admin/maintenance/${itemId}`);
   revalidatePath("/admin");
 }
 
-/**
- * Edit an existing service record: update its maintenance_log row (type,
- * date, odometer, notes, total cost), add new
- * receipts (uploaded directly to storage by the client), and remove receipts
- * the user deleted. Does NOT roll the item's last-service bookend — editing a
- * historical entry shouldn't move the schedule; it's for fixing cost / adding
- * receipts after the fact.
- */
-export async function updateMaintenanceService(
-  logId: string,
+/** Edit an existing repair entry (+ add/remove receipts, refresh reminder). */
+export async function updateRepair(
+  entryId: string,
   formData: FormData,
 ): Promise<void> {
+  if (!entryId) throw new Error("Missing repair entry.");
   const sb = createServiceRoleClient();
+  const f = parseRepairFields(formData);
+  const receipts = parseReceipts(formData);
 
-  const odo = intOrNull(formData, "service_odo");
-  if (odo == null || odo < 0) {
-    throw new Error("Enter the odometer reading the service was done at.");
-  }
-  const date =
-    str(formData, "service_date") ?? new Date().toISOString().slice(0, 10);
-  const notes = str(formData, "notes");
-
-  // Service type: a seeded item, or a custom typed name.
-  const rawItemId = str(formData, "item_id");
-  let itemId: string | null = null;
-  let serviceName: string | null = null;
-  if (rawItemId) {
-    const { data: item } = await sb
-      .from("maintenance_items")
-      .select("id, name")
-      .eq("id", rawItemId)
-      .is("deleted_at", null)
-      .maybeSingle<{ id: string; name: string }>();
-    if (!item) throw new Error("That maintenance item no longer exists.");
-    itemId = item.id;
-    serviceName = item.name;
-  } else {
-    serviceName = str(formData, "service_name");
-    if (!serviceName) {
-      throw new Error("Pick a service type or enter a custom service name.");
-    }
-  }
-
-  // Expense lines drive the total now (manual total + payment method + category
-  // removed from the UI; those columns are no longer written).
-  const expenses = parseExpenses(formData);
-  const total = expenses.reduce((s, e) => s + (e.amount ?? 0), 0);
-  const totalCost = total > 0 ? Math.round(total * 100) / 100 : null;
-
-  // 1. Update the log row.
   const { error: updErr } = await sb
-    .from("maintenance_log")
+    .from("repair_entries")
     .update({
-      item_id: itemId,
-      service_name: serviceName,
-      service_odo: odo,
-      service_date: date,
-      notes,
-      total_cost: totalCost,
+      description: f.description,
+      odometer: f.odometer,
+      service_date: f.serviceDate,
+      cost: f.cost,
+      notes: f.notes,
+      position: f.position,
+      part_group: f.partGroup,
+      updated_at: new Date().toISOString(),
     })
-    .eq("id", logId);
-  if (updErr) {
-    throw new Error(`Could not update service: ${updErr.message}`);
-  }
+    .eq("id", entryId)
+    .is("deleted_at", null);
+  if (updErr) throw new Error(`Could not update repair: ${updErr.message}`);
 
-  // 2. Remove attachments the user deleted (scoped to this log).
-  let removeIds: string[] = [];
-  const rawRemove = str(formData, "remove_attachment_ids");
-  if (rawRemove) {
-    try {
-      const parsed = JSON.parse(rawRemove);
-      if (Array.isArray(parsed)) {
-        removeIds = parsed.filter((v): v is string => typeof v === "string");
-      }
-    } catch {
-      // ignore malformed list — just don't remove anything
-    }
-  }
+  // Remove receipts the user deleted (storage first, then rows).
+  const removeIds = jsonArray(formData, "remove_receipt_ids").filter(
+    (v): v is string => typeof v === "string",
+  );
   if (removeIds.length > 0) {
     const { data: rows } = await sb
-      .from("maintenance_attachments")
-      .select("id, file_path")
-      .eq("log_id", logId)
+      .from("repair_attachments")
+      .select("id, file_path, thumb_path")
+      .eq("entry_id", entryId)
       .in("id", removeIds)
-      .returns<{ id: string; file_path: string }[]>();
-    const paths = (rows ?? []).map((r) => r.file_path).filter(Boolean);
-    if (paths.length > 0) {
-      await sb.storage.from(RECEIPT_BUCKET).remove(paths);
-    }
+      .returns<{ id: string; file_path: string; thumb_path: string | null }[]>();
+    const paths = (rows ?? [])
+      .flatMap((r) => [r.file_path, r.thumb_path])
+      .filter((p): p is string => !!p);
+    if (paths.length > 0) await sb.storage.from(RECEIPT_BUCKET).remove(paths);
     if (rows && rows.length > 0) {
       await sb
-        .from("maintenance_attachments")
+        .from("repair_attachments")
         .delete()
-        .eq("log_id", logId)
-        .in(
-          "id",
-          rows.map((r) => r.id),
-        );
+        .eq("entry_id", entryId)
+        .in("id", rows.map((r) => r.id));
     }
   }
 
-  // 3. Rebuild this log's expense lines from the payload: delete the old rows
-  //    (receipts survive — attachment.expense_id is set NULL on cascade) and
-  //    recreate, re-tying each receipt (kept or newly uploaded) to its line.
-  const { error: delExpErr } = await sb
-    .from("maintenance_expenses")
-    .delete()
-    .eq("log_id", logId);
-  if (delExpErr) {
-    throw new Error(`Could not update expenses: ${delExpErr.message}`);
+  await persistReceipts(sb, entryId, receipts);
+
+  if (f.reminderInterval != null && f.partGroup) {
+    await upsertReminder(sb, f.partGroup, f.reminderInterval);
   }
-  await persistExpenseLines(sb, logId, expenses);
 
   revalidatePath("/admin/maintenance");
-  revalidatePath(`/admin/maintenance/service/${logId}`);
-  if (itemId) revalidatePath(`/admin/maintenance/${itemId}`);
-  revalidatePath("/admin");
-}
-
-/** Adjust an item's mileage interval (and optional notes). */
-export async function updateMaintenanceInterval(
-  formData: FormData,
-): Promise<void> {
-  const sb = createServiceRoleClient();
-
-  const itemId = str(formData, "item_id");
-  if (!itemId) throw new Error("Missing maintenance item.");
-
-  const interval = intOrNull(formData, "interval_miles");
-  if (interval == null || interval <= 0) {
-    throw new Error("Interval must be a positive number of miles.");
-  }
-  const notes = str(formData, "notes");
-
-  const { error } = await sb
-    .from("maintenance_items")
-    .update({
-      interval_miles: interval,
-      notes,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", itemId)
-    .is("deleted_at", null);
-  if (error) throw new Error(`Could not update interval: ${error.message}`);
-
-  revalidatePath("/admin/maintenance");
-  revalidatePath(`/admin/maintenance/${itemId}`);
-  revalidatePath("/admin"); // dashboard oil/fuel-filter widget
-}
-
-/**
- * Reset an item's last-service baseline — clears last_service_odo and
- * last_service_date so the item returns to "Set baseline" and the next-due
- * recalculates from the next service logged. Used from the item detail page
- * when Brent wants to start the interval clock over (e.g. a wrong odometer
- * was entered, or the schedule drifted). Does NOT touch the service log —
- * the logged history and its receipts/costs stay intact.
- */
-export async function resetMaintenanceBaseline(itemId: string): Promise<void> {
-  if (!itemId) throw new Error("Missing maintenance item.");
-  const sb = createServiceRoleClient();
-  const { error } = await sb
-    .from("maintenance_items")
-    .update({
-      last_service_odo: null,
-      last_service_date: null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", itemId)
-    .is("deleted_at", null);
-  if (error) throw new Error(`Could not reset baseline: ${error.message}`);
-
-  revalidatePath("/admin/maintenance");
-  revalidatePath(`/admin/maintenance/${itemId}`);
+  revalidatePath(`/admin/maintenance/${entryId}`);
   revalidatePath("/admin");
 }
 
 /**
- * Soft-delete a maintenance ITEM (set deleted_at) so it drops off the list and
- * its detail page 404s. Logged services for it stay in the global service
- * history (their item_id still points here, but the item is hidden). Lets Brent
- * remove items himself instead of asking for a SQL delete.
- */
-export async function deleteMaintenanceItem(itemId: string): Promise<void> {
-  if (!itemId) throw new Error("Missing maintenance item.");
-  const sb = createServiceRoleClient();
-  const { error } = await sb
-    .from("maintenance_items")
-    .update({
-      deleted_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", itemId)
-    .is("deleted_at", null);
-  if (error) throw new Error(`Could not delete item: ${error.message}`);
-
-  revalidatePath("/admin/maintenance");
-  revalidatePath(`/admin/maintenance/${itemId}`);
-  revalidatePath("/admin");
-}
-
-/**
- * Hard-delete a logged SERVICE entry (maintenance_log row). The DB FK cascades
- * remove its maintenance_expenses and maintenance_attachments rows; we also
+ * Delete a repair entry. Cascades remove its receipts + links (FKs); we
  * best-effort delete the receipt storage objects first so the private bucket
- * doesn't accumulate orphans. The item's last-service baseline is NOT touched
- * (deleting a historical entry shouldn't move the schedule).
+ * doesn't accumulate orphans.
  */
-export async function deleteMaintenanceService(logId: string): Promise<void> {
-  if (!logId) throw new Error("Missing service entry.");
+export async function deleteRepair(entryId: string): Promise<void> {
+  if (!entryId) throw new Error("Missing repair entry.");
   const sb = createServiceRoleClient();
-
-  // Grab item_id (for revalidation) + receipt paths (for storage cleanup)
-  // before the row + its cascades disappear.
-  const { data: logRow } = await sb
-    .from("maintenance_log")
-    .select("item_id")
-    .eq("id", logId)
-    .maybeSingle<{ item_id: string | null }>();
 
   const { data: atts } = await sb
-    .from("maintenance_attachments")
+    .from("repair_attachments")
     .select("file_path, thumb_path")
-    .eq("log_id", logId)
+    .eq("entry_id", entryId)
     .returns<{ file_path: string | null; thumb_path: string | null }[]>();
   const paths = (atts ?? [])
     .flatMap((a) => [a.file_path, a.thumb_path])
     .filter((p): p is string => !!p);
-  if (paths.length > 0) {
-    await sb.storage.from(RECEIPT_BUCKET).remove(paths);
-  }
+  if (paths.length > 0) await sb.storage.from(RECEIPT_BUCKET).remove(paths);
 
-  const { error } = await sb.from("maintenance_log").delete().eq("id", logId);
-  if (error) throw new Error(`Could not delete service: ${error.message}`);
+  const { error } = await sb.from("repair_entries").delete().eq("id", entryId);
+  if (error) throw new Error(`Could not delete repair: ${error.message}`);
 
   revalidatePath("/admin/maintenance");
-  revalidatePath(`/admin/maintenance/service/${logId}`);
-  if (logRow?.item_id) revalidatePath(`/admin/maintenance/${logRow.item_id}`);
+  revalidatePath("/admin");
+}
+
+// ---------------------------------------------------------------------------
+// Related links.
+
+export async function attachRelated(
+  entryId: string,
+  otherId: string,
+): Promise<void> {
+  const sb = createServiceRoleClient();
+  await linkEntries(sb, entryId, otherId);
+  revalidatePath(`/admin/maintenance/${entryId}`);
+  revalidatePath(`/admin/maintenance/${otherId}`);
+}
+
+export async function detachRelated(
+  entryId: string,
+  otherId: string,
+): Promise<void> {
+  if (!entryId || !otherId) return;
+  const sb = createServiceRoleClient();
+  const { a, b } = linkPair(entryId, otherId);
+  const { error } = await sb
+    .from("repair_links")
+    .delete()
+    .eq("a_id", a)
+    .eq("b_id", b);
+  if (error) throw new Error(`Could not unlink repair: ${error.message}`);
+  revalidatePath(`/admin/maintenance/${entryId}`);
+  revalidatePath(`/admin/maintenance/${otherId}`);
+}
+
+// ---------------------------------------------------------------------------
+// Reminders.
+
+/** Turn a reminder off (or back on) without touching the log history. */
+export async function setReminderDismissed(
+  reminderId: string,
+  dismissed: boolean,
+): Promise<void> {
+  if (!reminderId) throw new Error("Missing reminder.");
+  const sb = createServiceRoleClient();
+  const { error } = await sb
+    .from("repair_reminders")
+    .update({
+      dismissed_at: dismissed ? new Date().toISOString() : null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", reminderId);
+  if (error) throw new Error(`Could not update reminder: ${error.message}`);
+  revalidatePath("/admin/maintenance");
   revalidatePath("/admin");
 }

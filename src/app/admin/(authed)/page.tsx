@@ -4,10 +4,13 @@ import { loadPipelineCards } from "@/lib/dispatch/pipeline";
 import {
   computeMaintenance,
   currentOdoFromLoads,
-} from "@/lib/dispatch/maintenance";
+  groupKey,
+} from "@/lib/dispatch/repair-log";
 import { DashboardView, type DashboardData } from "./DashboardView";
 
-// The two items surfaced on the dashboard's quick maintenance widget.
+// The two reminders surfaced on the dashboard's quick maintenance widget
+// (matched by their repair_reminders label, carried over from the old item
+// names in the repair-log migration).
 const DASH_MAINT_NAMES = [
   "Engine oil & filter",
   "Fuel filters (engine + chassis)",
@@ -51,7 +54,7 @@ async function loadDashboard(): Promise<DashboardData> {
     { data: loadRows },
     { data: brokerRows },
     { data: tripRows },
-    { data: maintRows },
+    { data: reminderRows },
     { data: odoRows },
   ] = await Promise.all([
     // Shared pipeline cards — the dashboard only renders the expired ones.
@@ -103,19 +106,19 @@ async function loadDashboard(): Promise<DashboardData> {
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .returns<{ name: string | null }[]>(),
-    // Maintenance widget: oil + fuel filters only.
+    // Maintenance widget: oil + fuel-filter reminders only.
     sb
-      .from("maintenance_items")
-      .select("id, name, interval_miles, last_service_odo")
-      .is("deleted_at", null)
-      .in("name", DASH_MAINT_NAMES)
-      .order("sort_order", { ascending: true })
+      .from("repair_reminders")
+      .select("id, label, part_group, interval_miles, anchor_odo")
+      .is("dismissed_at", null)
+      .in("label", DASH_MAINT_NAMES)
       .returns<
         {
           id: string;
-          name: string;
+          label: string;
+          part_group: string;
           interval_miles: number;
-          last_service_odo: number | null;
+          anchor_odo: number | null;
         }[]
       >(),
     // Odometer readings across all non-deleted loads → current odometer.
@@ -189,14 +192,37 @@ async function loadDashboard(): Promise<DashboardData> {
     .map((t) => t.name?.trim() ?? "")
     .filter((n) => n.length > 0);
 
-  // Maintenance widget — oil + fuel filters against the truck's current
-  // odometer (highest reading across non-deleted loads).
+  // Maintenance widget — oil + fuel-filter reminders against the truck's
+  // current odometer (highest reading across non-deleted loads). Each
+  // reminder's last-done odometer is the highest reading among the repair
+  // entries in its part_group, falling back to its anchor baseline.
   const maintOdo = currentOdoFromLoads(odoRows);
-  const maintenance = (maintRows ?? []).map((m) => {
-    const c = computeMaintenance(m.interval_miles, m.last_service_odo, maintOdo);
+  const reminders = reminderRows ?? [];
+  const maxOdoByGroup = new Map<string, number>();
+  if (reminders.length > 0) {
+    const { data: entryRows } = await sb
+      .from("repair_entries")
+      .select("odometer, part_group")
+      .is("deleted_at", null)
+      .in(
+        "part_group",
+        reminders.map((r) => r.part_group),
+      )
+      .returns<{ odometer: number | null; part_group: string | null }[]>();
+    for (const e of entryRows ?? []) {
+      const key = groupKey(e.part_group);
+      if (key == null || e.odometer == null) continue;
+      maxOdoByGroup.set(key, Math.max(maxOdoByGroup.get(key) ?? 0, e.odometer));
+    }
+  }
+  const maintenance = reminders.map((m) => {
+    const key = groupKey(m.part_group);
+    const lastOdo =
+      (key != null ? maxOdoByGroup.get(key) : undefined) ?? m.anchor_odo ?? null;
+    const c = computeMaintenance(m.interval_miles, lastOdo, maintOdo);
     return {
       id: m.id,
-      name: m.name,
+      name: m.label,
       status: c.status,
       milesRemaining: c.milesRemaining,
       pct: c.pct,
