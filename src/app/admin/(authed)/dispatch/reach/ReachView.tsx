@@ -17,7 +17,6 @@
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { PageHeader } from "@/components/ui/PageHeader";
 import { Button } from "@/components/ui/Button";
 import { sendReach, sendReachTest, type ReachSendResult } from "./send-actions";
 import { saveReachStyleEmail } from "./actions";
@@ -291,20 +290,24 @@ export function ReachView({
 
   return (
     <div className="min-h-screen border-t border-line bg-canvas text-fg">
-      {/* No portal top bar below sm, so clear the phone status bar / notch. */}
-      <div className="mx-auto w-full max-w-3xl px-4 pb-5 pt-[max(1.25rem,env(safe-area-inset-top))] sm:px-6 sm:py-5 lg:px-8">
-        <PageHeader
-          eyebrow="Dispatch"
-          title="Reach"
-          className="mb-4"
-          actions={
-            tab === "send" ? (
-              <Button variant="edit" size="sm" onClick={() => setSetupOpen(true)}>
-                Setup
-              </Button>
-            ) : null
-          }
-        />
+      {/* No portal top bar below sm — clear the status bar / notch but stay
+          tight (compact header, no empty utility strip). */}
+      <div className="mx-auto w-full max-w-3xl px-4 pb-5 pt-[max(0.5rem,env(safe-area-inset-top))] sm:px-6 sm:py-5 lg:px-8">
+        <header className="mb-4 flex items-end justify-between gap-3 border-b-2 border-line-strong pb-3">
+          <div className="min-w-0">
+            <div className="text-[11px] font-bold uppercase tracking-[0.1em] text-accent">
+              Dispatch
+            </div>
+            <h1 className="truncate text-[24px] font-bold leading-tight text-ink">
+              Reach
+            </h1>
+          </div>
+          {tab === "send" ? (
+            <Button variant="edit" size="sm" onClick={() => setSetupOpen(true)}>
+              Setup
+            </Button>
+          ) : null}
+        </header>
 
         {/* Raised, button-like tabs with depth */}
         <div className="mb-4 inline-flex gap-1 rounded-lg border border-line bg-inset p-1 shadow-e1">
@@ -470,24 +473,40 @@ function SituationCard({
         Your situation
       </p>
 
-      <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-2 text-[17px] font-semibold leading-tight text-white sm:text-[19px]">
-        <span>Your truck opens up in</span>
-        <CityTypeahead currentLabel={cityLabel} onPick={onPickCity} />
-        <span aria-hidden className="text-on-dark-dim">
+      {/* Mobile: two full-width labeled fields stacked (no dash). Desktop (sm+):
+          the inline "Your truck opens up in <city> — <date>" sentence. */}
+      <div className="mt-3 flex flex-col gap-3 sm:mt-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2 sm:gap-y-2 sm:text-[19px] sm:font-semibold sm:leading-tight sm:text-white">
+        <span className="hidden sm:inline">Your truck opens up in</span>
+
+        <div className="sm:contents">
+          <span className="mb-1 block font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-on-dark-dim sm:hidden">
+            Town
+          </span>
+          <CityTypeahead currentLabel={cityLabel} onPick={onPickCity} />
+        </div>
+
+        <span aria-hidden className="hidden text-on-dark-dim sm:inline">
           —
         </span>
-        <input
-          type="date"
-          value={date}
-          min={today}
-          onChange={(e) => onDate(e.target.value || today)}
-          aria-label="When the truck opens up"
-          className="h-9 rounded-md border border-line-strong bg-card px-2.5 text-[14px] font-semibold text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/40"
-        />
+
+        <div className="sm:contents">
+          <span className="mb-1 block font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-on-dark-dim sm:hidden">
+            Date
+          </span>
+          <input
+            type="date"
+            value={date}
+            min={today}
+            onChange={(e) => onDate(e.target.value || today)}
+            aria-label="When the truck opens up"
+            className="h-9 w-full rounded-md border border-line-strong bg-card px-2.5 text-[14px] font-semibold text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/40 sm:w-auto"
+          />
+        </div>
       </div>
 
-      {/* Sub-line: precision town + posture meaning + load provenance */}
-      <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12px] text-on-dark-dim">
+      {/* Sub-line: precision town + posture meaning + load provenance. On mobile
+          these stack so the pill never crowds the location text. */}
+      <div className="mt-3 flex flex-col items-start gap-1.5 text-[12px] text-on-dark-dim sm:mt-2.5 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2 sm:gap-y-1">
         {townParen ? (
           <span className="text-white/90">Sitting {townParen}</span>
         ) : null}
@@ -575,7 +594,7 @@ function CityTypeahead({
   }, [text, touched]);
 
   return (
-    <span className="relative inline-block">
+    <span className="relative block w-full sm:inline-block sm:w-auto">
       <input
         value={text}
         onChange={(e) => {
@@ -589,7 +608,7 @@ function CityTypeahead({
         onBlur={() => setTimeout(() => setOpen(false), 150)}
         aria-label="City you're reaching from"
         placeholder="Type a town…"
-        className="h-9 w-[190px] rounded-md border border-line-strong bg-card px-2.5 text-[14px] font-semibold text-ink outline-none placeholder:text-ink-3 focus:border-accent focus:ring-2 focus:ring-accent/40"
+        className="h-9 w-full rounded-md border border-line-strong bg-card px-2.5 text-[14px] font-semibold text-ink outline-none placeholder:text-ink-3 focus:border-accent focus:ring-2 focus:ring-accent/40 sm:w-[190px]"
       />
       {loading ? (
         <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 font-mono text-[10px] text-ink-3">
@@ -597,7 +616,7 @@ function CityTypeahead({
         </span>
       ) : null}
       {open && hits.length > 0 ? (
-        <ul className="absolute left-0 z-20 mt-1 max-h-56 w-[240px] max-w-[calc(100vw-2.5rem)] overflow-auto rounded-md border border-line-strong bg-card text-ink shadow-e3">
+        <ul className="absolute left-0 z-20 mt-1 max-h-56 w-full max-w-[calc(100vw-2.5rem)] overflow-auto rounded-md border border-line-strong bg-card text-ink shadow-e3 sm:w-[240px]">
           {hits.map((h) => (
             <li key={`${h.zip}-${h.city}`}>
               <button
