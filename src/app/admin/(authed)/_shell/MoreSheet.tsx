@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ComponentType } from "react";
 import {
   IconBadge,
-  IconChevronRight,
   IconCoins,
   IconMail,
   IconReceipt,
@@ -25,10 +24,11 @@ import {
  * (lg:hidden).
  *
  * A designed menu, not a black slab: an elevated rounded panel over the dark
- * backdrop with a brand-red top accent strip, a header (title + close), and
- * section-grouped rows — each a tappable icon-left row with a red-tinted icon,
- * white label, and chevron. The active destination carries a red left bar,
- * red-filled icon, and accent tint.
+ * backdrop with a brand-red top accent strip and a header (title + close).
+ * Destinations are a 2-column grid of tappable BUTTON tiles — icon centered
+ * over a centered label — on a lighter, raised surface with a pressable feel
+ * (resting shadow, sinks on tap). The active tile is accent-tinted with a red
+ * ring + red icon.
  *
  * Dismisses on:
  *   - Swipe / drag the sheet down past a threshold (follow-the-finger)
@@ -223,12 +223,15 @@ export function MoreSheet({
         >
           {GROUPS.map((group) => (
             <div key={group.title}>
-              <p className="mb-1.5 px-1.5 font-mono text-[9.5px] font-bold uppercase tracking-[0.2em] text-[#e0434a]">
+              <p className="mb-2 px-1 font-mono text-[9.5px] font-bold uppercase tracking-[0.2em] text-[#e0434a]">
                 {group.title}
               </p>
-              {/* Grouped as a single elevated card with hairline row dividers —
-                  clear structure over the flat graphite backdrop. */}
-              <div className="divide-y divide-white/[0.06] overflow-hidden rounded-xl border border-white/[0.07] bg-white/[0.03]">
+              {/* 2-column grid of tappable BUTTON tiles: icon centered over a
+                  centered label. Lighter elevated surface than the sheet with a
+                  resting shadow (feels raised), and a pressed state that darkens
+                  + sinks slightly (scale down, shadow drops). Active tile is
+                  accent-tinted with a red ring + red icon. */}
+              <div className="grid grid-cols-2 gap-2.5">
                 {group.items.map((item) => {
                   const active = isActive(pathname, item.href);
                   return (
@@ -239,36 +242,25 @@ export function MoreSheet({
                       onClick={onClose}
                       aria-current={active ? "page" : undefined}
                       className={
-                        "relative flex items-center gap-3 px-3.5 py-3 transition-colors active:bg-white/[0.07] " +
-                        (active ? "bg-accent/[0.14]" : "hover:bg-white/[0.04]")
+                        "flex flex-col items-center justify-center gap-2 rounded-xl border px-3 py-4 text-center shadow-md transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 active:scale-[0.97] active:bg-white/[0.06] active:shadow-sm " +
+                        (active
+                          ? "border-accent bg-accent/[0.16] ring-1 ring-accent"
+                          : "border-white/10 bg-white/[0.08] hover:bg-white/[0.11]")
                       }
                     >
-                      {/* Active row: brand-red left indicator. */}
-                      {active ? (
-                        <span
-                          aria-hidden
-                          className="absolute inset-y-2 left-0 w-[3px] rounded-r-full bg-accent"
-                        />
-                      ) : null}
                       <span
                         className={
-                          "inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg " +
+                          "inline-flex h-11 w-11 items-center justify-center rounded-lg " +
                           (active
                             ? "bg-accent text-white"
-                            : "bg-accent/15 text-[#e0434a]")
+                            : "bg-white/[0.10] text-[#e0434a]")
                         }
                       >
-                        <item.Icon className="h-[19px] w-[19px]" />
+                        <item.Icon className="h-[20px] w-[20px]" />
                       </span>
-                      <span className="min-w-0 flex-1 truncate text-[14.5px] font-semibold leading-tight text-white">
+                      <span className="w-full truncate text-[13.5px] font-semibold leading-tight text-white">
                         {item.label}
                       </span>
-                      <IconChevronRight
-                        className={
-                          "h-4 w-4 shrink-0 " +
-                          (active ? "text-[#e0434a]" : "text-white/25")
-                        }
-                      />
                     </Link>
                   );
                 })}
