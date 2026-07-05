@@ -614,7 +614,11 @@ function SituationCard({
               min={today}
               onChange={(e) => onDate(e.target.value || today)}
               aria-label="When the truck will be open"
-              className="mt-2 h-9 w-full rounded-md border border-line-strong bg-card px-2.5 text-[14px] font-semibold text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/40"
+              // appearance-none tames the chunky native mobile date control so it
+              // matches the Town field's height/box exactly; desktop keeps the
+              // native picker chrome (sm:appearance-auto). color-scheme:light keeps
+              // the value + calendar icon dark/readable on the white field.
+              className="mt-2 h-9 w-full appearance-none rounded-md border border-line-strong bg-card px-2.5 text-[14px] font-semibold text-ink outline-none [color-scheme:light] focus:border-accent focus:ring-2 focus:ring-accent/40 sm:appearance-auto"
             />
           ) : null}
         </div>
