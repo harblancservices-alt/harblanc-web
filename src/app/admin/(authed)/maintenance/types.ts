@@ -57,6 +57,8 @@ export type RepairEntry = {
   relatedCount: number;
   /** True when this part's part_group has an active reminder. */
   hasReminder: boolean;
+  /** True when this part is a recurring/consumable item or has a reminder. */
+  isPreventative: boolean;
 };
 
 /** One part inside the log/edit service form. */
@@ -124,6 +126,23 @@ export type CategoryCard = {
   count: number;
   /** Worst attention state inside the category (null = nothing pressing). */
   badge: "overdue" | "soon" | "aging" | null;
+};
+
+/** The green Preventative lens card — aggregates every preventative item. */
+export type PreventativeSummary = {
+  count: number;
+  /** Worst reminder state across ALL categories (null = nothing pressing). */
+  badge: "overdue" | "soon" | null;
+};
+
+/** One mechanical-category group inside the Preventative lens page. */
+export type PreventativeGroup = {
+  category: Category;
+  slug: string;
+  /** Recurring items with a mileage countdown. */
+  reminders: ReminderView[];
+  /** Preventative parts with no active reminder (latest per stream). */
+  looseEntries: RepairEntry[];
 };
 
 /** One position slot in a set view (a corner or a side). */

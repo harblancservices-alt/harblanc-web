@@ -76,10 +76,18 @@ export function CategoryView({
           </Button>
         </div>
 
-        {/* Reminders in this category */}
+        {/* Scheduled — this category's preventative items with mileage
+            countdown (the green stay-ahead lens, shown at the top). */}
         {reminders.length > 0 ? (
-          <section className="mt-4">
-            <SectionLabel title="Reminders" count={reminders.length} />
+          <section className="mt-4 rounded-lg border border-green-300 bg-green-50 p-3">
+            <div className="mb-2 flex items-center gap-2">
+              <span className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-green-800">
+                Scheduled
+              </span>
+              <span className="font-mono text-[11px] tabular-nums text-green-700">
+                · {reminders.length}
+              </span>
+            </div>
             <div className="space-y-2">
               {reminders.map((r) => (
                 <ReminderCard

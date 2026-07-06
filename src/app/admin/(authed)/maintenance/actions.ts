@@ -7,6 +7,7 @@ import {
   groupKey,
   isCategory,
   isPosition,
+  isPreventative,
   type Category,
 } from "@/lib/dispatch/repair-log";
 
@@ -242,9 +243,37 @@ function parseParts(fd: FormData): ParsedPart[] {
   return out;
 }
 
+/** True when a part_group already carries an active (non-dismissed) reminder. */
+async function groupHasActiveReminder(
+  sb: SB,
+  partGroup: string | null,
+): Promise<boolean> {
+  if (!groupKey(partGroup)) return false;
+  const { data } = await sb
+    .from("repair_reminders")
+    .select("id")
+    .ilike("part_group", partGroup as string)
+    .is("dismissed_at", null)
+    .limit(1)
+    .maybeSingle<{ id: string }>();
+  return !!data;
+}
+
+/**
+ * Whether a part is preventative: a recurring/consumable item by description,
+ * OR it carries its own reminder interval, OR its group already has an active
+ * reminder. Mirrors the persisted column so the lens can query it directly.
+ */
+async function computeIsPreventative(sb: SB, p: ParsedPart): Promise<boolean> {
+  if (isPreventative(p.description) || p.reminderInterval != null) return true;
+  return groupHasActiveReminder(sb, p.partGroup);
+}
+
 /**
  * Create/refresh the reminder overlay for a part_group. Matches case-
  * insensitively; updates the interval + un-dismisses, or inserts a new one.
+ * Every active reminder is a preventative overlay, so it also flags all of the
+ * group's current entries as preventative (they now appear in the lens).
  */
 async function upsertReminder(
   sb: SB,
@@ -268,6 +297,7 @@ async function upsertReminder(
         interval_miles: intervalMiles,
         label: partGroup,
         category,
+        is_preventative: true,
         dismissed_at: null,
         updated_at: new Date().toISOString(),
       })
@@ -278,8 +308,17 @@ async function upsertReminder(
       part_group: partGroup,
       interval_miles: intervalMiles,
       category,
+      is_preventative: true,
     });
   }
+
+  // The whole group is preventative now — flag its logged entries so the
+  // aggregate lens picks them up without a re-scan.
+  await sb
+    .from("repair_entries")
+    .update({ is_preventative: true, updated_at: new Date().toISOString() })
+    .ilike("part_group", partGroup)
+    .is("deleted_at", null);
 }
 
 /** Insert a part row for a service; upserts its reminder if flagged. */
@@ -288,12 +327,14 @@ async function insertPart(
   serviceId: string,
   p: ParsedPart,
 ): Promise<void> {
+  const isPrev = await computeIsPreventative(sb, p);
   const { error } = await sb.from("repair_entries").insert({
     service_id: serviceId,
     description: p.description,
     category: p.category,
     position: p.position,
     part_group: p.partGroup,
+    is_preventative: isPrev,
   });
   if (error) throw new Error(`Could not save part: ${error.message}`);
   if (p.reminderInterval != null && p.partGroup) {
@@ -485,6 +526,7 @@ export async function updateService(
   for (const p of parts) {
     if (p.id && existingIds.has(p.id)) {
       keptIds.add(p.id);
+      const isPrev = await computeIsPreventative(sb, p);
       const { error } = await sb
         .from("repair_entries")
         .update({
@@ -492,6 +534,7 @@ export async function updateService(
           category: p.category,
           position: p.position,
           part_group: p.partGroup,
+          is_preventative: isPrev,
           updated_at: new Date().toISOString(),
         })
         .eq("id", p.id);

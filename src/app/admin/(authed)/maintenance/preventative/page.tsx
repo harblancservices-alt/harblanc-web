@@ -1,31 +1,33 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import {
-  CORNER_POSITIONS,
-  NON_CORNER_POSITIONS,
-  POSITION_LABEL,
-  categoryFromSlug,
+  CATEGORIES,
+  CATEGORY_SLUG,
   computeFreshness,
   computeMaintenance,
   currentOdoFromLoads,
   groupKey,
-  isPosition,
+  isCategory,
   type Category,
-  type Position,
 } from "@/lib/dispatch/repair-log";
-import { CategoryView } from "./CategoryView";
-import type { CategorySet, RepairEntry, ReminderView, SetSlot } from "../../types";
+import { PreventativeView } from "./PreventativeView";
+import type {
+  PreventativeGroup,
+  RepairEntry,
+  ReminderView,
+} from "../types";
 
 export const metadata: Metadata = {
-  title: "Category",
+  title: "Preventative",
   robots: { index: false, follow: false },
 };
 
 /**
- * Category view — every part in one category. Set-parts are grouped up top
- * (corners inline with freshness), then an all-parts list with in-category
- * search. Money is de-emphasized (no per-row cost).
+ * Preventative lens — the cross-cutting "stay-ahead" view. Aggregates every
+ * preventative item across ALL mechanical categories: recurring items (with a
+ * mileage countdown) plus consumable parts that have no active reminder. Items
+ * stay filed under their mechanical home; this page just gathers them, grouped
+ * and labelled by that home so you can see which system each belongs to.
  */
 
 type PartRow = {
@@ -62,11 +64,21 @@ type OdoRow = {
   odo_delivered: number | null;
 };
 
-async function loadCategory(category: Category): Promise<{
-  entries: RepairEntry[];
-  sets: CategorySet[];
-  reminders: ReminderView[];
+function cat(v: string): Category {
+  return isCategory(v) ? v : "Other";
+}
+
+const STATUS_RANK: Record<ReminderView["status"], number> = {
+  overdue: 0,
+  soon: 1,
+  baseline: 2,
+  ok: 3,
+};
+
+async function loadPreventative(): Promise<{
   currentOdo: number;
+  groups: PreventativeGroup[];
+  totalCount: number;
   partGroups: string[];
 }> {
   const sb = createServiceRoleClient();
@@ -78,12 +90,10 @@ async function loadCategory(category: Category): Promise<{
     { data: odoRows },
     { data: attRows },
     { data: linkRows },
-    { data: allGroupRows },
   ] = await Promise.all([
     sb
       .from("repair_entries")
       .select("id, description, position, part_group, category, service_id, created_at, is_preventative")
-      .eq("category", category)
       .is("deleted_at", null)
       .returns<PartRow[]>(),
     sb
@@ -93,7 +103,6 @@ async function loadCategory(category: Category): Promise<{
     sb
       .from("repair_reminders")
       .select("id, label, part_group, category, interval_miles, anchor_odo, anchor_date")
-      .eq("category", category)
       .is("dismissed_at", null)
       .returns<ReminderRow[]>(),
     sb
@@ -106,18 +115,12 @@ async function loadCategory(category: Category): Promise<{
       .from("repair_links")
       .select("a_id, b_id")
       .returns<{ a_id: string; b_id: string }[]>(),
-    sb
-      .from("repair_entries")
-      .select("part_group")
-      .is("deleted_at", null)
-      .not("part_group", "is", null)
-      .returns<{ part_group: string | null }[]>(),
   ]);
 
   const currentOdo = currentOdoFromLoads(odoRows);
   const today = new Date().toISOString().slice(0, 10);
-  const serviceById = new Map((serviceRows ?? []).map((s) => [s.id, s]));
 
+  const serviceById = new Map((serviceRows ?? []).map((s) => [s.id, s]));
   const receiptCountByService = new Map<string, number>();
   for (const a of attRows ?? []) {
     receiptCountByService.set(
@@ -133,7 +136,12 @@ async function loadCategory(category: Category): Promise<{
 
   const parts = (partRows ?? []).map((p) => {
     const s = serviceById.get(p.service_id);
-    return { row: p, date: s?.service_date ?? null, odometer: s?.odometer ?? null, notes: s?.notes ?? null };
+    return {
+      row: p,
+      date: s?.service_date ?? null,
+      odometer: s?.odometer ?? null,
+      notes: s?.notes ?? null,
+    };
   });
   parts.sort((a, b) => {
     const d = (b.date ?? "").localeCompare(a.date ?? "");
@@ -141,7 +149,7 @@ async function loadCategory(category: Category): Promise<{
     return b.row.created_at.localeCompare(a.row.created_at);
   });
 
-  // Group aggregates (for reminder next-due) within this category.
+  // Group aggregates (latest odo/date per part_group) for reminder next-due.
   const groupMaxOdo = new Map<string, number>();
   const groupMaxDate = new Map<string, string>();
   for (const p of parts) {
@@ -159,14 +167,16 @@ async function loadCategory(category: Category): Promise<{
   const reminders: ReminderView[] = (reminderRows ?? []).map((r) => {
     const key = groupKey(r.part_group);
     if (key) reminderGroupKeys.add(key);
-    const lastOdo = (key ? groupMaxOdo.get(key) : undefined) ?? r.anchor_odo ?? null;
-    const lastDate = (key ? groupMaxDate.get(key) : undefined) ?? r.anchor_date ?? null;
+    const lastOdo =
+      (key ? groupMaxOdo.get(key) : undefined) ?? r.anchor_odo ?? null;
+    const lastDate =
+      (key ? groupMaxDate.get(key) : undefined) ?? r.anchor_date ?? null;
     const m = computeMaintenance(r.interval_miles, lastOdo, currentOdo);
     return {
       id: r.id,
       label: r.label,
       partGroup: r.part_group,
-      category,
+      category: cat(r.category),
       interval: r.interval_miles,
       status: m.status,
       milesRemaining: m.milesRemaining,
@@ -178,12 +188,22 @@ async function loadCategory(category: Category): Promise<{
     };
   });
 
-  const entries: RepairEntry[] = parts.map((p) => {
+  // Loose preventative parts: preventative, NOT covered by a reminder, one row
+  // per stream (latest — parts are newest-first).
+  const seenStream = new Set<string>();
+  const looseByCat = new Map<Category, RepairEntry[]>();
+  for (const p of parts) {
+    if (!p.row.is_preventative) continue;
     const key = groupKey(p.row.part_group);
-    return {
+    if (key != null && reminderGroupKeys.has(key)) continue; // shown as a reminder
+    const stream = key ?? `desc:${p.row.description.trim().toLowerCase()}`;
+    if (seenStream.has(stream)) continue;
+    seenStream.add(stream);
+    const c = cat(p.row.category);
+    const entry: RepairEntry = {
       id: p.row.id,
       description: p.row.description,
-      category,
+      category: c,
       position: p.row.position,
       partGroup: p.row.part_group,
       date: p.date,
@@ -192,82 +212,67 @@ async function loadCategory(category: Category): Promise<{
       freshness: computeFreshness(p.odometer, currentOdo, p.date, today),
       receiptCount: receiptCountByService.get(p.row.service_id) ?? 0,
       relatedCount: relatedCount.get(p.row.id) ?? 0,
-      hasReminder: key != null && reminderGroupKeys.has(key),
-      isPreventative: p.row.is_preventative,
+      hasReminder: false,
+      isPreventative: true,
     };
-  });
-
-  // Sets — part groups with ≥1 positioned part. Latest part per position →
-  // corner slots (parts are newest-first).
-  const setLabel = new Map<string, string>();
-  const latestByGroupPos = new Map<string, (typeof parts)[number]>();
-  const usedSides = new Map<string, Set<Position>>();
-  const hasPositioned = new Set<string>();
-  for (const p of parts) {
-    const key = groupKey(p.row.part_group);
-    if (key == null) continue;
-    if (!setLabel.has(key) && p.row.part_group) setLabel.set(key, p.row.part_group);
-    if (!isPosition(p.row.position)) continue;
-    hasPositioned.add(key);
-    const gk = `${key}|${p.row.position}`;
-    if (!latestByGroupPos.has(gk)) latestByGroupPos.set(gk, p);
-    if (NON_CORNER_POSITIONS.includes(p.row.position)) {
-      const s = usedSides.get(key) ?? new Set<Position>();
-      s.add(p.row.position);
-      usedSides.set(key, s);
-    }
+    const list = looseByCat.get(c) ?? [];
+    list.push(entry);
+    looseByCat.set(c, list);
   }
 
-  const sets: CategorySet[] = [];
-  for (const key of hasPositioned) {
-    const positions: Position[] = [
-      ...CORNER_POSITIONS,
-      ...NON_CORNER_POSITIONS.filter((p) => usedSides.get(key)?.has(p)),
-    ];
-    const slots: SetSlot[] = positions.map((pos) => {
-      const p = latestByGroupPos.get(`${key}|${pos}`) ?? null;
-      return {
-        position: pos,
-        label: POSITION_LABEL[pos],
-        entry: p
-          ? { id: p.row.id, description: p.row.description, date: p.date, odometer: p.odometer }
-          : null,
-        freshness: p ? computeFreshness(p.odometer, currentOdo, p.date, today) : "original",
-      };
+  const remByCat = new Map<Category, ReminderView[]>();
+  for (const r of reminders) {
+    const list = remByCat.get(r.category) ?? [];
+    list.push(r);
+    remByCat.set(r.category, list);
+  }
+  for (const list of remByCat.values()) {
+    list.sort((a, b) => {
+      const d = STATUS_RANK[a.status] - STATUS_RANK[b.status];
+      if (d !== 0) return d;
+      return (
+        (a.milesRemaining ?? Number.POSITIVE_INFINITY) -
+        (b.milesRemaining ?? Number.POSITIVE_INFINITY)
+      );
     });
-    sets.push({ partGroup: setLabel.get(key) ?? key, slots });
   }
-  sets.sort((a, b) => a.partGroup.localeCompare(b.partGroup));
+
+  const groups: PreventativeGroup[] = [];
+  let totalCount = 0;
+  for (const c of CATEGORIES) {
+    const rem = remByCat.get(c) ?? [];
+    const loose = looseByCat.get(c) ?? [];
+    if (rem.length + loose.length === 0) continue;
+    totalCount += rem.length + loose.length;
+    groups.push({
+      category: c,
+      slug: CATEGORY_SLUG[c],
+      reminders: rem,
+      looseEntries: loose,
+    });
+  }
 
   const partGroups = Array.from(
     new Map(
-      (allGroupRows ?? [])
-        .map((r) => r.part_group)
+      [
+        ...parts.map((p) => p.row.part_group),
+        ...(reminderRows ?? []).map((r) => r.part_group),
+      ]
         .filter((g): g is string => !!g && g.trim().length > 0)
         .map((g) => [groupKey(g)!, g] as const),
     ).values(),
   ).sort((a, b) => a.localeCompare(b));
 
-  return { entries, sets, reminders, currentOdo, partGroups };
+  return { currentOdo, groups, totalCount, partGroups };
 }
 
-export default async function CategoryPage({
-  params,
-}: {
-  params: Promise<{ category: string }>;
-}) {
-  const { category: slug } = await params;
-  const category = categoryFromSlug(slug);
-  if (!category) notFound();
-
-  const data = await loadCategory(category);
+export default async function PreventativePage() {
+  const data = await loadPreventative();
   return (
-    <CategoryView
-      category={category}
-      entries={data.entries}
-      sets={data.sets}
-      reminders={data.reminders}
+    <PreventativeView
       currentOdo={data.currentOdo}
+      groups={data.groups}
+      totalCount={data.totalCount}
       partGroups={data.partGroups}
     />
   );

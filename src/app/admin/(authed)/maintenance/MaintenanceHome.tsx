@@ -9,21 +9,30 @@ import {
   CategoryBadge,
   CategoryIcon,
   OdometerHero,
+  PreventativeIcon,
   ReminderCard,
   RepairRow,
   SectionLabel,
 } from "./shared";
-import type { CategoryCard, RepairEntry, ReminderView } from "./types";
+import { PREVENTATIVE_SLUG } from "@/lib/dispatch/repair-log";
+import type {
+  CategoryCard,
+  PreventativeSummary,
+  RepairEntry,
+  ReminderView,
+} from "./types";
 
 export function MaintenanceHome({
   currentOdo,
   categoryCards,
+  preventative,
   alertReminders,
   entries,
   partGroups,
 }: {
   currentOdo: number;
   categoryCards: CategoryCard[];
+  preventative: PreventativeSummary;
   alertReminders: ReminderView[];
   entries: RepairEntry[];
   partGroups: string[];
@@ -112,10 +121,29 @@ export function MaintenanceHome({
               </section>
             ) : null}
 
-            {/* Category grid — parts-first (count + attention badge, no $). */}
+            {/* Category grid — parts-first (count + attention badge, no $). The
+                green Preventative card leads: it's the cross-cutting stay-ahead
+                lens, not a mechanical home. */}
             <section className="mt-5">
               <SectionLabel title="Categories" />
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                <Link
+                  href={`/admin/maintenance/${PREVENTATIVE_SLUG}`}
+                  className="flex flex-col justify-between rounded-lg border border-green-300 bg-green-50 p-3.5 shadow-e1 transition-colors hover:border-green-400 hover:bg-green-100"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-green-100 text-green-700">
+                      <PreventativeIcon />
+                    </span>
+                    <CategoryBadge badge={preventative.badge} />
+                  </div>
+                  <h3 className="mt-3 text-[13.5px] font-semibold leading-tight text-green-800">
+                    Preventative
+                  </h3>
+                  <p className="mt-1 font-mono text-[11px] tabular-nums text-green-700">
+                    {preventative.count} item{preventative.count === 1 ? "" : "s"} · stay ahead
+                  </p>
+                </Link>
                 {categoryCards.map((c) => (
                   <Link
                     key={c.category}

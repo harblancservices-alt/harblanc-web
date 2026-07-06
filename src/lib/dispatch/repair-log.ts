@@ -122,11 +122,13 @@ export function groupKey(partGroup: string | null | undefined): string | null {
 
 // ---------------------------------------------------------------------------
 // Categories — a fixed enum (this order) the whole log is organized under.
+//
+// These are the MECHANICAL homes only. "Preventative" is NO LONGER one of them:
+// it's a cross-cutting green LENS (see {@link isPreventative}) that aggregates
+// recurring/consumable items — which still live under a mechanical home here.
 
-// Display order (home grid + form dropdown). Preventative leads; the rest keep
-// their prior relative order.
+// Display order (home grid + form dropdown).
 export const CATEGORIES = [
-  "Preventative",
   "Steering & Suspension",
   "Drivetrain",
   "Engine Bay",
@@ -141,6 +143,11 @@ export function isCategory(v: string | null | undefined): v is Category {
   return v != null && (CATEGORIES as readonly string[]).includes(v);
 }
 
+// The Preventative lens — an aggregate view, not a stored category. It has its
+// own card + route but is never written to repair_entries.category.
+export const PREVENTATIVE_LABEL = "Preventative";
+export const PREVENTATIVE_SLUG = "preventative";
+
 /** URL slug ⟷ category (spaces / ampersands aren't URL-friendly). */
 export const CATEGORY_SLUG: Record<Category, string> = {
   "Steering & Suspension": "steering-suspension",
@@ -148,7 +155,6 @@ export const CATEGORY_SLUG: Record<Category, string> = {
   "Engine Bay": "engine-bay",
   Brakes: "brakes",
   "Tires & Wheels": "tires-wheels",
-  Preventative: "preventative",
   Trailer: "trailer",
   Other: "other",
 };
@@ -164,35 +170,16 @@ export function categoryFromSlug(slug: string): Category | null {
 }
 
 /**
- * Part → category keyword map. Ordered by PRECEDENCE (first match wins): a
- * more-specific / consumable rule (the Trailer catch-all, then Preventative
- * fluids & filters) is checked before the part categories that share words —
- * e.g. "diff fluid" → Preventative beats "diff" → Drivetrain, and "wheel
- * bearing" → Steering beats "wheel" → Tires. Matching is case-insensitive,
- * word-boundaried, and plural-tolerant. The backfill migration mirrors this
- * exact precedence in SQL.
+ * Part → MECHANICAL-category keyword map. Ordered by PRECEDENCE (first match
+ * wins): the Trailer catch-all, then the part categories, with the shared-word
+ * conflicts resolved by ordering — e.g. "wheel bearing" → Steering beats
+ * "wheel" → Tires. Consumables now map to their MECHANICAL home (no separate
+ * Preventative bucket): fluids → Drivetrain, oil/filters/coolant/def → Engine
+ * Bay, grease → Steering, tire rotation → Tires. Matching is case-insensitive,
+ * word-boundaried, and plural-tolerant. The backfill migration mirrors this.
  */
 const CATEGORY_RULES: { category: Category; keywords: string[] }[] = [
   { category: "Trailer", keywords: ["trailer"] },
-  {
-    category: "Preventative",
-    keywords: [
-      "engine oil",
-      "oil filter",
-      "fuel filter",
-      "air filter",
-      "transmission fluid",
-      "diff fluid",
-      "differential fluid",
-      "coolant flush",
-      "grease",
-      "greasing",
-      "def",
-      "ccv",
-      "crankcase vent",
-      "crankcase",
-    ],
-  },
   {
     category: "Brakes",
     keywords: [
@@ -230,6 +217,9 @@ const CATEGORY_RULES: { category: Category; keywords: string[] }[] = [
       "damper",
       "links",
       "suspension",
+      // Consumable that lives here.
+      "grease",
+      "greasing",
     ],
   },
   {
@@ -251,6 +241,18 @@ const CATEGORY_RULES: { category: Category; keywords: string[] }[] = [
   {
     category: "Engine Bay",
     keywords: [
+      // Consumables that live here (fluids, filters, DEF, crankcase vent).
+      "engine oil",
+      "oil filter",
+      "fuel filter",
+      "air filter",
+      "cabin filter",
+      "coolant flush",
+      "coolant",
+      "ccv",
+      "crankcase vent",
+      "crankcase",
+      "def",
       "radiator",
       "water pump",
       "thermostat",
@@ -292,8 +294,9 @@ const COMPILED_RULES = CATEGORY_RULES.map((r) => ({
 }));
 
 /**
- * Best-guess category for a free-text description/label. Returns 'Other' when
- * nothing matches. Used for the log-form's smart default and the backfill.
+ * Best-guess MECHANICAL category for a free-text description/label. Returns
+ * 'Other' when nothing matches. Used for the log-form's smart default and the
+ * backfill. Never returns 'Preventative' — that's a lens, not a home.
  */
 export function categoryForText(text: string | null | undefined): Category {
   const t = (text ?? "").toLowerCase();
@@ -302,6 +305,48 @@ export function categoryForText(text: string | null | undefined): Category {
     if (rule.re.test(t)) return rule.category;
   }
   return "Other";
+}
+
+// ---------------------------------------------------------------------------
+// Preventative lens — the cross-cutting "stay-ahead" classifier.
+//
+// An item is PREVENTATIVE if it's a recurring/consumable maintenance item
+// (fluids, filters, oil, coolant, grease, DEF, tire rotation) OR it has an
+// active mileage reminder (the reminder half is decided at the data layer, not
+// here). This mirrors the persisted `is_preventative` column's text rule and
+// the backfill migration's SQL exactly. One-off repairs (track bar, u-joint…)
+// are NOT preventative and stay single-category.
+const PREVENTATIVE_KEYWORDS = [
+  "engine oil",
+  "oil filter",
+  "fuel filter",
+  "air filter",
+  "cabin filter",
+  "coolant",
+  "grease",
+  "greasing",
+  "def",
+  "transmission fluid",
+  "transfer case fluid",
+  "diff fluid",
+  "differential fluid",
+  "tire rotation",
+  "rotation",
+];
+const PREVENTATIVE_RE = new RegExp(
+  "\\b(?:" + PREVENTATIVE_KEYWORDS.map(escapeRegExp).join("|") + ")s?\\b",
+  "i",
+);
+
+/**
+ * True when a description reads as a recurring/consumable maintenance item.
+ * The "has an active reminder" half of the preventative definition is applied
+ * separately (persisted on write, queried on read).
+ */
+export function isPreventative(text: string | null | undefined): boolean {
+  const t = (text ?? "").toLowerCase();
+  if (!t.trim()) return false;
+  return PREVENTATIVE_RE.test(t);
 }
 
 // ---------------------------------------------------------------------------

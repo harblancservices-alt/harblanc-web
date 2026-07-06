@@ -12,7 +12,12 @@ import {
   isPosition,
   type Category,
 } from "@/lib/dispatch/repair-log";
-import type { CategoryCard, RepairEntry, ReminderView } from "./types";
+import type {
+  CategoryCard,
+  PreventativeSummary,
+  RepairEntry,
+  ReminderView,
+} from "./types";
 
 export const metadata: Metadata = {
   title: "Maintenance",
@@ -37,6 +42,7 @@ type PartRow = {
   category: string;
   service_id: string;
   created_at: string;
+  is_preventative: boolean;
 };
 
 type ServiceRow = {
@@ -69,6 +75,7 @@ function cat(v: string): Category {
 async function loadHome(): Promise<{
   currentOdo: number;
   categoryCards: CategoryCard[];
+  preventative: PreventativeSummary;
   alertReminders: ReminderView[];
   entries: RepairEntry[];
   partGroups: string[];
@@ -85,7 +92,7 @@ async function loadHome(): Promise<{
   ] = await Promise.all([
     sb
       .from("repair_entries")
-      .select("id, description, position, part_group, category, service_id, created_at")
+      .select("id, description, position, part_group, category, service_id, created_at, is_preventative")
       .is("deleted_at", null)
       .returns<PartRow[]>(),
     sb
@@ -196,6 +203,7 @@ async function loadHome(): Promise<{
       receiptCount: receiptCountByService.get(p.row.service_id) ?? 0,
       relatedCount: relatedCount.get(p.row.id) ?? 0,
       hasReminder: key != null && reminderGroupKeys.has(key),
+      isPreventative: p.row.is_preventative,
     };
   });
 
@@ -237,6 +245,28 @@ async function loadHome(): Promise<{
     return { category: c, slug: CATEGORY_SLUG[c], count: countByCat.get(c) ?? 0, badge };
   });
 
+  // Preventative lens summary — items = every active reminder (a recurring
+  // countdown) + every preventative part whose stream has no reminder (latest
+  // per stream). Badge = worst reminder state across ALL categories.
+  const looseStreams = new Set<string>();
+  for (const p of parts) {
+    if (!p.row.is_preventative) continue;
+    const key = groupKey(p.row.part_group);
+    if (key != null && reminderGroupKeys.has(key)) continue; // counted as a reminder
+    looseStreams.add(key ?? `desc:${p.row.description.trim().toLowerCase()}`);
+  }
+  const prevBadge: PreventativeSummary["badge"] = reminders.some(
+    (r) => r.status === "overdue",
+  )
+    ? "overdue"
+    : reminders.some((r) => r.status === "soon")
+      ? "soon"
+      : null;
+  const preventative: PreventativeSummary = {
+    count: reminders.length + looseStreams.size,
+    badge: prevBadge,
+  };
+
   const RANK: Record<ReminderView["status"], number> = {
     overdue: 0,
     soon: 1,
@@ -265,7 +295,14 @@ async function loadHome(): Promise<{
     ).values(),
   ).sort((a, b) => a.localeCompare(b));
 
-  return { currentOdo, categoryCards, alertReminders, entries, partGroups };
+  return {
+    currentOdo,
+    categoryCards,
+    preventative,
+    alertReminders,
+    entries,
+    partGroups,
+  };
 }
 
 export default async function MaintenancePage() {
@@ -274,6 +311,7 @@ export default async function MaintenancePage() {
     <MaintenanceHome
       currentOdo={data.currentOdo}
       categoryCards={data.categoryCards}
+      preventative={data.preventative}
       alertReminders={data.alertReminders}
       entries={data.entries}
       partGroups={data.partGroups}

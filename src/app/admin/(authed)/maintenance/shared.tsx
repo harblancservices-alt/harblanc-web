@@ -333,12 +333,6 @@ export function CategoryIcon({
           <path d="M12 3.5v3M12 17.5v3M3.5 12h3M17.5 12h3" />
         </svg>
       );
-    case "Preventative": // oil drop
-      return (
-        <svg {...common} aria-hidden>
-          <path d="M12 4c3 4 5 6.2 5 8.5a5 5 0 0 1-10 0C7 10.2 9 8 12 4z" />
-        </svg>
-      );
     case "Trailer": // box on wheels
       return (
         <svg {...common} aria-hidden>
@@ -355,4 +349,27 @@ export function CategoryIcon({
         </svg>
       );
   }
+}
+
+/** The Preventative lens icon — a shield-check (stay-ahead). Inherits color. */
+export function PreventativeIcon({
+  className = "h-[18px] w-[18px]",
+}: {
+  className?: string;
+}) {
+  return (
+    <svg
+      className={className}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.7}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <path d="M12 3.2 5 6v5.5c0 4.2 2.9 7 7 9.3 4.1-2.3 7-5.1 7-9.3V6z" />
+      <path d="M9 12l2 2 4-4.2" />
+    </svg>
+  );
 }
