@@ -10,6 +10,7 @@ import {
   IconDashboard,
   IconLogout,
   IconMail,
+  IconMailPlus,
   IconRoute,
   IconSettings,
   IconStack,
@@ -53,6 +54,11 @@ const GROUPS: NavGroup[] = [
     items: [
       { href: "/admin", label: "Dashboard", Icon: IconDashboard },
       { href: "/admin/dispatch/loads", label: "Loads", Icon: IconStack },
+      {
+        href: "/admin/dispatch/email-broker",
+        label: "Email a Broker",
+        Icon: IconMailPlus,
+      },
       { href: "/admin/dispatch/trips", label: "Trips", Icon: IconRoute },
     ],
   },

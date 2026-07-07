@@ -159,6 +159,27 @@ export function IconMail({ className }: IconProps) {
   );
 }
 
+export function IconMailPlus({ className }: IconProps) {
+  // Envelope with a plus — "email a broker" (distinct from the plain IconMail
+  // used by Reach / Email Previews).
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <path d="M3 5h13v9H3z" />
+      <path d="m3 7 6.5 4.5L16 7" />
+      <path d="M19 8v6M16 11h6" />
+    </svg>
+  );
+}
+
 export function IconBuilding({ className }: IconProps) {
   // Brokerage / company — the Brokers tab.
   return (

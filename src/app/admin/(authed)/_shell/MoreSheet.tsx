@@ -7,6 +7,7 @@ import {
   IconClipboard,
   IconCoins,
   IconMail,
+  IconMailPlus,
   IconRoute,
   IconSettings,
   IconWrench,
@@ -46,6 +47,11 @@ const GROUPS: { title: string; items: SheetItem[] }[] = [
     title: "Dispatch",
     items: [
       { href: "/admin/dispatch/trips", label: "Trips", Icon: IconRoute },
+      {
+        href: "/admin/dispatch/email-broker",
+        label: "Email a Broker",
+        Icon: IconMailPlus,
+      },
       { href: "/admin/dispatch/reach", label: "Reach", Icon: IconMail },
       {
         href: "/admin/dispatch/receivables",

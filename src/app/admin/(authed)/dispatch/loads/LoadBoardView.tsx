@@ -248,6 +248,13 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
               Delete
             </Button>
           ) : null}
+          <Button
+            href="/admin/dispatch/email-broker"
+            variant="utility"
+            prefetch={false}
+          >
+            Email a Broker
+          </Button>
           <AddLoadButton
             brokerNames={data.brokerNames}
             activeTrips={data.activeTrips}
