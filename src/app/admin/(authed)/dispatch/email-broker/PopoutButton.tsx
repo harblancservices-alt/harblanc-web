@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@/components/ui/Button";
+import { Button, type ButtonSize } from "@/components/ui/Button";
 
 /**
  * Opens Email-a-Broker as a floating pop-out WINDOW — a compact, chrome-less
@@ -34,14 +34,17 @@ export function openEmailBrokerPopup() {
 export function PopoutButton({
   className,
   children,
+  size,
 }: {
   className?: string;
   children?: React.ReactNode;
+  size?: ButtonSize;
 }) {
   return (
     <Button
       type="button"
       variant="utility"
+      size={size}
       onClick={openEmailBrokerPopup}
       className={className}
     >

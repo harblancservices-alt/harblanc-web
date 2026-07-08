@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { quickAddBrokerLane } from "../brokers/quick-add/actions";
 import { bodyLines, subjectFor } from "./content";
 import { parseLoadLine } from "./parse";
+import { PopoutButton } from "./PopoutButton";
 import {
   sendBrokerEmail,
   sendBrokerEmailTest,
@@ -29,8 +30,25 @@ type Msg = { tone: "ok" | "err"; text: string } | null;
 // offering to add the broker.
 type Phase = "compose" | "confirm" | "sent";
 
+/**
+ * A real send in THIS session. In-memory only — closing the window/tab or a
+ * reload wipes it (intended); never persisted to the DB or localStorage.
+ */
+type SentEntry = {
+  id: number;
+  to: string;
+  origin: string;
+  destination: string;
+  subject: string;
+  sentAt: Date;
+};
+
 function isEmail(v: string): boolean {
   return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v.trim());
+}
+
+function fmtTime(d: Date): string {
+  return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
 export function EmailBrokerView({ popup = false }: { popup?: boolean }) {
@@ -47,6 +65,15 @@ export function EmailBrokerView({ popup = false }: { popup?: boolean }) {
   const [phase, setPhase] = useState<Phase>("compose");
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<Msg>(null);
+
+  // Session-only sent history (newest first) + the entry being viewed. Both are
+  // in-memory React state so they vanish when the window/tab closes or reloads.
+  const [history, setHistory] = useState<SentEntry[]>([]);
+  const [viewing, setViewing] = useState<SentEntry | null>(null);
+  // The email that was just sent — feeds the Add-broker panel after the compose
+  // fields are cleared, so the panel still knows which address to save.
+  const [activeSent, setActiveSent] = useState<SentEntry | null>(null);
+  const nextId = useRef(1);
 
   const subject = useMemo(
     () => subjectFor(origin.trim() || "Origin", destination.trim() || "Destination"),
@@ -91,6 +118,17 @@ export function EmailBrokerView({ popup = false }: { popup?: boolean }) {
     }
   }
 
+  /** Blank the compose inputs (not history / phase) so the next email is instant. */
+  function clearCompose() {
+    setBrokerEmail("");
+    setPaste("");
+    setOrigin("");
+    setDestination("");
+    setDeadhead(null);
+    setConfident(false);
+    setTouched(false);
+  }
+
   async function confirmSend() {
     setBusy(true);
     setMsg(null);
@@ -101,8 +139,22 @@ export function EmailBrokerView({ popup = false }: { popup?: boolean }) {
         destination: destination.trim(),
       });
       if (res.ok) {
+        // Record the sent email in the session history, then clear the form
+        // immediately so the next compose is ready while the Add-broker prompt
+        // (fed by activeSent) shows.
+        const entry: SentEntry = {
+          id: nextId.current++,
+          to: res.to,
+          origin: origin.trim(),
+          destination: destination.trim(),
+          subject: subjectFor(origin.trim(), destination.trim()),
+          sentAt: new Date(),
+        };
+        setHistory((h) => [entry, ...h]);
+        setActiveSent(entry);
         setPhase("sent");
-        setMsg({ tone: "ok", text: `Sent to ${res.to}.` });
+        setMsg({ tone: "ok", text: `Sent to ${res.to}. Form cleared for the next one.` });
+        clearCompose();
       } else {
         setPhase("compose");
         setMsg({ tone: "err", text: res.reason });
@@ -112,14 +164,9 @@ export function EmailBrokerView({ popup = false }: { popup?: boolean }) {
     }
   }
 
-  function resetForNext() {
-    setBrokerEmail("");
-    setPaste("");
-    setOrigin("");
-    setDestination("");
-    setDeadhead(null);
-    setConfident(false);
-    setTouched(false);
+  /** Close the Add-broker step and return to a blank compose (already cleared). */
+  function finishAfterSend() {
+    setActiveSent(null);
     setPhase("compose");
     setMsg(null);
   }
@@ -132,23 +179,32 @@ export function EmailBrokerView({ popup = false }: { popup?: boolean }) {
           : "mx-auto w-full max-w-xl px-4 py-5 sm:px-6"
       }
     >
-      <header className="mb-3">
-        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-indigo-600">
-          Dispatch
-        </p>
-        <h1
-          className={
-            "mt-1 font-semibold leading-none tracking-tight text-fg " +
-            (popup ? "text-[18px]" : "text-[22px]")
-          }
-        >
-          Email a Broker
-        </h1>
-        {popup ? null : (
-          <p className="mt-1.5 text-[13px] text-fg-muted">
-            Paste the broker&apos;s email and the load line off the board — we
-            email them about that load in one tap.
+      <header className="mb-3 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-indigo-600">
+            Dispatch
           </p>
+          <h1
+            className={
+              "mt-1 font-semibold leading-none tracking-tight text-fg " +
+              (popup ? "text-[18px]" : "text-[22px]")
+            }
+          >
+            Email a Broker
+          </h1>
+          {popup ? null : (
+            <p className="mt-1.5 text-[13px] text-fg-muted">
+              Paste the broker&apos;s email and the load line off the board — we
+              email them about that load in one tap.
+            </p>
+          )}
+        </div>
+        {/* Full-page only: pop the tool out into a floating window. Inside the
+            popup itself it's redundant. */}
+        {popup ? null : (
+          <PopoutButton className="shrink-0" size="sm">
+            Pop out
+          </PopoutButton>
         )}
       </header>
 
@@ -335,13 +391,127 @@ export function EmailBrokerView({ popup = false }: { popup?: boolean }) {
         </div>
       ) : null}
 
-      {/* After a real send — offer to save the broker. */}
-      {phase === "sent" ? (
+      {/* After a real send — offer to save the broker (fed by the just-sent
+          entry, since the compose fields are already cleared). */}
+      {phase === "sent" && activeSent ? (
         <AddBrokerPanel
-          brokerEmail={brokerEmail.trim()}
-          onDone={resetForNext}
+          brokerEmail={activeSent.to}
+          onDone={finishAfterSend}
         />
       ) : null}
+
+      {/* Session sent history — below the Send button. In-memory only. */}
+      {history.length > 0 ? (
+        <div className="mt-4">
+          <p className="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-fg-muted">
+            Sent this session
+          </p>
+          <ul className="mt-2 space-y-2">
+            {history.map((h) => (
+              <li
+                key={h.id}
+                className="flex items-center gap-2 rounded-md border border-line bg-card px-2.5 py-2 shadow-sm"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[12px] font-semibold text-fg">
+                    {h.origin} → {h.destination}
+                  </p>
+                  <p className="truncate text-[11px] text-fg-muted">
+                    <span className="font-mono">{h.to}</span> · {fmtTime(h.sentAt)}
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="utility"
+                  size="sm"
+                  onClick={() => setViewing(h)}
+                  className="shrink-0"
+                >
+                  View
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      {viewing ? (
+        <SentEmailModal entry={viewing} onClose={() => setViewing(null)} />
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Read-only view of an email that was sent this session — the exact subject +
+ * full body (rendered identically to the live preview). Bottom sheet on mobile,
+ * centered card on wider screens. Closes on backdrop tap, the Close button, or
+ * Escape.
+ */
+function SentEmailModal({
+  entry,
+  onClose,
+}: {
+  entry: SentEntry;
+  onClose: () => void;
+}) {
+  const lines = bodyLines(entry.origin, entry.destination);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Sent email"
+      className="fixed inset-0 z-50 flex items-end justify-center sm:items-center"
+    >
+      <button
+        type="button"
+        aria-label="Close"
+        onClick={onClose}
+        className="absolute inset-0 bg-black/50"
+      />
+      <div className="relative z-10 max-h-[85vh] w-full max-w-md overflow-y-auto rounded-t-xl border border-line bg-card p-4 shadow-lg sm:rounded-xl">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-fg-muted">
+              Sent email
+            </p>
+            <p className="mt-1 text-[13px] font-semibold text-fg">
+              {entry.subject}
+            </p>
+            <p className="truncate text-[11px] text-fg-muted">
+              <span className="font-mono">{entry.to}</span> · {fmtTime(entry.sentAt)}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="shrink-0 rounded-md border border-line-strong bg-card px-2.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-fg transition-colors hover:bg-elevated"
+          >
+            Close
+          </button>
+        </div>
+        {/* Body — same uniform rendering as the compose preview. */}
+        <div className="mt-3 rounded border border-line bg-canvas p-3 text-[13px] leading-relaxed text-fg">
+          {lines.map((line, i) => (
+            <p key={i} className="mb-2 last:mb-0">
+              {line}
+            </p>
+          ))}
+        </div>
+        <p className="mt-2 text-[11px] text-fg-subtle">
+          — then your branded signature (logo, Brent Harbaugh, MC, phone,
+          Dispatch@).
+        </p>
+      </div>
     </div>
   );
 }
