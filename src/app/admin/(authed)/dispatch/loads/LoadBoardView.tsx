@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { softDeleteLoads } from "./actions";
 import { AddLoadButton } from "./AddLoadButton";
+import { PopoutButton } from "../email-broker/PopoutButton";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusTag, type StatusTone } from "@/components/ui/StatusTag";
@@ -248,13 +249,7 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
               Delete
             </Button>
           ) : null}
-          <Button
-            href="/admin/dispatch/email-broker"
-            variant="utility"
-            prefetch={false}
-          >
-            Email a Broker
-          </Button>
+          <PopoutButton />
           <AddLoadButton
             brokerNames={data.brokerNames}
             activeTrips={data.activeTrips}

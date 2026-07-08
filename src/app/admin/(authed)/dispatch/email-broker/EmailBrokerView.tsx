@@ -33,7 +33,7 @@ function isEmail(v: string): boolean {
   return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v.trim());
 }
 
-export function EmailBrokerView() {
+export function EmailBrokerView({ popup = false }: { popup?: boolean }) {
   const [brokerEmail, setBrokerEmail] = useState("");
   const [paste, setPaste] = useState("");
   const [origin, setOrigin] = useState("");
@@ -125,18 +125,31 @@ export function EmailBrokerView() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-xl px-4 py-5 sm:px-6">
+    <div
+      className={
+        popup
+          ? "w-full px-3 py-3"
+          : "mx-auto w-full max-w-xl px-4 py-5 sm:px-6"
+      }
+    >
       <header className="mb-3">
         <p className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-indigo-600">
           Dispatch
         </p>
-        <h1 className="mt-1 text-[22px] font-semibold leading-none tracking-tight text-fg">
+        <h1
+          className={
+            "mt-1 font-semibold leading-none tracking-tight text-fg " +
+            (popup ? "text-[18px]" : "text-[22px]")
+          }
+        >
           Email a Broker
         </h1>
-        <p className="mt-1.5 text-[13px] text-fg-muted">
-          Paste the broker&apos;s email and the load line off the board — we
-          email them about that load in one tap.
-        </p>
+        {popup ? null : (
+          <p className="mt-1.5 text-[13px] text-fg-muted">
+            Paste the broker&apos;s email and the load line off the board — we
+            email them about that load in one tap.
+          </p>
+        )}
       </header>
 
       {/* Compose card */}
