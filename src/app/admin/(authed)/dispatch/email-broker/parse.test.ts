@@ -11,6 +11,24 @@ describe("parseLoadLine", () => {
     });
   });
 
+  it("strips the deadhead number AND a 'mi' unit off the destination", () => {
+    expect(parseLoadLine("Statesboro, GA 56 mi\nCentre, AL")).toEqual({
+      origin: "Statesboro, GA",
+      destination: "Centre, AL",
+      deadhead: 56,
+      confident: true,
+    });
+  });
+
+  it("strips a unit attached to the number and spelled-out units", () => {
+    expect(parseLoadLine("Dallas, TX 120mi Atlanta, GA").destination).toBe(
+      "Atlanta, GA",
+    );
+    expect(parseLoadLine("Dallas, TX 120 miles Atlanta, GA").destination).toBe(
+      "Atlanta, GA",
+    );
+  });
+
   it("is robust to tabs and runs of whitespace", () => {
     expect(parseLoadLine("  Dallas,   TX\t\t45\tAtlanta,\tGA  ")).toEqual({
       origin: "Dallas, TX",

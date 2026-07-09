@@ -34,12 +34,18 @@ export type ParsedLoad = {
 const LOC_RE =
   /([A-Za-z][A-Za-z.'-]*(?: +[A-Za-z.'-]+)*) *, *([A-Za-z]{2})(?![A-Za-z])/g;
 
-/** Normalize a captured city: collapse spacing and drop a leading connector word/arrow. */
+/**
+ * Normalize a captured city: collapse spacing, then drop a leading connector
+ * word/arrow OR a leftover deadhead distance unit. A deadhead like "56 mi" (or
+ * "56mi") leaves the number out of the city (digits can't be part of one) but
+ * strands the unit as the first word of the second city — so "mi Centre, AL"
+ * must become "Centre, AL". Longest unit first so "miles" isn't cut to "les".
+ */
 function tidyCity(raw: string): string {
   return raw
     .trim()
     .replace(/\s+/g, " ")
-    .replace(/^(?:to|via|->|→|>)\s+/i, "");
+    .replace(/^(?:to|via|->|→|>|miles|mile|mi)\s+/i, "");
 }
 
 function locLabel(city: string, state: string): string {

@@ -14,9 +14,18 @@ export const MC = "1467901";
 export const DOT = "3918509";
 export const PHONE_DISPLAY = "(832) 445-8775";
 
-/** The email subject — the load itself, e.g. "Dallas, TX → Atlanta, GA". */
+/**
+ * The load lane label — origin and destination joined by a plain dash, e.g.
+ * "Dallas, TX - Atlanta, GA". Single source for the separator so the subject,
+ * body line, "Read as" chip, and history rows all read the same.
+ */
+export function laneLabel(origin: string, destination: string): string {
+  return `${origin} - ${destination}`;
+}
+
+/** The email subject — the load itself, e.g. "Dallas, TX - Atlanta, GA". */
 export function subjectFor(origin: string, destination: string): string {
-  return `${origin} → ${destination}`;
+  return laneLabel(origin, destination);
 }
 
 /**
@@ -26,7 +35,7 @@ export function subjectFor(origin: string, destination: string): string {
  */
 export function bodyLines(origin: string, destination: string): string[] {
   return [
-    `Hello — I'm interested in this load: ${origin} → ${destination}`,
+    `Hello, I'm interested in this load: ${laneLabel(origin, destination)}`,
     `MC ${MC} · DOT ${DOT} · ${PHONE_DISPLAY}`,
     "I've got a 40' hotshot empty and ready to go.",
     "If this is still available, give me a call or reply back to this email.",

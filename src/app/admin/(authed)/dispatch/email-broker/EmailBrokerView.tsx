@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { quickAddBrokerLane } from "../brokers/quick-add/actions";
-import { bodyLines, subjectFor } from "./content";
+import { bodyLines, laneLabel, subjectFor } from "./content";
 import { parseLoadLine } from "./parse";
 import { PopoutButton } from "./PopoutButton";
 import {
@@ -244,7 +244,7 @@ export function EmailBrokerView({ popup = false }: { popup?: boolean }) {
               <span className="font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-green-700">
                 Read as
               </span>{" "}
-              {origin} → {destination}
+              {laneLabel(origin, destination)}
               {deadhead != null ? (
                 <span className="text-fg-muted">
                   {" "}
@@ -414,7 +414,7 @@ export function EmailBrokerView({ popup = false }: { popup?: boolean }) {
               >
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[12px] font-semibold text-fg">
-                    {h.origin} → {h.destination}
+                    {laneLabel(h.origin, h.destination)}
                   </p>
                   <p className="truncate text-[11px] text-fg-muted">
                     <span className="font-mono">{h.to}</span> · {fmtTime(h.sentAt)}
