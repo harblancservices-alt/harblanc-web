@@ -20,13 +20,14 @@ export function subjectFor(origin: string, destination: string): string {
 }
 
 /**
- * The message body as an ordered list of plain lines. MC/DOT/phone go FIRST so
- * they're seen instantly; every line is one uniform text style.
+ * The message body as an ordered list of plain lines. The greeting/interest line
+ * leads, with the MC/DOT/phone line directly beneath it; every line is one
+ * uniform text style.
  */
 export function bodyLines(origin: string, destination: string): string[] {
   return [
-    `MC ${MC} · DOT ${DOT} · ${PHONE_DISPLAY}`,
     `Hello — I'm interested in this load: ${origin} → ${destination}`,
+    `MC ${MC} · DOT ${DOT} · ${PHONE_DISPLAY}`,
     "I've got a 40' hotshot empty and ready to go.",
     "If this is still available, give me a call or reply back to this email.",
   ];
