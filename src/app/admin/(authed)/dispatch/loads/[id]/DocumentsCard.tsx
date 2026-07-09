@@ -191,7 +191,20 @@ function DocKindBlock({
           ) : null}
         </span>
 
-        <span className="shrink-0">
+        <span className="flex shrink-0 items-center gap-1.5">
+          {/* BOL offers BOTH: the in-browser scanner AND a plain file picker
+              (pick a gallery photo or a PDF from Files). Both save to the BOL
+              via the same signed-upload path. */}
+          {isBol ? (
+            <button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              disabled={busy}
+              className="rounded-md border border-line-strong bg-elevated px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-fg transition-colors hover:bg-card disabled:opacity-50"
+            >
+              {busy ? "Uploading…" : "+ Add file"}
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={() =>
@@ -218,18 +231,18 @@ function DocKindBlock({
                     ? "+ Add"
                     : "+ Add photo / file"}
           </button>
-          {/* BOL never uses the plain file picker — it scans. */}
-          {!isBol ? (
-            <input
-              ref={inputRef}
-              type="file"
-              accept={isPod ? "image/*" : ACCEPT}
-              capture={isPod ? "environment" : undefined}
-              multiple
-              className="hidden"
-              onChange={(e) => onPick(e.target.files)}
-            />
-          ) : null}
+          {/* File picker input. BOL uses it for the "+ Add file" path (no
+              capture, so mobile offers Photos/Files); POD forces the camera;
+              rate con uses the standard photo/library/PDF picker. */}
+          <input
+            ref={inputRef}
+            type="file"
+            accept={isPod ? "image/*" : ACCEPT}
+            capture={isPod ? "environment" : undefined}
+            multiple
+            className="hidden"
+            onChange={(e) => onPick(e.target.files)}
+          />
         </span>
       </div>
 
