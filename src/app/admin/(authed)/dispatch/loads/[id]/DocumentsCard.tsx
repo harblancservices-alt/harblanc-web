@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   createLoadDocUploadUrl,
@@ -35,10 +35,32 @@ const KINDS: { kind: string; label: string }[] = [
 // setup Brent liked on the maintenance receipt uploader.
 const ACCEPT = "image/*,application/pdf";
 
+function isImageDoc(doc: LoadDoc): boolean {
+  return (doc.mime ?? "").startsWith("image/");
+}
+
 /**
- * Documents card — one block per paperwork type (rate con / BOL / POD). Each
- * supports MULTIPLE photos/files (multi-angle freight shots), uploaded via
- * the camera/library/file picker, shown back as thumbnails with view + delete.
+ * A signed BOL is the copy BolSigner writes as "<base> — signed.pdf" (em dash).
+ * We tag it from that suffix — the marker we control when saving — so Brent
+ * never has to read the truncated filename to tell the two BOLs apart.
+ */
+function isSignedBol(doc: LoadDoc): boolean {
+  return doc.kind === "bol" && /[—–-]\s*signed\.pdf$/i.test(doc.name);
+}
+
+function docBaseName(name: string): string {
+  return name.replace(/\.(pdf|jpe?g|png|webp|heic)$/i, "").trim();
+}
+
+/** "<base> — signed.pdf" → "<base>" so we can find the unsigned original. */
+function unsignedBaseName(name: string): string {
+  return name.replace(/\s*[—–-]\s*signed\.pdf$/i, "").trim();
+}
+
+/**
+ * Documents card — one block per paperwork type (rate con / BOL / POD). Rows
+ * are tap-to-open; viewing, signing and deleting all happen in the full-screen
+ * DocViewer, so the rows themselves stay uncluttered.
  */
 export function DocumentsCard({
   loadId,
@@ -47,8 +69,35 @@ export function DocumentsCard({
   loadId: string;
   docs: LoadDoc[];
 }) {
+  const router = useRouter();
   const [viewing, setViewing] = useState<LoadDoc | null>(null);
   const [signing, setSigning] = useState<LoadDoc | null>(null);
+
+  async function handleDelete(doc: LoadDoc) {
+    if (!window.confirm("Delete this document? This can't be undone.")) return;
+    await deleteLoadDocument(doc.id, loadId);
+    setViewing(null);
+    router.refresh();
+  }
+
+  // Sign an unsigned BOL, or "Re-sign" — which re-signs the ORIGINAL unsigned
+  // BOL (not the already-signed copy, which would stack signatures) when we can
+  // match it by base name; otherwise falls back to the doc in hand.
+  function handleSign(doc: LoadDoc) {
+    let target = doc;
+    if (isSignedBol(doc)) {
+      const base = unsignedBaseName(doc.name);
+      const original = docs.find(
+        (o) =>
+          o.kind === "bol" &&
+          !isSignedBol(o) &&
+          docBaseName(o.name) === base,
+      );
+      if (original) target = original;
+    }
+    setViewing(null);
+    setSigning(target);
+  }
 
   return (
     <section className="overflow-hidden rounded-md border border-line bg-card">
@@ -67,13 +116,17 @@ export function DocumentsCard({
             docs={docs.filter((d) => d.kind === k.kind)}
             last={i === KINDS.length - 1}
             onView={setViewing}
-            onSign={setSigning}
           />
         ))}
       </div>
 
       {viewing ? (
-        <DocViewer doc={viewing} onClose={() => setViewing(null)} />
+        <DocViewer
+          doc={viewing}
+          onClose={() => setViewing(null)}
+          onSign={handleSign}
+          onDelete={handleDelete}
+        />
       ) : null}
 
       {signing ? (
@@ -87,10 +140,6 @@ export function DocumentsCard({
   );
 }
 
-function isImageDoc(doc: LoadDoc): boolean {
-  return (doc.mime ?? "").startsWith("image/");
-}
-
 function DocKindBlock({
   loadId,
   kind,
@@ -98,7 +147,6 @@ function DocKindBlock({
   docs,
   last,
   onView,
-  onSign,
 }: {
   loadId: string;
   kind: string;
@@ -106,7 +154,6 @@ function DocKindBlock({
   docs: LoadDoc[];
   last: boolean;
   onView: (doc: LoadDoc) => void;
-  onSign: (doc: LoadDoc) => void;
 }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -169,19 +216,6 @@ function DocKindBlock({
     } finally {
       setBusy(false);
       if (inputRef.current) inputRef.current.value = "";
-    }
-  }
-
-  async function onDelete(doc: LoadDoc) {
-    if (!window.confirm(`Delete this ${label.toLowerCase()} file?`)) return;
-    setBusy(true);
-    setErr(null);
-    setOk(null);
-    try {
-      await deleteLoadDocument(doc.id, loadId);
-      router.refresh();
-    } finally {
-      setBusy(false);
     }
   }
 
@@ -308,52 +342,34 @@ function DocKindBlock({
 
       {hasDocs ? (
         <div className="mt-2 space-y-1.5">
-          {/* One compact row per file: type chip + name + View + Delete. No
-              image preview is rendered — View opens the doc in the viewer. */}
-          {docs.map((d) => (
-            <div
-              key={d.id}
-              className="flex items-center gap-2 rounded-md border border-line bg-elevated px-2 py-1"
-            >
-              <span className="shrink-0 rounded-sm bg-card px-1.5 py-[1px] font-mono text-[9px] font-bold uppercase tracking-[0.06em] text-fg-muted">
-                {isImageDoc(d) ? "IMG" : "PDF"}
-              </span>
-              <span className="min-w-0 flex-1 truncate text-[11.5px] text-fg">
-                {d.name}
-              </span>
-              <Button
+          {/* One tappable row per file — opens the full-screen viewer, where
+              Sign / Re-sign / Delete live. Rows carry only a type chip, the
+              name, and a "Signed" badge on the signed BOL copy. */}
+          {docs.map((d) => {
+            const signed = isSignedBol(d);
+            return (
+              <button
+                key={d.id}
                 type="button"
-                variant="navigate"
-                size="sm"
                 onClick={() => onView(d)}
-                className="shrink-0"
+                className="flex w-full items-center gap-2 rounded-md border border-line bg-elevated px-2 py-2 text-left transition-colors hover:bg-card"
               >
-                View
-              </Button>
-              {isBol ? (
-                <Button
-                  type="button"
-                  variant="primary"
-                  size="sm"
-                  onClick={() => onSign(d)}
-                  className="shrink-0"
+                <span className="shrink-0 rounded-sm bg-card px-1.5 py-[1px] font-mono text-[9px] font-bold uppercase tracking-[0.06em] text-fg-muted">
+                  {isImageDoc(d) ? "IMG" : "PDF"}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-[11.5px] text-fg">
+                  {d.name}
+                </span>
+                {signed ? <SignedBadge /> : null}
+                <span
+                  aria-hidden
+                  className="shrink-0 text-[15px] leading-none text-fg-subtle"
                 >
-                  Sign
-                </Button>
-              ) : null}
-              <Button
-                type="button"
-                variant="destructive"
-                size="sm"
-                onClick={() => onDelete(d)}
-                disabled={busy}
-                aria-label={`Delete ${d.name}`}
-                className="shrink-0"
-              >
-                Delete
-              </Button>
-            </div>
-          ))}
+                  ›
+                </span>
+              </button>
+            );
+          })}
         </div>
       ) : null}
 
@@ -375,64 +391,145 @@ function DocKindBlock({
   );
 }
 
-function DocViewer({ doc, onClose }: { doc: LoadDoc; onClose: () => void }) {
+/**
+ * Full-screen document viewer. Fills the whole screen (no floating card),
+ * shows the doc large, and carries a fixed action bar: Close + Open in the top
+ * bar; Delete and (for BOLs) contextual Sign / Re-sign in the bottom bar.
+ */
+function DocViewer({
+  doc,
+  onClose,
+  onSign,
+  onDelete,
+}: {
+  doc: LoadDoc;
+  onClose: () => void;
+  onSign: (doc: LoadDoc) => void;
+  onDelete: (doc: LoadDoc) => Promise<void>;
+}) {
   const isImage = isImageDoc(doc);
+  const isBol = doc.kind === "bol";
+  const signed = isSignedBol(doc);
+  const [deleting, setDeleting] = useState(false);
+
+  // Lock background scroll while the viewer is open.
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+
+  async function del() {
+    if (deleting) return;
+    setDeleting(true);
+    try {
+      await onDelete(doc);
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={`View ${doc.name}`}
+      className="fixed inset-0 z-[55] flex flex-col bg-black"
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-lg border border-line bg-card shadow-2xl"
-      >
-        <div className="flex items-center justify-between gap-2 border-b border-line bg-elevated px-3.5 py-2">
-          <span className="truncate font-mono text-[11px] font-semibold uppercase tracking-[0.1em] text-fg">
+      {/* Top bar: Close · name (+ Signed) · Open */}
+      <div className="flex items-center gap-2 bg-bar px-3 py-2.5">
+        <button
+          type="button"
+          onClick={onClose}
+          className="flex shrink-0 items-center gap-1 rounded-md px-1.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-bar-fg transition-colors hover:bg-white/10"
+        >
+          <span className="text-[16px] leading-none">‹</span> Close
+        </button>
+        <span className="flex min-w-0 flex-1 items-center justify-center gap-2">
+          <span className="truncate text-[12px] font-semibold text-bar-fg">
             {doc.name}
           </span>
-          <div className="flex shrink-0 items-center gap-2">
-            {doc.url ? (
-              <Button
-                href={doc.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                variant="navigate"
-                size="sm"
-              >
-                Open ↗
-              </Button>
-            ) : null}
-            <Button
-              type="button"
-              variant="cancel"
-              size="sm"
-              onClick={onClose}
-              aria-label="Close"
-              className="h-7 w-7 px-0 py-0 text-[16px]"
-            >
-              ×
-            </Button>
-          </div>
-        </div>
-        <div className="min-h-0 flex-1 overflow-auto bg-canvas">
-          {doc.url ? (
-            isImage ? (
-              <img src={doc.url} alt={doc.name} className="mx-auto block max-w-full" />
-            ) : (
-              <iframe
-                src={doc.url}
-                title={doc.name}
-                className="h-[70vh] w-full"
-              />
-            )
+          {signed ? <SignedBadge /> : null}
+        </span>
+        {doc.url ? (
+          <a
+            href={doc.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="shrink-0 rounded-md px-1.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-bar-fg transition-colors hover:bg-white/10"
+          >
+            Open ↗
+          </a>
+        ) : (
+          <span className="w-12 shrink-0" />
+        )}
+      </div>
+
+      {/* Document — large & scrollable/pinchable */}
+      <div className="min-h-0 flex-1 overflow-auto bg-neutral-900">
+        {doc.url ? (
+          isImage ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={doc.url}
+              alt={doc.name}
+              className="mx-auto block h-auto w-full max-w-4xl"
+            />
           ) : (
-            <p className="p-6 text-center text-[13px] text-fg-subtle">
-              Preview unavailable.
-            </p>
-          )}
-        </div>
+            <iframe
+              src={doc.url}
+              title={doc.name}
+              className="h-full w-full border-0"
+            />
+          )
+        ) : (
+          <p className="p-8 text-center text-[13px] text-white/60">
+            Preview unavailable.
+          </p>
+        )}
+      </div>
+
+      {/* Bottom action bar */}
+      <div className="flex items-center justify-between gap-2 border-t border-white/10 bg-bar px-3 py-3">
+        <Button
+          type="button"
+          variant="destructive"
+          onClick={del}
+          disabled={deleting}
+          aria-busy={deleting}
+        >
+          {deleting ? "Deleting…" : "Delete"}
+        </Button>
+        {isBol ? (
+          <Button type="button" variant="primary" onClick={() => onSign(doc)}>
+            {signed ? "Re-sign" : "Sign"}
+          </Button>
+        ) : null}
       </div>
     </div>
+  );
+}
+
+function SignedBadge() {
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-ok/40 bg-ok/15 px-2 py-[2px] font-mono text-[9px] font-bold uppercase tracking-[0.08em] text-ok">
+      <svg
+        width="8"
+        height="8"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={4}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+      >
+        <path d="M20 6 9 17l-5-5" />
+      </svg>
+      Signed
+    </span>
   );
 }
 
