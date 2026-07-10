@@ -602,7 +602,21 @@ function PlacementBox({
   );
 }
 
-// ── Signature pad ────────────────────────────────────────────────────────────
+// ── Signature pad (opens sideways/landscape for a long signing line) ─────────
+type PadView = { rot: 0 | 90; W: number; H: number; portrait: boolean };
+
+function computePadView(): PadView {
+  if (typeof window === "undefined") {
+    return { rot: 0, W: 0, H: 0, portrait: false };
+  }
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  // Portrait phone → rotate the pad 90° so the signing line runs the long way.
+  // Already landscape → use the natural area, no rotation (no double-rotation).
+  if (vh >= vw) return { rot: 90, W: vh, H: vw, portrait: true };
+  return { rot: 0, W: vw, H: vh, portrait: false };
+}
+
 function SignaturePad({
   printName,
   setPrintName,
@@ -623,15 +637,40 @@ function SignaturePad({
   const last = useRef<{ x: number; y: number } | null>(null);
   const [hasInk, setHasInk] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [view, setView] = useState<PadView>(computePadView);
 
-  // Size the canvas to its box (× dpr) and configure the pen once.
+  // Recompute the landscape stage on orientation / viewport change.
+  useEffect(() => {
+    const onResize = () =>
+      setView((prev) => {
+        const next = computePadView();
+        return next.rot === prev.rot && next.W === prev.W && next.H === prev.H
+          ? prev
+          : next;
+      });
+    onResize(); // settle real dimensions after mount
+    window.addEventListener("resize", onResize);
+    window.addEventListener("orientationchange", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("orientationchange", onResize);
+    };
+  }, []);
+
+  // Size the canvas to its box (× dpr) and configure the pen. Re-runs when the
+  // view changes (which relayouts the canvas), so it clears any ink. We read
+  // clientWidth/Height — the element's LOCAL (untransformed) size — which stays
+  // correct while the pad is CSS-rotated (getBoundingClientRect would return the
+  // rotated bounding box instead).
   useEffect(() => {
     const c = canvasRef.current;
     if (!c) return;
-    const rect = c.getBoundingClientRect();
+    const cw = c.clientWidth;
+    const ch = c.clientHeight;
+    if (cw === 0 || ch === 0) return;
     const dpr = Math.min(window.devicePixelRatio || 1, 3);
-    c.width = Math.max(1, Math.round(rect.width * dpr));
-    c.height = Math.max(1, Math.round(rect.height * dpr));
+    c.width = Math.max(1, Math.round(cw * dpr));
+    c.height = Math.max(1, Math.round(ch * dpr));
     const ctx = c.getContext("2d");
     if (!ctx) return;
     ctx.scale(dpr, dpr);
@@ -639,7 +678,8 @@ function SignaturePad({
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     ctx.strokeStyle = "#111827";
-  }, []);
+    setHasInk(false);
+  }, [view]);
 
   // Belt-and-braces: block iOS Safari scroll/zoom gestures on the pad.
   useEffect(() => {
@@ -654,9 +694,25 @@ function SignaturePad({
     };
   }, []);
 
+  // Map a pointer to the canvas's LOCAL (landscape) coordinate space, inverting
+  // the pad's CSS rotation so drawing tracks the finger. Because we draw in
+  // local space, the exported canvas bitmap is always upright — the rotation is
+  // a display-only transform and never touches the pixel buffer, so the saved
+  // signature stamps onto the BOL right-side-up.
   function posOf(e: React.PointerEvent) {
-    const rect = canvasRef.current!.getBoundingClientRect();
-    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    const c = canvasRef.current!;
+    const rect = c.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const Wc = c.clientWidth;
+    const Hc = c.clientHeight;
+    const dx = e.clientX - cx;
+    const dy = e.clientY - cy;
+    if (view.rot === 90) {
+      // Inverse of CSS rotate(90deg): local-centered = (dy, -dx).
+      return { x: dy + Wc / 2, y: -dx + Hc / 2 };
+    }
+    return { x: dx + Wc / 2, y: dy + Hc / 2 };
   }
   function onDown(e: React.PointerEvent<HTMLCanvasElement>) {
     e.preventDefault();
@@ -723,90 +779,115 @@ function SignaturePad({
       role="dialog"
       aria-modal="true"
       aria-label="Signature pad"
-      className="fixed inset-0 z-[60] flex touch-none flex-col bg-neutral-900"
+      className="fixed inset-0 z-[60] touch-none overflow-hidden bg-neutral-900"
     >
-      <div className="flex items-center justify-between gap-3 bg-bar px-4 py-2.5">
-        <span className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-bar-fg">
-          Receiver signature
-        </span>
-        <Button type="button" variant="cancel" size="sm" onClick={onCancel} disabled={busy}>
-          Back
-        </Button>
-      </div>
+      {/* Landscape stage: sized to the rotated dimensions and spun 90° to fill
+          the portrait screen, so the signing line runs the LONG way and every
+          control reads upright once the phone is turned sideways. */}
+      <div
+        className="flex flex-col bg-neutral-900"
+        style={{
+          position: "absolute",
+          left: "50%",
+          top: "50%",
+          width: view.W || "100%",
+          height: view.H || "100%",
+          transform: `translate(-50%, -50%) rotate(${view.rot}deg)`,
+          transformOrigin: "center center",
+        }}
+      >
+        <div className="flex items-center justify-between gap-3 bg-bar px-4 py-2">
+          <span className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-bar-fg">
+            Receiver signature
+          </span>
+          <Button type="button" variant="cancel" size="sm" onClick={onCancel} disabled={busy}>
+            Back
+          </Button>
+        </div>
 
-      <div className="flex min-h-0 flex-1 flex-col gap-2 p-3">
-        <p className="text-center text-[12px] font-semibold text-white/80">
-          Sign with your finger above the line
-        </p>
-        <div className="relative min-h-0 flex-1 overflow-hidden rounded-lg border-2 border-white/25 bg-white">
-          <canvas
-            ref={canvasRef}
-            className="h-full w-full touch-none"
-            style={{ touchAction: "none" }}
-            onPointerDown={onDown}
-            onPointerMove={onMove}
-            onPointerUp={onUp}
-            onPointerLeave={onUp}
-            onPointerCancel={onUp}
-          />
-          {/* Signature baseline: "✕ ____________" + hint. Drawn as an overlay,
-              NOT on the canvas, so it's never captured into the signature PNG. */}
-          <div className="pointer-events-none absolute inset-x-5 bottom-[26%]">
-            <div className="flex items-center gap-2">
-              <span className="-mt-1 text-[22px] leading-none text-neutral-500">
-                ✕
-              </span>
-              <span className="h-[2px] flex-1 rounded bg-neutral-400" />
+        <div className="flex min-h-0 flex-1 flex-col gap-1.5 p-3">
+          <p className="text-center text-[12px] font-semibold text-white/80">
+            Sign with your finger above the line
+          </p>
+          <div className="relative min-h-0 flex-1 overflow-hidden rounded-lg border-2 border-white/25 bg-white">
+            <canvas
+              ref={canvasRef}
+              className="h-full w-full touch-none"
+              style={{ touchAction: "none" }}
+              onPointerDown={onDown}
+              onPointerMove={onMove}
+              onPointerUp={onUp}
+              onPointerLeave={onUp}
+              onPointerCancel={onUp}
+            />
+            {/* Long signature baseline running the WIDE way: "✕ ______" + hint.
+                An overlay, NOT drawn on the canvas, so it's never captured. */}
+            <div className="pointer-events-none absolute inset-x-6 bottom-[24%]">
+              <div className="flex items-center gap-2">
+                <span className="-mt-1 text-[22px] leading-none text-neutral-500">
+                  ✕
+                </span>
+                <span className="h-[2px] flex-1 rounded bg-neutral-400" />
+              </div>
+              <p className="mt-1 text-center text-[11px] font-medium tracking-wide text-neutral-400">
+                Sign above the line
+              </p>
             </div>
-            <p className="mt-1 text-center text-[11px] font-medium tracking-wide text-neutral-400">
-              Sign above the line
-            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <label className="flex flex-col gap-1">
+              <span className="font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-white/60">
+                Print name (optional)
+              </span>
+              <input
+                type="text"
+                value={printName}
+                onChange={(e) => setPrintName(e.target.value)}
+                placeholder="Receiver name"
+                className="rounded-md border border-white/20 bg-neutral-800 px-3 py-2 text-[15px] text-white placeholder:text-white/40 focus:border-accent focus:outline-none"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span className="font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-white/60">
+                Date
+              </span>
+              <input
+                type="text"
+                value={dateStr}
+                onChange={(e) => setDateStr(e.target.value)}
+                inputMode="numeric"
+                className="rounded-md border border-white/20 bg-neutral-800 px-3 py-2 text-[15px] text-white focus:border-accent focus:outline-none"
+              />
+            </label>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2">
-          <label className="flex flex-col gap-1">
-            <span className="font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-white/60">
-              Print name (optional)
-            </span>
-            <input
-              type="text"
-              value={printName}
-              onChange={(e) => setPrintName(e.target.value)}
-              placeholder="Receiver name"
-              className="rounded-md border border-white/20 bg-neutral-800 px-3 py-2 text-[15px] text-white placeholder:text-white/40 focus:border-accent focus:outline-none"
-            />
-          </label>
-          <label className="flex flex-col gap-1">
-            <span className="font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-white/60">
-              Date
-            </span>
-            <input
-              type="text"
-              value={dateStr}
-              onChange={(e) => setDateStr(e.target.value)}
-              inputMode="numeric"
-              className="rounded-md border border-white/20 bg-neutral-800 px-3 py-2 text-[15px] text-white focus:border-accent focus:outline-none"
-            />
-          </label>
+        <div className="grid grid-cols-2 gap-3 border-t border-white/10 bg-bar px-4 py-2.5">
+          <Button type="button" variant="cancel" onClick={clear} disabled={!hasInk || busy} fullWidth>
+            Clear
+          </Button>
+          <Button
+            type="button"
+            variant="primary"
+            onClick={done}
+            disabled={!hasInk || busy}
+            aria-busy={busy}
+            fullWidth
+          >
+            {busy ? "Working…" : "Done"}
+          </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 border-t border-white/10 bg-bar px-4 py-3">
-        <Button type="button" variant="cancel" onClick={clear} disabled={!hasInk || busy} fullWidth>
-          Clear
-        </Button>
-        <Button
-          type="button"
-          variant="primary"
-          onClick={done}
-          disabled={!hasInk || busy}
-          aria-busy={busy}
-          fullWidth
-        >
-          {busy ? "Working…" : "Done"}
-        </Button>
-      </div>
+      {/* Portrait-readable nudge to turn the phone (only when we rotated). */}
+      {view.portrait ? (
+        <div className="pointer-events-none absolute inset-x-0 top-2 flex justify-center">
+          <span className="rounded-full bg-black/70 px-3 py-1 text-[11px] font-semibold text-white/90 shadow-lg">
+            ↻ Turn your phone sideways to sign
+          </span>
+        </div>
+      ) : null}
     </div>
   );
 }
