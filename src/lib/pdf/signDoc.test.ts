@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { PDFDocument, degrees } from "pdf-lib";
 import sharp from "sharp";
-import { signExistingPdf, signImageAsPdf } from "./signDoc";
+import {
+  signExistingPdf,
+  signImageAsPdf,
+  signPdfWithStamps,
+  signImageWithStamps,
+  type SignatureStamp,
+} from "./signDoc";
 
 // A transparent-background "signature" PNG and a white "BOL photo" JPEG,
 // standing in for the browser-produced bytes so we can exercise the real
@@ -92,6 +98,40 @@ describe("signDoc compositing", () => {
       { cx: 100, cy: 100, rotationDeg: 0, widthPts: 150 },
       { pngBytes: png, aspect: 0.375 },
     );
+    expect((await PDFDocument.load(out)).getPageCount()).toBe(1);
+  });
+
+  it("stamps TWO signatures (receiver + carrier) onto one PDF in a single pass", async () => {
+    const src = await blankPdf(1);
+    const png = await sigPng();
+    const stamps: SignatureStamp[] = [
+      {
+        pageIndex: 0,
+        place: { cx: 180, cy: 120, rotationDeg: 0, widthPts: 180 },
+        content: { pngBytes: png, aspect: 90 / 240, printName: "Receiver", dateStr: "07/10/2026" },
+      },
+      {
+        pageIndex: 0,
+        place: { cx: 440, cy: 120, rotationDeg: 0, widthPts: 180 },
+        content: { pngBytes: png, aspect: 90 / 240, printName: "Carrier", dateStr: "07/10/2026" },
+      },
+    ];
+    const out = await signPdfWithStamps(src, stamps);
+    const reloaded = await PDFDocument.load(out);
+    expect(reloaded.getPageCount()).toBe(1);
+    // Both signatures present → materially larger than a single-stamp result.
+    const one = await signPdfWithStamps(src, [stamps[0]]);
+    expect(out.byteLength).toBeGreaterThan(one.byteLength);
+  });
+
+  it("stamps two signatures onto an image-backed PDF", async () => {
+    const jpg = await bolJpg(1000, 700);
+    const png = await sigPng();
+    const stamps: SignatureStamp[] = [
+      { pageIndex: 0, place: { cx: 250, cy: 200, rotationDeg: 0, widthPts: 300 }, content: { pngBytes: png, aspect: 0.375 } },
+      { pageIndex: 0, place: { cx: 700, cy: 200, rotationDeg: 0, widthPts: 300 }, content: { pngBytes: png, aspect: 0.375 } },
+    ];
+    const out = await signImageWithStamps(jpg, 1000, 700, stamps);
     expect((await PDFDocument.load(out)).getPageCount()).toBe(1);
   });
 

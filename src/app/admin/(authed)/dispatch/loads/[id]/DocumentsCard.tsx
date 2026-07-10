@@ -23,7 +23,17 @@ export type LoadDoc = {
   thumbUrl: string | null;
   sizeBytes: number | null;
   mime: string | null;
+  /** Roles signed on this BOL (via its original): ["receiver","carrier"]. */
+  signedRoles?: string[];
+  /** Set on a generated "— signed.pdf": the original doc it was stamped from. */
+  signedFromDocId?: string | null;
 };
+
+export type BolRole = "receiver" | "carrier";
+const BOL_ROLES: { key: BolRole; label: string }[] = [
+  { key: "receiver", label: "Receiver" },
+  { key: "carrier", label: "Carrier" },
+];
 
 const KINDS: { kind: string; label: string }[] = [
   { kind: "rate_con", label: "Rate confirmation" },
@@ -41,24 +51,6 @@ function isImageDoc(doc: LoadDoc): boolean {
 }
 
 /**
- * A signed BOL is the copy BolSigner writes as "<base> — signed.pdf" (em dash).
- * We tag it from that suffix — the marker we control when saving — so Brent
- * never has to read the truncated filename to tell the two BOLs apart.
- */
-function isSignedBol(doc: LoadDoc): boolean {
-  return doc.kind === "bol" && /[—–-]\s*signed\.pdf$/i.test(doc.name);
-}
-
-function docBaseName(name: string): string {
-  return name.replace(/\.(pdf|jpe?g|png|webp|heic)$/i, "").trim();
-}
-
-/** "<base> — signed.pdf" → "<base>" so we can find the unsigned original. */
-function unsignedBaseName(name: string): string {
-  return name.replace(/\s*[—–-]\s*signed\.pdf$/i, "").trim();
-}
-
-/**
  * Documents card — one block per paperwork type (rate con / BOL / POD). Rows
  * are tap-to-open; viewing, signing and deleting all happen in the full-screen
  * DocViewer, so the rows themselves stay uncluttered.
@@ -72,7 +64,9 @@ export function DocumentsCard({
 }) {
   const router = useRouter();
   const [viewing, setViewing] = useState<LoadDoc | null>(null);
-  const [signing, setSigning] = useState<LoadDoc | null>(null);
+  const [signing, setSigning] = useState<{ doc: LoadDoc; role: BolRole } | null>(
+    null,
+  );
 
   async function handleDelete(doc: LoadDoc) {
     if (!window.confirm("Delete this document? This can't be undone.")) return;
@@ -81,23 +75,15 @@ export function DocumentsCard({
     router.refresh();
   }
 
-  // Sign an unsigned BOL, or "Re-sign" — which re-signs the ORIGINAL unsigned
-  // BOL (not the already-signed copy, which would stack signatures) when we can
-  // match it by base name; otherwise falls back to the doc in hand.
-  function handleSign(doc: LoadDoc) {
-    let target = doc;
-    if (isSignedBol(doc)) {
-      const base = unsignedBaseName(doc.name);
-      const original = docs.find(
-        (o) =>
-          o.kind === "bol" &&
-          !isSignedBol(o) &&
-          docBaseName(o.name) === base,
-      );
-      if (original) target = original;
-    }
+  // Always sign the ORIGINAL BOL (resolve it from a signed output via
+  // signedFromDocId). The role's signature is stored separately and the signed
+  // PDF is regenerated server-side from the original + all roles, so signing
+  // one role never disturbs the other.
+  function handleSign(doc: LoadDoc, role: BolRole) {
+    const anchorId = doc.signedFromDocId ?? doc.id;
+    const original = docs.find((o) => o.id === anchorId) ?? doc;
     setViewing(null);
-    setSigning(target);
+    setSigning({ doc: original, role });
   }
 
   return (
@@ -133,7 +119,8 @@ export function DocumentsCard({
       {signing ? (
         <BolSigner
           loadId={loadId}
-          doc={signing}
+          doc={signing.doc}
+          role={signing.role}
           onClose={() => setSigning(null)}
         />
       ) : null}
@@ -345,32 +332,31 @@ function DocKindBlock({
         <div className="mt-2 space-y-1.5">
           {/* One tappable row per file — opens the full-screen viewer, where
               Sign / Re-sign / Delete live. Rows carry only a type chip, the
-              name, and a "Signed" badge on the signed BOL copy. */}
-          {docs.map((d) => {
-            const signed = isSignedBol(d);
-            return (
-              <button
-                key={d.id}
-                type="button"
-                onClick={() => onView(d)}
-                className="flex w-full items-center gap-2 rounded-md border border-line bg-elevated px-2 py-2 text-left transition-colors hover:bg-card"
+              name, and a role-aware "Signed" badge. */}
+          {docs.map((d) => (
+            <button
+              key={d.id}
+              type="button"
+              onClick={() => onView(d)}
+              className="flex w-full items-center gap-2 rounded-md border border-line bg-elevated px-2 py-2 text-left transition-colors hover:bg-card"
+            >
+              <span className="shrink-0 rounded-sm bg-card px-1.5 py-[1px] font-mono text-[9px] font-bold uppercase tracking-[0.06em] text-fg-muted">
+                {isImageDoc(d) ? "IMG" : "PDF"}
+              </span>
+              <span className="min-w-0 flex-1 truncate text-[11.5px] text-fg">
+                {d.name}
+              </span>
+              {d.signedRoles && d.signedRoles.length > 0 ? (
+                <SignedBadge roles={d.signedRoles} />
+              ) : null}
+              <span
+                aria-hidden
+                className="shrink-0 text-[15px] leading-none text-fg-subtle"
               >
-                <span className="shrink-0 rounded-sm bg-card px-1.5 py-[1px] font-mono text-[9px] font-bold uppercase tracking-[0.06em] text-fg-muted">
-                  {isImageDoc(d) ? "IMG" : "PDF"}
-                </span>
-                <span className="min-w-0 flex-1 truncate text-[11.5px] text-fg">
-                  {d.name}
-                </span>
-                {signed ? <SignedBadge /> : null}
-                <span
-                  aria-hidden
-                  className="shrink-0 text-[15px] leading-none text-fg-subtle"
-                >
-                  ›
-                </span>
-              </button>
-            );
-          })}
+                ›
+              </span>
+            </button>
+          ))}
         </div>
       ) : null}
 
@@ -394,8 +380,9 @@ function DocKindBlock({
 
 /**
  * Full-screen document viewer. Fills the whole screen (no floating card),
- * shows the doc large, and carries a fixed action bar: Close + Open in the top
- * bar; Delete and (for BOLs) contextual Sign / Re-sign in the bottom bar.
+ * shows the doc large, and carries a fixed action bar: ✕ close + a role-aware
+ * Signed badge in the top bar; Delete plus, for BOLs, TWO contextual sign
+ * buttons (Sign/Re-sign Receiver and Sign/Re-sign Carrier) in the bottom bar.
  */
 function DocViewer({
   doc,
@@ -405,12 +392,12 @@ function DocViewer({
 }: {
   doc: LoadDoc;
   onClose: () => void;
-  onSign: (doc: LoadDoc) => void;
+  onSign: (doc: LoadDoc, role: BolRole) => void;
   onDelete: (doc: LoadDoc) => Promise<void>;
 }) {
   const isImage = isImageDoc(doc);
   const isBol = doc.kind === "bol";
-  const signed = isSignedBol(doc);
+  const signedRoles = doc.signedRoles ?? [];
   const [deleting, setDeleting] = useState(false);
 
   // Lock background scroll while the viewer is open.
@@ -465,7 +452,7 @@ function DocViewer({
           <span className="truncate text-[12px] font-semibold text-bar-fg">
             {doc.name}
           </span>
-          {signed ? <SignedBadge /> : null}
+          {signedRoles.length > 0 ? <SignedBadge roles={signedRoles} /> : null}
         </span>
       </div>
 
@@ -489,7 +476,7 @@ function DocViewer({
         )}
       </div>
 
-      {/* Bottom action bar */}
+      {/* Bottom action bar: Delete + (BOL only) a Sign button per role. */}
       <div className="flex items-center justify-between gap-2 border-t border-white/10 bg-bar px-3 py-3">
         <Button
           type="button"
@@ -501,9 +488,19 @@ function DocViewer({
           {deleting ? "Deleting…" : "Delete"}
         </Button>
         {isBol ? (
-          <Button type="button" variant="primary" onClick={() => onSign(doc)}>
-            {signed ? "Re-sign" : "Sign"}
-          </Button>
+          <div className="flex items-center gap-2">
+            {BOL_ROLES.map((r) => (
+              <Button
+                key={r.key}
+                type="button"
+                variant="primary"
+                size="sm"
+                onClick={() => onSign(doc, r.key)}
+              >
+                {signedRoles.includes(r.key) ? "Re-sign" : "Sign"} {r.label}
+              </Button>
+            ))}
+          </div>
         ) : null}
       </div>
     </div>
@@ -582,7 +579,10 @@ function PdfViewerPages({ url, name }: { url: string; name: string }) {
   );
 }
 
-function SignedBadge() {
+function SignedBadge({ roles }: { roles: string[] }) {
+  const labels = roles.map(
+    (r) => BOL_ROLES.find((br) => br.key === r)?.label ?? r,
+  );
   return (
     <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-ok/40 bg-ok/15 px-2 py-[2px] font-mono text-[9px] font-bold uppercase tracking-[0.08em] text-ok">
       <svg
@@ -598,7 +598,7 @@ function SignedBadge() {
       >
         <path d="M20 6 9 17l-5-5" />
       </svg>
-      Signed
+      {labels.join(" + ")}
     </span>
   );
 }

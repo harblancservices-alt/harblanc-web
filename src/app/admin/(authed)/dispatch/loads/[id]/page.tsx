@@ -138,7 +138,7 @@ export default async function LoadDetailPage({
   const { data: docRows } = await sb
     .from("load_documents")
     .select(
-      "id, kind, original_filename, storage_path, thumb_path, size_bytes, mime_type",
+      "id, kind, original_filename, storage_path, thumb_path, size_bytes, mime_type, signed_from_doc_id",
     )
     .eq("load_id", id)
     .order("created_at", { ascending: false })
@@ -150,7 +150,22 @@ export default async function LoadDetailPage({
       thumb_path: string | null;
       size_bytes: number | null;
       mime_type: string | null;
+      signed_from_doc_id: string | null;
     }[]>();
+  // Which roles (receiver / carrier) are signed on each BOL, keyed by the
+  // ORIGINAL doc. Ordered receiver-first for stable badge/button labels.
+  const ROLE_ORDER = ["receiver", "carrier"];
+  const { data: sigRows } = await sb
+    .from("bol_signatures")
+    .select("doc_id, role")
+    .eq("load_id", id)
+    .returns<{ doc_id: string; role: string }[]>();
+  const rolesByDoc = new Map<string, string[]>();
+  for (const r of sigRows ?? []) {
+    const arr = rolesByDoc.get(r.doc_id) ?? [];
+    if (!arr.includes(r.role)) arr.push(r.role);
+    rolesByDoc.set(r.doc_id, arr);
+  }
   // Sign originals (tap-to-view) and thumbnails (grid) in ONE storage request.
   const docs = docRows ?? [];
   const signedByPath = new Map<string, string>();
@@ -173,6 +188,12 @@ export default async function LoadDetailPage({
     // Grid uses the thumb when present, falling back to the full-size original.
     const thumbUrl =
       (d.thumb_path ? signedByPath.get(d.thumb_path) : null) ?? url;
+    // Role state hangs off the ORIGINAL doc; a signed output inherits its
+    // original's roles via signed_from_doc_id.
+    const anchorId = d.signed_from_doc_id ?? d.id;
+    const signedRoles = (rolesByDoc.get(anchorId) ?? [])
+      .slice()
+      .sort((a, b) => ROLE_ORDER.indexOf(a) - ROLE_ORDER.indexOf(b));
     return {
       id: d.id,
       kind: d.kind,
@@ -181,6 +202,8 @@ export default async function LoadDetailPage({
       thumbUrl,
       sizeBytes: d.size_bytes,
       mime: d.mime_type,
+      signedRoles,
+      signedFromDocId: d.signed_from_doc_id,
     };
   });
 

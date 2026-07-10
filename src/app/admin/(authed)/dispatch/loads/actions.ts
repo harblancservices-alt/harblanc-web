@@ -2,8 +2,14 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import sharp from "sharp";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { lookupZip, estimateLaneMiles } from "@/lib/dispatch/distance";
+import {
+  signPdfWithStamps,
+  signImageWithStamps,
+  type SignatureStamp,
+} from "@/lib/pdf/signDoc";
 
 /**
  * Dispatch → Load Board server actions. Insert a load and toggle its
@@ -588,6 +594,208 @@ export async function deleteLoadDocument(
   await sb.from("load_documents").delete().eq("id", row.id);
   revalidatePath(`/admin/dispatch/loads/${loadId}`);
   revalidatePath("/admin");
+}
+
+// ── BOL signatures (Receiver + Carrier) ────────────────────────────────────
+//
+// The original unsigned BOL is never touched. Each role's signature (a trimmed
+// transparent-PNG data URL) + its placement is stored in bol_signatures keyed
+// by (original doc, role). On every save we REGENERATE the "— signed.pdf"
+// output from the original + ALL current role rows, so re-signing one role
+// replaces only its row and re-stamps both — the two signatures always coexist.
+
+const BOL_ROLES = new Set(["receiver", "carrier"]);
+
+/** Placement sent by the client — already mapped to the ORIGINAL's geometry. */
+export type BolPlacement =
+  | {
+      kind: "pdf";
+      pageIndex: number;
+      cx: number;
+      cy: number;
+      rotationDeg: number;
+      widthPts: number;
+      aspect: number;
+    }
+  | { kind: "image"; fx: number; fy: number; widthFrac: number; aspect: number };
+
+export type SignBolRolePayload = {
+  pngDataUrl: string;
+  printName: string;
+  dateStr: string;
+  placement: BolPlacement;
+};
+
+type StoredPlacement = BolPlacement & { printName?: string; dateStr?: string };
+type SigRow = { role: string; png: string; placement: StoredPlacement };
+
+function dataUrlToBytes(dataUrl: string): Uint8Array {
+  const comma = dataUrl.indexOf(",");
+  const b64 = comma >= 0 ? dataUrl.slice(comma + 1) : dataUrl;
+  return new Uint8Array(Buffer.from(b64, "base64"));
+}
+
+function stampFromRow(row: SigRow, cx: number, cy: number, widthPts: number, rotationDeg: number): SignatureStamp {
+  const pl = row.placement;
+  return {
+    pageIndex: pl.kind === "pdf" ? pl.pageIndex : 0,
+    place: { cx, cy, rotationDeg, widthPts },
+    content: {
+      pngBytes: dataUrlToBytes(row.png),
+      aspect: pl.aspect,
+      printName: pl.printName,
+      dateStr: pl.dateStr,
+    },
+  };
+}
+
+async function regenerateSignedBol(
+  origBytes: Uint8Array,
+  origMime: string,
+  sigs: SigRow[],
+): Promise<Uint8Array> {
+  const isPdf = (origMime ?? "").includes("pdf");
+  if (isPdf) {
+    const stamps = sigs
+      .filter((s) => s.placement.kind === "pdf")
+      .map((s) => {
+        const pl = s.placement as Extract<BolPlacement, { kind: "pdf" }>;
+        return stampFromRow(s, pl.cx, pl.cy, pl.widthPts, pl.rotationDeg);
+      });
+    return signPdfWithStamps(origBytes, stamps);
+  }
+  // Image BOL: auto-orient (EXIF) + cap size, then map each role's fractions
+  // onto the resulting pixel dimensions (resolution-independent).
+  const { data: jpgBuf, info } = await sharp(origBytes)
+    .rotate()
+    .resize({ width: 2400, height: 2400, fit: "inside", withoutEnlargement: true })
+    .jpeg({ quality: 85 })
+    .toBuffer({ resolveWithObject: true });
+  const W = info.width;
+  const H = info.height;
+  const stamps = sigs
+    .filter((s) => s.placement.kind === "image")
+    .map((s) => {
+      const pl = s.placement as Extract<BolPlacement, { kind: "image" }>;
+      return stampFromRow(s, pl.fx * W, H - pl.fy * H, pl.widthFrac * W, 0);
+    });
+  return signImageWithStamps(new Uint8Array(jpgBuf), W, H, stamps);
+}
+
+/**
+ * Save (or replace) one role's signature on a BOL and regenerate the signed
+ * PDF from the original + all current role signatures. Keeps the original.
+ */
+export async function signBolRole(
+  loadId: string,
+  originalDocId: string,
+  role: string,
+  payload: SignBolRolePayload,
+): Promise<DocUploadResult> {
+  try {
+    if (!BOL_ROLES.has(role)) {
+      return { ok: false, reason: "Unknown signer role." };
+    }
+    const sb = createServiceRoleClient();
+
+    const { data: orig } = await sb
+      .from("load_documents")
+      .select("id, storage_path, original_filename, mime_type")
+      .eq("id", originalDocId)
+      .eq("load_id", loadId)
+      .maybeSingle<{
+        id: string;
+        storage_path: string;
+        original_filename: string;
+        mime_type: string | null;
+      }>();
+    if (!orig) return { ok: false, reason: "Original BOL not found." };
+
+    // 1. Upsert this role's signature (replaces the role's prior signature).
+    const { error: upErr } = await sb.from("bol_signatures").upsert(
+      {
+        load_id: loadId,
+        doc_id: originalDocId,
+        role,
+        png: payload.pngDataUrl,
+        placement: {
+          ...payload.placement,
+          printName: payload.printName,
+          dateStr: payload.dateStr,
+        },
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "doc_id,role" },
+    );
+    if (upErr) return { ok: false, reason: `Could not save signature: ${upErr.message}` };
+
+    // 2. Regenerate from the original + ALL current role signatures.
+    const { data: sigRows } = await sb
+      .from("bol_signatures")
+      .select("role, png, placement")
+      .eq("doc_id", originalDocId)
+      .returns<SigRow[]>();
+    const sigs = sigRows ?? [];
+
+    const { data: blob, error: dlErr } = await sb.storage
+      .from(DOC_BUCKET)
+      .download(orig.storage_path);
+    if (dlErr || !blob) {
+      return { ok: false, reason: "Could not read the original BOL." };
+    }
+    const origBytes = new Uint8Array(await blob.arrayBuffer());
+    const signedBytes = await regenerateSignedBol(origBytes, orig.mime_type ?? "", sigs);
+
+    // 3. Upload the regenerated signed PDF (server → storage, no body limit).
+    const base =
+      (orig.original_filename ?? "BOL")
+        .replace(/\.(pdf|jpe?g|png|webp|heic)$/i, "")
+        .trim() || "BOL";
+    const fileName = `${base} — signed.pdf`;
+    const prefix = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+    const path = `${loadId}/${prefix}-${sanitizeFilename(fileName)}`;
+    const { error: putErr } = await sb.storage
+      .from(DOC_BUCKET)
+      .upload(path, Buffer.from(signedBytes), { contentType: "application/pdf" });
+    if (putErr) return { ok: false, reason: `Could not save signed BOL: ${putErr.message}` };
+
+    // 4. Insert the new signed-output row, then drop the previous one(s).
+    const { data: prev } = await sb
+      .from("load_documents")
+      .select("id, storage_path")
+      .eq("signed_from_doc_id", originalDocId)
+      .returns<{ id: string; storage_path: string }[]>();
+
+    const { error: insErr } = await sb.from("load_documents").insert({
+      load_id: loadId,
+      kind: "bol",
+      storage_path: path,
+      thumb_path: null,
+      original_filename: fileName.slice(0, 240),
+      mime_type: "application/pdf",
+      size_bytes: signedBytes.byteLength,
+      signed_from_doc_id: originalDocId,
+    });
+    if (insErr) {
+      await sb.storage.from(DOC_BUCKET).remove([path]);
+      return { ok: false, reason: `Could not save signed BOL: ${insErr.message}` };
+    }
+
+    if (prev && prev.length > 0) {
+      await sb.storage.from(DOC_BUCKET).remove(prev.map((p) => p.storage_path));
+      await sb.from("load_documents").delete().in("id", prev.map((p) => p.id));
+    }
+
+    revalidatePath(`/admin/dispatch/loads/${loadId}`);
+    revalidatePath("/admin");
+    return { ok: true };
+  } catch (e) {
+    console.error("[signBolRole] failed:", e);
+    return {
+      ok: false,
+      reason: `Could not sign BOL: ${e instanceof Error ? e.message : "unexpected error"}`,
+    };
+  }
 }
 
 /** Bulk soft-delete loads selected on the Load Board (multi-select). */

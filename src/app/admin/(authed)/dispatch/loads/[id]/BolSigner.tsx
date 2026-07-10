@@ -4,19 +4,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { PDFPageProxy } from "pdfjs-dist";
 import { Button } from "@/components/ui/Button";
-import {
-  createLoadDocUploadUrl,
-  recordLoadDocuments,
-  type RecordDoc,
-} from "../actions";
-import { uploadFileToSignedUrl } from "@/lib/storage/client-upload";
+import { signBolRole, type SignBolRolePayload } from "../actions";
 import { loadPdfjs } from "@/lib/pdf/pdfjs";
-import {
-  signExistingPdf,
-  signImageAsPdf,
-  type SignaturePlacement,
-} from "@/lib/pdf/signDoc";
-import type { LoadDoc } from "./DocumentsCard";
+import type { LoadDoc, BolRole } from "./DocumentsCard";
 
 /**
  * BOL finger-signature flow — "hand the phone to the receiver, they sign".
@@ -54,9 +44,10 @@ function isPdfDoc(doc: LoadDoc): boolean {
   return (doc.mime ?? "").includes("pdf") || /\.pdf$/i.test(doc.name);
 }
 
-function baseName(name: string): string {
-  return name.replace(/\.(pdf|jpe?g|png|webp|heic)$/i, "").trim() || "BOL";
-}
+const ROLE_LABEL: Record<BolRole, string> = {
+  receiver: "Receiver",
+  carrier: "Carrier",
+};
 
 function todayLabel(): string {
   const d = new Date();
@@ -82,16 +73,17 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 export function BolSigner({
   loadId,
   doc,
+  role,
   onClose,
 }: {
   loadId: string;
-  doc: LoadDoc;
+  doc: LoadDoc; // the ORIGINAL unsigned BOL (the signing anchor)
+  role: BolRole;
   onClose: () => void;
 }) {
   const router = useRouter();
   const isPdf = isPdfDoc(doc);
 
-  const bytesRef = useRef<Uint8Array | null>(null); // original PDF bytes (pdf-lib)
   const pageProxiesRef = useRef<PDFPageProxy[]>([]); // pdf.js pages (coord mapping)
 
   const [step, setStep] = useState<Step>("loading");
@@ -123,10 +115,7 @@ export function BolSigner({
         const buf = new Uint8Array(await resp.arrayBuffer());
 
         if (isPdf) {
-          bytesRef.current = buf;
           const pdfjs = await loadPdfjs();
-          // pdf.js may transfer (detach) the buffer to its worker — give it a
-          // copy so bytesRef stays intact for pdf-lib compositing.
           const pdfDoc = await pdfjs.getDocument({ data: buf.slice() }).promise;
           const targetW = Math.min((window.innerWidth || 400) - 16, 700);
           const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -211,49 +200,17 @@ export function BolSigner({
     [],
   );
 
-  async function uploadSigned(bytes: Uint8Array): Promise<void> {
-    const fileName = `${baseName(doc.name)} — signed.pdf`;
-    // Copy into a fresh ArrayBuffer-backed view so it's a valid BlobPart under
-    // the strict DOM lib (pdf-lib returns Uint8Array<ArrayBufferLike>).
-    const blob = new Blob([new Uint8Array(bytes)], { type: "application/pdf" });
-    const file = new File([blob], fileName, { type: "application/pdf" });
-    const urlRes = await createLoadDocUploadUrl(
-      loadId,
-      file.name,
-      file.type,
-      file.size,
-    );
-    if (!urlRes.ok) throw new Error(urlRes.reason);
-    const up = await uploadFileToSignedUrl(
-      urlRes.bucket,
-      urlRes.path,
-      urlRes.token,
-      file,
-    );
-    if (!up.ok) throw new Error(up.reason);
-    const rec: RecordDoc = {
-      storagePath: urlRes.path,
-      originalFilename: file.name,
-      mimeType: file.type,
-      sizeBytes: file.size,
-    };
-    const r = await recordLoadDocuments(loadId, "bol", [rec]);
-    if (!r.ok) throw new Error(r.reason);
-  }
-
-  // Confirmed → composite for real and upload.
+  // Confirmed → send this role's signature + placement to the server, which
+  // regenerates the signed PDF from the ORIGINAL + all current role signatures
+  // (so the other role's signature is preserved). Placement is mapped to the
+  // original's geometry here: PDF via pdf.js convertToPdfPoint (rotation-safe),
+  // image as page fractions the server resolves against the image dimensions.
   async function handleSave() {
     if (!placement || !signature) return;
     setStep("saving");
     setErr(null);
     try {
-      const content = {
-        pngBytes: signature.png,
-        aspect: signature.aspect,
-        printName,
-        dateStr,
-      };
-      let out: Uint8Array;
+      let payload: SignBolRolePayload;
       if (isPdf) {
         const p = pageProxiesRef.current[placement.pageIndex];
         const vp1 = p.getViewport({ scale: 1 });
@@ -261,29 +218,36 @@ export function BolSigner({
           placement.fx * vp1.width,
           placement.fy * vp1.height,
         ) as [number, number];
-        const place: SignaturePlacement = {
-          cx,
-          cy,
-          rotationDeg: p.rotate,
-          widthPts: SIG_WIDTH_FRAC * vp1.width,
+        payload = {
+          pngDataUrl: signature.dataUrl,
+          printName,
+          dateStr,
+          placement: {
+            kind: "pdf",
+            pageIndex: placement.pageIndex,
+            cx,
+            cy,
+            rotationDeg: p.rotate,
+            widthPts: SIG_WIDTH_FRAC * vp1.width,
+            aspect: signature.aspect,
+          },
         };
-        out = await signExistingPdf(
-          bytesRef.current!,
-          placement.pageIndex,
-          place,
-          content,
-        );
       } else {
-        const im = imgSrc!;
-        const place: SignaturePlacement = {
-          cx: placement.fx * im.w,
-          cy: im.h - placement.fy * im.h, // top-left center → bottom-left origin
-          rotationDeg: 0,
-          widthPts: SIG_WIDTH_FRAC * im.w,
+        payload = {
+          pngDataUrl: signature.dataUrl,
+          printName,
+          dateStr,
+          placement: {
+            kind: "image",
+            fx: placement.fx,
+            fy: placement.fy,
+            widthFrac: SIG_WIDTH_FRAC,
+            aspect: signature.aspect,
+          },
         };
-        out = await signImageAsPdf(im.jpg, im.w, im.h, place, content);
       }
-      await uploadSigned(out);
+      const res = await signBolRole(loadId, doc.id, role, payload);
+      if (!res.ok) throw new Error(res.reason);
       router.refresh();
       onClose();
     } catch (e) {
@@ -296,6 +260,7 @@ export function BolSigner({
   if (step === "sign" && placement) {
     return (
       <SignaturePad
+        roleLabel={ROLE_LABEL[role]}
         printName={printName}
         setPrintName={setPrintName}
         dateStr={dateStr}
@@ -358,7 +323,7 @@ export function BolSigner({
     >
       <div className="flex items-center justify-between gap-3 bg-bar px-4 py-2.5">
         <span className="truncate font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-bar-fg">
-          {step === "confirm" ? "Confirm signature" : "Sign BOL"}
+          {step === "confirm" ? "Confirm" : "Sign"} · {ROLE_LABEL[role]}
         </span>
         <Button
           type="button"
@@ -618,6 +583,7 @@ function computePadView(): PadView {
 }
 
 function SignaturePad({
+  roleLabel,
   printName,
   setPrintName,
   dateStr,
@@ -625,6 +591,7 @@ function SignaturePad({
   onCancel,
   onDone,
 }: {
+  roleLabel: string;
   printName: string;
   setPrintName: (v: string) => void;
   dateStr: string;
@@ -798,7 +765,7 @@ function SignaturePad({
       >
         <div className="flex items-center justify-between gap-3 bg-bar px-4 py-2">
           <span className="font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-bar-fg">
-            Receiver signature
+            {roleLabel} signature
           </span>
           <Button type="button" variant="cancel" size="sm" onClick={onCancel} disabled={busy}>
             Back
@@ -844,7 +811,7 @@ function SignaturePad({
                 type="text"
                 value={printName}
                 onChange={(e) => setPrintName(e.target.value)}
-                placeholder="Receiver name"
+                placeholder={`${roleLabel} name`}
                 className="rounded-md border border-white/20 bg-neutral-800 px-3 py-2 text-[15px] text-white placeholder:text-white/40 focus:border-accent focus:outline-none"
               />
             </label>

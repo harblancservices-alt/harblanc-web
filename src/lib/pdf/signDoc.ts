@@ -95,6 +95,48 @@ async function stampSignature(
   }
 }
 
+/** One signature to stamp: which page, where, and what. */
+export type SignatureStamp = {
+  pageIndex: number;
+  place: SignaturePlacement;
+  content: SignatureContent;
+};
+
+/**
+ * Stamp MANY signatures onto an existing PDF in one pass (e.g. Receiver +
+ * Carrier). Returns the new PDF's bytes; the source is never mutated. Used to
+ * REGENERATE the signed BOL from the original + all current role signatures.
+ */
+export async function signPdfWithStamps(
+  pdfBytes: Uint8Array,
+  stamps: SignatureStamp[],
+): Promise<Uint8Array> {
+  const pdf = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
+  const pages = pdf.getPages();
+  for (const s of stamps) {
+    const idx = Math.max(0, Math.min(s.pageIndex, pages.length - 1));
+    await stampSignature(pdf, pages[idx], s.place, s.content);
+  }
+  return pdf.save();
+}
+
+/** Build a one-page PDF from a JPEG image BOL and stamp MANY signatures onto it. */
+export async function signImageWithStamps(
+  bgJpgBytes: Uint8Array,
+  widthPx: number,
+  heightPx: number,
+  stamps: SignatureStamp[],
+): Promise<Uint8Array> {
+  const pdf = await PDFDocument.create();
+  const page = pdf.addPage([widthPx, heightPx]);
+  const bg = await pdf.embedJpg(bgJpgBytes);
+  page.drawImage(bg, { x: 0, y: 0, width: widthPx, height: heightPx });
+  for (const s of stamps) {
+    await stampSignature(pdf, page, s.place, s.content);
+  }
+  return pdf.save();
+}
+
 /** Embed the signature onto an existing PDF page. Returns the new PDF's bytes. */
 export async function signExistingPdf(
   pdfBytes: Uint8Array,
