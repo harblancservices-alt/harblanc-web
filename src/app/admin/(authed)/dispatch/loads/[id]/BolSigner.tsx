@@ -21,29 +21,32 @@ import type { LoadDoc } from "./DocumentsCard";
 /**
  * BOL finger-signature flow — "hand the phone to the receiver, they sign".
  *
- * 1. Render the BOL page(s) to screen (pdf.js for PDFs; a canvas for images).
- * 2. Brent (or the receiver) taps WHERE the signature goes — a marker drops.
- * 3. A full-screen finger-drawing pad opens (pointer events, no page scroll).
- * 4. On Done we composite the signature PNG onto the tapped page with pdf-lib,
- *    mapping the tap to PDF user-space via pdf.js's own convertToPdfPoint
- *    (rotation- and offset-safe), and save it as a NEW "<name> — signed.pdf"
- *    BOL attachment via the existing signed-upload path. The original is kept.
- *
- * Nothing here touches the stored original — the signed copy is a separate row.
+ * 1. place   — render the BOL page(s)/image; tap or DRAG a correctly-sized
+ *              outline box (the real ~34%-page-width region the signature will
+ *              occupy) so you can see exactly what it overlaps before signing.
+ * 2. sign    — full-screen finger pad with a real signature baseline ("✕ ____"
+ *              + "Sign above the line"); pointer events, no page scroll.
+ * 3. confirm — the BOL with the signature composited in its true position, so
+ *              Brent can verify it doesn't cover critical text. Save or Redo.
+ * 4. save    — composite with pdf-lib (tap → PDF user-space via pdf.js's own
+ *              convertToPdfPoint, rotation/offset-safe) and upload a NEW
+ *              "<name> — signed.pdf" BOL. The stored original is never touched.
  */
 
 const SIG_WIDTH_FRAC = 0.34; // signature width as a fraction of the page width
+const DEFAULT_SIG_ASPECT = 0.34; // h/w guess for the box BEFORE a signature exists
 const IMG_MAX_DIM = 2400; // cap image-BOL resolution so the signed PDF stays small
 
-type Step = "loading" | "place" | "sign" | "saving";
+type Step = "loading" | "place" | "sign" | "confirm" | "saving";
 type RenderedPage = {
   pageIndex: number;
   dataUrl: string;
   dispW: number;
   dispH: number;
 };
-type Placement = { pageIndex: number; fx: number; fy: number };
+type Placement = { pageIndex: number; fx: number; fy: number }; // fx/fy = box CENTER
 type ImageSource = { jpg: Uint8Array; w: number; h: number; dataUrl: string };
+type Signature = { png: Uint8Array; dataUrl: string; aspect: number };
 
 const clamp01 = (n: number) => Math.max(0, Math.min(1, n));
 
@@ -60,6 +63,10 @@ function todayLabel(): string {
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
   return `${mm}/${dd}/${d.getFullYear()}`;
+}
+
+function signatureLabel(name: string, date: string): string {
+  return [name.trim(), date.trim()].filter(Boolean).join("   ");
 }
 
 function loadImage(src: string): Promise<HTMLImageElement> {
@@ -91,6 +98,7 @@ export function BolSigner({
   const [pages, setPages] = useState<RenderedPage[]>([]);
   const [imgSrc, setImgSrc] = useState<ImageSource | null>(null);
   const [placement, setPlacement] = useState<Placement | null>(null);
+  const [signature, setSignature] = useState<Signature | null>(null);
   const [printName, setPrintName] = useState("");
   const [dateStr, setDateStr] = useState(todayLabel);
   const [err, setErr] = useState<string | null>(null);
@@ -184,14 +192,24 @@ export function BolSigner({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function onTapPage(pageIndex: number, e: React.PointerEvent<HTMLDivElement>) {
-    const rect = e.currentTarget.getBoundingClientRect();
-    setPlacement({
-      pageIndex,
-      fx: clamp01((e.clientX - rect.left) / rect.width),
-      fy: clamp01((e.clientY - rect.top) / rect.height),
-    });
-  }
+  const handlePlace = useCallback(
+    (pageIndex: number, fx: number, fy: number) => {
+      setPlacement({ pageIndex, fx, fy });
+    },
+    [],
+  );
+
+  // Signature drawn → stash it and go to the confirm preview (NOT saved yet).
+  const handleSignDone = useCallback(
+    (sig: Signature, name: string, date: string) => {
+      setSignature(sig);
+      setPrintName(name);
+      setDateStr(date);
+      setErr(null);
+      setStep("confirm");
+    },
+    [],
+  );
 
   async function uploadSigned(bytes: Uint8Array): Promise<void> {
     const fileName = `${baseName(doc.name)} — signed.pdf`;
@@ -223,62 +241,56 @@ export function BolSigner({
     if (!r.ok) throw new Error(r.reason);
   }
 
-  const handleSignatureDone = useCallback(
-    async (sig: { png: Uint8Array; w: number; h: number }, name: string, date: string) => {
-      if (!placement) return;
-      setStep("saving");
-      setErr(null);
-      try {
-        const aspect = sig.h / sig.w;
-        const content = {
-          pngBytes: sig.png,
-          aspect,
-          printName: name,
-          dateStr: date,
+  // Confirmed → composite for real and upload.
+  async function handleSave() {
+    if (!placement || !signature) return;
+    setStep("saving");
+    setErr(null);
+    try {
+      const content = {
+        pngBytes: signature.png,
+        aspect: signature.aspect,
+        printName,
+        dateStr,
+      };
+      let out: Uint8Array;
+      if (isPdf) {
+        const p = pageProxiesRef.current[placement.pageIndex];
+        const vp1 = p.getViewport({ scale: 1 });
+        const [cx, cy] = vp1.convertToPdfPoint(
+          placement.fx * vp1.width,
+          placement.fy * vp1.height,
+        ) as [number, number];
+        const place: SignaturePlacement = {
+          cx,
+          cy,
+          rotationDeg: p.rotate,
+          widthPts: SIG_WIDTH_FRAC * vp1.width,
         };
-        let out: Uint8Array;
-        if (isPdf) {
-          const p = pageProxiesRef.current[placement.pageIndex];
-          const vp1 = p.getViewport({ scale: 1 });
-          const [cx, cy] = vp1.convertToPdfPoint(
-            placement.fx * vp1.width,
-            placement.fy * vp1.height,
-          ) as [number, number];
-          const place: SignaturePlacement = {
-            cx,
-            cy,
-            rotationDeg: p.rotate,
-            widthPts: SIG_WIDTH_FRAC * vp1.width,
-          };
-          out = await signExistingPdf(
-            bytesRef.current!,
-            placement.pageIndex,
-            place,
-            content,
-          );
-        } else {
-          const im = imgSrc!;
-          const place: SignaturePlacement = {
-            cx: placement.fx * im.w,
-            cy: im.h - placement.fy * im.h, // top-left tap → bottom-left origin
-            rotationDeg: 0,
-            widthPts: SIG_WIDTH_FRAC * im.w,
-          };
-          out = await signImageAsPdf(im.jpg, im.w, im.h, place, content);
-        }
-        await uploadSigned(out);
-        router.refresh();
-        onClose();
-      } catch (e) {
-        setErr(
-          e instanceof Error ? e.message : "Could not save the signed BOL.",
+        out = await signExistingPdf(
+          bytesRef.current!,
+          placement.pageIndex,
+          place,
+          content,
         );
-        setStep("place");
+      } else {
+        const im = imgSrc!;
+        const place: SignaturePlacement = {
+          cx: placement.fx * im.w,
+          cy: im.h - placement.fy * im.h, // top-left center → bottom-left origin
+          rotationDeg: 0,
+          widthPts: SIG_WIDTH_FRAC * im.w,
+        };
+        out = await signImageAsPdf(im.jpg, im.w, im.h, place, content);
       }
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [placement, isPdf, imgSrc],
-  );
+      await uploadSigned(out);
+      router.refresh();
+      onClose();
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Could not save the signed BOL.");
+      setStep("confirm");
+    }
+  }
 
   // ── Full-screen signature pad ──────────────────────────────────────────────
   if (step === "sign" && placement) {
@@ -289,12 +301,54 @@ export function BolSigner({
         dateStr={dateStr}
         setDateStr={setDateStr}
         onCancel={() => setStep("place")}
-        onDone={handleSignatureDone}
+        onDone={handleSignDone}
       />
     );
   }
 
-  // ── Placement / loading / saving ───────────────────────────────────────────
+  const editable = step === "place";
+  const label = signature ? signatureLabel(printName, dateStr) : "";
+  const board = (
+    <div className="mx-auto flex max-w-[720px] flex-col items-center gap-3">
+      {isPdf
+        ? pages.map((pg) => (
+            <PlacementSurface
+              key={pg.pageIndex}
+              src={pg.dataUrl}
+              alt={`BOL page ${pg.pageIndex + 1}`}
+              pageAspect={pg.dispW / pg.dispH}
+              pageIndex={pg.pageIndex}
+              active={placement?.pageIndex === pg.pageIndex}
+              fx={placement?.fx ?? 0.5}
+              fy={placement?.fy ?? 0.5}
+              sigAspect={signature?.aspect ?? DEFAULT_SIG_ASPECT}
+              signatureUrl={signature?.dataUrl ?? null}
+              label={label}
+              editable={editable}
+              onPlace={handlePlace}
+            />
+          ))
+        : imgSrc
+          ? (
+              <PlacementSurface
+                src={imgSrc.dataUrl}
+                alt="BOL"
+                pageAspect={imgSrc.w / imgSrc.h}
+                pageIndex={0}
+                active={placement?.pageIndex === 0}
+                fx={placement?.fx ?? 0.5}
+                fy={placement?.fy ?? 0.5}
+                sigAspect={signature?.aspect ?? DEFAULT_SIG_ASPECT}
+                signatureUrl={signature?.dataUrl ?? null}
+                label={label}
+                editable={editable}
+                onPlace={handlePlace}
+              />
+            )
+          : null}
+    </div>
+  );
+
   return (
     <div
       role="dialog"
@@ -304,7 +358,7 @@ export function BolSigner({
     >
       <div className="flex items-center justify-between gap-3 bg-bar px-4 py-2.5">
         <span className="truncate font-mono text-[12px] font-bold uppercase tracking-[0.14em] text-bar-fg">
-          Sign BOL
+          {step === "confirm" ? "Confirm signature" : "Sign BOL"}
         </span>
         <Button
           type="button"
@@ -328,31 +382,14 @@ export function BolSigner({
           </p>
         ) : (
           <>
-            <p className="mb-3 text-center text-[13px] font-semibold text-white">
-              Tap where the signature should go.
+            <p className="mb-3 px-3 text-center text-[13px] font-semibold text-white">
+              {step === "confirm"
+                ? "Preview — this is exactly how it saves. Make sure it doesn't cover anything important."
+                : signature
+                  ? "Drag the signature to reposition, then preview."
+                  : "Tap or drag on the BOL to place the signature box."}
             </p>
-            <div className="mx-auto flex max-w-[720px] flex-col items-center gap-3">
-              {isPdf
-                ? pages.map((pg) => (
-                    <PagePlacement
-                      key={pg.pageIndex}
-                      page={pg}
-                      marker={
-                        placement?.pageIndex === pg.pageIndex ? placement : null
-                      }
-                      onTap={onTapPage}
-                    />
-                  ))
-                : imgSrc
-                  ? (
-                      <ImagePlacement
-                        src={imgSrc.dataUrl}
-                        marker={placement?.pageIndex === 0 ? placement : null}
-                        onTap={onTapPage}
-                      />
-                    )
-                  : null}
-            </div>
+            {board}
           </>
         )}
 
@@ -369,83 +406,198 @@ export function BolSigner({
       {step === "place" ? (
         <div className="flex items-center justify-between gap-3 border-t border-white/10 bg-bar px-4 py-3">
           <span className="text-[12px] text-bar-fg/70">
-            {placement ? "Marker placed" : "No spot chosen yet"}
+            {placement ? "Drag to position" : "Tap the BOL to place"}
           </span>
-          <Button
-            type="button"
-            variant="primary"
-            onClick={() => setStep("sign")}
-            disabled={!placement}
-          >
-            Sign here →
-          </Button>
+          {signature ? (
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="cancel"
+                size="sm"
+                onClick={() => setStep("sign")}
+              >
+                Re-sign
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                onClick={() => setStep("confirm")}
+                disabled={!placement}
+              >
+                Preview →
+              </Button>
+            </div>
+          ) : (
+            <Button
+              type="button"
+              variant="primary"
+              onClick={() => setStep("sign")}
+              disabled={!placement}
+            >
+              Sign here →
+            </Button>
+          )}
+        </div>
+      ) : null}
+
+      {step === "confirm" ? (
+        <div className="flex items-center justify-between gap-3 border-t border-white/10 bg-bar px-4 py-3">
+          <span className="text-[12px] text-bar-fg/70">Placement look right?</span>
+          <div className="flex items-center gap-2">
+            <Button type="button" variant="cancel" onClick={() => setStep("place")}>
+              Redo
+            </Button>
+            <Button type="button" variant="primary" onClick={handleSave}>
+              Save
+            </Button>
+          </div>
         </div>
       ) : null}
     </div>
   );
 }
 
-function Marker({ marker }: { marker: Placement }) {
-  return (
-    <span
-      aria-hidden
-      className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-1/2"
-      style={{ left: `${marker.fx * 100}%`, top: `${marker.fy * 100}%` }}
-    >
-      <span className="block h-7 w-7 rounded-full border-[3px] border-accent bg-accent/25 shadow-[0_0_0_2px_rgba(0,0,0,0.5)]" />
-    </span>
-  );
-}
-
-function PagePlacement({
-  page,
-  marker,
-  onTap,
-}: {
-  page: RenderedPage;
-  marker: Placement | null;
-  onTap: (pageIndex: number, e: React.PointerEvent<HTMLDivElement>) => void;
-}) {
-  return (
-    <div
-      className="relative w-full max-w-full touch-manipulation select-none"
-      style={{ width: page.dispW, maxWidth: "100%" }}
-      onPointerDown={(e) => onTap(page.pageIndex, e)}
-    >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={page.dataUrl}
-        alt={`BOL page ${page.pageIndex + 1}`}
-        className="block w-full rounded-sm bg-white"
-        draggable={false}
-      />
-      {marker ? <Marker marker={marker} /> : null}
-    </div>
-  );
-}
-
-function ImagePlacement({
+// ── Placement surface: a BOL page/image with a sized, draggable outline box ───
+function PlacementSurface({
   src,
-  marker,
-  onTap,
+  alt,
+  pageAspect,
+  pageIndex,
+  active,
+  fx,
+  fy,
+  sigAspect,
+  signatureUrl,
+  label,
+  editable,
+  onPlace,
 }: {
   src: string;
-  marker: Placement | null;
-  onTap: (pageIndex: number, e: React.PointerEvent<HTMLDivElement>) => void;
+  alt: string;
+  pageAspect: number; // pageWidth / pageHeight of the displayed page
+  pageIndex: number;
+  active: boolean;
+  fx: number;
+  fy: number;
+  sigAspect: number; // signature height / width
+  signatureUrl: string | null;
+  label: string;
+  editable: boolean;
+  onPlace: (pageIndex: number, fx: number, fy: number) => void;
 }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const dragging = useRef(false);
+
+  function fracOf(e: React.PointerEvent) {
+    const rect = ref.current!.getBoundingClientRect();
+    return {
+      fx: clamp01((e.clientX - rect.left) / rect.width),
+      fy: clamp01((e.clientY - rect.top) / rect.height),
+    };
+  }
+  function onDown(e: React.PointerEvent<HTMLDivElement>) {
+    if (!editable) return;
+    e.preventDefault();
+    dragging.current = true;
+    ref.current?.setPointerCapture(e.pointerId);
+    const p = fracOf(e);
+    onPlace(pageIndex, p.fx, p.fy);
+  }
+  function onMove(e: React.PointerEvent<HTMLDivElement>) {
+    if (!editable || !dragging.current) return;
+    e.preventDefault();
+    const p = fracOf(e);
+    onPlace(pageIndex, p.fx, p.fy);
+  }
+  function onUp() {
+    dragging.current = false;
+  }
+
+  // Box width is SIG_WIDTH_FRAC of the page width; height follows the real
+  // signature aspect, expressed as a % of the (taller) page height.
+  const wPct = SIG_WIDTH_FRAC * 100;
+  const hPct = SIG_WIDTH_FRAC * 100 * sigAspect * pageAspect;
+
   return (
     <div
-      className="relative w-full touch-manipulation select-none"
-      onPointerDown={(e) => onTap(0, e)}
+      ref={ref}
+      className={
+        "relative w-full select-none " +
+        (editable ? "touch-none cursor-crosshair" : "touch-pan-y")
+      }
+      onPointerDown={onDown}
+      onPointerMove={onMove}
+      onPointerUp={onUp}
+      onPointerLeave={onUp}
+      onPointerCancel={onUp}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={src}
-        alt="BOL"
+        alt={alt}
         className="block w-full rounded-sm bg-white"
         draggable={false}
       />
-      {marker ? <Marker marker={marker} /> : null}
+      {active ? (
+        <PlacementBox
+          fx={fx}
+          fy={fy}
+          wPct={wPct}
+          hPct={hPct}
+          signatureUrl={signatureUrl}
+          label={signatureUrl ? label : ""}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function PlacementBox({
+  fx,
+  fy,
+  wPct,
+  hPct,
+  signatureUrl,
+  label,
+}: {
+  fx: number;
+  fy: number;
+  wPct: number;
+  hPct: number;
+  signatureUrl: string | null;
+  label: string;
+}) {
+  return (
+    <div
+      className={
+        "pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-1/2 rounded-sm border-2 border-accent " +
+        (signatureUrl ? "" : "border-dashed bg-accent/10")
+      }
+      style={{
+        left: `${fx * 100}%`,
+        top: `${fy * 100}%`,
+        width: `${wPct}%`,
+        height: `${hPct}%`,
+      }}
+    >
+      {signatureUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={signatureUrl}
+          alt=""
+          className="h-full w-full object-contain"
+          draggable={false}
+        />
+      ) : (
+        <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold uppercase tracking-[0.12em] text-accent">
+          Signature
+        </span>
+      )}
+      {label ? (
+        <span className="absolute left-1/2 top-full mt-0.5 -translate-x-1/2 whitespace-nowrap rounded-sm bg-white/85 px-1 text-[9px] font-semibold leading-tight text-neutral-900">
+          {label}
+        </span>
+      ) : null}
     </div>
   );
 }
@@ -464,11 +616,7 @@ function SignaturePad({
   dateStr: string;
   setDateStr: (v: string) => void;
   onCancel: () => void;
-  onDone: (
-    sig: { png: Uint8Array; w: number; h: number },
-    name: string,
-    date: string,
-  ) => void;
+  onDone: (sig: Signature, name: string, date: string) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
@@ -563,7 +711,11 @@ function SignaturePad({
       setBusy(false);
       return;
     }
-    onDone(sig, printName, dateStr);
+    onDone(
+      { png: sig.png, dataUrl: sig.dataUrl, aspect: sig.h / sig.w },
+      printName,
+      dateStr,
+    );
   }
 
   return (
@@ -584,7 +736,7 @@ function SignaturePad({
 
       <div className="flex min-h-0 flex-1 flex-col gap-2 p-3">
         <p className="text-center text-[12px] font-semibold text-white/80">
-          Sign with your finger below
+          Sign with your finger above the line
         </p>
         <div className="relative min-h-0 flex-1 overflow-hidden rounded-lg border-2 border-white/25 bg-white">
           <canvas
@@ -597,11 +749,19 @@ function SignaturePad({
             onPointerLeave={onUp}
             onPointerCancel={onUp}
           />
-          {!hasInk ? (
-            <span className="pointer-events-none absolute inset-x-0 bottom-6 text-center text-[13px] font-medium text-neutral-400">
-              ✍️ sign here
-            </span>
-          ) : null}
+          {/* Signature baseline: "✕ ____________" + hint. Drawn as an overlay,
+              NOT on the canvas, so it's never captured into the signature PNG. */}
+          <div className="pointer-events-none absolute inset-x-5 bottom-[26%]">
+            <div className="flex items-center gap-2">
+              <span className="-mt-1 text-[22px] leading-none text-neutral-500">
+                ✕
+              </span>
+              <span className="h-[2px] flex-1 rounded bg-neutral-400" />
+            </div>
+            <p className="mt-1 text-center text-[11px] font-medium tracking-wide text-neutral-400">
+              Sign above the line
+            </p>
+          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-2">
@@ -644,7 +804,7 @@ function SignaturePad({
           aria-busy={busy}
           fullWidth
         >
-          {busy ? "Saving…" : "Done"}
+          {busy ? "Working…" : "Done"}
         </Button>
       </div>
     </div>
@@ -653,11 +813,12 @@ function SignaturePad({
 
 /**
  * Trim the drawn signature to its ink bounding box and return a transparent
- * PNG plus its pixel dimensions. Returns null when the canvas is blank.
+ * PNG (bytes + data URL for preview) plus its pixel dimensions. Returns null
+ * when the canvas is blank.
  */
 async function extractSignaturePng(
   canvas: HTMLCanvasElement,
-): Promise<{ png: Uint8Array; w: number; h: number } | null> {
+): Promise<{ png: Uint8Array; dataUrl: string; w: number; h: number } | null> {
   const ctx = canvas.getContext("2d");
   if (!ctx) return null;
   const { width, height } = canvas;
@@ -692,5 +853,10 @@ async function extractSignaturePng(
   octx.drawImage(canvas, minX, minY, cw, ch, 0, 0, cw, ch);
   const blob = await new Promise<Blob | null>((r) => out.toBlob(r, "image/png"));
   if (!blob) return null;
-  return { png: new Uint8Array(await blob.arrayBuffer()), w: cw, h: ch };
+  return {
+    png: new Uint8Array(await blob.arrayBuffer()),
+    dataUrl: out.toDataURL("image/png"),
+    w: cw,
+    h: ch,
+  };
 }
