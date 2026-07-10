@@ -9,6 +9,7 @@ import {
   type RecordDoc,
 } from "../actions";
 import { uploadFileToSignedUrl } from "@/lib/storage/client-upload";
+import { loadPdfjs } from "@/lib/pdf/pdfjs";
 import { Button } from "@/components/ui/Button";
 import { BolScanner } from "../BolScanner";
 import { BolSigner } from "./BolSigner";
@@ -438,36 +439,37 @@ function DocViewer({
       aria-label={`View ${doc.name}`}
       className="fixed inset-0 z-[55] flex flex-col bg-black"
     >
-      {/* Top bar: Close · name (+ Signed) · Open */}
+      {/* Top bar: ✕ (close) · name (+ Signed) */}
       <div className="flex items-center gap-2 bg-bar px-3 py-2.5">
         <button
           type="button"
           onClick={onClose}
-          className="flex shrink-0 items-center gap-1 rounded-md px-1.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-bar-fg transition-colors hover:bg-white/10"
+          aria-label="Close"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-bar-fg transition-colors hover:bg-white/10"
         >
-          <span className="text-[16px] leading-none">‹</span> Close
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2.5}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <path d="M18 6 6 18M6 6l12 12" />
+          </svg>
         </button>
-        <span className="flex min-w-0 flex-1 items-center justify-center gap-2">
+        <span className="flex min-w-0 flex-1 items-center gap-2">
           <span className="truncate text-[12px] font-semibold text-bar-fg">
             {doc.name}
           </span>
           {signed ? <SignedBadge /> : null}
         </span>
-        {doc.url ? (
-          <a
-            href={doc.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="shrink-0 rounded-md px-1.5 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-bar-fg transition-colors hover:bg-white/10"
-          >
-            Open ↗
-          </a>
-        ) : (
-          <span className="w-12 shrink-0" />
-        )}
       </div>
 
-      {/* Document — large & scrollable/pinchable */}
+      {/* Document — fit-to-width by default; pinch/double-tap to zoom in */}
       <div className="min-h-0 flex-1 overflow-auto bg-neutral-900">
         {doc.url ? (
           isImage ? (
@@ -478,11 +480,7 @@ function DocViewer({
               className="mx-auto block h-auto w-full max-w-4xl"
             />
           ) : (
-            <iframe
-              src={doc.url}
-              title={doc.name}
-              className="h-full w-full border-0"
-            />
+            <PdfViewerPages url={doc.url} name={doc.name} />
           )
         ) : (
           <p className="p-8 text-center text-[13px] text-white/60">
@@ -508,6 +506,78 @@ function DocViewer({
           </Button>
         ) : null}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Renders a PDF fit-to-WIDTH with pdf.js — each page rasterized to the
+ * container width so the whole page shows with no horizontal panning (the
+ * native iframe viewer wasn't honoring fit-width). Pinch / double-tap still
+ * zoom in for detail.
+ */
+function PdfViewerPages({ url, name }: { url: string; name: string }) {
+  const [pages, setPages] = useState<string[] | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const resp = await fetch(url);
+        if (!resp.ok) throw new Error("fetch");
+        const buf = new Uint8Array(await resp.arrayBuffer());
+        const pdfjs = await loadPdfjs();
+        // pdf.js may transfer (detach) the buffer to its worker — pass a copy.
+        const pdfDoc = await pdfjs.getDocument({ data: buf.slice() }).promise;
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const targetW = Math.min(window.innerWidth || 400, 1200);
+        const out: string[] = [];
+        for (let i = 1; i <= pdfDoc.numPages; i++) {
+          const p = await pdfDoc.getPage(i);
+          const base = p.getViewport({ scale: 1 });
+          const vp = p.getViewport({ scale: (targetW / base.width) * dpr });
+          const canvas = document.createElement("canvas");
+          canvas.width = Math.ceil(vp.width);
+          canvas.height = Math.ceil(vp.height);
+          const ctx = canvas.getContext("2d");
+          if (!ctx) throw new Error("ctx");
+          await p.render({ canvas, canvasContext: ctx, viewport: vp }).promise;
+          out.push(canvas.toDataURL("image/png"));
+        }
+        if (!cancelled) setPages(out);
+      } catch {
+        if (!cancelled) setFailed(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [url]);
+
+  if (failed) {
+    return (
+      <p className="p-8 text-center text-[13px] text-white/60">
+        Couldn’t render this PDF.
+      </p>
+    );
+  }
+  if (!pages) {
+    return (
+      <p className="p-8 text-center text-[13px] text-white/60">Loading…</p>
+    );
+  }
+  return (
+    <div className="mx-auto flex max-w-4xl flex-col gap-2 p-2">
+      {pages.map((src, i) => (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          key={i}
+          src={src}
+          alt={`${name} — page ${i + 1}`}
+          className="block w-full rounded-sm bg-white"
+        />
+      ))}
     </div>
   );
 }
