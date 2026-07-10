@@ -11,6 +11,7 @@ import {
 import { uploadFileToSignedUrl } from "@/lib/storage/client-upload";
 import { Button } from "@/components/ui/Button";
 import { BolScanner } from "../BolScanner";
+import { BolSigner } from "./BolSigner";
 
 export type LoadDoc = {
   id: string;
@@ -47,6 +48,7 @@ export function DocumentsCard({
   docs: LoadDoc[];
 }) {
   const [viewing, setViewing] = useState<LoadDoc | null>(null);
+  const [signing, setSigning] = useState<LoadDoc | null>(null);
 
   return (
     <section className="overflow-hidden rounded-md border border-line bg-card">
@@ -65,12 +67,21 @@ export function DocumentsCard({
             docs={docs.filter((d) => d.kind === k.kind)}
             last={i === KINDS.length - 1}
             onView={setViewing}
+            onSign={setSigning}
           />
         ))}
       </div>
 
       {viewing ? (
         <DocViewer doc={viewing} onClose={() => setViewing(null)} />
+      ) : null}
+
+      {signing ? (
+        <BolSigner
+          loadId={loadId}
+          doc={signing}
+          onClose={() => setSigning(null)}
+        />
       ) : null}
     </section>
   );
@@ -87,6 +98,7 @@ function DocKindBlock({
   docs,
   last,
   onView,
+  onSign,
 }: {
   loadId: string;
   kind: string;
@@ -94,6 +106,7 @@ function DocKindBlock({
   docs: LoadDoc[];
   last: boolean;
   onView: (doc: LoadDoc) => void;
+  onSign: (doc: LoadDoc) => void;
 }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
@@ -317,6 +330,17 @@ function DocKindBlock({
               >
                 View
               </Button>
+              {isBol ? (
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  onClick={() => onSign(d)}
+                  className="shrink-0"
+                >
+                  Sign
+                </Button>
+              ) : null}
               <Button
                 type="button"
                 variant="destructive"
