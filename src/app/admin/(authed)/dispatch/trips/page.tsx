@@ -128,7 +128,7 @@ export default async function TripsPage() {
 
   return (
     <div className="min-h-screen border-t border-line bg-canvas text-fg">
-      <div className="w-full px-4 py-5 sm:px-6 lg:px-8">
+      <div className="mx-auto w-full max-w-5xl px-4 py-5 sm:px-6 lg:px-8">
         <PageHeader
           eyebrow="Dispatch"
           title="Trips"

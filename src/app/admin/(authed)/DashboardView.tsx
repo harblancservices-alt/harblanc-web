@@ -111,7 +111,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
         newApplications={data.newApplicationCount}
         newQuotes={data.newQuoteCount}
       />
-      <div className="w-full px-4 py-4 sm:px-6 lg:px-8">
+      <div className="mx-auto w-full max-w-5xl px-4 py-4 sm:px-6 lg:px-8">
         <PageHeader eyebrow="Owner" title="Dashboard" className="mb-4" />
         <SectionLabel title="Active loads" count={data.activeLoads.length} />
         {data.activeLoads.length === 0 ? (

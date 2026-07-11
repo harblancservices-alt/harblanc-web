@@ -2,7 +2,6 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import sharp from "sharp";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { lookupZip, estimateLaneMiles } from "@/lib/dispatch/distance";
 import {
@@ -666,6 +665,14 @@ async function regenerateSignedBol(
   }
   // Image BOL: auto-orient (EXIF) + cap size, then map each role's fractions
   // onto the resulting pixel dimensions (resolution-independent).
+  //
+  // sharp is loaded LAZILY here (never at module top-level): its native binary
+  // can throw at import time on Vercel, and a top-level import would poison this
+  // whole "use server" module — making EVERY action in it (updateLoadOdometers,
+  // uploads, …) reject on invoke. That was the Save-ODO regression fixed in
+  // 8c74925; keeping the import inside the one function that needs it prevents
+  // it from ever coming back.
+  const sharp = (await import("sharp")).default;
   const { data: jpgBuf, info } = await sharp(origBytes)
     .rotate()
     .resize({ width: 2400, height: 2400, fit: "inside", withoutEnlargement: true })
