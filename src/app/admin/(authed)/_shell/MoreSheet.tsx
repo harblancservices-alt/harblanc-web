@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ComponentType } from "react";
 import {
+  IconCalendar,
   IconClipboard,
   IconCoins,
   IconMail,
@@ -47,6 +48,7 @@ const GROUPS: { title: string; items: SheetItem[] }[] = [
     title: "Dispatch",
     items: [
       { href: "/admin/dispatch/trips", label: "Trips", Icon: IconRoute },
+      { href: "/admin/calendar", label: "Calendar", Icon: IconCalendar },
       {
         href: "/admin/dispatch/email-broker",
         label: "Email a Broker",

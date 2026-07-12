@@ -47,6 +47,7 @@ function isActive(pathname: string, href: string): boolean {
 
 // Routes that live in the More sheet — keep More highlighted when on them.
 const MORE_ROUTES = [
+  "/admin/calendar",
   "/admin/operations",
   "/admin/quotes",
   "/admin/applications",

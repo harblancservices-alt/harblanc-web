@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import type { ComponentType } from "react";
 import {
   IconBuilding,
+  IconCalendar,
   IconClipboard,
   IconCoins,
   IconDashboard,
@@ -60,6 +61,7 @@ const GROUPS: NavGroup[] = [
         Icon: IconMailPlus,
       },
       { href: "/admin/dispatch/trips", label: "Trips", Icon: IconRoute },
+      { href: "/admin/calendar", label: "Calendar", Icon: IconCalendar },
     ],
   },
   {
