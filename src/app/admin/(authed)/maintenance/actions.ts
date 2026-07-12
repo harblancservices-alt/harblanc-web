@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { receiptName, withExt } from "@/lib/admin/doc-name";
 import {
   categoryForText,
   groupKey,
@@ -342,44 +343,25 @@ async function insertPart(
   }
 }
 
-/** Original file extension (".jpg", ".pdf", …) or "" — kept on the display name. */
-function fileExt(name: string): string {
-  const m = /(\.[A-Za-z0-9]{1,8})$/.exec(name.trim());
-  return m ? m[1].toLowerCase() : "";
-}
-
-/**
- * Meaningful stored file_name from the visit's parts + odometer, always
- * including the miles, so exports/doc viewers read well. The real file +
- * extension are preserved (extension re-appended; storage object untouched).
- *   "Track bar — 265,008 mi — receipt.jpg"
- *   "Track bar, Steering damper — 265,008 mi — receipt.pdf"
- */
-function receiptDisplayName(
-  partNames: string[],
-  odometer: number | null,
-  originalName: string,
-): string {
-  const names = partNames.filter((n) => n.trim().length > 0).join(", ") || "Service";
-  const miles = odometer != null ? `${odometer.toLocaleString("en-US")} mi` : null;
-  const base = [names, miles, "receipt"].filter(Boolean).join(" — ");
-  return (base + fileExt(originalName)).slice(0, 240);
-}
-
 /** Insert repair_attachments rows for freshly-uploaded receipts (service). */
 async function persistReceipts(
   sb: SB,
   serviceId: string,
   receipts: ReceiptMeta[],
   partNames: string[],
-  odometer: number | null,
+  serviceDate: string | null,
 ): Promise<void> {
+  // Canonical stored name: "<first part name> - <service date>" + real ext, so
+  // the saved file itself reads correctly on later export / download.
   for (const r of receipts) {
     const { error } = await sb.from("repair_attachments").insert({
       service_id: serviceId,
       file_path: r.storagePath,
       thumb_path: null,
-      file_name: receiptDisplayName(partNames, odometer, r.name),
+      file_name: withExt(
+        receiptName({ firstPartName: partNames[0] ?? null, date: serviceDate }),
+        r.name,
+      ),
       content_type: r.type || null,
       size_bytes: r.size,
     });
@@ -476,7 +458,7 @@ export async function logService(formData: FormData): Promise<void> {
     service.id,
     receipts,
     parts.map((p) => p.description),
-    f.odometer,
+    f.serviceDate,
   );
   await autoLinkServiceParts(sb, service.id);
 
@@ -561,7 +543,7 @@ export async function updateService(
     serviceId,
     receipts,
     parts.map((p) => p.description),
-    f.odometer,
+    f.serviceDate,
   );
   await autoLinkServiceParts(sb, serviceId);
 

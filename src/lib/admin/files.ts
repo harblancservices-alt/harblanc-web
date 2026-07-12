@@ -1,4 +1,10 @@
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import {
+  loadDocName,
+  normalizeLoadDocKind,
+  receiptName,
+  shortDate,
+} from "@/lib/admin/doc-name";
 
 /**
  * Admin → Files: one newest-first timeline aggregating EVERY uploaded file
@@ -65,18 +71,6 @@ export type FileItem = {
 
 function isImageMime(mime: string | null): boolean {
   return (mime ?? "").startsWith("image/");
-}
-
-/** "Jul 9" style label. Date-only values are treated as UTC to avoid drift. */
-function dateLabel(iso: string | null): string {
-  if (!iso) return "—";
-  const d = new Date(iso.length <= 10 ? iso + "T00:00:00Z" : iso);
-  if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    timeZone: "UTC",
-  });
 }
 
 function loadDocType(kind: string, signed: boolean): {
@@ -176,6 +170,8 @@ export async function loadAllFiles(): Promise<FileItem[]> {
       .from("repair_entries")
       .select("id, service_id, description")
       .is("deleted_at", null)
+      // Ascending so names[0] / firstEntryId are the FIRST part on the service.
+      .order("created_at", { ascending: true })
       .returns<{ id: string; service_id: string; description: string | null }[]>(),
     sb
       .from("shipment_intake_uploads")
@@ -222,34 +218,67 @@ export async function loadAllFiles(): Promise<FileItem[]> {
     partsByService.set(e.service_id, bucket);
   }
 
+  // Number same-type (and same signed-ness) load docs per load, in UPLOAD order,
+  // so the canonical name gets "RC 1 / RC 2 …" only when siblings exist. Display
+  // is authoritative — it recomputes numbering for old files too.
+  const loadDocSeq = new Map<string, { index: number; total: number }>();
+  {
+    const groups = new Map<string, LoadDocRow[]>();
+    for (const d of loadDocRows ?? []) {
+      const key = `${d.load_id}|${normalizeLoadDocKind(d.kind)}|${d.signed_from_doc_id ? "s" : "u"}`;
+      const arr = groups.get(key) ?? [];
+      arr.push(d);
+      groups.set(key, arr);
+    }
+    for (const arr of groups.values()) {
+      arr.sort((a, b) =>
+        a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0,
+      );
+      arr.forEach((d, i) =>
+        loadDocSeq.set(d.id, { index: i + 1, total: arr.length }),
+      );
+    }
+  }
+
   const items: FileItem[] = [];
 
   // ── Load documents ────────────────────────────────────────────────────────
   for (const d of loadDocRows ?? []) {
     const load = loadById.get(d.load_id);
     if (!load) continue; // parent load deleted → skip
-    const { category, label } = loadDocType(d.kind, !!d.signed_from_doc_id);
+    const signed = !!d.signed_from_doc_id;
+    const { category, label } = loadDocType(d.kind, signed);
     const loadNumber = load.load_number?.trim() || "—";
     const broker = load.broker_name?.trim() || "";
     const origin = load.origin?.trim() || "";
     const destination = load.destination?.trim() || "";
     const lane = origin && destination ? `${origin} → ${destination}` : origin || destination;
     const subtitle = [broker, lane].filter(Boolean).join(" · ") || "Load";
+    const seq = loadDocSeq.get(d.id) ?? { index: 1, total: 1 };
+    const name = loadDocName({
+      kind: normalizeLoadDocKind(d.kind),
+      loadNumber: load.load_number,
+      broker: load.broker_name,
+      signed,
+      index: seq.index,
+      total: seq.total,
+    });
     items.push({
       id: `load:${d.id}`,
       source: "load",
       category,
       typeLabel: label,
-      name: `#${loadNumber} · ${label} · ${dateLabel(d.created_at)}`,
+      name,
       subtitle,
       parentHref: `/admin/dispatch/loads/${d.load_id}`,
       createdAt: d.created_at,
-      dateLabel: dateLabel(d.created_at),
+      dateLabel: shortDate(d.created_at),
       isImage: isImageMime(d.mime_type),
       bucket: FILE_BUCKETS.load,
       storagePath: d.storage_path,
       thumbPath: d.thumb_path,
       searchText: [
+        name,
         loadNumber,
         broker,
         origin,
@@ -273,22 +302,27 @@ export async function loadAllFiles(): Promise<FileItem[]> {
     const parentHref = parts?.firstEntryId
       ? `/admin/maintenance/${parts.firstEntryId}`
       : "/admin/maintenance";
+    // Canonical: "<first part name> - <service date>".
+    const name = receiptName({
+      firstPartName: parts?.names[0] ?? null,
+      date: svcDate,
+    });
     items.push({
       id: `receipt:${r.id}`,
       source: "receipt",
       category: "receipt",
       typeLabel: "Receipt",
-      name: `${partNames} · ${dateLabel(svcDate)}`,
+      name,
       subtitle: shop ? `Maintenance · ${shop}` : "Maintenance",
       parentHref,
       // Sort by upload time (the attachment's own created_at).
       createdAt: r.created_at,
-      dateLabel: dateLabel(r.created_at),
+      dateLabel: shortDate(r.created_at),
       isImage: isImageMime(r.content_type),
       bucket: FILE_BUCKETS.receipt,
       storagePath: r.file_path,
       thumbPath: r.thumb_path,
-      searchText: [partNames, shop, "receipt maintenance", r.file_name ?? ""]
+      searchText: [name, partNames, shop, "receipt maintenance", r.file_name ?? ""]
         .join(" ")
         .toLowerCase(),
     });
@@ -316,11 +350,11 @@ export async function loadAllFiles(): Promise<FileItem[]> {
       source: "intake",
       category: "application",
       typeLabel,
-      name: `${customer} · ${typeLabel} · ${dateLabel(u.created_at)}`,
+      name: `${customer} · ${typeLabel} · ${shortDate(u.created_at)}`,
       subtitle,
       parentHref: `/admin/quotes/${u.quote_request_id}`,
       createdAt: u.created_at,
-      dateLabel: dateLabel(u.created_at),
+      dateLabel: shortDate(u.created_at),
       isImage: isImageMime(u.mime_type),
       bucket: FILE_BUCKETS.intake,
       storagePath: u.storage_path,

@@ -5,6 +5,11 @@ import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { lookupZip, estimateLaneMiles } from "@/lib/dispatch/distance";
 import {
+  loadDocName,
+  normalizeLoadDocKind,
+  withExt,
+} from "@/lib/admin/doc-name";
+import {
   signPdfWithStamps,
   signImageWithStamps,
   type SignatureStamp,
@@ -576,12 +581,42 @@ export async function recordLoadDocuments(
       }
     }
     const sb = createServiceRoleClient();
-    const rows = docs.map((d) => ({
+
+    // Canonical stored file_name: "RC / BOL / POD - <load#> - <broker>", with a
+    // 1-based upload-order number when siblings exist. Look up the load's number
+    // + broker, and how many same-type (non-signed) docs already exist, so the
+    // batch continues the numbering. (Display recomputes authoritatively.)
+    const { data: loadRow } = await sb
+      .from("loads")
+      .select("load_number, broker_name")
+      .eq("id", loadId)
+      .maybeSingle<{ load_number: string | null; broker_name: string | null }>();
+    const { data: existingRows } = await sb
+      .from("load_documents")
+      .select("id")
+      .eq("load_id", loadId)
+      .eq("kind", kind)
+      .is("signed_from_doc_id", null)
+      .returns<{ id: string }[]>();
+    const existing = existingRows?.length ?? 0;
+    const total = existing + docs.length;
+    const docKind = normalizeLoadDocKind(kind);
+
+    const rows = docs.map((d, i) => ({
       load_id: loadId,
       kind,
       storage_path: d.storagePath,
       thumb_path: null,
-      original_filename: d.originalFilename.slice(0, 240),
+      original_filename: withExt(
+        loadDocName({
+          kind: docKind,
+          loadNumber: loadRow?.load_number,
+          broker: loadRow?.broker_name,
+          index: existing + i + 1,
+          total,
+        }),
+        d.originalFilename,
+      ),
       mime_type: d.mimeType,
       size_bytes: d.sizeBytes,
     }));
@@ -781,11 +816,33 @@ export async function signBolRole(
     const signedBytes = await regenerateSignedBol(origBytes, orig.mime_type ?? "", sigs);
 
     // 3. Upload the regenerated signed PDF (server → storage, no body limit).
-    const base =
-      (orig.original_filename ?? "BOL")
-        .replace(/\.(pdf|jpe?g|png|webp|heic)$/i, "")
-        .trim() || "BOL";
-    const fileName = `${base} — signed.pdf`;
+    // Canonical stored name: "BOL - <load#> - <broker> - signed" (numbered when
+    // this load has more than one signed BOL). Output is always a PDF.
+    const { data: loadRow } = await sb
+      .from("loads")
+      .select("load_number, broker_name")
+      .eq("id", loadId)
+      .maybeSingle<{ load_number: string | null; broker_name: string | null }>();
+    const { data: otherSigned } = await sb
+      .from("load_documents")
+      .select("id")
+      .eq("load_id", loadId)
+      .eq("kind", "bol")
+      .not("signed_from_doc_id", "is", null)
+      .neq("signed_from_doc_id", originalDocId)
+      .returns<{ id: string }[]>();
+    const signedSiblings = otherSigned?.length ?? 0;
+    const fileName = withExt(
+      loadDocName({
+        kind: "bol",
+        loadNumber: loadRow?.load_number,
+        broker: loadRow?.broker_name,
+        signed: true,
+        index: signedSiblings + 1,
+        total: signedSiblings + 1,
+      }),
+      ".pdf",
+    );
     const prefix = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
     const path = `${loadId}/${prefix}-${sanitizeFilename(fileName)}`;
     const { error: putErr } = await sb.storage

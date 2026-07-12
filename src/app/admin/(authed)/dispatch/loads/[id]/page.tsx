@@ -10,6 +10,7 @@ import { FinancialsPanel } from "./FinancialsPanel";
 import { CancelLoadButton } from "./CancelLoadButton";
 import { DeleteLoadButton } from "./DeleteLoadButton";
 import { DocumentsCard } from "./DocumentsCard";
+import { loadDocName, normalizeLoadDocKind } from "@/lib/admin/doc-name";
 import {
   loadDiesel,
   dieselCost,
@@ -173,6 +174,27 @@ export default async function LoadDetailPage({
       }
     }
   }
+  // Canonical display names (RC / BOL / POD - <load#> - <broker>, "- signed" for
+  // signed BOLs). Number same-type, same-signedness siblings in UPLOAD order so
+  // a lone doc has no number and duplicates read "BOL 1 / BOL 2". Display is the
+  // source of truth, so older files with ad-hoc stored names still read right.
+  const docSeq = new Map<string, { index: number; total: number }>();
+  {
+    const groups = new Map<string, typeof docs>();
+    for (const d of docs) {
+      const key = `${normalizeLoadDocKind(d.kind)}|${d.signed_from_doc_id ? "s" : "u"}`;
+      const arr = groups.get(key) ?? [];
+      arr.push(d);
+      groups.set(key, arr);
+    }
+    for (const arr of groups.values()) {
+      // `docs` is created_at DESC — reverse for ascending upload order.
+      arr
+        .slice()
+        .reverse()
+        .forEach((d, i) => docSeq.set(d.id, { index: i + 1, total: arr.length }));
+    }
+  }
   const loadDocs = docs.map((d) => {
     const url = signedByPath.get(d.storage_path) ?? null;
     // Grid uses the thumb when present, falling back to the full-size original.
@@ -184,10 +206,18 @@ export default async function LoadDetailPage({
     const signedRoles = (rolesByDoc.get(anchorId) ?? [])
       .slice()
       .sort((a, b) => ROLE_ORDER.indexOf(a) - ROLE_ORDER.indexOf(b));
+    const seq = docSeq.get(d.id) ?? { index: 1, total: 1 };
     return {
       id: d.id,
       kind: d.kind,
-      name: d.original_filename,
+      name: loadDocName({
+        kind: normalizeLoadDocKind(d.kind),
+        loadNumber: load.load_number,
+        broker: load.broker_name,
+        signed: !!d.signed_from_doc_id,
+        index: seq.index,
+        total: seq.total,
+      }),
       url,
       thumbUrl,
       sizeBytes: d.size_bytes,
