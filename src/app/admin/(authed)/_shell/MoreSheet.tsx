@@ -7,6 +7,7 @@ import {
   IconCalendar,
   IconClipboard,
   IconCoins,
+  IconFiles,
   IconMail,
   IconMailPlus,
   IconRoute,
@@ -73,6 +74,10 @@ const GROUPS: { title: string; items: SheetItem[] }[] = [
     items: [
       { href: "/admin/maintenance", label: "Maintenance", Icon: IconWrench },
     ],
+  },
+  {
+    title: "Records",
+    items: [{ href: "/admin/files", label: "Files", Icon: IconFiles }],
   },
   {
     title: "Business",

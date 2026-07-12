@@ -9,6 +9,7 @@ import {
   IconClipboard,
   IconCoins,
   IconDashboard,
+  IconFiles,
   IconLogout,
   IconMail,
   IconMailPlus,
@@ -74,6 +75,12 @@ const GROUPS: NavGroup[] = [
     title: "Partners",
     items: [
       { href: "/admin/dispatch/brokers", label: "Brokers", Icon: IconBuilding },
+    ],
+  },
+  {
+    title: "Records",
+    items: [
+      { href: "/admin/files", label: "Files", Icon: IconFiles },
     ],
   },
   {

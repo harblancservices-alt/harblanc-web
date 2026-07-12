@@ -366,3 +366,23 @@ export function IconWrench({ className }: IconProps) {
     </svg>
   );
 }
+
+export function IconFiles({ className }: IconProps) {
+  // Stacked documents — the Files timeline (every uploaded doc/photo).
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <path d="M14 3H7a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V6z" />
+      <path d="M14 3v3h3" />
+      <path d="M9 21h8a2 2 0 0 0 2-2V9" />
+    </svg>
+  );
+}
