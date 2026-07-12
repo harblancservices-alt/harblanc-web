@@ -1,6 +1,12 @@
 import type { Metadata } from "next";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { dateOnly } from "@/lib/dispatch/calendar";
+import {
+  loadDiesel,
+  loadNet,
+  FUEL_DEFAULTS,
+  type FuelSettings,
+} from "@/lib/dispatch/fuel";
 import { CalendarView, type LoadBar, type RepairChip } from "./CalendarView";
 
 export const metadata: Metadata = {
@@ -27,7 +33,19 @@ type LoadRow = {
   delivery_date: string | null;
   status: string | null;
   created_at: string;
+  broker_id: string | null;
+  rate: number | string | null;
+  loaded_miles: number | null;
+  odo_assigned: number | null;
+  odo_loaded: number | null;
+  odo_delivered: number | null;
 };
+
+function num(v: number | string | null): number {
+  if (v == null) return 0;
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
 
 type PartRow = {
   id: string;
@@ -71,26 +89,94 @@ function resolveSpan(l: LoadRow): { start: string; end: string; approx: boolean 
 async function loadCalendar(): Promise<{ loads: LoadBar[]; repairs: RepairChip[]; today: string }> {
   const sb = createServiceRoleClient();
 
-  const [{ data: loadRows }, { data: partRows }, { data: serviceRows }] =
-    await Promise.all([
-      sb
-        .from("loads")
-        .select("id, origin, destination, pickup_date, delivery_date, status, created_at")
-        .is("deleted_at", null)
-        .returns<LoadRow[]>(),
-      sb
-        .from("repair_entries")
-        .select("id, description, service_id, created_at")
-        .is("deleted_at", null)
-        .returns<PartRow[]>(),
-      sb
-        .from("repair_services")
-        .select("id, service_date, created_at, shop")
-        .returns<ServiceRow[]>(),
-    ]);
+  const [
+    { data: loadRows },
+    { data: partRows },
+    { data: serviceRows },
+    { data: fuelRow },
+    { data: expRows },
+    { data: factoringBrokers },
+  ] = await Promise.all([
+    sb
+      .from("loads")
+      .select(
+        "id, origin, destination, pickup_date, delivery_date, status, created_at, broker_id, rate, loaded_miles, odo_assigned, odo_loaded, odo_delivered",
+      )
+      .is("deleted_at", null)
+      .returns<LoadRow[]>(),
+    sb
+      .from("repair_entries")
+      .select("id, description, service_id, created_at")
+      .is("deleted_at", null)
+      .returns<PartRow[]>(),
+    sb
+      .from("repair_services")
+      .select("id, service_date, created_at, shop")
+      .returns<ServiceRow[]>(),
+    sb
+      .from("dispatch_settings")
+      .select("mpg, diesel_price_per_gallon, factoring_pct")
+      .eq("id", true)
+      .maybeSingle<{
+        mpg: number | string;
+        diesel_price_per_gallon: number | string;
+        factoring_pct: number | string;
+      }>(),
+    sb
+      .from("load_expenses")
+      .select("load_id, amount")
+      .is("deleted_at", null)
+      .returns<{ load_id: string; amount: number | string }[]>(),
+    sb
+      .from("brokers")
+      .select("id")
+      .eq("factoring", true)
+      .is("deleted_at", null)
+      .returns<{ id: string }[]>(),
+  ]);
+
+  // Same fuel/factoring inputs the Load Board feeds into loadNet, so the
+  // per-load net here is the canonical one (not a recomputation).
+  const fuel: FuelSettings = {
+    mpg: num(fuelRow?.mpg ?? null) || FUEL_DEFAULTS.mpg,
+    ppg: num(fuelRow?.diesel_price_per_gallon ?? null) || FUEL_DEFAULTS.ppg,
+    factoringPct:
+      fuelRow?.factoring_pct != null
+        ? num(fuelRow.factoring_pct)
+        : FUEL_DEFAULTS.factoringPct,
+  };
+  const expByLoad = new Map<string, number>();
+  for (const e of expRows ?? []) {
+    expByLoad.set(e.load_id, (expByLoad.get(e.load_id) ?? 0) + num(e.amount));
+  }
+  const factoringIds = new Set((factoringBrokers ?? []).map((b) => b.id));
 
   const loads: LoadBar[] = (loadRows ?? []).map((l) => {
     const span = resolveSpan(l);
+    // Canonical per-load net via the shared loadDiesel/loadNet helpers — the
+    // exact same call the Load Board makes. Cancelled loads are excluded from
+    // the weekly total, so their net is left at 0.
+    const md = loadDiesel(
+      {
+        odoAssigned: l.odo_assigned,
+        odoLoaded: l.odo_loaded,
+        odoDelivered: l.odo_delivered,
+        estimate: l.loaded_miles,
+      },
+      fuel,
+    );
+    const net =
+      l.status === "cancelled"
+        ? 0
+        : loadNet(
+            {
+              rate: num(l.rate),
+              diesel: md.diesel,
+              expensesTotal: expByLoad.get(l.id) ?? 0,
+            },
+            fuel,
+            l.broker_id != null && factoringIds.has(l.broker_id),
+          ).net;
     return {
       id: l.id,
       label: `${place(l.origin)} → ${place(l.destination)}`,
@@ -98,6 +184,7 @@ async function loadCalendar(): Promise<{ loads: LoadBar[]; repairs: RepairChip[]
       end: span.end,
       approx: span.approx,
       cancelled: l.status === "cancelled",
+      net,
     };
   });
 

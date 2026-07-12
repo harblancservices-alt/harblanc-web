@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import {
+  addDays,
   assignLanes,
   daysBetween,
   federalHolidays,
@@ -32,7 +33,11 @@ export type LoadBar = {
   end: string; // YYYY-MM-DD (>= start)
   approx: boolean; // date fell back to created_at
   cancelled: boolean;
+  net: number; // canonical per-load net (0 for cancelled, which is excluded)
 };
+
+/** A week's net total + how many loads picked up in it, keyed by its Sunday. */
+type WeekNet = { net: number; count: number };
 
 export type RepairChip = {
   id: string;
@@ -54,6 +59,20 @@ function fmtDayHeading(date: string): string {
   const wd = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][dt.getUTCDay()];
   const mo = monthName(p.m1 - 1).slice(0, 3);
   return `${wd}, ${mo} ${p.d}`;
+}
+
+/** Whole-dollar net with sign: 1234 → "$1,234", -50 → "-$50". */
+function fmtNet(n: number): string {
+  const r = Math.round(n);
+  return (r < 0 ? "-$" : "$") + Math.abs(r).toLocaleString("en-US");
+}
+
+/** Quiet tone for a net figure — green when up, red when down, muted at zero. */
+function netTone(n: number): string {
+  const r = Math.round(n);
+  if (r > 0) return "text-green-700";
+  if (r < 0) return "text-bad";
+  return "text-ink-3";
 }
 
 function fmtRange(l: LoadBar): string {
@@ -134,6 +153,22 @@ export function CalendarView({
     return m;
   }, [repairs]);
 
+  // Weekly net, keyed by each week's Sunday: sum of the canonical per-load net
+  // for loads that PICKED UP in that Sun–Sat week (attributed by the same start
+  // date the bar uses), excluding cancelled loads.
+  const weekNets = useMemo(() => {
+    const m = new Map<string, WeekNet>();
+    for (const l of visibleLoads) {
+      if (l.cancelled) continue;
+      const sunday = addDays(l.start, -weekdayOf(l.start));
+      const cur = m.get(sunday) ?? { net: 0, count: 0 };
+      cur.net += l.net;
+      cur.count += 1;
+      m.set(sunday, cur);
+    }
+    return m;
+  }, [visibleLoads]);
+
   const monthLabel = `${monthName(view.month0)} ${view.year}`;
   const isCurrentMonth =
     view.year === todayParts.y && view.month0 === todayParts.m1 - 1;
@@ -204,6 +239,7 @@ export function CalendarView({
                 lanes={lanes}
                 holidays={holidays}
                 repairsByDate={repairsByDate}
+                weekNet={weekNets.get(week[0])}
               />
             ))}
           </div>
@@ -219,6 +255,7 @@ export function CalendarView({
             loads={visibleLoads}
             holidays={holidays}
             repairsByDate={repairsByDate}
+            weekNets={weekNets}
           />
         </div>
       </div>
@@ -260,6 +297,7 @@ type WeekRowProps = {
   lanes: Map<string, number>;
   holidays: Map<string, Holiday>;
   repairsByDate: Map<string, RepairChip[]>;
+  weekNet: WeekNet | undefined;
 };
 
 type Segment = {
@@ -279,6 +317,7 @@ function WeekRow({
   lanes,
   holidays,
   repairsByDate,
+  weekNet,
 }: WeekRowProps) {
   const weekStart = week[0];
   const weekEnd = week[6];
@@ -302,12 +341,13 @@ function WeekRow({
 
   return (
     <div className="relative grid grid-cols-7 border-b border-line last:border-b-0">
-      {week.map((date) => {
+      {week.map((date, col) => {
         const p = parseDateStr(date)!;
         const inMonth = p.m1 - 1 === month0;
         const isToday = date === today;
         const holiday = holidays.get(date);
         const dayRepairs = repairsByDate.get(date) ?? [];
+        const showNet = col === 6 && weekNet && weekNet.count > 0;
         return (
           <div
             key={date}
@@ -316,7 +356,8 @@ function WeekRow({
               (inMonth ? "" : "bg-inset/60")
             }
           >
-            {/* Date number row (fixed height so bar overlay aligns). */}
+            {/* Date number row (fixed height so bar overlay aligns). The
+                week's quiet net sits at the right edge of the Saturday cell. */}
             <div
               className="flex items-center justify-between px-1.5"
               style={{ height: HEADER_H }}
@@ -333,6 +374,17 @@ function WeekRow({
               >
                 {p.d}
               </span>
+              {showNet ? (
+                <span
+                  title="Week net — loads picked up this week"
+                  className={
+                    "font-mono text-[10.5px] font-semibold tabular-nums " +
+                    netTone(weekNet.net)
+                  }
+                >
+                  {fmtNet(weekNet.net)}
+                </span>
+              ) : null}
             </div>
             {/* Reserved bar zone (bars are drawn by the overlay below). */}
             <div style={{ height: barZoneH }} />
@@ -415,6 +467,7 @@ type AgendaProps = {
   loads: LoadBar[];
   holidays: Map<string, Holiday>;
   repairsByDate: Map<string, RepairChip[]>;
+  weekNets: Map<string, WeekNet>;
 };
 
 type AgendaItem =
@@ -430,6 +483,7 @@ function Agenda({
   loads,
   holidays,
   repairsByDate,
+  weekNets,
 }: AgendaProps) {
   const daysInMonth = new Date(Date.UTC(year, month0 + 1, 0)).getUTCDate();
   const lastOfMonth = toDateStr(year, month0 + 1, daysInMonth);
@@ -467,12 +521,47 @@ function Agenda({
     );
   }
 
+  // A quiet "Week net" line leads the first day that appears from each Sun–Sat
+  // week, matching the desktop grid's per-week total. Resolved up front (no
+  // render-time mutation): map the week-opening day → its week net.
+  const netHeaderByDay = new Map<string, WeekNet>();
+  const seenWeeks = new Set<string>();
+  for (const date of days) {
+    const sunday = addDays(date, -weekdayOf(date));
+    if (seenWeeks.has(sunday)) continue;
+    seenWeeks.add(sunday);
+    const wn = weekNets.get(sunday);
+    if (wn && wn.count > 0) netHeaderByDay.set(date, wn);
+  }
+
   return (
     <div className="space-y-3">
-      {days.map((date) => {
+      {days.flatMap((date) => {
         const items = byDay.get(date)!;
         const isToday = date === today;
-        return (
+        const nodes: ReactNode[] = [];
+        const headerNet = netHeaderByDay.get(date);
+        if (headerNet) {
+          nodes.push(
+            <div
+              key={"wk:" + date}
+              className="flex items-center justify-between px-1 pt-1"
+            >
+              <span className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-ink-3">
+                Week net
+              </span>
+              <span
+                className={
+                  "font-mono text-[12px] font-semibold tabular-nums " +
+                  netTone(headerNet.net)
+                }
+              >
+                {fmtNet(headerNet.net)}
+              </span>
+            </div>,
+          );
+        }
+        nodes.push(
           <div key={date} className="rounded-lg border border-line bg-card shadow-e1">
             <div
               className={
@@ -494,8 +583,9 @@ function Agenda({
                 <AgendaRow key={i} item={item} />
               ))}
             </div>
-          </div>
+          </div>,
         );
+        return nodes;
       })}
     </div>
   );
