@@ -265,7 +265,7 @@ export default async function LoadDetailPage({
 
   return (
     <div className="min-h-screen border-t border-line bg-canvas text-fg">
-      <div className="w-full px-4 py-5 sm:px-6 sm:py-6 lg:px-8">
+      <div className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-6 lg:px-8">
         {/* Command bar — back + actions, clean lane, financial tiles */}
         <div className="overflow-hidden rounded-md bg-bar shadow-e2">
           {/* Tier 1: back button + cancel / delete actions */}
