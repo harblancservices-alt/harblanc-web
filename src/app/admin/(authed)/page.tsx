@@ -6,6 +6,13 @@ import {
   currentOdoFromLoads,
   groupKey,
 } from "@/lib/dispatch/repair-log";
+import {
+  loadDiesel,
+  loadNet,
+  FUEL_DEFAULTS,
+  type FuelSettings,
+} from "@/lib/dispatch/fuel";
+import type { CountdownGoal, NetPace } from "@/lib/dispatch/countdown";
 import { DashboardView, type DashboardData } from "./DashboardView";
 
 // The two reminders surfaced on the dashboard's quick maintenance widget
@@ -40,12 +47,25 @@ export const metadata: Metadata = {
 //     so "new" = active (not trashed) and still lead_status = 'new'.
 const NEW_APPLICATION_WINDOW_MS = 24 * 60 * 60 * 1000;
 
+// Recent window the countdown breakdown averages over: the last ~12 weeks of
+// delivered loads. Average net per load and the weekly net pace are both drawn
+// from this window (weekly pace = total window net ÷ WINDOW_WEEKS).
+const NET_PACE_WINDOW_WEEKS = 12;
+const NET_PACE_WINDOW_MS = NET_PACE_WINDOW_WEEKS * 7 * 24 * 60 * 60 * 1000;
+
+function num(v: number | string | null): number {
+  if (v == null) return 0;
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
 async function loadDashboard(): Promise<DashboardData> {
   const sb = createServiceRoleClient();
   const now = new Date();
   const appCutoff = new Date(
     now.getTime() - NEW_APPLICATION_WINDOW_MS,
   ).toISOString();
+  const netPaceCutoffMs = now.getTime() - NET_PACE_WINDOW_MS;
 
   const [
     pipelineCards,
@@ -56,6 +76,11 @@ async function loadDashboard(): Promise<DashboardData> {
     { data: tripRows },
     { data: reminderRows },
     { data: odoRows },
+    { data: goalRows },
+    { data: deliveredRows },
+    { data: fuelRow },
+    { data: expRows },
+    { data: factoringBrokers },
   ] = await Promise.all([
     // Shared pipeline cards — the dashboard only renders the expired ones.
     loadPipelineCards(),
@@ -133,6 +158,66 @@ async function loadDashboard(): Promise<DashboardData> {
           odo_delivered: number | null;
         }[]
       >(),
+    // Countdown goals — the editable financial targets for the dashboard widget.
+    sb
+      .from("countdown_goals")
+      .select("id, label, subtitle, target_amount, target_date")
+      .is("deleted_at", null)
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true })
+      .returns<
+        {
+          id: string;
+          label: string;
+          subtitle: string | null;
+          target_amount: number | string | null;
+          target_date: string;
+        }[]
+      >(),
+    // Delivered loads for the net-pace aggregates (windowed in JS below). Same
+    // columns the calendar feeds into loadDiesel/loadNet.
+    sb
+      .from("loads")
+      .select(
+        "id, rate, loaded_miles, odo_assigned, odo_loaded, odo_delivered, broker_id, delivery_date, created_at",
+      )
+      .eq("status", "delivered")
+      .is("deleted_at", null)
+      .returns<
+        {
+          id: string;
+          rate: number | string | null;
+          loaded_miles: number | null;
+          odo_assigned: number | null;
+          odo_loaded: number | null;
+          odo_delivered: number | null;
+          broker_id: string | null;
+          delivery_date: string | null;
+          created_at: string;
+        }[]
+      >(),
+    // Fuel/factoring inputs — the exact same loadNet inputs the Load Board and
+    // Calendar use, so the per-load net here is the canonical one.
+    sb
+      .from("dispatch_settings")
+      .select("mpg, diesel_price_per_gallon, factoring_pct")
+      .eq("id", true)
+      .maybeSingle<{
+        mpg: number | string;
+        diesel_price_per_gallon: number | string;
+        factoring_pct: number | string;
+      }>(),
+    sb
+      .from("load_expenses")
+      .select("load_id, amount")
+      .is("deleted_at", null)
+      .returns<{ load_id: string; amount: number | string }[]>(),
+    sb
+      .from("brokers")
+      .select("id")
+      .eq("factoring", true)
+      .is("deleted_at", null)
+      .returns<{ id: string }[]>(),
   ]);
 
   // Expired quotes drop off the forward pipeline into their own section.
@@ -245,6 +330,65 @@ async function loadDashboard(): Promise<DashboardData> {
     };
   });
 
+  // Countdown goals (editable targets) for the dashboard widget.
+  const countdownGoals: CountdownGoal[] = (goalRows ?? []).map((g) => ({
+    id: g.id,
+    label: g.label,
+    subtitle: g.subtitle ?? "",
+    targetAmount: num(g.target_amount),
+    targetDate: g.target_date,
+  }));
+
+  // Net-pace aggregates for the countdown breakdown — canonical loadDiesel/
+  // loadNet over delivered loads in the last ~12 weeks. Weekly pace = total
+  // window net ÷ WINDOW_WEEKS; average net per load = total ÷ load count.
+  const fuel: FuelSettings = {
+    mpg: num(fuelRow?.mpg ?? null) || FUEL_DEFAULTS.mpg,
+    ppg: num(fuelRow?.diesel_price_per_gallon ?? null) || FUEL_DEFAULTS.ppg,
+    factoringPct:
+      fuelRow?.factoring_pct != null
+        ? num(fuelRow.factoring_pct)
+        : FUEL_DEFAULTS.factoringPct,
+  };
+  const expByLoad = new Map<string, number>();
+  for (const e of expRows ?? []) {
+    expByLoad.set(e.load_id, (expByLoad.get(e.load_id) ?? 0) + num(e.amount));
+  }
+  const factoringIds = new Set((factoringBrokers ?? []).map((b) => b.id));
+
+  let windowNet = 0;
+  let windowLoadCount = 0;
+  for (const l of deliveredRows ?? []) {
+    // Effective date: delivery_date when present, else created_at. Window on it.
+    const effIso = l.delivery_date ?? l.created_at;
+    const effMs = new Date(effIso).getTime();
+    if (!Number.isFinite(effMs) || effMs < netPaceCutoffMs) continue;
+    const md = loadDiesel(
+      {
+        odoAssigned: l.odo_assigned,
+        odoLoaded: l.odo_loaded,
+        odoDelivered: l.odo_delivered,
+        estimate: l.loaded_miles,
+      },
+      fuel,
+    );
+    const { net } = loadNet(
+      {
+        rate: num(l.rate),
+        diesel: md.diesel,
+        expensesTotal: expByLoad.get(l.id) ?? 0,
+      },
+      fuel,
+      l.broker_id != null && factoringIds.has(l.broker_id),
+    );
+    windowNet += net;
+    windowLoadCount += 1;
+  }
+  const netPace: NetPace = {
+    avgNetPerLoad: windowLoadCount > 0 ? windowNet / windowLoadCount : 0,
+    weeklyNetPace: windowNet > 0 ? windowNet / NET_PACE_WINDOW_WEEKS : 0,
+  };
+
   return {
     newApplicationCount: newApplicationCount ?? 0,
     newQuoteCount: newQuoteCount ?? 0,
@@ -253,6 +397,8 @@ async function loadDashboard(): Promise<DashboardData> {
     maintenance,
     brokerNames,
     activeTrips,
+    countdownGoals,
+    netPace,
   };
 }
 

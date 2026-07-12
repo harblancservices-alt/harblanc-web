@@ -9,7 +9,9 @@ import { ActiveLoadDocButton } from "./ActiveLoadDocActions";
 import { OdometerStatusCard } from "./dispatch/loads/[id]/OdometerStatusCard";
 import type { PipelineCard } from "@/lib/dispatch/pipeline";
 import type { MaintStatus } from "@/lib/dispatch/maintenance";
+import type { CountdownGoal, NetPace } from "@/lib/dispatch/countdown";
 import { IntervalBar } from "./maintenance/IntervalBar";
+import { CountdownCards } from "./CountdownCards";
 
 /**
  * Owner Dashboard — opportunity inbox (render layer).
@@ -37,6 +39,8 @@ export type DashboardData = {
   maintenance: ReadonlyArray<MaintWidgetItem>;
   brokerNames: ReadonlyArray<string>;
   activeTrips: ReadonlyArray<string>;
+  countdownGoals: ReadonlyArray<CountdownGoal>;
+  netPace: NetPace;
 };
 
 const MAINT_TONE: Record<MaintStatus, StatusTone> = {
@@ -113,6 +117,15 @@ export function DashboardView({ data }: { data: DashboardData }) {
       />
       <div className="mx-auto w-full max-w-5xl px-4 py-4 sm:px-6 lg:px-8">
         <PageHeader eyebrow="Owner" title="Dashboard" className="mb-4" />
+
+        <div className="mb-5">
+          <CountdownCards
+            goals={data.countdownGoals}
+            pace={data.netPace}
+            today={new Date().toISOString().slice(0, 10)}
+          />
+        </div>
+
         <SectionLabel title="Active loads" count={data.activeLoads.length} />
         {data.activeLoads.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-3 rounded-md border border-dashed border-line-strong bg-card px-4 py-10 text-center shadow-e1">
