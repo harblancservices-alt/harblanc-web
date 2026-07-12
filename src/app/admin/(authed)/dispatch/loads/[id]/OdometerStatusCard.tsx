@@ -50,7 +50,9 @@ function FullOdometerStatus({
 
   return (
     <section className="overflow-hidden rounded-md border border-line bg-card shadow-e2">
-      <div className="flex items-center justify-between gap-2 bg-bar px-3 py-2">
+      {/* min-h-[48px] matches the Load details / Financials section headers so
+          the three panel bars (and their Edit buttons) line up across columns. */}
+      <div className="flex min-h-[48px] items-center justify-between gap-2 bg-bar px-3 py-2">
         <button
           type="button"
           aria-expanded={open}

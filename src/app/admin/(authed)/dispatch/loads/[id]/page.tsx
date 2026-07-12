@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/Button";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { CollapsibleWorkspaceSection } from "../../../quotes/[id]/CollapsibleWorkspaceSection";
 import { OdometerStatusCard } from "./OdometerStatusCard";
+import { LoadDetailsCard } from "./LoadDetailsCard";
 import { LoadPnlCard } from "./LoadPnlCard";
 import { FinancialsPanel } from "./FinancialsPanel";
 import { CancelLoadButton } from "./CancelLoadButton";
@@ -56,17 +57,6 @@ function num(v: number | string | null): number {
 }
 function usd(n: number): string {
   return "$" + Math.round(n).toLocaleString("en-US");
-}
-function dateLabel(iso: string | null): string | null {
-  if (!iso) return null;
-  const d = new Date(iso + "T00:00:00");
-  if (Number.isNaN(d.getTime())) return iso;
-  return d.toLocaleString("en-US", {
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    timeZone: "UTC",
-  });
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -359,75 +349,21 @@ export default async function LoadDetailPage({
         {/* Panels */}
         <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2 xl:grid-cols-3">
           <div className="space-y-3">
-            <CollapsibleWorkspaceSection
-              title="Load details"
-              actions={
-                load.trip_id || load.broker_id ? (
-                  <>
-                    {load.trip_id ? (
-                      <Button
-                        href={`/admin/dispatch/trips/${load.trip_id}`}
-                        prefetch={false}
-                        variant="navigate"
-                        size="sm"
-                      >
-                        Trip
-                      </Button>
-                    ) : null}
-                    {load.broker_id ? (
-                      <Button
-                        href={`/admin/dispatch/brokers/${load.broker_id}`}
-                        prefetch={false}
-                        variant="navigate"
-                        size="sm"
-                      >
-                        Broker
-                      </Button>
-                    ) : null}
-                  </>
-                ) : undefined
-              }
-            >
-              <div className="space-y-3 p-3">
-                <InnerCard title="Load">
-                  <Spec
-                    label="Load #"
-                    value={
-                      load.load_number?.trim()
-                        ? `#${load.load_number.trim()}`
-                        : null
-                    }
-                  />
-                  <Spec label="Broker" value={load.broker_name} />
-                  <Spec label="Trip" value={trip?.name ?? load.trip_name} />
-                </InnerCard>
-
-                <InnerCard title="Schedule">
-                  <Spec label="Pickup" value={dateLabel(load.pickup_date)} />
-                  <Spec label="Delivery" value={dateLabel(load.delivery_date)} />
-                  <Spec
-                    label="Mileage"
-                    value={miles != null ? `${miles.toLocaleString()} mi` : null}
-                  />
-                  <Spec
-                    label="Origin"
-                    value={
-                      load.origin
-                        ? `${load.origin}${load.origin_zip ? " " + load.origin_zip : ""}`
-                        : null
-                    }
-                  />
-                  <Spec
-                    label="Dest"
-                    value={
-                      load.destination
-                        ? `${load.destination}${load.dest_zip ? " " + load.dest_zip : ""}`
-                        : null
-                    }
-                  />
-                </InnerCard>
-              </div>
-            </CollapsibleWorkspaceSection>
+            <LoadDetailsCard
+              loadId={load.id}
+              loadNumber={load.load_number}
+              brokerName={load.broker_name}
+              brokerId={load.broker_id}
+              tripId={load.trip_id}
+              tripLabel={trip?.name ?? load.trip_name}
+              pickupDate={load.pickup_date}
+              deliveryDate={load.delivery_date}
+              miles={miles}
+              origin={load.origin}
+              originZip={load.origin_zip}
+              destination={load.destination}
+              destZip={load.dest_zip}
+            />
 
             <OdometerStatusCard
               loadId={load.id}
@@ -468,59 +404,6 @@ export default async function LoadDetailPage({
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-function InnerCard({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="overflow-hidden rounded-md border border-line bg-card">
-      <header className="border-b border-line bg-card/70 px-3 py-2">
-        <p className="font-mono text-[10px] font-medium uppercase tracking-[0.22em] text-fg-muted">
-          {title}
-        </p>
-      </header>
-      <div className="px-3 py-3">{children}</div>
-    </section>
-  );
-}
-
-function Spec({
-  label,
-  value,
-  money = false,
-  tone,
-}: {
-  label: string;
-  value: string | null;
-  money?: boolean;
-  tone?: "green" | "red";
-}) {
-  const text = (value ?? "").trim();
-  const color =
-    tone === "green"
-      ? "text-ok"
-      : tone === "red"
-        ? "text-bad"
-        : money
-          ? "text-ok"
-          : text
-            ? "text-fg"
-            : "text-fg-subtle";
-  return (
-    <div className="grid grid-cols-[88px_minmax(0,1fr)] items-baseline gap-2 py-1">
-      <dt className="font-mono text-[9.5px] uppercase tracking-[0.12em] text-fg-subtle">
-        {label}
-      </dt>
-      <dd className={"text-[12.5px] tabular-nums " + color + (money ? " font-bold" : " font-medium")}>
-        {text || "—"}
-      </dd>
     </div>
   );
 }

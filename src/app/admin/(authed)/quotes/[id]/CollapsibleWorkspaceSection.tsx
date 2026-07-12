@@ -49,7 +49,13 @@ export function CollapsibleWorkspaceSection({
 
   return (
     <section className="overflow-hidden rounded-md border border-line bg-card shadow-e2">
-      <div className="flex items-stretch bg-bar">
+      {/* min-h-[48px] pins the header bar to the same height as the load page's
+          custom panel headers (Financials / Odometer, both 48px) so a section
+          with action buttons in the bar (e.g. Load details' Trip / Broker / Edit)
+          lines up with them across columns instead of reading a few px off. Safe
+          for quotes: it only grows a sub-48px header, never clips a taller one
+          (the title + optional meta line still expand the bar past the floor). */}
+      <div className="flex min-h-[48px] items-stretch bg-bar">
         <button
           type="button"
           aria-expanded={open}

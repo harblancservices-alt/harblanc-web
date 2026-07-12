@@ -377,6 +377,33 @@ export async function updateLoadOdometers(
   revalidatePath("/admin/maintenance");
 }
 
+/**
+ * Edit a load's schedule metadata — pickup date, delivery date, load number.
+ * Deliberately scoped to fields with NO effect on the money math (miles, rate,
+ * fuel, factoring, trip/broker rollups): those stay owned by their own flows.
+ * Blank clears a field. Dates arrive as native YYYY-MM-DD strings (same format
+ * createLoad stores), so they drop straight into the date columns.
+ */
+export async function updateLoadDetails(
+  id: string,
+  formData: FormData,
+): Promise<void> {
+  const sb = createServiceRoleClient();
+  const patch: Record<string, string | null> = {
+    pickup_date: str(formData, "pickup_date"),
+    delivery_date: str(formData, "delivery_date"),
+    load_number: str(formData, "load_number"),
+  };
+  const { error } = await sb
+    .from("loads")
+    .update(patch)
+    .eq("id", id)
+    .is("deleted_at", null);
+  if (error) throw new Error(`Could not save load details: ${error.message}`);
+  revalidatePath("/admin/dispatch/loads");
+  revalidatePath(`/admin/dispatch/loads/${id}`);
+}
+
 /** Add a manual expense to a load (category autofills from prior ones). */
 export async function addLoadExpense(
   loadId: string,
