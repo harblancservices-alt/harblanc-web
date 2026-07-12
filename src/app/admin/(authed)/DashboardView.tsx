@@ -233,6 +233,16 @@ export function DashboardView({ data }: { data: DashboardData }) {
             Only when there are NO active loads (between Add Load + maintenance). */}
         {data.activeLoads.length === 0 ? <FarmBrokerContactCard /> : null}
 
+        {/* Countdown goals — a small section directly above Truck Maintenance,
+            styled to match those progress-bar rows. Editable targets with a
+            live tap-through breakdown. */}
+        <div className="my-5 h-px bg-line" />
+        <CountdownCards
+          goals={data.countdownGoals}
+          pace={data.netPace}
+          today={new Date().toISOString().slice(0, 10)}
+        />
+
         {data.maintenance.length > 0 ? (
           <>
             <div className="my-5 h-px bg-line" />
@@ -288,16 +298,6 @@ export function DashboardView({ data }: { data: DashboardData }) {
             </div>
           </>
         ) : null}
-
-        {/* Countdown goals — a small section below maintenance, styled to match
-            those progress-bar rows. Editable targets with a live tap-through
-            breakdown. */}
-        <div className="my-5 h-px bg-line" />
-        <CountdownCards
-          goals={data.countdownGoals}
-          pace={data.netPace}
-          today={new Date().toISOString().slice(0, 10)}
-        />
 
         {data.expiredQuotes.length > 0 ? (
           <>

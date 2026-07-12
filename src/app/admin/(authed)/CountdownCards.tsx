@@ -67,19 +67,30 @@ export function CountdownCards({
 
   const openGoal = goals.find((g) => g.id === openId) ?? null;
 
+  // Total money still to hit across every goal — shown in the section header so
+  // Brent sees the combined target at a glance.
+  const total = goals.reduce((sum, g) => sum + g.targetAmount, 0);
+
   return (
     <>
       <div className="mb-2 flex items-center justify-between gap-2">
         <span className="font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-ink-3">
           Countdown
         </span>
-        <button
-          type="button"
-          onClick={() => setEditing({ mode: "new" })}
-          className="font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-accent transition-colors hover:text-accent-hover"
-        >
-          + Add
-        </button>
+        <span className="flex shrink-0 items-baseline gap-3">
+          {goals.length > 0 ? (
+            <span className="font-mono text-[12px] font-bold tabular-nums text-fg">
+              {money(total, 2)} total
+            </span>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => setEditing({ mode: "new" })}
+            className="font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-accent transition-colors hover:text-accent-hover"
+          >
+            + Add
+          </button>
+        </span>
       </div>
 
       {goals.length === 0 ? (
