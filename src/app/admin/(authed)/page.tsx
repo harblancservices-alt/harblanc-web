@@ -161,7 +161,7 @@ async function loadDashboard(): Promise<DashboardData> {
     // Countdown goals — the editable financial targets for the dashboard widget.
     sb
       .from("countdown_goals")
-      .select("id, label, subtitle, target_amount, target_date")
+      .select("id, label, subtitle, target_amount, target_date, created_at")
       .is("deleted_at", null)
       .order("sort_order", { ascending: true })
       .order("created_at", { ascending: true })
@@ -172,6 +172,7 @@ async function loadDashboard(): Promise<DashboardData> {
           subtitle: string | null;
           target_amount: number | string | null;
           target_date: string;
+          created_at: string;
         }[]
       >(),
     // Delivered loads for the net-pace aggregates (windowed in JS below). Same
@@ -337,6 +338,7 @@ async function loadDashboard(): Promise<DashboardData> {
     subtitle: g.subtitle ?? "",
     targetAmount: num(g.target_amount),
     targetDate: g.target_date,
+    createdAt: g.created_at,
   }));
 
   // Net-pace aggregates for the countdown breakdown — canonical loadDiesel/

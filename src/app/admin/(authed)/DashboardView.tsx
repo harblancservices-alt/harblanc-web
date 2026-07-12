@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
-import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusTag, type StatusTone } from "@/components/ui/StatusTag";
 import { AddLoadButton } from "./dispatch/loads/AddLoadButton";
 import { FarmBrokerContactCard } from "./FarmBrokerContactCard";
@@ -115,16 +114,10 @@ export function DashboardView({ data }: { data: DashboardData }) {
         newApplications={data.newApplicationCount}
         newQuotes={data.newQuoteCount}
       />
-      <div className="mx-auto w-full max-w-5xl px-4 py-4 sm:px-6 lg:px-8">
-        <PageHeader eyebrow="Owner" title="Dashboard" className="mb-4" />
-
-        <div className="mb-5">
-          <CountdownCards
-            goals={data.countdownGoals}
-            pace={data.netPace}
-            today={new Date().toISOString().slice(0, 10)}
-          />
-        </div>
+      <div className="mx-auto w-full max-w-5xl px-4 pb-4 pt-2.5 sm:px-6 lg:px-8">
+        <h1 className="mb-3 text-[22px] font-bold leading-tight text-ink">
+          Dashboard
+        </h1>
 
         <SectionLabel title="Active loads" count={data.activeLoads.length} />
         {data.activeLoads.length === 0 ? (
@@ -295,6 +288,16 @@ export function DashboardView({ data }: { data: DashboardData }) {
             </div>
           </>
         ) : null}
+
+        {/* Countdown goals — a small section below maintenance, styled to match
+            those progress-bar rows. Editable targets with a live tap-through
+            breakdown. */}
+        <div className="my-5 h-px bg-line" />
+        <CountdownCards
+          goals={data.countdownGoals}
+          pace={data.netPace}
+          today={new Date().toISOString().slice(0, 10)}
+        />
 
         {data.expiredQuotes.length > 0 ? (
           <>

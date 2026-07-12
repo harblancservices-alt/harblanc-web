@@ -3,9 +3,11 @@
 import { useEffect, useState, useTransition } from "react";
 import {
   computeBreakdown,
+  timeProgressPct,
   type CountdownGoal,
   type NetPace,
 } from "@/lib/dispatch/countdown";
+import { IntervalBar } from "./maintenance/IntervalBar";
 import {
   createCountdownGoal,
   deleteCountdownGoal,
@@ -15,16 +17,16 @@ import {
 /**
  * Dashboard countdown widget (render layer).
  *
- * Two square white cards (one per goal) showing a big "N days left" count and
- * the target date in an inset pill. Tapping a card opens a READ-ONLY breakdown
- * (required pace, loads needed, on-pace verdict) computed live from the goal +
- * the recent load-net aggregates the server passed in. The only writes are
- * editing/adding/removing the goals themselves, via the edit modal.
+ * One progress-bar row per goal, styled to match the Truck Maintenance rows
+ * right above it: goal name on the left, a green time-progress bar, and the
+ * target amount + days-left on the right. The bar tracks elapsed time toward
+ * the deadline — (today − created) / (target − created). Tapping a row opens
+ * the READ-ONLY breakdown (required pace, loads needed, on-pace verdict); the
+ * subtitle and per-week/per-day figures live only there, never on the row.
  *
- * Deliberately OFF the admin theme: fixed white surface + dark ink + normal
- * sans (no mono, no graphite, no red bar) per the approved look. `today` is
- * computed server-side (same convention as the Calendar) so days-left ticks
- * down by date with no hydration drift; the page revalidates each day.
+ * The breakdown/edit modals stay off the admin theme (fixed white surface,
+ * normal sans). `today` is computed server-side (same convention as the
+ * Calendar) so days-left ticks down by date with no hydration drift.
  */
 
 function money(n: number, decimals = 0): string {
@@ -74,7 +76,7 @@ export function CountdownCards({
         <button
           type="button"
           onClick={() => setEditing({ mode: "new" })}
-          className="rounded-full bg-white px-2.5 py-1 text-[12px] font-semibold text-neutral-700 shadow-sm ring-1 ring-black/10 transition hover:bg-neutral-50"
+          className="font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-accent transition-colors hover:text-accent-hover"
         >
           + Add
         </button>
@@ -84,37 +86,41 @@ export function CountdownCards({
         <button
           type="button"
           onClick={() => setEditing({ mode: "new" })}
-          className="flex w-full items-center justify-center rounded-2xl bg-white px-4 py-8 text-[13px] font-medium text-neutral-500 shadow-[0_2px_10px_rgba(0,0,0,0.06)] ring-1 ring-black/5 transition hover:bg-neutral-50"
+          className="flex w-full items-center justify-center rounded-md border border-dashed border-line-strong bg-card px-4 py-6 text-[12px] font-medium text-ink-3 shadow-e1 transition-colors hover:bg-inset"
         >
-          Add your first countdown goal
+          + Add your first countdown goal
         </button>
       ) : (
-        <div className="grid grid-cols-2 gap-3 sm:gap-4">
-          {goals.map((g) => {
+        <div className="overflow-hidden rounded-md border border-line bg-card shadow-e2">
+          {goals.map((g, i) => {
             const b = computeBreakdown(g, pace, today);
+            const pct = timeProgressPct(g, today);
             return (
               <button
                 key={g.id}
                 type="button"
                 onClick={() => setOpenId(g.id)}
-                className="group relative flex aspect-square flex-col justify-between rounded-2xl bg-white p-4 text-left shadow-[0_2px_10px_rgba(0,0,0,0.08)] ring-1 ring-black/5 transition hover:shadow-[0_6px_20px_rgba(0,0,0,0.12)] active:scale-[0.99]"
+                className={
+                  "block w-full px-3.5 py-2.5 text-left transition-colors hover:bg-inset " +
+                  (i === goals.length - 1 ? "" : "border-b border-line")
+                }
               >
-                <span className="line-clamp-2 text-[14px] font-semibold leading-tight text-neutral-900">
-                  {g.label}
-                </span>
-
-                <span className="flex flex-col items-start">
-                  <span className="text-[44px] font-bold leading-none tracking-tight tabular-nums text-neutral-900 sm:text-[52px]">
-                    {b.daysLeft}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate text-[13px] font-semibold text-fg">
+                    {g.label}
                   </span>
-                  <span className="mt-1 text-[12px] font-medium text-neutral-500">
-                    {b.daysLeft === 1 ? "day left" : "days left"}
+                  <span className="flex shrink-0 items-baseline gap-2 font-mono tabular-nums">
+                    <span className="text-[13px] font-bold text-ok">
+                      {money(g.targetAmount)}
+                    </span>
+                    <span className="text-[11px] font-bold text-fg-muted">
+                      {b.daysLeft} {b.daysLeft === 1 ? "day" : "days"} left
+                    </span>
                   </span>
-                </span>
-
-                <span className="inline-flex w-fit items-center rounded-full bg-neutral-100 px-2.5 py-1 text-[11px] font-semibold tabular-nums text-neutral-600">
-                  {longDate(g.targetDate)}
-                </span>
+                </div>
+                <div className="mt-1.5">
+                  <IntervalBar pct={pct} status="ok" className="h-2" />
+                </div>
               </button>
             );
           })}

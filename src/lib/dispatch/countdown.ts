@@ -17,6 +17,8 @@ export type CountdownGoal = {
   targetAmount: number;
   /** `YYYY-MM-DD` */
   targetDate: string;
+  /** When the goal was created — the start of the time-progress bar. ISO. */
+  createdAt: string;
 };
 
 /** Load aggregates over the recent window, from the canonical loadNet math. */
@@ -85,4 +87,19 @@ export function computeBreakdown(
   const onPace = hasPace && pace.weeklyNetPace >= perWeek;
 
   return { daysLeft, weeksLeft, perWeek, perDay, loadsNeeded, onPace, hasPace };
+}
+
+/**
+ * Time-elapsed progress toward the deadline, 0–100:
+ *   (today − created) / (target − created), clamped.
+ * A zero/negative span (created on or after the target) reads as 100%. Both the
+ * created timestamp and the dates collapse to calendar days so the bar advances
+ * one notch per day, in step with the days-left count.
+ */
+export function timeProgressPct(goal: CountdownGoal, todayIso: string): number {
+  const createdDay = goal.createdAt.slice(0, 10);
+  const totalDays = daysUntil(goal.targetDate, createdDay);
+  if (totalDays <= 0) return 100;
+  const elapsed = daysUntil(todayIso, createdDay);
+  return Math.max(0, Math.min(100, (elapsed / totalDays) * 100));
 }
