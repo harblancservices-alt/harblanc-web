@@ -218,8 +218,8 @@ export function CalendarView({
         {/* Desktop grid. */}
         <div className="mt-4 hidden md:block">
           <div className="overflow-hidden rounded-lg border border-line bg-card shadow-e1">
-            {/* Weekday header. */}
-            <div className="grid grid-cols-7 border-b border-line bg-inset">
+            {/* Weekday header + a trailing Profit column. */}
+            <div className="grid grid-cols-8 border-b border-line bg-inset">
               {WEEKDAY_LABELS.map((w) => (
                 <div
                   key={w}
@@ -228,6 +228,9 @@ export function CalendarView({
                   {w}
                 </div>
               ))}
+              <div className="border-l border-line px-2 py-2 text-center font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-ink-3">
+                Profit
+              </div>
             </div>
             {weeks.map((week) => (
               <WeekRow
@@ -339,27 +342,30 @@ function WeekRow({
   const laneCount = segments.reduce((m, s) => Math.max(m, s.lane + 1), 0);
   const barZoneH = laneCount * BAR_H;
 
+  // Week net for the trailing Profit cell — the value when loads picked up this
+  // week, otherwise a muted zero so the cell still renders and the grid stays
+  // 8-wide.
+  const weekNetValue = weekNet && weekNet.count > 0 ? weekNet.net : 0;
+
   return (
-    <div className="relative grid grid-cols-7 border-b border-line last:border-b-0">
-      {week.map((date, col) => {
+    <div className="relative grid grid-cols-8 border-b border-line last:border-b-0">
+      {week.map((date) => {
         const p = parseDateStr(date)!;
         const inMonth = p.m1 - 1 === month0;
         const isToday = date === today;
         const holiday = holidays.get(date);
         const dayRepairs = repairsByDate.get(date) ?? [];
-        const showNet = col === 6 && weekNet && weekNet.count > 0;
         return (
           <div
             key={date}
             className={
-              "min-h-[110px] border-r border-line last:border-r-0 " +
+              "min-h-[110px] border-r border-line " +
               (inMonth ? "" : "bg-inset/60")
             }
           >
-            {/* Date number row (fixed height so bar overlay aligns). The
-                week's quiet net sits at the right edge of the Saturday cell. */}
+            {/* Date number row (fixed height so bar overlay aligns). */}
             <div
-              className="flex items-center justify-between px-1.5"
+              className="flex items-center px-1.5"
               style={{ height: HEADER_H }}
             >
               <span
@@ -374,17 +380,6 @@ function WeekRow({
               >
                 {p.d}
               </span>
-              {showNet ? (
-                <span
-                  title="Week net — loads picked up this week"
-                  className={
-                    "font-mono text-[10.5px] font-semibold tabular-nums " +
-                    netTone(weekNet.net)
-                  }
-                >
-                  {fmtNet(weekNet.net)}
-                </span>
-              ) : null}
             </div>
             {/* Reserved bar zone (bars are drawn by the overlay below). */}
             <div style={{ height: barZoneH }} />
@@ -416,9 +411,24 @@ function WeekRow({
         );
       })}
 
-      {/* Load bars — one absolutely-positioned overlay per week, on top of the
+      {/* Trailing Profit cell — the week's net, centered, styled like a day
+          cell. Muted at zero (incl. weeks with no pickups). */}
+      <div className="flex min-h-[110px] flex-col items-center justify-center px-2">
+        <span
+          title="Week net — loads picked up this week"
+          className={
+            "font-mono text-[15px] font-bold tabular-nums " +
+            netTone(weekNetValue)
+          }
+        >
+          {fmtNet(weekNetValue)}
+        </span>
+      </div>
+
+      {/* Load bars — one absolutely-positioned overlay per week, confined to the
+          seven day columns (never the Profit cell) and layered on top of the
           reserved zone. pointer-events pass through the gaps to the cells. */}
-      <div className="pointer-events-none absolute inset-0">
+      <div className="pointer-events-none absolute inset-y-0 left-0 right-[12.5%]">
         {segments.map((s) => {
           const leftPct = (s.startCol / 7) * 100;
           const widthPct = ((s.endCol - s.startCol + 1) / 7) * 100;
