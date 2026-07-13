@@ -1687,7 +1687,7 @@ export default async function QuoteDetailPage({
     <>
       {isTrashed ? (
         <div className="border-t border-line bg-canvas">
-          <div className="mx-auto flex max-w-7xl flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-2 sm:px-6 lg:px-8">
+          <div className="mx-auto flex max-w-6xl flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-2 sm:px-6 lg:px-8">
             <p className="font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-amber-600">
               In trash
             </p>

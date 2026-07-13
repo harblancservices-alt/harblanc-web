@@ -74,7 +74,7 @@ export function LoadWorkspaceV2({
   const hasNotes = notesContent != null;
   return (
     <div className="min-h-screen border-t border-line bg-canvas text-fg">
-      <div className="w-full px-4 py-5 sm:px-6 sm:py-6 lg:px-8 xl:px-10 xl:py-8">
+      <div className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-6 lg:px-8 xl:px-10 xl:py-8">
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 lg:gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1.05fr)] xl:gap-4">
           {/* LEFT — load details + reference */}
           <div className="space-y-3 lg:col-span-2 xl:col-span-1">
