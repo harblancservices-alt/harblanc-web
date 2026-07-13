@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { Button } from "@/components/ui/Button";
 import {
   computeBreakdown,
   timeProgressPct,
@@ -12,6 +13,7 @@ import {
   createCountdownGoal,
   deleteCountdownGoal,
   updateCountdownGoal,
+  updateCurrentCash,
 } from "./countdown-actions";
 
 /**
@@ -52,10 +54,12 @@ function longDate(iso: string): string {
 export function CountdownCards({
   goals,
   pace,
+  currentCash,
   today,
 }: {
   goals: ReadonlyArray<CountdownGoal>;
   pace: NetPace;
+  currentCash: number;
   today: string;
 }) {
   // `null` = closed. A string id opens the breakdown for that goal. The edit
@@ -67,43 +71,48 @@ export function CountdownCards({
 
   const openGoal = goals.find((g) => g.id === openId) ?? null;
 
-  // Total money still to hit across every goal — shown in the section header so
-  // Brent sees the combined target at a glance.
+  // Total money to hit across every goal — the "balance" shown on the black
+  // title bar and the figure current cash is measured against for the shortfall.
   const total = goals.reduce((sum, g) => sum + g.targetAmount, 0);
 
   return (
     <>
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <span className="font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-ink-3">
-          Countdown
-        </span>
-        <span className="flex shrink-0 items-baseline gap-3">
-          {goals.length > 0 ? (
-            <span className="font-mono text-[12px] font-bold tabular-nums text-fg">
-              {money(total, 2)} total
+      <div className="overflow-hidden rounded-md border border-line bg-card shadow-e2">
+        {/* Black title bar — the app's graphite section-header treatment. Holds
+            the title, the combined target as the running balance, and a real
+            primary "+ Add" button (not a text link). */}
+        <div className="flex min-h-[48px] items-center justify-between gap-2 bg-bar px-3 py-2">
+          <div className="flex min-w-0 items-baseline gap-2.5">
+            <h2 className="font-mono text-[11px] font-semibold uppercase tracking-[0.16em] text-bar-fg">
+              Countdown
+            </h2>
+            <span className="font-mono text-[13px] font-bold tabular-nums text-bar-fg">
+              {money(total, 2)}
             </span>
-          ) : null}
+          </div>
+          <Button
+            type="button"
+            variant="primary"
+            size="sm"
+            onClick={() => setEditing({ mode: "new" })}
+            className="shrink-0"
+          >
+            + Add
+          </Button>
+        </div>
+
+        {/* Goal rows — one green time-progress row each, tapping opens the
+            read-only breakdown. Unchanged from before. */}
+        {goals.length === 0 ? (
           <button
             type="button"
             onClick={() => setEditing({ mode: "new" })}
-            className="font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-accent transition-colors hover:text-accent-hover"
+            className="flex w-full items-center justify-center border-b border-line px-4 py-6 text-[12px] font-medium text-ink-3 transition-colors hover:bg-inset"
           >
-            + Add
+            + Add your first countdown goal
           </button>
-        </span>
-      </div>
-
-      {goals.length === 0 ? (
-        <button
-          type="button"
-          onClick={() => setEditing({ mode: "new" })}
-          className="flex w-full items-center justify-center rounded-md border border-dashed border-line-strong bg-card px-4 py-6 text-[12px] font-medium text-ink-3 shadow-e1 transition-colors hover:bg-inset"
-        >
-          + Add your first countdown goal
-        </button>
-      ) : (
-        <div className="overflow-hidden rounded-md border border-line bg-card shadow-e2">
-          {goals.map((g, i) => {
+        ) : (
+          goals.map((g) => {
             const b = computeBreakdown(g, pace, today);
             const pct = timeProgressPct(g, today);
             return (
@@ -111,10 +120,7 @@ export function CountdownCards({
                 key={g.id}
                 type="button"
                 onClick={() => setOpenId(g.id)}
-                className={
-                  "block w-full px-3.5 py-2.5 text-left transition-colors hover:bg-inset " +
-                  (i === goals.length - 1 ? "" : "border-b border-line")
-                }
+                className="block w-full border-b border-line px-3.5 py-2.5 text-left transition-colors hover:bg-inset"
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="truncate text-[13px] font-semibold text-fg">
@@ -134,9 +140,13 @@ export function CountdownCards({
                 </div>
               </button>
             );
-          })}
-        </div>
-      )}
+          })
+        )}
+
+        {/* Current cash (owner-entered, persisted) + the shortfall gap to the
+            total. Sits at the very bottom, under the goal rows. */}
+        <CurrentCashRow currentCash={currentCash} total={total} />
+      </div>
 
       {openGoal ? (
         <BreakdownModal
@@ -158,6 +168,130 @@ export function CountdownCards({
         />
       ) : null}
     </>
+  );
+}
+
+/* ---------------------------- Current cash row ---------------------------- */
+
+/**
+ * The owner-entered cash on hand, persisted to dispatch_settings, plus the
+ * shortfall gap to the combined goal total. Tap the amount to edit it inline;
+ * Enter or Save writes it through `updateCurrentCash`. The gap is total − cash:
+ * red "Short $X" while under, green "Fully covered" once cash clears the total.
+ */
+function CurrentCashRow({
+  currentCash,
+  total,
+}: {
+  currentCash: number;
+  total: number;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(currentCash ? String(currentCash) : "");
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+
+  const shortfall = total - currentCash;
+  const covered = shortfall <= 0;
+
+  function save(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (pending) return;
+    const fd = new FormData();
+    fd.set("current_cash", value);
+    setError(null);
+    start(async () => {
+      try {
+        await updateCurrentCash(fd);
+        setEditing(false);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Could not save.");
+      }
+    });
+  }
+
+  return (
+    <div className="px-3.5 py-2.5">
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-mono text-[11px] font-bold uppercase tracking-[0.1em] text-ink-3">
+          Current cash
+        </span>
+        {editing ? (
+          <form onSubmit={save} className="flex shrink-0 items-center gap-1.5">
+            <div className="relative">
+              <span className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 font-mono text-[12px] text-fg-muted">
+                $
+              </span>
+              <input
+                name="current_cash"
+                value={value}
+                onChange={(ev) => setValue(ev.target.value)}
+                inputMode="decimal"
+                autoComplete="off"
+                autoFocus
+                placeholder="0.00"
+                className="w-28 rounded-md border border-line-strong bg-card py-1 pl-5 pr-2 text-right font-mono text-[13px] tabular-nums text-fg outline-none focus:border-accent"
+              />
+            </div>
+            <Button type="submit" variant="primary" size="sm" disabled={pending}>
+              {pending ? "…" : "Save"}
+            </Button>
+            <Button
+              type="button"
+              variant="cancel"
+              size="sm"
+              disabled={pending}
+              onClick={() => {
+                setValue(currentCash ? String(currentCash) : "");
+                setError(null);
+                setEditing(false);
+              }}
+            >
+              Cancel
+            </Button>
+          </form>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="flex shrink-0 items-center gap-1.5 rounded-md px-1.5 py-0.5 font-mono text-[14px] font-bold tabular-nums text-fg transition-colors hover:bg-inset"
+          >
+            {money(currentCash, 2)}
+            <svg
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              aria-hidden
+              className="h-3.5 w-3.5 text-fg-subtle"
+            >
+              <path d="M13.586 3.586a2 2 0 1 1 2.828 2.828l-8.35 8.35a2 2 0 0 1-.878.507l-3.007.86a.5.5 0 0 1-.618-.618l.86-3.007a2 2 0 0 1 .507-.878l8.35-8.35z" />
+            </svg>
+          </button>
+        )}
+      </div>
+
+      {/* Shortfall gap — total needed minus cash on hand. */}
+      <div className="mt-1.5 flex items-center justify-between gap-2">
+        <span className="font-mono text-[10.5px] font-medium uppercase tracking-[0.1em] text-fg-subtle">
+          {covered ? "Goal total" : "Short of total"}
+        </span>
+        {covered ? (
+          <span className="font-mono text-[12px] font-bold tabular-nums text-ok">
+            Fully covered
+            {shortfall < 0 ? ` · ${money(-shortfall, 2)} over` : ""}
+          </span>
+        ) : (
+          <span className="font-mono text-[13px] font-bold tabular-nums text-bad">
+            Short {money(shortfall, 2)}
+          </span>
+        )}
+      </div>
+
+      {error ? (
+        <p role="alert" className="mt-1.5 text-[12px] font-semibold text-bad">
+          {error}
+        </p>
+      ) : null}
+    </div>
   );
 }
 

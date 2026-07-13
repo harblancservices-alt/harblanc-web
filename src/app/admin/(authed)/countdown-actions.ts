@@ -4,10 +4,10 @@ import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 
 /**
- * Countdown-goal CRUD — the ONLY writes behind the dashboard countdown widget.
- * Everything the cards/breakdown show is computed read-only from live load
- * data; these three actions just edit the goals themselves (label / subtitle /
- * amount / date), plus add and soft-remove.
+ * Countdown-goal CRUD — the writes behind the dashboard countdown widget.
+ * Everything the rows/breakdown show is computed read-only from live load
+ * data; these actions edit the goals themselves (label / subtitle / amount /
+ * date, plus add and soft-remove) and the owner-entered current-cash figure.
  */
 
 function str(fd: FormData, key: string): string {
@@ -86,5 +86,21 @@ export async function deleteCountdownGoal(id: string): Promise<void> {
     .eq("id", id)
     .is("deleted_at", null);
   if (error) throw new Error(`Could not remove countdown goal: ${error.message}`);
+  revalidatePath("/admin");
+}
+
+/**
+ * Owner-entered cash on hand — a single figure on the dispatch_settings
+ * singleton (id=true), the same row the fuel defaults and net-profit goals
+ * live on. The widget compares it against the goal total to show the shortfall.
+ */
+export async function updateCurrentCash(formData: FormData): Promise<void> {
+  const sb = createServiceRoleClient();
+  const cash = amount(formData, "current_cash");
+  const { error } = await sb
+    .from("dispatch_settings")
+    .update({ current_cash: cash, updated_at: new Date().toISOString() })
+    .eq("id", true);
+  if (error) throw new Error(`Could not save current cash: ${error.message}`);
   revalidatePath("/admin");
 }

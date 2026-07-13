@@ -40,6 +40,7 @@ export type DashboardData = {
   activeTrips: ReadonlyArray<string>;
   countdownGoals: ReadonlyArray<CountdownGoal>;
   netPace: NetPace;
+  currentCash: number;
 };
 
 const MAINT_TONE: Record<MaintStatus, StatusTone> = {
@@ -240,6 +241,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
         <CountdownCards
           goals={data.countdownGoals}
           pace={data.netPace}
+          currentCash={data.currentCash}
           today={new Date().toISOString().slice(0, 10)}
         />
 

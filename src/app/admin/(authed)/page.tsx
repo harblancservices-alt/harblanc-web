@@ -201,12 +201,13 @@ async function loadDashboard(): Promise<DashboardData> {
     // Calendar use, so the per-load net here is the canonical one.
     sb
       .from("dispatch_settings")
-      .select("mpg, diesel_price_per_gallon, factoring_pct")
+      .select("mpg, diesel_price_per_gallon, factoring_pct, current_cash")
       .eq("id", true)
       .maybeSingle<{
         mpg: number | string;
         diesel_price_per_gallon: number | string;
         factoring_pct: number | string;
+        current_cash: number | string | null;
       }>(),
     sb
       .from("load_expenses")
@@ -401,6 +402,7 @@ async function loadDashboard(): Promise<DashboardData> {
     activeTrips,
     countdownGoals,
     netPace,
+    currentCash: num(fuelRow?.current_cash ?? null),
   };
 }
 
