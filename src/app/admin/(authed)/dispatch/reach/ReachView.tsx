@@ -329,7 +329,7 @@ export function ReachView({
               Dispatch
             </div>
             <h1 className="truncate text-[24px] font-bold leading-tight text-ink">
-              Reach
+              Send Backhaul
             </h1>
           </div>
           {tab === "send" ? (

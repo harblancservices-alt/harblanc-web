@@ -190,7 +190,7 @@ export function EmailBrokerView({ popup = false }: { popup?: boolean }) {
               (popup ? "text-[18px]" : "text-[22px]")
             }
           >
-            Email a Broker
+            Load Inquiry
           </h1>
           {popup ? null : (
             <p className="mt-1.5 text-[13px] text-fg-muted">

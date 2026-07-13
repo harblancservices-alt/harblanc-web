@@ -52,10 +52,10 @@ const GROUPS: { title: string; items: SheetItem[] }[] = [
       { href: "/admin/calendar", label: "Calendar", Icon: IconCalendar },
       {
         href: "/admin/dispatch/email-broker",
-        label: "Email a Broker",
+        label: "Load Inquiry",
         Icon: IconMailPlus,
       },
-      { href: "/admin/dispatch/reach", label: "Reach", Icon: IconMail },
+      { href: "/admin/dispatch/reach", label: "Send Backhaul", Icon: IconMail },
       {
         href: "/admin/dispatch/receivables",
         label: "Receivables",
@@ -70,14 +70,11 @@ const GROUPS: { title: string; items: SheetItem[] }[] = [
     ],
   },
   {
-    title: "Truck",
+    title: "Records",
     items: [
       { href: "/admin/maintenance", label: "Maintenance", Icon: IconWrench },
+      { href: "/admin/files", label: "Files", Icon: IconFiles },
     ],
-  },
-  {
-    title: "Records",
-    items: [{ href: "/admin/files", label: "Files", Icon: IconFiles }],
   },
   {
     title: "Business",

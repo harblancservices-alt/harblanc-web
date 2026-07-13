@@ -48,7 +48,7 @@ export function PopoutButton({
       onClick={openEmailBrokerPopup}
       className={className}
     >
-      {children ?? "Email a Broker"}
+      {children ?? "Load Inquiry"}
     </Button>
   );
 }

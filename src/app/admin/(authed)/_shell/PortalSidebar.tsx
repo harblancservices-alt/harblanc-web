@@ -58,17 +58,11 @@ const GROUPS: NavGroup[] = [
       { href: "/admin/dispatch/loads", label: "Loads", Icon: IconStack },
       {
         href: "/admin/dispatch/email-broker",
-        label: "Email a Broker",
+        label: "Load Inquiry",
         Icon: IconMailPlus,
       },
       { href: "/admin/dispatch/trips", label: "Trips", Icon: IconRoute },
       { href: "/admin/calendar", label: "Calendar", Icon: IconCalendar },
-    ],
-  },
-  {
-    title: "Fleet",
-    items: [
-      { href: "/admin/maintenance", label: "Maintenance", Icon: IconWrench },
     ],
   },
   {
@@ -80,6 +74,7 @@ const GROUPS: NavGroup[] = [
   {
     title: "Records",
     items: [
+      { href: "/admin/maintenance", label: "Maintenance", Icon: IconWrench },
       { href: "/admin/files", label: "Files", Icon: IconFiles },
     ],
   },
@@ -87,7 +82,7 @@ const GROUPS: NavGroup[] = [
     title: "More",
     items: [
       { href: "/admin/operations", label: "Operations", Icon: IconClipboard },
-      { href: "/admin/dispatch/reach", label: "Reach", Icon: IconMail },
+      { href: "/admin/dispatch/reach", label: "Send Backhaul", Icon: IconMail },
       { href: "/admin/dispatch/receivables", label: "Receivables", Icon: IconCoins },
       { href: "/admin/previews", label: "Email Previews", Icon: IconMail },
     ],
