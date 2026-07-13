@@ -1,9 +1,5 @@
-import { renderToBuffer } from "@react-pdf/renderer";
 import React from "react";
-import {
-  FinalizedQuotePDF,
-  type FinalizedQuotePdfData,
-} from "./FinalizedQuotePDF";
+import type { FinalizedQuotePdfData } from "./FinalizedQuotePDF";
 
 /**
  * Server-only PDF rendering for the Finalized Quote / Rate
@@ -23,6 +19,11 @@ import {
 export async function renderFinalizedQuotePdfBuffer(
   data: FinalizedQuotePdfData,
 ): Promise<Buffer> {
+  // Lazy: @react-pdf/renderer (yoga WASM + fontkit) and the PDF component are
+  // loaded inside the function so a load-time throw can't poison this module's
+  // export or 500 the route at import — it surfaces only on the render call.
+  const { renderToBuffer } = await import("@react-pdf/renderer");
+  const { FinalizedQuotePDF } = await import("./FinalizedQuotePDF");
   const element = React.createElement(FinalizedQuotePDF, { data }) as Parameters<
     typeof renderToBuffer
   >[0];

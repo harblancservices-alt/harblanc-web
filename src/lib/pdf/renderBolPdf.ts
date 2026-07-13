@@ -1,9 +1,5 @@
-import { renderToBuffer } from "@react-pdf/renderer";
 import React from "react";
-import {
-  BillOfLadingPDF,
-  type BillOfLadingPdfData,
-} from "./BillOfLadingPDF";
+import type { BillOfLadingPdfData } from "./BillOfLadingPDF";
 
 /**
  * Server-only PDF rendering for the Straight Bill of Lading. Returns a
@@ -19,6 +15,12 @@ import {
 export async function renderBolPdfBuffer(
   data: BillOfLadingPdfData,
 ): Promise<Buffer> {
+  // @react-pdf/renderer (yoga WASM + fontkit) and the PDF component are loaded
+  // LAZILY here, never at module top-level: a load-time throw would otherwise
+  // poison this module's export and 500 the route at import. Keeping it inside
+  // the function isolates any failure to the actual render call.
+  const { renderToBuffer } = await import("@react-pdf/renderer");
+  const { BillOfLadingPDF } = await import("./BillOfLadingPDF");
   const element = React.createElement(BillOfLadingPDF, { data }) as Parameters<
     typeof renderToBuffer
   >[0];

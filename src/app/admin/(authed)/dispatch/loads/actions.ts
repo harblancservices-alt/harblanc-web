@@ -9,11 +9,11 @@ import {
   normalizeLoadDocKind,
   withExt,
 } from "@/lib/admin/doc-name";
-import {
-  signPdfWithStamps,
-  signImageWithStamps,
-  type SignatureStamp,
-} from "@/lib/pdf/signDoc";
+// Type-only: erased at compile, so it never pulls pdf-lib into this
+// "use server" module's runtime graph. The functions themselves are loaded
+// LAZILY inside regenerateSignedBol (see the note there) so a pdf-lib eval
+// failure can't poison unrelated actions — same discipline as sharp below.
+import type { SignatureStamp } from "@/lib/pdf/signDoc";
 
 /**
  * Dispatch → Load Board server actions. Insert a load and toggle its
@@ -715,6 +715,12 @@ async function regenerateSignedBol(
   origMime: string,
   sigs: SigRow[],
 ): Promise<Uint8Array> {
+  // signDoc pulls in pdf-lib; load it LAZILY (never at module top-level) so a
+  // pdf-lib eval failure is isolated to this function and can't poison the
+  // other actions in this "use server" module — same rule as sharp below.
+  const { signPdfWithStamps, signImageWithStamps } = await import(
+    "@/lib/pdf/signDoc"
+  );
   const isPdf = (origMime ?? "").includes("pdf");
   if (isPdf) {
     const stamps = sigs

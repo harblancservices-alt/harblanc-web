@@ -1,9 +1,5 @@
-import { renderToBuffer } from "@react-pdf/renderer";
 import React from "react";
-import {
-  RangeProposalPDF,
-  type RangeProposalPdfData,
-} from "./RangeProposalPDF";
+import type { RangeProposalPdfData } from "./RangeProposalPDF";
 
 /**
  * Server-only PDF rendering for the Range Proposal document.
@@ -21,6 +17,11 @@ import {
 export async function renderRangeProposalPdfBuffer(
   data: RangeProposalPdfData,
 ): Promise<Buffer> {
+  // Lazy: @react-pdf/renderer (yoga WASM + fontkit) and the PDF component are
+  // loaded inside the function so a load-time throw can't poison this module's
+  // export or 500 the route at import — it surfaces only on the render call.
+  const { renderToBuffer } = await import("@react-pdf/renderer");
+  const { RangeProposalPDF } = await import("./RangeProposalPDF");
   const element = React.createElement(RangeProposalPDF, { data }) as Parameters<
     typeof renderToBuffer
   >[0];
