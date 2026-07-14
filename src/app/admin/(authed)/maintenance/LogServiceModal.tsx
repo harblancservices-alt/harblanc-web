@@ -314,7 +314,10 @@ export function LogServiceModal({
                 value={serviceDate}
                 onChange={(e) => setServiceDate(e.target.value)}
                 required
-                className={FIELD + " block min-w-0"}
+                className={
+                  FIELD +
+                  " block min-w-0 w-full box-border appearance-none [color-scheme:light]"
+                }
               />
             </div>
             <div>
