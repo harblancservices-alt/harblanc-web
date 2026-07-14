@@ -42,7 +42,8 @@ type SheetItem = {
   href: string;
   label: string;
   Icon: ComponentType<{ className?: string }>;
-  // Faint-red tint (label + icon in near-black) instead of the dark surface.
+  // Solid accent-red fill with a white outline, label, and icon instead of the
+  // dark surface.
   red?: boolean;
 };
 
@@ -64,17 +65,17 @@ const GROUPS: { title: string; items: SheetItem[] }[] = [
         Icon: IconMail,
         red: true,
       },
+    ],
+  },
+  {
+    title: "Payments",
+    items: [
+      { href: "/admin/operations", label: "Operations", Icon: IconClipboard },
       {
         href: "/admin/dispatch/receivables",
         label: "Receivables",
         Icon: IconCoins,
       },
-    ],
-  },
-  {
-    title: "Customers",
-    items: [
-      { href: "/admin/operations", label: "Operations", Icon: IconClipboard },
     ],
   },
   {
@@ -232,13 +233,15 @@ export function MoreSheet({
                         // resting shadow gives depth; on tap the tile sinks and
                         // darkens (scale down + brightness drop + shadow drops)
                         // so it feels pressed. Active tile keeps the accent ring.
-                        // The two dispatch-send tiles use a faint-red surface
-                        // (only the color branches; size/shape/depth are shared).
+                        // The two dispatch-send tiles fill solid accent red with
+                        // a white outline (only the color branches; size/shape/
+                        // depth are shared). Their active state doubles the
+                        // white outline, since an accent ring would vanish.
                         "flex items-center gap-2.5 rounded-xl border px-3 py-3 shadow-md transition-all duration-150 hover:-translate-y-0.5 hover:shadow-lg active:translate-y-0 active:scale-[0.97] active:brightness-90 active:shadow-sm " +
                         (red
                           ? active
-                            ? "border-red-300 bg-red-100 ring-1 ring-accent"
-                            : "border-red-200 bg-red-100 hover:bg-red-200"
+                            ? "border-white bg-accent ring-1 ring-white"
+                            : "border-white bg-accent hover:bg-accent-hover"
                           : active
                             ? "border-accent bg-white/[0.14] ring-1 ring-accent"
                             : "border-white/10 bg-white/[0.09] hover:bg-white/[0.12]")
@@ -248,19 +251,14 @@ export function MoreSheet({
                         className={
                           "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg " +
                           (red
-                            ? "bg-black/[0.06] text-neutral-900"
+                            ? "bg-white/15 text-white"
                             : "bg-white/[0.06] " +
                               (active ? "text-accent" : "text-on-dark-dim"))
                         }
                       >
                         <item.Icon className="h-[18px] w-[18px]" />
                       </span>
-                      <span
-                        className={
-                          "min-w-0 flex-1 truncate text-[13.5px] font-semibold leading-tight " +
-                          (red ? "text-neutral-900" : "text-white")
-                        }
-                      >
+                      <span className="min-w-0 flex-1 truncate text-[13.5px] font-semibold leading-tight text-white">
                         {item.label}
                       </span>
                     </Link>

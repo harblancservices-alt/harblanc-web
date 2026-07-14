@@ -43,6 +43,9 @@ type NavItem = {
   href: string;
   label: string;
   Icon: ComponentType<{ className?: string }>;
+  // Solid accent-red fill with a white outline, label, and icon instead of the
+  // bare rail row. Mirrors the same two tiles in MoreSheet.
+  red?: boolean;
 };
 
 type NavGroup = {
@@ -60,6 +63,7 @@ const GROUPS: NavGroup[] = [
         href: "/admin/dispatch/email-broker",
         label: "Load Inquiry",
         Icon: IconMailPlus,
+        red: true,
       },
       { href: "/admin/dispatch/trips", label: "Trips", Icon: IconRoute },
       { href: "/admin/calendar", label: "Calendar", Icon: IconCalendar },
@@ -72,6 +76,17 @@ const GROUPS: NavGroup[] = [
     ],
   },
   {
+    title: "Payments",
+    items: [
+      { href: "/admin/operations", label: "Operations", Icon: IconClipboard },
+      {
+        href: "/admin/dispatch/receivables",
+        label: "Receivables",
+        Icon: IconCoins,
+      },
+    ],
+  },
+  {
     title: "Records",
     items: [
       { href: "/admin/maintenance", label: "Maintenance", Icon: IconWrench },
@@ -81,9 +96,12 @@ const GROUPS: NavGroup[] = [
   {
     title: "More",
     items: [
-      { href: "/admin/operations", label: "Operations", Icon: IconClipboard },
-      { href: "/admin/dispatch/reach", label: "Send Backhaul", Icon: IconMail },
-      { href: "/admin/dispatch/receivables", label: "Receivables", Icon: IconCoins },
+      {
+        href: "/admin/dispatch/reach",
+        label: "Send Backhaul",
+        Icon: IconMail,
+        red: true,
+      },
       { href: "/admin/previews", label: "Email Previews", Icon: IconMail },
     ],
   },
@@ -121,6 +139,7 @@ export function PortalSidebar({ email }: { email: string | null }) {
                 href={item.href}
                 label={item.label}
                 Icon={item.Icon}
+                red={item.red}
                 active={isActive(pathname, item.href)}
               />
             ))}
@@ -172,11 +191,13 @@ function SidebarLink({
   label,
   Icon,
   active,
+  red = false,
 }: {
   href: string;
   label: string;
   Icon: ComponentType<{ className?: string }>;
   active: boolean;
+  red?: boolean;
 }) {
   return (
     <Link
@@ -184,10 +205,18 @@ function SidebarLink({
       prefetch={false}
       aria-current={active ? "page" : undefined}
       className={
-        "flex items-center gap-3 border-l-[3px] px-4 py-2.5 text-[13px] font-semibold tracking-[0.01em] transition-colors " +
-        (active
-          ? "border-accent bg-graphite-2 text-white"
-          : "border-transparent text-on-dark-dim hover:bg-white/[0.06] hover:text-white")
+        // Red rows are inset pills rather than full-bleed rail rows so the
+        // white outline reads as an outline; mx-2 + px-2 keeps their icon on
+        // the same left edge as every other row. Their active state doubles
+        // the white outline, since an accent ring would vanish on accent.
+        "flex items-center gap-3 py-2.5 text-[13px] font-semibold tracking-[0.01em] transition-colors " +
+        (red
+          ? "mx-2 rounded-md border border-white bg-accent px-2 text-white shadow-sm hover:bg-accent-hover " +
+            (active ? "ring-1 ring-white" : "")
+          : "border-l-[3px] px-4 " +
+            (active
+              ? "border-accent bg-graphite-2 text-white"
+              : "border-transparent text-on-dark-dim hover:bg-white/[0.06] hover:text-white"))
       }
     >
       <Icon className="h-[18px] w-[18px] shrink-0" />
