@@ -1,29 +1,28 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState } from "react";
 import { PageHeader } from "@/components/ui/PageHeader";
 import {
   addDays,
   assignLanes,
-  daysBetween,
   federalHolidays,
   monthMatrix,
   monthName,
   parseDateStr,
   shiftMonth,
-  toDateStr,
   weekdayOf,
   WEEKDAY_LABELS,
   type Holiday,
 } from "@/lib/dispatch/calendar";
 
 /**
- * Admin Calendar — an activity logbook. Desktop shows the full Sun–Sat month
- * grid with load bars spanning pickup → delivery, repair chips, and federal
- * holidays; narrow screens degrade to a scrollable day-by-day agenda (the grid
- * is unreadable on a phone). Month state + the grid/agenda switch are the only
- * client concerns; all data is pre-shaped by the server page.
+ * Admin Calendar — an activity logbook. Both breakpoints render the same Sun–Sat
+ * month grid with load bars spanning pickup → delivery, repair markers, and
+ * federal holidays; the phone gets a compact variant of it (shrunken cells,
+ * dot markers, and the week net as a per-week footer strip instead of a
+ * trailing 8th column). Month state is the only client concern; all data is
+ * pre-shaped by the server page.
  */
 
 export type LoadBar = {
@@ -49,17 +48,13 @@ export type RepairChip = {
 
 // Grid geometry (px). Date-number row, then a reserved zone of bar lanes, then
 // the chip stack flows below. Fixed so the overlaid bars line up with the cells.
+// The _SM pair is the phone grid's tighter equivalent; both breakpoints render
+// concurrently (one hidden), so each needs its own constants rather than a
+// media-query-dependent value an inline style can't express.
 const HEADER_H = 24;
 const BAR_H = 20;
-
-function fmtDayHeading(date: string): string {
-  const p = parseDateStr(date);
-  if (!p) return date;
-  const dt = new Date(Date.UTC(p.y, p.m1 - 1, p.d));
-  const wd = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][dt.getUTCDay()];
-  const mo = monthName(p.m1 - 1).slice(0, 3);
-  return `${wd}, ${mo} ${p.d}`;
-}
+const HEADER_H_SM = 18;
+const BAR_H_SM = 16;
 
 /** Whole-dollar net with sign: 1234 → "$1,234", -50 → "-$50". */
 function fmtNet(n: number): string {
@@ -73,12 +68,6 @@ function netTone(n: number): string {
   if (r > 0) return "text-green-700";
   if (r < 0) return "text-bad";
   return "text-ink-3";
-}
-
-function fmtRange(l: LoadBar): string {
-  if (l.start === l.end) return l.approx ? "approx date" : "single day";
-  const nights = daysBetween(l.start, l.end);
-  return `${nights + 1} days`;
 }
 
 function WrenchGlyph({ className }: { className?: string }) {
@@ -120,7 +109,6 @@ export function CalendarView({
   const weeks = useMemo(() => monthMatrix(view.year, view.month0), [view]);
   const gridStart = weeks[0][0];
   const gridEnd = weeks[weeks.length - 1][6];
-  const firstOfMonth = toDateStr(view.year, view.month0 + 1, 1);
 
   // Holidays for every year the grid touches (a Dec/Jan grid spans two).
   const holidays = useMemo(() => {
@@ -248,18 +236,35 @@ export function CalendarView({
           </div>
         </div>
 
-        {/* Mobile agenda. */}
+        {/* Mobile grid — same calendar, compacted to seven columns of phone
+            width. The week net moves out of the trailing column (too narrow to
+            survive an 8-way split) into a footer strip under each week. */}
         <div className="mt-4 md:hidden">
-          <Agenda
-            year={view.year}
-            month0={view.month0}
-            firstOfMonth={firstOfMonth}
-            today={today}
-            loads={visibleLoads}
-            holidays={holidays}
-            repairsByDate={repairsByDate}
-            weekNets={weekNets}
-          />
+          <div className="overflow-hidden rounded-lg border border-line bg-card shadow-e1">
+            <div className="grid grid-cols-7 border-b border-line bg-inset">
+              {WEEKDAY_LABELS.map((w) => (
+                <div
+                  key={w}
+                  className="px-0.5 py-1.5 text-center font-mono text-[9px] font-bold uppercase tracking-[0.08em] text-ink-3"
+                >
+                  {w.slice(0, 1)}
+                </div>
+              ))}
+            </div>
+            {weeks.map((week) => (
+              <MobileWeekRow
+                key={week[0]}
+                week={week}
+                month0={view.month0}
+                today={today}
+                loads={visibleLoads}
+                lanes={lanes}
+                holidays={holidays}
+                repairsByDate={repairsByDate}
+                weekNet={weekNets.get(week[0])}
+              />
+            ))}
+          </div>
         </div>
       </div>
     </div>
@@ -290,6 +295,57 @@ function Legend() {
 }
 
 // ---------------------------------------------------------------------------
+// Week rows. Both breakpoints slice the same lane assignment into per-week
+// segments; only the geometry and the chrome around them differ.
+
+type Segment = {
+  load: LoadBar;
+  lane: number;
+  startCol: number;
+  endCol: number;
+  isStart: boolean;
+  isEnd: boolean;
+};
+
+/**
+ * The pieces of each load bar that fall inside this Sun–Sat week, clipped to the
+ * row's seven columns. `lane` comes from the grid-wide assignment, so a bar sits
+ * on the same row in every week it spans; isStart/isEnd say whether the real
+ * pickup/delivery is in view (the ends that get rounded).
+ */
+function weekSegments(
+  week: string[],
+  loads: LoadBar[],
+  lanes: Map<string, number>,
+): Segment[] {
+  const weekStart = week[0];
+  const weekEnd = week[6];
+  const segments: Segment[] = [];
+  for (const load of loads) {
+    if (load.end < weekStart || load.start > weekEnd) continue;
+    segments.push({
+      load,
+      lane: lanes.get(load.id) ?? 0,
+      startCol: load.start <= weekStart ? 0 : weekdayOf(load.start),
+      endCol: load.end >= weekEnd ? 6 : weekdayOf(load.end),
+      isStart: load.start >= weekStart,
+      isEnd: load.end <= weekEnd,
+    });
+  }
+  return segments;
+}
+
+/** Lane rows a week needs — 0 when nothing spans it. */
+function laneCountOf(segments: Segment[]): number {
+  return segments.reduce((m, s) => Math.max(m, s.lane + 1), 0);
+}
+
+/** The figure the week's net cell shows: 0 (muted) unless loads picked up. */
+function weekNetValueOf(weekNet: WeekNet | undefined): number {
+  return weekNet && weekNet.count > 0 ? weekNet.net : 0;
+}
+
+// ---------------------------------------------------------------------------
 // Desktop week row.
 
 type WeekRowProps = {
@@ -303,15 +359,6 @@ type WeekRowProps = {
   weekNet: WeekNet | undefined;
 };
 
-type Segment = {
-  load: LoadBar;
-  lane: number;
-  startCol: number;
-  endCol: number;
-  isStart: boolean;
-  isEnd: boolean;
-};
-
 function WeekRow({
   week,
   month0,
@@ -323,29 +370,13 @@ function WeekRow({
   weekNet,
 }: WeekRowProps) {
   const weekStart = week[0];
-  const weekEnd = week[6];
-
-  const segments: Segment[] = [];
-  for (const load of loads) {
-    if (load.end < weekStart || load.start > weekEnd) continue;
-    const startCol = load.start <= weekStart ? 0 : weekdayOf(load.start);
-    const endCol = load.end >= weekEnd ? 6 : weekdayOf(load.end);
-    segments.push({
-      load,
-      lane: lanes.get(load.id) ?? 0,
-      startCol,
-      endCol,
-      isStart: load.start >= weekStart,
-      isEnd: load.end <= weekEnd,
-    });
-  }
-  const laneCount = segments.reduce((m, s) => Math.max(m, s.lane + 1), 0);
-  const barZoneH = laneCount * BAR_H;
+  const segments = weekSegments(week, loads, lanes);
+  const barZoneH = laneCountOf(segments) * BAR_H;
 
   // Week net for the trailing Profit cell — the value when loads picked up this
   // week, otherwise a muted zero so the cell still renders and the grid stays
   // 8-wide.
-  const weekNetValue = weekNet && weekNet.count > 0 ? weekNet.net : 0;
+  const weekNetValue = weekNetValueOf(weekNet);
 
   return (
     <div className="relative grid grid-cols-8 border-b border-line last:border-b-0">
@@ -467,205 +498,151 @@ function WeekRow({
 }
 
 // ---------------------------------------------------------------------------
-// Mobile agenda.
+// Mobile week row — the same grid at phone scale.
+//
+// Seven columns of ~48px each at 375px wide, so a bar still reads as a span and
+// the row still reads as a week. Everything that can't survive the shrink is
+// swapped rather than dropped: repair/holiday chips become dots (tapping the
+// dot still opens the repair), bar labels appear only on spans wide enough to
+// hold text, and the week net becomes a footer strip under the row.
 
-type AgendaProps = {
-  year: number;
-  month0: number;
-  firstOfMonth: string;
-  today: string;
-  loads: LoadBar[];
-  holidays: Map<string, Holiday>;
-  repairsByDate: Map<string, RepairChip[]>;
-  weekNets: Map<string, WeekNet>;
-};
-
-type AgendaItem =
-  | { kind: "load"; load: LoadBar }
-  | { kind: "repair"; repair: RepairChip }
-  | { kind: "holiday"; holiday: Holiday };
-
-function Agenda({
-  year,
+function MobileWeekRow({
+  week,
   month0,
-  firstOfMonth,
   today,
   loads,
+  lanes,
   holidays,
   repairsByDate,
-  weekNets,
-}: AgendaProps) {
-  const daysInMonth = new Date(Date.UTC(year, month0 + 1, 0)).getUTCDate();
-  const lastOfMonth = toDateStr(year, month0 + 1, daysInMonth);
-
-  // Bucket items by day. A load appears once, on its start day — or on the 1st
-  // when it started earlier but spills into this month.
-  const byDay = new Map<string, AgendaItem[]>();
-  const push = (date: string, item: AgendaItem) => {
-    const arr = byDay.get(date);
-    if (arr) arr.push(item);
-    else byDay.set(date, [item]);
-  };
-
-  for (const l of loads) {
-    if (l.end < firstOfMonth || l.start > lastOfMonth) continue;
-    const at = l.start < firstOfMonth ? firstOfMonth : l.start;
-    push(at, { kind: "load", load: l });
-  }
-  for (const [date, chips] of repairsByDate) {
-    if (date < firstOfMonth || date > lastOfMonth) continue;
-    for (const r of chips) push(date, { kind: "repair", repair: r });
-  }
-  for (const [date, h] of holidays) {
-    if (date < firstOfMonth || date > lastOfMonth) continue;
-    push(date, { kind: "holiday", holiday: h });
-  }
-
-  const days = [...byDay.keys()].sort();
-
-  if (days.length === 0) {
-    return (
-      <div className="rounded-lg border border-dashed border-line-strong bg-card px-4 py-10 text-center font-mono text-[12px] text-ink-3 shadow-e1">
-        Nothing logged this month.
-      </div>
-    );
-  }
-
-  // A quiet "Week net" line leads the first day that appears from each Sun–Sat
-  // week, matching the desktop grid's per-week total. Resolved up front (no
-  // render-time mutation): map the week-opening day → its week net.
-  const netHeaderByDay = new Map<string, WeekNet>();
-  const seenWeeks = new Set<string>();
-  for (const date of days) {
-    const sunday = addDays(date, -weekdayOf(date));
-    if (seenWeeks.has(sunday)) continue;
-    seenWeeks.add(sunday);
-    const wn = weekNets.get(sunday);
-    if (wn && wn.count > 0) netHeaderByDay.set(date, wn);
-  }
+  weekNet,
+}: WeekRowProps) {
+  const weekStart = week[0];
+  const segments = weekSegments(week, loads, lanes);
+  const barZoneH = laneCountOf(segments) * BAR_H_SM;
+  const weekNetValue = weekNetValueOf(weekNet);
 
   return (
-    <div className="space-y-3">
-      {days.flatMap((date) => {
-        const items = byDay.get(date)!;
-        const isToday = date === today;
-        const nodes: ReactNode[] = [];
-        const headerNet = netHeaderByDay.get(date);
-        if (headerNet) {
-          nodes.push(
+    <div className="border-b border-line last:border-b-0">
+      <div className="relative grid grid-cols-7">
+        {week.map((date) => {
+          const p = parseDateStr(date)!;
+          const inMonth = p.m1 - 1 === month0;
+          const isToday = date === today;
+          const holiday = holidays.get(date);
+          const dayRepairs = repairsByDate.get(date) ?? [];
+          return (
             <div
-              key={"wk:" + date}
-              className="flex items-center justify-between px-1 pt-1"
-            >
-              <span className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-ink-3">
-                Week net
-              </span>
-              <span
-                className={
-                  "font-mono text-[12px] font-semibold tabular-nums " +
-                  netTone(headerNet.net)
-                }
-              >
-                {fmtNet(headerNet.net)}
-              </span>
-            </div>,
-          );
-        }
-        nodes.push(
-          <div key={date} className="rounded-lg border border-line bg-card shadow-e1">
-            <div
+              key={date}
               className={
-                "flex items-center gap-2 border-b border-line px-3 py-2 " +
-                (isToday ? "bg-accent/10" : "bg-inset")
+                "min-h-[58px] border-r border-line last:border-r-0 " +
+                (inMonth ? "" : "bg-inset/60")
               }
             >
-              <span className="text-[13px] font-bold text-ink">
-                {fmtDayHeading(date)}
-              </span>
-              {isToday ? (
-                <span className="rounded-full bg-accent px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.1em] text-white">
-                  Today
+              <div
+                className="flex items-center justify-center"
+                style={{ height: HEADER_H_SM }}
+              >
+                <span
+                  className={
+                    "inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-0.5 text-[10.5px] font-semibold tabular-nums " +
+                    (isToday
+                      ? "bg-accent text-white"
+                      : inMonth
+                        ? "text-ink"
+                        : "text-ink-3")
+                  }
+                >
+                  {p.d}
                 </span>
-              ) : null}
+              </div>
+              {/* Reserved bar zone (bars are drawn by the overlay below). */}
+              <div style={{ height: barZoneH }} />
+              {/* Dot markers flow beneath the bars. */}
+              <div className="flex flex-wrap items-center justify-center gap-x-0.5 px-0.5 pb-1">
+                {holiday ? (
+                  <span
+                    className="flex h-4 w-4 items-center justify-center"
+                    title={holiday.name}
+                  >
+                    <span className="h-2 w-2 rounded-full bg-blue-600" />
+                    <span className="sr-only">{holiday.name}</span>
+                  </span>
+                ) : null}
+                {dayRepairs.map((r) => (
+                  <Link
+                    key={r.id}
+                    href={r.href}
+                    prefetch={false}
+                    title={`${r.label} · ${r.partCount} part${r.partCount === 1 ? "" : "s"}`}
+                    className="flex h-4 w-4 items-center justify-center transition-opacity active:opacity-60"
+                  >
+                    <span className="h-2 w-2 rounded-full bg-amber-500" />
+                    <span className="sr-only">{r.label}</span>
+                  </Link>
+                ))}
+              </div>
             </div>
-            <div className="divide-y divide-line">
-              {items.map((item, i) => (
-                <AgendaRow key={i} item={item} />
-              ))}
-            </div>
-          </div>,
-        );
-        return nodes;
-      })}
-    </div>
-  );
-}
+          );
+        })}
 
-function AgendaRow({ item }: { item: AgendaItem }) {
-  if (item.kind === "load") {
-    const l = item.load;
-    return (
-      <Link
-        href={`/admin/dispatch/loads/${l.id}`}
-        prefetch={false}
-        className="flex items-center gap-2.5 px-3 py-2.5 transition-colors active:bg-inset"
-      >
+        {/* Load bars — same overlay as desktop, spanning all seven columns
+            (there's no trailing Profit cell to avoid here). */}
+        <div className="pointer-events-none absolute inset-0">
+          {segments.map((s) => {
+            const span = s.endCol - s.startCol + 1;
+            const leftPct = (s.startCol / 7) * 100;
+            const widthPct = (span / 7) * 100;
+            return (
+              <Link
+                key={s.load.id + ":" + weekStart}
+                href={`/admin/dispatch/loads/${s.load.id}`}
+                prefetch={false}
+                title={`${s.load.label}${s.load.approx ? " (approx date)" : ""}`}
+                aria-label={s.load.label}
+                className={
+                  "pointer-events-auto absolute flex items-center overflow-hidden px-1 text-[9px] font-semibold leading-none text-white shadow-sm transition-opacity active:opacity-70 " +
+                  (s.load.cancelled
+                    ? "bg-slate-500 line-through "
+                    : "bg-green-700 ") +
+                  (s.load.approx ? "border border-dashed border-white/60 " : "") +
+                  (s.isStart ? "rounded-l " : "") +
+                  (s.isEnd ? "rounded-r " : "")
+                }
+                style={{
+                  top: HEADER_H_SM + s.lane * BAR_H_SM,
+                  height: BAR_H_SM - 3,
+                  left: `calc(${leftPct}% + 1.5px)`,
+                  width: `calc(${widthPct}% - 3px)`,
+                }}
+              >
+                {/* A one- or two-day bar is too narrow for text; the colour and
+                    the span carry it, and a tap opens the load. */}
+                {span >= 3 ? (
+                  <span className="truncate">
+                    {!s.isStart ? "‹ " : ""}
+                    {s.load.label}
+                  </span>
+                ) : null}
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Week net — the desktop Profit column, restated as a footer strip. */}
+      <div className="flex items-center justify-end gap-1.5 border-t border-line/60 bg-inset/40 px-2 py-1">
+        <span className="font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-ink-3">
+          Week net
+        </span>
         <span
           className={
-            "mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full " +
-            (l.cancelled ? "bg-slate-500" : "bg-green-700")
+            "font-mono text-[12px] font-bold tabular-nums " +
+            netTone(weekNetValue)
           }
-        />
-        <span className="min-w-0 flex-1">
-          <span
-            className={
-              "block truncate text-[13.5px] font-semibold text-ink " +
-              (l.cancelled ? "line-through" : "")
-            }
-          >
-            {l.label}
-          </span>
-          <span className="font-mono text-[11px] text-ink-3">
-            Load · {fmtRange(l)}
-          </span>
+        >
+          {fmtNet(weekNetValue)}
         </span>
-      </Link>
-    );
-  }
-  if (item.kind === "repair") {
-    const r = item.repair;
-    return (
-      <Link
-        href={r.href}
-        prefetch={false}
-        className="flex items-center gap-2.5 px-3 py-2.5 transition-colors active:bg-inset"
-      >
-        <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-amber-200 bg-amber-50 text-amber-700">
-          <WrenchGlyph className="h-3.5 w-3.5" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-[13.5px] font-semibold text-ink">
-            {r.label}
-          </span>
-          <span className="font-mono text-[11px] text-ink-3">
-            Repair · {r.partCount} part{r.partCount === 1 ? "" : "s"}
-          </span>
-        </span>
-      </Link>
-    );
-  }
-  const h = item.holiday;
-  return (
-    <div className="flex items-center gap-2.5 px-3 py-2.5">
-      <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-blue-200 bg-blue-50 text-blue-700">
-        <FlagGlyph className="h-3.5 w-3.5" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[13.5px] font-semibold text-ink">
-          {h.name}
-        </span>
-        <span className="font-mono text-[11px] text-ink-3">Federal holiday</span>
-      </span>
+      </div>
     </div>
   );
 }
