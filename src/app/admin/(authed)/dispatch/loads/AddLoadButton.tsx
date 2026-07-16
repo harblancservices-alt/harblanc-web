@@ -10,6 +10,9 @@ import { Button } from "@/components/ui/Button";
  * the button opens the exact same modal/flow and runs the same createLoad
  * server action. `className`/`children` let each call site style the trigger
  * without forking the behavior.
+ *
+ * It's the top-level CTA on both of its pages, hence primary-raised (the
+ * More-sheet send-tile treatment) rather than the flat primary.
  */
 
 export function AddLoadButton({
@@ -28,7 +31,7 @@ export function AddLoadButton({
     <>
       <Button
         type="button"
-        variant="primary"
+        variant="primary-raised"
         onClick={() => setOpen(true)}
         className={className}
       >

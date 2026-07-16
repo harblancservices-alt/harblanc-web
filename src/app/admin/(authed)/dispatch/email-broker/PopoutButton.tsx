@@ -1,6 +1,10 @@
 "use client";
 
-import { Button, type ButtonSize } from "@/components/ui/Button";
+import {
+  Button,
+  type ButtonSize,
+  type ButtonVariant,
+} from "@/components/ui/Button";
 
 /**
  * Opens Email-a-Broker as a floating pop-out WINDOW — a compact, chrome-less
@@ -35,15 +39,23 @@ export function PopoutButton({
   className,
   children,
   size,
+  variant = "utility",
 }: {
   className?: string;
   children?: React.ReactNode;
   size?: ButtonSize;
+  /**
+   * Defaults to the neutral utility look, which is what the Email-a-Broker
+   * page itself wants — there the popup is a secondary way to view the tool
+   * you're already on. The Load Board passes primary-raised, where it IS a
+   * top-level CTA and matches the red Load Inquiry tile in the nav.
+   */
+  variant?: ButtonVariant;
 }) {
   return (
     <Button
       type="button"
-      variant="utility"
+      variant={variant}
       size={size}
       onClick={openEmailBrokerPopup}
       className={className}

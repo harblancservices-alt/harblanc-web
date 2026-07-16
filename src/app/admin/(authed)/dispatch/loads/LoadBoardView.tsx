@@ -231,7 +231,10 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
         </div>
 
         {/* Toolbar — search + (relocated) Delete + Add Load. The old filter
-            pills were removed; the month dropdown above is the filter now. */}
+            pills were removed; the month dropdown above is the filter now.
+            Load Inquiry and Add load are the board's two CTAs and carry the
+            raised accent treatment; Delete stays outlined so it never reads
+            like one of them. */}
         <div className="mb-2 flex flex-wrap items-center gap-2">
           <input
             type="text"
@@ -249,7 +252,7 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
               Delete
             </Button>
           ) : null}
-          <PopoutButton />
+          <PopoutButton variant="primary-raised" />
           <AddLoadButton
             brokerNames={data.brokerNames}
             activeTrips={data.activeTrips}

@@ -10,6 +10,12 @@ import type { ComponentPropsWithoutRef, ReactNode } from "react";
  *
  *   primary     → SOLID accent red, white text. The main do-it/commit action
  *                 (Save, Update, Add load, New trip, Send, Build preview …).
+ *   primary-raised
+ *               → Same accent fill and white label as primary, plus the white
+ *                 outline and depth the More-sheet send tiles use: a resting
+ *                 shadow, a hover lift, and a press that sinks and darkens.
+ *                 For a page's top-level CTA, where primary's flat fill reads
+ *                 as one more tile on a busy board.
  *   navigate    → NEUTRAL secondary (white fill + line-strong border + ink
  *                 text). Was blue-filled. Back / jump-to-page buttons.
  *   edit        → NEUTRAL secondary. Was amber-filled. "Edit this thing".
@@ -33,6 +39,7 @@ export type ButtonVariant =
   | "navigate"
   | "edit"
   | "primary"
+  | "primary-raised"
   | "destructive"
   | "destructive-solid"
   | "cancel"
@@ -40,8 +47,11 @@ export type ButtonVariant =
 
 export type ButtonSize = "sm" | "md";
 
+// The transition lives on each variant, not here: primary-raised animates a
+// transform + shadow and needs transition-all, and two transition-property
+// utilities on one element resolve by stylesheet order, not class order.
 const BASE =
-  "inline-flex items-center justify-center gap-1.5 rounded-md font-mono font-semibold uppercase leading-none tracking-[0.08em] transition-colors disabled:cursor-not-allowed disabled:opacity-60 whitespace-nowrap";
+  "inline-flex items-center justify-center gap-1.5 rounded-md font-mono font-semibold uppercase leading-none tracking-[0.08em] disabled:cursor-not-allowed disabled:opacity-60 whitespace-nowrap";
 
 // The neutralized secondary look shared by navigate / edit / utility / cancel:
 // white surface, strong hairline, ink text, inset hover. No saturated fill.
@@ -49,11 +59,21 @@ const BASE =
 // pairing it with a token that flips dark under admin-dark left every secondary
 // button at ~1.7:1 — unreadable, and worst on the always-dark graphite bars.
 const SECONDARY =
-  "border border-line-strong bg-white text-ink hover:bg-inset disabled:hover:bg-white";
+  "transition-colors border border-line-strong bg-white text-ink hover:bg-inset disabled:hover:bg-white";
 
 const VARIANT: Record<ButtonVariant, string> = {
   primary:
-    "border border-accent bg-accent text-white hover:bg-accent-hover hover:border-accent-hover",
+    "transition-colors border border-accent bg-accent text-white hover:bg-accent-hover hover:border-accent-hover",
+  // Lifted verbatim from the More-sheet send tiles so the two treatments stay
+  // one look: only the fill/outline differ from primary, and the border stays
+  // white on hover — swapping it for accent-hover would erase the outline that
+  // makes the button read as raised on the dark admin theme. Disabled drops the
+  // depth so a dimmed button doesn't still look pressable.
+  "primary-raised":
+    "transition-all duration-150 border border-white bg-accent text-white shadow-md " +
+    "hover:bg-accent-hover hover:-translate-y-0.5 hover:shadow-lg " +
+    "active:translate-y-0 active:scale-[0.97] active:brightness-90 active:shadow-sm " +
+    "disabled:shadow-none disabled:hover:translate-y-0 disabled:hover:bg-accent disabled:hover:shadow-none",
   navigate: SECONDARY,
   edit: SECONDARY,
   utility: SECONDARY,
@@ -62,9 +82,9 @@ const VARIANT: Record<ButtonVariant, string> = {
   // sits on the always-dark graphite bar, where bg-card resolves to the dark
   // surface under admin-dark and the red label all but disappears.
   destructive:
-    "border border-bad bg-white text-bad hover:bg-bad-bg disabled:hover:bg-white",
+    "transition-colors border border-bad bg-white text-bad hover:bg-bad-bg disabled:hover:bg-white",
   "destructive-solid":
-    "border border-bad bg-bad text-white hover:bg-[#8f1c13] hover:border-[#8f1c13]",
+    "transition-colors border border-bad bg-bad text-white hover:bg-[#8f1c13] hover:border-[#8f1c13]",
 };
 
 // 6px radius (rounded-md). Compact, refined proportions — a fixed height keeps
