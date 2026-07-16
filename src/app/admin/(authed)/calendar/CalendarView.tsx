@@ -6,11 +6,13 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import {
   addDays,
   assignLanes,
+  dropCounts,
   federalHolidays,
   monthMatrix,
   monthName,
   parseDateStr,
   shiftMonth,
+  spanTrim,
   weekdayOf,
   WEEKDAY_LABELS,
   type Holiday,
@@ -305,6 +307,10 @@ type Segment = {
   endCol: number;
   isStart: boolean;
   isEnd: boolean;
+  /** Start at the centre of startCol rather than its left edge. */
+  trimStart: boolean;
+  /** Stop at the centre of endCol rather than its right edge. */
+  trimEnd: boolean;
 };
 
 /**
@@ -312,6 +318,10 @@ type Segment = {
  * row's seven columns. `lane` comes from the grid-wide assignment, so a bar sits
  * on the same row in every week it spans; isStart/isEnd say whether the real
  * pickup/delivery is in view (the ends that get rounded).
+ *
+ * The half-cell trims only apply to a terminal day that's actually in this week
+ * — where a load runs on past Saturday or began before Sunday, the bar runs to
+ * the row's edge because that edge isn't the pickup or the drop.
  */
 function weekSegments(
   week: string[],
@@ -320,19 +330,36 @@ function weekSegments(
 ): Segment[] {
   const weekStart = week[0];
   const weekEnd = week[6];
+  const drops = dropCounts(loads);
   const segments: Segment[] = [];
   for (const load of loads) {
     if (load.end < weekStart || load.start > weekEnd) continue;
+    const isStart = load.start >= weekStart;
+    const isEnd = load.end <= weekEnd;
+    const trim = spanTrim(load, drops);
     segments.push({
       load,
       lane: lanes.get(load.id) ?? 0,
       startCol: load.start <= weekStart ? 0 : weekdayOf(load.start),
       endCol: load.end >= weekEnd ? 6 : weekdayOf(load.end),
-      isStart: load.start >= weekStart,
-      isEnd: load.end <= weekEnd,
+      isStart,
+      isEnd,
+      trimStart: isStart && trim.trimStart,
+      trimEnd: isEnd && trim.trimEnd,
     });
   }
   return segments;
+}
+
+/**
+ * A segment's horizontal extent in columns, as fractions — a trimmed terminal
+ * day contributes half a column. Shared so both breakpoints place a bar the
+ * same way and only differ in the pixel chrome around it.
+ */
+function segmentUnits(s: Segment): { start: number; span: number } {
+  const start = s.startCol + (s.trimStart ? 0.5 : 0);
+  const end = s.endCol + (s.trimEnd ? 0.5 : 1);
+  return { start, span: end - start };
 }
 
 /** Lane rows a week needs — 0 when nothing spans it. */
@@ -461,8 +488,9 @@ function WeekRow({
           reserved zone. pointer-events pass through the gaps to the cells. */}
       <div className="pointer-events-none absolute inset-y-0 left-0 right-[12.5%]">
         {segments.map((s) => {
-          const leftPct = (s.startCol / 7) * 100;
-          const widthPct = ((s.endCol - s.startCol + 1) / 7) * 100;
+          const u = segmentUnits(s);
+          const leftPct = (u.start / 7) * 100;
+          const widthPct = (u.span / 7) * 100;
           return (
             <Link
               key={s.load.id + ":" + weekStart}
@@ -589,8 +617,8 @@ function MobileWeekRow({
             (there's no trailing Profit cell to avoid here). */}
         <div className="pointer-events-none absolute inset-0">
           {segments.map((s) => {
-            const span = s.endCol - s.startCol + 1;
-            const leftPct = (s.startCol / 7) * 100;
+            const { start, span } = segmentUnits(s);
+            const leftPct = (start / 7) * 100;
             const widthPct = (span / 7) * 100;
             return (
               <Link
@@ -616,8 +644,10 @@ function MobileWeekRow({
                 }}
               >
                 {/* A one- or two-day bar is too narrow for text; the colour and
-                    the span carry it, and a tap opens the load. */}
-                {span >= 3 ? (
+                    the span carry it, and a tap opens the load. Measured in
+                    columns, so a trimmed drop day makes three days read as
+                    2.5 — still wide enough for the label. */}
+                {span >= 2.5 ? (
                   <span className="truncate">
                     {!s.isStart ? "‹ " : ""}
                     {s.load.label}

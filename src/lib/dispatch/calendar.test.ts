@@ -2,8 +2,10 @@ import { describe, it, expect } from "vitest";
 import {
   addDays,
   assignLanes,
+  dropCounts,
   federalHolidays,
   monthMatrix,
+  spanTrim,
   weekdayOf,
 } from "./calendar";
 
@@ -71,5 +73,64 @@ describe("assignLanes", () => {
     expect(lanes.get("a")).toBe(0);
     expect(lanes.get("b")).toBe(1);
     expect(lanes.get("c")).toBe(0);
+  });
+
+  it("a pickup shares the lane of a load dropped that same day", () => {
+    // a ends the morning of the 5th, b starts that afternoon — they hold
+    // different halves of the cell, so they meet rather than stack.
+    const lanes = assignLanes([
+      { id: "a", start: "2026-07-01", end: "2026-07-05" },
+      { id: "b", start: "2026-07-05", end: "2026-07-08" },
+    ]);
+    expect(lanes.get("a")).toBe(0);
+    expect(lanes.get("b")).toBe(0);
+  });
+
+  it("two pickups on one drop day still split lanes — both want the right half", () => {
+    const lanes = assignLanes([
+      { id: "a", start: "2026-07-01", end: "2026-07-05" },
+      { id: "b", start: "2026-07-05", end: "2026-07-08" },
+      { id: "c", start: "2026-07-05", end: "2026-07-09" },
+    ]);
+    expect(lanes.get("a")).toBe(0);
+    expect(lanes.get("b")).toBe(0);
+    expect(lanes.get("c")).toBe(1);
+  });
+});
+
+describe("spanTrim — half-cell terminal days", () => {
+  const trimOf = (
+    ev: { id: string; start: string; end: string },
+    all: { id: string; start: string; end: string }[],
+  ) => spanTrim(ev, dropCounts(all));
+
+  it("a drop day is always trimmed to the left half", () => {
+    const a = { id: "a", start: "2026-07-01", end: "2026-07-05" };
+    expect(trimOf(a, [a])).toEqual({ trimStart: false, trimEnd: true });
+  });
+
+  it("a pickup with nothing dropped that day starts at the left edge", () => {
+    const a = { id: "a", start: "2026-07-01", end: "2026-07-05" };
+    const b = { id: "b", start: "2026-07-07", end: "2026-07-09" };
+    expect(trimOf(b, [a, b]).trimStart).toBe(false);
+  });
+
+  it("a pickup on another load's drop day starts at the centre", () => {
+    const a = { id: "a", start: "2026-07-01", end: "2026-07-05" };
+    const b = { id: "b", start: "2026-07-05", end: "2026-07-08" };
+    expect(trimOf(b, [a, b])).toEqual({ trimStart: true, trimEnd: true });
+  });
+
+  it("a load's own drop doesn't push its own pickup to the right half", () => {
+    // Single same-day load: nothing else dropped, so it fills the left half.
+    const a = { id: "a", start: "2026-07-05", end: "2026-07-05" };
+    expect(trimOf(a, [a])).toEqual({ trimStart: false, trimEnd: true });
+  });
+
+  it("a same-day load after another's drop takes the right half, not zero width", () => {
+    const a = { id: "a", start: "2026-07-01", end: "2026-07-05" };
+    const b = { id: "b", start: "2026-07-05", end: "2026-07-05" };
+    // Both trims would collapse the bar at the centre line; the pickup wins.
+    expect(trimOf(b, [a, b])).toEqual({ trimStart: true, trimEnd: false });
   });
 });

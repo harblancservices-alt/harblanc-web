@@ -221,31 +221,96 @@ export function federalHolidays(year: number): Map<string, Holiday> {
 
 export type SpanEvent = { id: string; start: string; end: string };
 
+/** Days since the epoch — a sortable integer per date string. */
+function dayIndex(s: string): number {
+  const p = parseDateStr(s);
+  if (!p) return 0;
+  return Math.round(Date.UTC(p.y, p.m1 - 1, p.d) / 86_400_000);
+}
+
+/**
+ * Which terminal days a bar covers only HALF of. The truck isn't loaded for the
+ * whole of either terminal day, and the bars say so:
+ *
+ * - `trimEnd` — the delivery day. The bar stops at the cell's centre, because
+ *   the truck drops mid-day and is empty after.
+ * - `trimStart` — the pickup day, but only when some OTHER load was dropped
+ *   that same day. Then the bar starts at the centre, so the load that ended
+ *   fills the left half and this one fills the right. With nothing dropped that
+ *   day there's nothing to make room for, so it starts at the left edge.
+ */
+export type SpanTrim = { trimStart: boolean; trimEnd: boolean };
+
+/** How many events end on each date — the "was anything dropped here?" lookup. */
+export function dropCounts(events: ReadonlyArray<SpanEvent>): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const ev of events) out.set(ev.end, (out.get(ev.end) ?? 0) + 1);
+  return out;
+}
+
+/** The half-cell trims for one event, given the grid's drop-date counts. */
+export function spanTrim(
+  ev: SpanEvent,
+  drops: Map<string, number>,
+): SpanTrim {
+  // "Another load dropped here" — the event's own delivery doesn't count, or a
+  // same-day load would push itself to the right half of its own pickup.
+  const droppedHere = (drops.get(ev.start) ?? 0) - (ev.end === ev.start ? 1 : 0);
+  const trimStart = droppedHere > 0;
+  // A load picked up and delivered the SAME day can't be both halves at once:
+  // it makes way for the load that dropped that morning and takes the right
+  // half, rather than collapsing to nothing at the centre line.
+  const sameDay = ev.start === ev.end;
+  return { trimStart, trimEnd: !(trimStart && sameDay) };
+}
+
+/**
+ * The inclusive half-day slots an event occupies: each day is two slots (2n =
+ * morning, 2n+1 = afternoon), so a half-covered terminal day only claims one.
+ * This is what makes a drop and a pickup on the same date share a lane — they
+ * hold different halves of it and never actually collide.
+ */
+export function halfSlots(
+  ev: SpanEvent,
+  trim: SpanTrim,
+): { firstSlot: number; lastSlot: number } {
+  return {
+    firstSlot: 2 * dayIndex(ev.start) + (trim.trimStart ? 1 : 0),
+    lastSlot: 2 * dayIndex(ev.end) + (trim.trimEnd ? 0 : 1),
+  };
+}
+
 /**
  * Assign each event the lowest lane index that no overlapping event already
- * occupies, so bars never visually collide. Overlap is inclusive on both ends
- * (a load delivered the same day another is picked up shares no free lane).
- * Greedy over events sorted by start then end — the standard stable result.
+ * occupies, so bars never visually collide. Overlap is measured in half-day
+ * slots, matching how the bars are actually drawn: a load delivered the morning
+ * another is picked up reuses its lane, and the two meet at the cell's centre.
+ * Greedy over events sorted by slot — the standard stable result.
  */
 export function assignLanes<T extends SpanEvent>(events: T[]): Map<string, number> {
-  const sorted = [...events].sort((a, b) =>
-    a.start === b.start ? a.end.localeCompare(b.end) : a.start.localeCompare(b.start),
+  const drops = dropCounts(events);
+  const spans = events.map((ev) => ({
+    id: ev.id,
+    ...halfSlots(ev, spanTrim(ev, drops)),
+  }));
+  spans.sort((a, b) =>
+    a.firstSlot === b.firstSlot ? a.lastSlot - b.lastSlot : a.firstSlot - b.firstSlot,
   );
-  const laneEnds: string[] = []; // laneEnds[i] = end date of last event on lane i
+  const laneEnds: number[] = []; // laneEnds[i] = last slot used on lane i
   const lane = new Map<string, number>();
-  for (const ev of sorted) {
+  for (const ev of spans) {
     let placed = -1;
     for (let i = 0; i < laneEnds.length; i++) {
-      if (laneEnds[i] < ev.start) {
+      if (laneEnds[i] < ev.firstSlot) {
         placed = i;
         break;
       }
     }
     if (placed === -1) {
       placed = laneEnds.length;
-      laneEnds.push(ev.end);
+      laneEnds.push(ev.lastSlot);
     } else {
-      laneEnds[placed] = ev.end;
+      laneEnds[placed] = ev.lastSlot;
     }
     lane.set(ev.id, placed);
   }
