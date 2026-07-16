@@ -19,6 +19,10 @@ import type { ComponentPropsWithoutRef, ReactNode } from "react";
  *   destructive → RED border, WHITE fill, RED text. Delete / Remove / Trash /
  *                 Cancel load — distinct from primary so a delete never reads
  *                 like a save.
+ *   destructive-solid
+ *               → SOLID red, white content. Same danger meaning as destructive,
+ *                 for icon-only/compact controls where an outline reads as an
+ *                 empty box.
  *
  * Only colors/radius/height change here; every variant name, prop, icon, and
  * the button-vs-Link behaviour are identical. This is a styling layer only —
@@ -30,6 +34,7 @@ export type ButtonVariant =
   | "edit"
   | "primary"
   | "destructive"
+  | "destructive-solid"
   | "cancel"
   | "utility";
 
@@ -40,8 +45,11 @@ const BASE =
 
 // The neutralized secondary look shared by navigate / edit / utility / cancel:
 // white surface, strong hairline, ink text, inset hover. No saturated fill.
+// The surface is a fixed white, not bg-card: text-ink is a fixed near-black, so
+// pairing it with a token that flips dark under admin-dark left every secondary
+// button at ~1.7:1 — unreadable, and worst on the always-dark graphite bars.
 const SECONDARY =
-  "border border-line-strong bg-card text-ink hover:bg-inset disabled:hover:bg-card";
+  "border border-line-strong bg-white text-ink hover:bg-inset disabled:hover:bg-white";
 
 const VARIANT: Record<ButtonVariant, string> = {
   primary:
@@ -50,8 +58,13 @@ const VARIANT: Record<ButtonVariant, string> = {
   edit: SECONDARY,
   utility: SECONDARY,
   cancel: SECONDARY,
+  // Fixed white/red rather than the theme's bg-card: a destructive button often
+  // sits on the always-dark graphite bar, where bg-card resolves to the dark
+  // surface under admin-dark and the red label all but disappears.
   destructive:
-    "border border-bad bg-card text-bad hover:bg-bad-bg disabled:hover:bg-card",
+    "border border-bad bg-white text-bad hover:bg-bad-bg disabled:hover:bg-white",
+  "destructive-solid":
+    "border border-bad bg-bad text-white hover:bg-[#8f1c13] hover:border-[#8f1c13]",
 };
 
 // 6px radius (rounded-md). Compact, refined proportions — a fixed height keeps

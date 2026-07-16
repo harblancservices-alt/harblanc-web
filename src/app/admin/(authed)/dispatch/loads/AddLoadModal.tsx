@@ -1,46 +1,77 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
-import { createLoad } from "./actions";
+import { createLoad, updateLoad } from "./actions";
+
+/** An existing load's values, to reopen this form on. */
+export type LoadFormValues = {
+  id: string;
+  loadNumber: string | null;
+  brokerName: string | null;
+  status: string;
+  originZip: string | null;
+  destZip: string | null;
+  pickupDate: string | null;
+  deliveryDate: string | null;
+  rate: number | null;
+  loadedMiles: number | null;
+  tripName: string | null;
+};
 
 /**
  * Add-load modal — shared by the Load Board header button and the Dashboard
  * "Active loads" empty state (both via <AddLoadButton/>), so the flow,
  * fields, FMCSA/geo lookups and the createLoad server action stay identical
  * wherever a load is added.
+ *
+ * Pass `load` and the same form reopens on an existing load and saves through
+ * updateLoad instead — the load detail page's full Edit. One form, so an edit
+ * offers every field an add does (the trip especially: a load created before
+ * its trip existed gets attached from here).
  */
 export function AddLoadModal({
   onClose,
   brokerNames,
   activeTrips,
+  load,
 }: {
   onClose: () => void;
   brokerNames: ReadonlyArray<string>;
   activeTrips: ReadonlyArray<string>;
+  load?: LoadFormValues;
 }) {
-  const [broker, setBroker] = useState("");
+  const editing = load != null;
+  const [broker, setBroker] = useState(load?.brokerName ?? "");
   const [brokerMc, setBrokerMc] = useState("");
   const [brokerDot, setBrokerDot] = useState("");
   const [brokerMainPhone, setBrokerMainPhone] = useState("");
   const [brokerContactName, setBrokerContactName] = useState("");
   const [brokerEmail, setBrokerEmail] = useState("");
   const [brokerPhone, setBrokerPhone] = useState("");
-  const [status, setStatus] = useState("pending");
+  const [status, setStatus] = useState(load?.status ?? "pending");
   const [lookupKind, setLookupKind] = useState<"mc" | "dot">("mc");
   const [lookupVal, setLookupVal] = useState("");
   const [lookupLoading, setLookupLoading] = useState(false);
   const [lookupMsg, setLookupMsg] = useState<
     { tone: "ok" | "err"; text: string } | null
   >(null);
-  const [originZip, setOriginZip] = useState("");
-  const [destZip, setDestZip] = useState("");
+  const [originZip, setOriginZip] = useState(load?.originZip ?? "");
+  const [destZip, setDestZip] = useState(load?.destZip ?? "");
   const [originCity, setOriginCity] = useState("");
   const [destCity, setDestCity] = useState("");
-  const [miles, setMiles] = useState("");
+  const [miles, setMiles] = useState(
+    load?.loadedMiles != null ? String(load.loadedMiles) : "",
+  );
   const [geoMsg, setGeoMsg] = useState<string | null>(null);
-  // Default the trip to the sole active trip, if there's exactly one.
+  // Adding: default the trip to the sole active trip, if there's exactly one.
+  // Editing: show the trip the load actually has — a blank trip stays blank
+  // rather than silently adopting whichever trip happens to be the only one.
   const [trip, setTrip] = useState(
-    activeTrips.length === 1 ? activeTrips[0] : "",
+    editing
+      ? (load?.tripName ?? "")
+      : activeTrips.length === 1
+        ? activeTrips[0]
+        : "",
   );
   const reqId = useRef(0);
 
@@ -54,7 +85,8 @@ export function AddLoadModal({
   >(
     async (_prev, formData) => {
       try {
-        await createLoad(formData);
+        if (load) await updateLoad(load.id, formData);
+        else await createLoad(formData);
         return { ok: true, error: null };
       } catch (e) {
         return {
@@ -163,7 +195,7 @@ export function AddLoadModal({
     <div
       role="dialog"
       aria-modal="true"
-      aria-label="Add load"
+      aria-label={editing ? "Edit load" : "Add load"}
       className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/55 p-3 sm:p-8"
       onClick={onClose}
     >
@@ -181,7 +213,7 @@ export function AddLoadModal({
       >
         <div className="flex items-center justify-between gap-3 bg-bar px-4 py-2.5">
           <span className="font-mono text-[12px] font-semibold uppercase tracking-[0.14em] text-bar-fg">
-            Add load
+            {editing ? "Edit load" : "Add load"}
           </span>
           <button
             type="button"
@@ -229,7 +261,11 @@ export function AddLoadModal({
               Broker
             </p>
 
-            <LField label="Load #" name="load_number" />
+            <LField
+              label="Load #"
+              name="load_number"
+              defaultValue={load?.loadNumber ?? ""}
+            />
 
             <div className="mt-3">
               <label className="block font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-fg">
@@ -398,12 +434,28 @@ export function AddLoadModal({
             </div>
 
             <div className="mt-3 grid grid-cols-2 gap-2.5">
-              <LField label="Pickup date" name="pickup_date" type="date" />
-              <LField label="Delivery date" name="delivery_date" type="date" />
+              <LField
+                label="Pickup date"
+                name="pickup_date"
+                type="date"
+                defaultValue={dateValue(load?.pickupDate)}
+              />
+              <LField
+                label="Delivery date"
+                name="delivery_date"
+                type="date"
+                defaultValue={dateValue(load?.deliveryDate)}
+              />
             </div>
 
             <div className="mt-3 grid grid-cols-2 gap-2.5">
-              <LField label="Rate ($)" name="rate" type="number" required />
+              <LField
+                label="Rate ($)"
+                name="rate"
+                type="number"
+                required
+                defaultValue={load?.rate != null ? String(load.rate) : ""}
+              />
               <div className="min-w-0">
                 <label className="block font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-fg">
                   Loaded miles
@@ -465,6 +517,8 @@ export function AddLoadModal({
                 />
                 Saving…
               </>
+            ) : editing ? (
+              "Save changes"
             ) : (
               "Save load"
             )}
@@ -475,6 +529,11 @@ export function AddLoadModal({
   );
 }
 
+/** Stored date → the YYYY-MM-DD a native <input type="date"> expects. */
+function dateValue(iso: string | null | undefined): string {
+  return iso ? iso.slice(0, 10) : "";
+}
+
 function LField({
   label,
   name,
@@ -482,6 +541,7 @@ function LField({
   required = false,
   placeholder,
   list,
+  defaultValue,
 }: {
   label: string;
   name: string;
@@ -489,6 +549,7 @@ function LField({
   required?: boolean;
   placeholder?: string;
   list?: string;
+  defaultValue?: string;
 }) {
   return (
     <div className="min-w-0">
@@ -502,6 +563,7 @@ function LField({
         required={required}
         placeholder={placeholder}
         list={list}
+        defaultValue={defaultValue}
         autoComplete="off"
         step={type === "number" ? "any" : undefined}
         className="mt-1 block w-full min-w-0 rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"

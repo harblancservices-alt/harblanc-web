@@ -175,9 +175,18 @@ async function resolveTripId(
   return created?.id ?? null;
 }
 
-export async function createLoad(formData: FormData): Promise<void> {
-  const sb = createServiceRoleClient();
-
+/**
+ * Turn an Add/Edit Load form submission into the load columns it implies:
+ * broker and trip resolved to (or created as) real records, the dispatcher
+ * captured as a broker contact, ZIPs resolved to "City, ST", and the lane's
+ * driving miles recomputed server-side. createLoad and updateLoad both go
+ * through here, so the Add form and the Edit form can never drift apart —
+ * which is what lets the edit modal be the add modal with values in it.
+ */
+async function loadFieldsFromForm(
+  sb: ReturnType<typeof createServiceRoleClient>,
+  formData: FormData,
+): Promise<Record<string, string | number | null>> {
   const statusRaw = str(formData, "status") ?? "pending";
   const status = STATUSES.has(statusRaw) ? statusRaw : "pending";
 
@@ -221,7 +230,7 @@ export async function createLoad(formData: FormData): Promise<void> {
     if (lane.ok) loadedMiles = lane.miles;
   }
 
-  const { error } = await sb.from("loads").insert({
+  return {
     load_number: str(formData, "load_number"),
     broker_name: brokerName,
     broker_id: brokerId,
@@ -237,12 +246,21 @@ export async function createLoad(formData: FormData): Promise<void> {
     trip_id: tripId,
     rate: numOrNull(formData, "rate") ?? 0,
     loaded_miles: loadedMiles,
+    status,
+  };
+}
+
+export async function createLoad(formData: FormData): Promise<void> {
+  const sb = createServiceRoleClient();
+  const fields = await loadFieldsFromForm(sb, formData);
+
+  const { error } = await sb.from("loads").insert({
+    ...fields,
     deadhead_to_miles: 0,
     deadhead_from_miles: 0,
     fuel_cost: 0,
     factoring_fee: 0,
     misc_cost: 0,
-    status,
     // A delivered load defaults to unpaid (it becomes A/R until marked paid).
     payment_status: "unpaid",
   });
@@ -256,6 +274,34 @@ export async function createLoad(formData: FormData): Promise<void> {
   revalidatePath("/admin/dispatch/trips");
   // Dashboard "Active loads" can add loads too — refresh it so a new
   // active load shows immediately (and its empty state clears).
+  revalidatePath("/admin");
+}
+
+/**
+ * Save the whole load from the Add Load form reopened in edit mode — the full
+ * counterpart to updateLoadDetails, which deliberately touches only the fields
+ * with no effect on the money math. This one DOES move the money and the
+ * rollups (rate, lane miles, broker, trip), because that's the point: assigning
+ * a trip to a load created before that trip existed goes through here.
+ *
+ * Odometer readings, expenses, TONU and payment status are owned by their own
+ * flows and are left alone.
+ */
+export async function updateLoad(id: string, formData: FormData): Promise<void> {
+  const sb = createServiceRoleClient();
+  const fields = await loadFieldsFromForm(sb, formData);
+
+  const { error } = await sb
+    .from("loads")
+    .update(fields)
+    .eq("id", id)
+    .is("deleted_at", null);
+  if (error) throw new Error(`Could not save load: ${error.message}`);
+
+  revalidatePath("/admin/dispatch/loads");
+  revalidatePath(`/admin/dispatch/loads/${id}`);
+  revalidatePath("/admin/dispatch/brokers");
+  revalidatePath("/admin/dispatch/trips");
   revalidatePath("/admin");
 }
 

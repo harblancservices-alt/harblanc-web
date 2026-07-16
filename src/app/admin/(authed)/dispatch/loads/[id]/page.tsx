@@ -9,6 +9,7 @@ import { LoadPnlCard } from "./LoadPnlCard";
 import { FinancialsPanel } from "./FinancialsPanel";
 import { CancelLoadButton } from "./CancelLoadButton";
 import { DeleteLoadButton } from "./DeleteLoadButton";
+import { EditLoadButton } from "./EditLoadButton";
 import { DocumentsCard } from "./DocumentsCard";
 import { loadDocName, normalizeLoadDocKind } from "@/lib/admin/doc-name";
 import {
@@ -252,6 +253,30 @@ export default async function LoadDetailPage({
       : Promise.resolve({ data: null }),
   ]);
 
+  // Datalist options for the Edit Load modal — the same two queries the Load
+  // Board runs for Add Load, so both forms offer the same brokers and trips.
+  const [{ data: brokerRows }, { data: tripRows }] = await Promise.all([
+    sb
+      .from("brokers")
+      .select("name")
+      .is("deleted_at", null)
+      .order("name", { ascending: true })
+      .returns<{ name: string | null }[]>(),
+    sb
+      .from("trips")
+      .select("name")
+      .eq("status", "active")
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .returns<{ name: string | null }[]>(),
+  ]);
+  const brokerNames = (brokerRows ?? [])
+    .map((b) => b.name?.trim() ?? "")
+    .filter((n) => n.length > 0);
+  const activeTrips = (tripRows ?? [])
+    .map((t) => t.name?.trim() ?? "")
+    .filter((n) => n.length > 0);
+
   const isCancelled = load.status === "cancelled";
   // A cancelled load earns nothing — except a TONU fee, which becomes its
   // revenue. Active loads earn their rate.
@@ -305,6 +330,23 @@ export default async function LoadDetailPage({
               Loads
             </Button>
             <div className="flex items-center gap-2">
+              <EditLoadButton
+                brokerNames={brokerNames}
+                activeTrips={activeTrips}
+                load={{
+                  id: load.id,
+                  loadNumber: load.load_number,
+                  brokerName: load.broker_name,
+                  status: load.status,
+                  originZip: load.origin_zip,
+                  destZip: load.dest_zip,
+                  pickupDate: load.pickup_date,
+                  deliveryDate: load.delivery_date,
+                  rate: load.rate != null ? num(load.rate) : null,
+                  loadedMiles: load.loaded_miles,
+                  tripName: trip?.name ?? load.trip_name,
+                }}
+              />
               {!isCancelled ? <CancelLoadButton loadId={load.id} /> : null}
               <DeleteLoadButton loadId={load.id} />
             </div>
