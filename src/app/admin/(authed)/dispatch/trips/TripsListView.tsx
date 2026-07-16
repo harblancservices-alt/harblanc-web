@@ -13,9 +13,11 @@ import { softDeleteTrips } from "./actions";
  * detail page uses) and hands the computed rows down; nothing here does money
  * math, it only labels and lays out what it's given.
  *
- * Card anatomy: a health-colored accent rail, the trip name + status tag + the
- * date span / load count, then a labeled Revenue · Net · Margin stat row with
- * Net as the graphite hero tile, and a margin bar drawing the same percentage.
+ * Card anatomy: the trip name + status tag, the date span and load count as
+ * chips, then a shrink-wrapped Revenue · Net · Margin stat group and a margin
+ * bar drawing the same percentage. Net leads on size and weight alone — no
+ * filled tile, no accent rail; the only color is data (a losing trip reads
+ * red, a thin margin amber).
  *
  * Tap a card to open the trip. The Delete button enters an explicit
  * selection mode (tap cards to select → Delete selected / Cancel), the same
@@ -37,8 +39,11 @@ export type TripListItem = {
   profitPct: number | null;
 };
 
+// Sign goes OUTSIDE the dollar sign — a losing trip reads "-$310", not the
+// "$-310" a naive "$" + n produces.
 function usd(n: number): string {
-  return "$" + Math.round(n).toLocaleString("en-US");
+  const r = Math.round(n);
+  return (r < 0 ? "-$" : "$") + Math.abs(r).toLocaleString("en-US");
 }
 
 /**
@@ -229,16 +234,7 @@ function TripCard({
   onOpen: (id: string) => void;
   onToggle: (id: string) => void;
 }) {
-  const closed = trip.status === "closed";
   const tone = marginTone(trip.net, trip.profitPct);
-  // A closed trip's rail goes slate — it's history, not something to act on.
-  const edge = closed
-    ? "bg-slate"
-    : tone === "bad"
-      ? "bg-bad"
-      : tone === "warn"
-        ? "bg-warn"
-        : "bg-ok";
   const barColor =
     tone === "bad" ? "bg-bad" : tone === "warn" ? "bg-warn" : "bg-ok";
   // Clamped so a loss doesn't draw a negative bar and a >100% margin (only
@@ -258,8 +254,8 @@ function TripCard({
         else onOpen(trip.id);
       }}
       className={
-        "flex cursor-pointer items-stretch overflow-hidden rounded-md border shadow-e1 transition-colors active:bg-inset " +
-        (isSel ? "border-bad bg-bad-bg" : "border-line bg-card")
+        "flex cursor-pointer items-stretch overflow-hidden rounded-lg border shadow-e2 transition-shadow hover:shadow-e3 active:bg-inset " +
+        (isSel ? "border-bad bg-bad-bg" : "border-line-strong bg-card")
       }
     >
       {/* Selection indicator — only in delete mode. The whole card toggles, so
@@ -285,99 +281,86 @@ function TripCard({
         </div>
       ) : null}
 
-      {/* Accent edge — carries the trip's health (or the selected state) as a
-          full-height color rail, so a bad trip is spottable while scrolling. */}
-      <span
-        aria-hidden
-        className={"w-[3px] shrink-0 " + (isSel ? "bg-bad" : edge)}
-      />
-
       {/* Content */}
-      <div className="min-w-0 flex-1">
-        {/* Identity — name leads, status tag and the date/load meta under it. */}
-        <div className="flex items-start justify-between gap-2 px-3 pb-2.5 pt-2.5">
-          <div className="min-w-0">
-            <div className="truncate text-[15px] font-semibold leading-tight text-fg">
-              {trip.name}
-            </div>
-            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 font-mono text-[11px] text-fg-subtle">
-              <span>{trip.dateLabel}</span>
-              <span aria-hidden>·</span>
-              <span className="font-semibold tabular-nums text-fg-muted">
-                {trip.loads} load{trip.loads === 1 ? "" : "s"}
-              </span>
-            </div>
+      <div className="min-w-0 flex-1 p-3">
+        {/* Identity — name leads, status tag holds the right edge. */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 truncate text-[15px] font-semibold leading-tight text-fg">
+            {trip.name}
           </div>
           <StatusPill status={trip.status} />
         </div>
 
-        {/* Labeled stat row — every number says what it is. Net is the focal
-            graphite tile, the same hero treatment the trip detail page gives
-            it, so the two pages read as one thing. */}
-        <div className="grid grid-cols-3 divide-x divide-line border-t border-line">
-          <Stat label="Revenue" value={usd(trip.gross)} />
-          <Stat label="Net" value={usd(trip.net)} focal />
-          <Stat
-            label="Margin"
-            value={
-              trip.profitPct != null ? `${Math.round(trip.profitPct)}%` : "—"
-            }
-            tone={tone}
-          />
+        {/* Date span + load count as chips — these are how you tell one trip
+            from another at a glance, so they get a surface and weight instead
+            of dissolving into faint meta text. */}
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+          <span className="rounded border border-line-strong bg-inset px-1.5 py-0.5 font-mono text-[11px] font-semibold tabular-nums text-fg shadow-e1">
+            {trip.dateLabel}
+          </span>
+          <span className="rounded border border-steel/40 bg-steel-bg px-1.5 py-0.5 font-mono text-[11px] font-bold tabular-nums text-steel shadow-e1">
+            {trip.loads} load{trip.loads === 1 ? "" : "s"}
+          </span>
         </div>
 
-        {/* Margin bar — the same percentage as the Margin tile, drawn. */}
-        <div
-          aria-hidden
-          className="h-1 w-full overflow-hidden border-t border-line bg-inset"
-        >
-          <div
-            className={"h-full " + barColor}
-            style={{ width: `${barPct}%` }}
-          />
+        {/* Labeled stat group — shrink-wrapped (w-fit) so Revenue · Net ·
+            Margin sit tight together and read as one unit, rather than being
+            strung across the card by an equal-thirds grid. */}
+        <div className="mt-2 flex">
+          <div className="flex w-fit items-stretch overflow-hidden rounded-md border border-line-strong bg-inset shadow-e1">
+            <Stat label="Revenue" value={usd(trip.gross)} />
+            <Stat label="Net" value={usd(trip.net)} tone={tone} strong divider />
+            <Stat
+              label="Margin"
+              value={
+                trip.profitPct != null ? `${Math.round(trip.profitPct)}%` : "—"
+              }
+              tone={tone}
+              divider
+            />
+          </div>
         </div>
 
         {trip.notes ? (
-          <div className="truncate border-t border-line px-3 py-1.5 font-mono text-[11px] text-fg-subtle">
+          <div className="mt-2 truncate font-mono text-[11px] text-fg-subtle">
             {trip.notes}
           </div>
         ) : null}
+
+        {/* Margin bar — the Margin percentage, drawn. */}
+        <div
+          aria-hidden
+          className="mt-2 h-1 w-full overflow-hidden rounded-full border border-line-strong bg-inset"
+        >
+          <div className={"h-full " + barColor} style={{ width: `${barPct}%` }} />
+        </div>
       </div>
     </div>
   );
 }
 
 /**
- * One labeled cell of the card's stat row. `focal` is the graphite Net tile
- * (white value on dark, accent top edge); `tone` colors the value otherwise.
+ * One labeled cell of the card's stat group. `strong` is the Net cell — it
+ * out-weighs its neighbours on size alone (17px vs 14px), no filled box.
+ * `tone` colors the value: a losing trip's Net and Margin read red.
+ *
+ * `divider` draws the separator as an explicit left border rather than a
+ * `divide-x-*` utility on the parent — this Tailwind build emits the divide
+ * COLOR but not the divide WIDTH, so divide-x silently renders nothing.
  */
 function Stat({
   label,
   value,
   tone = "default",
-  focal = false,
+  strong = false,
+  divider = false,
 }: {
   label: string;
   value: string;
   tone?: MarginTone | "default";
-  focal?: boolean;
+  strong?: boolean;
+  divider?: boolean;
 }) {
-  if (focal) {
-    return (
-      <div className="relative overflow-hidden bg-graphite px-3 py-2">
-        <span
-          aria-hidden
-          className="absolute inset-x-0 top-0 h-[2px] bg-accent"
-        />
-        <div className="font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-on-dark-dim">
-          {label}
-        </div>
-        <div className="mt-0.5 truncate text-[18px] font-bold leading-tight tabular-nums text-white">
-          {value}
-        </div>
-      </div>
-    );
-  }
   const valueColor =
     tone === "ok"
       ? "text-ok"
@@ -387,13 +370,19 @@ function Stat({
           ? "text-bad"
           : "text-fg";
   return (
-    <div className="px-3 py-2">
+    <div
+      className={
+        "px-2.5 py-1.5 " +
+        (divider ? "border-l border-line-strong" : "")
+      }
+    >
       <div className="font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-fg-subtle">
         {label}
       </div>
       <div
         className={
-          "mt-0.5 truncate text-[18px] font-bold leading-tight tabular-nums " +
+          "mt-0.5 truncate font-bold leading-tight tabular-nums " +
+          (strong ? "text-[17px] " : "text-[14px] ") +
           valueColor
         }
       >
