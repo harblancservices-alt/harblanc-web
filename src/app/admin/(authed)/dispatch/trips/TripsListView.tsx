@@ -8,9 +8,14 @@ import { StatusTag } from "@/components/ui/StatusTag";
 import { softDeleteTrips } from "./actions";
 
 /**
- * Trips list — standardized cards (one per trip) matching the load board /
- * broker / dashboard card conventions. The server page does the data fetch +
- * aggregation and hands the computed rows down.
+ * Trips list — one performance card per trip. The server page does the data
+ * fetch + aggregation (via computeTripFinancials, the same rollup the trip
+ * detail page uses) and hands the computed rows down; nothing here does money
+ * math, it only labels and lays out what it's given.
+ *
+ * Card anatomy: a health-colored accent rail, the trip name + status tag + the
+ * date span / load count, then a labeled Revenue · Net · Margin stat row with
+ * Net as the graphite hero tile, and a margin bar drawing the same percentage.
  *
  * Tap a card to open the trip. The Delete button enters an explicit
  * selection mode (tap cards to select → Delete selected / Cancel), the same
@@ -22,6 +27,8 @@ export type TripListItem = {
   name: string;
   status: string;
   notes: string | null;
+  /** Pre-formatted on the server — the loads' delivery span, else "Created …". */
+  dateLabel: string;
   loads: number;
   gross: number;
   net: number;
@@ -32,6 +39,18 @@ export type TripListItem = {
 
 function usd(n: number): string {
   return "$" + Math.round(n).toLocaleString("en-US");
+}
+
+/**
+ * Margin tone. A trip that lost money reads red; a thin margin reads amber so
+ * it stands out from a healthy run at a glance. Tone only — the underlying
+ * numbers are computeTripFinancials', untouched.
+ */
+type MarginTone = "ok" | "warn" | "bad";
+function marginTone(net: number, profitPct: number | null): MarginTone {
+  if (net < 0) return "bad";
+  if (profitPct != null && profitPct < 15) return "warn";
+  return "ok";
 }
 
 export function TripsListView({ trips }: { trips: TripListItem[] }) {
@@ -210,6 +229,23 @@ function TripCard({
   onOpen: (id: string) => void;
   onToggle: (id: string) => void;
 }) {
+  const closed = trip.status === "closed";
+  const tone = marginTone(trip.net, trip.profitPct);
+  // A closed trip's rail goes slate — it's history, not something to act on.
+  const edge = closed
+    ? "bg-slate"
+    : tone === "bad"
+      ? "bg-bad"
+      : tone === "warn"
+        ? "bg-warn"
+        : "bg-ok";
+  const barColor =
+    tone === "bad" ? "bg-bad" : tone === "warn" ? "bg-warn" : "bg-ok";
+  // Clamped so a loss doesn't draw a negative bar and a >100% margin (only
+  // reachable if costs land negative) doesn't overflow the track.
+  const barPct =
+    trip.profitPct == null ? 0 : Math.min(100, Math.max(0, trip.profitPct));
+
   return (
     <div
       role={selectMode ? "button" : "link"}
@@ -249,31 +285,119 @@ function TripCard({
         </div>
       ) : null}
 
+      {/* Accent edge — carries the trip's health (or the selected state) as a
+          full-height color rail, so a bad trip is spottable while scrolling. */}
+      <span
+        aria-hidden
+        className={"w-[3px] shrink-0 " + (isSel ? "bg-bad" : edge)}
+      />
+
       {/* Content */}
-      <div className="min-w-0 flex-1 p-3">
-        <div className="flex items-center justify-between gap-2">
+      <div className="min-w-0 flex-1">
+        {/* Identity — name leads, status tag and the date/load meta under it. */}
+        <div className="flex items-start justify-between gap-2 px-3 pb-2.5 pt-2.5">
+          <div className="min-w-0">
+            <div className="truncate text-[15px] font-semibold leading-tight text-fg">
+              {trip.name}
+            </div>
+            <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 font-mono text-[11px] text-fg-subtle">
+              <span>{trip.dateLabel}</span>
+              <span aria-hidden>·</span>
+              <span className="font-semibold tabular-nums text-fg-muted">
+                {trip.loads} load{trip.loads === 1 ? "" : "s"}
+              </span>
+            </div>
+          </div>
           <StatusPill status={trip.status} />
-          <span className="font-mono text-[15px] font-bold tabular-nums text-ok">
-            {usd(trip.gross)}
-          </span>
         </div>
 
-        <div className="mt-1.5 truncate text-[14px] font-semibold text-fg">
-          {trip.name}
+        {/* Labeled stat row — every number says what it is. Net is the focal
+            graphite tile, the same hero treatment the trip detail page gives
+            it, so the two pages read as one thing. */}
+        <div className="grid grid-cols-3 divide-x divide-line border-t border-line">
+          <Stat label="Revenue" value={usd(trip.gross)} />
+          <Stat label="Net" value={usd(trip.net)} focal />
+          <Stat
+            label="Margin"
+            value={
+              trip.profitPct != null ? `${Math.round(trip.profitPct)}%` : "—"
+            }
+            tone={tone}
+          />
         </div>
 
-        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] text-fg-subtle">
-          <span>
-            {trip.loads} load{trip.loads === 1 ? "" : "s"}
-          </span>
-          <span className="font-bold text-ok">Net {usd(trip.net)}</span>
-          {trip.profitPct != null ? (
-            <span className="font-bold text-ok">
-              {Math.round(trip.profitPct)}%
-            </span>
-          ) : null}
-          {trip.notes ? <span className="truncate">{trip.notes}</span> : null}
+        {/* Margin bar — the same percentage as the Margin tile, drawn. */}
+        <div
+          aria-hidden
+          className="h-1 w-full overflow-hidden border-t border-line bg-inset"
+        >
+          <div
+            className={"h-full " + barColor}
+            style={{ width: `${barPct}%` }}
+          />
         </div>
+
+        {trip.notes ? (
+          <div className="truncate border-t border-line px-3 py-1.5 font-mono text-[11px] text-fg-subtle">
+            {trip.notes}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * One labeled cell of the card's stat row. `focal` is the graphite Net tile
+ * (white value on dark, accent top edge); `tone` colors the value otherwise.
+ */
+function Stat({
+  label,
+  value,
+  tone = "default",
+  focal = false,
+}: {
+  label: string;
+  value: string;
+  tone?: MarginTone | "default";
+  focal?: boolean;
+}) {
+  if (focal) {
+    return (
+      <div className="relative overflow-hidden bg-graphite px-3 py-2">
+        <span
+          aria-hidden
+          className="absolute inset-x-0 top-0 h-[2px] bg-accent"
+        />
+        <div className="font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-on-dark-dim">
+          {label}
+        </div>
+        <div className="mt-0.5 truncate text-[18px] font-bold leading-tight tabular-nums text-white">
+          {value}
+        </div>
+      </div>
+    );
+  }
+  const valueColor =
+    tone === "ok"
+      ? "text-ok"
+      : tone === "warn"
+        ? "text-warn"
+        : tone === "bad"
+          ? "text-bad"
+          : "text-fg";
+  return (
+    <div className="px-3 py-2">
+      <div className="font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-fg-subtle">
+        {label}
+      </div>
+      <div
+        className={
+          "mt-0.5 truncate text-[18px] font-bold leading-tight tabular-nums " +
+          valueColor
+        }
+      >
+        {value}
       </div>
     </div>
   );
