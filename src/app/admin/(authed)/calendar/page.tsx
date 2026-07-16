@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { dateOnly } from "@/lib/dispatch/calendar";
+import { currentBusinessDate } from "@/lib/dispatch/goal-month";
 import {
   loadDiesel,
   loadNet,
@@ -219,7 +220,10 @@ async function loadCalendar(): Promise<{ loads: LoadBar[]; repairs: RepairChip[]
     });
   }
 
-  const today = new Date().toISOString().slice(0, 10);
+  // Resolved in America/Chicago, not the server's UTC clock — CalendarView both
+  // draws the today marker on this date and opens on its month, so a UTC "today"
+  // put the circle a day ahead every evening from 7pm Central on.
+  const today = currentBusinessDate(new Date());
   return { loads, repairs, today };
 }
 

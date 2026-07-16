@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { fetchOpenTripNames } from "@/lib/dispatch/active-trips";
 import { loadPipelineCards } from "@/lib/dispatch/pipeline";
 import {
   computeMaintenance,
@@ -73,7 +74,7 @@ async function loadDashboard(): Promise<DashboardData> {
     { count: newQuoteCount },
     { data: loadRows },
     { data: brokerRows },
-    { data: tripRows },
+    activeTrips,
     { data: reminderRows },
     { data: odoRows },
     { data: goalRows },
@@ -124,13 +125,7 @@ async function loadDashboard(): Promise<DashboardData> {
       .is("deleted_at", null)
       .order("name", { ascending: true })
       .returns<{ name: string | null }[]>(),
-    sb
-      .from("trips")
-      .select("name")
-      .eq("status", "active")
-      .is("deleted_at", null)
-      .order("created_at", { ascending: false })
-      .returns<{ name: string | null }[]>(),
+    fetchOpenTripNames(sb),
     // Maintenance widget: oil + fuel-filter reminders only.
     sb
       .from("repair_reminders")
@@ -274,9 +269,6 @@ async function loadDashboard(): Promise<DashboardData> {
   // the Load Board, so it needs the same option lists.
   const brokerNames = (brokerRows ?? [])
     .map((b) => b.name?.trim() ?? "")
-    .filter((n) => n.length > 0);
-  const activeTrips = (tripRows ?? [])
-    .map((t) => t.name?.trim() ?? "")
     .filter((n) => n.length > 0);
 
   // Maintenance widget — oil + fuel-filter reminders against the truck's

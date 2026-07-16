@@ -3,6 +3,14 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { createLoad, updateLoad } from "./actions";
 
+/**
+ * The trip picker's option values are indices into the option list, never the
+ * names themselves — so no trip, whatever it's called, can collide with the
+ * "new trip" choice below.
+ */
+const NEW_TRIP = "new";
+const NO_TRIP = "";
+
 /** An existing load's values, to reopen this form on. */
 export type LoadFormValues = {
   id: string;
@@ -66,13 +74,22 @@ export function AddLoadModal({
   // Adding: default the trip to the sole active trip, if there's exactly one.
   // Editing: show the trip the load actually has — a blank trip stays blank
   // rather than silently adopting whichever trip happens to be the only one.
+  // Trimmed like the names the server sends, so the load's own trip matches an
+  // option rather than duplicating one that differs only by whitespace.
+  const loadTrip = load?.tripName?.trim() ?? "";
   const [trip, setTrip] = useState(
-    editing
-      ? (load?.tripName ?? "")
-      : activeTrips.length === 1
-        ? activeTrips[0]
-        : "",
+    editing ? loadTrip : activeTrips.length === 1 ? activeTrips[0] : "",
   );
+  // The trip picker lists the open trips. An editing load's own trip is added
+  // when it isn't among them (it may since have been closed), so reopening the
+  // form shows the trip the load actually has instead of silently blanking it.
+  const tripOptions = [
+    ...new Set(editing && loadTrip ? [...activeTrips, loadTrip] : activeTrips),
+  ];
+  // Typing a brand-new name is still allowed — picking NEW_TRIP swaps the
+  // select for a text box, and either way trip_name goes to the same
+  // resolve-or-create on the server.
+  const [namingNew, setNamingNew] = useState(false);
   const reqId = useRef(0);
 
   // Save lifecycle. Wrapping createLoad in useActionState gives us a pending
@@ -227,11 +244,6 @@ export function AddLoadModal({
         <datalist id="broker-options">
           {brokerNames.map((n) => (
             <option key={n} value={n} />
-          ))}
-        </datalist>
-        <datalist id="trip-options">
-          {activeTrips.map((t) => (
-            <option key={t} value={t} />
           ))}
         </datalist>
 
@@ -478,14 +490,54 @@ export function AddLoadModal({
               <label className="block font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-fg">
                 Trip
               </label>
-              <input
-                name="trip_name"
-                value={trip}
-                onChange={(e) => setTrip(e.target.value)}
-                list="trip-options"
-                autoComplete="off"
-                className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
-              />
+              {/* The submitted value, whether it came from the list or the
+                  new-trip box — one field, so the server sees one name. */}
+              <input type="hidden" name="trip_name" value={trip} />
+              {namingNew ? (
+                <div className="mt-1 flex items-center gap-2">
+                  <input
+                    value={trip}
+                    onChange={(e) => setTrip(e.target.value)}
+                    autoFocus
+                    autoComplete="off"
+                    placeholder="New trip name"
+                    aria-label="New trip name"
+                    className="w-full min-w-0 rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNamingNew(false);
+                      setTrip("");
+                    }}
+                    className="shrink-0 rounded-md border border-line-strong px-2 py-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-fg-muted transition-colors hover:bg-card"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <select
+                  value={trip ? String(tripOptions.indexOf(trip)) : NO_TRIP}
+                  onChange={(e) => {
+                    const picked = e.target.value;
+                    if (picked === NEW_TRIP) {
+                      setNamingNew(true);
+                      setTrip("");
+                    } else if (picked === NO_TRIP) setTrip("");
+                    else setTrip(tripOptions[Number(picked)] ?? "");
+                  }}
+                  aria-label="Trip"
+                  className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-2 text-[13px] text-fg focus:border-fg focus:outline-none"
+                >
+                  <option value={NO_TRIP}>No trip</option>
+                  {tripOptions.map((t, i) => (
+                    <option key={t} value={String(i)}>
+                      {t}
+                    </option>
+                  ))}
+                  <option value={NEW_TRIP}>+ New trip…</option>
+                </select>
+              )}
             </div>
           </section>
         </div>

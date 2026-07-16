@@ -66,6 +66,33 @@ export function currentGoalMonth(
   return { year, month: month - 1 };
 }
 
+/**
+ * "Today" as a YYYY-MM-DD calendar date in the business timezone — the same
+ * date-only form the loads/repairs rows carry, so it can be compared to them
+ * by string equality (the calendar's today marker does exactly that).
+ *
+ * Must NOT come from the server's UTC clock: Central is UTC−5/−6, so from 7pm
+ * Central onward UTC has already ticked to tomorrow and the marker would land
+ * a day ahead of the operator's actual day.
+ */
+export function currentBusinessDate(now: Date, tz: string = BUSINESS_TZ): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+  const at = (type: string) => parts.find((p) => p.type === type)?.value;
+  const year = at("year");
+  const month = at("month");
+  const day = at("day");
+  if (!year || !month || !day) {
+    // Defensive fallback (should never hit): UTC date.
+    return now.toISOString().slice(0, 10);
+  }
+  return `${year}-${month}-${day}`;
+}
+
 /** Full month name of "now" in the business timezone, e.g. "June". */
 export function currentGoalMonthLabel(now: Date, tz: string = BUSINESS_TZ): string {
   return now.toLocaleString("en-US", { month: "long", timeZone: tz });

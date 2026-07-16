@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { fetchOpenTripNames } from "@/lib/dispatch/active-trips";
 import { LoadBoardView, type LoadBoardData } from "./LoadBoardView";
 import {
   loadDiesel,
@@ -190,16 +191,7 @@ async function loadBoard(): Promise<LoadBoardData> {
 
   // Active trips come from the trips table (so brand-new, still-empty trips
   // show up in the Add Load picker too). The form defaults when there's one.
-  const { data: tripRows } = await sb
-    .from("trips")
-    .select("name")
-    .eq("status", "active")
-    .is("deleted_at", null)
-    .order("created_at", { ascending: false })
-    .returns<{ name: string | null }[]>();
-  const activeTrips = (tripRows ?? [])
-    .map((t) => t.name?.trim() ?? "")
-    .filter((n) => n.length > 0);
+  const activeTrips = await fetchOpenTripNames(sb);
 
   // Accounts receivable is ALL-TIME, not month-scoped: an unpaid load stays
   // owed no matter which month it was delivered, so the A/R figure is the SAME

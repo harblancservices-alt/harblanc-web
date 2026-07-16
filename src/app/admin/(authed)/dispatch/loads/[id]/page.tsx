@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { fetchOpenTripNames } from "@/lib/dispatch/active-trips";
 import { CollapsibleWorkspaceSection } from "../../../quotes/[id]/CollapsibleWorkspaceSection";
 import { OdometerStatusCard } from "./OdometerStatusCard";
 import { LoadDetailsCard } from "./LoadDetailsCard";
@@ -253,28 +254,19 @@ export default async function LoadDetailPage({
       : Promise.resolve({ data: null }),
   ]);
 
-  // Datalist options for the Edit Load modal — the same two queries the Load
-  // Board runs for Add Load, so both forms offer the same brokers and trips.
-  const [{ data: brokerRows }, { data: tripRows }] = await Promise.all([
+  // Picker options for the Edit Load modal — the same lookups the Load Board
+  // runs for Add Load, so both forms offer the same brokers and trips.
+  const [{ data: brokerRows }, activeTrips] = await Promise.all([
     sb
       .from("brokers")
       .select("name")
       .is("deleted_at", null)
       .order("name", { ascending: true })
       .returns<{ name: string | null }[]>(),
-    sb
-      .from("trips")
-      .select("name")
-      .eq("status", "active")
-      .is("deleted_at", null)
-      .order("created_at", { ascending: false })
-      .returns<{ name: string | null }[]>(),
+    fetchOpenTripNames(sb),
   ]);
   const brokerNames = (brokerRows ?? [])
     .map((b) => b.name?.trim() ?? "")
-    .filter((n) => n.length > 0);
-  const activeTrips = (tripRows ?? [])
-    .map((t) => t.name?.trim() ?? "")
     .filter((n) => n.length > 0);
 
   const isCancelled = load.status === "cancelled";

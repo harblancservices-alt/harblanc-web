@@ -4,6 +4,7 @@ import {
   goalMonthParts,
   currentGoalMonth,
   currentGoalMonthLabel,
+  currentBusinessDate,
 } from "./goal-month";
 
 /**
@@ -45,6 +46,41 @@ describe("goal-month attribution (close-out date − 1 day)", () => {
   it("returns null for a missing/invalid date", () => {
     expect(goalMonthParts(null)).toBeNull();
     expect(goalMonthParts("not-a-date")).toBeNull();
+  });
+});
+
+describe("currentBusinessDate — today's calendar day in America/Chicago", () => {
+  it("stays on the local day after UTC has already rolled over", () => {
+    // 2026-07-16 02:00Z is still Jul 15, 9pm in Houston — the calendar's today
+    // marker belongs on the 15th, which is the reported off-by-one.
+    expect(currentBusinessDate(new Date("2026-07-16T02:00:00Z"))).toBe(
+      "2026-07-15",
+    );
+  });
+
+  it("agrees with UTC during Central daytime", () => {
+    expect(currentBusinessDate(new Date("2026-07-15T17:00:00Z"))).toBe(
+      "2026-07-15",
+    );
+  });
+
+  it("advances once Central itself reaches midnight", () => {
+    expect(currentBusinessDate(new Date("2026-07-16T05:01:00Z"))).toBe(
+      "2026-07-16",
+    );
+  });
+
+  it("zero-pads month and day so it string-compares to YYYY-MM-DD rows", () => {
+    expect(currentBusinessDate(new Date("2026-03-05T18:00:00Z"))).toBe(
+      "2026-03-05",
+    );
+  });
+
+  it("rolls the year back across the New Year boundary", () => {
+    // Jan 1 00:30Z is still Dec 31, 6:30pm in Houston.
+    expect(currentBusinessDate(new Date("2026-01-01T00:30:00Z"))).toBe(
+      "2025-12-31",
+    );
   });
 });
 
