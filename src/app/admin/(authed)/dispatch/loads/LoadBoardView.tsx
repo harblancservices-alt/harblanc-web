@@ -200,8 +200,13 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
           label={month === "all" ? "All months" : MONTHS[month]}
         />
 
-        {/* KPI strip — Net profit is the focal (graphite) tile. */}
-        <div className="mb-4 grid grid-cols-3 gap-px overflow-hidden rounded-md border border-line bg-line shadow-e2 sm:grid-cols-6">
+        {/* KPI strip — one card surface split into labeled cells by hairline
+            dividers, the same treatment the trip cards' stat group uses. The
+            gap-px over a bg-line-strong parent draws the dividers: it survives
+            the grid wrapping to two rows on mobile, where per-cell borders
+            would strand a rule against the card edge. Net profit leads on size
+            and weight alone — no filled tile, no accent rail. */}
+        <div className="mb-4 grid grid-cols-3 gap-px overflow-hidden rounded-lg border border-line-strong bg-line-strong shadow-e2 sm:grid-cols-6">
           {/* A/R is all-time (same on every month) and links to the full
               Accounts Receivable page where loads get marked paid. Pinned
               leftmost per Brent's request. */}
@@ -214,9 +219,17 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
           <Kpi label="Total loads" value={String(stats.totalLoads)} tone="count" />
           <Kpi label="Delivered" value={String(stats.delivered)} tone="green" />
           <Kpi label="Gross" value={usd(stats.gross)} tone="green" />
-          <Kpi label="Net profit" value={usd(stats.net)} tone="focal" />
+          {/* Net profit is the strip's headline: same card surface as its
+              neighbours, just a bigger number. A losing month reads red — the
+              only color here is data. */}
+          <Kpi
+            label="Net profit"
+            value={usd(stats.net)}
+            tone={stats.net < 0 ? "red" : "ink"}
+            strong
+          />
           <div className="min-w-0 bg-card px-3 py-2.5">
-            <div className="truncate font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-3">
+            <div className="truncate font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-ink-3">
               Avg / mi
             </div>
             <div className="mt-1 truncate text-[16px] font-bold tabular-nums leading-none text-ok sm:text-[18px]">
@@ -572,9 +585,9 @@ function ProfitGoalBar({
   // monthly, $120k annual, or any edited value).
   const labels = [0, 0.25, 0.5, 0.75, 1].map((f) => abbrUsd(target * f));
   return (
-    <div className="mb-2 rounded-md border border-line bg-card px-3.5 py-3 shadow-e1">
+    <div className="mb-2 rounded-lg border border-line-strong bg-card px-3.5 py-3 shadow-e2">
       <div className="flex items-baseline justify-between gap-2">
-        <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-3">
+        <span className="font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-ink-3">
           Net profit goal · {label}
         </span>
         <span className="font-mono text-[12px] tabular-nums">
@@ -609,36 +622,28 @@ function ProfitGoalBar({
   );
 }
 
+/**
+ * One labeled cell of the KPI strip — the strip's parent draws the card
+ * surface, border and shadow, so a cell is just `bg-card` sitting over the
+ * hairline gap. `strong` is Net profit: it out-weighs its neighbours on size
+ * alone (20/22px vs 18/20px), no filled box and no accent edge. Label styling
+ * matches the trip cards' stat labels.
+ */
 function Kpi({
   label,
   value,
   tone,
   hint,
   href,
+  strong = false,
 }: {
   label: string;
   value: string;
-  tone: "count" | "green" | "red" | "muted" | "focal";
+  tone: "count" | "green" | "red" | "muted" | "ink";
   hint?: string;
   href?: string;
+  strong?: boolean;
 }) {
-  // Focal — the graphite hero cell with a 3px accent left edge.
-  if (tone === "focal") {
-    return (
-      // Softer charcoal-grey than the near-black graphite token (which the side
-      // nav + command bar use) — this focal KPI only. Accent edge + white text
-      // kept.
-      <div className="relative min-w-0 overflow-hidden bg-[#262b33] px-3 py-2.5 pl-4">
-        <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-accent" />
-        <div className="truncate font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-on-dark-dim">
-          {label}
-        </div>
-        <div className="mt-1 truncate text-[18px] font-bold tabular-nums leading-none text-white sm:text-[20px]">
-          {value}
-        </div>
-      </div>
-    );
-  }
   const color =
     tone === "green"
       ? "text-ok"
@@ -646,14 +651,22 @@ function Kpi({
         ? "text-bad"
         : tone === "muted"
           ? "text-ink-3"
-          : "text-steel";
+          : tone === "ink"
+            ? "text-ink"
+            : "text-steel";
   const inner = (
     <>
-      <div className="truncate font-mono text-[10px] font-semibold uppercase tracking-[0.12em] text-ink-3">
+      <div className="truncate font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-ink-3">
         {label}
         {href ? <span aria-hidden className="ml-1 text-ink-3">›</span> : null}
       </div>
-      <div className={"mt-1 truncate text-[18px] font-bold tabular-nums leading-none sm:text-[20px] " + color}>
+      <div
+        className={
+          "mt-1 truncate font-bold tabular-nums leading-none " +
+          (strong ? "text-[20px] sm:text-[22px] " : "text-[18px] sm:text-[20px] ") +
+          color
+        }
+      >
         {value}
       </div>
       {hint ? (
