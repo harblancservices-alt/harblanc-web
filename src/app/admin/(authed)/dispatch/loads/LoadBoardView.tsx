@@ -200,13 +200,13 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
           label={month === "all" ? "All months" : MONTHS[month]}
         />
 
-        {/* KPI strip — one card surface split into labeled cells by hairline
-            dividers, the same treatment the trip cards' stat group uses. The
-            gap-px over a bg-line-strong parent draws the dividers: it survives
-            the grid wrapping to two rows on mobile, where per-cell borders
-            would strand a rule against the card edge. Net profit leads on size
-            and weight alone — no filled tile, no accent rail. */}
-        <div className="mb-4 grid grid-cols-3 gap-px overflow-hidden rounded-lg border border-line-strong bg-line-strong shadow-e2 sm:grid-cols-6">
+        {/* KPI strip — each metric is its OWN raised card, the same chrome the
+            trip cards carry (rounded-lg, border-line-strong, e2), separated by
+            real gaps rather than being cells inside one box. Two across on a
+            phone so a six-figure Gross isn't squeezed into a third of a 360px
+            screen; six across once there's room. Net profit leads on size and
+            weight alone — no filled tile, no accent rail. */}
+        <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
           {/* A/R is all-time (same on every month) and links to the full
               Accounts Receivable page where loads get marked paid. Pinned
               leftmost per Brent's request. */}
@@ -228,7 +228,7 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
             tone={stats.net < 0 ? "red" : "ink"}
             strong
           />
-          <div className="min-w-0 bg-card px-3 py-2.5">
+          <div className={KPI_CARD}>
             <div className="truncate font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-ink-3">
               Avg / mi
             </div>
@@ -664,11 +664,18 @@ function ProfitGoalBar({
 }
 
 /**
- * One labeled cell of the KPI strip — the strip's parent draws the card
- * surface, border and shadow, so a cell is just `bg-card` sitting over the
- * hairline gap. `strong` is Net profit: it out-weighs its neighbours on size
- * alone (20/22px vs 18/20px), no filled box and no accent edge. Label styling
- * matches the trip cards' stat labels.
+ * The KPI tiles' shared surface — the trip cards' chrome exactly, so each
+ * metric reads as its own depth card rather than a cell in a box. Kept as a
+ * const because the Avg/mi tile is written inline (it stacks two values) and
+ * has to stay pixel-identical to its neighbours.
+ */
+const KPI_CARD =
+  "min-w-0 rounded-lg border border-line-strong bg-card px-3 py-2.5 shadow-e2";
+
+/**
+ * One KPI tile — its own raised card. `strong` is Net profit: it out-weighs
+ * its neighbours on size alone (20/22px vs 18/20px), no filled box and no
+ * accent edge. Label styling matches the trip cards' stat labels.
  */
 function Kpi({
   label,
@@ -721,13 +728,13 @@ function Kpi({
     return (
       <Link
         href={href}
-        className="min-w-0 bg-card px-3 py-2.5 transition-colors hover:bg-inset"
+        className={KPI_CARD + " block transition-shadow hover:shadow-e3 active:bg-inset"}
       >
         {inner}
       </Link>
     );
   }
-  return <div className="min-w-0 bg-card px-3 py-2.5">{inner}</div>;
+  return <div className={KPI_CARD}>{inner}</div>;
 }
 
 function usd(n: number): string {
