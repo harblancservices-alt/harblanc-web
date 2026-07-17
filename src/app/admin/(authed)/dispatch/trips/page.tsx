@@ -180,7 +180,7 @@ export default async function TripsPage() {
         </p>
 
         {trips.length === 0 ? (
-          <div className="rounded-md border border-dashed border-line-strong bg-card px-4 py-10 text-center font-mono text-[12px] text-ink-3 shadow-e1">
+          <div className="mx-auto w-full max-w-2xl rounded-lg border border-dashed border-line-strong bg-card px-4 py-10 text-center font-mono text-[12px] text-ink-3 shadow-e1">
             No trips yet — hit “New Trip”, or just type a trip name when adding a
             load and it’ll appear here.
           </div>

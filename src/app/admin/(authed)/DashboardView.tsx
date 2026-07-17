@@ -122,7 +122,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
 
         <SectionLabel title="Active loads" count={data.activeLoads.length} />
         {data.activeLoads.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-3 rounded-md border border-dashed border-line-strong bg-card px-4 py-10 text-center shadow-e1">
+          <div className="flex flex-col items-center justify-center gap-3 rounded-lg border border-dashed border-line-strong bg-card px-4 py-10 text-center shadow-e1">
             <p className="font-mono text-[12px] text-ink-3">
               No active loads.
             </p>
@@ -132,7 +132,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
             />
           </div>
         ) : (
-          <div className="overflow-hidden rounded-md border border-line bg-card shadow-e2">
+          <div className="overflow-hidden rounded-lg border border-line-strong bg-card shadow-e2">
             {data.activeLoads.map((l, i) => (
               <div
                 key={l.id}
@@ -252,7 +252,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
               title="Truck maintenance"
               count={data.maintenance.length}
             />
-            <div className="overflow-hidden rounded-md border border-line bg-card shadow-e2">
+            <div className="overflow-hidden rounded-lg border border-line-strong bg-card shadow-e2">
               {data.maintenance.map((m) => {
                 const rem = maintRemaining(m);
                 return (
@@ -315,7 +315,7 @@ export function DashboardView({ data }: { data: DashboardData }) {
                   key={q.leadId}
                   href={"/admin/quotes/" + q.leadId}
                   prefetch={false}
-                  className="block rounded-md border border-line bg-card p-3 shadow-e1 transition-colors hover:bg-inset"
+                  className="block rounded-lg border border-line-strong bg-card p-3 shadow-e2 transition-shadow hover:shadow-e3 active:bg-inset"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <span className="flex min-w-0 items-center gap-2">

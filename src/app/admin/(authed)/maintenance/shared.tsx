@@ -217,7 +217,7 @@ export function RepairRow({
   return (
     <Link
       href={`/admin/maintenance/${entry.id}`}
-      className="block rounded-md border border-line bg-card p-3 shadow-e1 transition-colors hover:border-line-strong hover:bg-inset"
+      className="block rounded-lg border border-line-strong bg-card p-3 shadow-e2 transition-shadow hover:shadow-e3 active:bg-inset"
     >
       <div className="flex items-start justify-between gap-2">
         <h3 className="min-w-0 truncate text-[14px] font-semibold text-fg">

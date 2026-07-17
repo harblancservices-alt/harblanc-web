@@ -77,7 +77,7 @@ export function CountdownCards({
 
   return (
     <>
-      <div className="overflow-hidden rounded-md border border-line bg-card shadow-e2">
+      <div className="overflow-hidden rounded-lg border border-line-strong bg-card shadow-e2">
         {/* Black title bar — the app's graphite section-header treatment. Holds
             the title, the combined target as the running balance, and a real
             primary "+ Add" button (not a text link). */}

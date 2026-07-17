@@ -333,7 +333,7 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
         )}
 
         {/* Table (desktop) */}
-        <div className="hidden overflow-x-auto rounded-md border border-line bg-card shadow-e2 md:block">
+        <div className="hidden overflow-x-auto rounded-lg border border-line-strong bg-card shadow-e2 md:block">
           <div className="min-w-[780px]">
             <div
               className="grid items-center gap-1.5 border-b-2 border-line-strong bg-inset px-2 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.06em] text-ink-3"
@@ -456,7 +456,7 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
         {/* Cards (mobile) */}
         <div className="space-y-2 md:hidden">
           {rows.length === 0 ? (
-            <div className="rounded-md border border-line bg-card px-3 py-8 text-center font-mono text-[13px] text-fg-subtle">
+            <div className="rounded-lg border border-line-strong bg-card px-3 py-8 text-center font-mono text-[13px] text-fg-subtle shadow-e1">
               No loads yet. Hit “Add load” to start tracking.
             </div>
           ) : (
@@ -478,8 +478,8 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
                     else router.push(`/admin/dispatch/loads/${r.id}`);
                   }}
                   className={
-                    "flex cursor-pointer items-stretch overflow-hidden rounded-md border shadow-e1 transition-colors active:bg-inset " +
-                    (isSel ? "border-bad bg-bad-bg" : "border-line bg-card")
+                    "flex cursor-pointer items-stretch overflow-hidden rounded-lg border shadow-e2 transition-shadow hover:shadow-e3 active:bg-inset " +
+                    (isSel ? "border-bad bg-bad-bg" : "border-line-strong bg-card")
                   }
                 >
                   {/* Selection indicator — only in delete mode. The whole card
@@ -526,16 +526,25 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
                       {r.destination}
                     </div>
 
-                    <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] text-fg-subtle">
-                      <span>#{r.loadNumber}</span>
-                      <span>
+                    {/* Meta — the date span and load number get the trip
+                        cards' chip treatment (surface + hairline) so they read
+                        as identity rather than dissolving into faint text.
+                        Miles and Net stay plain: Net is data, and its green is
+                        the only color the row carries. */}
+                    <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1.5 font-mono text-[11px] text-fg-subtle">
+                      <span className="rounded border border-steel/40 bg-steel-bg px-1.5 py-0.5 font-bold tabular-nums text-steel shadow-e1">
+                        #{r.loadNumber}
+                      </span>
+                      <span className="rounded border border-line-strong bg-inset px-1.5 py-0.5 font-semibold tabular-nums text-fg shadow-e1">
                         {r.pickup} <span className="text-fg-subtle">→</span>{" "}
                         {r.delivery}
                       </span>
                       {r.loadedMiles != null ? (
-                        <span>{r.loadedMiles.toLocaleString()} mi</span>
+                        <span className="ml-1">
+                          {r.loadedMiles.toLocaleString()} mi
+                        </span>
                       ) : null}
-                      <span className="font-bold text-ok">
+                      <span className="ml-1 font-bold text-ok">
                         Net {usd(r.net)}
                       </span>
                     </div>

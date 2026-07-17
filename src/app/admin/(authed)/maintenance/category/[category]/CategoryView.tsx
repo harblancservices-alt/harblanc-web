@@ -167,7 +167,7 @@ function SetStrip({ set }: { set: CategorySet }) {
   return (
     <Link
       href={`/admin/maintenance/set/${encodeURIComponent(set.partGroup)}`}
-      className="block rounded-md border border-line bg-card p-3 shadow-e1 transition-colors hover:border-line-strong hover:bg-inset"
+      className="block rounded-lg border border-line-strong bg-card p-3 shadow-e2 transition-shadow hover:shadow-e3 active:bg-inset"
     >
       <h3 className="truncate text-[13.5px] font-semibold text-fg">
         {set.partGroup}

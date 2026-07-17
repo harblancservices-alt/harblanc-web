@@ -83,7 +83,11 @@ export function TripsListView({ trips }: { trips: TripListItem[] }) {
   const closed = trips.filter((t) => t.status === "closed");
 
   return (
-    <>
+    // The trip column is centred and capped rather than filling the page's
+    // max-w-5xl: a trip card is a fixed amount of content, and stretching it
+    // across a desktop page strands the stat group against the left edge.
+    // Mobile is unaffected — w-full wins until the cap is reachable.
+    <div className="mx-auto w-full max-w-2xl">
       {/* Toolbar — Delete enters selection mode. */}
       {!selectMode && trips.length > 0 ? (
         <div className="mb-2 flex items-center justify-end">
@@ -164,7 +168,7 @@ export function TripsListView({ trips }: { trips: TripListItem[] }) {
           />
         ) : null}
       </div>
-    </>
+    </div>
   );
 }
 
