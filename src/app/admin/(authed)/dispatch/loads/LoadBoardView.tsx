@@ -243,32 +243,48 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
           </div>
         </div>
 
-        {/* Toolbar — search + (relocated) Delete + Add Load. The old filter
-            pills were removed; the month dropdown above is the filter now.
-            Load Inquiry and Add load are the board's two CTAs and carry the
-            raised accent treatment; Delete stays outlined so it never reads
-            like one of them. */}
-        <div className="mb-2 flex flex-wrap items-center gap-2">
+        {/* Toolbar — buttons on top, search underneath. The old filter pills
+            were removed; the month dropdown above is the filter now. Load
+            Inquiry and Add load are the board's two CTAs and carry the raised
+            accent treatment; Delete stays outlined so it never reads like one
+            of them.
+
+            The three buttons share the row as equal thirds via flex-1 (basis
+            0, so width is content-independent and the labels can't skew the
+            split). Delete is conditional — flex-1 lets the remaining two
+            re-split evenly on their own, which a fixed 3-col grid would not:
+            it would strand an empty column. The row is capped on desktop so
+            three buttons don't stretch to ~380px each across the max-w-6xl
+            page. */}
+        <div className="mb-2 space-y-2">
+          <div className="flex max-w-2xl items-center gap-2">
+            {!selectMode && rows.length > 0 ? (
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={() => setSelectMode(true)}
+                className={ACTION_BTN}
+              >
+                <span className="min-w-0 truncate">Delete</span>
+              </Button>
+            ) : null}
+            <PopoutButton variant="primary-raised" className={ACTION_BTN}>
+              <span className="min-w-0 truncate">Load Inquiry</span>
+            </PopoutButton>
+            <AddLoadButton
+              brokerNames={data.brokerNames}
+              activeTrips={data.activeTrips}
+              className={ACTION_BTN}
+            >
+              <span className="min-w-0 truncate">+ Add load</span>
+            </AddLoadButton>
+          </div>
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search load #, broker, origin, destination…"
-            className="h-[34px] min-w-0 flex-1 rounded-md border border-line-strong bg-card px-3 text-[13px] text-ink outline-none placeholder:text-ink-3 focus:border-accent focus:ring-2 focus:ring-accent/40 sm:max-w-sm"
-          />
-          {!selectMode && rows.length > 0 ? (
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={() => setSelectMode(true)}
-            >
-              Delete
-            </Button>
-          ) : null}
-          <PopoutButton variant="primary-raised" />
-          <AddLoadButton
-            brokerNames={data.brokerNames}
-            activeTrips={data.activeTrips}
+            className="h-[34px] w-full min-w-0 rounded-md border border-line-strong bg-card px-3 text-[13px] text-ink outline-none placeholder:text-ink-3 focus:border-accent focus:ring-2 focus:ring-accent/40"
           />
         </div>
 
@@ -566,6 +582,22 @@ function BulkDeleteButton({ count }: { count: number }) {
     </Button>
   );
 }
+
+/**
+ * The three action buttons share one row as equal thirds. flex-1 sets basis 0
+ * so the split is content-independent, and min-w-0 lets a column shrink below
+ * its label (a flex item defaults to min-width:auto, which would otherwise
+ * push the row wider than the page and give the board a horizontal scroll).
+ *
+ * The compact type below `sm` is load-bearing, not taste: at the designed
+ * 13px/px-3.5, "LOAD INQUIRY" measures 133px, but an equal third is 104px on a
+ * 360px phone and only 127px on a 430px one — the label spills its fill at
+ * every phone width. 11px/px-1.5 needs 101px, which clears 360px and up. From
+ * `sm` the row has room, so the buttons return to the exact designed size.
+ * Variants (outlined Delete, accent-raised Inquiry/Add) are untouched.
+ */
+const ACTION_BTN =
+  "flex-1 min-w-0 px-1.5! text-[11px]! sm:px-3.5! sm:text-[13px]!";
 
 function ProfitGoalBar({
   net,
