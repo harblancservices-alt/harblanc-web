@@ -335,13 +335,19 @@ export function ReachView({
               Send Backhaul
             </h1>
           </div>
-          {tab === "send" ? (
-            <div className="flex w-full shrink-0 items-center gap-2 sm:w-auto">
+          {/* "← Load board" is the way back out — Reach is opened from the
+              board / More sheet and had no return path. It sits on both tabs;
+              Setup is Send-only, as before. */}
+          <div className="flex w-full shrink-0 items-center gap-2 sm:w-auto">
+            <Button href="/admin/dispatch/loads" variant="navigate" size="sm">
+              ← Load board
+            </Button>
+            {tab === "send" ? (
               <Button variant="edit" size="sm" onClick={() => setSetupOpen(true)}>
                 Setup
               </Button>
-            </div>
-          ) : null}
+            ) : null}
+          </div>
         </header>
 
         {/* Raised, button-like tabs with depth */}

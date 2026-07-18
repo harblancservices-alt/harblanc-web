@@ -179,8 +179,11 @@ export function EmailBrokerView({ popup = false }: { popup?: boolean }) {
           : "mx-auto w-full max-w-xl px-4 py-5 sm:px-6"
       }
     >
-      <header className="mb-3 flex items-start justify-between gap-3">
-        <div className="min-w-0">
+      {/* Same wrap guard the other dispatch headers carry: below `sm` the
+          title block takes the full row and the actions drop underneath, so
+          two buttons can't squeeze the title on a phone. */}
+      <header className="mb-3 flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
+        <div className="min-w-0 basis-full sm:basis-auto">
           <p className="font-mono text-[11px] font-bold uppercase tracking-[0.24em] text-indigo-600">
             Dispatch
           </p>
@@ -199,12 +202,21 @@ export function EmailBrokerView({ popup = false }: { popup?: boolean }) {
             </p>
           )}
         </div>
-        {/* Full-page only: pop the tool out into a floating window. Inside the
-            popup itself it's redundant. */}
+        {/* Full-page only. "← Load board" is the way back out — the tool is
+            opened FROM the board (Inquiry button) or the More sheet and had no
+            return path. Pop out lifts it into a floating window.
+
+            Both are suppressed in popup mode: that window is chrome-less and
+            single-purpose, so navigating it to the load board would strand the
+            board in a 460px popup, and popping out from inside the popup is
+            already redundant. */}
         {popup ? null : (
-          <PopoutButton className="shrink-0" size="sm">
-            Pop out
-          </PopoutButton>
+          <div className="flex shrink-0 items-center gap-2">
+            <Button href="/admin/dispatch/loads" variant="navigate" size="sm">
+              ← Load board
+            </Button>
+            <PopoutButton size="sm">Pop out</PopoutButton>
+          </div>
         )}
       </header>
 
