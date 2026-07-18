@@ -1,6 +1,12 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import {
+  loadDiesel,
+  loadNet,
+  FUEL_DEFAULTS,
+  type FuelSettings,
+} from "@/lib/dispatch/fuel";
 import { BrokerDetail, type BrokerDetailData } from "./BrokerDetail";
 
 export const metadata: Metadata = {
@@ -34,9 +40,10 @@ type LoadRow = {
   equipment: string | null;
   delivery_date: string | null;
   rate: number | string | null;
-  fuel_cost: number | string | null;
-  factoring_fee: number | string | null;
-  misc_cost: number | string | null;
+  tonu_amount: number | string | null;
+  odo_assigned: number | null;
+  odo_loaded: number | null;
+  odo_delivered: number | null;
   loaded_miles: number | null;
   status: string;
   payment_status: string;
@@ -85,26 +92,45 @@ export default async function BrokerDetailPage({
 }) {
   const { id } = await params;
   const sb = createServiceRoleClient();
-  const [{ data: broker }, { data: loadRows }, { data: contactRows }] =
-    await Promise.all([
-      sb.from("brokers").select("*").eq("id", id).maybeSingle<Broker>(),
-      sb
-        .from("loads")
-        .select(
-          "id, origin, destination, equipment, delivery_date, rate, fuel_cost, factoring_fee, misc_cost, loaded_miles, status, payment_status",
-        )
-        .eq("broker_id", id)
-        .is("deleted_at", null)
-        .order("delivery_date", { ascending: false, nullsFirst: false })
-        .returns<LoadRow[]>(),
-      sb
-        .from("broker_contacts")
-        .select("id, name, title, phone, email, phones, emails, is_backhaul")
-        .eq("broker_id", id)
-        .is("deleted_at", null)
-        .order("created_at", { ascending: true })
-        .returns<Contact[]>(),
-    ]);
+  const [
+    { data: broker },
+    { data: loadRows },
+    { data: contactRows },
+    { data: fuelRow },
+    { data: expRows },
+  ] = await Promise.all([
+    sb.from("brokers").select("*").eq("id", id).maybeSingle<Broker>(),
+    sb
+      .from("loads")
+      .select(
+        "id, origin, destination, equipment, delivery_date, rate, tonu_amount, odo_assigned, odo_loaded, odo_delivered, loaded_miles, status, payment_status",
+      )
+      .eq("broker_id", id)
+      .is("deleted_at", null)
+      .order("delivery_date", { ascending: false, nullsFirst: false })
+      .returns<LoadRow[]>(),
+    sb
+      .from("broker_contacts")
+      .select("id, name, title, phone, email, phones, emails, is_backhaul")
+      .eq("broker_id", id)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: true })
+      .returns<Contact[]>(),
+    sb
+      .from("dispatch_settings")
+      .select("mpg, diesel_price_per_gallon, factoring_pct")
+      .eq("id", true)
+      .maybeSingle<{
+        mpg: number | string;
+        diesel_price_per_gallon: number | string;
+        factoring_pct: number | string;
+      }>(),
+    sb
+      .from("load_expenses")
+      .select("load_id, amount")
+      .is("deleted_at", null)
+      .returns<{ load_id: string; amount: number | string }[]>(),
+  ]);
 
   if (!broker) notFound();
 
@@ -117,8 +143,45 @@ export default async function BrokerDetailPage({
   ).length;
   const cancelled = loads.filter((l) => l.status === "cancelled").length;
 
-  const netOf = (l: LoadRow) =>
-    num(l.rate) - num(l.fuel_cost) - num(l.factoring_fee) - num(l.misc_cost);
+  const fuel: FuelSettings = {
+    mpg: num(fuelRow?.mpg ?? null) || FUEL_DEFAULTS.mpg,
+    ppg: num(fuelRow?.diesel_price_per_gallon ?? null) || FUEL_DEFAULTS.ppg,
+    factoringPct:
+      fuelRow?.factoring_pct != null
+        ? num(fuelRow.factoring_pct)
+        : FUEL_DEFAULTS.factoringPct,
+  };
+  const expByLoad = new Map<string, number>();
+  for (const e of expRows ?? []) {
+    expByLoad.set(e.load_id, (expByLoad.get(e.load_id) ?? 0) + num(e.amount));
+  }
+  const factors = broker.factoring ?? false;
+
+  // Per-load net via the canonical fuel math — the same calc the Load Board,
+  // trip cards, and the calendar's weekly net run, so a load's net reads
+  // identically wherever it appears. A cancelled load earns only its TONU,
+  // with no miles burned against it.
+  const netOf = (l: LoadRow) => {
+    if (l.status === "cancelled") return num(l.tonu_amount);
+    const md = loadDiesel(
+      {
+        odoAssigned: l.odo_assigned,
+        odoLoaded: l.odo_loaded,
+        odoDelivered: l.odo_delivered,
+        estimate: l.loaded_miles,
+      },
+      fuel,
+    );
+    return loadNet(
+      {
+        rate: num(l.rate),
+        diesel: md.diesel,
+        expensesTotal: expByLoad.get(l.id) ?? 0,
+      },
+      fuel,
+      factors,
+    ).net;
+  };
 
   const gross = live.reduce((s, l) => s + num(l.rate), 0);
   const net = live.reduce((s, l) => s + netOf(l), 0);
