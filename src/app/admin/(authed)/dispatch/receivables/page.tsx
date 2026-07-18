@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
@@ -26,6 +27,7 @@ export const metadata: Metadata = {
 type ReceivableRow = {
   id: string;
   load_number: string | null;
+  broker_id: string | null;
   broker_name: string | null;
   origin: string | null;
   destination: string | null;
@@ -91,7 +93,7 @@ async function loadReceivables() {
   const { data: outstandingData } = await sb
     .from("loads")
     .select(
-      "id, load_number, broker_name, origin, destination, delivery_date, rate, paid_at",
+      "id, load_number, broker_id, broker_name, origin, destination, delivery_date, rate, paid_at",
     )
     .eq("status", "delivered")
     .neq("payment_status", "paid")
@@ -103,7 +105,7 @@ async function loadReceivables() {
   const { data: paidData } = await sb
     .from("loads")
     .select(
-      "id, load_number, broker_name, origin, destination, delivery_date, rate, paid_at",
+      "id, load_number, broker_id, broker_name, origin, destination, delivery_date, rate, paid_at",
     )
     .eq("status", "delivered")
     .eq("payment_status", "paid")
@@ -174,7 +176,7 @@ export default async function ReceivablesPage() {
               return (
                 <div
                   key={l.id}
-                  className="flex items-stretch overflow-hidden rounded-md border border-line bg-card shadow-e1"
+                  className="relative flex items-stretch overflow-hidden rounded-md border border-line bg-card shadow-e1 transition-colors hover:bg-elevated"
                 >
                   <div className="min-w-0 flex-1 p-3">
                     <div className="flex items-start justify-between gap-2">
@@ -209,12 +211,31 @@ export default async function ReceivablesPage() {
                         Delivered {fmtDate(l.delivery_date)}
                       </span>
                     </div>
-                    <form action={markLoadPaid.bind(null, l.id)} className="mt-2.5">
+                    {/* Sits ABOVE the stretched broker link (z-10) so
+                        submitting never doubles as a navigation. */}
+                    <form
+                      action={markLoadPaid.bind(null, l.id)}
+                      className="relative z-10 mt-2.5 w-fit"
+                    >
                       <Button type="submit" variant="primary" size="sm">
                         Mark paid
                       </Button>
                     </form>
                   </div>
+
+                  {/* Stretched link — the whole card body taps through to the
+                      broker's profile. An overlay (rather than wrapping the
+                      card in an <a>) keeps the "Mark paid" form out of the
+                      anchor, which would be invalid markup and would swallow
+                      the submit. Loads with no linked broker get no link. */}
+                  {l.broker_id ? (
+                    <Link
+                      href={`/admin/dispatch/brokers/${l.broker_id}`}
+                      prefetch={false}
+                      aria-label={`Open ${l.broker_name?.trim() || "broker"} profile`}
+                      className="absolute inset-0 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                    />
+                  ) : null}
                 </div>
               );
             })}

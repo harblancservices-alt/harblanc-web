@@ -36,6 +36,27 @@ function refKey(bucket: string, path: string): string {
   return `${bucket}\n${path}`;
 }
 
+/**
+ * Faint per-type wash so the timeline is scannable by colour: rate cons read
+ * blue, BOLs green, PODs amber. Receipts (and everything else) keep the plain
+ * white card. The 50-step Tailwind tints are the ones globals.css already
+ * remaps to translucent fills under `.admin-dark`, so both themes stay legible.
+ *
+ * No hover swap on the tinted rows: globals.css only remaps the BASE
+ * `.bg-blue-100` etc. for dark mode, not the `hover:` variant, so a hover tint
+ * would flash a bright light-mode blue over the dark card.
+ */
+const CATEGORY_TINT: Partial<Record<FileCategory, string>> = {
+  rate_con: "bg-blue-50",
+  bol: "bg-green-50",
+  signed_bol: "bg-green-50",
+  pod: "bg-amber-50",
+};
+
+function tintFor(category: FileCategory): string {
+  return CATEGORY_TINT[category] ?? "bg-card hover:bg-elevated";
+}
+
 export function FilesView({ items }: { items: FileItem[] }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<FilterKey>("all");
@@ -228,7 +249,12 @@ function FileRow({
   onView: () => void;
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-md border border-line bg-card px-3 py-2.5 transition-colors hover:bg-elevated">
+    <div
+      className={
+        "flex items-center gap-3 rounded-md border border-line px-3 py-2.5 transition-colors " +
+        tintFor(item.category)
+      }
+    >
       {/* Thumbnail / type glyph. */}
       <button
         type="button"
