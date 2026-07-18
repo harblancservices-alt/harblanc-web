@@ -37,24 +37,33 @@ function refKey(bucket: string, path: string): string {
 }
 
 /**
- * Faint per-type wash so the timeline is scannable by colour: rate cons read
- * blue, BOLs green, PODs amber. Receipts (and everything else) keep the plain
- * white card. The 50-step Tailwind tints are the ones globals.css already
- * remaps to translucent fills under `.admin-dark`, so both themes stay legible.
+ * Per-type wash so the timeline is scannable by colour: rate cons read blue,
+ * BOLs green, PODs amber. Receipts (and everything else) keep the plain white
+ * card. Deliberately a visible tint, not a hint — but still light enough that
+ * near-black `text-fg` / `text-fg-muted` stay comfortable on top.
  *
- * No hover swap on the tinted rows: globals.css only remaps the BASE
- * `.bg-blue-100` etc. for dark mode, not the `hover:` variant, so a hover tint
- * would flash a bright light-mode blue over the dark card.
+ * `data-file-tint` is what actually carries the colour, NOT a Tailwind class.
+ * globals.css collapses both `.admin-dark .bg-blue-50` and `.bg-blue-100` onto
+ * one translucent fill, so stepping 50 → 100 would have deepened light mode
+ * while leaving dark mode untouched, and 200 isn't remapped at all (it would
+ * flash a bright light-mode colour over the dark card). The attribute lets
+ * globals.css set an honest pair of values per theme without restyling every
+ * other amber/green/blue chip in the admin.
+ *
+ * No hover swap on tinted rows — the tint IS the row's identity, and swapping
+ * it on hover reads as a state change that doesn't exist.
  */
-const CATEGORY_TINT: Partial<Record<FileCategory, string>> = {
-  rate_con: "bg-blue-50",
-  bol: "bg-green-50",
-  signed_bol: "bg-green-50",
-  pod: "bg-amber-50",
+type TintKey = "blue" | "green" | "amber";
+
+const CATEGORY_TINT: Partial<Record<FileCategory, TintKey>> = {
+  rate_con: "blue",
+  bol: "green",
+  signed_bol: "green",
+  pod: "amber",
 };
 
-function tintFor(category: FileCategory): string {
-  return CATEGORY_TINT[category] ?? "bg-card hover:bg-elevated";
+function tintFor(category: FileCategory): TintKey | undefined {
+  return CATEGORY_TINT[category];
 }
 
 export function FilesView({ items }: { items: FileItem[] }) {
@@ -250,9 +259,12 @@ function FileRow({
 }) {
   return (
     <div
+      data-file-tint={tintFor(item.category)}
       className={
         "flex items-center gap-3 rounded-md border border-line px-3 py-2.5 transition-colors " +
-        tintFor(item.category)
+        // Untinted rows (receipts, applications, other) keep the plain card
+        // plus its hover; tinted rows get their colour from globals.css.
+        (tintFor(item.category) ? "" : "bg-card hover:bg-elevated")
       }
     >
       {/* Thumbnail / type glyph. */}

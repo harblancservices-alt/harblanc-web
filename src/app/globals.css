@@ -245,6 +245,30 @@ html[data-admin-theme="dark"] .admin-light {
 .admin-dark .border-amber-300,
 .admin-dark .border-green-300 { border-color: rgba(255, 255, 255, 0.18); }
 
+/* ── Files timeline: per-doc-type row tint ────────────────────────────────
+   Admin → Files washes each row by document type (rate con blue, BOL green,
+   POD amber; receipts stay on the plain card) so the list is scannable by
+   colour. Driven by a data attribute rather than bg-blue-100 / bg-green-100
+   because the dark remap above collapses the -50 and -100 steps onto ONE
+   translucent fill — stepping a Tailwind shade would deepen light mode and do
+   nothing on dark, and -200 isn't remapped at all (it would flash a bright
+   light-mode colour over the dark card). A dedicated attribute also keeps
+   these rows from dragging every other tinted chip in the admin along with
+   them.
+
+   Values are tuned to sit clearly ABOVE a hint while keeping near-black
+   text-fg (light) / near-white text-fg (dark) comfortably readable. */
+[data-file-tint="blue"]  { background-color: #dbe8fb; }
+[data-file-tint="green"] { background-color: #d8ecdf; }
+[data-file-tint="amber"] { background-color: #fbeacc; }
+
+/* Dark mode: the same hues as translucent overlays on the charcoal card, at a
+   noticeably heavier alpha than the shared 0.16 chip fill so the rows read as
+   tinted rather than as a faint sheen. */
+.admin-dark [data-file-tint="blue"]  { background-color: rgba(85, 150, 230, 0.30); }
+.admin-dark [data-file-tint="green"] { background-color: rgba(93, 174, 120, 0.30); }
+.admin-dark [data-file-tint="amber"] { background-color: rgba(226, 163, 61, 0.28); }
+
 /* ── Display settings (Settings → Display) ─────────────────────────────────
    Two per-user, localStorage-persisted controls, mirroring the theme mechanism
    (inline no-flash script in the admin layout + live JS on the settings page).
