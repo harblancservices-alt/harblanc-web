@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { StatusTag, type StatusTone } from "@/components/ui/StatusTag";
-import { brokerColor, brokerInitial, formatPhone, telHref, usd, usd2 } from "../_util";
+import { BROKER_AVATAR, brokerInitial, formatPhone, telHref, usd, usd2 } from "../_util";
 import {
   updateBroker,
   softDeleteBroker,
@@ -140,8 +140,8 @@ export function BrokerDetail({ data }: { data: BrokerDetailData }) {
         <div className="flex min-w-0 items-center gap-3">
           <span
             className={
-              "flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-[18px] font-bold text-white " +
-              brokerColor(broker.name)
+              "flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-[18px] font-bold " +
+              BROKER_AVATAR
             }
           >
             {brokerInitial(broker.name)}
@@ -237,11 +237,13 @@ export function BrokerDetail({ data }: { data: BrokerDetailData }) {
         </div>
       </header>
 
-      {/* KPI row — Net is the focal (graphite) tile. */}
+      {/* KPI row — trip-card discipline: Total loads is a plain count and reads
+          ink, Gross and Net are earnings and read green (Net leads on size
+          alone, not on a filled tile), A/R reads red only while money is owed. */}
       <div className="grid grid-cols-2 divide-x divide-line overflow-hidden rounded-md border border-line bg-card shadow-e2 lg:grid-cols-4">
         <Kpi label="Total loads" value={String(kpis.loads)} />
         <Kpi label="Gross" value={usd2(kpis.gross)} tone="green" />
-        <Kpi label="Net" value={usd2(kpis.net)} tone="focal" />
+        <Kpi label="Net" value={usd2(kpis.net)} tone="green" strong />
         <Kpi
           label="Accounts receivable"
           value={usd2(kpis.ar)}
@@ -527,8 +529,8 @@ function ContactCard({
       <div className="flex items-start gap-3 px-3.5 py-3">
         <span
           className={
-            "flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[15px] font-bold text-white " +
-            brokerColor(contact.name ?? "?")
+            "flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[15px] font-bold " +
+            BROKER_AVATAR
           }
         >
           {brokerInitial(contact.name ?? "?")}
@@ -1095,28 +1097,23 @@ function TabBtn({
   );
 }
 
+/**
+ * One KPI cell. `strong` is Net — it out-weighs its neighbours on size alone
+ * (26px vs 22px), the same way the trip cards' Net stat leads: no filled box,
+ * no accent rail. `tone` is the only color, and it's always data — green
+ * earnings, red money owed, ink for a plain count.
+ */
 function Kpi({
   label,
   value,
   tone = "default",
+  strong = false,
 }: {
   label: string;
   value: string;
-  tone?: "default" | "green" | "red" | "focal";
+  tone?: "default" | "green" | "red";
+  strong?: boolean;
 }) {
-  if (tone === "focal") {
-    return (
-      <div className="relative overflow-hidden bg-graphite px-4 py-3 pl-5">
-        <span aria-hidden className="absolute inset-y-0 left-0 w-[3px] bg-accent" />
-        <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-on-dark-dim">
-          {label}
-        </div>
-        <div className="mt-1 text-[22px] font-bold tabular-nums leading-none text-white">
-          {value}
-        </div>
-      </div>
-    );
-  }
   const color =
     tone === "green" ? "text-ok" : tone === "red" ? "text-bad" : "text-fg";
   return (
@@ -1124,7 +1121,13 @@ function Kpi({
       <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-fg-muted">
         {label}
       </div>
-      <div className={"mt-1 text-[22px] font-bold tabular-nums leading-none " + color}>
+      <div
+        className={
+          "mt-1 font-bold tabular-nums leading-none " +
+          (strong ? "text-[26px] " : "text-[22px] ") +
+          color
+        }
+      >
         {value}
       </div>
     </div>

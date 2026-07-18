@@ -77,14 +77,16 @@ export function CategoryView({
         </div>
 
         {/* Scheduled — this category's preventative items with mileage
-            countdown (the green stay-ahead lens, shown at the top). */}
+            countdown, pinned at the top. Neutral section chrome: the reminder
+            cards inside carry the real signal (amber due soon, red overdue),
+            and a green box around them would compete with it. */}
         {reminders.length > 0 ? (
-          <section className="mt-4 rounded-lg border border-green-300 bg-green-50 p-3">
+          <section className="mt-4 rounded-lg border border-line-strong bg-card p-3 shadow-e1">
             <div className="mb-2 flex items-center gap-2">
-              <span className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-green-800">
+              <span className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-ink-3">
                 Scheduled
               </span>
-              <span className="font-mono text-[11px] tabular-nums text-green-700">
+              <span className="font-mono text-[11px] tabular-nums text-fg-subtle">
                 · {reminders.length}
               </span>
             </div>

@@ -216,8 +216,10 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
             tone={data.arTotal > 0 ? "red" : "muted"}
             href="/admin/dispatch/receivables"
           />
-          <Kpi label="Total loads" value={String(stats.totalLoads)} tone="count" />
-          <Kpi label="Delivered" value={String(stats.delivered)} tone="green" />
+          {/* Plain counts, not money — they read ink. A delivered load isn't
+              "good money", it's just a tally, so it gets no green. */}
+          <Kpi label="Total loads" value={String(stats.totalLoads)} tone="ink" />
+          <Kpi label="Delivered" value={String(stats.delivered)} tone="ink" />
           <Kpi label="Gross" value={usd(stats.gross)} tone="green" />
           {/* Net profit is the strip's headline: same card surface as its
               neighbours, just a bigger number. A losing month reads red — the
@@ -225,7 +227,7 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
           <Kpi
             label="Net profit"
             value={usd(stats.net)}
-            tone={stats.net < 0 ? "red" : "ink"}
+            tone={stats.net < 0 ? "red" : "green"}
             strong
           />
           <div className={KPI_CARD}>
@@ -689,7 +691,10 @@ function Kpi({
 }: {
   label: string;
   value: string;
-  tone: "count" | "green" | "red" | "muted" | "ink";
+  // Color is meaning only: green = earnings, red = money owed, muted = a
+  // settled/zero figure, ink = a plain count. There is deliberately no
+  // decorative tone — a metric that isn't money is ink.
+  tone: "green" | "red" | "muted" | "ink";
   hint?: string;
   href?: string;
   strong?: boolean;
@@ -701,9 +706,7 @@ function Kpi({
         ? "text-bad"
         : tone === "muted"
           ? "text-ink-3"
-          : tone === "ink"
-            ? "text-ink"
-            : "text-steel";
+          : "text-ink";
   const inner = (
     <>
       <div className="truncate font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-ink-3">

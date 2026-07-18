@@ -39,17 +39,19 @@ export function PreventativeView({
           </Button>
         </div>
 
-        {/* Green header — the stay-ahead lens. */}
-        <div className="flex items-end justify-between gap-3 rounded-lg border border-green-300 bg-green-50 p-4">
+        {/* Header — the stay-ahead lens, on the same neutral card chrome every
+            other maintenance surface uses. Color on this page belongs to the
+            reminders below it (amber due soon, red overdue), not the banner. */}
+        <div className="flex items-end justify-between gap-3 rounded-lg border border-line-strong bg-card p-4 shadow-e1">
           <div className="flex min-w-0 items-center gap-3">
-            <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-green-100 text-green-700">
+            <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-inset text-ink-2">
               <PreventativeIcon className="h-6 w-6" />
             </span>
             <div className="min-w-0">
-              <h1 className="truncate text-[22px] font-bold leading-tight text-green-800">
+              <h1 className="truncate text-[22px] font-bold leading-tight text-fg">
                 Preventative
               </h1>
-              <p className="font-mono text-[11px] tabular-nums text-green-700">
+              <p className="font-mono text-[11px] tabular-nums text-fg-subtle">
                 {totalCount} item{totalCount === 1 ? "" : "s"} · stay ahead of it
               </p>
             </div>

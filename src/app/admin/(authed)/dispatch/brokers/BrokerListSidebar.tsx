@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { brokerColor, brokerInitial, usd } from "./_util";
+import { BROKER_AVATAR, brokerInitial, usd } from "./_util";
 
 export type BrokerListItem = {
   id: string;
@@ -108,8 +108,8 @@ export function BrokerListSidebar({ brokers }: { brokers: BrokerListItem[] }) {
               >
                 <span
                   className={
-                    "flex h-8 w-8 shrink-0 items-center justify-center rounded text-[13px] font-bold text-white " +
-                    brokerColor(b.name)
+                    "flex h-8 w-8 shrink-0 items-center justify-center rounded text-[13px] font-bold " +
+                    BROKER_AVATAR
                   }
                 >
                   {brokerInitial(b.name)}

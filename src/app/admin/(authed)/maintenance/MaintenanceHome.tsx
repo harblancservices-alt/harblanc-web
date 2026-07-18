@@ -121,26 +121,30 @@ export function MaintenanceHome({
               </section>
             ) : null}
 
-            {/* Category grid — parts-first (count + attention badge, no $). The
-                green Preventative card leads: it's the cross-cutting stay-ahead
-                lens, not a mechanical home. */}
+            {/* Category grid — parts-first (count + attention badge, no $).
+                Every card wears the same neutral chrome, Preventative included:
+                a category is an identity, not a status, so it carries no color
+                of its own. The only color in this grid is the attention badge
+                (amber due-soon, red overdue) — the thing that actually needs
+                the operator to look. Preventative still leads the grid by
+                position, and its shield icon distinguishes it. */}
             <section className="mt-5">
               <SectionLabel title="Categories" />
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
                 <Link
                   href={`/admin/maintenance/${PREVENTATIVE_SLUG}`}
-                  className="flex flex-col justify-between rounded-lg border border-green-300 bg-green-50 p-3.5 shadow-e1 transition-colors hover:border-green-400 hover:bg-green-100"
+                  className="flex flex-col justify-between rounded-lg border border-line bg-card p-3.5 shadow-e1 transition-colors hover:border-line-strong hover:bg-inset"
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-green-100 text-green-700">
+                    <span className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-inset text-ink-2">
                       <PreventativeIcon />
                     </span>
                     <CategoryBadge badge={preventative.badge} />
                   </div>
-                  <h3 className="mt-3 text-[13.5px] font-semibold leading-tight text-green-800">
+                  <h3 className="mt-3 text-[13.5px] font-semibold leading-tight text-fg">
                     Preventative
                   </h3>
-                  <p className="mt-1 font-mono text-[11px] tabular-nums text-green-700">
+                  <p className="mt-1 font-mono text-[11px] tabular-nums text-fg-subtle">
                     {preventative.count} item{preventative.count === 1 ? "" : "s"} · stay ahead
                   </p>
                 </Link>

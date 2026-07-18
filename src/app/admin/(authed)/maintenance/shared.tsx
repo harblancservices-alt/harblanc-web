@@ -229,7 +229,9 @@ export function RepairRow({
           </span>
         ) : null}
       </div>
-      <p className="mt-0.5 font-mono text-[11px] font-semibold tabular-nums text-warn">
+      {/* Date + odometer are facts, not a warning — amber is reserved for
+          due-soon, so this reads muted ink. */}
+      <p className="mt-0.5 font-mono text-[11px] font-semibold tabular-nums text-ink-3">
         {formatDate(entry.date) ?? "—"}
         {entry.odometer != null ? ` · ${entry.odometer.toLocaleString()} mi` : ""}
       </p>

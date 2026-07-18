@@ -1,22 +1,16 @@
 /** Shared helpers for the broker portal. */
 
-const PALETTE = [
-  "bg-red-600",
-  "bg-indigo-600",
-  "bg-emerald-600",
-  "bg-teal-600",
-  "bg-amber-600",
-  "bg-rose-600",
-  "bg-sky-700",
-  "bg-violet-600",
-];
-
-/** Deterministic avatar color from a broker name. */
-export function brokerColor(name: string): string {
-  let h = 0;
-  for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  return PALETTE[h % PALETTE.length];
-}
+/**
+ * Letter-avatar surface — ONE restrained treatment for every broker.
+ *
+ * This used to hash the name into a bright palette, which meant the list read
+ * as a rainbow and the color carried no information (a purple broker isn't
+ * different from a teal one). It's now the trip cards' chip treatment exactly:
+ * inset fill, strong hairline, ink letter. Color in this app is reserved for
+ * money — green earnings, red owed, amber due-soon — so identity avatars are
+ * neutral, and the broker's Gross beside it is the only colored thing in the row.
+ */
+export const BROKER_AVATAR = "border border-line-strong bg-inset text-ink";
 
 export function brokerInitial(name: string): string {
   return (name || "?").trim().charAt(0).toUpperCase() || "?";
