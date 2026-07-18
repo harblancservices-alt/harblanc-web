@@ -244,10 +244,10 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
         </div>
 
         {/* Toolbar — buttons on top, search underneath. The old filter pills
-            were removed; the month dropdown above is the filter now. Load
-            Inquiry and Add load are the board's two CTAs and carry the raised
-            accent treatment; Delete stays outlined so it never reads like one
-            of them.
+            were removed; the month dropdown above is the filter now. Inquiry
+            and Add load are the board's two CTAs and carry the raised accent
+            treatment; Delete stays outlined so it never reads like one of
+            them.
 
             The three buttons share the row as equal thirds via flex-1 (basis
             0, so width is content-independent and the labels can't skew the
@@ -269,7 +269,7 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
               </Button>
             ) : null}
             <PopoutButton variant="primary-raised" className={ACTION_BTN}>
-              <span className="min-w-0 truncate">Load Inquiry</span>
+              <span className="min-w-0 truncate">Inquiry</span>
             </PopoutButton>
             <AddLoadButton
               brokerNames={data.brokerNames}
@@ -598,12 +598,14 @@ function BulkDeleteButton({ count }: { count: number }) {
  * its label (a flex item defaults to min-width:auto, which would otherwise
  * push the row wider than the page and give the board a horizontal scroll).
  *
- * The compact type below `sm` is load-bearing, not taste: at the designed
- * 13px/px-3.5, "LOAD INQUIRY" measures 133px, but an equal third is 104px on a
- * 360px phone and only 127px on a 430px one — the label spills its fill at
- * every phone width. 11px/px-1.5 needs 101px, which clears 360px and up. From
- * `sm` the row has room, so the buttons return to the exact designed size.
- * Variants (outlined Delete, accent-raised Inquiry/Add) are untouched.
+ * The middle button is labelled "Inquiry", not "Load Inquiry": at the designed
+ * 13px/px-3.5 the longer label measured 133px against an equal third of 104px
+ * on a 360px phone, so it always rendered as "LOAD INQUI…". The short label
+ * fits, and the compact type below `sm` keeps headroom for the longest
+ * remaining label ("+ Add load") at the smallest phone width and at the larger
+ * Display UI-scale settings. From `sm` the row has room, so the buttons return
+ * to the exact designed size. Variants (outlined Delete, accent-raised
+ * Inquiry/Add) are untouched.
  */
 const ACTION_BTN =
   "flex-1 min-w-0 px-1.5! text-[11px]! sm:px-3.5! sm:text-[13px]!";

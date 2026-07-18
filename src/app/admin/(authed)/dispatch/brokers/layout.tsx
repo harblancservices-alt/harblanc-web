@@ -1,4 +1,5 @@
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { Button } from "@/components/ui/Button";
 import { BrokerListSidebar, type BrokerListItem } from "./BrokerListSidebar";
 
 /**
@@ -73,13 +74,41 @@ export default async function BrokersLayout({
 
   return (
     <div className="flex min-h-[calc(100vh-3.5rem)] flex-col">
-      <div className="flex items-center justify-between border-b border-line bg-card px-4 py-2.5 sm:px-6">
-        <h1 className="text-[15px] font-semibold tracking-tight text-fg">
-          Brokers
-        </h1>
-        <span className="font-mono text-[10px] uppercase tracking-[0.16em] text-fg-subtle">
-          Dispatch
-        </span>
+      {/* Shell header — the standard dispatch pattern: the small section
+          eyebrow sits ABOVE the title on the left, actions group on the right.
+          This bar used to be reversed (title left, "DISPATCH" stranded on the
+          right), which read as a different page family than every other
+          dispatch screen. The Quick add / + New buttons moved up here from the
+          broker rail so they land where the action group lives on every other
+          page; on a phone they wrap to their own line under the title. */}
+      <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2 border-b border-line bg-card px-4 py-2.5 sm:px-6">
+        <div className="min-w-0 basis-full sm:basis-auto">
+          <div className="text-[11px] font-bold uppercase tracking-[0.1em] text-accent">
+            Dispatch
+          </div>
+          <h1 className="text-[24px] font-bold leading-tight text-ink">
+            Brokers
+          </h1>
+        </div>
+        <div className="flex w-full shrink-0 flex-wrap items-center gap-2 sm:w-auto">
+          <Button
+            href="/admin/dispatch/brokers/quick-add"
+            prefetch={false}
+            variant="navigate"
+            size="sm"
+          >
+            Quick add
+          </Button>
+          <Button
+            href="/admin/dispatch/brokers/new"
+            prefetch={false}
+            variant="primary"
+            size="sm"
+            leftIcon={<span className="text-[13px] leading-none">+</span>}
+          >
+            New
+          </Button>
+        </div>
       </div>
       <div className="flex min-h-0 flex-1">
         <BrokerListSidebar brokers={brokers} />

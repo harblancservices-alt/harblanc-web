@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Button } from "@/components/ui/Button";
 import { brokerColor, brokerInitial, usd } from "./_util";
 
 export type BrokerListItem = {
@@ -55,31 +54,9 @@ export function BrokerListSidebar({ brokers }: { brokers: BrokerListItem[] }) {
         "w-full shrink-0 flex-col bg-card md:flex md:w-[286px] md:sticky md:top-14 md:h-[calc(100vh-3.5rem)] md:border-r md:border-line"
       }
     >
-      <div className="flex items-center justify-between border-b border-line px-3 py-2.5">
-        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-fg-subtle">
-          Brokers
-        </span>
-        <div className="flex items-center gap-1.5">
-          <Button
-            href="/admin/dispatch/brokers/quick-add"
-            prefetch={false}
-            variant="navigate"
-            size="sm"
-          >
-            Quick add
-          </Button>
-          <Button
-            href="/admin/dispatch/brokers/new"
-            prefetch={false}
-            variant="primary"
-            size="sm"
-            leftIcon={<span className="text-[13px] leading-none">+</span>}
-          >
-            New
-          </Button>
-        </div>
-      </div>
-
+      {/* No header row here — the rail's "Brokers" label and its Quick add /
+          + New buttons duplicated the shell header directly above it. Both now
+          live in layout.tsx as the page's single title + action group. */}
       <div className="border-b border-line px-3 py-2">
         <div className="flex items-center gap-2">
           <input

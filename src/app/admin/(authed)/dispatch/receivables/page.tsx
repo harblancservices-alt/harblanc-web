@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { FocalKPI } from "@/components/ui/Card";
 import { markLoadPaid, markLoadUnpaid } from "../loads/actions";
 
 export const metadata: Metadata = {
@@ -137,13 +136,21 @@ export default async function ReceivablesPage() {
           }
         />
 
-        {/* Running total — the all-time outstanding A/R, as the focal metric. */}
-        <FocalKPI
-          label="Outstanding · all time"
-          value={usd(arTotal)}
-          sub={`${outstanding.length} load${outstanding.length === 1 ? "" : "s"}`}
-          className="mb-4"
-        />
+        {/* Running total — the all-time outstanding A/R. Same clean card the
+            trip cards and the load board's KPI tiles carry (rounded-lg,
+            border-line-strong, bg-card, e2); the number leads on size and
+            weight alone, no black fill and no accent rail. */}
+        <div className="mb-4 rounded-lg border border-line-strong bg-card px-4 py-3.5 shadow-e2">
+          <div className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-ink-3">
+            Outstanding · all time
+          </div>
+          <div className="mt-1.5 text-[32px] font-bold leading-none tabular-nums text-ink">
+            {usd(arTotal)}
+          </div>
+          <div className="mt-1.5 font-mono text-[12px] tabular-nums text-ink-2">
+            {outstanding.length} load{outstanding.length === 1 ? "" : "s"}
+          </div>
+        </div>
 
         {/* Outstanding list — oldest delivery first. */}
         {outstanding.length === 0 ? (

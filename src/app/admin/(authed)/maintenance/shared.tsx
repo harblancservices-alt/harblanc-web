@@ -53,21 +53,21 @@ export function reminderRemaining(r: ReminderView): {
 // ── Odometer hero (money de-emphasized — no cost KPIs) ─────────────────────
 export function OdometerHero({ currentOdo }: { currentOdo: number }) {
   return (
-    <div className="relative overflow-hidden rounded-lg bg-graphite p-5 pl-6 shadow-e2">
-      <span
-        aria-hidden
-        className="absolute inset-y-0 left-0 w-[3px] rounded-l-lg bg-accent"
-      />
-      <p className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-on-dark-dim">
+    // Clean card, same chrome as the trip cards and the load board's KPI
+    // tiles (rounded-lg, border-line-strong, bg-card, e2). The reading still
+    // leads the page — on size and weight alone, not on a black fill with an
+    // accent rail.
+    <div className="rounded-lg border border-line-strong bg-card p-5 shadow-e2">
+      <p className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-ink-3">
         Current odometer
       </p>
-      <p className="mt-1.5 font-mono text-[34px] font-bold leading-none tabular-nums text-white sm:text-[40px]">
+      <p className="mt-1.5 font-mono text-[34px] font-bold leading-none tabular-nums text-ink sm:text-[40px]">
         {currentOdo.toLocaleString()}
-        <span className="ml-1.5 text-[16px] font-semibold text-on-dark-dim">
+        <span className="ml-1.5 text-[16px] font-semibold text-ink-3">
           mi
         </span>
       </p>
-      <p className="mt-2 text-[11.5px] text-on-dark-dim">
+      <p className="mt-2 text-[11.5px] text-ink-2">
         Highest reading across all loads · 2018 Ram 2500 · 6.7L Cummins
       </p>
     </div>

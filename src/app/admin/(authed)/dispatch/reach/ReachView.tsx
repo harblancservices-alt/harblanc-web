@@ -323,19 +323,24 @@ export function ReachView({
       {/* No portal top bar below sm — clear the status bar / notch but stay
           tight (compact header, no empty utility strip). */}
       <div className="mx-auto w-full max-w-3xl px-4 pb-5 pt-[max(0.5rem,env(safe-area-inset-top))] sm:px-6 sm:py-5 lg:px-8">
-        <header className="mb-4 flex items-end justify-between gap-3 border-b-2 border-line-strong pb-3">
-          <div className="min-w-0">
+        {/* Same wrap guard PageHeader carries: below `sm` the title takes the
+            full row and the Setup button drops underneath, so the title is
+            never squeezed into an ellipsis on a phone. */}
+        <header className="mb-4 flex flex-wrap items-end justify-between gap-x-3 gap-y-2 border-b-2 border-line-strong pb-3">
+          <div className="min-w-0 basis-full sm:basis-auto">
             <div className="text-[11px] font-bold uppercase tracking-[0.1em] text-accent">
               Dispatch
             </div>
-            <h1 className="truncate text-[24px] font-bold leading-tight text-ink">
+            <h1 className="text-[24px] font-bold leading-tight text-ink">
               Send Backhaul
             </h1>
           </div>
           {tab === "send" ? (
-            <Button variant="edit" size="sm" onClick={() => setSetupOpen(true)}>
-              Setup
-            </Button>
+            <div className="flex w-full shrink-0 items-center gap-2 sm:w-auto">
+              <Button variant="edit" size="sm" onClick={() => setSetupOpen(true)}>
+                Setup
+              </Button>
+            </div>
           ) : null}
         </header>
 
