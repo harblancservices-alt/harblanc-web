@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type ComponentType } from "react";
 import {
   IconCalendar,
+  IconCamera,
   IconClipboard,
   IconCoins,
   IconFiles,
@@ -83,6 +84,7 @@ const GROUPS: { title: string; items: SheetItem[] }[] = [
     items: [
       { href: "/admin/maintenance", label: "Maintenance", Icon: IconWrench },
       { href: "/admin/files", label: "Files", Icon: IconFiles },
+      { href: "/admin/camera", label: "Camera", Icon: IconCamera },
     ],
   },
   {

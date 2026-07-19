@@ -367,6 +367,25 @@ export function IconWrench({ className }: IconProps) {
   );
 }
 
+export function IconCamera({ className }: IconProps) {
+  // Camera — rapid BOL document photographing.
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <path d="M4 7h3l2-2h6l2 2h3a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z" />
+      <circle cx="12" cy="13" r="3.2" />
+    </svg>
+  );
+}
+
 export function IconFiles({ className }: IconProps) {
   // Stacked documents — the Files timeline (every uploaded doc/photo).
   return (

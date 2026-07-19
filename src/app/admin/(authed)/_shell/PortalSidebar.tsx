@@ -6,6 +6,7 @@ import type { ComponentType } from "react";
 import {
   IconBuilding,
   IconCalendar,
+  IconCamera,
   IconClipboard,
   IconCoins,
   IconDashboard,
@@ -91,6 +92,7 @@ const GROUPS: NavGroup[] = [
     items: [
       { href: "/admin/maintenance", label: "Maintenance", Icon: IconWrench },
       { href: "/admin/files", label: "Files", Icon: IconFiles },
+      { href: "/admin/camera", label: "Camera", Icon: IconCamera },
     ],
   },
   {
