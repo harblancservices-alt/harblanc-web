@@ -535,9 +535,17 @@ function AlertItemRow({
               {item.subtitle}
             </span>
           ) : null}
-          {item.chips && item.chips.length > 0 ? (
+          {(item.chips && item.chips.length > 0) || item.dateLabel ? (
             <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
-              {item.chips.map((c) => (
+              {/* The load's date, leading the chip row — a reference marker for
+                  how far back to look in the Files folder, so it's deliberately
+                  unfilled and subtle next to the colored problem chips. */}
+              {item.dateLabel ? (
+                <span className="font-mono text-[11px] font-bold uppercase leading-none tracking-[0.06em] text-fg-subtle">
+                  {item.dateLabel}
+                </span>
+              ) : null}
+              {item.chips?.map((c) => (
                 <StatusTag key={c.label} tone={c.tone}>
                   {c.label}
                 </StatusTag>

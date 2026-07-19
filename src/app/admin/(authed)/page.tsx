@@ -18,6 +18,7 @@ import {
   alertKey,
   maintenanceAlertKey,
   daysOutstanding,
+  loadDateLabel,
   incompleteGaps,
   GAP_LABEL,
   RECEIVABLE_OVERDUE_DAYS,
@@ -200,7 +201,7 @@ async function loadDashboard(): Promise<DashboardData> {
     sb
       .from("loads")
       .select(
-        "id, load_number, rate, loaded_miles, odo_assigned, odo_loaded, odo_delivered, broker_id, broker_name, origin, destination, payment_status, delivery_date, created_at",
+        "id, load_number, rate, loaded_miles, odo_assigned, odo_loaded, odo_delivered, broker_id, broker_name, origin, destination, payment_status, delivery_date, pickup_date, created_at",
       )
       .eq("status", "delivered")
       .is("deleted_at", null)
@@ -219,6 +220,7 @@ async function loadDashboard(): Promise<DashboardData> {
           destination: string | null;
           payment_status: string | null;
           delivery_date: string | null;
+          pickup_date: string | null;
           created_at: string;
         }[]
       >(),
@@ -472,6 +474,7 @@ type DeliveredLoad = {
   destination: string | null;
   payment_status: string | null;
   delivery_date: string | null;
+  pickup_date: string | null;
 };
 
 function usd(n: number): string {
@@ -593,6 +596,7 @@ function buildAlertGroups({
       subtitle: `#${load.load_number?.trim() || "—"} · ${lane(load)}`,
       value: usd(num(load.rate)),
       chips: [{ label: `${days}d out`, tone: "red" as const }],
+      dateLabel: loadDateLabel(load.delivery_date, load.pickup_date, now),
       href: `/admin/dispatch/loads/${load.id}`,
       action: { label: "Open", href: `/admin/dispatch/loads/${load.id}` },
     }));
@@ -620,6 +624,7 @@ function buildAlertGroups({
       title: load.broker_name?.trim() || "No broker",
       subtitle: `#${load.load_number?.trim() || "—"} · ${lane(load)}`,
       chips: gaps.map((g) => ({ label: GAP_LABEL[g], tone: "amber" as const })),
+      dateLabel: loadDateLabel(load.delivery_date, load.pickup_date, now),
       href: `/admin/dispatch/loads/${load.id}`,
       action: incompleteAction(load.id, gaps),
     }));

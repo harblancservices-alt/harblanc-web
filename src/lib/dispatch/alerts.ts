@@ -85,6 +85,12 @@ export type AlertItem = {
   value?: string;
   /** Small pills describing the problem ("No BOL", "Overdue", "40d out"). */
   chips?: ReadonlyArray<{ label: string; tone: StatusTone }>;
+  /**
+   * Reference marker for load-backed alerts — the load's date, so the owner
+   * knows roughly how far back to dig in the Files folder for the missing
+   * paperwork. Omitted when the load has no date at all.
+   */
+  dateLabel?: string;
   /** Tap-through target — always somewhere the owner can actually fix it. */
   href: string;
   /**
@@ -176,6 +182,36 @@ export function daysOutstanding(iso: string | null, now: Date): number | null {
   const delivered = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
   const days = Math.floor((today - delivered) / 86_400_000);
   return days >= 0 ? days : 0;
+}
+
+/**
+ * The load's date, as a short marker for an alert item: "Jul 9" inside the
+ * current year, "Jul 9, 2025" outside it — the year only earns its space once
+ * it's actually ambiguous, and by then it's the thing that narrows the search.
+ *
+ * Delivery date leads (it's when the paperwork would have been filed); pickup
+ * is the fallback for a load delivered without a recorded date. Both null
+ * returns undefined rather than a guess — a wrong date sends the owner digging
+ * through the wrong month.
+ *
+ * Date-only values are read as UTC, matching daysOutstanding() above, so the
+ * marker and the aging can't disagree about which day a load landed on.
+ */
+export function loadDateLabel(
+  deliveryIso: string | null,
+  pickupIso: string | null,
+  now: Date,
+): string | undefined {
+  const iso = deliveryIso ?? pickupIso;
+  if (!iso) return undefined;
+  const d = new Date(iso.length <= 10 ? iso + "T00:00:00Z" : iso);
+  if (Number.isNaN(d.getTime())) return undefined;
+  return d.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: d.getUTCFullYear() === now.getUTCFullYear() ? undefined : "numeric",
+    timeZone: "UTC",
+  });
 }
 
 /** Past this many days outstanding, a receivable is late enough to alert on. */
