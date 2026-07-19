@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
+import { PageHeader } from "@/components/ui/PageHeader";
+import { PreviewTabs } from "../previews/PreviewTabs";
 
 /**
  * EmailComparisonLab — /admin/previews-2 staging view.
@@ -63,38 +64,21 @@ export function EmailComparisonLab({ emails }: { emails: EmailItem[] }) {
   const scaledHeight = nativeHeight * scale;
 
   return (
-    <div className="flex min-h-screen flex-col bg-zinc-200">
-      {/* ── Header bar ─────────────────────────────────────────────── */}
-      <header className="border-b border-zinc-300 bg-card px-6 py-4">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.28em] text-red-600">
-              Previews 2 &middot; staging
-            </p>
-            <h1 className="mt-1 font-display text-2xl font-black uppercase tracking-tight text-zinc-900">
-              Email uniformity lab
-            </h1>
-            <p className="mt-1 text-sm text-fg-subtle">
-              All {emails.length} email templates rendered at their native
-              600&nbsp;px width, side by side. Iterate on shell, typography,
-              CTAs, and spacing here, then jump to{" "}
-              <Link
-                href="/admin/previews"
-                className="font-bold text-red-700 underline underline-offset-2 hover:text-red-800"
-              >
-                /admin/previews
-              </Link>{" "}
-              for the standard responsive viewport view.
-            </p>
-          </div>
-          <Link
-            href="/admin/previews"
-            className="shrink-0 rounded-sm bg-card px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-fg transition-colors hover:bg-elevated"
-          >
-            &larr; Standard previews
-          </Link>
+    <div className="flex min-h-screen flex-col bg-inset">
+      {/* ── Header ─────────────────────────────────────────────────── */}
+      <div className="px-4 py-6 sm:px-6 lg:px-8">
+        <PageHeader
+          eyebrow="Settings"
+          title="Email uniformity lab"
+          className="mb-3"
+        />
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <PreviewTabs active="uniformity" />
+          <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-fg-subtle">
+            {emails.length} templates &middot; native {FRAME_WIDTH}px
+          </p>
         </div>
-      </header>
+      </div>
 
       {/* ── Scaled strip ───────────────────────────────────────────── */}
       <div
@@ -123,18 +107,13 @@ export function EmailComparisonLab({ emails }: { emails: EmailItem[] }) {
                 style={{ width: `${FRAME_WIDTH}px` }}
               >
                 {/* Column label */}
-                <div className="mb-3 flex items-baseline gap-3">
-                  <span className="font-mono text-base font-bold text-red-600">
-                    {String(i + 1).padStart(2, "0")}
-                  </span>
-                  <div>
-                    <p className="font-mono text-sm font-bold uppercase tracking-[0.18em] text-zinc-700">
-                      {email.title}
-                    </p>
-                    <p className="font-mono text-[11px] text-fg-subtle">
-                      Subject &middot; {email.subject}
-                    </p>
-                  </div>
+                <div className="mb-3">
+                  <p className="font-mono text-sm font-bold uppercase tracking-[0.14em] text-fg-muted">
+                    {String(i + 1).padStart(2, "0")} &middot; {email.title}
+                  </p>
+                  <p className="truncate font-mono text-[11px] text-fg-subtle">
+                    {email.subject}
+                  </p>
                 </div>
                 {/* Email frame — one-shot exact measurement, no buffer,
                     no ResizeObserver growth loop. iframe height equals the
@@ -148,7 +127,7 @@ export function EmailComparisonLab({ emails }: { emails: EmailItem[] }) {
                          getBoundingClientRect and Math.ceil.
                       4. For any still-loading <img>, re-measure once each
                          finishes. Exact height every time — never additive. */}
-                <div className="self-start shadow-[0_2px_0_0_#dc2626,0_0_0_1px_#d4d4d8]">
+                <div className="self-start overflow-hidden rounded-lg border border-line-strong bg-card shadow-e2">
                   <iframe
                     title={`${email.title} preview`}
                     srcDoc={email.html}

@@ -8,6 +8,7 @@ import {
   SAMPLE_ESTIMATE_PAYLOAD,
   SAMPLE_FINALIZED_QUOTE_PAYLOAD,
 } from "@/lib/preview/sample-data";
+import { PageHeader } from "@/components/ui/PageHeader";
 import { AdminPreviewLab, type PreviewTarget } from "./AdminPreviewLab";
 
 /**
@@ -25,11 +26,10 @@ import { AdminPreviewLab, type PreviewTarget } from "./AdminPreviewLab";
  *     is passed as a string to the client component and shown via
  *     iframe srcDoc — identical bytes the recipient would see if the
  *     same payload reached Resend.
- *   - The Confirm Shipment Details preview is a separate admin-only
- *     route at /admin/previews/confirm-shipment that recreates the
- *     customer page's chrome with sample data and disables the form
- *     via <fieldset disabled> so no server actions can fire. The Lab
- *     loads it inside the modal's iframe.
+ *   - The customer-page previews are separate admin-only routes under
+ *     /admin/previews/... that recreate the customer page's chrome with
+ *     sample data and disable every form via <fieldset disabled> so no
+ *     server actions can fire. The Lab loads them in the modal iframe.
  *
  * Finalized Quote and BOL ship as email-only documents in the current
  * workflow, so the email preview IS the document.
@@ -56,8 +56,6 @@ export default function AdminPreviewsPage() {
       classification: "customer_page",
       id: "home",
       title: "Home / landing page",
-      subtitle:
-        "Public-facing landing page at /. Renders the real Home component along with the public Navbar and Footer so the operator sees what a first-time visitor would. No forms - preview is read-only by nature.",
       route: "/admin/previews/home",
     },
     {
@@ -65,8 +63,6 @@ export default function AdminPreviewsPage() {
       classification: "customer_page",
       id: "quote",
       title: "Quick Quote form",
-      subtitle:
-        "Public-facing Quick Quote landing page. The QuoteForm component is wrapped in <fieldset disabled> so submission, uploads, and validation cannot fire in preview mode.",
       route: "/admin/previews/quote",
     },
     {
@@ -74,17 +70,13 @@ export default function AdminPreviewsPage() {
       classification: "customer_page",
       id: "quote-success",
       title: "Quick Quote success",
-      subtitle:
-        "Confirmation page the customer lands on after submitting the Quick Quote form. Sets the within-the-hour dispatch reply expectation and exposes a direct phone CTA.",
       route: "/admin/previews/quote-success",
     },
-{
+    {
       kind: "route",
       classification: "customer_page",
       id: "confirm-shipment",
       title: "Confirm shipment details",
-      subtitle:
-        "Customer-facing intake screen the recipient lands on after clicking Accept Range. Inputs are disabled in preview mode — no submission can fire.",
       route: "/admin/previews/confirm-shipment",
     },
     {
@@ -92,8 +84,6 @@ export default function AdminPreviewsPage() {
       classification: "customer_page",
       id: "finalize-pending",
       title: "Confirm Finalized Quote (pending)",
-      subtitle:
-        "Rate-confirmation page in its pre-confirm state — Confirm button visible. The ConfirmButton component is wrapped in <fieldset disabled> so the confirmFinalizedQuote server action cannot fire in preview mode.",
       route: "/admin/previews/finalize-pending",
     },
     {
@@ -101,8 +91,6 @@ export default function AdminPreviewsPage() {
       classification: "customer_page",
       id: "finalize-confirmed",
       title: "Finalized Quote Confirmed (success)",
-      subtitle:
-        "Rate-confirmation page in its post-confirm success state — green Confirmed panel with timestamp. No interactive controls render in this state on the production page.",
       route: "/admin/previews/finalize-confirmed",
     },
     {
@@ -110,8 +98,6 @@ export default function AdminPreviewsPage() {
       classification: "customer_page",
       id: "payment",
       title: "Payment (awaiting)",
-      subtitle:
-        "Customer-facing payment screen shown inline after Confirm Finalized Quote. Mockup only \u2014 Stripe SDK not loaded, no payment can occur. Used to iterate on the visual + copy before wiring real payments.",
       route: "/admin/previews/payment",
     },
     {
@@ -119,8 +105,6 @@ export default function AdminPreviewsPage() {
       classification: "customer_page",
       id: "decline",
       title: "Decline quote",
-      subtitle:
-        "Customer-facing decline page. The DeclineForm is wrapped in <fieldset disabled> so the declineEstimate server action cannot fire in preview mode. Shows the primary decline state — already-declined and already-accepted branches are not previewed.",
       route: "/admin/previews/decline",
     },
     {
@@ -129,8 +113,6 @@ export default function AdminPreviewsPage() {
       order: 1,
       id: "acknowledgement",
       title: "Request acknowledged",
-      subtitle:
-        "Sent immediately after a customer submits the Quick Quote form — confirms the request landed and sets the dispatch SLA expectation.",
       subject: ack.subject,
       to: ack.to,
       html: ack.html,
@@ -141,8 +123,6 @@ export default function AdminPreviewsPage() {
       order: 2,
       id: "estimate",
       title: "Quote range / range proposal",
-      subtitle:
-        "Range proposal sent from the Quote Range workspace. Sample payload omits accept/decline URLs to mirror Build Preview before send time.",
       subject: estimate.subject,
       to: estimate.to,
       html: estimate.html,
@@ -153,8 +133,6 @@ export default function AdminPreviewsPage() {
       order: 3,
       id: "finalized-quote",
       title: "Finalized quote",
-      subtitle:
-        "Rate confirmation sent from the Finalized Quote workspace after the customer submits intake. Sample includes a single accessorial line.",
       subject: fq.subject,
       to: fq.to,
       html: fq.html,
@@ -164,8 +142,6 @@ export default function AdminPreviewsPage() {
       classification: "in_house_doc",
       id: "bol",
       title: "Bill of lading",
-      subtitle:
-        "In-house only — internal carrier paperwork generated from a sent Finalized Quote. Includes NMFC, freight class, dispatch reference, and handling instructions. Reuses the email renderer for layout but ships internally rather than as a customer email.",
       subject: bol.subject,
       to: bol.to,
       html: bol.html,
@@ -174,21 +150,7 @@ export default function AdminPreviewsPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-      <header className="mb-4">
-        <p className="flex items-center gap-2 font-mono text-[10px] font-bold uppercase tracking-[0.22em] text-red-600">
-          <span aria-hidden className="inline-block h-3 w-1 bg-red-600" />
-          Preview lab
-        </p>
-        <h1 className="mt-2 text-2xl font-bold text-fg">
-          Visual QA for every customer-facing asset.
-        </h1>
-        <p className="mt-2 max-w-2xl text-sm text-fg">
-          Click Preview on any tile to open the asset full-screen. Email
-          previews render the exact bytes the production renderer
-          produces from the sample payload. The Confirm shipment details
-          tile loads the real customer page with submission disabled.
-        </p>
-      </header>
+      <PageHeader eyebrow="Settings" title="Preview lab" className="mb-4" />
       <AdminPreviewLab targets={targets} />
     </div>
   );
