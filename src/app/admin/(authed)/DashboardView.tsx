@@ -34,8 +34,6 @@ export type MaintWidgetItem = {
 };
 
 export type DashboardData = {
-  newApplicationCount: number;
-  newQuoteCount: number;
   expiredQuotes: ReadonlyArray<PipelineCard>;
   activeLoads: ReadonlyArray<ActiveLoadItem>;
   maintenance: ReadonlyArray<MaintWidgetItem>;

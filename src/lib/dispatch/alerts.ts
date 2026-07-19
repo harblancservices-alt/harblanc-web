@@ -21,9 +21,36 @@ export type AlertGroupKey =
   | "applications"
   | "quotes";
 
+/**
+ * Stable, global identity for one alert — the key a dismissal is recorded
+ * against in `dismissed_alerts`. Derived from the underlying row's id, so the
+ * same real-world problem produces the same key on every render and a
+ * dismissal keeps sticking across reloads.
+ *
+ * Deliberately NOT derived from the alert's wording or severity: an overdue
+ * receivable that ages from 41d to 60d is the same alert, and re-showing it
+ * because its label changed would defeat the dismissal.
+ */
+export function alertKey(kind: AlertGroupKey, id: string): string {
+  return `${KEY_PREFIX[kind]}:${id}`;
+}
+
+const KEY_PREFIX: Record<AlertGroupKey, string> = {
+  maintenance: "maintenance",
+  receivables: "receivable",
+  incomplete: "incomplete-load",
+  applications: "application",
+  quotes: "quote",
+};
+
 export type AlertItem = {
   /** Unique within its group (React key). */
   id: string;
+  /**
+   * Global dismissal key — `alertKey(group, rowId)`. Swiping this item writes
+   * this string to `dismissed_alerts`; undo deletes it.
+   */
+  dismissKey: string;
   /** Leading line — the thing itself (service name, broker, load). */
   title: string;
   /** Secondary line: lane, load number, etc. Omitted when there's nothing to add. */

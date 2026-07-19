@@ -15,6 +15,7 @@ import {
 } from "@/lib/dispatch/fuel";
 import type { CountdownGoal, NetPace } from "@/lib/dispatch/countdown";
 import {
+  alertKey,
   daysOutstanding,
   incompleteGaps,
   GAP_LABEL,
@@ -79,8 +80,8 @@ async function loadDashboard(): Promise<DashboardData> {
 
   const [
     pipelineCards,
-    { count: newApplicationCount },
-    { count: newQuoteCount },
+    { data: newApplicationRows },
+    { data: newQuoteRows },
     { data: loadRows },
     { data: brokerRows },
     activeTrips,
@@ -92,21 +93,28 @@ async function loadDashboard(): Promise<DashboardData> {
     { data: expRows },
     { data: factoringBrokers },
     { data: docRows },
+    { data: dismissedRows },
   ] = await Promise.all([
     // Shared pipeline cards — the dashboard only renders the expired ones.
     loadPipelineCards(),
-    // New job applications: active + received in the last 24h.
+    // New job applications: active + received in the last 24h. Rows rather
+    // than a bare count, so each one is an individually dismissible alert
+    // (a dismissal needs a stable per-row key — see alertKey()).
     sb
       .from("applications")
-      .select("*", { count: "exact", head: true })
+      .select("id, name, created_at")
       .is("deleted_at", null)
-      .gte("created_at", appCutoff),
+      .gte("created_at", appCutoff)
+      .order("created_at", { ascending: false })
+      .returns<{ id: string; name: string | null; created_at: string }[]>(),
     // New quote requests: active + still at the default 'new' lead_status.
     sb
       .from("quote_requests")
-      .select("*", { count: "exact", head: true })
+      .select("id, name, created_at")
       .is("deleted_at", null)
-      .eq("lead_status", "new"),
+      .eq("lead_status", "new")
+      .order("created_at", { ascending: false })
+      .returns<{ id: string; name: string | null; created_at: string }[]>(),
     sb
       .from("loads")
       .select(
@@ -246,6 +254,13 @@ async function loadDashboard(): Promise<DashboardData> {
       .select("load_id, kind")
       .in("kind", ["rate_con", "bol", "pod"])
       .returns<{ load_id: string; kind: "rate_con" | "bol" | "pod" }[]>(),
+    // Alerts the owner has swiped away. Errors are swallowed below rather than
+    // thrown: this table ships as a migration applied to the remote DB
+    // separately, and the dashboard must render fine before it lands.
+    sb
+      .from("dismissed_alerts")
+      .select("alert_key")
+      .returns<{ alert_key: string }[]>(),
   ]);
 
   // Expired quotes drop off the forward pipeline into their own section.
@@ -411,18 +426,23 @@ async function loadDashboard(): Promise<DashboardData> {
     weeklyNetPace: windowNet > 0 ? windowNet / NET_PACE_WINDOW_WEEKS : 0,
   };
 
+  // Dismissed alerts. `dismissedRows` is null both when the table is empty and
+  // when it doesn't exist yet (the query errors, Promise.all still resolves
+  // with data: null) — either way the correct reading is "nothing dismissed",
+  // so no special-casing is needed here.
+  const dismissed = new Set((dismissedRows ?? []).map((d) => d.alert_key));
+
   const alertGroups = buildAlertGroups({
     maintenance: allMaintenance,
     deliveredLoads: deliveredRows ?? [],
     docCounts,
-    newApplicationCount: newApplicationCount ?? 0,
-    newQuoteCount: newQuoteCount ?? 0,
+    newApplications: newApplicationRows ?? [],
+    newQuotes: newQuoteRows ?? [],
     now,
+    dismissed,
   });
 
   return {
-    newApplicationCount: newApplicationCount ?? 0,
-    newQuoteCount: newQuoteCount ?? 0,
     expiredQuotes,
     activeLoads,
     maintenance,
@@ -460,19 +480,25 @@ function lane(l: DeliveredLoad): string {
 /**
  * Assemble the "Needs attention" groups from already-fetched data.
  *
- * Every group is a pure derivation of live rows — there is no alerts table and
- * nothing to dismiss. Fixing the underlying thing (log the service, attach the
- * BOL, enter the odometer, mark the invoice paid, work the lead) drops the
- * alert on the next render. Empty groups are returned as-is; the panel filters
- * them out, so this stays a flat list rather than a chain of if-blocks.
+ * Every group is a pure derivation of live rows. Fixing the underlying thing
+ * (log the service, attach the BOL, enter the odometer, mark the invoice paid,
+ * work the lead) drops the alert on the next render. Empty groups are returned
+ * as-is; the panel filters them out, so this stays a flat list rather than a
+ * chain of if-blocks.
+ *
+ * The one bit of stored state is `dismissed` — alerts the owner swiped away.
+ * It's applied here, at the end, so a dismissal is subtracted from the group
+ * counts and therefore from the badge total automatically; nothing downstream
+ * has to know dismissals exist.
  */
 function buildAlertGroups({
   maintenance,
   deliveredLoads,
   docCounts,
-  newApplicationCount,
-  newQuoteCount,
+  newApplications,
+  newQuotes,
   now,
+  dismissed,
 }: {
   maintenance: ReadonlyArray<{
     id: string;
@@ -482,9 +508,10 @@ function buildAlertGroups({
   }>;
   deliveredLoads: ReadonlyArray<DeliveredLoad>;
   docCounts: Map<string, { rate_con: number; bol: number; pod: number }>;
-  newApplicationCount: number;
-  newQuoteCount: number;
+  newApplications: ReadonlyArray<{ id: string; name: string | null }>;
+  newQuotes: ReadonlyArray<{ id: string; name: string | null }>;
   now: Date;
+  dismissed: ReadonlySet<string>;
 }): AlertGroup[] {
   // (a) MAINTENANCE — every active reminder that's overdue or due soon.
   // "baseline" (never serviced) is NOT an alert: it's a setup task, not a
@@ -496,6 +523,7 @@ function buildAlertGroups({
       const mi = m.milesRemaining;
       return {
         id: m.id,
+        dismissKey: alertKey("maintenance", m.id),
         title: m.name,
         value:
           mi == null
@@ -527,6 +555,7 @@ function buildAlertGroups({
     .sort((a, b) => b.days - a.days)
     .map(({ load, days }) => ({
       id: load.id,
+      dismissKey: alertKey("receivables", load.id),
       title: load.broker_name?.trim() || "No broker",
       subtitle: `#${load.load_number?.trim() || "—"} · ${lane(load)}`,
       value: usd(num(load.rate)),
@@ -553,40 +582,35 @@ function buildAlertGroups({
     .filter((r) => r.gaps.length > 0)
     .map(({ load, gaps }) => ({
       id: load.id,
+      dismissKey: alertKey("incomplete", load.id),
       title: load.broker_name?.trim() || "No broker",
       subtitle: `#${load.load_number?.trim() || "—"} · ${lane(load)}`,
       chips: gaps.map((g) => ({ label: GAP_LABEL[g], tone: "amber" as const })),
       href: `/admin/dispatch/loads/${load.id}`,
     }));
 
-  // (d) The two original signals, preserved as their own groups. These are
-  // counts rather than row sets — the tab they link to IS the list — so each
-  // renders as a single summary item.
-  const applicationItems =
-    newApplicationCount > 0
-      ? [
-          {
-            id: "applications",
-            title: `${newApplicationCount} new job application${newApplicationCount === 1 ? "" : "s"}`,
-            subtitle: "Received in the last 24 hours",
-            href: "/admin/operations?tab=applications",
-          },
-        ]
-      : [];
+  // (d) The two original signals. One item per row rather than one summary
+  // row per group: a dismissal has to key to something stable, and "3 new
+  // applications" has no such identity — dismissing it could only mean
+  // silencing the whole signal forever. Per-row means the owner can ignore
+  // one junk lead and still see the next real one.
+  const applicationItems = newApplications.map((a) => ({
+    id: a.id,
+    dismissKey: alertKey("applications", a.id),
+    title: a.name?.trim() || "New applicant",
+    subtitle: "Job application · last 24 hours",
+    href: "/admin/operations?tab=applications",
+  }));
 
-  const quoteItems =
-    newQuoteCount > 0
-      ? [
-          {
-            id: "quotes",
-            title: `${newQuoteCount} new quote request${newQuoteCount === 1 ? "" : "s"}`,
-            subtitle: "Not yet contacted",
-            href: "/admin/operations?tab=quotes",
-          },
-        ]
-      : [];
+  const quoteItems = newQuotes.map((q) => ({
+    id: q.id,
+    dismissKey: alertKey("quotes", q.id),
+    title: q.name?.trim() || "New quote request",
+    subtitle: "Not yet contacted",
+    href: "/admin/operations?tab=quotes",
+  }));
 
-  return [
+  const groups: AlertGroup[] = [
     { key: "maintenance", label: "Maintenance", tone: "red", items: maintItems },
     {
       key: "receivables",
@@ -608,6 +632,14 @@ function buildAlertGroups({
     },
     { key: "quotes", label: "New quote requests", tone: "amber", items: quoteItems },
   ];
+
+  // Subtract what the owner has swiped away. Doing it once here — rather than
+  // in each builder — means the badge total, the group counts and the item
+  // lists can't disagree about what's dismissed.
+  return groups.map((g) => ({
+    ...g,
+    items: g.items.filter((i) => !dismissed.has(i.dismissKey)),
+  }));
 }
 
 export default async function DashboardPage() {
