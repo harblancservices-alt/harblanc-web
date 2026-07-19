@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { LogServiceModal, type ServicePreset } from "./LogServiceModal";
@@ -39,6 +40,32 @@ export function MaintenanceHome({
 }) {
   const [modal, setModal] = useState<ServicePreset | null | undefined>(undefined);
   const [query, setQuery] = useState("");
+
+  // `/admin/maintenance?log={reminderId}` — the dashboard alert panel's "Log
+  // Service" quick action lands here and opens the log form already filled in
+  // for that reminder, the same preset the in-page "Service now" button uses.
+  // Falls back to a blank service if the id no longer matches a live reminder
+  // (it was serviced or dismissed between render and tap).
+  const searchParams = useSearchParams();
+  const logParam = searchParams.get("log");
+  const autoOpened = useRef(false);
+  useEffect(() => {
+    if (!logParam || autoOpened.current) return;
+    autoOpened.current = true;
+    const r = alertReminders.find((x) => x.id === logParam);
+    setModal(
+      r
+        ? {
+            initialPart: {
+              description: r.label,
+              partGroup: r.partGroup,
+              reminderInterval: r.interval,
+              category: r.category,
+            },
+          }
+        : null,
+    );
+  }, [logParam, alertReminders]);
 
   const q = query.trim().toLowerCase();
   const results = useMemo(() => {

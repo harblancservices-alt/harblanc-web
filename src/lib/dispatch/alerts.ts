@@ -35,6 +35,32 @@ export function alertKey(kind: AlertGroupKey, id: string): string {
   return `${KEY_PREFIX[kind]}:${id}`;
 }
 
+/**
+ * Maintenance dismissals are PER-OCCURRENCE, not permanent.
+ *
+ * "Ignore" on an overdue oil change means "I know, not right now" — it must
+ * not mean "never warn me about engine oil again". So the key carries the
+ * occurrence the owner actually dismissed:
+ *
+ *   - `lastOdo`, the reminder's last-service (anchor) odometer. Logging the
+ *     service moves it, which mints a new key and lets the next cycle alert.
+ *   - `status`, so an item dismissed while merely "due soon" comes back the
+ *     moment it escalates to "overdue".
+ *
+ * Anything else still outstanding at the same anchor and severity keeps the
+ * same key and stays hidden, which is the point.
+ *
+ * No schema change: dismissed_alerts.alert_key is a plain text primary key,
+ * so a longer composite string just works.
+ */
+export function maintenanceAlertKey(
+  reminderId: string,
+  lastOdo: number | null,
+  status: string,
+): string {
+  return alertKey("maintenance", `${reminderId}:${lastOdo ?? "none"}:${status}`);
+}
+
 const KEY_PREFIX: Record<AlertGroupKey, string> = {
   maintenance: "maintenance",
   receivables: "receivable",
@@ -60,6 +86,19 @@ export type AlertItem = {
   /** Small pills describing the problem ("No BOL", "Overdue", "40d out"). */
   chips?: ReadonlyArray<{ label: string; tone: StatusTone }>;
   /** Tap-through target — always somewhere the owner can actually fix it. */
+  href: string;
+  /**
+   * Quick action revealed by swiping the row RIGHT (and mirrored as a button
+   * for mouse users). Where `href` opens the thing, this jumps straight to the
+   * control that clears the alert — the load's document uploader, the odometer
+   * entry, the log-a-service form.
+   */
+  action?: AlertQuickAction;
+};
+
+export type AlertQuickAction = {
+  /** Short button label, e.g. "BOL", "Odometer", "Log Service". */
+  label: string;
   href: string;
 };
 

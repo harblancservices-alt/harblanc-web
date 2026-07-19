@@ -429,15 +429,19 @@ export default async function LoadDetailPage({
               destZip={load.dest_zip}
             />
 
-            <OdometerStatusCard
-              loadId={load.id}
-              status={load.status}
+            {/* #odometer — the dashboard's "Odometer" alert action deep-links
+                here. scroll-mt clears the sticky admin header. */}
+            <div id="odometer" className="scroll-mt-20">
+              <OdometerStatusCard
+                loadId={load.id}
+                status={load.status}
               statusLabel={STATUS_LABEL[load.status] ?? load.status}
-              lastReading={lastReading > 0 ? lastReading : null}
-              odoAssigned={load.odo_assigned}
-              odoLoaded={load.odo_loaded}
-              odoDelivered={load.odo_delivered}
-            />
+                lastReading={lastReading > 0 ? lastReading : null}
+                odoAssigned={load.odo_assigned}
+                odoLoaded={load.odo_loaded}
+                odoDelivered={load.odo_delivered}
+              />
+            </div>
           </div>
 
           <div className="space-y-3">
@@ -459,7 +463,10 @@ export default async function LoadDetailPage({
             </FinancialsPanel>
           </div>
 
-          <div className="space-y-3">
+          {/* #documents — the dashboard's "BOL" / "Rate Con" alert actions
+              deep-link here. The section is defaultOpen, so landing on the
+              anchor puts the uploader on screen with nothing left to click. */}
+          <div id="documents" className="scroll-mt-20 space-y-3">
             <CollapsibleWorkspaceSection title="Documents" defaultOpen>
               <div className="p-3">
                 <DocumentsCard loadId={load.id} docs={loadDocs} />

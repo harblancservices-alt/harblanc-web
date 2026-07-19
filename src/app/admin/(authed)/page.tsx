@@ -16,11 +16,13 @@ import {
 import type { CountdownGoal, NetPace } from "@/lib/dispatch/countdown";
 import {
   alertKey,
+  maintenanceAlertKey,
   daysOutstanding,
   incompleteGaps,
   GAP_LABEL,
   RECEIVABLE_OVERDUE_DAYS,
   type AlertGroup,
+  type IncompleteGap,
 } from "@/lib/dispatch/alerts";
 import { DashboardView, type DashboardData } from "./DashboardView";
 
@@ -357,6 +359,9 @@ async function loadDashboard(): Promise<DashboardData> {
       milesRemaining: c.milesRemaining,
       pct: c.pct,
       neverServiced: c.neverServiced,
+      // Carried for the alert's per-occurrence dismissal key: when this moves,
+      // the item has been serviced and any old dismissal stops applying.
+      lastOdo,
     };
   });
 
@@ -478,6 +483,27 @@ function lane(l: DeliveredLoad): string {
 }
 
 /**
+ * The quick action for an incomplete load — one button, so it targets the
+ * gap the owner is most likely to be able to close right now.
+ *
+ * Missing paperwork wins over a missing odometer: both doc kinds land on the
+ * same uploader (#documents), and a BOL/rate con is a file he either has or
+ * doesn't, whereas the odometer needs the reading to hand. Between the two
+ * docs, BOL leads — it's the one that proves delivery. An odometer-only gap
+ * gets its own deep link to the odometer card.
+ */
+function incompleteAction(
+  loadId: string,
+  gaps: ReadonlyArray<IncompleteGap>,
+): { label: string; href: string } {
+  const base = `/admin/dispatch/loads/${loadId}`;
+  if (gaps.includes("bol")) return { label: "BOL", href: `${base}#documents` };
+  if (gaps.includes("rate_con"))
+    return { label: "Rate Con", href: `${base}#documents` };
+  return { label: "Odometer", href: `${base}#odometer` };
+}
+
+/**
  * Assemble the "Needs attention" groups from already-fetched data.
  *
  * Every group is a pure derivation of live rows. Fixing the underlying thing
@@ -505,6 +531,7 @@ function buildAlertGroups({
     name: string;
     status: string;
     milesRemaining: number | null;
+    lastOdo: number | null;
   }>;
   deliveredLoads: ReadonlyArray<DeliveredLoad>;
   docCounts: Map<string, { rate_con: number; bol: number; pod: number }>;
@@ -523,7 +550,8 @@ function buildAlertGroups({
       const mi = m.milesRemaining;
       return {
         id: m.id,
-        dismissKey: alertKey("maintenance", m.id),
+        // Per-occurrence, not permanent — see maintenanceAlertKey().
+        dismissKey: maintenanceAlertKey(m.id, m.lastOdo, m.status),
         title: m.name,
         value:
           mi == null
@@ -538,6 +566,11 @@ function buildAlertGroups({
           },
         ],
         href: "/admin/maintenance",
+        // Straight into the log-a-service form, prefilled for this reminder.
+        action: {
+          label: "Log Service",
+          href: `/admin/maintenance?log=${encodeURIComponent(m.id)}`,
+        },
       };
     });
 
@@ -561,6 +594,7 @@ function buildAlertGroups({
       value: usd(num(load.rate)),
       chips: [{ label: `${days}d out`, tone: "red" as const }],
       href: `/admin/dispatch/loads/${load.id}`,
+      action: { label: "Open", href: `/admin/dispatch/loads/${load.id}` },
     }));
 
   // (c) INCOMPLETE LOADS — delivered loads the owner never finished filling
@@ -587,6 +621,7 @@ function buildAlertGroups({
       subtitle: `#${load.load_number?.trim() || "—"} · ${lane(load)}`,
       chips: gaps.map((g) => ({ label: GAP_LABEL[g], tone: "amber" as const })),
       href: `/admin/dispatch/loads/${load.id}`,
+      action: incompleteAction(load.id, gaps),
     }));
 
   // (d) The two original signals. One item per row rather than one summary
@@ -600,6 +635,7 @@ function buildAlertGroups({
     title: a.name?.trim() || "New applicant",
     subtitle: "Job application · last 24 hours",
     href: "/admin/operations?tab=applications",
+    action: { label: "Open", href: "/admin/operations?tab=applications" },
   }));
 
   const quoteItems = newQuotes.map((q) => ({
@@ -608,6 +644,7 @@ function buildAlertGroups({
     title: q.name?.trim() || "New quote request",
     subtitle: "Not yet contacted",
     href: "/admin/operations?tab=quotes",
+    action: { label: "Open", href: "/admin/operations?tab=quotes" },
   }));
 
   const groups: AlertGroup[] = [

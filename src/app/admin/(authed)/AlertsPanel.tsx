@@ -9,6 +9,7 @@ import {
   startTransition,
 } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { StatusTag } from "@/components/ui/StatusTag";
 import {
   totalAlerts,
@@ -20,6 +21,8 @@ import { dismissAlert, restoreAlert } from "./alert-actions";
 
 /** How far left the row must travel before releasing counts as a dismiss. */
 const DISMISS_THRESHOLD_PX = 88;
+/** Same, rightward, for firing the quick action. */
+const ACTION_THRESHOLD_PX = 88;
 /** Width of the red "Ignore" panel behind the row — the resting open position. */
 const REVEAL_WIDTH_PX = 96;
 /** Movement past this many px is a swipe, not a tap: suppress the navigation. */
@@ -327,6 +330,8 @@ function AlertItemRow({
   onDismiss: (item: AlertItem) => void;
 }) {
   const reduced = usePrefersReducedMotion();
+  const router = useRouter();
+  const action = item.action;
   const [dx, setDx] = useState(0);
   const [dragging, setDragging] = useState(false);
   const [leaving, setLeaving] = useState(false);
@@ -359,6 +364,14 @@ function AlertItemRow({
     [],
   );
 
+  // The quick action navigates rather than mutating, so unlike dismiss there's
+  // nothing to undo and no row to animate out — the alert stays put until the
+  // owner actually fixes the underlying thing.
+  function runAction() {
+    if (!action) return;
+    router.push(action.href);
+  }
+
   function dismiss() {
     if (leaving) return;
     if (reduced) {
@@ -390,18 +403,32 @@ function AlertItemRow({
     if (!t) return;
     const delta = t.clientX - startX.current;
     if (Math.abs(delta) > TAP_SLOP_PX) swiped.current = true;
-    // Left only, and never further than the reveal panel plus a little slack
-    // for the rubber-band feel at the end of the travel.
-    moveTo(Math.min(0, Math.max(-(REVEAL_WIDTH_PX + 40), startDx.current + delta)));
+    // Left reveals Ignore (right edge); right reveals the quick action (left
+    // edge), but only when this alert HAS one — otherwise the row is left-only
+    // and a rightward drag stays pinned at 0 rather than opening onto nothing.
+    // The extra 40px past the panel width is rubber-band slack.
+    const max = action ? REVEAL_WIDTH_PX + 40 : 0;
+    moveTo(Math.min(max, Math.max(-(REVEAL_WIDTH_PX + 40), startDx.current + delta)));
   }
 
   function onTouchEnd() {
     setDragging(false);
     const cur = dxRef.current;
-    // Past the threshold it goes; short of it the row rests open at the reveal
-    // width so the Ignore button is a real tap target.
-    if (cur <= -DISMISS_THRESHOLD_PX) dismiss();
-    else moveTo(cur < -TAP_SLOP_PX ? -REVEAL_WIDTH_PX : 0);
+    // Past a threshold the gesture commits: left dismisses, right fires the
+    // quick action. Short of it the row rests open at the reveal width so the
+    // revealed button is a real tap target.
+    if (cur <= -DISMISS_THRESHOLD_PX) {
+      dismiss();
+      return;
+    }
+    if (action && cur >= ACTION_THRESHOLD_PX) {
+      moveTo(0);
+      runAction();
+      return;
+    }
+    if (cur < -TAP_SLOP_PX) moveTo(-REVEAL_WIDTH_PX);
+    else if (action && cur > TAP_SLOP_PX) moveTo(REVEAL_WIDTH_PX);
+    else moveTo(0);
   }
 
   const transition = dragging || reduced ? "none" : "transform 180ms ease-out";
@@ -422,6 +449,28 @@ function AlertItemRow({
             : undefined
       }
     >
+      {/* Quick-action panel on the LEFT edge, revealed by a rightward swipe.
+          Accent rather than red — this one fixes the alert, it doesn't hide
+          it. Only rendered when the alert actually has an action. */}
+      {action ? (
+        <div className="absolute inset-y-0 left-0 flex w-24 items-center justify-center bg-accent">
+          <button
+            type="button"
+            onClick={runAction}
+            aria-label={`${action.label} — ${item.title}`}
+            className="flex h-full w-full flex-col items-center justify-center gap-0.5 px-1 text-white transition-colors active:bg-accent-hover"
+            tabIndex={dx > TAP_SLOP_PX ? 0 : -1}
+          >
+            <svg viewBox="0 0 20 20" fill="currentColor" aria-hidden className="h-4 w-4">
+              <path d="M10 3a1 1 0 0 1 1 1v5h5a1 1 0 1 1 0 2h-5v5a1 1 0 1 1-2 0v-5H4a1 1 0 1 1 0-2h5V4a1 1 0 0 1 1-1z" />
+            </svg>
+            <span className="text-center font-mono text-[9.5px] font-bold uppercase leading-tight tracking-[0.06em]">
+              {action.label}
+            </span>
+          </button>
+        </div>
+      ) : null}
+
       {/* Ignore panel, revealed as the row slides off it. */}
       <div className="absolute inset-y-0 right-0 flex w-24 items-center justify-center bg-bad">
         <button
@@ -501,6 +550,20 @@ function AlertItemRow({
           <span className="pointer-events-none shrink-0 font-mono text-[12px] font-bold tabular-nums text-fg">
             {item.value}
           </span>
+        ) : null}
+
+        {/* Non-touch fallback for the quick action — the swipe-right
+            equivalent, always visible so a mouse never has to swipe. */}
+        {action ? (
+          <button
+            type="button"
+            onClick={runAction}
+            aria-label={`${action.label} — ${item.title}`}
+            title={`${action.label} — ${item.title}`}
+            className="relative z-10 shrink-0 whitespace-nowrap rounded border border-accent/40 bg-accent/15 px-1.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.06em] text-accent transition-colors hover:bg-accent hover:text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          >
+            {action.label}
+          </button>
         ) : null}
 
         {/* Non-touch fallback — a real button, above the stretched link. On a

@@ -14,9 +14,11 @@ export const company = {
   dispatchModel: "Owner-operated",
   serviceArea: "Lower 48 States",
 
-  // Contact (placeholders — replace before launch)
+  // Contact
   dispatchEmail: "dispatch@harblancservices.com",
-  dispatchPhone: "(281)-636-9676",
+  // Formatted to match the email signature exactly, which is the other place
+  // this number is published (see dispatch/reach/signature.ts).
+  dispatchPhone: "(832) 445-8775",
 
   tagline: "Direct freight hauling. Hotshot to heavy equipment.",
   shortPitch:
