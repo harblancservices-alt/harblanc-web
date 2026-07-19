@@ -30,16 +30,28 @@ import { PreviewTabs } from "./PreviewTabs";
  * width, so both frames are always fully visible.
  */
 
+/**
+ * Four categories, answering the two questions the operator actually
+ * asks when scanning this grid: does the CUSTOMER see it, and do they
+ * have to fill something in?
+ *
+ *   customer_form — the customer types into it and submits
+ *   customer_view — the customer sees it, read-only
+ *   email         — sent to the customer's inbox
+ *   internal      — staff-only, never served to a customer
+ */
 export type PreviewClassification =
-  | "customer_email"
-  | "customer_page"
-  | "in_house_doc";
+  | "customer_form"
+  | "customer_view"
+  | "email"
+  | "internal";
 
 type PreviewTargetBase = {
   id: string;
-  order?: number;
   title: string;
   classification: PreviewClassification;
+  /** Flags a quote-pipeline asset with an extra QUOTE chip. */
+  quote?: boolean;
 };
 
 export type PreviewTarget =
@@ -54,34 +66,72 @@ export type PreviewTarget =
       route: string;
     });
 
-function classificationLabel(c: PreviewClassification): string {
-  switch (c) {
-    case "customer_email":
-      return "Email";
-    case "customer_page":
-      return "Page";
-    case "in_house_doc":
-      return "In-house";
-  }
-}
+type CategoryMeta = {
+  /** Chip text on the tile. */
+  chip: string;
+  /** Section heading above the group. */
+  section: string;
+  /** Chip colours — the app's standard border-X/40 bg-X-bg text-X trio. */
+  chipTone: string;
+  /** Solid swatch for the section-header dot. */
+  dot: string;
+};
 
-function classificationClasses(c: PreviewClassification): string {
-  // One chip shape for every kind; only the ink shifts so emails read as
-  // the customer-facing sends and in-house docs stay quiet.
-  const base =
-    "rounded border border-line-strong bg-inset px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.14em] ";
-  switch (c) {
-    case "customer_email":
-      return base + "text-accent";
-    case "customer_page":
-      return base + "text-fg-muted";
-    case "in_house_doc":
-      return base + "text-fg-subtle";
-  }
-}
+const CATEGORIES: Record<PreviewClassification, CategoryMeta> = {
+  customer_form: {
+    chip: "Customer form",
+    section: "Customer forms",
+    chipTone: "border-steel/40 bg-steel-bg text-steel",
+    dot: "bg-steel",
+  },
+  customer_view: {
+    chip: "Customer view",
+    section: "Customer views",
+    chipTone: "border-ok/40 bg-ok-bg text-ok",
+    dot: "bg-ok",
+  },
+  email: {
+    chip: "Email",
+    section: "Emails",
+    chipTone: "border-warn/40 bg-warn-bg text-warn",
+    dot: "bg-warn",
+  },
+  internal: {
+    chip: "Internal",
+    section: "Backend / internal",
+    chipTone: "border-slate/40 bg-slate-bg text-slate",
+    dot: "bg-slate",
+  },
+};
 
-function formatTitle(t: PreviewTargetBase): string {
-  return t.order != null ? `${t.order}. ${t.title}` : t.title;
+/** Render order of the groups — customer-facing first, staff last. */
+const CATEGORY_ORDER: ReadonlyArray<PreviewClassification> = [
+  "customer_form",
+  "customer_view",
+  "email",
+  "internal",
+];
+
+const CHIP_BASE =
+  "rounded border px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase tracking-[0.14em] ";
+
+function Chips({ target }: { target: PreviewTarget }) {
+  const meta = CATEGORIES[target.classification];
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      <span className={CHIP_BASE + meta.chipTone}>{meta.chip}</span>
+      {target.quote ? (
+        <span className={CHIP_BASE + "border-line-strong bg-inset text-fg-muted"}>
+          Quote
+        </span>
+      ) : null}
+      {target.classification === "internal" ? (
+        <span className="font-mono text-[9px] uppercase tracking-[0.12em] text-fg-subtle">
+          not live
+        </span>
+      ) : null}
+    </div>
+  );
 }
 
 export function AdminPreviewLab({
@@ -128,29 +178,53 @@ export function AdminPreviewLab({
         </p>
       </div>
 
-      {/* Whole card is the Preview action — tap anywhere to open the
-          viewer, same affordance as a trip card opening a trip. */}
-      <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
-        {targets.map((t) => (
-          <li key={t.id}>
-            <button
-              type="button"
-              onClick={() => setOpenId(t.id)}
-              className="flex h-full w-full flex-col items-start gap-2 rounded-lg border border-line-strong bg-card p-3 text-left shadow-e2 transition-shadow hover:shadow-e3 active:bg-inset"
-            >
-              <span className={classificationClasses(t.classification)}>
-                {classificationLabel(t.classification)}
-              </span>
-              <h2 className="text-[13px] font-semibold leading-snug text-fg">
-                {formatTitle(t)}
-              </h2>
-              <span className="mt-auto w-full truncate font-mono text-[10px] text-fg-subtle">
-                {t.kind === "email" ? t.subject : t.route}
-              </span>
-            </button>
-          </li>
-        ))}
-      </ul>
+      {/* One section per category so related assets sit together. Within
+          a section the whole card is the Preview action — tap anywhere to
+          open the viewer, same affordance as a trip card opening a trip. */}
+      <div className="space-y-5">
+        {CATEGORY_ORDER.map((category) => {
+          const items = targets.filter((t) => t.classification === category);
+          if (items.length === 0) return null;
+          const meta = CATEGORIES[category];
+          return (
+            <section key={category}>
+              <div className="mb-2 flex items-center gap-2">
+                <span
+                  aria-hidden
+                  className={
+                    "inline-block h-2 w-2 shrink-0 rounded-full " + meta.dot
+                  }
+                />
+                <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-fg-muted">
+                  {meta.section}
+                </h2>
+                <span className="font-mono text-[10px] tabular-nums text-fg-subtle">
+                  &middot; {items.length}
+                </span>
+              </div>
+              <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {items.map((t) => (
+                  <li key={t.id}>
+                    <button
+                      type="button"
+                      onClick={() => setOpenId(t.id)}
+                      className="flex h-full w-full flex-col items-start gap-2 rounded-lg border border-line-strong bg-card p-3 text-left shadow-e2 transition-shadow hover:shadow-e3 active:bg-inset"
+                    >
+                      <Chips target={t} />
+                      <h3 className="text-[13px] font-semibold leading-snug text-fg">
+                        {t.title}
+                      </h3>
+                      <span className="mt-auto w-full truncate font-mono text-[10px] text-fg-subtle">
+                        {t.kind === "email" ? t.subject : t.route}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          );
+        })}
+      </div>
 
       {active ? (
         <Modal
@@ -312,14 +386,12 @@ function Modal({
   const target = targets.find((t) => t.id === activeId);
   if (!target) return null;
 
-  const groups: ReadonlyArray<{
-    label: string;
-    classification: PreviewClassification;
-  }> = [
-    { label: "Pages", classification: "customer_page" },
-    { label: "Emails", classification: "customer_email" },
-    { label: "In-house", classification: "in_house_doc" },
-  ];
+  // Sidebar mirrors the grid's grouping so the two views agree.
+  const groups = CATEGORY_ORDER.map((classification) => ({
+    classification,
+    label: CATEGORIES[classification].section,
+    dot: CATEGORIES[classification].dot,
+  }));
 
   return (
     <div
@@ -339,20 +411,13 @@ function Modal({
         {/* Header */}
         <header className="relative flex shrink-0 items-center gap-3 border-b border-line-strong bg-card px-4 py-2.5 sm:px-5 sm:py-3">
           <div className="min-w-0 flex-1">
-            <p className="text-[13px] font-semibold text-fg">
-              {formatTitle(target)}
-            </p>
+            <p className="text-[13px] font-semibold text-fg">{target.title}</p>
             <p className="mt-0.5 truncate font-mono text-[10px] text-fg-subtle sm:text-[11px]">
               {target.kind === "email" ? target.subject : target.route}
             </p>
           </div>
-          <span
-            className={
-              "hidden shrink-0 sm:inline-block " +
-              classificationClasses(target.classification)
-            }
-          >
-            {classificationLabel(target.classification)}
+          <span className="hidden shrink-0 sm:block">
+            <Chips target={target} />
           </span>
           <button
             type="button"
@@ -409,7 +474,14 @@ function Modal({
                 if (items.length === 0) return null;
                 return (
                   <div key={group.classification} className="mb-4 last:mb-0">
-                    <p className="px-2 pt-1 pb-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-fg-subtle">
+                    <p className="flex items-center gap-1.5 px-2 pt-1 pb-1.5 font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-fg-subtle">
+                      <span
+                        aria-hidden
+                        className={
+                          "inline-block h-1.5 w-1.5 shrink-0 rounded-full " +
+                          group.dot
+                        }
+                      />
                       {group.label}
                     </p>
                     <ul>
@@ -430,7 +502,7 @@ function Modal({
                             >
                               <span className="min-w-0 flex-1">
                                 <span className="block truncate text-[12px] font-semibold">
-                                  {formatTitle(t)}
+                                  {t.title}
                                 </span>
                                 <span className="mt-0.5 block truncate font-mono text-[10px] text-fg-subtle">
                                   {t.kind === "email" ? t.subject : t.route}
