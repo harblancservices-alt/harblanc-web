@@ -1,4 +1,3 @@
-import type { ReactNode } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import { StatusTag, type StatusTone } from "@/components/ui/StatusTag";
@@ -11,14 +10,18 @@ import type { MaintStatus } from "@/lib/dispatch/maintenance";
 import type { CountdownGoal, NetPace } from "@/lib/dispatch/countdown";
 import { IntervalBar } from "./maintenance/IntervalBar";
 import { CountdownCards } from "./CountdownCards";
+import { AlertsPanel } from "./AlertsPanel";
+import type { AlertGroup } from "@/lib/dispatch/alerts";
 
 /**
  * Owner Dashboard — opportunity inbox (render layer).
  *
- * A slim alert bar sits at the very top: quiet/muted when nothing is waiting,
- * and a prominent red bar when there are new job applications and/or new
- * quote requests (each part deep-links to its tab). Below it: active loads,
- * the truck-maintenance widget, and the expired-quotes table.
+ * A collapsible "Needs attention" tab sits at the very top: a slim card
+ * carrying the total alert count, which drops down into the grouped alert list
+ * (maintenance, overdue receivables, incomplete loads, new applications, new
+ * quote requests) — or the green "all clear" state when nothing is waiting.
+ * Below it: active loads, the truck-maintenance widget, and the expired-quotes
+ * table.
  */
 
 export type MaintWidgetItem = {
@@ -40,6 +43,8 @@ export type DashboardData = {
   activeTrips: ReadonlyArray<string>;
   countdownGoals: ReadonlyArray<CountdownGoal>;
   netPace: NetPace;
+  /** Grouped "Needs attention" alerts. Empty groups are filtered by the panel. */
+  alertGroups: ReadonlyArray<AlertGroup>;
   currentCash: number;
 };
 
@@ -111,10 +116,7 @@ function spellAge(s: string): string {
 export function DashboardView({ data }: { data: DashboardData }) {
   return (
     <div className="min-h-screen border-t border-line bg-canvas text-fg">
-      <AlertBar
-        newApplications={data.newApplicationCount}
-        newQuotes={data.newQuoteCount}
-      />
+      <AlertsPanel groups={data.alertGroups} />
       <div className="mx-auto w-full max-w-5xl px-4 pb-4 pt-2.5 sm:px-6 lg:px-8">
         <h1 className="mb-3 text-[22px] font-bold leading-tight text-ink">
           Dashboard
@@ -360,138 +362,6 @@ export function DashboardView({ data }: { data: DashboardData }) {
         ) : null}
       </div>
     </div>
-  );
-}
-
-/**
- * Top-of-dashboard alert bar. Quiet/slim when nothing is waiting; a prominent
- * red bar the moment there's a new job application or a new quote request,
- * with each count deep-linking to its tab.
- */
-function AlertBar({
-  newApplications,
-  newQuotes,
-}: {
-  newApplications: number;
-  newQuotes: number;
-}) {
-  const hasAlerts = newApplications > 0 || newQuotes > 0;
-
-  if (!hasAlerts) {
-    // All clear — a friendly, positive green banner (not a bare gray line).
-    return (
-      <div className="flex items-center justify-center gap-2 border-b border-ok/25 bg-ok-bg px-4 py-2">
-        <span
-          aria-hidden
-          className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-ok text-white shadow-sm"
-        >
-          <svg
-            viewBox="0 0 20 20"
-            fill="currentColor"
-            aria-hidden
-            className="h-3 w-3"
-          >
-            <path
-              fillRule="evenodd"
-              d="M16.704 5.29a1 1 0 0 1 .006 1.414l-7.5 7.6a1 1 0 0 1-1.42.006l-3.5-3.5a1 1 0 1 1 1.414-1.414l2.79 2.79 6.796-6.886a1 1 0 0 1 1.414-.006z"
-              clipRule="evenodd"
-            />
-          </svg>
-        </span>
-        <span className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-ok">
-          All clear — you&apos;re caught up
-        </span>
-      </div>
-    );
-  }
-
-  // Attention state — bolder, with a count badge per segment and a clear
-  // tap affordance to the relevant tab.
-  const segments: ReactNode[] = [];
-  if (newApplications > 0) {
-    segments.push(
-      <AlertChip
-        key="apps"
-        href="/admin/operations?tab=applications"
-        count={newApplications}
-        label={`new job application${newApplications === 1 ? "" : "s"}`}
-      />,
-    );
-  }
-  if (newQuotes > 0) {
-    segments.push(
-      <AlertChip
-        key="quotes"
-        href="/admin/operations?tab=quotes"
-        count={newQuotes}
-        label={`new quote request${newQuotes === 1 ? "" : "s"}`}
-      />,
-    );
-  }
-
-  return (
-    <div
-      role="alert"
-      className="border-b border-accent-hover bg-accent text-white shadow-e2"
-    >
-      <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 px-4 py-2.5">
-        <span className="inline-flex items-center gap-1.5 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-white/90">
-          <svg
-            viewBox="0 0 20 20"
-            fill="currentColor"
-            aria-hidden
-            className="h-4 w-4"
-          >
-            <path
-              fillRule="evenodd"
-              d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 10 5zm0 9a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"
-              clipRule="evenodd"
-            />
-          </svg>
-          Needs attention
-        </span>
-        {segments}
-      </div>
-    </div>
-  );
-}
-
-/**
- * One tappable alert segment: a count badge + label pill that deep-links to
- * its tab, with a chevron affordance so it clearly reads as actionable.
- */
-function AlertChip({
-  href,
-  count,
-  label,
-}: {
-  href: string;
-  count: number;
-  label: string;
-}) {
-  return (
-    <Link
-      href={href}
-      prefetch={false}
-      className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/15 py-1 pl-1 pr-2.5 text-[13px] font-semibold text-white shadow-sm transition-colors hover:bg-white/25 active:bg-white/30"
-    >
-      <span className="inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-white px-1.5 text-[12px] font-bold tabular-nums text-accent">
-        {count}
-      </span>
-      <span className="whitespace-nowrap">{label}</span>
-      <svg
-        viewBox="0 0 20 20"
-        fill="currentColor"
-        aria-hidden
-        className="h-3.5 w-3.5 text-white/70"
-      >
-        <path
-          fillRule="evenodd"
-          d="M7.21 4.29a1 1 0 0 1 1.42 0l5 5a1 1 0 0 1 0 1.42l-5 5a1 1 0 1 1-1.42-1.42L11.5 10 7.21 5.71a1 1 0 0 1 0-1.42z"
-          clipRule="evenodd"
-        />
-      </svg>
-    </Link>
   );
 }
 

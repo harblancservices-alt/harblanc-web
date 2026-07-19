@@ -4,6 +4,10 @@ import { createServiceRoleClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusTag, type StatusTone } from "@/components/ui/StatusTag";
+import {
+  daysOutstanding,
+  RECEIVABLE_OVERDUE_DAYS,
+} from "@/lib/dispatch/alerts";
 import { markLoadPaid, markLoadUnpaid } from "../loads/actions";
 
 export const metadata: Metadata = {
@@ -63,40 +67,22 @@ function fmtDate(iso: string | null): string {
 }
 
 /**
- * Whole days a load has been outstanding — from its DELIVERY date (when it
- * became receivable) to today. Both anchored to UTC midnight so it counts
- * calendar days, not partial-day fractions. Returns null when there's no
- * delivery date or it parses to a future/invalid value.
- */
-function daysOutstanding(iso: string | null, now: Date): number | null {
-  if (!iso) return null;
-  const d = new Date(iso.length <= 10 ? iso + "T00:00:00Z" : iso);
-  if (Number.isNaN(d.getTime())) return null;
-  const today = Date.UTC(
-    now.getUTCFullYear(),
-    now.getUTCMonth(),
-    now.getUTCDate(),
-  );
-  const delivered = Date.UTC(
-    d.getUTCFullYear(),
-    d.getUTCMonth(),
-    d.getUTCDate(),
-  );
-  const days = Math.floor((today - delivered) / 86_400_000);
-  return days >= 0 ? days : 0;
-}
-
-/**
  * Aging band for the card's status pill. Under 30 days is just money in
- * flight and reads neutral; 30–39 is worth a nudge; 40+ is late and reads
- * red. The band also colors the Amount cell — an overdue load is the only
- * one whose dollar figure goes red.
+ * flight and reads neutral; 30–39 is worth a nudge; RECEIVABLE_OVERDUE_DAYS+
+ * is late and reads red. The band also colors the Amount cell — an overdue
+ * load is the only one whose dollar figure goes red.
+ *
+ * The overdue threshold and the day count itself both come from
+ * lib/dispatch/alerts, which is also what the dashboard's "Overdue
+ * receivables" alert group counts on — so this page and that badge can never
+ * disagree about which loads are late.
  */
 type Aging = { tone: StatusTone; label: string; overdue: boolean };
 function aging(days: number | null): Aging {
   if (days == null) return { tone: "slate", label: "No date", overdue: false };
   const d = `${days}d`;
-  if (days >= 40) return { tone: "red", label: `Overdue · ${d}`, overdue: true };
+  if (days >= RECEIVABLE_OVERDUE_DAYS)
+    return { tone: "red", label: `Overdue · ${d}`, overdue: true };
   if (days >= 30) return { tone: "amber", label: `Aging · ${d}`, overdue: false };
   return { tone: "slate", label: `${d} out`, overdue: false };
 }

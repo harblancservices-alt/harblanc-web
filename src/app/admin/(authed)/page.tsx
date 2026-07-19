@@ -14,11 +14,20 @@ import {
   type FuelSettings,
 } from "@/lib/dispatch/fuel";
 import type { CountdownGoal, NetPace } from "@/lib/dispatch/countdown";
+import {
+  daysOutstanding,
+  incompleteGaps,
+  GAP_LABEL,
+  RECEIVABLE_OVERDUE_DAYS,
+  type AlertGroup,
+} from "@/lib/dispatch/alerts";
 import { DashboardView, type DashboardData } from "./DashboardView";
 
-// The two reminders surfaced on the dashboard's quick maintenance widget
+// The two reminders surfaced on the dashboard's quick maintenance WIDGET
 // (matched by their repair_reminders label, carried over from the old item
-// names in the repair-log migration).
+// names in the repair-log migration). Note this is now only the widget's
+// filter — the alerts panel considers every active reminder, so an overdue
+// item outside these two still surfaces at the top of the page.
 const DASH_MAINT_NAMES = [
   "Engine oil & filter",
   "Fuel filters (engine + chassis)",
@@ -82,6 +91,7 @@ async function loadDashboard(): Promise<DashboardData> {
     { data: fuelRow },
     { data: expRows },
     { data: factoringBrokers },
+    { data: docRows },
   ] = await Promise.all([
     // Shared pipeline cards — the dashboard only renders the expired ones.
     loadPipelineCards(),
@@ -126,12 +136,13 @@ async function loadDashboard(): Promise<DashboardData> {
       .order("name", { ascending: true })
       .returns<{ name: string | null }[]>(),
     fetchOpenTripNames(sb),
-    // Maintenance widget: oil + fuel-filter reminders only.
+    // ALL active reminders. The widget below narrows to DASH_MAINT_NAMES, but
+    // the alerts panel needs every reminder so nothing overdue hides just
+    // because it isn't oil or fuel filters.
     sb
       .from("repair_reminders")
       .select("id, label, part_group, interval_miles, anchor_odo")
       .is("dismissed_at", null)
-      .in("label", DASH_MAINT_NAMES)
       .returns<
         {
           id: string;
@@ -170,24 +181,33 @@ async function loadDashboard(): Promise<DashboardData> {
           created_at: string;
         }[]
       >(),
-    // Delivered loads for the net-pace aggregates (windowed in JS below). Same
-    // columns the calendar feeds into loadDiesel/loadNet.
+    // Delivered loads — ONE fetch serving three consumers: the net-pace
+    // aggregates (windowed in JS below), the overdue-receivables alerts
+    // (payment_status != 'paid' + aged past 40d), and the incomplete-load
+    // alerts (missing paperwork or odometer). All three want the identical row
+    // set — delivered and not soft-deleted — so splitting them into separate
+    // queries would just be the same scan three times.
     sb
       .from("loads")
       .select(
-        "id, rate, loaded_miles, odo_assigned, odo_loaded, odo_delivered, broker_id, delivery_date, created_at",
+        "id, load_number, rate, loaded_miles, odo_assigned, odo_loaded, odo_delivered, broker_id, broker_name, origin, destination, payment_status, delivery_date, created_at",
       )
       .eq("status", "delivered")
       .is("deleted_at", null)
       .returns<
         {
           id: string;
+          load_number: string | null;
           rate: number | string | null;
           loaded_miles: number | null;
           odo_assigned: number | null;
           odo_loaded: number | null;
           odo_delivered: number | null;
           broker_id: string | null;
+          broker_name: string | null;
+          origin: string | null;
+          destination: string | null;
+          payment_status: string | null;
           delivery_date: string | null;
           created_at: string;
         }[]
@@ -215,29 +235,30 @@ async function loadDashboard(): Promise<DashboardData> {
       .eq("factoring", true)
       .is("deleted_at", null)
       .returns<{ id: string }[]>(),
+    // Every load document, both consumers in one pass: the ACTIVE loads' per-
+    // kind counts (the Rate Con / BOL / POD buttons) and the DELIVERED loads'
+    // rate-con/BOL presence (the incomplete-load alerts). Fetching them here
+    // rather than in a follow-up .in("load_id", …) keeps the whole dashboard
+    // on a single round of parallel queries — this table holds a handful of
+    // rows per load for a one-truck operation, so the id filter bought little.
+    sb
+      .from("load_documents")
+      .select("load_id, kind")
+      .in("kind", ["rate_con", "bol", "pod"])
+      .returns<{ load_id: string; kind: "rate_con" | "bol" | "pod" }[]>(),
   ]);
 
   // Expired quotes drop off the forward pipeline into their own section.
   const expiredQuotes = pipelineCards.filter((c) => c.status === "expired");
 
-  // Per-kind document counts for the active loads, so each load's Rate Con /
-  // BOL / POD button reflects how many files are already attached. One query
-  // for all three kinds.
-  const activeLoadIds = (loadRows ?? []).map((l) => l.id);
+  // Per-kind document counts, keyed by load. Feeds the ACTIVE loads' Rate Con
+  // / BOL / POD buttons (how many files are attached) and the DELIVERED loads'
+  // incomplete check (whether a rate con / BOL exists at all).
   const docCounts = new Map<string, { rate_con: number; bol: number; pod: number }>();
-  if (activeLoadIds.length > 0) {
-    const { data: docRows } = await sb
-      .from("load_documents")
-      .select("load_id, kind")
-      .in("kind", ["rate_con", "bol", "pod"])
-      .in("load_id", activeLoadIds)
-      .returns<{ load_id: string; kind: "rate_con" | "bol" | "pod" }[]>();
-    for (const r of docRows ?? []) {
-      const c =
-        docCounts.get(r.load_id) ?? { rate_con: 0, bol: 0, pod: 0 };
-      c[r.kind] += 1;
-      docCounts.set(r.load_id, c);
-    }
+  for (const r of docRows ?? []) {
+    const c = docCounts.get(r.load_id) ?? { rate_con: 0, bol: 0, pod: 0 };
+    c[r.kind] += 1;
+    docCounts.set(r.load_id, c);
   }
 
   // Active dispatch loads (not delivered/cancelled) for the at-a-glance card.
@@ -309,7 +330,7 @@ async function loadDashboard(): Promise<DashboardData> {
       maxOdoByGroup.set(key, Math.max(maxOdoByGroup.get(key) ?? 0, odo));
     }
   }
-  const maintenance = reminders.map((m) => {
+  const allMaintenance = reminders.map((m) => {
     const key = groupKey(m.part_group);
     const lastOdo =
       (key != null ? maxOdoByGroup.get(key) : undefined) ?? m.anchor_odo ?? null;
@@ -323,6 +344,12 @@ async function loadDashboard(): Promise<DashboardData> {
       neverServiced: c.neverServiced,
     };
   });
+
+  // The maintenance WIDGET stays the two-item quick view it has always been;
+  // the alerts panel above draws on allMaintenance instead.
+  const maintenance = allMaintenance.filter((m) =>
+    DASH_MAINT_NAMES.includes(m.name),
+  );
 
   // Countdown goals (editable targets) for the dashboard widget.
   const countdownGoals: CountdownGoal[] = (goalRows ?? []).map((g) => ({
@@ -384,6 +411,15 @@ async function loadDashboard(): Promise<DashboardData> {
     weeklyNetPace: windowNet > 0 ? windowNet / NET_PACE_WINDOW_WEEKS : 0,
   };
 
+  const alertGroups = buildAlertGroups({
+    maintenance: allMaintenance,
+    deliveredLoads: deliveredRows ?? [],
+    docCounts,
+    newApplicationCount: newApplicationCount ?? 0,
+    newQuoteCount: newQuoteCount ?? 0,
+    now,
+  });
+
   return {
     newApplicationCount: newApplicationCount ?? 0,
     newQuoteCount: newQuoteCount ?? 0,
@@ -394,8 +430,184 @@ async function loadDashboard(): Promise<DashboardData> {
     activeTrips,
     countdownGoals,
     netPace,
+    alertGroups,
     currentCash: num(fuelRow?.current_cash ?? null),
   };
+}
+
+type DeliveredLoad = {
+  id: string;
+  load_number: string | null;
+  rate: number | string | null;
+  odo_assigned: number | null;
+  odo_loaded: number | null;
+  odo_delivered: number | null;
+  broker_name: string | null;
+  origin: string | null;
+  destination: string | null;
+  payment_status: string | null;
+  delivery_date: string | null;
+};
+
+function usd(n: number): string {
+  return "$" + Math.round(n).toLocaleString("en-US");
+}
+
+function lane(l: DeliveredLoad): string {
+  return `${l.origin?.trim() || "—"} → ${l.destination?.trim() || "—"}`;
+}
+
+/**
+ * Assemble the "Needs attention" groups from already-fetched data.
+ *
+ * Every group is a pure derivation of live rows — there is no alerts table and
+ * nothing to dismiss. Fixing the underlying thing (log the service, attach the
+ * BOL, enter the odometer, mark the invoice paid, work the lead) drops the
+ * alert on the next render. Empty groups are returned as-is; the panel filters
+ * them out, so this stays a flat list rather than a chain of if-blocks.
+ */
+function buildAlertGroups({
+  maintenance,
+  deliveredLoads,
+  docCounts,
+  newApplicationCount,
+  newQuoteCount,
+  now,
+}: {
+  maintenance: ReadonlyArray<{
+    id: string;
+    name: string;
+    status: string;
+    milesRemaining: number | null;
+  }>;
+  deliveredLoads: ReadonlyArray<DeliveredLoad>;
+  docCounts: Map<string, { rate_con: number; bol: number; pod: number }>;
+  newApplicationCount: number;
+  newQuoteCount: number;
+  now: Date;
+}): AlertGroup[] {
+  // (a) MAINTENANCE — every active reminder that's overdue or due soon.
+  // "baseline" (never serviced) is NOT an alert: it's a setup task, not a
+  // thing falling behind, and it would otherwise shout on day one forever.
+  const maintItems = maintenance
+    .filter((m) => m.status === "overdue" || m.status === "soon")
+    .map((m) => {
+      const over = m.status === "overdue";
+      const mi = m.milesRemaining;
+      return {
+        id: m.id,
+        title: m.name,
+        value:
+          mi == null
+            ? "—"
+            : mi <= 0
+              ? `${Math.abs(mi).toLocaleString()} mi over`
+              : `${mi.toLocaleString()} mi left`,
+        chips: [
+          {
+            label: over ? "Overdue" : "Due soon",
+            tone: over ? ("red" as const) : ("amber" as const),
+          },
+        ],
+        href: "/admin/maintenance",
+      };
+    });
+
+  // (b) OVERDUE RECEIVABLES — delivered + unpaid, aged past 40 days from the
+  // delivery date. Same row set and same aging derivation as the Receivables
+  // page, so the two can't disagree. Oldest first: the longest-owed money is
+  // the most at risk.
+  const receivableItems = deliveredLoads
+    .filter((l) => l.payment_status !== "paid")
+    .map((l) => ({ load: l, days: daysOutstanding(l.delivery_date, now) }))
+    .filter(
+      (r): r is { load: DeliveredLoad; days: number } =>
+        r.days != null && r.days >= RECEIVABLE_OVERDUE_DAYS,
+    )
+    .sort((a, b) => b.days - a.days)
+    .map(({ load, days }) => ({
+      id: load.id,
+      title: load.broker_name?.trim() || "No broker",
+      subtitle: `#${load.load_number?.trim() || "—"} · ${lane(load)}`,
+      value: usd(num(load.rate)),
+      chips: [{ label: `${days}d out`, tone: "red" as const }],
+      href: `/admin/dispatch/loads/${load.id}`,
+    }));
+
+  // (c) INCOMPLETE LOADS — delivered loads the owner never finished filling
+  // in: missing a rate con or BOL, or missing the odometer readings the net
+  // calc runs on. Each item names exactly what's absent so the tap-through is
+  // a to-do, not a scavenger hunt.
+  const incompleteItems = deliveredLoads
+    .map((l) => {
+      const docs = docCounts.get(l.id) ?? { rate_con: 0, bol: 0, pod: 0 };
+      const gaps = incompleteGaps({
+        hasRateCon: docs.rate_con > 0,
+        hasBol: docs.bol > 0,
+        odoAssigned: l.odo_assigned,
+        odoLoaded: l.odo_loaded,
+        odoDelivered: l.odo_delivered,
+      });
+      return { load: l, gaps };
+    })
+    .filter((r) => r.gaps.length > 0)
+    .map(({ load, gaps }) => ({
+      id: load.id,
+      title: load.broker_name?.trim() || "No broker",
+      subtitle: `#${load.load_number?.trim() || "—"} · ${lane(load)}`,
+      chips: gaps.map((g) => ({ label: GAP_LABEL[g], tone: "amber" as const })),
+      href: `/admin/dispatch/loads/${load.id}`,
+    }));
+
+  // (d) The two original signals, preserved as their own groups. These are
+  // counts rather than row sets — the tab they link to IS the list — so each
+  // renders as a single summary item.
+  const applicationItems =
+    newApplicationCount > 0
+      ? [
+          {
+            id: "applications",
+            title: `${newApplicationCount} new job application${newApplicationCount === 1 ? "" : "s"}`,
+            subtitle: "Received in the last 24 hours",
+            href: "/admin/operations?tab=applications",
+          },
+        ]
+      : [];
+
+  const quoteItems =
+    newQuoteCount > 0
+      ? [
+          {
+            id: "quotes",
+            title: `${newQuoteCount} new quote request${newQuoteCount === 1 ? "" : "s"}`,
+            subtitle: "Not yet contacted",
+            href: "/admin/operations?tab=quotes",
+          },
+        ]
+      : [];
+
+  return [
+    { key: "maintenance", label: "Maintenance", tone: "red", items: maintItems },
+    {
+      key: "receivables",
+      label: "Overdue receivables",
+      tone: "red",
+      items: receivableItems,
+    },
+    {
+      key: "incomplete",
+      label: "Incomplete loads",
+      tone: "amber",
+      items: incompleteItems,
+    },
+    {
+      key: "applications",
+      label: "New applications",
+      tone: "amber",
+      items: applicationItems,
+    },
+    { key: "quotes", label: "New quote requests", tone: "amber", items: quoteItems },
+  ];
 }
 
 export default async function DashboardPage() {

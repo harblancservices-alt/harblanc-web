@@ -689,6 +689,45 @@ body {
   to   { width: 100%; }
 }
 
+/* Dashboard "Needs attention" tab — a periodic glance-level cue while the
+   panel is collapsed and alerts are waiting.
+
+   Deliberately mostly-idle: one short ring of the bell every 6s, with ~85% of
+   the cycle spent perfectly still. A continuously-animating alert reads as a
+   broken page rather than an alert, and it sits at the top of the dashboard
+   the whole session. Both animations stop entirely when the panel is open
+   (the class is dropped) and under prefers-reduced-motion. */
+@keyframes alert-bell-ring {
+  0%, 86%, 100% { transform: rotate(0deg); }
+  88%  { transform: rotate(-11deg); }
+  90%  { transform: rotate(9deg); }
+  92%  { transform: rotate(-7deg); }
+  94%  { transform: rotate(5deg); }
+  96%  { transform: rotate(-3deg); }
+  98%  { transform: rotate(1deg); }
+}
+
+@keyframes alert-badge-pulse {
+  0%, 86%, 100% { transform: scale(1); }
+  91%  { transform: scale(1.14); }
+}
+
+.alert-bell {
+  transform-origin: top center;
+  animation: alert-bell-ring 6s ease-in-out infinite;
+}
+
+.alert-badge {
+  animation: alert-badge-pulse 6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .alert-bell,
+  .alert-badge {
+    animation: none;
+  }
+}
+
 /* Beige twin of .btn-outline-cut for light surfaces (navbar etc.).
    Element bg is black (acts as the visible chamfered "border"); ::before
    fills the interior with beige inset 2px so the black ring shows.
