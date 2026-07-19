@@ -237,17 +237,33 @@ export function BrokerDetail({ data }: { data: BrokerDetailData }) {
         </div>
       </header>
 
-      {/* KPI row — trip-card discipline: Total loads is a plain count and reads
-          ink, Gross and Net are earnings and read green (Net leads on size
-          alone, not on a filled tile), A/R reads red only while money is owed. */}
-      <div className="grid grid-cols-2 divide-x divide-line overflow-hidden rounded-md border border-line bg-card shadow-e2 lg:grid-cols-4">
+      {/* KPI module — the trip cards' grouped stat panel at page scale: one
+          rounded inset surface split into equal cells by hairline dividers,
+          tiny uppercase labels over their values. Trip-card color discipline:
+          Total loads is a plain count and reads ink, Gross and Net are earnings
+          and read green (Net leads on size alone, not on a filled tile), A/R
+          reads red only while money is owed. Two columns on mobile, four from
+          lg — the dividers follow the wrap. */}
+      <div className="grid grid-cols-2 overflow-hidden rounded-md border border-line-strong bg-inset shadow-e2 lg:grid-cols-4">
         <Kpi label="Total loads" value={String(kpis.loads)} />
-        <Kpi label="Gross" value={usd2(kpis.gross)} tone="green" />
-        <Kpi label="Net" value={usd2(kpis.net)} tone="green" strong />
+        <Kpi
+          label="Gross"
+          value={usd2(kpis.gross)}
+          tone="green"
+          cellClass="border-l border-line-strong"
+        />
+        <Kpi
+          label="Net"
+          value={usd2(kpis.net)}
+          tone="green"
+          strong
+          cellClass="border-t border-line-strong lg:border-l lg:border-t-0"
+        />
         <Kpi
           label="Accounts receivable"
           value={usd2(kpis.ar)}
           tone={kpis.ar > 0 ? "red" : "default"}
+          cellClass="border-l border-t border-line-strong lg:border-t-0"
         />
       </div>
 
@@ -373,73 +389,17 @@ export function BrokerDetail({ data }: { data: BrokerDetailData }) {
               No loads yet for this broker.
             </div>
           ) : (
-            // Card list mirroring the dashboard's Active loads section: one
-            // card container, fluid flex rows that stack vertically and never
-            // scroll sideways. Tapping a card opens the load.
-            <div className="overflow-hidden rounded-md border border-line bg-card shadow-e2">
-              {loads.map((l, i) => (
-                <div
+            // One compact trip-style card per load: lane leading with its
+            // status pill on the right edge, equipment/date/age as meta chips,
+            // and a Rate · Net · Margin stat module. Tapping a card still opens
+            // the load; Mark paid still submits without triggering that.
+            <div className="space-y-2">
+              {loads.map((l) => (
+                <LoadHistoryCard
                   key={l.id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => router.push("/admin/dispatch/loads/" + l.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      router.push("/admin/dispatch/loads/" + l.id);
-                    }
-                  }}
-                  className={
-                    "flex cursor-pointer items-start justify-between gap-3 px-3.5 py-2.5 transition-colors hover:bg-inset " +
-                    (i % 2 === 1 ? "bg-inset " : "bg-card ") +
-                    (i === loads.length - 1 ? "" : "border-b border-line")
-                  }
-                >
-                  <span className="flex min-w-0 items-start gap-2.5">
-                    <StatusTag
-                      tone={HISTORY_STATUS_TONE[l.status] ?? "slate"}
-                      className="mt-px shrink-0"
-                    >
-                      {HISTORY_STATUS_LABEL[l.status] ?? l.status.replace("_", " ")}
-                    </StatusTag>
-                    <span className="min-w-0">
-                      <span className="block truncate text-[13px] font-semibold text-fg">
-                        {l.lane}
-                      </span>
-                      <span className="block truncate text-[11px] text-fg-muted">
-                        {l.equipment}
-                        {l.date ? " · " + l.date : ""}
-                        {l.ageDays != null ? " · " + l.ageDays + "d" : ""}
-                      </span>
-                    </span>
-                  </span>
-                  <span className="flex shrink-0 flex-col items-end gap-1">
-                    <span className="font-mono text-[13px] font-bold tabular-nums text-ok">
-                      {usd(l.rate)}
-                    </span>
-                    <span className="font-mono text-[11px] tabular-nums text-fg-muted">
-                      Net {usd(l.net)}
-                    </span>
-                    {l.unpaid ? (
-                      <form
-                        action={markLoadPaid.bind(null, l.id)}
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <button
-                          type="submit"
-                          onClick={(e) => e.stopPropagation()}
-                          className="rounded-md border border-steel/40 bg-steel-bg px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-steel transition-colors hover:bg-steel-bg/70"
-                        >
-                          Mark paid
-                        </button>
-                      </form>
-                    ) : l.paymentStatus === "paid" ? (
-                      <span className="font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-ok">
-                        Paid
-                      </span>
-                    ) : null}
-                  </span>
-                </div>
+                  load={l}
+                  onOpen={() => router.push("/admin/dispatch/loads/" + l.id)}
+                />
               ))}
             </div>
           )
@@ -479,6 +439,135 @@ export function BrokerDetail({ data }: { data: BrokerDetailData }) {
           onClose={() => setLanesFor(null)}
         />
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * One load in the broker's history, on the trip-card system: white card, strong
+ * hairline, e2→e3 on hover; the lane leads and the status pill holds the right
+ * edge; equipment / date / age ride as meta chips; and Rate · Net · Margin sit
+ * in one inset stat module. Margin is Net ÷ Rate drawn from the numbers already
+ * on the row — no new money math.
+ */
+function LoadHistoryCard({
+  load: l,
+  onOpen,
+}: {
+  load: BrokerDetailData["loads"][number];
+  onOpen: () => void;
+}) {
+  const marginPct = l.rate > 0 ? Math.round((l.net / l.rate) * 100) : null;
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={onOpen}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          onOpen();
+        }
+      }}
+      className="cursor-pointer overflow-hidden rounded-lg border border-line-strong bg-card p-3 shadow-e2 transition-shadow hover:shadow-e3 active:bg-inset"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0 truncate text-[14px] font-semibold leading-tight text-fg">
+          {l.lane}
+        </div>
+        <StatusTag
+          tone={HISTORY_STATUS_TONE[l.status] ?? "slate"}
+          className="shrink-0"
+        >
+          {HISTORY_STATUS_LABEL[l.status] ?? l.status.replace("_", " ")}
+        </StatusTag>
+      </div>
+
+      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+        {l.equipment ? (
+          <span className="rounded border border-line-strong bg-inset px-1.5 py-0.5 font-mono text-[11px] font-semibold text-fg shadow-e1">
+            {l.equipment}
+          </span>
+        ) : null}
+        {l.date ? (
+          <span className="rounded border border-line-strong bg-inset px-1.5 py-0.5 font-mono text-[11px] font-semibold tabular-nums text-fg shadow-e1">
+            {l.date}
+          </span>
+        ) : null}
+        {l.ageDays != null ? (
+          <span className="rounded border border-steel/40 bg-steel-bg px-1.5 py-0.5 font-mono text-[11px] font-bold tabular-nums text-steel shadow-e1">
+            {l.ageDays}d
+          </span>
+        ) : null}
+      </div>
+
+      <div className="mt-2 flex items-end justify-between gap-2">
+        <div className="flex w-fit items-stretch overflow-hidden rounded-md border border-line-strong bg-inset shadow-e1">
+          <HistoryStat label="Rate" value={usd(l.rate)} />
+          <HistoryStat label="Net" value={usd(l.net)} green strong divider />
+          <HistoryStat
+            label="Margin"
+            value={marginPct != null ? `${marginPct}%` : "—"}
+            green
+            divider
+          />
+        </div>
+        {l.unpaid ? (
+          <form
+            action={markLoadPaid.bind(null, l.id)}
+            onClick={(e) => e.stopPropagation()}
+            className="shrink-0"
+          >
+            <button
+              type="submit"
+              onClick={(e) => e.stopPropagation()}
+              className="rounded-md border border-steel/40 bg-steel-bg px-2 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-steel transition-colors hover:bg-steel-bg/70"
+            >
+              Mark paid
+            </button>
+          </form>
+        ) : l.paymentStatus === "paid" ? (
+          <span className="shrink-0 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-ok">
+            Paid
+          </span>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+/** One cell of a load-history card's stat module. See TripsListView's Stat. */
+function HistoryStat({
+  label,
+  value,
+  green = false,
+  strong = false,
+  divider = false,
+}: {
+  label: string;
+  value: string;
+  green?: boolean;
+  strong?: boolean;
+  divider?: boolean;
+}) {
+  return (
+    <div
+      className={
+        "px-2.5 py-1.5 " + (divider ? "border-l border-line-strong" : "")
+      }
+    >
+      <div className="font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-fg-subtle">
+        {label}
+      </div>
+      <div
+        className={
+          "mt-0.5 truncate font-bold leading-tight tabular-nums " +
+          (strong ? "text-[15px] " : "text-[13px] ") +
+          (green ? "text-ok" : "text-fg")
+        }
+      >
+        {value}
+      </div>
     </div>
   );
 }
@@ -1108,17 +1197,20 @@ function Kpi({
   value,
   tone = "default",
   strong = false,
+  cellClass = "",
 }: {
   label: string;
   value: string;
   tone?: "default" | "green" | "red";
   strong?: boolean;
+  /** Divider borders for this cell's position in the wrapping grid. */
+  cellClass?: string;
 }) {
   const color =
     tone === "green" ? "text-ok" : tone === "red" ? "text-bad" : "text-fg";
   return (
-    <div className="px-4 py-3">
-      <div className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-fg-muted">
+    <div className={"min-w-0 px-4 py-3 " + cellClass}>
+      <div className="font-mono text-[10px] font-bold uppercase tracking-[0.1em] text-fg-subtle">
         {label}
       </div>
       <div

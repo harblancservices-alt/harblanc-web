@@ -130,6 +130,14 @@ export function CategoryBadge({
 }
 
 // ── Reminder card (alert strips) ───────────────────────────────────────────
+/**
+ * A needs-attention service item, wearing the trip cards' chrome: white card on
+ * a strong hairline with e2/e3 elevation, the part name leading and its status
+ * pill holding the right edge, the part group + interval as meta chips, then one
+ * inset stat module (Miles left · Interval · Last serviced) and the interval bar
+ * as a footer. Presentational only — every number is the loader's computed
+ * ReminderView, and Miles left reuses reminderRemaining's text and tone.
+ */
 export function ReminderCard({
   reminder,
   onServiceNow,
@@ -140,57 +148,70 @@ export function ReminderCard({
   showCategory?: boolean;
 }) {
   const rem = reminderRemaining(reminder);
-  const overdue = reminder.status === "overdue";
   return (
-    <div
-      className={
-        "rounded-md border bg-card p-3 shadow-e1 " +
-        (overdue
-          ? "border-line border-l-[3px] border-l-bad shadow-e2"
-          : "border-line")
-      }
-    >
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <StatusTag tone={STATUS_TONE[reminder.status]} className="shrink-0">
-            {STATUS_LABEL[reminder.status]}
-          </StatusTag>
-          <h3 className="truncate text-[14px] font-semibold text-fg">
-            {reminder.label}
-          </h3>
-        </div>
-        <span
-          className={
-            "shrink-0 whitespace-nowrap text-[13px] font-bold tabular-nums " +
-            rem.color
-          }
-        >
-          {rem.text}
-        </span>
+    <div className="overflow-hidden rounded-lg border border-line-strong bg-card p-3 shadow-e2 transition-shadow hover:shadow-e3">
+      {/* Identity — part name leads, status pill holds the right edge. */}
+      <div className="flex items-start justify-between gap-2">
+        <h3 className="min-w-0 truncate text-[15px] font-semibold leading-tight text-fg">
+          {reminder.label}
+        </h3>
+        <StatusTag tone={STATUS_TONE[reminder.status]} className="shrink-0">
+          {STATUS_LABEL[reminder.status]}
+        </StatusTag>
       </div>
-      <p className="mt-1 font-mono text-[10.5px] tabular-nums text-fg-subtle">
-        Every {reminder.interval.toLocaleString()} mi
-        {reminder.lastOdo != null
-          ? ` · last ${reminder.lastOdo.toLocaleString()} mi`
-          : " · no baseline yet"}
-        {reminder.nextDue != null
-          ? ` · due ${reminder.nextDue.toLocaleString()} mi`
-          : ""}
-      </p>
+
+      {/* Meta chips — what the item is and how often it comes due. The category
+          stays a link (steel, the chip tone this system uses for IDs and
+          nav) so the card still reaches its category page. */}
+      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+        <span className="rounded border border-line-strong bg-inset px-1.5 py-0.5 font-mono text-[11px] font-semibold text-fg shadow-e1">
+          {reminder.partGroup}
+        </span>
+        <span className="rounded border border-line-strong bg-inset px-1.5 py-0.5 font-mono text-[11px] font-semibold tabular-nums text-fg shadow-e1">
+          every {reminder.interval.toLocaleString()} mi
+        </span>
+        {showCategory ? (
+          <Link
+            href={`/admin/maintenance/category/${CATEGORY_SLUG[reminder.category]}`}
+            className="rounded border border-steel/40 bg-steel-bg px-1.5 py-0.5 font-mono text-[11px] font-bold text-steel shadow-e1 hover:underline"
+          >
+            {reminder.category}
+          </Link>
+        ) : null}
+      </div>
+
+      {/* Stat module — one inset panel, equal cells on hairline dividers. */}
+      <div className="mt-2 grid grid-cols-3 overflow-hidden rounded-md border border-line-strong bg-inset shadow-e1">
+        <MaintStat
+          label="Miles left"
+          value={rem.text}
+          valueColor={rem.color}
+          strong
+        />
+        <MaintStat
+          label="Interval"
+          value={`${reminder.interval.toLocaleString()} mi`}
+          divider
+        />
+        <MaintStat
+          label="Last serviced"
+          value={
+            reminder.lastOdo != null
+              ? `${reminder.lastOdo.toLocaleString()} mi`
+              : "—"
+          }
+          divider
+        />
+      </div>
+
+      {/* Footer — the interval bar, drawing how far through the interval the
+          truck is. Same bar this page already used, now the card's base line. */}
       <div className="mt-2 flex items-center gap-2">
         <IntervalBar
           pct={reminder.pct}
           status={reminder.status}
           className="h-1.5 flex-1"
         />
-        {showCategory ? (
-          <Link
-            href={`/admin/maintenance/category/${CATEGORY_SLUG[reminder.category]}`}
-            className="shrink-0 rounded-full bg-slate-bg px-2 py-[3px] font-mono text-[10px] font-semibold text-slate hover:underline"
-          >
-            {reminder.category}
-          </Link>
-        ) : null}
         <Button
           type="button"
           onClick={onServiceNow}
@@ -200,6 +221,47 @@ export function ReminderCard({
         >
           Service now
         </Button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * One cell of the reminder card's stat module. `divider` draws the separator as
+ * an explicit left border rather than a `divide-x-*` utility — this Tailwind
+ * build emits the divide COLOR but not the divide WIDTH, so divide-x renders
+ * nothing.
+ */
+function MaintStat({
+  label,
+  value,
+  valueColor = "text-fg",
+  strong = false,
+  divider = false,
+}: {
+  label: string;
+  value: string;
+  valueColor?: string;
+  strong?: boolean;
+  divider?: boolean;
+}) {
+  return (
+    <div
+      className={
+        "min-w-0 px-2.5 py-1.5 " + (divider ? "border-l border-line-strong" : "")
+      }
+    >
+      <div className="font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-fg-subtle">
+        {label}
+      </div>
+      <div
+        className={
+          "mt-0.5 truncate font-bold leading-tight tabular-nums " +
+          (strong ? "text-[15px] " : "text-[13px] ") +
+          valueColor
+        }
+      >
+        {value}
       </div>
     </div>
   );
