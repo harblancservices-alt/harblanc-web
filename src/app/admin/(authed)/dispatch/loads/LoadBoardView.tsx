@@ -464,6 +464,9 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
           ) : (
             rows.map((r) => {
               const isSel = selectMode && selected.has(r.id);
+              // Net ÷ Rate, drawn twice: as the Margin cell and as the bar.
+              const pct = marginPct(r);
+              const tone: StatTone = r.net < 0 ? "bad" : "ok";
               return (
                 <div
                   key={r.id}
@@ -509,46 +512,66 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
                     </div>
                   ) : null}
 
-                  {/* Content */}
+                  {/* Content — the trip cards' anatomy exactly: broker +
+                      status pill, the lane, identity chips, one grouped stat
+                      module, and the margin drawn as a bar. */}
                   <div className="min-w-0 flex-1 p-3">
-                    <div className="flex items-center justify-between gap-2">
+                    {/* Identity — broker leads, status pill holds the right
+                        edge (the trip cards' header, with the load's status
+                        instead of the trip's). */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 truncate text-[15px] font-semibold leading-tight text-fg">
+                        {r.broker}
+                      </div>
                       <StatusTag tone={STATUS_TONE[r.status] ?? "slate"}>
                         {STATUS_LABEL[r.status] ?? r.status}
                       </StatusTag>
-                      <span className="font-mono text-[15px] font-bold tabular-nums text-ok">
-                        {usd(r.rate)}
-                      </span>
                     </div>
 
-                    <div className="mt-1.5 truncate text-[14px] font-semibold text-fg">
-                      {r.broker}
-                    </div>
-                    <div className="truncate text-[12.5px] text-fg-muted">
+                    {/* The lane — what the load IS, so it sits directly under
+                        the name rather than among the chips. */}
+                    <div className="mt-0.5 truncate text-[12.5px] text-fg-muted">
                       {r.origin} <span className="text-fg-subtle">→</span>{" "}
                       {r.destination}
                     </div>
 
-                    {/* Meta — the date span and load number get the trip
-                        cards' chip treatment (surface + hairline) so they read
-                        as identity rather than dissolving into faint text.
-                        Miles and Net stay plain: Net is data, and its green is
-                        the only color the row carries. */}
-                    <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1.5 font-mono text-[11px] text-fg-subtle">
-                      <span className="rounded border border-steel/40 bg-steel-bg px-1.5 py-0.5 font-bold tabular-nums text-steel shadow-e1">
+                    {/* Identity chips — load #, the pickup→delivery span, and
+                        the miles. Neutral for the dates, steel for the number
+                        and the mileage count, per the trip cards. */}
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                      <span className="rounded border border-steel/40 bg-steel-bg px-1.5 py-0.5 font-mono text-[11px] font-bold tabular-nums text-steel shadow-e1">
                         #{r.loadNumber}
                       </span>
-                      <span className="rounded border border-line-strong bg-inset px-1.5 py-0.5 font-semibold tabular-nums text-fg shadow-e1">
+                      <span className="rounded border border-line-strong bg-inset px-1.5 py-0.5 font-mono text-[11px] font-semibold tabular-nums text-fg shadow-e1">
                         {r.pickup} <span className="text-fg-subtle">→</span>{" "}
                         {r.delivery}
                       </span>
                       {r.loadedMiles != null ? (
-                        <span className="ml-1">
+                        <span className="rounded border border-steel/40 bg-steel-bg px-1.5 py-0.5 font-mono text-[11px] font-bold tabular-nums text-steel shadow-e1">
                           {r.loadedMiles.toLocaleString()} mi
                         </span>
                       ) : null}
-                      <span className="ml-1 font-bold text-ok">
-                        Net {usd(r.net)}
-                      </span>
+                    </div>
+
+                    {/* Grouped stat module — Rate · Net · Margin as equal
+                        thirds of one inset panel. Rate is a plain figure and
+                        reads ink; Net (the canonical loadNet the board is fed)
+                        and Margin are the earnings, so they carry the green. */}
+                    <div className="mt-2 grid grid-cols-3 overflow-hidden rounded-md border border-line-strong bg-inset shadow-e1">
+                      <LoadStat label="Rate" value={usd(r.rate)} />
+                      <LoadStat
+                        label="Net"
+                        value={usd(r.net)}
+                        tone={tone}
+                        strong
+                        divider
+                      />
+                      <LoadStat
+                        label="Margin"
+                        value={pct != null ? `${Math.round(pct)}%` : "—"}
+                        tone={tone}
+                        divider
+                      />
                     </div>
 
                     {r.paymentStatus === "paid" ? (
@@ -556,6 +579,19 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
                         Paid
                       </div>
                     ) : null}
+
+                    {/* Margin bar — the Margin percentage, drawn. */}
+                    <div
+                      aria-hidden
+                      className="mt-2 h-1 w-full overflow-hidden rounded-full border border-line-strong bg-inset"
+                    >
+                      <div
+                        className={"h-full " + (tone === "bad" ? "bg-bad" : "bg-ok")}
+                        style={{
+                          width: `${pct == null ? 0 : Math.min(100, Math.max(0, pct))}%`,
+                        }}
+                      />
+                    </div>
                   </div>
                 </div>
               );
@@ -745,6 +781,63 @@ function Kpi({
 function usd(n: number): string {
   if (!Number.isFinite(n)) return "—";
   return "$" + Math.round(n).toLocaleString("en-US");
+}
+
+/**
+ * Margin = the canonical per-load net (loadNet, computed on the server and
+ * handed down as `net`) over the gross rate. Null on a zero rate, where the
+ * ratio is undefined rather than 0%.
+ */
+function marginPct(r: LoadRow): number | null {
+  return r.rate > 0 ? (r.net / r.rate) * 100 : null;
+}
+
+type StatTone = "ok" | "bad" | "default";
+
+/**
+ * One labeled cell of a load card's stat group — the trip cards' Stat, cell
+ * for cell. `strong` is Net: it out-weighs its neighbours on size alone
+ * (17px vs 14px), no filled box.
+ *
+ * `divider` draws the separator as an explicit left border rather than a
+ * `divide-x-*` utility on the parent — this Tailwind build emits the divide
+ * COLOR but not the divide WIDTH, so divide-x silently renders nothing.
+ */
+function LoadStat({
+  label,
+  value,
+  tone = "default",
+  strong = false,
+  divider = false,
+}: {
+  label: string;
+  value: string;
+  tone?: StatTone;
+  strong?: boolean;
+  divider?: boolean;
+}) {
+  const valueColor =
+    tone === "ok" ? "text-ok" : tone === "bad" ? "text-bad" : "text-fg";
+  return (
+    <div
+      className={
+        "min-w-0 px-2.5 py-1.5 " + (divider ? "border-l border-line-strong" : "")
+      }
+    >
+      <div className="font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-fg-subtle">
+        {label}
+      </div>
+      <div
+        className={
+          "mt-0.5 truncate font-bold leading-tight tabular-nums " +
+          (strong ? "text-[17px] " : "text-[14px] ") +
+          valueColor
+        }
+      >
+        {value}
+      </div>
+    </div>
+  );
 }
 
 /** Compact axis label: 0 → "$0", 2500 → "$2.5k", 10000 → "$10k", 120000 → "$120k". */

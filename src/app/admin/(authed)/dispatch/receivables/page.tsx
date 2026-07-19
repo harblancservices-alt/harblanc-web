@@ -3,6 +3,7 @@ import Link from "next/link";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { StatusTag, type StatusTone } from "@/components/ui/StatusTag";
 import { markLoadPaid, markLoadUnpaid } from "../loads/actions";
 
 export const metadata: Metadata = {
@@ -85,6 +86,65 @@ function daysOutstanding(iso: string | null, now: Date): number | null {
   return days >= 0 ? days : 0;
 }
 
+/**
+ * Aging band for the card's status pill. Under 30 days is just money in
+ * flight and reads neutral; 30–39 is worth a nudge; 40+ is late and reads
+ * red. The band also colors the Amount cell — an overdue load is the only
+ * one whose dollar figure goes red.
+ */
+type Aging = { tone: StatusTone; label: string; overdue: boolean };
+function aging(days: number | null): Aging {
+  if (days == null) return { tone: "slate", label: "No date", overdue: false };
+  const d = `${days}d`;
+  if (days >= 40) return { tone: "red", label: `Overdue · ${d}`, overdue: true };
+  if (days >= 30) return { tone: "amber", label: `Aging · ${d}`, overdue: false };
+  return { tone: "slate", label: `${d} out`, overdue: false };
+}
+
+/**
+ * One labeled cell of a receivable card's stat group — the trip cards' Stat,
+ * cell for cell. `strong` is the Amount: it out-weighs its neighbour on size
+ * alone (17px vs 14px), no filled box.
+ *
+ * `divider` draws the separator as an explicit left border rather than a
+ * `divide-x-*` utility on the parent — this Tailwind build emits the divide
+ * COLOR but not the divide WIDTH, so divide-x silently renders nothing.
+ */
+function Stat({
+  label,
+  value,
+  bad = false,
+  strong = false,
+  divider = false,
+}: {
+  label: string;
+  value: string;
+  bad?: boolean;
+  strong?: boolean;
+  divider?: boolean;
+}) {
+  return (
+    <div
+      className={
+        "min-w-0 px-2.5 py-1.5 " + (divider ? "border-l border-line-strong" : "")
+      }
+    >
+      <div className="font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-fg-subtle">
+        {label}
+      </div>
+      <div
+        className={
+          "mt-0.5 truncate font-bold leading-tight tabular-nums " +
+          (strong ? "text-[17px] " : "text-[14px] ") +
+          (bad ? "text-bad" : "text-fg")
+        }
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
 async function loadReceivables() {
   const sb = createServiceRoleClient();
 
@@ -163,54 +223,59 @@ export default async function ReceivablesPage() {
           <div className="space-y-2">
             {outstanding.map((l) => {
               const age = daysOutstanding(l.delivery_date, now);
-              // Understated aging — subtle by default, a gentle amber/red once
-              // it's been sitting a while. Age is what Brent wants to see.
-              const ageColor =
-                age == null
-                  ? "text-fg-subtle"
-                  : age > 45
-                    ? "text-bad"
-                    : age > 30
-                      ? "text-warn"
-                      : "text-fg-subtle";
+              const band = aging(age);
               return (
                 <div
                   key={l.id}
-                  className="relative flex items-stretch overflow-hidden rounded-md border border-line bg-card shadow-e1 transition-colors hover:bg-elevated"
+                  className="relative flex items-stretch overflow-hidden rounded-lg border border-line-strong bg-card shadow-e2 transition-shadow hover:shadow-e3"
                 >
+                  {/* Content — the trip cards' anatomy exactly: broker + a
+                      status pill (here the aging band), the lane, identity
+                      chips, and one grouped stat module. */}
                   <div className="min-w-0 flex-1 p-3">
                     <div className="flex items-start justify-between gap-2">
-                      <span className="truncate text-[14px] font-semibold text-fg">
+                      <div className="min-w-0 truncate text-[15px] font-semibold leading-tight text-fg">
                         {l.broker_name?.trim() || "—"}
-                      </span>
-                      <div className="shrink-0 text-right">
-                        <div className="font-mono text-[15px] font-bold tabular-nums text-bad">
-                          {usd(num(l.rate))}
-                        </div>
-                        {age != null ? (
-                          <div
-                            className={
-                              "mt-0.5 font-mono text-[10px] tabular-nums " + ageColor
-                            }
-                          >
-                            {age} day{age === 1 ? "" : "s"}
-                          </div>
-                        ) : null}
                       </div>
+                      <StatusTag tone={band.tone}>{band.label}</StatusTag>
                     </div>
-                    <div className="mt-1 truncate text-[12.5px] text-fg-muted">
+
+                    <div className="mt-0.5 truncate text-[12.5px] text-fg-muted">
                       {l.origin?.trim() || "—"}{" "}
                       <span className="text-fg-subtle">→</span>{" "}
                       {l.destination?.trim() || "—"}
                     </div>
-                    <div className="mt-1.5 text-[12.5px] text-fg-muted">
-                      <span className="font-mono text-[11px] text-fg-subtle">
+
+                    {/* Identity chips — steel for the load number, neutral for
+                        the delivered date, per the trip cards. */}
+                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                      <span className="rounded border border-steel/40 bg-steel-bg px-1.5 py-0.5 font-mono text-[11px] font-bold tabular-nums text-steel shadow-e1">
                         #{l.load_number?.trim() || "—"}
                       </span>
-                      <span className="ml-2">
+                      <span className="rounded border border-line-strong bg-inset px-1.5 py-0.5 font-mono text-[11px] font-semibold tabular-nums text-fg shadow-e1">
                         Delivered {fmtDate(l.delivery_date)}
                       </span>
                     </div>
+
+                    {/* Grouped stat module — what's owed and how long it's been
+                        owed, as equal halves of one inset panel. The Amount
+                        reads ink until the load is genuinely overdue (40d+),
+                        where it turns red; the day count stays neutral, since
+                        the pill above already carries the alarm. */}
+                    <div className="mt-2 grid grid-cols-2 overflow-hidden rounded-md border border-line-strong bg-inset shadow-e1">
+                      <Stat
+                        label="Amount"
+                        value={usd(num(l.rate))}
+                        bad={band.overdue}
+                        strong
+                      />
+                      <Stat
+                        label="Days out"
+                        value={age != null ? String(age) : "—"}
+                        divider
+                      />
+                    </div>
+
                     {/* Sits ABOVE the stretched broker link (z-10) so
                         submitting never doubles as a navigation. */}
                     <form
@@ -233,7 +298,7 @@ export default async function ReceivablesPage() {
                       href={`/admin/dispatch/brokers/${l.broker_id}`}
                       prefetch={false}
                       aria-label={`Open ${l.broker_name?.trim() || "broker"} profile`}
-                      className="absolute inset-0 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                      className="absolute inset-0 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
                     />
                   ) : null}
                 </div>
