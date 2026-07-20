@@ -168,14 +168,21 @@ function OdometerEditForm({
     <form
       key={`${odoAssigned}-${odoLoaded}-${odoDelivered}`}
       action={async (fd) => {
-        // Catch so a rejected save (e.g. monotonicity) shows inline instead of
-        // bubbling to an error page.
+        // A rejected save (e.g. a reading that goes backwards) comes back as
+        // { ok: false, reason } rather than a throw: an error thrown from a
+        // server action is redacted in production, so a catch here would only
+        // ever have the opaque digest message to show. The catch stays for
+        // genuine faults — a dropped connection mid-submit.
         try {
-          await updateLoadOdometers(loadId, fd);
+          const res = await updateLoadOdometers(loadId, fd);
+          if (!res.ok) {
+            setErr(res.reason);
+            return;
+          }
           setErr(null);
           onSaved();
-        } catch (e) {
-          setErr(e instanceof Error ? e.message : "Could not save odometer.");
+        } catch {
+          setErr("Could not save odometer. Check your connection and try again.");
         }
       }}
       className="space-y-2"

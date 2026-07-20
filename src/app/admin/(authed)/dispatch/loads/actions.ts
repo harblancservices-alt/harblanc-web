@@ -376,22 +376,48 @@ export async function updateLoadStatus(
  * "loaded", else assigned → "assigned", else "pending". A cancelled load is
  * left cancelled (cancellation has its own flow). Blank clears a reading;
  * present values must climb (assigned ≤ loaded ≤ delivered).
+ *
+ * RETURNS a result rather than throwing on a bad entry. A server action that
+ * throws is redacted in production — Next.js swaps the message for the opaque
+ * "An error occurred in the Server Components render…" digest text — so the
+ * caller's inline error would show that instead of the reason. Returning the
+ * reason keeps the message the owner actually needs ("Loaded can't be below
+ * Assigned") intact in prod. Only genuinely-unexpected faults still throw.
  */
+export type OdometerSaveResult = { ok: true } | { ok: false; reason: string };
+
+// Stage labels for the monotonicity message, so a rejected save names the two
+// readings at fault instead of restating the rule.
+const ODO_STAGES = ["Assigned", "Loaded", "Delivered"] as const;
+
 export async function updateLoadOdometers(
   id: string,
   formData: FormData,
-): Promise<void> {
+): Promise<OdometerSaveResult> {
   const sb = createServiceRoleClient();
   const a = intOrNull(formData, "odo_assigned");
   const l = intOrNull(formData, "odo_loaded");
   const d = intOrNull(formData, "odo_delivered");
 
-  const seq = [a, l, d].filter((v): v is number => v != null);
-  for (let i = 1; i < seq.length; i++) {
-    if (seq[i] < seq[i - 1]) {
-      throw new Error(
-        "Odometer readings must increase: assigned ≤ loaded ≤ delivered.",
-      );
+  // Compare only the stages that HAVE a reading (a pending load mid-trip
+  // legitimately has Assigned + Loaded with Delivered still blank), but keep
+  // each one's stage name so the message can point at the real pair.
+  const present = ([a, l, d] as const)
+    .map((v, i) => ({ value: v, stage: ODO_STAGES[i] }))
+    .filter((s): s is { value: number; stage: (typeof ODO_STAGES)[number] } =>
+      s.value != null,
+    );
+  for (let i = 1; i < present.length; i++) {
+    const prev = present[i - 1];
+    const cur = present[i];
+    if (cur.value < prev.value) {
+      return {
+        ok: false,
+        reason:
+          `${cur.stage} (${cur.value.toLocaleString("en-US")}) can't be below ` +
+          `${prev.stage} (${prev.value.toLocaleString("en-US")}) — the odometer ` +
+          `only climbs. Check for a typo.`,
+      };
     }
   }
 
@@ -419,13 +445,16 @@ export async function updateLoadOdometers(
     .update(patch)
     .eq("id", id)
     .is("deleted_at", null);
-  if (error) throw new Error(`Could not save odometer: ${error.message}`);
+  // Same reasoning as the validation return above: a throw here would reach the
+  // owner as the redacted digest text, so the DB's own message is returned.
+  if (error) return { ok: false, reason: `Could not save odometer: ${error.message}` };
   revalidatePath("/admin/dispatch/loads");
   revalidatePath(`/admin/dispatch/loads/${id}`);
   revalidatePath("/admin/dispatch/brokers");
   revalidatePath("/admin/dispatch/trips");
   revalidatePath("/admin");
   revalidatePath("/admin/maintenance");
+  return { ok: true };
 }
 
 /**
