@@ -230,6 +230,12 @@ const ArrowRightIcon = (p: IconProps) => (
   </Icon>
 );
 
+const ArrowLeftIcon = (p: IconProps) => (
+  <Icon {...p}>
+    <path d="M20 12H5m0 0 5-5m-5 5 5 5" />
+  </Icon>
+);
+
 /* ── Sorting ─────────────────────────────────────────────────────────────── */
 
 type SortKey = "oldest" | "newest" | "amount";
@@ -335,39 +341,30 @@ export function ReceivablesView({
   return (
     <div className="min-h-screen bg-canvas text-fg">
       <div className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-        {/* ── Header ─────────────────────────────────────────────────────── */}
-        <header>
-          <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4">
-            <div className="min-w-0">
-              <h1 className="text-[26px] font-bold leading-tight tracking-[-0.01em] text-fg sm:text-[32px]">
-                Accounts Receivable
-              </h1>
-              <p className="mt-2 max-w-xl text-[13px] leading-relaxed text-fg-muted sm:text-[14px]">
-                Track unpaid invoices, monitor broker payments, and manage
-                outstanding balances.
-              </p>
-            </div>
-            <Button
-              type="button"
-              variant="navigate"
-              size="md"
-              onClick={exportCsv}
-              leftIcon={<ExportIcon className="h-3.5 w-3.5" />}
-            >
-              Export
-            </Button>
-          </div>
-
-          {/* The way back to the board — kept, but demoted to a quiet text
-              link so it can't compete with the page title above it. */}
-          <div className="mt-5">
-            <Link
-              href="/admin/dispatch/loads"
-              className="inline-flex items-center gap-1.5 rounded-md text-[12.5px] font-semibold text-fg-muted transition-colors hover:text-fg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-            >
-              <span aria-hidden>←</span> Load Board
-            </Link>
-          </div>
+        {/* ── Header ──────────────────────────────────────────────────────
+            One row, and nothing above it: the way back to the board on the
+            left, Export on the right. The page title and subtitle were
+            dropped at the owner's request — the tab title and the summary
+            card's "Outstanding Balance" already say what this screen is, and
+            the back button is what the owner actually reaches for. */}
+        <header className="flex items-center justify-between gap-3">
+          <Button
+            href="/admin/dispatch/loads"
+            variant="navigate"
+            size="md"
+            leftIcon={<ArrowLeftIcon className="h-3.5 w-3.5" />}
+          >
+            Load Board
+          </Button>
+          <Button
+            type="button"
+            variant="navigate"
+            size="md"
+            onClick={exportCsv}
+            leftIcon={<ExportIcon className="h-3.5 w-3.5" />}
+          >
+            Export
+          </Button>
         </header>
 
         {/* ── Summary ────────────────────────────────────────────────────── */}
