@@ -1,24 +1,33 @@
 import type { ReactNode } from "react";
 
 /**
- * Chart primitives for the Performance page — hand-rolled inline SVG.
+ * Chart primitives for the Performance page — dependency-free, server-rendered.
  *
- * NO charting dependency on purpose. recharts/chart.js would add ~100kB+ to a
- * bundle this app serves to a phone on truck-stop wifi, and both want a
- * measured DOM container, which forces the whole page to "use client" and
- * re-render on hydrate. Everything here is a pure function of its props with
- * fixed SVG coordinates, so these render on the SERVER, ship zero JS, and have
- * no layout-measurement or SSR-mismatch failure mode at all.
+ * LAYOUT RULE (learned the hard way): nothing here scales a coordinate space.
  *
- * SIZING: each chart is drawn at a fixed intrinsic width, then wrapped in
- * `<ScrollX>` — an overflow-x-auto box whose inner min-width is that intrinsic
- * width. On a phone the chart keeps its legible size and the box scrolls
- * sideways; on desktop the container is wider than the min-width so the `w-full`
- * svg scales its viewBox up to fill. One geometry, both ends.
+ * The first cut drew each chart into a fixed-width viewBox and let `w-full`
+ * stretch it. That makes the scale factor `containerWidth ÷ viewBoxWidth`, which
+ * grows as the data SHRINKS — two months produced a 174px viewBox in a 930px
+ * card, a 5.3× blow-up that rendered 10px labels at ~53px. Every label on the
+ * page was sized by how much history happened to exist.
  *
- * COLOR: only theme tokens. Text/grid use the `fg`/`line` tiers, which flip
- * with the admin dark theme; money uses `ok`/`bad`, which are readable on both
- * surfaces. Nothing here hardcodes a hex.
+ * So the geometry is now plain HTML/CSS: columns are flex children, bar heights
+ * are percentages of a fixed-height plot, and every label is real HTML text at a
+ * real CSS size. A percentage is resolution-independent by construction, so the
+ * charts fill their card at any width while the type stays exactly the size it
+ * says it is — 10px on a phone, 11px from `sm`, whatever the data does.
+ *
+ * The one genuine SVG is the RPM line, which needs real line segments. It uses
+ * `preserveAspectRatio="none"` over a 0–100 box so its coordinates behave as
+ * percentages too, plus `vector-effect="non-scaling-stroke"` so the distortion
+ * that would otherwise smear the stroke can't. Its dots and labels are HTML
+ * overlays for the same reason as everything else.
+ *
+ * Bars are width-capped (`max-w-*`), so a two-month chart draws two normal bars
+ * with space around them rather than two giant blocks.
+ *
+ * COLOR: only theme tokens. Text uses the `fg` tiers, which flip with the admin
+ * dark theme; money uses `ok`/`bad`/`steel`, readable on both surfaces.
  */
 
 // ---------------------------------------------------------------- formatting
@@ -68,114 +77,170 @@ function niceCeil(v: number): number {
 }
 
 /**
- * Vertical scale over a value range that may straddle zero (a losing month
- * draws BELOW the baseline). Always includes 0 so the baseline is meaningful.
+ * Vertical scale as PERCENTAGES of the plot box. Always includes zero so the
+ * baseline is meaningful and a losing month can draw below it.
  */
 type Scale = {
   min: number;
   max: number;
-  /** Value → y pixel. */
-  y: (v: number) => number;
-  /** y pixel of the zero baseline. */
+  /** Distance from the plot's bottom edge, 0–100. */
+  fromBottom: (v: number) => number;
+  /** Distance from the plot's top edge, 0–100. */
+  fromTop: (v: number) => number;
+  /** Where the zero baseline sits, measured from the bottom. */
   zero: number;
   ticks: number[];
 };
 
-function makeScale(values: number[], top: number, height: number): Scale {
-  const finite = values.filter((v) => Number.isFinite(v));
-  const rawMax = Math.max(0, ...finite);
+function makeScale(values: number[], extra: number[] = []): Scale {
+  const finite = [...values, ...extra].filter((v) => Number.isFinite(v));
+  const max = niceCeil(Math.max(0, ...finite)) || 1;
   const rawMin = Math.min(0, ...finite);
-  const max = niceCeil(rawMax) || 1;
   const min = rawMin < 0 ? -niceCeil(-rawMin) : 0;
   const span = max - min || 1;
-  const y = (v: number) => top + height - ((v - min) / span) * height;
-  const ticks =
-    min < 0 ? [max, max / 2, 0, min / 2, min] : [max, (max * 2) / 3, max / 3, 0];
-  return { min, max, y, zero: y(0), ticks };
+  const fromBottom = (v: number) => ((v - min) / span) * 100;
+  return {
+    min,
+    max,
+    fromBottom,
+    fromTop: (v) => 100 - fromBottom(v),
+    zero: fromBottom(0),
+    ticks:
+      min < 0 ? [max, max / 2, 0, min / 2, min] : [max, (max * 2) / 3, max / 3, 0],
+  };
 }
 
-// -------------------------------------------------------------------- layout
-
-const SLOT = 56; // horizontal space per month
-const AXIS_W = 48; // left gutter for value ticks
-const PAD_R = 14;
-const TOP = 16;
-const PLOT_H = 158;
-const LABEL_H = 26;
-const SVG_H = TOP + PLOT_H + LABEL_H;
-
-function chartWidth(n: number): number {
-  return AXIS_W + Math.max(n, 1) * SLOT + PAD_R;
-}
+// -------------------------------------------------------------------- shell
 
 /**
- * Horizontal-scroll shell. `minWidth` keeps the chart at its legible intrinsic
- * size on a narrow screen rather than letting flexbox crush it.
+ * Fixed plot height — a real CSS height, not something derived from the data.
+ * Slightly taller once there's room, which is the only thing that changes
+ * between phone and desktop.
  */
-function ScrollX({ width, children }: { width: number; children: ReactNode }) {
-  return (
-    <div className="-mx-1 overflow-x-auto px-1 pb-1">
-      <div style={{ minWidth: width }}>{children}</div>
-    </div>
-  );
-}
+const PLOT_H = "h-[152px] sm:h-[188px]";
+/** Left gutter holding the value ticks. */
+const GUTTER = "w-9 shrink-0 sm:w-12";
 
-/** Shared grid + y-axis ticks + x-axis month labels. */
-function Frame({
+/**
+ * Grid + axis chrome shared by all three time-series charts. `columns` is the
+ * plot content: one flex child per month, each `relative` so its bars can be
+ * positioned against the shared baseline.
+ *
+ * `pt-4` gives the tallest bar's value label somewhere to render — the plot has
+ * visible overflow, so a label at 100% height spills into the padding instead of
+ * being clipped.
+ */
+function Plot({
   scale,
   labels,
   highlightIndex,
   format,
-  width,
+  columns,
+  overlay,
 }: {
   scale: Scale;
   labels: string[];
   highlightIndex: number;
   format: (v: number) => string;
-  width: number;
+  columns: ReactNode;
+  /** Drawn inside the plot box, over the columns (e.g. the goal line). */
+  overlay?: ReactNode;
 }) {
   return (
-    <>
-      {scale.ticks.map((t) => (
-        <g key={t}>
-          <line
-            x1={AXIS_W}
-            x2={width - PAD_R}
-            y1={scale.y(t)}
-            y2={scale.y(t)}
-            className={t === 0 ? "stroke-line-strong" : "stroke-line"}
-            strokeWidth={t === 0 ? 1.25 : 1}
-            strokeDasharray={t === 0 ? undefined : "3 4"}
-          />
-          <text
-            x={AXIS_W - 7}
-            y={scale.y(t) + 3.5}
-            textAnchor="end"
-            className="fill-fg-subtle font-mono text-[10px] tabular-nums"
-          >
-            {format(t)}
-          </text>
-        </g>
-      ))}
-      {labels.map((l, i) => (
-        <text
-          key={`${l}-${i}`}
-          x={AXIS_W + i * SLOT + SLOT / 2}
-          y={TOP + PLOT_H + 17}
-          textAnchor="middle"
-          className={
-            "font-mono text-[10px] " +
-            (i === highlightIndex
-              ? "fill-fg font-bold"
-              : "fill-fg-subtle")
-          }
-        >
-          {l}
-        </text>
-      ))}
-    </>
+    <div className="pt-4">
+      <div className="flex">
+        {/* Value ticks. Each is centred on its gridline via -translate-y-1/2. */}
+        <div className={GUTTER + " relative " + PLOT_H}>
+          {scale.ticks.map((t) => (
+            <span
+              key={t}
+              style={{ top: `${scale.fromTop(t)}%` }}
+              className="absolute right-1.5 -translate-y-1/2 font-mono text-[10px] tabular-nums text-fg-subtle sm:text-[11px]"
+            >
+              {format(t)}
+            </span>
+          ))}
+        </div>
+
+        <div className={"relative min-w-0 flex-1 " + PLOT_H}>
+          {scale.ticks.map((t) => (
+            <div
+              key={t}
+              aria-hidden
+              style={{ top: `${scale.fromTop(t)}%` }}
+              className={
+                "absolute inset-x-0 border-t " +
+                (t === 0
+                  ? "border-line-strong"
+                  : "border-dashed border-line")
+              }
+            />
+          ))}
+          <div className="absolute inset-0 flex items-stretch">{columns}</div>
+          {overlay ? (
+            <div className="pointer-events-none absolute inset-0">{overlay}</div>
+          ) : null}
+        </div>
+      </div>
+
+      {/* Month labels, in a row that mirrors the plot's column widths exactly so
+          each label stays under its bar. */}
+      <div className="flex pt-1.5">
+        <div className={GUTTER} />
+        <div className="flex min-w-0 flex-1">
+          {labels.map((l, i) => (
+            <span
+              key={`${l}-${i}`}
+              className={
+                "min-w-0 flex-1 truncate px-px text-center font-mono text-[10px] sm:text-[11px] " +
+                (i === highlightIndex
+                  ? "font-bold text-fg"
+                  : "text-fg-subtle")
+              }
+            >
+              {l}
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
   );
 }
+
+/**
+ * One bar, positioned against the shared zero baseline. Positive bars grow up
+ * from it, negative bars hang below it, so a losing month is unmistakable.
+ */
+function Bar({
+  value,
+  scale,
+  className,
+}: {
+  value: number;
+  scale: Scale;
+  className: string;
+}) {
+  if (value === 0) return null;
+  const size = (Math.abs(value) / (scale.max - scale.min)) * 100;
+  const style =
+    value > 0
+      ? { bottom: `${scale.zero}%`, height: `${size}%` }
+      : { top: `${100 - scale.zero}%`, height: `${size}%` };
+  return (
+    <div
+      aria-hidden
+      style={style}
+      className={"absolute inset-x-0 rounded-[3px] " + className}
+    />
+  );
+}
+
+/**
+ * Value labels are shown only when there's room for them. Past ~8 months the
+ * columns are narrower than the text, so the axis ticks carry the magnitude
+ * instead and the bars stay clean.
+ */
+const LABEL_LIMIT = 8;
 
 // ------------------------------------------------------- 1. net vs goal bars
 
@@ -186,12 +251,10 @@ export type MonthDatum = {
 };
 
 /**
- * Monthly NET as bars with a dashed reference line at the monthly goal — the
- * "which months cleared the bar" chart.
+ * Monthly NET as bars with a dashed reference line at the monthly goal.
  *
- * A month that beat the goal fills solid green; a month that fell short fills
- * green at low opacity, so clearing the line is visible as WEIGHT and not only
- * as height. A losing month draws below the baseline in red.
+ * A month that beat the goal fills solid; a month that fell short fills at low
+ * opacity, so clearing the line reads as WEIGHT and not only as height.
  */
 export function NetVsGoalChart({
   data,
@@ -202,87 +265,83 @@ export function NetVsGoalChart({
   goal: number;
   highlightIndex: number;
 }) {
-  const width = chartWidth(data.length);
-  // The goal line has to be inside the scale or it can't be drawn — include it.
-  const scale = makeScale([...data.map((d) => d.value), goal], TOP, PLOT_H);
-  const goalY = scale.y(goal);
-  const barW = 26;
+  // The goal line must be inside the scale or it can't be drawn.
+  const scale = makeScale(
+    data.map((d) => d.value),
+    [goal],
+  );
+  const showValues = data.length <= LABEL_LIMIT;
 
   return (
-    <ScrollX width={width}>
-      <svg
-        viewBox={`0 0 ${width} ${SVG_H}`}
-        width="100%"
-        height={SVG_H}
-        role="img"
-        aria-label={`Monthly net profit against a ${usd(goal)} goal`}
-        className="block h-auto w-full"
-      >
-        <Frame
-          scale={scale}
-          labels={data.map((d) => d.label)}
-          highlightIndex={highlightIndex}
-          format={usdCompact}
-          width={width}
-        />
-
-        {data.map((d, i) => {
-          const x = AXIS_W + i * SLOT + (SLOT - barW) / 2;
-          const yv = scale.y(d.value);
-          const y = Math.min(yv, scale.zero);
-          const h = Math.max(Math.abs(scale.zero - yv), d.value === 0 ? 0 : 1.5);
-          const met = d.value >= goal && goal > 0;
-          return (
-            <g key={d.key}>
-              <rect
-                x={x}
-                y={y}
-                width={barW}
-                height={h}
-                rx={3}
-                className={
-                  d.value < 0 ? "fill-bad" : met ? "fill-ok" : "fill-ok opacity-40"
-                }
-              />
-              {/* Value above the bar (below it when the month lost money). */}
-              <text
-                x={x + barW / 2}
-                y={d.value < 0 ? y + h + 11 : y - 5}
-                textAnchor="middle"
-                className={
-                  "font-mono text-[9px] font-bold tabular-nums " +
-                  (d.value < 0 ? "fill-bad" : "fill-fg-muted")
-                }
-              >
-                {d.value === 0 ? "" : usdCompact(d.value)}
-              </text>
-            </g>
-          );
-        })}
-
-        {/* Goal reference line, drawn LAST so it sits over the bars. */}
-        {goal > 0 ? (
-          <g>
-            <line
-              x1={AXIS_W}
-              x2={width - PAD_R}
-              y1={goalY}
-              y2={goalY}
-              className="stroke-accent"
-              strokeWidth={1.5}
-              strokeDasharray="5 4"
-            />
-            <text
-              x={AXIS_W + 4}
-              y={goalY - 4}
-              className="fill-accent font-mono text-[9px] font-bold tabular-nums"
+    <div>
+      <Plot
+        scale={scale}
+        labels={data.map((d) => d.label)}
+        highlightIndex={highlightIndex}
+        format={usdCompact}
+        /* Inside the plot box, so the line lands on the scale exactly rather
+           than at a hand-guessed offset from the chart's outer edge. */
+        overlay={
+          goal > 0 ? (
+            <div
+              style={{ bottom: `${scale.fromBottom(goal)}%` }}
+              className="absolute inset-x-0 border-t-[1.5px] border-dashed border-accent"
             >
-              GOAL {usdCompact(goal)}
-            </text>
-          </g>
-        ) : null}
-      </svg>
-    </ScrollX>
+              <span className="absolute left-0 -top-[13px] font-mono text-[10px] font-bold tabular-nums text-accent sm:text-[11px]">
+                GOAL {usdCompact(goal)}
+              </span>
+            </div>
+          ) : null
+        }
+        columns={
+          <>
+            {data.map((d) => {
+              const met = goal > 0 && d.value >= goal;
+              return (
+                <div key={d.key} className="relative min-w-0 flex-1">
+                  {/* Bar width is capped so a 2-month chart draws two normal
+                      bars, not two slabs half the card wide. */}
+                  <div className="absolute inset-y-0 left-1/2 w-[62%] max-w-[30px] -translate-x-1/2">
+                    <Bar
+                      value={d.value}
+                      scale={scale}
+                      className={
+                        d.value < 0
+                          ? "bg-bad"
+                          : met
+                            ? "bg-ok"
+                            : "bg-ok opacity-40"
+                      }
+                    />
+                  </div>
+                  {showValues && d.value !== 0 ? (
+                    <span
+                      style={
+                        d.value > 0
+                          ? {
+                              bottom: `${scale.fromBottom(d.value)}%`,
+                              marginBottom: 3,
+                            }
+                          : {
+                              top: `${scale.fromTop(d.value)}%`,
+                              marginTop: 3,
+                            }
+                      }
+                      className={
+                        "absolute inset-x-0 text-center font-mono text-[10px] font-bold tabular-nums sm:text-[11px] " +
+                        (d.value < 0 ? "text-bad" : "text-fg-muted")
+                      }
+                    >
+                      {usdCompact(d.value)}
+                    </span>
+                  ) : null}
+                </div>
+              );
+            })}
+          </>
+        }
+      />
+    </div>
   );
 }
 
@@ -298,10 +357,9 @@ export type SeriesDatum = {
 /**
  * Two-line $/mi trend (net and gross).
  *
- * Months with no loaded miles are null, and the polyline is drawn as SEGMENTS
- * between consecutive non-null points rather than one path across the gap — so
- * a dead month leaves a visible break instead of a straight line implying rates
- * that were never earned.
+ * Months with no loaded miles are null and the line is drawn as SEGMENTS
+ * between consecutive non-null points, so a dead month leaves a visible break
+ * instead of a straight line implying rates that were never earned.
  */
 export function RpmTrendChart({
   net,
@@ -312,97 +370,106 @@ export function RpmTrendChart({
   gross: SeriesDatum[];
   highlightIndex: number;
 }) {
-  const width = chartWidth(net.length);
   const all = [...net, ...gross]
     .map((d) => d.value)
     .filter((v): v is number => v != null);
-  const scale = makeScale(all, TOP, PLOT_H);
-  const cx = (i: number) => AXIS_W + i * SLOT + SLOT / 2;
+  const scale = makeScale(all);
+  const n = Math.max(net.length, 1);
+  // Column centres, as percentages — the same positions the flex columns land on.
+  const cx = (i: number) => ((i + 0.5) / n) * 100;
 
   const series = [
-    { data: gross, cls: "stroke-steel", dot: "fill-steel", name: "Gross $/mi" },
-    { data: net, cls: "stroke-ok", dot: "fill-ok", name: "Net $/mi" },
+    { data: gross, stroke: "stroke-steel", dot: "bg-steel", text: "text-steel" },
+    { data: net, stroke: "stroke-ok", dot: "bg-ok", text: "text-ok" },
   ];
 
   return (
-    <ScrollX width={width}>
-      <svg
-        viewBox={`0 0 ${width} ${SVG_H}`}
-        width="100%"
-        height={SVG_H}
-        role="img"
-        aria-label="Average dollars per mile by month, net and gross"
-        className="block h-auto w-full"
-      >
-        <Frame
-          scale={scale}
-          labels={net.map((d) => d.label)}
-          highlightIndex={highlightIndex}
-          format={(v) => `$${v.toFixed(2)}`}
-          width={width}
-        />
+    <div>
+      <Plot
+        scale={scale}
+        labels={net.map((d) => d.label)}
+        highlightIndex={highlightIndex}
+        format={(v) => `$${v.toFixed(2)}`}
+        columns={
+          <div className="relative w-full">
+            {/* preserveAspectRatio="none" turns the 0–100 box into percentages
+                in both axes; non-scaling-stroke keeps the resulting distortion
+                from smearing the line width. */}
+            <svg
+              viewBox="0 0 100 100"
+              preserveAspectRatio="none"
+              className="absolute inset-0 h-full w-full overflow-visible"
+              role="img"
+              aria-label="Average dollars per mile by month, net and gross"
+            >
+              {series.map((s) =>
+                s.data.map((d, i) => {
+                  const next = s.data[i + 1];
+                  if (d.value == null || !next || next.value == null) return null;
+                  return (
+                    <line
+                      key={`${s.stroke}-${d.key}`}
+                      x1={cx(i)}
+                      y1={scale.fromTop(d.value)}
+                      x2={cx(i + 1)}
+                      y2={scale.fromTop(next.value)}
+                      className={s.stroke}
+                      strokeWidth={2}
+                      strokeLinecap="round"
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  );
+                }),
+              )}
+            </svg>
 
-        {series.map((s) => (
-          <g key={s.name}>
-            {s.data.map((d, i) => {
-              const next = s.data[i + 1];
-              if (d.value == null || !next || next.value == null) return null;
-              return (
-                <line
-                  key={`seg-${d.key}`}
-                  x1={cx(i)}
-                  y1={scale.y(d.value)}
-                  x2={cx(i + 1)}
-                  y2={scale.y(next.value)}
-                  className={s.cls}
-                  strokeWidth={2}
-                  strokeLinecap="round"
-                />
-              );
-            })}
-            {s.data.map((d, i) =>
-              d.value == null ? null : (
-                <circle
-                  key={`dot-${d.key}`}
-                  cx={cx(i)}
-                  cy={scale.y(d.value)}
-                  r={3}
-                  className={s.dot}
-                />
+            {/* Dots and value labels are HTML so they stay circular and
+                correctly sized under the SVG's non-uniform scaling. */}
+            {series.map((s) =>
+              s.data.map((d, i) =>
+                d.value == null ? null : (
+                  <span
+                    key={`dot-${s.dot}-${d.key}`}
+                    aria-hidden
+                    style={{ left: `${cx(i)}%`, top: `${scale.fromTop(d.value)}%` }}
+                    className={
+                      "absolute h-[5px] w-[5px] -translate-x-1/2 -translate-y-1/2 rounded-full " +
+                      s.dot
+                    }
+                  />
+                ),
               ),
             )}
-          </g>
-        ))}
 
-        {/* Label the most recent point of each line — the number he's living in
-            right now — instead of every point, which overlaps at 12 months. */}
-        {series.map((s) => {
-          const lastIdx = lastNonNull(s.data);
-          if (lastIdx < 0) return null;
-          const v = s.data[lastIdx].value as number;
-          return (
-            <text
-              key={`lbl-${s.name}`}
-              x={Math.min(cx(lastIdx) + 7, width - PAD_R)}
-              y={scale.y(v) - 6}
-              textAnchor="end"
-              className={
-                "font-mono text-[9.5px] font-bold tabular-nums " +
-                (s.cls === "stroke-ok" ? "fill-ok" : "fill-steel")
-              }
-            >
-              {rpm(v)}
-            </text>
-          );
-        })}
-      </svg>
+            {/* Label the most recent point of each line — the number he's living
+                in right now — rather than every point, which collides. */}
+            {series.map((s) => {
+              const i = lastNonNull(s.data);
+              if (i < 0) return null;
+              const v = s.data[i].value as number;
+              return (
+                <span
+                  key={`lbl-${s.text}`}
+                  style={{ right: `${100 - cx(i)}%`, top: `${scale.fromTop(v)}%` }}
+                  className={
+                    "absolute mr-1.5 -translate-y-1/2 whitespace-nowrap font-mono text-[10px] font-bold tabular-nums sm:text-[11px] " +
+                    s.text
+                  }
+                >
+                  {rpm(v)}
+                </span>
+              );
+            })}
+          </div>
+        }
+      />
       <Legend
         items={[
           { label: "Net $/mi", cls: "bg-ok" },
           { label: "Gross $/mi", cls: "bg-steel" },
         ]}
       />
-    </ScrollX>
+    </div>
   );
 }
 
@@ -416,11 +483,9 @@ function lastNonNull(d: SeriesDatum[]): number {
 /**
  * Revenue against take-home, side by side per month.
  *
- * Grouped rather than stacked: stacking net on top of gross would double-count
- * (net is a SUBSET of gross, not an addition to it), and stacking "net + costs"
- * hides the number he actually cares about behind a baseline that moves. Two
- * bars from a shared baseline let him read both magnitudes directly and see the
- * gap between them as the cost of running the load.
+ * Grouped rather than stacked: net is a SUBSET of gross, not an addition to it,
+ * so stacking would double-count. Two bars off a shared baseline let both
+ * magnitudes be read directly, with the gap between them as the cost of the run.
  */
 export function GrossVsNetChart({
   data,
@@ -429,81 +494,56 @@ export function GrossVsNetChart({
   data: { key: string; label: string; gross: number; net: number }[];
   highlightIndex: number;
 }) {
-  const width = chartWidth(data.length);
-  const scale = makeScale(
-    data.flatMap((d) => [d.gross, d.net]),
-    TOP,
-    PLOT_H,
-  );
-  const barW = 15;
-  const gap = 4;
-
+  const scale = makeScale(data.flatMap((d) => [d.gross, d.net]));
   return (
-    <ScrollX width={width}>
-      <svg
-        viewBox={`0 0 ${width} ${SVG_H}`}
-        width="100%"
-        height={SVG_H}
-        role="img"
-        aria-label="Gross revenue against net profit by month"
-        className="block h-auto w-full"
-      >
-        <Frame
-          scale={scale}
-          labels={data.map((d) => d.label)}
-          highlightIndex={highlightIndex}
-          format={usdCompact}
-          width={width}
-        />
-        {data.map((d, i) => {
-          const groupX =
-            AXIS_W + i * SLOT + (SLOT - (barW * 2 + gap)) / 2;
-          return (
-            <g key={d.key}>
-              {[
-                { v: d.gross, x: groupX, cls: "fill-steel opacity-70" },
-                {
-                  v: d.net,
-                  x: groupX + barW + gap,
-                  cls: d.net < 0 ? "fill-bad" : "fill-ok",
-                },
-              ].map((b, bi) => {
-                const yv = scale.y(b.v);
-                const y = Math.min(yv, scale.zero);
-                const h = Math.max(Math.abs(scale.zero - yv), b.v === 0 ? 0 : 1.5);
-                return (
-                  <rect
-                    key={bi}
-                    x={b.x}
-                    y={y}
-                    width={barW}
-                    height={h}
-                    rx={2.5}
-                    className={b.cls}
-                  />
-                );
-              })}
-            </g>
-          );
-        })}
-      </svg>
+    <div>
+      <Plot
+        scale={scale}
+        labels={data.map((d) => d.label)}
+        highlightIndex={highlightIndex}
+        format={usdCompact}
+        columns={
+          <>
+            {data.map((d) => (
+              <div key={d.key} className="relative min-w-0 flex-1">
+                <div className="absolute inset-y-0 left-1/2 flex w-[74%] max-w-[34px] -translate-x-1/2 gap-[2px]">
+                  <div className="relative flex-1">
+                    <Bar
+                      value={d.gross}
+                      scale={scale}
+                      className="bg-steel opacity-70"
+                    />
+                  </div>
+                  <div className="relative flex-1">
+                    <Bar
+                      value={d.net}
+                      scale={scale}
+                      className={d.net < 0 ? "bg-bad" : "bg-ok"}
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </>
+        }
+      />
       <Legend
         items={[
           { label: "Gross", cls: "bg-steel opacity-70" },
           { label: "Net", cls: "bg-ok" },
         ]}
       />
-    </ScrollX>
+    </div>
   );
 }
 
 function Legend({ items }: { items: { label: string; cls: string }[] }) {
   return (
-    <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1">
+    <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
       {items.map((i) => (
         <span key={i.label} className="flex items-center gap-1.5">
           <span aria-hidden className={"h-2 w-3 rounded-sm " + i.cls} />
-          <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
+          <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-fg-subtle sm:text-[11px]">
             {i.label}
           </span>
         </span>
@@ -527,18 +567,15 @@ export type RankedRow = {
 };
 
 /**
- * Ranked horizontal bars (brokers, lanes).
- *
- * These are HTML, not SVG: a proportional-width div IS a horizontal bar, and
- * keeping the row as real text means the names wrap, truncate, and stay
- * selectable/copyable at any width — none of which SVG text does well when a
- * broker is called "Total Quality Logistics, LLC". Still zero-dependency and
- * zero-JS.
+ * Ranked horizontal bars (brokers, lanes). A proportional-width div IS a
+ * horizontal bar, and keeping the row as real text means names wrap, truncate
+ * and stay selectable at any width — none of which SVG text does well when a
+ * broker is called "Total Quality Logistics, LLC".
  */
 export function RankedBars({ rows }: { rows: RankedRow[] }) {
   const max = Math.max(...rows.map((r) => Math.abs(r.value)), 1);
   return (
-    <ol className="space-y-2">
+    <ol className="space-y-2.5">
       {rows.map((r, i) => (
         <li key={r.key}>
           <div className="flex items-baseline justify-between gap-3">
@@ -546,29 +583,27 @@ export function RankedBars({ rows }: { rows: RankedRow[] }) {
               <span className="shrink-0 font-mono text-[10px] font-bold tabular-nums text-fg-subtle">
                 {i + 1}
               </span>
-              <span className="min-w-0 truncate text-[13.5px] font-semibold leading-tight text-fg">
+              <span className="min-w-0 truncate text-[13px] font-semibold leading-tight text-fg">
                 {r.name}
               </span>
             </span>
             <span
               className={
-                "shrink-0 font-mono text-[13px] font-bold tabular-nums " +
+                "shrink-0 font-mono text-[12.5px] font-bold tabular-nums " +
                 (r.negative ? "text-bad" : "text-ok")
               }
             >
               {r.primary}
             </span>
           </div>
-          <div className="mt-1 flex items-center gap-2">
-            <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-canvas ring-1 ring-inset ring-line">
-              <div
-                className={"h-full rounded-full " + (r.negative ? "bg-bad" : "bg-ok")}
-                style={{ width: `${(Math.abs(r.value) / max) * 100}%` }}
-              />
-            </div>
-            <span className="shrink-0 font-mono text-[10.5px] tabular-nums text-fg-subtle">
-              {r.meta}
-            </span>
+          <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-canvas ring-1 ring-inset ring-line">
+            <div
+              className={"h-full rounded-full " + (r.negative ? "bg-bad" : "bg-ok")}
+              style={{ width: `${(Math.abs(r.value) / max) * 100}%` }}
+            />
+          </div>
+          <div className="mt-1 font-mono text-[10px] tabular-nums text-fg-subtle">
+            {r.meta}
           </div>
         </li>
       ))}
@@ -601,7 +636,7 @@ export function DeadheadBar({
           className="flex items-center justify-center bg-ok"
           style={{ width: `${loadedPct}%` }}
         >
-          {loadedPct >= 18 ? (
+          {loadedPct >= 22 ? (
             <span className="font-mono text-[10px] font-bold tabular-nums text-white">
               {loadedPct.toFixed(0)}% loaded
             </span>
@@ -611,7 +646,7 @@ export function DeadheadBar({
           className="flex items-center justify-center bg-warn"
           style={{ width: `${deadPct}%` }}
         >
-          {deadPct >= 18 ? (
+          {deadPct >= 22 ? (
             <span className="font-mono text-[10px] font-bold tabular-nums text-white">
               {deadPct.toFixed(0)}% empty
             </span>
@@ -633,10 +668,10 @@ export function DeadheadBar({
 function MiniStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-md border border-line bg-canvas px-2 py-1.5">
-      <div className="font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-fg-subtle">
+      <div className="truncate font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-fg-subtle">
         {label}
       </div>
-      <div className="mt-0.5 truncate font-mono text-[13px] font-bold tabular-nums text-fg">
+      <div className="mt-0.5 truncate font-mono text-[12.5px] font-bold tabular-nums text-fg">
         {value}
       </div>
     </div>
