@@ -100,7 +100,7 @@ const PLOT_H = "h-[152px] sm:h-[188px]";
 const GUTTER = "w-9 shrink-0 sm:w-12";
 
 /**
- * Grid + axis chrome shared by all three time-series charts. `columns` is the
+ * Grid + axis chrome shared by the time-series charts. `columns` is the
  * plot content: one flex child per month, each `relative` so its bars can be
  * positioned against the shared baseline.
  *
@@ -456,65 +456,6 @@ function lastNonNull(d: SeriesDatum[]): number {
   return -1;
 }
 
-// -------------------------------------------------- 3. gross vs net grouped
-
-/**
- * Revenue against take-home, side by side per month.
- *
- * Grouped rather than stacked: net is a SUBSET of gross, not an addition to it,
- * so stacking would double-count. Two bars off a shared baseline let both
- * magnitudes be read directly, with the gap between them as the cost of the run.
- */
-export function GrossVsNetChart({
-  data,
-  highlightIndex,
-}: {
-  data: { key: string; label: string; gross: number; net: number }[];
-  highlightIndex: number;
-}) {
-  const scale = makeScale(data.flatMap((d) => [d.gross, d.net]));
-  return (
-    <div>
-      <Plot
-        scale={scale}
-        labels={data.map((d) => d.label)}
-        highlightIndex={highlightIndex}
-        format={usdCompact}
-        columns={
-          <>
-            {data.map((d) => (
-              <div key={d.key} className="relative min-w-0 flex-1">
-                <div className="absolute inset-y-0 left-1/2 flex w-[74%] max-w-[34px] -translate-x-1/2 gap-[2px]">
-                  <div className="relative flex-1">
-                    <Bar
-                      value={d.gross}
-                      scale={scale}
-                      className="bg-steel opacity-70"
-                    />
-                  </div>
-                  <div className="relative flex-1">
-                    <Bar
-                      value={d.net}
-                      scale={scale}
-                      className={d.net < 0 ? "bg-bad" : "bg-ok"}
-                    />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </>
-        }
-      />
-      <Legend
-        items={[
-          { label: "Gross", cls: "bg-steel opacity-70" },
-          { label: "Net", cls: "bg-ok" },
-        ]}
-      />
-    </div>
-  );
-}
-
 function Legend({ items }: { items: { label: string; cls: string }[] }) {
   return (
     <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
@@ -530,66 +471,7 @@ function Legend({ items }: { items: { label: string; cls: string }[] }) {
   );
 }
 
-// ------------------------------------------------------------ 4. ranked bars
-
-export type RankedRow = {
-  key: string;
-  name: string;
-  /** Drives the bar width, relative to the largest row. */
-  value: number;
-  /** Big right-aligned figure. */
-  primary: string;
-  /** Small meta line under the name. */
-  meta: string;
-  negative?: boolean;
-};
-
-/**
- * Ranked horizontal bars (brokers, lanes). A proportional-width div IS a
- * horizontal bar, and keeping the row as real text means names wrap, truncate
- * and stay selectable at any width — none of which SVG text does well when a
- * broker is called "Total Quality Logistics, LLC".
- */
-export function RankedBars({ rows }: { rows: RankedRow[] }) {
-  const max = Math.max(...rows.map((r) => Math.abs(r.value)), 1);
-  return (
-    <ol className="space-y-2.5">
-      {rows.map((r, i) => (
-        <li key={r.key}>
-          <div className="flex items-baseline justify-between gap-3">
-            <span className="flex min-w-0 items-baseline gap-2">
-              <span className="shrink-0 font-mono text-[10px] font-bold tabular-nums text-fg-subtle">
-                {i + 1}
-              </span>
-              <span className="min-w-0 truncate text-[13px] font-semibold leading-tight text-fg">
-                {r.name}
-              </span>
-            </span>
-            <span
-              className={
-                "shrink-0 font-mono text-[12.5px] font-bold tabular-nums " +
-                (r.negative ? "text-bad" : "text-ok")
-              }
-            >
-              {r.primary}
-            </span>
-          </div>
-          <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-canvas ring-1 ring-inset ring-line">
-            <div
-              className={"h-full rounded-full " + (r.negative ? "bg-bad" : "bg-ok")}
-              style={{ width: `${(Math.abs(r.value) / max) * 100}%` }}
-            />
-          </div>
-          <div className="mt-1 font-mono text-[10px] tabular-nums text-fg-subtle">
-            {r.meta}
-          </div>
-        </li>
-      ))}
-    </ol>
-  );
-}
-
-// --------------------------------------------------------- 5. deadhead split
+// --------------------------------------------------------- 3. deadhead split
 
 /** Loaded vs empty miles as one stacked bar, with the empty share called out. */
 export function DeadheadBar({

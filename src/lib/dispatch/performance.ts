@@ -68,6 +68,10 @@ export type MonthBucket = {
    */
   netRpm: number | null;
   grossRpm: number | null;
+  /** net ÷ gross × 100 — the ledger's margin column. */
+  marginPct: number | null;
+  /** Empty miles as a share of the month's total miles. */
+  deadheadPct: number | null;
 };
 
 const MONTH_LABELS = [
@@ -98,6 +102,8 @@ function emptyBucket(year: number, month: number): MonthBucket {
     deadheadMiles: 0,
     netRpm: null,
     grossRpm: null,
+    marginPct: null,
+    deadheadPct: null,
   };
 }
 
@@ -143,6 +149,11 @@ export function monthlyBuckets(loads: PerfLoad[], limit = 12): MonthBucket[] {
     const b = byKey.get(monthKey(year, month)) ?? emptyBucket(year, month);
     b.netRpm = b.loadedMiles > 0 ? b.net / b.loadedMiles : null;
     b.grossRpm = b.loadedMiles > 0 ? b.gross / b.loadedMiles : null;
+    // Same two definitions the KPI row and PartyStat use, so a month reads the
+    // same in the ledger as it does anywhere else on the page.
+    b.marginPct = b.gross > 0 ? (b.net / b.gross) * 100 : null;
+    const totalMiles = b.loadedMiles + b.deadheadMiles;
+    b.deadheadPct = totalMiles > 0 ? (b.deadheadMiles / totalMiles) * 100 : null;
     out.push(b);
   }
   return out;
@@ -159,12 +170,21 @@ export type PartyStat = {
   grossRpm: number | null;
   /** net ÷ gross × 100 — how much of the revenue actually survived the run. */
   marginPct: number | null;
+  /**
+   * Mean days from delivery to paid across THIS party's paid loads — the
+   * leaderboard's "who actually pays on time" column. Null when none of its
+   * loads have been paid, which is not the same as "pays instantly".
+   */
+  payDays: number | null;
+  /** How many of this party's loads the payDays mean is built from. */
+  paySample: number;
 };
 
 function toStat(name: string, rows: PerfLoad[]): PartyStat {
   const gross = rows.reduce((s, r) => s + r.rate, 0);
   const net = rows.reduce((s, r) => s + r.net, 0);
   const loadedMiles = rows.reduce((s, r) => s + r.loadedMiles, 0);
+  const pay = payTiming(rows);
   return {
     name,
     loads: rows.length,
@@ -174,6 +194,8 @@ function toStat(name: string, rows: PerfLoad[]): PartyStat {
     netRpm: loadedMiles > 0 ? net / loadedMiles : null,
     grossRpm: loadedMiles > 0 ? gross / loadedMiles : null,
     marginPct: gross > 0 ? (net / gross) * 100 : null,
+    payDays: pay.avgDays,
+    paySample: pay.sample,
   };
 }
 
@@ -320,6 +342,103 @@ export function summarize(loads: PerfLoad[]): PeriodSummary {
     marginPct: gross > 0 ? (net / gross) * 100 : null,
     netPerLoad: loads.length > 0 ? net / loads.length : null,
     deadheadPct: dh.pct,
+  };
+}
+
+// -------------------------------------------------------- month-over-month
+
+/**
+ * How a KPI moved against the previous month.
+ *
+ * `kind` decides how the view spells it, because a percent change is not always
+ * the honest form. Net going from -$200 to $300 is not "+250%" — a percentage
+ * off a negative or zero base is arithmetic noise, so those fall back to the
+ * absolute dollar move. Rates and ratios never use percent-of-percent either:
+ * $/mi moves in cents, and margin moves in POINTS ("38% → 41%" is +3 pts, not
+ * +7.9%).
+ */
+export type DeltaKind = "pct" | "usd" | "rpm" | "pts";
+
+export type Delta = {
+  kind: DeltaKind;
+  /** Signed change, in the unit `kind` names. */
+  value: number;
+  /** True when the move is the direction the operator wants. */
+  good: boolean;
+};
+
+export type MonthDeltas = {
+  net: Delta | null;
+  gross: Delta | null;
+  netRpm: Delta | null;
+  margin: Delta | null;
+  deadhead: Delta | null;
+};
+
+const NO_DELTAS: MonthDeltas = {
+  net: null,
+  gross: null,
+  netRpm: null,
+  margin: null,
+  deadhead: null,
+};
+
+/**
+ * Below these, the move rounds to nothing and a "▲ +0%" chip is worse than no
+ * chip — it implies a change the number doesn't show.
+ */
+const DELTA_FLOOR: Record<DeltaKind, number> = {
+  pct: 0.5,
+  usd: 1,
+  rpm: 0.01,
+  pts: 0.5,
+};
+
+function delta(kind: DeltaKind, value: number, good: boolean): Delta | null {
+  if (!Number.isFinite(value) || Math.abs(value) < DELTA_FLOOR[kind]) return null;
+  return { kind, value, good };
+}
+
+/** A total's move: percent when the base is positive, dollars when it isn't. */
+function totalDelta(cur: number, prev: number): Delta | null {
+  return prev > 0
+    ? delta("pct", ((cur - prev) / prev) * 100, cur >= prev)
+    : delta("usd", cur - prev, cur >= prev);
+}
+
+function pointDelta(
+  cur: number | null,
+  prev: number | null,
+  kind: "rpm" | "pts",
+  upIsGood: boolean,
+): Delta | null {
+  if (cur == null || prev == null) return null;
+  const v = cur - prev;
+  return delta(kind, v, upIsGood ? v > 0 : v < 0);
+}
+
+/**
+ * Compare `months[index]` to the month immediately before it.
+ *
+ * Deliberately the ADJACENT bucket, not "the last month that had loads":
+ * monthlyBuckets is contiguous and zero-fills dead months, so index-1 is
+ * always literally last month. Comparing against the last ACTIVE month would
+ * label a June-vs-March jump "vs last month", which is a lie.
+ *
+ * Returns all-null when there is no prior month — the tiles then render bare,
+ * which is the correct answer to "how does this compare" in month one.
+ */
+export function monthDeltas(months: MonthBucket[], index: number): MonthDeltas {
+  if (index <= 0 || index >= months.length) return NO_DELTAS;
+  const cur = months[index];
+  const prev = months[index - 1];
+  return {
+    net: totalDelta(cur.net, prev.net),
+    gross: totalDelta(cur.gross, prev.gross),
+    netRpm: pointDelta(cur.netRpm, prev.netRpm, "rpm", true),
+    margin: pointDelta(cur.marginPct, prev.marginPct, "pts", true),
+    // Less empty running is the win, so a NEGATIVE move is the good one.
+    deadhead: pointDelta(cur.deadheadPct, prev.deadheadPct, "pts", false),
   };
 }
 

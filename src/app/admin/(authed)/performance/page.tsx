@@ -21,6 +21,7 @@ import {
   payTiming,
   summarize,
   monthKey,
+  monthDeltas,
   takeaways,
   type PerfLoad,
 } from "@/lib/dispatch/performance";
@@ -168,6 +169,7 @@ async function performanceData(): Promise<PerformanceData> {
   const { year: curYear, month: curMonth } = currentGoalMonth(now);
   const months = monthlyBuckets(loads, MONTH_WINDOW);
   const curKey = monthKey(curYear, curMonth);
+  const curIndex = months.findIndex((b) => b.key === curKey);
 
   return {
     monthLabel: currentGoalMonthLabel(now),
@@ -183,12 +185,17 @@ async function performanceData(): Promise<PerformanceData> {
       loads.filter((l) => l.year === curYear && l.month === curMonth),
     ),
     allTime: summarize(loads),
+    // Read off the same contiguous buckets the ledger and charts draw, so the
+    // "▲ +12%" on a tile is exactly the move between the ledger's top two rows.
+    deltas: monthDeltas(months, curIndex),
     pay: payTiming(loads),
     months,
-    highlightIndex: months.findIndex((b) => b.key === curKey),
+    highlightIndex: curIndex,
     monthlyGoal,
-    brokers: brokerStats(loads, 8),
-    lanes: laneStats(loads, 8),
+    // The leaderboards are tables now, not eight-bar charts — they can carry
+    // real depth, and the operator sorts rather than scrolls to find a row.
+    brokers: brokerStats(loads, 50),
+    lanes: laneStats(loads, 50),
     deadhead: deadheadSplit(loads),
     // A/R is the RATE still owed on delivered-but-unpaid loads — the same
     // definition the load board and the receivables page use.

@@ -7,22 +7,16 @@ import type {
   PayTiming,
   PeriodSummary,
   DeadheadSplit,
+  Delta,
+  MonthDeltas,
   Takeaway,
   TakeawayTone,
 } from "@/lib/dispatch/performance";
-import {
-  NetVsGoalChart,
-  RpmTrendChart,
-  GrossVsNetChart,
-  RankedBars,
-  DeadheadBar,
-  usd,
-  rpm,
-  pct,
-} from "./charts";
+import { NetVsGoalChart, RpmTrendChart, DeadheadBar, usd, rpm, pct } from "./charts";
+import { BrokerTable, LaneTable, LedgerTable } from "./Tables";
 
 /**
- * Performance — the "what should I haul next" page.
+ * Performance — the "what should I haul next" dashboard.
  *
  * Every figure here is aggregated from loads the server already costed with
  * the canonical loadDiesel + loadNet pair, so a net on this page is the SAME
@@ -33,9 +27,22 @@ import {
  * odometer readings, so its "net" would be rate-minus-nothing — counting those
  * would inflate every average on the page. The header says so out loud.
  *
+ * LAYOUT — the page reads top to bottom as an answer getting longer:
+ *   1. Takeaways   — the sentence version. Two seconds, at a truck stop.
+ *   2. KPI grid    — this month's numbers, each against last month.
+ *   3. Tables      — brokers, lanes, months. The analytical depth; sortable.
+ *   4. Charts      — shape over time, secondary and compact.
+ *
+ * The tables are the centre of gravity, not the charts. A bar chart of the top
+ * eight brokers answers "who is biggest" and nothing else; the same eight rows
+ * as a table answer that plus rate quality, margin and days-to-pay, and let the
+ * operator re-rank on any of them. So the broker and lane BAR charts are gone —
+ * the tables strictly contain them — and gross-vs-net went with them, being two
+ * columns of the ledger drawn as a picture.
+ *
  * VISUAL: the trip cards' V2 chrome (rounded-lg / border-line-strong / bg-card
- * / shadow-e2), a neutral page by default, with green and red reserved for
- * money that is actually good or bad. Charts are inline SVG (see ./charts).
+ * / shadow-e2), tightened. A neutral page by default, with green and red
+ * reserved for money that is actually good or bad.
  */
 
 export type PerformanceData = {
@@ -45,6 +52,8 @@ export type PerformanceData = {
   takeaways: Takeaway[];
   currentMonth: PeriodSummary;
   allTime: PeriodSummary;
+  /** How the current month moved against the one before it. */
+  deltas: MonthDeltas;
   /** Days-to-pay is all-time: one month rarely has enough paid loads to mean anything. */
   pay: PayTiming;
   months: MonthBucket[];
@@ -64,6 +73,7 @@ export function PerformanceView({ data }: { data: PerformanceData }) {
     takeaways,
     currentMonth: m,
     allTime,
+    deltas,
     pay,
     months,
     highlightIndex,
@@ -100,44 +110,65 @@ export function PerformanceView({ data }: { data: PerformanceData }) {
     );
   }
 
+  const currentKey = months[highlightIndex]?.key ?? null;
+  const hasPrior = highlightIndex > 0;
+
   return (
     <Page>
-      {/* 0 — Takeaways. The one part of the page that says what to DO; it
-          leads because a number the owner has to interpret is a number he
-          reads on a phone at a truck stop and doesn't act on. */}
+      {/* 1 — Takeaways. The quick read; the tables below are the depth. */}
       <Takeaways items={takeaways} />
 
-      {/* 1 — KPI row. Money reads green (red when it's a loss); counts and
-          ratios stay neutral, because "7 loads" isn't good or bad. */}
-      <div className="mb-2 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+      {/* 2 — KPI grid. Money reads green (red when it's a loss); counts and
+          ratios stay neutral, because "7 loads" isn't good or bad. The first
+          five carry a month-over-month delta — the rest are all-time or
+          point-in-time figures that have nothing to compare against. */}
+      <div className="mb-1.5 flex items-baseline justify-between gap-3">
+        <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-fg-subtle">
+          {monthLabel} · month to date
+        </h2>
+        <span className="text-[10.5px] text-fg-subtle">
+          {hasPrior ? "Δ vs last month" : "no prior month to compare"}
+        </span>
+      </div>
+      <div className="mb-3 grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-5">
         <Kpi
-          label={`Net · ${monthLabel}`}
+          label="Net"
           value={usd(m.net)}
           tone={m.net < 0 ? "bad" : "ok"}
+          delta={deltas.net}
           strong
         />
-        <Kpi label={`Gross · ${monthLabel}`} value={usd(m.gross)} tone="ok" />
-        <div className={KPI_CARD}>
-          <KpiLabel>Avg / mi</KpiLabel>
-          <div className="mt-1 truncate text-[16px] font-bold leading-none tabular-nums text-ok sm:text-[18px]">
-            {rpm(m.netRpm)}
-            <span className="ml-1 text-[10px] font-medium text-fg-subtle">net</span>
-          </div>
-          <div className="mt-1 truncate text-[13px] font-bold leading-none tabular-nums text-steel">
-            {rpm(m.grossRpm)}
-            <span className="ml-1 text-[10px] font-medium text-fg-subtle">gross</span>
-          </div>
-        </div>
-        <Kpi label="Loads delivered" value={String(m.loads)} tone="neutral" />
+        <Kpi label="Gross" value={usd(m.gross)} tone="neutral" delta={deltas.gross} />
+        <Kpi
+          label="Net $/mi"
+          value={rpm(m.netRpm)}
+          tone="ok"
+          delta={deltas.netRpm}
+          sub={`${rpm(m.grossRpm)} gross`}
+        />
+        <Kpi
+          label="Margin"
+          value={pct(m.marginPct)}
+          tone="neutral"
+          delta={deltas.margin}
+        />
         <Kpi
           label="Deadhead"
           value={pct(m.deadheadPct)}
-          tone="neutral"
+          tone={m.deadheadPct != null && m.deadheadPct >= 25 ? "warn" : "neutral"}
+          delta={deltas.deadhead}
           sub={
             m.deadheadPct == null
               ? "no miles logged"
               : `${Math.round(m.deadheadMiles).toLocaleString("en-US")} empty mi`
           }
+        />
+
+        <Kpi label="Loads" value={String(m.loads)} tone="neutral" />
+        <Kpi
+          label="Net / load"
+          value={m.netPerLoad == null ? "—" : usd(m.netPerLoad)}
+          tone="neutral"
         />
         <Kpi
           label="Days to pay · all"
@@ -149,174 +180,109 @@ export function PerformanceView({ data }: { data: PerformanceData }) {
               : `median ${pay.medianDays?.toFixed(0)}d · ${pay.sample} paid`
           }
         />
-      </div>
-
-      {/* Secondary strip — the same slice, one line, no chart. Margin and
-          net-per-load are the two figures that decide whether a rate is worth
-          taking; A/R is what's still owed regardless of month. */}
-      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <MiniKpi label={`Margin · ${monthLabel}`} value={pct(m.marginPct)} />
-        <MiniKpi
-          label="Net / load"
-          value={m.netPerLoad == null ? "—" : usd(m.netPerLoad)}
-        />
-        <MiniKpi
+        <Kpi
           label="Miles · all time"
           value={Math.round(
             allTime.loadedMiles + allTime.deadheadMiles,
           ).toLocaleString("en-US")}
+          tone="neutral"
+          sub={`${Math.round(allTime.loadedMiles).toLocaleString("en-US")} loaded`}
         />
-        <MiniKpi
+        <Kpi
           label="A/R outstanding"
           value={usd(arTotal)}
-          href="/admin/dispatch/receivables"
           tone={arTotal > 0 ? "bad" : "neutral"}
+          href="/admin/dispatch/receivables"
+          sub={arTotal > 0 ? "delivered, unpaid" : "all caught up"}
         />
       </div>
 
+      {/* 3 — The tables. */}
       <div className="space-y-3">
-        {/* 2 — Net vs goal. */}
-        <Section
-          title="Net vs goal"
-          hint={`Monthly net profit against the ${usd(monthlyGoal)} goal · last ${months.length} month${months.length === 1 ? "" : "s"}`}
+        <Panel
+          title="Broker leaderboard"
+          hint="All time · sorted by net — tap any column header to re-rank"
         >
-          {months.length === 0 ? (
-            <Empty>Not enough delivered loads to chart a month yet.</Empty>
-          ) : (
-            <NetVsGoalChart
-              data={months.map((b) => ({
-                key: b.key,
-                label: b.label,
-                value: b.net,
-              }))}
-              goal={monthlyGoal}
-              highlightIndex={highlightIndex}
-            />
-          )}
-        </Section>
+          <BrokerTable rows={brokers} />
+        </Panel>
 
-        {/* 3 — RPM trend. */}
-        <Section
-          title="Rate trend"
-          hint="Average $/mi by month, over loaded miles"
+        <Panel
+          title="Lane leaderboard"
+          hint="All time · sorted by net $/mi — the rate question, not the volume one"
         >
-          {months.length < 2 ? (
-            <Empty>
-              A trend needs at least two months — {months.length === 1
-                ? "there's one so far."
-                : "there are none yet."}
-            </Empty>
-          ) : (
-            <RpmTrendChart
-              net={months.map((b) => ({
-                key: `n-${b.key}`,
-                label: b.label,
-                value: b.netRpm,
-              }))}
-              gross={months.map((b) => ({
-                key: `g-${b.key}`,
-                label: b.label,
-                value: b.grossRpm,
-              }))}
-              highlightIndex={highlightIndex}
-            />
-          )}
-        </Section>
+          <LaneTable rows={lanes} />
+        </Panel>
 
-        {/* 4 — Gross vs net. */}
-        <Section
-          title="Gross vs net"
-          hint="Revenue against take-home — the gap is what the run cost"
+        <Panel
+          title="Monthly ledger"
+          hint={`Last ${months.length} month${months.length === 1 ? "" : "s"}, newest first · MTD is still in progress`}
         >
-          {months.length === 0 ? (
-            <Empty>No months to compare yet.</Empty>
-          ) : (
-            <GrossVsNetChart
-              data={months.map((b) => ({
-                key: b.key,
-                label: b.label,
-                gross: b.gross,
-                net: b.net,
-              }))}
-              highlightIndex={highlightIndex}
-            />
-          )}
-        </Section>
+          <LedgerTable rows={months} currentKey={currentKey} />
+        </Panel>
 
-        {/* 5 + 6 — the two rankings sit side by side once there's room; they
-            answer the same question (what's worth taking) from either end. */}
+        {/* 4 — Charts. Secondary: shape over time, which a table of numbers
+            genuinely doesn't show. Side by side once there's room. */}
         <div className="grid gap-3 lg:grid-cols-2">
-          <Section title="Top brokers" hint="By total net, all time">
-            {brokers.length === 0 ? (
-              <Empty>No brokers to rank yet.</Empty>
+          <Panel title="Net vs goal" hint={`Monthly net against the ${usd(monthlyGoal)} goal`} padded>
+            {months.length === 0 ? (
+              <Empty>Not enough delivered loads to chart a month yet.</Empty>
             ) : (
-              <RankedBars
-                rows={brokers.map((b) => ({
-                  key: b.name,
-                  name: b.name,
+              <NetVsGoalChart
+                data={months.map((b) => ({
+                  key: b.key,
+                  label: b.label,
                   value: b.net,
-                  primary: usd(b.net),
-                  negative: b.net < 0,
-                  meta: `${b.loads} load${b.loads === 1 ? "" : "s"} · ${rpm(b.netRpm)}/mi net · ${pct(b.marginPct)} margin`,
                 }))}
+                goal={monthlyGoal}
+                highlightIndex={highlightIndex}
               />
             )}
-          </Section>
+          </Panel>
 
-          <Section title="Best lanes" hint="By average net $/mi, all time">
-            {lanes.length === 0 ? (
+          <Panel title="Rate trend" hint="Average $/mi by month, over loaded miles" padded>
+            {months.length < 2 ? (
               <Empty>
-                Lanes need loaded miles on a delivered load to rank.
+                A trend needs at least two months — {months.length === 1
+                  ? "there's one so far."
+                  : "there are none yet."}
               </Empty>
             ) : (
-              <RankedBars
-                rows={lanes.map((l) => ({
-                  key: l.name,
-                  name: l.name,
-                  value: l.netRpm ?? 0,
-                  primary: `${rpm(l.netRpm)}/mi`,
-                  negative: (l.netRpm ?? 0) < 0,
-                  meta: `${l.loads} load${l.loads === 1 ? "" : "s"} · ${usd(l.net)} net · ${Math.round(l.loadedMiles).toLocaleString("en-US")} mi`,
+              <RpmTrendChart
+                net={months.map((b) => ({
+                  key: `n-${b.key}`,
+                  label: b.label,
+                  value: b.netRpm,
                 }))}
+                gross={months.map((b) => ({
+                  key: `g-${b.key}`,
+                  label: b.label,
+                  value: b.grossRpm,
+                }))}
+                highlightIndex={highlightIndex}
               />
             )}
-          </Section>
+          </Panel>
         </div>
 
-        {/* 7 — Deadhead. */}
-        <Section
+        {/* 5 — Deadhead split, all time. The one mile figure the ledger's
+            per-month column can't give: the lifetime loaded/empty ratio. */}
+        <Panel
           title="Deadhead"
           hint="Loaded vs empty miles, all time — empty miles burn fuel and earn nothing"
+          padded
         >
           {deadhead.total === 0 ? (
             <Empty>
               No odometer readings logged yet, so miles can&rsquo;t be split.
             </Empty>
           ) : (
-            <>
-              <div className="mb-2 flex items-baseline gap-2">
-                <span
-                  className={
-                    "text-[26px] font-bold leading-none tabular-nums " +
-                    (deadhead.pct != null && deadhead.pct >= 25
-                      ? "text-warn"
-                      : "text-fg")
-                  }
-                >
-                  {pct(deadhead.pct, 1)}
-                </span>
-                <span className="text-[13px] text-fg-muted">
-                  of every mile ran empty
-                </span>
-              </div>
-              <DeadheadBar
-                loaded={deadhead.loaded}
-                deadhead={deadhead.deadhead}
-                total={deadhead.total}
-              />
-            </>
+            <DeadheadBar
+              loaded={deadhead.loaded}
+              deadhead={deadhead.deadhead}
+              total={deadhead.total}
+            />
           )}
-        </Section>
+        </Panel>
       </div>
     </Page>
   );
@@ -338,30 +304,22 @@ function dotClass(tone: TakeawayTone): string {
 
 /**
  * The strip. Plain HTML text at real CSS sizes — same rule the charts learned:
- * nothing here scales with how much data exists, so a line is 13px on a phone
+ * nothing here scales with how much data exists, so a line is 12.5px on a phone
  * whether there are three takeaways or six.
  */
 function Takeaways({ items }: { items: Takeaway[] }) {
   return (
-    <section className="mb-2 overflow-hidden rounded-lg border border-line-strong bg-card shadow-e2">
-      <div className="border-b border-line px-3.5 py-2.5">
-        <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-fg">
-          Takeaways
-        </h2>
-        <p className="mt-0.5 text-[11.5px] leading-snug text-fg-subtle">
-          What the numbers below say to do next
-        </p>
-      </div>
+    <section className="mb-3 overflow-hidden rounded-lg border border-line-strong bg-card shadow-e2">
       <ul className="divide-y divide-line">
         {items.map((item) => (
-          <li key={item.id} className="flex items-start gap-2.5 px-3.5 py-2.5">
+          <li key={item.id} className="flex items-start gap-2 px-3 py-[7px]">
             <span
               className={
                 "mt-[6px] h-1.5 w-1.5 shrink-0 rounded-full " + dotClass(item.tone)
               }
               aria-hidden="true"
             />
-            <p className="text-[13px] leading-[1.45] text-fg-muted">
+            <p className="text-[12.5px] leading-[1.4] text-fg-muted">
               {item.segs.map((s, i) =>
                 s.bold ? (
                   <strong key={i} className="font-bold tabular-nums text-fg">
@@ -384,9 +342,9 @@ function Takeaways({ items }: { items: Takeaway[] }) {
 function Page({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen border-t border-line bg-canvas text-fg">
-      <div className="mx-auto w-full max-w-5xl px-4 py-5 sm:px-6 lg:px-8">
-        <PageHeader eyebrow="Insights" title="Performance" className="mb-1.5" />
-        <p className="mb-3 text-[13px] text-fg-muted">
+      <div className="mx-auto w-full max-w-6xl px-3 py-4 sm:px-6 lg:px-8">
+        <PageHeader eyebrow="Insights" title="Performance" className="mb-1" />
+        <p className="mb-3 text-[12px] text-fg-muted">
           Delivered loads only, net of diesel, factoring and expenses — the same
           math the load board and trips use.
         </p>
@@ -399,46 +357,39 @@ function Page({ children }: { children: ReactNode }) {
 /**
  * A titled panel. Same chrome as a trip card so the page reads as one system:
  * the title bar is a mono uppercase label over a hairline, not a filled header.
+ *
+ * `padded` is for chart content. Tables want the panel's full width so their
+ * rows run edge to edge and their pinned first column can sit flush.
  */
-function Section({
+function Panel({
   title,
   hint,
+  padded = false,
   children,
 }: {
   title: string;
   hint?: string;
+  padded?: boolean;
   children: ReactNode;
 }) {
   return (
     <section className="overflow-hidden rounded-lg border border-line-strong bg-card shadow-e2">
-      <div className="border-b border-line px-3.5 py-2.5">
+      <div className="border-b border-line px-3 py-2">
         <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-fg">
           {title}
         </h2>
         {hint ? (
-          <p className="mt-0.5 text-[11.5px] leading-snug text-fg-subtle">{hint}</p>
+          <p className="mt-0.5 text-[11px] leading-snug text-fg-subtle">{hint}</p>
         ) : null}
       </div>
-      <div className="p-3.5">{children}</div>
+      <div className={padded ? "p-3" : ""}>{children}</div>
     </section>
   );
 }
 
 function Empty({ children }: { children: ReactNode }) {
   return (
-    <div className="rounded-md border border-dashed border-line-strong bg-canvas px-3 py-7 text-center text-[12.5px] text-fg-muted">
-      {children}
-    </div>
-  );
-}
-
-/** The KPI tiles' shared surface — the trip cards' chrome exactly. */
-const KPI_CARD =
-  "rounded-lg border border-line-strong bg-card px-3 py-2.5 shadow-e2";
-
-function KpiLabel({ children }: { children: ReactNode }) {
-  return (
-    <div className="truncate font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-fg-subtle">
+    <div className="rounded-md border border-dashed border-line-strong bg-canvas px-3 py-6 text-center text-[12px] text-fg-muted">
       {children}
     </div>
   );
@@ -457,76 +408,87 @@ function toneClass(tone: Tone): string {
 }
 
 /**
- * One KPI tile. `strong` is the headline Net — it out-weighs its neighbours on
- * size alone (20px vs 16px), no filled tile and no accent rail.
+ * A month-over-month chip: "▲ +12%", "▼ −$0.14".
+ *
+ * The arrow tracks DIRECTION and the colour tracks GOOD/BAD, which are not the
+ * same axis — deadhead going down is a down arrow in green. Sign uses a real
+ * minus (−), not a hyphen, so it lines up with the digits in tabular-nums.
+ */
+function DeltaChip({ delta }: { delta: Delta }) {
+  const up = delta.value > 0;
+  const mag = Math.abs(delta.value);
+  const body =
+    delta.kind === "pct"
+      ? `${mag.toFixed(0)}%`
+      : delta.kind === "usd"
+        ? usd(mag)
+        : delta.kind === "rpm"
+          ? rpm(mag)
+          : `${mag.toFixed(1)} pts`;
+  return (
+    <span
+      className={
+        "inline-flex items-center gap-0.5 whitespace-nowrap font-mono text-[10px] font-bold tabular-nums " +
+        (delta.good ? "text-ok" : "text-bad")
+      }
+      title={`${up ? "Up" : "Down"} ${body} vs last month`}
+    >
+      <span aria-hidden>{up ? "▲" : "▼"}</span>
+      {up ? "+" : "−"}
+      {body}
+    </span>
+  );
+}
+
+/**
+ * One KPI tile — compact. `strong` is the headline Net, which out-weighs its
+ * neighbours on size alone (18px vs 15px), no filled tile and no accent rail.
  */
 function Kpi({
   label,
   value,
   tone,
   sub,
+  delta,
+  href,
   strong = false,
 }: {
   label: string;
   value: string;
   tone: Tone;
   sub?: string;
-  strong?: boolean;
-}) {
-  return (
-    <div className={KPI_CARD}>
-      <KpiLabel>{label}</KpiLabel>
-      <div
-        className={
-          "mt-1 truncate font-bold leading-none tabular-nums " +
-          (strong ? "text-[19px] sm:text-[21px] " : "text-[16px] sm:text-[18px] ") +
-          toneClass(tone)
-        }
-      >
-        {value}
-      </div>
-      {sub ? (
-        <div className="mt-1 truncate text-[10px] leading-tight text-fg-subtle">
-          {sub}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-/** Compact secondary metric — half the height of a KPI tile, same language. */
-function MiniKpi({
-  label,
-  value,
-  tone = "neutral",
-  href,
-}: {
-  label: string;
-  value: string;
-  tone?: Tone;
+  delta?: Delta | null;
   href?: string;
+  strong?: boolean;
 }) {
   const inner = (
     <>
-      <KpiLabel>{label}</KpiLabel>
-      <div
-        className={
-          "mt-0.5 truncate font-mono text-[14px] font-bold leading-tight tabular-nums " +
-          toneClass(tone)
-        }
-      >
-        {value}
+      <div className="truncate font-mono text-[9px] font-bold uppercase tracking-[0.1em] text-fg-subtle">
+        {label}
       </div>
+      <div className="mt-0.5 flex items-baseline justify-between gap-1.5">
+        <span
+          className={
+            "truncate font-bold leading-none tabular-nums " +
+            (strong ? "text-[17px] sm:text-[18px] " : "text-[15px] sm:text-[16px] ") +
+            toneClass(tone)
+          }
+        >
+          {value}
+        </span>
+        {delta ? <DeltaChip delta={delta} /> : null}
+      </div>
+      {sub ? (
+        <div className="mt-0.5 truncate text-[9.5px] leading-tight text-fg-subtle">
+          {sub}
+        </div>
+      ) : null}
     </>
   );
-  const cls =
-    "rounded-md border border-line bg-card px-2.5 py-1.5 shadow-e1";
+  const cls = "rounded-md border border-line-strong bg-card px-2.5 py-1.5 shadow-e1";
   if (href) {
     return (
-      <Link
-        href={href}
-        className={cls + " block transition-shadow hover:shadow-e2"}
-      >
+      <Link href={href} className={cls + " block transition-shadow hover:shadow-e2"}>
         {inner}
       </Link>
     );
