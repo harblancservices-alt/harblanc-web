@@ -370,3 +370,36 @@ export function SearchTrigger({ className }: { className?: string }) {
     </button>
   );
 }
+
+/**
+ * The dashboard's search bar — the phone's entry point into the same palette.
+ *
+ * A button dressed as a field, not a real input: there is exactly one search
+ * box in the portal (the one inside the overlay), and duplicating it here
+ * would mean two inputs to keep in sync and a keystroke lost between them.
+ * Tapping anywhere on the bar opens the palette with its box already focused.
+ */
+export function DashboardSearchBar({ className }: { className?: string }) {
+  return (
+    <button
+      type="button"
+      onClick={openGlobalSearch}
+      aria-label="Search loads, brokers and files"
+      aria-haspopup="dialog"
+      aria-keyshortcuts="Meta+K Control+K"
+      className={
+        "flex w-full items-center gap-2.5 rounded-lg border border-line-strong bg-inset px-3 py-2.5 text-left shadow-e1 transition-colors hover:bg-card active:bg-card " +
+        (className ?? "")
+      }
+    >
+      <IconSearch className="h-4 w-4 shrink-0 text-fg-subtle" />
+      <span className="min-w-0 flex-1 truncate text-[15px] text-fg-subtle">
+        Search loads, brokers, files…
+      </span>
+      {/* Desktop hint only — a phone has no ⌘K to offer. */}
+      <span className="hidden shrink-0 rounded border border-line-strong bg-card px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-fg-subtle sm:inline">
+        ⌘K
+      </span>
+    </button>
+  );
+}

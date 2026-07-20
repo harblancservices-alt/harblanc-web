@@ -11,6 +11,7 @@ import type { CountdownGoal, NetPace } from "@/lib/dispatch/countdown";
 import { IntervalBar } from "./maintenance/IntervalBar";
 import { CountdownCards } from "./CountdownCards";
 import { AlertsPanel } from "./AlertsPanel";
+import { DashboardSearchBar } from "./_shell/GlobalSearch";
 import type { AlertGroup } from "@/lib/dispatch/alerts";
 
 /**
@@ -20,8 +21,8 @@ import type { AlertGroup } from "@/lib/dispatch/alerts";
  * carrying the total alert count, which drops down into the grouped alert list
  * (maintenance, overdue receivables, incomplete loads, new applications, new
  * quote requests) — or the green "all clear" state when nothing is waiting.
- * Below it: active loads, the truck-maintenance widget, and the expired-quotes
- * table.
+ * Under it, in place of a page title, the global-search bar. Below that:
+ * active loads, the truck-maintenance widget, and the expired-quotes table.
  */
 
 export type MaintWidgetItem = {
@@ -116,9 +117,13 @@ export function DashboardView({ data }: { data: DashboardData }) {
     <div className="min-h-screen border-t border-line bg-canvas text-fg">
       <AlertsPanel groups={data.alertGroups} />
       <div className="mx-auto w-full max-w-5xl px-4 pb-4 pt-2.5 sm:px-6 lg:px-8">
-        <h1 className="mb-3 text-[22px] font-bold leading-tight text-ink">
-          Dashboard
-        </h1>
+        {/* Search sits where the "Dashboard" title used to — a page title that
+            only says where you already are earns less than an entry point into
+            loads / brokers / files, and on a phone this is the only one there
+            is (the top bar carrying the search icon is hidden below sm). */}
+        <div className="mb-3">
+          <DashboardSearchBar />
+        </div>
 
         <SectionLabel title="Active loads" count={data.activeLoads.length} />
         {data.activeLoads.length === 0 ? (
