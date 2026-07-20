@@ -405,3 +405,24 @@ export function IconFiles({ className }: IconProps) {
     </svg>
   );
 }
+
+export function IconChart({ className }: IconProps) {
+  // Bar chart on an axis — the Performance / insights page.
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <path d="M4 4v15a1 1 0 0 0 1 1h15" />
+      <path d="M8 16v-4" />
+      <path d="M13 16V8" />
+      <path d="M18 16v-6" />
+    </svg>
+  );
+}

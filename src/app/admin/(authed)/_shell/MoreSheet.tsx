@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, type ComponentType } from "react";
 import {
   IconCalendar,
   IconCamera,
+  IconChart,
   IconClipboard,
   IconCoins,
   IconFiles,
@@ -77,6 +78,12 @@ const GROUPS: { title: string; items: SheetItem[] }[] = [
         label: "Receivables",
         Icon: IconCoins,
       },
+    ],
+  },
+  {
+    title: "Insights",
+    items: [
+      { href: "/admin/performance", label: "Performance", Icon: IconChart },
     ],
   },
   {

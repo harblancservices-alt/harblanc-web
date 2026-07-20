@@ -7,6 +7,7 @@ import {
   IconBuilding,
   IconCalendar,
   IconCamera,
+  IconChart,
   IconClipboard,
   IconCoins,
   IconDashboard,
@@ -85,6 +86,14 @@ const GROUPS: NavGroup[] = [
         label: "Receivables",
         Icon: IconCoins,
       },
+    ],
+  },
+  {
+    // Reporting over the money the two groups above move — sits directly under
+    // them so the read-only view of the numbers is next to where they're made.
+    title: "Insights",
+    items: [
+      { href: "/admin/performance", label: "Performance", Icon: IconChart },
     ],
   },
   {
