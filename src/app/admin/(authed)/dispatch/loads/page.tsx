@@ -12,6 +12,8 @@ import {
   closeOutDate,
   goalMonthParts,
   currentGoalMonth,
+  currentBusinessDate,
+  daysLeftInMonth as daysLeftInBusinessMonth,
 } from "@/lib/dispatch/goal-month";
 
 export const metadata: Metadata = {
@@ -136,6 +138,16 @@ async function loadBoard(): Promise<LoadBoardData> {
   // self-contained bucket that the dropdown slices.
   const now = new Date();
   const { month: currentMonth } = currentGoalMonth(now);
+  // Calendar context for the performance card's pace figures (Avg Needed Per
+  // Week, Projected Goal Completion). Resolved HERE, in the business timezone,
+  // for the same reason currentMonth is: a client-side `new Date()` would put
+  // the operator's browser clock against the server's and let the two disagree
+  // across a hydration boundary. daysLeft includes today.
+  const daysLeftInMonth = daysLeftInBusinessMonth(now);
+  const today = currentBusinessDate(now);
+  const [tYear, tMonth] = today.split("-").map(Number);
+  // Day 0 of the NEXT month is the last day of this one.
+  const daysInMonth = new Date(Date.UTC(tYear, tMonth, 0)).getUTCDate();
 
   const rows = (data ?? []).map((l) => {
     const cancelled = l.status === "cancelled";
@@ -163,6 +175,9 @@ async function loadBoard(): Promise<LoadBoardData> {
       id: l.id,
       loadNumber: l.load_number?.trim() || "—",
       broker: l.broker_name?.trim() || "—",
+      // Already selected for the factoring lookup above — carried onto the row
+      // so a load card's "Call Broker" can reach the broker's profile.
+      brokerId: l.broker_id,
       equipment: l.equipment?.trim() || "",
       origin: l.origin?.trim() || "—",
       destination: l.destination?.trim() || "—",
@@ -214,6 +229,8 @@ async function loadBoard(): Promise<LoadBoardData> {
     arTotal,
     monthlyGoal,
     annualGoal,
+    daysLeftInMonth,
+    daysInMonth,
   };
 }
 
