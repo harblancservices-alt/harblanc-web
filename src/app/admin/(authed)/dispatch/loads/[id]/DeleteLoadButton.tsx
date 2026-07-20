@@ -17,7 +17,7 @@ export function DeleteLoadButton({ loadId }: { loadId: string }) {
       <Button
         type="submit"
         variant="destructive-solid"
-        size="sm"
+        size="xs"
         aria-label="Delete load"
         title="Delete load"
       >

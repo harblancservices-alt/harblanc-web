@@ -235,7 +235,7 @@ function DocKindBlock({
               type="button"
               onClick={() => inputRef.current?.click()}
               disabled={busy}
-              className="rounded-md border border-line-strong bg-elevated px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-fg transition-colors hover:bg-card disabled:opacity-50"
+              className="rounded-md border border-info bg-info px-2.5 py-1 font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-white transition-colors hover:border-info-hover hover:bg-info-hover disabled:opacity-50"
             >
               {busy ? "Uploading…" : "+ Add file"}
             </button>

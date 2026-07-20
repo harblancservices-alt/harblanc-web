@@ -29,8 +29,8 @@ export function EditLoadButton({
     <>
       <Button
         type="button"
-        variant="edit"
-        size="sm"
+        variant="blue"
+        size="xs"
         onClick={() => setOpen(true)}
         title="Edit load"
         leftIcon={

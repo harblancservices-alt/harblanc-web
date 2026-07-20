@@ -142,6 +142,15 @@ input[type="date"]::-webkit-date-and-time-value {
   --v2-red: #b42318;     --v2-red-bg: #f6e4e2;
   --v2-steel: #2f5d80;   --v2-steel-bg: #e3eaf1;
   --v2-slate: #5a6570;   --v2-slate-bg: #e5e8ec;
+  /* Action blue — the secondary/edit button fill (Edit / Trip / Broker /
+     Add files / TONU). Deliberately NOT --v2-steel: steel is a status hue
+     for chips, and this needs to carry white label text at 6.5:1 while
+     still reading as blue against BOTH the white card and the graphite
+     bar. Fixed values, not theme-dependent — a solid fill with a white
+     label is legible on admin-light and admin-dark alike, the same way
+     destructive-solid is. */
+  --v2-blue: #1f5fa8;
+  --v2-blue-hover: #17497f;
 
   /* Elevation — E1 resting card, E2 KPI/interactive, E3 modal.
      Flat shadows only; the hairline border is applied by the component. */
@@ -161,6 +170,7 @@ input[type="date"]::-webkit-date-and-time-value {
   --bad: var(--v2-red);      --bad-bg: var(--v2-red-bg);
   --steel: var(--v2-steel);  --steel-bg: var(--v2-steel-bg);
   --slate: var(--v2-slate);  --slate-bg: var(--v2-slate-bg);
+  --info: var(--v2-blue);    --info-hover: var(--v2-blue-hover);
 }
 
 /* ============================================================== */
@@ -394,6 +404,8 @@ html[data-layout="landscape"] [data-shell="main"] { padding-bottom: 0 !important
   --color-steel-bg: var(--steel-bg);
   --color-slate: var(--slate);
   --color-slate-bg: var(--slate-bg);
+  --color-info: var(--info);
+  --color-info-hover: var(--info-hover);
 
   --shadow-e1: var(--v2-e1);
   --shadow-e2: var(--v2-e2);

@@ -66,7 +66,7 @@ function FullOdometerStatus({
         </button>
         <Button
           type="button"
-          variant="edit"
+          variant="blue"
           size="sm"
           onClick={() => {
             setEditing((e) => !e);

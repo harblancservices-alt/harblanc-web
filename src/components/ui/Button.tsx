@@ -22,6 +22,13 @@ import type { ComponentPropsWithoutRef, ReactNode } from "react";
  *   utility     → NEUTRAL secondary. Was slate-filled. Document-add buttons
  *                 (+ Rate Con / + BOL / + POD).
  *   cancel      → NEUTRAL secondary. Modal Cancel / dismiss buttons.
+ *   blue        → SOLID action blue, white text. The load detail page's
+ *                 secondary actions — Edit / Trip / Broker / Add files / TONU —
+ *                 read as one family here, distinct from the accent-red primary
+ *                 and from red destructive. Solid rather than outlined for the
+ *                 same reason destructive-solid is: these sit on the always-dark
+ *                 graphite section bars as often as on white cards, and a fixed
+ *                 fill with a white label is legible on both admin themes.
  *   destructive → RED border, WHITE fill, RED text. Delete / Remove / Trash /
  *                 Cancel load — distinct from primary so a delete never reads
  *                 like a save.
@@ -43,9 +50,10 @@ export type ButtonVariant =
   | "destructive"
   | "destructive-solid"
   | "cancel"
-  | "utility";
+  | "utility"
+  | "blue";
 
-export type ButtonSize = "sm" | "md";
+export type ButtonSize = "xs" | "sm" | "md";
 
 // The transition lives on each variant, not here: primary-raised animates a
 // transform + shadow and needs transition-all, and two transition-property
@@ -85,12 +93,20 @@ const VARIANT: Record<ButtonVariant, string> = {
     "transition-colors border border-bad bg-white text-bad hover:bg-bad-bg disabled:hover:bg-white",
   "destructive-solid":
     "transition-colors border border-bad bg-bad text-white hover:bg-[#8f1c13] hover:border-[#8f1c13]",
+  blue:
+    "transition-colors border border-info bg-info text-white hover:bg-info-hover hover:border-info-hover",
 };
 
 // 6px radius (rounded-md). Compact, refined proportions — a fixed height keeps
 // them tidy on mobile (no ballooning min-height): md ≈ 34px, sm ≈ 30px. Label
 // ~13px / 600 weight. Comfortable to tap without dominating the screen.
+//
+// xs ≈ 28px is for action STRIPS that must not wrap on a 375px phone — the load
+// detail page's four-up header (Loads / Edit / TONU / Delete). Same shape and
+// depth as sm, ~10px narrower per button, which is the difference between one
+// row and two.
 const SIZE: Record<ButtonSize, string> = {
+  xs: "h-[28px] px-2 text-[11px]",
   sm: "h-[30px] px-3 text-[12px]",
   md: "h-[34px] px-3.5 text-[13px]",
 };

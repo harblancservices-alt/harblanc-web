@@ -71,7 +71,7 @@ export function LoadDetailsCard(props: LoadDetailsCardProps) {
             <Button
               href={`/admin/dispatch/trips/${tripId}`}
               prefetch={false}
-              variant="navigate"
+              variant="blue"
               size="sm"
             >
               Trip
@@ -81,7 +81,7 @@ export function LoadDetailsCard(props: LoadDetailsCardProps) {
             <Button
               href={`/admin/dispatch/brokers/${brokerId}`}
               prefetch={false}
-              variant="navigate"
+              variant="blue"
               size="sm"
             >
               Broker
@@ -89,7 +89,7 @@ export function LoadDetailsCard(props: LoadDetailsCardProps) {
           ) : null}
           <Button
             type="button"
-            variant="edit"
+            variant="blue"
             size="sm"
             onClick={() => {
               setEditing((e) => !e);

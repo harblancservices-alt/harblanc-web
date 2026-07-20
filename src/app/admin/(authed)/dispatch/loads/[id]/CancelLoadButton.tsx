@@ -5,9 +5,13 @@ import { Button } from "@/components/ui/Button";
 import { cancelLoad } from "../actions";
 
 /**
- * Cancel Load button (top bar) → dialog offering a plain cancel or a TONU
- * (truck ordered, not used) charge, $150 by default. Both move the load to
- * cancelled; TONU records the fee as the load's revenue.
+ * TONU button (top bar) → dialog offering a plain cancel or a TONU (truck
+ * ordered, not used) charge, $150 by default. Both move the load to cancelled;
+ * TONU records the fee as the load's revenue.
+ *
+ * The trigger is labelled "TONU" rather than "Cancel load" because that is what
+ * dispatch is almost always reaching for — the no-charge cancel is still one tap
+ * away inside the dialog. Behaviour is unchanged; only the trigger label is.
  */
 export function CancelLoadButton({ loadId }: { loadId: string }) {
   const [open, setOpen] = useState(false);
@@ -16,11 +20,12 @@ export function CancelLoadButton({ loadId }: { loadId: string }) {
     <>
       <Button
         type="button"
-        variant="destructive"
-        size="sm"
+        variant="blue"
+        size="xs"
         onClick={() => setOpen(true)}
+        title="Cancel load — TONU or no charge"
       >
-        Cancel load
+        TONU
       </Button>
 
       {open ? (

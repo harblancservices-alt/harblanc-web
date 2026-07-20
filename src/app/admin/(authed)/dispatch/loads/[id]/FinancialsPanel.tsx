@@ -46,7 +46,7 @@ export function FinancialsPanel({
         <div className="flex items-center gap-2">
           <Button
             type="button"
-            variant="edit"
+            variant="blue"
             size="sm"
             onClick={() => {
               setEditing((e) => !e);

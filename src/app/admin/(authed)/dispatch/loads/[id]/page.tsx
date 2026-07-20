@@ -305,13 +305,16 @@ export default async function LoadDetailPage({
       <div className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 sm:py-6 lg:px-8">
         {/* Command bar — back + actions, clean lane, financial tiles */}
         <div className="overflow-hidden rounded-md bg-bar shadow-e2">
-          {/* Tier 1: back button + cancel / delete actions */}
-          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-3.5 py-2.5">
+          {/* Tier 1: back + Edit / TONU / Delete. ONE row at 375px — no wrap.
+              Everything here is size="xs" and the gaps are 6px, which fits the
+              four inside a 375px phone's ~315px of bar with room to spare;
+              Delete is icon-only, which buys back most of it. */}
+          <div className="flex items-center gap-1.5 px-3.5 py-2.5">
             <Button
               href="/admin/dispatch/loads"
               prefetch={false}
               variant="navigate"
-              size="sm"
+              size="xs"
               aria-label="Back to all loads"
               leftIcon={
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -321,7 +324,7 @@ export default async function LoadDetailPage({
             >
               Loads
             </Button>
-            <div className="flex items-center gap-2">
+            <div className="ml-auto flex items-center gap-1.5">
               <EditLoadButton
                 brokerNames={brokerNames}
                 activeTrips={activeTrips}
