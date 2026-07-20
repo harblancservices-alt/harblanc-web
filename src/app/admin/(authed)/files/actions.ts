@@ -1,7 +1,8 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { FILE_BUCKETS } from "@/lib/admin/files";
+import { FILE_BUCKETS, type FileSource } from "@/lib/admin/files";
 
 /**
  * Files page — lazy signing. The client holds the full file timeline as
@@ -56,4 +57,81 @@ export async function signFiles(
     }),
   );
   return out;
+}
+
+/**
+ * Delete one file from the Files timeline, at its real source.
+ *
+ * The timeline is a UNION of three tables, so there is no single row to delete
+ * — the source tag on the FileItem picks the table, bucket and column names.
+ * Storage objects (and the WebP thumbnail, where there is one) go first, then
+ * the row; a missing row is a no-op so a double-tap can't error.
+ *
+ * Deliberately NOT reusing the per-feature actions (deleteLoadDocument et al):
+ * those each revalidate their own detail route and, for maintenance, take a
+ * service id the timeline doesn't carry. This resolves everything from the
+ * row itself.
+ */
+export async function deleteFile(
+  source: FileSource,
+  rowId: string,
+): Promise<void> {
+  if (!rowId) throw new Error("Missing file.");
+  const sb = createServiceRoleClient();
+
+  if (source === "load") {
+    const { data: row } = await sb
+      .from("load_documents")
+      .select("id, load_id, storage_path, thumb_path")
+      .eq("id", rowId)
+      .maybeSingle<{
+        id: string;
+        load_id: string;
+        storage_path: string;
+        thumb_path: string | null;
+      }>();
+    if (!row) return;
+    const paths = [row.storage_path, row.thumb_path].filter(
+      (p): p is string => !!p,
+    );
+    if (paths.length > 0) {
+      await sb.storage.from(FILE_BUCKETS.load).remove(paths);
+    }
+    await sb.from("load_documents").delete().eq("id", row.id);
+    revalidatePath(`/admin/dispatch/loads/${row.load_id}`);
+  } else if (source === "receipt") {
+    const { data: row } = await sb
+      .from("repair_attachments")
+      .select("id, file_path, thumb_path")
+      .eq("id", rowId)
+      .maybeSingle<{
+        id: string;
+        file_path: string;
+        thumb_path: string | null;
+      }>();
+    if (!row) return;
+    const paths = [row.file_path, row.thumb_path].filter(
+      (p): p is string => !!p,
+    );
+    if (paths.length > 0) {
+      await sb.storage.from(FILE_BUCKETS.receipt).remove(paths);
+    }
+    await sb.from("repair_attachments").delete().eq("id", row.id);
+    revalidatePath("/admin/maintenance", "layout");
+  } else {
+    const { data: row } = await sb
+      .from("shipment_intake_uploads")
+      .select("id, storage_path")
+      .eq("id", rowId)
+      .maybeSingle<{ id: string; storage_path: string }>();
+    if (!row) return;
+    if (row.storage_path) {
+      await sb.storage.from(FILE_BUCKETS.intake).remove([row.storage_path]);
+    }
+    await sb.from("shipment_intake_uploads").delete().eq("id", row.id);
+    revalidatePath("/admin/quotes", "layout");
+  }
+
+  revalidatePath("/admin/files");
+  revalidatePath("/admin");
 }

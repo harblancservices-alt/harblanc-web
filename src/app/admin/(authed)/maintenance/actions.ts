@@ -552,6 +552,23 @@ export async function updateService(
 }
 
 /**
+ * Delete ONE receipt off a service — what the doc viewer's Delete calls.
+ * Until now the only granular delete was the private `removeReceipts` helper
+ * reachable through the LogService form; the viewer needs a direct action.
+ * The service itself is untouched: a visit with no receipt is still a visit.
+ */
+export async function deleteReceipt(
+  serviceId: string,
+  attachmentId: string,
+): Promise<void> {
+  if (!serviceId || !attachmentId) throw new Error("Missing receipt.");
+  const sb = createServiceRoleClient();
+  await removeReceipts(sb, serviceId, [attachmentId]);
+  revalidatePath("/admin/maintenance", "layout");
+  revalidatePath("/admin");
+}
+
+/**
  * Delete a whole service (visit): its parts, their related links, and its
  * receipts all cascade; the receipt storage objects are removed first.
  */

@@ -6,7 +6,8 @@ import { useMemo, useState, useTransition } from "react";
 import { Button } from "@/components/ui/Button";
 import { LogServiceModal } from "../LogServiceModal";
 import { CategoryIcon, FreshnessBadge } from "../shared";
-import { attachRelated, deletePart, detachRelated } from "../actions";
+import { attachRelated, deletePart, deleteReceipt, detachRelated } from "../actions";
+import { DocViewer } from "@/components/ui/DocViewer";
 import {
   CATEGORY_SLUG,
   POSITION_LABEL,
@@ -16,6 +17,7 @@ import {
 } from "@/lib/dispatch/repair-log";
 import type {
   EntryLite,
+  ReceiptView,
   RelatedView,
   RepairEntryFull,
   ServiceFull,
@@ -41,6 +43,7 @@ export function RepairDetail({
   const [busy, startTransition] = useTransition();
   const [attachQuery, setAttachQuery] = useState("");
   const [err, setErr] = useState<string | null>(null);
+  const [viewingReceipt, setViewingReceipt] = useState<ReceiptView | null>(null);
 
   const pos = isPosition(entry.position) ? entry.position : null;
   const relatedIds = useMemo(() => new Set(related.map((r) => r.id)), [related]);
@@ -219,10 +222,15 @@ export function RepairDetail({
                   Receipt
                 </p>
                 <div className="space-y-1.5">
+                  {/* Tap-to-open, same as every other doc row in the app —
+                      the receipt opens in the shared full-screen viewer
+                      (Back · zoom · Download · Delete) instead of a new tab. */}
                   {s.receipts.map((a) => (
-                    <div
+                    <button
                       key={a.id}
-                      className="flex items-center gap-2 rounded-md border border-line bg-card px-2.5 py-1.5"
+                      type="button"
+                      onClick={() => setViewingReceipt(a)}
+                      className="flex w-full items-center gap-2 rounded-md border border-line bg-card px-2.5 py-1.5 text-left transition-colors hover:border-line-strong hover:bg-elevated"
                     >
                       <span className="shrink-0 rounded-sm bg-elevated px-1.5 py-[1px] font-mono text-[9px] font-bold uppercase tracking-[0.06em] text-fg-muted">
                         {a.isImage ? "IMG" : "PDF"}
@@ -230,19 +238,10 @@ export function RepairDetail({
                       <span className="min-w-0 flex-1 truncate text-[12.5px] text-fg">
                         {a.name}
                       </span>
-                      {a.url ? (
-                        <Button
-                          href={a.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          variant="navigate"
-                          size="sm"
-                          className="shrink-0"
-                        >
-                          View
-                        </Button>
-                      ) : null}
-                    </div>
+                      <span aria-hidden className="shrink-0 text-fg-subtle">
+                        ›
+                      </span>
+                    </button>
                   ))}
                 </div>
               </div>
@@ -344,6 +343,22 @@ export function RepairDetail({
             router.refresh();
           }}
           onDeleted={() => router.push("/admin/maintenance")}
+        />
+      ) : null}
+
+      {viewingReceipt ? (
+        <DocViewer
+          doc={{
+            name: viewingReceipt.name,
+            url: viewingReceipt.url,
+            isImage: viewingReceipt.isImage,
+          }}
+          onClose={() => setViewingReceipt(null)}
+          deleteLabel="Delete"
+          onDelete={async () => {
+            await deleteReceipt(s.id, viewingReceipt.id);
+            router.refresh();
+          }}
         />
       ) : null}
     </div>

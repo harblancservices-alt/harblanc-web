@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
+import { DocViewer } from "@/components/ui/DocViewer";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { uploadFileToSignedUrl } from "@/lib/storage/client-upload";
 import { bolName, type BatchDetail } from "@/lib/camera/shared";
@@ -94,6 +95,8 @@ export function CameraCapture({ batch }: { batch: BatchDetail }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [exporting, setExporting] = useState<"pdf" | "zip" | null>(null);
+  /** Index into `photos` of the shot open in the full-screen viewer. */
+  const [viewingIdx, setViewingIdx] = useState<number | null>(null);
 
   const stopStream = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -425,7 +428,16 @@ export function CameraCapture({ batch }: { batch: BatchDetail }) {
                 key={p.id}
                 className="group relative overflow-hidden rounded-md border border-line-strong bg-inset shadow-e1"
               >
-                <div className="aspect-[3/4] w-full">
+                {/* Tap the shot to open it full-screen in the shared viewer —
+                    the grid is 3-up thumbnails, far too small to check that a
+                    page actually came out readable. */}
+                <button
+                  type="button"
+                  onClick={() => setViewingIdx(i)}
+                  disabled={!p.url}
+                  aria-label={`View ${bolName(i + 1)}`}
+                  className="block aspect-[3/4] w-full disabled:cursor-default"
+                >
                   {p.url ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
@@ -438,7 +450,7 @@ export function CameraCapture({ batch }: { batch: BatchDetail }) {
                       no preview
                     </div>
                   )}
-                </div>
+                </button>
                 <span className="absolute left-1 top-1 rounded-sm bg-black/70 px-1.5 py-0.5 font-mono text-[10px] font-bold tabular-nums text-white">
                   {bolName(i + 1)}
                 </span>
@@ -456,6 +468,21 @@ export function CameraCapture({ batch }: { batch: BatchDetail }) {
           </ul>
         )}
       </div>
+
+      {viewingIdx != null && photos[viewingIdx] ? (
+        <DocViewer
+          doc={{
+            name: bolName(viewingIdx + 1),
+            url: photos[viewingIdx].url,
+            // Camera batches are always JPEG stills.
+            isImage: true,
+          }}
+          onClose={() => setViewingIdx(null)}
+          onDelete={async () => {
+            await onDelete(photos[viewingIdx].id);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FileCategory, FileItem } from "@/lib/admin/files";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { DocViewer } from "@/components/ui/DocViewer";
-import { signFiles, type SignRef } from "./actions";
+import { deleteFile, signFiles, type SignRef } from "./actions";
 
 /**
  * Admin → Files. One newest-first timeline of every uploaded file across the
@@ -81,18 +82,35 @@ export function FilesView({
   const [query, setQuery] = useState(initialQuery);
   const [filter, setFilter] = useState<FilterKey>("all");
   const [visible, setVisible] = useState(PAGE_SIZE);
+  const router = useRouter();
   const [viewing, setViewing] = useState<FileItem | null>(null);
+  /**
+   * Rows deleted this session. The timeline arrives as a server prop, so hide
+   * them locally the moment the delete resolves — `router.refresh()` is what
+   * actually reconciles, but on a slow connection the row would otherwise sit
+   * there looking undeleted.
+   */
+  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
 
   // Signed-URL cache, keyed by `${bucket}\n${path}`. Filled lazily.
   const [signed, setSigned] = useState<Record<string, string>>({});
   const requestedRef = useRef<Set<string>>(new Set());
 
+  // Drop anything deleted this session before counting, filtering or paging,
+  // so the type-chip counts stay honest.
+  const liveItems = useMemo(
+    () => (deletedIds.size === 0 ? items : items.filter((it) => !deletedIds.has(it.id))),
+    [items, deletedIds],
+  );
+
   // Search: every whitespace token must appear in the item's search blob.
   const searchMatched = useMemo(() => {
     const tokens = query.trim().toLowerCase().split(/\s+/).filter(Boolean);
-    if (tokens.length === 0) return items;
-    return items.filter((it) => tokens.every((t) => it.searchText.includes(t)));
-  }, [items, query]);
+    if (tokens.length === 0) return liveItems;
+    return liveItems.filter((it) =>
+      tokens.every((t) => it.searchText.includes(t)),
+    );
+  }, [liveItems, query]);
 
   // Per-type counts over the search results, so the chips show how many of the
   // current matches fall in each type.
@@ -253,6 +271,14 @@ export function FilesView({
           onClose={() => setViewing(null)}
           parentHref={viewing.parentHref}
           parentLabel="Open record"
+          onDelete={async () => {
+            // FileItem ids are `${source}:${rowId}` — the row id is whatever
+            // follows the first colon (uuids never contain one).
+            const rowId = viewing.id.slice(viewing.source.length + 1);
+            await deleteFile(viewing.source, rowId);
+            setDeletedIds((prev) => new Set(prev).add(viewing.id));
+            router.refresh();
+          }}
         />
       ) : null}
     </div>
