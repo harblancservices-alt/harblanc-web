@@ -7,6 +7,8 @@ import type {
   PayTiming,
   PeriodSummary,
   DeadheadSplit,
+  Takeaway,
+  TakeawayTone,
 } from "@/lib/dispatch/performance";
 import {
   NetVsGoalChart,
@@ -39,6 +41,8 @@ import {
 export type PerformanceData = {
   /** e.g. "July" — the month the KPI row is scoped to. */
   monthLabel: string;
+  /** The actionable readings that head the page. Never empty — see `takeaways`. */
+  takeaways: Takeaway[];
   currentMonth: PeriodSummary;
   allTime: PeriodSummary;
   /** Days-to-pay is all-time: one month rarely has enough paid loads to mean anything. */
@@ -57,6 +61,7 @@ export type PerformanceData = {
 export function PerformanceView({ data }: { data: PerformanceData }) {
   const {
     monthLabel,
+    takeaways,
     currentMonth: m,
     allTime,
     pay,
@@ -97,6 +102,11 @@ export function PerformanceView({ data }: { data: PerformanceData }) {
 
   return (
     <Page>
+      {/* 0 — Takeaways. The one part of the page that says what to DO; it
+          leads because a number the owner has to interpret is a number he
+          reads on a phone at a truck stop and doesn't act on. */}
+      <Takeaways items={takeaways} />
+
       {/* 1 — KPI row. Money reads green (red when it's a loss); counts and
           ratios stay neutral, because "7 loads" isn't good or bad. */}
       <div className="mb-2 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
@@ -309,6 +319,63 @@ export function PerformanceView({ data }: { data: PerformanceData }) {
         </Section>
       </div>
     </Page>
+  );
+}
+
+// --------------------------------------------------------------- takeaways
+
+/** The dot only — text stays in the readable fg tiers so a whole line of amber
+ *  doesn't shout. Tone lives in a 6px cue, which is enough to sort by. */
+function dotClass(tone: TakeawayTone): string {
+  return tone === "good"
+    ? "bg-ok"
+    : tone === "warn"
+      ? "bg-warn"
+      : tone === "bad"
+        ? "bg-bad"
+        : "bg-fg-subtle";
+}
+
+/**
+ * The strip. Plain HTML text at real CSS sizes — same rule the charts learned:
+ * nothing here scales with how much data exists, so a line is 13px on a phone
+ * whether there are three takeaways or six.
+ */
+function Takeaways({ items }: { items: Takeaway[] }) {
+  return (
+    <section className="mb-2 overflow-hidden rounded-lg border border-line-strong bg-card shadow-e2">
+      <div className="border-b border-line px-3.5 py-2.5">
+        <h2 className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-fg">
+          Takeaways
+        </h2>
+        <p className="mt-0.5 text-[11.5px] leading-snug text-fg-subtle">
+          What the numbers below say to do next
+        </p>
+      </div>
+      <ul className="divide-y divide-line">
+        {items.map((item) => (
+          <li key={item.id} className="flex items-start gap-2.5 px-3.5 py-2.5">
+            <span
+              className={
+                "mt-[6px] h-1.5 w-1.5 shrink-0 rounded-full " + dotClass(item.tone)
+              }
+              aria-hidden="true"
+            />
+            <p className="text-[13px] leading-[1.45] text-fg-muted">
+              {item.segs.map((s, i) =>
+                s.bold ? (
+                  <strong key={i} className="font-bold tabular-nums text-fg">
+                    {s.text}
+                  </strong>
+                ) : (
+                  <span key={i}>{s.text}</span>
+                ),
+              )}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

@@ -93,6 +93,25 @@ export function currentBusinessDate(now: Date, tz: string = BUSINESS_TZ): string
   return `${year}-${month}-${day}`;
 }
 
+/**
+ * Days left in the current month INCLUDING today, in the business timezone —
+ * the denominator for "you need $X a day to hit the goal".
+ *
+ * Today counts because the operator can still book a load today; on the 31st
+ * this returns 1, never 0, so the per-day figure can't divide by zero.
+ */
+export function daysLeftInMonth(now: Date, tz: string = BUSINESS_TZ): number {
+  const today = currentBusinessDate(now, tz);
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(today);
+  if (!m) return 1;
+  const year = Number(m[1]);
+  const month = Number(m[2]); // 1-based
+  const day = Number(m[3]);
+  // Day 0 of the NEXT month is the last day of this one.
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  return Math.max(1, daysInMonth - day + 1);
+}
+
 /** Full month name of "now" in the business timezone, e.g. "June". */
 export function currentGoalMonthLabel(now: Date, tz: string = BUSINESS_TZ): string {
   return now.toLocaleString("en-US", { month: "long", timeZone: tz });

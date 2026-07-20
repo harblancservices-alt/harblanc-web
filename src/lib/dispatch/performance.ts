@@ -16,6 +16,8 @@
  * lands in the same month here as it does in the load board's goal bar.
  */
 
+import { usd, rpm } from "./format";
+
 /**
  * One delivered load, pre-costed by the server.
  *
@@ -319,4 +321,275 @@ export function summarize(loads: PerfLoad[]): PeriodSummary {
     netPerLoad: loads.length > 0 ? net / loads.length : null,
     deadheadPct: dh.pct,
   };
+}
+
+// ----------------------------------------------------------------- takeaways
+
+/**
+ * Plain-English, actionable readings of the aggregations above.
+ *
+ * The rest of this module answers "what are the numbers"; this section answers
+ * "so what do I do". It introduces NO new arithmetic on money — every figure a
+ * sentence quotes comes back out of summarize / brokerStats / laneStats /
+ * deadheadSplit / payTiming, which in turn only ever add up the `net` that
+ * loadNet already produced.
+ *
+ * The hard rule is SILENCE OVER FILLER. Each candidate below carries a minimum
+ * sample and a minimum effect size, and returns null when either is unmet — a
+ * "best lane" drawn from one 40-mile run, or a broker "12% under average" on a
+ * single load, is noise dressed as advice. If every candidate declines, the
+ * caller gets one honest line saying the page needs more loads.
+ */
+
+/** green = strength or opportunity, amber/red = watch-out, neutral = nothing to say yet. */
+export type TakeawayTone = "good" | "warn" | "bad" | "neutral";
+
+/** A sentence fragment. `bold` marks the figure the eye should land on. */
+export type TakeawaySeg = { text: string; bold?: boolean };
+
+export type Takeaway = {
+  /** Stable React key / test handle: "best-lane", "goal-pace", … */
+  id: string;
+  tone: TakeawayTone;
+  segs: TakeawaySeg[];
+};
+
+export type TakeawayContext = {
+  /** The goal month the KPI row is scoped to (month 0–11). */
+  year: number;
+  month: number;
+  /** Monthly net-profit goal from dispatch_settings. */
+  monthlyGoal: number;
+  /** Days left in the current month including today (America/Chicago). */
+  daysRemaining: number;
+};
+
+/** Below this, nothing on the page is a trend — it's a couple of loads. */
+const MIN_LOADS = 3;
+/** A lane needs real distance behind it before its $/mi means anything. */
+const LANE_MIN_MILES = 100;
+/** "Clearly below average" — 25% under, not a rounding difference. */
+const WEAK_RPM_RATIO = 0.75;
+const BROKER_MIN_LOADS = 2;
+/** Under-payment worth renegotiating over. */
+const UNDERPAY_MIN_PCT = 15;
+const PAY_MIN_SAMPLE_BROKER = 2;
+const PAY_MIN_SAMPLE_ALL = 3;
+/** Slow = both well past your own norm AND slow in absolute terms. */
+const SLOW_PAY_OVER_MEDIAN = 10;
+const SLOW_PAY_FLOOR_DAYS = 35;
+const DEADHEAD_MIN_MILES = 500;
+const DEADHEAD_LEAN_PCT = 15;
+const DEADHEAD_HIGH_PCT = 25;
+/** A penny of RPM drift month to month is not a trend. */
+const RPM_MIN_DELTA = 0.05;
+const MAX_TAKEAWAYS = 6;
+/** Matches the page's chart window, so the trend reads the same months. */
+const MAX_MONTH_WINDOW = 12;
+
+const b = (text: string): TakeawaySeg => ({ text, bold: true });
+const t = (text: string): TakeawaySeg => ({ text });
+
+type Candidate = { takeaway: Takeaway; priority: number };
+
+/**
+ * Build the strip. Candidates are gathered with a priority, sorted, and the top
+ * MAX_TAKEAWAYS kept — so on a data-rich account the owner reads the six most
+ * decision-changing lines rather than every true one.
+ */
+export function takeaways(loads: PerfLoad[], ctx: TakeawayContext): Takeaway[] {
+  const out: Candidate[] = [];
+  const push = (
+    priority: number,
+    id: string,
+    tone: TakeawayTone,
+    segs: TakeawaySeg[],
+  ) => out.push({ takeaway: { id, tone, segs }, priority });
+
+  if (loads.length >= MIN_LOADS) {
+    const all = summarize(loads);
+    const avgRpm = all.netRpm;
+    const lanes = laneStats(loads, 200);
+    const brokers = brokerStats(loads, 200);
+
+    // --- GOAL PACE ------------------------------------------------------
+    const monthNet = summarize(
+      loads.filter((l) => l.year === ctx.year && l.month === ctx.month),
+    ).net;
+    if (ctx.monthlyGoal > 0) {
+      if (monthNet >= ctx.monthlyGoal) {
+        push(100, "goal-pace", "good", [
+          t("You've cleared your "),
+          b(usd(ctx.monthlyGoal)),
+          t(" goal this month — "),
+          b(usd(monthNet - ctx.monthlyGoal)),
+          t(" over."),
+        ]);
+      } else {
+        const days = Math.max(1, ctx.daysRemaining);
+        const perDay = Math.max(0, ctx.monthlyGoal - monthNet) / days;
+        push(100, "goal-pace", "warn", [
+          t("You're at "),
+          b(usd(monthNet)),
+          t(" of your "),
+          b(usd(ctx.monthlyGoal)),
+          t(" goal this month — that's about "),
+          b(`${usd(perDay)}/day`),
+          t(" for the remaining "),
+          b(`${days} day${days === 1 ? "" : "s"}`),
+          t("."),
+        ]);
+      }
+    }
+
+    // --- BEST LANE ------------------------------------------------------
+    const best = lanes.find(
+      (l) => l.loadedMiles >= LANE_MIN_MILES && (l.netRpm ?? 0) > 0,
+    );
+    if (best) {
+      push(90, "best-lane", "good", [
+        t("Your best lane is "),
+        b(best.name),
+        t(" at "),
+        b(`${rpm(best.netRpm)}/mi`),
+        t(" net — book more like it."),
+      ]);
+    }
+
+    // --- WEAK FREIGHT ---------------------------------------------------
+    // Needs a meaningful average to be "under", and enough lanes that being
+    // the worst of them is a real ranking rather than an arithmetic accident.
+    if (avgRpm != null && avgRpm > 0 && lanes.length >= 3) {
+      const floor = avgRpm * WEAK_RPM_RATIO;
+      const weak = [...lanes]
+        .filter((l) => l.loadedMiles >= LANE_MIN_MILES && (l.netRpm ?? 0) < floor)
+        .sort((x, y) => (x.netRpm ?? 0) - (y.netRpm ?? 0))[0];
+      if (weak && weak.name !== best?.name) {
+        push(80, "weak-lane", (weak.netRpm ?? 0) < 0 ? "bad" : "warn", [
+          b(weak.name),
+          t(" ran "),
+          b(`${rpm(weak.netRpm)}/mi`),
+          t(", under your "),
+          b(`${rpm(avgRpm)}/mi`),
+          t(" average — hold out for better."),
+        ]);
+      }
+    }
+
+    // --- UNDERPAYING BROKER ---------------------------------------------
+    if (avgRpm != null && avgRpm > 0) {
+      let worst: { name: string; under: number } | null = null;
+      for (const br of brokers) {
+        if (br.loads < BROKER_MIN_LOADS || br.netRpm == null) continue;
+        const under = ((avgRpm - br.netRpm) / avgRpm) * 100;
+        if (under >= UNDERPAY_MIN_PCT && (!worst || under > worst.under)) {
+          worst = { name: br.name, under };
+        }
+      }
+      if (worst) {
+        push(75, "underpaying-broker", "bad", [
+          b(worst.name),
+          t(" pays about "),
+          b(`${worst.under.toFixed(0)}%`),
+          t(" under your average — renegotiate or lean elsewhere."),
+        ]);
+      }
+    }
+
+    // --- SLOW PAYER -----------------------------------------------------
+    const allPay = payTiming(loads);
+    if (allPay.medianDays != null && allPay.sample >= PAY_MIN_SAMPLE_ALL) {
+      const bar = Math.max(
+        allPay.medianDays + SLOW_PAY_OVER_MEDIAN,
+        SLOW_PAY_FLOOR_DAYS,
+      );
+      let slow: { name: string; days: number } | null = null;
+      for (const [name, rows] of groupBy(loads, (l) => l.broker.trim())) {
+        const p = payTiming(rows);
+        if (p.sample < PAY_MIN_SAMPLE_BROKER || p.medianDays == null) continue;
+        if (p.medianDays >= bar && (!slow || p.medianDays > slow.days)) {
+          slow = { name, days: p.medianDays };
+        }
+      }
+      if (slow) {
+        push(70, "slow-payer", "warn", [
+          b(slow.name),
+          t(" takes about "),
+          b(`${slow.days.toFixed(0)} days`),
+          t(" to pay — consider factoring or shorter terms."),
+        ]);
+      }
+    }
+
+    // --- TOP BROKER -----------------------------------------------------
+    const top = brokers[0];
+    if (top && top.net > 0) {
+      push(60, "top-broker", "good", [
+        b(top.name),
+        t(" is your top earner — "),
+        b(usd(top.net)),
+        t(" net across "),
+        b(`${top.loads} load${top.loads === 1 ? "" : "s"}`),
+        t("."),
+      ]);
+    }
+
+    // --- DEADHEAD -------------------------------------------------------
+    // Only speaks at the ends of the range. A 19% deadhead is neither a win to
+    // keep up nor a problem to chase, and saying so out loud is filler.
+    const dh = deadheadSplit(loads);
+    if (dh.pct != null && dh.total >= DEADHEAD_MIN_MILES) {
+      if (dh.pct < DEADHEAD_LEAN_PCT) {
+        push(50, "deadhead", "good", [
+          t("You're running "),
+          b(`${dh.pct.toFixed(0)}%`),
+          t(" empty miles — that's lean, keep it up."),
+        ]);
+      } else if (dh.pct >= DEADHEAD_HIGH_PCT) {
+        push(85, "deadhead", "warn", [
+          t("You're running "),
+          b(`${dh.pct.toFixed(0)}%`),
+          t(" empty miles — worth chasing backhauls."),
+        ]);
+      }
+    }
+
+    // --- RPM TREND ------------------------------------------------------
+    // The last two buckets only. monthlyBuckets is contiguous, so these are
+    // genuinely consecutive calendar months and "vs last month" is literal.
+    const months = monthlyBuckets(loads, MAX_MONTH_WINDOW);
+    if (months.length >= 2) {
+      const cur = months[months.length - 1];
+      const prev = months[months.length - 2];
+      if (cur.netRpm != null && prev.netRpm != null) {
+        const delta = cur.netRpm - prev.netRpm;
+        if (Math.abs(delta) >= RPM_MIN_DELTA) {
+          push(55, "rpm-trend", delta > 0 ? "good" : "warn", [
+            t("Your rate is "),
+            b(`${delta > 0 ? "up" : "down"} ${rpm(Math.abs(delta))}/mi`),
+            t(" vs last month."),
+          ]);
+        }
+      }
+    }
+  }
+
+  if (out.length === 0) {
+    return [
+      {
+        id: "seed",
+        tone: "neutral",
+        segs: [
+          t(
+            "Log a few more loads and this fills in with what's working and what's not.",
+          ),
+        ],
+      },
+    ];
+  }
+
+  return out
+    .sort((x, y) => y.priority - x.priority)
+    .slice(0, MAX_TAKEAWAYS)
+    .map((c) => c.takeaway);
 }

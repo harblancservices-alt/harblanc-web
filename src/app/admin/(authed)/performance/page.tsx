@@ -11,6 +11,7 @@ import {
   goalMonthParts,
   currentGoalMonth,
   currentGoalMonthLabel,
+  daysLeftInMonth,
 } from "@/lib/dispatch/goal-month";
 import {
   monthlyBuckets,
@@ -20,6 +21,7 @@ import {
   payTiming,
   summarize,
   monthKey,
+  takeaways,
   type PerfLoad,
 } from "@/lib/dispatch/performance";
 import { PerformanceView, type PerformanceData } from "./PerformanceView";
@@ -169,6 +171,14 @@ async function performanceData(): Promise<PerformanceData> {
 
   return {
     monthLabel: currentGoalMonthLabel(now),
+    // Read off the SAME loads array every figure below is built from — the
+    // takeaways quote the aggregations, they don't re-derive them.
+    takeaways: takeaways(loads, {
+      year: curYear,
+      month: curMonth,
+      monthlyGoal,
+      daysRemaining: daysLeftInMonth(now),
+    }),
     currentMonth: summarize(
       loads.filter((l) => l.year === curYear && l.month === curMonth),
     ),

@@ -9,7 +9,9 @@ import {
   daysBetween,
   summarize,
   monthKey,
+  takeaways,
   type PerfLoad,
+  type Takeaway,
 } from "./performance";
 
 /**
@@ -192,5 +194,150 @@ describe("summarize", () => {
     expect(s.netRpm).toBeNull();
     expect(s.marginPct).toBeNull();
     expect(s.netPerLoad).toBeNull();
+  });
+});
+
+describe("takeaways", () => {
+  const ctx = { year: 2026, month: 6, monthlyGoal: 10_000, daysRemaining: 10 };
+  /** Flatten a takeaway back to the sentence the owner reads. */
+  const text = (t: Takeaway) => t.segs.map((s) => s.text).join("");
+  const find = (ts: Takeaway[], id: string) => ts.find((t) => t.id === id);
+
+  it("says one honest line rather than guessing from two loads", () => {
+    const ts = takeaways([load(), load()], ctx);
+    expect(ts).toHaveLength(1);
+    expect(ts[0].id).toBe("seed");
+    expect(ts[0].tone).toBe("neutral");
+  });
+
+  it("paces the goal off days remaining, using the canonical net", () => {
+    // 3 loads × $700 = $2,100 of a $10k goal; $7,900 ÷ 10 days = $790/day.
+    const ts = takeaways([load(), load(), load()], ctx);
+    const goal = find(ts, "goal-pace");
+    expect(goal?.tone).toBe("warn");
+    expect(text(goal!)).toContain("$2,100");
+    expect(text(goal!)).toContain("$790/day");
+    expect(text(goal!)).toContain("10 days");
+  });
+
+  it("celebrates a cleared goal instead of asking for $0/day", () => {
+    const ts = takeaways(
+      [load({ net: 6000 }), load({ net: 6000 }), load({ net: 100 })],
+      ctx,
+    );
+    const goal = find(ts, "goal-pace");
+    expect(goal?.tone).toBe("good");
+    expect(text(goal!)).toContain("cleared");
+    expect(text(goal!)).toContain("$2,100"); // 12,100 − 10,000 over
+  });
+
+  it("names the best lane and the one clearly under the average", () => {
+    const ts = takeaways(
+      [
+        // $2.00/mi
+        load({ origin: "Houston, TX", destination: "Dallas, TX", net: 1000, loadedMiles: 500 }),
+        // $1.60/mi
+        load({ origin: "Dallas, TX", destination: "Tulsa, OK", net: 800, loadedMiles: 500 }),
+        // $0.40/mi — well under the $1.33 blended average
+        load({ origin: "Tulsa, OK", destination: "Joplin, MO", net: 200, loadedMiles: 500 }),
+      ],
+      ctx,
+    );
+    expect(text(find(ts, "best-lane")!)).toContain("Houston, TX → Dallas, TX");
+    expect(text(find(ts, "best-lane")!)).toContain("$2.00/mi");
+    const weak = find(ts, "weak-lane");
+    expect(text(weak!)).toContain("Tulsa, OK → Joplin, MO");
+    expect(text(weak!)).toContain("$0.40/mi");
+  });
+
+  it("ignores a lane too short to rate", () => {
+    const ts = takeaways(
+      [
+        load({ origin: "A", destination: "B", net: 900, loadedMiles: 40 }), // 40mi
+        load({ origin: "C", destination: "D", net: 800, loadedMiles: 500 }),
+        load({ origin: "E", destination: "F", net: 700, loadedMiles: 500 }),
+      ],
+      ctx,
+    );
+    // The 40-mile lane rates $22.50/mi and would top the list on $/mi alone.
+    expect(text(find(ts, "best-lane")!)).not.toContain("A → B");
+  });
+
+  it("flags an underpaying broker only with more than one load behind it", () => {
+    const cheap = { broker: "Lowball", net: 200, loadedMiles: 500 };
+    const ts = takeaways(
+      [
+        load({ broker: "Acme", net: 1000, loadedMiles: 500 }),
+        load({ broker: "Acme", net: 1000, loadedMiles: 500 }),
+        load(cheap),
+        load(cheap),
+      ],
+      ctx,
+    );
+    expect(text(find(ts, "underpaying-broker")!)).toContain("Lowball");
+
+    const oneOff = takeaways(
+      [
+        load({ broker: "Acme", net: 1000, loadedMiles: 500 }),
+        load({ broker: "Acme", net: 1000, loadedMiles: 500 }),
+        load(cheap),
+      ],
+      ctx,
+    );
+    expect(find(oneOff, "underpaying-broker")).toBeUndefined();
+  });
+
+  it("stays quiet on deadhead in the middle of the range", () => {
+    // 20% empty — neither a win to keep up nor a problem to chase.
+    const mid = takeaways(
+      [
+        load({ loadedMiles: 800, deadheadMiles: 200 }),
+        load({ loadedMiles: 800, deadheadMiles: 200 }),
+        load({ loadedMiles: 800, deadheadMiles: 200 }),
+      ],
+      ctx,
+    );
+    expect(find(mid, "deadhead")).toBeUndefined();
+
+    const high = takeaways(
+      [
+        load({ loadedMiles: 600, deadheadMiles: 400 }),
+        load({ loadedMiles: 600, deadheadMiles: 400 }),
+        load({ loadedMiles: 600, deadheadMiles: 400 }),
+      ],
+      ctx,
+    );
+    expect(find(high, "deadhead")?.tone).toBe("warn");
+    expect(text(find(high, "deadhead")!)).toContain("40%");
+  });
+
+  it("reads the rate trend against the immediately preceding month", () => {
+    const ts = takeaways(
+      [
+        load({ year: 2026, month: 5, net: 500, loadedMiles: 500 }), // $1.00
+        load({ year: 2026, month: 5, net: 500, loadedMiles: 500 }),
+        load({ year: 2026, month: 6, net: 750, loadedMiles: 500 }), // $1.50
+      ],
+      ctx,
+    );
+    const trend = find(ts, "rpm-trend");
+    expect(trend?.tone).toBe("good");
+    expect(text(trend!)).toContain("up $0.50/mi");
+  });
+
+  it("never floods the strip", () => {
+    const many = Array.from({ length: 30 }, (_, i) =>
+      load({
+        broker: `Broker ${i % 5}`,
+        origin: `City ${i % 7}`,
+        destination: `City ${(i + 3) % 7}`,
+        net: 200 + i * 40,
+        loadedMiles: 400 + i * 10,
+        deadheadMiles: 300,
+        deliveryDate: "2026-07-01",
+        paidAt: "2026-09-01",
+      }),
+    );
+    expect(takeaways(many, ctx).length).toBeLessThanOrEqual(6);
   });
 });
