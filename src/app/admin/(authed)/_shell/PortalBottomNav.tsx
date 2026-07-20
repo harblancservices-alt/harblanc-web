@@ -7,22 +7,29 @@ import {
   IconBuilding,
   IconDashboard,
   IconDots,
+  IconSearch,
   IconStack,
 } from "./icons";
 import { MoreSheet } from "./MoreSheet";
+import { openGlobalSearch } from "./GlobalSearch";
 
 /**
  * Level 4 — portal bottom navigation.
  *
- * Mobile + tablet only (`lg:hidden`). Fixed at viewport bottom. Four
- * items: Dashboard / Quotes / Apps / More. Active state per Q3 (V3
- * baseline): red bottom border + red icon + red label. No background
- * swap (the black bar stays solid).
+ * Mobile + tablet only (`lg:hidden`). Fixed at viewport bottom. Five
+ * items: Dashboard / Loads / Brokers / Search / More. Active state per
+ * Q3 (V3 baseline): red bottom border + red icon + red label. No
+ * background swap (the black bar stays solid).
  *
- * The More button is the one non-link in the bar — it opens a bottom
- * sheet that lists Previews + Settings. Per Q7 desktop has no popup
- * (sidebar shows the nested items inline); the mobile sheet is the
- * mobile/tablet equivalent.
+ * Search lives here because the top bar that carries the search icon is
+ * `hidden sm:flex` — on a phone this bar is the only chrome there is, so
+ * without a tab here global search would be unreachable on the smallest
+ * screens it matters most on.
+ *
+ * Search and More are the two non-links in the bar. More opens a bottom
+ * sheet that lists Previews + Settings; Search opens the global palette
+ * PortalShell mounts. Per Q7 desktop has no popup (sidebar shows the
+ * nested items inline); the mobile sheet is the mobile/tablet equivalent.
  *
  * PortalShell adds pb-20 to <main> so page content clears this fixed
  * bar plus the iOS safe-area inset.
@@ -55,12 +62,22 @@ const MORE_ROUTES = [
   "/admin/dispatch/trips",
   "/admin/dispatch/reach",
   "/admin/dispatch/receivables",
+  "/admin/performance",
   "/admin/maintenance",
   "/admin/files",
   "/admin/camera",
   "/admin/previews",
   "/admin/settings",
 ];
+
+/**
+ * Shared chrome for the bar's two non-link tabs (Search, More) — identical to
+ * NavItemBody's span so a button and a Link tab are pixel-for-pixel the same
+ * cell. Callers append only the border/text color. Trailing space is
+ * deliberate: the color classes concatenate directly onto it.
+ */
+const NAV_BUTTON =
+  "flex flex-col items-center justify-center gap-1 border-b-[2px] px-2 pt-2 pb-2.5 font-mono text-[9px] font-bold uppercase tracking-[0.16em] transition-colors active:bg-white/15 ";
 
 function isMoreActive(pathname: string): boolean {
   return MORE_ROUTES.some(
@@ -78,7 +95,7 @@ export function PortalBottomNav() {
       <nav
         aria-label="Portal navigation"
         data-shell="bottomnav"
-        className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-4 border-t border-graphite-line bg-graphite pb-[env(safe-area-inset-bottom)] lg:hidden"
+        className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-graphite-line bg-graphite pb-[env(safe-area-inset-bottom)] lg:hidden"
       >
         {ITEMS.map((item) => {
           const active = isActive(pathname, item.href);
@@ -94,13 +111,24 @@ export function PortalBottomNav() {
             </Link>
           );
         })}
+        {/* Search — never "active": it opens an overlay and returns you to
+            wherever you were, so there's no route for it to own. */}
+        <button
+          type="button"
+          onClick={openGlobalSearch}
+          aria-haspopup="dialog"
+          className={NAV_BUTTON + "border-transparent text-white"}
+        >
+          <IconSearch className="h-[18px] w-[18px]" />
+          <span>Search</span>
+        </button>
         <button
           type="button"
           onClick={() => setSheetOpen(true)}
           aria-expanded={sheetOpen}
           aria-haspopup="dialog"
           className={
-            "flex flex-col items-center justify-center gap-1 border-b-[2px] px-2 pt-2 pb-2.5 font-mono text-[9px] font-bold uppercase tracking-[0.16em] transition-colors active:bg-white/15 " +
+            NAV_BUTTON +
             (moreActive || sheetOpen
               ? "border-accent text-accent"
               : "border-transparent text-white")

@@ -13,7 +13,13 @@ export const metadata: Metadata = {
  * maintenance receipts, and customer quote/application uploads — auto-named and
  * auto-categorized so any document is findable by its (broker) load number.
  */
-export default async function FilesPage() {
-  const items = await loadAllFiles();
-  return <FilesView items={items} />;
+export default async function FilesPage({
+  searchParams,
+}: {
+  // `?q=` seeds the search box — the hand-off target for the global search
+  // palette's Files results, which link here with the file's own name.
+  searchParams: Promise<{ q?: string }>;
+}) {
+  const [items, sp] = await Promise.all([loadAllFiles(), searchParams]);
+  return <FilesView items={items} initialQuery={sp.q ?? ""} />;
 }

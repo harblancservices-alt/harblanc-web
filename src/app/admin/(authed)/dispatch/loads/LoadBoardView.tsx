@@ -86,11 +86,6 @@ const STATUS_LABEL: Record<string, string> = {
   cancelled: "Cancelled",
 };
 
-// 11 columns (Mi + DH removed), re-proportioned to fill the width evenly and
-// fit without horizontal scroll on a ~1080px-wide portrait screen (see min-w
-// below). The wide Broker/Lane/Trip columns flex + truncate.
-const GRID =
-  "24px 96px 84px minmax(0,1.5fr) minmax(0,1.8fr) 58px 58px minmax(0,1fr) 92px 92px 56px";
 
 export function LoadBoardView({ data }: { data: LoadBoardData }) {
   const router = useRouter();
@@ -299,6 +294,25 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
             <span className="font-mono text-[11px] text-ink-3">
               · tap loads to select
             </span>
+            {/* Select-all moved here from the old table header, which the card
+                grid replaced — the bulk pick is a property of delete mode, not
+                of a table. Toggles the whole VISIBLE (month + search) slice. */}
+            <Button
+              type="button"
+              variant="cancel"
+              size="sm"
+              onClick={() =>
+                setSelected(
+                  selected.size === rows.length
+                    ? new Set()
+                    : new Set(rows.map((r) => r.id)),
+                )
+              }
+            >
+              {selected.size === rows.length && rows.length > 0
+                ? "Clear all"
+                : "Select all"}
+            </Button>
             <Button
               type="button"
               variant="cancel"
@@ -334,272 +348,177 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
           </div>
         )}
 
-        {/* Table (desktop) */}
-        <div className="hidden overflow-x-auto rounded-lg border border-line-strong bg-card shadow-e2 md:block">
-          <div className="min-w-[780px]">
-            <div
-              className="grid items-center gap-1.5 border-b-2 border-line-strong bg-inset px-2 py-2 font-mono text-[10px] font-bold uppercase tracking-[0.06em] text-ink-3"
-              style={{ gridTemplateColumns: GRID }}
-            >
-              <span className="flex items-center">
-                {selectMode ? (
-                  <input
-                    type="checkbox"
-                    aria-label="Select all loads"
-                    checked={rows.length > 0 && selected.size === rows.length}
-                    ref={(el) => {
-                      if (el)
-                        el.indeterminate =
-                          selected.size > 0 && selected.size < rows.length;
-                    }}
-                    onChange={(e) =>
-                      setSelected(
-                        e.target.checked
-                          ? new Set(rows.map((r) => r.id))
-                          : new Set(),
-                      )
-                    }
-                    className="h-3.5 w-3.5 cursor-pointer accent-red-600"
-                  />
-                ) : null}
-              </span>
-              <span>Status</span>
-              <span>Load#</span>
-              <span>Broker</span>
-              <span>Lane</span>
-              <span>PU</span>
-              <span>Del</span>
-              <span>Trip</span>
-              <span className="text-right">Rate</span>
-              <span className="text-right">Net</span>
-              <span className="text-right">Paid</span>
-            </div>
-
-            {rows.length === 0 ? (
-              <div className="px-3 py-8 text-center font-mono text-[13px] text-fg-subtle">
-                No loads yet. Hit “Add load” to start tracking.
-              </div>
-            ) : (
-              rows.map((r, i) => (
-                <div
-                  key={r.id}
-                  role={selectMode ? "button" : "link"}
-                  tabIndex={0}
-                  aria-pressed={selectMode ? selected.has(r.id) : undefined}
-                  onClick={() => {
-                    if (selectMode) toggleSelected(r.id);
-                    else router.push(`/admin/dispatch/loads/${r.id}`);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key !== "Enter") return;
-                    if (selectMode) toggleSelected(r.id);
-                    else router.push(`/admin/dispatch/loads/${r.id}`);
-                  }}
-                  className={
-                    "grid cursor-pointer items-center gap-1.5 px-2 py-2 text-[12px] transition-colors " +
-                    (selectMode && selected.has(r.id)
-                      ? "bg-bad-bg hover:bg-bad-bg "
-                      : (i % 2 === 0 ? "bg-card " : "bg-inset ") + "hover:bg-inset ") +
-                    (i === rows.length - 1 ? "" : "border-b border-line")
-                  }
-                  style={{ gridTemplateColumns: GRID }}
-                >
-                  {/* Checkbox only in delete mode — visual mirror of the row's
-                      selected state (the whole row toggles). */}
-                  <span className="flex items-center">
-                    {selectMode ? (
-                      <input
-                        type="checkbox"
-                        readOnly
-                        aria-hidden
-                        tabIndex={-1}
-                        checked={selected.has(r.id)}
-                        className="pointer-events-none h-4 w-4 accent-red-600"
-                      />
-                    ) : null}
-                  </span>
-                  <span>
-                    <StatusTag tone={STATUS_TONE[r.status] ?? "slate"}>
-                      {STATUS_LABEL[r.status] ?? r.status}
-                    </StatusTag>
-                  </span>
-                  <span className="truncate font-mono text-ink-3">
-                    {r.loadNumber}
-                  </span>
-                  <span className="truncate font-semibold text-ink">
-                    {r.broker}
-                  </span>
-                  <span className="truncate text-ink">
-                    {r.origin} <span className="text-ink-3">→</span>{" "}
-                    {r.destination}
-                  </span>
-                  <span className="truncate text-ink-2">{r.pickup}</span>
-                  <span className="truncate text-ink-2">{r.delivery}</span>
-                  <span className="truncate text-steel">{r.trip}</span>
-                  <span className="text-right font-bold tabular-nums text-ok">
-                    {usd(r.rate)}
-                  </span>
-                  <span className="text-right font-bold tabular-nums text-ok">
-                    {usd(r.net)}
-                  </span>
-                  <span className="flex justify-end">
-                    {r.paymentStatus === "paid" ? (
-                      <span className="font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-ok">
-                        Paid
-                      </span>
-                    ) : null}
-                  </span>
-                </div>
-              ))
-            )}
+        {/* The board — one load card per load, the trip cards' anatomy. The
+            desktop table this replaced is gone entirely: the SAME card renders
+            at every width, one column on a phone and a 2-up / 3-up grid once
+            there's room, so the board reads like the rest of the app instead
+            of a spreadsheet. items-start is deliberate — cards size to their
+            own content rather than stretching to the tallest in the row. */}
+        {rows.length === 0 ? (
+          <div className="rounded-lg border border-line-strong bg-card px-3 py-8 text-center font-mono text-[13px] text-fg-subtle shadow-e1">
+            {query.trim()
+              ? "No loads match that search."
+              : "No loads yet. Hit “Add load” to start tracking."}
           </div>
-        </div>
-
-        {/* Cards (mobile) */}
-        <div className="space-y-2 md:hidden">
-          {rows.length === 0 ? (
-            <div className="rounded-lg border border-line-strong bg-card px-3 py-8 text-center font-mono text-[13px] text-fg-subtle shadow-e1">
-              No loads yet. Hit “Add load” to start tracking.
-            </div>
-          ) : (
-            rows.map((r) => {
-              const isSel = selectMode && selected.has(r.id);
-              // Net ÷ Rate, drawn twice: as the Margin cell and as the bar.
-              const pct = marginPct(r);
-              const tone: StatTone = r.net < 0 ? "bad" : "ok";
-              return (
-                <div
-                  key={r.id}
-                  role={selectMode ? "button" : "link"}
-                  tabIndex={0}
-                  aria-pressed={selectMode ? selected.has(r.id) : undefined}
-                  onClick={() => {
-                    if (selectMode) toggleSelected(r.id);
-                    else router.push(`/admin/dispatch/loads/${r.id}`);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key !== "Enter") return;
-                    if (selectMode) toggleSelected(r.id);
-                    else router.push(`/admin/dispatch/loads/${r.id}`);
-                  }}
-                  className={
-                    "flex cursor-pointer items-stretch overflow-hidden rounded-lg border shadow-e2 transition-shadow hover:shadow-e3 active:bg-inset " +
-                    (isSel ? "border-bad bg-bad-bg" : "border-line-strong bg-card")
-                  }
-                >
-                  {/* Selection indicator — only in delete mode. The whole card
-                      toggles, so this is a visual checkbox, not a hit target. */}
-                  {selectMode ? (
-                    <div
-                      aria-hidden
-                      className={
-                        "flex w-12 shrink-0 items-center justify-center border-r transition-colors " +
-                        (isSel
-                          ? "border-bad/40 bg-bad-bg"
-                          : "border-line bg-card")
-                      }
-                    >
-                      <span
-                        className={
-                          "flex h-5 w-5 items-center justify-center rounded border-2 text-[12px] font-bold leading-none " +
-                          (isSel
-                            ? "border-bad bg-bad text-white"
-                            : "border-line-strong text-transparent")
-                        }
-                      >
-                        ✓
-                      </span>
-                    </div>
-                  ) : null}
-
-                  {/* Content — the trip cards' anatomy exactly: broker +
-                      status pill, the lane, identity chips, one grouped stat
-                      module, and the margin drawn as a bar. */}
-                  <div className="min-w-0 flex-1 p-3">
-                    {/* Identity — broker leads, status pill holds the right
-                        edge (the trip cards' header, with the load's status
-                        instead of the trip's). */}
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 truncate text-[15px] font-semibold leading-tight text-fg">
-                        {r.broker}
-                      </div>
-                      <StatusTag tone={STATUS_TONE[r.status] ?? "slate"}>
-                        {STATUS_LABEL[r.status] ?? r.status}
-                      </StatusTag>
-                    </div>
-
-                    {/* The lane — what the load IS, so it sits directly under
-                        the name rather than among the chips. */}
-                    <div className="mt-0.5 truncate text-[12.5px] text-fg-muted">
-                      {r.origin} <span className="text-fg-subtle">→</span>{" "}
-                      {r.destination}
-                    </div>
-
-                    {/* Identity chips — load #, the pickup→delivery span, and
-                        the miles. Neutral for the dates, steel for the number
-                        and the mileage count, per the trip cards. */}
-                    <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                      <span className="rounded border border-steel/40 bg-steel-bg px-1.5 py-0.5 font-mono text-[11px] font-bold tabular-nums text-steel shadow-e1">
-                        #{r.loadNumber}
-                      </span>
-                      <span className="rounded border border-line-strong bg-inset px-1.5 py-0.5 font-mono text-[11px] font-semibold tabular-nums text-fg shadow-e1">
-                        {r.pickup} <span className="text-fg-subtle">→</span>{" "}
-                        {r.delivery}
-                      </span>
-                      {r.loadedMiles != null ? (
-                        <span className="rounded border border-steel/40 bg-steel-bg px-1.5 py-0.5 font-mono text-[11px] font-bold tabular-nums text-steel shadow-e1">
-                          {r.loadedMiles.toLocaleString()} mi
-                        </span>
-                      ) : null}
-                    </div>
-
-                    {/* Grouped stat module — Rate · Net · Margin as equal
-                        thirds of one inset panel. Rate is a plain figure and
-                        reads ink; Net (the canonical loadNet the board is fed)
-                        and Margin are the earnings, so they carry the green. */}
-                    <div className="mt-2 grid grid-cols-3 overflow-hidden rounded-md border border-line-strong bg-inset shadow-e1">
-                      <LoadStat label="Rate" value={usd(r.rate)} />
-                      <LoadStat
-                        label="Net"
-                        value={usd(r.net)}
-                        tone={tone}
-                        strong
-                        divider
-                      />
-                      <LoadStat
-                        label="Margin"
-                        value={pct != null ? `${Math.round(pct)}%` : "—"}
-                        tone={tone}
-                        divider
-                      />
-                    </div>
-
-                    {r.paymentStatus === "paid" ? (
-                      <div className="mt-2 text-right font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-ok">
-                        Paid
-                      </div>
-                    ) : null}
-
-                    {/* Margin bar — the Margin percentage, drawn. */}
-                    <div
-                      aria-hidden
-                      className="mt-2 h-1 w-full overflow-hidden rounded-full border border-line-strong bg-inset"
-                    >
-                      <div
-                        className={"h-full " + (tone === "bad" ? "bg-bad" : "bg-ok")}
-                        style={{
-                          width: `${pct == null ? 0 : Math.min(100, Math.max(0, pct))}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
+        ) : (
+          <div className="grid grid-cols-1 items-start gap-2 md:grid-cols-2 xl:grid-cols-3">
+            {rows.map((r) => (
+              <LoadCard
+                key={r.id}
+                row={r}
+                selectMode={selectMode}
+                isSel={selectMode && selected.has(r.id)}
+                onOpen={(id) => router.push(`/admin/dispatch/loads/${id}`)}
+                onToggle={toggleSelected}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
+    </div>
+  );
+}
+
+/**
+ * One load, as a card — the trip cards' anatomy applied to a load: broker +
+ * status pill, the lane, identity chips, one grouped Rate · Net · Margin stat
+ * module, and the margin drawn as a bar. Net is the canonical per-load net the
+ * server computed (loadNet), handed down as `row.net`; nothing here does money
+ * math beyond the margin ratio.
+ *
+ * This is the ONLY load renderer — the board draws it at every width, so a
+ * desktop load and a phone load are the same object, not two designs to keep
+ * in sync.
+ */
+function LoadCard({
+  row: r,
+  selectMode,
+  isSel,
+  onOpen,
+  onToggle,
+}: {
+  row: LoadRow;
+  selectMode: boolean;
+  isSel: boolean;
+  onOpen: (id: string) => void;
+  onToggle: (id: string) => void;
+}) {
+  // Net ÷ Rate, drawn twice: as the Margin cell and as the bar.
+  const pct = marginPct(r);
+  const tone: StatTone = r.net < 0 ? "bad" : "ok";
+  return (
+    <div
+      role={selectMode ? "button" : "link"}
+      tabIndex={0}
+      aria-pressed={selectMode ? isSel : undefined}
+      onClick={() => (selectMode ? onToggle(r.id) : onOpen(r.id))}
+      onKeyDown={(e) => {
+        if (e.key !== "Enter") return;
+        e.preventDefault();
+        if (selectMode) onToggle(r.id);
+        else onOpen(r.id);
+      }}
+      className={
+        "flex cursor-pointer items-stretch overflow-hidden rounded-lg border shadow-e2 transition-shadow hover:shadow-e3 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 active:bg-inset " +
+        (isSel ? "border-bad bg-bad-bg" : "border-line-strong bg-card")
+      }
+    >
+      {/* Selection indicator — only in delete mode. The whole card toggles, so
+          this is a visual checkbox, not a hit target. */}
+      {selectMode ? (
+        <div
+          aria-hidden
+          className={
+            "flex w-12 shrink-0 items-center justify-center border-r transition-colors " +
+            (isSel ? "border-bad/40 bg-bad-bg" : "border-line bg-card")
+          }
+        >
+          <span
+            className={
+              "flex h-5 w-5 items-center justify-center rounded border-2 text-[12px] font-bold leading-none " +
+              (isSel
+                ? "border-bad bg-bad text-white"
+                : "border-line-strong text-transparent")
+            }
+          >
+            ✓
+          </span>
+        </div>
+      ) : null}
+
+      <div className="min-w-0 flex-1 p-3">
+        {/* Identity — broker leads, status pill holds the right edge. */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 truncate text-[15px] font-semibold leading-tight text-fg">
+            {r.broker}
+          </div>
+          <StatusTag tone={STATUS_TONE[r.status] ?? "slate"}>
+            {STATUS_LABEL[r.status] ?? r.status}
+          </StatusTag>
+        </div>
+
+        {/* The lane — what the load IS, so it sits directly under the name
+            rather than among the chips. */}
+        <div className="mt-0.5 truncate text-[12.5px] text-fg-muted">
+          {r.origin} <span className="text-fg-subtle">→</span> {r.destination}
+        </div>
+
+        {/* Identity chips — load #, the pickup→delivery span, the miles, and
+            the trip (the last of the old table's columns that isn't already
+            on the card). Neutral for the dates, steel for the counts. */}
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+          <span className="rounded border border-steel/40 bg-steel-bg px-1.5 py-0.5 font-mono text-[11px] font-bold tabular-nums text-steel shadow-e1">
+            #{r.loadNumber}
+          </span>
+          <span className="rounded border border-line-strong bg-inset px-1.5 py-0.5 font-mono text-[11px] font-semibold tabular-nums text-fg shadow-e1">
+            {r.pickup} <span className="text-fg-subtle">→</span> {r.delivery}
+          </span>
+          {r.loadedMiles != null ? (
+            <span className="rounded border border-steel/40 bg-steel-bg px-1.5 py-0.5 font-mono text-[11px] font-bold tabular-nums text-steel shadow-e1">
+              {r.loadedMiles.toLocaleString()} mi
+            </span>
+          ) : null}
+          {r.trip ? (
+            <span className="max-w-full truncate rounded border border-line-strong bg-inset px-1.5 py-0.5 font-mono text-[11px] font-semibold text-fg-muted shadow-e1">
+              {r.trip}
+            </span>
+          ) : null}
+        </div>
+
+        {/* Grouped stat module — Rate · Net · Margin as equal thirds of one
+            inset panel. Rate is a plain figure and reads ink; Net and Margin
+            are the earnings, so they carry the green. */}
+        <div className="mt-2 grid grid-cols-3 overflow-hidden rounded-md border border-line-strong bg-inset shadow-e1">
+          <LoadStat label="Rate" value={usd(r.rate)} />
+          <LoadStat label="Net" value={usd(r.net)} tone={tone} strong divider />
+          <LoadStat
+            label="Margin"
+            value={pct != null ? `${Math.round(pct)}%` : "—"}
+            tone={tone}
+            divider
+          />
+        </div>
+
+        {r.paymentStatus === "paid" ? (
+          <div className="mt-2 text-right font-mono text-[10px] font-bold uppercase tracking-[0.08em] text-ok">
+            Paid
+          </div>
+        ) : null}
+
+        {/* Margin bar — the Margin percentage, drawn. */}
+        <div
+          aria-hidden
+          className="mt-2 h-1 w-full overflow-hidden rounded-full border border-line-strong bg-inset"
+        >
+          <div
+            className={"h-full " + (tone === "bad" ? "bg-bad" : "bg-ok")}
+            style={{
+              width: `${pct == null ? 0 : Math.min(100, Math.max(0, pct))}%`,
+            }}
+          />
+        </div>
+      </div>
     </div>
   );
 }

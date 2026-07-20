@@ -1,23 +1,23 @@
 import Link from "next/link";
 import { BrandLogo } from "@/components/site/BrandLogo";
-import { IconSearch } from "./icons";
+import { SearchTrigger } from "./GlobalSearch";
 
 /**
  * Level 4 — portal top bar.
  *
  * Persistent across every authed route. Black bar, HARBLANC wordmark on
- * the left (clickable, links to /admin), visual-only search icon on the
- * right. Per Q9 the search icon does nothing — no tooltip, no disabled
- * state, no "coming soon." It exists until search is implemented.
+ * the left (clickable, links to /admin), search on the right. The icon was
+ * a visual-only placeholder "until search is implemented" — it is now the
+ * real trigger, opening the global palette (loads / brokers / files) that
+ * PortalShell mounts. ⌘K opens the same palette from anywhere.
  *
  * The wordmark uses BrandLogo with the inverted variant so it renders
  * correctly on the dark background. If assets.logoInverted is unset,
  * BrandLogo falls back to a typographic span that also reads white on
  * dark (see components/site/BrandLogo.tsx).
  *
- * Server component — no client state needed. The search "icon" is a
- * non-interactive span so the cursor stays default and accessibility
- * trees don't announce a fake button.
+ * Still a server component — SearchTrigger is a one-button client island,
+ * so opening the palette doesn't pull the bar across the boundary.
  */
 export function PortalTopBar() {
   return (
@@ -30,12 +30,7 @@ export function PortalTopBar() {
       >
         <BrandLogo variant="inverted" className="h-6 w-auto sm:h-7" />
       </Link>
-      <span
-        aria-hidden
-        className="inline-flex h-9 w-9 items-center justify-center text-fg-subtle"
-      >
-        <IconSearch className="h-5 w-5" />
-      </span>
+      <SearchTrigger />
     </header>
   );
 }

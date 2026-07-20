@@ -66,8 +66,19 @@ function tintFor(category: FileCategory): TintKey | undefined {
   return CATEGORY_TINT[category];
 }
 
-export function FilesView({ items }: { items: FileItem[] }) {
-  const [query, setQuery] = useState("");
+export function FilesView({
+  items,
+  initialQuery = "",
+}: {
+  items: FileItem[];
+  /**
+   * Seeds the search box from `?q=` — how the global search palette hands a
+   * file off: it links here with the file's own name, so the timeline opens
+   * already narrowed to that document instead of at the top of everything.
+   */
+  initialQuery?: string;
+}) {
+  const [query, setQuery] = useState(initialQuery);
   const [filter, setFilter] = useState<FilterKey>("all");
   const [visible, setVisible] = useState(PAGE_SIZE);
   const [viewing, setViewing] = useState<FileItem | null>(null);

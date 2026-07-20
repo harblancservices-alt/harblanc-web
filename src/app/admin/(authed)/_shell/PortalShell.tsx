@@ -2,6 +2,7 @@ import { PortalTopBar } from "./PortalTopBar";
 import { PortalSidebar } from "./PortalSidebar";
 import { PortalBottomNav } from "./PortalBottomNav";
 import { ThemeShell } from "./ThemeShell";
+import { GlobalSearch } from "./GlobalSearch";
 
 /**
  * Level 4 — portal shell.
@@ -42,6 +43,10 @@ export function PortalShell({
         </main>
       </div>
       <PortalBottomNav />
+      {/* Global search palette. Mounted here, once, so a single instance owns
+          the state no matter which trigger opened it (top bar icon, mobile
+          Search tab, or ⌘K) and so it can paint over the whole shell. */}
+      <GlobalSearch />
     </ThemeShell>
   );
 }
