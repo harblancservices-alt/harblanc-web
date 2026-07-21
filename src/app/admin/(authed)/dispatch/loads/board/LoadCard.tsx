@@ -4,16 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
 import type { LoadRow } from "../LoadBoardView";
-import {
-  BADGE,
-  STAGES,
-  badgeOf,
-  initials,
-  marginPct,
-  ratePerMile,
-  stageOf,
-  usd,
-} from "./shared";
+import { BADGE, STAGES, badgeOf, initials, stageOf } from "./shared";
 import {
   BoxIcon,
   CalendarIcon,
@@ -62,8 +53,6 @@ export function LoadCard({
   const [open, setOpen] = useState(false);
   const badge = BADGE[badgeOf(r)];
   const stage = stageOf(r);
-  const pct = marginPct(r);
-  const rpm = ratePerMile(r);
   const brokerHref = r.brokerId ? `/admin/dispatch/brokers/${r.brokerId}` : null;
 
   return (
@@ -122,35 +111,6 @@ export function LoadCard({
               {r.trip}
             </Pill>
           ) : null}
-        </div>
-
-        {/* ── Financials ────────────────────────────────────────────────────
-            On the fixed inset panel so a negative Net can render red without
-            dropping to ~2:1 against the dark admin card. Two-up on a phone,
-            four-up from `sm` — four six-figure columns on a 360px screen would
-            truncate every one of them. */}
-        <div className="mt-4 grid grid-cols-2 overflow-hidden rounded-xl bg-inset shadow-e1 sm:grid-cols-4">
-          <Money label="Rate" value={usd(r.rate)} />
-          <Money
-            label="Net"
-            value={usd(r.net)}
-            tone={r.net < 0 ? "bad" : "ok"}
-            divider
-          />
-          <Money
-            label="Margin"
-            value={pct != null ? `${Math.round(pct)}%` : "—"}
-            tone={r.net < 0 ? "bad" : "ok"}
-            className="border-t border-line-strong/40 sm:border-t-0"
-            divider={false}
-            smDivider
-          />
-          <Money
-            label="RPM"
-            value={rpm != null ? `$${rpm.toFixed(2)}` : "—"}
-            className="border-t border-line-strong/40 sm:border-t-0"
-            divider
-          />
         </div>
 
         {/* ── Shipment timeline ─────────────────────────────────────────── */}
@@ -407,50 +367,6 @@ function Pill({
       <span className="shrink-0">{icon}</span>
       <span className="min-w-0 truncate">{children}</span>
     </span>
-  );
-}
-
-/** One cell of the card's four-up financial row. Fixed inset, fixed ink. */
-function Money({
-  label,
-  value,
-  tone,
-  divider = false,
-  smDivider = false,
-  className = "",
-}: {
-  label: string;
-  value: string;
-  tone?: "ok" | "bad";
-  /** Left rule at every width. */
-  divider?: boolean;
-  /** Left rule only from `sm`, where the row goes from two-up to four-up. */
-  smDivider?: boolean;
-  className?: string;
-}) {
-  const color =
-    tone === "ok" ? "text-ok" : tone === "bad" ? "text-bad" : "text-ink";
-  return (
-    <div
-      className={
-        "min-w-0 px-3 py-2.5 " +
-        (divider ? "border-l border-line-strong/40 " : "") +
-        (smDivider ? "sm:border-l sm:border-line-strong/40 " : "") +
-        className
-      }
-    >
-      <div className="truncate text-[9px] font-bold uppercase tracking-[0.1em] text-ink-3">
-        {label}
-      </div>
-      <div
-        className={
-          "mt-1 truncate text-[17px] font-bold leading-none tabular-nums sm:text-[18px] " +
-          color
-        }
-      >
-        {value}
-      </div>
-    </div>
   );
 }
 
