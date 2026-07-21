@@ -339,7 +339,19 @@ export function ReceivablesView({
   }
 
   return (
-    <div className="min-h-screen bg-canvas text-fg">
+    <div className="ar-screen min-h-screen bg-canvas text-fg">
+      {/* PAGE CANVAS. The white cards are meant to float on a deeper, cooler
+          canvas (Stripe/Mercury fintech look), so this screen repoints the
+          themed --canvas token to a slate-tinted shade a clear step darker than
+          the admin default (#e9ecef light / #2b2b2b dark). Overriding the token
+          — rather than hard-coding a background — keeps bg-canvas/text-fg
+          theme-safe: text-fg still flips light↔dark, and .admin-dark still wins
+          via higher specificity. Scoped to .ar-screen so no other admin page
+          shifts. */}
+      <style>{`
+        .ar-screen { --canvas: #d3dbe5; }
+        .admin-dark .ar-screen { --canvas: #202329; }
+      `}</style>
       <div className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
         {/* ── Header ──────────────────────────────────────────────────────
             One row, and nothing above it: the way back to the board on the
@@ -523,7 +535,9 @@ export function ReceivablesView({
         {/* ── Recently paid ──────────────────────────────────────────────── */}
         {recentlyPaid.length > 0 ? (
           <section className="mt-8">
-            <h2 className="mb-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-fg-subtle">
+            {/* text-fg-muted, not -subtle: this label sits directly on the
+                darker page canvas, where -subtle (#727a84) would drop to ~3:1. */}
+            <h2 className="mb-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-fg-muted">
               Recently Paid
             </h2>
             <div className="overflow-hidden rounded-2xl border border-line bg-card shadow-e1">
@@ -682,7 +696,7 @@ function InvoiceCard({ r }: { r: ReceivableItem }) {
         {/* Financials. On the fixed-light inset panel so the red balance and
             the ink labels stay legible under the dark admin theme. */}
         <div className="mt-4 grid grid-cols-3 rounded-xl bg-inset shadow-e1">
-          <Figure label="Invoice Amount" value={usd(r.rate)} icon />
+          <Figure label="Invoice" value={usd(r.rate)} icon />
           {/* No partial payments exist in the schema — an unpaid load owes its
               full rate, so Balance Due is the invoice amount until it clears. */}
           <Figure label="Balance Due" value={usd(r.rate)} accent divider />
@@ -759,16 +773,22 @@ function Figure({
   return (
     <div
       className={
-        "min-w-0 px-3 py-3 " + (divider ? "border-l border-line-strong/60" : "")
+        "min-w-0 px-2.5 py-3 " +
+        (divider ? "border-l border-line-strong/60" : "")
       }
     >
-      <div className="flex items-center gap-1 text-[9.5px] font-bold uppercase tracking-[0.1em] text-ink-3">
+      {/* Sized to survive a 375px viewport: at ~83px of column text width, a
+          14-char "INVOICE AMOUNT" (label shortened to "Invoice") and a 9-char
+          "6/22/2026" value both used to clip. 9px labels and a 13px value
+          (bumping back up at sm, where the columns are far wider) show every
+          label and a full M/DD/YYYY date, year included, with no ellipsis. */}
+      <div className="flex items-center gap-1 text-[9px] font-bold uppercase tracking-[0.06em] text-ink-3">
         {icon ? <DollarIcon className="h-3 w-3 shrink-0" /> : null}
         <span className="truncate">{label}</span>
       </div>
       <div
         className={
-          "mt-1.5 truncate text-[16px] font-bold leading-tight tabular-nums sm:text-[17px] " +
+          "mt-1.5 truncate text-[13px] font-bold leading-tight tabular-nums sm:text-[15px] " +
           (accent ? "text-accent" : "text-ink")
         }
       >
