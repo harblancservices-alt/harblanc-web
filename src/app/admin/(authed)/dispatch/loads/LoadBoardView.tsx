@@ -7,8 +7,7 @@ import { AddLoadButton } from "./AddLoadButton";
 import { PopoutButton } from "../email-broker/PopoutButton";
 import { Button } from "@/components/ui/Button";
 import { BoardHeader } from "./board/BoardHeader";
-import { PerformanceCard } from "./board/PerformanceCard";
-import { KpiGrid } from "./board/KpiGrid";
+import { OverviewSection } from "./board/OverviewSection";
 import { LoadCard } from "./board/LoadCard";
 import { BADGE, badgeOf, marginPct, ratePerMile } from "./board/shared";
 import { FilterIcon, SearchIcon, TruckIcon } from "./board/icons";
@@ -270,24 +269,25 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
           exportCount={rows.length}
         />
 
-        {/* Monthly performance. A specific month tracks that month's net against
-            the MONTHLY goal; "All months" tracks the all-months net against the
-            ANNUAL goal. Both targets are editable in Settings. The pace figures
-            only apply to the month currently being earned. */}
-        <PerformanceCard
+        {/* Overview — the monthly performance card and the six KPI cards,
+            COLLAPSED BY DEFAULT behind a compact summary strip so the first load
+            card is on screen without a scroll. The section owns the collapse
+            state; every figure and the A/R drill-down pass straight through.
+
+            A specific month tracks that month's net against the MONTHLY goal;
+            "All months" tracks the all-months net against the ANNUAL goal. Both
+            targets are editable in Settings. The pace figures only apply to the
+            month currently being earned. */}
+        <OverviewSection
           net={stats.net}
           goal={month === "all" ? data.annualGoal : data.monthlyGoal}
           label={month === "all" ? "All months" : MONTHS[month]}
           daysLeft={isCurrentMonth ? data.daysLeftInMonth : null}
           daysInMonth={isCurrentMonth ? data.daysInMonth : null}
-        />
-
-        <KpiGrid
           arTotal={data.arTotal}
           totalLoads={stats.totalLoads}
           delivered={stats.delivered}
           gross={stats.gross}
-          net={stats.net}
           avgNetPerMile={stats.avgNetPerMile}
           avgGrossPerMile={stats.avgGrossPerMile}
         />
