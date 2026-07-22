@@ -357,49 +357,6 @@ export function AddLoadModal({
                 ) : null}
               </div>
             </div>
-
-            {/* Dispatcher contact — saved under the broker, not as its main
-                line. Stacks on mobile, side-by-side on desktop. */}
-            <div className="mt-3">
-              <label className="block font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-fg">
-                Dispatcher name
-              </label>
-              <input
-                name="broker_contact_name"
-                value={brokerContactName}
-                onChange={(e) => setBrokerContactName(e.target.value)}
-                autoComplete="off"
-                placeholder="e.g. Mike at Dispatch"
-                className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
-              />
-            </div>
-            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div>
-                <label className="block font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-fg">
-                  Dispatcher email
-                </label>
-                <input
-                  name="broker_email"
-                  type="email"
-                  value={brokerEmail}
-                  onChange={(e) => setBrokerEmail(e.target.value)}
-                  autoComplete="off"
-                  className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="block font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-fg">
-                  Dispatcher phone
-                </label>
-                <input
-                  name="broker_phone"
-                  value={brokerPhone}
-                  onChange={(e) => setBrokerPhone(e.target.value)}
-                  autoComplete="off"
-                  className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
-                />
-              </div>
-            </div>
           </section>
 
           {/* Lane & schedule card — ZIPs, dates, rate, trip */}
@@ -538,6 +495,57 @@ export function AddLoadModal({
                   <option value={NEW_TRIP}>+ New trip…</option>
                 </select>
               )}
+            </div>
+          </section>
+
+          {/* Dispatcher contact — last, since the dispatcher's name/phone/email
+              often aren't known until the load is nearly booked (sometimes not
+              at all). Saved under the broker via broker_contacts, not as its
+              main line. Stacks on mobile, side-by-side on desktop. */}
+          <section className="rounded-md border border-line bg-card p-3">
+            <p className="mb-2 font-mono text-[11px] font-bold uppercase tracking-[0.14em] text-fg">
+              Dispatcher contact
+            </p>
+
+            <div>
+              <label className="block font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-fg">
+                Dispatcher name
+              </label>
+              <input
+                name="broker_contact_name"
+                value={brokerContactName}
+                onChange={(e) => setBrokerContactName(e.target.value)}
+                autoComplete="off"
+                placeholder="e.g. Mike at Dispatch"
+                className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
+              />
+            </div>
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div>
+                <label className="block font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-fg">
+                  Dispatcher email
+                </label>
+                <input
+                  name="broker_email"
+                  type="email"
+                  value={brokerEmail}
+                  onChange={(e) => setBrokerEmail(e.target.value)}
+                  autoComplete="off"
+                  className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-fg">
+                  Dispatcher phone
+                </label>
+                <input
+                  name="broker_phone"
+                  value={brokerPhone}
+                  onChange={(e) => setBrokerPhone(e.target.value)}
+                  autoComplete="off"
+                  className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
+                />
+              </div>
             </div>
           </section>
         </div>
