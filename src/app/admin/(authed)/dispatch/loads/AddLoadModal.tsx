@@ -281,7 +281,7 @@ export function AddLoadModal({
 
             <div className="mt-3">
               <label className="block font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-fg">
-                Broker / customer<span className="ml-1.5 rounded bg-red-100 px-1.5 py-[1px] align-middle font-mono text-[8.5px] font-bold uppercase tracking-[0.08em] text-red-700">Required</span>
+                Broker / customer<span className="ml-0.5 text-red-600">*</span>
               </label>
               <input
                 name="broker_name"
@@ -368,7 +368,7 @@ export function AddLoadModal({
             <div className="grid grid-cols-2 gap-2.5">
               <div className="min-w-0">
                 <label className="block font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-fg">
-                  Origin ZIP<span className="ml-1.5 rounded bg-red-100 px-1.5 py-[1px] align-middle font-mono text-[8.5px] font-bold uppercase tracking-[0.08em] text-red-700">Required</span>
+                  Origin ZIP<span className="ml-0.5 text-red-600">*</span>
                 </label>
                 <input
                   name="origin_zip"
@@ -385,7 +385,7 @@ export function AddLoadModal({
               </div>
               <div className="min-w-0">
                 <label className="block font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-fg">
-                  Destination ZIP<span className="ml-1.5 rounded bg-red-100 px-1.5 py-[1px] align-middle font-mono text-[8.5px] font-bold uppercase tracking-[0.08em] text-red-700">Required</span>
+                  Destination ZIP<span className="ml-0.5 text-red-600">*</span>
                 </label>
                 <input
                   name="dest_zip"
@@ -615,7 +615,7 @@ function LField({
     <div className="min-w-0">
       <label className="block font-mono text-[10px] font-bold uppercase tracking-[0.12em] text-fg">
         {label}
-        {required ? <span className="ml-1.5 rounded bg-red-100 px-1.5 py-[1px] align-middle font-mono text-[8.5px] font-bold uppercase tracking-[0.08em] text-red-700">Required</span> : null}
+        {required ? <span className="ml-0.5 text-red-600">*</span> : null}
       </label>
       <input
         name={name}
@@ -626,7 +626,10 @@ function LField({
         defaultValue={defaultValue}
         autoComplete="off"
         step={type === "number" ? "any" : undefined}
-        className="mt-1 block w-full min-w-0 rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
+        className={
+          "mt-1 block w-full min-w-0 box-border rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none" +
+          (type === "date" ? " appearance-none [color-scheme:light]" : "")
+        }
       />
     </div>
   );
