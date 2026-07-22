@@ -32,6 +32,14 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+// Always render fresh. This page is a live read off the loads table (net/gross,
+// month buckets, A/R), so it must reflect the current DB on every visit — never
+// a build-time or ISR snapshot. Without this the numbers only moved on a hard
+// refresh, because the route sat in the Full Route Cache between navigations.
+// Load mutations also revalidatePath("/admin/performance") (see the load
+// actions) — belt and suspenders, so a change shows even mid-cache-window.
+export const dynamic = "force-dynamic";
+
 /**
  * Insights → Performance.
  *

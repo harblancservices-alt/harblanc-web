@@ -21,6 +21,11 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+// Live read off the loads table (KPI strip, monthly net/gross, A/R). Render
+// fresh every visit so an added/edited load shows without a hard refresh,
+// instead of serving a cached route snapshot.
+export const dynamic = "force-dynamic";
+
 /**
  * Dispatch → Load Board.
  *

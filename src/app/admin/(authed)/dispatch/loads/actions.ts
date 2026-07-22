@@ -272,6 +272,9 @@ export async function createLoad(formData: FormData): Promise<void> {
   revalidatePath("/admin/dispatch/loads");
   revalidatePath("/admin/dispatch/brokers");
   revalidatePath("/admin/dispatch/trips");
+  // Performance aggregates delivered loads — a new load can land delivered, so
+  // rebuild it too (net/gross, month buckets, A/R).
+  revalidatePath("/admin/performance");
   // Dashboard "Active loads" can add loads too — refresh it so a new
   // active load shows immediately (and its empty state clears).
   revalidatePath("/admin");
@@ -302,6 +305,9 @@ export async function updateLoad(id: string, formData: FormData): Promise<void> 
   revalidatePath(`/admin/dispatch/loads/${id}`);
   revalidatePath("/admin/dispatch/brokers");
   revalidatePath("/admin/dispatch/trips");
+  // This action moves the money math (rate, lane miles, broker, trip) and the
+  // delivery date that fixes goal-month attribution — rebuild Performance.
+  revalidatePath("/admin/performance");
   revalidatePath("/admin");
 }
 
@@ -366,6 +372,9 @@ export async function updateLoadStatus(
   // load reading — refresh the dashboard + maintenance views too.
   revalidatePath("/admin");
   revalidatePath("/admin/maintenance");
+  // A status change can flip a load into (or out of) "delivered", which is the
+  // exact scope Performance aggregates — rebuild it.
+  revalidatePath("/admin/performance");
 }
 
 /**
@@ -454,6 +463,9 @@ export async function updateLoadOdometers(
   revalidatePath("/admin/dispatch/trips");
   revalidatePath("/admin");
   revalidatePath("/admin/maintenance");
+  // Odometer edits both derive the status (→ delivered) and change loaded/
+  // deadhead miles, which drives the diesel cost in the net — rebuild Performance.
+  revalidatePath("/admin/performance");
   return { ok: true };
 }
 
@@ -482,6 +494,9 @@ export async function updateLoadDetails(
   if (error) throw new Error(`Could not save load details: ${error.message}`);
   revalidatePath("/admin/dispatch/loads");
   revalidatePath(`/admin/dispatch/loads/${id}`);
+  // Editing the delivery date can move a delivered load into a different goal
+  // month, which reshuffles Performance's month buckets — rebuild it.
+  revalidatePath("/admin/performance");
 }
 
 /** Add a manual expense to a load (category autofills from prior ones). */
@@ -503,6 +518,9 @@ export async function addLoadExpense(
   revalidatePath(`/admin/dispatch/loads/${loadId}`);
   revalidatePath("/admin/dispatch/loads");
   revalidatePath("/admin/dispatch/trips");
+  // Expenses are the third term in loadNet — they move a delivered load's net,
+  // so Performance has to rebuild.
+  revalidatePath("/admin/performance");
 }
 
 export async function deleteLoadExpense(
@@ -517,6 +535,8 @@ export async function deleteLoadExpense(
   revalidatePath(`/admin/dispatch/loads/${loadId}`);
   revalidatePath("/admin/dispatch/loads");
   revalidatePath("/admin/dispatch/trips");
+  // Removing an expense raises the load's net — rebuild Performance.
+  revalidatePath("/admin/performance");
 }
 
 /**
@@ -541,6 +561,10 @@ export async function cancelLoad(
   revalidatePath(`/admin/dispatch/loads/${id}`);
   revalidatePath("/admin/dispatch/brokers");
   revalidatePath("/admin/dispatch/trips");
+  // A TONU cancel records the fee as revenue and drops the load out of the
+  // delivered set — both move Performance, so rebuild it (and the dashboard).
+  revalidatePath("/admin/performance");
+  revalidatePath("/admin");
 }
 
 // ── Load documents (rate con / BOL / POD / other) ──────────────────────────
@@ -986,6 +1010,8 @@ export async function softDeleteLoads(formData: FormData): Promise<void> {
   // Deleting loads can drop the highest odometer — refresh maintenance too.
   revalidatePath("/admin");
   revalidatePath("/admin/maintenance");
+  // A deleted delivered load leaves the Performance aggregates — rebuild them.
+  revalidatePath("/admin/performance");
 }
 
 /** Soft-delete a load — removes it from the board, trips, and broker rollups. */
@@ -1001,6 +1027,8 @@ export async function deleteLoad(id: string): Promise<void> {
   revalidatePath("/admin/dispatch/trips");
   revalidatePath("/admin");
   revalidatePath("/admin/maintenance");
+  // A deleted delivered load leaves the Performance aggregates — rebuild them.
+  revalidatePath("/admin/performance");
   redirect("/admin/dispatch/loads");
 }
 
@@ -1019,6 +1047,10 @@ export async function markLoadPaid(id: string): Promise<void> {
   revalidatePath("/admin/dispatch/receivables");
   revalidatePath("/admin/dispatch/brokers");
   revalidatePath("/admin/dispatch/trips");
+  // Payment status flips the load's paid_at (days-to-pay) and its A/R standing,
+  // both of which Performance reports — and the dashboard's A/R pace. Rebuild.
+  revalidatePath("/admin/performance");
+  revalidatePath("/admin");
 }
 
 /**
@@ -1041,4 +1073,8 @@ export async function markLoadUnpaid(id: string): Promise<void> {
   revalidatePath("/admin/dispatch/receivables");
   revalidatePath("/admin/dispatch/brokers");
   revalidatePath("/admin/dispatch/trips");
+  // Reversing a payment restores the load's A/R standing and clears paid_at —
+  // rebuild Performance and the dashboard so both track the reversal.
+  revalidatePath("/admin/performance");
+  revalidatePath("/admin");
 }

@@ -42,6 +42,11 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+// Live read off loads, receivables, and maintenance. Render fresh every visit
+// so active loads, the net pace, and alerts track the current DB instead of a
+// cached route snapshot.
+export const dynamic = "force-dynamic";
+
 /**
  * Owner Dashboard — opportunity inbox.
  *

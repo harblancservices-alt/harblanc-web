@@ -37,6 +37,10 @@ export async function updateFuelSettings(formData: FormData): Promise<void> {
   revalidatePath("/admin/settings");
   revalidatePath("/admin/dispatch/loads");
   revalidatePath("/admin/dispatch/trips");
+  // MPG / diesel $ / factoring % feed loadDiesel → loadNet, so every net figure
+  // on Performance (and the dashboard's pace) shifts — rebuild both.
+  revalidatePath("/admin/performance");
+  revalidatePath("/admin");
 }
 
 /**
@@ -59,4 +63,8 @@ export async function updateProfitGoals(formData: FormData): Promise<void> {
   if (error) throw new Error(`Could not save profit goals: ${error.message}`);
   revalidatePath("/admin/settings");
   revalidatePath("/admin/dispatch/loads");
+  // The monthly net goal is the target line on Performance's goal bar and the
+  // dashboard's net pace — rebuild both so a new goal shows immediately.
+  revalidatePath("/admin/performance");
+  revalidatePath("/admin");
 }
