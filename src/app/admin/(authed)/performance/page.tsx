@@ -181,6 +181,10 @@ async function performanceData(): Promise<PerformanceData> {
 
   return {
     monthLabel: currentGoalMonthLabel(now),
+    // Days left in the current month (incl. today), business-tz — the
+    // denominator for the goal card's "avg needed per week" pace figure.
+    // Only meaningful while the current month is the one being viewed.
+    daysLeft: daysLeftInMonth(now),
     // Read off the SAME loads array every figure below is built from — the
     // takeaways quote the aggregations, they don't re-derive them.
     takeaways: takeaways(loads, {

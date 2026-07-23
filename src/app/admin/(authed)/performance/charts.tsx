@@ -473,7 +473,14 @@ function Legend({ items }: { items: { label: string; cls: string }[] }) {
 
 // --------------------------------------------------------- 3. deadhead split
 
-/** Loaded vs empty miles as one stacked bar, with the empty share called out. */
+/**
+ * Loaded vs empty miles as one split bar, with both shares called out on the
+ * fill (green loaded, amber empty), then the three raw mile figures beneath.
+ *
+ * The bar sits on the fixed bg-inset track and its two segments are the fixed
+ * ok/warn fills carrying white labels — legible on both admin themes, the same
+ * rule the load board's status pills follow.
+ */
 export function DeadheadBar({
   loaded,
   deadhead,
@@ -488,7 +495,7 @@ export function DeadheadBar({
   return (
     <div>
       <div
-        className="flex h-7 w-full overflow-hidden rounded-md ring-1 ring-inset ring-line-strong"
+        className="flex h-9 w-full overflow-hidden rounded-lg bg-inset ring-1 ring-inset ring-line-strong"
         role="img"
         aria-label={`${Math.round(loadedPct)}% loaded miles, ${Math.round(deadPct)}% deadhead`}
       >
@@ -496,8 +503,8 @@ export function DeadheadBar({
           className="flex items-center justify-center bg-ok"
           style={{ width: `${loadedPct}%` }}
         >
-          {loadedPct >= 22 ? (
-            <span className="font-mono text-[10px] font-bold tabular-nums text-white">
+          {loadedPct >= 20 ? (
+            <span className="font-mono text-[10.5px] font-bold uppercase tracking-[0.06em] tabular-nums text-white">
               {loadedPct.toFixed(0)}% loaded
             </span>
           ) : null}
@@ -506,34 +513,110 @@ export function DeadheadBar({
           className="flex items-center justify-center bg-warn"
           style={{ width: `${deadPct}%` }}
         >
-          {deadPct >= 22 ? (
-            <span className="font-mono text-[10px] font-bold tabular-nums text-white">
+          {deadPct >= 20 ? (
+            <span className="font-mono text-[10.5px] font-bold uppercase tracking-[0.06em] tabular-nums text-white">
               {deadPct.toFixed(0)}% empty
             </span>
           ) : null}
         </div>
       </div>
-      <div className="mt-2 grid grid-cols-3 gap-2">
-        <MiniStat label="Loaded mi" value={Math.round(loaded).toLocaleString("en-US")} />
+      <div className="mt-3 grid grid-cols-3 gap-2.5">
         <MiniStat
-          label="Deadhead mi"
+          dot="bg-ok"
+          label="Loaded Miles"
+          value={Math.round(loaded).toLocaleString("en-US")}
+        />
+        <MiniStat
+          dot="bg-warn"
+          label="Empty Miles"
           value={Math.round(deadhead).toLocaleString("en-US")}
         />
-        <MiniStat label="Total mi" value={Math.round(total).toLocaleString("en-US")} />
+        <MiniStat
+          dot="bg-fg-subtle"
+          label="Total Miles"
+          value={Math.round(total).toLocaleString("en-US")}
+        />
       </div>
     </div>
   );
 }
 
-function MiniStat({ label, value }: { label: string; value: string }) {
+function MiniStat({
+  label,
+  value,
+  dot,
+}: {
+  label: string;
+  value: string;
+  dot?: string;
+}) {
   return (
-    <div className="rounded-md border border-line bg-canvas px-2 py-1.5">
-      <div className="truncate font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-fg-subtle">
-        {label}
+    <div className="rounded-xl border border-line bg-inset px-3 py-2.5 shadow-e1">
+      <div className="flex items-center gap-1.5">
+        {dot ? (
+          <span aria-hidden className={"h-2 w-2 shrink-0 rounded-full " + dot} />
+        ) : null}
+        <span className="truncate font-mono text-[9px] font-bold uppercase tracking-[0.1em] text-ink-3">
+          {label}
+        </span>
       </div>
-      <div className="mt-0.5 truncate font-mono text-[12.5px] font-bold tabular-nums text-fg">
+      <div className="mt-1 truncate text-[16px] font-bold tabular-nums text-ink sm:text-[18px]">
         {value}
       </div>
+    </div>
+  );
+}
+
+// ----------------------------------------------------------- 4. goal ring
+
+/**
+ * Circular goal-completion gauge. A track arc plus a fill arc whose length is
+ * `pct` of the circle. Drawn on the fixed inset panel in the goal card, so its
+ * green/amber fill and the centred percentage stay legible on both themes.
+ */
+export function GoalRing({
+  pct,
+  size = 96,
+  loss = false,
+}: {
+  /** 0–100+; the arc caps at a full circle but the centre label shows the raw %. */
+  pct: number;
+  size?: number;
+  loss?: boolean;
+}) {
+  const r = 34;
+  const c = 2 * Math.PI * r;
+  const clamped = Math.max(0, Math.min(100, pct));
+  const offset = c - (clamped / 100) * c;
+  return (
+    <div
+      className="relative shrink-0"
+      style={{ width: size, height: size }}
+    >
+      <svg viewBox="0 0 80 80" className="h-full w-full -rotate-90">
+        <circle
+          cx="40"
+          cy="40"
+          r={r}
+          fill="none"
+          strokeWidth="7"
+          className="stroke-line-strong opacity-40"
+        />
+        <circle
+          cx="40"
+          cy="40"
+          r={r}
+          fill="none"
+          strokeWidth="7"
+          strokeLinecap="round"
+          strokeDasharray={c}
+          strokeDashoffset={offset}
+          className={"stroke-current " + (loss ? "text-bad" : "text-ok")}
+        />
+      </svg>
+      <span className="absolute inset-0 flex items-center justify-center text-[16px] font-bold tabular-nums text-ink">
+        {Math.round(pct)}%
+      </span>
     </div>
   );
 }
