@@ -96,8 +96,20 @@ function makeScale(values: number[], extra: number[] = []): Scale {
  * between phone and desktop.
  */
 const PLOT_H = "h-[152px] sm:h-[188px]";
-/** Left gutter holding the value ticks. */
-const GUTTER = "w-9 shrink-0 sm:w-12";
+
+/**
+ * The axis-gutter + plot layout, as a CSS GRID rather than flex (learned the
+ * hard way): a fixed track for the value ticks, then `minmax(0,1fr)` for the
+ * plot. A `1fr` track is FILLED to the leftover width and — unlike a flex child
+ * — cannot be shrunk toward its content, so the plot can never collapse to zero
+ * beside the ticks and leave the bars with no horizontal room. The 2.25rem /
+ * 3rem tracks are the old `w-9` / `sm:w-12` gutter widths, and the `minmax`
+ * lower bound of 0 lets the plot's own children stay `min-w-0` on narrow
+ * screens. Both the plot row and the month-label row use this same template so
+ * every label still sits exactly under its bar.
+ */
+const AXIS_GRID =
+  "grid grid-cols-[2.25rem_minmax(0,1fr)] sm:grid-cols-[3rem_minmax(0,1fr)]";
 
 /**
  * Grid + axis chrome shared by the time-series charts. `columns` is the
@@ -126,9 +138,9 @@ function Plot({
 }) {
   return (
     <div className="pt-4">
-      <div className="flex">
+      <div className={AXIS_GRID}>
         {/* Value ticks. Each is centred on its gridline via -translate-y-1/2. */}
-        <div className={GUTTER + " relative " + PLOT_H}>
+        <div className={"relative " + PLOT_H}>
           {scale.ticks.map((t) => (
             <span
               key={t}
@@ -140,7 +152,7 @@ function Plot({
           ))}
         </div>
 
-        <div className={"relative min-w-0 flex-1 " + PLOT_H}>
+        <div className={"relative min-w-0 " + PLOT_H}>
           {scale.ticks.map((t) => (
             <div
               key={t}
@@ -163,9 +175,9 @@ function Plot({
 
       {/* Month labels, in a row that mirrors the plot's column widths exactly so
           each label stays under its bar. */}
-      <div className="flex pt-1.5">
-        <div className={GUTTER} />
-        <div className="flex min-w-0 flex-1">
+      <div className={AXIS_GRID + " pt-1.5"}>
+        <div />
+        <div className="flex min-w-0">
           {labels.map((l, i) => (
             <span
               key={`${l}-${i}`}
