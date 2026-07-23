@@ -188,6 +188,18 @@ function Plot({
 /**
  * One bar, positioned against the shared zero baseline. Positive bars grow up
  * from it, negative bars hang below it, so a losing month is unmistakable.
+ *
+ * POSITIONING (learned the hard way, again): the bar is pinned by `top` AND
+ * `bottom` percentages — never by a percentage `height`. A percentage height
+ * only resolves when the containing block's height is *definite*, and this
+ * bar's block is a flex-stretched column whose height some engines treat as
+ * indefinite; there the height collapses to 0 and the bars vanish while the
+ * goal line (which is `bottom`-positioned) still draws — the exact failure this
+ * chart hit. `top`/`bottom` resolve against the block's *used* height instead,
+ * the same robust scheme every gridline, tick and label here already uses, so
+ * the bar's height is simply the gap the two insets leave. The bar is also its
+ * own width-capped, centred element now — no intermediate wrapper to add
+ * another definite-height assumption to the chain.
  */
 function Bar({
   value,
@@ -199,16 +211,18 @@ function Bar({
   className: string;
 }) {
   if (value === 0) return null;
-  const size = (Math.abs(value) / (scale.max - scale.min)) * 100;
-  const style =
-    value > 0
-      ? { bottom: `${scale.zero}%`, height: `${size}%` }
-      : { top: `${100 - scale.zero}%`, height: `${size}%` };
+  // Positive: top at the value, bottom on the zero line. Negative: top on the
+  // zero line, bottom at the value. `fromTop`/`fromBottom` are 0–100 already.
+  const top = scale.fromTop(Math.max(value, 0));
+  const bottom = scale.fromBottom(Math.min(value, 0));
   return (
     <div
       aria-hidden
-      style={style}
-      className={"absolute inset-x-0 rounded-[3px] " + className}
+      style={{ top: `${top}%`, bottom: `${bottom}%` }}
+      className={
+        "absolute left-1/2 w-[62%] max-w-[30px] -translate-x-1/2 rounded-[3px] " +
+        className
+      }
     />
   );
 }
@@ -277,21 +291,19 @@ export function NetVsGoalChart({
               const met = goal > 0 && d.value >= goal;
               return (
                 <div key={d.key} className="relative min-w-0 flex-1">
-                  {/* Bar width is capped so a 2-month chart draws two normal
-                      bars, not two slabs half the card wide. */}
-                  <div className="absolute inset-y-0 left-1/2 w-[62%] max-w-[30px] -translate-x-1/2">
-                    <Bar
-                      value={d.value}
-                      scale={scale}
-                      className={
-                        d.value < 0
-                          ? "bg-bad"
-                          : met
-                            ? "bg-ok"
-                            : "bg-ok opacity-40"
-                      }
-                    />
-                  </div>
+                  {/* Bar width is capped (inside Bar) so a 2-month chart draws
+                      two normal bars, not two slabs half the card wide. */}
+                  <Bar
+                    value={d.value}
+                    scale={scale}
+                    className={
+                      d.value < 0
+                        ? "bg-bad"
+                        : met
+                          ? "bg-ok"
+                          : "bg-ok opacity-40"
+                    }
+                  />
                   {showValues && d.value !== 0 ? (
                     <span
                       style={
