@@ -1,4 +1,6 @@
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { isDemoMode } from "@/lib/admin/demo";
+import { demoBrokerList } from "@/lib/demo/demoData";
 import { Button } from "@/components/ui/Button";
 import { BrokerListSidebar, type BrokerListItem } from "./BrokerListSidebar";
 
@@ -29,11 +31,7 @@ function num(v: number | string | null): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-export default async function BrokersLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+async function realBrokerList(): Promise<BrokerListItem[]> {
   const sb = createServiceRoleClient();
   const [{ data: brokerRows }, { data: loadRows }] = await Promise.all([
     sb
@@ -60,7 +58,7 @@ export default async function BrokersLayout({
     agg.set(l.broker_id, a);
   }
 
-  const brokers: BrokerListItem[] = (brokerRows ?? []).map((b) => {
+  return (brokerRows ?? []).map((b) => {
     const a = agg.get(b.id) ?? { loads: 0, gross: 0, ar: 0 };
     return {
       id: b.id,
@@ -71,6 +69,18 @@ export default async function BrokersLayout({
       gross: a.gross,
     };
   });
+}
+
+export default async function BrokersLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  // DEMO MODE: build the broker rail from the static fake dataset — never
+  // touch Supabase.
+  const brokers: BrokerListItem[] = (await isDemoMode())
+    ? demoBrokerList()
+    : await realBrokerList();
 
   return (
     <div className="flex min-h-[calc(100vh-3.5rem)] flex-col">

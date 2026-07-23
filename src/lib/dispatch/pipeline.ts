@@ -1,4 +1,6 @@
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { isDemoMode } from "@/lib/admin/demo";
+import { demoPipelineCards } from "@/lib/demo/demoData";
 import { recentAgeLabel } from "@/lib/dispatch/dashboard-view";
 import { lookupZip, estimateLaneMiles } from "@/lib/dispatch/distance";
 import { formatLoadRate } from "@/lib/dispatch/loads-view";
@@ -121,6 +123,9 @@ function fullDate(iso: string): string {
 }
 
 export async function loadPipelineCards(): Promise<PipelineCard[]> {
+  // DEMO MODE: return the static fake dataset and never touch Supabase.
+  if (await isDemoMode()) return demoPipelineCards();
+
   const sb = createServiceRoleClient();
   const now = new Date();
 

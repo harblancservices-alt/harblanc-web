@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin/auth";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { blockedByDemo } from "@/lib/admin/demo";
 import { logDispatchEvent } from "@/lib/dispatch/events";
 import { type LeadStatus } from "@/lib/dispatch/status";
 import {
@@ -230,6 +231,9 @@ function toNum(v: string | number | null): number | null {
 export async function generateFinalizedQuoteDraft(
   quoteRequestId: string,
 ): Promise<{ ok: true; id: string } | { ok: false; reason: string }> {
+  if (await blockedByDemo()) {
+    return { ok: false, reason: "Demo mode — changes aren't saved." };
+  }
   await requireAdmin();
   if (!quoteRequestId) {
     return { ok: false, reason: "Missing quote_request_id." };
@@ -619,6 +623,7 @@ async function loadDraftById(
 export async function saveFinalizedQuoteDraft(
   formData: FormData,
 ): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   await requireAdmin();
   const finalizedQuoteId = s(formData.get("finalized_quote_id"));
   if (!finalizedQuoteId) {
@@ -849,6 +854,7 @@ export async function buildFinalizedQuotePreview(
 export async function sendFinalizedQuote(
   finalizedQuoteId: string,
 ): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: never send a real finalized quote.
   // Phase INSTR: each stage logs `[sendFinalizedQuote] stage=X failed`
   // before rethrowing so Vercel logs identify the failing step.
   await requireAdmin();
@@ -1122,6 +1128,7 @@ export async function resendFinalizedQuote(
   sourceFinalizedQuoteId: string,
   formData: FormData,
 ): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: never resend a real finalized quote.
   await requireAdmin();
   if (!sourceFinalizedQuoteId) {
     throw new Error("Missing source finalized_quote id.");

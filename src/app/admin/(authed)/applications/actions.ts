@@ -4,10 +4,12 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin/auth";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { blockedByDemo } from "@/lib/admin/demo";
 
 const RETENTION_DAYS = 30;
 
 export async function softDeleteApplication(id: string): Promise<void> {
+  if (await blockedByDemo()) redirect("/admin/operations?tab=applications"); // DEMO: no-op.
   await requireAdmin();
   const sb = createServiceRoleClient();
   const now = new Date();
@@ -35,6 +37,7 @@ export async function softDeleteApplication(id: string): Promise<void> {
 }
 
 export async function restoreApplication(id: string): Promise<void> {
+  if (await blockedByDemo()) redirect("/admin/operations?tab=applications"); // DEMO: no-op.
   await requireAdmin();
   const sb = createServiceRoleClient();
 
@@ -58,6 +61,7 @@ export async function restoreApplication(id: string): Promise<void> {
 }
 
 export async function permanentlyDeleteApplication(id: string): Promise<void> {
+  if (await blockedByDemo()) redirect("/admin/applications/trash"); // DEMO: no-op.
   await requireAdmin();
   const sb = createServiceRoleClient();
 
@@ -108,6 +112,7 @@ function readIds(formData: FormData): string[] {
 export async function softDeleteApplications(
   formData: FormData,
 ): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   await requireAdmin();
   const ids = readIds(formData);
   if (ids.length === 0) return;
@@ -136,6 +141,7 @@ export async function softDeleteApplications(
 }
 
 export async function restoreApplications(formData: FormData): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   await requireAdmin();
   const ids = readIds(formData);
   if (ids.length === 0) return;
@@ -159,6 +165,7 @@ export async function restoreApplications(formData: FormData): Promise<void> {
 export async function permanentlyDeleteApplications(
   formData: FormData,
 ): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   await requireAdmin();
   const ids = readIds(formData);
   if (ids.length === 0) return;

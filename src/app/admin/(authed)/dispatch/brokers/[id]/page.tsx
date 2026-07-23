@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { isDemoMode } from "@/lib/admin/demo";
+import { demoBrokerDetail } from "@/lib/demo/demoData";
 import {
   loadDiesel,
   loadNet,
@@ -91,6 +93,15 @@ export default async function BrokerDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
+
+  // DEMO MODE: return the static fake broker profile and never touch Supabase.
+  // A non-demo id yields null here, so a real broker can never surface in demo.
+  if (await isDemoMode()) {
+    const demo = demoBrokerDetail(id);
+    if (!demo) notFound();
+    return <BrokerDetail data={demo} />;
+  }
+
   const sb = createServiceRoleClient();
   const [
     { data: broker },

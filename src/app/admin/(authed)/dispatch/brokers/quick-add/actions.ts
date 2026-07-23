@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { blockedByDemo } from "@/lib/admin/demo";
 import { lookupZip } from "@/lib/dispatch/distance";
 
 /** Rapid broker-from-load-board capture. */
@@ -36,6 +37,10 @@ export type QuickAddResult =
 export async function quickAddBrokerLane(
   formData: FormData,
 ): Promise<QuickAddResult> {
+  // DEMO: no-op before any DB write.
+  if (await blockedByDemo()) {
+    return { ok: false, reason: "Demo mode — changes aren't saved." };
+  }
   const name = str(formData, "broker_name");
   if (!name) return { ok: false, reason: "Broker name is required." };
 

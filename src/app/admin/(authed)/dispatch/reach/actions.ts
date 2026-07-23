@@ -10,6 +10,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { blockedByDemo } from "@/lib/admin/demo";
 import { lookupCoords } from "@/lib/dispatch/distance";
 import { isLeverage, isPosture, type Leverage } from "./types";
 
@@ -68,6 +69,7 @@ export type SettingsInput = {
 export async function updateReachSettings(
   input: SettingsInput,
 ): Promise<{ ok: true } | { ok: false; reason: string }> {
+  if (await blockedByDemo()) return { ok: true }; // DEMO: no-op, benign success.
   const leverage: Leverage = isLeverage(input.defaultLeverage)
     ? input.defaultLeverage
     : "confident";
@@ -122,6 +124,7 @@ export async function updateReachTemplate(
   id: string,
   input: { subject: string; body: string },
 ): Promise<{ ok: true } | { ok: false; reason: string }> {
+  if (await blockedByDemo()) return { ok: true }; // DEMO: no-op, benign success.
   if (!id) return { ok: false, reason: "Missing template id." };
   try {
     const sb = createServiceRoleClient();
@@ -151,6 +154,9 @@ export async function ensureReachTemplate(
   posture: string,
   leverage: string,
 ): Promise<{ ok: true; id: string } | { ok: false; reason: string }> {
+  if (await blockedByDemo()) {
+    return { ok: false, reason: "Demo mode — changes aren't saved." };
+  }
   if (!isPosture(posture) || !isLeverage(leverage)) {
     return { ok: false, reason: "Invalid posture/leverage." };
   }
@@ -187,6 +193,7 @@ export async function saveReachStyleEmail(
   leverage: string,
   input: { subject: string; body: string },
 ): Promise<{ ok: true } | { ok: false; reason: string }> {
+  if (await blockedByDemo()) return { ok: true }; // DEMO: no-op, benign success.
   const ens = await ensureReachTemplate(posture, leverage);
   if (!ens.ok) return { ok: false, reason: ens.reason };
   return updateReachTemplate(ens.id, input);
@@ -202,6 +209,7 @@ export async function setContactInclude(
   contactId: string,
   include: boolean,
 ): Promise<{ ok: true } | { ok: false; reason: string }> {
+  if (await blockedByDemo()) return { ok: true }; // DEMO: no-op, benign success.
   if (!contactId) return { ok: false, reason: "Missing contact id." };
   try {
     const sb = createServiceRoleClient();

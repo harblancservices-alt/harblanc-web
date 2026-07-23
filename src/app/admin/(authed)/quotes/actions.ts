@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin/auth";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { blockedByDemo } from "@/lib/admin/demo";
 import { logDispatchEvent } from "@/lib/dispatch/events";
 import { isLeadStatus, type LeadStatus } from "@/lib/dispatch/status";
 import { computeRpm, lookupZip } from "@/lib/dispatch/distance";
@@ -38,6 +39,7 @@ const RETENTION_DAYS = 30;
  * Idempotent: calling on an already-trashed row just resets the clock.
  */
 export async function softDeleteQuote(id: string): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   await requireAdmin();
   const sb = createServiceRoleClient();
   const now = new Date();
@@ -68,6 +70,7 @@ export async function softDeleteQuote(id: string): Promise<void> {
  * Restore a trashed quote. Sets deleted_at and delete_after back to NULL.
  */
 export async function restoreQuote(id: string): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   await requireAdmin();
   const sb = createServiceRoleClient();
 
@@ -96,6 +99,7 @@ export async function restoreQuote(id: string): Promise<void> {
  * malformed call cannot delete an active record.
  */
 export async function permanentlyDeleteQuote(id: string): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   await requireAdmin();
   const sb = createServiceRoleClient();
 
@@ -146,6 +150,7 @@ function readIds(formData: FormData): string[] {
 }
 
 export async function softDeleteQuotes(formData: FormData): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   await requireAdmin();
   const ids = readIds(formData);
   if (ids.length === 0) return;
@@ -174,6 +179,7 @@ export async function softDeleteQuotes(formData: FormData): Promise<void> {
 }
 
 export async function restoreQuotes(formData: FormData): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   await requireAdmin();
   const ids = readIds(formData);
   if (ids.length === 0) return;
@@ -200,6 +206,7 @@ export async function restoreQuotes(formData: FormData): Promise<void> {
  * any row is active, the whole batch is refused.
  */
 export async function permanentlyDeleteQuotes(formData: FormData): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   await requireAdmin();
   const ids = readIds(formData);
   if (ids.length === 0) return;
@@ -300,6 +307,7 @@ export async function updateLeadStatus(
   id: string,
   newStatus: string,
 ): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   await requireAdmin();
   if (!isLeadStatus(newStatus)) {
     throw new Error(`Invalid lead status: ${newStatus}`);
@@ -536,6 +544,7 @@ function toDraftPersistFields(input: DraftEstimateInput): DraftPersistFields {
 }
 
 export async function saveDraftEstimate(formData: FormData): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   await requireAdmin();
   const input = readDraftEstimateInput(formData);
   const sb = createServiceRoleClient();
@@ -581,6 +590,7 @@ type DraftPreviewSnapshotRow = {
  * NULL rows, so this clears the way for the next draft to be created.
  */
 export async function sendEstimate(quoteRequestId: string): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: never send a real estimate email.
   await requireAdmin();
   if (!quoteRequestId) {
     throw new Error("Missing quote_request_id.");
@@ -702,6 +712,7 @@ export async function sendEstimate(quoteRequestId: string): Promise<void> {
  * event so the timeline reflects the change.
  */
 export async function updateDispatchOwnership(formData: FormData): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   await requireAdmin();
   const quoteRequestId = parseString(formData.get("quote_request_id"));
   if (!quoteRequestId) {
@@ -747,6 +758,7 @@ export async function updateDispatchOwnership(formData: FormData): Promise<void>
 }
 
 export async function addDispatchNote(formData: FormData): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   await requireAdmin();
   const quoteRequestId = parseString(formData.get("quote_request_id"));
   const body = parseString(formData.get("body"));
@@ -1017,6 +1029,7 @@ export async function resendEstimate(
   sourceEstimateId: string,
   formData: FormData,
 ): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: never resend a real estimate email.
   await requireAdmin();
   if (!sourceEstimateId) {
     throw new Error("Missing source estimate id.");
@@ -1150,6 +1163,7 @@ export async function saveLoadDetailsOverrides(
   quoteRequestId: string,
   formData: FormData,
 ): Promise<{ ok: true } | { ok: false; reason: string }> {
+  if (await blockedByDemo()) return { ok: true }; // DEMO: no-op, benign success.
   await requireAdmin();
   if (!quoteRequestId) {
     return { ok: false, reason: "Missing quote_request_id." };

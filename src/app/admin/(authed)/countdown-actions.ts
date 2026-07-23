@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { blockedByDemo } from "@/lib/admin/demo";
 
 /**
  * Countdown-goal CRUD — the writes behind the dashboard countdown widget.
@@ -30,6 +31,7 @@ function dateOnly(fd: FormData, key: string): string | null {
 }
 
 export async function createCountdownGoal(formData: FormData): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   const sb = createServiceRoleClient();
   const label = str(formData, "label") || "Untitled goal";
   const targetDate = dateOnly(formData, "target_date");
@@ -59,6 +61,7 @@ export async function updateCountdownGoal(
   id: string,
   formData: FormData,
 ): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   const sb = createServiceRoleClient();
   const targetDate = dateOnly(formData, "target_date");
   if (!targetDate) throw new Error("A target date is required.");
@@ -79,6 +82,7 @@ export async function updateCountdownGoal(
 }
 
 export async function deleteCountdownGoal(id: string): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   const sb = createServiceRoleClient();
   const { error } = await sb
     .from("countdown_goals")
@@ -95,6 +99,7 @@ export async function deleteCountdownGoal(id: string): Promise<void> {
  * live on. The widget compares it against the goal total to show the shortfall.
  */
 export async function updateCurrentCash(formData: FormData): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   const sb = createServiceRoleClient();
   const cash = amount(formData, "current_cash");
   const { error } = await sb

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { isDemoMode } from "@/lib/admin/demo";
+import { demoDashboard } from "@/lib/demo/demoData";
 import { fetchOpenTripNames } from "@/lib/dispatch/active-trips";
 import { loadPipelineCards } from "@/lib/dispatch/pipeline";
 import {
@@ -79,6 +81,9 @@ function num(v: number | string | null): number {
 }
 
 async function loadDashboard(): Promise<DashboardData> {
+  // DEMO MODE: return the static fake dataset and never touch Supabase.
+  if (await isDemoMode()) return demoDashboard();
+
   const sb = createServiceRoleClient();
   const now = new Date();
   const appCutoff = new Date(

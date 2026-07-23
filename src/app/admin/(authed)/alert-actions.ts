@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { blockedByDemo } from "@/lib/admin/demo";
 
 /**
  * Alert dismissals — the only writes behind the dashboard "Needs attention"
@@ -32,6 +33,7 @@ function isMissingTable(error: { code?: string } | null): boolean {
 }
 
 export async function dismissAlert(alertKey: string): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   const key = alertKey.trim();
   if (!key) return;
 
@@ -50,6 +52,7 @@ export async function dismissAlert(alertKey: string): Promise<void> {
 
 /** Undo — the alert comes straight back on the next render. */
 export async function restoreAlert(alertKey: string): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   const key = alertKey.trim();
   if (!key) return;
 

@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { blockedByDemo } from "@/lib/admin/demo";
 import { lookupZip, estimateLaneMiles } from "@/lib/dispatch/distance";
 import {
   loadDocName,
@@ -251,6 +252,7 @@ async function loadFieldsFromForm(
 }
 
 export async function createLoad(formData: FormData): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   const sb = createServiceRoleClient();
   const fields = await loadFieldsFromForm(sb, formData);
 
@@ -291,6 +293,7 @@ export async function createLoad(formData: FormData): Promise<void> {
  * flows and are left alone.
  */
 export async function updateLoad(id: string, formData: FormData): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   const sb = createServiceRoleClient();
   const fields = await loadFieldsFromForm(sb, formData);
 
@@ -321,6 +324,7 @@ export async function updateLoadStatus(
   id: string,
   formData: FormData,
 ): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   const sb = createServiceRoleClient();
   const raw = str(formData, "status") ?? "pending";
   const status = STATUSES.has(raw) ? raw : "pending";
@@ -403,6 +407,7 @@ export async function updateLoadOdometers(
   id: string,
   formData: FormData,
 ): Promise<OdometerSaveResult> {
+  if (await blockedByDemo()) return { ok: true }; // DEMO: no-op, benign success.
   const sb = createServiceRoleClient();
   const a = intOrNull(formData, "odo_assigned");
   const l = intOrNull(formData, "odo_loaded");
@@ -480,6 +485,7 @@ export async function updateLoadDetails(
   id: string,
   formData: FormData,
 ): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   const sb = createServiceRoleClient();
   const patch: Record<string, string | null> = {
     pickup_date: str(formData, "pickup_date"),
@@ -504,6 +510,7 @@ export async function addLoadExpense(
   loadId: string,
   formData: FormData,
 ): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   const sb = createServiceRoleClient();
   const category = str(formData, "category");
   const amount = numOrNull(formData, "amount");
@@ -527,6 +534,7 @@ export async function deleteLoadExpense(
   expenseId: string,
   loadId: string,
 ): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   const sb = createServiceRoleClient();
   await sb
     .from("load_expenses")
@@ -547,6 +555,7 @@ export async function cancelLoad(
   id: string,
   formData: FormData,
 ): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   const sb = createServiceRoleClient();
   const mode = str(formData, "mode");
   const tonu =
@@ -614,6 +623,10 @@ export async function createLoadDocUploadUrl(
   mimeType: string,
   sizeBytes: number,
 ): Promise<CreateUploadUrlResult> {
+  // DEMO: never mint a storage upload token — documents are read-only in demo.
+  if (await blockedByDemo()) {
+    return { ok: false, reason: "Demo mode — document uploads are disabled." };
+  }
   try {
     if (!DOC_MIME.has(mimeType)) {
       return {
@@ -660,6 +673,10 @@ export async function recordLoadDocuments(
   kindRaw: string,
   docs: RecordDoc[],
 ): Promise<DocUploadResult> {
+  // DEMO: never insert document rows — documents are read-only in demo.
+  if (await blockedByDemo()) {
+    return { ok: false, reason: "Demo mode — document uploads are disabled." };
+  }
   try {
     if (!Array.isArray(docs) || docs.length === 0) {
       return { ok: false, reason: "No documents to save." };
@@ -742,6 +759,7 @@ export async function deleteLoadDocument(
   docId: string,
   loadId: string,
 ): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB/storage write.
   const sb = createServiceRoleClient();
   const { data: row } = await sb
     .from("load_documents")
@@ -866,6 +884,10 @@ export async function signBolRole(
   role: string,
   payload: SignBolRolePayload,
 ): Promise<DocUploadResult> {
+  // DEMO: never regenerate or write a signed BOL — documents are read-only.
+  if (await blockedByDemo()) {
+    return { ok: false, reason: "Demo mode — signing is disabled." };
+  }
   try {
     if (!BOL_ROLES.has(role)) {
       return { ok: false, reason: "Unknown signer role." };
@@ -996,6 +1018,7 @@ export async function signBolRole(
 
 /** Bulk soft-delete loads selected on the Load Board (multi-select). */
 export async function softDeleteLoads(formData: FormData): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   const ids = formData.getAll("ids").map(String).filter(Boolean);
   if (ids.length === 0) return;
   const sb = createServiceRoleClient();
@@ -1016,6 +1039,7 @@ export async function softDeleteLoads(formData: FormData): Promise<void> {
 
 /** Soft-delete a load — removes it from the board, trips, and broker rollups. */
 export async function deleteLoad(id: string): Promise<void> {
+  if (await blockedByDemo()) redirect("/admin/dispatch/loads"); // DEMO: no-op.
   const sb = createServiceRoleClient();
   const { error } = await sb
     .from("loads")
@@ -1033,6 +1057,7 @@ export async function deleteLoad(id: string): Promise<void> {
 }
 
 export async function markLoadPaid(id: string): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   const sb = createServiceRoleClient();
   const { error } = await sb
     .from("loads")
@@ -1059,6 +1084,7 @@ export async function markLoadPaid(id: string): Promise<void> {
  * returns to the outstanding A/R total.
  */
 export async function markLoadUnpaid(id: string): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   const sb = createServiceRoleClient();
   const { error } = await sb
     .from("loads")

@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { blockedByDemo } from "@/lib/admin/demo";
 
 /** Dispatch → Trips actions: create, update, open/close, delete. */
 
@@ -19,6 +20,7 @@ function str(fd: FormData, key: string): string | null {
  * either way the operator lands on the trip's page.
  */
 export async function createTrip(formData: FormData): Promise<void> {
+  if (await blockedByDemo()) redirect("/admin/dispatch/trips"); // DEMO: no-op.
   const name = str(formData, "name");
   if (!name) return;
   const sb = createServiceRoleClient();
@@ -50,6 +52,7 @@ export async function updateTrip(
   id: string,
   formData: FormData,
 ): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   const sb = createServiceRoleClient();
   const name = str(formData, "name");
   if (!name) return;
@@ -74,6 +77,7 @@ export async function updateTripOdometer(
   id: string,
   formData: FormData,
 ): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   const sb = createServiceRoleClient();
   const toInt = (key: string): number | null => {
     const v = formData.get(key);
@@ -98,6 +102,7 @@ export async function setTripStatus(
   id: string,
   status: "active" | "closed",
 ): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   const sb = createServiceRoleClient();
   const { error } = await sb
     .from("trips")
@@ -114,6 +119,7 @@ export async function setTripStatus(
 
 /** Bulk soft-delete trips selected on the Trips list (multi-select). */
 export async function softDeleteTrips(formData: FormData): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   const ids = formData.getAll("ids").map(String).filter(Boolean);
   if (ids.length === 0) return;
   const sb = createServiceRoleClient();
@@ -128,6 +134,7 @@ export async function softDeleteTrips(formData: FormData): Promise<void> {
 
 /** Soft-delete a trip. Linked loads keep their trip_name; trip_id is cleared. */
 export async function deleteTrip(id: string): Promise<void> {
+  if (await blockedByDemo()) redirect("/admin/dispatch/trips"); // DEMO: no-op.
   const sb = createServiceRoleClient();
   await sb.from("loads").update({ trip_id: null }).eq("trip_id", id);
   const { error } = await sb

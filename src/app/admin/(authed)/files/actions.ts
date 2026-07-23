@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { blockedByDemo } from "@/lib/admin/demo";
 import { FILE_BUCKETS, type FileSource } from "@/lib/admin/files";
 
 /**
@@ -76,6 +77,7 @@ export async function deleteFile(
   source: FileSource,
   rowId: string,
 ): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB/storage write.
   if (!rowId) throw new Error("Missing file.");
   const sb = createServiceRoleClient();
 

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { isDemoMode } from "@/lib/admin/demo";
+import { demoTripsList } from "@/lib/demo/demoData";
 import { FUEL_DEFAULTS, type FuelSettings } from "@/lib/dispatch/fuel";
 import {
   computeTripFinancials,
@@ -78,7 +80,20 @@ function tripDateLabel(loads: LoadAgg[], createdAt: string): string {
   const sameYear = first.slice(0, 4) === last.slice(0, 4);
   return fmtDay(first, !sameYear) + " – " + fmtDay(last, true);
 }
-export default async function TripsPage() {
+type TripCard = {
+  id: string;
+  name: string;
+  status: string;
+  notes: string | null;
+  dateLabel: string;
+  loads: number;
+  gross: number;
+  net: number;
+  spent: number;
+  profitPct: number | null;
+};
+
+async function realTripsData(): Promise<TripCard[]> {
   const sb = createServiceRoleClient();
   const [{ data: tripRows }, { data: loadRows }, { data: fuelRow }, { data: factoringBrokers }] =
     await Promise.all([
@@ -143,7 +158,7 @@ export default async function TripsPage() {
     loadsByTrip.set(l.trip_id, arr);
   }
 
-  const trips = (tripRows ?? []).map((t) => {
+  return (tripRows ?? []).map((t) => {
     const tripLoads = loadsByTrip.get(t.id) ?? [];
     const fin = computeTripFinancials(
       tripLoads,
@@ -165,6 +180,14 @@ export default async function TripsPage() {
       profitPct: fin.profitPct,
     };
   });
+}
+
+export default async function TripsPage() {
+  // DEMO MODE: build the trip cards from the static fake dataset — never
+  // touch Supabase.
+  const trips: TripCard[] = (await isDemoMode())
+    ? demoTripsList()
+    : await realTripsData();
 
   return (
     <div className="min-h-screen border-t border-line bg-canvas text-fg">

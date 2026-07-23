@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { isDemoMode } from "@/lib/admin/demo";
+import { demoMaintenanceHome } from "@/lib/demo/demoData";
 import { MaintenanceHome } from "./MaintenanceHome";
 import {
   CATEGORIES,
@@ -306,7 +308,8 @@ async function loadHome(): Promise<{
 }
 
 export default async function MaintenancePage() {
-  const data = await loadHome();
+  // DEMO MODE: derive the whole maintenance home from the static fake dataset.
+  const data = (await isDemoMode()) ? demoMaintenanceHome() : await loadHome();
   return (
     <MaintenanceHome
       currentOdo={data.currentOdo}

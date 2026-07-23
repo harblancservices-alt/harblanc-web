@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { isDemoMode } from "@/lib/admin/demo";
+import { demoLoadBoard } from "@/lib/demo/demoData";
 import { fetchOpenTripNames } from "@/lib/dispatch/active-trips";
 import { LoadBoardView, type LoadBoardData } from "./LoadBoardView";
 import {
@@ -82,6 +84,9 @@ function fmtDate(iso: string | null): string {
 }
 
 async function loadBoard(): Promise<LoadBoardData> {
+  // DEMO MODE: return the static fake dataset and never touch Supabase.
+  if (await isDemoMode()) return demoLoadBoard();
+
   const sb = createServiceRoleClient();
   const { data } = await sb
     .from("loads")

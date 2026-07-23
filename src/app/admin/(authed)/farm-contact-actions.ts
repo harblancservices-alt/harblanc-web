@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { blockedByDemo } from "@/lib/admin/demo";
 import { lookupZip } from "@/lib/dispatch/distance";
 
 /**
@@ -26,6 +27,10 @@ export type FarmContactResult =
 export async function farmBrokerContact(
   formData: FormData,
 ): Promise<FarmContactResult> {
+  // DEMO: no-op before any DB write.
+  if (await blockedByDemo()) {
+    return { ok: false, reason: "Demo mode — changes aren't saved." };
+  }
   const name = str(formData, "broker_name");
   if (!name) return { ok: false, reason: "Broker name is required." };
 

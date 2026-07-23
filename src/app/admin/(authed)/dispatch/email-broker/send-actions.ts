@@ -14,6 +14,7 @@
  */
 
 import { Resend } from "resend";
+import { blockedByDemo } from "@/lib/admin/demo";
 import { reachSignatureHtml, REACH_TEXT_SIGNATURE } from "../reach/signature";
 import { loadReachSettings } from "../reach/queries";
 import { bodyLines, subjectFor } from "./content";
@@ -109,6 +110,9 @@ function cleanLoad(input: BrokerEmailInput): { origin: string; destination: stri
 export async function sendBrokerEmail(
   input: BrokerEmailInput,
 ): Promise<BrokerSendResult> {
+  // DEMO: never send a real email — report a benign success to the given address.
+  if (await blockedByDemo()) return { ok: true, to: (input.to ?? "").trim() || TEST_RECIPIENT };
+
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return { ok: false, reason: "RESEND_API_KEY not configured." };
 
@@ -153,6 +157,9 @@ export async function sendBrokerEmail(
 export async function sendBrokerEmailTest(
   input: BrokerEmailInput,
 ): Promise<BrokerSendResult> {
+  // DEMO: never send a real test email — report a benign success.
+  if (await blockedByDemo()) return { ok: true, to: TEST_RECIPIENT };
+
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return { ok: false, reason: "RESEND_API_KEY not configured." };
 

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin/auth";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { blockedByDemo } from "@/lib/admin/demo";
 import { logDispatchEvent } from "@/lib/dispatch/events";
 import {
   renderBolEmail,
@@ -155,6 +156,9 @@ function shortRef(uuid: string): string {
 export async function generateBolDraft(
   quoteRequestId: string,
 ): Promise<{ ok: true; id: string } | { ok: false; reason: string }> {
+  if (await blockedByDemo()) {
+    return { ok: false, reason: "Demo mode — changes aren't saved." };
+  }
   await requireAdmin();
   if (!quoteRequestId) {
     return { ok: false, reason: "Missing quote_request_id." };
@@ -434,6 +438,7 @@ async function loadBolDraftById(
 // ─────────────────────────────────────────────────────────────────────────
 
 export async function saveBolDraft(formData: FormData): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   await requireAdmin();
   const bolId = s(formData.get("bol_id"));
   if (!bolId) throw new Error("Missing bol_id.");
@@ -638,6 +643,7 @@ type BolSendRow = {
 };
 
 export async function sendBol(bolId: string): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: never send a real BOL email.
   await requireAdmin();
   if (!bolId) throw new Error("Missing bol_id.");
 
@@ -773,6 +779,7 @@ export async function resendBol(
   sourceBolId: string,
   formData: FormData,
 ): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: never resend a real BOL email.
   await requireAdmin();
   if (!sourceBolId) {
     throw new Error("Missing source BOL id.");

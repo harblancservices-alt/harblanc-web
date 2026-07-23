@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { blockedByDemo } from "@/lib/admin/demo";
 import {
   CAMERA_BUCKET,
   CAMERA_PREFIX,
@@ -49,6 +50,9 @@ function todayLabel(): string {
 export async function createCameraBatch(
   nameRaw?: string,
 ): Promise<CreateBatchResult> {
+  if (await blockedByDemo()) {
+    return { ok: false, reason: "Demo mode — the camera is disabled." };
+  }
   try {
     const name = (nameRaw ?? "").trim() || `BOL scan · ${todayLabel()}`;
     const sb = createServiceRoleClient();
@@ -79,6 +83,9 @@ export async function renameCameraBatch(
   batchId: string,
   nameRaw: string,
 ): Promise<SimpleResult> {
+  if (await blockedByDemo()) {
+    return { ok: false, reason: "Demo mode — the camera is disabled." };
+  }
   const name = nameRaw.trim();
   if (!name) return { ok: false, reason: "Name can't be empty." };
   try {
@@ -104,6 +111,9 @@ export async function renameCameraBatch(
 export async function createCameraUploadUrl(
   batchId: string,
 ): Promise<UploadUrlResult> {
+  if (await blockedByDemo()) {
+    return { ok: false, reason: "Demo mode — the camera is disabled." };
+  }
   try {
     if (!batchId) return { ok: false, reason: "Missing batch." };
     const uuid = crypto.randomUUID();
@@ -132,6 +142,9 @@ export async function recordCameraPhoto(
   storagePath: string,
   sizeBytes: number,
 ): Promise<RecordPhotoResult> {
+  if (await blockedByDemo()) {
+    return { ok: false, reason: "Demo mode — the camera is disabled." };
+  }
   try {
     if (!batchId || !storagePath) {
       return { ok: false, reason: "Missing photo details." };
@@ -192,6 +205,9 @@ export async function deleteCameraPhoto(
   batchId: string,
   photoId: string,
 ): Promise<SimpleResult> {
+  if (await blockedByDemo()) {
+    return { ok: false, reason: "Demo mode — the camera is disabled." };
+  }
   try {
     const sb = createServiceRoleClient();
     const { data: row } = await sb
@@ -214,6 +230,9 @@ export async function deleteCameraPhoto(
 /** Delete a whole batch: remove every storage object, then the batch row
  * (photo rows cascade). */
 export async function deleteCameraBatch(batchId: string): Promise<SimpleResult> {
+  if (await blockedByDemo()) {
+    return { ok: false, reason: "Demo mode — the camera is disabled." };
+  }
   try {
     const sb = createServiceRoleClient();
     const { data: rows } = await sb

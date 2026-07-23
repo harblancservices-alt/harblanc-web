@@ -4,6 +4,8 @@ import { notFound } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { StatusTag, type StatusTone } from "@/components/ui/StatusTag";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { isDemoMode } from "@/lib/admin/demo";
+import { demoTripDetail } from "@/lib/demo/demoData";
 import { setTripStatus, updateTripOdometer } from "../actions";
 import { markLoadPaid } from "../../loads/actions";
 import { EditTripButton } from "./EditTripButton";
@@ -101,32 +103,85 @@ export default async function TripDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const sb = createServiceRoleClient();
-  const [{ data: trip }, { data: loadRows }, { data: fuelRow }] = await Promise.all([
-    sb
-      .from("trips")
-      .select("id, name, status, notes, created_at, start_odometer, end_odometer")
-      .eq("id", id)
-      .maybeSingle<Trip>(),
-    sb
-      .from("loads")
-      .select(
-        "id, load_number, broker_id, origin, destination, delivery_date, rate, loaded_miles, odo_assigned, odo_loaded, odo_delivered, status, payment_status",
-      )
-      .eq("trip_id", id)
-      .is("deleted_at", null)
-      .order("delivery_date", { ascending: true, nullsFirst: true })
-      .returns<LoadRow[]>(),
-    sb
-      .from("dispatch_settings")
-      .select("mpg, diesel_price_per_gallon, factoring_pct")
-      .eq("id", true)
-      .maybeSingle<{
+
+  // DEMO MODE: the whole trip-detail bundle comes from the static fake dataset;
+  // a non-demo id yields null → notFound(), so no real trip surfaces in demo.
+  const demo = (await isDemoMode()) ? demoTripDetail(id) : null;
+  if ((await isDemoMode()) && !demo) notFound();
+
+  let trip: Trip | null;
+  let loadRows: LoadRow[] | null;
+  let fuelRow:
+    | {
         mpg: number | string;
         diesel_price_per_gallon: number | string;
         factoring_pct: number | string;
-      }>(),
-  ]);
+      }
+    | null;
+  let tripExp: { load_id: string; amount: number | string }[] | null;
+  let brokerRows:
+    | { id: string; name: string | null; factoring: boolean | null }[]
+    | null;
+
+  if (demo) {
+    trip = demo.trip;
+    loadRows = demo.loadRows;
+    fuelRow = demo.fuelRow;
+    tripExp = demo.tripExp;
+    brokerRows = demo.brokerRows;
+  } else {
+    const sb = createServiceRoleClient();
+    const [tripRes, loadRes, fuelRes] = await Promise.all([
+      sb
+        .from("trips")
+        .select("id, name, status, notes, created_at, start_odometer, end_odometer")
+        .eq("id", id)
+        .maybeSingle<Trip>(),
+      sb
+        .from("loads")
+        .select(
+          "id, load_number, broker_id, origin, destination, delivery_date, rate, loaded_miles, odo_assigned, odo_loaded, odo_delivered, status, payment_status",
+        )
+        .eq("trip_id", id)
+        .is("deleted_at", null)
+        .order("delivery_date", { ascending: true, nullsFirst: true })
+        .returns<LoadRow[]>(),
+      sb
+        .from("dispatch_settings")
+        .select("mpg, diesel_price_per_gallon, factoring_pct")
+        .eq("id", true)
+        .maybeSingle<{
+          mpg: number | string;
+          diesel_price_per_gallon: number | string;
+          factoring_pct: number | string;
+        }>(),
+    ]);
+    trip = tripRes.data;
+    loadRows = loadRes.data;
+    fuelRow = fuelRes.data;
+
+    if (!trip) notFound();
+
+    // Manual expenses per load on this trip.
+    const loadIds = (loadRows ?? []).map((l) => l.id);
+    const { data: expData } = await sb
+      .from("load_expenses")
+      .select("load_id, amount")
+      .in("load_id", loadIds.length ? loadIds : ["00000000-0000-0000-0000-000000000000"])
+      .is("deleted_at", null)
+      .returns<{ load_id: string; amount: number | string }[]>();
+    tripExp = expData;
+
+    // Brokers — the name titles each linked-load card (the load board's card
+    // leads with the broker), and the `factoring` flag decides which loads incur
+    // a factoring fee. One read serves both.
+    const { data: brokerData } = await sb
+      .from("brokers")
+      .select("id, name, factoring")
+      .is("deleted_at", null)
+      .returns<{ id: string; name: string | null; factoring: boolean | null }[]>();
+    brokerRows = brokerData;
+  }
 
   if (!trip) notFound();
 
@@ -138,26 +193,11 @@ export default async function TripDetailPage({
 
   const loads = loadRows ?? [];
 
-  // Manual expenses per load on this trip.
-  const { data: tripExp } = await sb
-    .from("load_expenses")
-    .select("load_id, amount")
-    .in("load_id", loads.length ? loads.map((l) => l.id) : ["00000000-0000-0000-0000-000000000000"])
-    .is("deleted_at", null)
-    .returns<{ load_id: string; amount: number | string }[]>();
   const expByLoad = new Map<string, number>();
   for (const e of tripExp ?? []) {
     expByLoad.set(e.load_id, (expByLoad.get(e.load_id) ?? 0) + num(e.amount));
   }
 
-  // Brokers — the name titles each linked-load card (the load board's card
-  // leads with the broker), and the `factoring` flag decides which loads incur
-  // a factoring fee. One read serves both.
-  const { data: brokerRows } = await sb
-    .from("brokers")
-    .select("id, name, factoring")
-    .is("deleted_at", null)
-    .returns<{ id: string; name: string | null; factoring: boolean | null }[]>();
   const factoringIds = new Set(
     (brokerRows ?? []).filter((b) => b.factoring === true).map((b) => b.id),
   );

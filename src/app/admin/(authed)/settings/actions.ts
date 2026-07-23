@@ -1,9 +1,33 @@
 "use server";
 
+import { cookies } from "next/headers";
 import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { blockedByDemo, DEMO_COOKIE } from "@/lib/admin/demo";
 
 /** Settings actions: fuel defaults (MPG + diesel $/gal) for dispatch math. */
+
+/**
+ * DEMO MODE toggle. Sets (or clears) the server-readable `hb-demo` cookie that
+ * `isDemoMode()` / `blockedByDemo()` key off. This is the ONE action that is
+ * allowed to run in demo mode — it's how you turn demo back OFF — so it must
+ * NOT carry the blockedByDemo guard. It never touches Supabase.
+ */
+export async function setDemoMode(on: boolean): Promise<void> {
+  const store = await cookies();
+  if (on) {
+    store.set(DEMO_COOKIE, "1", {
+      httpOnly: true,
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 365,
+    });
+  } else {
+    store.delete(DEMO_COOKIE);
+  }
+  // Every admin surface reads differently under demo — rebuild the whole portal.
+  revalidatePath("/admin", "layout");
+}
 
 function numOr(fd: FormData, key: string, fallback: number): number {
   const v = fd.get(key);
@@ -20,6 +44,7 @@ function pctOr(fd: FormData, key: string, fallback: number): number {
 }
 
 export async function updateFuelSettings(formData: FormData): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   const sb = createServiceRoleClient();
   const mpg = numOr(formData, "mpg", 13);
   const ppg = numOr(formData, "diesel_price_per_gallon", 4.7);
@@ -49,6 +74,7 @@ export async function updateFuelSettings(formData: FormData): Promise<void> {
  * never clobber each other's fields on save.
  */
 export async function updateProfitGoals(formData: FormData): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   const sb = createServiceRoleClient();
   const monthly = numOr(formData, "monthly_net_goal", 10000);
   const annual = numOr(formData, "annual_net_goal", 120000);

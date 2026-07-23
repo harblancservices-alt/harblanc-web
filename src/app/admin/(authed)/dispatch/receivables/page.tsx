@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { isDemoMode } from "@/lib/admin/demo";
+import { demoReceivables } from "@/lib/demo/demoData";
 import { daysOutstanding } from "@/lib/dispatch/alerts";
 import {
   ReceivablesView,
@@ -68,6 +70,9 @@ const SELECT =
   "id, load_number, broker_id, broker_name, origin, destination, delivery_date, rate, paid_at";
 
 async function loadReceivables() {
+  // DEMO MODE: return the static fake dataset and never touch Supabase.
+  if (await isDemoMode()) return demoReceivables();
+
   const sb = createServiceRoleClient();
 
   // Outstanding = delivered, not paid, not soft-deleted. Oldest delivery first

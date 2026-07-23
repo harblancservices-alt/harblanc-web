@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { blockedByDemo } from "@/lib/admin/demo";
 
 /** Broker portal actions: create, update profile/compliance, add a contact. */
 
@@ -26,6 +27,7 @@ function bool(fd: FormData, key: string): boolean {
  * operator lands on the broker's profile.
  */
 export async function createBroker(formData: FormData): Promise<void> {
+  if (await blockedByDemo()) redirect("/admin/dispatch/brokers"); // DEMO: no-op.
   const name = str(formData, "name");
   if (!name) return;
   const sb = createServiceRoleClient();
@@ -65,6 +67,7 @@ export async function updateBroker(
   id: string,
   formData: FormData,
 ): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   const sb = createServiceRoleClient();
   const { error } = await sb
     .from("brokers")
@@ -93,6 +96,7 @@ export async function updateBroker(
 
 /** Soft-delete a broker (recoverable). Loads keep their broker_name text. */
 export async function softDeleteBroker(id: string): Promise<void> {
+  if (await blockedByDemo()) redirect("/admin/dispatch/brokers"); // DEMO: no-op.
   const sb = createServiceRoleClient();
   const { error } = await sb
     .from("brokers")
@@ -134,6 +138,7 @@ export async function addBrokerContact(
   brokerId: string,
   formData: FormData,
 ): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   const sb = createServiceRoleClient();
   const name = str(formData, "name");
   if (!name) return;
@@ -158,6 +163,7 @@ export async function updateBrokerContact(
   brokerId: string,
   formData: FormData,
 ): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   const sb = createServiceRoleClient();
   const name = str(formData, "name");
   if (!name) return;
@@ -182,6 +188,7 @@ export async function deleteBrokerContact(
   contactId: string,
   brokerId: string,
 ): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   const sb = createServiceRoleClient();
   await sb
     .from("broker_contacts")

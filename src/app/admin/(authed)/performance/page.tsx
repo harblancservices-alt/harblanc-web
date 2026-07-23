@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { isDemoMode } from "@/lib/admin/demo";
+import { demoPerformance } from "@/lib/demo/demoData";
 import {
   loadDiesel,
   loadNet,
@@ -81,6 +83,9 @@ function num(v: number | string | null): number {
 }
 
 async function performanceData(): Promise<PerformanceData> {
+  // DEMO MODE: return the static fake dataset and never touch Supabase.
+  if (await isDemoMode()) return demoPerformance();
+
   const sb = createServiceRoleClient();
 
   const [{ data: rows }, { data: fuelRow }, { data: factoringBrokers }] =

@@ -4,9 +4,12 @@ import { requireAdmin } from "@/lib/admin/auth";
 import { validateEnv } from "@/lib/env";
 import { company } from "@/lib/company";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { isDemoMode } from "@/lib/admin/demo";
+import { DEMO_SETTINGS_ROW } from "@/lib/demo/demoData";
 import { IconLogout } from "../_shell/icons";
 import { updateFuelSettings, updateProfitGoals } from "./actions";
 import { ThemeToggle } from "./ThemeToggle";
+import { DemoModeToggle } from "./DemoModeToggle";
 import { DisplaySettings } from "./DisplaySettings";
 import { AdvancedPanel } from "./AdvancedPanel";
 import { Button } from "@/components/ui/Button";
@@ -95,20 +98,27 @@ export default async function SettingsPage() {
   // owner-facing page stays calm. Empty list = "nothing flagged" inside.
   const envIssues = validateEnv();
 
+  // The demo flag drives both the toggle's initial state and (in demo) the
+  // settings values shown, so the config panel matches the demo money math
+  // rather than leaking the real stored numbers.
+  const demoOn = await isDemoMode();
+
   const sb = createServiceRoleClient();
-  const { data: fuel } = await sb
-    .from("dispatch_settings")
-    .select(
-      "mpg, diesel_price_per_gallon, factoring_pct, monthly_net_goal, annual_net_goal",
-    )
-    .eq("id", true)
-    .maybeSingle<{
-      mpg: number | string;
-      diesel_price_per_gallon: number | string;
-      factoring_pct: number | string;
-      monthly_net_goal: number | string | null;
-      annual_net_goal: number | string | null;
-    }>();
+  const { data: fuel } = demoOn
+    ? { data: DEMO_SETTINGS_ROW }
+    : await sb
+        .from("dispatch_settings")
+        .select(
+          "mpg, diesel_price_per_gallon, factoring_pct, monthly_net_goal, annual_net_goal",
+        )
+        .eq("id", true)
+        .maybeSingle<{
+          mpg: number | string;
+          diesel_price_per_gallon: number | string;
+          factoring_pct: number | string;
+          monthly_net_goal: number | string | null;
+          annual_net_goal: number | string | null;
+        }>();
   const mpg = fuel?.mpg ?? 13;
   const ppg = fuel?.diesel_price_per_gallon ?? 4.7;
   const factoringPct = fuel?.factoring_pct ?? 3;
@@ -194,6 +204,16 @@ export default async function SettingsPage() {
           caption="Fit the portal to your monitor — orientation and scale."
         >
           <DisplaySettings />
+        </Section>
+
+        {/* Demo mode — present the portal with curated sample data. Real data
+            and demo data never cross: when ON every page reads the fake set and
+            every mutating action no-ops. */}
+        <Section
+          label="Demo mode"
+          caption="Show the portal with realistic sample data for a walkthrough. The real database is never read or changed while it's on."
+        >
+          <DemoModeToggle initialOn={demoOn} />
         </Section>
 
         {/* 4 — Business defaults: fuel costing + profit goals, one section. */}

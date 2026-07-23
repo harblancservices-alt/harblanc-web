@@ -1,5 +1,7 @@
 import { adminFromMiddleware } from "@/lib/admin/auth";
+import { isDemoMode } from "@/lib/admin/demo";
 import { PortalShell } from "./_shell/PortalShell";
+import { DemoBanner } from "./_shell/DemoBanner";
 
 /**
  * Level 4 — admin shell layout (V3 portal).
@@ -24,6 +26,7 @@ export default async function AuthedAdminLayout({
   children: React.ReactNode;
 }) {
   const user = await adminFromMiddleware();
+  const demo = await isDemoMode();
 
   return (
     <>
@@ -41,6 +44,7 @@ export default async function AuthedAdminLayout({
             "}catch(e){}",
         }}
       />
+      {demo ? <DemoBanner /> : null}
       <PortalShell email={user.email ?? null}>{children}</PortalShell>
     </>
   );

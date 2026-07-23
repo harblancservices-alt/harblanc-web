@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { blockedByDemo } from "@/lib/admin/demo";
 import { receiptName, withExt } from "@/lib/admin/doc-name";
 import {
   categoryForText,
@@ -130,6 +131,10 @@ export async function createReceiptUploadUrl(
   mimeType: string,
   sizeBytes: number,
 ): Promise<CreateUploadUrlResult> {
+  // DEMO: never mint a storage upload token — receipts are read-only in demo.
+  if (await blockedByDemo()) {
+    return { ok: false, reason: "Demo mode — receipt uploads are disabled." };
+  }
   try {
     if (!RECEIPT_MIME.has(mimeType)) {
       return {
@@ -430,6 +435,7 @@ async function removeReceipts(
 
 /** Log a new service (visit) with all of its parts at once. */
 export async function logService(formData: FormData): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   const sb = createServiceRoleClient();
   const f = parseServiceFields(formData);
   const parts = parseParts(formData);
@@ -474,6 +480,7 @@ export async function updateService(
   serviceId: string,
   formData: FormData,
 ): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   if (!serviceId) throw new Error("Missing service.");
   const sb = createServiceRoleClient();
   const f = parseServiceFields(formData);
@@ -561,6 +568,7 @@ export async function deleteReceipt(
   serviceId: string,
   attachmentId: string,
 ): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   if (!serviceId || !attachmentId) throw new Error("Missing receipt.");
   const sb = createServiceRoleClient();
   await removeReceipts(sb, serviceId, [attachmentId]);
@@ -573,6 +581,7 @@ export async function deleteReceipt(
  * receipts all cascade; the receipt storage objects are removed first.
  */
 export async function deleteService(serviceId: string): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   if (!serviceId) throw new Error("Missing service.");
   const sb = createServiceRoleClient();
   await removeServiceStorage(sb, serviceId);
@@ -587,6 +596,7 @@ export async function deleteService(serviceId: string): Promise<void> {
  * service (and its receipts) is removed too.
  */
 export async function deletePart(entryId: string): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   if (!entryId) throw new Error("Missing part.");
   const sb = createServiceRoleClient();
 
@@ -640,6 +650,7 @@ export async function attachRelated(
   entryId: string,
   otherId: string,
 ): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   if (!otherId || otherId === entryId) return;
   const sb = createServiceRoleClient();
   const { a, b } = linkPair(entryId, otherId);
@@ -655,6 +666,7 @@ export async function detachRelated(
   entryId: string,
   otherId: string,
 ): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   if (!entryId || !otherId) return;
   const sb = createServiceRoleClient();
   const { a, b } = linkPair(entryId, otherId);
@@ -675,6 +687,7 @@ export async function setReminderDismissed(
   reminderId: string,
   dismissed: boolean,
 ): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   if (!reminderId) throw new Error("Missing reminder.");
   const sb = createServiceRoleClient();
   const { error } = await sb

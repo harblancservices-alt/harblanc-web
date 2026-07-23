@@ -9,6 +9,7 @@
 
 import { Resend } from "resend";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { blockedByDemo } from "@/lib/admin/demo";
 import { renderTemplate } from "./types";
 import { reachSignatureHtml, REACH_TEXT_SIGNATURE } from "./signature";
 
@@ -122,6 +123,13 @@ export async function sendReach(input: {
   replyToEmail?: string;
   ctx: ReachSendContext;
 }): Promise<ReachSendResult> {
+  // DEMO: never send a real email. Report a benign success shaped like a
+  // completed blast, before any Resend/Supabase call.
+  if (await blockedByDemo()) {
+    const n = input.brokerIds.map((s) => s.trim()).filter(Boolean).length;
+    return { ok: true, sent: n, failed: 0 };
+  }
+
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return { ok: false, reason: "RESEND_API_KEY not configured." };
 
@@ -271,6 +279,9 @@ export async function sendReachTest(
   replyToName: string,
   replyToEmail?: string,
 ): Promise<ReachTestResult> {
+  // DEMO: never send a real test email — report a benign success.
+  if (await blockedByDemo()) return { ok: true, to: [TEST_RECIPIENT] };
+
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) return { ok: false, reason: "RESEND_API_KEY not configured." };
 

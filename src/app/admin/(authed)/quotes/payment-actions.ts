@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireAdmin } from "@/lib/admin/auth";
 import { createServiceRoleClient } from "@/lib/supabase/server";
+import { blockedByDemo } from "@/lib/admin/demo";
 import { logDispatchEvent } from "@/lib/dispatch/events";
 import { type LeadStatus } from "@/lib/dispatch/status";
 import {
@@ -74,6 +75,7 @@ function n(v: FormDataEntryValue | null): number | null {
  * actions.ts sendEstimate.
  */
 export async function recordPayment(formData: FormData): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   const user = await requireAdmin();
 
   // ── 1. Parse + validate inputs ─────────────────────────────────────────
@@ -276,6 +278,7 @@ export async function recordPayment(formData: FormData): Promise<void> {
  * a human-readable description.
  */
 export async function softDeletePayment(paymentId: string): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   await requireAdmin();
   if (!paymentId) throw new Error("Missing payment id.");
 
