@@ -53,6 +53,70 @@ function isPublicPrefix(pathname: string): boolean {
   );
 }
 
+// The single public CRM path — the sign-in screen. Everything else under
+// /crm requires a Supabase session. Kept separate from the admin allowlist so
+// the two auth surfaces never share configuration.
+function isPublicCrmPath(pathname: string): boolean {
+  return pathname === "/crm/login" || pathname.startsWith("/crm/login/");
+}
+
+/**
+ * CRM session gate. Refreshes the Supabase session cookies (same @supabase/ssr
+ * contract as the admin gate — nothing runs between createServerClient() and
+ * getUser()) and redirects to /crm/login when there is no valid session. This
+ * shares NO configuration with the admin gate: it never reads ADMIN_EMAIL and
+ * never redirects to /admin.
+ */
+async function crmGate(request: NextRequest, pathname: string) {
+  if (isPublicCrmPath(pathname)) {
+    return NextResponse.next();
+  }
+
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+  if (!url || !key) {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = "/crm/login";
+    redirectUrl.searchParams.set("error", "misconfigured");
+    return NextResponse.redirect(redirectUrl);
+  }
+
+  const cookiesToSet: { name: string; value: string; options?: CookieOptions }[] =
+    [];
+  const supabase = createServerClient(url, key, {
+    cookies: {
+      getAll() {
+        return request.cookies.getAll();
+      },
+      setAll(toSet) {
+        toSet.forEach(({ name, value }) => request.cookies.set(name, value));
+        cookiesToSet.push(...toSet);
+      },
+    },
+  });
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = "/crm/login";
+    return NextResponse.redirect(redirectUrl);
+  }
+
+  // Session present. Forward the verified id to the CRM layout (which still
+  // resolves crm_profiles for the org check) and re-apply refreshed cookies.
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-crm-user-id", user.id);
+  if (user.email) requestHeaders.set("x-crm-user-email", user.email);
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  for (const { name, value, options } of cookiesToSet) {
+    response.cookies.set(name, value, options);
+  }
+  return response;
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -61,6 +125,16 @@ export async function middleware(request: NextRequest) {
   // stay public even if the matcher is widened later.
   if (isPublicPrefix(pathname)) {
     return NextResponse.next();
+  }
+
+  // ── CRM (Hello Hotshot) gate ────────────────────────────────────────────
+  // Entirely INDEPENDENT of the /admin allowlist below: no ADMIN_EMAIL, no
+  // shared allowlist, no shared state. The only question here is "does the
+  // request carry a valid Supabase Auth session?" — if not, bounce to the
+  // CRM's own login. Org membership (crm_profiles) is enforced separately in
+  // the CRM layout so a signed-in dispatch admin still can't see CRM data.
+  if (pathname.startsWith("/crm")) {
+    return crmGate(request, pathname);
   }
 
   // Belt-and-suspenders for the matcher: only enforce under /admin/**.
@@ -143,5 +217,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: ["/admin/:path*", "/crm/:path*"],
 };

@@ -201,6 +201,31 @@ input[type="date"]::-webkit-date-and-time-value {
   --accent-hover: var(--v2-accent-hover);
 }
 
+/* ============================================================== */
+/* HELLO HOTSHOT CRM THEME — scoped override, fully independent of the
+   admin portal. The CRM shell root (see src/app/crm) carries .crm-light.
+   It adopts the SAME V2 "Fleet Ops" light surfaces as the admin so the
+   CRM looks premium, but its brand accent is a distinct STEEL BLUE (never
+   the dispatch red) so the two products never read as the same app.
+   Nothing here touches .admin-light or the public :root palette. */
+.crm-light {
+  --canvas: var(--v2-canvas);      /* page background (gray between cards) */
+  --panel: #ffffff;                /* top bar                             */
+  --card: var(--v2-card);          /* raised white cards                  */
+  --elevated: #eef0f3;             /* hover / active                      */
+  --line: var(--v2-line);          /* borders                            */
+  --line-strong: var(--v2-line-strong);
+  --fg: var(--v2-ink);             /* near-black primary text            */
+  --fg-muted: var(--v2-ink-2);     /* secondary                          */
+  --fg-subtle: var(--v2-ink-3);    /* labels / captions                  */
+  --bar: var(--v2-graphite);       /* solid graphite section-header bar   */
+  --bar-fg: #f4f4f5;
+  /* CRM brand accent → V2 steel blue (dispatch keeps red). This flips the
+     primary-action colour of any reused design-system Button/primitive. */
+  --accent: var(--v2-blue);
+  --accent-hover: var(--v2-blue-hover);
+}
+
 /* ADMIN DARK THEME — opt-in via the Settings toggle. When the operator
    picks Dark, an inline script sets html[data-admin-theme="dark"], which
    re-applies the approved warm-charcoal palette over the .admin-light
