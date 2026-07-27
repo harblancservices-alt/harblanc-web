@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { PageShell, Card, CardHead, StatTile } from "./_shell/ui";
 import { IconTasks } from "./_shell/icons";
+import { DueBell } from "./DueBell";
 import { formatDateTime } from "./_shell/format";
 import { TaskRow, type CrmTaskItem } from "./tasks/TaskRow";
 import { callOutcomeLabel, callOutcomeTone } from "./calls/outcomes";
@@ -238,19 +239,24 @@ export default async function CrmDashboardPage() {
   const customerCount = tally.get("customer") ?? 0;
 
   const firstName = (user.fullName || "there").split(" ")[0];
-  const hasActionable =
+  // Total due-work count — the SAME buckets the queue below renders (overdue
+  // tasks + overdue call-backs + due-today tasks + today call-backs + contact
+  // follow-ups). Reused for both the masthead bell and the caught-up state, so
+  // the number the bell shows can never drift from the list underneath it.
+  const dueCount =
     overdueTasks.length +
-      overdueCallbacks.length +
-      dueTodayTasks.length +
-      todayCallbacks.length +
-      followups.length >
-    0;
+    overdueCallbacks.length +
+    dueTodayTasks.length +
+    todayCallbacks.length +
+    followups.length;
+  const hasActionable = dueCount > 0;
 
   return (
     <PageShell
       eyebrow="Hello Hotshot CRM"
       title={`What's next, ${firstName}`}
       subtitle="Your live work queue — the next moves across your book of business."
+      actions={<DueBell count={dueCount} targetId="crm-queue" />}
     >
       {/* KPI strip */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -292,6 +298,11 @@ export default async function CrmDashboardPage() {
           </div>
         </Card>
       )}
+
+      {/* Scroll target for the masthead bell — the top of the work queue.
+          scroll-mt clears the sticky mobile top bar so the queue isn't tucked
+          under it. */}
+      <div id="crm-queue" className="scroll-mt-16" aria-hidden />
 
       {/* Overdue */}
       {(overdueTasks.length > 0 || overdueCallbacks.length > 0) && (
