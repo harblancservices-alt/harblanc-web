@@ -12,6 +12,9 @@ import { TagEditor, type CrmTag } from "./TagEditor";
 import { ContactsSection, type CrmContact } from "./ContactsSection";
 import { NotesSection, type CrmNote } from "./NotesSection";
 import { ActivityTimeline, type CrmActivity } from "./ActivityTimeline";
+import { TasksSection } from "./TasksSection";
+import { LogCallButton } from "./LogCallButton";
+import { type CrmTaskItem } from "../../tasks/TaskRow";
 
 export const dynamic = "force-dynamic";
 
@@ -55,32 +58,48 @@ export default async function AccountDetailPage({
   if (!account) notFound();
 
   // Fan out the related reads (each RLS-scoped to the caller's org).
-  const [profilesRes, tagsRes, accountTagsRes, contactsRes, notesRes, activitiesRes] =
-    await Promise.all([
-      supabase.from("crm_profiles").select("id, full_name, email, is_active"),
-      supabase.from("crm_tags").select("id, label, color").order("label"),
-      supabase.from("crm_account_tags").select("tag_id").eq("account_id", id),
-      supabase
-        .from("crm_contacts")
-        .select(
-          "id, name, title, email, phone, mobile, extension, best_time_to_call, is_decision_maker, linkedin_url, notes, next_followup_at",
-        )
-        .eq("account_id", id)
-        .is("deleted_at", null)
-        .order("created_at", { ascending: true }),
-      supabase
-        .from("crm_notes")
-        .select("id, body, is_pinned, created_at, user_id")
-        .eq("account_id", id)
-        .order("is_pinned", { ascending: false })
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("crm_activities")
-        .select("id, kind, summary, occurred_at, user_id")
-        .eq("account_id", id)
-        .order("occurred_at", { ascending: false })
-        .limit(100),
-    ]);
+  const [
+    profilesRes,
+    tagsRes,
+    accountTagsRes,
+    contactsRes,
+    notesRes,
+    activitiesRes,
+    tasksRes,
+  ] = await Promise.all([
+    supabase.from("crm_profiles").select("id, full_name, email, is_active"),
+    supabase.from("crm_tags").select("id, label, color").order("label"),
+    supabase.from("crm_account_tags").select("tag_id").eq("account_id", id),
+    supabase
+      .from("crm_contacts")
+      .select(
+        "id, name, title, email, phone, mobile, extension, best_time_to_call, is_decision_maker, linkedin_url, notes, next_followup_at",
+      )
+      .eq("account_id", id)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("crm_notes")
+      .select("id, body, is_pinned, created_at, user_id")
+      .eq("account_id", id)
+      .order("is_pinned", { ascending: false })
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("crm_activities")
+      .select("id, kind, summary, body, occurred_at, user_id")
+      .eq("account_id", id)
+      .order("occurred_at", { ascending: false })
+      .limit(100),
+    supabase
+      .from("crm_tasks")
+      .select(
+        "id, title, notes, due_at, priority, status, completed_at, reminder_at, account_id, assigned_user_id",
+      )
+      .eq("account_id", id)
+      .order("status", { ascending: true })
+      .order("due_at", { ascending: true, nullsFirst: false })
+      .order("created_at", { ascending: false }),
+  ]);
 
   const profiles = (profilesRes.data ?? []) as ProfileRow[];
   const profileById = new Map(profiles.map((p) => [p.id, p]));
@@ -115,15 +134,30 @@ export default async function AccountDetailPage({
     id: string;
     kind: string;
     summary: string | null;
+    body: string | null;
     occurred_at: string;
     user_id: string | null;
   }[]).map((a) => ({
     id: a.id,
     kind: a.kind,
     summary: a.summary,
+    body: a.body,
     occurred_at: a.occurred_at,
     author: a.user_id ? profileName(profileById.get(a.user_id)) : null,
   }));
+
+  const tasks: CrmTaskItem[] = ((tasksRes.data ?? []) as {
+    id: string;
+    title: string;
+    notes: string | null;
+    due_at: string | null;
+    priority: string | null;
+    status: string;
+    completed_at: string | null;
+    reminder_at: string | null;
+    account_id: string | null;
+    assigned_user_id: string | null;
+  }[]).map((t) => ({ ...t, companyName: account.name as string }));
 
   const stage = account.lifecycle_status as string;
   const location = [account.city, account.state].filter(Boolean).join(", ");
@@ -188,6 +222,10 @@ export default async function AccountDetailPage({
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
+            <LogCallButton
+              accountId={account.id as string}
+              contacts={contacts.map((c) => ({ id: c.id, name: c.name }))}
+            />
             <EditCompany defaults={editDefaults} reps={reps} />
           </div>
         </div>
@@ -289,6 +327,11 @@ export default async function AccountDetailPage({
               accountId={account.id as string}
               contacts={contacts}
               primaryContactId={account.primary_contact_id as string | null}
+            />
+            <TasksSection
+              accountId={account.id as string}
+              tasks={tasks}
+              reps={reps}
             />
             <NotesSection accountId={account.id as string} notes={notes} />
           </div>

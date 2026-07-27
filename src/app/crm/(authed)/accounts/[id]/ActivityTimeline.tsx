@@ -6,6 +6,7 @@ export type CrmActivity = {
   id: string;
   kind: string;
   summary: string | null;
+  body: string | null;
   occurred_at: string;
   author: string | null;
 };
@@ -45,6 +46,11 @@ export function ActivityTimeline({ activities }: { activities: CrmActivity[] }) 
                   <p className="text-[13.5px] font-medium text-fg">
                     {a.summary || KIND_LABEL[a.kind] || "Activity"}
                   </p>
+                  {a.body && (
+                    <p className="mt-0.5 whitespace-pre-wrap text-[12.5px] leading-relaxed text-fg-muted">
+                      {a.body}
+                    </p>
+                  )}
                   <p className="mt-0.5 text-[12px] text-fg-subtle">
                     {a.author ? `${a.author} · ` : ""}
                     {formatDateTime(a.occurred_at)}
@@ -66,6 +72,9 @@ const KIND_TONE: Record<string, string> = {
   [CRM_ACTIVITY.noteAdded]: "bg-warn",
   [CRM_ACTIVITY.contactAdded]: "bg-steel",
   [CRM_ACTIVITY.contactUpdated]: "bg-slate",
+  [CRM_ACTIVITY.call]: "bg-accent",
+  [CRM_ACTIVITY.taskCreated]: "bg-slate",
+  [CRM_ACTIVITY.taskCompleted]: "bg-ok",
 };
 
 const KIND_LABEL: Record<string, string> = {
@@ -75,4 +84,7 @@ const KIND_LABEL: Record<string, string> = {
   [CRM_ACTIVITY.noteAdded]: "Note added",
   [CRM_ACTIVITY.contactAdded]: "Contact added",
   [CRM_ACTIVITY.contactUpdated]: "Contact updated",
+  [CRM_ACTIVITY.call]: "Call logged",
+  [CRM_ACTIVITY.taskCreated]: "Task added",
+  [CRM_ACTIVITY.taskCompleted]: "Task completed",
 };

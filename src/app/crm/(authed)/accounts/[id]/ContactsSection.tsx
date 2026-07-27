@@ -6,6 +6,7 @@ import { Card, CardHead } from "../../_shell/ui";
 import { IconPlus, IconContacts } from "../../_shell/icons";
 import { formatDateTime } from "../../_shell/format";
 import { ContactDialog, type ContactDefaults } from "./ContactDialog";
+import { LogCallDialog, type CallContactOption } from "../../calls/LogCallDialog";
 import { deleteContact, setPrimaryContact } from "../actions";
 
 export type CrmContact = ContactDefaults & { id: string; name: string };
@@ -27,6 +28,11 @@ export function ContactsSection({
   const [pending, startTransition] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
   const router = useRouter();
+
+  const callContacts: CallContactOption[] = contacts.map((c) => ({
+    id: c.id,
+    name: c.name,
+  }));
 
   function makePrimary(id: string) {
     setBusyId(id);
@@ -167,6 +173,20 @@ export function ContactsSection({
                 </div>
 
                 <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <LogCallDialog
+                    accountId={accountId}
+                    contacts={callContacts}
+                    defaultContactId={c.id}
+                    trigger={(open) => (
+                      <button
+                        type="button"
+                        onClick={open}
+                        className="rounded-lg border border-line-strong bg-card px-3 py-1.5 text-[12.5px] font-semibold text-fg transition-colors hover:bg-inset"
+                      >
+                        Log call
+                      </button>
+                    )}
+                  />
                   <ContactDialog
                     accountId={accountId}
                     mode="edit"

@@ -19,6 +19,9 @@ export const CRM_ACTIVITY = {
   noteAdded: "note_added",
   contactAdded: "contact_added",
   contactUpdated: "contact_updated",
+  call: "call",
+  taskCreated: "task_created",
+  taskCompleted: "task_completed",
 } as const;
 
 export type CrmActivityKind =
