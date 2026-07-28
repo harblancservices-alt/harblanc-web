@@ -41,6 +41,27 @@ export function formatNumber(value: number | null | undefined): string {
   return new Intl.NumberFormat("en-US").format(value);
 }
 
+/**
+ * First name for display — the first whitespace-delimited token of a
+ * crm_profiles.full_name, or the part before "@" in `email` when there's no
+ * name at all. Every CRM surface that renders a person's name as a LABEL
+ * (Settings, rep chips/dropdowns, "Working: <name>", activity-timeline
+ * actors, …) routes through this, so "Kartik Rathore" always reads as just
+ * "Kartik" while crm_profiles.full_name itself is never touched. Editing
+ * forms (e.g. the Settings "Full name" field) bind directly to full_name
+ * instead — this helper is display-only.
+ */
+export function firstName(
+  fullName: string | null | undefined,
+  email?: string | null,
+): string {
+  const name = (fullName ?? "").trim();
+  if (name) return name.split(/\s+/)[0];
+  const mail = (email ?? "").trim();
+  if (mail) return mail.split("@")[0];
+  return "";
+}
+
 /** Convert a stored ISO timestamp to a value an <input type="datetime-local"> accepts. */
 export function toDatetimeLocal(iso: string | null | undefined): string {
   if (!iso) return "";

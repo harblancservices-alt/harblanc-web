@@ -1,6 +1,7 @@
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { PageShell, Card, EmptyState } from "../_shell/ui";
 import { IconAiAgent } from "../_shell/icons";
+import { firstName } from "../_shell/format";
 import { LeadCard, type AiAgentLead } from "./LeadCard";
 
 export const dynamic = "force-dynamic";
@@ -69,7 +70,7 @@ export default async function AiAgentPage() {
 
   const assigneeName = new Map(
     ((profilesRes.data ?? []) as { id: string; full_name: string | null; email: string | null }[]).map(
-      (p) => [p.id, p.full_name || p.email || "Unnamed rep"],
+      (p) => [p.id, firstName(p.full_name, p.email) || "Unnamed rep"],
     ),
   );
 

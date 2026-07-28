@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { Card, CardHead } from "../../_shell/ui";
-import { formatDate, formatMoney, formatNumber } from "../../_shell/format";
+import { formatDate, formatMoney, formatNumber, firstName } from "../../_shell/format";
 import { stageLabel, stageTone } from "../lifecycle";
 import type { RepOption } from "../CompanyDialog";
 import { EditCompany } from "./EditCompany";
@@ -22,7 +22,7 @@ type ProfileRow = { id: string; full_name: string | null; email: string | null; 
 
 function profileName(p: ProfileRow | undefined): string | null {
   if (!p) return null;
-  return p.full_name || p.email || null;
+  return firstName(p.full_name, p.email) || null;
 }
 
 function normalizeHref(url: string | null): string | null {

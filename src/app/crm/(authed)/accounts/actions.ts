@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { logActivity, CRM_ACTIVITY } from "@/lib/crm/activity";
 import { normalizeStage, stageLabel, DEFAULT_LIFECYCLE } from "./lifecycle";
+import { firstName } from "../_shell/format";
 
 /**
  * Every write in the Hello Hotshot CRM lives here. All actions share the same
@@ -244,7 +245,7 @@ export async function assignRep(
       .select("full_name, email")
       .eq("id", nextRep)
       .maybeSingle();
-    repName = (rep?.full_name as string) || (rep?.email as string) || null;
+    repName = firstName(rep?.full_name as string | null, rep?.email as string | null) || null;
   }
 
   await logActivity(supabase, {

@@ -6,6 +6,7 @@ import { IconCompanies } from "../_shell/icons";
 import { AddCompany } from "./AddCompany";
 import { AccountsFilters } from "./AccountsFilters";
 import { stageLabel, stageTone } from "./lifecycle";
+import { firstName } from "../_shell/format";
 import type { RepOption } from "./CompanyDialog";
 import type { CrmTag } from "./[id]/TagEditor";
 
@@ -76,7 +77,7 @@ export default async function CompaniesPage({
   }[];
   const reps: RepOption[] = profiles
     .filter((p) => p.is_active)
-    .map((p) => ({ id: p.id, label: p.full_name || p.email || "Unnamed rep" }))
+    .map((p) => ({ id: p.id, label: firstName(p.full_name, p.email) || "Unnamed rep" }))
     .sort((a, b) => a.label.localeCompare(b.label));
 
   // A tag filter narrows to the accounts carrying that tag (pre-resolved to ids).

@@ -1,7 +1,7 @@
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { PageShell, Card, EmptyState } from "../_shell/ui";
 import { IconPipeline } from "../_shell/icons";
-import { formatMoney } from "../_shell/format";
+import { formatMoney, firstName } from "../_shell/format";
 import type { RepOption } from "../accounts/CompanyDialog";
 import { AddDealButton } from "./AddDealButton";
 import { DealCard } from "./DealCard";
@@ -61,11 +61,11 @@ export default async function PipelinePage() {
     is_active: boolean;
   }[];
   const repName = new Map(
-    profiles.map((p) => [p.id, p.full_name || p.email || "Unnamed rep"]),
+    profiles.map((p) => [p.id, firstName(p.full_name, p.email) || "Unnamed rep"]),
   );
   const reps: RepOption[] = profiles
     .filter((p) => p.is_active)
-    .map((p) => ({ id: p.id, label: p.full_name || p.email || "Unnamed rep" }))
+    .map((p) => ({ id: p.id, label: firstName(p.full_name, p.email) || "Unnamed rep" }))
     .sort((a, b) => a.label.localeCompare(b.label));
 
   let stages: StageRow[] = [];

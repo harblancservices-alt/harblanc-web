@@ -1,5 +1,6 @@
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { PageShell, Card, CardHead } from "../_shell/ui";
+import { firstName } from "../_shell/format";
 import { MemberEditButton } from "./MemberEditButton";
 
 export const dynamic = "force-dynamic";
@@ -63,7 +64,7 @@ export default async function SettingsPage() {
           <Avatar name={me?.full_name ?? user.fullName} email={user.email} size={48} />
           <div className="min-w-0">
             <p className="truncate text-[15px] font-semibold text-fg">
-              {me?.full_name || user.fullName || "—"}
+              {firstName(me?.full_name ?? user.fullName, user.email) || "—"}
             </p>
             <p className="truncate text-[13px] text-fg-muted">
               {me?.title || "No title set"} · {user.email}
@@ -94,7 +95,7 @@ export default async function SettingsPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="truncate text-[14px] font-semibold text-fg">
-                        {m.full_name || m.email || "Unnamed"}
+                        {firstName(m.full_name, m.email) || "Unnamed"}
                       </span>
                       {isSelf && (
                         <span className="rounded-full bg-steel-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-steel">
