@@ -71,7 +71,7 @@ export default async function SettingsPage() {
             </p>
           </div>
         </div>
-        <dl className="divide-y divide-line border-t border-line">
+        <dl className="divide-y divide-line-strong border-t border-line-strong">
           <Row label="Role" value={roleLabel(user.role)} />
         </dl>
       </Card>
@@ -86,7 +86,7 @@ export default async function SettingsPage() {
             No team members found.
           </div>
         ) : (
-          <ul className="divide-y divide-line">
+          <ul className="divide-y divide-line-strong">
             {members.map((m) => {
               const isSelf = m.id === user.id;
               return (

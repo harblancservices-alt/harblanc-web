@@ -67,7 +67,7 @@ export function NotesSection({
         hint={notes.length ? `${notes.length} on file` : undefined}
       />
 
-      <div className="border-b border-line px-5 py-4">
+      <div className="border-b border-line-strong px-5 py-4">
         <form onSubmit={submit} className="flex flex-col gap-2.5">
           <textarea
             value={body}
@@ -103,7 +103,7 @@ export function NotesSection({
           No notes yet. Jot the first one above.
         </p>
       ) : (
-        <ul className="divide-y divide-line">
+        <ul className="divide-y divide-line-strong">
           {notes.map((n) => (
             <li key={n.id} className="px-5 py-3.5">
               <div className="mb-1 flex items-center justify-between gap-3">

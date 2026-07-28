@@ -1,5 +1,5 @@
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
-import { PageShell, Card, EmptyState } from "../_shell/ui";
+import { PageShell, Card, CardHead, EmptyState } from "../_shell/ui";
 import { IconPipeline } from "../_shell/icons";
 import { formatMoney, firstName } from "../_shell/format";
 import type { RepOption } from "../accounts/CompanyDialog";
@@ -145,11 +145,10 @@ export default async function PipelinePage() {
             return (
               <div key={stage.id} className="w-[280px] shrink-0">
                 <Card className="flex h-full flex-col">
-                  <div className="border-b border-line px-4 py-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <h2 className="min-w-0 truncate text-[13.5px] font-semibold text-fg">
-                        {stage.name}
-                      </h2>
+                  <CardHead
+                    title={stage.name}
+                    hint={<span className="font-mono">{formatMoney(sum)}</span>}
+                    right={
                       <div className="flex shrink-0 items-center gap-1.5">
                         <span className="text-[11px] font-semibold text-fg-subtle">
                           {stageDeals.length}
@@ -164,11 +163,8 @@ export default async function PipelinePage() {
                           variant="compact"
                         />
                       </div>
-                    </div>
-                    <p className="mt-0.5 font-mono text-[12px] text-fg-muted">
-                      {formatMoney(sum)}
-                    </p>
-                  </div>
+                    }
+                  />
                   <div className="flex flex-1 flex-col gap-2.5 p-3">
                     {stageDeals.length === 0 ? (
                       <p className="px-1 py-6 text-center text-[12px] text-fg-subtle">

@@ -115,7 +115,7 @@ export default async function AiReviewPage() {
             body="New AI-researched leads will show up here before they reach the team."
           />
         ) : (
-          <ul className="divide-y divide-line">
+          <ul className="divide-y divide-line-strong">
             {reviewLeads.map((lead) => (
               <ReviewCard key={lead.id} lead={lead} />
             ))}

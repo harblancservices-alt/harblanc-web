@@ -94,7 +94,7 @@ export function ContactsSection({
           </p>
         </div>
       ) : (
-        <ul className="divide-y divide-line">
+        <ul className="divide-y divide-line-strong">
           {contacts.map((c) => {
             const isPrimary = c.id === primaryContactId;
             const isBusy = busyId === c.id;

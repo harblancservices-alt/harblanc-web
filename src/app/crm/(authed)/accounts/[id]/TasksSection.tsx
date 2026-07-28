@@ -104,7 +104,7 @@ export function TasksSection({
         </div>
       ) : (
         <>
-          <ul className="divide-y divide-line">
+          <ul className="divide-y divide-line-strong">
             {open.map((t) => (
               <TaskRow key={t.id} task={t}>
                 {rowActions(t)}
@@ -112,11 +112,11 @@ export function TasksSection({
             ))}
           </ul>
           {done.length > 0 && (
-            <details className="border-t border-line">
+            <details className="border-t border-line-strong">
               <summary className="cursor-pointer list-none px-5 py-3 text-[12.5px] font-semibold text-fg-subtle transition-colors hover:text-fg">
                 {done.length} completed
               </summary>
-              <ul className="divide-y divide-line border-t border-line">
+              <ul className="divide-y divide-line-strong border-t border-line-strong">
                 {done.map((t) => (
                   <TaskRow key={t.id} task={t}>
                     {rowActions(t)}

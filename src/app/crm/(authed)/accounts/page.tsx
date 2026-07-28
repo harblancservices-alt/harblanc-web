@@ -198,7 +198,7 @@ export default async function CompaniesPage({
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] text-left text-[13.5px]">
               <thead>
-                <tr className="border-b border-line text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
+                <tr className="border-b border-line-strong bg-inset text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
                   <th className="px-5 py-3 font-semibold">Company</th>
                   <th className="px-5 py-3 font-semibold">Stage</th>
                   <th className="px-5 py-3 font-semibold">Location</th>
@@ -218,7 +218,7 @@ export default async function CompaniesPage({
                     <ClickableRow
                       key={a.id}
                       href={`/crm/accounts/${a.id}`}
-                      className="border-b border-line last:border-0"
+                      className="border-b border-line-strong last:border-0"
                     >
                       <td className="px-5 py-3">
                         <Link

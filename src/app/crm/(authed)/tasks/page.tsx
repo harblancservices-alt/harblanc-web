@@ -107,10 +107,10 @@ export default async function TasksPage() {
           {doneTasks.length > 0 && (
             <Card>
               <details>
-                <summary className="cursor-pointer list-none border-b border-line px-5 py-3.5 text-[14px] font-semibold text-fg-subtle transition-colors hover:text-fg">
+                <summary className="cursor-pointer list-none border-b border-line-strong px-5 py-3.5 text-[14px] font-semibold text-fg-subtle transition-colors hover:text-fg">
                   Done · {doneTasks.length}
                 </summary>
-                <ul className="divide-y divide-line">
+                <ul className="divide-y divide-line-strong">
                   {doneTasks.map((t) => (
                     <TaskRow key={t.id} task={t} showCompany />
                   ))}
@@ -135,7 +135,7 @@ function Group({
   return (
     <Card>
       <CardHead title={title} hint={`${tasks.length}`} />
-      <ul className="divide-y divide-line">
+      <ul className="divide-y divide-line-strong">
         {tasks.map((t) => (
           <TaskRow key={t.id} task={t} showCompany />
         ))}

@@ -58,7 +58,7 @@ export function Card({
 }: ComponentPropsWithoutRef<"div">) {
   return (
     <div
-      className={`overflow-hidden rounded-2xl border border-line bg-card shadow-e2 ${className ?? ""}`}
+      className={`overflow-hidden rounded-2xl border border-line-strong bg-card shadow-e2 ${className ?? ""}`}
       {...rest}
     >
       {children}
@@ -66,20 +66,36 @@ export function Card({
   );
 }
 
+/**
+ * The header band for a Card/section — the ONE place this hierarchy level is
+ * styled, so every CRM page (dashboard, Companies, Pipeline, Tasks, Settings,
+ * AI Agent, AI Review) reads identically. Deliberately styled to be
+ * unmistakably heavier than the item rows/cards beneath it: bold + slightly
+ * larger near-black title, a light `bg-inset` band tint, and a `line-strong`
+ * bottom border — so the header visually "sits above" the list rather than
+ * blending into it (rows use `font-semibold` at a smaller size, so the size +
+ * weight jump alone reads as a hierarchy level, no color trick needed).
+ */
 export function CardHead({
   title,
   hint,
   right,
 }: {
   title: string;
-  hint?: string;
+  hint?: ReactNode;
   right?: ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-line px-5 py-3.5">
+    <div className="flex items-center justify-between gap-3 rounded-t-2xl border-b border-line-strong bg-inset px-5 py-4">
       <div className="min-w-0">
-        <h2 className="text-[14px] font-semibold text-fg">{title}</h2>
-        {hint && <p className="mt-0.5 text-[12px] text-fg-subtle">{hint}</p>}
+        <h2 className="truncate text-[15.5px] font-bold tracking-tight text-fg">
+          {title}
+        </h2>
+        {hint && (
+          <p className="mt-0.5 truncate text-[12px] font-medium text-fg-subtle">
+            {hint}
+          </p>
+        )}
       </div>
       {right}
     </div>
@@ -96,7 +112,7 @@ export function StatTile({
   sub?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-line bg-card p-4 shadow-e2">
+    <div className="rounded-2xl border border-line-strong bg-card p-4 shadow-e2">
       <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-subtle">
         {label}
       </p>

@@ -39,7 +39,7 @@ export function DealCard({
   const href = deal.accountId ? `/crm/accounts/${deal.accountId}` : null;
 
   return (
-    <div className="relative rounded-xl border border-line bg-card p-3 shadow-e2 transition-shadow hover:shadow-e3">
+    <div className="relative rounded-xl border border-line-strong bg-card p-3 shadow-e2 transition-shadow hover:shadow-e3">
       {href && (
         <Link
           href={href}

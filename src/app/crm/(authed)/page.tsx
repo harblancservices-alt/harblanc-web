@@ -374,14 +374,14 @@ export default async function CrmDashboardPage() {
             hint={`${overdueTasks.length + overdueCallbacks.length} past due`}
           />
           {overdueTasks.length > 0 && (
-            <ul className="divide-y divide-line">
+            <ul className="divide-y divide-line-strong">
               {overdueTasks.map((t) => (
                 <TaskRow key={t.id} task={t} showCompany />
               ))}
             </ul>
           )}
           {overdueCallbacks.length > 0 && (
-            <ul className="divide-y divide-line border-t border-line first:border-t-0">
+            <ul className="divide-y divide-line-strong border-t border-line-strong first:border-t-0">
               {overdueCallbacks.map((c) => (
                 <CallbackRow key={c.id} callback={c} companyName={c.account_id ? nameById.get(c.account_id) ?? null : null} />
               ))}
@@ -398,14 +398,14 @@ export default async function CrmDashboardPage() {
             hint="Tasks and call-backs due today"
           />
           {dueTodayTasks.length > 0 && (
-            <ul className="divide-y divide-line">
+            <ul className="divide-y divide-line-strong">
               {dueTodayTasks.map((t) => (
                 <TaskRow key={t.id} task={t} showCompany />
               ))}
             </ul>
           )}
           {todayCallbacks.length > 0 && (
-            <ul className="divide-y divide-line border-t border-line first:border-t-0">
+            <ul className="divide-y divide-line-strong border-t border-line-strong first:border-t-0">
               {todayCallbacks.map((c) => (
                 <CallbackRow key={c.id} callback={c} companyName={c.account_id ? nameById.get(c.account_id) ?? null : null} />
               ))}
@@ -421,7 +421,7 @@ export default async function CrmDashboardPage() {
             title="New leads to claim"
             hint={`${newAiLeads.length} released by the AI agent, unclaimed`}
           />
-          <ul className="divide-y divide-line">
+          <ul className="divide-y divide-line-strong">
             {newAiLeads.map((l) => (
               <NewAiLeadRow key={l.id} lead={l} />
             ))}
@@ -436,7 +436,7 @@ export default async function CrmDashboardPage() {
             title="Follow-ups due"
             hint="Contacts flagged for follow-up"
           />
-          <ul className="divide-y divide-line">
+          <ul className="divide-y divide-line-strong">
             {followups.map((f) => (
               <FollowupRow
                 key={f.id}
@@ -455,7 +455,7 @@ export default async function CrmDashboardPage() {
           {recentAccounts.length === 0 ? (
             <Empty text="No active leads yet. Add a company to get started." />
           ) : (
-            <ul className="divide-y divide-line">
+            <ul className="divide-y divide-line-strong">
               {recentAccounts.map((a) => (
                 <AccountRow key={a.id} account={a} />
               ))}
@@ -471,7 +471,7 @@ export default async function CrmDashboardPage() {
           {staleAccounts.length === 0 ? (
             <Empty text="Nothing going cold — every active lead has recent activity or a task." />
           ) : (
-            <ul className="divide-y divide-line">
+            <ul className="divide-y divide-line-strong">
               {staleAccounts.map((a) => (
                 <AccountRow key={a.id} account={a} />
               ))}
