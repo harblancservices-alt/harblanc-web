@@ -1,9 +1,9 @@
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { PageShell, Card, EmptyState } from "../_shell/ui";
-import { IconPipeline, IconPlus } from "../_shell/icons";
+import { IconPipeline } from "../_shell/icons";
 import { formatMoney } from "../_shell/format";
 import type { RepOption } from "../accounts/CompanyDialog";
-import { DealDialog } from "./DealDialog";
+import { AddDealButton } from "./AddDealButton";
 import { DealCard } from "./DealCard";
 import type { AccountOption, StageOption } from "./types";
 
@@ -116,21 +116,12 @@ export default async function PipelinePage() {
           : "Freight opportunities by stage."
       }
       actions={
-        <DealDialog
+        <AddDealButton
           accounts={accountOptions}
           stages={stageOptions}
           reps={reps}
           pipelineId={pipeline?.id ?? null}
-          trigger={(open) => (
-            <button
-              type="button"
-              onClick={open}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3.5 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-accent-hover"
-            >
-              <IconPlus width={16} height={16} />
-              New deal
-            </button>
-          )}
+          variant="primary"
         />
       }
     >
@@ -163,22 +154,14 @@ export default async function PipelinePage() {
                         <span className="text-[11px] font-semibold text-fg-subtle">
                           {stageDeals.length}
                         </span>
-                        <DealDialog
+                        <AddDealButton
                           accounts={accountOptions}
                           stages={stageOptions}
                           reps={reps}
                           pipelineId={pipeline?.id ?? null}
                           defaultStageId={stage.id}
-                          trigger={(open) => (
-                            <button
-                              type="button"
-                              onClick={open}
-                              aria-label={`Add deal to ${stage.name}`}
-                              className="rounded-md p-1 text-fg-subtle transition-colors hover:bg-inset hover:text-fg"
-                            >
-                              <IconPlus width={14} height={14} />
-                            </button>
-                          )}
+                          stageName={stage.name}
+                          variant="compact"
                         />
                       </div>
                     </div>

@@ -1,6 +1,6 @@
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { PageShell, Card, CardHead } from "../_shell/ui";
-import { MemberDialog } from "./MemberDialog";
+import { MemberEditButton } from "./MemberEditButton";
 
 export const dynamic = "force-dynamic";
 
@@ -117,7 +117,7 @@ export default async function SettingsPage() {
                     </p>
                   </div>
                   {isAdmin && (
-                    <MemberDialog
+                    <MemberEditButton
                       member={{
                         id: m.id,
                         full_name: m.full_name,
@@ -125,15 +125,6 @@ export default async function SettingsPage() {
                         is_active: m.is_active,
                       }}
                       isSelf={isSelf}
-                      trigger={(open) => (
-                        <button
-                          type="button"
-                          onClick={open}
-                          className="shrink-0 rounded-md px-2.5 py-1.5 text-[12px] font-semibold text-fg-subtle transition-colors hover:bg-inset hover:text-fg"
-                        >
-                          Edit
-                        </button>
-                      )}
                     />
                   )}
                 </li>
