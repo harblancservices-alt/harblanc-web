@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { Card, CardHead } from "../../_shell/ui";
+import { BackButton } from "../../_shell/BackButton";
 import { formatDate, formatMoney, formatNumber, firstName } from "../../_shell/format";
 import { stageLabel, stageTone } from "../lifecycle";
 import type { RepOption } from "../CompanyDialog";
@@ -194,14 +194,8 @@ export default async function AccountDetailPage({
       <div className="mb-4 rounded-2xl bg-graphite px-5 py-5 shadow-e2">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
-            <div className="mb-1.5 flex items-center gap-2">
-              <Link
-                href="/crm/accounts"
-                prefetch={false}
-                className="text-[11px] font-semibold uppercase tracking-[0.16em] text-on-dark-dim transition-colors hover:text-white"
-              >
-                ← Companies
-              </Link>
+            <div className="-ml-3.5 mb-1.5 flex items-center gap-2">
+              <BackButton fallbackHref="/crm/accounts" />
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <h1 className="text-[24px] font-bold leading-tight tracking-tight text-white sm:text-[28px]">
