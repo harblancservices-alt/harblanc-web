@@ -21,31 +21,43 @@ export type CrmNavItem = {
   badge?: number;
 };
 
-const BASE_NAV: CrmNavItem[] = [
-  { href: "/crm", label: "Dashboard", Icon: IconDashboard },
-  { href: "/crm/accounts", label: "Companies", Icon: IconCompanies },
-  { href: "/crm/contacts", label: "Contacts", Icon: IconContacts },
-  { href: "/crm/ai-agent", label: "AI Agent", Icon: IconAiAgent },
-  { href: "/crm/pipeline", label: "Pipeline", Icon: IconPipeline },
-  { href: "/crm/tasks", label: "Tasks", Icon: IconTasks },
-  { href: "/crm/reports", label: "Reports", Icon: IconReports },
-];
-
 /**
  * Build the CRM nav for the signed-in user. "AI Agent" (the team's released
- * lead register) is visible to everyone; "AI Review" (the pending-review
- * queue) is owner-only — mirroring the server-side redirect on
- * /crm/ai-review, so a non-owner never even sees the destination in the nav.
- * `pendingAiCount` badges the review item for owners only.
+ * lead register) is visible to everyone, badged with the count of released
+ * leads nobody has claimed yet — the same alert surfaced on the dashboard's
+ * "New leads to claim" card and folded into its due-count bell. "AI Review"
+ * (the pending-review queue) is owner-only — mirroring the server-side
+ * redirect on /crm/ai-review, so a non-owner never even sees the destination
+ * in the nav — and its badge (`pendingReviewCount`) is owner-only too.
+ *
+ * Built fresh per call (rather than spread from a shared module-level array)
+ * so the per-request badge counts never leak between requests.
  */
-export function buildCrmNav(role: string, pendingAiCount: number): CrmNavItem[] {
-  const nav = [...BASE_NAV];
+export function buildCrmNav(
+  role: string,
+  pendingReviewCount: number,
+  unclaimedAiLeadsCount: number,
+): CrmNavItem[] {
+  const nav: CrmNavItem[] = [
+    { href: "/crm", label: "Dashboard", Icon: IconDashboard },
+    { href: "/crm/accounts", label: "Companies", Icon: IconCompanies },
+    { href: "/crm/contacts", label: "Contacts", Icon: IconContacts },
+    {
+      href: "/crm/ai-agent",
+      label: "AI Agent",
+      Icon: IconAiAgent,
+      badge: unclaimedAiLeadsCount > 0 ? unclaimedAiLeadsCount : undefined,
+    },
+    { href: "/crm/pipeline", label: "Pipeline", Icon: IconPipeline },
+    { href: "/crm/tasks", label: "Tasks", Icon: IconTasks },
+    { href: "/crm/reports", label: "Reports", Icon: IconReports },
+  ];
   if (role === "owner") {
     nav.push({
       href: "/crm/ai-review",
       label: "AI Review",
       Icon: IconAiReview,
-      badge: pendingAiCount > 0 ? pendingAiCount : undefined,
+      badge: pendingReviewCount > 0 ? pendingReviewCount : undefined,
     });
   }
   nav.push({ href: "/crm/settings", label: "Settings", Icon: IconSettings });

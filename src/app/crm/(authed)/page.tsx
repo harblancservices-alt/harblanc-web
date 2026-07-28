@@ -58,6 +58,15 @@ type AccountLite = {
   created_at: string;
 };
 
+type NewAiLead = {
+  id: string;
+  name: string;
+  city: string | null;
+  state: string | null;
+  commodities: string | null;
+  created_at: string;
+};
+
 /**
  * The CRM "What's next" dashboard — the rep's live work queue. It answers one
  * question: what should I do next? Overdue and due-today work sits up top, then
@@ -94,6 +103,7 @@ export default async function CrmDashboardPage() {
     activeAccountsRes,
     recentActivityRes,
     openTaskAcctsRes,
+    newAiLeadsRes,
   ] = await Promise.all([
     // KPI: new leads created in the last 7 days.
     supabase
@@ -168,6 +178,18 @@ export default async function CrmDashboardPage() {
       .select("account_id")
       .eq("status", "open")
       .limit(2000),
+    // Unclaimed released AI leads — the alert. Once assigned_user_id is set
+    // (claimed) a lead drops out of this query, and out of the bell/nav badge
+    // that share the same predicate (see layout.tsx and _shell/nav.ts).
+    supabase
+      .from("crm_accounts")
+      .select("id, name, city, state, commodities, created_at")
+      .eq("source", "ai_agent")
+      .eq("ai_status", "released")
+      .is("assigned_user_id", null)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(200),
   ]);
 
   const myTasks = (myTasksRes.data ?? []) as TaskRowData[];
@@ -175,6 +197,7 @@ export default async function CrmDashboardPage() {
   const followups = (followupsRes.data ?? []) as Followup[];
   const recentAccounts = (recentAccountsRes.data ?? []) as AccountLite[];
   const activeAccounts = (activeAccountsRes.data ?? []) as AccountLite[];
+  const newAiLeads = (newAiLeadsRes.data ?? []) as NewAiLead[];
 
   // Resolve company names for the rows that only carry an account_id.
   const nameIds = [
@@ -241,15 +264,17 @@ export default async function CrmDashboardPage() {
   const firstName = (user.fullName || "there").split(" ")[0];
   // Total due-work count — the SAME buckets the queue below renders (overdue
   // tasks + overdue call-backs + due-today tasks + today call-backs + contact
-  // follow-ups). Reused for the "What's next" card bell, its bucket pills and
-  // the caught-up state, so the number the bell shows can never drift from the
-  // list underneath it — and there is no second query for it.
+  // follow-ups + unclaimed released AI leads). Reused for the "What's next"
+  // card bell, its bucket pills and the caught-up state, so the number the
+  // bell shows can never drift from the list underneath it — and there is no
+  // second query for it.
   const dueCount =
     overdueTasks.length +
     overdueCallbacks.length +
     dueTodayTasks.length +
     todayCallbacks.length +
-    followups.length;
+    followups.length +
+    newAiLeads.length;
   const hasActionable = dueCount > 0;
 
   return (
@@ -298,6 +323,11 @@ export default async function CrmDashboardPage() {
               count={followups.length}
               tone="bg-inset text-fg-muted"
             />
+            <DuePill
+              label="New leads"
+              count={newAiLeads.length}
+              tone="bg-steel-bg text-steel"
+            />
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2 px-6 py-12 text-center">
@@ -306,8 +336,8 @@ export default async function CrmDashboardPage() {
             </span>
             <p className="text-[15px] font-semibold text-fg">You're all caught up</p>
             <p className="max-w-sm text-[13px] text-fg-muted">
-              No overdue work, nothing due today, and no follow-ups pending. Warm a
-              lead below or log a call.
+              No overdue work, nothing due today, no follow-ups pending, and no new
+              leads waiting. Warm a lead below or log a call.
             </p>
           </div>
         )}
@@ -381,6 +411,21 @@ export default async function CrmDashboardPage() {
               ))}
             </ul>
           )}
+        </Card>
+      )}
+
+      {/* New leads to claim — unclaimed released AI leads, the alert. */}
+      {newAiLeads.length > 0 && (
+        <Card>
+          <CardHead
+            title="New leads to claim"
+            hint={`${newAiLeads.length} released by the AI agent, unclaimed`}
+          />
+          <ul className="divide-y divide-line">
+            {newAiLeads.map((l) => (
+              <NewAiLeadRow key={l.id} lead={l} />
+            ))}
+          </ul>
         </Card>
       )}
 
@@ -541,6 +586,29 @@ function FollowupRow({
           )}
         </div>
       </div>
+    </li>
+  );
+}
+
+function NewAiLeadRow({ lead }: { lead: NewAiLead }) {
+  const location = [lead.city, lead.state].filter(Boolean).join(", ");
+  return (
+    <li>
+      <Link
+        href={`/crm/accounts/${lead.id}`}
+        prefetch={false}
+        className="flex items-center justify-between gap-3 px-5 py-3.5 transition-colors hover:bg-inset"
+      >
+        <div className="min-w-0">
+          <p className="truncate text-[14px] font-semibold text-fg">{lead.name}</p>
+          <p className="mt-0.5 truncate text-[12px] text-fg-subtle">
+            {[location, lead.commodities].filter(Boolean).join(" · ") || "—"}
+          </p>
+        </div>
+        <span className="inline-flex shrink-0 items-center rounded-full bg-steel-bg px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-steel">
+          New
+        </span>
+      </Link>
     </li>
   );
 }

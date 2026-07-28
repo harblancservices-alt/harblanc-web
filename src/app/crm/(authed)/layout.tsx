@@ -27,7 +27,7 @@ export default async function CrmAuthedLayout({
 
   // Pending AI-review count for the nav badge — owners only, so this extra
   // count-only query never runs for regular members.
-  let pendingAiCount = 0;
+  let pendingReviewCount = 0;
   if (user.role === "owner") {
     const { count } = await supabase
       .from("crm_accounts")
@@ -35,15 +35,26 @@ export default async function CrmAuthedLayout({
       .eq("source", "ai_agent")
       .eq("ai_status", "pending_review")
       .is("deleted_at", null);
-    pendingAiCount = count ?? 0;
+    pendingReviewCount = count ?? 0;
   }
+
+  // Unclaimed released AI leads — the alert every CRM user sees, badging the
+  // "AI Agent" nav item. Same predicate as the dashboard's "New leads to
+  // claim" card and its due-count bell, so all three surfaces always agree.
+  const { count: unclaimedAiCount } = await supabase
+    .from("crm_accounts")
+    .select("id", { count: "exact", head: true })
+    .eq("source", "ai_agent")
+    .eq("ai_status", "released")
+    .is("assigned_user_id", null)
+    .is("deleted_at", null);
 
   return (
     <CrmShell
       email={user.email}
       fullName={user.fullName}
       orgName={(org?.name as string) ?? "Hello Hotshot"}
-      navItems={buildCrmNav(user.role, pendingAiCount)}
+      navItems={buildCrmNav(user.role, pendingReviewCount, unclaimedAiCount ?? 0)}
     >
       {children}
     </CrmShell>
