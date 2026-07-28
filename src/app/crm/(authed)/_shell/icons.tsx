@@ -140,6 +140,16 @@ export function IconAiReview(props: IconProps) {
   );
 }
 
+export function IconFieldCapture(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <rect x="9" y="2" width="6" height="11" rx="3" />
+      <path d="M5 11a7 7 0 0 0 14 0" />
+      <path d="M12 18v4M9 22h6" />
+    </svg>
+  );
+}
+
 export function IconArrowLeft(props: IconProps) {
   return (
     <svg {...base(props)}>

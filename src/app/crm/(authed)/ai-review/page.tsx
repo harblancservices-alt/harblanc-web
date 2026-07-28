@@ -17,15 +17,17 @@ type AccountRow = {
   phone: string | null;
   industry: string | null;
   commodities: string | null;
+  source: string | null;
   created_at: string;
 };
 
 /**
- * AI Review queue — owner-only. Every crm_account the AI-agent research
- * process inserted (source='ai_agent') that's still awaiting a human look
- * (ai_status='pending_review'). Non-owners are redirected server-side, same
- * enforcement point as the settings admin gate: RLS only scopes rows to the
- * org, not by role.
+ * AI Review queue — owner-only. Every crm_account still awaiting a human
+ * look (ai_status='pending_review'), whether it came from the AI-agent
+ * research process (source='ai_agent') or an admin's Field Capture session
+ * (source='field_capture') — both land here so nothing new reaches the team
+ * unreviewed. Non-owners are redirected server-side, same enforcement point
+ * as the settings admin gate: RLS only scopes rows to the org, not by role.
  */
 export default async function AiReviewPage() {
   const user = await requireCrmUser();
@@ -36,9 +38,9 @@ export default async function AiReviewPage() {
   const { data } = await supabase
     .from("crm_accounts")
     .select(
-      "id, name, address, city, state, zip, website, phone, industry, commodities, created_at",
+      "id, name, address, city, state, zip, website, phone, industry, commodities, source, created_at",
     )
-    .eq("source", "ai_agent")
+    .in("source", ["ai_agent", "field_capture"])
     .eq("ai_status", "pending_review")
     .is("deleted_at", null)
     .order("created_at", { ascending: false })
@@ -89,6 +91,7 @@ export default async function AiReviewPage() {
     phone: l.phone,
     industry: l.industry,
     commodities: l.commodities,
+    source: l.source,
     contactCount: contactCountByAccount.get(l.id) ?? 0,
     notePreview: noteByAccount.get(l.id) ?? null,
     createdAt: l.created_at,

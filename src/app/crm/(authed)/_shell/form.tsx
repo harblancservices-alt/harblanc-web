@@ -8,10 +8,13 @@ import type { ChangeEvent, ReactNode } from "react";
  * caption, 44px controls with the accent focus ring.
  */
 
-const CONTROL =
+// Exported so controlled inputs outside this module (e.g. Field Capture's
+// live-editable review cards, which need value/onChange rather than the
+// uncontrolled defaultValue these primitives use) can match the same chrome.
+export const CONTROL =
   "rounded-lg border border-line-strong bg-card px-3 text-[14px] text-fg outline-none transition-shadow focus:ring-2 focus:ring-accent/40";
 
-const LABEL =
+export const LABEL =
   "text-[12px] font-semibold uppercase tracking-[0.1em] text-fg-subtle";
 
 export function FieldLabel({

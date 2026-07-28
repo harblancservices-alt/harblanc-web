@@ -24,14 +24,15 @@ export default async function CrmAuthedLayout({
     .eq("id", user.orgId)
     .maybeSingle();
 
-  // Pending AI-review count for the nav badge — owners only, so this extra
-  // count-only query never runs for regular members.
+  // Pending-review count for the nav badge — owners only, so this extra
+  // count-only query never runs for regular members. Covers both AI-agent
+  // research leads and Field Capture leads; both land in the same queue.
   let pendingReviewCount = 0;
   if (user.role === "owner") {
     const { count } = await supabase
       .from("crm_accounts")
       .select("id", { count: "exact", head: true })
-      .eq("source", "ai_agent")
+      .in("source", ["ai_agent", "field_capture"])
       .eq("ai_status", "pending_review")
       .is("deleted_at", null);
     pendingReviewCount = count ?? 0;

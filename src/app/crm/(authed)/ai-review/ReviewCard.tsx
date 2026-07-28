@@ -17,6 +17,7 @@ export type AiReviewLead = {
   phone: string | null;
   industry: string | null;
   commodities: string | null;
+  source: string | null;
   contactCount: number;
   notePreview: string | null;
   createdAt: string;
@@ -25,6 +26,14 @@ export type AiReviewLead = {
 function normalizeHref(url: string | null): string | null {
   if (!url) return null;
   return /^https?:\/\//i.test(url) ? url : `https://${url}`;
+}
+
+/** Human label for a lead's origin, so the queue reads clearly when it mixes
+ * AI-researched leads with admin Field Capture leads. */
+function sourceLabel(source: string | null): string {
+  if (source === "field_capture") return "Field Capture";
+  if (source === "ai_agent") return "AI Agent";
+  return "Unknown source";
 }
 
 /**
@@ -73,6 +82,9 @@ export function ReviewCard({ lead }: { lead: AiReviewLead }) {
             <span className="text-[15px] font-semibold text-fg">{lead.name}</span>
             <span className="rounded-full bg-steel-bg px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide text-steel">
               Pending review
+            </span>
+            <span className="rounded-full bg-slate-bg px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide text-slate">
+              {sourceLabel(lead.source)}
             </span>
           </div>
           <p className="mt-0.5 text-[12px] text-fg-subtle">

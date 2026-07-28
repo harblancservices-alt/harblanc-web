@@ -9,6 +9,7 @@ import {
   IconSettings,
   IconAiAgent,
   IconAiReview,
+  IconFieldCapture,
 } from "./icons";
 
 export type CrmNavItem = {
@@ -69,6 +70,11 @@ export function buildCrmNav(
       label: "AI Review",
       Icon: IconAiReview,
       badge: pendingReviewCount > 0 ? pendingReviewCount : undefined,
+    });
+    nav.push({
+      href: "/crm/field-capture",
+      label: "Field Capture",
+      Icon: IconFieldCapture,
     });
   }
   nav.push({ href: "/crm/settings", label: "Settings", Icon: IconSettings });
