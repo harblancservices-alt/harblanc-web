@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { PageShell, Card, EmptyState } from "../_shell/ui";
+import { ClickableRow } from "../_shell/ClickableRow";
 import { IconContacts } from "../_shell/icons";
 import { formatDateTime } from "../_shell/format";
 import { ContactsSearch } from "./ContactsSearch";
@@ -123,11 +124,8 @@ export default async function ContactsPage({
               <tbody>
                 {contacts.map((c) => {
                   const company = c.account_id ? accountName.get(c.account_id) : null;
-                  return (
-                    <tr
-                      key={c.id}
-                      className="border-b border-line last:border-0 transition-colors hover:bg-inset"
-                    >
+                  const cells = (
+                    <>
                       <td className="px-5 py-3">
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="font-semibold text-fg">{c.name}</span>
@@ -183,6 +181,25 @@ export default async function ContactsPage({
                           <span className="text-fg-subtle">—</span>
                         )}
                       </td>
+                    </>
+                  );
+
+                  // Only navigate when the contact has a company to open —
+                  // there's no standalone contact profile page to fall back to.
+                  return c.account_id ? (
+                    <ClickableRow
+                      key={c.id}
+                      href={`/crm/accounts/${c.account_id}`}
+                      className="border-b border-line last:border-0"
+                    >
+                      {cells}
+                    </ClickableRow>
+                  ) : (
+                    <tr
+                      key={c.id}
+                      className="border-b border-line last:border-0 transition-colors hover:bg-inset"
+                    >
+                      {cells}
                     </tr>
                   );
                 })}

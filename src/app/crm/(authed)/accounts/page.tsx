@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { PageShell, Card, EmptyState } from "../_shell/ui";
+import { ClickableRow } from "../_shell/ClickableRow";
 import { IconCompanies } from "../_shell/icons";
 import { AddCompany } from "./AddCompany";
 import { AccountsFilters } from "./AccountsFilters";
@@ -207,9 +208,10 @@ export default async function CompaniesPage({
                     : null;
                   const rowTags = tagsByAccount.get(a.id) ?? [];
                   return (
-                    <tr
+                    <ClickableRow
                       key={a.id}
-                      className="border-b border-line last:border-0 transition-colors hover:bg-inset"
+                      href={`/crm/accounts/${a.id}`}
+                      className="border-b border-line last:border-0"
                     >
                       <td className="px-5 py-3">
                         <Link
@@ -254,7 +256,7 @@ export default async function CompaniesPage({
                           <span className="text-fg-subtle">—</span>
                         )}
                       </td>
-                    </tr>
+                    </ClickableRow>
                   );
                 })}
               </tbody>

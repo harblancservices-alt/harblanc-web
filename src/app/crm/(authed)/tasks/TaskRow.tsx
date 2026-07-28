@@ -56,7 +56,7 @@ export function TaskRow({
     !optimisticDone && task.due_at ? new Date(task.due_at).getTime() < Date.now() : false;
 
   return (
-    <li className="flex items-start gap-3 px-5 py-3.5">
+    <li className="flex items-start gap-3 px-5 py-3.5 transition-colors hover:bg-inset">
       <button
         type="button"
         onClick={toggle}
