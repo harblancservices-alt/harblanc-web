@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CRM_NAV, CRM_BOTTOM_NAV, isActive } from "./nav";
+import { bottomNav, isActive, type CrmNavItem } from "./nav";
 import { IconLogout } from "./icons";
 
 type CrmShellProps = {
   email: string;
   fullName: string | null;
   orgName: string;
+  navItems: CrmNavItem[];
   children: React.ReactNode;
 };
 
@@ -19,9 +20,10 @@ type CrmShellProps = {
  * a desktop sidebar, a sticky top bar, and a mobile bottom bar. It shares no
  * markup or state with the admin PortalShell.
  */
-export function CrmShell({ email, fullName, orgName, children }: CrmShellProps) {
+export function CrmShell({ email, fullName, orgName, navItems, children }: CrmShellProps) {
   const pathname = usePathname() ?? "";
   const initial = (fullName || email || "?").trim().charAt(0).toUpperCase();
+  const mobileNav = bottomNav(navItems);
 
   return (
     <div className="crm-light min-h-screen bg-canvas text-fg">
@@ -42,7 +44,7 @@ export function CrmShell({ email, fullName, orgName, children }: CrmShellProps) 
         {/* Desktop sidebar */}
         <aside className="sticky top-14 hidden h-[calc(100vh-3.5rem)] w-[220px] shrink-0 flex-col border-r border-graphite-line bg-graphite lg:flex">
           <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-3">
-            {CRM_NAV.map((item) => {
+            {navItems.map((item) => {
               const active = isActive(pathname, item);
               return (
                 <Link
@@ -59,7 +61,12 @@ export function CrmShell({ email, fullName, orgName, children }: CrmShellProps) 
                   <item.Icon
                     className={active ? "text-accent" : "text-on-dark-dim"}
                   />
-                  {item.label}
+                  <span className="flex-1">{item.label}</span>
+                  {!!item.badge && (
+                    <span className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-bad px-1 text-[10.5px] font-bold leading-none tabular-nums text-white">
+                      {item.badge > 99 ? "99+" : item.badge}
+                    </span>
+                  )}
                 </Link>
               );
             })}
@@ -107,7 +114,7 @@ export function CrmShell({ email, fullName, orgName, children }: CrmShellProps) 
 
       {/* Mobile bottom nav */}
       <nav className="fixed inset-x-0 bottom-0 z-40 grid grid-cols-5 border-t border-graphite-line bg-graphite pb-[env(safe-area-inset-bottom)] lg:hidden">
-        {CRM_BOTTOM_NAV.map((item) => {
+        {mobileNav.map((item) => {
           const active = isActive(pathname, item);
           return (
             <Link

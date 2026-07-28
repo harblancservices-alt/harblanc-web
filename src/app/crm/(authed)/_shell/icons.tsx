@@ -118,3 +118,24 @@ export function IconLogout(props: IconProps) {
     </svg>
   );
 }
+
+export function IconAiAgent(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <rect x="5" y="8" width="14" height="11" rx="2.5" />
+      <path d="M12 8V4M9 3.5h6" />
+      <circle cx="9.5" cy="13.5" r="1.25" />
+      <circle cx="14.5" cy="13.5" r="1.25" />
+      <path d="M3 12v3M21 12v3" />
+    </svg>
+  );
+}
+
+export function IconAiReview(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M9 11l2 2 4-4" />
+      <circle cx="12" cy="12" r="9" />
+    </svg>
+  );
+}

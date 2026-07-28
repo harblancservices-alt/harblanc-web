@@ -97,7 +97,13 @@ export default async function CompaniesPage({
       .select(
         "id, name, industry, city, state, lifecycle_status, assigned_user_id, primary_contact_id, created_at",
       )
-      .is("deleted_at", null);
+      .is("deleted_at", null)
+      // Pending-review AI leads live in the admin review queue (/crm/ai-review)
+      // until released — they must not leak into Companies before that. Written
+      // as an OR (rather than .neq) so NULL ai_status rows (every non-AI
+      // company) still pass: `column <> value` in SQL is NULL, not true, for
+      // NULL columns, which would silently hide every ordinary company.
+      .or("ai_status.is.null,ai_status.neq.pending_review");
 
     if (stage) query = query.eq("lifecycle_status", stage);
     if (rep === "unassigned") query = query.is("assigned_user_id", null);

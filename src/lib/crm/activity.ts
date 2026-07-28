@@ -24,6 +24,9 @@ export const CRM_ACTIVITY = {
   taskCompleted: "task_completed",
   dealCreated: "deal_created",
   dealStageChanged: "deal_stage_changed",
+  aiLeadReleased: "ai_lead_released",
+  aiLeadDiscarded: "ai_lead_discarded",
+  aiLeadClaimed: "ai_lead_claimed",
 } as const;
 
 export type CrmActivityKind =
