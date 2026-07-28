@@ -4,10 +4,10 @@ import { useCallback } from "react";
 
 /**
  * The "What's next" due-work bell — a single glance-level cue that rides in the
- * dashboard masthead next to the heading. It renders the caller's total due
- * count (overdue tasks + due-today + call-backs + contact follow-ups, already
- * tallied on the dashboard, so there is NO second fetch) as a red badge on a
- * bell icon.
+ * header of the dashboard's "What's next" card, beside the heading. It renders
+ * the caller's total due count (overdue tasks + due-today + call-backs +
+ * contact follow-ups, already tallied on that page, so there is NO second
+ * fetch) as a red badge on a bell icon.
  *
  * When anything is due the bell periodically rings and the badge pulses — the
  * same mostly-idle attention cadence the admin alert bell uses (`.alert-bell` /
@@ -18,6 +18,8 @@ import { useCallback } from "react";
  * Clicking (only when something is due) smooth-scrolls to the work queue below,
  * since the queue cards themselves already list every item — the bell is the
  * summary, not a second copy of the list.
+ *
+ * Dashboard-only by design: it is not wired into the CRM shell or nav.
  */
 export function DueBell({
   count,
@@ -32,13 +34,13 @@ export function DueBell({
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [targetId]);
 
-  // Calm state — nothing due. No badge, no animation, dimmed on the graphite bar.
+  // Calm state — nothing due. No badge, no animation, muted on the white card.
   if (count <= 0) {
     return (
       <span
         aria-hidden
         title="You're all caught up"
-        className="relative inline-flex h-9 w-9 items-center justify-center rounded-full text-on-dark-dim"
+        className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-fg-subtle"
       >
         <BellGlyph />
       </span>
@@ -52,7 +54,7 @@ export function DueBell({
       type="button"
       onClick={onClick}
       aria-label={`${count} item${count === 1 ? "" : "s"} due — jump to your queue`}
-      className="group relative inline-flex h-9 w-9 items-center justify-center rounded-full text-white transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white/70"
+      className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-accent transition-colors hover:bg-inset focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
     >
       {/* The ring animation rides on the icon only, not the whole button, so it
           reads as a bell ringing rather than the control thrashing. */}
@@ -60,11 +62,11 @@ export function DueBell({
         <BellGlyph />
       </span>
 
-      {/* Count badge — the ring-2 in the masthead colour cuts it cleanly out of
-          the bell so the number stays legible even where it overlaps. */}
+      {/* Count badge — the ring-2 in the card colour cuts it cleanly out of the
+          bell so the number stays legible even where it overlaps. */}
       <span
         aria-hidden
-        className="alert-badge absolute -right-0.5 -top-0.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-bad px-1 text-[11px] font-bold leading-none tabular-nums text-white shadow-e1 ring-2 ring-graphite"
+        className="alert-badge absolute -right-0.5 -top-0.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-bad px-1 text-[11px] font-bold leading-none tabular-nums text-white shadow-e1 ring-2 ring-card"
       >
         {display}
       </span>

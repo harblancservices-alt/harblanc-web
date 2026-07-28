@@ -241,8 +241,9 @@ export default async function CrmDashboardPage() {
   const firstName = (user.fullName || "there").split(" ")[0];
   // Total due-work count — the SAME buckets the queue below renders (overdue
   // tasks + overdue call-backs + due-today tasks + today call-backs + contact
-  // follow-ups). Reused for both the masthead bell and the caught-up state, so
-  // the number the bell shows can never drift from the list underneath it.
+  // follow-ups). Reused for the "What's next" card bell, its bucket pills and
+  // the caught-up state, so the number the bell shows can never drift from the
+  // list underneath it — and there is no second query for it.
   const dueCount =
     overdueTasks.length +
     overdueCallbacks.length +
@@ -256,7 +257,6 @@ export default async function CrmDashboardPage() {
       eyebrow="Hello Hotshot CRM"
       title={`What's next, ${firstName}`}
       subtitle="Your live work queue — the next moves across your book of business."
-      actions={<DueBell count={dueCount} targetId="crm-queue" />}
     >
       {/* KPI strip */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -265,6 +265,53 @@ export default async function CrmDashboardPage() {
         <StatTile label="Calls · 7d" value={String(callsWeekRes.count ?? 0)} />
         <StatTile label="Customers" value={String(customerCount)} />
       </div>
+
+      {/* What's next — the summary head of the work queue further down. The bell
+          in this card's header carries the TOTAL due count and rings while
+          anything is waiting; the pills below break that same total into its
+          buckets, so the two can never disagree. Clicking the bell jumps to the
+          queue itself. Scoped to this card on this page only. */}
+      <Card>
+        <CardHead
+          title="What's next"
+          hint={
+            hasActionable
+              ? `${dueCount} item${dueCount === 1 ? "" : "s"} waiting on you`
+              : "Nothing due right now"
+          }
+          right={<DueBell count={dueCount} targetId="crm-queue" />}
+        />
+        {hasActionable ? (
+          <div className="flex flex-wrap gap-2 p-4">
+            <DuePill
+              label="Overdue"
+              count={overdueTasks.length + overdueCallbacks.length}
+              tone="bg-bad-bg text-bad"
+            />
+            <DuePill
+              label="Due today"
+              count={dueTodayTasks.length + todayCallbacks.length}
+              tone="bg-warn-bg text-warn"
+            />
+            <DuePill
+              label="Follow-ups"
+              count={followups.length}
+              tone="bg-inset text-fg-muted"
+            />
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-2 px-6 py-12 text-center">
+            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-ok-bg text-ok">
+              <IconTasks />
+            </span>
+            <p className="text-[15px] font-semibold text-fg">You're all caught up</p>
+            <p className="max-w-sm text-[13px] text-fg-muted">
+              No overdue work, nothing due today, and no follow-ups pending. Warm a
+              lead below or log a call.
+            </p>
+          </div>
+        )}
+      </Card>
 
       {/* Pipeline by stage */}
       <Card>
@@ -284,22 +331,7 @@ export default async function CrmDashboardPage() {
         </div>
       </Card>
 
-      {!hasActionable && (
-        <Card>
-          <div className="flex flex-col items-center gap-2 px-6 py-12 text-center">
-            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-ok-bg text-ok">
-              <IconTasks />
-            </span>
-            <p className="text-[15px] font-semibold text-fg">You're all caught up</p>
-            <p className="max-w-sm text-[13px] text-fg-muted">
-              No overdue work, nothing due today, and no follow-ups pending. Warm a
-              lead below or log a call.
-            </p>
-          </div>
-        </Card>
-      )}
-
-      {/* Scroll target for the masthead bell — the top of the work queue.
+      {/* Scroll target for the "What's next" bell — the top of the work queue.
           scroll-mt clears the sticky mobile top bar so the queue isn't tucked
           under it. */}
       <div id="crm-queue" className="scroll-mt-16" aria-hidden />
@@ -403,6 +435,28 @@ export default async function CrmDashboardPage() {
         </Card>
       </div>
     </PageShell>
+  );
+}
+
+/** One bucket of the "What's next" total. Rendered only when it has items, so
+ *  the row shows what is actually waiting rather than a wall of zeroes. */
+function DuePill({
+  label,
+  count,
+  tone,
+}: {
+  label: string;
+  count: number;
+  tone: string;
+}) {
+  if (count <= 0) return null;
+  return (
+    <span
+      className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[12.5px] font-semibold ${tone}`}
+    >
+      {label}
+      <span className="font-mono tabular-nums">{count}</span>
+    </span>
   );
 }
 
