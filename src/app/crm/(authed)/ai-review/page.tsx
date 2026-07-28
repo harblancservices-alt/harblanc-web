@@ -63,6 +63,7 @@ export default async function AiReviewPage() {
           .select("account_id, body, created_at")
           .in("account_id", ids)
           .eq("is_pinned", true)
+          .is("deleted_at", null)
           .order("created_at", { ascending: false })
       : Promise.resolve({ data: [] as { account_id: string; body: string; created_at: string }[] }),
   ]);

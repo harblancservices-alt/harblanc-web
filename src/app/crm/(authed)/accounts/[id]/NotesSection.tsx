@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardHead } from "../../_shell/ui";
 import { formatDateTime } from "../../_shell/format";
-import { addNote, setNotePinned } from "../actions";
+import { addNote, setNotePinned, deleteNote } from "../actions";
 
 export type CrmNote = {
   id: string;
@@ -55,6 +55,16 @@ export function NotesSection({
     setBusyId(note.id);
     startTransition(async () => {
       const res = await setNotePinned(note.id, accountId, !note.is_pinned);
+      setBusyId(null);
+      if (res.ok) router.refresh();
+    });
+  }
+
+  function remove(note: CrmNote) {
+    if (!window.confirm("Delete this note? This can't be undone from here.")) return;
+    setBusyId(note.id);
+    startTransition(async () => {
+      const res = await deleteNote(note.id, accountId);
       setBusyId(null);
       if (res.ok) router.refresh();
     });
@@ -119,14 +129,24 @@ export function NotesSection({
                     </span>
                   )}
                 </div>
-                <button
-                  type="button"
-                  onClick={() => togglePin(n)}
-                  disabled={pending}
-                  className="shrink-0 rounded-md px-2 py-0.5 text-[12px] font-semibold text-fg-subtle transition-colors hover:bg-inset hover:text-fg disabled:opacity-60"
-                >
-                  {busyId === n.id ? "…" : n.is_pinned ? "Unpin" : "Pin"}
-                </button>
+                <div className="flex shrink-0 items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => togglePin(n)}
+                    disabled={pending}
+                    className="rounded-md px-2 py-0.5 text-[12px] font-semibold text-fg-subtle transition-colors hover:bg-inset hover:text-fg disabled:opacity-60"
+                  >
+                    {busyId === n.id ? "…" : n.is_pinned ? "Unpin" : "Pin"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => remove(n)}
+                    disabled={pending}
+                    className="rounded-md px-2 py-0.5 text-[12px] font-semibold text-fg-subtle transition-colors hover:bg-bad/10 hover:text-bad disabled:opacity-60"
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
               <p className="whitespace-pre-wrap text-[13.5px] leading-relaxed text-fg">
                 {n.body}

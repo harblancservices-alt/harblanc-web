@@ -29,6 +29,8 @@ function revalidate(accountId?: string | null) {
   if (accountId) revalidatePath(`/crm/accounts/${accountId}`);
 }
 
+/** Every field EXCEPT assigned_user_id — that one has its own admin-gated
+ * resolution shared by create/update (see resolveAssignee below). */
 function taskFieldsFromForm(fd: FormData) {
   return {
     title: str(fd, "title"),
@@ -36,33 +38,42 @@ function taskFieldsFromForm(fd: FormData) {
     due_at: optStr(fd, "due_at"),
     priority: normalizePriority(str(fd, "priority")),
     reminder_at: optStr(fd, "reminder_at"),
-    assigned_user_id: optStr(fd, "assigned_user_id"),
+    account_id: optStr(fd, "account_id"),
+    contact_id: optStr(fd, "contact_id"),
   };
 }
 
 /**
- * Create a task on a company. Assignment defaults to the creator when the form
- * leaves it blank, so a new task always lands in someone's queue. Logs a
- * task_created activity to the company timeline.
+ * Create a task, optionally linked to a company and/or contact — both are
+ * now optional (a task can stand alone). Assignment defaults to the creator
+ * when the form leaves it blank, so a new task always lands in someone's
+ * queue. Non-admins can only ever create a task assigned to themselves — the
+ * UI already locks this (TaskDialog shows a read-only "You"), but a tampered
+ * request must still be rejected here, not silently corrected. Logs a
+ * task_created activity to the company timeline when a company is linked.
  */
-export async function createTask(
-  accountId: string,
-  formData: FormData,
-): Promise<ActionResult> {
+export async function createTask(formData: FormData): Promise<ActionResult> {
   const user = await requireCrmUser();
   const fields = taskFieldsFromForm(formData);
   if (!fields.title) return { ok: false, error: "Task title is required." };
 
+  const rawAssignee = optStr(formData, "assigned_user_id");
+  if (rawAssignee && user.role !== "owner" && rawAssignee !== user.id) {
+    return { ok: false, error: "Only an admin can assign tasks to someone else." };
+  }
+  const assignedUserId = rawAssignee ?? user.id;
+
   const supabase = await createCrmServerClient();
   const { error } = await supabase.from("crm_tasks").insert({
     org_id: user.orgId,
-    account_id: accountId,
+    account_id: fields.account_id,
+    contact_id: fields.contact_id,
     title: fields.title,
     notes: fields.notes,
     due_at: fields.due_at,
     priority: fields.priority,
     reminder_at: fields.reminder_at,
-    assigned_user_id: fields.assigned_user_id ?? user.id,
+    assigned_user_id: assignedUserId,
     status: "open",
   });
 
@@ -70,46 +81,62 @@ export async function createTask(
     return { ok: false, error: "Could not save the task. Please try again." };
   }
 
-  await logActivity(supabase, {
-    orgId: user.orgId,
-    userId: user.id,
-    accountId,
-    kind: CRM_ACTIVITY.taskCreated,
-    summary: `Task added: ${fields.title}`,
-  });
+  if (fields.account_id) {
+    await logActivity(supabase, {
+      orgId: user.orgId,
+      userId: user.id,
+      accountId: fields.account_id,
+      kind: CRM_ACTIVITY.taskCreated,
+      summary: `Task added: ${fields.title}`,
+    });
+  }
 
-  revalidate(accountId);
+  revalidate(fields.account_id);
   return { ok: true };
 }
 
-/** Update an existing task's editable fields. */
+/**
+ * Update an existing task's editable fields. assigned_user_id is only
+ * touched when the form actually included it (owner: a real select, always
+ * present; non-owner: intentionally OMITTED by TaskDialog so a non-admin
+ * editing someone else's task can never accidentally reassign it just by
+ * saving a title/notes change) — checked via FormData.has, not a falsy value,
+ * since "" (Unassigned) is a legitimate value an owner can submit.
+ */
 export async function updateTask(
   taskId: string,
-  accountId: string | null,
   formData: FormData,
 ): Promise<ActionResult> {
-  await requireCrmUser();
+  const user = await requireCrmUser();
   const fields = taskFieldsFromForm(formData);
   if (!fields.title) return { ok: false, error: "Task title is required." };
 
+  const updates: Record<string, unknown> = {
+    title: fields.title,
+    notes: fields.notes,
+    due_at: fields.due_at,
+    priority: fields.priority,
+    reminder_at: fields.reminder_at,
+    account_id: fields.account_id,
+    contact_id: fields.contact_id,
+  };
+
+  if (formData.has("assigned_user_id")) {
+    const rawAssignee = optStr(formData, "assigned_user_id");
+    if (user.role !== "owner" && rawAssignee !== user.id) {
+      return { ok: false, error: "Only an admin can assign tasks to someone else." };
+    }
+    updates.assigned_user_id = rawAssignee;
+  }
+
   const supabase = await createCrmServerClient();
-  const { error } = await supabase
-    .from("crm_tasks")
-    .update({
-      title: fields.title,
-      notes: fields.notes,
-      due_at: fields.due_at,
-      priority: fields.priority,
-      reminder_at: fields.reminder_at,
-      assigned_user_id: fields.assigned_user_id,
-    })
-    .eq("id", taskId);
+  const { error } = await supabase.from("crm_tasks").update(updates).eq("id", taskId);
 
   if (error) {
     return { ok: false, error: "Could not update the task. Please try again." };
   }
 
-  revalidate(accountId);
+  revalidate(fields.account_id);
   return { ok: true };
 }
 
@@ -139,13 +166,15 @@ export async function completeTask(taskId: string): Promise<ActionResult> {
   }
 
   const accountId = (task?.account_id as string | null) ?? null;
-  await logActivity(supabase, {
-    orgId: user.orgId,
-    userId: user.id,
-    accountId,
-    kind: CRM_ACTIVITY.taskCompleted,
-    summary: `Task completed: ${(task?.title as string) ?? "Task"}`,
-  });
+  if (accountId) {
+    await logActivity(supabase, {
+      orgId: user.orgId,
+      userId: user.id,
+      accountId,
+      kind: CRM_ACTIVITY.taskCompleted,
+      summary: `Task completed: ${(task?.title as string) ?? "Task"}`,
+    });
+  }
 
   revalidate(accountId);
   return { ok: true };
@@ -173,7 +202,10 @@ export async function reopenTask(taskId: string): Promise<ActionResult> {
   return { ok: true };
 }
 
-/** Delete a task outright (tasks are operational, not part of the audit trail). */
+/**
+ * Soft-delete a task (set deleted_at). Tasks are operational — allowed for
+ * any CRM user, no role gate (unlike company/contact/deal deletes).
+ */
 export async function deleteTask(
   taskId: string,
   accountId: string | null,
@@ -181,7 +213,11 @@ export async function deleteTask(
   await requireCrmUser();
   const supabase = await createCrmServerClient();
 
-  const { error } = await supabase.from("crm_tasks").delete().eq("id", taskId);
+  const { error } = await supabase
+    .from("crm_tasks")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", taskId);
+
   if (error) return { ok: false, error: "Could not delete the task." };
 
   revalidate(accountId);

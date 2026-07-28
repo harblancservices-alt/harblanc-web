@@ -219,6 +219,47 @@ export async function updateLifecycleStatus(
   return { ok: true };
 }
 
+/**
+ * Soft-delete a company (set deleted_at). Admin-only (role=owner) — a
+ * company is a shared record, same defense-in-depth reasoning as
+ * settings/actions.ts::updateMember. RLS only scopes crm_accounts to the
+ * org, not by role, so this app-layer check is the enforcement point.
+ */
+export async function deleteAccount(id: string): Promise<ActionResult> {
+  const user = await requireCrmUser();
+  if (user.role !== "owner") {
+    return { ok: false, error: "Only an admin can delete a company." };
+  }
+
+  const supabase = await createCrmServerClient();
+
+  const { data: prior } = await supabase
+    .from("crm_accounts")
+    .select("name")
+    .eq("id", id)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (!prior) return { ok: false, error: "Company not found." };
+
+  const { error } = await supabase
+    .from("crm_accounts")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", id);
+
+  if (error) return { ok: false, error: "Could not delete the company." };
+
+  await logActivity(supabase, {
+    orgId: user.orgId,
+    userId: user.id,
+    accountId: id,
+    kind: CRM_ACTIVITY.accountDeleted,
+    summary: `Company deleted: ${prior.name as string}`,
+  });
+
+  revalidateAccount(id);
+  return { ok: true };
+}
+
 /** Assign / change the rep on a company. Empty string clears the assignment. */
 export async function assignRep(
   id: string,
@@ -419,16 +460,27 @@ export async function updateContact(
 }
 
 /**
- * Soft-delete a contact (set deleted_at). If it was the company's primary
+ * Soft-delete a contact (set deleted_at). Admin-only (role=owner) — a
+ * contact is a shared record, same defense-in-depth reasoning as
+ * deleteAccount/settings::updateMember. If it was the company's primary
  * contact, clear that pointer so the profile never references a hidden row.
- * The append-only activity feed is untouched.
  */
 export async function deleteContact(
   contactId: string,
   accountId: string,
 ): Promise<ActionResult> {
-  await requireCrmUser();
+  const user = await requireCrmUser();
+  if (user.role !== "owner") {
+    return { ok: false, error: "Only an admin can delete a contact." };
+  }
+
   const supabase = await createCrmServerClient();
+
+  const { data: prior } = await supabase
+    .from("crm_contacts")
+    .select("name")
+    .eq("id", contactId)
+    .maybeSingle();
 
   const { error } = await supabase
     .from("crm_contacts")
@@ -443,6 +495,15 @@ export async function deleteContact(
     .update({ primary_contact_id: null })
     .eq("id", accountId)
     .eq("primary_contact_id", contactId);
+
+  await logActivity(supabase, {
+    orgId: user.orgId,
+    userId: user.id,
+    accountId,
+    contactId,
+    kind: CRM_ACTIVITY.contactDeleted,
+    summary: `Contact deleted: ${(prior?.name as string) ?? "Contact"}`,
+  });
 
   revalidateAccount(accountId);
   return { ok: true };
@@ -515,6 +576,28 @@ export async function setNotePinned(
     .eq("id", noteId);
 
   if (error) return { ok: false, error: "Could not update the note." };
+  revalidateAccount(accountId);
+  return { ok: true };
+}
+
+/**
+ * Soft-delete a note. Notes are operational (not a shared org-wide record
+ * like a company/contact/deal), so this is allowed for any CRM user — no
+ * role gate, matching task/call deletes.
+ */
+export async function deleteNote(
+  noteId: string,
+  accountId: string,
+): Promise<ActionResult> {
+  await requireCrmUser();
+  const supabase = await createCrmServerClient();
+
+  const { error } = await supabase
+    .from("crm_notes")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", noteId);
+
+  if (error) return { ok: false, error: "Could not delete the note." };
   revalidateAccount(accountId);
   return { ok: true };
 }

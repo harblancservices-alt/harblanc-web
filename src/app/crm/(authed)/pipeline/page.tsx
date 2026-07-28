@@ -29,8 +29,9 @@ type DealRow = {
  * empty state instead of crashing.
  */
 export default async function PipelinePage() {
-  await requireCrmUser();
+  const user = await requireCrmUser();
   const supabase = await createCrmServerClient();
+  const canDelete = user.role === "owner";
 
   const [pipelinesRes, accountsRes, profilesRes] = await Promise.all([
     supabase
@@ -189,6 +190,7 @@ export default async function PipelinePage() {
                           }}
                           stages={stageOptions}
                           currentStageId={stage.id}
+                          canDelete={canDelete}
                         />
                       ))
                     )}

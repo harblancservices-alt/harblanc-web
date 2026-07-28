@@ -9,15 +9,18 @@ import { CompanyDialog, type CompanyDefaults, type RepOption } from "../CompanyD
 export function EditCompany({
   defaults,
   reps,
+  canDelete = false,
 }: {
   defaults: CompanyDefaults;
   reps: RepOption[];
+  canDelete?: boolean;
 }) {
   return (
     <CompanyDialog
       mode="edit"
       reps={reps}
       defaults={defaults}
+      canDelete={canDelete}
       trigger={(open) => (
         <button
           type="button"

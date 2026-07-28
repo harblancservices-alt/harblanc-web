@@ -10,7 +10,7 @@ import {
   SubmitButton,
   FormError,
 } from "../_shell/form";
-import { createAccount, updateAccount } from "./actions";
+import { createAccount, updateAccount, deleteAccount } from "./actions";
 import { LIFECYCLE_STAGES, LIFECYCLE_LABEL, DEFAULT_LIFECYCLE } from "./lifecycle";
 
 export type CompanyDefaults = {
@@ -48,11 +48,15 @@ export function CompanyDialog({
   mode,
   reps,
   defaults,
+  /** Show the destructive "Delete company" footer action — owner-only,
+   * edit mode only. The server action re-checks the role regardless. */
+  canDelete = false,
   trigger,
 }: {
   mode: "create" | "edit";
   reps: RepOption[];
   defaults?: CompanyDefaults;
+  canDelete?: boolean;
   trigger: (open: () => void) => ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -79,6 +83,27 @@ export function CompanyDialog({
         } else {
           router.refresh();
         }
+      } else {
+        setError(result.error);
+      }
+    });
+  }
+
+  function onDelete() {
+    if (!d.id) return;
+    if (
+      !window.confirm(
+        `Delete ${d.name || "this company"}? This can't be undone from here.`,
+      )
+    ) {
+      return;
+    }
+    setError(null);
+    startTransition(async () => {
+      const result = await deleteAccount(d.id as string);
+      if (result.ok) {
+        setOpen(false);
+        router.push("/crm/accounts");
       } else {
         setError(result.error);
       }
@@ -214,6 +239,17 @@ export function CompanyDialog({
           <SubmitButton pending={pending}>
             {mode === "create" ? "Save company" : "Save changes"}
           </SubmitButton>
+
+          {mode === "edit" && canDelete && (
+            <button
+              type="button"
+              onClick={onDelete}
+              disabled={pending}
+              className="rounded-lg border border-bad/30 bg-bad-bg px-3 py-2 text-[13px] font-semibold text-bad transition-colors hover:bg-bad/10 disabled:opacity-60"
+            >
+              Delete company
+            </button>
+          )}
         </form>
       </Modal>
     </>

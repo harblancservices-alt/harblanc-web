@@ -20,6 +20,13 @@ export type CrmTaskItem = {
   account_id: string | null;
   assigned_user_id: string | null;
   companyName: string | null;
+  /** Optional: only resolved where a row needs to show them (the global
+   * Tasks page and the company profile's Tasks section). Left undefined
+   * elsewhere (e.g. the dashboard queue) rather than adding extra queries
+   * that surface isn't asking for. */
+  contact_id?: string | null;
+  contactName?: string | null;
+  assigneeName?: string | null;
 };
 
 /**
@@ -108,6 +115,20 @@ export function TaskRow({
               >
                 {task.companyName || "Company"}
               </Link>
+            </>
+          )}
+          {task.contactName && (
+            <>
+              <span className="text-fg-subtle">·</span>
+              <span className="text-fg-subtle">{task.contactName}</span>
+            </>
+          )}
+          {task.assigneeName && (
+            <>
+              <span className="text-fg-subtle">·</span>
+              <span className="text-fg-subtle">
+                Assigned: <span className="text-fg-muted">{task.assigneeName}</span>
+              </span>
             </>
           )}
         </div>

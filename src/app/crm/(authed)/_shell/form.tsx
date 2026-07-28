@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ChangeEvent, ReactNode } from "react";
 
 /**
  * CRM form primitives — the labelled input/select/textarea/toggle used across
@@ -106,12 +106,17 @@ export function SelectField({
   name,
   defaultValue,
   required,
+  onChange,
   children,
 }: {
   label: string;
   name: string;
   defaultValue?: string;
   required?: boolean;
+  /** Optional — for the rare field whose selection drives another field
+   * client-side (e.g. a dependent contact list filtered by company). Most
+   * callers don't need this; the value still submits normally either way. */
+  onChange?: (e: ChangeEvent<HTMLSelectElement>) => void;
   children: ReactNode;
 }) {
   return (
@@ -121,6 +126,7 @@ export function SelectField({
         name={name}
         defaultValue={defaultValue}
         required={required}
+        onChange={onChange}
         className={`h-11 ${CONTROL}`}
       >
         {children}

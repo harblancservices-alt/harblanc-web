@@ -156,3 +156,48 @@ export async function moveDealStage(
   revalidateDeal(accountId);
   return { ok: true };
 }
+
+/**
+ * Soft-delete a deal (set deleted_at). Admin-only (role=owner) — a deal is a
+ * shared record, same defense-in-depth reasoning as accounts/actions.ts's
+ * deleteAccount/deleteContact. RLS only scopes crm_deals to the org, not by
+ * role, so this app-layer check is the enforcement point.
+ */
+export async function deleteDeal(
+  dealId: string,
+  accountId: string | null,
+): Promise<ActionResult> {
+  const user = await requireCrmUser();
+  if (user.role !== "owner") {
+    return { ok: false, error: "Only an admin can delete a deal." };
+  }
+
+  const supabase = await createCrmServerClient();
+
+  const { data: prior } = await supabase
+    .from("crm_deals")
+    .select("name")
+    .eq("id", dealId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (!prior) return { ok: false, error: "Deal not found." };
+
+  const { error } = await supabase
+    .from("crm_deals")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", dealId);
+
+  if (error) return { ok: false, error: "Could not delete the deal." };
+
+  await logActivity(supabase, {
+    orgId: user.orgId,
+    userId: user.id,
+    accountId,
+    dealId,
+    kind: CRM_ACTIVITY.dealDeleted,
+    summary: `Deal deleted: ${prior.name as string}`,
+  });
+
+  revalidateDeal(accountId);
+  return { ok: true };
+}

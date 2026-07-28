@@ -1,7 +1,11 @@
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { PageShell, Card, CardHead, EmptyState } from "../_shell/ui";
 import { IconTasks } from "../_shell/icons";
+import { firstName } from "../_shell/format";
 import { TaskRow, type CrmTaskItem } from "./TaskRow";
+import { DeleteTaskButton } from "./DeleteTaskButton";
+import { AddTaskButton } from "./AddTaskButton";
+import type { RepOption } from "../accounts/CompanyDialog";
 
 export const dynamic = "force-dynamic";
 
@@ -15,44 +19,83 @@ type TaskRowData = {
   completed_at: string | null;
   reminder_at: string | null;
   account_id: string | null;
+  contact_id: string | null;
   assigned_user_id: string | null;
 };
+
+type ProfileRow = { id: string; full_name: string | null; email: string | null; is_active: boolean };
 
 /**
  * Global Tasks — the rep's own work list (tasks assigned to them, RLS-scoped to
  * their org). Open tasks are grouped Overdue / Due today / Upcoming so the top
  * of the page is always the most urgent work; completed tasks collapse into a
- * closed disclosure. Every row links to its company and completes inline.
+ * closed disclosure. Every row links to its company and completes inline. The
+ * "Add task" entry point here creates a STANDALONE task — company and contact
+ * are optional and pickable, unlike the company-profile Tasks section where
+ * the company is fixed.
  */
 export default async function TasksPage() {
   const user = await requireCrmUser();
   const supabase = await createCrmServerClient();
+  const canAssignOthers = user.role === "owner";
 
-  const { data } = await supabase
-    .from("crm_tasks")
-    .select(
-      "id, title, notes, due_at, priority, status, completed_at, reminder_at, account_id, assigned_user_id",
-    )
-    .eq("assigned_user_id", user.id)
-    .order("due_at", { ascending: true, nullsFirst: false })
-    .limit(500);
+  const [tasksRes, accountsRes, contactsRes, profilesRes] = await Promise.all([
+    supabase
+      .from("crm_tasks")
+      .select(
+        "id, title, notes, due_at, priority, status, completed_at, reminder_at, account_id, contact_id, assigned_user_id",
+      )
+      .eq("assigned_user_id", user.id)
+      .is("deleted_at", null)
+      .order("due_at", { ascending: true, nullsFirst: false })
+      .limit(500),
+    // Company/contact rosters for the "Add task" dialog.
+    supabase.from("crm_accounts").select("id, name").is("deleted_at", null).order("name").limit(500),
+    supabase
+      .from("crm_contacts")
+      .select("id, name, account_id")
+      .is("deleted_at", null)
+      .order("name")
+      .limit(2000),
+    supabase.from("crm_profiles").select("id, full_name, email, is_active"),
+  ]);
 
-  const rows = (data ?? []) as TaskRowData[];
+  const rows = (tasksRes.data ?? []) as TaskRowData[];
 
-  // Stitch in company names (manual join, matching the CRM's list convention).
-  const accountIds = [
-    ...new Set(rows.map((r) => r.account_id).filter(Boolean) as string[]),
-  ];
-  const { data: accs } = accountIds.length
-    ? await supabase.from("crm_accounts").select("id, name").in("id", accountIds)
-    : { data: [] as { id: string; name: string }[] };
-  const nameById = new Map(
-    ((accs ?? []) as { id: string; name: string }[]).map((a) => [a.id, a.name]),
+  const accounts = (accountsRes.data ?? []) as { id: string; name: string }[];
+  const nameById = new Map(accounts.map((a) => [a.id, a.name]));
+
+  const contactRows = (contactsRes.data ?? []) as {
+    id: string;
+    name: string;
+    account_id: string | null;
+  }[];
+  const contactNameById = new Map(contactRows.map((c) => [c.id, c.name]));
+  const contactOptions = contactRows.map((c) => ({
+    id: c.id,
+    name: c.name,
+    accountId: c.account_id,
+  }));
+
+  const profiles = (profilesRes.data ?? []) as ProfileRow[];
+  const profileNameById = new Map(
+    profiles.map((p) => [p.id, firstName(p.full_name, p.email) || "Unnamed rep"]),
   );
+  const reps: RepOption[] = profiles
+    .filter((p) => p.is_active)
+    .map((p) => ({ id: p.id, label: profileNameById.get(p.id) ?? "Unnamed rep" }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+
+  const currentUser = {
+    id: user.id,
+    label: firstName(user.fullName, user.email) || "You",
+  };
 
   const tasks: CrmTaskItem[] = rows.map((r) => ({
     ...r,
     companyName: r.account_id ? nameById.get(r.account_id) ?? null : null,
+    contactName: r.contact_id ? contactNameById.get(r.contact_id) ?? null : null,
+    assigneeName: r.assigned_user_id ? profileNameById.get(r.assigned_user_id) ?? null : null,
   }));
 
   const startOfToday = new Date();
@@ -89,13 +132,31 @@ export default async function TasksPage() {
           ? `${openCount} open ${openCount === 1 ? "task" : "tasks"} assigned to you`
           : "What's due, and what's next."
       }
+      actions={
+        <AddTaskButton
+          accounts={accounts}
+          contacts={contactOptions}
+          reps={reps}
+          canAssignOthers={canAssignOthers}
+          currentUser={currentUser}
+        />
+      }
     >
       {!hasAny ? (
         <Card>
           <EmptyState
             icon={<IconTasks />}
             title="No tasks yet"
-            body="Add tasks from any company profile — call-backs, follow-ups, and next steps land here."
+            body="Add a standalone task above, or add one from any company profile."
+            action={
+              <AddTaskButton
+                accounts={accounts}
+                contacts={contactOptions}
+                reps={reps}
+                canAssignOthers={canAssignOthers}
+                currentUser={currentUser}
+              />
+            }
           />
         </Card>
       ) : (
@@ -112,7 +173,9 @@ export default async function TasksPage() {
                 </summary>
                 <ul className="divide-y divide-line-strong">
                   {doneTasks.map((t) => (
-                    <TaskRow key={t.id} task={t} showCompany />
+                    <TaskRow key={t.id} task={t} showCompany>
+                      <DeleteTaskButton taskId={t.id} accountId={t.account_id} title={t.title} />
+                    </TaskRow>
                   ))}
                 </ul>
               </details>
@@ -137,7 +200,9 @@ function Group({
       <CardHead title={title} hint={`${tasks.length}`} />
       <ul className="divide-y divide-line-strong">
         {tasks.map((t) => (
-          <TaskRow key={t.id} task={t} showCompany />
+          <TaskRow key={t.id} task={t} showCompany>
+            <DeleteTaskButton taskId={t.id} accountId={t.account_id} title={t.title} />
+          </TaskRow>
         ))}
       </ul>
     </Card>

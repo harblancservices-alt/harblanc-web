@@ -5,24 +5,29 @@ import type { ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { formatMoney, formatDate } from "../_shell/format";
-import { moveDealStage } from "./actions";
+import { moveDealStage, deleteDeal } from "./actions";
 import type { DealCardData, StageOption } from "./types";
 
 /**
  * One deal card on the pipeline board. The card body is a "stretched link"
  * (an absolutely-positioned <Link> under the content, z-index'd below it) to
  * the linked company profile — there's no deal detail page yet — while the
- * stage <select> sits in its own stacking layer above the link so it keeps
- * working as its own control instead of triggering navigation.
+ * stage <select> AND the delete button sit in their own stacking layer above
+ * the link so they keep working as their own controls instead of triggering
+ * navigation.
  */
 export function DealCard({
   deal,
   stages,
   currentStageId,
+  canDelete = false,
 }: {
   deal: DealCardData;
   stages: StageOption[];
   currentStageId: string;
+  /** Deals are a shared record — deletion is owner-only, enforced again
+   * server-side in deleteDeal regardless of this UI gate. */
+  canDelete?: boolean;
 }) {
   const [pending, startTransition] = useTransition();
   const router = useRouter();
@@ -32,6 +37,14 @@ export function DealCard({
     if (!stageId || stageId === currentStageId) return;
     startTransition(async () => {
       const res = await moveDealStage(deal.id, stageId);
+      if (res.ok) router.refresh();
+    });
+  }
+
+  function onDelete() {
+    if (!window.confirm(`Delete "${deal.name}"? This can't be undone from here.`)) return;
+    startTransition(async () => {
+      const res = await deleteDeal(deal.id, deal.accountId);
       if (res.ok) router.refresh();
     });
   }
@@ -48,8 +61,25 @@ export function DealCard({
           aria-label={`Open ${deal.companyName ?? deal.name}`}
         />
       )}
+      {canDelete && (
+        <button
+          type="button"
+          onClick={onDelete}
+          disabled={pending}
+          aria-label={`Delete ${deal.name}`}
+          className="absolute right-2 top-2 z-10 rounded-md p-1 text-fg-subtle transition-colors hover:bg-bad/10 hover:text-bad disabled:opacity-60"
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+        </button>
+      )}
       <div className="relative z-10 pointer-events-none">
-        <p className="text-[13.5px] font-semibold leading-snug text-fg">{deal.name}</p>
+        <p
+          className={`text-[13.5px] font-semibold leading-snug text-fg ${canDelete ? "pr-5" : ""}`}
+        >
+          {deal.name}
+        </p>
         {deal.companyName && (
           <p className="mt-0.5 truncate text-[12px] text-fg-muted">{deal.companyName}</p>
         )}

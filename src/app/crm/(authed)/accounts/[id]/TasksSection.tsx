@@ -5,24 +5,31 @@ import { useRouter } from "next/navigation";
 import { Card, CardHead } from "../../_shell/ui";
 import { IconPlus, IconTasks } from "../../_shell/icons";
 import type { RepOption } from "../CompanyDialog";
-import { TaskDialog } from "../../tasks/TaskDialog";
+import { TaskDialog, type TaskContactOption } from "../../tasks/TaskDialog";
 import { TaskRow, type CrmTaskItem } from "../../tasks/TaskRow";
 import { deleteTask } from "../../tasks/actions";
 
 /**
  * Tasks on the company profile — add, edit, complete/reopen, and delete. Open
  * tasks show first, completed ones underneath. Add/edit route through the task
- * dialog; completion toggles inline via each row's checkbox. All writes stamp
- * org_id from the session and revalidate the dashboard + Tasks page.
+ * dialog (company fixed to this profile; contact offered from this company's
+ * own roster); completion toggles inline via each row's checkbox. All writes
+ * stamp org_id from the session and revalidate the dashboard + Tasks page.
  */
 export function TasksSection({
   accountId,
   tasks,
   reps,
+  contacts,
+  canAssignOthers,
+  currentUser,
 }: {
   accountId: string;
   tasks: CrmTaskItem[];
   reps: RepOption[];
+  contacts: TaskContactOption[];
+  canAssignOthers: boolean;
+  currentUser: { id: string; label: string };
 }) {
   const [pending, startTransition] = useTransition();
   const router = useRouter();
@@ -45,6 +52,9 @@ export function TasksSection({
           accountId={accountId}
           mode="edit"
           reps={reps}
+          contacts={contacts}
+          canAssignOthers={canAssignOthers}
+          currentUser={currentUser}
           defaults={task}
           trigger={(openDialog) => (
             <button
@@ -78,6 +88,9 @@ export function TasksSection({
             accountId={accountId}
             mode="create"
             reps={reps}
+            contacts={contacts}
+            canAssignOthers={canAssignOthers}
+            currentUser={currentUser}
             trigger={(openDialog) => (
               <button
                 type="button"

@@ -20,10 +20,14 @@ export function ContactsSection({
   accountId,
   contacts,
   primaryContactId,
+  canDelete = false,
 }: {
   accountId: string;
   contacts: CrmContact[];
   primaryContactId: string | null;
+  /** Contacts are a shared record — deletion is owner-only, enforced again
+   * server-side in deleteContact regardless of this UI gate. */
+  canDelete?: boolean;
 }) {
   const [pending, startTransition] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -220,14 +224,16 @@ export function ContactsSection({
                       {isBusy ? "…" : "Make primary"}
                     </button>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => remove(c.id, c.name)}
-                    disabled={pending}
-                    className="rounded-lg border border-bad/30 bg-bad-bg px-3 py-1.5 text-[12.5px] font-semibold text-bad transition-colors hover:bg-bad/10 disabled:opacity-60"
-                  >
-                    Delete
-                  </button>
+                  {canDelete && (
+                    <button
+                      type="button"
+                      onClick={() => remove(c.id, c.name)}
+                      disabled={pending}
+                      className="rounded-lg border border-bad/30 bg-bad-bg px-3 py-1.5 text-[12.5px] font-semibold text-bad transition-colors hover:bg-bad/10 disabled:opacity-60"
+                    >
+                      Delete
+                    </button>
+                  )}
                 </div>
               </li>
             );

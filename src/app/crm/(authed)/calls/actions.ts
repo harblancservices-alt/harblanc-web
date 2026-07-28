@@ -107,3 +107,28 @@ export async function logCall(
   revalidate(accountId);
   return { ok: true };
 }
+
+/**
+ * Soft-delete a call log entry. Calls are operational (not a shared org-wide
+ * record), so this is allowed for any CRM user — no role gate, matching
+ * task/note deletes. The append-only crm_activities entry for the call is
+ * left untouched (it's a historical record of the timeline, not the log
+ * itself), matching how deleteContact leaves the activity feed alone.
+ */
+export async function deleteCall(
+  callId: string,
+  accountId: string,
+): Promise<ActionResult> {
+  await requireCrmUser();
+  const supabase = await createCrmServerClient();
+
+  const { error } = await supabase
+    .from("crm_calls")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", callId);
+
+  if (error) return { ok: false, error: "Could not delete the call." };
+
+  revalidate(accountId);
+  return { ok: true };
+}

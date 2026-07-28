@@ -115,6 +115,7 @@ export default async function CrmDashboardPage() {
     supabase
       .from("crm_calls")
       .select("id", { count: "exact", head: true })
+      .is("deleted_at", null)
       .gte("occurred_at", weekAgoISO),
     // My open tasks (drives the Open-tasks KPI + the Overdue / Due-today queues).
     supabase
@@ -124,6 +125,7 @@ export default async function CrmDashboardPage() {
       )
       .eq("assigned_user_id", user.id)
       .eq("status", "open")
+      .is("deleted_at", null)
       .order("due_at", { ascending: true, nullsFirst: false })
       .limit(500),
     // Call-back reminders due on or before today.
@@ -131,6 +133,7 @@ export default async function CrmDashboardPage() {
       .from("crm_calls")
       .select("id, account_id, outcome, reminder_at, summary")
       .eq("followup_required", true)
+      .is("deleted_at", null)
       .not("reminder_at", "is", null)
       .lte("reminder_at", endOfTodayISO)
       .order("reminder_at", { ascending: true })
@@ -177,6 +180,7 @@ export default async function CrmDashboardPage() {
       .from("crm_tasks")
       .select("account_id")
       .eq("status", "open")
+      .is("deleted_at", null)
       .limit(2000),
     // Unclaimed released AI leads — the alert. Once assigned_user_id is set
     // (claimed) a lead drops out of this query, and out of the bell/nav badge

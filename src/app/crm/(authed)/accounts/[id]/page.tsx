@@ -11,6 +11,7 @@ import { RepControl } from "./RepControl";
 import { TagEditor, type CrmTag } from "./TagEditor";
 import { ContactsSection, type CrmContact } from "./ContactsSection";
 import { NotesSection, type CrmNote } from "./NotesSection";
+import { CallsSection, type CrmCallLogItem } from "./CallsSection";
 import { ActivityTimeline, type CrmActivity } from "./ActivityTimeline";
 import { TasksSection } from "./TasksSection";
 import { LogCallButton } from "./LogCallButton";
@@ -43,8 +44,9 @@ export default async function AccountDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  await requireCrmUser();
+  const user = await requireCrmUser();
   const supabase = await createCrmServerClient();
+  const isOwner = user.role === "owner";
 
   const { data: account } = await supabase
     .from("crm_accounts")
@@ -64,6 +66,7 @@ export default async function AccountDetailPage({
     accountTagsRes,
     contactsRes,
     notesRes,
+    callsRes,
     activitiesRes,
     tasksRes,
   ] = await Promise.all([
@@ -82,8 +85,18 @@ export default async function AccountDetailPage({
       .from("crm_notes")
       .select("id, body, is_pinned, created_at, user_id")
       .eq("account_id", id)
+      .is("deleted_at", null)
       .order("is_pinned", { ascending: false })
       .order("created_at", { ascending: false }),
+    supabase
+      .from("crm_calls")
+      .select(
+        "id, contact_id, outcome, duration_seconds, summary, notes, followup_required, reminder_at, occurred_at, user_id",
+      )
+      .eq("account_id", id)
+      .is("deleted_at", null)
+      .order("occurred_at", { ascending: false })
+      .limit(200),
     supabase
       .from("crm_activities")
       .select("id, kind, summary, body, occurred_at, user_id")
@@ -93,9 +106,10 @@ export default async function AccountDetailPage({
     supabase
       .from("crm_tasks")
       .select(
-        "id, title, notes, due_at, priority, status, completed_at, reminder_at, account_id, assigned_user_id",
+        "id, title, notes, due_at, priority, status, completed_at, reminder_at, account_id, contact_id, assigned_user_id",
       )
       .eq("account_id", id)
+      .is("deleted_at", null)
       .order("status", { ascending: true })
       .order("due_at", { ascending: true, nullsFirst: false })
       .order("created_at", { ascending: false }),
@@ -115,6 +129,7 @@ export default async function AccountDetailPage({
   const attachedTags = allTags.filter((t) => attachedIds.has(t.id));
 
   const contacts = (contactsRes.data ?? []) as CrmContact[];
+  const contactNameById = new Map(contacts.map((c) => [c.id, c.name]));
 
   const notes: CrmNote[] = ((notesRes.data ?? []) as {
     id: string;
@@ -156,8 +171,40 @@ export default async function AccountDetailPage({
     completed_at: string | null;
     reminder_at: string | null;
     account_id: string | null;
+    contact_id: string | null;
     assigned_user_id: string | null;
-  }[]).map((t) => ({ ...t, companyName: account.name as string }));
+  }[]).map((t) => ({
+    ...t,
+    companyName: account.name as string,
+    contactName: t.contact_id ? contactNameById.get(t.contact_id) ?? null : null,
+    assigneeName: t.assigned_user_id
+      ? profileName(profileById.get(t.assigned_user_id))
+      : null,
+  }));
+
+  const calls: CrmCallLogItem[] = ((callsRes.data ?? []) as {
+    id: string;
+    contact_id: string | null;
+    outcome: string | null;
+    duration_seconds: number | null;
+    summary: string | null;
+    notes: string | null;
+    followup_required: boolean;
+    reminder_at: string | null;
+    occurred_at: string;
+    user_id: string | null;
+  }[]).map((c) => ({
+    id: c.id,
+    outcome: c.outcome,
+    contactName: c.contact_id ? contactNameById.get(c.contact_id) ?? null : null,
+    durationSeconds: c.duration_seconds,
+    summary: c.summary,
+    notes: c.notes,
+    followupRequired: c.followup_required,
+    reminderAt: c.reminder_at,
+    occurredAt: c.occurred_at,
+    author: c.user_id ? profileName(profileById.get(c.user_id)) : null,
+  }));
 
   const stage = account.lifecycle_status as string;
   const location = [account.city, account.state].filter(Boolean).join(", ");
@@ -220,7 +267,7 @@ export default async function AccountDetailPage({
               accountId={account.id as string}
               contacts={contacts.map((c) => ({ id: c.id, name: c.name }))}
             />
-            <EditCompany defaults={editDefaults} reps={reps} />
+            <EditCompany defaults={editDefaults} reps={reps} canDelete={isOwner} />
           </div>
         </div>
       </div>
@@ -321,13 +368,18 @@ export default async function AccountDetailPage({
               accountId={account.id as string}
               contacts={contacts}
               primaryContactId={account.primary_contact_id as string | null}
+              canDelete={isOwner}
             />
             <TasksSection
               accountId={account.id as string}
               tasks={tasks}
               reps={reps}
+              contacts={contacts.map((c) => ({ id: c.id, name: c.name }))}
+              canAssignOthers={isOwner}
+              currentUser={{ id: user.id, label: firstName(user.fullName, user.email) || "You" }}
             />
             <NotesSection accountId={account.id as string} notes={notes} />
+            <CallsSection accountId={account.id as string} calls={calls} />
           </div>
           <div className="lg:col-span-1">
             <ActivityTimeline activities={activities} />
