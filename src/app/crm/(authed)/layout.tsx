@@ -1,6 +1,5 @@
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { CrmShell } from "./_shell/CrmShell";
-import { buildCrmNav } from "./_shell/nav";
 
 export const dynamic = "force-dynamic";
 
@@ -54,7 +53,9 @@ export default async function CrmAuthedLayout({
       email={user.email}
       fullName={user.fullName}
       orgName={(org?.name as string) ?? "Hello Hotshot"}
-      navItems={buildCrmNav(user.role, pendingReviewCount, unclaimedAiCount ?? 0)}
+      role={user.role}
+      pendingReviewCount={pendingReviewCount}
+      unclaimedAiLeadsCount={unclaimedAiCount ?? 0}
     >
       {children}
     </CrmShell>

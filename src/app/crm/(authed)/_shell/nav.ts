@@ -32,6 +32,17 @@ export type CrmNavItem = {
  *
  * Built fresh per call (rather than spread from a shared module-level array)
  * so the per-request badge counts never leak between requests.
+ *
+ * Call this ONLY from a Client Component (CrmShell does, client-side). Each
+ * item carries `Icon`, a component function reference — a function value —
+ * and React Server Components cannot serialize function props crossing the
+ * Server->Client boundary (same class of bug as commit fbfabd7's pipeline/
+ * settings render-prop crash). layout.tsx (a Server Component) must pass
+ * only plain primitives — role, pendingReviewCount, unclaimedAiLeadsCount —
+ * into CrmShell, which calls this itself instead of receiving its output as
+ * a prop. Since /crm routes are all force-dynamic and never prerendered at
+ * build time, `next build`/`tsc` won't catch a regression here — it only
+ * throws on a real request.
  */
 export function buildCrmNav(
   role: string,

@@ -50,14 +50,19 @@ export function formatNumber(value: number | null | undefined): string {
  * "Kartik" while crm_profiles.full_name itself is never touched. Editing
  * forms (e.g. the Settings "Full name" field) bind directly to full_name
  * instead — this helper is display-only.
+ *
+ * Guards with `typeof … === "string"` rather than just `?? ""`: callers
+ * across the CRM widen Supabase rows with `as` casts, so a value typed
+ * `string | null` here is not a runtime guarantee — this must never throw
+ * regardless of what actually comes back (null, undefined, or anything else).
  */
 export function firstName(
   fullName: string | null | undefined,
   email?: string | null,
 ): string {
-  const name = (fullName ?? "").trim();
+  const name = typeof fullName === "string" ? fullName.trim() : "";
   if (name) return name.split(/\s+/)[0];
-  const mail = (email ?? "").trim();
+  const mail = typeof email === "string" ? email.trim() : "";
   if (mail) return mail.split("@")[0];
   return "";
 }

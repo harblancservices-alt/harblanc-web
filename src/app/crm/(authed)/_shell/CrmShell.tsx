@@ -2,14 +2,21 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { bottomNav, isActive, type CrmNavItem } from "./nav";
+import { buildCrmNav, bottomNav, isActive } from "./nav";
 import { IconLogout } from "./icons";
 
 type CrmShellProps = {
   email: string;
   fullName: string | null;
   orgName: string;
-  navItems: CrmNavItem[];
+  /** CRM role ("owner"/"member") — only the role and counts (plain,
+   * serializable values) cross the Server->Client boundary from layout.tsx;
+   * the nav itself (built with icon COMPONENT references, which are function
+   * values and cannot cross that boundary — see buildCrmNav's docstring for
+   * the exact failure mode this avoids) is built here, client-side. */
+  role: string;
+  pendingReviewCount: number;
+  unclaimedAiLeadsCount: number;
   children: React.ReactNode;
 };
 
@@ -20,9 +27,18 @@ type CrmShellProps = {
  * a desktop sidebar, a sticky top bar, and a mobile bottom bar. It shares no
  * markup or state with the admin PortalShell.
  */
-export function CrmShell({ email, fullName, orgName, navItems, children }: CrmShellProps) {
+export function CrmShell({
+  email,
+  fullName,
+  orgName,
+  role,
+  pendingReviewCount,
+  unclaimedAiLeadsCount,
+  children,
+}: CrmShellProps) {
   const pathname = usePathname() ?? "";
   const initial = (fullName || email || "?").trim().charAt(0).toUpperCase();
+  const navItems = buildCrmNav(role, pendingReviewCount, unclaimedAiLeadsCount);
   const mobileNav = bottomNav(navItems);
 
   return (
