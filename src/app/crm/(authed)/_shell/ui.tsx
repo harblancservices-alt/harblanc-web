@@ -13,16 +13,23 @@ export function PageShell({
   title,
   subtitle,
   actions,
+  fluid,
   children,
 }: {
   eyebrow?: string;
   title: string;
   subtitle?: string;
   actions?: ReactNode;
+  /** Skip the max-w-6xl reading-width cap and use the full content column —
+   * for views (like the Pipeline board) that want the available viewport
+   * width on desktop rather than a fixed-width page. */
+  fluid?: boolean;
   children: ReactNode;
 }) {
   return (
-    <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6 sm:py-6">
+    <div
+      className={`px-4 py-4 sm:px-6 sm:py-6 ${fluid ? "w-full" : "mx-auto max-w-6xl"}`}
+    >
       <div className="mb-4 flex flex-col gap-3 rounded-2xl bg-graphite px-5 py-5 shadow-e2 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           {eyebrow && (

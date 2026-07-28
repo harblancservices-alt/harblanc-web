@@ -105,6 +105,7 @@ export default async function PipelinePage() {
 
   return (
     <PageShell
+      fluid
       eyebrow="Deals"
       title="Pipeline"
       subtitle={
