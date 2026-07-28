@@ -3,7 +3,7 @@ import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { PageShell, Card, CardHead, StatTile } from "./_shell/ui";
 import { IconTasks } from "./_shell/icons";
 import { DueBell } from "./DueBell";
-import { formatDateTime } from "./_shell/format";
+import { formatDateTime, timestampMs } from "./_shell/format";
 import { TaskRow, type CrmTaskItem } from "./tasks/TaskRow";
 import { callOutcomeLabel, callOutcomeTone } from "./calls/outcomes";
 import {
@@ -225,22 +225,24 @@ export default async function CrmDashboardPage() {
     ...t,
     companyName: t.account_id ? nameById.get(t.account_id) ?? null : null,
   }));
-  const overdueTasks = tasks.filter(
-    (t) => t.due_at && new Date(t.due_at).getTime() < todayStart,
-  );
+  const overdueTasks = tasks.filter((t) => {
+    const ms = timestampMs(t.due_at);
+    return ms !== null && ms < todayStart;
+  });
   const dueTodayTasks = tasks.filter((t) => {
-    if (!t.due_at) return false;
-    const ms = new Date(t.due_at).getTime();
-    return ms >= todayStart && ms <= todayEnd;
+    const ms = timestampMs(t.due_at);
+    return ms !== null && ms >= todayStart && ms <= todayEnd;
   });
 
   // ── Call-back buckets ──
-  const overdueCallbacks = callbacks.filter(
-    (c) => c.reminder_at && new Date(c.reminder_at).getTime() < todayStart,
-  );
-  const todayCallbacks = callbacks.filter(
-    (c) => c.reminder_at && new Date(c.reminder_at).getTime() >= todayStart,
-  );
+  const overdueCallbacks = callbacks.filter((c) => {
+    const ms = timestampMs(c.reminder_at);
+    return ms !== null && ms < todayStart;
+  });
+  const todayCallbacks = callbacks.filter((c) => {
+    const ms = timestampMs(c.reminder_at);
+    return ms !== null && ms >= todayStart;
+  });
 
   // ── Staleness ──
   const recentSet = new Set(
@@ -564,9 +566,8 @@ function FollowupRow({
   followup: Followup;
   companyName: string | null;
 }) {
-  const overdue = followup.next_followup_at
-    ? new Date(followup.next_followup_at).getTime() < Date.now()
-    : false;
+  const followupMs = timestampMs(followup.next_followup_at);
+  const overdue = followupMs !== null && followupMs < Date.now();
   return (
     <li className="flex items-start gap-3 px-5 py-3.5">
       <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-warn" />

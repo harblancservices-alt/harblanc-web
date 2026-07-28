@@ -2,7 +2,8 @@ import { notFound } from "next/navigation";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { Card, CardHead } from "../../_shell/ui";
 import { BackButton } from "../../_shell/BackButton";
-import { formatDate, formatMoney, formatNumber, firstName } from "../../_shell/format";
+import { formatDate, formatMoney, firstName } from "../../_shell/format";
+import { ProfileTabs } from "./ProfileTabs";
 import { stageLabel, stageTone } from "../lifecycle";
 import type { RepOption } from "../CompanyDialog";
 import { EditCompany } from "./EditCompany";
@@ -51,7 +52,7 @@ export default async function AccountDetailPage({
   const { data: account } = await supabase
     .from("crm_accounts")
     .select(
-      "id, name, industry, website, phone, address, city, state, zip, dot_number, mc_number, company_size, fleet_size, annual_freight_spend, revenue_potential, current_carrier, source, lifecycle_status, assigned_user_id, primary_contact_id, created_at",
+      "id, name, industry, website, phone, address, city, state, zip, company_size, annual_freight_spend, revenue_potential, source, lifecycle_status, assigned_user_id, primary_contact_id, created_at",
     )
     .eq("id", id)
     .is("deleted_at", null)
@@ -223,13 +224,9 @@ export default async function AccountDetailPage({
     city: account.city as string | null,
     state: account.state as string | null,
     zip: account.zip as string | null,
-    dot_number: account.dot_number as string | null,
-    mc_number: account.mc_number as string | null,
     company_size: account.company_size as string | null,
-    fleet_size: account.fleet_size as number | null,
     annual_freight_spend: account.annual_freight_spend as number | null,
     revenue_potential: account.revenue_potential as number | null,
-    current_carrier: account.current_carrier as string | null,
     source: account.source as string | null,
     lifecycle_status: stage,
     assigned_user_id: account.assigned_user_id as string | null,
@@ -272,104 +269,91 @@ export default async function AccountDetailPage({
         </div>
       </div>
 
-      <div className="space-y-4">
-        {/* Overview: lifecycle control, rep, tags, key facts */}
-        <Card>
-          <CardHead title="Overview" />
-          <div className="flex flex-col gap-5 p-5">
-            <div className="grid gap-5 lg:grid-cols-2">
-              <div>
-                <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-subtle">
-                  Lifecycle stage
-                </p>
-                <LifecycleControl accountId={account.id as string} current={stage} />
+      <ProfileTabs
+        contactsCount={contacts.length}
+        overview={
+          <>
+            {/* Overview: lifecycle control, rep, tags, key facts */}
+            <Card>
+              <CardHead title="Overview" />
+              <div className="flex flex-col gap-5 p-5">
+                <div className="grid gap-5 lg:grid-cols-2">
+                  <div>
+                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-subtle">
+                      Lifecycle stage
+                    </p>
+                    <LifecycleControl accountId={account.id as string} current={stage} />
+                  </div>
+                  <div>
+                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-subtle">
+                      Assigned rep
+                    </p>
+                    <RepControl
+                      accountId={account.id as string}
+                      current={account.assigned_user_id as string | null}
+                      reps={reps}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-subtle">
+                    Tags
+                  </p>
+                  <TagEditor
+                    accountId={account.id as string}
+                    attached={attachedTags}
+                    allTags={allTags}
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-x-6 gap-y-4 border-t border-line pt-5 md:grid-cols-3">
+                  <Fact label="Industry" value={account.industry as string | null} />
+                  <Fact
+                    label="Website"
+                    value={
+                      website ? (
+                        <a
+                          href={website}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-accent hover:underline"
+                        >
+                          {account.website as string}
+                        </a>
+                      ) : null
+                    }
+                  />
+                  <Fact label="Phone" value={account.phone as string | null} mono />
+                  <Fact
+                    label="Address"
+                    value={
+                      [account.address, location, account.zip]
+                        .filter(Boolean)
+                        .join(", ") || null
+                    }
+                  />
+                  <Fact label="Company size" value={account.company_size as string | null} />
+                  <Fact
+                    label="Annual freight spend"
+                    value={formatMoney(account.annual_freight_spend as number | null)}
+                    mono
+                  />
+                  <Fact
+                    label="Revenue potential"
+                    value={formatMoney(account.revenue_potential as number | null)}
+                    mono
+                  />
+                  <Fact label="Source" value={account.source as string | null} />
+                  <Fact
+                    label="Created"
+                    value={formatDate(account.created_at as string)}
+                  />
+                </div>
               </div>
-              <div>
-                <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-subtle">
-                  Assigned rep
-                </p>
-                <RepControl
-                  accountId={account.id as string}
-                  current={account.assigned_user_id as string | null}
-                  reps={reps}
-                />
-              </div>
-            </div>
+            </Card>
 
-            <div>
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-subtle">
-                Tags
-              </p>
-              <TagEditor
-                accountId={account.id as string}
-                attached={attachedTags}
-                allTags={allTags}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-x-6 gap-y-4 border-t border-line pt-5 md:grid-cols-3">
-              <Fact label="Industry" value={account.industry as string | null} />
-              <Fact
-                label="Website"
-                value={
-                  website ? (
-                    <a
-                      href={website}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-accent hover:underline"
-                    >
-                      {account.website as string}
-                    </a>
-                  ) : null
-                }
-              />
-              <Fact label="Phone" value={account.phone as string | null} mono />
-              <Fact
-                label="Address"
-                value={
-                  [account.address, location, account.zip]
-                    .filter(Boolean)
-                    .join(", ") || null
-                }
-              />
-              <Fact label="DOT #" value={account.dot_number as string | null} mono />
-              <Fact label="MC #" value={account.mc_number as string | null} mono />
-              <Fact label="Company size" value={account.company_size as string | null} />
-              <Fact
-                label="Fleet size"
-                value={formatNumber(account.fleet_size as number | null)}
-                mono
-              />
-              <Fact label="Current carrier" value={account.current_carrier as string | null} />
-              <Fact
-                label="Annual freight spend"
-                value={formatMoney(account.annual_freight_spend as number | null)}
-                mono
-              />
-              <Fact
-                label="Revenue potential"
-                value={formatMoney(account.revenue_potential as number | null)}
-                mono
-              />
-              <Fact label="Source" value={account.source as string | null} />
-              <Fact
-                label="Created"
-                value={formatDate(account.created_at as string)}
-              />
-            </div>
-          </div>
-        </Card>
-
-        {/* Contacts + notes on the left, activity on the right */}
-        <div className="grid gap-4 lg:grid-cols-3">
-          <div className="space-y-4 lg:col-span-2">
-            <ContactsSection
-              accountId={account.id as string}
-              contacts={contacts}
-              primaryContactId={account.primary_contact_id as string | null}
-              canDelete={isOwner}
-            />
+            <NotesSection accountId={account.id as string} notes={notes} />
             <TasksSection
               accountId={account.id as string}
               tasks={tasks}
@@ -378,14 +362,23 @@ export default async function AccountDetailPage({
               canAssignOthers={isOwner}
               currentUser={{ id: user.id, label: firstName(user.fullName, user.email) || "You" }}
             />
-            <NotesSection accountId={account.id as string} notes={notes} />
-            <CallsSection accountId={account.id as string} calls={calls} />
-          </div>
-          <div className="lg:col-span-1">
+          </>
+        }
+        contacts={
+          <ContactsSection
+            accountId={account.id as string}
+            contacts={contacts}
+            primaryContactId={account.primary_contact_id as string | null}
+            canDelete={isOwner}
+          />
+        }
+        activity={
+          <>
             <ActivityTimeline activities={activities} />
-          </div>
-        </div>
-      </div>
+            <CallsSection accountId={account.id as string} calls={calls} />
+          </>
+        }
+      />
     </div>
   );
 }

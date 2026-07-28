@@ -16,8 +16,6 @@ export type AiReviewLead = {
   website: string | null;
   phone: string | null;
   industry: string | null;
-  fleetSize: number | null;
-  currentCarrier: string | null;
   commodities: string | null;
   contactCount: number;
   notePreview: string | null;
@@ -99,10 +97,6 @@ export function ReviewCard({ lead }: { lead: AiReviewLead }) {
         )}
         {lead.phone && <Line label="Phone">{lead.phone}</Line>}
         {lead.industry && <Line label="Industry">{lead.industry}</Line>}
-        {lead.fleetSize !== null && <Line label="Fleet size">{lead.fleetSize}</Line>}
-        {lead.currentCarrier && (
-          <Line label="Current carrier">{lead.currentCarrier}</Line>
-        )}
         {lead.commodities && <Line label="Commodities">{lead.commodities}</Line>}
         <Line label="Contacts">
           {lead.contactCount} {lead.contactCount === 1 ? "contact" : "contacts"}

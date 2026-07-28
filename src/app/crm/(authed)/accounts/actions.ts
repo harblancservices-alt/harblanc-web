@@ -30,12 +30,6 @@ function optStr(fd: FormData, key: string): string | null {
   const v = str(fd, key);
   return v.length ? v : null;
 }
-function optInt(fd: FormData, key: string): number | null {
-  const v = str(fd, key);
-  if (!v.length) return null;
-  const n = Number.parseInt(v.replace(/[^0-9-]/g, ""), 10);
-  return Number.isFinite(n) ? n : null;
-}
 function optNum(fd: FormData, key: string): number | null {
   const v = str(fd, key);
   if (!v.length) return null;
@@ -54,13 +48,9 @@ function accountFieldsFromForm(fd: FormData) {
     city: optStr(fd, "city"),
     state: optStr(fd, "state"),
     zip: optStr(fd, "zip"),
-    dot_number: optStr(fd, "dot_number"),
-    mc_number: optStr(fd, "mc_number"),
     company_size: optStr(fd, "company_size"),
-    fleet_size: optInt(fd, "fleet_size"),
     annual_freight_spend: optNum(fd, "annual_freight_spend"),
     revenue_potential: optNum(fd, "revenue_potential"),
-    current_carrier: optStr(fd, "current_carrier"),
     source: optStr(fd, "source"),
   };
 }

@@ -1,7 +1,7 @@
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { PageShell, Card, CardHead, EmptyState } from "../_shell/ui";
 import { IconTasks } from "../_shell/icons";
-import { firstName } from "../_shell/format";
+import { firstName, timestampMs } from "../_shell/format";
 import { TaskRow, type CrmTaskItem } from "./TaskRow";
 import { DeleteTaskButton } from "./DeleteTaskButton";
 import { AddTaskButton } from "./AddTaskButton";
@@ -108,17 +108,18 @@ export default async function TasksPage() {
   const openTasks = tasks.filter((t) => t.status !== "completed");
   const doneTasks = tasks.filter((t) => t.status === "completed");
 
-  const overdue = openTasks.filter(
-    (t) => t.due_at && new Date(t.due_at).getTime() < todayStart,
-  );
-  const dueToday = openTasks.filter((t) => {
-    if (!t.due_at) return false;
-    const ms = new Date(t.due_at).getTime();
-    return ms >= todayStart && ms <= todayEnd;
+  const overdue = openTasks.filter((t) => {
+    const ms = timestampMs(t.due_at);
+    return ms !== null && ms < todayStart;
   });
-  const upcoming = openTasks.filter(
-    (t) => !t.due_at || new Date(t.due_at).getTime() > todayEnd,
-  );
+  const dueToday = openTasks.filter((t) => {
+    const ms = timestampMs(t.due_at);
+    return ms !== null && ms >= todayStart && ms <= todayEnd;
+  });
+  const upcoming = openTasks.filter((t) => {
+    const ms = timestampMs(t.due_at);
+    return ms === null || ms > todayEnd;
+  });
 
   const openCount = openTasks.length;
   const hasAny = tasks.length > 0;

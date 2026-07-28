@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { formatDateTime } from "../_shell/format";
+import { formatDateTime, timestampMs } from "../_shell/format";
 import { priorityLabel, priorityTone } from "./priority";
 import { completeTask, reopenTask } from "./actions";
 
@@ -59,8 +59,8 @@ export function TaskRow({
     });
   }
 
-  const overdue =
-    !optimisticDone && task.due_at ? new Date(task.due_at).getTime() < Date.now() : false;
+  const dueMs = timestampMs(task.due_at);
+  const overdue = !optimisticDone && dueMs !== null && dueMs < Date.now();
 
   return (
     <li className="flex items-start gap-3 px-5 py-3.5 transition-colors hover:bg-inset">

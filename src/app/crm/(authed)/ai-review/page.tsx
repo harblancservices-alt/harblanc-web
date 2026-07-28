@@ -16,8 +16,6 @@ type AccountRow = {
   website: string | null;
   phone: string | null;
   industry: string | null;
-  fleet_size: number | null;
-  current_carrier: string | null;
   commodities: string | null;
   created_at: string;
 };
@@ -38,7 +36,7 @@ export default async function AiReviewPage() {
   const { data } = await supabase
     .from("crm_accounts")
     .select(
-      "id, name, address, city, state, zip, website, phone, industry, fleet_size, current_carrier, commodities, created_at",
+      "id, name, address, city, state, zip, website, phone, industry, commodities, created_at",
     )
     .eq("source", "ai_agent")
     .eq("ai_status", "pending_review")
@@ -90,8 +88,6 @@ export default async function AiReviewPage() {
     website: l.website,
     phone: l.phone,
     industry: l.industry,
-    fleetSize: l.fleet_size,
-    currentCarrier: l.current_carrier,
     commodities: l.commodities,
     contactCount: contactCountByAccount.get(l.id) ?? 0,
     notePreview: noteByAccount.get(l.id) ?? null,

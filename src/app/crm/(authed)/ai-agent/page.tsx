@@ -12,8 +12,6 @@ type AccountRow = {
   city: string | null;
   state: string | null;
   commodities: string | null;
-  fleet_size: number | null;
-  current_carrier: string | null;
   assigned_user_id: string | null;
   created_at: string;
 };
@@ -32,7 +30,7 @@ export default async function AiAgentPage() {
   const { data } = await supabase
     .from("crm_accounts")
     .select(
-      "id, name, city, state, commodities, fleet_size, current_carrier, assigned_user_id, created_at",
+      "id, name, city, state, commodities, assigned_user_id, created_at",
     )
     .eq("source", "ai_agent")
     .eq("ai_status", "released")
@@ -80,8 +78,6 @@ export default async function AiAgentPage() {
     city: l.city,
     state: l.state,
     commodities: l.commodities,
-    fleetSize: l.fleet_size,
-    currentCarrier: l.current_carrier,
     contactCount: contactCountByAccount.get(l.id) ?? 0,
     assigneeName: l.assigned_user_id ? assigneeName.get(l.assigned_user_id) ?? null : null,
   }));

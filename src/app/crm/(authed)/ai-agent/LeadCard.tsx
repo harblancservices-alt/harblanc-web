@@ -11,8 +11,6 @@ export type AiAgentLead = {
   city: string | null;
   state: string | null;
   commodities: string | null;
-  fleetSize: number | null;
-  currentCarrier: string | null;
   contactCount: number;
   assigneeName: string | null;
 };
@@ -64,17 +62,6 @@ export function LeadCard({ lead }: { lead: AiAgentLead }) {
           {lead.commodities && (
             <p className="truncate">
               <span className="text-fg-subtle">Hauls:</span> {lead.commodities}
-            </p>
-          )}
-          {lead.fleetSize !== null && (
-            <p>
-              <span className="text-fg-subtle">Fleet:</span> {lead.fleetSize}
-            </p>
-          )}
-          {lead.currentCarrier && (
-            <p className="truncate">
-              <span className="text-fg-subtle">Current carrier:</span>{" "}
-              {lead.currentCarrier}
             </p>
           )}
           <p>
