@@ -94,6 +94,19 @@ export function bottomNav(nav: CrmNavItem[]): CrmNavItem[] {
   );
 }
 
+/**
+ * Everything NOT in the mobile bottom bar's 4 fixed slots — Contacts, AI
+ * Agent, Reports, Settings, and (owner-only, already filtered out of `nav`
+ * for non-owners by buildCrmNav) AI Review and Field Capture. Fed into the
+ * mobile "More" sheet so every destination the desktop sidebar lists stays
+ * reachable on mobile too. Derived from the same `nav` array as bottomNav
+ * (and the desktop sidebar) rather than its own hardcoded list, so the three
+ * surfaces can never drift out of sync with each other.
+ */
+export function moreNav(nav: CrmNavItem[]): CrmNavItem[] {
+  return nav.filter((item) => !BOTTOM_HREFS.includes(item.href));
+}
+
 export function isActive(pathname: string, item: CrmNavItem): boolean {
   if (item.href === "/crm") return pathname === "/crm";
   if (pathname === item.href || pathname.startsWith(item.href + "/")) return true;

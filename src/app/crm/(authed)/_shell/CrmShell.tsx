@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { buildCrmNav, bottomNav, isActive } from "./nav";
-import { IconLogout } from "./icons";
+import { buildCrmNav, bottomNav, moreNav, isActive } from "./nav";
+import { IconLogout, IconMore } from "./icons";
+import { MobileMoreSheet } from "./MobileMoreSheet";
 
 type CrmShellProps = {
   email: string;
@@ -40,6 +42,13 @@ export function CrmShell({
   const initial = (fullName || email || "?").trim().charAt(0).toUpperCase();
   const navItems = buildCrmNav(role, pendingReviewCount, unclaimedAiLeadsCount);
   const mobileNav = bottomNav(navItems);
+  // Everything the bottom bar's 4 fixed slots don't cover (Contacts, AI
+  // Agent, Reports, Settings, and — owner-only — AI Review/Field Capture)
+  // surfaces in the mobile "More" sheet instead, so no destination the
+  // desktop sidebar lists is ever unreachable on mobile.
+  const moreItems = moreNav(navItems);
+  const moreBadgeTotal = moreItems.reduce((sum, item) => sum + (item.badge ?? 0), 0);
+  const [moreOpen, setMoreOpen] = useState(false);
 
   return (
     <div className="crm-light min-h-screen bg-canvas text-fg">
@@ -149,20 +158,22 @@ export function CrmShell({
             </Link>
           );
         })}
-        <form
-          action="/crm/logout"
-          method="post"
-          className="flex items-stretch"
+        <button
+          type="button"
+          onClick={() => setMoreOpen(true)}
+          className="relative flex flex-col items-center gap-1 border-t-2 border-transparent py-2.5 text-[10.5px] font-medium text-on-dark-dim"
         >
-          <button
-            type="submit"
-            className="flex w-full flex-col items-center gap-1 border-t-2 border-transparent py-2.5 text-[10.5px] font-medium text-on-dark-dim"
-          >
-            <IconLogout width={22} height={22} />
-            Sign out
-          </button>
-        </form>
+          <IconMore width={22} height={22} />
+          More
+          {moreBadgeTotal > 0 && (
+            <span className="absolute right-[24%] top-1 inline-flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-bad px-1 text-[9.5px] font-bold leading-none tabular-nums text-white">
+              {moreBadgeTotal > 99 ? "99+" : moreBadgeTotal}
+            </span>
+          )}
+        </button>
       </nav>
+
+      <MobileMoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} items={moreItems} />
     </div>
   );
 }
