@@ -7,6 +7,7 @@ const TABS = [
   { key: "overview", label: "Overview" },
   { key: "contacts", label: "Contacts" },
   { key: "activity", label: "Activity" },
+  { key: "bol", label: "BOL" },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
@@ -15,20 +16,25 @@ type TabKey = (typeof TABS)[number]["key"];
  * The company profile's tab bar. A client component so the active tab is
  * local UI state, but every tab's content is handed in as plain, already
  * server-rendered ReactNode props from the profile page (an RSC) — no inline
- * function props crossing the server/client boundary. All three panels stay
+ * function props crossing the server/client boundary. All four panels stay
  * mounted (just hidden) rather than swapping, so client state inside a panel
- * (e.g. the Notes composer) survives switching tabs.
+ * (e.g. the Notes composer, or the BOL uploader's in-flight state) survives
+ * switching tabs.
  */
 export function ProfileTabs({
   overview,
   contacts,
   contactsCount,
   activity,
+  bol,
+  bolCount,
 }: {
   overview: ReactNode;
   contacts: ReactNode;
   contactsCount?: number;
   activity: ReactNode;
+  bol: ReactNode;
+  bolCount?: number;
 }) {
   const [tab, setTab] = useState<TabKey>("overview");
 
@@ -62,6 +68,15 @@ export function ProfileTabs({
                 {contactsCount}
               </span>
             ) : null}
+            {t.key === "bol" && bolCount ? (
+              <span
+                className={`ml-1.5 font-mono tabular-nums ${
+                  tab === t.key ? "text-white/80" : "text-fg-subtle"
+                }`}
+              >
+                {bolCount}
+              </span>
+            ) : null}
           </button>
         ))}
       </div>
@@ -69,6 +84,7 @@ export function ProfileTabs({
       <div className={tab === "overview" ? "space-y-4" : "hidden"}>{overview}</div>
       <div className={tab === "contacts" ? "space-y-4" : "hidden"}>{contacts}</div>
       <div className={tab === "activity" ? "space-y-4" : "hidden"}>{activity}</div>
+      <div className={tab === "bol" ? "space-y-4" : "hidden"}>{bol}</div>
     </div>
   );
 }

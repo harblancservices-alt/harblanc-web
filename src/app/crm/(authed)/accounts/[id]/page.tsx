@@ -18,6 +18,7 @@ import { ActivityTimeline, type CrmActivity } from "./ActivityTimeline";
 import { TasksSection } from "./TasksSection";
 import { LogCallButton } from "./LogCallButton";
 import { type CrmTaskItem } from "../../tasks/TaskRow";
+import { BolSection, type CrmBolDocument } from "./BolSection";
 
 export const dynamic = "force-dynamic";
 
@@ -71,6 +72,7 @@ export default async function AccountDetailPage({
     callsRes,
     activitiesRes,
     tasksRes,
+    documentsRes,
   ] = await Promise.all([
     supabase.from("crm_profiles").select("id, full_name, email, is_active"),
     supabase.from("crm_tags").select("id, label, color").order("label"),
@@ -115,6 +117,14 @@ export default async function AccountDetailPage({
       .order("status", { ascending: true })
       .order("due_at", { ascending: true, nullsFirst: false })
       .order("created_at", { ascending: false }),
+    supabase
+      .from("crm_documents")
+      .select("id, file_name, storage_path, mime_type, size_bytes, created_at, user_id")
+      .eq("account_id", id)
+      .eq("kind", "bol")
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(200),
   ]);
 
   const profiles = (profilesRes.data ?? []) as ProfileRow[];
@@ -206,6 +216,24 @@ export default async function AccountDetailPage({
     reminderAt: c.reminder_at,
     occurredAt: c.occurred_at,
     author: c.user_id ? profileName(profileById.get(c.user_id)) : null,
+  }));
+
+  const documents: CrmBolDocument[] = ((documentsRes.data ?? []) as {
+    id: string;
+    file_name: string;
+    storage_path: string;
+    mime_type: string | null;
+    size_bytes: number | null;
+    created_at: string;
+    user_id: string | null;
+  }[]).map((d) => ({
+    id: d.id,
+    fileName: d.file_name,
+    storagePath: d.storage_path,
+    mimeType: d.mime_type,
+    sizeBytes: d.size_bytes,
+    createdAt: d.created_at,
+    uploaderName: d.user_id ? profileName(profileById.get(d.user_id)) : null,
   }));
 
   const stage = account.lifecycle_status as string;
@@ -381,6 +409,14 @@ export default async function AccountDetailPage({
             <CallsSection accountId={account.id as string} calls={calls} />
           </>
         }
+        bol={
+          <BolSection
+            accountId={account.id as string}
+            orgId={user.orgId}
+            documents={documents}
+          />
+        }
+        bolCount={documents.length}
       />
     </div>
   );
