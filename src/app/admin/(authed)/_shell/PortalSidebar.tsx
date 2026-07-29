@@ -15,6 +15,7 @@ import {
   IconLogout,
   IconMail,
   IconMailPlus,
+  IconReceipt,
   IconRoute,
   IconSettings,
   IconStack,
@@ -86,6 +87,7 @@ const GROUPS: NavGroup[] = [
         label: "Receivables",
         Icon: IconCoins,
       },
+      { href: "/admin/expenses", label: "Expenses", Icon: IconReceipt },
     ],
   },
   {

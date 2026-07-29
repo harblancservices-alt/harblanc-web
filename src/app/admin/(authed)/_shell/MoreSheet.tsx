@@ -12,6 +12,7 @@ import {
   IconFiles,
   IconMail,
   IconMailPlus,
+  IconReceipt,
   IconRoute,
   IconSettings,
   IconWrench,
@@ -78,6 +79,7 @@ const GROUPS: { title: string; items: SheetItem[] }[] = [
         label: "Receivables",
         Icon: IconCoins,
       },
+      { href: "/admin/expenses", label: "Expenses", Icon: IconReceipt },
     ],
   },
   {
