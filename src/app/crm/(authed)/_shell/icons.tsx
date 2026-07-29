@@ -150,6 +150,14 @@ export function IconFieldCapture(props: IconProps) {
   );
 }
 
+export function IconCustomers(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M12 3l2.4 4.86 5.36.78-3.88 3.78.92 5.34L12 15.27l-4.8 2.49.92-5.34L4.24 8.64l5.36-.78L12 3z" />
+    </svg>
+  );
+}
+
 export function IconArrowLeft(props: IconProps) {
   return (
     <svg {...base(props)}>

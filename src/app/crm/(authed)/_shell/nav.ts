@@ -10,6 +10,7 @@ import {
   IconAiAgent,
   IconAiReview,
   IconFieldCapture,
+  IconCustomers,
 } from "./icons";
 
 export type CrmNavItem = {
@@ -39,20 +40,27 @@ export type CrmNavItem = {
  * and React Server Components cannot serialize function props crossing the
  * Server->Client boundary (same class of bug as commit fbfabd7's pipeline/
  * settings render-prop crash). layout.tsx (a Server Component) must pass
- * only plain primitives — role, pendingReviewCount, unclaimedAiLeadsCount —
- * into CrmShell, which calls this itself instead of receiving its output as
- * a prop. Since /crm routes are all force-dynamic and never prerendered at
- * build time, `next build`/`tsc` won't catch a regression here — it only
- * throws on a real request.
+ * only plain primitives — role, pendingReviewCount, unclaimedAiLeadsCount,
+ * customerCount — into CrmShell, which calls this itself instead of
+ * receiving its output as a prop. Since /crm routes are all force-dynamic
+ * and never prerendered at build time, `next build`/`tsc` won't catch a
+ * regression here — it only throws on a real request.
  */
 export function buildCrmNav(
   role: string,
   pendingReviewCount: number,
   unclaimedAiLeadsCount: number,
+  customerCount: number,
 ): CrmNavItem[] {
   const nav: CrmNavItem[] = [
     { href: "/crm", label: "Dashboard", Icon: IconDashboard },
     { href: "/crm/accounts", label: "Companies", Icon: IconCompanies },
+    {
+      href: "/crm/customers",
+      label: "Active Customers",
+      Icon: IconCustomers,
+      badge: customerCount > 0 ? customerCount : undefined,
+    },
     { href: "/crm/contacts", label: "Contacts", Icon: IconContacts },
     {
       href: "/crm/ai-agent",

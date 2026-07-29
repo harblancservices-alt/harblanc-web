@@ -19,6 +19,7 @@ type CrmShellProps = {
   role: string;
   pendingReviewCount: number;
   unclaimedAiLeadsCount: number;
+  customerCount: number;
   children: React.ReactNode;
 };
 
@@ -36,11 +37,12 @@ export function CrmShell({
   role,
   pendingReviewCount,
   unclaimedAiLeadsCount,
+  customerCount,
   children,
 }: CrmShellProps) {
   const pathname = usePathname() ?? "";
   const initial = (fullName || email || "?").trim().charAt(0).toUpperCase();
-  const navItems = buildCrmNav(role, pendingReviewCount, unclaimedAiLeadsCount);
+  const navItems = buildCrmNav(role, pendingReviewCount, unclaimedAiLeadsCount, customerCount);
   const mobileNav = bottomNav(navItems);
   // Everything the bottom bar's 4 fixed slots don't cover (Contacts, AI
   // Agent, Reports, Settings, and — owner-only — AI Review/Field Capture)

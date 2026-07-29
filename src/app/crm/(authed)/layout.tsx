@@ -49,6 +49,14 @@ export default async function CrmAuthedLayout({
     .is("assigned_user_id", null)
     .is("deleted_at", null);
 
+  // Active-customers count for the nav badge — visible to every CRM user
+  // (the tab itself isn't owner-gated), same predicate as /crm/customers.
+  const { count: customerCount } = await supabase
+    .from("crm_accounts")
+    .select("id", { count: "exact", head: true })
+    .eq("lifecycle_status", "customer")
+    .is("deleted_at", null);
+
   return (
     <CrmShell
       email={user.email}
@@ -57,6 +65,7 @@ export default async function CrmAuthedLayout({
       role={user.role}
       pendingReviewCount={pendingReviewCount}
       unclaimedAiLeadsCount={unclaimedAiCount ?? 0}
+      customerCount={customerCount ?? 0}
     >
       {children}
     </CrmShell>
