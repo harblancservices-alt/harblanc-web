@@ -5,6 +5,9 @@ import { ClickableRow } from "../_shell/ClickableRow";
 import { IconContacts } from "../_shell/icons";
 import { formatDateTime } from "../_shell/format";
 import { ContactsSearch } from "./ContactsSearch";
+import { AddContactDialog } from "./AddContactDialog";
+import { ContactRowActions } from "./ContactRowActions";
+import type { CompanyOption } from "./CompanyCombobox";
 
 export const dynamic = "force-dynamic";
 
@@ -82,6 +85,17 @@ export default async function ContactsPage({
     ((accountsData ?? []) as { id: string; name: string }[]).map((a) => [a.id, a.name]),
   );
 
+  // The full org roster (id/name only) for the "Add contact" dialog's company
+  // combobox — fetched once here and handed down as plain data so the client
+  // component can autocomplete locally instead of round-tripping per keystroke.
+  const { data: companyOptionsData } = await supabase
+    .from("crm_accounts")
+    .select("id, name")
+    .is("deleted_at", null)
+    .order("name", { ascending: true })
+    .limit(1000);
+  const companyOptions = (companyOptionsData ?? []) as CompanyOption[];
+
   const searching = q.length > 0;
 
   return (
@@ -93,6 +107,7 @@ export default async function ContactsPage({
           ? `${contacts.length} ${contacts.length === 1 ? "contact" : "contacts"}${searching ? " matched" : ""}`
           : "Decision-makers across your companies."
       }
+      actions={<AddContactDialog companies={companyOptions} />}
     >
       <Card className="p-4">
         <ContactsSearch q={q} />
@@ -106,12 +121,13 @@ export default async function ContactsPage({
             body={
               searching
                 ? "Try a different search, or clear it to see every contact."
-                : "Add contacts from any company profile — they'll all show up here."
+                : "Add your first contact above, or from any company profile."
             }
+            action={searching ? undefined : <AddContactDialog companies={companyOptions} />}
           />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-left text-[13.5px]">
+            <table className="w-full min-w-[820px] text-left text-[13.5px]">
               <thead>
                 <tr className="border-b border-line-strong bg-inset text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
                   <th className="px-5 py-3 font-semibold">Contact</th>
@@ -119,6 +135,7 @@ export default async function ContactsPage({
                   <th className="px-5 py-3 font-semibold">Email</th>
                   <th className="px-5 py-3 font-semibold">Phone</th>
                   <th className="px-5 py-3 font-semibold">Follow-up</th>
+                  <th className="px-5 py-3 font-semibold">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -177,6 +194,17 @@ export default async function ContactsPage({
                       <td className="px-5 py-3 text-fg-muted">
                         {c.next_followup_at ? (
                           formatDateTime(c.next_followup_at)
+                        ) : (
+                          <span className="text-fg-subtle">—</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-3">
+                        {c.account_id ? (
+                          <ContactRowActions
+                            accountId={c.account_id}
+                            contactId={c.id}
+                            contactName={c.name}
+                          />
                         ) : (
                           <span className="text-fg-subtle">—</span>
                         )}

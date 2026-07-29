@@ -67,6 +67,14 @@ type NewAiLead = {
   created_at: string;
 };
 
+type NeedsFinalizeAccount = {
+  id: string;
+  name: string;
+  city: string | null;
+  state: string | null;
+  created_at: string;
+};
+
 /**
  * The CRM "What's next" dashboard — the rep's live work queue. It answers one
  * question: what should I do next? Overdue and due-today work sits up top, then
@@ -104,6 +112,7 @@ export default async function CrmDashboardPage() {
     recentActivityRes,
     openTaskAcctsRes,
     newAiLeadsRes,
+    needsFinalizeRes,
   ] = await Promise.all([
     // KPI: new leads created in the last 7 days.
     supabase
@@ -194,6 +203,17 @@ export default async function CrmDashboardPage() {
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(200),
+    // Quick-created companies (Contacts page "type a new name" path) still
+    // waiting on their full details — the finalize alert. Live/visible
+    // companies, NOT the pending_review AI queue, so this is a separate
+    // predicate from newAiLeadsRes above.
+    supabase
+      .from("crm_accounts")
+      .select("id, name, city, state, created_at")
+      .eq("needs_finalize", true)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(100),
   ]);
 
   const myTasks = (myTasksRes.data ?? []) as TaskRowData[];
@@ -202,6 +222,7 @@ export default async function CrmDashboardPage() {
   const recentAccounts = (recentAccountsRes.data ?? []) as AccountLite[];
   const activeAccounts = (activeAccountsRes.data ?? []) as AccountLite[];
   const newAiLeads = (newAiLeadsRes.data ?? []) as NewAiLead[];
+  const needsFinalizeAccounts = (needsFinalizeRes.data ?? []) as NeedsFinalizeAccount[];
 
   // Resolve company names for the rows that only carry an account_id.
   const nameIds = [
@@ -270,17 +291,18 @@ export default async function CrmDashboardPage() {
   const firstName = (user.fullName || "there").split(" ")[0];
   // Total due-work count — the SAME buckets the queue below renders (overdue
   // tasks + overdue call-backs + due-today tasks + today call-backs + contact
-  // follow-ups + unclaimed released AI leads). Reused for the "What's next"
-  // card bell, its bucket pills and the caught-up state, so the number the
-  // bell shows can never drift from the list underneath it — and there is no
-  // second query for it.
+  // follow-ups + unclaimed released AI leads + companies needing finalize).
+  // Reused for the "What's next" card bell, its bucket pills and the
+  // caught-up state, so the number the bell shows can never drift from the
+  // list underneath it — and there is no second query for it.
   const dueCount =
     overdueTasks.length +
     overdueCallbacks.length +
     dueTodayTasks.length +
     todayCallbacks.length +
     followups.length +
-    newAiLeads.length;
+    newAiLeads.length +
+    needsFinalizeAccounts.length;
   const hasActionable = dueCount > 0;
 
   return (
@@ -333,6 +355,11 @@ export default async function CrmDashboardPage() {
               label="New leads"
               count={newAiLeads.length}
               tone="bg-steel-bg text-steel"
+            />
+            <DuePill
+              label="Finalize company"
+              count={needsFinalizeAccounts.length}
+              tone="bg-warn-bg text-warn"
             />
           </div>
         ) : (
@@ -430,6 +457,22 @@ export default async function CrmDashboardPage() {
           <ul className="divide-y divide-line-strong">
             {newAiLeads.map((l) => (
               <NewAiLeadRow key={l.id} lead={l} />
+            ))}
+          </ul>
+        </Card>
+      )}
+
+      {/* Finalize company — quick-created companies (Contacts page's "type a
+          new name" combobox path) still waiting on their full details. */}
+      {needsFinalizeAccounts.length > 0 && (
+        <Card>
+          <CardHead
+            title="Finalize company (add more info)"
+            hint={`${needsFinalizeAccounts.length} quick-added, missing details`}
+          />
+          <ul className="divide-y divide-line-strong">
+            {needsFinalizeAccounts.map((a) => (
+              <NeedsFinalizeRow key={a.id} account={a} />
             ))}
           </ul>
         </Card>
@@ -612,6 +655,27 @@ function NewAiLeadRow({ lead }: { lead: NewAiLead }) {
         </div>
         <span className="inline-flex shrink-0 items-center rounded-full bg-steel-bg px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-steel">
           New
+        </span>
+      </Link>
+    </li>
+  );
+}
+
+function NeedsFinalizeRow({ account }: { account: NeedsFinalizeAccount }) {
+  const location = [account.city, account.state].filter(Boolean).join(", ");
+  return (
+    <li>
+      <Link
+        href={`/crm/accounts/${account.id}`}
+        prefetch={false}
+        className="flex items-center justify-between gap-3 px-5 py-3.5 transition-colors hover:bg-inset"
+      >
+        <div className="min-w-0">
+          <p className="truncate text-[14px] font-semibold text-fg">{account.name}</p>
+          <p className="mt-0.5 truncate text-[12px] text-fg-subtle">{location || "No location on file"}</p>
+        </div>
+        <span className="inline-flex shrink-0 items-center rounded-full bg-warn-bg px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-warn">
+          Needs info
         </span>
       </Link>
     </li>

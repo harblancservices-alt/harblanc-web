@@ -7,6 +7,7 @@ import { ProfileTabs } from "./ProfileTabs";
 import { stageLabel, stageTone } from "../lifecycle";
 import type { RepOption } from "../CompanyDialog";
 import { EditCompany } from "./EditCompany";
+import { FinalizeBanner } from "./FinalizeBanner";
 import { LifecycleControl } from "./LifecycleControl";
 import { RepControl } from "./RepControl";
 import { TagEditor, type CrmTag } from "./TagEditor";
@@ -52,7 +53,7 @@ export default async function AccountDetailPage({
   const { data: account } = await supabase
     .from("crm_accounts")
     .select(
-      "id, name, industry, website, phone, address, city, state, zip, company_size, annual_freight_spend, revenue_potential, source, lifecycle_status, assigned_user_id, primary_contact_id, created_at",
+      "id, name, industry, website, phone, address, city, state, zip, company_size, annual_freight_spend, revenue_potential, source, lifecycle_status, assigned_user_id, primary_contact_id, needs_finalize, created_at",
     )
     .eq("id", id)
     .is("deleted_at", null)
@@ -234,6 +235,8 @@ export default async function AccountDetailPage({
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6 sm:py-6">
+      {account.needs_finalize && <FinalizeBanner defaults={editDefaults} reps={reps} />}
+
       {/* Header masthead */}
       <div className="mb-4 rounded-2xl bg-graphite px-5 py-5 shadow-e2">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">

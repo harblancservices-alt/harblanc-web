@@ -113,7 +113,10 @@ export async function createAccount(
 /**
  * Update every editable field on a company. If the lifecycle stage moves as
  * part of the edit, that change is logged too (the edit form is one of the two
- * ways a stage can change).
+ * ways a stage can change). Always clears needs_finalize — this is the ONLY
+ * write path behind the full CompanyDialog edit form, so a save here is
+ * exactly the "someone filled the rest in" signal the finalize alert (the
+ * dashboard's "Finalize company" queue + the profile banner) is waiting for.
  */
 export async function updateAccount(
   id: string,
@@ -144,6 +147,7 @@ export async function updateAccount(
       ...fields,
       lifecycle_status: nextStage,
       ...(assigned !== null ? { assigned_user_id: assigned } : {}),
+      needs_finalize: false,
     })
     .eq("id", id);
 
