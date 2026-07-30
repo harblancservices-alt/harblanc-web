@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { buildCrmNav, bottomNav, moreNav, isActive } from "./nav";
 import { IconLogout, IconMore } from "./icons";
 import { MobileMoreSheet } from "./MobileMoreSheet";
+import { ActivityTracker } from "./ActivityTracker";
 
 type CrmShellProps = {
   email: string;
@@ -54,6 +55,9 @@ export function CrmShell({
 
   return (
     <div className="crm-light min-h-screen bg-canvas text-fg">
+      {/* Silent, owner-only-visible activity logging — renders nothing. */}
+      <ActivityTracker />
+
       {/* Desktop sticky top bar */}
       <header className="sticky top-0 z-30 hidden h-14 items-center justify-between border-b border-line bg-panel px-5 lg:flex">
         <BrandMark />

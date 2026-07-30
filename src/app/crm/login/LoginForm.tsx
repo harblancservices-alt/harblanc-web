@@ -51,7 +51,7 @@ export function LoginForm() {
     // their own crm_profiles row; a non-member reads nothing.
     const { data: profile } = await supabase
       .from("crm_profiles")
-      .select("id, is_active")
+      .select("id, org_id, is_active")
       .eq("id", data.user.id)
       .maybeSingle();
 
@@ -60,6 +60,23 @@ export function LoginForm() {
       setError("This account doesn't have Hello Hotshot CRM access.");
       setSubmitting(false);
       return;
+    }
+
+    // Silent login logging for the owner-only activity view — inserted
+    // directly via this same browser client (its session is what makes
+    // crm_user_events' with_check user_id = auth.uid() pass) rather than a
+    // server action, since a server action's cookie-based client wouldn't
+    // reliably see this session yet on the very same round trip. Best-effort:
+    // a failure here must never block sign-in.
+    try {
+      await supabase.from("crm_user_events").insert({
+        org_id: profile.org_id,
+        user_id: data.user.id,
+        kind: "login",
+        label: "Logged in",
+      });
+    } catch {
+      // Silent by design.
     }
 
     // Full page navigation so middleware re-reads the freshly set session

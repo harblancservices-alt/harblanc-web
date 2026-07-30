@@ -1,6 +1,7 @@
+import Link from "next/link";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { PageShell, Card, CardHead } from "../_shell/ui";
-import { firstName } from "../_shell/format";
+import { firstName, formatDateTime } from "../_shell/format";
 import { MemberEditButton } from "./MemberEditButton";
 
 export const dynamic = "force-dynamic";
@@ -51,6 +52,24 @@ export default async function SettingsPage() {
 
   const isAdmin = user.role === "owner";
   const me = members.find((m) => m.id === user.id);
+
+  // "Last seen" per member — owner-only, so this extra query never runs for
+  // regular members (mirroring the pendingReviewCount pattern in layout.tsx).
+  // crm_user_events has no per-member aggregate to query directly, so this
+  // reads the org's most recent events newest-first and keeps the first
+  // (= latest) occurrence per user_id — same "first-seen wins" reduction
+  // ai-review/page.tsx uses for its most-recent-pinned-note lookup.
+  const lastSeenByUser = new Map<string, string>();
+  if (isAdmin) {
+    const { data: recentEvents } = await supabase
+      .from("crm_user_events")
+      .select("user_id, created_at")
+      .order("created_at", { ascending: false })
+      .limit(1000);
+    for (const e of (recentEvents ?? []) as { user_id: string; created_at: string }[]) {
+      if (!lastSeenByUser.has(e.user_id)) lastSeenByUser.set(e.user_id, e.created_at);
+    }
+  }
 
   return (
     <PageShell
@@ -116,17 +135,34 @@ export default async function SettingsPage() {
                     <p className="truncate text-[12.5px] text-fg-muted">
                       {m.title || "No title"} · {m.email || "—"}
                     </p>
+                    {isAdmin && (
+                      <p className="mt-0.5 truncate text-[11.5px] text-fg-subtle">
+                        Last seen:{" "}
+                        {lastSeenByUser.has(m.id)
+                          ? formatDateTime(lastSeenByUser.get(m.id))
+                          : "Never"}
+                      </p>
+                    )}
                   </div>
                   {isAdmin && (
-                    <MemberEditButton
-                      member={{
-                        id: m.id,
-                        full_name: m.full_name,
-                        title: m.title,
-                        is_active: m.is_active,
-                      }}
-                      isSelf={isSelf}
-                    />
+                    <div className="flex shrink-0 items-center gap-1">
+                      <Link
+                        href={`/crm/settings/activity/${m.id}`}
+                        prefetch={false}
+                        className="rounded-md px-2.5 py-1.5 text-[12px] font-semibold text-fg-subtle transition-colors hover:bg-inset hover:text-fg"
+                      >
+                        Activity
+                      </Link>
+                      <MemberEditButton
+                        member={{
+                          id: m.id,
+                          full_name: m.full_name,
+                          title: m.title,
+                          is_active: m.is_active,
+                        }}
+                        isSelf={isSelf}
+                      />
+                    </div>
                   )}
                 </li>
               );
