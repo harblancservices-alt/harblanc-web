@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { blockedByDemo } from "@/lib/admin/demo";
-import { isFrequency } from "./types";
+import { isDayOfWeek, isFrequency } from "./types";
 
 /**
  * Recurring expenses — a manual log of monthly-ish charges (insurance, truck
@@ -43,6 +43,12 @@ function dayOfMonthOrNull(raw: string | null): number | null {
   return rounded;
 }
 
+/** A full weekday name ("Sunday".."Saturday"). Null when blank/invalid. */
+function dayOfWeekOrNull(raw: string | null): string | null {
+  if (!raw) return null;
+  return isDayOfWeek(raw) ? raw : null;
+}
+
 type ExpenseFields = {
   name: string;
   category: string | null;
@@ -50,6 +56,7 @@ type ExpenseFields = {
   amount: number;
   frequency: string;
   dayOfMonth: number | null;
+  dayOfWeek: string | null;
   card: string | null;
   autopay: boolean;
   notes: string | null;
@@ -62,13 +69,17 @@ function parseFields(fd: FormData): ExpenseFields {
   if (amount == null) throw new Error("Enter a valid amount.");
   const frequencyRaw = str(fd, "frequency") ?? "monthly";
   const frequency = isFrequency(frequencyRaw) ? frequencyRaw : "monthly";
+  // Weekly charges pick a weekday; every other cadence picks a day-of-month.
+  // Never persist both — the unused one is always cleared.
+  const isWeekly = frequency === "weekly";
   return {
     name,
     category: str(fd, "category"),
     vendor: str(fd, "vendor"),
     amount,
     frequency,
-    dayOfMonth: dayOfMonthOrNull(str(fd, "day_of_month")),
+    dayOfMonth: isWeekly ? null : dayOfMonthOrNull(str(fd, "day_of_month")),
+    dayOfWeek: isWeekly ? dayOfWeekOrNull(str(fd, "day_of_week")) : null,
     card: str(fd, "card"),
     autopay: bool(fd, "autopay"),
     notes: str(fd, "notes"),
@@ -86,6 +97,7 @@ export async function createExpense(formData: FormData): Promise<void> {
     amount: f.amount,
     frequency: f.frequency,
     day_of_month: f.dayOfMonth,
+    day_of_week: f.dayOfWeek,
     card: f.card,
     autopay: f.autopay,
     notes: f.notes,
@@ -111,6 +123,7 @@ export async function updateExpense(
       amount: f.amount,
       frequency: f.frequency,
       day_of_month: f.dayOfMonth,
+      day_of_week: f.dayOfWeek,
       card: f.card,
       autopay: f.autopay,
       notes: f.notes,

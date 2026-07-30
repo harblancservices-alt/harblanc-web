@@ -7,7 +7,12 @@ import { StatusTag } from "@/components/ui/StatusTag";
 import { DeleteExpenseButton } from "./DeleteExpenseButton";
 import { ExpenseAccountsDialog } from "./ExpenseAccountsDialog";
 import { ExpenseFormDialog } from "./ExpenseFormDialog";
-import { FREQUENCY_LABEL, ordinal, type ExpenseItem, type ExpensesData } from "./types";
+import {
+  chargeScheduleLabel,
+  FREQUENCY_LABEL,
+  type ExpenseItem,
+  type ExpensesData,
+} from "./types";
 
 export function ExpensesView({ data }: { data: ExpensesData }) {
   const [dialog, setDialog] = useState<"new" | ExpenseItem | null>(null);
@@ -110,11 +115,7 @@ function ExpenseCard({
             </StatusTag>
           </div>
           <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] text-fg-subtle">
-            <span>
-              {e.dayOfMonth != null
-                ? `Charges on the ${ordinal(e.dayOfMonth)}`
-                : "No charge date set"}
-            </span>
+            <span>{chargeScheduleLabel(e)}</span>
             <span>· {FREQUENCY_LABEL[e.frequency]}</span>
             {e.card ? <span>· {e.card}</span> : null}
             {e.vendor ? <span>· {e.vendor}</span> : null}

@@ -30,6 +30,7 @@ type ExpenseRow = {
   amount: number | string | null;
   frequency: string | null;
   day_of_month: number | null;
+  day_of_week: string | null;
   card: string | null;
   autopay: boolean | null;
   notes: string | null;
@@ -49,7 +50,7 @@ async function loadExpenses(): Promise<ExpensesData> {
     sb
       .from("recurring_expenses")
       .select(
-        "id, name, category, vendor, amount, frequency, day_of_month, card, autopay, notes",
+        "id, name, category, vendor, amount, frequency, day_of_month, day_of_week, card, autopay, notes",
       )
       .is("deleted_at", null)
       .returns<ExpenseRow[]>(),
@@ -74,6 +75,7 @@ async function loadExpenses(): Promise<ExpensesData> {
       amount,
       frequency,
       dayOfMonth: r.day_of_month,
+      dayOfWeek: r.day_of_week,
       card: r.card,
       autopay: r.autopay ?? true,
       notes: r.notes,

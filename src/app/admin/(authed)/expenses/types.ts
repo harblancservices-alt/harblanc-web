@@ -85,6 +85,21 @@ export const CATEGORY_PRESETS = [
   "Miscellaneous",
 ] as const;
 
+export const DAYS_OF_WEEK = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+] as const;
+export type DayOfWeek = (typeof DAYS_OF_WEEK)[number];
+
+export function isDayOfWeek(v: string): v is DayOfWeek {
+  return (DAYS_OF_WEEK as readonly string[]).includes(v);
+}
+
 export type ExpenseItem = {
   id: string;
   name: string;
@@ -93,11 +108,24 @@ export type ExpenseItem = {
   amount: number;
   frequency: Frequency;
   dayOfMonth: number | null;
+  dayOfWeek: string | null;
   card: string | null;
   autopay: boolean;
   notes: string | null;
   monthlyAmount: number;
 };
+
+/** "the 15th" / "every Friday" / a fallback when nothing's set. */
+export function chargeScheduleLabel(
+  e: Pick<ExpenseItem, "frequency" | "dayOfMonth" | "dayOfWeek">,
+): string {
+  if (e.frequency === "weekly") {
+    return e.dayOfWeek ? `Every ${e.dayOfWeek}` : "No day set";
+  }
+  return e.dayOfMonth != null
+    ? `Charges on the ${ordinal(e.dayOfMonth)}`
+    : "No charge date set";
+}
 
 export type CategoryBreakdown = { label: string; total: number };
 export type CardBreakdown = { label: string; total: number };

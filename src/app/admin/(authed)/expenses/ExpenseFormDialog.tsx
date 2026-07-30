@@ -6,10 +6,13 @@ import { field } from "@/components/ui/styles";
 import { createExpense, createExpenseAccount, updateExpense } from "./actions";
 import {
   CATEGORY_PRESETS,
+  DAYS_OF_WEEK,
   FREQUENCIES,
   FREQUENCY_LABEL,
+  isFrequency,
   type ExpenseAccount,
   type ExpenseItem,
+  type Frequency,
 } from "./types";
 
 const ADD_CARD_VALUE = "__add__";
@@ -28,6 +31,7 @@ export function ExpenseFormDialog({
 }) {
   const isEdit = !!expense;
 
+  const [frequency, setFrequency] = useState<Frequency>(expense?.frequency ?? "monthly");
   const [accounts, setAccounts] = useState<ExpenseAccount[]>(initialAccounts);
   const [selectedCard, setSelectedCard] = useState(expense?.card ?? "");
   const [addingCard, setAddingCard] = useState(accounts.length === 0);
@@ -170,7 +174,10 @@ export function ExpenseFormDialog({
                 <label className={field.label}>Frequency</label>
                 <select
                   name="frequency"
-                  defaultValue={expense?.frequency ?? "monthly"}
+                  value={frequency}
+                  onChange={(e) => {
+                    if (isFrequency(e.target.value)) setFrequency(e.target.value);
+                  }}
                   className={field.select}
                 >
                   {FREQUENCIES.map((f) => (
@@ -194,19 +201,37 @@ export function ExpenseFormDialog({
                   className={field.input}
                 />
               </div>
-              <div>
-                <label className={field.label}>Charges on</label>
-                <input
-                  name="day_of_month"
-                  type="number"
-                  min={1}
-                  max={31}
-                  defaultValue={expense?.dayOfMonth ?? ""}
-                  autoComplete="off"
-                  placeholder="Day (1–31)"
-                  className={field.input + " tabular-nums"}
-                />
-              </div>
+              {frequency === "weekly" ? (
+                <div>
+                  <label className={field.label}>Day of week</label>
+                  <select
+                    name="day_of_week"
+                    defaultValue={expense?.dayOfWeek ?? ""}
+                    className={field.select}
+                  >
+                    <option value="">No day set</option>
+                    {DAYS_OF_WEEK.map((d) => (
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <div>
+                  <label className={field.label}>Charges on</label>
+                  <input
+                    name="day_of_month"
+                    type="number"
+                    min={1}
+                    max={31}
+                    defaultValue={expense?.dayOfMonth ?? ""}
+                    autoComplete="off"
+                    placeholder="Day (1–31)"
+                    className={field.input + " tabular-nums"}
+                  />
+                </div>
+              )}
             </div>
 
             <div>
