@@ -67,7 +67,7 @@ const STATUS_LABEL: Record<string, string> = {
   assigned: "Rolling",
   loaded: "Loaded",
   delivered: "Delivered",
-  cancelled: "Cancelled",
+  tonu: "Cancelled / TONU",
 };
 
 export default async function LoadDetailPage({
@@ -269,9 +269,9 @@ export default async function LoadDetailPage({
     .map((b) => b.name?.trim() ?? "")
     .filter((n) => n.length > 0);
 
-  const isCancelled = load.status === "cancelled";
-  // A cancelled load earns nothing — except a TONU fee, which becomes its
-  // revenue. Active loads earn their rate.
+  const isCancelled = load.status === "tonu";
+  // A cancelled/TONU load earns nothing — except a TONU fee, which becomes
+  // its revenue. Active loads earn their rate.
   const rate = isCancelled ? num(load.tonu_amount) : num(load.rate);
   const mileage = loadDiesel(
     {

@@ -49,6 +49,11 @@ export const dynamic = "force-dynamic";
  * brokers' factoring flag, and the dispatch settings. NO new tables, no
  * materialized rollup: this page is a read.
  *
+ * SCOPE: every non-deleted load, not just delivered ones — pending/assigned/
+ * loaded loads count toward the numbers with their booked rate, and a TONU
+ * ('tonu' status) load counts its tonu_amount instead. See the loads.map
+ * below for the TONU branch.
+ *
  * The costing below is a deliberate mirror of the load board's server page:
  * same loadDiesel → loadNet pipeline, same factoring-broker gate, same
  * goal-month attribution. That's the point — if this page's July net didn't
@@ -66,6 +71,7 @@ type LoadRowDB = {
   pickup_date: string | null;
   delivery_date: string | null;
   rate: number | string | null;
+  tonu_amount: number | string | null;
   loaded_miles: number | null;
   odo_assigned: number | null;
   odo_loaded: number | null;
@@ -93,10 +99,9 @@ async function performanceData(): Promise<PerformanceData> {
       sb
         .from("loads")
         .select(
-          "id, broker_name, broker_id, origin, destination, pickup_date, delivery_date, rate, loaded_miles, odo_assigned, odo_loaded, odo_delivered, status, payment_status, paid_at, created_at",
+          "id, broker_name, broker_id, origin, destination, pickup_date, delivery_date, rate, tonu_amount, loaded_miles, odo_assigned, odo_loaded, odo_delivered, status, payment_status, paid_at, created_at",
         )
         .is("deleted_at", null)
-        .eq("status", "delivered")
         .returns<LoadRowDB[]>(),
       sb
         .from("dispatch_settings")
@@ -144,6 +149,31 @@ async function performanceData(): Promise<PerformanceData> {
   }
 
   const loads: PerfLoad[] = (rows ?? []).map((l) => {
+    const attributed = goalMonthParts(closeOutDate(l));
+    const base = {
+      id: l.id,
+      year: attributed?.year ?? -1,
+      month: attributed?.month ?? -1,
+      broker: l.broker_name?.trim() || "Unknown broker",
+      origin: l.origin?.trim() || "",
+      destination: l.destination?.trim() || "",
+      deliveryDate: l.delivery_date,
+      // Only a load that is actually marked paid contributes a pay date —
+      // a stray paid_at on an unpaid row would otherwise shorten days-to-pay.
+      paidAt: l.payment_status === "paid" ? l.paid_at : null,
+    };
+
+    if (l.status === "tonu") {
+      // TONU: the truck never rolled, so no diesel and no miles — revenue is
+      // the flat fee, and it takes the same factoring cut every load can, run
+      // through the SAME factoringFee/loadNet path (not a hardcoded rate).
+      // Applied regardless of the broker's factoring flag — the owner's call
+      // ("tonu fee -3% of course"), unlike the normal factoring-broker gate.
+      const rate = num(l.tonu_amount);
+      const { net } = loadNet({ rate, diesel: 0, expensesTotal: 0 }, fuel, true);
+      return { ...base, rate, net, loadedMiles: 0, deadheadMiles: 0 };
+    }
+
     const rate = num(l.rate);
     const md = loadDiesel(
       {
@@ -159,22 +189,12 @@ async function performanceData(): Promise<PerformanceData> {
       fuel,
       l.broker_id != null && factoringIds.has(l.broker_id),
     );
-    const attributed = goalMonthParts(closeOutDate(l));
     return {
-      id: l.id,
+      ...base,
       rate,
       net,
       loadedMiles: md.loaded ?? 0,
       deadheadMiles: md.deadhead ?? 0,
-      year: attributed?.year ?? -1,
-      month: attributed?.month ?? -1,
-      broker: l.broker_name?.trim() || "Unknown broker",
-      origin: l.origin?.trim() || "",
-      destination: l.destination?.trim() || "",
-      deliveryDate: l.delivery_date,
-      // Only a load that is actually marked paid contributes a pay date —
-      // a stray paid_at on an unpaid row would otherwise shorten days-to-pay.
-      paidAt: l.payment_status === "paid" ? l.paid_at : null,
     };
   });
 
@@ -214,11 +234,20 @@ async function performanceData(): Promise<PerformanceData> {
     brokers: brokerStats(loads, 50),
     lanes: laneStats(loads, 50),
     deadhead: deadheadSplit(loads),
-    // A/R is the RATE still owed on delivered-but-unpaid loads — the same
-    // definition the load board and the receivables page use.
+    // A/R is money owed on WORK THAT HAPPENED — delivered loads (rate) and
+    // unpaid TONU loads (tonu_amount) — never a pending/booked-not-yet-run
+    // load, which hasn't been invoiced. Same definition the load board and
+    // the receivables page use for delivered loads.
     arTotal: (rows ?? [])
-      .filter((l) => l.payment_status !== "paid")
-      .reduce((s, l) => s + num(l.rate), 0),
+      .filter(
+        (l) =>
+          (l.status === "delivered" || l.status === "tonu") &&
+          l.payment_status !== "paid",
+      )
+      .reduce(
+        (s, l) => s + (l.status === "tonu" ? num(l.tonu_amount) : num(l.rate)),
+        0,
+      ),
   };
 }
 

@@ -96,7 +96,7 @@ export function computeTripFinancials(
   expByLoad: Map<string, number>,
   tripOdometer?: { start: number | null; end: number | null },
 ): TripFinancials {
-  const live = loads.filter((l) => l.status !== "cancelled");
+  const live = loads.filter((l) => l.status !== "tonu");
 
   let gross = 0;
   let loadNetSum = 0; // sum of per-load nets (before PC)

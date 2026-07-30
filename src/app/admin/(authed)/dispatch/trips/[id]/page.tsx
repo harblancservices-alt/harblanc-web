@@ -79,14 +79,14 @@ const STATUS_TONE: Record<string, StatusTone> = {
   assigned: "amber",
   loaded: "steel",
   delivered: "green",
-  cancelled: "slate",
+  tonu: "slate",
 };
 const STATUS_LABEL: Record<string, string> = {
   pending: "Pending",
   assigned: "Rolling",
   loaded: "Loaded",
   delivered: "Delivered",
-  cancelled: "Cancelled",
+  tonu: "Cancelled / TONU",
 };
 
 /**

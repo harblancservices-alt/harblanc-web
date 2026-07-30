@@ -45,7 +45,7 @@ const STATUSES = new Set([
   "assigned",
   "loaded",
   "delivered",
-  "cancelled",
+  "tonu",
 ]);
 
 /** Which odometer column a stage transition records, if any. */
@@ -386,8 +386,8 @@ export async function updateLoadStatus(
  * odometer stage lines (assigned / loaded / delivered) are the load's status —
  * there's no separate status dropdown — so the status is derived here as the
  * highest stage that has a reading: delivered → "delivered", else loaded →
- * "loaded", else assigned → "assigned", else "pending". A cancelled load is
- * left cancelled (cancellation has its own flow). Blank clears a reading;
+ * "loaded", else assigned → "assigned", else "pending". A TONU'd load is left
+ * as-is (cancellation has its own flow). Blank clears a reading;
  * present values must climb (assigned ≤ loaded ≤ delivered).
  *
  * RETURNS a result rather than throwing on a bad entry. A server action that
@@ -439,7 +439,7 @@ export async function updateLoadOdometers(
   const derivedStatus =
     d != null ? "delivered" : l != null ? "loaded" : a != null ? "assigned" : "pending";
 
-  // Don't flip a cancelled load back to an active status.
+  // Don't flip a TONU'd load back to an active status.
   const { data: cur } = await sb
     .from("loads")
     .select("status")
@@ -452,7 +452,7 @@ export async function updateLoadOdometers(
     odo_loaded: l,
     odo_delivered: d,
   };
-  if (cur?.status !== "cancelled") patch.status = derivedStatus;
+  if (cur?.status !== "tonu") patch.status = derivedStatus;
 
   const { error } = await sb
     .from("loads")
@@ -548,8 +548,9 @@ export async function deleteLoadExpense(
 }
 
 /**
- * Cancel a load. Mode "tonu" (truck ordered, not used) records a TONU fee
- * ($150 default) as the load's revenue; plain "cancel" zeroes it out.
+ * Cancel a load — status "tonu" ("Cancelled / TONU"). Mode "tonu" (truck
+ * ordered, not used) records a TONU fee ($150 default) as the load's revenue;
+ * plain "cancel" records a $0 fee, so it contributes nothing.
  */
 export async function cancelLoad(
   id: string,
@@ -558,11 +559,10 @@ export async function cancelLoad(
   if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   const sb = createServiceRoleClient();
   const mode = str(formData, "mode");
-  const tonu =
-    mode === "tonu" ? (numOrNull(formData, "tonu_amount") ?? 150) : null;
+  const tonu = mode === "tonu" ? (numOrNull(formData, "tonu_amount") ?? 150) : 0;
   const { error } = await sb
     .from("loads")
-    .update({ status: "cancelled", tonu_amount: tonu })
+    .update({ status: "tonu", tonu_amount: tonu })
     .eq("id", id)
     .is("deleted_at", null);
   if (error) throw new Error(`Could not cancel load: ${error.message}`);

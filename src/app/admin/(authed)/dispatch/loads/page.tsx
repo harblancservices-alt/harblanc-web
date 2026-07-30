@@ -160,8 +160,8 @@ async function loadBoard(): Promise<LoadBoardData> {
   const daysInMonth = new Date(Date.UTC(tYear, tMonth, 0)).getUTCDate();
 
   const rows = (data ?? []).map((l) => {
-    const cancelled = l.status === "cancelled";
-    // A cancelled load earns only a TONU fee (if any); otherwise its rate.
+    const cancelled = l.status === "tonu";
+    // A cancelled/TONU load earns only its TONU fee (if any); otherwise its rate.
     const rate = cancelled ? num(l.tonu_amount) : num(l.rate);
     const md = loadDiesel(
       {

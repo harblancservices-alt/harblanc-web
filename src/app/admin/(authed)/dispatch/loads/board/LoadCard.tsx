@@ -114,7 +114,7 @@ export function LoadCard({
         </div>
 
         {/* ── Shipment timeline ─────────────────────────────────────────── */}
-        <Timeline stage={stage} cancelled={r.status === "cancelled"} />
+        <Timeline stage={stage} cancelled={r.status === "tonu"} />
 
         {/* ── More: the columns the old board's table carried that the card
             doesn't show at rest. Kept off-screen until asked for rather than

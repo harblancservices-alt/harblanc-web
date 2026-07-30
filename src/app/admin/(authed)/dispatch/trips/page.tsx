@@ -70,7 +70,7 @@ function fmtDay(iso: string, withYear: boolean): string {
  */
 function tripDateLabel(loads: LoadAgg[], createdAt: string): string {
   const days = loads
-    .filter((l) => l.status !== "cancelled" && l.delivery_date)
+    .filter((l) => l.status !== "tonu" && l.delivery_date)
     .map((l) => l.delivery_date as string)
     .sort();
   if (days.length === 0) return "Created " + fmtDay(createdAt, true);

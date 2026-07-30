@@ -5,7 +5,7 @@ import type { LoadRow } from "../LoadBoardView";
  *
  * Everything here is a pure function of a row the SERVER already computed —
  * `net` is the canonical per-load net (loadNet), `rate` already accounts for a
- * cancelled load earning only its TONU. Nothing in this module does money math
+ * cancelled/TONU load earning only its TONU fee. Nothing in this module does money math
  * beyond ratios (margin, revenue-per-mile) drawn from those two figures.
  *
  * THEME SAFETY (the rule the Receivables screen established, f436561): the
@@ -81,7 +81,7 @@ export type BadgeKey =
   | "delivered"
   | "invoiced"
   | "paid"
-  | "cancelled";
+  | "tonu";
 
 export const BADGE: Record<BadgeKey, { label: string; pill: string }> = {
   pending: { label: "Pending", pill: "bg-slate-bg text-slate" },
@@ -92,11 +92,11 @@ export const BADGE: Record<BadgeKey, { label: string; pill: string }> = {
   // The one solid fill in the set. Paid is the terminal state and has to
   // out-weigh Delivered's green tint; a second tint would read as a peer.
   paid: { label: "Paid", pill: "bg-graphite text-white" },
-  cancelled: { label: "Cancelled", pill: "bg-slate-bg text-slate" },
+  tonu: { label: "TONU", pill: "bg-slate-bg text-slate" },
 };
 
 export function badgeOf(r: LoadRow): BadgeKey {
-  if (r.status === "cancelled") return "cancelled";
+  if (r.status === "tonu") return "tonu";
   if (r.paymentStatus === "paid") return "paid";
   if (r.paymentStatus === "invoiced") return "invoiced";
   if (r.status === "delivered") return "delivered";
@@ -131,11 +131,11 @@ export const STAGES = [
  *   delivered, unpaid → Invoice   (the haul is done; the money isn't)
  *   paid              → Paid      (terminal — the whole line is complete)
  *
- * A cancelled load never rolled, so it sits at Pickup and the tracker greys
- * out entirely rather than claiming progress that didn't happen.
+ * A cancelled/TONU load never rolled, so it sits at Pickup and the tracker
+ * greys out entirely rather than claiming progress that didn't happen.
  */
 export function stageOf(r: LoadRow): number {
-  if (r.status === "cancelled") return 0;
+  if (r.status === "tonu") return 0;
   if (r.paymentStatus === "paid") return 5;
   if (r.status === "delivered") return 4;
   if (r.status === "loaded") return 2;

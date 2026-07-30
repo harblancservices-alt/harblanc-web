@@ -147,12 +147,12 @@ export default async function BrokerDetailPage({
 
   const loads = loadRows ?? [];
   const contacts = contactRows ?? [];
-  const live = loads.filter((l) => l.status !== "cancelled");
+  const live = loads.filter((l) => l.status !== "tonu");
   const delivered = loads.filter((l) => l.status === "delivered");
   const activeCount = loads.filter(
     (l) => l.status === "pending" || l.status === "assigned" || l.status === "loaded",
   ).length;
-  const cancelled = loads.filter((l) => l.status === "cancelled").length;
+  const cancelled = loads.filter((l) => l.status === "tonu").length;
 
   const fuel: FuelSettings = {
     mpg: num(fuelRow?.mpg ?? null) || FUEL_DEFAULTS.mpg,
@@ -170,10 +170,10 @@ export default async function BrokerDetailPage({
 
   // Per-load net via the canonical fuel math — the same calc the Load Board,
   // trip cards, and the calendar's weekly net run, so a load's net reads
-  // identically wherever it appears. A cancelled load earns only its TONU,
-  // with no miles burned against it.
+  // identically wherever it appears. A cancelled/TONU load earns only its
+  // TONU fee, with no miles burned against it.
   const netOf = (l: LoadRow) => {
-    if (l.status === "cancelled") return num(l.tonu_amount);
+    if (l.status === "tonu") return num(l.tonu_amount);
     const md = loadDiesel(
       {
         odoAssigned: l.odo_assigned,

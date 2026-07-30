@@ -52,7 +52,7 @@ async function realBrokerList(): Promise<BrokerListItem[]> {
     if (!l.broker_id) continue;
     const a = agg.get(l.broker_id) ?? { loads: 0, gross: 0, ar: 0 };
     a.loads += 1;
-    if (l.status !== "cancelled") a.gross += num(l.rate);
+    if (l.status !== "tonu") a.gross += num(l.rate);
     if (l.status === "delivered" && l.payment_status !== "paid")
       a.ar += num(l.rate);
     agg.set(l.broker_id, a);

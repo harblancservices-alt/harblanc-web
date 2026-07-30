@@ -19,15 +19,17 @@
 import { usd, rpm } from "./format";
 
 /**
- * One delivered load, pre-costed by the server.
+ * One load, pre-costed by the server — every non-deleted load, not just
+ * delivered ones (a pending/booked load counts its rate too).
  *
  * `loadedMiles` / `deadheadMiles` are the segments `loadDiesel` derived from
  * odometer readings (falling back to the stored ZIP-route estimate for the
- * loaded leg), already coerced to 0 when a reading was missing.
+ * loaded leg), already coerced to 0 when a reading was missing. Both are 0 for
+ * a TONU load — it never rolled.
  */
 export type PerfLoad = {
   id: string;
-  /** Gross revenue: the load's rate (TONU for a cancelled load). */
+  /** Gross revenue: the load's rate, or its TONU fee for a 'tonu'-status load. */
   rate: number;
   /** Fuel-adjusted take-home from `loadNet` — rate − diesel − factoring − expenses. */
   net: number;

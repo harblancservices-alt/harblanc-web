@@ -263,7 +263,7 @@ export function AddLoadModal({
               <option value="assigned">Rolling to pickup</option>
               <option value="loaded">Loaded</option>
               <option value="delivered">Delivered</option>
-              <option value="cancelled">Cancelled</option>
+              <option value="tonu">Cancelled / TONU</option>
             </select>
           </div>
 

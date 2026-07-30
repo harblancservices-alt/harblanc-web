@@ -147,7 +147,7 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
   // used, kept here so the cards react to the month dropdown).
   const stats = useMemo(() => {
     const delivered = monthRows.filter((x) => x.status === "delivered");
-    const live = monthRows.filter((x) => x.status !== "cancelled");
+    const live = monthRows.filter((x) => x.status !== "tonu");
     const gross = monthRows.reduce((s, x) => s + x.rate, 0);
     const net = monthRows.reduce((s, x) => s + x.net, 0);
     // A/R is intentionally NOT here — it's all-time (data.arTotal), not scoped

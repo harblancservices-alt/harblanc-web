@@ -12,7 +12,7 @@ const factoringIds = new Set<string>([B1]);
 
 // L1: factoring broker, full odometer chain, $50 of expenses, DELIVERED
 // L2: non-factoring broker, full odometer chain, no expenses, DELIVERED
-// L3: CANCELLED — must be excluded from every dollar figure
+// L3: TONU (cancelled) — must be excluded from every dollar figure
 const LOADS: TripRollupLoad[] = [
   {
     id: "L1",
@@ -42,7 +42,7 @@ const LOADS: TripRollupLoad[] = [
     odo_loaded: null,
     odo_delivered: null,
     broker_id: B1,
-    status: "cancelled",
+    status: "tonu",
   },
 ];
 
@@ -52,11 +52,11 @@ const tripOdo = { start: 900, end: 2000 };
 describe("computeTripFinancials", () => {
   const fin = computeTripFinancials(LOADS, FUEL, factoringIds, expByLoad, tripOdo);
 
-  it("counts only non-cancelled loads", () => {
+  it("counts only non-TONU loads", () => {
     expect(fin.loads).toBe(2);
   });
 
-  it("gross = Σ rate of non-cancelled loads (cancelled L3 excluded)", () => {
+  it("gross = Σ rate of non-TONU loads (TONU L3 excluded)", () => {
     expect(fin.gross).toBe(3500); // 2000 + 1500, not 999
   });
 
@@ -113,8 +113,8 @@ describe("computeTripFinancials — divide-by-zero / empty", () => {
     expect(fin.profitPct).toBeNull();
   });
 
-  it("returns gross 0 and profit % null when every load is cancelled", () => {
-    const allCancelled = LOADS.map((l) => ({ ...l, status: "cancelled" }));
+  it("returns gross 0 and profit % null when every load is TONU'd", () => {
+    const allCancelled = LOADS.map((l) => ({ ...l, status: "tonu" }));
     const fin = computeTripFinancials(allCancelled, FUEL, factoringIds, expByLoad, tripOdo);
     expect(fin.gross).toBe(0);
     expect(fin.profitPct).toBeNull();
@@ -131,7 +131,7 @@ describe("golden cross-check: per-load nets reconcile with the trip rollup", () 
     const fin = computeTripFinancials(LOADS, FUEL, factoringIds, expByLoad, tripOdo);
 
     // Independently sum each live load's net the way the load card/board does.
-    const live = LOADS.filter((l) => l.status !== "cancelled");
+    const live = LOADS.filter((l) => l.status !== "tonu");
     const sumPerLoadNet = live.reduce((s, l) => {
       const d = loadDiesel(
         {

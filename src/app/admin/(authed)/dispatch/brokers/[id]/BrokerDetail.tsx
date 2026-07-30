@@ -21,14 +21,14 @@ const HISTORY_STATUS_TONE: Record<string, StatusTone> = {
   assigned: "amber",
   loaded: "steel",
   delivered: "green",
-  cancelled: "slate",
+  tonu: "slate",
 };
 const HISTORY_STATUS_LABEL: Record<string, string> = {
   pending: "Pending",
   assigned: "Rolling",
   loaded: "Loaded",
   delivered: "Delivered",
-  cancelled: "Cancelled",
+  tonu: "Cancelled / TONU",
 };
 
 type Phone = { number: string; ext: string | null; label: string | null };
@@ -294,7 +294,7 @@ export function BrokerDetail({ data }: { data: BrokerDetailData }) {
               <Row label="Total loads" value={String(summary.totalLoads)} />
               <Row label="Delivered" value={String(summary.delivered)} />
               <Row label="Active" value={String(summary.active)} />
-              <Row label="Cancelled" value={String(summary.cancelled)} divider />
+              <Row label="Cancelled / TONU" value={String(summary.cancelled)} divider />
               <Row label="Total gross" value={usd(summary.gross)} green />
               <Row label="Avg rate / load" value={usd(summary.avgRate)} />
               <Row label="Avg miles / load" value={`${summary.avgMiles.toLocaleString()} mi`} last />

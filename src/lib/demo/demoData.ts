@@ -488,7 +488,6 @@ function currentOdo(loads: DemoLoadFull[]): number {
 
 function toPerfLoads(loads: DemoLoadFull[]): PerfLoad[] {
   return loads
-    .filter((l) => l.status === "delivered")
     .map((l) => {
       const md = loadDiesel(
         {
@@ -613,8 +612,12 @@ export function demoPerformance(now: Date = new Date()): PerformanceData {
   const curIndex = months.findIndex((b) => b.key === curKey);
 
   const arTotal = loads
-    .filter((l) => l.status === "delivered" && l.payment_status !== "paid")
-    .reduce((s, l) => s + l.rate, 0);
+    .filter(
+      (l) =>
+        (l.status === "delivered" || l.status === "tonu") &&
+        l.payment_status !== "paid",
+    )
+    .reduce((s, l) => s + (l.status === "tonu" ? (l.tonu_amount ?? 0) : l.rate), 0);
 
   return {
     monthLabel: currentGoalMonthLabel(now),
@@ -686,7 +689,7 @@ export function demoBrokerList(now: Date = new Date()): BrokerListItem[] {
   return BROKERS.map((b) => {
     const mine = loads.filter((l) => l.broker_id === b.id);
     const gross = mine
-      .filter((l) => l.status !== "cancelled")
+      .filter((l) => l.status !== "tonu")
       .reduce((s, l) => s + l.rate, 0);
     return {
       id: b.id,
@@ -732,7 +735,7 @@ export function demoBrokerDetail(
   if (!broker) return null;
   const loads = buildLoads(now).filter((l) => l.broker_id === id);
 
-  const live = loads.filter((l) => l.status !== "cancelled");
+  const live = loads.filter((l) => l.status !== "tonu");
   const delivered = loads.filter((l) => l.status === "delivered");
   const activeCount = loads.filter(
     (l) => l.status === "pending" || l.status === "assigned" || l.status === "loaded",

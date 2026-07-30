@@ -43,9 +43,10 @@ import { BrokerTable, LaneTable, LedgerTable } from "./Tables";
  * bg-inset panel or a fixed tinted pill, so it reads the same on admin-light
  * and admin-dark. Themed cards (bg-card) carry only themed text (text-fg).
  *
- * SCOPE: delivered loads only — a booked-but-unrun load has a rate but no
- * odometer readings, so its "net" would be rate-minus-nothing and inflate every
- * average. The masthead subtitle and the empty state say so.
+ * SCOPE: every load, not just delivered ones — a booked-but-unrun load counts
+ * its rate with no odometer readings yet (net ≈ rate), and a TONU load counts
+ * its TONU fee instead of a rate. See performance/page.tsx for the exact
+ * per-status costing.
  */
 
 export type PerformanceData = {
@@ -68,7 +69,7 @@ export type PerformanceData = {
   brokers: PartyStat[];
   lanes: PartyStat[];
   deadhead: DeadheadSplit;
-  /** Rate owed on delivered-but-unpaid loads, all-time. */
+  /** Owed on delivered-but-unpaid loads (rate) and unpaid TONU loads (fee), all-time. */
   arTotal: number;
 };
 
@@ -91,17 +92,16 @@ export function PerformanceView({ data }: { data: PerformanceData }) {
     highlightIndex >= 0 ? highlightIndex : Math.max(0, months.length - 1);
   const [selIndex, setSelIndex] = useState(defaultIndex);
 
-  // Nothing delivered yet — a page of zeroes and empty axes is worse than one
+  // No loads at all — a page of zeroes and empty axes is worse than one
   // honest sentence, so bail to a single card.
   if (allTime.loads === 0) {
     return (
       <Page selector={null}>
         <div className="rounded-2xl border border-dashed border-line-strong bg-card px-4 py-14 text-center shadow-e1">
-          <p className="text-[15px] font-semibold text-fg">No delivered loads yet.</p>
+          <p className="text-[15px] font-semibold text-fg">No loads yet.</p>
           <p className="mx-auto mt-2 max-w-md text-[13px] text-fg-muted">
-            This dashboard builds itself out of delivered loads — rates, odometer
-            readings and pay dates. Run and deliver a load, and the numbers start
-            here.
+            This dashboard builds itself out of your loads — rates, odometer
+            readings and pay dates. Add a load, and the numbers start here.
           </p>
           <Link
             href="/admin/dispatch/loads"
@@ -731,8 +731,8 @@ function Page({ children, selector }: { children: ReactNode; selector: ReactNode
                 Performance
               </h1>
               <p className="mt-2 max-w-md text-[12.5px] leading-snug text-on-dark-dim">
-                Real-time insights into your business performance — delivered
-                loads only, net of diesel, factoring and expenses.
+                Real-time insights into your business performance — every
+                load, net of diesel, factoring and expenses.
               </p>
             </div>
             {selector ? <div className="shrink-0">{selector}</div> : null}

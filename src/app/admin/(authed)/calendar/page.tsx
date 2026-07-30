@@ -167,7 +167,7 @@ async function loadCalendar(): Promise<{ loads: LoadBar[]; repairs: RepairChip[]
       fuel,
     );
     const net =
-      l.status === "cancelled"
+      l.status === "tonu"
         ? 0
         : loadNet(
             {
@@ -184,7 +184,7 @@ async function loadCalendar(): Promise<{ loads: LoadBar[]; repairs: RepairChip[]
       start: span.start,
       end: span.end,
       approx: span.approx,
-      cancelled: l.status === "cancelled",
+      cancelled: l.status === "tonu",
       net,
     };
   });

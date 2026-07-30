@@ -6,8 +6,9 @@ import { cancelLoad } from "../actions";
 
 /**
  * TONU button (top bar) → dialog offering a plain cancel or a TONU (truck
- * ordered, not used) charge, $150 by default. Both move the load to cancelled;
- * TONU records the fee as the load's revenue.
+ * ordered, not used) charge, $150 by default. Both move the load to status
+ * "tonu" ("Cancelled / TONU"); TONU records the fee as the load's revenue,
+ * a plain cancel records $0.
  *
  * The trigger is labelled "TONU" rather than "Cancel load" because that is what
  * dispatch is almost always reaching for — the no-charge cancel is still one tap
