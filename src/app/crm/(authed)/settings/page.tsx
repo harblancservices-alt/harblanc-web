@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { PageShell, Card, CardHead } from "../_shell/ui";
-import { firstName, formatDateTime } from "../_shell/format";
+import { firstName } from "../_shell/format";
+import { LocalTime } from "../_shell/LocalTime";
 import { MemberEditButton } from "./MemberEditButton";
 
 export const dynamic = "force-dynamic";
@@ -138,9 +139,11 @@ export default async function SettingsPage() {
                     {isAdmin && (
                       <p className="mt-0.5 truncate text-[11.5px] text-fg-subtle">
                         Last seen:{" "}
-                        {lastSeenByUser.has(m.id)
-                          ? formatDateTime(lastSeenByUser.get(m.id))
-                          : "Never"}
+                        {lastSeenByUser.has(m.id) ? (
+                          <LocalTime iso={lastSeenByUser.get(m.id)} />
+                        ) : (
+                          "Never"
+                        )}
                       </p>
                     )}
                   </div>

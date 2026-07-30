@@ -2,8 +2,9 @@ import { notFound, redirect } from "next/navigation";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { Card, CardHead, EmptyState } from "../../../_shell/ui";
 import { BackButton } from "../../../_shell/BackButton";
-import { formatDateTime, parseServerTimestamp, firstName } from "../../../_shell/format";
+import { firstName } from "../../../_shell/format";
 import { IconContacts } from "../../../_shell/icons";
+import { ActivityLog, type ActivityEvent } from "./ActivityLog";
 
 export const dynamic = "force-dynamic";
 
@@ -53,19 +54,16 @@ export default async function MemberActivityPage({
     .limit(500);
 
   const events = (data ?? []) as EventRow[];
-
-  // Group by calendar day for a cleaner scan — the query is already
-  // newest-first, so a single pass is enough (no re-sort needed).
-  const groups: { day: string; items: EventRow[] }[] = [];
-  for (const e of events) {
-    const d = parseServerTimestamp(e.created_at);
-    const dayKey = d
-      ? d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })
-      : "Unknown date";
-    const last = groups[groups.length - 1];
-    if (last && last.day === dayKey) last.items.push(e);
-    else groups.push({ day: dayKey, items: [e] });
-  }
+  // Handed to ActivityLog as plain, already-serializable data — day-grouping
+  // and time formatting both happen client-side there, against the
+  // VIEWER's local timezone rather than this server's (see LocalTime.tsx).
+  const activityEvents: ActivityEvent[] = events.map((e) => ({
+    id: e.id,
+    kind: e.kind,
+    label: e.label,
+    path: e.path,
+    createdAt: e.created_at,
+  }));
 
   const name = firstName(member.full_name, member.email) || "This member";
 
@@ -97,48 +95,7 @@ export default async function MemberActivityPage({
             body="Logins and page views will show up here once this person starts using the CRM."
           />
         ) : (
-          <div className="divide-y divide-line-strong">
-            {groups.map((g) => (
-              <div key={g.day}>
-                <p className="bg-inset px-5 py-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
-                  {g.day}
-                </p>
-                <ul className="divide-y divide-line-strong">
-                  {g.items.map((e) => (
-                    <li
-                      key={e.id}
-                      className="flex items-center justify-between gap-3 px-5 py-3"
-                    >
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          {e.kind === "login" ? (
-                            <span className="rounded-full bg-ok-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ok">
-                              Login
-                            </span>
-                          ) : (
-                            <span className="rounded-full bg-steel-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-steel">
-                              {e.kind === "action" ? "Action" : "Page"}
-                            </span>
-                          )}
-                          <span className="truncate text-[13.5px] font-medium text-fg">
-                            {e.label || "—"}
-                          </span>
-                        </div>
-                        {e.path && (
-                          <p className="mt-0.5 truncate font-mono text-[11.5px] text-fg-subtle">
-                            {e.path}
-                          </p>
-                        )}
-                      </div>
-                      <span className="shrink-0 text-[12px] text-fg-subtle">
-                        {formatDateTime(e.created_at)}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
+          <ActivityLog events={activityEvents} />
         )}
       </Card>
     </div>
