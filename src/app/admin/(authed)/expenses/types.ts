@@ -113,6 +113,11 @@ export type ExpenseItem = {
   autopay: boolean;
   notes: string | null;
   monthlyAmount: number;
+  /** Preformatted server-side ("Today" / "Tomorrow" / "Aug 15"), so the list
+   *  can't drift by timezone or clock skew between server and client. Null
+   *  for quarterly/annual, which have no stored anchor date to compute from,
+   *  or when the day itself hasn't been set yet. */
+  nextChargeLabel: string | null;
 };
 
 /** "the 15th" / "every Friday" / a fallback when nothing's set. */
@@ -125,6 +130,59 @@ export function chargeScheduleLabel(
   return e.dayOfMonth != null
     ? `Charges on the ${ordinal(e.dayOfMonth)}`
     : "No charge date set";
+}
+
+const WEEKDAY_INDEX: Record<string, number> = {
+  Sunday: 0,
+  Monday: 1,
+  Tuesday: 2,
+  Wednesday: 3,
+  Thursday: 4,
+  Friday: 5,
+  Saturday: 6,
+};
+
+function startOfDay(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+/**
+ * The next occurrence of a monthly or weekly charge, on or after `today`.
+ * Quarterly/annual charges have no stored anchor date, so there's no honest
+ * way to derive their next occurrence from day_of_month alone — null.
+ */
+export function nextChargeDate(
+  e: Pick<ExpenseItem, "frequency" | "dayOfMonth" | "dayOfWeek">,
+  today: Date,
+): Date | null {
+  const base = startOfDay(today);
+  if (e.frequency === "weekly") {
+    const targetDow = e.dayOfWeek ? WEEKDAY_INDEX[e.dayOfWeek] : undefined;
+    if (targetDow == null) return null;
+    const diff = (targetDow - base.getDay() + 7) % 7;
+    const d = new Date(base);
+    d.setDate(d.getDate() + diff);
+    return d;
+  }
+  if (e.frequency === "monthly" && e.dayOfMonth != null) {
+    const y = base.getFullYear();
+    const m = base.getMonth();
+    const clampedThis = Math.min(e.dayOfMonth, new Date(y, m + 1, 0).getDate());
+    const thisMonth = new Date(y, m, clampedThis);
+    if (thisMonth >= base) return thisMonth;
+    const clampedNext = Math.min(e.dayOfMonth, new Date(y, m + 2, 0).getDate());
+    return new Date(y, m + 1, clampedNext);
+  }
+  return null;
+}
+
+/** "Today" / "Tomorrow" / "Aug 15" — short label for a computed next-charge date. */
+export function formatNextCharge(date: Date, today: Date): string {
+  const base = startOfDay(today);
+  const days = Math.round((date.getTime() - base.getTime()) / 86400000);
+  if (days === 0) return "Today";
+  if (days === 1) return "Tomorrow";
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 export type CategoryBreakdown = { label: string; total: number };

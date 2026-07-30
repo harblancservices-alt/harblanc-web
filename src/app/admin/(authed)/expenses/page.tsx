@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { ExpensesView } from "./ExpensesView";
 import {
+  formatNextCharge,
   isFrequency,
   monthlyAmount,
+  nextChargeDate,
   type ExpenseAccount,
   type ExpenseItem,
   type ExpensesData,
@@ -63,11 +65,15 @@ async function loadExpenses(): Promise<ExpensesData> {
   ]);
   const accounts: ExpenseAccount[] = accountRows ?? [];
 
+  // One `now` for every row, computed here rather than in the client, so the
+  // "Next …" label can't drift by timezone or clock skew on hydration.
+  const now = new Date();
+
   const expenses: ExpenseItem[] = (data ?? []).map((r) => {
     const rawFrequency = r.frequency ?? "";
     const frequency = isFrequency(rawFrequency) ? rawFrequency : "monthly";
     const amount = num(r.amount);
-    return {
+    const item = {
       id: r.id,
       name: r.name,
       category: r.category,
@@ -80,6 +86,11 @@ async function loadExpenses(): Promise<ExpensesData> {
       autopay: r.autopay ?? true,
       notes: r.notes,
       monthlyAmount: monthlyAmount(amount, frequency),
+    };
+    const nextDate = nextChargeDate(item, now);
+    return {
+      ...item,
+      nextChargeLabel: nextDate ? formatNextCharge(nextDate, now) : null,
     };
   });
 
