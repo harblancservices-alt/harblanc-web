@@ -207,18 +207,18 @@ export function CalendarView({
 
         {/* Desktop grid. */}
         <div className="mt-4 hidden md:block">
-          <div className="overflow-hidden rounded-lg border border-line bg-card shadow-e1">
+          <div className="overflow-hidden rounded-lg border border-line-strong bg-card shadow-e1">
             {/* Weekday header + a trailing Profit column. */}
-            <div className="grid grid-cols-8 border-b border-line bg-inset">
+            <div className="grid grid-cols-8 border-b border-line-strong bg-inset">
               {WEEKDAY_LABELS.map((w) => (
                 <div
                   key={w}
-                  className="px-2 py-2 text-center font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-ink-3"
+                  className="px-2 py-2 text-center font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-ink-2"
                 >
                   {w}
                 </div>
               ))}
-              <div className="border-l border-line px-2 py-2 text-center font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-ink-3">
+              <div className="border-l border-line-strong px-2 py-2 text-center font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-ink-2">
                 Profit
               </div>
             </div>
@@ -242,12 +242,12 @@ export function CalendarView({
             width. The week net moves out of the trailing column (too narrow to
             survive an 8-way split) into a footer strip under each week. */}
         <div className="mt-4 md:hidden">
-          <div className="overflow-hidden rounded-lg border border-line bg-card shadow-e1">
-            <div className="grid grid-cols-7 border-b border-line bg-inset">
+          <div className="overflow-hidden rounded-lg border border-line-strong bg-card shadow-e1">
+            <div className="grid grid-cols-7 border-b border-line-strong bg-inset">
               {WEEKDAY_LABELS.map((w) => (
                 <div
                   key={w}
-                  className="px-0.5 py-1.5 text-center font-mono text-[9px] font-bold uppercase tracking-[0.08em] text-ink-3"
+                  className="px-0.5 py-1.5 text-center font-mono text-[9px] font-bold uppercase tracking-[0.08em] text-ink-2"
                 >
                   {w.slice(0, 1)}
                 </div>
@@ -406,7 +406,7 @@ function WeekRow({
   const weekNetValue = weekNetValueOf(weekNet);
 
   return (
-    <div className="relative grid grid-cols-8 border-b border-line last:border-b-0">
+    <div className="relative grid grid-cols-8 border-b border-line-strong last:border-b-0">
       {week.map((date) => {
         const p = parseDateStr(date)!;
         const inMonth = p.m1 - 1 === month0;
@@ -417,7 +417,7 @@ function WeekRow({
           <div
             key={date}
             className={
-              "min-h-[110px] border-r border-line " +
+              "min-h-[110px] border-r border-line-strong " +
               (inMonth ? "" : "bg-inset/60")
             }
           >
@@ -550,7 +550,7 @@ function MobileWeekRow({
   const weekNetValue = weekNetValueOf(weekNet);
 
   return (
-    <div className="border-b border-line last:border-b-0">
+    <div className="border-b border-line-strong last:border-b-0">
       <div className="relative grid grid-cols-7">
         {week.map((date) => {
           const p = parseDateStr(date)!;
@@ -562,7 +562,7 @@ function MobileWeekRow({
             <div
               key={date}
               className={
-                "min-h-[58px] border-r border-line last:border-r-0 " +
+                "min-h-[58px] border-r border-line-strong last:border-r-0 " +
                 (inMonth ? "" : "bg-inset/60")
               }
             >
