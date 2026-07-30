@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { blockedByDemo } from "@/lib/admin/demo";
-import { FREQUENCIES, isFrequency } from "./types";
+import { isFrequency } from "./types";
 
 /**
  * Recurring expenses — a manual log of monthly-ish charges (insurance, truck
@@ -176,5 +176,3 @@ export async function deleteExpenseAccount(id: string): Promise<void> {
   if (error) throw new Error(`Could not delete account: ${error.message}`);
   revalidatePath("/admin/expenses");
 }
-
-export { FREQUENCIES };

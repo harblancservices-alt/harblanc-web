@@ -40,21 +40,25 @@ export function ExpenseFormDialog({
     if (!trimmed) return;
     setAddCardError(null);
     startAddCard(async () => {
-      const fd = new FormData();
-      fd.set("name", trimmed);
-      const res = await createExpenseAccount(fd);
-      if (!res.ok) {
-        setAddCardError(res.reason);
-        return;
+      try {
+        const fd = new FormData();
+        fd.set("name", trimmed);
+        const res = await createExpenseAccount(fd);
+        if (!res.ok) {
+          setAddCardError(res.reason);
+          return;
+        }
+        setAccounts((prev) =>
+          [...prev, { id: res.id, name: res.name }].sort((a, b) =>
+            a.name.localeCompare(b.name),
+          ),
+        );
+        setSelectedCard(res.name);
+        setAddingCard(false);
+        setNewCardName("");
+      } catch (e) {
+        setAddCardError(e instanceof Error ? e.message : "Could not add card.");
       }
-      setAccounts((prev) =>
-        [...prev, { id: res.id, name: res.name }].sort((a, b) =>
-          a.name.localeCompare(b.name),
-        ),
-      );
-      setSelectedCard(res.name);
-      setAddingCard(false);
-      setNewCardName("");
     });
   }
 

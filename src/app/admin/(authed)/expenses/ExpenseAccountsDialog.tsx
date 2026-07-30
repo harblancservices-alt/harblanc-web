@@ -39,15 +39,19 @@ export function ExpenseAccountsDialog({
     if (!trimmed) return;
     setError(null);
     startAdd(async () => {
-      const fd = new FormData();
-      fd.set("name", trimmed);
-      const res = await createExpenseAccount(fd);
-      if (!res.ok) {
-        setError(res.reason);
-        return;
+      try {
+        const fd = new FormData();
+        fd.set("name", trimmed);
+        const res = await createExpenseAccount(fd);
+        if (!res.ok) {
+          setError(res.reason);
+          return;
+        }
+        setAccounts((prev) => sortByName([...prev, { id: res.id, name: res.name }]));
+        setName("");
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Could not add account.");
       }
-      setAccounts((prev) => sortByName([...prev, { id: res.id, name: res.name }]));
-      setName("");
     });
   }
 
