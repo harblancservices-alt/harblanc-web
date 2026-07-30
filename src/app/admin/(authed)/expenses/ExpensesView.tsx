@@ -5,11 +5,13 @@ import { Button } from "@/components/ui/Button";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusTag } from "@/components/ui/StatusTag";
 import { DeleteExpenseButton } from "./DeleteExpenseButton";
+import { ExpenseAccountsDialog } from "./ExpenseAccountsDialog";
 import { ExpenseFormDialog } from "./ExpenseFormDialog";
 import { FREQUENCY_LABEL, ordinal, type ExpenseItem, type ExpensesData } from "./types";
 
 export function ExpensesView({ data }: { data: ExpensesData }) {
   const [dialog, setDialog] = useState<"new" | ExpenseItem | null>(null);
+  const [cardsOpen, setCardsOpen] = useState(false);
 
   return (
     <div className="min-h-screen border-t border-line bg-canvas text-fg">
@@ -19,9 +21,14 @@ export function ExpensesView({ data }: { data: ExpensesData }) {
           title="Expenses"
           className="mb-3"
           actions={
-            <Button type="button" onClick={() => setDialog("new")} variant="primary">
-              + Add expense
-            </Button>
+            <>
+              <Button type="button" onClick={() => setCardsOpen(true)} variant="navigate">
+                Manage cards
+              </Button>
+              <Button type="button" onClick={() => setDialog("new")} variant="primary">
+                + Add expense
+              </Button>
+            </>
           }
         />
 
@@ -67,9 +74,14 @@ export function ExpensesView({ data }: { data: ExpensesData }) {
       {dialog ? (
         <ExpenseFormDialog
           expense={dialog === "new" ? null : dialog}
+          accounts={data.accounts}
           onClose={() => setDialog(null)}
           onSaved={() => setDialog(null)}
         />
+      ) : null}
+
+      {cardsOpen ? (
+        <ExpenseAccountsDialog accounts={data.accounts} onClose={() => setCardsOpen(false)} />
       ) : null}
     </div>
   );

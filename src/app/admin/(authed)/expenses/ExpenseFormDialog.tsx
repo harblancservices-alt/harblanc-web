@@ -1,22 +1,62 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState, useTransition } from "react";
 import { Button } from "@/components/ui/Button";
 import { field } from "@/components/ui/styles";
-import { createExpense, updateExpense } from "./actions";
-import { CATEGORY_PRESETS, FREQUENCIES, FREQUENCY_LABEL, type ExpenseItem } from "./types";
+import { createExpense, createExpenseAccount, updateExpense } from "./actions";
+import {
+  CATEGORY_PRESETS,
+  FREQUENCIES,
+  FREQUENCY_LABEL,
+  type ExpenseAccount,
+  type ExpenseItem,
+} from "./types";
+
+const ADD_CARD_VALUE = "__add__";
 
 /** Add / edit dialog for a recurring expense. */
 export function ExpenseFormDialog({
   expense,
+  accounts: initialAccounts,
   onClose,
   onSaved,
 }: {
   expense?: ExpenseItem | null;
+  accounts: ExpenseAccount[];
   onClose: () => void;
   onSaved: () => void;
 }) {
   const isEdit = !!expense;
+
+  const [accounts, setAccounts] = useState<ExpenseAccount[]>(initialAccounts);
+  const [selectedCard, setSelectedCard] = useState(expense?.card ?? "");
+  const [addingCard, setAddingCard] = useState(accounts.length === 0);
+  const [newCardName, setNewCardName] = useState("");
+  const [addCardPending, startAddCard] = useTransition();
+  const [addCardError, setAddCardError] = useState<string | null>(null);
+
+  function handleAddCard() {
+    const trimmed = newCardName.trim();
+    if (!trimmed) return;
+    setAddCardError(null);
+    startAddCard(async () => {
+      const fd = new FormData();
+      fd.set("name", trimmed);
+      const res = await createExpenseAccount(fd);
+      if (!res.ok) {
+        setAddCardError(res.reason);
+        return;
+      }
+      setAccounts((prev) =>
+        [...prev, { id: res.id, name: res.name }].sort((a, b) =>
+          a.name.localeCompare(b.name),
+        ),
+      );
+      setSelectedCard(res.name);
+      setAddingCard(false);
+      setNewCardName("");
+    });
+  }
 
   const [state, action, pending] = useActionState<
     { ok: boolean; error: string | null },
@@ -48,6 +88,14 @@ export function ExpenseFormDialog({
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [pending, onClose]);
+
+  // The expense's saved card may belong to an account that's since been
+  // removed from the manager — keep it selectable (labeled inactive) rather
+  // than silently dropping it the moment this form is opened.
+  const legacyCardOption =
+    selectedCard && !accounts.some((a) => a.name === selectedCard)
+      ? selectedCard
+      : null;
 
   return (
     <div
@@ -170,29 +218,104 @@ export function ExpenseFormDialog({
               />
             </div>
 
-            <div className="flex items-end gap-3">
-              <div className="flex-1">
-                <label className={field.label}>
-                  Card <span className="text-ink-3">· optional</span>
-                </label>
-                <input
-                  name="card"
-                  defaultValue={expense?.card ?? ""}
-                  autoComplete="off"
-                  placeholder="e.g. Amex …1005"
-                  className={field.input}
-                />
-              </div>
-              <label className="mb-[9px] flex h-10 shrink-0 items-center gap-2 rounded-md border border-line-strong bg-card px-3 text-[13px] font-semibold text-ink">
-                <input
-                  type="checkbox"
-                  name="autopay"
-                  defaultChecked={expense?.autopay ?? true}
-                  className="h-4 w-4 accent-accent"
-                />
-                Autopay
+            <div>
+              <label className={field.label}>
+                Card <span className="text-ink-3">· optional</span>
               </label>
+
+              {accounts.length > 0 ? (
+                <select
+                  name="card"
+                  value={selectedCard}
+                  onChange={(e) => {
+                    if (e.target.value === ADD_CARD_VALUE) {
+                      setAddingCard(true);
+                      return;
+                    }
+                    setSelectedCard(e.target.value);
+                  }}
+                  className={field.select}
+                >
+                  <option value="">No card</option>
+                  {accounts.map((a) => (
+                    <option key={a.id} value={a.name}>
+                      {a.name}
+                    </option>
+                  ))}
+                  {legacyCardOption ? (
+                    <option value={legacyCardOption}>{legacyCardOption} (inactive)</option>
+                  ) : null}
+                  <option value={ADD_CARD_VALUE}>+ Add new card…</option>
+                </select>
+              ) : !addingCard ? (
+                <div className="flex h-10 items-center justify-between rounded-md border border-dashed border-line-strong bg-card px-3 text-[12.5px] text-fg-subtle">
+                  No cards yet.
+                  <button
+                    type="button"
+                    onClick={() => setAddingCard(true)}
+                    className="font-semibold text-accent hover:underline"
+                  >
+                    + Add a card
+                  </button>
+                </div>
+              ) : null}
+
+              {addingCard ? (
+                <div className="mt-1.5 flex items-center gap-2">
+                  <input
+                    value={newCardName}
+                    onChange={(e) => setNewCardName(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddCard();
+                      }
+                    }}
+                    autoComplete="off"
+                    placeholder="e.g. Amex Business"
+                    disabled={addCardPending}
+                    className={field.input}
+                  />
+                  <Button
+                    type="button"
+                    onClick={handleAddCard}
+                    disabled={addCardPending || !newCardName.trim()}
+                    variant="primary"
+                    size="md"
+                  >
+                    {addCardPending ? "Adding…" : "Add"}
+                  </Button>
+                  {accounts.length > 0 ? (
+                    <Button
+                      type="button"
+                      onClick={() => {
+                        setAddingCard(false);
+                        setNewCardName("");
+                      }}
+                      variant="cancel"
+                      size="md"
+                    >
+                      Cancel
+                    </Button>
+                  ) : null}
+                </div>
+              ) : null}
+              {addCardError ? (
+                <p role="alert" className="mt-1 text-[12px] font-semibold text-bad">
+                  {addCardError}
+                </p>
+              ) : null}
             </div>
+
+            <label className="flex h-10 w-fit items-center gap-2 rounded-md border border-line-strong bg-card px-3 text-[13px] font-semibold text-ink">
+              <input
+                type="checkbox"
+                name="autopay"
+                defaultChecked={expense?.autopay ?? true}
+                className="h-4 w-4 accent-accent"
+              />
+              Autopay
+            </label>
 
             <div>
               <label className={field.label}>

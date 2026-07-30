@@ -133,4 +133,48 @@ export async function deleteExpense(id: string): Promise<void> {
   revalidatePath("/admin/expenses");
 }
 
+// ---------------------------------------------------------------------------
+// Expense accounts — a name-only list of the operator's cards/accounts, used
+// to populate the expense form's "Card" dropdown. No card numbers stored.
+
+export type CreateAccountResult =
+  | { ok: true; id: string; name: string }
+  | { ok: false; reason: string };
+
+export async function createExpenseAccount(
+  formData: FormData,
+): Promise<CreateAccountResult> {
+  if (await blockedByDemo()) {
+    return { ok: false, reason: "Demo mode — account changes are disabled." };
+  }
+  const name = str(formData, "name");
+  if (!name) return { ok: false, reason: "Name is required." };
+  const sb = createServiceRoleClient();
+  const { data, error } = await sb
+    .from("expense_accounts")
+    .insert({ name })
+    .select("id, name")
+    .single<{ id: string; name: string }>();
+  if (error || !data) {
+    return {
+      ok: false,
+      reason: `Could not add account: ${error?.message ?? "unknown error"}`,
+    };
+  }
+  revalidatePath("/admin/expenses");
+  return { ok: true, id: data.id, name: data.name };
+}
+
+export async function deleteExpenseAccount(id: string): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
+  if (!id) throw new Error("Missing account.");
+  const sb = createServiceRoleClient();
+  const { error } = await sb
+    .from("expense_accounts")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) throw new Error(`Could not delete account: ${error.message}`);
+  revalidatePath("/admin/expenses");
+}
+
 export { FREQUENCIES };

@@ -4,6 +4,7 @@ import { ExpensesView } from "./ExpensesView";
 import {
   isFrequency,
   monthlyAmount,
+  type ExpenseAccount,
   type ExpenseItem,
   type ExpensesData,
 } from "./types";
@@ -40,15 +41,26 @@ function num(v: number | string | null): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+type AccountRow = { id: string; name: string };
+
 async function loadExpenses(): Promise<ExpensesData> {
   const sb = createServiceRoleClient();
-  const { data } = await sb
-    .from("recurring_expenses")
-    .select(
-      "id, name, category, vendor, amount, frequency, day_of_month, card, autopay, notes",
-    )
-    .is("deleted_at", null)
-    .returns<ExpenseRow[]>();
+  const [{ data }, { data: accountRows }] = await Promise.all([
+    sb
+      .from("recurring_expenses")
+      .select(
+        "id, name, category, vendor, amount, frequency, day_of_month, card, autopay, notes",
+      )
+      .is("deleted_at", null)
+      .returns<ExpenseRow[]>(),
+    sb
+      .from("expense_accounts")
+      .select("id, name")
+      .is("deleted_at", null)
+      .order("name", { ascending: true })
+      .returns<AccountRow[]>(),
+  ]);
+  const accounts: ExpenseAccount[] = accountRows ?? [];
 
   const expenses: ExpenseItem[] = (data ?? []).map((r) => {
     const rawFrequency = r.frequency ?? "";
@@ -93,7 +105,7 @@ async function loadExpenses(): Promise<ExpensesData> {
     (a, b) => b.total - a.total,
   );
 
-  return { expenses, monthlyTotal, annualTotal, byCategory, byCard };
+  return { expenses, accounts, monthlyTotal, annualTotal, byCategory, byCard };
 }
 
 export default async function ExpensesPage() {

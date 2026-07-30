@@ -28,14 +28,61 @@ export function monthlyAmount(amount: number, frequency: Frequency): number {
 }
 
 export const CATEGORY_PRESETS = [
-  "Insurance",
   "Truck Payment",
+  "Trailer Payment",
+  "Truck Insurance",
+  "Trailer Insurance",
+  "Cargo Insurance",
+  "Liability Insurance",
+  "Physical Damage Insurance",
+  "Occupational/Health Insurance",
   "Fuel",
-  "Software/Subscriptions",
+  "DEF",
+  "Fuel Card Fees",
+  "Tolls",
+  "Parking",
+  "Scales/Weigh",
+  "Lumper Fees",
+  "Maintenance & Repairs",
+  "Tires",
+  "Oil Changes",
+  "Roadside/Towing",
+  "ELD/Telematics",
+  "Dispatch Software",
+  "TMS/Software Subscriptions",
+  "Load Board Subscriptions",
+  "Factoring Fees",
+  "IFTA",
+  "IRP / Plates / Registration",
+  "Permits & Licensing",
+  "UCR",
+  "Heavy Highway Use Tax (2290)",
+  "Drug & Alcohol Consortium",
+  "Accounting/Bookkeeping",
+  "Legal/Professional",
+  "Bank Fees",
+  "Credit Card Fees",
+  "Loan Payment",
+  "Line of Credit",
   "Phone",
-  "Permits/Licensing",
-  "Office",
-  "Other",
+  "Internet",
+  "Website/Hosting",
+  "Email/Google Workspace",
+  "Marketing/Advertising",
+  "Office Supplies",
+  "Postage/Shipping",
+  "Rent/Warehouse",
+  "Storage/Yard",
+  "Utilities",
+  "Uniforms/PPE",
+  "Tools & Equipment",
+  "Membership/Dues (e.g. OOIDA)",
+  "Payroll/Contractor",
+  "Estimated Taxes",
+  "Retirement/Savings",
+  "Owner Draw/Personal",
+  "Subscriptions (other)",
+  "Miscellaneous",
 ] as const;
 
 export type ExpenseItem = {
@@ -55,8 +102,12 @@ export type ExpenseItem = {
 export type CategoryBreakdown = { label: string; total: number };
 export type CardBreakdown = { label: string; total: number };
 
+/** A user-named card/account (name only — no numbers). */
+export type ExpenseAccount = { id: string; name: string };
+
 export type ExpensesData = {
   expenses: ExpenseItem[];
+  accounts: ExpenseAccount[];
   monthlyTotal: number;
   annualTotal: number;
   byCategory: CategoryBreakdown[];
