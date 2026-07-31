@@ -11,6 +11,9 @@ import {
   SubmitButton,
   FormError,
 } from "../../_shell/form";
+import { PhonesEditor } from "../../_shell/PhonesEditor";
+import { LinksEditor } from "../../_shell/LinksEditor";
+import type { PhoneEntry, LinkEntry } from "../../_shell/contactFields";
 import { createContact, updateContact } from "../actions";
 import { toDatetimeLocal } from "../../_shell/format";
 
@@ -19,21 +22,19 @@ export type ContactDefaults = {
   name?: string | null;
   title?: string | null;
   email?: string | null;
-  phone?: string | null;
-  mobile?: string | null;
-  extension?: string | null;
+  phones?: PhoneEntry[];
+  links?: LinkEntry[];
   best_time_to_call?: string | null;
   is_decision_maker?: boolean | null;
-  linkedin_url?: string | null;
   notes?: string | null;
   next_followup_at?: string | null;
 };
 
 /**
- * Add / edit a contact for a company. Full field set (title, email, phone,
- * mobile, extension, best time to call, decision-maker flag, LinkedIn, notes,
- * next follow-up). Create and edit share the form; both log to the timeline via
- * their server actions.
+ * Add / edit a contact for a company. Full field set (title, email, labeled
+ * phones, labeled links, best time to call, decision-maker flag, notes, next
+ * follow-up date+time). Create and edit share the form; both log to the
+ * timeline via their server actions.
  */
 export function ContactDialog({
   accountId,
@@ -97,29 +98,15 @@ export function ContactDialog({
             inputMode="email"
             defaultValue={d.email}
           />
-          <div className="grid grid-cols-6 gap-3">
-            <div className="col-span-3">
-              <Field label="Phone" name="phone" type="tel" inputMode="tel" defaultValue={d.phone} />
-            </div>
-            <div className="col-span-3">
-              <Field label="Mobile" name="mobile" type="tel" inputMode="tel" defaultValue={d.mobile} />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Extension" name="extension" defaultValue={d.extension} />
-            <Field
-              label="Best time to call"
-              name="best_time_to_call"
-              placeholder="e.g. Weekday AM"
-              defaultValue={d.best_time_to_call}
-            />
-          </div>
+
+          <PhonesEditor defaultValue={d.phones} />
+          <LinksEditor defaultValue={d.links} />
+
           <Field
-            label="LinkedIn URL"
-            name="linkedin_url"
-            placeholder="https://linkedin.com/in/…"
-            inputMode="url"
-            defaultValue={d.linkedin_url}
+            label="Best time to call"
+            name="best_time_to_call"
+            placeholder="e.g. Weekday AM"
+            defaultValue={d.best_time_to_call}
           />
           <Field
             label="Next follow-up (CST)"

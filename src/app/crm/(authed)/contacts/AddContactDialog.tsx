@@ -12,6 +12,8 @@ import {
   FormError,
 } from "../_shell/form";
 import { IconPlus } from "../_shell/icons";
+import { PhonesEditor } from "../_shell/PhonesEditor";
+import { LinksEditor } from "../_shell/LinksEditor";
 import { CompanyCombobox, type CompanyOption, type CompanySelection } from "./CompanyCombobox";
 import { createContactQuick } from "./actions";
 
@@ -93,28 +95,16 @@ export function AddContactDialog({
           <CompanyCombobox companies={companies} selection={company} onChange={setCompany} />
 
           <Field label="Email" name="email" type="email" inputMode="email" />
-          <div className="grid grid-cols-6 gap-3">
-            <div className="col-span-3">
-              <Field label="Phone" name="phone" type="tel" inputMode="tel" />
-            </div>
-            <div className="col-span-3">
-              <Field label="Mobile" name="mobile" type="tel" inputMode="tel" />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="Extension" name="extension" />
-            <Field
-              label="Best time to call"
-              name="best_time_to_call"
-              placeholder="e.g. Weekday AM"
-            />
-          </div>
+
+          <PhonesEditor />
+          <LinksEditor />
+
           <Field
-            label="LinkedIn URL"
-            name="linkedin_url"
-            placeholder="https://linkedin.com/in/…"
-            inputMode="url"
+            label="Best time to call"
+            name="best_time_to_call"
+            placeholder="e.g. Weekday AM"
           />
+          <Field label="Next follow-up (CST)" name="next_followup_at" type="datetime-local" />
           <TextareaField label="Notes" name="notes" />
           <CheckboxField
             label="Decision-maker"

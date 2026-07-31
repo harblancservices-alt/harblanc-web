@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { logActivity, CRM_ACTIVITY } from "@/lib/crm/activity";
 import { DEFAULT_LIFECYCLE } from "../accounts/lifecycle";
+import { centralInputToIso } from "../_shell/format";
+import { phonesFromFormValue, linksFromFormValue } from "../_shell/contactFields";
 
 export type ActionResult =
   | { ok: true; accountId: string | null }
@@ -92,6 +94,9 @@ export async function createContactQuick(formData: FormData): Promise<ActionResu
     });
   }
 
+  const phones = phonesFromFormValue(formData.get("phones"));
+  const links = linksFromFormValue(formData.get("links"));
+
   const { data: contact, error: contactErr } = await supabase
     .from("crm_contacts")
     .insert({
@@ -100,13 +105,14 @@ export async function createContactQuick(formData: FormData): Promise<ActionResu
       name,
       title: optStr(formData, "title"),
       email: optStr(formData, "email"),
-      phone: optStr(formData, "phone"),
-      mobile: optStr(formData, "mobile"),
-      extension: optStr(formData, "extension"),
+      phone: phones[0]?.number || null,
+      phones,
+      linkedin_url: links[0]?.url || null,
+      links,
       best_time_to_call: optStr(formData, "best_time_to_call"),
       is_decision_maker: str(formData, "is_decision_maker") === "on",
-      linkedin_url: optStr(formData, "linkedin_url"),
       notes: optStr(formData, "notes"),
+      next_followup_at: centralInputToIso(optStr(formData, "next_followup_at")),
     })
     .select("id")
     .single();

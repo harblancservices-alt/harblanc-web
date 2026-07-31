@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { LIFECYCLE_STAGES, LIFECYCLE_LABEL } from "./lifecycle";
 import type { RepOption } from "./CompanyDialog";
-import type { CrmTag } from "./[id]/TagEditor";
+import type { CrmTag } from "./tags";
 
 /**
  * The Companies-list toolbar: full-text search plus lifecycle / tag / rep

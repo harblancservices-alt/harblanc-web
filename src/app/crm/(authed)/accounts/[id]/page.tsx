@@ -3,14 +3,13 @@ import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { PageShell, Card, CardHead } from "../../_shell/ui";
 import { BackButton } from "../../_shell/BackButton";
 import { formatDate, formatMoney, firstName } from "../../_shell/format";
+import { parsePhones, parseLinks, normalizeHref } from "../../_shell/contactFields";
 import { ProfileTabs } from "./ProfileTabs";
 import { stageLabel, stageTone } from "../lifecycle";
 import type { RepOption } from "../CompanyDialog";
 import { EditCompany } from "./EditCompany";
 import { FinalizeBanner } from "./FinalizeBanner";
-import { LifecycleControl } from "./LifecycleControl";
-import { RepControl } from "./RepControl";
-import { TagEditor, type CrmTag } from "./TagEditor";
+import { CompanyInfoPanel } from "./CompanyInfoPanel";
 import { ContactsSection, type CrmContact } from "./ContactsSection";
 import { NotesSection, type CrmNote } from "./NotesSection";
 import { AiResearchSection } from "./AiResearchSection";
@@ -30,17 +29,17 @@ function profileName(p: ProfileRow | undefined): string | null {
   return firstName(p.full_name, p.email) || null;
 }
 
-function normalizeHref(url: string | null): string | null {
-  if (!url) return null;
-  return /^https?:\/\//i.test(url) ? url : `https://${url}`;
-}
-
 /**
  * Company profile — the premium, full-record view of a single crm_account.
  * Everything is RLS-scoped to the caller's org: the account, its contacts,
- * notes, tags, activity feed, and the org's rep/tag rosters are all read
- * through the authenticated CRM session. All writes route through the shared
- * server actions, which stamp org_id/user_id from the session.
+ * notes, activity feed, and the org's rep roster are all read through the
+ * authenticated CRM session. All writes route through the shared server
+ * actions, which stamp org_id/user_id from the session.
+ *
+ * The default landing tab ("Overview") is an operational two-column layout:
+ * the company (stage, rep, address, phones, links, commodities) on the
+ * left, and the work (contacts, tasks, notes, calls, activity) on the
+ * right. The exhaustive field set lives in a secondary "Details" tab.
  */
 export default async function AccountDetailPage({
   params,
@@ -55,7 +54,7 @@ export default async function AccountDetailPage({
   const { data: account } = await supabase
     .from("crm_accounts")
     .select(
-      "id, name, industry, website, phone, address, city, state, zip, company_size, annual_freight_spend, revenue_potential, source, lifecycle_status, assigned_user_id, primary_contact_id, needs_finalize, created_at",
+      "id, name, industry, website, phone, phones, links, address, city, state, zip, dot_number, mc_number, company_size, fleet_size, current_carrier, commodities, annual_freight_spend, revenue_potential, source, lifecycle_status, assigned_user_id, primary_contact_id, needs_finalize, created_at",
     )
     .eq("id", id)
     .is("deleted_at", null)
@@ -66,8 +65,6 @@ export default async function AccountDetailPage({
   // Fan out the related reads (each RLS-scoped to the caller's org).
   const [
     profilesRes,
-    tagsRes,
-    accountTagsRes,
     contactsRes,
     notesRes,
     callsRes,
@@ -76,12 +73,10 @@ export default async function AccountDetailPage({
     documentsRes,
   ] = await Promise.all([
     supabase.from("crm_profiles").select("id, full_name, email, is_active"),
-    supabase.from("crm_tags").select("id, label, color").order("label"),
-    supabase.from("crm_account_tags").select("tag_id").eq("account_id", id),
     supabase
       .from("crm_contacts")
       .select(
-        "id, name, title, email, phone, mobile, extension, best_time_to_call, is_decision_maker, linkedin_url, notes, next_followup_at",
+        "id, name, title, email, phones, links, best_time_to_call, is_decision_maker, notes, next_followup_at",
       )
       .eq("account_id", id)
       .is("deleted_at", null)
@@ -135,13 +130,22 @@ export default async function AccountDetailPage({
     .map((p) => ({ id: p.id, label: profileName(p) ?? "Unnamed rep" }))
     .sort((a, b) => a.label.localeCompare(b.label));
 
-  const allTags = (tagsRes.data ?? []) as CrmTag[];
-  const attachedIds = new Set(
-    ((accountTagsRes.data ?? []) as { tag_id: string }[]).map((r) => r.tag_id),
-  );
-  const attachedTags = allTags.filter((t) => attachedIds.has(t.id));
-
-  const contacts = (contactsRes.data ?? []) as CrmContact[];
+  const contacts: CrmContact[] = ((contactsRes.data ?? []) as {
+    id: string;
+    name: string;
+    title: string | null;
+    email: string | null;
+    phones: unknown;
+    links: unknown;
+    best_time_to_call: string | null;
+    is_decision_maker: boolean;
+    notes: string | null;
+    next_followup_at: string | null;
+  }[]).map((c) => ({
+    ...c,
+    phones: parsePhones(c.phones),
+    links: parseLinks(c.links),
+  }));
   const contactNameById = new Map(contacts.map((c) => [c.id, c.name]));
 
   const notes: CrmNote[] = ((notesRes.data ?? []) as {
@@ -246,19 +250,26 @@ export default async function AccountDetailPage({
   const repName = account.assigned_user_id
     ? profileName(profileById.get(account.assigned_user_id as string))
     : null;
-  const website = normalizeHref(account.website as string | null);
+  const website = account.website ? normalizeHref(account.website as string) : null;
+  const phones = parsePhones(account.phones);
+  const links = parseLinks(account.links);
 
   const editDefaults = {
     id: account.id as string,
     name: account.name as string,
     industry: account.industry as string | null,
-    website: account.website as string | null,
-    phone: account.phone as string | null,
+    phones,
+    links,
     address: account.address as string | null,
     city: account.city as string | null,
     state: account.state as string | null,
     zip: account.zip as string | null,
+    dot_number: account.dot_number as string | null,
+    mc_number: account.mc_number as string | null,
     company_size: account.company_size as string | null,
+    fleet_size: account.fleet_size as number | null,
+    current_carrier: account.current_carrier as string | null,
+    commodities: account.commodities as string | null,
     annual_freight_spend: account.annual_freight_spend as number | null,
     revenue_potential: account.revenue_potential as number | null,
     source: account.source as string | null,
@@ -304,113 +315,91 @@ export default async function AccountDetailPage({
       </div>
 
       <ProfileTabs
-        contactsCount={contacts.length}
         overview={
-          <>
-            {/* Overview: lifecycle control, rep, tags, key facts */}
-            <Card>
-              <CardHead title="Overview" />
-              <div className="flex flex-col gap-5 p-5">
-                <div className="grid gap-5 lg:grid-cols-2">
-                  <div>
-                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-subtle">
-                      Lifecycle stage
-                    </p>
-                    <LifecycleControl accountId={account.id as string} current={stage} />
-                  </div>
-                  <div>
-                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-subtle">
-                      Assigned rep
-                    </p>
-                    <RepControl
-                      accountId={account.id as string}
-                      current={account.assigned_user_id as string | null}
-                      reps={reps}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-subtle">
-                    Tags
-                  </p>
-                  <TagEditor
-                    accountId={account.id as string}
-                    attached={attachedTags}
-                    allTags={allTags}
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-x-6 gap-y-4 border-t border-line pt-5 md:grid-cols-3">
-                  <Fact label="Industry" value={account.industry as string | null} />
-                  <Fact
-                    label="Website"
-                    value={
-                      website ? (
-                        <a
-                          href={website}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-accent hover:underline"
-                        >
-                          {account.website as string}
-                        </a>
-                      ) : null
-                    }
-                  />
-                  <Fact label="Phone" value={account.phone as string | null} mono />
-                  <Fact
-                    label="Address"
-                    value={
-                      [account.address, location, account.zip]
-                        .filter(Boolean)
-                        .join(", ") || null
-                    }
-                  />
-                  <Fact label="Company size" value={account.company_size as string | null} />
-                  <Fact
-                    label="Annual freight spend"
-                    value={formatMoney(account.annual_freight_spend as number | null)}
-                    mono
-                  />
-                  <Fact
-                    label="Revenue potential"
-                    value={formatMoney(account.revenue_potential as number | null)}
-                    mono
-                  />
-                  <Fact label="Source" value={account.source as string | null} />
-                  <Fact
-                    label="Created"
-                    value={formatDate(account.created_at as string)}
-                  />
-                </div>
-              </div>
-            </Card>
-
-            <NotesSection accountId={account.id as string} notes={teamNotes} />
-            <TasksSection
-              accountId={account.id as string}
-              tasks={tasks}
-              reps={reps}
-              contacts={contacts.map((c) => ({ id: c.id, name: c.name }))}
-              canAssignOthers={isOwner}
-              currentUser={{ id: user.id, label: firstName(user.fullName, user.email) || "You" }}
-            />
-          </>
+          <div className="grid gap-4 lg:grid-cols-[380px_1fr] lg:items-start">
+            <div className="flex flex-col gap-4">
+              <CompanyInfoPanel
+                accountId={account.id as string}
+                stage={stage}
+                assignedUserId={account.assigned_user_id as string | null}
+                reps={reps}
+                address={account.address as string | null}
+                city={account.city as string | null}
+                state={account.state as string | null}
+                zip={account.zip as string | null}
+                phones={phones}
+                links={links}
+                commodities={account.commodities as string | null}
+              />
+            </div>
+            <div className="flex min-w-0 flex-col gap-4">
+              <ContactsSection
+                accountId={account.id as string}
+                contacts={contacts}
+                primaryContactId={account.primary_contact_id as string | null}
+                canDelete={isOwner}
+              />
+              <TasksSection
+                accountId={account.id as string}
+                tasks={tasks}
+                reps={reps}
+                contacts={contacts.map((c) => ({ id: c.id, name: c.name }))}
+                canAssignOthers={isOwner}
+                currentUser={{ id: user.id, label: firstName(user.fullName, user.email) || "You" }}
+              />
+              <NotesSection accountId={account.id as string} notes={teamNotes} />
+              <CallsSection accountId={account.id as string} calls={calls} />
+              <ActivityTimeline activities={activities} />
+            </div>
+          </div>
         }
-        contacts={
-          <ContactsSection
-            accountId={account.id as string}
-            contacts={contacts}
-            primaryContactId={account.primary_contact_id as string | null}
-            canDelete={isOwner}
-          />
-        }
-        activity={
-          <>
-            <ActivityTimeline activities={activities} />
-            <CallsSection accountId={account.id as string} calls={calls} />
-          </>
+        details={
+          <Card>
+            <CardHead title="Details" />
+            <div className="grid grid-cols-2 gap-x-6 gap-y-4 p-5 md:grid-cols-3">
+              <Fact label="Industry" value={account.industry as string | null} />
+              <Fact
+                label="Website"
+                value={
+                  website ? (
+                    <a
+                      href={website}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-accent hover:underline"
+                    >
+                      {account.website as string}
+                    </a>
+                  ) : null
+                }
+              />
+              <Fact label="DOT #" value={account.dot_number as string | null} mono />
+              <Fact label="MC #" value={account.mc_number as string | null} mono />
+              <Fact label="Company size" value={account.company_size as string | null} />
+              <Fact
+                label="Fleet size"
+                value={
+                  account.fleet_size === null || account.fleet_size === undefined
+                    ? null
+                    : String(account.fleet_size)
+                }
+                mono
+              />
+              <Fact label="Current carrier" value={account.current_carrier as string | null} />
+              <Fact
+                label="Annual freight spend"
+                value={formatMoney(account.annual_freight_spend as number | null)}
+                mono
+              />
+              <Fact
+                label="Revenue potential"
+                value={formatMoney(account.revenue_potential as number | null)}
+                mono
+              />
+              <Fact label="Source" value={account.source as string | null} />
+              <Fact label="Created" value={formatDate(account.created_at as string)} />
+            </div>
+          </Card>
         }
         bol={
           <BolSection

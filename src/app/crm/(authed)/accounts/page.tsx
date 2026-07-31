@@ -8,7 +8,7 @@ import { AccountsFilters } from "./AccountsFilters";
 import { stageLabel, stageTone } from "./lifecycle";
 import { firstName } from "../_shell/format";
 import type { RepOption } from "./CompanyDialog";
-import type { CrmTag } from "./[id]/TagEditor";
+import type { CrmTag } from "./tags";
 
 export const dynamic = "force-dynamic";
 

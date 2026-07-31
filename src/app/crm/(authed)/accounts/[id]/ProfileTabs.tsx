@@ -5,8 +5,7 @@ import type { ReactNode } from "react";
 
 const TABS = [
   { key: "overview", label: "Overview" },
-  { key: "contacts", label: "Contacts" },
-  { key: "activity", label: "Activity" },
+  { key: "details", label: "Details" },
   { key: "bol", label: "BOL" },
   { key: "aiResearch", label: "AI Research" },
 ] as const;
@@ -17,25 +16,23 @@ type TabKey = (typeof TABS)[number]["key"];
  * The company profile's tab bar. A client component so the active tab is
  * local UI state, but every tab's content is handed in as plain, already
  * server-rendered ReactNode props from the profile page (an RSC) — no inline
- * function props crossing the server/client boundary. All five panels stay
+ * function props crossing the server/client boundary. All four panels stay
  * mounted (just hidden) rather than swapping, so client state inside a panel
  * (e.g. the Notes composer, or the BOL uploader's in-flight state) survives
- * switching tabs.
+ * switching tabs. "Overview" is the operational two-column landing (company
+ * left, contacts + call log + activity right); "Details" holds the
+ * exhaustive field set that doesn't belong in daily operational use.
  */
 export function ProfileTabs({
   overview,
-  contacts,
-  contactsCount,
-  activity,
+  details,
   bol,
   bolCount,
   aiResearch,
   aiResearchCount,
 }: {
   overview: ReactNode;
-  contacts: ReactNode;
-  contactsCount?: number;
-  activity: ReactNode;
+  details: ReactNode;
   bol: ReactNode;
   bolCount?: number;
   aiResearch: ReactNode;
@@ -64,15 +61,6 @@ export function ProfileTabs({
             }`}
           >
             {t.label}
-            {t.key === "contacts" && contactsCount ? (
-              <span
-                className={`ml-1.5 font-mono tabular-nums ${
-                  tab === t.key ? "text-white/80" : "text-fg-subtle"
-                }`}
-              >
-                {contactsCount}
-              </span>
-            ) : null}
             {t.key === "bol" && bolCount ? (
               <span
                 className={`ml-1.5 font-mono tabular-nums ${
@@ -96,8 +84,7 @@ export function ProfileTabs({
       </div>
 
       <div className={tab === "overview" ? "space-y-4" : "hidden"}>{overview}</div>
-      <div className={tab === "contacts" ? "space-y-4" : "hidden"}>{contacts}</div>
-      <div className={tab === "activity" ? "space-y-4" : "hidden"}>{activity}</div>
+      <div className={tab === "details" ? "space-y-4" : "hidden"}>{details}</div>
       <div className={tab === "bol" ? "space-y-4" : "hidden"}>{bol}</div>
       <div className={tab === "aiResearch" ? "space-y-4" : "hidden"}>{aiResearch}</div>
     </div>

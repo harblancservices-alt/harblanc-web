@@ -5,6 +5,7 @@ import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { logActivity, CRM_ACTIVITY } from "@/lib/crm/activity";
 import { normalizeStage, stageLabel, DEFAULT_LIFECYCLE } from "./lifecycle";
 import { firstName, centralInputToIso } from "../_shell/format";
+import { phonesFromFormValue, linksFromFormValue } from "../_shell/contactFields";
 
 /**
  * Every write in the Hello Hotshot CRM lives here. All actions share the same
@@ -37,18 +38,33 @@ function optNum(fd: FormData, key: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-/** The full company field set, shared by create and edit. */
+/**
+ * The full company field set, shared by create and edit. `phones`/`links`
+ * are the source of truth (edited via PhonesEditor/LinksEditor); `phone` and
+ * `website` are still written alongside, mirrored from the first entry of
+ * each list, purely so anything else that still reads those scalar columns
+ * directly keeps working.
+ */
 function accountFieldsFromForm(fd: FormData) {
+  const phones = phonesFromFormValue(fd.get("phones"));
+  const links = linksFromFormValue(fd.get("links"));
   return {
     name: str(fd, "name"),
     industry: optStr(fd, "industry"),
-    website: optStr(fd, "website"),
-    phone: optStr(fd, "phone"),
+    website: links[0]?.url || null,
+    phone: phones[0]?.number || null,
+    phones,
+    links,
     address: optStr(fd, "address"),
     city: optStr(fd, "city"),
     state: optStr(fd, "state"),
     zip: optStr(fd, "zip"),
+    dot_number: optStr(fd, "dot_number"),
+    mc_number: optStr(fd, "mc_number"),
     company_size: optStr(fd, "company_size"),
+    fleet_size: optNum(fd, "fleet_size"),
+    current_carrier: optStr(fd, "current_carrier"),
+    commodities: optStr(fd, "commodities"),
     annual_freight_spend: optNum(fd, "annual_freight_spend"),
     revenue_potential: optNum(fd, "revenue_potential"),
     source: optStr(fd, "source"),
@@ -368,17 +384,25 @@ export async function createTag(
 
 // ── Contacts ─────────────────────────────────────────────────────────────────
 
+/**
+ * `phones`/`links` are the source of truth (edited via PhonesEditor/
+ * LinksEditor); `phone`/`linkedin_url` are still written alongside, mirrored
+ * from the first entry of each list, for anything else that still reads
+ * those scalar columns directly.
+ */
 function contactFieldsFromForm(fd: FormData) {
+  const phones = phonesFromFormValue(fd.get("phones"));
+  const links = linksFromFormValue(fd.get("links"));
   return {
     name: str(fd, "name"),
     title: optStr(fd, "title"),
     email: optStr(fd, "email"),
-    phone: optStr(fd, "phone"),
-    mobile: optStr(fd, "mobile"),
-    extension: optStr(fd, "extension"),
+    phone: phones[0]?.number || null,
+    phones,
+    linkedin_url: links[0]?.url || null,
+    links,
     best_time_to_call: optStr(fd, "best_time_to_call"),
     is_decision_maker: str(fd, "is_decision_maker") === "on",
-    linkedin_url: optStr(fd, "linkedin_url"),
     notes: optStr(fd, "notes"),
     // Comes in as a datetime-local value the dialog shows in Central time
     // (toDatetimeLocal) — convert back through the same Central

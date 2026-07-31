@@ -3,17 +3,28 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardHead, ZEBRA_ROWS } from "../../_shell/ui";
-import { IconPlus, IconContacts } from "../../_shell/icons";
+import { IconPlus, IconContacts, IconNote } from "../../_shell/icons";
 import { formatDateTime } from "../../_shell/format";
+import { PhoneList } from "../../_shell/PhoneList";
+import { LinkList } from "../../_shell/LinkList";
+import type { PhoneEntry, LinkEntry } from "../../_shell/contactFields";
 import { ContactDialog, type ContactDefaults } from "./ContactDialog";
+import { QuickNoteDialog } from "./QuickNoteDialog";
 import { LogCallDialog, type CallContactOption } from "../../calls/LogCallDialog";
 import { deleteContact, setPrimaryContact } from "../actions";
 
-export type CrmContact = ContactDefaults & { id: string; name: string };
+export type CrmContact = ContactDefaults & {
+  id: string;
+  name: string;
+  phones: PhoneEntry[];
+  links: LinkEntry[];
+};
 
 /**
- * Contacts on the company profile — full CRUD. Add opens the contact dialog;
- * each contact card offers Edit, Make primary, and Delete (soft delete). The
+ * Contacts on the company profile — full CRUD, the top card of the
+ * operational RIGHT column. Add opens the contact dialog; each contact card
+ * shows its labeled phone numbers (tap-to-call + Log call per number), its
+ * labeled links, a follow-up date/time, and a quick Note button. The
  * company's primary contact is badged and can be set/cleared here.
  */
 export function ContactsSection({
@@ -124,57 +135,54 @@ export function ContactsSection({
                     {c.title && (
                       <p className="mt-0.5 text-[12.5px] text-fg-muted">{c.title}</p>
                     )}
-
-                    <dl className="mt-2 grid grid-cols-1 gap-x-6 gap-y-1 text-[13px] sm:grid-cols-2">
-                      {c.email && (
-                        <Line label="Email">
-                          <a href={`mailto:${c.email}`} className="text-accent hover:underline">
-                            {c.email}
-                          </a>
-                        </Line>
-                      )}
-                      {c.phone && (
-                        <Line label="Phone">
-                          <span className="font-mono">
-                            {c.phone}
-                            {c.extension ? ` ×${c.extension}` : ""}
-                          </span>
-                        </Line>
-                      )}
-                      {c.mobile && (
-                        <Line label="Mobile">
-                          <span className="font-mono">{c.mobile}</span>
-                        </Line>
-                      )}
-                      {c.best_time_to_call && (
-                        <Line label="Best time">{c.best_time_to_call}</Line>
-                      )}
-                      {c.next_followup_at && (
-                        <Line label="Follow-up">
-                          {formatDateTime(c.next_followup_at)}
-                        </Line>
-                      )}
-                      {c.linkedin_url && (
-                        <Line label="LinkedIn">
-                          <a
-                            href={c.linkedin_url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-accent hover:underline"
-                          >
-                            Profile ↗
-                          </a>
-                        </Line>
-                      )}
-                    </dl>
-
-                    {c.notes && (
-                      <p className="mt-2 whitespace-pre-wrap rounded-lg bg-inset px-3 py-2 text-[12.5px] leading-relaxed text-fg-muted">
-                        {c.notes}
-                      </p>
+                    {c.email && (
+                      <a
+                        href={`mailto:${c.email}`}
+                        className="mt-0.5 block text-[13px] text-accent hover:underline"
+                      >
+                        {c.email}
+                      </a>
                     )}
                   </div>
                 </div>
+
+                <div className="mt-3">
+                  <PhoneList
+                    accountId={accountId}
+                    phones={c.phones}
+                    contactId={c.id}
+                    contactName={c.name}
+                  />
+                </div>
+
+                {c.links.length > 0 && (
+                  <div className="mt-2">
+                    <LinkList links={c.links} />
+                  </div>
+                )}
+
+                <dl className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-[13px]">
+                  {c.best_time_to_call && (
+                    <div className="flex gap-2">
+                      <dt className="shrink-0 text-fg-subtle">Best time</dt>
+                      <dd className="text-fg">{c.best_time_to_call}</dd>
+                    </div>
+                  )}
+                  {c.next_followup_at && (
+                    <div className="flex gap-2">
+                      <dt className="shrink-0 text-fg-subtle">Follow-up</dt>
+                      <dd className="font-semibold text-fg">
+                        {formatDateTime(c.next_followup_at)}
+                      </dd>
+                    </div>
+                  )}
+                </dl>
+
+                {c.notes && (
+                  <p className="mt-2 whitespace-pre-wrap rounded-lg bg-inset px-3 py-2 text-[12.5px] leading-relaxed text-fg-muted">
+                    {c.notes}
+                  </p>
+                )}
 
                 <div className="mt-3 flex flex-wrap items-center gap-2">
                   <LogCallDialog
@@ -188,6 +196,20 @@ export function ContactsSection({
                         className="rounded-lg border border-line-strong bg-card px-3 py-1.5 text-[12.5px] font-semibold text-fg transition-colors hover:bg-inset"
                       >
                         Log call
+                      </button>
+                    )}
+                  />
+                  <QuickNoteDialog
+                    accountId={accountId}
+                    contactName={c.name}
+                    trigger={(open) => (
+                      <button
+                        type="button"
+                        onClick={open}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-line-strong bg-card px-3 py-1.5 text-[12.5px] font-semibold text-fg transition-colors hover:bg-inset"
+                      >
+                        <IconNote width={13} height={13} />
+                        Note
                       </button>
                     )}
                   />
@@ -241,14 +263,5 @@ export function ContactsSection({
         </ul>
       )}
     </Card>
-  );
-}
-
-function Line({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex gap-2">
-      <dt className="shrink-0 text-fg-subtle">{label}</dt>
-      <dd className="min-w-0 truncate text-fg">{children}</dd>
-    </div>
   );
 }
