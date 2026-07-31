@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
-import { PageShell, Card, CardHead, StatTile, ZEBRA_ROWS } from "./_shell/ui";
+import { PageShell, Card, CardHead, ZEBRA_ROWS } from "./_shell/ui";
 import { DueBell } from "./DueBell";
 import {
   formatDate,
@@ -75,9 +75,9 @@ function centralHour(date: Date): number {
 /**
  * The CRM dashboard — a salesman-first command center. Order: quick actions,
  * then the Call list (contacts due today/overdue — the top priority), Tasks
- * (overdue + due-today, org-wide), New leads to claim (unclaimed released AI
- * leads), a small stats strip, and Recent activity. Everything RLS-scoped to
- * the caller's org; force-dynamic keeps it live.
+ * (every open task org-wide, overdue-first), New leads to claim (unclaimed
+ * released AI leads), and — owner only — Recent activity. Everything
+ * RLS-scoped to the caller's org; force-dynamic keeps it live.
  */
 export default async function CrmDashboardPage() {
   const user = await requireCrmUser();
@@ -89,14 +89,13 @@ export default async function CrmDashboardPage() {
   // UTC), matching every other overdue/due-today split in the CRM.
   const { startMs: todayStart, endMs: todayEnd } = centralDayRange(now);
   const endOfTodayISO = new Date(todayEnd).toISOString();
-  const weekAgoISO = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  const isOwner = user.role === "owner";
 
   const [
     followupContactsRes,
-    dueTasksRes,
-    openTasksCountRes,
+    openTasksRes,
     newAiLeadsRes,
-    callsWeekRes,
     profilesRes,
     companyOptionsRes,
     orgContactsRes,
@@ -111,8 +110,9 @@ export default async function CrmDashboardPage() {
       .lte("next_followup_at", endOfTodayISO)
       .order("next_followup_at", { ascending: true })
       .limit(100),
-    // Tasks queue — org-wide open tasks due today or overdue (not just the
-    // viewer's own assignments, matching /crm/tasks and the company profile).
+    // Tasks queue — EVERY open task org-wide (not just the viewer's own
+    // assignments), regardless of due date. Sorted overdue-first client-side
+    // below since a plain due_at order would bury undated tasks awkwardly.
     supabase
       .from("crm_tasks")
       .select(
@@ -120,16 +120,8 @@ export default async function CrmDashboardPage() {
       )
       .eq("status", "open")
       .is("deleted_at", null)
-      .not("due_at", "is", null)
-      .lte("due_at", endOfTodayISO)
-      .order("due_at", { ascending: true })
-      .limit(300),
-    // Stats strip: total open tasks (org-wide), independent of due date.
-    supabase
-      .from("crm_tasks")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "open")
-      .is("deleted_at", null),
+      .order("due_at", { ascending: true, nullsFirst: false })
+      .limit(500),
     // Unclaimed released AI leads — the alert. Once assigned_user_id is set
     // (claimed) a lead drops out of this query, matching /crm/ai-agent.
     supabase
@@ -141,12 +133,6 @@ export default async function CrmDashboardPage() {
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(200),
-    // Stats strip: calls logged in the last 7 days.
-    supabase
-      .from("crm_calls")
-      .select("id", { count: "exact", head: true })
-      .is("deleted_at", null)
-      .gte("occurred_at", weekAgoISO),
     // Assignee/author names for tasks + recent activity, and the rep roster
     // for the quick-task dialog's "Assigned rep" picker.
     supabase.from("crm_profiles").select("id, full_name, email, is_active"),
@@ -167,16 +153,19 @@ export default async function CrmDashboardPage() {
       .is("deleted_at", null)
       .order("name", { ascending: true })
       .limit(2000),
-    // Recent activity — last 5 events across the org, newest first.
-    supabase
-      .from("crm_activities")
-      .select("id, kind, summary, body, occurred_at, user_id")
-      .order("occurred_at", { ascending: false })
-      .limit(5),
+    // Recent activity — owner-only, so skip the query entirely for reps
+    // rather than fetching data that never renders (RSC boundary rule).
+    isOwner
+      ? supabase
+          .from("crm_activities")
+          .select("id, kind, summary, body, occurred_at, user_id")
+          .order("occurred_at", { ascending: false })
+          .limit(5)
+      : Promise.resolve({ data: [] as ActivityRow[] }),
   ]);
 
   const followupRows = (followupContactsRes.data ?? []) as FollowupContactRow[];
-  const dueTaskRows = (dueTasksRes.data ?? []) as TaskRowData[];
+  const openTaskRows = (openTasksRes.data ?? []) as TaskRowData[];
   const newAiLeads = (newAiLeadsRes.data ?? []) as NewLead[];
   const profiles = (profilesRes.data ?? []) as ProfileRow[];
   const profileNameById = new Map(
@@ -210,7 +199,7 @@ export default async function CrmDashboardPage() {
   const nameIds = [
     ...new Set(
       [
-        ...dueTaskRows.map((t) => t.account_id),
+        ...openTaskRows.map((t) => t.account_id),
         ...followupRows.map((c) => c.account_id),
       ].filter(Boolean) as string[],
     ),
@@ -237,37 +226,44 @@ export default async function CrmDashboardPage() {
     };
   });
 
-  // ── Tasks queue — due today/overdue, org-wide ──
-  const combinedTasks: CrmTaskItem[] = dueTaskRows.map((t) => ({
+  // ── Tasks queue — EVERY open task, org-wide. Overdue first, then due
+  // today, then everything else (no due date or a future one); each bucket
+  // keeps its own ascending-by-due-date order from the query above. ──
+  const allOpenTasks: CrmTaskItem[] = openTaskRows.map((t) => ({
     ...t,
     companyName: t.account_id ? nameById.get(t.account_id) ?? null : null,
     assigneeName: t.assigned_user_id ? (profileNameById.get(t.assigned_user_id) ?? null) : null,
   }));
-  const overdueTaskCount = combinedTasks.filter((t) => {
+  const dueBucket = (t: CrmTaskItem) => {
     const ms = timestampMs(t.due_at);
-    return ms !== null && ms < todayStart;
-  }).length;
+    if (ms !== null && ms < todayStart) return 0; // overdue
+    if (ms !== null && ms <= todayEnd) return 1; // due today
+    return 2; // no due date, or a future one
+  };
+  const combinedTasks: CrmTaskItem[] = [...allOpenTasks].sort((a, b) => dueBucket(a) - dueBucket(b));
+  const overdueTaskCount = allOpenTasks.filter((t) => dueBucket(t) === 0).length;
+  const dueTodayCount = allOpenTasks.filter((t) => dueBucket(t) === 1).length;
 
-  // ── Recent activity ──
-  const recentActivities: CrmActivity[] = ((recentActivitiesRes.data ?? []) as ActivityRow[]).map(
-    (a) => ({
-      id: a.id,
-      kind: a.kind,
-      summary: a.summary,
-      body: a.body,
-      occurred_at: a.occurred_at,
-      author: a.user_id ? (profileNameById.get(a.user_id) ?? null) : null,
-    }),
-  );
+  // ── Recent activity — owner only ──
+  const recentActivities: CrmActivity[] = isOwner
+    ? ((recentActivitiesRes.data ?? []) as ActivityRow[]).map((a) => ({
+        id: a.id,
+        kind: a.kind,
+        summary: a.summary,
+        body: a.body,
+        occurred_at: a.occurred_at,
+        author: a.user_id ? (profileNameById.get(a.user_id) ?? null) : null,
+      }))
+    : [];
 
   const hour = centralHour(now);
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const displayName = profileFirstName(user.fullName, user.email) || "there";
 
-  // Bell total — the same buckets rendered below (call list + tasks due/
-  // overdue + new leads to claim), so the number can never drift from the
-  // queue underneath it.
-  const dueCount = callList.length + combinedTasks.length + newAiLeads.length;
+  // Bell total — due work only (call list + tasks overdue/due-today + new
+  // leads to claim), not every open task, so it stays a "due now" cue rather
+  // than ballooning with tasks that aren't due yet.
+  const dueCount = callList.length + overdueTaskCount + dueTodayCount + newAiLeads.length;
 
   return (
     <PageShell>
@@ -313,15 +309,15 @@ export default async function CrmDashboardPage() {
         <CardFooterLink href="/crm/contacts" label="View all follow-ups" />
       </Card>
 
-      {/* Tasks — overdue + due today, org-wide. */}
+      {/* Tasks — every open task, org-wide, overdue first. */}
       <Card>
         <CardHead
           title="Tasks"
-          hint={combinedTasks.length ? `${combinedTasks.length} due today or overdue` : "Nothing due"}
+          hint={combinedTasks.length ? `${combinedTasks.length} open` : "No open tasks"}
           right={<LateBadge count={overdueTaskCount} />}
         />
         {combinedTasks.length === 0 ? (
-          <Empty text="No tasks due today or overdue." />
+          <Empty text="No open tasks." />
         ) : (
           <ul className={`divide-y divide-line-strong ${ZEBRA_ROWS}`}>
             {combinedTasks.map((t) => (
@@ -353,15 +349,8 @@ export default async function CrmDashboardPage() {
         </Card>
       )}
 
-      {/* Stats strip */}
-      <div className="grid grid-cols-3 gap-3">
-        <StatTile label="Calls this week" value={String(callsWeekRes.count ?? 0)} />
-        <StatTile label="Follow-ups due" value={String(callList.length)} />
-        <StatTile label="Open tasks" value={String(openTasksCountRes.count ?? 0)} />
-      </div>
-
-      {/* Recent activity */}
-      <ActivityTimeline activities={recentActivities} />
+      {/* Recent activity — owner only. */}
+      {isOwner && <ActivityTimeline activities={recentActivities} />}
     </PageShell>
   );
 }
