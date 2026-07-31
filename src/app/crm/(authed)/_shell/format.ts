@@ -220,6 +220,20 @@ export function centralInputToIso(value: string | null | undefined): string | nu
 }
 
 /**
+ * "YYYY-MM-DD" for the Central calendar day a stored timestamp falls on —
+ * the shared bucketing key for the calendar's month grid (tasks/follow-ups/
+ * calls all land on the day their Central wall-clock time reads, matching
+ * every other Central-day split in the CRM rather than the server's UTC day).
+ */
+export function centralDateKey(iso: string | null | undefined): string | null {
+  const d = parseServerTimestamp(iso);
+  if (!d) return null;
+  const { year, month, day } = centralParts(d);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${year}-${pad(month)}-${pad(day)}`;
+}
+
+/**
  * Epoch milliseconds for a stored server timestamp, or null when absent/
  * unparseable — the shared building block for every "is this overdue/stale/
  * in-range" comparison across the CRM (task due dates, call-back reminders,

@@ -154,6 +154,18 @@ export function IconNote(props: IconProps) {
   );
 }
 
+export function IconCalendar(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3" y="5" width="18" height="16" rx="2" />
+      <path d="M3 9.5h18M8 3v4M16 3v4" />
+      <circle cx="8" cy="14" r="1" />
+      <circle cx="12" cy="14" r="1" />
+      <circle cx="16" cy="14" r="1" />
+    </svg>
+  );
+}
+
 export function IconArrowLeft(props: IconProps) {
   return (
     <svg {...base(props)}>

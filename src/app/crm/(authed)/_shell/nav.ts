@@ -8,6 +8,7 @@ import {
   IconFlame,
   IconAiReview,
   IconCustomers,
+  IconCalendar,
 } from "./icons";
 
 export type CrmNavItem = {
@@ -82,6 +83,7 @@ export function buildCrmNav(
       badgeTone: "alert",
     },
     { href: "/crm/tasks", label: "Tasks", Icon: IconTasks },
+    { href: "/crm/calendar", label: "Calendar", Icon: IconCalendar },
   ];
   if (role === "owner") {
     nav.push({
