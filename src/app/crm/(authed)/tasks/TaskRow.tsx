@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ClickableListItem } from "../_shell/ClickableRow";
 import { centralDayRange, timestampMs } from "../_shell/format";
-import { LocalTime } from "../_shell/LocalTime";
+import { DueCountdown } from "../_shell/DueCountdown";
 import { digitsForTel } from "../_shell/contactFields";
 import { priorityLabel, priorityTone } from "./priority";
 import { TASK_TYPE_CHIP_TONE } from "./taskType";
@@ -151,32 +151,6 @@ export function TaskRow({
   const bucket = dueBucket(task, optimisticDone);
   const context = contextAction(task);
 
-  const dueLine = (() => {
-    if (bucket === "overdue") {
-      return (
-        <span className="font-semibold text-bad">
-          Overdue · was due <LocalTime iso={task.due_at} /> CST
-        </span>
-      );
-    }
-    if (bucket === "today") {
-      return (
-        <span className="font-semibold text-warn">
-          Due today ·{" "}
-          <LocalTime iso={task.due_at} options={{ hour: "numeric", minute: "2-digit" }} /> CST
-        </span>
-      );
-    }
-    if (bucket === "later") {
-      return (
-        <span className="text-fg-subtle">
-          Due <LocalTime iso={task.due_at} /> CST
-        </span>
-      );
-    }
-    return <span className="text-fg-subtle">No due date</span>;
-  })();
-
   const cardContent = (
     <div className="flex min-w-0 flex-1 items-stretch gap-3">
       <span aria-hidden className={`w-1 shrink-0 rounded-full ${URGENCY_BAR[bucket]}`} />
@@ -221,19 +195,16 @@ export function TaskRow({
           </p>
         )}
 
-        <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px]">
-          {dueLine}
-          {task.assigneeName && (
-            <>
-              <span className="text-fg-subtle">·</span>
-              <span className="text-fg-subtle">{task.assigneeName}</span>
-            </>
-          )}
-          <span
-            className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide ${priorityTone(task.priority)}`}
-          >
-            {priorityLabel(task.priority)}
-          </span>
+        <div className="mt-1.5 flex flex-wrap items-start gap-x-3 gap-y-1.5 text-[12.5px]">
+          <DueCountdown iso={task.due_at} />
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pt-1">
+            {task.assigneeName && <span className="text-fg-subtle">{task.assigneeName}</span>}
+            <span
+              className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide ${priorityTone(task.priority)}`}
+            >
+              {priorityLabel(task.priority)}
+            </span>
+          </div>
         </div>
 
         <div className="mt-2.5 flex flex-wrap items-center gap-1.5">

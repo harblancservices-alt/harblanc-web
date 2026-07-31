@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { formatDateTime } from "./_shell/format";
+import { DueCountdown } from "./_shell/DueCountdown";
 import { ClickableListItem } from "./_shell/ClickableRow";
 import { digitsForTel } from "./_shell/contactFields";
 import { LogCallDialog } from "./calls/LogCallDialog";
@@ -49,12 +49,9 @@ export function CallListRow({ contact }: { contact: CallListContact }) {
         {contact.notes && (
           <p className="mt-0.5 line-clamp-1 text-[12.5px] text-fg-muted">{contact.notes}</p>
         )}
-        <p
-          className={`mt-1 text-[12px] ${contact.overdue ? "font-semibold text-bad" : "text-fg-subtle"}`}
-        >
-          {contact.overdue ? "Overdue · " : "Due "}
-          {formatDateTime(contact.next_followup_at)}
-        </p>
+        <div className="mt-1.5">
+          <DueCountdown iso={contact.next_followup_at} />
+        </div>
       </div>
 
       <div className="flex shrink-0 items-center gap-1.5">

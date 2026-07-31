@@ -3,7 +3,8 @@ import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { PageShell, Card, EmptyState, LIST_HEAD_ROW, ZEBRA_ROWS } from "../_shell/ui";
 import { ClickableRow } from "../_shell/ClickableRow";
 import { IconContacts } from "../_shell/icons";
-import { formatDateTime, firstName } from "../_shell/format";
+import { firstName } from "../_shell/format";
+import { DueCountdown } from "../_shell/DueCountdown";
 import { ContactsSearch } from "./ContactsSearch";
 import { AddContactDialog } from "./AddContactDialog";
 import { ContactRowActions } from "./ContactRowActions";
@@ -206,23 +207,19 @@ export default async function ContactsPage({
                           <span className="font-sans text-fg-subtle">—</span>
                         )}
                       </td>
-                      <td className="px-5 py-3 text-fg-muted">
+                      <td className="px-5 py-3">
                         {c.next_followup_at ? (
-                          formatDateTime(c.next_followup_at)
+                          <DueCountdown iso={c.next_followup_at} />
                         ) : (
                           <span className="text-fg-subtle">—</span>
                         )}
                       </td>
                       <td className="px-5 py-3">
-                        {c.account_id ? (
-                          <ContactRowActions
-                            accountId={c.account_id}
-                            contactId={c.id}
-                            contactName={c.name}
-                          />
-                        ) : (
-                          <span className="text-fg-subtle">—</span>
-                        )}
+                        <ContactRowActions
+                          accountId={c.account_id}
+                          contactId={c.id}
+                          contactName={c.name}
+                        />
                       </td>
                     </>
                   );

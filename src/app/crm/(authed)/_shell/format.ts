@@ -233,6 +233,63 @@ export function centralDateKey(iso: string | null | undefined): string | null {
   return `${year}-${pad(month)}-${pad(day)}`;
 }
 
+export type DueTone = "danger" | "warning" | "accent" | "muted";
+
+/**
+ * Human, urgency-colored countdown for a due_at / next_followup_at timestamp
+ * — the BIG bold readout on task cards and follow-up rows (the owner wants
+ * "when" to jump out, not read as a small gray date). Tone drives the
+ * semantic color the caller renders it in: danger (red) once overdue,
+ * warning (amber) for today/tomorrow, accent (blue) for anything further out,
+ * muted (small/neutral) only when there's no date at all. Computed against
+ * the Central calendar day (via `centralParts`/`centralWallTimeToUtcMs`
+ * above) so "Tomorrow" flips at Central midnight, not the server's UTC day.
+ */
+export function dueCountdown(
+  iso: string | null | undefined,
+  now: Date = new Date(),
+): { text: string; tone: DueTone } {
+  const ms = timestampMs(iso);
+  if (ms === null) return { text: "No due date", tone: "muted" };
+
+  const nowMs = now.getTime();
+  const HOUR = 3_600_000;
+  const DAY = 86_400_000;
+
+  if (ms <= nowMs) {
+    const elapsed = nowMs - ms;
+    const days = Math.floor(elapsed / DAY);
+    if (days >= 1) return { text: `Overdue ${days}d`, tone: "danger" };
+    const hours = Math.floor(elapsed / HOUR);
+    if (hours >= 1) return { text: `Overdue ${hours}h`, tone: "danger" };
+    return { text: "Overdue", tone: "danger" };
+  }
+
+  const a = centralParts(now);
+  const b = centralParts(new Date(ms));
+  const nowDayMs = centralWallTimeToUtcMs(a.year, a.month, a.day, 0, 0, 0);
+  const dueDayMs = centralWallTimeToUtcMs(b.year, b.month, b.day, 0, 0, 0);
+  const dayDiff = Math.round((dueDayMs - nowDayMs) / DAY);
+
+  if (dayDiff <= 0) {
+    const hours = Math.floor((ms - nowMs) / HOUR);
+    if (hours >= 1) return { text: `Due in ${hours}h`, tone: "warning" };
+    return { text: "Due today", tone: "warning" };
+  }
+  if (dayDiff === 1) return { text: "Tomorrow", tone: "warning" };
+  if (dayDiff <= 7) return { text: `In ${dayDiff} days`, tone: "accent" };
+  if (dayDiff <= 30) {
+    const weeks = Math.max(1, Math.round(dayDiff / 7));
+    return { text: `In ${weeks} week${weeks === 1 ? "" : "s"}`, tone: "accent" };
+  }
+  const monthLabel = new Date(ms).toLocaleDateString("en-US", {
+    timeZone: CENTRAL_TZ,
+    month: "short",
+    ...(b.year !== a.year ? { year: "numeric" as const } : {}),
+  });
+  return { text: monthLabel, tone: "accent" };
+}
+
 /**
  * Epoch milliseconds for a stored server timestamp, or null when absent/
  * unparseable — the shared building block for every "is this overdue/stale/

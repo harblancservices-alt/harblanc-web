@@ -12,7 +12,7 @@ import {
   ZEBRA_ROWS,
 } from "../../_shell/ui";
 import { IconPlus, IconContacts, IconNote } from "../../_shell/icons";
-import { formatDateTime } from "../../_shell/format";
+import { DueCountdown } from "../../_shell/DueCountdown";
 import { PhoneList } from "../../_shell/PhoneList";
 import { LinkList } from "../../_shell/LinkList";
 import type { PhoneEntry, LinkEntry } from "../../_shell/contactFields";
@@ -177,10 +177,10 @@ export function ContactsSection({
                     </div>
                   )}
                   {c.next_followup_at && (
-                    <div className="flex gap-2">
-                      <dt className="shrink-0 text-fg-subtle">Follow-up</dt>
-                      <dd className="font-semibold text-fg">
-                        {formatDateTime(c.next_followup_at)}
+                    <div className="flex items-start gap-2">
+                      <dt className="shrink-0 pt-1 text-fg-subtle">Follow-up</dt>
+                      <dd>
+                        <DueCountdown iso={c.next_followup_at} />
                       </dd>
                     </div>
                   )}
@@ -209,6 +209,7 @@ export function ContactsSection({
                   />
                   <QuickNoteDialog
                     accountId={accountId}
+                    contactId={c.id}
                     contactName={c.name}
                     trigger={(open) => (
                       <button
