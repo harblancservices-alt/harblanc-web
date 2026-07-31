@@ -1,7 +1,8 @@
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
-import { PageShell, Card, CardHead, EmptyState, ZEBRA_ROWS } from "../_shell/ui";
+import { PageShell, Card, CardHead, EmptyState } from "../_shell/ui";
 import { IconTasks } from "../_shell/icons";
 import { firstName, timestampMs, centralDayRange } from "../_shell/format";
+import { parsePhones } from "../_shell/contactFields";
 import { TaskRow, type CrmTaskItem } from "./TaskRow";
 import { DeleteTaskButton } from "./DeleteTaskButton";
 import { AddTaskButton } from "./AddTaskButton";
@@ -51,11 +52,18 @@ export default async function TasksPage() {
       .is("deleted_at", null)
       .order("due_at", { ascending: true, nullsFirst: false })
       .limit(500),
-    // Company/contact rosters for the "Add task" dialog.
-    supabase.from("crm_accounts").select("id, name").is("deleted_at", null).order("name").limit(500),
+    // Company/contact rosters for the "Add task" dialog — phone/phones and
+    // email also ride along so each task row's Call/Email action can resolve
+    // its linked contact's (or company's) best number without another query.
+    supabase
+      .from("crm_accounts")
+      .select("id, name, phone, phones")
+      .is("deleted_at", null)
+      .order("name")
+      .limit(500),
     supabase
       .from("crm_contacts")
-      .select("id, name, account_id")
+      .select("id, name, account_id, phone, phones, email")
       .is("deleted_at", null)
       .order("name")
       .limit(2000),
@@ -64,15 +72,30 @@ export default async function TasksPage() {
 
   const rows = (tasksRes.data ?? []) as TaskRowData[];
 
-  const accounts = (accountsRes.data ?? []) as { id: string; name: string }[];
+  const accounts = (accountsRes.data ?? []) as {
+    id: string;
+    name: string;
+    phone: string | null;
+    phones: unknown;
+  }[];
   const nameById = new Map(accounts.map((a) => [a.id, a.name]));
+  const companyPhoneById = new Map(
+    accounts.map((a) => [a.id, parsePhones(a.phones)[0]?.number || a.phone || null]),
+  );
 
   const contactRows = (contactsRes.data ?? []) as {
     id: string;
     name: string;
     account_id: string | null;
+    phone: string | null;
+    phones: unknown;
+    email: string | null;
   }[];
   const contactNameById = new Map(contactRows.map((c) => [c.id, c.name]));
+  const contactPhoneById = new Map(
+    contactRows.map((c) => [c.id, parsePhones(c.phones)[0]?.number || c.phone || null]),
+  );
+  const contactEmailById = new Map(contactRows.map((c) => [c.id, c.email]));
   const contactOptions = contactRows.map((c) => ({
     id: c.id,
     name: c.name,
@@ -93,11 +116,19 @@ export default async function TasksPage() {
     label: firstName(user.fullName, user.email) || "You",
   };
 
+  // Bundled TaskRow dialog props — every row's Edit/Reschedule dialog needs
+  // the same company/contact/rep rosters the "Add task" button above already
+  // loads, so this is passed straight through rather than each row re-deriving it.
+  const dialogProps = { accounts, contacts: contactOptions, reps, canAssignOthers, currentUser };
+
   const tasks: CrmTaskItem[] = rows.map((r) => ({
     ...r,
     companyName: r.account_id ? nameById.get(r.account_id) ?? null : null,
     contactName: r.contact_id ? contactNameById.get(r.contact_id) ?? null : null,
     assigneeName: r.assigned_user_id ? profileNameById.get(r.assigned_user_id) ?? null : null,
+    contactPhone: r.contact_id ? contactPhoneById.get(r.contact_id) ?? null : null,
+    contactEmail: r.contact_id ? contactEmailById.get(r.contact_id) ?? null : null,
+    companyPhone: r.account_id ? companyPhoneById.get(r.account_id) ?? null : null,
   }));
 
   // Central calendar-day boundaries — see page.tsx (dashboard) for why.
@@ -152,9 +183,9 @@ export default async function TasksPage() {
         </Card>
       ) : (
         <>
-          <Group title="Overdue" tasks={overdue} />
-          <Group title="Due today" tasks={dueToday} />
-          <Group title="Upcoming" tasks={upcoming} />
+          <Group title="Overdue" tasks={overdue} dialogProps={dialogProps} />
+          <Group title="Due today" tasks={dueToday} dialogProps={dialogProps} />
+          <Group title="Upcoming" tasks={upcoming} dialogProps={dialogProps} />
 
           {doneTasks.length > 0 && (
             <Card>
@@ -162,9 +193,9 @@ export default async function TasksPage() {
                 <summary className="cursor-pointer list-none border-b border-line-strong px-5 py-3.5 text-[14px] font-semibold text-fg-subtle transition-colors hover:text-fg">
                   Done · {doneTasks.length}
                 </summary>
-                <ul className={`divide-y divide-line-strong ${ZEBRA_ROWS}`}>
+                <ul className="flex flex-col gap-2.5 p-3">
                   {doneTasks.map((t) => (
-                    <TaskRow key={t.id} task={t} showCompany>
+                    <TaskRow key={t.id} task={t} showCompany {...dialogProps}>
                       <DeleteTaskButton taskId={t.id} accountId={t.account_id} title={t.title} />
                     </TaskRow>
                   ))}
@@ -178,20 +209,30 @@ export default async function TasksPage() {
   );
 }
 
+type TaskDialogProps = {
+  accounts: { id: string; name: string }[];
+  contacts: { id: string; name: string; accountId: string | null }[];
+  reps: RepOption[];
+  canAssignOthers: boolean;
+  currentUser: { id: string; label: string };
+};
+
 function Group({
   title,
   tasks,
+  dialogProps,
 }: {
   title: string;
   tasks: CrmTaskItem[];
+  dialogProps: TaskDialogProps;
 }) {
   if (tasks.length === 0) return null;
   return (
     <Card>
       <CardHead title={title} hint={`${tasks.length}`} />
-      <ul className={`divide-y divide-line-strong ${ZEBRA_ROWS}`}>
+      <ul className="flex flex-col gap-2.5 p-3">
         {tasks.map((t) => (
-          <TaskRow key={t.id} task={t} showCompany>
+          <TaskRow key={t.id} task={t} showCompany {...dialogProps}>
             <DeleteTaskButton taskId={t.id} accountId={t.account_id} title={t.title} />
           </TaskRow>
         ))}

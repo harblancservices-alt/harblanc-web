@@ -206,10 +206,17 @@ export default async function CrmDashboardPage() {
     ),
   ];
   const { data: nameRows } = nameIds.length
-    ? await supabase.from("crm_accounts").select("id, name").in("id", nameIds)
-    : { data: [] as { id: string; name: string }[] };
-  const nameById = new Map(
-    ((nameRows ?? []) as { id: string; name: string }[]).map((a) => [a.id, a.name]),
+    ? await supabase.from("crm_accounts").select("id, name, phone, phones").in("id", nameIds)
+    : { data: [] as { id: string; name: string; phone: string | null; phones: unknown }[] };
+  const nameRowsTyped = (nameRows ?? []) as {
+    id: string;
+    name: string;
+    phone: string | null;
+    phones: unknown;
+  }[];
+  const nameById = new Map(nameRowsTyped.map((a) => [a.id, a.name]));
+  const companyPhoneById = new Map(
+    nameRowsTyped.map((a) => [a.id, parsePhones(a.phones)[0]?.number || a.phone || null]),
   );
 
   // ── Call list — contacts due today/overdue ──
@@ -234,6 +241,7 @@ export default async function CrmDashboardPage() {
     ...t,
     companyName: t.account_id ? nameById.get(t.account_id) ?? null : null,
     assigneeName: t.assigned_user_id ? (profileNameById.get(t.assigned_user_id) ?? null) : null,
+    companyPhone: t.account_id ? companyPhoneById.get(t.account_id) ?? null : null,
   }));
   const dueBucket = (t: CrmTaskItem) => {
     const ms = timestampMs(t.due_at);
@@ -320,13 +328,18 @@ export default async function CrmDashboardPage() {
         {combinedTasks.length === 0 ? (
           <Empty text="No open tasks." />
         ) : (
-          <ul className={`divide-y divide-line-strong ${ZEBRA_ROWS}`}>
+          <ul className="flex flex-col gap-2.5 p-3">
             {combinedTasks.map((t) => (
               <TaskRow
                 key={t.id}
                 task={t}
                 showCompany
                 linkTo={t.account_id ? `/crm/accounts/${t.account_id}` : "/crm/tasks"}
+                accounts={companyOptions}
+                contacts={quickTaskContacts}
+                reps={reps}
+                canAssignOthers={canAssignOthers}
+                currentUser={currentUser}
               />
             ))}
           </ul>

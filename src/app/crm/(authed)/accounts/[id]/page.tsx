@@ -148,6 +148,9 @@ export default async function AccountDetailPage({
     links: parseLinks(c.links),
   }));
   const contactNameById = new Map(contacts.map((c) => [c.id, c.name]));
+  const contactPhoneById = new Map(contacts.map((c) => [c.id, c.phones[0]?.number || null]));
+  const contactEmailById = new Map(contacts.map((c) => [c.id, c.email]));
+  const companyPhone = parsePhones(account.phones)[0]?.number || (account.phone as string | null) || null;
 
   const notes: CrmNote[] = ((notesRes.data ?? []) as {
     id: string;
@@ -203,6 +206,9 @@ export default async function AccountDetailPage({
     assigneeName: t.assigned_user_id
       ? profileName(profileById.get(t.assigned_user_id))
       : null,
+    contactPhone: t.contact_id ? contactPhoneById.get(t.contact_id) ?? null : null,
+    contactEmail: t.contact_id ? contactEmailById.get(t.contact_id) ?? null : null,
+    companyPhone,
   }));
 
   const calls: CrmCallLogItem[] = ((callsRes.data ?? []) as {

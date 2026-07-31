@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardHead, ZEBRA_ROWS } from "../../_shell/ui";
+import { Card, CardHead } from "../../_shell/ui";
 import { IconPlus, IconTasks } from "../../_shell/icons";
 import type { RepOption } from "../CompanyDialog";
 import { TaskDialog, type TaskContactOption } from "../../tasks/TaskDialog";
@@ -45,36 +45,16 @@ export function TasksSection({
     });
   }
 
-  function rowActions(task: CrmTaskItem) {
+  function deleteAction(task: CrmTaskItem) {
     return (
-      <div className="flex items-center gap-1.5">
-        <TaskDialog
-          accountId={accountId}
-          mode="edit"
-          reps={reps}
-          contacts={contacts}
-          canAssignOthers={canAssignOthers}
-          currentUser={currentUser}
-          defaults={task}
-          trigger={(openDialog) => (
-            <button
-              type="button"
-              onClick={openDialog}
-              className="rounded-md px-2 py-1 text-[12px] font-semibold text-fg-subtle transition-colors hover:bg-inset hover:text-fg"
-            >
-              Edit
-            </button>
-          )}
-        />
-        <button
-          type="button"
-          onClick={() => remove(task)}
-          disabled={pending}
-          className="rounded-md px-2 py-1 text-[12px] font-semibold text-fg-subtle transition-colors hover:bg-bad/10 hover:text-bad disabled:opacity-60"
-        >
-          Delete
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={() => remove(task)}
+        disabled={pending}
+        className="inline-flex items-center rounded-lg border border-line-strong bg-card px-2.5 py-1.5 text-[12px] font-semibold text-fg-subtle transition-colors hover:bg-bad/10 hover:text-bad disabled:opacity-60"
+      >
+        Delete
+      </button>
     );
   }
 
@@ -117,10 +97,18 @@ export function TasksSection({
         </div>
       ) : (
         <>
-          <ul className={`divide-y divide-line-strong ${ZEBRA_ROWS}`}>
+          <ul className="flex flex-col gap-2.5 p-3">
             {open.map((t) => (
-              <TaskRow key={t.id} task={t}>
-                {rowActions(t)}
+              <TaskRow
+                key={t.id}
+                task={t}
+                accountId={accountId}
+                reps={reps}
+                contacts={contacts}
+                canAssignOthers={canAssignOthers}
+                currentUser={currentUser}
+              >
+                {deleteAction(t)}
               </TaskRow>
             ))}
           </ul>
@@ -129,10 +117,18 @@ export function TasksSection({
               <summary className="cursor-pointer list-none px-5 py-3 text-[12.5px] font-semibold text-fg-subtle transition-colors hover:text-fg">
                 {done.length} completed
               </summary>
-              <ul className={`divide-y divide-line-strong border-t border-line-strong ${ZEBRA_ROWS}`}>
+              <ul className="flex flex-col gap-2.5 border-t border-line-strong p-3">
                 {done.map((t) => (
-                  <TaskRow key={t.id} task={t}>
-                    {rowActions(t)}
+                  <TaskRow
+                    key={t.id}
+                    task={t}
+                    accountId={accountId}
+                    reps={reps}
+                    contacts={contacts}
+                    canAssignOthers={canAssignOthers}
+                    currentUser={currentUser}
+                  >
+                    {deleteAction(t)}
                   </TaskRow>
                 ))}
               </ul>

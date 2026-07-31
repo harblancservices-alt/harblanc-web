@@ -62,6 +62,7 @@ export function TaskDialog({
   currentUser,
   defaults,
   trigger,
+  initialFocus,
 }: {
   mode: "create" | "edit";
   /** Fixed company context (profile usage). Omit for the standalone dialog. */
@@ -74,6 +75,10 @@ export function TaskDialog({
   currentUser: { id: string; label: string };
   defaults?: TaskDefaults;
   trigger: (open: () => void) => ReactNode;
+  /** Which field grabs focus when the dialog opens — "due_at" for the task
+   * row's Reschedule button, so the picker is right there instead of the
+   * title. Defaults to the title, same as before this existed. */
+  initialFocus?: "title" | "due_at";
 }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -135,7 +140,7 @@ export function TaskDialog({
             label="Title"
             name="title"
             required
-            autoFocus
+            autoFocus={initialFocus !== "due_at"}
             defaultValue={d.title}
             placeholder="e.g. Send rate sheet"
           />
@@ -189,6 +194,7 @@ export function TaskDialog({
               label="Due (CST)"
               name="due_at"
               type="datetime-local"
+              autoFocus={initialFocus === "due_at"}
               defaultValue={toDatetimeLocal(d.due_at)}
             />
             {canAssignOthers && (
