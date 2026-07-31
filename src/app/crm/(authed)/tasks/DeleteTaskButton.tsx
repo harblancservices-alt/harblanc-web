@@ -3,6 +3,7 @@
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { deleteTask } from "./actions";
+import { BTN_DANGER } from "../_shell/ui";
 
 /**
  * Delete control for a task row rendered from a Server Component (the global
@@ -37,7 +38,7 @@ export function DeleteTaskButton({
       type="button"
       onClick={remove}
       disabled={pending}
-      className="rounded-md px-2 py-1 text-[12px] font-semibold text-fg-subtle transition-colors hover:bg-bad/10 hover:text-bad disabled:opacity-60"
+      className={`rounded-md px-2 py-1 text-[12px] font-semibold transition-colors ${BTN_DANGER}`}
     >
       Delete
     </button>

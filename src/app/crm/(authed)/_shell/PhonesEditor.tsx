@@ -5,6 +5,7 @@ import { LABEL, CONTROL } from "./form";
 import { IconPlus, IconX } from "./icons";
 import { LabelPicker } from "./LabelPicker";
 import { PHONE_LABEL_PRESETS, type PhoneEntry } from "./contactFields";
+import { BTN_DANGER, BTN_EDIT } from "./ui";
 
 /**
  * Editable list of labeled phone numbers (Main line, Dispatch, Bob cell…).
@@ -61,7 +62,7 @@ export function PhonesEditor({
               onClick={() => remove(i)}
               disabled={rows.length <= 1}
               aria-label="Remove phone"
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line-strong bg-inset text-fg-muted transition-colors hover:border-bad/40 hover:bg-bad-bg hover:text-bad disabled:opacity-40"
+              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors ${BTN_DANGER}`}
             >
               <IconX width={16} height={16} />
             </button>
@@ -71,7 +72,7 @@ export function PhonesEditor({
       <button
         type="button"
         onClick={add}
-        className="inline-flex w-fit items-center gap-1.5 rounded-lg border border-dashed border-line-strong px-3 py-1.5 text-[12.5px] font-semibold text-fg-muted transition-colors hover:bg-inset hover:text-fg"
+        className={`inline-flex w-fit items-center gap-1.5 rounded-lg border-dashed px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_EDIT}`}
       >
         <IconPlus width={13} height={13} />
         Add phone

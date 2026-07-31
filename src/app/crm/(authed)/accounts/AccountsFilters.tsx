@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import { LIFECYCLE_STAGES, LIFECYCLE_LABEL } from "./lifecycle";
 import type { RepOption } from "./CompanyDialog";
 import type { CrmTag } from "./tags";
+import { BTN_NEUTRAL, BTN_PRIMARY } from "../_shell/ui";
 
 /**
  * The Companies-list toolbar: full-text search plus lifecycle / tag / rep
@@ -73,7 +74,7 @@ export function AccountsFilters({
         <button
           type="submit"
           disabled={pending}
-          className="inline-flex h-10 shrink-0 items-center rounded-lg bg-accent px-3.5 text-[13px] font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-60"
+          className={`inline-flex h-10 shrink-0 items-center rounded-lg px-3.5 text-[13px] font-semibold transition-colors ${BTN_PRIMARY}`}
         >
           Search
         </button>
@@ -131,7 +132,7 @@ export function AccountsFilters({
             type="button"
             onClick={clearAll}
             disabled={pending}
-            className="inline-flex h-10 items-center rounded-lg border border-fg-subtle bg-card px-3 text-[13px] font-semibold text-fg-muted transition-colors hover:bg-inset hover:text-fg disabled:opacity-60"
+            className={`inline-flex h-10 items-center rounded-lg px-3 text-[13px] font-semibold transition-colors ${BTN_NEUTRAL}`}
           >
             Clear
           </button>

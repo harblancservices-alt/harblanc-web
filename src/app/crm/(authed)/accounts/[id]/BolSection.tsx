@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import type { DragEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
-import { Card, CardHead, ZEBRA_ROWS } from "../../_shell/ui";
+import { BTN_DANGER, BTN_EDIT, Card, CardHead, ZEBRA_ROWS } from "../../_shell/ui";
 import { formatDateTime } from "../../_shell/format";
 import { createBolDocument, deleteBolDocument } from "./bol-actions";
 
@@ -273,7 +273,7 @@ export function BolSection({
                 <button
                   type="button"
                   onClick={() => view(doc)}
-                  className="rounded-lg border border-line-strong bg-card px-3 py-1.5 text-[12.5px] font-semibold text-fg transition-colors hover:bg-inset"
+                  className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_EDIT}`}
                 >
                   View
                 </button>
@@ -281,7 +281,7 @@ export function BolSection({
                   type="button"
                   onClick={() => remove(doc)}
                   disabled={busyId === doc.id}
-                  className="rounded-lg border border-bad/30 bg-bad-bg px-3 py-1.5 text-[12.5px] font-semibold text-bad transition-colors hover:bg-bad/10 disabled:opacity-60"
+                  className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_DANGER}`}
                 >
                   {busyId === doc.id ? "…" : "Delete"}
                 </button>

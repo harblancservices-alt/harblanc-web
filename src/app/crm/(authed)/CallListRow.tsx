@@ -5,6 +5,7 @@ import { formatDateTime } from "./_shell/format";
 import { ClickableListItem } from "./_shell/ClickableRow";
 import { digitsForTel } from "./_shell/contactFields";
 import { LogCallDialog } from "./calls/LogCallDialog";
+import { BTN_EDIT } from "./_shell/ui";
 
 export type CallListContact = {
   id: string;
@@ -60,7 +61,7 @@ export function CallListRow({ contact }: { contact: CallListContact }) {
         {contact.phone && (
           <a
             href={`tel:${digitsForTel(contact.phone)}`}
-            className="inline-flex h-8 items-center rounded-lg border border-line-strong bg-card px-2.5 text-[12px] font-semibold text-accent transition-colors hover:bg-inset"
+            className={`inline-flex h-8 items-center rounded-lg px-2.5 text-[12px] font-semibold transition-colors ${BTN_EDIT}`}
           >
             Call
           </a>
@@ -74,7 +75,7 @@ export function CallListRow({ contact }: { contact: CallListContact }) {
               <button
                 type="button"
                 onClick={open}
-                className="inline-flex h-8 items-center rounded-lg border border-line-strong bg-card px-2.5 text-[12px] font-semibold text-fg transition-colors hover:bg-inset"
+                className={`inline-flex h-8 items-center rounded-lg px-2.5 text-[12px] font-semibold transition-colors ${BTN_EDIT}`}
               >
                 Log call
               </button>

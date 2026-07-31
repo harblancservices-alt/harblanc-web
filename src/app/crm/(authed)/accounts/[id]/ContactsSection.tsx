@@ -2,7 +2,15 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardHead, ZEBRA_ROWS } from "../../_shell/ui";
+import {
+  BTN_DANGER,
+  BTN_EDIT,
+  BTN_NEUTRAL,
+  BTN_PRIMARY,
+  Card,
+  CardHead,
+  ZEBRA_ROWS,
+} from "../../_shell/ui";
 import { IconPlus, IconContacts, IconNote } from "../../_shell/icons";
 import { formatDateTime } from "../../_shell/format";
 import { PhoneList } from "../../_shell/PhoneList";
@@ -88,7 +96,7 @@ export function ContactsSection({
               <button
                 type="button"
                 onClick={open}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-[12.5px] font-semibold text-white transition-colors hover:bg-accent-hover"
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_PRIMARY}`}
               >
                 <IconPlus width={14} height={14} />
                 Add contact
@@ -193,7 +201,7 @@ export function ContactsSection({
                       <button
                         type="button"
                         onClick={open}
-                        className="rounded-lg border border-line-strong bg-card px-3 py-1.5 text-[12.5px] font-semibold text-fg transition-colors hover:bg-inset"
+                        className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_EDIT}`}
                       >
                         Log call
                       </button>
@@ -206,7 +214,7 @@ export function ContactsSection({
                       <button
                         type="button"
                         onClick={open}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-line-strong bg-card px-3 py-1.5 text-[12.5px] font-semibold text-fg transition-colors hover:bg-inset"
+                        className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_EDIT}`}
                       >
                         <IconNote width={13} height={13} />
                         Note
@@ -221,7 +229,7 @@ export function ContactsSection({
                       <button
                         type="button"
                         onClick={open}
-                        className="rounded-lg border border-line-strong bg-card px-3 py-1.5 text-[12.5px] font-semibold text-fg transition-colors hover:bg-inset"
+                        className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_EDIT}`}
                       >
                         Edit
                       </button>
@@ -232,7 +240,7 @@ export function ContactsSection({
                       type="button"
                       onClick={clearPrimary}
                       disabled={pending}
-                      className="rounded-lg border border-line-strong bg-card px-3 py-1.5 text-[12.5px] font-semibold text-fg-muted transition-colors hover:bg-inset disabled:opacity-60"
+                      className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_NEUTRAL}`}
                     >
                       Unset primary
                     </button>
@@ -241,7 +249,7 @@ export function ContactsSection({
                       type="button"
                       onClick={() => makePrimary(c.id)}
                       disabled={pending}
-                      className="rounded-lg border border-line-strong bg-card px-3 py-1.5 text-[12.5px] font-semibold text-fg-muted transition-colors hover:bg-inset disabled:opacity-60"
+                      className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_NEUTRAL}`}
                     >
                       {isBusy ? "…" : "Make primary"}
                     </button>
@@ -251,7 +259,7 @@ export function ContactsSection({
                       type="button"
                       onClick={() => remove(c.id, c.name)}
                       disabled={pending}
-                      className="rounded-lg border border-bad/30 bg-bad-bg px-3 py-1.5 text-[12.5px] font-semibold text-bad transition-colors hover:bg-bad/10 disabled:opacity-60"
+                      className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_DANGER}`}
                     >
                       Delete
                     </button>

@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardHead } from "../../_shell/ui";
+import { BTN_DANGER, BTN_PRIMARY, Card, CardHead } from "../../_shell/ui";
 import { IconPlus, IconTasks } from "../../_shell/icons";
 import type { RepOption } from "../CompanyDialog";
 import { TaskDialog, type TaskContactOption } from "../../tasks/TaskDialog";
@@ -51,7 +51,7 @@ export function TasksSection({
         type="button"
         onClick={() => remove(task)}
         disabled={pending}
-        className="inline-flex items-center rounded-lg border border-line-strong bg-card px-2.5 py-1.5 text-[12px] font-semibold text-fg-subtle transition-colors hover:bg-bad/10 hover:text-bad disabled:opacity-60"
+        className={`inline-flex items-center rounded-lg px-2.5 py-1.5 text-[12px] font-semibold transition-colors ${BTN_DANGER}`}
       >
         Delete
       </button>
@@ -75,7 +75,7 @@ export function TasksSection({
               <button
                 type="button"
                 onClick={openDialog}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-[12.5px] font-semibold text-white transition-colors hover:bg-accent-hover"
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_PRIMARY}`}
               >
                 <IconPlus width={14} height={14} />
                 Add task

@@ -1,6 +1,7 @@
 "use client";
 
 import { MemberDialog, type MemberDefaults } from "./MemberDialog";
+import { BTN_EDIT } from "../_shell/ui";
 
 /**
  * Client-side trigger wrapper for MemberDialog — see AddDealButton.tsx for
@@ -23,7 +24,7 @@ export function MemberEditButton({
         <button
           type="button"
           onClick={open}
-          className="shrink-0 rounded-md px-2.5 py-1.5 text-[12px] font-semibold text-fg-subtle transition-colors hover:bg-inset hover:text-fg"
+          className={`shrink-0 rounded-md px-2.5 py-1.5 text-[12px] font-semibold transition-colors ${BTN_EDIT}`}
         >
           Edit
         </button>

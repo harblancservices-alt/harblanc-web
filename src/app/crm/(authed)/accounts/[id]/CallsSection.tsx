@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardHead, ZEBRA_ROWS } from "../../_shell/ui";
+import { BTN_DANGER, Card, CardHead, ZEBRA_ROWS } from "../../_shell/ui";
 import { formatDateTime } from "../../_shell/format";
 import { callOutcomeLabel, callOutcomeTone } from "../../calls/outcomes";
 import { deleteCall } from "../../calls/actions";
@@ -111,7 +111,7 @@ export function CallsSection({
                   type="button"
                   onClick={() => remove(c)}
                   disabled={pending}
-                  className="shrink-0 rounded-md px-2 py-0.5 text-[12px] font-semibold text-fg-subtle transition-colors hover:bg-bad/10 hover:text-bad disabled:opacity-60"
+                  className={`shrink-0 rounded-md px-2 py-0.5 text-[12px] font-semibold transition-colors ${BTN_DANGER}`}
                 >
                   {busyId === c.id ? "…" : "Delete"}
                 </button>

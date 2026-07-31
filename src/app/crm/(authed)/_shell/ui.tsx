@@ -109,6 +109,36 @@ export const LIST_HEAD_ROW =
 export const ZEBRA_ROWS =
   "[&>*:nth-child(odd)]:bg-card [&>*:nth-child(even)]:bg-inset";
 
+/**
+ * Semantic button color standard — CRM-wide.
+ *
+ * Color-only fragments (border + background + text + hover + disabled) meant
+ * to replace the border/bg/text/hover portion of a button's className, while
+ * the call site keeps its own sizing (rounded-*, px/py, text size, font
+ * weight, `transition-colors`). Established because task-card and dialog
+ * buttons had drifted to a single faint-gray "does everything" look
+ * regardless of what the button actually did — buttons should carry meaning.
+ *
+ *   BTN_PRIMARY — filled blue.   Save / Add / Create / Search / primary CTA.
+ *   BTN_SUCCESS — filled green.  Done / Complete / Release to team / approve.
+ *   BTN_EDIT    — blue outline.  Edit / Open / View / Call / secondary navigate.
+ *   BTN_WARNING — amber outline. Reschedule / snooze / date changes.
+ *   BTN_DANGER  — red outline.   Delete / Discard / Remove / Reject.
+ *   BTN_NEUTRAL — neutral outline. Cancel / dismiss / Clear filters.
+ */
+export const BTN_PRIMARY =
+  "border border-accent bg-accent text-white hover:bg-accent-hover disabled:opacity-60";
+export const BTN_SUCCESS =
+  "border border-ok bg-ok text-white hover:bg-ok/90 disabled:opacity-60";
+export const BTN_EDIT =
+  "border border-accent/40 bg-card text-accent hover:bg-accent/10 disabled:opacity-60";
+export const BTN_WARNING =
+  "border border-warn/40 bg-card text-warn hover:bg-warn/10 disabled:opacity-60";
+export const BTN_DANGER =
+  "border border-bad/30 bg-bad-bg text-bad hover:bg-bad/10 disabled:opacity-60";
+export const BTN_NEUTRAL =
+  "border border-fg-subtle bg-card text-fg-muted hover:bg-inset hover:text-fg disabled:opacity-60";
+
 export function StatTile({
   label,
   value,

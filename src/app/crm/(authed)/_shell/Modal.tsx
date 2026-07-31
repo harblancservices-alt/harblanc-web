@@ -56,7 +56,7 @@ export function Modal({
           <button
             type="button"
             onClick={() => !busy && onClose()}
-            className="rounded-md px-2 py-1 text-[13px] font-medium text-fg-subtle transition-colors hover:text-fg"
+            className="rounded-md border border-fg-subtle px-2.5 py-1 text-[13px] font-medium text-fg-muted transition-colors hover:bg-inset hover:text-fg"
           >
             Cancel
           </button>

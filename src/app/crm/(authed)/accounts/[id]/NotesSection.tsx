@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardHead, ZEBRA_ROWS } from "../../_shell/ui";
+import { BTN_DANGER, BTN_NEUTRAL, Card, CardHead, ZEBRA_ROWS } from "../../_shell/ui";
 import { IconNote } from "../../_shell/icons";
 import { formatDateTime } from "../../_shell/format";
 import { addNote, setNotePinned, deleteNote } from "../actions";
@@ -143,7 +143,7 @@ export function NotesSection({
                     type="button"
                     onClick={() => togglePin(n)}
                     disabled={pending}
-                    className="rounded-md px-2 py-0.5 text-[12px] font-semibold text-fg-subtle transition-colors hover:bg-inset hover:text-fg disabled:opacity-60"
+                    className={`rounded-md px-2 py-0.5 text-[12px] font-semibold transition-colors ${BTN_NEUTRAL}`}
                   >
                     {busyId === n.id ? "…" : n.is_pinned ? "Unpin" : "Pin"}
                   </button>
@@ -151,7 +151,7 @@ export function NotesSection({
                     type="button"
                     onClick={() => remove(n)}
                     disabled={pending}
-                    className="rounded-md px-2 py-0.5 text-[12px] font-semibold text-fg-subtle transition-colors hover:bg-bad/10 hover:text-bad disabled:opacity-60"
+                    className={`rounded-md px-2 py-0.5 text-[12px] font-semibold transition-colors ${BTN_DANGER}`}
                   >
                     Delete
                   </button>

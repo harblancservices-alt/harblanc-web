@@ -15,6 +15,7 @@ import { LinksEditor } from "../_shell/LinksEditor";
 import type { PhoneEntry, LinkEntry } from "../_shell/contactFields";
 import { createAccount, updateAccount, deleteAccount } from "./actions";
 import { LIFECYCLE_STAGES, LIFECYCLE_LABEL, DEFAULT_LIFECYCLE } from "./lifecycle";
+import { BTN_DANGER } from "../_shell/ui";
 
 export type CompanyDefaults = {
   id?: string;
@@ -244,7 +245,7 @@ export function CompanyDialog({
               type="button"
               onClick={onDelete}
               disabled={pending}
-              className="rounded-lg border border-bad/30 bg-bad-bg px-3 py-2 text-[13px] font-semibold text-bad transition-colors hover:bg-bad/10 disabled:opacity-60"
+              className={`rounded-lg px-3 py-2 text-[13px] font-semibold transition-colors ${BTN_DANGER}`}
             >
               Delete company
             </button>

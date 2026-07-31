@@ -17,6 +17,7 @@ import {
   type TaskContactOption,
 } from "./TaskDialog";
 import type { RepOption } from "../accounts/CompanyDialog";
+import { BTN_EDIT, BTN_NEUTRAL, BTN_SUCCESS, BTN_WARNING } from "../_shell/ui";
 
 export type CrmTaskItem = {
   id: string;
@@ -240,11 +241,7 @@ export function TaskRow({
             type="button"
             onClick={toggle}
             disabled={pending}
-            className={`${ACTION_BTN} ${
-              optimisticDone
-                ? "border-line-strong bg-card text-fg-subtle hover:bg-inset"
-                : "border-ok bg-ok text-white hover:bg-ok/90"
-            }`}
+            className={`${ACTION_BTN} ${optimisticDone ? BTN_NEUTRAL : BTN_SUCCESS}`}
           >
             {optimisticDone ? "Reopen" : "Done"}
           </button>
@@ -253,7 +250,7 @@ export function TaskRow({
             <a
               href={context.href}
               onClick={(e) => e.stopPropagation()}
-              className={`${ACTION_BTN} border-line-strong bg-card text-accent hover:bg-inset`}
+              className={`${ACTION_BTN} ${BTN_EDIT}`}
             >
               {context.kind === "call" ? "Call" : "Email"}
             </a>
@@ -276,7 +273,7 @@ export function TaskRow({
                   e.stopPropagation();
                   open();
                 }}
-                className={`${ACTION_BTN} border-line-strong bg-card text-fg-subtle hover:bg-inset`}
+                className={`${ACTION_BTN} ${BTN_WARNING}`}
               >
                 {task.due_at ? "Reschedule" : "Set due date"}
               </button>
@@ -299,7 +296,7 @@ export function TaskRow({
                   e.stopPropagation();
                   open();
                 }}
-                className={`${ACTION_BTN} border-line-strong bg-card text-fg-subtle hover:bg-inset`}
+                className={`${ACTION_BTN} ${BTN_EDIT}`}
               >
                 Edit
               </button>

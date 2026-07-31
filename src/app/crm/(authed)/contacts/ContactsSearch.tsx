@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import { BTN_NEUTRAL, BTN_PRIMARY } from "../_shell/ui";
 
 /**
  * Search box for the global Contacts directory. Writes `?q=` into the URL and
@@ -41,7 +42,7 @@ export function ContactsSearch({ q }: { q: string }) {
       <button
         type="submit"
         disabled={pending}
-        className="inline-flex h-10 shrink-0 items-center rounded-lg bg-accent px-3.5 text-[13px] font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-60"
+        className={`inline-flex h-10 shrink-0 items-center rounded-lg px-3.5 text-[13px] font-semibold transition-colors ${BTN_PRIMARY}`}
       >
         Search
       </button>
@@ -50,7 +51,7 @@ export function ContactsSearch({ q }: { q: string }) {
           type="button"
           onClick={clear}
           disabled={pending}
-          className="inline-flex h-10 shrink-0 items-center rounded-lg border border-fg-subtle bg-card px-3 text-[13px] font-semibold text-fg-muted transition-colors hover:bg-inset hover:text-fg disabled:opacity-60"
+          className={`inline-flex h-10 shrink-0 items-center rounded-lg px-3 text-[13px] font-semibold transition-colors ${BTN_NEUTRAL}`}
         >
           Clear
         </button>

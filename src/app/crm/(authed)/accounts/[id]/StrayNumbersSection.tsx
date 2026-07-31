@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardHead, ZEBRA_ROWS } from "../../_shell/ui";
+import { BTN_EDIT, BTN_PRIMARY, Card, CardHead, ZEBRA_ROWS } from "../../_shell/ui";
 import { LABEL, CONTROL } from "../../_shell/form";
 import { LabelPicker } from "../../_shell/LabelPicker";
 import { PHONE_LABEL_PRESETS, digitsForTel, type PhoneEntry } from "../../_shell/contactFields";
@@ -130,14 +130,14 @@ function StrayNumberRow({
           <button
             type="button"
             onClick={() => toggleMode("assign")}
-            className="rounded-lg border border-line-strong bg-card px-3 py-1.5 text-[12.5px] font-semibold text-fg transition-colors hover:bg-inset"
+            className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_EDIT}`}
           >
             Assign to contact
           </button>
           <button
             type="button"
             onClick={() => toggleMode("new")}
-            className="rounded-lg border border-line-strong bg-card px-3 py-1.5 text-[12.5px] font-semibold text-fg transition-colors hover:bg-inset"
+            className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_EDIT}`}
           >
             New contact from this
           </button>
@@ -164,7 +164,7 @@ function StrayNumberRow({
             type="button"
             onClick={doAssign}
             disabled={pending || !targetContactId}
-            className="h-11 shrink-0 rounded-lg bg-accent px-3.5 text-[12.5px] font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-60"
+            className={`h-11 shrink-0 rounded-lg px-3.5 text-[12.5px] font-semibold transition-colors ${BTN_PRIMARY}`}
           >
             {pending ? "…" : "Move number"}
           </button>
@@ -196,7 +196,7 @@ function StrayNumberRow({
             type="button"
             onClick={doCreate}
             disabled={pending}
-            className="h-11 shrink-0 rounded-lg bg-accent px-3.5 text-[12.5px] font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-60"
+            className={`h-11 shrink-0 rounded-lg px-3.5 text-[12.5px] font-semibold transition-colors ${BTN_PRIMARY}`}
           >
             {pending ? "…" : "Create contact"}
           </button>

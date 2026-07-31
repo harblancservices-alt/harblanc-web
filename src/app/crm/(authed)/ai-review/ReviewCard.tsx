@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { formatDateTime } from "../_shell/format";
 import { releaseAiLead, discardAiLead } from "./actions";
+import { BTN_DANGER, BTN_EDIT, BTN_SUCCESS } from "../_shell/ui";
 
 export type AiReviewLead = {
   id: string;
@@ -127,7 +128,7 @@ export function ReviewCard({ lead }: { lead: AiReviewLead }) {
         <Link
           href={`/crm/accounts/${lead.id}`}
           prefetch={false}
-          className="rounded-lg border border-line-strong bg-card px-3 py-1.5 text-[12.5px] font-semibold text-fg transition-colors hover:bg-inset"
+          className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_EDIT}`}
         >
           Open profile
         </Link>
@@ -135,7 +136,7 @@ export function ReviewCard({ lead }: { lead: AiReviewLead }) {
           type="button"
           onClick={release}
           disabled={pending}
-          className="inline-flex items-center rounded-lg bg-accent px-3 py-1.5 text-[12.5px] font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-60"
+          className={`inline-flex items-center rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_SUCCESS}`}
         >
           {busyAction === "release" ? "Releasing…" : "Release to team"}
         </button>
@@ -143,7 +144,7 @@ export function ReviewCard({ lead }: { lead: AiReviewLead }) {
           type="button"
           onClick={discard}
           disabled={pending}
-          className="rounded-lg border border-bad/30 bg-bad-bg px-3 py-1.5 text-[12.5px] font-semibold text-bad transition-colors hover:bg-bad/10 disabled:opacity-60"
+          className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_DANGER}`}
         >
           {busyAction === "discard" ? "Discarding…" : "Discard"}
         </button>

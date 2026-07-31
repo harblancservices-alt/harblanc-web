@@ -2,6 +2,7 @@
 
 import { LogCallDialog } from "../calls/LogCallDialog";
 import { digitsForTel, type PhoneEntry } from "./contactFields";
+import { BTN_EDIT } from "./ui";
 
 /**
  * Read-only display of a labeled phone-number list — tap-to-call (tel:) plus
@@ -57,7 +58,7 @@ export function PhoneList({
               <button
                 type="button"
                 onClick={open}
-                className="shrink-0 rounded-lg border border-line-strong bg-card px-2.5 py-1 text-[12px] font-semibold text-fg transition-colors hover:bg-inset"
+                className={`shrink-0 rounded-lg px-2.5 py-1 text-[12px] font-semibold transition-colors ${BTN_EDIT}`}
               >
                 Log call
               </button>

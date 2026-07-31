@@ -1,6 +1,7 @@
 "use client";
 
 import { LogCallDialog } from "../calls/LogCallDialog";
+import { BTN_EDIT } from "../_shell/ui";
 
 /**
  * Row-level "Log call" for the global Contacts directory — reuses the same
@@ -30,7 +31,7 @@ export function ContactRowActions({
         <button
           type="button"
           onClick={open}
-          className="rounded-lg border border-line-strong bg-card px-2.5 py-1.5 text-[12px] font-semibold text-fg transition-colors hover:bg-inset"
+          className={`rounded-lg px-2.5 py-1.5 text-[12px] font-semibold transition-colors ${BTN_EDIT}`}
         >
           Log call
         </button>

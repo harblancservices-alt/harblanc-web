@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { IconArrowLeft } from "./icons";
+import { BTN_EDIT } from "./ui";
 
 /**
  * The CRM's ONE back control, reused everywhere a detail/sub page needs to
@@ -46,7 +47,7 @@ export function BackButton({
       onClick={onClick}
       className={
         className ??
-        "inline-flex items-center gap-1.5 rounded-lg border border-line-strong bg-card px-3.5 py-2 text-[13px] font-semibold text-fg-muted transition-colors hover:bg-inset hover:text-fg"
+        `inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors ${BTN_EDIT}`
       }
     >
       <IconArrowLeft width={15} height={15} />

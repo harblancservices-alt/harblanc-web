@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
-import { PageShell, Card, CardHead, ZEBRA_ROWS } from "../_shell/ui";
+import { BTN_EDIT, PageShell, Card, CardHead, ZEBRA_ROWS } from "../_shell/ui";
 import { firstName } from "../_shell/format";
 import { LocalTime } from "../_shell/LocalTime";
 import { MemberEditButton } from "./MemberEditButton";
@@ -148,7 +148,7 @@ export default async function SettingsPage() {
                       <Link
                         href={`/crm/settings/activity/${m.id}`}
                         prefetch={false}
-                        className="rounded-md px-2.5 py-1.5 text-[12px] font-semibold text-fg-subtle transition-colors hover:bg-inset hover:text-fg"
+                        className={`rounded-md px-2.5 py-1.5 text-[12px] font-semibold transition-colors ${BTN_EDIT}`}
                       >
                         Activity
                       </Link>
