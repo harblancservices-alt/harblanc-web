@@ -13,6 +13,7 @@ import { RepControl } from "./RepControl";
 import { TagEditor, type CrmTag } from "./TagEditor";
 import { ContactsSection, type CrmContact } from "./ContactsSection";
 import { NotesSection, type CrmNote } from "./NotesSection";
+import { AiResearchSection } from "./AiResearchSection";
 import { CallsSection, type CrmCallLogItem } from "./CallsSection";
 import { ActivityTimeline, type CrmActivity } from "./ActivityTimeline";
 import { TasksSection } from "./TasksSection";
@@ -158,6 +159,8 @@ export default async function AccountDetailPage({
     created_at: n.created_at,
     author: n.user_id ? profileName(profileById.get(n.user_id)) : null,
   }));
+  const teamNotes = notes.filter((n) => !n.is_ai);
+  const aiNotes = notes.filter((n) => n.is_ai);
 
   const activities: CrmActivity[] = ((activitiesRes.data ?? []) as {
     id: string;
@@ -384,7 +387,7 @@ export default async function AccountDetailPage({
               </div>
             </Card>
 
-            <NotesSection accountId={account.id as string} notes={notes} />
+            <NotesSection accountId={account.id as string} notes={teamNotes} />
             <TasksSection
               accountId={account.id as string}
               tasks={tasks}
@@ -417,6 +420,8 @@ export default async function AccountDetailPage({
           />
         }
         bolCount={documents.length}
+        aiResearch={<AiResearchSection notes={aiNotes} />}
+        aiResearchCount={aiNotes.length}
       />
     </PageShell>
   );
