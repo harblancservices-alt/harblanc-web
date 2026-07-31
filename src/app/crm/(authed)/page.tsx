@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
-import { PageShell, Card, CardHead, StatTile, ZEBRA_ROWS } from "./_shell/ui";
+import { PageShell, Card, CardHead, StatLinkTile, ZEBRA_ROWS } from "./_shell/ui";
 import { IconTasks } from "./_shell/icons";
+import { ClickableListItem } from "./_shell/ClickableRow";
 import { DueBell } from "./DueBell";
 import {
   formatDateTime,
@@ -12,6 +13,8 @@ import {
 import { TaskRow, type CrmTaskItem } from "./tasks/TaskRow";
 import { callOutcomeLabel, callOutcomeTone } from "./calls/outcomes";
 import { stageLabel, stageTone } from "./accounts/lifecycle";
+import type { RepOption } from "./accounts/CompanyDialog";
+import { QuickAddLeadCard, QuickAddTaskCard, QuickLogCallCard } from "./QuickActions";
 
 export const dynamic = "force-dynamic";
 
@@ -31,7 +34,12 @@ type TaskRowData = {
   assigned_user_id: string | null;
 };
 
-type ProfileRow = { id: string; full_name: string | null; email: string | null };
+type ProfileRow = {
+  id: string;
+  full_name: string | null;
+  email: string | null;
+  is_active: boolean;
+};
 
 type Callback = {
   id: string;
@@ -105,6 +113,8 @@ export default async function CrmDashboardPage() {
     newAiLeadsRes,
     needsFinalizeRes,
     profilesRes,
+    companyOptionsRes,
+    orgContactsRes,
   ] = await Promise.all([
     // KPI: new leads created in the last 7 days.
     supabase
@@ -188,8 +198,28 @@ export default async function CrmDashboardPage() {
       .order("created_at", { ascending: false })
       .limit(100),
     // Assignee names for the task rows below (every org member, not just
-    // active ones — an inactive rep can still be shown as a task's owner).
-    supabase.from("crm_profiles").select("id, full_name, email"),
+    // active ones — an inactive rep can still be shown as a task's owner) —
+    // is_active also drives the "Assigned rep" picker in the quick-task
+    // dialog (only active reps are offered, matching /crm/tasks).
+    supabase.from("crm_profiles").select("id, full_name, email, is_active"),
+    // Company roster for the quick-action dialogs (Quick Add lead's company
+    // combobox, Quick Task's Company picker, Quick Log Call's company
+    // combobox) — same shape/query as contacts/page.tsx and tasks/page.tsx.
+    supabase
+      .from("crm_accounts")
+      .select("id, name")
+      .is("deleted_at", null)
+      .order("name", { ascending: true })
+      .limit(1000),
+    // Contact roster (each carrying its own account) for Quick Task's contact
+    // picker and Quick Log Call's contact picker, both filtered client-side
+    // to whichever company gets selected — same pattern as tasks/page.tsx.
+    supabase
+      .from("crm_contacts")
+      .select("id, name, account_id")
+      .is("deleted_at", null)
+      .order("name", { ascending: true })
+      .limit(2000),
   ]);
 
   const orgTasks = (tasksRes.data ?? []) as TaskRowData[];
@@ -202,6 +232,28 @@ export default async function CrmDashboardPage() {
   const profileNameById = new Map(
     profiles.map((p) => [p.id, profileFirstName(p.full_name, p.email) || "Unnamed rep"]),
   );
+
+  // ── Quick-action data (KPI strip's first three cards) ──
+  const companyOptions = (companyOptionsRes.data ?? []) as { id: string; name: string }[];
+  const orgContacts = (orgContactsRes.data ?? []) as {
+    id: string;
+    name: string;
+    account_id: string | null;
+  }[];
+  const quickTaskContacts = orgContacts.map((c) => ({
+    id: c.id,
+    name: c.name,
+    accountId: c.account_id,
+  }));
+  const canAssignOthers = user.role === "owner";
+  const currentUser = {
+    id: user.id,
+    label: profileFirstName(user.fullName, user.email) || "You",
+  };
+  const reps: RepOption[] = profiles
+    .filter((p) => p.is_active)
+    .map((p) => ({ id: p.id, label: profileNameById.get(p.id) ?? "Unnamed rep" }))
+    .sort((a, b) => a.label.localeCompare(b.label));
 
   // Resolve company names for the rows that only carry an account_id.
   const nameIds = [
@@ -271,12 +323,25 @@ export default async function CrmDashboardPage() {
 
   return (
     <PageShell>
-      {/* KPI strip */}
+      {/* KPI strip — the first three are quick-action buttons (open a dialog on
+          click, still showing their live count); Customers stays a plain link
+          since there's no quick-add flow for a customer. */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatTile label="New leads · 7d" value={String(newLeadsRes.count ?? 0)} />
-        <StatTile label="Open tasks" value={String(tasks.length)} />
-        <StatTile label="Calls · 7d" value={String(callsWeekRes.count ?? 0)} />
-        <StatTile label="Customers" value={String(customerCount)} />
+        <QuickAddLeadCard companies={companyOptions} count={newLeadsRes.count ?? 0} />
+        <QuickAddTaskCard
+          accounts={companyOptions}
+          contacts={quickTaskContacts}
+          reps={reps}
+          canAssignOthers={canAssignOthers}
+          currentUser={currentUser}
+          count={tasks.length}
+        />
+        <QuickLogCallCard
+          accounts={companyOptions}
+          contacts={quickTaskContacts}
+          count={callsWeekRes.count ?? 0}
+        />
+        <StatLinkTile href="/crm/customers" label="Customers" value={String(customerCount)} />
       </div>
 
       {/* What's next — the summary head of the work queue further down. The bell
@@ -351,7 +416,12 @@ export default async function CrmDashboardPage() {
           {overdueTasks.length > 0 && (
             <ul className={`divide-y divide-line-strong ${ZEBRA_ROWS}`}>
               {overdueTasks.map((t) => (
-                <TaskRow key={t.id} task={t} showCompany />
+                <TaskRow
+                  key={t.id}
+                  task={t}
+                  showCompany
+                  linkTo={t.account_id ? `/crm/accounts/${t.account_id}` : "/crm/tasks"}
+                />
               ))}
             </ul>
           )}
@@ -370,12 +440,17 @@ export default async function CrmDashboardPage() {
         <Card>
           <CardHead
             title="Due today"
-            hint="Tasks and call-backs due today"
+            hint={`${dueTodayTasks.length + todayCallbacks.length} tasks and call-backs due today`}
           />
           {dueTodayTasks.length > 0 && (
             <ul className={`divide-y divide-line-strong ${ZEBRA_ROWS}`}>
               {dueTodayTasks.map((t) => (
-                <TaskRow key={t.id} task={t} showCompany />
+                <TaskRow
+                  key={t.id}
+                  task={t}
+                  showCompany
+                  linkTo={t.account_id ? `/crm/accounts/${t.account_id}` : "/crm/tasks"}
+                />
               ))}
             </ul>
           )}
@@ -489,8 +564,8 @@ function CallbackRow({
   callback: Callback;
   companyName: string | null;
 }) {
-  return (
-    <li className="flex items-start gap-3 px-5 py-3.5">
+  const content = (
+    <>
       <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-accent" />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
@@ -522,8 +597,17 @@ function CallbackRow({
           )}
         </div>
       </div>
-    </li>
+    </>
   );
+
+  if (callback.account_id) {
+    return (
+      <ClickableListItem href={`/crm/accounts/${callback.account_id}`} className="flex items-start gap-3 px-5 py-3.5">
+        {content}
+      </ClickableListItem>
+    );
+  }
+  return <li className="flex items-start gap-3 px-5 py-3.5">{content}</li>;
 }
 
 function FollowupRow({
@@ -535,8 +619,8 @@ function FollowupRow({
 }) {
   const followupMs = timestampMs(followup.next_followup_at);
   const overdue = followupMs !== null && followupMs < Date.now();
-  return (
-    <li className="flex items-start gap-3 px-5 py-3.5">
+  const content = (
+    <>
       <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-warn" />
       <div className="min-w-0 flex-1">
         <p className="text-[13.5px] font-medium text-fg">{followup.name}</p>
@@ -558,8 +642,20 @@ function FollowupRow({
           )}
         </div>
       </div>
-    </li>
+    </>
   );
+
+  // No standalone contact-profile page to link to — the company profile
+  // (where this contact and its follow-up both live) is the meaningful
+  // destination, same fallback ContactsPage's row-click already uses.
+  if (followup.account_id) {
+    return (
+      <ClickableListItem href={`/crm/accounts/${followup.account_id}`} className="flex items-start gap-3 px-5 py-3.5">
+        {content}
+      </ClickableListItem>
+    );
+  }
+  return <li className="flex items-start gap-3 px-5 py-3.5">{content}</li>;
 }
 
 function NewAiLeadRow({ lead }: { lead: NewAiLead }) {

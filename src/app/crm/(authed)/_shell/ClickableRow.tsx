@@ -57,3 +57,51 @@ export function ClickableRow({
     </tr>
   );
 }
+
+/**
+ * The `<li>` counterpart to ClickableRow — same "whole row navigates, nested
+ * interactive elements opt out" behavior, for list-based (not table-based)
+ * CRM rows like the dashboard's work-queue cards.
+ */
+export function ClickableListItem({
+  href,
+  className,
+  children,
+}: {
+  href: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  const router = useRouter();
+
+  function isInteractive(target: EventTarget | null): boolean {
+    return target instanceof HTMLElement
+      ? Boolean(target.closest("a, button, select, input, textarea"))
+      : false;
+  }
+
+  function onClick(e: ReactMouseEvent<HTMLLIElement>) {
+    if (isInteractive(e.target)) return;
+    router.push(href);
+  }
+
+  function onKeyDown(e: ReactKeyboardEvent<HTMLLIElement>) {
+    if (isInteractive(e.target)) return;
+    if (e.key === "Enter") {
+      e.preventDefault();
+      router.push(href);
+    }
+  }
+
+  return (
+    <li
+      tabIndex={0}
+      role="link"
+      onClick={onClick}
+      onKeyDown={onKeyDown}
+      className={`cursor-pointer outline-none transition-colors hover:bg-fg/[0.04] focus-visible:bg-fg/[0.04] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/40 ${className ?? ""}`}
+    >
+      {children}
+    </li>
+  );
+}

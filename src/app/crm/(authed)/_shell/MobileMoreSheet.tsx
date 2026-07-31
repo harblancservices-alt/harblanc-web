@@ -93,7 +93,13 @@ export function MobileMoreSheet({
                 />
                 <span className="flex-1">{item.label}</span>
                 {!!item.badge && (
-                  <span className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-bad px-1 text-[10.5px] font-bold leading-none tabular-nums text-white">
+                  <span
+                    className={`inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10.5px] font-bold leading-none tabular-nums ${
+                      item.badgeTone === "alert"
+                        ? "bg-bad text-white"
+                        : "bg-graphite-2 text-on-dark-dim"
+                    }`}
+                  >
                     {item.badge > 99 ? "99+" : item.badge}
                   </span>
                 )}

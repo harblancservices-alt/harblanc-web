@@ -18,6 +18,12 @@ export type CrmNavItem = {
   match?: string[];
   /** Small count badge rendered beside the label (e.g. pending AI reviews). */
   badge?: number;
+  /** Badge color: "alert" (red, `bg-bad`) is reserved for genuinely urgent,
+   * time-sensitive queues — currently just AI Agent's unclaimed leads.
+   * Everything else ("neutral", the default when omitted) renders as a
+   * plain gray count, e.g. Active Customers' size or AI Review's queue
+   * depth — informational, not something demanding action. */
+  badgeTone?: "alert" | "neutral";
   /** True for items only ever pushed when role==='owner' (currently just AI
    * Review). CrmShell and MobileMoreSheet render these in an orange accent
    * — icon + label — so the admin can tell admin-only tabs apart from
@@ -64,6 +70,7 @@ export function buildCrmNav(
       label: "Active Customers",
       Icon: IconCustomers,
       badge: customerCount > 0 ? customerCount : undefined,
+      badgeTone: "neutral",
     },
     { href: "/crm/contacts", label: "Contacts", Icon: IconContacts },
     {
@@ -71,6 +78,7 @@ export function buildCrmNav(
       label: "AI Agent",
       Icon: IconAiAgent,
       badge: unclaimedAiLeadsCount > 0 ? unclaimedAiLeadsCount : undefined,
+      badgeTone: "alert",
     },
     { href: "/crm/tasks", label: "Tasks", Icon: IconTasks },
   ];
@@ -80,6 +88,7 @@ export function buildCrmNav(
       label: "AI Review",
       Icon: IconAiReview,
       badge: pendingReviewCount > 0 ? pendingReviewCount : undefined,
+      badgeTone: "neutral",
       ownerOnly: true,
     });
   }

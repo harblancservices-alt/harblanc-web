@@ -1,4 +1,5 @@
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
+import Link from "next/link";
 
 /**
  * CRM page-content primitives — rounded-2xl white cards on shadow-e2,
@@ -127,6 +128,85 @@ export function StatTile({
       </p>
       {sub && <p className="mt-1.5 text-[12px] text-fg-muted">{sub}</p>}
     </div>
+  );
+}
+
+/**
+ * A KPI tile that doubles as a quick-action button — same visual weight as
+ * StatTile (rounded-2xl card, mono value) plus a small icon chip and a "Quick
+ * …" cta that appears on hover/focus, so it reads as tappable rather than a
+ * plain readout. Only ever rendered from inside a Client Component (the icon
+ * chip's hover state and `onClick` require one) — see QuickActions.tsx.
+ */
+export function StatButton({
+  label,
+  value,
+  cta,
+  icon,
+  onClick,
+}: {
+  label: string;
+  value: string;
+  /** Short verb phrase shown on hover, e.g. "Quick add". */
+  cta: string;
+  icon?: ReactNode;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group flex w-full flex-col items-start rounded-2xl border border-line-strong bg-card p-4 text-left shadow-e2 transition-all hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-e3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+    >
+      <div className="flex w-full items-center justify-between gap-2">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-subtle">
+          {label}
+        </p>
+        {icon && (
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent transition-colors group-hover:bg-accent group-hover:text-white">
+            {icon}
+          </span>
+        )}
+      </div>
+      <p className="mt-1.5 font-mono text-[28px] font-semibold tabular-nums leading-none text-fg">
+        {value}
+      </p>
+      <span className="mt-1.5 text-[11.5px] font-semibold text-accent opacity-0 transition-opacity group-hover:opacity-100">
+        {cta} →
+      </span>
+    </button>
+  );
+}
+
+/** A KPI tile that's just a link (no dialog) — the "Customers" card, which
+ * only ever routes to /crm/customers rather than opening a quick-add flow. */
+export function StatLinkTile({
+  href,
+  label,
+  value,
+}: {
+  href: string;
+  label: string;
+  value: string;
+}) {
+  return (
+    <Link
+      href={href}
+      prefetch={false}
+      className="group flex flex-col items-start rounded-2xl border border-line-strong bg-card p-4 text-left shadow-e2 transition-all hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-e3"
+    >
+      <div className="flex w-full items-center justify-between gap-2">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-subtle">
+          {label}
+        </p>
+        <span className="text-fg-subtle transition-colors group-hover:text-accent">
+          →
+        </span>
+      </div>
+      <p className="mt-1.5 font-mono text-[28px] font-semibold tabular-nums leading-none text-fg">
+        {value}
+      </p>
+    </Link>
   );
 }
 

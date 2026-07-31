@@ -128,6 +128,14 @@ export function IconCustomers(props: IconProps) {
   );
 }
 
+export function IconPhone(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4.5 4h3l1.5 5-2 1.5a12 12 0 0 0 5.5 5.5l1.5-2 5 1.5v3a1.5 1.5 0 0 1-1.6 1.5A17.5 17.5 0 0 1 3 5.6 1.5 1.5 0 0 1 4.5 4Z" />
+    </svg>
+  );
+}
+
 export function IconArrowLeft(props: IconProps) {
   return (
     <svg {...base(props)}>

@@ -26,10 +26,16 @@ export function CompanyCombobox({
   companies,
   selection,
   onChange,
+  allowCreate = true,
 }: {
   companies: CompanyOption[];
   selection: CompanySelection;
   onChange: (next: CompanySelection) => void;
+  /** False for pickers that must resolve to an EXISTING company (e.g. the
+   * dashboard's quick "Log a call" — a call needs a real account, so it
+   * shouldn't silently spin up a bare one the way the contact quick-add
+   * does). Defaults true to match every existing call site. */
+  allowCreate?: boolean;
 }) {
   const [open, setOpen] = useState(false);
 
@@ -40,7 +46,7 @@ export function CompanyCombobox({
         .slice(0, 8)
     : [];
   const exactMatch = companies.some((c) => c.name.toLowerCase() === trimmed.toLowerCase());
-  const showCreate = trimmed.length > 0 && !exactMatch;
+  const showCreate = allowCreate && trimmed.length > 0 && !exactMatch;
   const showDropdown = open && (matches.length > 0 || showCreate);
 
   return (
@@ -64,12 +70,20 @@ export function CompanyCombobox({
 
       {selection.selectedId ? (
         <p className="text-[12px] text-fg-subtle">Attaching to an existing company.</p>
-      ) : trimmed ? (
+      ) : trimmed && allowCreate ? (
         <p className="text-[12px] text-fg-subtle">
           No match selected — saving will create &ldquo;{trimmed}&rdquo; as a new company.
         </p>
+      ) : trimmed ? (
+        <p className="text-[12px] text-fg-subtle">
+          No matching company — pick one from the list below.
+        </p>
       ) : (
-        <p className="text-[12px] text-fg-subtle">Optional — leave blank to save with no company.</p>
+        <p className="text-[12px] text-fg-subtle">
+          {allowCreate
+            ? "Optional — leave blank to save with no company."
+            : "Search for the company to log this call against."}
+        </p>
       )}
 
       {showDropdown && (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Modal } from "../_shell/Modal";
 import {
@@ -22,7 +23,17 @@ import { createContactQuick } from "./actions";
  * creates a brand-new bare company on save — see contacts/actions.ts for
  * exactly what that does (needs_finalize=true, source='manual').
  */
-export function AddContactDialog({ companies }: { companies: CompanyOption[] }) {
+export function AddContactDialog({
+  companies,
+  trigger,
+}: {
+  companies: CompanyOption[];
+  /** Optional custom opener — defaults to the built-in "Add contact" button
+   * (Contacts page usage). The dashboard's "New leads" quick-action card
+   * passes its own StatButton trigger instead, reusing this dialog wholesale
+   * rather than duplicating the contact form. */
+  trigger?: (open: () => void) => ReactNode;
+}) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -58,14 +69,18 @@ export function AddContactDialog({ companies }: { companies: CompanyOption[] }) 
 
   return (
     <>
-      <button
-        type="button"
-        onClick={openDialog}
-        className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3.5 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-accent-hover"
-      >
-        <IconPlus width={16} height={16} />
-        Add contact
-      </button>
+      {trigger ? (
+        trigger(openDialog)
+      ) : (
+        <button
+          type="button"
+          onClick={openDialog}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3.5 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-accent-hover"
+        >
+          <IconPlus width={16} height={16} />
+          Add contact
+        </button>
+      )}
 
       <Modal open={open} onClose={() => setOpen(false)} busy={pending} title="New contact">
         <FormError message={error} />

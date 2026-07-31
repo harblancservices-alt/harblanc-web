@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { formatDateTime, timestampMs } from "../_shell/format";
+import { ClickableListItem } from "../_shell/ClickableRow";
 import { priorityLabel, priorityTone } from "./priority";
 import { completeTask, reopenTask } from "./actions";
 
@@ -41,10 +42,17 @@ export type CrmTaskItem = {
 export function TaskRow({
   task,
   showCompany,
+  linkTo,
   children,
 }: {
   task: CrmTaskItem;
   showCompany?: boolean;
+  /** Makes the whole row navigate there on click (the dashboard's queue —
+   * the task's company profile, or /crm/tasks when it has none). Nested
+   * interactive elements (the checkbox, the company link, `children`) still
+   * work normally. Omitted everywhere else (global Tasks page, company
+   * profile) so this doesn't change those rows' existing behavior. */
+  linkTo?: string;
   children?: ReactNode;
 }) {
   const [pending, startTransition] = useTransition();
@@ -65,8 +73,8 @@ export function TaskRow({
   const dueMs = timestampMs(task.due_at);
   const overdue = !optimisticDone && dueMs !== null && dueMs < Date.now();
 
-  return (
-    <li className="flex items-start gap-3 px-5 py-3.5 transition-colors hover:bg-fg/[0.04]">
+  const rowContent = (
+    <>
       <button
         type="button"
         onClick={toggle}
@@ -138,6 +146,20 @@ export function TaskRow({
       </div>
 
       {children && <div className="shrink-0">{children}</div>}
+    </>
+  );
+
+  if (linkTo) {
+    return (
+      <ClickableListItem href={linkTo} className="flex items-start gap-3 px-5 py-3.5">
+        {rowContent}
+      </ClickableListItem>
+    );
+  }
+
+  return (
+    <li className="flex items-start gap-3 px-5 py-3.5 transition-colors hover:bg-fg/[0.04]">
+      {rowContent}
     </li>
   );
 }

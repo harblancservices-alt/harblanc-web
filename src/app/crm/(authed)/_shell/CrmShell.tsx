@@ -50,7 +50,13 @@ export function CrmShell({
   // in the mobile "More" sheet instead, so no destination the desktop
   // sidebar lists is ever unreachable on mobile.
   const moreItems = moreNav(navItems);
-  const moreBadgeTotal = moreItems.reduce((sum, item) => sum + (item.badge ?? 0), 0);
+  // Only "alert"-tone badges (currently AI Agent's unclaimed count) bubble up
+  // as the red More-sheet dot — a neutral badge (Active Customers, AI
+  // Review) hiding inside More shouldn't make the dot read as urgent.
+  const moreAlertTotal = moreItems.reduce(
+    (sum, item) => sum + (item.badgeTone === "alert" ? (item.badge ?? 0) : 0),
+    0,
+  );
   const [moreOpen, setMoreOpen] = useState(false);
 
   return (
@@ -103,7 +109,13 @@ export function CrmShell({
                   />
                   <span className="flex-1">{item.label}</span>
                   {!!item.badge && (
-                    <span className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-bad px-1 text-[10.5px] font-bold leading-none tabular-nums text-white">
+                    <span
+                      className={`inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10.5px] font-bold leading-none tabular-nums ${
+                        item.badgeTone === "alert"
+                          ? "bg-bad text-white"
+                          : "bg-graphite-2 text-on-dark-dim"
+                      }`}
+                    >
                       {item.badge > 99 ? "99+" : item.badge}
                     </span>
                   )}
@@ -180,9 +192,9 @@ export function CrmShell({
         >
           <IconMore width={22} height={22} />
           More
-          {moreBadgeTotal > 0 && (
+          {moreAlertTotal > 0 && (
             <span className="absolute right-[24%] top-1 inline-flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-bad px-1 text-[9.5px] font-bold leading-none tabular-nums text-white">
-              {moreBadgeTotal > 99 ? "99+" : moreBadgeTotal}
+              {moreAlertTotal > 99 ? "99+" : moreAlertTotal}
             </span>
           )}
         </button>

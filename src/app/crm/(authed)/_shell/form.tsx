@@ -109,6 +109,7 @@ export function SelectField({
   name,
   defaultValue,
   required,
+  disabled,
   onChange,
   children,
 }: {
@@ -116,6 +117,7 @@ export function SelectField({
   name: string;
   defaultValue?: string;
   required?: boolean;
+  disabled?: boolean;
   /** Optional — for the rare field whose selection drives another field
    * client-side (e.g. a dependent contact list filtered by company). Most
    * callers don't need this; the value still submits normally either way. */
@@ -129,8 +131,9 @@ export function SelectField({
         name={name}
         defaultValue={defaultValue}
         required={required}
+        disabled={disabled}
         onChange={onChange}
-        className={`h-11 ${CONTROL}`}
+        className={`h-11 disabled:opacity-60 ${CONTROL}`}
       >
         {children}
       </select>
