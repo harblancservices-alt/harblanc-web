@@ -80,7 +80,7 @@ export function CrmShell({
       <div className="flex">
         {/* Desktop sidebar */}
         <aside className="sticky top-14 hidden h-[calc(100vh-3.5rem)] w-[220px] shrink-0 flex-col border-r border-graphite-line bg-graphite lg:flex">
-          <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-3">
+          <nav className="flex flex-1 flex-col gap-2 overflow-y-auto p-3">
             {navItems.map((item) => {
               const active = isActive(pathname, item);
               // Owner-only items (currently just AI Review) render in an
@@ -94,7 +94,7 @@ export function CrmShell({
                   href={item.href}
                   prefetch={false}
                   className={[
-                    "flex items-center gap-3 rounded-lg border-l-2 px-3 py-2 text-[13.5px] font-medium transition-colors",
+                    "flex items-center gap-3.5 rounded-lg border-l-2 px-3.5 py-3 text-[15px] font-medium transition-colors",
                     active
                       ? ownerOnly
                         ? "border-warn bg-graphite-2 text-warn"
@@ -105,6 +105,8 @@ export function CrmShell({
                   ].join(" ")}
                 >
                   <item.Icon
+                    width={22}
+                    height={22}
                     className={ownerOnly ? "text-warn" : active ? "text-accent" : "text-on-dark-dim"}
                   />
                   <span className="flex-1">{item.label}</span>
