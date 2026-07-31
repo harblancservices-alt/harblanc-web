@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { Card, CardHead, EmptyState, ZEBRA_ROWS } from "../_shell/ui";
+import { BTN_EDIT, Card, CardHead, EmptyState, ZEBRA_ROWS } from "../_shell/ui";
 import { IconCalendar } from "../_shell/icons";
 
 export type CalendarItem = {
@@ -182,7 +182,7 @@ export function CalendarView({ items, todayKey }: { items: CalendarItem[]; today
               type="button"
               onClick={goToday}
               disabled={isCurrentMonth}
-              className="ml-1 inline-flex h-8 items-center rounded-md border border-line-strong bg-card px-3 text-[11.5px] font-semibold uppercase tracking-[0.06em] text-fg transition-colors hover:bg-inset disabled:cursor-not-allowed disabled:opacity-50"
+              className={`ml-1 inline-flex h-10 items-center rounded-md px-3.5 text-[11.5px] font-semibold uppercase tracking-[0.06em] transition-colors disabled:cursor-not-allowed ${BTN_EDIT}`}
             >
               Today
             </button>
@@ -226,21 +226,77 @@ export function CalendarView({ items, todayKey }: { items: CalendarItem[]; today
       </Card>
 
       {mode === "month" && selectedDay && (
-        <Card>
-          <CardHead
-            title={formatDayHeading(selectedDay)}
-            hint={`${selectedItems.length} item${selectedItems.length === 1 ? "" : "s"}`}
-            right={
-              <button
-                type="button"
-                onClick={() => setSelectedDay(null)}
-                className="rounded-md px-2 py-1 text-[12px] font-medium text-bar-fg/70 transition-colors hover:text-bar-fg"
-              >
-                Close
-              </button>
-            }
-          />
-          {selectedItems.length === 0 ? (
+        <DayDetailModal
+          dateKey={selectedDay}
+          items={selectedItems}
+          onClose={() => setSelectedDay(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+/**
+ * Floating day-detail dialog — a state-driven overlay (no portal needed since
+ * this whole tree is already a "use client" component), centered over the
+ * page on a dimmed click-catcher backdrop. Mirrors _shell/Modal.tsx's proven
+ * fixed-inset-0/z-50 overlay pattern used CRM-wide, with a CardHead-style
+ * dark header so it reads as the same chrome as every other CRM card.
+ */
+function DayDetailModal({
+  dateKey,
+  items,
+  onClose,
+}: {
+  dateKey: string;
+  items: CalendarItem[];
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKey);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+    };
+  }, [onClose]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      onClick={onClose}
+      role="presentation"
+    >
+      <div
+        className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-line-strong bg-card shadow-e3"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label={formatDayHeading(dateKey)}
+      >
+        <div className="flex shrink-0 items-center justify-between gap-3 rounded-t-2xl border-b border-graphite-line bg-bar px-5 py-4">
+          <div className="min-w-0">
+            <h2 className="truncate text-[15.5px] font-bold tracking-tight text-bar-fg">
+              {formatDayHeading(dateKey)}
+            </h2>
+            <p className="mt-0.5 truncate text-[12px] font-medium text-bar-fg/70">
+              {items.length} item{items.length === 1 ? "" : "s"}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-bad text-white shadow-sm transition-colors hover:bg-bad/80"
+          >
+            <IconClose />
+          </button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          {items.length === 0 ? (
             <EmptyState
               icon={<IconCalendar />}
               title="Nothing on this day"
@@ -248,14 +304,32 @@ export function CalendarView({ items, todayKey }: { items: CalendarItem[]; today
             />
           ) : (
             <ul className={`divide-y divide-line-strong ${ZEBRA_ROWS}`}>
-              {selectedItems.map((it) => (
+              {items.map((it) => (
                 <ItemRow key={it.id} item={it} />
               ))}
             </ul>
           )}
-        </Card>
-      )}
+        </div>
+      </div>
     </div>
+  );
+}
+
+function IconClose() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.4}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-4 w-4"
+      aria-hidden
+    >
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </svg>
   );
 }
 
@@ -413,15 +487,17 @@ function ModeToggle({
   onChange: (mode: "month" | "list") => void;
 }) {
   return (
-    <div className="inline-flex rounded-lg bg-black/20 p-0.5">
+    <div className="inline-flex gap-1 rounded-lg border border-white/15 bg-black/20 p-1">
       {(["month", "list"] as const).map((m) => (
         <button
           key={m}
           type="button"
           onClick={() => onChange(m)}
           className={[
-            "rounded-md px-3 py-1 text-[11.5px] font-semibold capitalize transition-colors",
-            mode === m ? "bg-white text-fg" : "text-bar-fg/70 hover:text-bar-fg",
+            "rounded-md px-3.5 py-1.5 text-[11.5px] font-semibold capitalize transition-colors",
+            mode === m
+              ? "bg-accent text-white shadow-sm"
+              : "border border-white/25 text-bar-fg/90 hover:border-white/50 hover:bg-white/10 hover:text-bar-fg",
           ].join(" ")}
         >
           {m}
@@ -445,7 +521,7 @@ function NavButton({
       type="button"
       onClick={onClick}
       aria-label={label}
-      className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-line-strong bg-card text-fg transition-colors hover:bg-inset"
+      className={`inline-flex h-10 w-10 items-center justify-center rounded-md transition-colors ${BTN_EDIT}`}
     >
       {children}
     </button>
