@@ -14,6 +14,8 @@ export type CrmNote = {
   is_ai: boolean;
   created_at: string;
   author: string | null;
+  /** First name of the contact this note is about, when it's tied to one. */
+  contactName?: string | null;
 };
 
 /**
@@ -132,6 +134,7 @@ export function NotesSection({
                   <span className="font-bold text-fg">{n.author || "Someone"}</span>
                   <span>·</span>
                   <span>{formatDateTime(n.created_at)}</span>
+                  {n.contactName && <span>· {n.contactName}</span>}
                   {n.is_pinned && (
                     <span className="rounded-full bg-steel-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-steel">
                       Pinned

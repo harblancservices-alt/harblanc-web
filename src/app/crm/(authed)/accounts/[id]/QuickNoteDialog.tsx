@@ -5,21 +5,23 @@ import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Modal } from "../../_shell/Modal";
 import { TextareaField, SubmitButton, FormError } from "../../_shell/form";
-import { addNote } from "../actions";
+import { addContactNote } from "../actions";
 
 /**
- * A one-field note composer scoped to a single contact — crm_notes has no
- * contact_id column (notes are account-level only), so this writes a normal
- * team note prefixed with "Re: <contact name> — " rather than a separate
- * per-contact record. Reuses the same addNote server action Team Notes uses,
- * so it shows up in the same feed with full context.
+ * A one-field note composer scoped to a single contact — writes a crm_notes
+ * row with contact_id set (plus account_id, which may be null for a contact
+ * with no company) rather than the account-level note Team Notes writes.
+ * Shared by the company-profile Contacts card and the global Contacts
+ * directory row actions, so both write identically-shaped notes.
  */
 export function QuickNoteDialog({
   accountId,
+  contactId,
   contactName,
   trigger,
 }: {
-  accountId: string;
+  accountId: string | null;
+  contactId: string;
   contactName: string;
   trigger: (open: () => void) => ReactNode;
 }) {
@@ -35,7 +37,7 @@ export function QuickNoteDialog({
     if (!trimmed) return;
     setError(null);
     startTransition(async () => {
-      const res = await addNote(accountId, `Re: ${contactName} — ${trimmed}`, false);
+      const res = await addContactNote(contactId, accountId, trimmed);
       if (res.ok) {
         setOpen(false);
         router.refresh();
@@ -56,7 +58,7 @@ export function QuickNoteDialog({
         open={open}
         onClose={() => setOpen(false)}
         busy={pending}
-        title={`Note — ${contactName}`}
+        title={`Note on ${contactName}`}
       >
         <FormError message={error} />
         <form onSubmit={onSubmit} className="flex flex-col gap-3">

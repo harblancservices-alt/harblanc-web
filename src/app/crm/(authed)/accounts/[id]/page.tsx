@@ -84,7 +84,7 @@ export default async function AccountDetailPage({
       .order("created_at", { ascending: true }),
     supabase
       .from("crm_notes")
-      .select("id, body, is_pinned, is_ai, created_at, user_id")
+      .select("id, body, is_pinned, is_ai, created_at, user_id, contact_id")
       .eq("account_id", id)
       .is("deleted_at", null)
       .order("is_pinned", { ascending: false })
@@ -159,6 +159,7 @@ export default async function AccountDetailPage({
     is_ai: boolean | null;
     created_at: string;
     user_id: string | null;
+    contact_id: string | null;
   }[]).map((n) => ({
     id: n.id,
     body: n.body,
@@ -166,6 +167,9 @@ export default async function AccountDetailPage({
     is_ai: n.is_ai ?? false,
     created_at: n.created_at,
     author: n.user_id ? profileName(profileById.get(n.user_id)) : null,
+    contactName: n.contact_id
+      ? firstName(contactNameById.get(n.contact_id) ?? null) || null
+      : null,
   }));
   const teamNotes = notes.filter((n) => !n.is_ai);
   const aiNotes = notes.filter((n) => n.is_ai);

@@ -723,6 +723,48 @@ export async function addNote(
   return { ok: true };
 }
 
+/**
+ * A note tied to a specific person rather than the company at large — writes
+ * contact_id alongside account_id (account_id may be null for a contact with
+ * no company) so both the company-profile Notes feed and the global Contacts
+ * directory can attribute the note to exactly who it's about. Shared by
+ * QuickNoteDialog for both callers.
+ */
+export async function addContactNote(
+  contactId: string,
+  accountId: string | null,
+  body: string,
+): Promise<ActionResult> {
+  const user = await requireCrmUser();
+  const trimmed = body.trim();
+  if (!trimmed) return { ok: false, error: "Write something first." };
+
+  const supabase = await createCrmServerClient();
+  const { error } = await supabase.from("crm_notes").insert({
+    org_id: user.orgId,
+    account_id: accountId,
+    contact_id: contactId,
+    user_id: user.id,
+    body: trimmed,
+    is_pinned: false,
+    is_ai: false,
+  });
+
+  if (error) return { ok: false, error: "Could not save the note." };
+
+  await logActivity(supabase, {
+    orgId: user.orgId,
+    userId: user.id,
+    accountId,
+    contactId,
+    kind: CRM_ACTIVITY.noteAdded,
+    summary: "Note added",
+  });
+
+  revalidateAccount(accountId ?? undefined);
+  return { ok: true };
+}
+
 /** Pin or unpin a note. */
 export async function setNotePinned(
   noteId: string,
