@@ -1,9 +1,11 @@
 "use client";
 
 import { useMemo } from "react";
-import { parseServerTimestamp } from "../../../_shell/format";
+import { parseServerTimestamp, centralDayRange } from "../../../_shell/format";
 import { LocalTime } from "../../../_shell/LocalTime";
 import { ZEBRA_ROWS } from "../../../_shell/ui";
+
+const CENTRAL_TZ = "America/Chicago";
 
 export type ActivityEvent = {
   id: string;
@@ -13,36 +15,38 @@ export type ActivityEvent = {
   createdAt: string;
 };
 
-function localDayKey(d: Date): string {
-  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-}
-
-function startOfLocalDay(d: Date): number {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+function centralDayKey(d: Date): string {
+  // en-CA renders as YYYY-MM-DD — a stable, sortable Central calendar-day key.
+  return d.toLocaleDateString("en-CA", { timeZone: CENTRAL_TZ });
 }
 
 function dayHeading(d: Date): string {
-  const diffDays = Math.round((startOfLocalDay(new Date()) - startOfLocalDay(d)) / 86_400_000);
+  const diffDays = Math.round(
+    (centralDayRange().startMs - centralDayRange(d).startMs) / 86_400_000,
+  );
   if (diffDays === 0) return "Today";
   if (diffDays === 1) return "Yesterday";
-  return d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  return d.toLocaleDateString("en-US", {
+    timeZone: CENTRAL_TZ,
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
 }
 
 /**
- * The activity list's day-grouping + rendering, entirely client-side so
- * "today" and each day boundary reflect the VIEWER's local calendar day —
- * grouping this server-side (as the page originally did) put evening events
- * on the wrong date whenever the server's zone (UTC) differed from the
- * viewer's. The page above still owns the empty state, since presence/
- * absence of events is knowable server-side; this only ever renders when
- * `events` is non-empty.
+ * The activity list's day-grouping + rendering, entirely client-side (the
+ * page above only owns the empty state — presence/absence of events is
+ * knowable server-side). "Today" and each day boundary are always the
+ * CENTRAL calendar day, matching every other date/time in the CRM, not the
+ * viewer's own browser zone.
  */
 export function ActivityLog({ events }: { events: ActivityEvent[] }) {
   const groups = useMemo(() => {
     const list: { key: string; heading: string; items: ActivityEvent[] }[] = [];
     for (const e of events) {
       const d = parseServerTimestamp(e.createdAt);
-      const key = d ? localDayKey(d) : "unknown";
+      const key = d ? centralDayKey(d) : "unknown";
       const heading = d ? dayHeading(d) : "Unknown date";
       const last = list[list.length - 1];
       if (last && last.key === key) last.items.push(e);

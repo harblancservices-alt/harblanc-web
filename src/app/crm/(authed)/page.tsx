@@ -3,7 +3,12 @@ import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { PageShell, Card, CardHead, StatTile, ZEBRA_ROWS } from "./_shell/ui";
 import { IconTasks } from "./_shell/icons";
 import { DueBell } from "./DueBell";
-import { formatDateTime, timestampMs, firstName as profileFirstName } from "./_shell/format";
+import {
+  formatDateTime,
+  timestampMs,
+  firstName as profileFirstName,
+  centralDayRange,
+} from "./_shell/format";
 import { TaskRow, type CrmTaskItem } from "./tasks/TaskRow";
 import { callOutcomeLabel, callOutcomeTone } from "./calls/outcomes";
 import { stageLabel, stageTone } from "./accounts/lifecycle";
@@ -82,16 +87,12 @@ export default async function CrmDashboardPage() {
   const supabase = await createCrmServerClient();
 
   const now = new Date();
-  const startOfToday = new Date(now);
-  startOfToday.setHours(0, 0, 0, 0);
-  const endOfToday = new Date(now);
-  endOfToday.setHours(23, 59, 59, 999);
-  const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-
-  const todayStart = startOfToday.getTime();
-  const todayEnd = endOfToday.getTime();
-  const endOfTodayISO = endOfToday.toISOString();
-  const weekAgoISO = weekAgo.toISOString();
+  // Day boundaries are Central calendar-day boundaries — "today" must turn
+  // over at Central midnight regardless of the server's own zone (Vercel
+  // runs UTC), so overdue/due-today matches what the owner sees on a clock.
+  const { startMs: todayStart, endMs: todayEnd } = centralDayRange(now);
+  const endOfTodayISO = new Date(todayEnd).toISOString();
+  const weekAgoISO = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
   const [
     newLeadsRes,

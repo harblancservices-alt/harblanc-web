@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { logActivity, CRM_ACTIVITY } from "@/lib/crm/activity";
 import { normalizePriority } from "./priority";
+import { centralInputToIso } from "../_shell/format";
 
 /**
  * Task writes. Same contract as every CRM mutation: resolve the caller with
@@ -35,9 +36,12 @@ function taskFieldsFromForm(fd: FormData) {
   return {
     title: str(fd, "title"),
     notes: optStr(fd, "notes"),
-    due_at: optStr(fd, "due_at"),
+    // due_at/reminder_at come in as a datetime-local value the dialog shows
+    // in Central time (toDatetimeLocal) — must be converted back through the
+    // same Central interpretation, not stored as a naive/UTC string.
+    due_at: centralInputToIso(optStr(fd, "due_at")),
     priority: normalizePriority(str(fd, "priority")),
-    reminder_at: optStr(fd, "reminder_at"),
+    reminder_at: centralInputToIso(optStr(fd, "reminder_at")),
     account_id: optStr(fd, "account_id"),
     contact_id: optStr(fd, "contact_id"),
   };

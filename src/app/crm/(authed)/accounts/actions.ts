@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { logActivity, CRM_ACTIVITY } from "@/lib/crm/activity";
 import { normalizeStage, stageLabel, DEFAULT_LIFECYCLE } from "./lifecycle";
-import { firstName } from "../_shell/format";
+import { firstName, centralInputToIso } from "../_shell/format";
 
 /**
  * Every write in the Hello Hotshot CRM lives here. All actions share the same
@@ -380,7 +380,10 @@ function contactFieldsFromForm(fd: FormData) {
     is_decision_maker: str(fd, "is_decision_maker") === "on",
     linkedin_url: optStr(fd, "linkedin_url"),
     notes: optStr(fd, "notes"),
-    next_followup_at: optStr(fd, "next_followup_at"),
+    // Comes in as a datetime-local value the dialog shows in Central time
+    // (toDatetimeLocal) — convert back through the same Central
+    // interpretation rather than storing the naive string as-is.
+    next_followup_at: centralInputToIso(optStr(fd, "next_followup_at")),
   };
 }
 
@@ -399,7 +402,6 @@ export async function createContact(
       org_id: user.orgId,
       account_id: accountId,
       ...fields,
-      next_followup_at: fields.next_followup_at || null,
     })
     .select("id")
     .single();
@@ -433,7 +435,7 @@ export async function updateContact(
   const supabase = await createCrmServerClient();
   const { error } = await supabase
     .from("crm_contacts")
-    .update({ ...fields, next_followup_at: fields.next_followup_at || null })
+    .update({ ...fields })
     .eq("id", contactId);
 
   if (error) {

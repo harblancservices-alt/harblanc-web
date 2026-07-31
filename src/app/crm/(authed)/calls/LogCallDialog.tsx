@@ -129,7 +129,7 @@ export function LogCallDialog({
           </label>
 
           {followup && (
-            <Field label="Reminder" name="reminder_at" type="datetime-local" />
+            <Field label="Reminder (CST)" name="reminder_at" type="datetime-local" />
           )}
 
           <SubmitButton pending={pending} pendingLabel="Logging…">

@@ -55,8 +55,8 @@ export default async function MemberActivityPage({
 
   const events = (data ?? []) as EventRow[];
   // Handed to ActivityLog as plain, already-serializable data — day-grouping
-  // and time formatting both happen client-side there, against the
-  // VIEWER's local timezone rather than this server's (see LocalTime.tsx).
+  // and time formatting both happen client-side there, always against US
+  // Central time (see LocalTime.tsx), regardless of viewer or server zone.
   const activityEvents: ActivityEvent[] = events.map((e) => ({
     id: e.id,
     kind: e.kind,

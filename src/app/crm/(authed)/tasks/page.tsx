@@ -1,7 +1,7 @@
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { PageShell, Card, CardHead, EmptyState, ZEBRA_ROWS } from "../_shell/ui";
 import { IconTasks } from "../_shell/icons";
-import { firstName, timestampMs } from "../_shell/format";
+import { firstName, timestampMs, centralDayRange } from "../_shell/format";
 import { TaskRow, type CrmTaskItem } from "./TaskRow";
 import { DeleteTaskButton } from "./DeleteTaskButton";
 import { AddTaskButton } from "./AddTaskButton";
@@ -99,12 +99,8 @@ export default async function TasksPage() {
     assigneeName: r.assigned_user_id ? profileNameById.get(r.assigned_user_id) ?? null : null,
   }));
 
-  const startOfToday = new Date();
-  startOfToday.setHours(0, 0, 0, 0);
-  const endOfToday = new Date();
-  endOfToday.setHours(23, 59, 59, 999);
-  const todayStart = startOfToday.getTime();
-  const todayEnd = endOfToday.getTime();
+  // Central calendar-day boundaries — see page.tsx (dashboard) for why.
+  const { startMs: todayStart, endMs: todayEnd } = centralDayRange();
 
   const openTasks = tasks.filter((t) => t.status !== "completed");
   const doneTasks = tasks.filter((t) => t.status === "completed");

@@ -182,7 +182,7 @@ export function TaskDialog({
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field
-              label="Due"
+              label="Due (CST)"
               name="due_at"
               type="datetime-local"
               defaultValue={toDatetimeLocal(d.due_at)}
@@ -201,7 +201,7 @@ export function TaskDialog({
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field
-              label="Reminder"
+              label="Reminder (CST)"
               name="reminder_at"
               type="datetime-local"
               defaultValue={toDatetimeLocal(d.reminder_at)}

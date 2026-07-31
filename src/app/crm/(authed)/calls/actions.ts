@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { logActivity, CRM_ACTIVITY } from "@/lib/crm/activity";
 import { callOutcomeLabel } from "./outcomes";
+import { centralInputToIso } from "../_shell/format";
 
 /**
  * Call logging. A call is a first-class record in crm_calls AND an append-only
@@ -58,7 +59,9 @@ export async function logCall(
   const summary = optStr(formData, "summary");
   const notes = optStr(formData, "notes");
   const followupRequired = str(formData, "followup_required") === "on";
-  const reminderAt = followupRequired ? optStr(formData, "reminder_at") : null;
+  // Comes in as a datetime-local value the dialog shows in Central time —
+  // convert back through the same Central interpretation before storing.
+  const reminderAt = followupRequired ? centralInputToIso(optStr(formData, "reminder_at")) : null;
 
   const supabase = await createCrmServerClient();
   const { error } = await supabase.from("crm_calls").insert({

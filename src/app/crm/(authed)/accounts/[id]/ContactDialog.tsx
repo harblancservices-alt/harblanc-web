@@ -122,7 +122,7 @@ export function ContactDialog({
             defaultValue={d.linkedin_url}
           />
           <Field
-            label="Next follow-up"
+            label="Next follow-up (CST)"
             name="next_followup_at"
             type="datetime-local"
             defaultValue={toDatetimeLocal(d.next_followup_at)}

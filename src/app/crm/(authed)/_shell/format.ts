@@ -1,7 +1,14 @@
 /**
  * Small display formatters shared across CRM surfaces so dates and money read
- * identically everywhere. Deliberately locale-fixed (en-US) and dependency-free.
+ * identically everywhere. Every time-of-day is rendered in US Central time
+ * and labeled "CST" — always that literal label, even in summer when the
+ * real Central offset is technically CDT, per the owner's call. The
+ * underlying conversion still follows real America/Chicago rules (DST and
+ * all); only the printed label is pinned to "CST". Deliberately locale-fixed
+ * (en-US) and dependency-free.
  */
+
+const CENTRAL_TZ = "America/Chicago";
 
 /**
  * Postgres/Supabase hand back timestamptz values shaped like
@@ -34,19 +41,24 @@ export function parseServerTimestamp(iso: string | null | undefined): Date | nul
 export function formatDateTime(iso: string | null | undefined): string {
   const d = parseServerTimestamp(iso);
   if (!d) return "—";
-  return d.toLocaleString("en-US", {
+  const s = d.toLocaleString("en-US", {
+    timeZone: CENTRAL_TZ,
     month: "short",
     day: "numeric",
     year: "numeric",
     hour: "numeric",
     minute: "2-digit",
   });
+  return `${s} CST`;
 }
 
+/** Pure calendar date (no time-of-day), computed against the Central
+ * calendar day — no "CST" suffix, since there's no clock time to qualify. */
 export function formatDate(iso: string | null | undefined): string {
   const d = parseServerTimestamp(iso);
   if (!d) return "—";
   return d.toLocaleDateString("en-US", {
+    timeZone: CENTRAL_TZ,
     month: "short",
     day: "numeric",
     year: "numeric",
@@ -93,13 +105,118 @@ export function firstName(
   return "";
 }
 
-/** Convert a stored server timestamp to a value an <input type="datetime-local"> accepts. */
+/** Y/M/D/H/Mi/S of `date` as they read on a wall clock in Central time. */
+function centralParts(date: Date): {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+} {
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone: CENTRAL_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+  const p: Record<string, string> = {};
+  for (const part of fmt.formatToParts(date)) {
+    if (part.type !== "literal") p[part.type] = part.value;
+  }
+  return {
+    year: Number(p.year),
+    month: Number(p.month),
+    day: Number(p.day),
+    // Some engines format midnight as "24" with hour12:false.
+    hour: p.hour === "24" ? 0 : Number(p.hour),
+    minute: Number(p.minute),
+    second: Number(p.second),
+  };
+}
+
+/**
+ * UTC instant (ms) for a Central-time wall-clock reading. Standard
+ * single-correction technique for zone conversion without a library: guess
+ * the instant is the wall clock taken literally as UTC, see how that guess
+ * actually reads in Central time, then shift by the difference. Exact except
+ * in the rare instant of a DST transition itself.
+ */
+function centralWallTimeToUtcMs(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  minute: number,
+  second: number,
+): number {
+  const guess = Date.UTC(year, month - 1, day, hour, minute, second);
+  const asCentral = centralParts(new Date(guess));
+  const asIfLocal = Date.UTC(
+    asCentral.year,
+    asCentral.month - 1,
+    asCentral.day,
+    asCentral.hour,
+    asCentral.minute,
+    asCentral.second,
+  );
+  return guess - (asIfLocal - guess);
+}
+
+/**
+ * Start/end of the Central-time calendar day containing `date` (default
+ * now), as UTC-ms boundaries — the shared building block for every
+ * "due today / overdue" split across the CRM (dashboard queue, global Tasks
+ * page), so a day always turns over at Central midnight regardless of the
+ * server's own timezone (Vercel runs UTC).
+ */
+export function centralDayRange(date: Date = new Date()): { startMs: number; endMs: number } {
+  const { year, month, day } = centralParts(date);
+  const startMs = centralWallTimeToUtcMs(year, month, day, 0, 0, 0);
+  const endMs = centralWallTimeToUtcMs(year, month, day, 23, 59, 59) + 999;
+  return { startMs, endMs };
+}
+
+/**
+ * Convert a stored server timestamp to a value an <input type="datetime-local">
+ * accepts, expressed in CENTRAL wall-clock time — matching every other
+ * display in the CRM — rather than the viewer's browser zone.
+ */
 export function toDatetimeLocal(iso: string | null | undefined): string {
   const d = parseServerTimestamp(iso);
   if (!d) return "";
-  // Local wall-clock, trimmed to minutes (YYYY-MM-DDTHH:mm).
+  const { year, month, day, hour, minute } = centralParts(d);
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return `${year}-${pad(month)}-${pad(day)}T${pad(hour)}:${pad(minute)}`;
+}
+
+/**
+ * Inverse of toDatetimeLocal: takes a raw <input type="datetime-local">
+ * value ("YYYY-MM-DDTHH:mm"), interprets it as CENTRAL wall-clock time (the
+ * only zone the CRM ever shows a person), and returns a real UTC ISO
+ * timestamp for storage. Every task-due / reminder / follow-up write path
+ * must go through this instead of passing the raw form string straight to
+ * Supabase — otherwise the stored instant silently drifts from what was
+ * actually typed.
+ */
+export function centralInputToIso(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(value.trim());
+  if (!m) return null;
+  const [, y, mo, d, h, mi, s] = m;
+  const ms = centralWallTimeToUtcMs(
+    Number(y),
+    Number(mo),
+    Number(d),
+    Number(h),
+    Number(mi),
+    s ? Number(s) : 0,
+  );
+  return new Date(ms).toISOString();
 }
 
 /**
