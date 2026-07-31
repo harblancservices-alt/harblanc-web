@@ -36,6 +36,7 @@ function taskFieldsFromForm(fd: FormData) {
   return {
     title: str(fd, "title"),
     notes: optStr(fd, "notes"),
+    task_type: optStr(fd, "task_type"),
     // due_at/reminder_at come in as a datetime-local value the dialog shows
     // in Central time (toDatetimeLocal) — must be converted back through the
     // same Central interpretation, not stored as a naive/UTC string.
@@ -74,6 +75,7 @@ export async function createTask(formData: FormData): Promise<ActionResult> {
     contact_id: fields.contact_id,
     title: fields.title,
     notes: fields.notes,
+    task_type: fields.task_type,
     due_at: fields.due_at,
     priority: fields.priority,
     reminder_at: fields.reminder_at,
@@ -118,6 +120,7 @@ export async function updateTask(
   const updates: Record<string, unknown> = {
     title: fields.title,
     notes: fields.notes,
+    task_type: fields.task_type,
     due_at: fields.due_at,
     priority: fields.priority,
     reminder_at: fields.reminder_at,

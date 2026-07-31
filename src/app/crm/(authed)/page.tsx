@@ -24,6 +24,7 @@ type TaskRowData = {
   id: string;
   title: string;
   notes: string | null;
+  task_type: string | null;
   due_at: string | null;
   priority: string | null;
   status: string;
@@ -116,7 +117,7 @@ export default async function CrmDashboardPage() {
     supabase
       .from("crm_tasks")
       .select(
-        "id, title, notes, due_at, priority, status, completed_at, reminder_at, account_id, assigned_user_id",
+        "id, title, notes, task_type, due_at, priority, status, completed_at, reminder_at, account_id, assigned_user_id",
       )
       .eq("status", "open")
       .is("deleted_at", null)

@@ -10,17 +10,18 @@ import {
   TextareaField,
   SubmitButton,
   FormError,
-  LABEL,
 } from "../_shell/form";
 import { toDatetimeLocal } from "../_shell/format";
 import type { RepOption } from "../accounts/CompanyDialog";
 import { TASK_PRIORITIES, PRIORITY_LABEL, DEFAULT_PRIORITY } from "./priority";
+import { TaskTypeField } from "./TaskTypeField";
 import { createTask, updateTask } from "./actions";
 
 export type TaskDefaults = {
   id?: string;
   title?: string | null;
   notes?: string | null;
+  task_type?: string | null;
   due_at?: string | null;
   priority?: string | null;
   reminder_at?: string | null;
@@ -44,12 +45,12 @@ export type TaskContactOption = { id: string; name: string; accountId?: string |
  *   contact before a company is picked.
  *
  * Assignment is admin-gated: `canAssignOthers` (role=owner) shows a real
- * picker; everyone else sees a locked "You" — on create a hidden field still
- * submits their own id (so a new task always lands in their queue), on edit
- * NO assigned_user_id field is submitted at all, so a non-admin saving other
- * changes can never accidentally reassign a task that belongs to someone
- * else. The server action re-enforces both cases regardless of what the UI
- * sends.
+ * picker; everyone else sees NO "Assigned rep" field at all — on create a
+ * hidden field still submits their own id (so a new task always lands in
+ * their own queue), on edit NO assigned_user_id field is submitted at all,
+ * so a non-admin saving other changes can never accidentally reassign a task
+ * that belongs to someone else. The server action re-enforces both cases
+ * regardless of what the UI sends.
  */
 export function TaskDialog({
   mode,
@@ -93,18 +94,6 @@ export function TaskDialog({
     if (!selectedAccountId) return [];
     return contacts.filter((c) => c.accountId === selectedAccountId);
   }, [contacts, fixedAccount, selectedAccountId]);
-
-  // The locked (non-admin) assignee display MUST reflect who the task is
-  // actually assigned to, not always "You" — a non-owner can open Edit on a
-  // task assigned to someone else (profile Tasks sections show every task,
-  // not just the viewer's own), and mislabeling that as "You" would be wrong
-  // even though the field itself can't be changed here.
-  const lockedAssigneeLabel = (() => {
-    if (mode === "create") return currentUser.label;
-    if (!d.assigned_user_id) return "Unassigned";
-    if (d.assigned_user_id === currentUser.id) return currentUser.label;
-    return reps.find((r) => r.id === d.assigned_user_id)?.label ?? "Assigned";
-  })();
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -182,12 +171,7 @@ export function TaskDialog({
           </SelectField>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field
-              label="Due (CST)"
-              name="due_at"
-              type="datetime-local"
-              defaultValue={toDatetimeLocal(d.due_at)}
-            />
+            <TaskTypeField defaultValue={d.task_type} />
             <SelectField
               label="Priority"
               name="priority"
@@ -200,14 +184,14 @@ export function TaskDialog({
               ))}
             </SelectField>
           </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className={canAssignOthers ? "grid grid-cols-1 gap-3 sm:grid-cols-2" : ""}>
             <Field
-              label="Reminder (CST)"
-              name="reminder_at"
+              label="Due (CST)"
+              name="due_at"
               type="datetime-local"
-              defaultValue={toDatetimeLocal(d.reminder_at)}
+              defaultValue={toDatetimeLocal(d.due_at)}
             />
-            {canAssignOthers ? (
+            {canAssignOthers && (
               <SelectField
                 label="Assigned rep"
                 name="assigned_user_id"
@@ -220,18 +204,18 @@ export function TaskDialog({
                   </option>
                 ))}
               </SelectField>
-            ) : (
-              <div className="flex flex-col gap-1.5">
-                <span className={LABEL}>Assigned rep</span>
-                <div className="flex h-11 items-center rounded-lg border border-fg-subtle bg-inset px-3 text-[14px] text-fg-muted">
-                  {lockedAssigneeLabel}
-                </div>
-                {mode === "create" && (
-                  <input type="hidden" name="assigned_user_id" value={currentUser.id} />
-                )}
-              </div>
             )}
           </div>
+          {!canAssignOthers && mode === "create" && (
+            <input type="hidden" name="assigned_user_id" value={currentUser.id} />
+          )}
+
+          <Field
+            label="Reminder (CST)"
+            name="reminder_at"
+            type="datetime-local"
+            defaultValue={toDatetimeLocal(d.reminder_at)}
+          />
 
           <SubmitButton pending={pending}>
             {mode === "create" ? "Save task" : "Save changes"}

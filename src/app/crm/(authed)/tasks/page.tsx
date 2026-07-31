@@ -13,6 +13,7 @@ type TaskRowData = {
   id: string;
   title: string;
   notes: string | null;
+  task_type: string | null;
   due_at: string | null;
   priority: string | null;
   status: string;
@@ -45,7 +46,7 @@ export default async function TasksPage() {
     supabase
       .from("crm_tasks")
       .select(
-        "id, title, notes, due_at, priority, status, completed_at, reminder_at, account_id, contact_id, assigned_user_id",
+        "id, title, notes, task_type, due_at, priority, status, completed_at, reminder_at, account_id, contact_id, assigned_user_id",
       )
       .is("deleted_at", null)
       .order("due_at", { ascending: true, nullsFirst: false })

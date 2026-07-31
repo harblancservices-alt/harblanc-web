@@ -7,12 +7,14 @@ import { useRouter } from "next/navigation";
 import { formatDateTime, timestampMs } from "../_shell/format";
 import { ClickableListItem } from "../_shell/ClickableRow";
 import { priorityLabel, priorityTone } from "./priority";
+import { TASK_TYPE_CHIP_TONE } from "./taskType";
 import { completeTask, reopenTask } from "./actions";
 
 export type CrmTaskItem = {
   id: string;
   title: string;
   notes: string | null;
+  task_type?: string | null;
   due_at: string | null;
   priority: string | null;
   status: string;
@@ -118,6 +120,13 @@ export function TaskRow({
           >
             {priorityLabel(task.priority)}
           </span>
+          {task.task_type && (
+            <span
+              className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${TASK_TYPE_CHIP_TONE}`}
+            >
+              {task.task_type}
+            </span>
+          )}
           {task.due_at && (
             <span className={overdue ? "font-semibold text-bad" : "text-fg-subtle"}>
               Due {formatDateTime(task.due_at)}
