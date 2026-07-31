@@ -26,13 +26,15 @@ type TaskRowData = {
 type ProfileRow = { id: string; full_name: string | null; email: string | null; is_active: boolean };
 
 /**
- * Global Tasks — the rep's own work list (tasks assigned to them, RLS-scoped to
- * their org). Open tasks are grouped Overdue / Due today / Upcoming so the top
- * of the page is always the most urgent work; completed tasks collapse into a
- * closed disclosure. Every row links to its company and completes inline. The
- * "Add task" entry point here creates a STANDALONE task — company and contact
- * are optional and pickable, unlike the company-profile Tasks section where
- * the company is fixed.
+ * Global Tasks — every task across the whole org (RLS-scoped to the org, but
+ * deliberately NOT filtered to the viewer's own assignments: tasks are a
+ * shared, org-wide list so everyone can see what everyone else is on). Open
+ * tasks are grouped Overdue / Due today / Upcoming so the top of the page is
+ * always the most urgent work; completed tasks collapse into a closed
+ * disclosure. Every row links to its company, shows its assignee, and
+ * completes inline. The "Add task" entry point here creates a STANDALONE
+ * task — company and contact are optional and pickable, unlike the
+ * company-profile Tasks section where the company is fixed.
  */
 export default async function TasksPage() {
   const user = await requireCrmUser();
@@ -45,7 +47,6 @@ export default async function TasksPage() {
       .select(
         "id, title, notes, due_at, priority, status, completed_at, reminder_at, account_id, contact_id, assigned_user_id",
       )
-      .eq("assigned_user_id", user.id)
       .is("deleted_at", null)
       .order("due_at", { ascending: true, nullsFirst: false })
       .limit(500),
@@ -130,7 +131,7 @@ export default async function TasksPage() {
       title="Tasks"
       subtitle={
         openCount
-          ? `${openCount} open ${openCount === 1 ? "task" : "tasks"} assigned to you`
+          ? `${openCount} open ${openCount === 1 ? "task" : "tasks"} across the team`
           : "What's due, and what's next."
       }
       actions={

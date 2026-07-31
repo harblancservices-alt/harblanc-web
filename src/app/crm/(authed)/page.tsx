@@ -3,23 +3,15 @@ import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { PageShell, Card, CardHead, StatTile } from "./_shell/ui";
 import { IconTasks } from "./_shell/icons";
 import { DueBell } from "./DueBell";
-import { formatDateTime, timestampMs } from "./_shell/format";
+import { formatDateTime, timestampMs, firstName as profileFirstName } from "./_shell/format";
 import { TaskRow, type CrmTaskItem } from "./tasks/TaskRow";
 import { callOutcomeLabel, callOutcomeTone } from "./calls/outcomes";
-import {
-  LIFECYCLE_STAGES,
-  LIFECYCLE_LABEL,
-  LIFECYCLE_TONE,
-  stageLabel,
-  stageTone,
-} from "./accounts/lifecycle";
+import { stageLabel, stageTone } from "./accounts/lifecycle";
 
 export const dynamic = "force-dynamic";
 
-/** Active-pursuit stages — the ones that can go "stale" if left untouched. */
+/** Active-pursuit stages — feeds the "Hot & new leads" query below. */
 const ACTIVE_STAGES = ["lead", "researching", "contacted", "qualified"] as const;
-/** A company with no activity in this many days (and no open task) is stale. */
-const STALE_DAYS = 14;
 
 type TaskRowData = {
   id: string;
@@ -33,6 +25,8 @@ type TaskRowData = {
   account_id: string | null;
   assigned_user_id: string | null;
 };
+
+type ProfileRow = { id: string; full_name: string | null; email: string | null };
 
 type Callback = {
   id: string;
@@ -76,10 +70,11 @@ type NeedsFinalizeAccount = {
 };
 
 /**
- * The CRM "What's next" dashboard — the rep's live work queue. It answers one
- * question: what should I do next? Overdue and due-today work sits up top, then
- * follow-ups, then the leads to warm (new/hot) and the ones going cold (stale).
- * A KPI strip frames the week. Everything is RLS-scoped to the caller's org and
+ * The CRM "What's next" dashboard — the org's live work queue (every
+ * employee's tasks, not just the viewer's — see tasksRes below). It answers
+ * one question: what should the team do next? Overdue and due-today work
+ * sits up top, then follow-ups, then the leads to warm (new/hot). A KPI
+ * strip frames the week. Everything is RLS-scoped to the caller's org and
  * every card is tappable straight to the company. force-dynamic keeps it live.
  */
 export default async function CrmDashboardPage() {
@@ -92,27 +87,23 @@ export default async function CrmDashboardPage() {
   const endOfToday = new Date(now);
   endOfToday.setHours(23, 59, 59, 999);
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-  const staleCutoff = new Date(now.getTime() - STALE_DAYS * 24 * 60 * 60 * 1000);
 
   const todayStart = startOfToday.getTime();
   const todayEnd = endOfToday.getTime();
   const endOfTodayISO = endOfToday.toISOString();
   const weekAgoISO = weekAgo.toISOString();
-  const staleCutoffISO = staleCutoff.toISOString();
 
   const [
     newLeadsRes,
     callsWeekRes,
-    myTasksRes,
+    tasksRes,
     callbacksRes,
     followupsRes,
     recentAccountsRes,
     stageTallyRes,
-    activeAccountsRes,
-    recentActivityRes,
-    openTaskAcctsRes,
     newAiLeadsRes,
     needsFinalizeRes,
+    profilesRes,
   ] = await Promise.all([
     // KPI: new leads created in the last 7 days.
     supabase
@@ -126,13 +117,15 @@ export default async function CrmDashboardPage() {
       .select("id", { count: "exact", head: true })
       .is("deleted_at", null)
       .gte("occurred_at", weekAgoISO),
-    // My open tasks (drives the Open-tasks KPI + the Overdue / Due-today queues).
+    // Every open task in the org (drives the Open-tasks KPI + the Overdue /
+    // Due-today queues) — NOT filtered to the viewer's own assignments, so
+    // the whole team's work is visible here, matching /crm/tasks and the
+    // company profile's Tasks section.
     supabase
       .from("crm_tasks")
       .select(
         "id, title, notes, due_at, priority, status, completed_at, reminder_at, account_id, assigned_user_id",
       )
-      .eq("assigned_user_id", user.id)
       .eq("status", "open")
       .is("deleted_at", null)
       .order("due_at", { ascending: true, nullsFirst: false })
@@ -164,31 +157,10 @@ export default async function CrmDashboardPage() {
       .in("lifecycle_status", ACTIVE_STAGES as unknown as string[])
       .order("created_at", { ascending: false })
       .limit(6),
-    // Lifecycle breakdown (tallied in JS).
+    // Lifecycle breakdown (tallied in JS) — feeds the "Customers" KPI.
     supabase
       .from("crm_accounts")
       .select("lifecycle_status")
-      .is("deleted_at", null)
-      .limit(2000),
-    // Staleness inputs: the active companies…
-    supabase
-      .from("crm_accounts")
-      .select("id, name, lifecycle_status, city, state, created_at")
-      .is("deleted_at", null)
-      .in("lifecycle_status", ACTIVE_STAGES as unknown as string[])
-      .order("created_at", { ascending: true })
-      .limit(300),
-    // …the accounts touched recently…
-    supabase
-      .from("crm_activities")
-      .select("account_id")
-      .gte("occurred_at", staleCutoffISO)
-      .limit(2000),
-    // …and the accounts with an open task (org-wide — anyone's task counts).
-    supabase
-      .from("crm_tasks")
-      .select("account_id")
-      .eq("status", "open")
       .is("deleted_at", null)
       .limit(2000),
     // Unclaimed released AI leads — the alert. Once assigned_user_id is set
@@ -214,21 +186,27 @@ export default async function CrmDashboardPage() {
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(100),
+    // Assignee names for the task rows below (every org member, not just
+    // active ones — an inactive rep can still be shown as a task's owner).
+    supabase.from("crm_profiles").select("id, full_name, email"),
   ]);
 
-  const myTasks = (myTasksRes.data ?? []) as TaskRowData[];
+  const orgTasks = (tasksRes.data ?? []) as TaskRowData[];
   const callbacks = (callbacksRes.data ?? []) as Callback[];
   const followups = (followupsRes.data ?? []) as Followup[];
   const recentAccounts = (recentAccountsRes.data ?? []) as AccountLite[];
-  const activeAccounts = (activeAccountsRes.data ?? []) as AccountLite[];
   const newAiLeads = (newAiLeadsRes.data ?? []) as NewAiLead[];
   const needsFinalizeAccounts = (needsFinalizeRes.data ?? []) as NeedsFinalizeAccount[];
+  const profiles = (profilesRes.data ?? []) as ProfileRow[];
+  const profileNameById = new Map(
+    profiles.map((p) => [p.id, profileFirstName(p.full_name, p.email) || "Unnamed rep"]),
+  );
 
   // Resolve company names for the rows that only carry an account_id.
   const nameIds = [
     ...new Set(
       [
-        ...myTasks.map((t) => t.account_id),
+        ...orgTasks.map((t) => t.account_id),
         ...callbacks.map((c) => c.account_id),
         ...followups.map((f) => f.account_id),
       ].filter(Boolean) as string[],
@@ -241,10 +219,11 @@ export default async function CrmDashboardPage() {
     ((nameRows ?? []) as { id: string; name: string }[]).map((a) => [a.id, a.name]),
   );
 
-  // ── Task buckets (mine) ──
-  const tasks: CrmTaskItem[] = myTasks.map((t) => ({
+  // ── Task buckets (whole org) ──
+  const tasks: CrmTaskItem[] = orgTasks.map((t) => ({
     ...t,
     companyName: t.account_id ? nameById.get(t.account_id) ?? null : null,
+    assigneeName: t.assigned_user_id ? (profileNameById.get(t.assigned_user_id) ?? null) : null,
   }));
   const overdueTasks = tasks.filter((t) => {
     const ms = timestampMs(t.due_at);
@@ -264,21 +243,6 @@ export default async function CrmDashboardPage() {
     const ms = timestampMs(c.reminder_at);
     return ms !== null && ms >= todayStart;
   });
-
-  // ── Staleness ──
-  const recentSet = new Set(
-    ((recentActivityRes.data ?? []) as { account_id: string | null }[])
-      .map((r) => r.account_id)
-      .filter(Boolean) as string[],
-  );
-  const openTaskSet = new Set(
-    ((openTaskAcctsRes.data ?? []) as { account_id: string | null }[])
-      .map((r) => r.account_id)
-      .filter(Boolean) as string[],
-  );
-  const staleAccounts = activeAccounts
-    .filter((a) => !recentSet.has(a.id) && !openTaskSet.has(a.id))
-    .slice(0, 8);
 
   // ── Lifecycle tally ──
   const tally = new Map<string, number>();
@@ -374,24 +338,6 @@ export default async function CrmDashboardPage() {
             </p>
           </div>
         )}
-      </Card>
-
-      {/* Pipeline by stage */}
-      <Card>
-        <CardHead title="Pipeline by stage" hint="Companies by lifecycle" />
-        <div className="flex flex-wrap gap-2 p-4">
-          {LIFECYCLE_STAGES.map((s) => (
-            <Link
-              key={s}
-              href={`/crm/accounts?stage=${s}`}
-              prefetch={false}
-              className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[12.5px] font-semibold transition-opacity hover:opacity-80 ${LIFECYCLE_TONE[s]}`}
-            >
-              {LIFECYCLE_LABEL[s]}
-              <span className="font-mono tabular-nums">{tally.get(s) ?? 0}</span>
-            </Link>
-          ))}
-        </div>
       </Card>
 
       {/* Scroll target for the "What's next" bell — the top of the work queue.
@@ -497,37 +443,19 @@ export default async function CrmDashboardPage() {
         </Card>
       )}
 
-      {/* Leads to warm + leads going cold */}
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHead title="Hot & new leads" hint="Most recently added" />
-          {recentAccounts.length === 0 ? (
-            <Empty text="No active leads yet. Add a company to get started." />
-          ) : (
-            <ul className="divide-y divide-line-strong">
-              {recentAccounts.map((a) => (
-                <AccountRow key={a.id} account={a} />
-              ))}
-            </ul>
-          )}
-        </Card>
-
-        <Card>
-          <CardHead
-            title="Stale leads"
-            hint={`No touch in ${STALE_DAYS}d · no open task`}
-          />
-          {staleAccounts.length === 0 ? (
-            <Empty text="Nothing going cold — every active lead has recent activity or a task." />
-          ) : (
-            <ul className="divide-y divide-line-strong">
-              {staleAccounts.map((a) => (
-                <AccountRow key={a.id} account={a} />
-              ))}
-            </ul>
-          )}
-        </Card>
-      </div>
+      {/* Leads to warm */}
+      <Card>
+        <CardHead title="Hot & new leads" hint="Most recently added" />
+        {recentAccounts.length === 0 ? (
+          <Empty text="No active leads yet. Add a company to get started." />
+        ) : (
+          <ul className="divide-y divide-line-strong">
+            {recentAccounts.map((a) => (
+              <AccountRow key={a.id} account={a} />
+            ))}
+          </ul>
+        )}
+      </Card>
     </PageShell>
   );
 }
