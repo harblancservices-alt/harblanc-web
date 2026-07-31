@@ -21,7 +21,7 @@ export async function claimAiLead(accountId: string): Promise<ActionResult> {
     .from("crm_accounts")
     .update({ assigned_user_id: user.id })
     .eq("id", accountId)
-    .eq("source", "ai_agent")
+    .in("source", ["ai_agent", "field_capture"])
     .eq("ai_status", "released")
     .is("deleted_at", null)
     .is("assigned_user_id", null)

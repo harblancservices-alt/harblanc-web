@@ -1,7 +1,6 @@
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { PageShell, Card, CardHead, EmptyState, ZEBRA_ROWS } from "../_shell/ui";
 import { IconAiAgent } from "../_shell/icons";
-import { firstName } from "../_shell/format";
 import { LeadCard, type AiAgentLead } from "./LeadCard";
 
 export const dynamic = "force-dynamic";
@@ -12,16 +11,17 @@ type AccountRow = {
   city: string | null;
   state: string | null;
   commodities: string | null;
-  assigned_user_id: string | null;
   created_at: string;
 };
 
 /**
- * AI Agent tab — the team's lead register. Every crm_account the AI-agent
- * research process produced that an admin has released (ai_status=
- * 'released'); pending-review leads live only in /crm/ai-review until then.
- * Visible to every CRM user. Unclaimed leads sort first, newest-first within
- * each group, so the freshest un-worked leads are the first thing a rep sees.
+ * AI Agent tab — unclaimed leads only. Every crm_account the AI-agent or
+ * Field Capture research process produced that an admin has released
+ * (ai_status='released') AND nobody has claimed yet (assigned_user_id IS
+ * NULL); pending-review leads live only in /crm/ai-review until then. The
+ * moment a lead is claimed it drops out of this query entirely — it still
+ * lives on as an ordinary company in /crm/accounts, just not here. Visible
+ * to every CRM user, newest-first.
  */
 export default async function AiAgentPage() {
   await requireCrmUser();
@@ -29,11 +29,10 @@ export default async function AiAgentPage() {
 
   const { data } = await supabase
     .from("crm_accounts")
-    .select(
-      "id, name, city, state, commodities, assigned_user_id, created_at",
-    )
-    .eq("source", "ai_agent")
+    .select("id, name, city, state, commodities, created_at")
+    .in("source", ["ai_agent", "field_capture"])
     .eq("ai_status", "released")
+    .is("assigned_user_id", null)
     .is("deleted_at", null)
     .order("created_at", { ascending: false })
     .limit(200);
@@ -41,36 +40,18 @@ export default async function AiAgentPage() {
   const leads = (data ?? []) as AccountRow[];
   const ids = leads.map((l) => l.id);
 
-  const assigneeIds = [
-    ...new Set(leads.map((l) => l.assigned_user_id).filter(Boolean) as string[]),
-  ];
-
-  const [contactsRes, profilesRes] = await Promise.all([
-    ids.length
-      ? supabase
-          .from("crm_contacts")
-          .select("account_id")
-          .in("account_id", ids)
-          .is("deleted_at", null)
-      : Promise.resolve({ data: [] as { account_id: string }[] }),
-    assigneeIds.length
-      ? supabase
-          .from("crm_profiles")
-          .select("id, full_name, email")
-          .in("id", assigneeIds)
-      : Promise.resolve({ data: [] as { id: string; full_name: string | null; email: string | null }[] }),
-  ]);
+  const { data: contactRows } = ids.length
+    ? await supabase
+        .from("crm_contacts")
+        .select("account_id")
+        .in("account_id", ids)
+        .is("deleted_at", null)
+    : { data: [] as { account_id: string }[] };
 
   const contactCountByAccount = new Map<string, number>();
-  for (const c of (contactsRes.data ?? []) as { account_id: string }[]) {
+  for (const c of (contactRows ?? []) as { account_id: string }[]) {
     contactCountByAccount.set(c.account_id, (contactCountByAccount.get(c.account_id) ?? 0) + 1);
   }
-
-  const assigneeName = new Map(
-    ((profilesRes.data ?? []) as { id: string; full_name: string | null; email: string | null }[]).map(
-      (p) => [p.id, firstName(p.full_name, p.email) || "Unnamed rep"],
-    ),
-  );
 
   const agentLeads: AiAgentLead[] = leads.map((l) => ({
     id: l.id,
@@ -79,32 +60,24 @@ export default async function AiAgentPage() {
     state: l.state,
     commodities: l.commodities,
     contactCount: contactCountByAccount.get(l.id) ?? 0,
-    assigneeName: l.assigned_user_id ? assigneeName.get(l.assigned_user_id) ?? null : null,
   }));
-
-  // Unclaimed first, newest-first within each group. The query is already
-  // newest-first, and Array#filter preserves order, so this partition alone
-  // is enough — no re-sort needed.
-  const unclaimed = agentLeads.filter((l) => !l.assigneeName);
-  const claimed = agentLeads.filter((l) => l.assigneeName);
-  const ordered = [...unclaimed, ...claimed];
 
   return (
     <PageShell>
       <Card>
         <CardHead
           title="AI Agent leads"
-          hint={ordered.length ? `${ordered.length} ${ordered.length === 1 ? "lead" : "leads"}` : undefined}
+          hint={agentLeads.length ? `${agentLeads.length} unclaimed ${agentLeads.length === 1 ? "lead" : "leads"}` : undefined}
         />
-        {ordered.length === 0 ? (
+        {agentLeads.length === 0 ? (
           <EmptyState
             icon={<IconAiAgent />}
-            title="No leads yet"
-            body="Released AI-researched leads will show up here for the team to claim and work."
+            title="No unclaimed leads"
+            body="Every released AI-researched lead has been claimed. Newly released leads will show up here for the team to claim."
           />
         ) : (
           <div className={`grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3 ${ZEBRA_ROWS}`}>
-            {ordered.map((lead) => (
+            {agentLeads.map((lead) => (
               <LeadCard key={lead.id} lead={lead} />
             ))}
           </div>

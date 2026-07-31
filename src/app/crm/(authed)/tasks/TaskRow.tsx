@@ -75,6 +75,13 @@ export function TaskRow({
 
   const rowContent = (
     <>
+      {overdue && (
+        <span
+          aria-hidden
+          title="Past due"
+          className="absolute left-1.5 top-1.5 h-2 w-2 shrink-0 rounded-full bg-bad"
+        />
+      )}
       <button
         type="button"
         onClick={toggle}
@@ -151,14 +158,14 @@ export function TaskRow({
 
   if (linkTo) {
     return (
-      <ClickableListItem href={linkTo} className="flex items-start gap-3 px-5 py-3.5">
+      <ClickableListItem href={linkTo} className="relative flex items-start gap-3 px-5 py-3.5">
         {rowContent}
       </ClickableListItem>
     );
   }
 
   return (
-    <li className="flex items-start gap-3 px-5 py-3.5 transition-colors hover:bg-fg/[0.04]">
+    <li className="relative flex items-start gap-3 px-5 py-3.5 transition-colors hover:bg-fg/[0.04]">
       {rowContent}
     </li>
   );

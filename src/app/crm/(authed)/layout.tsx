@@ -39,12 +39,13 @@ export default async function CrmAuthedLayout({
   }
 
   // Unclaimed released AI leads — the alert every CRM user sees, badging the
-  // "AI Agent" nav item. Same predicate as the dashboard's "New leads to
-  // claim" card and its due-count bell, so all three surfaces always agree.
+  // "AI Agent" nav item. Same predicate as the /crm/ai-agent tab itself, the
+  // dashboard's "New leads to claim" card, and its due-count bell, so all
+  // four surfaces always agree.
   const { count: unclaimedAiCount } = await supabase
     .from("crm_accounts")
     .select("id", { count: "exact", head: true })
-    .eq("source", "ai_agent")
+    .in("source", ["ai_agent", "field_capture"])
     .eq("ai_status", "released")
     .is("assigned_user_id", null)
     .is("deleted_at", null);

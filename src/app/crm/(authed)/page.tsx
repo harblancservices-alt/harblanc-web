@@ -175,12 +175,13 @@ export default async function CrmDashboardPage() {
       .is("deleted_at", null)
       .limit(2000),
     // Unclaimed released AI leads — the alert. Once assigned_user_id is set
-    // (claimed) a lead drops out of this query, and out of the bell/nav badge
-    // that share the same predicate (see layout.tsx and _shell/nav.ts).
+    // (claimed) a lead drops out of this query, out of the /crm/ai-agent tab,
+    // and out of the bell/nav badge that share the same predicate (see
+    // layout.tsx and _shell/nav.ts).
     supabase
       .from("crm_accounts")
       .select("id, name, city, state, commodities, created_at")
-      .eq("source", "ai_agent")
+      .in("source", ["ai_agent", "field_capture"])
       .eq("ai_status", "released")
       .is("assigned_user_id", null)
       .is("deleted_at", null)
@@ -412,6 +413,7 @@ export default async function CrmDashboardPage() {
           <CardHead
             title="Overdue"
             hint={`${overdueTasks.length + overdueCallbacks.length} past due`}
+            right={<AlertCountBadge count={overdueTasks.length + overdueCallbacks.length} />}
           />
           {overdueTasks.length > 0 && (
             <ul className={`divide-y divide-line-strong ${ZEBRA_ROWS}`}>
@@ -441,6 +443,7 @@ export default async function CrmDashboardPage() {
           <CardHead
             title="Due today"
             hint={`${dueTodayTasks.length + todayCallbacks.length} tasks and call-backs due today`}
+            right={<AlertCountBadge count={dueTodayTasks.length + todayCallbacks.length} />}
           />
           {dueTodayTasks.length > 0 && (
             <ul className={`divide-y divide-line-strong ${ZEBRA_ROWS}`}>
@@ -549,6 +552,19 @@ function DuePill({
     >
       {label}
       <span className="font-mono tabular-nums">{count}</span>
+    </span>
+  );
+}
+
+/** Red count badge for a CardHead's `right` slot — the Overdue/Due today
+ *  queue sections' at-a-glance alert, same solid `bg-bad` token DueBell and
+ *  DuePill's Overdue tone already use. Renders nothing at zero since both
+ *  callers already gate the whole card on count > 0. */
+function AlertCountBadge({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <span className="inline-flex h-6 min-w-[24px] shrink-0 items-center justify-center rounded-full bg-bad px-2 text-[12px] font-bold tabular-nums text-white shadow-e1">
+      {count}
     </span>
   );
 }
