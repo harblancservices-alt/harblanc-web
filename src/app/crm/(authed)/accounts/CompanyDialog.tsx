@@ -27,11 +27,7 @@ export type CompanyDefaults = {
   city?: string | null;
   state?: string | null;
   zip?: string | null;
-  dot_number?: string | null;
-  mc_number?: string | null;
   company_size?: string | null;
-  fleet_size?: number | null;
-  current_carrier?: string | null;
   commodities?: string | null;
   annual_freight_spend?: number | null;
   revenue_potential?: number | null;
@@ -162,30 +158,11 @@ export function CompanyDialog({
             defaultValue={d.commodities}
           />
 
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="DOT #" name="dot_number" defaultValue={d.dot_number} />
-            <Field label="MC #" name="mc_number" defaultValue={d.mc_number} />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <Field
-              label="Company size"
-              name="company_size"
-              placeholder="e.g. 11–50"
-              defaultValue={d.company_size}
-            />
-            <Field
-              label="Fleet size"
-              name="fleet_size"
-              inputMode="numeric"
-              defaultValue={d.fleet_size ?? undefined}
-            />
-          </div>
-
           <Field
-            label="Current carrier"
-            name="current_carrier"
-            defaultValue={d.current_carrier}
+            label="Company size"
+            name="company_size"
+            placeholder="e.g. 11–50"
+            defaultValue={d.company_size}
           />
 
           <div className="grid grid-cols-2 gap-3">

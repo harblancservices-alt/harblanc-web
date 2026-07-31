@@ -55,7 +55,7 @@ export default async function AccountDetailPage({
   const { data: account } = await supabase
     .from("crm_accounts")
     .select(
-      "id, name, industry, website, phone, phones, links, address, city, state, zip, dot_number, mc_number, company_size, fleet_size, current_carrier, commodities, annual_freight_spend, revenue_potential, source, lifecycle_status, assigned_user_id, primary_contact_id, needs_finalize, created_at",
+      "id, name, industry, website, phone, phones, links, address, city, state, zip, company_size, commodities, annual_freight_spend, revenue_potential, source, lifecycle_status, assigned_user_id, primary_contact_id, needs_finalize, created_at",
     )
     .eq("id", id)
     .is("deleted_at", null)
@@ -272,11 +272,7 @@ export default async function AccountDetailPage({
     city: account.city as string | null,
     state: account.state as string | null,
     zip: account.zip as string | null,
-    dot_number: account.dot_number as string | null,
-    mc_number: account.mc_number as string | null,
     company_size: account.company_size as string | null,
-    fleet_size: account.fleet_size as number | null,
-    current_carrier: account.current_carrier as string | null,
     commodities: account.commodities as string | null,
     annual_freight_spend: account.annual_freight_spend as number | null,
     revenue_potential: account.revenue_potential as number | null,
@@ -391,19 +387,7 @@ export default async function AccountDetailPage({
                   ) : null
                 }
               />
-              <Fact label="DOT #" value={account.dot_number as string | null} mono />
-              <Fact label="MC #" value={account.mc_number as string | null} mono />
               <Fact label="Company size" value={account.company_size as string | null} />
-              <Fact
-                label="Fleet size"
-                value={
-                  account.fleet_size === null || account.fleet_size === undefined
-                    ? null
-                    : String(account.fleet_size)
-                }
-                mono
-              />
-              <Fact label="Current carrier" value={account.current_carrier as string | null} />
               <Fact
                 label="Annual freight spend"
                 value={formatMoney(account.annual_freight_spend as number | null)}
