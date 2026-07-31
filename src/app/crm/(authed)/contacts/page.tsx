@@ -3,11 +3,13 @@ import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { PageShell, Card, EmptyState, LIST_HEAD_ROW, ZEBRA_ROWS } from "../_shell/ui";
 import { ClickableRow } from "../_shell/ClickableRow";
 import { IconContacts } from "../_shell/icons";
-import { formatDateTime } from "../_shell/format";
+import { formatDateTime, firstName } from "../_shell/format";
 import { ContactsSearch } from "./ContactsSearch";
 import { AddContactDialog } from "./AddContactDialog";
 import { ContactRowActions } from "./ContactRowActions";
 import type { CompanyOption } from "./CompanyCombobox";
+import { AddCompany } from "../accounts/AddCompany";
+import type { RepOption } from "../accounts/CompanyDialog";
 
 export const dynamic = "force-dynamic";
 
@@ -96,10 +98,32 @@ export default async function ContactsPage({
     .limit(1000);
   const companyOptions = (companyOptionsData ?? []) as CompanyOption[];
 
+  // The active rep roster for the "Add company" dialog's assigned-rep select.
+  const { data: profilesData } = await supabase
+    .from("crm_profiles")
+    .select("id, full_name, email, is_active");
+  const profiles = (profilesData ?? []) as {
+    id: string;
+    full_name: string | null;
+    email: string | null;
+    is_active: boolean;
+  }[];
+  const reps: RepOption[] = profiles
+    .filter((p) => p.is_active)
+    .map((p) => ({ id: p.id, label: firstName(p.full_name, p.email) || "Unnamed rep" }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+
   const searching = q.length > 0;
 
   return (
-    <PageShell actions={<AddContactDialog companies={companyOptions} />}>
+    <PageShell
+      actions={
+        <>
+          <AddCompany reps={reps} />
+          <AddContactDialog companies={companyOptions} />
+        </>
+      }
+    >
       <Card className="p-4">
         <ContactsSearch q={q} />
       </Card>

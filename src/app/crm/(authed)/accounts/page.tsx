@@ -9,6 +9,8 @@ import { stageLabel, stageTone } from "./lifecycle";
 import { firstName } from "../_shell/format";
 import type { RepOption } from "./CompanyDialog";
 import type { CrmTag } from "./tags";
+import { AddContactDialog } from "../contacts/AddContactDialog";
+import type { CompanyOption } from "../contacts/CompanyCombobox";
 
 export const dynamic = "force-dynamic";
 
@@ -79,6 +81,16 @@ export default async function CompaniesPage({
     .filter((p) => p.is_active)
     .map((p) => ({ id: p.id, label: firstName(p.full_name, p.email) || "Unnamed rep" }))
     .sort((a, b) => a.label.localeCompare(b.label));
+
+  // The full org roster (id/name only) for the "Add contact" dialog's company
+  // combobox — independent of the filtered/paginated `accounts` list below.
+  const { data: companyOptionsData } = await supabase
+    .from("crm_accounts")
+    .select("id, name")
+    .is("deleted_at", null)
+    .order("name", { ascending: true })
+    .limit(1000);
+  const companyOptions = (companyOptionsData ?? []) as CompanyOption[];
 
   // A tag filter narrows to the accounts carrying that tag (pre-resolved to ids).
   let tagAccountIds: string[] | null = null;
@@ -157,7 +169,14 @@ export default async function CompaniesPage({
   const filtersActive = Boolean(q || stage || tag || rep);
 
   return (
-    <PageShell actions={<AddCompany reps={reps} />}>
+    <PageShell
+      actions={
+        <>
+          <AddCompany reps={reps} />
+          <AddContactDialog companies={companyOptions} />
+        </>
+      }
+    >
       <Card className="p-4">
         <AccountsFilters
           q={q}
