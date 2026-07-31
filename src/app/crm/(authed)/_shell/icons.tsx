@@ -53,31 +53,11 @@ export function IconContacts(props: IconProps) {
   );
 }
 
-export function IconPipeline(props: IconProps) {
-  return (
-    <svg {...base(props)}>
-      <rect x="3" y="4" width="4.5" height="16" rx="1" />
-      <rect x="9.75" y="4" width="4.5" height="11" rx="1" />
-      <rect x="16.5" y="4" width="4.5" height="7" rx="1" />
-    </svg>
-  );
-}
-
 export function IconTasks(props: IconProps) {
   return (
     <svg {...base(props)}>
       <path d="M9 11l2 2 4-4" />
       <rect x="3" y="4" width="18" height="16" rx="2" />
-    </svg>
-  );
-}
-
-export function IconReports(props: IconProps) {
-  return (
-    <svg {...base(props)}>
-      <path d="M4 20V4" />
-      <path d="M4 20h16" />
-      <path d="M8 16l3-4 3 2 4-6" />
     </svg>
   );
 }
@@ -136,16 +116,6 @@ export function IconAiReview(props: IconProps) {
     <svg {...base(props)}>
       <path d="M9 11l2 2 4-4" />
       <circle cx="12" cy="12" r="9" />
-    </svg>
-  );
-}
-
-export function IconFieldCapture(props: IconProps) {
-  return (
-    <svg {...base(props)}>
-      <rect x="9" y="2" width="6" height="11" rx="3" />
-      <path d="M5 11a7 7 0 0 0 14 0" />
-      <path d="M12 18v4M9 22h6" />
     </svg>
   );
 }

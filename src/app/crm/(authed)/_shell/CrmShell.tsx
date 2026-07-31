@@ -45,10 +45,10 @@ export function CrmShell({
   const initial = (fullName || email || "?").trim().charAt(0).toUpperCase();
   const navItems = buildCrmNav(role, pendingReviewCount, unclaimedAiLeadsCount, customerCount);
   const mobileNav = bottomNav(navItems);
-  // Everything the bottom bar's 4 fixed slots don't cover (Contacts, AI
-  // Agent, Reports, Settings, and — owner-only — AI Review/Field Capture)
-  // surfaces in the mobile "More" sheet instead, so no destination the
-  // desktop sidebar lists is ever unreachable on mobile.
+  // Everything the bottom bar's 4 fixed slots don't cover (Active
+  // Customers, AI Agent, Settings, and — owner-only — AI Review) surfaces
+  // in the mobile "More" sheet instead, so no destination the desktop
+  // sidebar lists is ever unreachable on mobile.
   const moreItems = moreNav(navItems);
   const moreBadgeTotal = moreItems.reduce((sum, item) => sum + (item.badge ?? 0), 0);
   const [moreOpen, setMoreOpen] = useState(false);
@@ -77,6 +77,11 @@ export function CrmShell({
           <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-3">
             {navItems.map((item) => {
               const active = isActive(pathname, item);
+              // Owner-only items (currently just AI Review) render in an
+              // orange accent — the CRM's existing --warn/amber token —
+              // regardless of active state, so the admin can tell
+              // admin-only tabs apart from everyday ones at a glance.
+              const ownerOnly = !!item.ownerOnly;
               return (
                 <Link
                   key={item.href}
@@ -85,12 +90,16 @@ export function CrmShell({
                   className={[
                     "flex items-center gap-3 rounded-lg border-l-2 px-3 py-2 text-[13.5px] font-medium transition-colors",
                     active
-                      ? "border-accent bg-graphite-2 text-white"
-                      : "border-transparent text-on-dark-dim hover:bg-graphite-2/60 hover:text-white",
+                      ? ownerOnly
+                        ? "border-warn bg-graphite-2 text-warn"
+                        : "border-accent bg-graphite-2 text-white"
+                      : ownerOnly
+                        ? "border-transparent text-warn/90 hover:bg-graphite-2/60 hover:text-warn"
+                        : "border-transparent text-on-dark-dim hover:bg-graphite-2/60 hover:text-white",
                   ].join(" ")}
                 >
                   <item.Icon
-                    className={active ? "text-accent" : "text-on-dark-dim"}
+                    className={ownerOnly ? "text-warn" : active ? "text-accent" : "text-on-dark-dim"}
                   />
                   <span className="flex-1">{item.label}</span>
                   {!!item.badge && (

@@ -17,9 +17,9 @@ export type AiAgentLead = {
 
 /**
  * One released AI lead on the team register. The card body is a "stretched
- * link" to the company profile (same technique as pipeline/DealCard.tsx) so
- * the whole card opens /crm/accounts/[id]; the Claim button sits in its own
- * stacking layer above the link so it keeps working as its own control.
+ * link" to the company profile so the whole card opens /crm/accounts/[id];
+ * the Claim button sits in its own stacking layer above the link so it
+ * keeps working as its own control.
  */
 export function LeadCard({ lead }: { lead: AiAgentLead }) {
   const [pending, startTransition] = useTransition();

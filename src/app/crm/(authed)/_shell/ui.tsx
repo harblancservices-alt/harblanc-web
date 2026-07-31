@@ -21,8 +21,8 @@ export function PageShell({
   subtitle?: string;
   actions?: ReactNode;
   /** Skip the max-w-6xl reading-width cap and use the full content column —
-   * for views (like the Pipeline board) that want the available viewport
-   * width on desktop rather than a fixed-width page. */
+   * for views that want the available viewport width on desktop rather
+   * than a fixed-width page. */
   fluid?: boolean;
   children: ReactNode;
 }) {
@@ -68,7 +68,7 @@ export function Card({
 
 /**
  * The header band for a Card/section — the ONE place this hierarchy level is
- * styled, so every CRM page (dashboard, Companies, Pipeline, Tasks, Settings,
+ * styled, so every CRM page (dashboard, Companies, Tasks, Settings,
  * AI Agent, AI Review) reads identically. Deliberately styled to be
  * unmistakably heavier than the item rows/cards beneath it: bold + slightly
  * larger near-black title, a light `bg-inset` band tint, and a `line-strong`

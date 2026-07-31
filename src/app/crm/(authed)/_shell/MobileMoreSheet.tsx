@@ -11,8 +11,9 @@ import { IconLogout } from "./icons";
  * nav item that doesn't fit the bottom bar's 4 fixed slots, plus Sign out.
  * `items` is already role-filtered by buildCrmNav/moreNav in CrmShell (the
  * same source feeding the desktop sidebar and the bottom bar), so an
- * owner-only destination like Field Capture or AI Review only ever appears
- * here for an owner — this component does no gating of its own.
+ * owner-only destination like AI Review only ever appears here for an
+ * owner — this component does no gating of its own. Owner-only items
+ * render in the same orange accent as the desktop sidebar (item.ownerOnly).
  */
 export function MobileMoreSheet({
   open,
@@ -69,6 +70,7 @@ export function MobileMoreSheet({
         <nav className="flex flex-col gap-0.5 px-3 pb-2">
           {items.map((item) => {
             const active = isActive(pathname, item);
+            const ownerOnly = !!item.ownerOnly;
             return (
               <Link
                 key={item.href}
@@ -78,11 +80,17 @@ export function MobileMoreSheet({
                 className={[
                   "flex items-center gap-3 rounded-lg border-l-2 px-3 py-2.5 text-[14px] font-medium transition-colors",
                   active
-                    ? "border-accent bg-graphite-2 text-white"
-                    : "border-transparent text-on-dark-dim hover:bg-graphite-2/60 hover:text-white",
+                    ? ownerOnly
+                      ? "border-warn bg-graphite-2 text-warn"
+                      : "border-accent bg-graphite-2 text-white"
+                    : ownerOnly
+                      ? "border-transparent text-warn/90 hover:bg-graphite-2/60 hover:text-warn"
+                      : "border-transparent text-on-dark-dim hover:bg-graphite-2/60 hover:text-white",
                 ].join(" ")}
               >
-                <item.Icon className={active ? "text-accent" : "text-on-dark-dim"} />
+                <item.Icon
+                  className={ownerOnly ? "text-warn" : active ? "text-accent" : "text-on-dark-dim"}
+                />
                 <span className="flex-1">{item.label}</span>
                 {!!item.badge && (
                   <span className="inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-bad px-1 text-[10.5px] font-bold leading-none tabular-nums text-white">

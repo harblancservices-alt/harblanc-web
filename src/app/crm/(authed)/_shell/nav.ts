@@ -3,13 +3,10 @@ import {
   IconDashboard,
   IconCompanies,
   IconContacts,
-  IconPipeline,
   IconTasks,
-  IconReports,
   IconSettings,
   IconAiAgent,
   IconAiReview,
-  IconFieldCapture,
   IconCustomers,
 } from "./icons";
 
@@ -21,6 +18,12 @@ export type CrmNavItem = {
   match?: string[];
   /** Small count badge rendered beside the label (e.g. pending AI reviews). */
   badge?: number;
+  /** True for items only ever pushed when role==='owner' (currently just AI
+   * Review). CrmShell and MobileMoreSheet render these in an orange accent
+   * — icon + label — so the admin can tell admin-only tabs apart from
+   * everyday ones at a glance, in both the desktop sidebar and the mobile
+   * More sheet. */
+  ownerOnly?: boolean;
 };
 
 /**
@@ -39,8 +42,9 @@ export type CrmNavItem = {
  * item carries `Icon`, a component function reference — a function value —
  * and React Server Components cannot serialize function props crossing the
  * Server->Client boundary (same class of bug as commit fbfabd7's pipeline/
- * settings render-prop crash). layout.tsx (a Server Component) must pass
- * only plain primitives — role, pendingReviewCount, unclaimedAiLeadsCount,
+ * settings render-prop crash — "pipeline" the deal-dialog crash, not the
+ * removed nav tab). layout.tsx (a Server Component) must pass only plain
+ * primitives — role, pendingReviewCount, unclaimedAiLeadsCount,
  * customerCount — into CrmShell, which calls this itself instead of
  * receiving its output as a prop. Since /crm routes are all force-dynamic
  * and never prerendered at build time, `next build`/`tsc` won't catch a
@@ -68,9 +72,7 @@ export function buildCrmNav(
       Icon: IconAiAgent,
       badge: unclaimedAiLeadsCount > 0 ? unclaimedAiLeadsCount : undefined,
     },
-    { href: "/crm/pipeline", label: "Pipeline", Icon: IconPipeline },
     { href: "/crm/tasks", label: "Tasks", Icon: IconTasks },
-    { href: "/crm/reports", label: "Reports", Icon: IconReports },
   ];
   if (role === "owner") {
     nav.push({
@@ -78,22 +80,20 @@ export function buildCrmNav(
       label: "AI Review",
       Icon: IconAiReview,
       badge: pendingReviewCount > 0 ? pendingReviewCount : undefined,
-    });
-    nav.push({
-      href: "/crm/field-capture",
-      label: "Field Capture",
-      Icon: IconFieldCapture,
+      ownerOnly: true,
     });
   }
   nav.push({ href: "/crm/settings", label: "Settings", Icon: IconSettings });
   return nav;
 }
 
-const BOTTOM_HREFS = ["/crm", "/crm/accounts", "/crm/pipeline", "/crm/tasks"];
+// Pipeline was removed from the nav/bottom bar; Contacts takes its old 4th
+// slot so the mobile bottom bar still fills all four columns.
+const BOTTOM_HREFS = ["/crm", "/crm/accounts", "/crm/contacts", "/crm/tasks"];
 
 /**
  * The four primary destinations surfaced in the mobile bottom bar, picked
- * from the built nav by href — so the AI/owner-only items never disturb the
+ * from the built nav by href — so owner-only items never disturb the
  * bottom bar's fixed 4-column layout.
  */
 export function bottomNav(nav: CrmNavItem[]): CrmNavItem[] {
@@ -103,10 +103,10 @@ export function bottomNav(nav: CrmNavItem[]): CrmNavItem[] {
 }
 
 /**
- * Everything NOT in the mobile bottom bar's 4 fixed slots — Contacts, AI
- * Agent, Reports, Settings, and (owner-only, already filtered out of `nav`
- * for non-owners by buildCrmNav) AI Review and Field Capture. Fed into the
- * mobile "More" sheet so every destination the desktop sidebar lists stays
+ * Everything NOT in the mobile bottom bar's 4 fixed slots — Active
+ * Customers, AI Agent, Settings, and (owner-only, already filtered out of
+ * `nav` for non-owners by buildCrmNav) AI Review. Fed into the mobile
+ * "More" sheet so every destination the desktop sidebar lists stays
  * reachable on mobile too. Derived from the same `nav` array as bottomNav
  * (and the desktop sidebar) rather than its own hardcoded list, so the three
  * surfaces can never drift out of sync with each other.
