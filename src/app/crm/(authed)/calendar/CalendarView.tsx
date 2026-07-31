@@ -387,7 +387,7 @@ function ItemRow({ item }: { item: CalendarItem }) {
 
 function Legend() {
   return (
-    <div className="flex flex-wrap items-center gap-3 text-[11px] font-medium text-fg-subtle">
+    <div className="flex flex-wrap items-center gap-4 text-[13.5px] font-semibold text-fg-muted">
       <LegendDot tone="bg-steel" label="Task" />
       <LegendDot tone="bg-warn" label="Follow-up" />
       <LegendDot tone="bg-ok" label="Call" />
@@ -398,8 +398,8 @@ function Legend() {
 
 function LegendDot({ tone, label }: { tone: string; label: string }) {
   return (
-    <span className="inline-flex items-center gap-1.5">
-      <span className={`h-2.5 w-2.5 rounded-full ${tone}`} />
+    <span className="inline-flex items-center gap-2">
+      <span className={`h-3.5 w-3.5 shrink-0 rounded-full ${tone}`} />
       {label}
     </span>
   );
