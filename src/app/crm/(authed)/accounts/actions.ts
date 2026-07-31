@@ -541,6 +541,7 @@ export async function addNote(
     user_id: user.id,
     body: trimmed,
     is_pinned: pinned,
+    is_ai: false,
   });
 
   if (error) return { ok: false, error: "Could not save the note." };
