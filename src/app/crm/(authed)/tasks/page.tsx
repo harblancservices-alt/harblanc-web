@@ -122,18 +122,10 @@ export default async function TasksPage() {
     return ms === null || ms > todayEnd;
   });
 
-  const openCount = openTasks.length;
   const hasAny = tasks.length > 0;
 
   return (
     <PageShell
-      eyebrow="Follow-ups"
-      title="Tasks"
-      subtitle={
-        openCount
-          ? `${openCount} open ${openCount === 1 ? "task" : "tasks"} across the team`
-          : "What's due, and what's next."
-      }
       actions={
         <AddTaskButton
           accounts={accounts}

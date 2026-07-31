@@ -1,51 +1,36 @@
 import type { ComponentPropsWithoutRef, ReactNode } from "react";
 
 /**
- * CRM page-content primitives. Premium chrome (graphite masthead, rounded-2xl
- * white cards on shadow-e2) mirroring the app's Performance dashboard, resolved
- * against the `.crm-light` theme scope so surfaces stay theme-correct. Colored
- * numerals/labels only ever sit on FIXED surfaces (graphite masthead, tinted
- * pills), never on a themed card — the design system's core rule.
+ * CRM page-content primitives — rounded-2xl white cards on shadow-e2,
+ * resolved against the `.crm-light` theme scope so surfaces stay
+ * theme-correct.
  */
 
+/** Shared page-content width, used by PageShell and the couple of detail
+ * pages (company profile, member activity) that build their own header
+ * instead of going through PageShell — so every /crm page uses the same
+ * available width next to the sidebar rather than a narrow reading column. */
+export const PAGE_CONTAINER = "mx-auto w-full max-w-[1600px] px-4 py-4 sm:px-6 sm:py-6";
+
 export function PageShell({
-  eyebrow,
-  title,
-  subtitle,
+  back,
   actions,
-  fluid,
   children,
 }: {
-  eyebrow?: string;
-  title: string;
-  subtitle?: string;
+  /** An inline BackButton (or similar), rendered top-left. */
+  back?: ReactNode;
+  /** Per-page action controls (Add company, Add task, ...), rendered top-right. */
   actions?: ReactNode;
-  /** Skip the max-w-6xl reading-width cap and use the full content column —
-   * for views that want the available viewport width on desktop rather
-   * than a fixed-width page. */
-  fluid?: boolean;
   children: ReactNode;
 }) {
   return (
-    <div
-      className={`px-4 py-4 sm:px-6 sm:py-6 ${fluid ? "w-full" : "mx-auto max-w-6xl"}`}
-    >
-      <div className="mb-4 flex flex-col gap-3 rounded-2xl bg-graphite px-5 py-5 shadow-e2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-w-0">
-          {eyebrow && (
-            <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-on-dark-dim">
-              {eyebrow}
-            </p>
-          )}
-          <h1 className="text-[24px] font-bold leading-tight tracking-tight text-white sm:text-[28px]">
-            {title}
-          </h1>
-          {subtitle && (
-            <p className="mt-1 text-[13px] text-on-dark-dim">{subtitle}</p>
-          )}
+    <div className={PAGE_CONTAINER}>
+      {(back || actions) && (
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">{back}</div>
+          <div className="flex flex-wrap items-center gap-2">{actions}</div>
         </div>
-        {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
-      </div>
+      )}
       <div className="space-y-4">{children}</div>
     </div>
   );

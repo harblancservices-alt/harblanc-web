@@ -99,16 +99,7 @@ export default async function ContactsPage({
   const searching = q.length > 0;
 
   return (
-    <PageShell
-      eyebrow="People"
-      title="Contacts"
-      subtitle={
-        contacts.length
-          ? `${contacts.length} ${contacts.length === 1 ? "contact" : "contacts"}${searching ? " matched" : ""}`
-          : "Decision-makers across your companies."
-      }
-      actions={<AddContactDialog companies={companyOptions} />}
-    >
+    <PageShell actions={<AddContactDialog companies={companyOptions} />}>
       <Card className="p-4">
         <ContactsSearch q={q} />
       </Card>

@@ -252,7 +252,6 @@ export default async function CrmDashboardPage() {
   }
   const customerCount = tally.get("customer") ?? 0;
 
-  const firstName = (user.fullName || "there").split(" ")[0];
   // Total due-work count — the SAME buckets the queue below renders (overdue
   // tasks + overdue call-backs + due-today tasks + today call-backs + contact
   // follow-ups + unclaimed released AI leads + companies needing finalize).
@@ -270,11 +269,7 @@ export default async function CrmDashboardPage() {
   const hasActionable = dueCount > 0;
 
   return (
-    <PageShell
-      eyebrow="Hello Hotshot CRM"
-      title={`What's next, ${firstName}`}
-      subtitle="Your live work queue — the next moves across your book of business."
-    >
+    <PageShell>
       {/* KPI strip */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatTile label="New leads · 7d" value={String(newLeadsRes.count ?? 0)} />

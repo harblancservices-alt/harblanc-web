@@ -98,15 +98,7 @@ export default async function AiReviewPage() {
   }));
 
   return (
-    <PageShell
-      eyebrow="Admin"
-      title="AI Review Queue"
-      subtitle={
-        reviewLeads.length
-          ? `${reviewLeads.length} lead${reviewLeads.length === 1 ? "" : "s"} awaiting review`
-          : "Leads the AI agent has researched, awaiting your review."
-      }
-    >
+    <PageShell>
       <Card>
         {reviewLeads.length === 0 ? (
           <EmptyState

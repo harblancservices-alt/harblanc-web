@@ -88,15 +88,7 @@ export default async function ActiveCustomersPage() {
   );
 
   return (
-    <PageShell
-      eyebrow="Book of business"
-      title="Active Customers"
-      subtitle={
-        accounts.length
-          ? `${accounts.length} won ${accounts.length === 1 ? "account" : "accounts"}`
-          : "Companies you've closed — kept separate from leads."
-      }
-    >
+    <PageShell>
       <Card>
         {accounts.length === 0 ? (
           <EmptyState

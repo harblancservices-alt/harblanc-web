@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
-import { Card, CardHead, EmptyState } from "../../../_shell/ui";
+import { PageShell, Card, CardHead, EmptyState } from "../../../_shell/ui";
 import { BackButton } from "../../../_shell/BackButton";
 import { firstName } from "../../../_shell/format";
 import { IconContacts } from "../../../_shell/icons";
@@ -68,15 +68,12 @@ export default async function MemberActivityPage({
   const name = firstName(member.full_name, member.email) || "This member";
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-4 sm:px-6 sm:py-6">
-      <div className="mb-4 rounded-2xl bg-graphite px-5 py-5 shadow-e2">
-        <div className="-ml-3.5 mb-1.5 flex items-center gap-2">
-          <BackButton fallbackHref="/crm/settings" />
-        </div>
-        <h1 className="text-[22px] font-bold leading-tight tracking-tight text-white sm:text-[26px]">
+    <PageShell back={<BackButton fallbackHref="/crm/settings" />}>
+      <div>
+        <h1 className="text-[20px] font-bold leading-tight tracking-tight text-fg">
           {name}&rsquo;s activity
         </h1>
-        <p className="mt-1 text-[13px] text-on-dark-dim">
+        <p className="mt-1 text-[13px] text-fg-muted">
           {member.full_name || "Unnamed"} · {member.email || "No email on file"}
         </p>
       </div>
@@ -98,6 +95,6 @@ export default async function MemberActivityPage({
           <ActivityLog events={activityEvents} />
         )}
       </Card>
-    </div>
+    </PageShell>
   );
 }

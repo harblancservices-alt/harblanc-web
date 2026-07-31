@@ -90,17 +90,7 @@ export default async function AiAgentPage() {
   const ordered = [...unclaimed, ...claimed];
 
   return (
-    <PageShell
-      eyebrow="Lead register"
-      title="AI Agent"
-      subtitle={
-        agentLeads.length
-          ? `${agentLeads.length} lead${agentLeads.length === 1 ? "" : "s"}${
-              unclaimed.length ? ` · ${unclaimed.length} new` : ""
-            }`
-          : "Leads researched and released by the AI agent."
-      }
-    >
+    <PageShell>
       {ordered.length === 0 ? (
         <Card>
           <EmptyState

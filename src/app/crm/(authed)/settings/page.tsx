@@ -73,11 +73,7 @@ export default async function SettingsPage() {
   }
 
   return (
-    <PageShell
-      eyebrow="Configuration"
-      title="Settings"
-      subtitle="Your account and workspace."
-    >
+    <PageShell>
       <Card>
         <CardHead title="Your account" />
         <div className="flex items-center gap-3 px-5 py-4">

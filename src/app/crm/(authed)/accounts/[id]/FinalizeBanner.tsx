@@ -6,7 +6,7 @@ import { CompanyDialog, type CompanyDefaults, type RepOption } from "../CompanyD
  * Shown on a company profile when needs_finalize is true — the company was
  * quick-created from the Contacts page's "type a new name" combobox path
  * (contacts/actions.ts::createContactQuick) with nothing but a name. Its own
- * CompanyDialog instance (independent of the masthead's Edit button) opens
+ * CompanyDialog instance (independent of the page's own Edit button) opens
  * the same full edit form; saving through it clears needs_finalize
  * (accounts/actions.ts::updateAccount), so this banner disappears on its own
  * the next time the profile loads.
@@ -19,7 +19,7 @@ export function FinalizeBanner({
   reps: RepOption[];
 }) {
   return (
-    <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-warn/30 bg-warn-bg px-5 py-3.5">
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-warn/30 bg-warn-bg px-5 py-3.5">
       <div className="min-w-0">
         <p className="text-[13.5px] font-semibold text-warn">Quick-added company</p>
         <p className="mt-0.5 text-[12.5px] text-fg-muted">

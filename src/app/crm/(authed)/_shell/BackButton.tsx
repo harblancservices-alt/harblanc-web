@@ -46,7 +46,7 @@ export function BackButton({
       onClick={onClick}
       className={
         className ??
-        "inline-flex items-center gap-1.5 rounded-lg bg-white/10 px-3.5 py-2 text-[13px] font-semibold text-on-dark-dim transition-colors hover:bg-white/15 hover:text-white"
+        "inline-flex items-center gap-1.5 rounded-lg border border-line-strong bg-card px-3.5 py-2 text-[13px] font-semibold text-fg-muted transition-colors hover:bg-inset hover:text-fg"
       }
     >
       <IconArrowLeft width={15} height={15} />

@@ -157,16 +157,7 @@ export default async function CompaniesPage({
   const filtersActive = Boolean(q || stage || tag || rep);
 
   return (
-    <PageShell
-      eyebrow="Book of business"
-      title="Companies"
-      subtitle={
-        accounts.length
-          ? `${accounts.length} ${accounts.length === 1 ? "company" : "companies"}${filtersActive ? " matched" : ""}`
-          : "Carriers and shippers you're working."
-      }
-      actions={<AddCompany reps={reps} />}
-    >
+    <PageShell actions={<AddCompany reps={reps} />}>
       <Card className="p-4">
         <AccountsFilters
           q={q}

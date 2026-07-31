@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
-import { Card, CardHead } from "../../_shell/ui";
+import { PageShell, Card, CardHead } from "../../_shell/ui";
 import { BackButton } from "../../_shell/BackButton";
 import { formatDate, formatMoney, firstName } from "../../_shell/format";
 import { ProfileTabs } from "./ProfileTabs";
@@ -262,42 +262,40 @@ export default async function AccountDetailPage({
   };
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6 sm:py-6">
+    <PageShell
+      back={<BackButton fallbackHref="/crm/accounts" />}
+      actions={
+        <>
+          <LogCallButton
+            accountId={account.id as string}
+            contacts={contacts.map((c) => ({ id: c.id, name: c.name }))}
+          />
+          <EditCompany defaults={editDefaults} reps={reps} canDelete={isOwner} />
+        </>
+      }
+    >
       {account.needs_finalize && <FinalizeBanner defaults={editDefaults} reps={reps} />}
 
-      {/* Header masthead */}
-      <div className="mb-4 rounded-2xl bg-graphite px-5 py-5 shadow-e2">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div className="min-w-0">
-            <div className="-ml-3.5 mb-1.5 flex items-center gap-2">
-              <BackButton fallbackHref="/crm/accounts" />
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-[24px] font-bold leading-tight tracking-tight text-white sm:text-[28px]">
-                {account.name as string}
-              </h1>
-              <span
-                className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${stageTone(stage)}`}
-              >
-                {stageLabel(stage)}
-              </span>
-            </div>
-            <p className="mt-1 text-[13px] text-on-dark-dim">
-              {[account.industry, location].filter(Boolean).join(" · ") ||
-                "No industry or location set"}
-            </p>
-            <p className="mt-1 text-[12px] text-on-dark-dim">
-              Rep: <span className="text-white">{repName || "Unassigned"}</span>
-            </p>
-          </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <LogCallButton
-              accountId={account.id as string}
-              contacts={contacts.map((c) => ({ id: c.id, name: c.name }))}
-            />
-            <EditCompany defaults={editDefaults} reps={reps} canDelete={isOwner} />
-          </div>
+      {/* Which company this is — kept as plain page content (not a masthead)
+          since it's the record's identity, not a redundant page-name label. */}
+      <div>
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="text-[22px] font-bold leading-tight tracking-tight text-fg">
+            {account.name as string}
+          </h1>
+          <span
+            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${stageTone(stage)}`}
+          >
+            {stageLabel(stage)}
+          </span>
         </div>
+        <p className="mt-1 text-[13px] text-fg-muted">
+          {[account.industry, location].filter(Boolean).join(" · ") ||
+            "No industry or location set"}
+        </p>
+        <p className="mt-1 text-[12px] text-fg-subtle">
+          Rep: <span className="text-fg-muted">{repName || "Unassigned"}</span>
+        </p>
       </div>
 
       <ProfileTabs
@@ -418,7 +416,7 @@ export default async function AccountDetailPage({
         }
         bolCount={documents.length}
       />
-    </div>
+    </PageShell>
   );
 }
 
