@@ -91,7 +91,7 @@ export function TagEditor({
         <div className="rounded-xl border border-line bg-inset p-3">
           {available.length > 0 && (
             <div className="mb-3">
-              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
+              <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-fg">
                 Add existing
               </p>
               <div className="flex flex-wrap gap-1.5">
@@ -114,7 +114,7 @@ export function TagEditor({
             </div>
           )}
 
-          <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
+          <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-fg">
             Create new
           </p>
           <div className="flex items-center gap-2">
@@ -123,7 +123,7 @@ export function TagEditor({
               value={newColor}
               onChange={(e) => setNewColor(e.target.value)}
               aria-label="Tag colour"
-              className="h-9 w-9 shrink-0 cursor-pointer rounded-lg border border-line-strong bg-card p-1"
+              className="h-9 w-9 shrink-0 cursor-pointer rounded-lg border border-fg-subtle bg-card p-1"
             />
             <input
               type="text"
@@ -136,7 +136,7 @@ export function TagEditor({
                 }
               }}
               placeholder="New tag name"
-              className="h-9 min-w-0 flex-1 rounded-lg border border-line-strong bg-card px-3 text-[13.5px] text-fg outline-none focus:ring-2 focus:ring-accent/40"
+              className="h-9 min-w-0 flex-1 rounded-lg border border-fg-subtle bg-card px-3 text-[13.5px] font-medium text-fg outline-none focus:ring-2 focus:ring-accent/40"
             />
             <button
               type="button"

@@ -10,6 +10,7 @@ import {
   TextareaField,
   SubmitButton,
   FormError,
+  LABEL,
 } from "../_shell/form";
 import { toDatetimeLocal } from "../_shell/format";
 import type { RepOption } from "../accounts/CompanyDialog";
@@ -221,10 +222,8 @@ export function TaskDialog({
               </SelectField>
             ) : (
               <div className="flex flex-col gap-1.5">
-                <span className="text-[12px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
-                  Assigned rep
-                </span>
-                <div className="flex h-11 items-center rounded-lg border border-line-strong bg-inset px-3 text-[14px] text-fg-muted">
+                <span className={LABEL}>Assigned rep</span>
+                <div className="flex h-11 items-center rounded-lg border border-fg-subtle bg-inset px-3 text-[14px] text-fg-muted">
                   {lockedAssigneeLabel}
                 </div>
                 {mode === "create" && (

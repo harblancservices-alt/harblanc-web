@@ -11,11 +11,15 @@ import type { ChangeEvent, ReactNode } from "react";
 // Exported so controlled inputs outside this module (e.g. Field Capture's
 // live-editable review cards, which need value/onChange rather than the
 // uncontrolled defaultValue these primitives use) can match the same chrome.
+// High-contrast form standard: a border dark enough to read as a distinct
+// box on the white card (border-fg-subtle, not the barely-visible
+// border-line-strong), with near-black entered text.
 export const CONTROL =
-  "rounded-lg border border-line-strong bg-card px-3 text-[14px] text-fg outline-none transition-shadow focus:ring-2 focus:ring-accent/40";
+  "rounded-lg border border-fg-subtle bg-card px-3 text-[14px] font-medium text-fg outline-none transition-shadow focus:ring-2 focus:ring-accent/40";
 
-export const LABEL =
-  "text-[12px] font-semibold uppercase tracking-[0.1em] text-fg-subtle";
+// Near-black, not the faint fg-subtle gray — labels need to read clearly
+// against the white card, matching the CRM's high-contrast form standard.
+export const LABEL = "text-[12px] font-semibold uppercase tracking-[0.1em] text-fg";
 
 export function FieldLabel({
   children,
@@ -153,7 +157,7 @@ export function CheckboxField({
   hint?: string;
 }) {
   return (
-    <label className="flex items-start gap-2.5 rounded-lg border border-line-strong bg-card px-3 py-2.5">
+    <label className="flex items-start gap-2.5 rounded-lg border border-fg-subtle bg-card px-3 py-2.5">
       <input
         type="checkbox"
         name={name}

@@ -95,7 +95,7 @@ export function NotesSection({
             onChange={(e) => setBody(e.target.value)}
             placeholder="Add a note about this company…"
             rows={3}
-            className="resize-y rounded-lg border border-line-strong bg-card px-3.5 py-3 text-[14.5px] leading-relaxed text-fg outline-none focus:ring-2 focus:ring-accent/40"
+            className="resize-y rounded-lg border border-fg-subtle bg-card px-3.5 py-3 text-[14.5px] font-medium leading-relaxed text-fg outline-none focus:ring-2 focus:ring-accent/40"
           />
           {error && <p className="text-[12.5px] text-bad">{error}</p>}
           <div className="flex items-center justify-between gap-3">
