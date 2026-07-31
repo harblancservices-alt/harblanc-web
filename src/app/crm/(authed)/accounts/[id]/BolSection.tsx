@@ -4,7 +4,7 @@ import { useRef, useState } from "react";
 import type { DragEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
-import { Card, CardHead } from "../../_shell/ui";
+import { Card, CardHead, ZEBRA_ROWS } from "../../_shell/ui";
 import { formatDateTime } from "../../_shell/format";
 import { createBolDocument, deleteBolDocument } from "./bol-actions";
 
@@ -258,7 +258,7 @@ export function BolSection({
           No BOLs yet. Upload the pickup paperwork above.
         </p>
       ) : (
-        <ul className="divide-y divide-line-strong">
+        <ul className={`divide-y divide-line-strong ${ZEBRA_ROWS}`}>
           {documents.map((doc) => (
             <li key={doc.id} className="flex items-center justify-between gap-3 px-5 py-3.5">
               <div className="min-w-0">

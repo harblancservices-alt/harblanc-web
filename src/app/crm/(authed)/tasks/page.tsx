@@ -1,5 +1,5 @@
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
-import { PageShell, Card, CardHead, EmptyState } from "../_shell/ui";
+import { PageShell, Card, CardHead, EmptyState, ZEBRA_ROWS } from "../_shell/ui";
 import { IconTasks } from "../_shell/icons";
 import { firstName, timestampMs } from "../_shell/format";
 import { TaskRow, type CrmTaskItem } from "./TaskRow";
@@ -165,7 +165,7 @@ export default async function TasksPage() {
                 <summary className="cursor-pointer list-none border-b border-line-strong px-5 py-3.5 text-[14px] font-semibold text-fg-subtle transition-colors hover:text-fg">
                   Done · {doneTasks.length}
                 </summary>
-                <ul className="divide-y divide-line-strong">
+                <ul className={`divide-y divide-line-strong ${ZEBRA_ROWS}`}>
                   {doneTasks.map((t) => (
                     <TaskRow key={t.id} task={t} showCompany>
                       <DeleteTaskButton taskId={t.id} accountId={t.account_id} title={t.title} />
@@ -192,7 +192,7 @@ function Group({
   return (
     <Card>
       <CardHead title={title} hint={`${tasks.length}`} />
-      <ul className="divide-y divide-line-strong">
+      <ul className={`divide-y divide-line-strong ${ZEBRA_ROWS}`}>
         {tasks.map((t) => (
           <TaskRow key={t.id} task={t} showCompany>
             <DeleteTaskButton taskId={t.id} accountId={t.account_id} title={t.title} />

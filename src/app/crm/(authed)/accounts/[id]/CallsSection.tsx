@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardHead } from "../../_shell/ui";
+import { Card, CardHead, ZEBRA_ROWS } from "../../_shell/ui";
 import { formatDateTime } from "../../_shell/format";
 import { callOutcomeLabel, callOutcomeTone } from "../../calls/outcomes";
 import { deleteCall } from "../../calls/actions";
@@ -60,7 +60,7 @@ export function CallsSection({
           No calls logged yet. Use "Log call" above to record one.
         </p>
       ) : (
-        <ul className="divide-y divide-line-strong">
+        <ul className={`divide-y divide-line-strong ${ZEBRA_ROWS}`}>
           {calls.map((c) => (
             <li key={c.id} className="px-5 py-3.5">
               <div className="flex items-start justify-between gap-3">

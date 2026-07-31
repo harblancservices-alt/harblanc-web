@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
-import { PageShell, Card, EmptyState } from "../_shell/ui";
+import { PageShell, Card, EmptyState, LIST_HEAD_ROW, ZEBRA_ROWS } from "../_shell/ui";
 import { ClickableRow } from "../_shell/ClickableRow";
 import { IconCompanies } from "../_shell/icons";
 import { AddCompany } from "./AddCompany";
@@ -189,7 +189,7 @@ export default async function CompaniesPage({
           <div className="overflow-x-auto">
             <table className="w-full min-w-[720px] text-left text-[13.5px]">
               <thead>
-                <tr className="border-b border-line-strong bg-inset text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
+                <tr className={LIST_HEAD_ROW}>
                   <th className="px-5 py-3 font-semibold">Company</th>
                   <th className="px-5 py-3 font-semibold">Stage</th>
                   <th className="px-5 py-3 font-semibold">Location</th>
@@ -197,7 +197,7 @@ export default async function CompaniesPage({
                   <th className="px-5 py-3 font-semibold">Tags</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className={ZEBRA_ROWS}>
                 {accounts.map((a) => {
                   const stageValue = a.lifecycle_status;
                   const location = [a.city, a.state].filter(Boolean).join(", ");

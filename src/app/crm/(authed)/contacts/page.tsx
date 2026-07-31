@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
-import { PageShell, Card, EmptyState } from "../_shell/ui";
+import { PageShell, Card, EmptyState, LIST_HEAD_ROW, ZEBRA_ROWS } from "../_shell/ui";
 import { ClickableRow } from "../_shell/ClickableRow";
 import { IconContacts } from "../_shell/icons";
 import { formatDateTime } from "../_shell/format";
@@ -120,7 +120,7 @@ export default async function ContactsPage({
           <div className="overflow-x-auto">
             <table className="w-full min-w-[820px] text-left text-[13.5px]">
               <thead>
-                <tr className="border-b border-line-strong bg-inset text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
+                <tr className={LIST_HEAD_ROW}>
                   <th className="px-5 py-3 font-semibold">Contact</th>
                   <th className="px-5 py-3 font-semibold">Company</th>
                   <th className="px-5 py-3 font-semibold">Email</th>
@@ -129,7 +129,7 @@ export default async function ContactsPage({
                   <th className="px-5 py-3 font-semibold">Actions</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className={ZEBRA_ROWS}>
                 {contacts.map((c) => {
                   const company = c.account_id ? accountName.get(c.account_id) : null;
                   const cells = (
@@ -216,7 +216,7 @@ export default async function ContactsPage({
                   ) : (
                     <tr
                       key={c.id}
-                      className="border-b border-line-strong last:border-0 transition-colors hover:bg-inset"
+                      className="border-b border-line-strong last:border-0 transition-colors hover:bg-fg/[0.04]"
                     >
                       {cells}
                     </tr>

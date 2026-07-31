@@ -34,13 +34,14 @@ export function DueBell({
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [targetId]);
 
-  // Calm state — nothing due. No badge, no animation, muted on the white card.
+  // Calm state — nothing due. No badge, no animation, muted white-on-dark
+  // since this rides on the CardHead's graphite bar, not a white card.
   if (count <= 0) {
     return (
       <span
         aria-hidden
         title="You're all caught up"
-        className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-fg-subtle"
+        className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-bar-fg/50"
       >
         <BellGlyph />
       </span>
@@ -54,7 +55,7 @@ export function DueBell({
       type="button"
       onClick={onClick}
       aria-label={`${count} item${count === 1 ? "" : "s"} due — jump to your queue`}
-      className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-accent transition-colors hover:bg-inset focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+      className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-bar-fg transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-bar-fg"
     >
       {/* The ring animation rides on the icon only, not the whole button, so it
           reads as a bell ringing rather than the control thrashing. */}
@@ -62,11 +63,11 @@ export function DueBell({
         <BellGlyph />
       </span>
 
-      {/* Count badge — the ring-2 in the card colour cuts it cleanly out of the
+      {/* Count badge — the ring-2 in the bar colour cuts it cleanly out of the
           bell so the number stays legible even where it overlaps. */}
       <span
         aria-hidden
-        className="alert-badge absolute -right-0.5 -top-0.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-bad px-1 text-[11px] font-bold leading-none tabular-nums text-white shadow-e1 ring-2 ring-card"
+        className="alert-badge absolute -right-0.5 -top-0.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-bad px-1 text-[11px] font-bold leading-none tabular-nums text-white shadow-e1 ring-2 ring-bar"
       >
         {display}
       </span>

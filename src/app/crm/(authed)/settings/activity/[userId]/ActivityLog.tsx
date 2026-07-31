@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { parseServerTimestamp } from "../../../_shell/format";
 import { LocalTime } from "../../../_shell/LocalTime";
+import { ZEBRA_ROWS } from "../../../_shell/ui";
 
 export type ActivityEvent = {
   id: string;
@@ -57,7 +58,7 @@ export function ActivityLog({ events }: { events: ActivityEvent[] }) {
           <p className="bg-inset px-5 py-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
             {g.heading}
           </p>
-          <ul className="divide-y divide-line-strong">
+          <ul className={`divide-y divide-line-strong ${ZEBRA_ROWS}`}>
             {g.items.map((e) => (
               <li key={e.id} className="flex items-center justify-between gap-3 px-5 py-3">
                 <div className="min-w-0">

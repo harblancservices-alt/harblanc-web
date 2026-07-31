@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
-import { PageShell, Card, CardHead, StatTile } from "./_shell/ui";
+import { PageShell, Card, CardHead, StatTile, ZEBRA_ROWS } from "./_shell/ui";
 import { IconTasks } from "./_shell/icons";
 import { DueBell } from "./DueBell";
 import { formatDateTime, timestampMs, firstName as profileFirstName } from "./_shell/format";
@@ -348,14 +348,14 @@ export default async function CrmDashboardPage() {
             hint={`${overdueTasks.length + overdueCallbacks.length} past due`}
           />
           {overdueTasks.length > 0 && (
-            <ul className="divide-y divide-line-strong">
+            <ul className={`divide-y divide-line-strong ${ZEBRA_ROWS}`}>
               {overdueTasks.map((t) => (
                 <TaskRow key={t.id} task={t} showCompany />
               ))}
             </ul>
           )}
           {overdueCallbacks.length > 0 && (
-            <ul className="divide-y divide-line-strong border-t border-line-strong first:border-t-0">
+            <ul className={`divide-y divide-line-strong border-t border-line-strong first:border-t-0 ${ZEBRA_ROWS}`}>
               {overdueCallbacks.map((c) => (
                 <CallbackRow key={c.id} callback={c} companyName={c.account_id ? nameById.get(c.account_id) ?? null : null} />
               ))}
@@ -372,14 +372,14 @@ export default async function CrmDashboardPage() {
             hint="Tasks and call-backs due today"
           />
           {dueTodayTasks.length > 0 && (
-            <ul className="divide-y divide-line-strong">
+            <ul className={`divide-y divide-line-strong ${ZEBRA_ROWS}`}>
               {dueTodayTasks.map((t) => (
                 <TaskRow key={t.id} task={t} showCompany />
               ))}
             </ul>
           )}
           {todayCallbacks.length > 0 && (
-            <ul className="divide-y divide-line-strong border-t border-line-strong first:border-t-0">
+            <ul className={`divide-y divide-line-strong border-t border-line-strong first:border-t-0 ${ZEBRA_ROWS}`}>
               {todayCallbacks.map((c) => (
                 <CallbackRow key={c.id} callback={c} companyName={c.account_id ? nameById.get(c.account_id) ?? null : null} />
               ))}
@@ -395,7 +395,7 @@ export default async function CrmDashboardPage() {
             title="New leads to claim"
             hint={`${newAiLeads.length} released by the AI agent, unclaimed`}
           />
-          <ul className="divide-y divide-line-strong">
+          <ul className={`divide-y divide-line-strong ${ZEBRA_ROWS}`}>
             {newAiLeads.map((l) => (
               <NewAiLeadRow key={l.id} lead={l} />
             ))}
@@ -411,7 +411,7 @@ export default async function CrmDashboardPage() {
             title="Finalize company (add more info)"
             hint={`${needsFinalizeAccounts.length} quick-added, missing details`}
           />
-          <ul className="divide-y divide-line-strong">
+          <ul className={`divide-y divide-line-strong ${ZEBRA_ROWS}`}>
             {needsFinalizeAccounts.map((a) => (
               <NeedsFinalizeRow key={a.id} account={a} />
             ))}
@@ -426,7 +426,7 @@ export default async function CrmDashboardPage() {
             title="Follow-ups due"
             hint="Contacts flagged for follow-up"
           />
-          <ul className="divide-y divide-line-strong">
+          <ul className={`divide-y divide-line-strong ${ZEBRA_ROWS}`}>
             {followups.map((f) => (
               <FollowupRow
                 key={f.id}
@@ -444,7 +444,7 @@ export default async function CrmDashboardPage() {
         {recentAccounts.length === 0 ? (
           <Empty text="No active leads yet. Add a company to get started." />
         ) : (
-          <ul className="divide-y divide-line-strong">
+          <ul className={`divide-y divide-line-strong ${ZEBRA_ROWS}`}>
             {recentAccounts.map((a) => (
               <AccountRow key={a.id} account={a} />
             ))}
@@ -568,7 +568,7 @@ function NewAiLeadRow({ lead }: { lead: NewAiLead }) {
       <Link
         href={`/crm/accounts/${lead.id}`}
         prefetch={false}
-        className="flex items-center justify-between gap-3 px-5 py-3.5 transition-colors hover:bg-inset"
+        className="flex items-center justify-between gap-3 px-5 py-3.5 transition-colors hover:bg-fg/[0.04]"
       >
         <div className="min-w-0">
           <p className="truncate text-[14px] font-semibold text-fg">{lead.name}</p>
@@ -591,7 +591,7 @@ function NeedsFinalizeRow({ account }: { account: NeedsFinalizeAccount }) {
       <Link
         href={`/crm/accounts/${account.id}`}
         prefetch={false}
-        className="flex items-center justify-between gap-3 px-5 py-3.5 transition-colors hover:bg-inset"
+        className="flex items-center justify-between gap-3 px-5 py-3.5 transition-colors hover:bg-fg/[0.04]"
       >
         <div className="min-w-0">
           <p className="truncate text-[14px] font-semibold text-fg">{account.name}</p>
@@ -612,7 +612,7 @@ function AccountRow({ account }: { account: AccountLite }) {
       <Link
         href={`/crm/accounts/${account.id}`}
         prefetch={false}
-        className="flex items-center justify-between gap-3 px-5 py-3.5 transition-colors hover:bg-inset"
+        className="flex items-center justify-between gap-3 px-5 py-3.5 transition-colors hover:bg-fg/[0.04]"
       >
         <div className="min-w-0">
           <p className="truncate text-[14px] font-semibold text-fg">{account.name}</p>

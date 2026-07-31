@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardHead } from "../../_shell/ui";
+import { Card, CardHead, ZEBRA_ROWS } from "../../_shell/ui";
 import { formatDateTime } from "../../_shell/format";
 import { addNote, setNotePinned, deleteNote } from "../actions";
 
@@ -113,7 +113,7 @@ export function NotesSection({
           No notes yet. Jot the first one above.
         </p>
       ) : (
-        <ul className="divide-y divide-line-strong">
+        <ul className={`divide-y divide-line-strong ${ZEBRA_ROWS}`}>
           {notes.map((n) => (
             <li key={n.id} className="px-5 py-3.5">
               <div className="mb-1 flex items-center justify-between gap-3">

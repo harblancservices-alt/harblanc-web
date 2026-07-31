@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
-import { PageShell, Card, CardHead } from "../_shell/ui";
+import { PageShell, Card, CardHead, ZEBRA_ROWS } from "../_shell/ui";
 import { firstName } from "../_shell/format";
 import { LocalTime } from "../_shell/LocalTime";
 import { MemberEditButton } from "./MemberEditButton";
@@ -102,7 +102,7 @@ export default async function SettingsPage() {
             No team members found.
           </div>
         ) : (
-          <ul className="divide-y divide-line-strong">
+          <ul className={`divide-y divide-line-strong ${ZEBRA_ROWS}`}>
             {members.map((m) => {
               const isSelf = m.id === user.id;
               return (

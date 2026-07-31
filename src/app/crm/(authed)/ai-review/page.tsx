@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
-import { PageShell, Card, EmptyState } from "../_shell/ui";
+import { PageShell, Card, CardHead, EmptyState, ZEBRA_ROWS } from "../_shell/ui";
 import { IconAiReview } from "../_shell/icons";
 import { ReviewCard, type AiReviewLead } from "./ReviewCard";
 
@@ -100,6 +100,10 @@ export default async function AiReviewPage() {
   return (
     <PageShell>
       <Card>
+        <CardHead
+          title="AI Review queue"
+          hint={reviewLeads.length ? `${reviewLeads.length} pending` : undefined}
+        />
         {reviewLeads.length === 0 ? (
           <EmptyState
             icon={<IconAiReview />}
@@ -107,7 +111,7 @@ export default async function AiReviewPage() {
             body="New AI-researched leads will show up here before they reach the team."
           />
         ) : (
-          <ul className="divide-y divide-line-strong">
+          <ul className={`divide-y divide-line-strong ${ZEBRA_ROWS}`}>
             {reviewLeads.map((lead) => (
               <ReviewCard key={lead.id} lead={lead} />
             ))}

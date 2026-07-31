@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardHead } from "../../_shell/ui";
+import { Card, CardHead, ZEBRA_ROWS } from "../../_shell/ui";
 import { IconPlus, IconContacts } from "../../_shell/icons";
 import { formatDateTime } from "../../_shell/format";
 import { ContactDialog, type ContactDefaults } from "./ContactDialog";
@@ -98,7 +98,7 @@ export function ContactsSection({
           </p>
         </div>
       ) : (
-        <ul className="divide-y divide-line-strong">
+        <ul className={`divide-y divide-line-strong ${ZEBRA_ROWS}`}>
           {contacts.map((c) => {
             const isPrimary = c.id === primaryContactId;
             const isBusy = busyId === c.id;

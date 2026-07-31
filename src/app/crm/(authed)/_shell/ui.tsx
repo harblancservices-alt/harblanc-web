@@ -54,12 +54,12 @@ export function Card({
 /**
  * The header band for a Card/section — the ONE place this hierarchy level is
  * styled, so every CRM page (dashboard, Companies, Tasks, Settings,
- * AI Agent, AI Review) reads identically. Deliberately styled to be
- * unmistakably heavier than the item rows/cards beneath it: bold + slightly
- * larger near-black title, a light `bg-inset` band tint, and a `line-strong`
- * bottom border — so the header visually "sits above" the list rather than
- * blending into it (rows use `font-semibold` at a smaller size, so the size +
- * weight jump alone reads as a hierarchy level, no color trick needed).
+ * AI Agent, AI Review) reads identically. A solid graphite `bg-bar` bar with
+ * white `text-bar-fg` lettering — the same dark chrome token the sidebar
+ * uses — so the header unmistakably "sits above" the list beneath it rather
+ * than blending into it. Raw `<table>` column-header rows use the matching
+ * `LIST_HEAD_ROW` class below so the two ways a CRM list renders (Card+
+ * CardHead, or a `<thead>`) read as one consistent style.
  */
 export function CardHead({
   title,
@@ -71,13 +71,13 @@ export function CardHead({
   right?: ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-t-2xl border-b border-line-strong bg-inset px-5 py-4">
+    <div className="flex items-center justify-between gap-3 rounded-t-2xl border-b border-graphite-line bg-bar px-5 py-4">
       <div className="min-w-0">
-        <h2 className="truncate text-[15.5px] font-bold tracking-tight text-fg">
+        <h2 className="truncate text-[15.5px] font-bold tracking-tight text-bar-fg">
           {title}
         </h2>
         {hint && (
-          <p className="mt-0.5 truncate text-[12px] font-medium text-fg-subtle">
+          <p className="mt-0.5 truncate text-[12px] font-medium text-bar-fg/70">
             {hint}
           </p>
         )}
@@ -86,6 +86,27 @@ export function CardHead({
     </div>
   );
 }
+
+/** Column-header row for a raw `<table><thead><tr>` list (Contacts,
+ * Companies, …) — the tabular equivalent of CardHead, same `bg-bar` /
+ * `text-bar-fg` dark treatment so every CRM list header reads identically
+ * whether it's a card section or a real table. Apply to the `<tr>` inside
+ * `<thead>`; each `<th>` keeps its own padding. */
+export const LIST_HEAD_ROW =
+  "bg-bar text-[11px] font-semibold uppercase tracking-[0.1em] text-bar-fg";
+
+/**
+ * Zebra-striped rows for a CRM record list — alternating `bg-card` (white)
+ * and `bg-inset` (light gray) surfaces under a dark CardHead/LIST_HEAD_ROW,
+ * so each row/card reads clearly against its neighbors going down the list.
+ * Apply to the DIRECT PARENT of the repeating rows (`<tbody>`, `<ul>`, or a
+ * card grid `<div>`) — an `:nth-child` selector on every child, so it works
+ * regardless of whether each row is a `<tr>`, `<li>`, or a self-styled card
+ * `<div>` (the `nth-child(even)` rule's two-class specificity beats a card's
+ * own single `bg-card` class, so it always wins without !important).
+ */
+export const ZEBRA_ROWS =
+  "[&>*:nth-child(odd)]:bg-card [&>*:nth-child(even)]:bg-inset";
 
 export function StatTile({
   label,

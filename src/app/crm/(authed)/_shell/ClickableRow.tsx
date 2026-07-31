@@ -51,7 +51,7 @@ export function ClickableRow({
       role="link"
       onClick={onClick}
       onKeyDown={onKeyDown}
-      className={`cursor-pointer outline-none transition-colors hover:bg-inset focus-visible:bg-inset focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/40 ${className ?? ""}`}
+      className={`cursor-pointer outline-none transition-colors hover:bg-fg/[0.04] focus-visible:bg-fg/[0.04] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent/40 ${className ?? ""}`}
     >
       {children}
     </tr>

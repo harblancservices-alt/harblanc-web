@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
-import { PageShell, Card, EmptyState } from "../_shell/ui";
+import { PageShell, Card, CardHead, EmptyState, ZEBRA_ROWS } from "../_shell/ui";
 import { IconCustomers } from "../_shell/icons";
 import { firstName } from "../_shell/format";
 import { stageLabel, stageTone } from "../accounts/lifecycle";
@@ -90,6 +90,10 @@ export default async function ActiveCustomersPage() {
   return (
     <PageShell>
       <Card>
+        <CardHead
+          title="Active Customers"
+          hint={accounts.length ? `${accounts.length} ${accounts.length === 1 ? "customer" : "customers"}` : undefined}
+        />
         {accounts.length === 0 ? (
           <EmptyState
             icon={<IconCustomers />}
@@ -97,7 +101,7 @@ export default async function ActiveCustomersPage() {
             body={`Mark a company "${stageLabel("customer")}" on its profile to see it here.`}
           />
         ) : (
-          <ul className="divide-y divide-line-strong">
+          <ul className={`divide-y divide-line-strong ${ZEBRA_ROWS}`}>
             {accounts.map((a) => (
               <CustomerRow
                 key={a.id}

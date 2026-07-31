@@ -66,7 +66,7 @@ export function TaskRow({
   const overdue = !optimisticDone && dueMs !== null && dueMs < Date.now();
 
   return (
-    <li className="flex items-start gap-3 px-5 py-3.5 transition-colors hover:bg-inset">
+    <li className="flex items-start gap-3 px-5 py-3.5 transition-colors hover:bg-fg/[0.04]">
       <button
         type="button"
         onClick={toggle}

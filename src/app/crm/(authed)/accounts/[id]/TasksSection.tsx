@@ -2,7 +2,7 @@
 
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardHead } from "../../_shell/ui";
+import { Card, CardHead, ZEBRA_ROWS } from "../../_shell/ui";
 import { IconPlus, IconTasks } from "../../_shell/icons";
 import type { RepOption } from "../CompanyDialog";
 import { TaskDialog, type TaskContactOption } from "../../tasks/TaskDialog";
@@ -117,7 +117,7 @@ export function TasksSection({
         </div>
       ) : (
         <>
-          <ul className="divide-y divide-line-strong">
+          <ul className={`divide-y divide-line-strong ${ZEBRA_ROWS}`}>
             {open.map((t) => (
               <TaskRow key={t.id} task={t}>
                 {rowActions(t)}
@@ -129,7 +129,7 @@ export function TasksSection({
               <summary className="cursor-pointer list-none px-5 py-3 text-[12.5px] font-semibold text-fg-subtle transition-colors hover:text-fg">
                 {done.length} completed
               </summary>
-              <ul className="divide-y divide-line-strong border-t border-line-strong">
+              <ul className={`divide-y divide-line-strong border-t border-line-strong ${ZEBRA_ROWS}`}>
                 {done.map((t) => (
                   <TaskRow key={t.id} task={t}>
                     {rowActions(t)}

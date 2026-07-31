@@ -1,5 +1,5 @@
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
-import { PageShell, Card, EmptyState } from "../_shell/ui";
+import { PageShell, Card, CardHead, EmptyState, ZEBRA_ROWS } from "../_shell/ui";
 import { IconAiAgent } from "../_shell/icons";
 import { firstName } from "../_shell/format";
 import { LeadCard, type AiAgentLead } from "./LeadCard";
@@ -91,21 +91,25 @@ export default async function AiAgentPage() {
 
   return (
     <PageShell>
-      {ordered.length === 0 ? (
-        <Card>
+      <Card>
+        <CardHead
+          title="AI Agent leads"
+          hint={ordered.length ? `${ordered.length} ${ordered.length === 1 ? "lead" : "leads"}` : undefined}
+        />
+        {ordered.length === 0 ? (
           <EmptyState
             icon={<IconAiAgent />}
             title="No leads yet"
             body="Released AI-researched leads will show up here for the team to claim and work."
           />
-        </Card>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {ordered.map((lead) => (
-            <LeadCard key={lead.id} lead={lead} />
-          ))}
-        </div>
-      )}
+        ) : (
+          <div className={`grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3 ${ZEBRA_ROWS}`}>
+            {ordered.map((lead) => (
+              <LeadCard key={lead.id} lead={lead} />
+            ))}
+          </div>
+        )}
+      </Card>
     </PageShell>
   );
 }
