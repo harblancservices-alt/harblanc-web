@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { LABEL, CONTROL } from "./form";
-import { IconPlus } from "./icons";
-import { PhoneLabelPicker } from "./PhoneLabelPicker";
-import type { PhoneEntry } from "./contactFields";
+import { IconPlus, IconX } from "./icons";
+import { LabelPicker } from "./LabelPicker";
+import { PHONE_LABEL_PRESETS, type PhoneEntry } from "./contactFields";
 
 /**
  * Editable list of labeled phone numbers (Main line, Dispatch, Bob cell…).
@@ -43,9 +43,10 @@ export function PhonesEditor({
       <div className="flex flex-col gap-2">
         {rows.map((row, i) => (
           <div key={i} className="grid grid-cols-[1fr_1.3fr_auto] items-center gap-2">
-            <PhoneLabelPicker
+            <LabelPicker
               value={row.label}
               onChange={(next) => update(i, { label: next })}
+              presets={PHONE_LABEL_PRESETS}
             />
             <input
               type="tel"
@@ -60,9 +61,9 @@ export function PhonesEditor({
               onClick={() => remove(i)}
               disabled={rows.length <= 1}
               aria-label="Remove phone"
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-fg-subtle text-fg-muted transition-colors hover:bg-inset hover:text-bad disabled:opacity-40"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line-strong bg-inset text-fg-muted transition-colors hover:border-bad/40 hover:bg-bad-bg hover:text-bad disabled:opacity-40"
             >
-              ×
+              <IconX width={16} height={16} />
             </button>
           </div>
         ))}

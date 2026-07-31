@@ -4,8 +4,8 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardHead, ZEBRA_ROWS } from "../../_shell/ui";
 import { LABEL, CONTROL } from "../../_shell/form";
-import { PhoneLabelPicker } from "../../_shell/PhoneLabelPicker";
-import { digitsForTel, type PhoneEntry } from "../../_shell/contactFields";
+import { LabelPicker } from "../../_shell/LabelPicker";
+import { PHONE_LABEL_PRESETS, digitsForTel, type PhoneEntry } from "../../_shell/contactFields";
 import { assignCompanyPhoneToContact, createContactFromPhone } from "../actions";
 
 export type StrayContactOption = { id: string; name: string };
@@ -124,7 +124,7 @@ function StrayNumberRow({
           {phone.number}
         </a>
         <div className="w-44">
-          <PhoneLabelPicker value={label} onChange={setLabel} />
+          <LabelPicker value={label} onChange={setLabel} presets={PHONE_LABEL_PRESETS} />
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <button

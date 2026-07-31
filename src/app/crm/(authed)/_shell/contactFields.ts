@@ -13,7 +13,7 @@
 export type PhoneEntry = { label: string; number: string };
 export type LinkEntry = { label: string; url: string };
 
-/** Preset phone-label options shown by PhoneLabelPicker, everywhere a phone
+/** Preset phone-label options shown by LabelPicker, everywhere a phone
  * label is entered (PhonesEditor, the Stray numbers assign/create flow). A
  * free-type "Other" fallback covers anything not on this list. */
 export const PHONE_LABEL_PRESETS = [
@@ -26,6 +26,10 @@ export const PHONE_LABEL_PRESETS = [
   "After hours",
   "Fax",
 ] as const;
+
+/** Preset link-label options shown by LabelPicker in LinksEditor. Same
+ * free-type "Other" fallback as phone labels. */
+export const LINK_LABEL_PRESETS = ["LinkedIn", "Website", "Load board"] as const;
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null;
