@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { deleteTask } from "./actions";
 import { BTN_DANGER } from "../_shell/ui";
@@ -23,24 +23,30 @@ export function DeleteTaskButton({
   title: string;
 }) {
   const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   function remove() {
     if (!window.confirm(`Delete "${title}"?`)) return;
+    setError(null);
     startTransition(async () => {
       const res = await deleteTask(taskId, accountId);
       if (res.ok) router.refresh();
+      else setError(res.error);
     });
   }
 
   return (
-    <button
-      type="button"
-      onClick={remove}
-      disabled={pending}
-      className={`rounded-md px-2 py-1 text-[12px] font-semibold transition-colors ${BTN_DANGER}`}
-    >
-      Delete
-    </button>
+    <span className="inline-flex flex-col items-start gap-1">
+      <button
+        type="button"
+        onClick={remove}
+        disabled={pending}
+        className={`rounded-md px-2 py-1 text-[12px] font-semibold transition-colors ${BTN_DANGER}`}
+      >
+        Delete
+      </button>
+      {error && <span className="text-[11px] text-bad">{error}</span>}
+    </span>
   );
 }

@@ -40,6 +40,7 @@ export function NotesSection({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [rowError, setRowError] = useState<{ id: string; message: string } | null>(null);
   const router = useRouter();
 
   function submit(e: React.FormEvent) {
@@ -61,20 +62,24 @@ export function NotesSection({
 
   function togglePin(note: CrmNote) {
     setBusyId(note.id);
+    setRowError(null);
     startTransition(async () => {
       const res = await setNotePinned(note.id, accountId, !note.is_pinned);
       setBusyId(null);
       if (res.ok) router.refresh();
+      else setRowError({ id: note.id, message: res.error });
     });
   }
 
   function remove(note: CrmNote) {
     if (!window.confirm("Delete this note? This can't be undone from here.")) return;
     setBusyId(note.id);
+    setRowError(null);
     startTransition(async () => {
       const res = await deleteNote(note.id, accountId);
       setBusyId(null);
       if (res.ok) router.refresh();
+      else setRowError({ id: note.id, message: res.error });
     });
   }
 
@@ -163,6 +168,9 @@ export function NotesSection({
               <p className="whitespace-pre-wrap text-[14px] leading-relaxed text-fg">
                 {n.body}
               </p>
+              {rowError?.id === n.id && (
+                <p className="mt-1.5 text-[12.5px] text-bad">{rowError.message}</p>
+              )}
             </li>
           ))}
         </ul>

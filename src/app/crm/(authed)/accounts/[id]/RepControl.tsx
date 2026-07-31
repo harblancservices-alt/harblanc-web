@@ -20,31 +20,41 @@ export function RepControl({
 }) {
   const [value, setValue] = useState(current ?? "");
   const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   function onChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    const prev = value;
     const next = e.target.value;
     setValue(next);
+    setError(null);
     startTransition(async () => {
       const res = await assignRep(accountId, next);
       if (res.ok) router.refresh();
+      else {
+        setValue(prev);
+        setError(res.error);
+      }
     });
   }
 
   return (
-    <select
-      value={value}
-      onChange={onChange}
-      disabled={pending}
-      aria-label="Assigned rep"
-      className="h-9 rounded-lg border border-fg-subtle bg-card px-2.5 text-[13px] font-medium text-fg outline-none transition-shadow focus:ring-2 focus:ring-accent/40 disabled:opacity-60"
-    >
-      <option value="">Unassigned</option>
-      {reps.map((r) => (
-        <option key={r.id} value={r.id}>
-          {r.label}
-        </option>
-      ))}
-    </select>
+    <div>
+      <select
+        value={value}
+        onChange={onChange}
+        disabled={pending}
+        aria-label="Assigned rep"
+        className="h-9 rounded-lg border border-fg-subtle bg-card px-2.5 text-[13px] font-medium text-fg outline-none transition-shadow focus:ring-2 focus:ring-accent/40 disabled:opacity-60"
+      >
+        <option value="">Unassigned</option>
+        {reps.map((r) => (
+          <option key={r.id} value={r.id}>
+            {r.label}
+          </option>
+        ))}
+      </select>
+      {error && <p className="mt-1 text-[12px] text-bad">{error}</p>}
+    </div>
   );
 }

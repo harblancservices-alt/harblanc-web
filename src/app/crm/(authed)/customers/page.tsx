@@ -3,6 +3,7 @@ import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { PageShell, Card, CardHead, EmptyState, ZEBRA_ROWS } from "../_shell/ui";
 import { IconCustomers } from "../_shell/icons";
 import { firstName } from "../_shell/format";
+import { digitsForTel } from "../_shell/contactFields";
 import { stageLabel, stageTone } from "../accounts/lifecycle";
 
 export const dynamic = "force-dynamic";
@@ -161,7 +162,12 @@ function CustomerRow({
               <span className="font-medium text-fg">{c.name}</span>
               {c.title && <span className="text-fg-subtle">{c.title}</span>}
               {(c.phone || c.mobile) && (
-                <span className="font-mono text-fg-muted">{c.phone || c.mobile}</span>
+                <a
+                  href={`tel:${digitsForTel((c.phone || c.mobile) as string)}`}
+                  className="font-mono text-accent hover:underline"
+                >
+                  {c.phone || c.mobile}
+                </a>
               )}
             </li>
           ))}

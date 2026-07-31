@@ -44,14 +44,15 @@ function toPrefixQuery(input: string): string {
 /**
  * Companies list — reads crm_accounts for the caller's org ONLY (RLS-scoped;
  * no dispatch table is ever queried). Full-text search over search_tsv plus
- * lifecycle / tag / rep filters, all driven from the URL so any view is
- * shareable. Each row shows the company, lifecycle badge, city/state, primary
- * contact, and its tags.
+ * lifecycle / rep filters, all driven from the URL so any view is shareable.
+ * Each row shows the company, lifecycle badge, city/state, primary contact,
+ * and its tags (tags are display-only here — there's no tag filter or editor
+ * anymore, see tags.ts).
  */
 export default async function CompaniesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; stage?: string; tag?: string; rep?: string }>;
+  searchParams: Promise<{ q?: string; stage?: string; rep?: string }>;
 }) {
   await requireCrmUser();
   const supabase = await createCrmServerClient();
@@ -59,7 +60,6 @@ export default async function CompaniesPage({
   const sp = await searchParams;
   const q = (sp.q ?? "").trim();
   const stage = (sp.stage ?? "").trim();
-  const tag = (sp.tag ?? "").trim();
   const rep = (sp.rep ?? "").trim();
 
   // Filter-option rosters (RLS-scoped to the caller's org).
@@ -92,45 +92,28 @@ export default async function CompaniesPage({
     .limit(1000);
   const companyOptions = (companyOptionsData ?? []) as CompanyOption[];
 
-  // A tag filter narrows to the accounts carrying that tag (pre-resolved to ids).
-  let tagAccountIds: string[] | null = null;
-  if (tag) {
-    const { data: links } = await supabase
-      .from("crm_account_tags")
-      .select("account_id")
-      .eq("tag_id", tag);
-    tagAccountIds = ((links ?? []) as { account_id: string }[]).map((r) => r.account_id);
-  }
+  let query = supabase
+    .from("crm_accounts")
+    .select(
+      "id, name, industry, city, state, lifecycle_status, assigned_user_id, primary_contact_id, created_at",
+    )
+    .is("deleted_at", null)
+    // Pending-review AI leads live in the admin review queue (/crm/ai-review)
+    // until released — they must not leak into Companies before that. Written
+    // as an OR (rather than .neq) so NULL ai_status rows (every non-AI
+    // company) still pass: `column <> value` in SQL is NULL, not true, for
+    // NULL columns, which would silently hide every ordinary company.
+    .or("ai_status.is.null,ai_status.neq.pending_review");
 
-  let accounts: AccountRow[] = [];
-  // If a tag filter matched nothing, skip the query entirely (empty result).
-  if (!(tagAccountIds && tagAccountIds.length === 0)) {
-    let query = supabase
-      .from("crm_accounts")
-      .select(
-        "id, name, industry, city, state, lifecycle_status, assigned_user_id, primary_contact_id, created_at",
-      )
-      .is("deleted_at", null)
-      // Pending-review AI leads live in the admin review queue (/crm/ai-review)
-      // until released — they must not leak into Companies before that. Written
-      // as an OR (rather than .neq) so NULL ai_status rows (every non-AI
-      // company) still pass: `column <> value` in SQL is NULL, not true, for
-      // NULL columns, which would silently hide every ordinary company.
-      .or("ai_status.is.null,ai_status.neq.pending_review");
+  if (stage) query = query.eq("lifecycle_status", stage);
+  if (rep === "unassigned") query = query.is("assigned_user_id", null);
+  else if (rep) query = query.eq("assigned_user_id", rep);
 
-    if (stage) query = query.eq("lifecycle_status", stage);
-    if (rep === "unassigned") query = query.is("assigned_user_id", null);
-    else if (rep) query = query.eq("assigned_user_id", rep);
-    if (tagAccountIds) query = query.in("id", tagAccountIds);
+  const ts = q ? toPrefixQuery(q) : "";
+  if (ts) query = query.textSearch("search_tsv", ts, { config: "simple" });
 
-    const ts = q ? toPrefixQuery(q) : "";
-    if (ts) query = query.textSearch("search_tsv", ts, { config: "simple" });
-
-    const { data } = await query
-      .order("created_at", { ascending: false })
-      .limit(200);
-    accounts = (data ?? []) as AccountRow[];
-  }
+  const { data } = await query.order("created_at", { ascending: false }).limit(200);
+  const accounts = (data ?? []) as AccountRow[];
 
   // Stitch in primary-contact names and tags for the visible rows.
   const accountIds = accounts.map((a) => a.id);
@@ -166,7 +149,7 @@ export default async function CompaniesPage({
     tagsByAccount.set(link.account_id, list);
   }
 
-  const filtersActive = Boolean(q || stage || tag || rep);
+  const filtersActive = Boolean(q || stage || rep);
 
   return (
     <PageShell
@@ -178,14 +161,7 @@ export default async function CompaniesPage({
       }
     >
       <Card className="p-4">
-        <AccountsFilters
-          q={q}
-          stage={stage}
-          tag={tag}
-          rep={rep}
-          tags={allTags}
-          reps={reps}
-        />
+        <AccountsFilters q={q} stage={stage} rep={rep} reps={reps} />
       </Card>
 
       <Card>

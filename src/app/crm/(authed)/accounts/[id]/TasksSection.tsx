@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { BTN_DANGER, BTN_PRIMARY, Card, CardHead } from "../../_shell/ui";
 import { IconPlus, IconTasks } from "../../_shell/icons";
@@ -32,6 +32,7 @@ export function TasksSection({
   currentUser: { id: string; label: string };
 }) {
   const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   const open = tasks.filter((t) => t.status !== "completed");
@@ -39,9 +40,11 @@ export function TasksSection({
 
   function remove(task: CrmTaskItem) {
     if (!window.confirm(`Delete "${task.title}"?`)) return;
+    setError(null);
     startTransition(async () => {
       const res = await deleteTask(task.id, accountId);
       if (res.ok) router.refresh();
+      else setError(res.error);
     });
   }
 
@@ -84,6 +87,8 @@ export function TasksSection({
           />
         }
       />
+
+      {error && <p className="px-5 pt-3 text-[12.5px] text-bad">{error}</p>}
 
       {tasks.length === 0 ? (
         <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">

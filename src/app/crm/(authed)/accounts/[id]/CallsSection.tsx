@@ -37,6 +37,7 @@ export function CallsSection({
 }) {
   const [pending, startTransition] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   function remove(call: CrmCallLogItem) {
@@ -44,16 +45,20 @@ export function CallsSection({
       return;
     }
     setBusyId(call.id);
+    setError(null);
     startTransition(async () => {
       const res = await deleteCall(call.id, accountId);
       setBusyId(null);
       if (res.ok) router.refresh();
+      else setError(res.error);
     });
   }
 
   return (
     <Card>
       <CardHead title="Calls" hint={calls.length ? `${calls.length} logged` : undefined} />
+
+      {error && <p className="px-5 pt-3 text-[12.5px] text-bad">{error}</p>}
 
       {calls.length === 0 ? (
         <p className="px-5 py-8 text-center text-[13px] text-fg-muted">

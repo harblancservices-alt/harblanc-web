@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { formatDateTime } from "../_shell/format";
+import { digitsForTel } from "../_shell/contactFields";
 import { releaseAiLead, discardAiLead } from "./actions";
 import { BTN_DANGER, BTN_EDIT, BTN_SUCCESS } from "../_shell/ui";
 
@@ -108,7 +109,16 @@ export function ReviewCard({ lead }: { lead: AiReviewLead }) {
             </a>
           </Line>
         )}
-        {lead.phone && <Line label="Phone">{lead.phone}</Line>}
+        {lead.phone && (
+          <Line label="Phone">
+            <a
+              href={`tel:${digitsForTel(lead.phone)}`}
+              className="font-mono text-accent hover:underline"
+            >
+              {lead.phone}
+            </a>
+          </Line>
+        )}
         {lead.industry && <Line label="Industry">{lead.industry}</Line>}
         {lead.commodities && <Line label="Commodities">{lead.commodities}</Line>}
         <Line label="Contacts">

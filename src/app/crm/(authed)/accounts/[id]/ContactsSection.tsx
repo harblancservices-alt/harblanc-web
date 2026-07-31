@@ -50,6 +50,8 @@ export function ContactsSection({
 }) {
   const [pending, startTransition] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [errorId, setErrorId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   const callContacts: CallContactOption[] = contacts.map((c) => ({
@@ -59,27 +61,44 @@ export function ContactsSection({
 
   function makePrimary(id: string) {
     setBusyId(id);
+    setErrorId(null);
     startTransition(async () => {
       const res = await setPrimaryContact(accountId, id);
       setBusyId(null);
       if (res.ok) router.refresh();
+      else {
+        setErrorId(id);
+        setError(res.error);
+      }
     });
   }
 
-  function clearPrimary() {
+  function clearPrimary(id: string) {
+    setBusyId(id);
+    setErrorId(null);
     startTransition(async () => {
       const res = await setPrimaryContact(accountId, null);
+      setBusyId(null);
       if (res.ok) router.refresh();
+      else {
+        setErrorId(id);
+        setError(res.error);
+      }
     });
   }
 
   function remove(id: string, name: string) {
     if (!window.confirm(`Delete ${name}? This can't be undone from here.`)) return;
     setBusyId(id);
+    setErrorId(null);
     startTransition(async () => {
       const res = await deleteContact(id, accountId);
       setBusyId(null);
       if (res.ok) router.refresh();
+      else {
+        setErrorId(id);
+        setError(res.error);
+      }
     });
   }
 
@@ -239,11 +258,11 @@ export function ContactsSection({
                   {isPrimary ? (
                     <button
                       type="button"
-                      onClick={clearPrimary}
+                      onClick={() => clearPrimary(c.id)}
                       disabled={pending}
                       className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_NEUTRAL}`}
                     >
-                      Unset primary
+                      {isBusy ? "…" : "Unset primary"}
                     </button>
                   ) : (
                     <button
@@ -262,10 +281,13 @@ export function ContactsSection({
                       disabled={pending}
                       className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_DANGER}`}
                     >
-                      Delete
+                      {isBusy ? "…" : "Delete"}
                     </button>
                   )}
                 </div>
+                {errorId === c.id && error && (
+                  <p className="mt-2 text-[12.5px] text-bad">{error}</p>
+                )}
               </li>
             );
           })}

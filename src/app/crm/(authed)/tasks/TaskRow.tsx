@@ -137,14 +137,19 @@ export function TaskRow({
   const router = useRouter();
   const done = task.status === "completed";
   const [optimisticDone, setOptimisticDone] = useState(done);
+  const [error, setError] = useState<string | null>(null);
 
   function toggle() {
     const next = !optimisticDone;
+    setError(null);
     setOptimisticDone(next);
     startTransition(async () => {
       const res = next ? await completeTask(task.id) : await reopenTask(task.id);
       if (res.ok) router.refresh();
-      else setOptimisticDone(!next);
+      else {
+        setOptimisticDone(!next);
+        setError(res.error);
+      }
     });
   }
 
@@ -194,6 +199,8 @@ export function TaskRow({
             {task.notes}
           </p>
         )}
+
+        {error && <p className="mt-1 text-[12px] text-bad">{error}</p>}
 
         <div className="mt-1.5 flex flex-wrap items-start gap-x-3 gap-y-1.5 text-[12.5px]">
           <DueCountdown iso={task.due_at} />

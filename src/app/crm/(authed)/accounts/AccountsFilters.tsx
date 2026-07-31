@@ -4,29 +4,24 @@ import { useState, useTransition } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { LIFECYCLE_STAGES, LIFECYCLE_LABEL } from "./lifecycle";
 import type { RepOption } from "./CompanyDialog";
-import type { CrmTag } from "./tags";
 import { BTN_NEUTRAL, BTN_PRIMARY } from "../_shell/ui";
 
 /**
- * The Companies-list toolbar: full-text search plus lifecycle / tag / rep
- * filters. Every control writes its state into the URL query string and lets
- * the server component re-query — so the list stays server-rendered and
+ * The Companies-list toolbar: full-text search plus lifecycle / rep filters.
+ * Every control writes its state into the URL query string and lets the
+ * server component re-query — so the list stays server-rendered and
  * RLS-scoped, and any filtered view is shareable/bookmarkable. Selects apply on
  * change; search applies on submit (Enter or the button).
  */
 export function AccountsFilters({
   q,
   stage,
-  tag,
   rep,
-  tags,
   reps,
 }: {
   q: string;
   stage: string;
-  tag: string;
   rep: string;
-  tags: CrmTag[];
   reps: RepOption[];
 }) {
   const router = useRouter();
@@ -34,14 +29,13 @@ export function AccountsFilters({
   const [pending, startTransition] = useTransition();
   const [search, setSearch] = useState(q);
 
-  const active = Boolean(q || stage || tag || rep);
+  const active = Boolean(q || stage || rep);
 
-  function push(next: { q?: string; stage?: string; tag?: string; rep?: string }) {
-    const merged = { q, stage, tag, rep, ...next };
+  function push(next: { q?: string; stage?: string; rep?: string }) {
+    const merged = { q, stage, rep, ...next };
     const params = new URLSearchParams();
     if (merged.q) params.set("q", merged.q);
     if (merged.stage) params.set("stage", merged.stage);
-    if (merged.tag) params.set("tag", merged.tag);
     if (merged.rep) params.set("rep", merged.rep);
     const qs = params.toString();
     startTransition(() => router.push(qs ? `${pathname}?${qs}` : pathname));
@@ -92,21 +86,6 @@ export function AccountsFilters({
           {LIFECYCLE_STAGES.map((s) => (
             <option key={s} value={s}>
               {LIFECYCLE_LABEL[s]}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={tag}
-          onChange={(e) => push({ tag: e.target.value })}
-          disabled={pending}
-          aria-label="Filter by tag"
-          className={selectClass}
-        >
-          <option value="">All tags</option>
-          {tags.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.label}
             </option>
           ))}
         </select>
