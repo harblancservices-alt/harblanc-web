@@ -11,6 +11,7 @@ import { EditCompany } from "./EditCompany";
 import { FinalizeBanner } from "./FinalizeBanner";
 import { CompanyInfoPanel } from "./CompanyInfoPanel";
 import { ContactsSection, type CrmContact } from "./ContactsSection";
+import { StrayNumbersSection } from "./StrayNumbersSection";
 import { NotesSection, type CrmNote } from "./NotesSection";
 import { AiResearchSection } from "./AiResearchSection";
 import { CallsSection, type CrmCallLogItem } from "./CallsSection";
@@ -333,12 +334,6 @@ export default async function AccountDetailPage({
               />
             </div>
             <div className="flex min-w-0 flex-col gap-4">
-              <ContactsSection
-                accountId={account.id as string}
-                contacts={contacts}
-                primaryContactId={account.primary_contact_id as string | null}
-                canDelete={isOwner}
-              />
               <TasksSection
                 accountId={account.id as string}
                 tasks={tasks}
@@ -353,6 +348,22 @@ export default async function AccountDetailPage({
             </div>
           </div>
         }
+        contacts={
+          <div className="flex flex-col gap-4">
+            <StrayNumbersSection
+              accountId={account.id as string}
+              phones={phones}
+              contacts={contacts.map((c) => ({ id: c.id, name: c.name }))}
+            />
+            <ContactsSection
+              accountId={account.id as string}
+              contacts={contacts}
+              primaryContactId={account.primary_contact_id as string | null}
+              canDelete={isOwner}
+            />
+          </div>
+        }
+        contactsCount={contacts.length}
         details={
           <Card>
             <CardHead title="Details" />

@@ -5,7 +5,7 @@ import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { logActivity, CRM_ACTIVITY } from "@/lib/crm/activity";
 import { normalizeStage, stageLabel, DEFAULT_LIFECYCLE } from "./lifecycle";
 import { firstName, centralInputToIso } from "../_shell/format";
-import { phonesFromFormValue, linksFromFormValue } from "../_shell/contactFields";
+import { phonesFromFormValue, linksFromFormValue, parsePhones } from "../_shell/contactFields";
 
 /**
  * Every write in the Hello Hotshot CRM lives here. All actions share the same
@@ -543,6 +543,151 @@ export async function setPrimaryContact(
     .eq("id", accountId);
 
   if (error) return { ok: false, error: "Could not set the primary contact." };
+  revalidateAccount(accountId);
+  return { ok: true };
+}
+
+/**
+ * Move a labeled number off the company's own phones list onto one of its
+ * contacts — the "Assign to contact" action in the profile's Stray numbers
+ * section. `label` is whatever the picker on that row currently shows (it may
+ * have been relabeled before assigning), `originalNumber` locates the entry
+ * to remove from crm_accounts.phones.
+ */
+export async function assignCompanyPhoneToContact(
+  accountId: string,
+  originalNumber: string,
+  label: string,
+  contactId: string,
+): Promise<ActionResult> {
+  const user = await requireCrmUser();
+  const supabase = await createCrmServerClient();
+
+  const { data: account } = await supabase
+    .from("crm_accounts")
+    .select("phones")
+    .eq("id", accountId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (!account) return { ok: false, error: "Company not found." };
+
+  const companyPhones = parsePhones(account.phones);
+  const idx = companyPhones.findIndex((p) => p.number === originalNumber.trim());
+  if (idx === -1) {
+    return { ok: false, error: "That number is no longer on the company." };
+  }
+
+  const { data: contact } = await supabase
+    .from("crm_contacts")
+    .select("name, phones")
+    .eq("id", contactId)
+    .eq("account_id", accountId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (!contact) return { ok: false, error: "That contact could not be found." };
+
+  const nextCompanyPhones = companyPhones.filter((_, i) => i !== idx);
+  const nextContactPhones = [
+    ...parsePhones(contact.phones),
+    { label: label.trim(), number: originalNumber.trim() },
+  ];
+
+  const [accountUpdate, contactUpdate] = await Promise.all([
+    supabase
+      .from("crm_accounts")
+      .update({ phones: nextCompanyPhones, phone: nextCompanyPhones[0]?.number || null })
+      .eq("id", accountId),
+    supabase
+      .from("crm_contacts")
+      .update({ phones: nextContactPhones, phone: nextContactPhones[0]?.number || null })
+      .eq("id", contactId),
+  ]);
+
+  if (accountUpdate.error || contactUpdate.error) {
+    return { ok: false, error: "Could not move the number. Please try again." };
+  }
+
+  await logActivity(supabase, {
+    orgId: user.orgId,
+    userId: user.id,
+    accountId,
+    contactId,
+    kind: CRM_ACTIVITY.contactUpdated,
+    summary: `Number moved to ${contact.name as string}`,
+  });
+
+  revalidateAccount(accountId);
+  return { ok: true };
+}
+
+/**
+ * Spin up a brand-new contact on this company from a stray company-level
+ * number — the other half of the Stray numbers section's two actions. Removes
+ * the number from crm_accounts.phones once the new contact carries it.
+ */
+export async function createContactFromPhone(
+  accountId: string,
+  input: { name: string; title: string | null; label: string; number: string },
+): Promise<ActionResult> {
+  const user = await requireCrmUser();
+  const name = input.name.trim();
+  if (!name) return { ok: false, error: "Contact name is required." };
+
+  const supabase = await createCrmServerClient();
+
+  const { data: account } = await supabase
+    .from("crm_accounts")
+    .select("phones")
+    .eq("id", accountId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (!account) return { ok: false, error: "Company not found." };
+
+  const companyPhones = parsePhones(account.phones);
+  const idx = companyPhones.findIndex((p) => p.number === input.number.trim());
+  if (idx === -1) {
+    return { ok: false, error: "That number is no longer on the company." };
+  }
+  const nextCompanyPhones = companyPhones.filter((_, i) => i !== idx);
+  const contactPhones = [{ label: input.label.trim(), number: input.number.trim() }];
+
+  const { data: contact, error: contactErr } = await supabase
+    .from("crm_contacts")
+    .insert({
+      org_id: user.orgId,
+      account_id: accountId,
+      name,
+      title: input.title,
+      phone: contactPhones[0].number,
+      phones: contactPhones,
+    })
+    .select("id")
+    .single();
+
+  if (contactErr || !contact) {
+    return { ok: false, error: "Could not create the contact. Please try again." };
+  }
+
+  const { error: accountErr } = await supabase
+    .from("crm_accounts")
+    .update({ phones: nextCompanyPhones, phone: nextCompanyPhones[0]?.number || null })
+    .eq("id", accountId);
+  if (accountErr) {
+    return {
+      ok: false,
+      error: "Contact created, but could not remove the number from the company.",
+    };
+  }
+
+  await logActivity(supabase, {
+    orgId: user.orgId,
+    userId: user.id,
+    accountId,
+    contactId: contact.id as string,
+    kind: CRM_ACTIVITY.contactAdded,
+    summary: `Contact added from stray number: ${name}`,
+  });
+
   revalidateAccount(accountId);
   return { ok: true };
 }

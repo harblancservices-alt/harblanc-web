@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { LABEL, CONTROL } from "./form";
 import { IconPlus } from "./icons";
+import { PhoneLabelPicker } from "./PhoneLabelPicker";
 import type { PhoneEntry } from "./contactFields";
 
 /**
@@ -42,12 +43,9 @@ export function PhonesEditor({
       <div className="flex flex-col gap-2">
         {rows.map((row, i) => (
           <div key={i} className="grid grid-cols-[1fr_1.3fr_auto] items-center gap-2">
-            <input
-              type="text"
+            <PhoneLabelPicker
               value={row.label}
-              onChange={(e) => update(i, { label: e.target.value })}
-              placeholder="Label (Main, Dispatch…)"
-              className={`h-11 ${CONTROL}`}
+              onChange={(next) => update(i, { label: next })}
             />
             <input
               type="tel"
