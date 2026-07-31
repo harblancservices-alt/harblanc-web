@@ -154,14 +154,20 @@ export function CalendarView({ items, todayKey }: { items: CalendarItem[]; today
 
   return (
     <div className="space-y-4">
-      <Card>
+      <Card
+        className={
+          mode === "month"
+            ? "flex flex-col md:h-[calc(100dvh-12.5rem)] lg:h-[calc(100dvh-6.5rem)]"
+            : undefined
+        }
+      >
         <CardHead
           title="Calendar"
           hint={monthItemCount ? `${monthItemCount} item${monthItemCount === 1 ? "" : "s"} this month` : "Nothing scheduled this month"}
           right={<ModeToggle mode={mode} onChange={setMode} />}
         />
 
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line-strong px-5 py-3">
+        <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-line-strong px-5 py-3">
           <div className="flex items-center gap-2">
             <NavButton onClick={() => go(-1)} label="Previous month">
               <Chevron dir="left" />
@@ -185,8 +191,8 @@ export function CalendarView({ items, todayKey }: { items: CalendarItem[]; today
         </div>
 
         {mode === "month" ? (
-          <div>
-            <div className="grid grid-cols-7 border-b border-line-strong bg-inset">
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div className="grid shrink-0 grid-cols-7 border-b border-line-strong bg-inset">
               {WEEKDAY_LABELS.map((w) => (
                 <div
                   key={w}
@@ -196,21 +202,23 @@ export function CalendarView({ items, todayKey }: { items: CalendarItem[]; today
                 </div>
               ))}
             </div>
-            {weeks.map((week, wi) => (
-              <div key={wi} className="grid grid-cols-7">
-                {week.map((key) => (
-                  <DayCell
-                    key={key}
-                    dateKey={key}
-                    inMonth={parseKey(key).m0 === view.m0}
-                    isToday={key === todayKey}
-                    isSelected={key === selectedDay}
-                    dayItems={itemsByDay.get(key) ?? []}
-                    onSelect={setSelectedDay}
-                  />
-                ))}
-              </div>
-            ))}
+            <div className="flex min-h-0 flex-1 flex-col">
+              {weeks.map((week, wi) => (
+                <div key={wi} className="flex min-h-0 flex-1">
+                  {week.map((key) => (
+                    <DayCell
+                      key={key}
+                      dateKey={key}
+                      inMonth={parseKey(key).m0 === view.m0}
+                      isToday={key === todayKey}
+                      isSelected={key === selectedDay}
+                      dayItems={itemsByDay.get(key) ?? []}
+                      onSelect={setSelectedDay}
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
           </div>
         ) : (
           <AgendaList dayKeys={monthDayKeys} itemsByDay={itemsByDay} todayKey={todayKey} />
@@ -275,20 +283,20 @@ function DayCell({
       type="button"
       onClick={() => onSelect(dateKey)}
       className={[
-        "flex min-h-[92px] flex-col items-stretch gap-1 border-b border-r border-line-strong p-1.5 text-left transition-colors last:border-r-0",
+        "flex min-h-[64px] min-w-0 flex-1 flex-col items-stretch gap-1 border-b border-r border-line-strong p-1.5 text-left transition-colors last:border-r-0",
         inMonth ? "bg-card hover:bg-inset" : "bg-inset/60 hover:bg-inset",
         isSelected ? "ring-2 ring-inset ring-accent" : "",
       ].join(" ")}
     >
       <span
         className={[
-          "inline-flex h-6 w-6 items-center justify-center rounded-full text-[12px] font-semibold tabular-nums",
+          "inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[12px] font-semibold tabular-nums",
           isToday ? "bg-accent text-white" : inMonth ? "text-fg" : "text-fg-subtle",
         ].join(" ")}
       >
         {d}
       </span>
-      <div className="flex flex-1 flex-col gap-0.5 overflow-hidden">
+      <div className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto">
         {visible.map((it) => (
           <span
             key={it.id}
