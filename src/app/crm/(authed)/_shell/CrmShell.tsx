@@ -46,11 +46,11 @@ export function CrmShell({
   const navItems = buildCrmNav(role, pendingReviewCount, unclaimedAiLeadsCount, customerCount);
   const mobileNav = bottomNav(navItems);
   // Everything the bottom bar's 4 fixed slots don't cover (Active
-  // Customers, AI Agent, Settings, and — owner-only — AI Review) surfaces
+  // Customers, Prospects, Settings, and — owner-only — AI Review) surfaces
   // in the mobile "More" sheet instead, so no destination the desktop
   // sidebar lists is ever unreachable on mobile.
   const moreItems = moreNav(navItems);
-  // Only "alert"-tone badges (currently AI Agent's unclaimed count) bubble up
+  // Only "alert"-tone badges (currently Prospects' unclaimed count) bubble up
   // as the red More-sheet dot — a neutral badge (Active Customers, AI
   // Review) hiding inside More shouldn't make the dot read as urgent.
   const moreAlertTotal = moreItems.reduce(

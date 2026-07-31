@@ -5,7 +5,7 @@ import {
   IconContacts,
   IconTasks,
   IconSettings,
-  IconAiAgent,
+  IconFlame,
   IconAiReview,
   IconCustomers,
 } from "./icons";
@@ -19,7 +19,7 @@ export type CrmNavItem = {
   /** Small count badge rendered beside the label (e.g. pending AI reviews). */
   badge?: number;
   /** Badge color: "alert" (red, `bg-bad`) is reserved for genuinely urgent,
-   * time-sensitive queues — currently just AI Agent's unclaimed leads.
+   * time-sensitive queues — currently just Prospects' unclaimed leads.
    * Everything else ("neutral", the default when omitted) renders as a
    * plain gray count, e.g. Active Customers' size or AI Review's queue
    * depth — informational, not something demanding action. */
@@ -33,10 +33,11 @@ export type CrmNavItem = {
 };
 
 /**
- * Build the CRM nav for the signed-in user. "AI Agent" (the team's released
- * lead register) is visible to everyone, badged with the count of released
- * leads nobody has claimed yet — the same alert surfaced on the dashboard's
- * "New leads to claim" card and folded into its due-count bell. "AI Review"
+ * Build the CRM nav for the signed-in user. "Prospects" (route stays
+ * /crm/ai-agent — the team's released lead register) is visible to everyone,
+ * badged with the count of released leads nobody has claimed yet — the same
+ * alert surfaced on the dashboard's "New leads to claim" card and folded
+ * into its due-count bell. "AI Review"
  * (the pending-review queue) is owner-only — mirroring the server-side
  * redirect on /crm/ai-review, so a non-owner never even sees the destination
  * in the nav — and its badge (`pendingReviewCount`) is owner-only too.
@@ -75,8 +76,8 @@ export function buildCrmNav(
     { href: "/crm/contacts", label: "Contacts", Icon: IconContacts },
     {
       href: "/crm/ai-agent",
-      label: "AI Agent",
-      Icon: IconAiAgent,
+      label: "Prospects",
+      Icon: IconFlame,
       badge: unclaimedAiLeadsCount > 0 ? unclaimedAiLeadsCount : undefined,
       badgeTone: "alert",
     },
@@ -113,7 +114,7 @@ export function bottomNav(nav: CrmNavItem[]): CrmNavItem[] {
 
 /**
  * Everything NOT in the mobile bottom bar's 4 fixed slots — Active
- * Customers, AI Agent, Settings, and (owner-only, already filtered out of
+ * Customers, Prospects, Settings, and (owner-only, already filtered out of
  * `nav` for non-owners by buildCrmNav) AI Review. Fed into the mobile
  * "More" sheet so every destination the desktop sidebar lists stays
  * reachable on mobile too. Derived from the same `nav` array as bottomNav

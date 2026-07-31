@@ -111,6 +111,14 @@ export function IconAiAgent(props: IconProps) {
   );
 }
 
+export function IconFlame(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M12 2.5c1.2 2.6-.3 4-1.5 5.4C9 9.4 8 11 8 13a4 4 0 0 0 8 0c0-1-.4-1.8-1-2.5.3 1 .1 2-.6 2.6-.2-1.3-.8-2-1.7-2.8.4 1.6-.2 2.6-1.2 3.3-.7.5-1.5 1.2-1.5 2.4a3 3 0 0 0 6 0c0-4.5-2.7-6-4-13.5Z" />
+    </svg>
+  );
+}
+
 export function IconAiReview(props: IconProps) {
   return (
     <svg {...base(props)}>

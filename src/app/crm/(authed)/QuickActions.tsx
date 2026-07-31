@@ -18,7 +18,7 @@ import { QuickLogCallDialog, type QuickCallContactOption } from "./calls/QuickLo
  */
 
 const BUTTON_CLASS =
-  "flex flex-1 items-center justify-center gap-2 rounded-2xl border border-line-strong bg-card px-3 py-3.5 text-[13.5px] font-semibold text-fg shadow-e2 transition-all hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-e3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
+  "flex flex-1 items-center justify-center gap-2 rounded-2xl bg-accent px-3 py-4 text-[15px] font-bold text-white shadow-e2 transition-all hover:-translate-y-0.5 hover:bg-accent-hover hover:shadow-e3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white";
 
 export function QuickAddContactButton({ companies }: { companies: CompanyOption[] }) {
   return (

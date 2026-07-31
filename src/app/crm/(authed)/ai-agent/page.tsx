@@ -15,7 +15,7 @@ type AccountRow = {
 };
 
 /**
- * AI Agent tab — unclaimed leads only. Every crm_account the AI-agent or
+ * Prospects tab (route: /crm/ai-agent) — unclaimed leads only. Every crm_account the AI-agent or
  * Field Capture research process produced that an admin has released
  * (ai_status='released') AND nobody has claimed yet (assigned_user_id IS
  * NULL); pending-review leads live only in /crm/ai-review until then. The
@@ -66,7 +66,7 @@ export default async function AiAgentPage() {
     <PageShell>
       <Card>
         <CardHead
-          title="AI Agent leads"
+          title="Prospects"
           hint={agentLeads.length ? `${agentLeads.length} unclaimed ${agentLeads.length === 1 ? "lead" : "leads"}` : undefined}
         />
         {agentLeads.length === 0 ? (
