@@ -47,7 +47,7 @@ import {
   computeTripFinancials,
   type TripRollupLoad,
 } from "@/lib/dispatch/trip-rollup";
-import { describeTripSpan } from "@/lib/dispatch/central-time";
+import { describeTripSpan, toDateInputValue } from "@/lib/dispatch/central-time";
 import { computeMaintenance } from "@/lib/dispatch/maintenance";
 import { daysOutstanding } from "@/lib/dispatch/alerts";
 import { CATEGORY_SLUG, type Category } from "@/lib/dispatch/repair-log";
@@ -908,6 +908,8 @@ export type DemoTripCard = {
   net: number;
   spent: number;
   profitPct: number | null;
+  totalMiles: number;
+  monthKey: string;
 };
 
 function tripRollupLoads(loads: DemoLoadFull[]): (TripRollupLoad & {
@@ -944,11 +946,9 @@ export function demoTripsList(now: Date = new Date()): DemoTripCard[] {
       start: t.startOdo,
       end: t.endOdo,
     });
-    const dates = describeTripSpan(
-      tripStartedAt(t, now),
-      tripEndedAt(t, now),
-      tripLoads[0]?.created_at ?? now.toISOString(),
-    );
+    const startedAt = tripStartedAt(t, now);
+    const fallbackCreatedAt = tripLoads[0]?.created_at ?? now.toISOString();
+    const dates = describeTripSpan(startedAt, tripEndedAt(t, now), fallbackCreatedAt);
     return {
       id: t.id,
       name: t.name,
@@ -962,6 +962,8 @@ export function demoTripsList(now: Date = new Date()): DemoTripCard[] {
       net: fin.net,
       spent: fin.spent,
       profitPct: fin.profitPct,
+      totalMiles: fin.loadedMiles + fin.deadheadMiles + fin.pcMiles,
+      monthKey: toDateInputValue(startedAt ?? fallbackCreatedAt).slice(0, 7),
     };
   });
 }

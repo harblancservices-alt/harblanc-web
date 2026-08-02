@@ -10,7 +10,7 @@ import {
 import { NewTripButton } from "./NewTripButton";
 import { TripsListView } from "./TripsListView";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { describeTripSpan } from "@/lib/dispatch/central-time";
+import { describeTripSpan, toDateInputValue } from "@/lib/dispatch/central-time";
 
 export const metadata: Metadata = {
   title: "Trips",
@@ -62,6 +62,8 @@ type TripCard = {
   net: number;
   spent: number;
   profitPct: number | null;
+  totalMiles: number;
+  monthKey: string;
 };
 
 async function realTripsData(): Promise<TripCard[]> {
@@ -154,6 +156,8 @@ async function realTripsData(): Promise<TripCard[]> {
       net: fin.net,
       spent: fin.spent,
       profitPct: fin.profitPct,
+      totalMiles: fin.loadedMiles + fin.deadheadMiles + fin.pcMiles,
+      monthKey: toDateInputValue(t.started_at ?? t.created_at).slice(0, 7),
     };
   });
 }
@@ -165,9 +169,19 @@ export default async function TripsPage() {
     ? demoTripsList()
     : await realTripsData();
 
+  // The KPI strip's "Gross / Net" tiles are scoped to the current calendar
+  // month, read on the Central wall clock (the same zone every trip date on
+  // this page renders in).
+  const now = new Date();
+  const monthKeyNow = toDateInputValue(now.toISOString()).slice(0, 7);
+  const monthLabel = now.toLocaleDateString("en-US", {
+    month: "short",
+    timeZone: "America/Chicago",
+  });
+
   return (
     <div className="min-h-screen border-t border-line bg-canvas text-fg">
-      <div className="mx-auto w-full max-w-5xl px-4 py-5 sm:px-6 lg:px-8">
+      <div className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 lg:px-8">
         <PageHeader
           eyebrow="Dispatch"
           title="Trips"
@@ -184,7 +198,11 @@ export default async function TripsPage() {
             load and it’ll appear here.
           </div>
         ) : (
-          <TripsListView trips={trips} />
+          <TripsListView
+            trips={trips}
+            monthKeyNow={monthKeyNow}
+            monthLabel={monthLabel}
+          />
         )}
       </div>
     </div>

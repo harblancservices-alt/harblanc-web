@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useFormStatus } from "react-dom";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
@@ -8,19 +8,15 @@ import { StatusTag } from "@/components/ui/StatusTag";
 import { softDeleteTrips } from "./actions";
 
 /**
- * Trips list — one performance card per trip. The server page does the data
- * fetch + aggregation (via computeTripFinancials, the same rollup the trip
- * detail page uses) and hands the computed rows down; nothing here does money
- * math, it only labels and lays out what it's given.
+ * Trips list — approved redesign: a KPI strip (Active trips / Gross / Net /
+ * Avg profit %) over one dense table per status group (dark header row,
+ * zebra body), replacing the old stacked performance cards. The server page
+ * does the data fetch + aggregation (via computeTripFinancials, the same
+ * rollup the trip detail page uses) and hands the computed rows down;
+ * nothing here does money math, it only labels and lays out what it's given.
  *
- * Card anatomy: the trip name + status tag, the date span and load count as
- * chips, then a shrink-wrapped Revenue · Net · Margin stat group and a margin
- * bar drawing the same percentage. Net leads on size and weight alone — no
- * filled tile, no accent rail; the only color is data (a losing trip reads
- * red, a thin margin amber).
- *
- * Tap a card to open the trip. The Delete button enters an explicit
- * selection mode (tap cards to select → Delete selected / Cancel), the same
+ * Whole row links to the trip. The Delete button enters an explicit
+ * selection mode (tap rows to select → Delete selected / Cancel), the same
  * mode-based pattern the load board uses — no persistent checkboxes.
  */
 
@@ -42,6 +38,12 @@ export type TripListItem = {
   spent: number;
   /** net ÷ gross × 100, or null when gross is 0. */
   profitPct: number | null;
+  /** loaded + deadhead + personal-conveyance miles, the same total the trip
+   * detail page's Miles card shows. */
+  totalMiles: number;
+  /** "YYYY-MM" the trip started in (Central calendar), for the KPI strip's
+   * current-month Gross/Net tiles. */
+  monthKey: string;
 };
 
 // Sign goes OUTSIDE the dollar sign — a losing trip reads "-$310", not the
@@ -62,11 +64,34 @@ function marginTone(net: number, profitPct: number | null): MarginTone {
   if (profitPct != null && profitPct < 15) return "warn";
   return "ok";
 }
+const TONE_TEXT: Record<MarginTone, string> = {
+  ok: "text-ok",
+  warn: "text-warn",
+  bad: "text-bad",
+};
 
-export function TripsListView({ trips }: { trips: TripListItem[] }) {
+// Dark header row, matching the app's other restyled tables — solid
+// graphite bar, white uppercase labels. Zebra body underneath, applied to
+// the tbody so it wins over each row's own bg regardless of alternating
+// count.
+const TABLE_HEAD_ROW =
+  "bg-bar text-[10.5px] font-bold uppercase tracking-[0.08em] text-bar-fg";
+const ZEBRA_ROWS = "[&>tr:nth-child(odd)]:bg-card [&>tr:nth-child(even)]:bg-inset";
+
+export function TripsListView({
+  trips,
+  monthKeyNow,
+  monthLabel,
+}: {
+  trips: TripListItem[];
+  /** "YYYY-MM" for the current Central calendar month. */
+  monthKeyNow: string;
+  /** "Aug" — short month name for the KPI tile labels. */
+  monthLabel: string;
+}) {
   const router = useRouter();
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  // Selection only exists inside an explicit delete mode. Default off: cards
+  // Selection only exists inside an explicit delete mode. Default off: rows
   // open the trip on tap and show no checkboxes.
   const [selectMode, setSelectMode] = useState(false);
 
@@ -88,12 +113,33 @@ export function TripsListView({ trips }: { trips: TripListItem[] }) {
   const closed = trips.filter((t) => t.status === "closed");
   const ongoingCount = active.filter((t) => t.ongoing).length;
 
+  const kpis = useMemo(() => {
+    const monthTrips = trips.filter((t) => t.monthKey === monthKeyNow);
+    const monthGross = monthTrips.reduce((sum, t) => sum + t.gross, 0);
+    const monthNet = monthTrips.reduce((sum, t) => sum + t.net, 0);
+    const withMargin = monthTrips.filter((t) => t.profitPct != null);
+    const avgProfitPct =
+      withMargin.length > 0
+        ? withMargin.reduce((sum, t) => sum + (t.profitPct ?? 0), 0) / withMargin.length
+        : null;
+    return { monthGross, monthNet, avgProfitPct };
+  }, [trips, monthKeyNow]);
+
+  function onOpen(id: string) {
+    router.push(`/admin/dispatch/trips/${id}`);
+  }
+
   return (
-    // The trip column is centred and capped rather than filling the page's
-    // max-w-5xl: a trip card is a fixed amount of content, and stretching it
-    // across a desktop page strands the stat group against the left edge.
-    // Mobile is unaffected — w-full wins until the cap is reachable.
-    <div className="mx-auto w-full max-w-2xl">
+    <div>
+      <TripsKpiStrip
+        activeCount={active.length}
+        ongoingCount={ongoingCount}
+        monthLabel={monthLabel}
+        monthGross={kpis.monthGross}
+        monthNet={kpis.monthNet}
+        avgProfitPct={kpis.avgProfitPct}
+      />
+
       {/* Toolbar — Delete enters selection mode. */}
       {!selectMode && trips.length > 0 ? (
         <div className="mb-2 flex items-center justify-end">
@@ -110,10 +156,10 @@ export function TripsListView({ trips }: { trips: TripListItem[] }) {
       {/* Delete-selection bar — only while in explicit delete mode. */}
       {selectMode ? (
         <div className="mb-2 flex flex-wrap items-center gap-2 rounded-md border border-bad/40 bg-bad-bg px-3 py-2">
-          <span className="font-mono text-[12px] font-bold text-ink">
+          <span className="font-mono text-[12px] font-bold text-fg">
             {selected.size} selected
           </span>
-          <span className="font-mono text-[11px] text-ink-3">
+          <span className="font-mono text-[11px] text-fg-muted">
             · tap trips to select
           </span>
           <Button
@@ -151,26 +197,25 @@ export function TripsListView({ trips }: { trips: TripListItem[] }) {
         </div>
       ) : null}
 
-      <div className="space-y-4">
-        <TripSection
+      <div className="space-y-5">
+        <TripTableSection
           label="Active trips"
           count={active.length}
-          ongoingCount={ongoingCount}
           trips={active}
           selectMode={selectMode}
           selected={selected}
-          onOpen={(id) => router.push(`/admin/dispatch/trips/${id}`)}
+          onOpen={onOpen}
           onToggle={toggleSelected}
           emptyHint="No active trips."
         />
         {closed.length > 0 ? (
-          <TripSection
+          <TripTableSection
             label="Closed trips"
             count={closed.length}
             trips={closed}
             selectMode={selectMode}
             selected={selected}
-            onOpen={(id) => router.push(`/admin/dispatch/trips/${id}`)}
+            onOpen={onOpen}
             onToggle={toggleSelected}
           />
         ) : null}
@@ -179,10 +224,94 @@ export function TripsListView({ trips }: { trips: TripListItem[] }) {
   );
 }
 
-function TripSection({
+/* ── KPI strip ────────────────────────────────────────────────────────── */
+
+function TripsKpiStrip({
+  activeCount,
+  ongoingCount,
+  monthLabel,
+  monthGross,
+  monthNet,
+  avgProfitPct,
+}: {
+  activeCount: number;
+  ongoingCount: number;
+  monthLabel: string;
+  monthGross: number;
+  monthNet: number;
+  avgProfitPct: number | null;
+}) {
+  return (
+    <div className="mb-4 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+      <KpiTile
+        label="Active Trips"
+        value={String(activeCount)}
+        sub={
+          ongoingCount > 0 ? (
+            <span className="mt-1.5 inline-flex w-fit items-center rounded border border-warn/40 bg-warn-bg px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.04em] text-warn">
+              {ongoingCount} ongoing
+            </span>
+          ) : null
+        }
+      />
+      <KpiTile label={`Gross / ${monthLabel}`} value={usd(monthGross)} />
+      <KpiTile
+        label={`Net / ${monthLabel}`}
+        value={usd(monthNet)}
+        dark
+      />
+      <KpiTile
+        label="Avg Profit %"
+        value={avgProfitPct != null ? `${Math.round(avgProfitPct)}%` : "—"}
+      />
+    </div>
+  );
+}
+
+function KpiTile({
+  label,
+  value,
+  sub,
+  dark = false,
+}: {
+  label: string;
+  value: string;
+  sub?: ReactNode;
+  dark?: boolean;
+}) {
+  return (
+    <div
+      className={
+        "flex flex-col rounded-md p-4 shadow-e1 " +
+        (dark ? "bg-graphite" : "border border-line-strong bg-card")
+      }
+    >
+      <span
+        className={
+          "font-mono text-[10.5px] font-bold uppercase tracking-[0.1em] " +
+          (dark ? "text-white/70" : "text-fg")
+        }
+      >
+        {label}
+      </span>
+      <span
+        className={
+          "mt-1.5 text-[24px] font-bold leading-none tabular-nums " +
+          (dark ? "text-white" : "text-fg")
+        }
+      >
+        {value}
+      </span>
+      {sub}
+    </div>
+  );
+}
+
+/* ── Table section ────────────────────────────────────────────────────── */
+
+function TripTableSection({
   label,
   count,
-  ongoingCount,
   trips,
   selectMode,
   selected,
@@ -192,8 +321,6 @@ function TripSection({
 }: {
   label: string;
   count: number;
-  /** Active trips with no end date — shown as "· N ongoing" beside the count. */
-  ongoingCount?: number;
   trips: TripListItem[];
   selectMode: boolean;
   selected: Set<string>;
@@ -204,43 +331,57 @@ function TripSection({
   return (
     <section>
       <div className="mb-2 flex items-center gap-2">
-        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-fg-muted">
+        <span className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-fg">
           {label}
         </span>
-        <span className="font-mono text-[10px] tabular-nums text-fg-subtle">
+        <span className="font-mono text-[10px] tabular-nums text-fg-muted">
           · {count}
         </span>
-        {ongoingCount ? (
-          <span className="rounded border border-warn/40 bg-warn-bg px-1.5 py-0.5 font-mono text-[10px] font-bold tabular-nums text-warn">
-            {ongoingCount} ongoing
-          </span>
-        ) : null}
       </div>
       {trips.length === 0 ? (
         emptyHint ? (
-          <div className="rounded-md border border-line bg-card px-3 py-6 text-center font-mono text-[12px] text-ink-3 shadow-e1">
+          <div className="rounded-md border border-line bg-card px-3 py-6 text-center font-mono text-[12px] text-fg-muted shadow-e1">
             {emptyHint}
           </div>
         ) : null
       ) : (
-        <div className="space-y-2">
-          {trips.map((t) => (
-            <TripCard
-              key={t.id}
-              trip={t}
-              selectMode={selectMode}
-              isSel={selectMode && selected.has(t.id)}
-              onOpen={onOpen}
-              onToggle={onToggle}
-            />
-          ))}
+        <div className="overflow-hidden rounded-md border border-line-strong bg-card shadow-e1">
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[900px] border-collapse text-[13px]">
+              <thead>
+                <tr className={TABLE_HEAD_ROW}>
+                  {selectMode ? <th className="w-9 px-3 py-2.5" /> : null}
+                  <th className="px-3 py-2.5 text-left">Trip</th>
+                  <th className="px-3 py-2.5 text-left">Dates</th>
+                  <th className="px-3 py-2.5 text-right">Loads</th>
+                  <th className="px-3 py-2.5 text-right">Miles</th>
+                  <th className="px-3 py-2.5 text-right">Gross</th>
+                  <th className="px-3 py-2.5 text-right">Net</th>
+                  <th className="px-3 py-2.5 text-right">Profit %</th>
+                  <th className="px-3 py-2.5 text-left">Status</th>
+                </tr>
+              </thead>
+              <tbody className={ZEBRA_ROWS}>
+                {trips.map((t) => (
+                  <TripRow
+                    key={t.id}
+                    trip={t}
+                    selectMode={selectMode}
+                    isSel={selectMode && selected.has(t.id)}
+                    onOpen={onOpen}
+                    onToggle={onToggle}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </section>
   );
 }
 
-function TripCard({
+function TripRow({
   trip,
   selectMode,
   isSel,
@@ -254,15 +395,8 @@ function TripCard({
   onToggle: (id: string) => void;
 }) {
   const tone = marginTone(trip.net, trip.profitPct);
-  const barColor =
-    tone === "bad" ? "bg-bad" : tone === "warn" ? "bg-warn" : "bg-ok";
-  // Clamped so a loss doesn't draw a negative bar and a >100% margin (only
-  // reachable if costs land negative) doesn't overflow the track.
-  const barPct =
-    trip.profitPct == null ? 0 : Math.min(100, Math.max(0, trip.profitPct));
-
   return (
-    <div
+    <tr
       role={selectMode ? "button" : "link"}
       tabIndex={0}
       aria-pressed={selectMode ? isSel : undefined}
@@ -273,23 +407,17 @@ function TripCard({
         else onOpen(trip.id);
       }}
       className={
-        "flex cursor-pointer items-stretch overflow-hidden rounded-lg border shadow-e2 transition-shadow hover:shadow-e3 active:bg-inset " +
-        (isSel ? "border-bad bg-bad-bg" : "border-line-strong bg-card")
+        "cursor-pointer border-b border-line last:border-b-0 transition-colors hover:bg-elevated " +
+        (isSel ? "!bg-bad-bg" : "")
       }
     >
-      {/* Selection indicator — only in delete mode. The whole card toggles, so
-          this is a visual checkbox, not a separate hit target. */}
       {selectMode ? (
-        <div
-          aria-hidden
-          className={
-            "flex w-12 shrink-0 items-center justify-center border-r transition-colors " +
-            (isSel ? "border-bad/40 bg-bad-bg" : "border-line bg-card")
-          }
-        >
+        <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
           <span
+            aria-hidden
+            onClick={() => onToggle(trip.id)}
             className={
-              "flex h-5 w-5 items-center justify-center rounded border-2 text-[12px] font-bold leading-none " +
+              "flex h-5 w-5 cursor-pointer items-center justify-center rounded border-2 text-[12px] font-bold leading-none " +
               (isSel
                 ? "border-bad bg-bad text-white"
                 : "border-line-strong text-transparent")
@@ -297,131 +425,65 @@ function TripCard({
           >
             ✓
           </span>
-        </div>
+        </td>
       ) : null}
 
-      {/* Content */}
-      <div className="min-w-0 flex-1 p-3">
-        {/* Identity — name leads, status tag holds the right edge. */}
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0 truncate text-[15px] font-semibold leading-tight text-fg">
-            {trip.name}
-          </div>
-          <StatusPill status={trip.status} />
-        </div>
-
-        {/* Dates + load count as chips — these are how you tell one trip from
-            another at a glance, so they get a surface and weight instead of
-            dissolving into faint meta text. Dates comes first (start date&
-            time, or the "Jun 24 → Jul 3" range once an end is set), an amber
-            "Ongoing · no end" chip follows for a trip with no end, then the
-            load count. The span's duration ("9 days") sits on its own line
-            beneath rather than crowding the chip row. */}
-        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-          <span className="rounded border border-line-strong bg-inset px-1.5 py-0.5 font-mono text-[11px] font-semibold tabular-nums text-fg shadow-e1">
-            {trip.datesPrimary}
-          </span>
-          {trip.ongoing ? (
-            <span className="rounded border border-warn/40 bg-warn-bg px-1.5 py-0.5 font-mono text-[11px] font-bold uppercase tracking-[0.04em] text-warn shadow-e1">
-              Ongoing · no end
-            </span>
-          ) : null}
-          <span className="rounded border border-steel/40 bg-steel-bg px-1.5 py-0.5 font-mono text-[11px] font-bold tabular-nums text-steel shadow-e1">
-            {trip.loads} load{trip.loads === 1 ? "" : "s"}
-          </span>
-        </div>
-        {trip.datesDuration ? (
-          <div className="mt-1 font-mono text-[10px] text-fg-subtle">
-            {trip.datesDuration}
-          </div>
-        ) : null}
-
-        {/* Labeled stat group — shrink-wrapped (w-fit) so Revenue · Net ·
-            Margin sit tight together and read as one unit, rather than being
-            strung across the card by an equal-thirds grid. */}
-        <div className="mt-2 flex">
-          <div className="flex w-fit items-stretch overflow-hidden rounded-md border border-line-strong bg-inset shadow-e1">
-            <Stat label="Revenue" value={usd(trip.gross)} />
-            <Stat label="Net" value={usd(trip.net)} tone={tone} strong divider />
-            <Stat
-              label="Margin"
-              value={
-                trip.profitPct != null ? `${Math.round(trip.profitPct)}%` : "—"
-              }
-              tone={tone}
-              divider
-            />
-          </div>
-        </div>
-
+      <td className="max-w-[220px] px-3 py-2.5">
+        <div className="truncate font-bold text-fg">{trip.name}</div>
         {trip.notes ? (
-          <div className="mt-2 truncate font-mono text-[11px] text-fg-subtle">
+          <div className="truncate text-[11.5px] font-medium text-fg-muted">
             {trip.notes}
           </div>
         ) : null}
+      </td>
 
-        {/* Margin bar — the Margin percentage, drawn. */}
-        <div
-          aria-hidden
-          className="mt-2 h-1 w-full overflow-hidden rounded-full border border-line-strong bg-inset"
-        >
-          <div className={"h-full " + barColor} style={{ width: `${barPct}%` }} />
+      <td className="px-3 py-2.5">
+        <div className="whitespace-nowrap font-mono text-[12px] font-semibold text-fg">
+          {trip.datesPrimary}
         </div>
-      </div>
-    </div>
-  );
-}
+        {trip.ongoing ? (
+          <span className="mt-1 inline-flex w-fit items-center rounded border border-warn/40 bg-warn-bg px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.04em] text-warn">
+            Ongoing · no end
+          </span>
+        ) : trip.datesDuration ? (
+          <div className="mt-0.5 font-mono text-[11px] text-fg-muted">
+            {trip.datesDuration}
+          </div>
+        ) : null}
+      </td>
 
-/**
- * One labeled cell of the card's stat group. `strong` is the Net cell — it
- * out-weighs its neighbours on size alone (17px vs 14px), no filled box.
- * `tone` colors the value: a losing trip's Net and Margin read red.
- *
- * `divider` draws the separator as an explicit left border rather than a
- * `divide-x-*` utility on the parent — this Tailwind build emits the divide
- * COLOR but not the divide WIDTH, so divide-x silently renders nothing.
- */
-function Stat({
-  label,
-  value,
-  tone = "default",
-  strong = false,
-  divider = false,
-}: {
-  label: string;
-  value: string;
-  tone?: MarginTone | "default";
-  strong?: boolean;
-  divider?: boolean;
-}) {
-  const valueColor =
-    tone === "ok"
-      ? "text-ok"
-      : tone === "warn"
-        ? "text-warn"
-        : tone === "bad"
-          ? "text-bad"
-          : "text-fg";
-  return (
-    <div
-      className={
-        "px-2.5 py-1.5 " +
-        (divider ? "border-l border-line-strong" : "")
-      }
-    >
-      <div className="font-mono text-[9px] font-bold uppercase tracking-[0.12em] text-fg-subtle">
-        {label}
-      </div>
-      <div
+      <td className="px-3 py-2.5 text-right font-mono tabular-nums text-fg">
+        {trip.loads}
+      </td>
+
+      <td className="px-3 py-2.5 text-right font-mono tabular-nums text-fg">
+        {trip.totalMiles.toLocaleString("en-US")}
+      </td>
+
+      <td className="px-3 py-2.5 text-right font-mono font-semibold tabular-nums text-fg">
+        {usd(trip.gross)}
+      </td>
+
+      <td
         className={
-          "mt-0.5 truncate font-bold leading-tight tabular-nums " +
-          (strong ? "text-[17px] " : "text-[14px] ") +
-          valueColor
+          "px-3 py-2.5 text-right font-mono font-bold tabular-nums " + TONE_TEXT[tone]
         }
       >
-        {value}
-      </div>
-    </div>
+        {usd(trip.net)}
+      </td>
+
+      <td
+        className={
+          "px-3 py-2.5 text-right font-mono font-semibold tabular-nums " + TONE_TEXT[tone]
+        }
+      >
+        {trip.profitPct != null ? `${Math.round(trip.profitPct)}%` : "—"}
+      </td>
+
+      <td className="px-3 py-2.5">
+        <StatusPill status={trip.status} />
+      </td>
+    </tr>
   );
 }
 
