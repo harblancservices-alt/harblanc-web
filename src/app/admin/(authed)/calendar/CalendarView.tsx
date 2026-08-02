@@ -152,11 +152,18 @@ export function CalendarView({
 
   // Weekly net, keyed by each week's Sunday: sum of the canonical per-load net
   // for loads that PICKED UP in that Sun–Sat week (attributed by the same start
-  // date the bar uses), excluding cancelled loads.
+  // date the bar uses), excluding cancelled loads. Also excludes pickups that
+  // fall outside the VIEWED month — a leading/trailing week straddles two
+  // months, and its profit belongs to whichever month the pickup date is
+  // actually in, not to both. This is what clips a Jul 26–Aug 1 row, viewed in
+  // August, down to just the Aug 1 pickups.
   const weekNets = useMemo(() => {
     const m = new Map<string, WeekNet>();
     for (const l of visibleLoads) {
       if (l.cancelled) continue;
+      const startParts = parseDateStr(l.start);
+      if (!startParts) continue;
+      if (startParts.y !== view.year || startParts.m1 - 1 !== view.month0) continue;
       const sunday = addDays(l.start, -weekdayOf(l.start));
       const cur = m.get(sunday) ?? { net: 0, count: 0 };
       cur.net += l.net;
@@ -164,7 +171,7 @@ export function CalendarView({
       m.set(sunday, cur);
     }
     return m;
-  }, [visibleLoads]);
+  }, [visibleLoads, view.year, view.month0]);
 
   // Best week (for the mini-bar scale) and month total (for the footer chip) —
   // both derived from the same weekNets already computed above; no new math.
