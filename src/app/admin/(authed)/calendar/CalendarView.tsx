@@ -40,6 +40,13 @@ export type LoadBar = {
 /** A week's net total + how many loads picked up in it, keyed by its Sunday. */
 type WeekNet = { net: number; count: number };
 
+/** Cream/tan tint for the Saturday and Sunday columns — visually sets weekends apart from the workweek. */
+const WEEKEND_BG = "bg-[#FBF1E8]";
+/** Column index (within a Sun-first week array) is a weekend when 0 (Sun) or 6 (Sat). */
+function isWeekendCol(i: number): boolean {
+  return i === 0 || i === 6;
+}
+
 export type RepairChip = {
   id: string;
   date: string; // YYYY-MM-DD
@@ -159,6 +166,22 @@ export function CalendarView({
     return m;
   }, [visibleLoads]);
 
+  // Best week (for the mini-bar scale) and month total (for the footer chip) —
+  // both derived from the same weekNets already computed above; no new math.
+  const monthMaxProfit = useMemo(() => {
+    let max = 0;
+    for (const week of weeks) {
+      const v = weekNetValueOf(weekNets.get(week[0]));
+      if (v > max) max = v;
+    }
+    return max;
+  }, [weeks, weekNets]);
+  const monthTotal = useMemo(() => {
+    let sum = 0;
+    for (const week of weeks) sum += weekNetValueOf(weekNets.get(week[0]));
+    return sum;
+  }, [weeks, weekNets]);
+
   const monthLabel = `${monthName(view.month0)} ${view.year}`;
   const isCurrentMonth =
     view.year === todayParts.y && view.month0 === todayParts.m1 - 1;
@@ -178,7 +201,7 @@ export function CalendarView({
               type="button"
               onClick={() => go(-1)}
               aria-label="Previous month"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-line-strong bg-card text-ink transition-colors hover:bg-inset"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-graphite-line bg-graphite-2 text-white transition-colors hover:bg-graphite-line"
             >
               <Chevron dir="left" />
             </button>
@@ -186,7 +209,7 @@ export function CalendarView({
               type="button"
               onClick={() => go(1)}
               aria-label="Next month"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-line-strong bg-card text-ink transition-colors hover:bg-inset"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-graphite-line bg-graphite-2 text-white transition-colors hover:bg-graphite-line"
             >
               <Chevron dir="right" />
             </button>
@@ -197,7 +220,7 @@ export function CalendarView({
               type="button"
               onClick={goToday}
               disabled={isCurrentMonth}
-              className="ml-1 inline-flex h-9 items-center rounded-md border border-line-strong bg-card px-3 font-mono text-[12px] font-semibold uppercase tracking-[0.08em] text-ink transition-colors hover:bg-inset disabled:cursor-not-allowed disabled:opacity-50"
+              className="ml-1 inline-flex h-9 items-center rounded-md border border-graphite-line bg-graphite-2 px-3 font-mono text-[12px] font-semibold uppercase tracking-[0.08em] text-white transition-colors hover:bg-graphite-line disabled:cursor-not-allowed disabled:opacity-50"
             >
               Today
             </button>
@@ -208,17 +231,21 @@ export function CalendarView({
         {/* Desktop grid. */}
         <div className="mt-4 hidden md:block">
           <div className="overflow-hidden rounded-lg border border-line-strong bg-card shadow-e1">
-            {/* Weekday header + a trailing Profit column. */}
-            <div className="grid grid-cols-8 border-b border-line-strong bg-inset">
-              {WEEKDAY_LABELS.map((w) => (
+            {/* Weekday header (dark bar, weekday/weekend colour split) + a
+                separated Profit header styled as its own green bar. */}
+            <div className="grid grid-cols-8 border-b border-line-strong">
+              {WEEKDAY_LABELS.map((w, i) => (
                 <div
                   key={w}
-                  className="px-2 py-2 text-center font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-ink-2"
+                  className={
+                    "bg-bar px-2 py-2 text-center font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] " +
+                    (isWeekendCol(i) ? "text-amber-300" : "text-sky-300")
+                  }
                 >
                   {w}
                 </div>
               ))}
-              <div className="border-l border-line-strong px-2 py-2 text-center font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-ink-2">
+              <div className="border-l-[3px] border-green-600 bg-green-700 px-2 py-2 text-center font-mono text-[10.5px] font-bold uppercase tracking-[0.14em] text-white">
                 Profit
               </div>
             </div>
@@ -233,8 +260,23 @@ export function CalendarView({
                 holidays={holidays}
                 repairsByDate={repairsByDate}
                 weekNet={weekNets.get(week[0])}
+                monthMaxProfit={monthMaxProfit}
               />
             ))}
+            {/* Month-total footer chip, anchored under the Profit column. */}
+            <div className="grid grid-cols-8">
+              <div className="col-span-7" />
+              <div className="flex items-center justify-center border-l-[3px] border-t border-green-600 bg-green-50 px-2 py-2.5">
+                <div className="inline-flex items-center gap-2 rounded-md bg-green-800 px-3 py-1.5 shadow-e1">
+                  <span className="font-mono text-[9.5px] font-bold uppercase tracking-[0.12em] text-green-100">
+                    {monthName(view.month0).slice(0, 3).toUpperCase()} Total
+                  </span>
+                  <span className="font-mono text-[13.5px] font-extrabold tabular-nums text-white">
+                    {fmtNet(monthTotal)}
+                  </span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -243,11 +285,14 @@ export function CalendarView({
             survive an 8-way split) into a footer strip under each week. */}
         <div className="mt-4 md:hidden">
           <div className="overflow-hidden rounded-lg border border-line-strong bg-card shadow-e1">
-            <div className="grid grid-cols-7 border-b border-line-strong bg-inset">
-              {WEEKDAY_LABELS.map((w) => (
+            <div className="grid grid-cols-7 border-b border-line-strong">
+              {WEEKDAY_LABELS.map((w, i) => (
                 <div
                   key={w}
-                  className="px-0.5 py-1.5 text-center font-mono text-[9px] font-bold uppercase tracking-[0.08em] text-ink-2"
+                  className={
+                    "bg-bar px-0.5 py-1.5 text-center font-mono text-[9px] font-bold uppercase tracking-[0.08em] " +
+                    (isWeekendCol(i) ? "text-amber-300" : "text-sky-300")
+                  }
                 >
                   {w.slice(0, 1)}
                 </div>
@@ -395,7 +440,8 @@ function WeekRow({
   holidays,
   repairsByDate,
   weekNet,
-}: WeekRowProps) {
+  monthMaxProfit,
+}: WeekRowProps & { monthMaxProfit: number }) {
   const weekStart = week[0];
   const segments = weekSegments(week, loads, lanes);
   const barZoneH = laneCountOf(segments) * BAR_H;
@@ -404,10 +450,14 @@ function WeekRow({
   // week, otherwise a muted zero so the cell still renders and the grid stays
   // 8-wide.
   const weekNetValue = weekNetValueOf(weekNet);
+  const barPct =
+    monthMaxProfit > 0
+      ? Math.max(0, Math.min(100, (weekNetValue / monthMaxProfit) * 100))
+      : 0;
 
   return (
     <div className="relative grid grid-cols-8 border-b border-line-strong last:border-b-0">
-      {week.map((date) => {
+      {week.map((date, i) => {
         const p = parseDateStr(date)!;
         const inMonth = p.m1 - 1 === month0;
         const isToday = date === today;
@@ -418,7 +468,7 @@ function WeekRow({
             key={date}
             className={
               "min-h-[110px] border-r border-line-strong " +
-              (inMonth ? "" : "bg-inset/60")
+              (!inMonth ? "bg-inset/60" : isWeekendCol(i) ? WEEKEND_BG : "")
             }
           >
             {/* Date number row (fixed height so bar overlay aligns). */}
@@ -469,18 +519,26 @@ function WeekRow({
         );
       })}
 
-      {/* Trailing Profit cell — the week's net, centered, styled like a day
-          cell. Muted at zero (incl. weeks with no pickups). */}
-      <div className="flex min-h-[110px] flex-col items-center justify-center px-2">
+      {/* Trailing Profit cell — its own light-green panel, separated from the
+          day grid by a thick green rail. Muted at zero (incl. weeks with no
+          pickups); a mini-bar under the figure shows it relative to the
+          month's best week. */}
+      <div className="flex min-h-[110px] flex-col items-center justify-center gap-2 border-l-[3px] border-green-600 bg-green-50 px-2">
         <span
           title="Week net — loads picked up this week"
           className={
-            "font-mono text-[15px] font-bold tabular-nums " +
+            "font-mono text-[20px] font-extrabold tabular-nums " +
             netTone(weekNetValue)
           }
         >
           {fmtNet(weekNetValue)}
         </span>
+        <div className="h-1.5 w-full max-w-[70px] overflow-hidden rounded-full bg-green-900/10">
+          <div
+            className="h-full rounded-full bg-green-600"
+            style={{ width: `${barPct}%` }}
+          />
+        </div>
       </div>
 
       {/* Load bars — one absolutely-positioned overlay per week, confined to the
@@ -552,7 +610,7 @@ function MobileWeekRow({
   return (
     <div className="border-b border-line-strong last:border-b-0">
       <div className="relative grid grid-cols-7">
-        {week.map((date) => {
+        {week.map((date, i) => {
           const p = parseDateStr(date)!;
           const inMonth = p.m1 - 1 === month0;
           const isToday = date === today;
@@ -563,7 +621,7 @@ function MobileWeekRow({
               key={date}
               className={
                 "min-h-[58px] border-r border-line-strong last:border-r-0 " +
-                (inMonth ? "" : "bg-inset/60")
+                (!inMonth ? "bg-inset/60" : isWeekendCol(i) ? WEEKEND_BG : "")
               }
             >
               <div
