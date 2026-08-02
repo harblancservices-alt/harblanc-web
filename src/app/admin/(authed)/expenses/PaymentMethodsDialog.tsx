@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from "react";
 import { Button } from "@/components/ui/Button";
 import { StatusTag } from "@/components/ui/StatusTag";
 import { field } from "@/components/ui/styles";
+import { LABEL } from "./formLabel";
 import { IconX } from "./icons";
 import { createExpenseAccount, deleteExpenseAccount, updateExpenseAccount } from "./actions";
 import { PAYMENT_METHOD_TYPES, type ExpenseAccount } from "./types";
@@ -127,7 +128,7 @@ export function PaymentMethodsDialog({
           ) : null}
 
           {accounts.length === 0 && editingId !== "new" ? (
-            <div className="rounded-md border border-dashed border-line-strong bg-card px-3 py-5 text-center text-[12px] text-fg-subtle">
+            <div className="rounded-md border border-dashed border-line-strong bg-card px-3 py-5 text-center text-[12.5px] font-semibold text-fg">
               No payment methods yet.
             </div>
           ) : (
@@ -187,14 +188,14 @@ function AccountRow({
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="truncate text-[13.5px] font-bold text-ink">{account.name}</span>
+            <span className="truncate text-[13.5px] font-bold text-fg">{account.name}</span>
             {account.isDefault ? (
               <StatusTag tone="steel" hideDot>
                 Default
               </StatusTag>
             ) : null}
           </div>
-          <div className="mt-0.5 text-[11.5px] text-fg-subtle">
+          <div className="mt-0.5 text-[11.5px] font-semibold text-fg-muted">
             {account.type ?? "Type not set"}
             {account.last4 ? ` · ····${account.last4}` : ""}
           </div>
@@ -208,12 +209,12 @@ function AccountRow({
           </Button>
         </div>
       </div>
-      <div className="mt-2 flex items-center gap-4 border-t border-line pt-2 text-[11.5px] text-fg-muted">
+      <div className="mt-2 flex items-center gap-4 border-t border-line pt-2 text-[11.5px] font-semibold text-fg-muted">
         <span>
-          <span className="font-bold tabular-nums text-ink">{usd(account.monthlySpend)}</span> / mo
+          <span className="font-bold tabular-nums text-fg">{usd(account.monthlySpend)}</span> / mo
         </span>
         <span>
-          <span className="font-bold tabular-nums text-ink">{account.chargeCount}</span>{" "}
+          <span className="font-bold tabular-nums text-fg">{account.chargeCount}</span>{" "}
           {account.chargeCount === 1 ? "charge" : "charges"}
         </span>
       </div>
@@ -242,7 +243,7 @@ function AccountForm({
     >
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className={field.label}>Nickname</label>
+          <label className={LABEL}>Nickname</label>
           <input
             name="name"
             defaultValue={account?.name ?? ""}
@@ -253,7 +254,7 @@ function AccountForm({
           />
         </div>
         <div>
-          <label className={field.label}>Type</label>
+          <label className={LABEL}>Type</label>
           <select name="type" defaultValue={account?.type ?? ""} className={field.select}>
             <option value="">Not set</option>
             {PAYMENT_METHOD_TYPES.map((t) => (
@@ -266,7 +267,7 @@ function AccountForm({
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className={field.label}>Last 4</label>
+          <label className={LABEL}>Last 4</label>
           <input
             name="last4"
             defaultValue={account?.last4 ?? ""}
@@ -277,7 +278,7 @@ function AccountForm({
             className={field.input + " tabular-nums"}
           />
         </div>
-        <label className="mt-5 flex h-10 w-fit items-center gap-2 rounded-md border border-line-strong bg-card px-3 text-[13px] font-semibold text-ink">
+        <label className="mt-5 flex h-10 w-fit items-center gap-2 rounded-md border border-line-strong bg-card px-3 text-[13px] font-bold text-fg">
           <input
             type="checkbox"
             name="is_default"

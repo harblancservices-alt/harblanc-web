@@ -58,7 +58,7 @@ export function ExpenseRowMenu({
           e.stopPropagation();
           setOpen((v) => !v);
         }}
-        className="inline-flex h-7 w-7 items-center justify-center rounded-md text-ink-3 transition-colors hover:bg-inset hover:text-ink"
+        className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-line-strong bg-card text-fg transition-colors hover:border-accent hover:bg-elevated hover:text-accent"
       >
         <IconDots className="h-4 w-4" />
       </button>
@@ -88,7 +88,7 @@ export function ExpenseRowMenu({
           >
             {archived ? "Restore" : "Archive"}
           </MenuItem>
-          <div className="my-1 border-t border-line" />
+          <div className="my-1 border-t border-line-strong" />
           <MenuItem icon={<IconTrash className="h-3.5 w-3.5" />} tone="bad" onClick={() => run(onDelete)}>
             Delete
           </MenuItem>
@@ -118,11 +118,11 @@ function MenuItem({
       disabled={disabled}
       onClick={onClick}
       className={
-        "flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12.5px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 " +
-        (tone === "bad" ? "text-bad hover:bg-bad-bg" : "text-ink hover:bg-inset")
+        "flex w-full items-center gap-2 px-3 py-1.5 text-left text-[12.5px] font-bold transition-colors disabled:cursor-not-allowed disabled:opacity-40 " +
+        (tone === "bad" ? "text-bad hover:bg-bad-bg" : "text-fg hover:bg-elevated hover:text-accent")
       }
     >
-      <span className="shrink-0 text-ink-3">{icon}</span>
+      <span className="shrink-0 text-fg-muted">{icon}</span>
       {children}
     </button>
   );

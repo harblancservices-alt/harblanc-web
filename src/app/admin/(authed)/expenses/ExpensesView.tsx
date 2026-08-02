@@ -7,6 +7,7 @@ import { KPI } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusTag } from "@/components/ui/StatusTag";
 import { field } from "@/components/ui/styles";
+import { LABEL } from "./formLabel";
 import {
   archiveExpense,
   bulkArchiveExpenses,
@@ -50,9 +51,18 @@ import {
  * stacked-card layout. Manual tracker still — nothing here is linked to a
  * bank or card and no money moves.
  *
- * THEME SAFETY: card is a THEMED surface, so only text-fg/-muted/-subtle sit
- * on it directly; fixed tints (frequency/status pills) use the V2 status
- * tokens (bg-*-bg/text-*), which are theme-independent by design.
+ * THEME SAFETY: card/inset/elevated are THEMED surfaces, so content on top of
+ * them uses the theme-aware text-fg/-muted/-subtle tiers, never the FIXED
+ * text-ink family (which stays near-black even under the admin's dark theme
+ * and would go invisible on a dark card). Fixed tints (frequency/status
+ * pills) use the V2 status tokens (bg-*-bg/text-*), which are intentionally
+ * theme-independent.
+ *
+ * CONTRAST: per owner feedback, every label/button/value on this page uses
+ * the PRIMARY text-fg tier (near-black in the default light admin theme) —
+ * the lighter -muted/-subtle tiers are reserved for genuinely secondary
+ * metadata (timestamps, placeholder text, unit annotations next to a bold
+ * value), never for labels, buttons, or primary content.
  */
 
 type Status = "all" | "active" | "archived";
@@ -114,10 +124,6 @@ export function ExpensesView({ data }: { data: ExpensesData }) {
   useEffect(() => {
     setPage(0);
   }, [search, filters]);
-
-  function refresh() {
-    startBusy(() => router.refresh());
-  }
 
   function runAction(fn: () => Promise<void>) {
     setActionError(null);
@@ -356,22 +362,22 @@ export function ExpensesView({ data }: { data: ExpensesData }) {
         </div>
 
         {actionError ? (
-          <div className="mb-3 rounded-md border border-bad bg-bad-bg px-3 py-2 text-[12.5px] font-semibold text-bad">
+          <div className="mb-3 rounded-md border border-bad bg-bad-bg px-3 py-2 text-[12.5px] font-bold text-bad">
             {actionError}
           </div>
         ) : null}
 
         {/* ── Toolbar ── */}
-        <div className="mb-3 rounded-md border border-line bg-card p-2.5 shadow-e1">
+        <div className="mb-3 rounded-md border border-line-strong bg-card p-2.5 shadow-e1">
           <div className="flex flex-wrap items-center gap-2">
             <div className="relative min-w-[180px] flex-1">
-              <IconSearch className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink-3" />
+              <IconSearch className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-fg-muted" />
               <input
                 type="search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search expenses…"
-                className="h-9 w-full rounded-md border border-line-strong bg-card pl-8 pr-3 text-[13px] text-ink outline-none placeholder:text-ink-3 focus:border-accent focus:ring-2 focus:ring-accent/40"
+                className="h-9 w-full rounded-md border border-line-strong bg-card pl-8 pr-3 text-[13px] font-medium text-fg outline-none placeholder:text-fg-subtle focus:border-accent focus:ring-2 focus:ring-accent/40"
               />
             </div>
 
@@ -379,7 +385,7 @@ export function ExpensesView({ data }: { data: ExpensesData }) {
             <button
               type="button"
               onClick={() => setMobileFiltersOpen(true)}
-              className="inline-flex h-9 items-center gap-1.5 rounded-md border border-line-strong bg-card px-3 text-[12.5px] font-bold text-ink sm:hidden"
+              className="inline-flex h-9 items-center gap-1.5 rounded-md border border-line-strong bg-card px-3 text-[12.5px] font-bold text-fg sm:hidden"
             >
               <IconFilter className="h-3.5 w-3.5" />
               Filters
@@ -401,7 +407,7 @@ export function ExpensesView({ data }: { data: ExpensesData }) {
                 <button
                   type="button"
                   onClick={() => setSavedFiltersOpen((v) => !v)}
-                  className="inline-flex h-9 items-center gap-1 rounded-md border border-line-strong bg-card px-2.5 text-[12px] font-bold text-ink-2 hover:bg-inset"
+                  className="inline-flex h-9 items-center gap-1 rounded-md border border-line-strong bg-card px-2.5 text-[12px] font-bold text-fg hover:border-accent hover:text-accent"
                 >
                   Saved
                   <IconChevronDown className="h-3 w-3" />
@@ -414,17 +420,17 @@ export function ExpensesView({ data }: { data: ExpensesData }) {
                         saveCurrentFilter();
                         setSavedFiltersOpen(false);
                       }}
-                      className="w-full rounded px-2 py-1.5 text-left text-[12px] font-semibold text-accent hover:bg-inset"
+                      className="w-full rounded px-2 py-1.5 text-left text-[12px] font-bold text-accent hover:bg-elevated"
                     >
                       + Save current filters
                     </button>
-                    {savedFilters.length > 0 ? <div className="my-1 border-t border-line" /> : null}
+                    {savedFilters.length > 0 ? <div className="my-1 border-t border-line-strong" /> : null}
                     {savedFilters.map((sf) => (
                       <div key={sf.name} className="flex items-center gap-1">
                         <button
                           type="button"
                           onClick={() => applySavedFilter(sf)}
-                          className="flex-1 truncate rounded px-2 py-1.5 text-left text-[12px] text-ink hover:bg-inset"
+                          className="flex-1 truncate rounded px-2 py-1.5 text-left text-[12px] font-semibold text-fg hover:bg-elevated"
                         >
                           {sf.name}
                         </button>
@@ -432,7 +438,7 @@ export function ExpensesView({ data }: { data: ExpensesData }) {
                           type="button"
                           onClick={() => removeSavedFilter(sf.name)}
                           aria-label={`Remove ${sf.name}`}
-                          className="rounded p-1 text-ink-3 hover:text-bad"
+                          className="rounded p-1 text-fg-muted hover:text-bad"
                         >
                           <IconX className="h-3 w-3" />
                         </button>
@@ -445,7 +451,7 @@ export function ExpensesView({ data }: { data: ExpensesData }) {
                 <button
                   type="button"
                   onClick={() => setFilters(EMPTY_FILTERS)}
-                  className="text-[12px] font-semibold text-ink-3 hover:text-ink"
+                  className="text-[12px] font-bold text-fg hover:text-accent"
                 >
                   Clear
                 </button>
@@ -483,14 +489,14 @@ export function ExpensesView({ data }: { data: ExpensesData }) {
           <EmptyState onAdd={() => setPanel("new")} />
         ) : sorted.length === 0 ? (
           <div className="rounded-md border border-dashed border-line-strong bg-card px-6 py-10 text-center shadow-e1">
-            <p className="text-[13px] text-fg-muted">No expenses match these filters.</p>
+            <p className="text-[13px] font-semibold text-fg">No expenses match these filters.</p>
             <button
               type="button"
               onClick={() => {
                 setSearch("");
                 setFilters(EMPTY_FILTERS);
               }}
-              className="mt-2 text-[12.5px] font-semibold text-accent hover:underline"
+              className="mt-2 text-[12.5px] font-bold text-accent hover:underline"
             >
               Clear filters
             </button>
@@ -531,7 +537,7 @@ export function ExpensesView({ data }: { data: ExpensesData }) {
             />
 
             {pageCount > 1 ? (
-              <div className="mt-3 flex items-center justify-between gap-3 text-[12.5px] text-fg-muted">
+              <div className="mt-3 flex items-center justify-between gap-3 text-[12.5px] font-medium text-fg-muted">
                 <span>
                   {clampedPage * PAGE_SIZE + 1}–{Math.min(sorted.length, (clampedPage + 1) * PAGE_SIZE)} of{" "}
                   {sorted.length}
@@ -546,7 +552,7 @@ export function ExpensesView({ data }: { data: ExpensesData }) {
                   >
                     Prev
                   </Button>
-                  <span className="tabular-nums">
+                  <span className="font-bold tabular-nums text-fg">
                     {clampedPage + 1} / {pageCount}
                   </span>
                   <Button
@@ -608,7 +614,7 @@ function DesktopFilters({
   accounts: ExpensesData["accounts"];
 }) {
   const selectCls =
-    "h-9 rounded-md border border-line-strong bg-card px-2 text-[12.5px] text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/40";
+    "h-9 rounded-md border border-line-strong bg-card px-2 text-[12.5px] font-medium text-fg outline-none focus:border-accent focus:ring-2 focus:ring-accent/40";
   return (
     <>
       <input
@@ -618,7 +624,7 @@ function DesktopFilters({
         className={selectCls}
         aria-label="Date from"
       />
-      <span className="text-[12px] text-ink-3">to</span>
+      <span className="text-[12px] font-semibold text-fg-subtle">to</span>
       <input
         type="date"
         value={filters.dateTo}
@@ -671,7 +677,7 @@ function DesktopFilters({
         <option value="active">Active</option>
         <option value="archived">Archived</option>
       </select>
-      <label className="flex h-9 items-center gap-1.5 rounded-md border border-line-strong bg-card px-2.5 text-[12.5px] font-semibold text-ink">
+      <label className="flex h-9 items-center gap-1.5 rounded-md border border-line-strong bg-card px-2.5 text-[12.5px] font-bold text-fg">
         <input
           type="checkbox"
           checked={filters.recurringOnly}
@@ -705,15 +711,15 @@ function MobileFilterSheet({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
-          <span className="text-[13px] font-bold uppercase tracking-[0.1em] text-ink">Filters</span>
+          <span className="text-[13px] font-bold uppercase tracking-[0.1em] text-fg">Filters</span>
           <button type="button" onClick={onClose} aria-label="Close">
-            <IconX className="h-5 w-5 text-ink-3" />
+            <IconX className="h-5 w-5 text-fg-muted" />
           </button>
         </div>
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-2">
             <div>
-              <label className={field.label}>From</label>
+              <label className={LABEL}>From</label>
               <input
                 type="date"
                 value={draft.dateFrom}
@@ -722,7 +728,7 @@ function MobileFilterSheet({
               />
             </div>
             <div>
-              <label className={field.label}>To</label>
+              <label className={LABEL}>To</label>
               <input
                 type="date"
                 value={draft.dateTo}
@@ -732,7 +738,7 @@ function MobileFilterSheet({
             </div>
           </div>
           <div>
-            <label className={field.label}>Category</label>
+            <label className={LABEL}>Category</label>
             <select
               value={draft.category}
               onChange={(e) => setDraft({ ...draft, category: e.target.value })}
@@ -747,7 +753,7 @@ function MobileFilterSheet({
             </select>
           </div>
           <div>
-            <label className={field.label}>Vendor</label>
+            <label className={LABEL}>Vendor</label>
             <select
               value={draft.vendor}
               onChange={(e) => setDraft({ ...draft, vendor: e.target.value })}
@@ -762,7 +768,7 @@ function MobileFilterSheet({
             </select>
           </div>
           <div>
-            <label className={field.label}>Payment method</label>
+            <label className={LABEL}>Payment method</label>
             <select
               value={draft.paymentMethod}
               onChange={(e) => setDraft({ ...draft, paymentMethod: e.target.value })}
@@ -777,7 +783,7 @@ function MobileFilterSheet({
             </select>
           </div>
           <div>
-            <label className={field.label}>Status</label>
+            <label className={LABEL}>Status</label>
             <select
               value={draft.status}
               onChange={(e) => setDraft({ ...draft, status: e.target.value as Status })}
@@ -788,7 +794,7 @@ function MobileFilterSheet({
               <option value="archived">Archived</option>
             </select>
           </div>
-          <label className="flex h-10 w-fit items-center gap-2 rounded-md border border-line-strong bg-card px-3 text-[13px] font-semibold text-ink">
+          <label className="flex h-10 w-fit items-center gap-2 rounded-md border border-line-strong bg-card px-3 text-[13px] font-bold text-fg">
             <input
               type="checkbox"
               checked={draft.recurringOnly}
@@ -840,8 +846,8 @@ function BulkBar({
 }) {
   const [category, setCategory] = useState("");
   return (
-    <div className="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-accent bg-accent/5 px-3 py-2">
-      <span className="text-[12.5px] font-bold text-ink">{count} selected</span>
+    <div className="mb-3 flex flex-wrap items-center gap-2 rounded-md border-2 border-accent bg-accent/10 px-3 py-2">
+      <span className="text-[12.5px] font-bold text-fg">{count} selected</span>
       <div className="ml-auto flex flex-wrap items-center gap-1.5">
         <select
           value={category}
@@ -853,7 +859,7 @@ function BulkBar({
             }
           }}
           disabled={busy}
-          className="h-8 rounded-md border border-line-strong bg-card px-2 text-[12px] text-ink outline-none"
+          className="h-8 rounded-md border border-line-strong bg-card px-2 text-[12px] font-semibold text-fg outline-none"
         >
           <option value="">Change category…</option>
           {CATEGORIES.map((c) => (
@@ -881,6 +887,8 @@ function BulkBar({
 
 /* ── Desktop table ───────────────────────────────────────────────────── */
 
+const TH_CLS = "px-3 py-2 text-left text-[11px] font-bold uppercase tracking-[0.06em] text-fg border-b-2 border-line-strong";
+
 function SortHead({
   label,
   active,
@@ -898,16 +906,15 @@ function SortHead({
     <th
       scope="col"
       aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"}
-      className={
-        "px-3 py-2 text-[11px] font-bold uppercase tracking-[0.06em] text-ink-3 border-b-2 border-line-strong " +
-        (align === "right" ? "text-right" : "text-left")
-      }
+      className={TH_CLS + (align === "right" ? " text-right" : "")}
     >
       <button
         type="button"
         onClick={onClick}
         className={
-          "inline-flex items-center gap-1 hover:text-ink " + (align === "right" ? "flex-row-reverse" : "")
+          "inline-flex items-center gap-1 transition-colors hover:text-accent " +
+          (align === "right" ? "flex-row-reverse" : "") +
+          (active ? " text-accent" : "")
         }
       >
         {label}
@@ -947,10 +954,10 @@ function DesktopTable({
   onDelete: (e: ExpenseItem) => void;
 }) {
   return (
-    <div className="hidden overflow-hidden rounded-md border border-line bg-card shadow-e1 sm:block">
+    <div className="hidden overflow-hidden rounded-md border border-line-strong bg-card shadow-e1 sm:block">
       <div className="max-h-[70vh] overflow-auto">
-        <table className="w-full border-collapse text-[13px] text-ink">
-          <thead className="sticky top-0 z-10 bg-inset">
+        <table className="w-full border-collapse text-[13px] text-fg">
+          <thead className="sticky top-0 z-10 bg-elevated">
             <tr>
               <th className="w-9 border-b-2 border-line-strong px-3 py-2">
                 <input
@@ -963,13 +970,9 @@ function DesktopTable({
               </th>
               <SortHead label="Vendor" active={sort.key === "vendor"} dir={sort.dir} onClick={() => onSort("vendor")} />
               <SortHead label="Category" active={sort.key === "category"} dir={sort.dir} onClick={() => onSort("category")} />
-              <th className="border-b-2 border-line-strong px-3 py-2 text-left text-[11px] font-bold uppercase tracking-[0.06em] text-ink-3">
-                Description
-              </th>
+              <th className={TH_CLS}>Description</th>
               <SortHead label="Amount" active={sort.key === "amount"} dir={sort.dir} onClick={() => onSort("amount")} align="right" />
-              <th className="border-b-2 border-line-strong px-3 py-2 text-left text-[11px] font-bold uppercase tracking-[0.06em] text-ink-3">
-                Payment method
-              </th>
+              <th className={TH_CLS}>Payment method</th>
               <SortHead label="Frequency" active={sort.key === "frequency"} dir={sort.dir} onClick={() => onSort("frequency")} />
               <SortHead label="Next charge" active={sort.key === "nextCharge"} dir={sort.dir} onClick={() => onSort("nextCharge")} />
               <SortHead label="Status" active={sort.key === "status"} dir={sort.dir} onClick={() => onSort("status")} />
@@ -982,9 +985,9 @@ function DesktopTable({
                 key={e.id}
                 onClick={() => onOpen(e)}
                 className={
-                  "h-11 cursor-pointer border-b border-line transition-colors hover:bg-inset " +
-                  (i % 2 === 1 ? "bg-inset/40" : "") +
-                  (e.archived ? " opacity-60" : "")
+                  "h-11 cursor-pointer border-b border-line transition-colors hover:bg-elevated " +
+                  (i % 2 === 1 ? "bg-elevated/40" : "") +
+                  (e.archived ? " opacity-70" : "")
                 }
               >
                 <td className="px-3 py-2" onClick={(ev) => ev.stopPropagation()}>
@@ -996,19 +999,19 @@ function DesktopTable({
                     className="h-3.5 w-3.5 accent-accent"
                   />
                 </td>
-                <td className="max-w-[220px] truncate px-3 py-2 font-semibold text-ink">
+                <td className="max-w-[220px] truncate px-3 py-2 font-bold text-fg">
                   {e.vendor || e.name}
                 </td>
-                <td className="px-3 py-2 text-ink-2">{e.category ?? "—"}</td>
-                <td className="max-w-[260px] truncate px-3 py-2 text-fg-subtle">{e.notes ?? "—"}</td>
-                <td className="px-3 py-2 text-right font-bold tabular-nums text-ink">{usdCents(e.amount)}</td>
-                <td className="px-3 py-2 text-ink-2">{e.card ?? "—"}</td>
+                <td className="px-3 py-2 font-medium text-fg">{e.category ?? "—"}</td>
+                <td className="max-w-[260px] truncate px-3 py-2 font-medium text-fg-muted">{e.notes ?? "—"}</td>
+                <td className="px-3 py-2 text-right font-bold tabular-nums text-fg">{usdCents(e.amount)}</td>
+                <td className="px-3 py-2 font-medium text-fg">{e.card ?? "—"}</td>
                 <td className="px-3 py-2">
                   <StatusTag tone={FREQUENCY_TONE[e.frequency]} hideDot>
                     {FREQUENCY_LABEL[e.frequency]}
                   </StatusTag>
                 </td>
-                <td className="px-3 py-2 text-ink-2">
+                <td className="px-3 py-2 font-semibold text-fg">
                   {e.nextChargeLabel ?? "—"}
                   {e.skipNextDate ? (
                     <span className="ml-1 text-[10px] font-bold uppercase text-warn">skipped</span>
@@ -1063,17 +1066,17 @@ function MobileCards({
           key={e.id}
           onClick={() => onOpen(e)}
           className={
-            "rounded-md border border-line bg-card p-3.5 shadow-e1" + (e.archived ? " opacity-60" : "")
+            "rounded-md border border-line-strong bg-card p-3.5 shadow-e1" + (e.archived ? " opacity-70" : "")
           }
         >
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <div className="truncate text-[14.5px] font-bold text-ink">{e.vendor || e.name}</div>
-              <div className="mt-0.5 text-[12px] text-fg-subtle">{e.category ?? "No category"}</div>
+              <div className="truncate text-[14.5px] font-bold text-fg">{e.vendor || e.name}</div>
+              <div className="mt-0.5 text-[12px] font-semibold text-fg-muted">{e.category ?? "No category"}</div>
             </div>
             <div className="flex shrink-0 items-center gap-1">
               <div className="text-right">
-                <div className="text-[16px] font-bold tabular-nums text-ink">{usdCents(e.amount)}</div>
+                <div className="text-[16px] font-bold tabular-nums text-fg">{usdCents(e.amount)}</div>
               </div>
               <div onClick={(ev) => ev.stopPropagation()}>
                 <ExpenseRowMenu
@@ -1095,9 +1098,9 @@ function MobileCards({
             <StatusTag tone={e.archived ? "slate" : "green"} hideDot>
               {e.archived ? "Archived" : "Active"}
             </StatusTag>
-            {e.card ? <span className="text-[11.5px] text-fg-subtle">{e.card}</span> : null}
+            {e.card ? <span className="text-[11.5px] font-semibold text-fg-muted">{e.card}</span> : null}
           </div>
-          <div className="mt-1.5 text-[12px] text-fg-muted">
+          <div className="mt-1.5 text-[12px] font-semibold text-fg-muted">
             {e.nextChargeLabel ? `Next ${e.nextChargeLabel}` : chargeScheduleLabel(e)}
             {e.skipNextDate ? <span className="ml-1 font-bold uppercase text-warn">skipped</span> : null}
           </div>
@@ -1112,10 +1115,10 @@ function MobileCards({
 function EmptyState({ onAdd }: { onAdd: () => void }) {
   return (
     <div className="rounded-md border border-dashed border-line-strong bg-card px-6 py-14 text-center shadow-e1">
-      <span className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-full bg-inset text-ink-3">
+      <span className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-full bg-elevated text-fg">
         <IconInbox className="h-5 w-5" />
       </span>
-      <div className="mt-3.5 text-[15px] font-semibold text-fg">No expenses yet</div>
+      <div className="mt-3.5 text-[15px] font-bold text-fg">No expenses yet</div>
       <p className="mx-auto mt-1.5 max-w-xs text-[13px] leading-relaxed text-fg-muted">
         Add the truck payment, insurance, subscriptions — whatever charges on
         a schedule — to start tracking them here.

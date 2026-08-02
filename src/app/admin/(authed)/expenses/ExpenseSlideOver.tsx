@@ -4,6 +4,7 @@ import { useActionState, useEffect, useState, useTransition } from "react";
 import { Button } from "@/components/ui/Button";
 import { StatusTag } from "@/components/ui/StatusTag";
 import { field } from "@/components/ui/styles";
+import { LABEL } from "./formLabel";
 import { IconClock, IconReceipt, IconX } from "./icons";
 import { createExpense, createExpenseAccount, getExpenseActivity, updateExpense } from "./actions";
 import {
@@ -168,7 +169,7 @@ export function ExpenseSlideOver({
         <form action={action} className="flex min-h-0 flex-1 flex-col">
           <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
             <div>
-              <label className={field.label}>
+              <label className={LABEL}>
                 Vendor<span className="text-bad"> *</span>
               </label>
               <input
@@ -183,11 +184,11 @@ export function ExpenseSlideOver({
 
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className={field.label}>
+                <label className={LABEL}>
                   Amount<span className="text-bad"> *</span>
                 </label>
                 <div className="relative">
-                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[14px] text-ink-3">
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[14px] font-semibold text-fg-muted">
                     $
                   </span>
                   <input
@@ -202,7 +203,7 @@ export function ExpenseSlideOver({
                 </div>
               </div>
               <div>
-                <label className={field.label}>Category</label>
+                <label className={LABEL}>Category</label>
                 <select
                   name="category"
                   value={category}
@@ -223,7 +224,7 @@ export function ExpenseSlideOver({
             </div>
 
             <div>
-              <label className={field.label}>Payment method</label>
+              <label className={LABEL}>Payment method</label>
               {accounts.length > 0 ? (
                 <select
                   name="card"
@@ -250,7 +251,7 @@ export function ExpenseSlideOver({
                   <option value={ADD_CARD_VALUE}>+ Add payment method…</option>
                 </select>
               ) : !addingCard ? (
-                <div className="flex h-10 items-center justify-between rounded-md border border-dashed border-line-strong bg-card px-3 text-[12.5px] text-fg-subtle">
+                <div className="flex h-10 items-center justify-between rounded-md border border-dashed border-line-strong bg-card px-3 text-[12.5px] font-semibold text-fg">
                   No payment methods yet.
                   <button
                     type="button"
@@ -310,7 +311,7 @@ export function ExpenseSlideOver({
             </div>
 
             <div>
-              <label className={field.label}>Frequency</label>
+              <label className={LABEL}>Frequency</label>
               <div className="flex flex-wrap gap-1.5">
                 {FREQUENCIES.map((f) => (
                   <label
@@ -319,7 +320,7 @@ export function ExpenseSlideOver({
                       "cursor-pointer rounded-md border px-2.5 py-1.5 text-[12px] font-bold transition-colors " +
                       (frequency === f
                         ? "border-accent bg-accent text-white"
-                        : "border-line-strong bg-card text-ink-2 hover:bg-inset")
+                        : "border-line-strong bg-card text-fg hover:border-accent hover:bg-elevated")
                     }
                   >
                     <input
@@ -338,7 +339,7 @@ export function ExpenseSlideOver({
 
             {frequency === "weekly" ? (
               <div>
-                <label className={field.label}>Day of week</label>
+                <label className={LABEL}>Day of week</label>
                 <select
                   name="day_of_week"
                   defaultValue={expense?.dayOfWeek ?? ""}
@@ -354,7 +355,7 @@ export function ExpenseSlideOver({
               </div>
             ) : frequency === "onetime" ? (
               <div>
-                <label className={field.label}>Start date</label>
+                <label className={LABEL}>Start date</label>
                 <input
                   name="start_date"
                   type="date"
@@ -364,7 +365,7 @@ export function ExpenseSlideOver({
               </div>
             ) : (
               <div>
-                <label className={field.label}>Charges on</label>
+                <label className={LABEL}>Charges on</label>
                 <input
                   name="day_of_month"
                   type="number"
@@ -380,8 +381,8 @@ export function ExpenseSlideOver({
 
             {frequency !== "onetime" ? (
               <div>
-                <label className={field.label}>
-                  Start date <span className="text-ink-3">· optional</span>
+                <label className={LABEL}>
+                  Start date <span className="text-fg-subtle">· optional</span>
                 </label>
                 <input
                   name="start_date"
@@ -393,13 +394,13 @@ export function ExpenseSlideOver({
             ) : null}
 
             {isEdit ? (
-              <div className="rounded-md border border-line bg-inset px-3 py-2.5">
-                <div className={field.label + " mb-1"}>Next charge</div>
+              <div className="rounded-md border border-line-strong bg-elevated px-3 py-2.5">
+                <div className={LABEL + " mb-1"}>Next charge</div>
                 <div className="flex items-center gap-2">
                   <StatusTag tone={FREQUENCY_TONE[frequency]} hideDot>
                     {FREQUENCY_LABEL[frequency]}
                   </StatusTag>
-                  <span className="text-[13px] font-semibold text-ink">
+                  <span className="text-[13px] font-bold text-fg">
                     {expense?.nextChargeLabel ?? chargeScheduleLabel(expense!)}
                   </span>
                   {expense?.skipNextDate ? (
@@ -412,8 +413,8 @@ export function ExpenseSlideOver({
             ) : null}
 
             <div>
-              <label className={field.label}>
-                Tags <span className="text-ink-3">· comma-separated</span>
+              <label className={LABEL}>
+                Tags <span className="text-fg-subtle">· comma-separated</span>
               </label>
               <input
                 name="tags"
@@ -424,7 +425,7 @@ export function ExpenseSlideOver({
               />
             </div>
 
-            <label className="flex h-10 w-fit items-center gap-2 rounded-md border border-line-strong bg-card px-3 text-[13px] font-semibold text-ink">
+            <label className="flex h-10 w-fit items-center gap-2 rounded-md border border-line-strong bg-card px-3 text-[13px] font-bold text-fg">
               <input
                 type="checkbox"
                 name="autopay"
@@ -435,8 +436,8 @@ export function ExpenseSlideOver({
             </label>
 
             <div>
-              <label className={field.label}>
-                Notes <span className="text-ink-3">· optional</span>
+              <label className={LABEL}>
+                Notes <span className="text-fg-subtle">· optional</span>
               </label>
               <textarea
                 name="notes"
@@ -448,7 +449,7 @@ export function ExpenseSlideOver({
             </div>
 
             <Section title="Attachments" icon={<IconReceipt className="h-3.5 w-3.5" />}>
-              <p className="text-[12px] text-fg-subtle">
+              <p className="text-[12px] font-medium text-fg-muted">
                 No attachments yet. File uploads for receipts are planned for a
                 follow-up pass.
               </p>
@@ -505,7 +506,7 @@ function Section({
 }) {
   return (
     <div className="border-t border-line pt-3.5">
-      <div className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.1em] text-fg-subtle">
+      <div className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.1em] text-fg">
         {icon}
         {title}
       </div>
@@ -528,16 +529,16 @@ function ActivityList({ expenseId }: { expenseId: string }) {
   }, [expenseId]);
 
   if (items == null) {
-    return <p className="text-[12px] text-fg-subtle">Loading…</p>;
+    return <p className="text-[12px] font-medium text-fg-muted">Loading…</p>;
   }
   if (items.length === 0) {
-    return <p className="text-[12px] text-fg-subtle">No activity yet.</p>;
+    return <p className="text-[12px] font-medium text-fg-muted">No activity yet.</p>;
   }
   return (
     <ul className="space-y-2">
       {items.map((a) => (
         <li key={a.id} className="text-[12px] leading-snug">
-          <span className="font-semibold text-ink">{a.action}</span>
+          <span className="font-bold text-fg">{a.action}</span>
           {a.detail ? <span className="text-fg-muted"> — {a.detail}</span> : null}
           <div className="text-[11px] text-fg-subtle">{a.whenLabel}</div>
         </li>
