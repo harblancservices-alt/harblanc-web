@@ -1,347 +1,1222 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
+import { KPI } from "@/components/ui/Card";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { StatusTag } from "@/components/ui/StatusTag";
-import { DeleteExpenseButton } from "./DeleteExpenseButton";
-import { ExpenseAccountsDialog } from "./ExpenseAccountsDialog";
-import { ExpenseFormDialog } from "./ExpenseFormDialog";
+import { field } from "@/components/ui/styles";
 import {
-  chargeScheduleLabel,
+  archiveExpense,
+  bulkArchiveExpenses,
+  bulkChangeCategory,
+  bulkDeleteExpenses,
+  deleteExpense,
+  duplicateExpense,
+  importExpenses,
+  restoreExpense,
+  skipNextPayment,
+  type ImportExpenseRow,
+} from "./actions";
+import { ExpenseRowMenu } from "./ExpenseRowMenu";
+import { ExpenseSlideOver } from "./ExpenseSlideOver";
+import { PaymentMethodsDialog } from "./PaymentMethodsDialog";
+import {
+  CATEGORIES,
+  FREQUENCIES,
   FREQUENCY_LABEL,
+  FREQUENCY_TONE,
+  chargeScheduleLabel,
+  isFrequency,
   type ExpenseItem,
   type ExpensesData,
 } from "./types";
+import {
+  IconChevronDown,
+  IconDownload,
+  IconFilter,
+  IconInbox,
+  IconPlus,
+  IconSearch,
+  IconUpload,
+  IconX,
+} from "./icons";
 
 /**
- * Expenses — restyled to match the Dispatch app's premium card system (the
- * same rounded-2xl / shadow-e2 / bg-card language as the Load board's
- * LoadCard, the trips list's TripCard, and Receivables' InvoiceCard) so this
- * page reads as native Dispatch chrome rather than a bolted-on form screen.
+ * Expenses — QuickBooks-style ledger. A dense sortable table is the primary
+ * surface (toolbar + KPI strip above it, a right-side slide-over for detail/
+ * edit, a kebab menu per row for secondary actions) instead of the previous
+ * stacked-card layout. Manual tracker still — nothing here is linked to a
+ * bank or card and no money moves.
  *
- * THEME SAFETY, same rule the other premium cards follow: card is a THEMED
- * surface, so only text-fg/-muted/-subtle sit on it directly. Anything that
- * needs a fixed tint (the schedule/category/card pills) lives on a FIXED
- * surface (bg-inset, bg-steel-bg, …) with matching FIXED text (text-ink*,
- * text-steel, …) — see ReceivablesView's header comment for the long form.
+ * THEME SAFETY: card is a THEMED surface, so only text-fg/-muted/-subtle sit
+ * on it directly; fixed tints (frequency/status pills) use the V2 status
+ * tokens (bg-*-bg/text-*), which are theme-independent by design.
  */
 
+type Status = "all" | "active" | "archived";
+type SortKey = "vendor" | "category" | "amount" | "frequency" | "nextCharge" | "status";
+type Dir = "asc" | "desc";
+
+type Filters = {
+  category: string;
+  vendor: string;
+  paymentMethod: string;
+  status: Status;
+  dateFrom: string;
+  dateTo: string;
+  recurringOnly: boolean;
+};
+
+const EMPTY_FILTERS: Filters = {
+  category: "",
+  vendor: "",
+  paymentMethod: "",
+  status: "all",
+  dateFrom: "",
+  dateTo: "",
+  recurringOnly: false,
+};
+
+type SavedFilter = { name: string; search: string; filters: Filters };
+const SAVED_FILTERS_KEY = "hb-expenses-saved-filters";
+
+const PAGE_SIZE = 25;
+
 export function ExpensesView({ data }: { data: ExpensesData }) {
-  const [dialog, setDialog] = useState<"new" | ExpenseItem | null>(null);
-  const [cardsOpen, setCardsOpen] = useState(false);
+  const router = useRouter();
+  const [panel, setPanel] = useState<"new" | ExpenseItem | null>(null);
+  const [methodsOpen, setMethodsOpen] = useState(false);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+
+  const [search, setSearch] = useState("");
+  const [filters, setFilters] = useState<Filters>(EMPTY_FILTERS);
+  const [sort, setSort] = useState<{ key: SortKey; dir: Dir }>({ key: "nextCharge", dir: "asc" });
+  const [page, setPage] = useState(0);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [busy, startBusy] = useTransition();
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [savedFilters, setSavedFilters] = useState<SavedFilter[]>([]);
+  const [savedFiltersOpen, setSavedFiltersOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [importing, setImporting] = useState(false);
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(SAVED_FILTERS_KEY);
+      if (raw) setSavedFilters(JSON.parse(raw));
+    } catch {
+      // ignore malformed storage
+    }
+  }, []);
+
+  useEffect(() => {
+    setPage(0);
+  }, [search, filters]);
+
+  function refresh() {
+    startBusy(() => router.refresh());
+  }
+
+  function runAction(fn: () => Promise<void>) {
+    setActionError(null);
+    startBusy(async () => {
+      try {
+        await fn();
+        router.refresh();
+      } catch (e) {
+        setActionError(e instanceof Error ? e.message : "Something went wrong.");
+      }
+    });
+  }
+
+  const vendors = useMemo(() => {
+    const set = new Set<string>();
+    for (const e of data.expenses) set.add(e.vendor || e.name);
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [data.expenses]);
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return data.expenses.filter((e) => {
+      if (q) {
+        const hay = `${e.vendor ?? ""} ${e.name} ${e.notes ?? ""} ${e.category ?? ""}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      if (filters.category && e.category !== filters.category) return false;
+      if (filters.vendor && (e.vendor || e.name) !== filters.vendor) return false;
+      if (filters.paymentMethod && (e.card ?? "") !== filters.paymentMethod) return false;
+      if (filters.status === "active" && e.archived) return false;
+      if (filters.status === "archived" && !e.archived) return false;
+      if (filters.recurringOnly && e.frequency === "onetime") return false;
+      if (filters.dateFrom && (!e.nextChargeDateIso || e.nextChargeDateIso < filters.dateFrom)) return false;
+      if (filters.dateTo && (!e.nextChargeDateIso || e.nextChargeDateIso > filters.dateTo)) return false;
+      return true;
+    });
+  }, [data.expenses, search, filters]);
+
+  const sorted = useMemo(() => {
+    const dir = sort.dir === "asc" ? 1 : -1;
+    const copy = [...filtered];
+    copy.sort((a, b) => {
+      switch (sort.key) {
+        case "vendor":
+          return dir * (a.vendor || a.name).localeCompare(b.vendor || b.name);
+        case "category":
+          return dir * (a.category ?? "").localeCompare(b.category ?? "");
+        case "amount":
+          return dir * (a.amount - b.amount);
+        case "frequency":
+          return dir * FREQUENCIES.indexOf(a.frequency) - dir * FREQUENCIES.indexOf(b.frequency);
+        case "status":
+          return dir * (Number(a.archived) - Number(b.archived));
+        case "nextCharge": {
+          const av = a.nextChargeDateIso ?? "9999-99-99";
+          const bv = b.nextChargeDateIso ?? "9999-99-99";
+          return dir * av.localeCompare(bv);
+        }
+        default:
+          return 0;
+      }
+    });
+    return copy;
+  }, [filtered, sort]);
+
+  const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const clampedPage = Math.min(page, pageCount - 1);
+  const paged = sorted.slice(clampedPage * PAGE_SIZE, clampedPage * PAGE_SIZE + PAGE_SIZE);
+
+  const activeFilterCount =
+    (filters.category ? 1 : 0) +
+    (filters.vendor ? 1 : 0) +
+    (filters.paymentMethod ? 1 : 0) +
+    (filters.status !== "all" ? 1 : 0) +
+    (filters.dateFrom || filters.dateTo ? 1 : 0) +
+    (filters.recurringOnly ? 1 : 0);
+
+  function toggleSort(key: SortKey) {
+    setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
+  }
+
+  function toggleSelected(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    setSelected((prev) => {
+      if (prev.size === sorted.length) return new Set();
+      return new Set(sorted.map((e) => e.id));
+    });
+  }
+
+  function exportCsv(rows: ExpenseItem[]) {
+    const header = [
+      "Vendor",
+      "Category",
+      "Description",
+      "Amount",
+      "Payment Method",
+      "Frequency",
+      "Next Charge",
+      "Status",
+      "Start Date",
+      "Tags",
+    ];
+    const lines = [header.join(",")];
+    for (const e of rows) {
+      const cells = [
+        e.vendor || e.name,
+        e.category ?? "",
+        e.notes ?? "",
+        e.amount.toFixed(2),
+        e.card ?? "",
+        FREQUENCY_LABEL[e.frequency],
+        e.nextChargeDateIso ?? "",
+        e.archived ? "Archived" : "Active",
+        e.startDate ?? "",
+        e.tags.join("; "),
+      ];
+      lines.push(cells.map(csvEscape).join(","));
+    }
+    downloadFile(
+      `expenses-${new Date().toISOString().slice(0, 10)}.csv`,
+      lines.join("\n"),
+      "text/csv;charset=utf-8",
+    );
+  }
+
+  function handleImportFile(file: File) {
+    setImporting(true);
+    setActionError(null);
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const rows = parseImportCsv(String(reader.result ?? ""));
+        if (rows.length === 0) throw new Error("No valid rows found in that file.");
+        startBusy(async () => {
+          const res = await importExpenses(rows);
+          if (!res.ok) setActionError(res.reason);
+          else router.refresh();
+          setImporting(false);
+        });
+      } catch (e) {
+        setActionError(e instanceof Error ? e.message : "Could not read that CSV file.");
+        setImporting(false);
+      }
+    };
+    reader.onerror = () => {
+      setActionError("Could not read that CSV file.");
+      setImporting(false);
+    };
+    reader.readAsText(file);
+  }
+
+  function saveCurrentFilter() {
+    const name = window.prompt("Name this filter view:");
+    if (!name || !name.trim()) return;
+    const next = [...savedFilters.filter((f) => f.name !== name.trim()), { name: name.trim(), search, filters }];
+    setSavedFilters(next);
+    window.localStorage.setItem(SAVED_FILTERS_KEY, JSON.stringify(next));
+  }
+
+  function applySavedFilter(sf: SavedFilter) {
+    setSearch(sf.search);
+    setFilters(sf.filters);
+    setSavedFiltersOpen(false);
+  }
+
+  function removeSavedFilter(name: string) {
+    const next = savedFilters.filter((f) => f.name !== name);
+    setSavedFilters(next);
+    window.localStorage.setItem(SAVED_FILTERS_KEY, JSON.stringify(next));
+  }
+
+  const selectedRows = sorted.filter((e) => selected.has(e.id));
 
   return (
     <div className="min-h-screen border-t border-line bg-canvas text-fg">
-      <div className="mx-auto w-full max-w-4xl px-4 py-5 sm:px-6 sm:py-6 lg:px-8">
+      <div className="mx-auto w-full max-w-[1400px] px-4 py-5 sm:px-6 sm:py-6 lg:px-8">
         <PageHeader
           eyebrow="Payments"
           title="Expenses"
           className="mb-4"
           actions={
             <>
-              <Button type="button" onClick={() => setCardsOpen(true)} variant="navigate">
-                Manage cards
+              <Button type="button" onClick={() => setMethodsOpen(true)} variant="navigate" size="md">
+                Payment methods
               </Button>
-              <Button type="button" onClick={() => setDialog("new")} variant="primary">
-                + Add expense
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,text/csv"
+                className="hidden"
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) handleImportFile(f);
+                  e.target.value = "";
+                }}
+              />
+              <Button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={importing}
+                variant="utility"
+                size="md"
+                leftIcon={<IconUpload className="h-3.5 w-3.5" />}
+              >
+                {importing ? "Importing…" : "Import"}
+              </Button>
+              <Button
+                type="button"
+                onClick={() => exportCsv(selectedRows.length > 0 ? selectedRows : sorted)}
+                variant="utility"
+                size="md"
+                leftIcon={<IconDownload className="h-3.5 w-3.5" />}
+              >
+                Export
+              </Button>
+              <Button type="button" onClick={() => setPanel("new")} variant="primary" size="md">
+                + New Expense
               </Button>
             </>
           }
         />
 
-        <div className="mb-4 flex items-start gap-2 rounded-xl border border-line bg-card px-3.5 py-2.5 shadow-e1">
-          <InfoIcon className="mt-0.5 h-4 w-4 shrink-0 text-fg-subtle" />
-          <p className="text-[12px] leading-snug text-fg-muted">
-            Manual tracker only — nothing here is linked to a bank or card and
-            no money moves. It&rsquo;s a hand-kept log of what charges each month.
-          </p>
+        <div className="mb-4 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+          <KPI label="This Month" value={usd(data.kpis.thisMonth)} />
+          <KPI label="Recurring" value={String(data.kpis.recurringCount)} sub="active charges" />
+          <KPI label="YTD Expenses" value={usd(data.kpis.ytd)} />
+          <KPI label="Average Monthly" value={usd(data.kpis.averageMonthly)} />
         </div>
 
-        {/* ── Summary hero — same Stripe/Mercury two-up panel Receivables uses
-            for its Outstanding Balance, just with Monthly / Annualized instead
-            of Outstanding / Aging. ── */}
-        <section className="overflow-hidden rounded-2xl border border-line bg-card shadow-e2">
-          <div className="grid gap-5 p-5 sm:grid-cols-2 sm:p-6">
-            <div className="min-w-0">
-              <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-fg-subtle">
-                Monthly Recurring
-              </div>
-              <div className="mt-2 text-[36px] font-bold leading-none tracking-[-0.02em] tabular-nums text-fg sm:text-[42px]">
-                {usd(data.monthlyTotal)}
-              </div>
-              <div className="mt-2.5 text-[13px] tabular-nums text-fg-muted">
-                {data.expenses.length} recurring charge
-                {data.expenses.length === 1 ? "" : "s"}
-              </div>
+        {actionError ? (
+          <div className="mb-3 rounded-md border border-bad bg-bad-bg px-3 py-2 text-[12.5px] font-semibold text-bad">
+            {actionError}
+          </div>
+        ) : null}
+
+        {/* ── Toolbar ── */}
+        <div className="mb-3 rounded-md border border-line bg-card p-2.5 shadow-e1">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative min-w-[180px] flex-1">
+              <IconSearch className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-ink-3" />
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search expenses…"
+                className="h-9 w-full rounded-md border border-line-strong bg-card pl-8 pr-3 text-[13px] text-ink outline-none placeholder:text-ink-3 focus:border-accent focus:ring-2 focus:ring-accent/40"
+              />
             </div>
-            <div className="min-w-0 sm:border-l sm:border-line sm:pl-6">
-              <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-fg-subtle">
-                Annualized
+
+            {/* Mobile: collapse the rest into a sheet */}
+            <button
+              type="button"
+              onClick={() => setMobileFiltersOpen(true)}
+              className="inline-flex h-9 items-center gap-1.5 rounded-md border border-line-strong bg-card px-3 text-[12.5px] font-bold text-ink sm:hidden"
+            >
+              <IconFilter className="h-3.5 w-3.5" />
+              Filters
+              {activeFilterCount > 0 ? (
+                <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[10px] text-white">
+                  {activeFilterCount}
+                </span>
+              ) : null}
+            </button>
+
+            <div className="hidden flex-wrap items-center gap-2 sm:flex">
+              <DesktopFilters
+                filters={filters}
+                setFilters={setFilters}
+                vendors={vendors}
+                accounts={data.accounts}
+              />
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setSavedFiltersOpen((v) => !v)}
+                  className="inline-flex h-9 items-center gap-1 rounded-md border border-line-strong bg-card px-2.5 text-[12px] font-bold text-ink-2 hover:bg-inset"
+                >
+                  Saved
+                  <IconChevronDown className="h-3 w-3" />
+                </button>
+                {savedFiltersOpen ? (
+                  <div className="absolute right-0 top-full z-20 mt-1 w-56 rounded-md border border-line-strong bg-card p-1.5 shadow-e3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        saveCurrentFilter();
+                        setSavedFiltersOpen(false);
+                      }}
+                      className="w-full rounded px-2 py-1.5 text-left text-[12px] font-semibold text-accent hover:bg-inset"
+                    >
+                      + Save current filters
+                    </button>
+                    {savedFilters.length > 0 ? <div className="my-1 border-t border-line" /> : null}
+                    {savedFilters.map((sf) => (
+                      <div key={sf.name} className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => applySavedFilter(sf)}
+                          className="flex-1 truncate rounded px-2 py-1.5 text-left text-[12px] text-ink hover:bg-inset"
+                        >
+                          {sf.name}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => removeSavedFilter(sf.name)}
+                          aria-label={`Remove ${sf.name}`}
+                          className="rounded p-1 text-ink-3 hover:text-bad"
+                        >
+                          <IconX className="h-3 w-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
               </div>
-              <div className="mt-2 text-[36px] font-bold leading-none tracking-[-0.02em] tabular-nums text-fg-muted sm:text-[42px]">
-                {usd(data.annualTotal)}
-              </div>
-              <div className="mt-2.5 text-[13px] text-fg-muted">Monthly total × 12</div>
+              {activeFilterCount > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setFilters(EMPTY_FILTERS)}
+                  className="text-[12px] font-semibold text-ink-3 hover:text-ink"
+                >
+                  Clear
+                </button>
+              ) : null}
             </div>
           </div>
-        </section>
-
-        <div className="mt-3 grid gap-3 sm:grid-cols-2">
-          <BreakdownCard title="By Category" items={data.byCategory} />
-          <BreakdownCard title="By Card" items={data.byCard} />
         </div>
 
-        {/* ── Expense cards ── */}
-        <div className="mt-6">
-          <div className="mb-2.5 flex items-center gap-2">
-            <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-fg-muted">
-              Recurring Charges
-            </span>
-            <span className="text-[11px] tabular-nums text-fg-subtle">
-              · {data.expenses.length}
-            </span>
+        {mobileFiltersOpen ? (
+          <MobileFilterSheet
+            filters={filters}
+            setFilters={setFilters}
+            vendors={vendors}
+            accounts={data.accounts}
+            onClose={() => setMobileFiltersOpen(false)}
+          />
+        ) : null}
+
+        {selected.size > 0 ? (
+          <BulkBar
+            count={selected.size}
+            busy={busy}
+            onClear={() => setSelected(new Set())}
+            onArchive={() => runAction(async () => bulkArchiveExpenses(Array.from(selected)))}
+            onDelete={() => {
+              if (!window.confirm(`Delete ${selected.size} expense(s)? This removes them from the tracker.`)) return;
+              runAction(async () => bulkDeleteExpenses(Array.from(selected)));
+            }}
+            onCategory={(category) => runAction(async () => bulkChangeCategory(Array.from(selected), category))}
+            onExport={() => exportCsv(selectedRows)}
+          />
+        ) : null}
+
+        {data.expenses.length === 0 ? (
+          <EmptyState onAdd={() => setPanel("new")} />
+        ) : sorted.length === 0 ? (
+          <div className="rounded-md border border-dashed border-line-strong bg-card px-6 py-10 text-center shadow-e1">
+            <p className="text-[13px] text-fg-muted">No expenses match these filters.</p>
+            <button
+              type="button"
+              onClick={() => {
+                setSearch("");
+                setFilters(EMPTY_FILTERS);
+              }}
+              className="mt-2 text-[12.5px] font-semibold text-accent hover:underline"
+            >
+              Clear filters
+            </button>
           </div>
+        ) : (
+          <>
+            <DesktopTable
+              rows={paged}
+              sort={sort}
+              onSort={toggleSort}
+              selected={selected}
+              allSelected={selected.size > 0 && selected.size === sorted.length}
+              onToggleAll={toggleSelectAll}
+              onToggleRow={toggleSelected}
+              onOpen={(e) => setPanel(e)}
+              onDuplicate={(id) => runAction(async () => duplicateExpense(id))}
+              onSkip={(id) => runAction(async () => skipNextPayment(id))}
+              onToggleArchive={(e) =>
+                runAction(async () => (e.archived ? restoreExpense(e.id) : archiveExpense(e.id)))
+              }
+              onDelete={(e) => {
+                if (!window.confirm(`Delete "${e.vendor || e.name}"? This removes it from the tracker.`)) return;
+                runAction(async () => deleteExpense(e.id));
+              }}
+            />
+            <MobileCards
+              rows={paged}
+              onOpen={(e) => setPanel(e)}
+              onDuplicate={(id) => runAction(async () => duplicateExpense(id))}
+              onSkip={(id) => runAction(async () => skipNextPayment(id))}
+              onToggleArchive={(e) =>
+                runAction(async () => (e.archived ? restoreExpense(e.id) : archiveExpense(e.id)))
+              }
+              onDelete={(e) => {
+                if (!window.confirm(`Delete "${e.vendor || e.name}"? This removes it from the tracker.`)) return;
+                runAction(async () => deleteExpense(e.id));
+              }}
+            />
 
-          {data.expenses.length === 0 ? (
-            <EmptyState />
-          ) : (
-            <div className="space-y-3">
-              {data.expenses.map((e) => (
-                <ExpenseCard key={e.id} expense={e} onEdit={() => setDialog(e)} />
-              ))}
-            </div>
-          )}
-        </div>
+            {pageCount > 1 ? (
+              <div className="mt-3 flex items-center justify-between gap-3 text-[12.5px] text-fg-muted">
+                <span>
+                  {clampedPage * PAGE_SIZE + 1}–{Math.min(sorted.length, (clampedPage + 1) * PAGE_SIZE)} of{" "}
+                  {sorted.length}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    type="button"
+                    onClick={() => setPage((p) => Math.max(0, p - 1))}
+                    disabled={clampedPage === 0}
+                    variant="navigate"
+                    size="sm"
+                  >
+                    Prev
+                  </Button>
+                  <span className="tabular-nums">
+                    {clampedPage + 1} / {pageCount}
+                  </span>
+                  <Button
+                    type="button"
+                    onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+                    disabled={clampedPage >= pageCount - 1}
+                    variant="navigate"
+                    size="sm"
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            ) : null}
+          </>
+        )}
       </div>
 
-      {dialog ? (
-        <ExpenseFormDialog
-          expense={dialog === "new" ? null : dialog}
+      {/* Mobile floating add button */}
+      <button
+        type="button"
+        onClick={() => setPanel("new")}
+        aria-label="Add expense"
+        className="fixed bottom-5 right-5 z-30 inline-flex h-14 w-14 items-center justify-center rounded-full bg-accent text-white shadow-e3 transition-colors hover:bg-accent-hover sm:hidden"
+      >
+        <IconPlus className="h-6 w-6" />
+      </button>
+
+      {panel ? (
+        <ExpenseSlideOver
+          expense={panel === "new" ? null : panel}
           accounts={data.accounts}
-          onClose={() => setDialog(null)}
-          onSaved={() => setDialog(null)}
+          onClose={() => setPanel(null)}
+          onSaved={() => {
+            setPanel(null);
+            router.refresh();
+          }}
         />
       ) : null}
 
-      {cardsOpen ? (
-        <ExpenseAccountsDialog accounts={data.accounts} onClose={() => setCardsOpen(false)} />
+      {methodsOpen ? (
+        <PaymentMethodsDialog accounts={data.accounts} onClose={() => setMethodsOpen(false)} />
       ) : null}
     </div>
   );
 }
 
-/* ── Expense card ────────────────────────────────────────────────────────
- * Same anatomy as LoadCard/InvoiceCard: identity leads (name, bold), the
- * headline figure sits shrink-wrapped on the right, a pills row carries the
- * "what's next" schedule signal (emphasized, steel) plus category/card meta
- * (neutral), then an Edit/Delete action row under a hairline. No stretched
- * navigation link — unlike a load or an invoice, an expense doesn't drill
- * into a detail page, so Edit/Delete are the whole action surface. */
-function ExpenseCard({
-  expense: e,
-  onEdit,
+/* ── Filters ─────────────────────────────────────────────────────────── */
+
+function DesktopFilters({
+  filters,
+  setFilters,
+  vendors,
+  accounts,
 }: {
-  expense: ExpenseItem;
-  onEdit: () => void;
+  filters: Filters;
+  setFilters: (f: Filters) => void;
+  vendors: string[];
+  accounts: ExpensesData["accounts"];
 }) {
+  const selectCls =
+    "h-9 rounded-md border border-line-strong bg-card px-2 text-[12.5px] text-ink outline-none focus:border-accent focus:ring-2 focus:ring-accent/40";
   return (
-    <article className="overflow-hidden rounded-2xl border border-line bg-card shadow-e2 transition-all duration-150 hover:-translate-y-0.5 hover:shadow-e3">
-      <div className="p-4 sm:p-5">
-        {/* Identity + headline amount */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <h3 className="truncate text-[18px] font-bold leading-tight tracking-[-0.01em] text-fg sm:text-[20px]">
-              {e.name}
-            </h3>
-            {e.vendor ? (
-              <p className="mt-1 truncate text-[12.5px] text-fg-muted">{e.vendor}</p>
-            ) : null}
-          </div>
-          <div className="shrink-0 text-right">
-            <div className="text-[22px] font-bold leading-none tabular-nums text-fg sm:text-[26px]">
-              {usdCents(e.amount)}
-            </div>
-            <div className="mt-1 text-[10px] font-bold uppercase tracking-[0.1em] text-fg-subtle">
-              {FREQUENCY_LABEL[e.frequency]}
-            </div>
-          </div>
-        </div>
-
-        {/* Pills — schedule leads (the "what's next" signal), then meta */}
-        <div className="mt-3.5 flex flex-wrap items-center gap-1.5">
-          <Pill tone="steel" icon={<CalendarIcon className="h-3 w-3" />}>
-            {chargeScheduleLabel(e)}
-            {e.nextChargeLabel ? (
-              <span className="opacity-70"> · Next {e.nextChargeLabel}</span>
-            ) : null}
-          </Pill>
-          {e.category ? <Pill tone="neutral">{e.category}</Pill> : null}
-          {e.card ? (
-            <Pill tone="neutral" icon={<CardIcon className="h-3 w-3" />}>
-              {e.card}
-            </Pill>
-          ) : null}
-          <StatusTag tone={e.autopay ? "green" : "amber"} hideDot>
-            {e.autopay ? "Autopay" : "Manual"}
-          </StatusTag>
-        </div>
-
-        {e.notes ? (
-          <p className="mt-2.5 truncate text-[12px] text-fg-subtle">{e.notes}</p>
-        ) : null}
-      </div>
-
-      <div className="grid grid-cols-2 gap-2 border-t border-line px-4 py-3 sm:px-5">
-        <Button type="button" onClick={onEdit} variant="edit" size="md" fullWidth>
-          Edit
-        </Button>
-        <DeleteExpenseButton id={e.id} name={e.name} size="md" fullWidth />
-      </div>
-    </article>
+    <>
+      <input
+        type="date"
+        value={filters.dateFrom}
+        onChange={(e) => setFilters({ ...filters, dateFrom: e.target.value })}
+        className={selectCls}
+        aria-label="Date from"
+      />
+      <span className="text-[12px] text-ink-3">to</span>
+      <input
+        type="date"
+        value={filters.dateTo}
+        onChange={(e) => setFilters({ ...filters, dateTo: e.target.value })}
+        className={selectCls}
+        aria-label="Date to"
+      />
+      <select
+        value={filters.category}
+        onChange={(e) => setFilters({ ...filters, category: e.target.value })}
+        className={selectCls}
+      >
+        <option value="">All categories</option>
+        {CATEGORIES.map((c) => (
+          <option key={c} value={c}>
+            {c}
+          </option>
+        ))}
+      </select>
+      <select
+        value={filters.vendor}
+        onChange={(e) => setFilters({ ...filters, vendor: e.target.value })}
+        className={selectCls}
+      >
+        <option value="">All vendors</option>
+        {vendors.map((v) => (
+          <option key={v} value={v}>
+            {v}
+          </option>
+        ))}
+      </select>
+      <select
+        value={filters.paymentMethod}
+        onChange={(e) => setFilters({ ...filters, paymentMethod: e.target.value })}
+        className={selectCls}
+      >
+        <option value="">All payment methods</option>
+        {accounts.map((a) => (
+          <option key={a.id} value={a.name}>
+            {a.name}
+          </option>
+        ))}
+      </select>
+      <select
+        value={filters.status}
+        onChange={(e) => setFilters({ ...filters, status: e.target.value as Status })}
+        className={selectCls}
+      >
+        <option value="all">All statuses</option>
+        <option value="active">Active</option>
+        <option value="archived">Archived</option>
+      </select>
+      <label className="flex h-9 items-center gap-1.5 rounded-md border border-line-strong bg-card px-2.5 text-[12.5px] font-semibold text-ink">
+        <input
+          type="checkbox"
+          checked={filters.recurringOnly}
+          onChange={(e) => setFilters({ ...filters, recurringOnly: e.target.checked })}
+          className="h-3.5 w-3.5 accent-accent"
+        />
+        Recurring only
+      </label>
+    </>
   );
 }
 
-/** One metadata chip. `steel` for the identifying/emphasized signal (the
- *  schedule), `neutral` for plain meta (category, card) — the same two
- *  tones LoadCard's Pill and InvoiceCard's identity pills use. */
-function Pill({
-  tone,
-  icon,
-  children,
+function MobileFilterSheet({
+  filters,
+  setFilters,
+  vendors,
+  accounts,
+  onClose,
 }: {
-  tone: "steel" | "neutral";
-  icon?: React.ReactNode;
-  children: React.ReactNode;
+  filters: Filters;
+  setFilters: (f: Filters) => void;
+  vendors: string[];
+  accounts: ExpensesData["accounts"];
+  onClose: () => void;
 }) {
+  const [draft, setDraft] = useState(filters);
   return (
-    <span
-      className={
-        "inline-flex max-w-full items-center gap-1 rounded-md px-2 py-1 text-[11.5px] font-bold tabular-nums leading-none " +
-        (tone === "steel"
-          ? "bg-steel-bg text-steel"
-          : "bg-inset font-semibold text-ink-2")
-      }
-    >
-      {icon ? <span className="shrink-0">{icon}</span> : null}
-      <span className="min-w-0 truncate">{children}</span>
-    </span>
-  );
-}
-
-/** One tile of a category/card breakdown — the same bg-inset tile Receivables
- *  uses for its aging-bucket summary, inside a card matching KpiGrid's tiles. */
-function BreakdownCard({
-  title,
-  items,
-}: {
-  title: string;
-  items: ReadonlyArray<{ label: string; total: number }>;
-}) {
-  return (
-    <div className="rounded-2xl border border-line bg-card p-4 shadow-e2 sm:p-5">
-      <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-fg-subtle">
-        {title}
-      </div>
-      {items.length === 0 ? (
-        <div className="mt-3 text-[12.5px] text-fg-muted">Nothing yet.</div>
-      ) : (
-        <div className="mt-3 space-y-1.5">
-          {items.slice(0, 5).map((it) => (
-            <div
-              key={it.label}
-              className="flex items-center justify-between gap-2 rounded-xl bg-inset px-3 py-2 shadow-e1"
+    <div className="fixed inset-0 z-50 flex items-end bg-black/50 sm:hidden" onClick={onClose}>
+      <div
+        className="max-h-[85vh] w-full overflow-y-auto rounded-t-xl border-t border-line-strong bg-card p-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-3 flex items-center justify-between">
+          <span className="text-[13px] font-bold uppercase tracking-[0.1em] text-ink">Filters</span>
+          <button type="button" onClick={onClose} aria-label="Close">
+            <IconX className="h-5 w-5 text-ink-3" />
+          </button>
+        </div>
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className={field.label}>From</label>
+              <input
+                type="date"
+                value={draft.dateFrom}
+                onChange={(e) => setDraft({ ...draft, dateFrom: e.target.value })}
+                className={field.input}
+              />
+            </div>
+            <div>
+              <label className={field.label}>To</label>
+              <input
+                type="date"
+                value={draft.dateTo}
+                onChange={(e) => setDraft({ ...draft, dateTo: e.target.value })}
+                className={field.input}
+              />
+            </div>
+          </div>
+          <div>
+            <label className={field.label}>Category</label>
+            <select
+              value={draft.category}
+              onChange={(e) => setDraft({ ...draft, category: e.target.value })}
+              className={field.select}
             >
-              <span className="min-w-0 truncate text-[12.5px] font-semibold text-ink-2">
-                {it.label}
-              </span>
-              <span className="shrink-0 text-[13px] font-bold tabular-nums text-ink">
-                {usd(it.total)}
-              </span>
-            </div>
-          ))}
+              <option value="">All categories</option>
+              {CATEGORIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={field.label}>Vendor</label>
+            <select
+              value={draft.vendor}
+              onChange={(e) => setDraft({ ...draft, vendor: e.target.value })}
+              className={field.select}
+            >
+              <option value="">All vendors</option>
+              {vendors.map((v) => (
+                <option key={v} value={v}>
+                  {v}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={field.label}>Payment method</label>
+            <select
+              value={draft.paymentMethod}
+              onChange={(e) => setDraft({ ...draft, paymentMethod: e.target.value })}
+              className={field.select}
+            >
+              <option value="">All payment methods</option>
+              {accounts.map((a) => (
+                <option key={a.id} value={a.name}>
+                  {a.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className={field.label}>Status</label>
+            <select
+              value={draft.status}
+              onChange={(e) => setDraft({ ...draft, status: e.target.value as Status })}
+              className={field.select}
+            >
+              <option value="all">All statuses</option>
+              <option value="active">Active</option>
+              <option value="archived">Archived</option>
+            </select>
+          </div>
+          <label className="flex h-10 w-fit items-center gap-2 rounded-md border border-line-strong bg-card px-3 text-[13px] font-semibold text-ink">
+            <input
+              type="checkbox"
+              checked={draft.recurringOnly}
+              onChange={(e) => setDraft({ ...draft, recurringOnly: e.target.checked })}
+              className="h-4 w-4 accent-accent"
+            />
+            Recurring only
+          </label>
         </div>
-      )}
+        <div className="mt-4 flex gap-2">
+          <Button type="button" onClick={() => setDraft(EMPTY_FILTERS)} variant="cancel" fullWidth>
+            Reset
+          </Button>
+          <Button
+            type="button"
+            onClick={() => {
+              setFilters(draft);
+              onClose();
+            }}
+            variant="primary"
+            fullWidth
+          >
+            Apply
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
 
-function EmptyState() {
+/* ── Bulk action bar ─────────────────────────────────────────────────── */
+
+function BulkBar({
+  count,
+  busy,
+  onClear,
+  onArchive,
+  onDelete,
+  onCategory,
+  onExport,
+}: {
+  count: number;
+  busy: boolean;
+  onClear: () => void;
+  onArchive: () => void;
+  onDelete: () => void;
+  onCategory: (category: string) => void;
+  onExport: () => void;
+}) {
+  const [category, setCategory] = useState("");
   return (
-    <div className="rounded-2xl border border-dashed border-line-strong bg-card px-6 py-12 text-center shadow-e1">
-      <span className="mx-auto inline-flex h-11 w-11 items-center justify-center rounded-full bg-steel-bg text-steel">
-        <CalendarIcon className="h-5 w-5" />
-      </span>
-      <div className="mt-3.5 text-[15px] font-semibold text-fg">
-        No recurring expenses logged yet
+    <div className="mb-3 flex flex-wrap items-center gap-2 rounded-md border border-accent bg-accent/5 px-3 py-2">
+      <span className="text-[12.5px] font-bold text-ink">{count} selected</span>
+      <div className="ml-auto flex flex-wrap items-center gap-1.5">
+        <select
+          value={category}
+          onChange={(e) => {
+            setCategory(e.target.value);
+            if (e.target.value) {
+              onCategory(e.target.value);
+              setCategory("");
+            }
+          }}
+          disabled={busy}
+          className="h-8 rounded-md border border-line-strong bg-card px-2 text-[12px] text-ink outline-none"
+        >
+          <option value="">Change category…</option>
+          {CATEGORIES.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
+        <Button type="button" onClick={onExport} disabled={busy} variant="utility" size="sm">
+          Export
+        </Button>
+        <Button type="button" onClick={onArchive} disabled={busy} variant="edit" size="sm">
+          Archive
+        </Button>
+        <Button type="button" onClick={onDelete} disabled={busy} variant="destructive" size="sm">
+          Delete
+        </Button>
+        <Button type="button" onClick={onClear} disabled={busy} variant="cancel" size="sm">
+          Clear
+        </Button>
       </div>
+    </div>
+  );
+}
+
+/* ── Desktop table ───────────────────────────────────────────────────── */
+
+function SortHead({
+  label,
+  active,
+  dir,
+  onClick,
+  align = "left",
+}: {
+  label: string;
+  active: boolean;
+  dir: Dir;
+  onClick: () => void;
+  align?: "left" | "right";
+}) {
+  return (
+    <th
+      scope="col"
+      aria-sort={active ? (dir === "asc" ? "ascending" : "descending") : "none"}
+      className={
+        "px-3 py-2 text-[11px] font-bold uppercase tracking-[0.06em] text-ink-3 border-b-2 border-line-strong " +
+        (align === "right" ? "text-right" : "text-left")
+      }
+    >
+      <button
+        type="button"
+        onClick={onClick}
+        className={
+          "inline-flex items-center gap-1 hover:text-ink " + (align === "right" ? "flex-row-reverse" : "")
+        }
+      >
+        {label}
+        <span aria-hidden className={active ? "text-accent" : "text-transparent"}>
+          {active && dir === "asc" ? "▲" : "▼"}
+        </span>
+      </button>
+    </th>
+  );
+}
+
+function DesktopTable({
+  rows,
+  sort,
+  onSort,
+  selected,
+  allSelected,
+  onToggleAll,
+  onToggleRow,
+  onOpen,
+  onDuplicate,
+  onSkip,
+  onToggleArchive,
+  onDelete,
+}: {
+  rows: ExpenseItem[];
+  sort: { key: SortKey; dir: Dir };
+  onSort: (key: SortKey) => void;
+  selected: Set<string>;
+  allSelected: boolean;
+  onToggleAll: () => void;
+  onToggleRow: (id: string) => void;
+  onOpen: (e: ExpenseItem) => void;
+  onDuplicate: (id: string) => void;
+  onSkip: (id: string) => void;
+  onToggleArchive: (e: ExpenseItem) => void;
+  onDelete: (e: ExpenseItem) => void;
+}) {
+  return (
+    <div className="hidden overflow-hidden rounded-md border border-line bg-card shadow-e1 sm:block">
+      <div className="max-h-[70vh] overflow-auto">
+        <table className="w-full border-collapse text-[13px] text-ink">
+          <thead className="sticky top-0 z-10 bg-inset">
+            <tr>
+              <th className="w-9 border-b-2 border-line-strong px-3 py-2">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  onChange={onToggleAll}
+                  aria-label="Select all"
+                  className="h-3.5 w-3.5 accent-accent"
+                />
+              </th>
+              <SortHead label="Vendor" active={sort.key === "vendor"} dir={sort.dir} onClick={() => onSort("vendor")} />
+              <SortHead label="Category" active={sort.key === "category"} dir={sort.dir} onClick={() => onSort("category")} />
+              <th className="border-b-2 border-line-strong px-3 py-2 text-left text-[11px] font-bold uppercase tracking-[0.06em] text-ink-3">
+                Description
+              </th>
+              <SortHead label="Amount" active={sort.key === "amount"} dir={sort.dir} onClick={() => onSort("amount")} align="right" />
+              <th className="border-b-2 border-line-strong px-3 py-2 text-left text-[11px] font-bold uppercase tracking-[0.06em] text-ink-3">
+                Payment method
+              </th>
+              <SortHead label="Frequency" active={sort.key === "frequency"} dir={sort.dir} onClick={() => onSort("frequency")} />
+              <SortHead label="Next charge" active={sort.key === "nextCharge"} dir={sort.dir} onClick={() => onSort("nextCharge")} />
+              <SortHead label="Status" active={sort.key === "status"} dir={sort.dir} onClick={() => onSort("status")} />
+              <th className="w-10 border-b-2 border-line-strong px-2 py-2" />
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((e, i) => (
+              <tr
+                key={e.id}
+                onClick={() => onOpen(e)}
+                className={
+                  "h-11 cursor-pointer border-b border-line transition-colors hover:bg-inset " +
+                  (i % 2 === 1 ? "bg-inset/40" : "") +
+                  (e.archived ? " opacity-60" : "")
+                }
+              >
+                <td className="px-3 py-2" onClick={(ev) => ev.stopPropagation()}>
+                  <input
+                    type="checkbox"
+                    checked={selected.has(e.id)}
+                    onChange={() => onToggleRow(e.id)}
+                    aria-label={`Select ${e.vendor || e.name}`}
+                    className="h-3.5 w-3.5 accent-accent"
+                  />
+                </td>
+                <td className="max-w-[220px] truncate px-3 py-2 font-semibold text-ink">
+                  {e.vendor || e.name}
+                </td>
+                <td className="px-3 py-2 text-ink-2">{e.category ?? "—"}</td>
+                <td className="max-w-[260px] truncate px-3 py-2 text-fg-subtle">{e.notes ?? "—"}</td>
+                <td className="px-3 py-2 text-right font-bold tabular-nums text-ink">{usdCents(e.amount)}</td>
+                <td className="px-3 py-2 text-ink-2">{e.card ?? "—"}</td>
+                <td className="px-3 py-2">
+                  <StatusTag tone={FREQUENCY_TONE[e.frequency]} hideDot>
+                    {FREQUENCY_LABEL[e.frequency]}
+                  </StatusTag>
+                </td>
+                <td className="px-3 py-2 text-ink-2">
+                  {e.nextChargeLabel ?? "—"}
+                  {e.skipNextDate ? (
+                    <span className="ml-1 text-[10px] font-bold uppercase text-warn">skipped</span>
+                  ) : null}
+                </td>
+                <td className="px-3 py-2">
+                  <StatusTag tone={e.archived ? "slate" : "green"} hideDot>
+                    {e.archived ? "Archived" : "Active"}
+                  </StatusTag>
+                </td>
+                <td className="px-2 py-2 text-right" onClick={(ev) => ev.stopPropagation()}>
+                  <ExpenseRowMenu
+                    archived={e.archived}
+                    canSkip={!!e.nextChargeDateIso && !e.archived}
+                    onEdit={() => onOpen(e)}
+                    onDuplicate={() => onDuplicate(e.id)}
+                    onSkip={() => onSkip(e.id)}
+                    onToggleArchive={() => onToggleArchive(e)}
+                    onDelete={() => onDelete(e)}
+                  />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/* ── Mobile cards ────────────────────────────────────────────────────── */
+
+function MobileCards({
+  rows,
+  onOpen,
+  onDuplicate,
+  onSkip,
+  onToggleArchive,
+  onDelete,
+}: {
+  rows: ExpenseItem[];
+  onOpen: (e: ExpenseItem) => void;
+  onDuplicate: (id: string) => void;
+  onSkip: (id: string) => void;
+  onToggleArchive: (e: ExpenseItem) => void;
+  onDelete: (e: ExpenseItem) => void;
+}) {
+  return (
+    <div className="space-y-2.5 sm:hidden">
+      {rows.map((e) => (
+        <article
+          key={e.id}
+          onClick={() => onOpen(e)}
+          className={
+            "rounded-md border border-line bg-card p-3.5 shadow-e1" + (e.archived ? " opacity-60" : "")
+          }
+        >
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <div className="truncate text-[14.5px] font-bold text-ink">{e.vendor || e.name}</div>
+              <div className="mt-0.5 text-[12px] text-fg-subtle">{e.category ?? "No category"}</div>
+            </div>
+            <div className="flex shrink-0 items-center gap-1">
+              <div className="text-right">
+                <div className="text-[16px] font-bold tabular-nums text-ink">{usdCents(e.amount)}</div>
+              </div>
+              <div onClick={(ev) => ev.stopPropagation()}>
+                <ExpenseRowMenu
+                  archived={e.archived}
+                  canSkip={!!e.nextChargeDateIso && !e.archived}
+                  onEdit={() => onOpen(e)}
+                  onDuplicate={() => onDuplicate(e.id)}
+                  onSkip={() => onSkip(e.id)}
+                  onToggleArchive={() => onToggleArchive(e)}
+                  onDelete={() => onDelete(e)}
+                />
+              </div>
+            </div>
+          </div>
+          <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+            <StatusTag tone={FREQUENCY_TONE[e.frequency]} hideDot>
+              {FREQUENCY_LABEL[e.frequency]}
+            </StatusTag>
+            <StatusTag tone={e.archived ? "slate" : "green"} hideDot>
+              {e.archived ? "Archived" : "Active"}
+            </StatusTag>
+            {e.card ? <span className="text-[11.5px] text-fg-subtle">{e.card}</span> : null}
+          </div>
+          <div className="mt-1.5 text-[12px] text-fg-muted">
+            {e.nextChargeLabel ? `Next ${e.nextChargeLabel}` : chargeScheduleLabel(e)}
+            {e.skipNextDate ? <span className="ml-1 font-bold uppercase text-warn">skipped</span> : null}
+          </div>
+        </article>
+      ))}
+    </div>
+  );
+}
+
+/* ── Empty state ─────────────────────────────────────────────────────── */
+
+function EmptyState({ onAdd }: { onAdd: () => void }) {
+  return (
+    <div className="rounded-md border border-dashed border-line-strong bg-card px-6 py-14 text-center shadow-e1">
+      <span className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-full bg-inset text-ink-3">
+        <IconInbox className="h-5 w-5" />
+      </span>
+      <div className="mt-3.5 text-[15px] font-semibold text-fg">No expenses yet</div>
       <p className="mx-auto mt-1.5 max-w-xs text-[13px] leading-relaxed text-fg-muted">
         Add the truck payment, insurance, subscriptions — whatever charges on
         a schedule — to start tracking them here.
       </p>
+      <Button type="button" onClick={onAdd} variant="primary" size="md" className="mt-4">
+        Add First Expense
+      </Button>
     </div>
   );
 }
 
-/* ── Icons — small local line glyphs, same 24-viewBox/round-cap stroke style
-   the rest of the admin's page-local icon sets use (LoadCard, ReceivablesView). */
+/* ── CSV helpers ─────────────────────────────────────────────────────── */
 
-function InfoIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden
-    >
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 11v5" />
-      <path d="M12 8v.01" />
-    </svg>
-  );
+function csvEscape(v: string): string {
+  if (/[",\n]/.test(v)) return `"${v.replace(/"/g, '""')}"`;
+  return v;
 }
 
-function CalendarIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden
-    >
-      <rect x="3" y="5" width="18" height="16" rx="2" />
-      <path d="M3 10h18M8 3v4M16 3v4" />
-    </svg>
-  );
+function downloadFile(filename: string, content: string, mime: string) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
-function CardIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      aria-hidden
-    >
-      <rect x="2.5" y="5" width="19" height="14" rx="2" />
-      <path d="M2.5 10h19" />
-    </svg>
-  );
+/** Minimal RFC4180-ish line splitter — handles quoted fields with embedded
+ *  commas/escaped quotes. Embedded newlines inside a quoted field aren't
+ *  supported (good enough for a vendor/description-level export/import). */
+function splitCsvLine(line: string): string[] {
+  const out: string[] = [];
+  let cur = "";
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (inQuotes) {
+      if (ch === '"' && line[i + 1] === '"') {
+        cur += '"';
+        i++;
+      } else if (ch === '"') {
+        inQuotes = false;
+      } else {
+        cur += ch;
+      }
+    } else if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === ",") {
+      out.push(cur);
+      cur = "";
+    } else {
+      cur += ch;
+    }
+  }
+  out.push(cur);
+  return out;
 }
 
-/* ── Money formatting ────────────────────────────────────────────────────── */
+function parseImportCsv(text: string): ImportExpenseRow[] {
+  const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+  if (lines.length < 2) return [];
+  const header = splitCsvLine(lines[0]).map((h) => h.trim().toLowerCase());
+  const idx = (...names: string[]) => names.map((n) => header.indexOf(n)).find((i) => i >= 0) ?? -1;
+
+  const vendorIdx = idx("vendor", "name");
+  const categoryIdx = idx("category");
+  const descriptionIdx = idx("description", "notes");
+  const amountIdx = idx("amount");
+  const methodIdx = idx("payment method", "paymentmethod", "card");
+  const frequencyIdx = idx("frequency");
+  const startDateIdx = idx("start date", "startdate", "next charge");
+
+  if (vendorIdx < 0 || amountIdx < 0) return [];
+
+  const rows: ImportExpenseRow[] = [];
+  for (const line of lines.slice(1)) {
+    const cells = splitCsvLine(line);
+    const vendor = (cells[vendorIdx] ?? "").trim();
+    const amount = Number((cells[amountIdx] ?? "").replace(/[$,\s]/g, ""));
+    if (!vendor || !Number.isFinite(amount)) continue;
+    const frequencyRaw = (cells[frequencyIdx] ?? "monthly").trim().toLowerCase();
+    rows.push({
+      vendor,
+      category: categoryIdx >= 0 ? (cells[categoryIdx] ?? "").trim() || null : null,
+      description: descriptionIdx >= 0 ? (cells[descriptionIdx] ?? "").trim() || null : null,
+      amount: Math.round(amount * 100) / 100,
+      paymentMethod: methodIdx >= 0 ? (cells[methodIdx] ?? "").trim() || null : null,
+      frequency: isFrequency(frequencyRaw) ? frequencyRaw : "monthly",
+      startDate:
+        startDateIdx >= 0 && /^\d{4}-\d{2}-\d{2}$/.test((cells[startDateIdx] ?? "").trim())
+          ? (cells[startDateIdx] ?? "").trim()
+          : null,
+    });
+  }
+  return rows;
+}
+
+/* ── Money formatting ────────────────────────────────────────────────── */
 
 function usd(n: number): string {
   if (!Number.isFinite(n)) return "—";

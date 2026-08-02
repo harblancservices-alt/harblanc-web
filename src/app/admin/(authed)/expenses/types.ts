@@ -1,4 +1,6 @@
-export const FREQUENCIES = ["monthly", "annual", "quarterly", "weekly"] as const;
+import type { StatusTone } from "@/components/ui/StatusTag";
+
+export const FREQUENCIES = ["monthly", "weekly", "quarterly", "annual", "onetime"] as const;
 export type Frequency = (typeof FREQUENCIES)[number];
 
 export function isFrequency(v: string): v is Frequency {
@@ -7,12 +9,26 @@ export function isFrequency(v: string): v is Frequency {
 
 export const FREQUENCY_LABEL: Record<Frequency, string> = {
   monthly: "Monthly",
-  annual: "Annual",
-  quarterly: "Quarterly",
   weekly: "Weekly",
+  quarterly: "Quarterly",
+  annual: "Yearly",
+  onetime: "One-Time",
 };
 
-/** Normalize any frequency's amount to its monthly-equivalent cost. */
+/** Color-coded frequency badge — one of each StatusTag tone, so every
+ *  cadence reads as a distinct color at a glance in the table. */
+export const FREQUENCY_TONE: Record<Frequency, StatusTone> = {
+  monthly: "steel",
+  weekly: "green",
+  quarterly: "amber",
+  annual: "slate",
+  onetime: "red",
+};
+
+/** Normalize any frequency's amount to its monthly-equivalent cost.
+ *  One-time charges don't recur, so they contribute nothing to a steady
+ *  monthly run-rate — they're counted separately, by calendar month, in the
+ *  page's KPI math (see page.tsx). */
 export function monthlyAmount(amount: number, frequency: Frequency): number {
   switch (frequency) {
     case "annual":
@@ -21,69 +37,51 @@ export function monthlyAmount(amount: number, frequency: Frequency): number {
       return amount / 3;
     case "weekly":
       return (amount * 52) / 12;
+    case "onetime":
+      return 0;
     case "monthly":
     default:
       return amount;
   }
 }
 
-export const CATEGORY_PRESETS = [
-  "Truck Payment",
-  "Trailer Payment",
-  "Truck Insurance",
-  "Trailer Insurance",
-  "Cargo Insurance",
-  "Liability Insurance",
-  "Physical Damage Insurance",
-  "Occupational/Health Insurance",
+/** Fixed category set for filtering/reporting — every expense's category
+ *  picks from this list going forward. Older rows saved under the previous
+ *  freeform preset list (e.g. "Truck Insurance", "Fuel Card Fees") keep
+ *  their stored text; the edit form surfaces them as a legacy option
+ *  instead of silently discarding them. */
+export const CATEGORIES = [
+  "Office",
+  "Software",
   "Fuel",
-  "DEF",
-  "Fuel Card Fees",
-  "Tolls",
-  "Parking",
-  "Scales/Weigh",
-  "Lumper Fees",
-  "Maintenance & Repairs",
-  "Tires",
-  "Oil Changes",
-  "Roadside/Towing",
-  "ELD/Telematics",
-  "Dispatch Software",
-  "TMS/Software Subscriptions",
-  "Load Board Subscriptions",
-  "Factoring Fees",
-  "IFTA",
-  "IRP / Plates / Registration",
-  "Permits & Licensing",
-  "UCR",
-  "Heavy Highway Use Tax (2290)",
-  "Drug & Alcohol Consortium",
-  "Accounting/Bookkeeping",
-  "Legal/Professional",
-  "Bank Fees",
-  "Credit Card Fees",
-  "Loan Payment",
-  "Line of Credit",
-  "Phone",
-  "Internet",
-  "Website/Hosting",
-  "Email/Google Workspace",
-  "Marketing/Advertising",
-  "Office Supplies",
-  "Postage/Shipping",
-  "Rent/Warehouse",
-  "Storage/Yard",
+  "Insurance",
+  "Equipment",
+  "Payroll",
   "Utilities",
-  "Uniforms/PPE",
-  "Tools & Equipment",
-  "Membership/Dues (e.g. OOIDA)",
-  "Payroll/Contractor",
-  "Estimated Taxes",
-  "Retirement/Savings",
-  "Owner Draw/Personal",
-  "Subscriptions (other)",
+  "Marketing",
+  "Travel",
+  "Taxes",
+  "Maintenance",
   "Miscellaneous",
 ] as const;
+export type Category = (typeof CATEGORIES)[number];
+
+export function isCategory(v: string): v is Category {
+  return (CATEGORIES as readonly string[]).includes(v);
+}
+
+export const PAYMENT_METHOD_TYPES = [
+  "Credit Card",
+  "Debit Card",
+  "Bank Account",
+  "ACH",
+  "Other",
+] as const;
+export type PaymentMethodType = (typeof PAYMENT_METHOD_TYPES)[number];
+
+export function isPaymentMethodType(v: string): v is PaymentMethodType {
+  return (PAYMENT_METHOD_TYPES as readonly string[]).includes(v);
+}
 
 export const DAYS_OF_WEEK = [
   "Sunday",
@@ -109,23 +107,43 @@ export type ExpenseItem = {
   frequency: Frequency;
   dayOfMonth: number | null;
   dayOfWeek: string | null;
+  /** ISO "YYYY-MM-DD". Anchor date for one-time charges; optional metadata
+   *  (shown in the detail panel) for every other cadence. */
+  startDate: string | null;
   card: string | null;
   autopay: boolean;
   notes: string | null;
+  archived: boolean;
+  tags: string[];
+  /** Set by "Skip Next Payment" — the ISO date of the occurrence to skip.
+   *  Once that date is in the past it's naturally ignored by
+   *  nextChargeDate(), so nothing needs to clear it back out. */
+  skipNextDate: string | null;
   monthlyAmount: number;
   /** Preformatted server-side ("Today" / "Tomorrow" / "Aug 15"), so the list
    *  can't drift by timezone or clock skew between server and client. Null
    *  for quarterly/annual, which have no stored anchor date to compute from,
    *  or when the day itself hasn't been set yet. */
   nextChargeLabel: string | null;
+  /** Same occurrence as nextChargeLabel, as an ISO date — lets the client
+   *  filter by a date range without re-deriving the schedule math. */
+  nextChargeDateIso: string | null;
 };
 
 /** "the 15th" / "every Friday" / a fallback when nothing's set. */
 export function chargeScheduleLabel(
-  e: Pick<ExpenseItem, "frequency" | "dayOfMonth" | "dayOfWeek">,
+  e: Pick<ExpenseItem, "frequency" | "dayOfMonth" | "dayOfWeek" | "startDate">,
 ): string {
+  if (e.frequency === "onetime") {
+    return e.startDate ? `Once on ${formatIsoDateShort(e.startDate)}` : "No date set";
+  }
   if (e.frequency === "weekly") {
     return e.dayOfWeek ? `Every ${e.dayOfWeek}` : "No day set";
+  }
+  if (e.frequency === "quarterly" || e.frequency === "annual") {
+    return e.dayOfMonth != null
+      ? `Charges on the ${ordinal(e.dayOfMonth)}`
+      : "No charge date set";
   }
   return e.dayOfMonth != null
     ? `Charges on the ${ordinal(e.dayOfMonth)}`
@@ -146,34 +164,77 @@ function startOfDay(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
+function parseIsoDate(iso: string): Date | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  if (!m) return null;
+  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+}
+
+export function toIsoDate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
 /**
- * The next occurrence of a monthly or weekly charge, on or after `today`.
- * Quarterly/annual charges have no stored anchor date, so there's no honest
- * way to derive their next occurrence from day_of_month alone — null.
+ * The next occurrence of a monthly/weekly/one-time charge, on or after
+ * `today`. Quarterly/annual charges have no stored anchor date, so there's
+ * no honest way to derive their next occurrence from day_of_month alone —
+ * null, same as before.
+ *
+ * When the computed occurrence matches `skipNextDate`, the charge one cycle
+ * later is returned instead — "Skip Next Payment" acts for exactly one
+ * occurrence and stops mattering once that date has passed.
  */
 export function nextChargeDate(
-  e: Pick<ExpenseItem, "frequency" | "dayOfMonth" | "dayOfWeek">,
+  e: Pick<ExpenseItem, "frequency" | "dayOfMonth" | "dayOfWeek" | "startDate" | "skipNextDate">,
   today: Date,
 ): Date | null {
   const base = startOfDay(today);
-  if (e.frequency === "weekly") {
-    const targetDow = e.dayOfWeek ? WEEKDAY_INDEX[e.dayOfWeek] : undefined;
-    if (targetDow == null) return null;
-    const diff = (targetDow - base.getDay() + 7) % 7;
-    const d = new Date(base);
-    d.setDate(d.getDate() + diff);
+
+  if (e.frequency === "onetime") {
+    if (!e.startDate) return null;
+    const d = parseIsoDate(e.startDate);
+    if (!d || d < base) return null;
     return d;
   }
-  if (e.frequency === "monthly" && e.dayOfMonth != null) {
+
+  let occurrence: Date | null = null;
+
+  if (e.frequency === "weekly") {
+    const targetDow = e.dayOfWeek ? WEEKDAY_INDEX[e.dayOfWeek] : undefined;
+    if (targetDow != null) {
+      const diff = (targetDow - base.getDay() + 7) % 7;
+      occurrence = new Date(base);
+      occurrence.setDate(occurrence.getDate() + diff);
+    }
+  } else if (e.frequency === "monthly" && e.dayOfMonth != null) {
     const y = base.getFullYear();
     const m = base.getMonth();
     const clampedThis = Math.min(e.dayOfMonth, new Date(y, m + 1, 0).getDate());
     const thisMonth = new Date(y, m, clampedThis);
-    if (thisMonth >= base) return thisMonth;
-    const clampedNext = Math.min(e.dayOfMonth, new Date(y, m + 2, 0).getDate());
-    return new Date(y, m + 1, clampedNext);
+    if (thisMonth >= base) {
+      occurrence = thisMonth;
+    } else {
+      const clampedNext = Math.min(e.dayOfMonth, new Date(y, m + 2, 0).getDate());
+      occurrence = new Date(y, m + 1, clampedNext);
+    }
   }
-  return null;
+
+  if (!occurrence) return null;
+
+  if (e.skipNextDate) {
+    const skip = parseIsoDate(e.skipNextDate);
+    if (skip && skip.getTime() === occurrence.getTime()) {
+      return nextChargeDate(
+        { ...e, skipNextDate: null },
+        new Date(occurrence.getFullYear(), occurrence.getMonth(), occurrence.getDate() + 1),
+      );
+    }
+  }
+
+  return occurrence;
 }
 
 /** "Today" / "Tomorrow" / "Aug 15" — short label for a computed next-charge date. */
@@ -185,19 +246,45 @@ export function formatNextCharge(date: Date, today: Date): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-export type CategoryBreakdown = { label: string; total: number };
-export type CardBreakdown = { label: string; total: number };
+function formatIsoDateShort(iso: string): string {
+  const d = parseIsoDate(iso);
+  if (!d) return iso;
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
 
-/** A user-named card/account (name only — no numbers). */
-export type ExpenseAccount = { id: string; name: string };
+/** A card/account entry — nickname-only identity plus light descriptive
+ *  metadata. No card numbers stored, ever; `last4` is the most identifying
+ *  data this table is allowed to hold. monthlySpend/chargeCount are
+ *  aggregated server-side from the linked recurring_expenses, not stored. */
+export type ExpenseAccount = {
+  id: string;
+  name: string;
+  type: string | null;
+  last4: string | null;
+  isDefault: boolean;
+  monthlySpend: number;
+  chargeCount: number;
+};
+
+export type ExpenseActivity = {
+  id: string;
+  action: string;
+  detail: string | null;
+  /** Preformatted server-side, same rationale as nextChargeLabel. */
+  whenLabel: string;
+};
+
+export type ExpensesKpis = {
+  thisMonth: number;
+  recurringCount: number;
+  ytd: number;
+  averageMonthly: number;
+};
 
 export type ExpensesData = {
   expenses: ExpenseItem[];
   accounts: ExpenseAccount[];
-  monthlyTotal: number;
-  annualTotal: number;
-  byCategory: CategoryBreakdown[];
-  byCard: CardBreakdown[];
+  kpis: ExpensesKpis;
 };
 
 /** "5" → "5th", "1" → "1st", "22" → "22nd". */

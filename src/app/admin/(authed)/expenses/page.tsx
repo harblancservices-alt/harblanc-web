@@ -6,6 +6,7 @@ import {
   isFrequency,
   monthlyAmount,
   nextChargeDate,
+  toIsoDate,
   type ExpenseAccount,
   type ExpenseItem,
   type ExpensesData,
@@ -21,7 +22,8 @@ export const dynamic = "force-dynamic";
 /**
  * Payments → Expenses. A manual log of recurring charges (insurance, truck
  * payment, subscriptions, …) — not connected to any bank or card, no live
- * balances. Purely what the operator types in.
+ * balances. Purely what the operator types in, restyled as a QuickBooks-
+ * style ledger (dense table, KPI strip, payment-method manager).
  */
 
 type ExpenseRow = {
@@ -33,9 +35,21 @@ type ExpenseRow = {
   frequency: string | null;
   day_of_month: number | null;
   day_of_week: string | null;
+  start_date: string | null;
   card: string | null;
   autopay: boolean | null;
   notes: string | null;
+  archived: boolean | null;
+  tags: string[] | null;
+  skip_next_date: string | null;
+};
+
+type AccountRow = {
+  id: string;
+  name: string;
+  type: string | null;
+  last4: string | null;
+  is_default: boolean | null;
 };
 
 function num(v: number | string | null): number {
@@ -44,29 +58,27 @@ function num(v: number | string | null): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-type AccountRow = { id: string; name: string };
-
 async function loadExpenses(): Promise<ExpensesData> {
   const sb = createServiceRoleClient();
   const [{ data }, { data: accountRows }] = await Promise.all([
     sb
       .from("recurring_expenses")
       .select(
-        "id, name, category, vendor, amount, frequency, day_of_month, day_of_week, card, autopay, notes",
+        "id, name, category, vendor, amount, frequency, day_of_month, day_of_week, start_date, card, autopay, notes, archived, tags, skip_next_date",
       )
       .is("deleted_at", null)
       .returns<ExpenseRow[]>(),
     sb
       .from("expense_accounts")
-      .select("id, name")
+      .select("id, name, type, last4, is_default")
       .is("deleted_at", null)
       .order("name", { ascending: true })
       .returns<AccountRow[]>(),
   ]);
-  const accounts: ExpenseAccount[] = accountRows ?? [];
 
   // One `now` for every row, computed here rather than in the client, so the
-  // "Next …" label can't drift by timezone or clock skew on hydration.
+  // "Next …" label and the KPI math can't drift by timezone or clock skew on
+  // hydration.
   const now = new Date();
 
   const expenses: ExpenseItem[] = (data ?? []).map((r) => {
@@ -82,15 +94,20 @@ async function loadExpenses(): Promise<ExpensesData> {
       frequency,
       dayOfMonth: r.day_of_month,
       dayOfWeek: r.day_of_week,
+      startDate: r.start_date,
       card: r.card,
       autopay: r.autopay ?? true,
       notes: r.notes,
+      archived: r.archived ?? false,
+      tags: r.tags ?? [],
+      skipNextDate: r.skip_next_date,
       monthlyAmount: monthlyAmount(amount, frequency),
     };
     const nextDate = nextChargeDate(item, now);
     return {
       ...item,
       nextChargeLabel: nextDate ? formatNextCharge(nextDate, now) : null,
+      nextChargeDateIso: nextDate ? toIsoDate(nextDate) : null,
     };
   });
 
@@ -100,25 +117,65 @@ async function loadExpenses(): Promise<ExpensesData> {
     return a.name.localeCompare(b.name);
   });
 
-  const monthlyTotal = expenses.reduce((s, e) => s + e.monthlyAmount, 0);
-  const annualTotal = monthlyTotal * 12;
+  // ── KPI math ──────────────────────────────────────────────────────────
+  // This is a hand-kept schedule log, not a transaction ledger, so these
+  // figures are the best honest estimate from the recurring schedule rather
+  // than actual posted amounts:
+  //   This Month      — every active (non-archived) recurring charge's
+  //                      monthly-equivalent, plus any one-time charge dated
+  //                      in the current calendar month.
+  //   Recurring        — count of active, non-one-time charges.
+  //   YTD Expenses     — monthly-equivalent × months elapsed this year,
+  //                      plus one-time charges already dated this year.
+  //   Average Monthly  — YTD ÷ months elapsed.
+  const year = now.getFullYear();
+  const monthIndex = now.getMonth(); // 0-11
+  const monthsElapsed = monthIndex + 1;
 
-  const categoryMap = new Map<string, number>();
-  const cardMap = new Map<string, number>();
-  for (const e of expenses) {
-    const catKey = e.category?.trim() || "Uncategorized";
-    categoryMap.set(catKey, (categoryMap.get(catKey) ?? 0) + e.monthlyAmount);
-    const cardKey = e.card?.trim() || "No card on file";
-    cardMap.set(cardKey, (cardMap.get(cardKey) ?? 0) + e.monthlyAmount);
-  }
-  const byCategory = Array.from(categoryMap, ([label, total]) => ({ label, total })).sort(
-    (a, b) => b.total - a.total,
-  );
-  const byCard = Array.from(cardMap, ([label, total]) => ({ label, total })).sort(
-    (a, b) => b.total - a.total,
-  );
+  const active = expenses.filter((e) => !e.archived);
+  const recurringActive = active.filter((e) => e.frequency !== "onetime");
+  const onetimeActive = active.filter((e) => e.frequency === "onetime" && e.startDate);
 
-  return { expenses, accounts, monthlyTotal, annualTotal, byCategory, byCard };
+  const monthlyTotal = recurringActive.reduce((s, e) => s + e.monthlyAmount, 0);
+  const recurringCount = recurringActive.length;
+
+  const onetimeThisMonth = onetimeActive
+    .filter((e) => {
+      const d = new Date(e.startDate as string);
+      return d.getFullYear() === year && d.getMonth() === monthIndex;
+    })
+    .reduce((s, e) => s + e.amount, 0);
+
+  const onetimeYtd = onetimeActive
+    .filter((e) => {
+      const d = new Date(e.startDate as string);
+      return d.getFullYear() === year && d.getTime() <= now.getTime();
+    })
+    .reduce((s, e) => s + e.amount, 0);
+
+  const thisMonth = monthlyTotal + onetimeThisMonth;
+  const ytd = monthlyTotal * monthsElapsed + onetimeYtd;
+  const averageMonthly = ytd / monthsElapsed;
+
+  // ── Payment-method aggregates ────────────────────────────────────────
+  const accounts: ExpenseAccount[] = (accountRows ?? []).map((a) => {
+    const linked = active.filter((e) => e.card === a.name);
+    return {
+      id: a.id,
+      name: a.name,
+      type: a.type,
+      last4: a.last4,
+      isDefault: a.is_default ?? false,
+      monthlySpend: linked.reduce((s, e) => s + e.monthlyAmount, 0),
+      chargeCount: linked.length,
+    };
+  });
+
+  return {
+    expenses,
+    accounts,
+    kpis: { thisMonth, recurringCount, ytd, averageMonthly },
+  };
 }
 
 export default async function ExpensesPage() {
