@@ -17,6 +17,11 @@ import {
   type FuelSettings,
 } from "@/lib/dispatch/fuel";
 import { computeTripFinancials } from "@/lib/dispatch/trip-rollup";
+import {
+  describeTripSpan,
+  toDateInputValue,
+  toTimeInputValue,
+} from "@/lib/dispatch/central-time";
 
 export const metadata: Metadata = {
   title: "Trip",
@@ -29,6 +34,8 @@ type Trip = {
   status: string;
   notes: string | null;
   created_at: string;
+  started_at: string | null;
+  ended_at: string | null;
   start_odometer: number | null;
   end_odometer: number | null;
 };
@@ -134,7 +141,9 @@ export default async function TripDetailPage({
     const [tripRes, loadRes, fuelRes] = await Promise.all([
       sb
         .from("trips")
-        .select("id, name, status, notes, created_at, start_odometer, end_odometer")
+        .select(
+          "id, name, status, notes, created_at, started_at, ended_at, start_odometer, end_odometer",
+        )
         .eq("id", id)
         .maybeSingle<Trip>(),
       sb
@@ -247,6 +256,8 @@ export default async function TripDetailPage({
   // read red instead of green.
   const earnTone = net < 0 ? "bad" : "ok";
 
+  const dates = describeTripSpan(trip.started_at, trip.ended_at, trip.created_at);
+
   return (
     <div className="min-h-screen border-t border-line bg-canvas text-fg">
       <div className="w-full px-4 py-5 sm:px-6 lg:px-8">
@@ -277,9 +288,20 @@ export default async function TripDetailPage({
                   {fin.loads} load{fin.loads === 1 ? "" : "s"}
                 </span>
               </div>
-              <p className="mt-1.5 font-mono text-[11px] uppercase tracking-[0.08em] text-fg-subtle">
-                Created {fmtDate(trip.created_at)}
-              </p>
+              <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.06em] text-fg-subtle">
+                  {dates.primaryLabel}
+                </span>
+                {dates.ongoing ? (
+                  <span className="rounded border border-warn/40 bg-warn-bg px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.04em] text-warn">
+                    Ongoing · no end
+                  </span>
+                ) : dates.durationLabel ? (
+                  <span className="font-mono text-[11px] text-fg-subtle">
+                    · {dates.durationLabel}
+                  </span>
+                ) : null}
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <form
@@ -298,6 +320,11 @@ export default async function TripDetailPage({
                 name={trip.name}
                 status={trip.status}
                 notes={trip.notes}
+                startDate={toDateInputValue(trip.started_at ?? trip.created_at)}
+                startTime={toTimeInputValue(trip.started_at ?? trip.created_at)}
+                endDate={trip.ended_at ? toDateInputValue(trip.ended_at) : undefined}
+                endTime={trip.ended_at ? toTimeInputValue(trip.ended_at) : undefined}
+                hasEnd={trip.ended_at != null}
               />
             </div>
           </header>

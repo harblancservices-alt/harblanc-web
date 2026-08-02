@@ -47,6 +47,7 @@ import {
   computeTripFinancials,
   type TripRollupLoad,
 } from "@/lib/dispatch/trip-rollup";
+import { describeTripSpan } from "@/lib/dispatch/central-time";
 import { computeMaintenance } from "@/lib/dispatch/maintenance";
 import { daysOutstanding } from "@/lib/dispatch/alerts";
 import { CATEGORY_SLUG, type Category } from "@/lib/dispatch/repair-log";
@@ -203,6 +204,10 @@ type DemoTrip = {
   notes: string | null;
   startOdo: number | null;
   endOdo: number | null;
+  /** Days before `now` the trip started — converted to an ISO instant below. */
+  startedDaysAgo: number;
+  /** Days before `now` the trip ended, or null for an Ongoing trip (no end). */
+  endedDaysAgo: number | null;
 };
 
 const TRIPS: DemoTrip[] = [
@@ -213,6 +218,8 @@ const TRIPS: DemoTrip[] = [
     notes: "Out-and-back through the desert. Watch reefer fuel on the PHX leg.",
     startOdo: null, // filled from its loads' odometers below
     endOdo: null,
+    startedDaysAgo: 40,
+    endedDaysAgo: 33,
   },
   {
     id: "demo-trip-midwest",
@@ -221,6 +228,8 @@ const TRIPS: DemoTrip[] = [
     notes: "Dry-van loop — KC, St. Louis, Chicago.",
     startOdo: null,
     endOdo: null,
+    startedDaysAgo: 10,
+    endedDaysAgo: null, // Ongoing — no end date set yet.
   },
   {
     id: "demo-trip-texas",
@@ -229,8 +238,27 @@ const TRIPS: DemoTrip[] = [
     notes: null,
     startOdo: null,
     endOdo: null,
+    startedDaysAgo: 3,
+    endedDaysAgo: 1,
   },
 ];
+
+const DAY_MS = 86_400_000;
+
+/** ISO instant `daysAgo` days before `now`, at a fixed 8 AM UTC clock time. */
+function daysAgoIso(now: Date, daysAgo: number): string {
+  const anchor = new Date(now.getTime() - daysAgo * DAY_MS);
+  anchor.setUTCHours(8, 0, 0, 0);
+  return anchor.toISOString();
+}
+
+function tripStartedAt(t: DemoTrip, now: Date): string {
+  return daysAgoIso(now, t.startedDaysAgo);
+}
+
+function tripEndedAt(t: DemoTrip, now: Date): string | null {
+  return t.endedDaysAgo == null ? null : daysAgoIso(now, t.endedDaysAgo);
+}
 
 // ---------------------------------------------------------------------------
 // Canonical load specs. `monthsAgo` places the delivery in that goal-month;
@@ -872,7 +900,9 @@ export type DemoTripCard = {
   name: string;
   status: string;
   notes: string | null;
-  dateLabel: string;
+  ongoing: boolean;
+  datesPrimary: string;
+  datesDuration: string | null;
   loads: number;
   gross: number;
   net: number;
@@ -904,15 +934,6 @@ function expenseMap(loads: DemoLoadFull[]): Map<string, number> {
   return m;
 }
 
-function tripDateLabel(deliveries: (string | null)[], createdIso: string): string {
-  const days = deliveries.filter((d): d is string => !!d).sort();
-  if (days.length === 0) return "Created " + fmtShort(createdIso);
-  const first = days[0];
-  const last = days[days.length - 1];
-  if (first === last) return fmtShort(first);
-  return fmtShort(first) + " – " + fmtShort(last);
-}
-
 export function demoTripsList(now: Date = new Date()): DemoTripCard[] {
   const loads = buildLoads(now);
   const expByLoad = expenseMap(loads);
@@ -923,15 +944,19 @@ export function demoTripsList(now: Date = new Date()): DemoTripCard[] {
       start: t.startOdo,
       end: t.endOdo,
     });
+    const dates = describeTripSpan(
+      tripStartedAt(t, now),
+      tripEndedAt(t, now),
+      tripLoads[0]?.created_at ?? now.toISOString(),
+    );
     return {
       id: t.id,
       name: t.name,
       status: t.status,
       notes: t.notes,
-      dateLabel: tripDateLabel(
-        tripLoads.map((l) => l.delivery_date),
-        tripLoads[0]?.created_at ?? now.toISOString(),
-      ),
+      ongoing: dates.ongoing,
+      datesPrimary: dates.primaryLabel,
+      datesDuration: dates.durationLabel,
       loads: fin.loads,
       gross: fin.gross,
       net: fin.net,
@@ -956,6 +981,8 @@ export function demoTripDetail(
     status: string;
     notes: string | null;
     created_at: string;
+    started_at: string | null;
+    ended_at: string | null;
     start_odometer: number | null;
     end_odometer: number | null;
   };
@@ -999,6 +1026,8 @@ export function demoTripDetail(
       status: t.status,
       notes: t.notes,
       created_at: loads[0]?.created_at ?? now.toISOString(),
+      started_at: tripStartedAt(t, now),
+      ended_at: tripEndedAt(t, now),
       start_odometer: startOdo,
       end_odometer: endOdo,
     },

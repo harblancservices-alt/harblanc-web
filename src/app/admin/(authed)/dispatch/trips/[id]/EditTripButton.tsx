@@ -3,26 +3,40 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { updateTrip, deleteTrip } from "../actions";
+import { TripDateTimeFields, tripDatesAreValid } from "../TripDateTimeFields";
 
 /**
  * Red "✎ Edit trip" button + modal — matches the edit affordance on the
  * broker and maintenance detail pages (a red Edit button that opens a modal).
- * The modal hosts the trip's name / status / notes form (updateTrip) and the
- * Delete trip action (deleteTrip); both are the same server actions the page
- * used before, just moved out of an inline <details> into a proper modal.
+ * The modal hosts the trip's name / status / notes / start-end dates form
+ * (updateTrip) and the Delete trip action (deleteTrip); both are the same
+ * server actions the page used before, just moved out of an inline <details>
+ * into a proper modal.
  */
 export function EditTripButton({
   tripId,
   name,
   status,
   notes,
+  startDate,
+  startTime,
+  endDate,
+  endTime,
+  hasEnd,
 }: {
   tripId: string;
   name: string;
   status: string;
   notes: string | null;
+  /** Pre-split into Central date/time strings by the server page. */
+  startDate?: string;
+  startTime?: string;
+  endDate?: string;
+  endTime?: string;
+  hasEnd?: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [dateError, setDateError] = useState(false);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -72,6 +86,18 @@ export function EditTripButton({
             <form
               action={updateTrip.bind(null, tripId)}
               className="space-y-3 bg-elevated px-4 py-4"
+              onSubmit={(e) => {
+                // Delete goes through this same form (via formAction) but
+                // isn't saving anything — an invalid end date shouldn't block
+                // deleting the trip.
+                const submitter = (e.nativeEvent as SubmitEvent).submitter as
+                  | HTMLElement
+                  | null;
+                if (submitter?.getAttribute("data-action") === "delete") return;
+                const valid = tripDatesAreValid(new FormData(e.currentTarget));
+                setDateError(!valid);
+                if (!valid) e.preventDefault();
+              }}
             >
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
@@ -100,6 +126,20 @@ export function EditTripButton({
                   </select>
                 </div>
               </div>
+
+              <TripDateTimeFields
+                defaultStartDate={startDate}
+                defaultStartTime={startTime}
+                defaultEndDate={endDate}
+                defaultEndTime={endTime}
+                defaultHasEnd={hasEnd}
+              />
+              {dateError ? (
+                <p className="font-mono text-[11px] font-semibold text-bad">
+                  Fix the end date &amp; time before saving.
+                </p>
+              ) : null}
+
               <div>
                 <label className="block font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
                   Notes
@@ -120,6 +160,7 @@ export function EditTripButton({
                   variant="destructive"
                   type="submit"
                   formAction={deleteTrip.bind(null, tripId)}
+                  data-action="delete"
                 >
                   Delete trip
                 </Button>

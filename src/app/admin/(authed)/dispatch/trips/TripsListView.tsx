@@ -29,8 +29,13 @@ export type TripListItem = {
   name: string;
   status: string;
   notes: string | null;
-  /** Pre-formatted on the server — the loads' delivery span, else "Created …". */
-  dateLabel: string;
+  /** No ended_at — the trip is "Ongoing" and stays Active. */
+  ongoing: boolean;
+  /** Pre-formatted on the server, Central time: start date&time (ongoing) or
+   * the "Jun 24 → Jul 3" range (end set). */
+  datesPrimary: string;
+  /** "9 days" / "5 days, 11 hrs" — only set when ongoing is false. */
+  datesDuration: string | null;
   loads: number;
   gross: number;
   net: number;
@@ -81,6 +86,7 @@ export function TripsListView({ trips }: { trips: TripListItem[] }) {
 
   const active = trips.filter((t) => t.status !== "closed");
   const closed = trips.filter((t) => t.status === "closed");
+  const ongoingCount = active.filter((t) => t.ongoing).length;
 
   return (
     // The trip column is centred and capped rather than filling the page's
@@ -149,6 +155,7 @@ export function TripsListView({ trips }: { trips: TripListItem[] }) {
         <TripSection
           label="Active trips"
           count={active.length}
+          ongoingCount={ongoingCount}
           trips={active}
           selectMode={selectMode}
           selected={selected}
@@ -175,6 +182,7 @@ export function TripsListView({ trips }: { trips: TripListItem[] }) {
 function TripSection({
   label,
   count,
+  ongoingCount,
   trips,
   selectMode,
   selected,
@@ -184,6 +192,8 @@ function TripSection({
 }: {
   label: string;
   count: number;
+  /** Active trips with no end date — shown as "· N ongoing" beside the count. */
+  ongoingCount?: number;
   trips: TripListItem[];
   selectMode: boolean;
   selected: Set<string>;
@@ -200,6 +210,11 @@ function TripSection({
         <span className="font-mono text-[10px] tabular-nums text-fg-subtle">
           · {count}
         </span>
+        {ongoingCount ? (
+          <span className="rounded border border-warn/40 bg-warn-bg px-1.5 py-0.5 font-mono text-[10px] font-bold tabular-nums text-warn">
+            {ongoingCount} ongoing
+          </span>
+        ) : null}
       </div>
       {trips.length === 0 ? (
         emptyHint ? (
@@ -295,17 +310,31 @@ function TripCard({
           <StatusPill status={trip.status} />
         </div>
 
-        {/* Date span + load count as chips — these are how you tell one trip
-            from another at a glance, so they get a surface and weight instead
-            of dissolving into faint meta text. */}
+        {/* Dates + load count as chips — these are how you tell one trip from
+            another at a glance, so they get a surface and weight instead of
+            dissolving into faint meta text. Dates comes first (start date&
+            time, or the "Jun 24 → Jul 3" range once an end is set), an amber
+            "Ongoing · no end" chip follows for a trip with no end, then the
+            load count. The span's duration ("9 days") sits on its own line
+            beneath rather than crowding the chip row. */}
         <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
           <span className="rounded border border-line-strong bg-inset px-1.5 py-0.5 font-mono text-[11px] font-semibold tabular-nums text-fg shadow-e1">
-            {trip.dateLabel}
+            {trip.datesPrimary}
           </span>
+          {trip.ongoing ? (
+            <span className="rounded border border-warn/40 bg-warn-bg px-1.5 py-0.5 font-mono text-[11px] font-bold uppercase tracking-[0.04em] text-warn shadow-e1">
+              Ongoing · no end
+            </span>
+          ) : null}
           <span className="rounded border border-steel/40 bg-steel-bg px-1.5 py-0.5 font-mono text-[11px] font-bold tabular-nums text-steel shadow-e1">
             {trip.loads} load{trip.loads === 1 ? "" : "s"}
           </span>
         </div>
+        {trip.datesDuration ? (
+          <div className="mt-1 font-mono text-[10px] text-fg-subtle">
+            {trip.datesDuration}
+          </div>
+        ) : null}
 
         {/* Labeled stat group — shrink-wrapped (w-fit) so Revenue · Net ·
             Margin sit tight together and read as one unit, rather than being

@@ -10,6 +10,7 @@ import {
 import { NewTripButton } from "./NewTripButton";
 import { TripsListView } from "./TripsListView";
 import { PageHeader } from "@/components/ui/PageHeader";
+import { describeTripSpan } from "@/lib/dispatch/central-time";
 
 export const metadata: Metadata = {
   title: "Trips",
@@ -32,6 +33,8 @@ type TripRow = {
   status: string;
   notes: string | null;
   created_at: string;
+  started_at: string | null;
+  ended_at: string | null;
   start_odometer: number | null;
   end_odometer: number | null;
 };
@@ -46,46 +49,14 @@ function num(v: number | string | null): number {
   return Number.isFinite(n) ? n : 0;
 }
 
-/**
- * Trip dates are formatted on the SERVER so the card can't hydrate to a
- * different string in a browser whose timezone differs from the server's.
- * delivery_date is a date-only column, so it's read as UTC to keep "Jun 3"
- * from sliding to "Jun 2" west of Greenwich.
- */
-function fmtDay(iso: string, withYear: boolean): string {
-  const d = new Date(iso.length <= 10 ? iso + "T00:00:00Z" : iso);
-  if (Number.isNaN(d.getTime())) return "";
-  return d.toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    ...(withYear ? { year: "numeric" as const } : {}),
-    timeZone: "UTC",
-  });
-}
-
-/**
- * The span a trip's loads actually ran, from their delivery dates. Falls back
- * to the trip's created date when no load on it has a delivery date yet, so
- * the card always has a date line rather than an empty gap.
- */
-function tripDateLabel(loads: LoadAgg[], createdAt: string): string {
-  const days = loads
-    .filter((l) => l.status !== "tonu" && l.delivery_date)
-    .map((l) => l.delivery_date as string)
-    .sort();
-  if (days.length === 0) return "Created " + fmtDay(createdAt, true);
-  const first = days[0];
-  const last = days[days.length - 1];
-  if (first === last) return fmtDay(first, true);
-  const sameYear = first.slice(0, 4) === last.slice(0, 4);
-  return fmtDay(first, !sameYear) + " – " + fmtDay(last, true);
-}
 type TripCard = {
   id: string;
   name: string;
   status: string;
   notes: string | null;
-  dateLabel: string;
+  ongoing: boolean;
+  datesPrimary: string;
+  datesDuration: string | null;
   loads: number;
   gross: number;
   net: number;
@@ -99,7 +70,9 @@ async function realTripsData(): Promise<TripCard[]> {
     await Promise.all([
       sb
         .from("trips")
-        .select("id, name, status, notes, created_at, start_odometer, end_odometer")
+        .select(
+          "id, name, status, notes, created_at, started_at, ended_at, start_odometer, end_odometer",
+        )
         .is("deleted_at", null)
         .order("created_at", { ascending: false })
         .returns<TripRow[]>(),
@@ -167,12 +140,15 @@ async function realTripsData(): Promise<TripCard[]> {
       expByLoad,
       { start: t.start_odometer, end: t.end_odometer },
     );
+    const dates = describeTripSpan(t.started_at, t.ended_at, t.created_at);
     return {
       id: t.id,
       name: t.name?.trim() || "Untitled trip",
       status: t.status,
       notes: t.notes?.trim() || null,
-      dateLabel: tripDateLabel(tripLoads, t.created_at),
+      ongoing: dates.ongoing,
+      datesPrimary: dates.primaryLabel,
+      datesDuration: dates.durationLabel,
       loads: fin.loads,
       gross: fin.gross,
       net: fin.net,

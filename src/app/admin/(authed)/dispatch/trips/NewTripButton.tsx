@@ -3,10 +3,12 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { createTrip } from "./actions";
+import { TripDateTimeFields, tripDatesAreValid } from "./TripDateTimeFields";
 
 /** "+ New Trip" button + modal for the Trips page. */
 export function NewTripButton() {
   const [open, setOpen] = useState(false);
+  const [dateError, setDateError] = useState(false);
 
   return (
     <>
@@ -40,7 +42,15 @@ export function NewTripButton() {
                 ×
               </button>
             </div>
-            <form action={createTrip} className="px-4 py-4">
+            <form
+              action={createTrip}
+              className="px-4 py-4"
+              onSubmit={(e) => {
+                const valid = tripDatesAreValid(new FormData(e.currentTarget));
+                setDateError(!valid);
+                if (!valid) e.preventDefault();
+              }}
+            >
               <label className="block font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
                 Trip name<span className="text-red-600"> *</span>
               </label>
@@ -51,6 +61,16 @@ export function NewTripButton() {
                 placeholder="e.g. Houston out & back"
                 className="mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
               />
+
+              <div className="mt-3">
+                <TripDateTimeFields />
+              </div>
+              {dateError ? (
+                <p className="mt-1 font-mono text-[11px] font-semibold text-bad">
+                  Fix the end date &amp; time before saving.
+                </p>
+              ) : null}
+
               <label className="mt-3 block font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
                 Notes
               </label>
