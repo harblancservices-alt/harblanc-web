@@ -23,10 +23,14 @@ import {
   loadDateLabel,
   incompleteGaps,
   GAP_LABEL,
+  expenseGaps,
+  EXPENSE_GAP_LABEL,
+  incompleteExpenseAlertKey,
   RECEIVABLE_OVERDUE_DAYS,
   type AlertGroup,
   type IncompleteGap,
 } from "@/lib/dispatch/alerts";
+import { isFrequency, FREQUENCY_LABEL } from "./expenses/types";
 import { DashboardView, type DashboardData } from "./DashboardView";
 
 // The two reminders surfaced on the dashboard's quick maintenance WIDGET
@@ -106,6 +110,8 @@ async function loadDashboard(): Promise<DashboardData> {
     { data: expRows },
     { data: factoringBrokers },
     { data: docRows },
+    { data: recurringExpenseRows },
+    { data: expenseAccountRows },
     { data: dismissedRows },
   ] = await Promise.all([
     // Shared pipeline cards — the dashboard only renders the expired ones.
@@ -268,6 +274,36 @@ async function loadDashboard(): Promise<DashboardData> {
       .select("load_id, kind")
       .in("kind", ["rate_con", "bol", "pod"])
       .returns<{ load_id: string; kind: "rate_con" | "bol" | "pod" }[]>(),
+    // Active (non-archived, non-deleted) recurring expenses — same exclusion
+    // the Expenses page KPIs use, so an archived expense never alerts.
+    sb
+      .from("recurring_expenses")
+      .select(
+        "id, name, vendor, category, amount, frequency, day_of_month, day_of_week, start_date, card",
+      )
+      .is("deleted_at", null)
+      .eq("archived", false)
+      .returns<
+        {
+          id: string;
+          name: string;
+          vendor: string | null;
+          category: string | null;
+          amount: number | string | null;
+          frequency: string | null;
+          day_of_month: number | null;
+          day_of_week: string | null;
+          start_date: string | null;
+          card: string | null;
+        }[]
+      >(),
+    // Account/card names — the expense's `card` links here by name string, so
+    // this is what tells a missing card apart from an unrecognized one.
+    sb
+      .from("expense_accounts")
+      .select("name")
+      .is("deleted_at", null)
+      .returns<{ name: string }[]>(),
     // Alerts the owner has swiped away. Errors are swallowed below rather than
     // thrown: this table ships as a migration applied to the remote DB
     // separately, and the dashboard must render fine before it lands.
@@ -453,6 +489,8 @@ async function loadDashboard(): Promise<DashboardData> {
     maintenance: allMaintenance,
     deliveredLoads: deliveredRows ?? [],
     docCounts,
+    recurringExpenses: recurringExpenseRows ?? [],
+    expenseAccountNames: new Set((expenseAccountRows ?? []).map((a) => a.name)),
     newApplications: newApplicationRows ?? [],
     newQuotes: newQuoteRows ?? [],
     now,
@@ -534,6 +572,8 @@ function buildAlertGroups({
   maintenance,
   deliveredLoads,
   docCounts,
+  recurringExpenses,
+  expenseAccountNames,
   newApplications,
   newQuotes,
   now,
@@ -548,6 +588,19 @@ function buildAlertGroups({
   }>;
   deliveredLoads: ReadonlyArray<DeliveredLoad>;
   docCounts: Map<string, { rate_con: number; bol: number; pod: number }>;
+  recurringExpenses: ReadonlyArray<{
+    id: string;
+    name: string;
+    vendor: string | null;
+    category: string | null;
+    amount: number | string | null;
+    frequency: string | null;
+    day_of_month: number | null;
+    day_of_week: string | null;
+    start_date: string | null;
+    card: string | null;
+  }>;
+  expenseAccountNames: ReadonlySet<string>;
   newApplications: ReadonlyArray<{ id: string; name: string | null }>;
   newQuotes: ReadonlyArray<{ id: string; name: string | null }>;
   now: Date;
@@ -639,6 +692,43 @@ function buildAlertGroups({
       action: incompleteAction(load.id, gaps),
     }));
 
+  // (c.1) INCOMPLETE EXPENSES — active recurring expenses saved without
+  // enough to know what they are or when they charge. There's no per-row
+  // deep link on the Expenses page, so every item opens the list itself
+  // rather than a specific row.
+  const incompleteExpenseItems = recurringExpenses
+    .map((e) => {
+      const amount = num(e.amount);
+      const gaps = expenseGaps(
+        {
+          amount: e.amount == null ? null : amount,
+          frequency: e.frequency ?? "monthly",
+          dayOfMonth: e.day_of_month,
+          dayOfWeek: e.day_of_week,
+          startDate: e.start_date,
+          card: e.card,
+          category: e.category,
+        },
+        expenseAccountNames,
+      );
+      return { expense: e, amount, gaps };
+    })
+    .filter((r) => r.gaps.length > 0)
+    .map(({ expense, amount, gaps }) => {
+      const freqRaw = expense.frequency ?? "";
+      const freq = isFrequency(freqRaw) ? freqRaw : "monthly";
+      return {
+        id: expense.id,
+        dismissKey: incompleteExpenseAlertKey(expense.id, gaps),
+        title: expense.name?.trim() || expense.vendor?.trim() || "Unnamed expense",
+        subtitle: `Recurring expense · ${FREQUENCY_LABEL[freq]}`,
+        value: gaps.includes("amount") ? undefined : usd(amount),
+        chips: gaps.map((g) => ({ label: EXPENSE_GAP_LABEL[g], tone: "amber" as const })),
+        href: "/admin/expenses",
+        action: { label: "Open", href: "/admin/expenses" },
+      };
+    });
+
   // (d) The two original signals. One item per row rather than one summary
   // row per group: a dismissal has to key to something stable, and "3 new
   // applications" has no such identity — dismissing it could only mean
@@ -675,6 +765,12 @@ function buildAlertGroups({
       label: "Incomplete loads",
       tone: "amber",
       items: incompleteItems,
+    },
+    {
+      key: "expenses",
+      label: "Incomplete expenses",
+      tone: "amber",
+      items: incompleteExpenseItems,
     },
     {
       key: "applications",

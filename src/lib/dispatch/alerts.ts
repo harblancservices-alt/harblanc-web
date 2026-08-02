@@ -18,6 +18,7 @@ export type AlertGroupKey =
   | "maintenance"
   | "receivables"
   | "incomplete"
+  | "expenses"
   | "applications"
   | "quotes";
 
@@ -65,6 +66,7 @@ const KEY_PREFIX: Record<AlertGroupKey, string> = {
   maintenance: "maintenance",
   receivables: "receivable",
   incomplete: "incomplete-load",
+  expenses: "incomplete-expense",
   applications: "application",
   quotes: "quote",
 };
@@ -167,6 +169,78 @@ export const GAP_LABEL: Record<IncompleteGap, string> = {
   bol: "No BOL",
   odometer: "No odometer",
 };
+
+/**
+ * A recurring expense counts as INCOMPLETE when the owner saved it without
+ * enough to actually know what it is or when it charges. Recurring expenses
+ * are hand-entered with no bank/card connection, so nothing else catches
+ * these gaps — a blank amount or schedule silently sits in the ledger doing
+ * nothing until someone notices by eye.
+ *
+ * `account` and `unknown_account` are mutually exclusive (a blank card can't
+ * also mismatch a name), so at most one of the two ever fires per expense.
+ * `unknown_account` exists because the card is linked to expense_accounts by
+ * name string, not a foreign key — a typo or a renamed account silently
+ * orphans the link with no other signal.
+ */
+export type ExpenseGap = "amount" | "date" | "account" | "unknown_account" | "category";
+
+export function expenseGaps(
+  e: {
+    amount: number | null;
+    frequency: string;
+    dayOfMonth: number | null;
+    dayOfWeek: string | null;
+    startDate: string | null;
+    card: string | null;
+    category: string | null;
+  },
+  accountNames: ReadonlySet<string>,
+): ExpenseGap[] {
+  const gaps: ExpenseGap[] = [];
+  if (e.amount == null || e.amount === 0) gaps.push("amount");
+
+  const missingDate =
+    e.frequency === "monthly"
+      ? e.dayOfMonth == null
+      : e.frequency === "weekly"
+        ? e.dayOfWeek == null
+        : !e.startDate; // quarterly, annual, onetime
+  if (missingDate) gaps.push("date");
+
+  const card = e.card?.trim();
+  if (!card) {
+    gaps.push("account");
+  } else if (!accountNames.has(card)) {
+    gaps.push("unknown_account");
+  }
+
+  if (!e.category?.trim()) gaps.push("category");
+
+  return gaps;
+}
+
+export const EXPENSE_GAP_LABEL: Record<ExpenseGap, string> = {
+  amount: "No amount",
+  date: "No date",
+  account: "No account",
+  unknown_account: "Unknown card",
+  category: "No category",
+};
+
+/**
+ * Per-occurrence, same rationale as maintenanceAlertKey(): the key carries
+ * the exact set of gaps the owner last saw, sorted so field order in the
+ * caller can't mint a different string for the same problem. Filling in one
+ * field changes the key (and re-surfaces the alert if others remain);
+ * clearing every gap drops the item entirely since it's no longer incomplete.
+ */
+export function incompleteExpenseAlertKey(
+  expenseId: string,
+  gaps: ReadonlyArray<ExpenseGap>,
+): string {
+  return alertKey("expenses", `${expenseId}:${gaps.slice().sort().join(",")}`);
+}
 
 /**
  * Days a delivered load has been outstanding, from its DELIVERY date to today.
