@@ -32,6 +32,7 @@ function load(p: Partial<PerfLoad> = {}): PerfLoad {
     deadheadMiles: 100,
     year: 2026,
     month: 6, // July
+    date: "2026-07-10",
     broker: "Acme",
     origin: "Houston, TX",
     destination: "Dallas, TX",

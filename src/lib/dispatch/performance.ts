@@ -35,10 +35,17 @@ export type PerfLoad = {
   net: number;
   loadedMiles: number;
   deadheadMiles: number;
-  /** Calendar year the load's close-out date attributes to. */
+  /** Calendar year the load's attribution date falls in. */
   year: number;
   /** Calendar month 0–11 the load attributes to (matches Date.getMonth). */
   month: number;
+  /**
+   * The raw YYYY-MM-DD attribution date (pickup_date → delivery_date →
+   * created_at — same fallback chain `year`/`month` were derived from), or
+   * null. Carried alongside `year`/`month` so a custom day-range filter can
+   * clip on the exact date instead of only whole calendar months.
+   */
+  date: string | null;
   broker: string;
   origin: string;
   destination: string;
@@ -419,6 +426,33 @@ function pointDelta(
   return delta(kind, v, upIsGood ? v > 0 : v < 0);
 }
 
+/** The subset of a bucket/summary that a MoM-style comparison needs. */
+type DeltaInputs = {
+  net: number;
+  gross: number;
+  netRpm: number | null;
+  grossRpm: number | null;
+  marginPct: number | null;
+  deadheadPct: number | null;
+};
+
+/**
+ * Compare two arbitrary periods (a month bucket, a custom range summary —
+ * anything shaped like `DeltaInputs`). Generalizes `monthDeltas` so the
+ * Performance page can diff a custom date range against the equal-length
+ * range before it, not just adjacent calendar months.
+ */
+export function deltasBetween(cur: DeltaInputs, prev: DeltaInputs): MonthDeltas {
+  return {
+    net: totalDelta(cur.net, prev.net),
+    gross: totalDelta(cur.gross, prev.gross),
+    netRpm: pointDelta(cur.netRpm, prev.netRpm, "rpm", true),
+    margin: pointDelta(cur.marginPct, prev.marginPct, "pts", true),
+    // Less empty running is the win, so a NEGATIVE move is the good one.
+    deadhead: pointDelta(cur.deadheadPct, prev.deadheadPct, "pts", false),
+  };
+}
+
 /**
  * Compare `months[index]` to the month immediately before it.
  *
@@ -432,16 +466,7 @@ function pointDelta(
  */
 export function monthDeltas(months: MonthBucket[], index: number): MonthDeltas {
   if (index <= 0 || index >= months.length) return NO_DELTAS;
-  const cur = months[index];
-  const prev = months[index - 1];
-  return {
-    net: totalDelta(cur.net, prev.net),
-    gross: totalDelta(cur.gross, prev.gross),
-    netRpm: pointDelta(cur.netRpm, prev.netRpm, "rpm", true),
-    margin: pointDelta(cur.marginPct, prev.marginPct, "pts", true),
-    // Less empty running is the win, so a NEGATIVE move is the good one.
-    deadhead: pointDelta(cur.deadheadPct, prev.deadheadPct, "pts", false),
-  };
+  return deltasBetween(months[index], months[index - 1]);
 }
 
 // ----------------------------------------------------------------- takeaways

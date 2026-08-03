@@ -27,22 +27,10 @@ import {
   closeOutDate,
   goalMonthParts,
   currentGoalMonth,
-  currentGoalMonthLabel,
   daysLeftInMonth,
   currentBusinessDate,
 } from "@/lib/dispatch/goal-month";
-import {
-  monthlyBuckets,
-  brokerStats,
-  laneStats,
-  deadheadSplit,
-  payTiming,
-  summarize,
-  monthKey,
-  monthDeltas,
-  takeaways,
-  type PerfLoad,
-} from "@/lib/dispatch/performance";
+import { type PerfLoad } from "@/lib/dispatch/performance";
 import {
   computeTripFinancials,
   type TripRollupLoad,
@@ -526,7 +514,8 @@ function toPerfLoads(loads: DemoLoadFull[]): PerfLoad[] {
         },
         DEMO_FUEL,
       );
-      const attributed = goalMonthParts(closeOutDate(l));
+      const attrDate = closeOutDate(l);
+      const attributed = goalMonthParts(attrDate);
       return {
         id: l.id,
         rate: l.rate,
@@ -535,6 +524,7 @@ function toPerfLoads(loads: DemoLoadFull[]): PerfLoad[] {
         deadheadMiles: md.deadhead ?? 0,
         year: attributed?.year ?? -1,
         month: attributed?.month ?? -1,
+        date: attrDate,
         broker: l.broker_name,
         origin: l.origin,
         destination: l.destination,
@@ -634,10 +624,6 @@ export function demoLoadBoard(now: Date = new Date()): LoadBoardData {
 export function demoPerformance(now: Date = new Date()): PerformanceData {
   const loads = buildLoads(now);
   const perf = toPerfLoads(loads);
-  const { year: curYear, month: curMonth } = currentGoalMonth(now);
-  const months = monthlyBuckets(perf, 12);
-  const curKey = monthKey(curYear, curMonth);
-  const curIndex = months.findIndex((b) => b.key === curKey);
 
   const arTotal = loads
     .filter(
@@ -648,27 +634,10 @@ export function demoPerformance(now: Date = new Date()): PerformanceData {
     .reduce((s, l) => s + (l.status === "tonu" ? (l.tonu_amount ?? 0) : l.rate), 0);
 
   return {
-    monthLabel: currentGoalMonthLabel(now),
-    daysLeft: daysLeftInMonth(now),
-    takeaways: takeaways(perf, {
-      year: curYear,
-      month: curMonth,
-      monthlyGoal: DEMO_MONTHLY_GOAL,
-      daysRemaining: daysLeftInMonth(now),
-    }),
-    currentMonth: summarize(
-      perf.filter((l) => l.year === curYear && l.month === curMonth),
-    ),
-    allTime: summarize(perf),
-    deltas: monthDeltas(months, curIndex),
-    pay: payTiming(perf),
-    months,
-    highlightIndex: curIndex,
+    loads: perf,
     monthlyGoal: DEMO_MONTHLY_GOAL,
-    brokers: brokerStats(perf, 50),
-    lanes: laneStats(perf, 50),
-    deadhead: deadheadSplit(perf),
     arTotal,
+    today: currentBusinessDate(now),
   };
 }
 

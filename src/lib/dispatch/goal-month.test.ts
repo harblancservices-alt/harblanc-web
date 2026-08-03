@@ -15,32 +15,23 @@ import {
  */
 
 // month is 0-based (0 = Jan … 11 = Dec)
-describe("goal-month attribution (close-out date − 1 day)", () => {
-  it("a load closed on the 1st counts toward the PREVIOUS month", () => {
-    expect(goalMonthParts("2026-07-01")).toEqual({ year: 2026, month: 5 }); // June
-    expect(goalMonthParts("2026-06-01")).toEqual({ year: 2026, month: 4 }); // May
+describe("goal-month attribution (own calendar month, no shift)", () => {
+  it("a date attributes to its own calendar month", () => {
+    expect(goalMonthParts("2026-07-01")).toEqual({ year: 2026, month: 6 }); // July
+    expect(goalMonthParts("2026-06-01")).toEqual({ year: 2026, month: 5 }); // June
   });
 
-  it("a load closed on the 2nd counts toward the CURRENT month", () => {
-    expect(goalMonthParts("2026-07-02")).toEqual({ year: 2026, month: 6 }); // July
-  });
-
-  it("mid-month closes stay in that month", () => {
+  it("mid-month and end-of-month dates stay in that month", () => {
     expect(goalMonthParts("2026-07-15")).toEqual({ year: 2026, month: 6 }); // July
     expect(goalMonthParts("2026-07-31")).toEqual({ year: 2026, month: 6 }); // July
   });
 
-  it("Aug 1 counts toward July (next-month 1st rolls back)", () => {
-    expect(goalMonthParts("2026-08-01")).toEqual({ year: 2026, month: 6 }); // July
+  it("the 1st of a month attributes to THAT month, not the previous one", () => {
+    expect(goalMonthParts("2026-08-01")).toEqual({ year: 2026, month: 7 }); // August
   });
 
-  it("Jan 1 rolls back across the year boundary to the previous December", () => {
-    expect(goalMonthParts("2026-01-01")).toEqual({ year: 2025, month: 11 }); // Dec 2025
-  });
-
-  it("handles the non-leap-year Mar 1 → Feb 28 case", () => {
-    // 2026 is not a leap year: Mar 1 − 1 day = Feb 28 → February
-    expect(goalMonthParts("2026-03-01")).toEqual({ year: 2026, month: 1 });
+  it("Jan 1 stays in January, not the previous December", () => {
+    expect(goalMonthParts("2026-01-01")).toEqual({ year: 2026, month: 0 }); // Jan 2026
   });
 
   it("returns null for a missing/invalid date", () => {
@@ -84,23 +75,23 @@ describe("currentBusinessDate — today's calendar day in America/Chicago", () =
   });
 });
 
-describe("close-out date selection", () => {
-  it("prefers delivery_date, then pickup_date, then created_at", () => {
+describe("attribution date selection", () => {
+  it("prefers pickup_date, then delivery_date, then created_at", () => {
     expect(
       closeOutDate({
         delivery_date: "2026-07-10",
         pickup_date: "2026-07-08",
         created_at: "2026-07-01",
       }),
-    ).toBe("2026-07-10");
+    ).toBe("2026-07-08");
 
     expect(
       closeOutDate({
-        delivery_date: null,
-        pickup_date: "2026-07-08",
+        delivery_date: "2026-07-10",
+        pickup_date: null,
         created_at: "2026-07-01",
       }),
-    ).toBe("2026-07-08");
+    ).toBe("2026-07-10");
 
     expect(
       closeOutDate({
@@ -115,20 +106,20 @@ describe("close-out date selection", () => {
     ).toBeNull();
   });
 
-  it("a load delivered Jul 1 attributes to June; pickup-only Jul 2 to July", () => {
-    const deliveredFirst = closeOutDate({
-      delivery_date: "2026-07-01",
-      pickup_date: "2026-06-20",
-      created_at: "2026-06-15",
+  it("a load picked up late July / delivered early August attributes to July", () => {
+    const straddle = closeOutDate({
+      delivery_date: "2026-08-01",
+      pickup_date: "2026-07-31",
+      created_at: "2026-07-20",
     });
-    expect(goalMonthParts(deliveredFirst)).toEqual({ year: 2026, month: 5 }); // June
+    expect(goalMonthParts(straddle)).toEqual({ year: 2026, month: 6 }); // July
 
-    const pickupSecond = closeOutDate({
+    const pickupOnly = closeOutDate({
       delivery_date: null,
       pickup_date: "2026-07-02",
       created_at: "2026-06-15",
     });
-    expect(goalMonthParts(pickupSecond)).toEqual({ year: 2026, month: 6 }); // July
+    expect(goalMonthParts(pickupOnly)).toEqual({ year: 2026, month: 6 }); // July
   });
 });
 

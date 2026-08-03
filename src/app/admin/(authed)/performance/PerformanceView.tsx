@@ -1,47 +1,69 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { PageHeader } from "@/components/ui/PageHeader";
 import type {
   MonthBucket,
-  PartyStat,
-  PayTiming,
-  PeriodSummary,
-  DeadheadSplit,
   Delta,
   MonthDeltas,
   Takeaway,
   TakeawayTone,
+  PerfLoad,
 } from "@/lib/dispatch/performance";
-import { monthDeltas } from "@/lib/dispatch/performance";
+import {
+  monthlyBuckets,
+  brokerStats,
+  laneStats,
+  deadheadSplit,
+  summarize,
+  monthKey,
+  deltasBetween,
+  takeaways,
+} from "@/lib/dispatch/performance";
 import { usd, rpm } from "@/lib/dispatch/format";
+import { parseDateStr, addDays, daysBetween, monthName, toDateStr } from "@/lib/dispatch/calendar";
 import { NetVsGoalChart, RpmTrendChart, DeadheadBar, GoalRing } from "./charts";
 import { BrokerTable, LaneTable, LedgerTable } from "./Tables";
 
 /**
  * Performance — a chart-forward analytics dashboard.
  *
- * Every figure here is aggregated on the SERVER by performance.ts out of loads
- * the server had already costed with the canonical loadDiesel + loadNet pair,
- * so a net on this page is the SAME net the load board and trip cards show.
- * Nothing in this file does money math — it lays out and labels what it's
- * handed, and the only client-side arithmetic is re-selecting which month's
- * pre-computed bucket the KPI row reads (a bucket lookup, not a re-derivation)
- * and subtracting two lib-provided $/mi figures for a month-over-month chip.
+ * The server (page.tsx) ships the full `PerfLoad[]` array — every load,
+ * already costed through the canonical loadDiesel + loadNet pair, so a net on
+ * this page is the SAME net the load board and the Calendar show. Every
+ * aggregation (month buckets, KPI totals, broker/lane leaderboards, deadhead
+ * split) happens HERE, client-side, off that one array — the month/range
+ * picker has to re-slice the data interactively with no refetch, the same
+ * pattern the Calendar already uses (CalendarView computes weekNets from a
+ * `loads` prop the server sends once).
  *
- * MONTH SELECTOR — the masthead selector scopes the three MTD KPI cards and the
- * Net-vs-goal readout to any month in the charted window. It does this purely
- * from the `months` buckets the server already sent (each carries net / gross /
- * loads / $/mi) plus `monthDeltas`, the same MoM helper the ledger uses — so no
- * refetch, and a selected month reads exactly as its ledger row does. The
- * per-week PACE figure needs days-remaining, which only exists for the live
- * current month, so it shows an em-dash for any past month.
+ * ATTRIBUTION — every load's `year`/`month`/`date` were computed server-side
+ * by goalMonthParts(closeOutDate(load)): pickup_date first, falling back to
+ * delivery_date then created_at, with NO shift — identical to the Calendar's
+ * resolveSpan/weekNets, so a load lands in the same month here as it does on
+ * the Calendar.
+ *
+ * PERIOD SCOPING — a MONTH picker (trailing 12 months) or a custom day-range
+ * picker selects the active period; whichever is active scopes the three KPI
+ * cards, the Net-vs-goal readout, the Rate-trend stat panel, Deadhead, Top
+ * Brokers/Lanes and both full leaderboards. The two trend CHARTS (Net vs
+ * goal, Rate trend) keep drawing their familiar trailing-12-month backdrop
+ * regardless of mode — a custom range doesn't decompose into monthly bars —
+ * but the highlighted bar/line-point and every number beside them scope to
+ * the selection. The Monthly ledger stays a by-month history table, always
+ * off the full trailing-12 buckets, per the same reasoning.
+ *
+ * The Insights strip is the one exception: it always reads off ALL loads
+ * with the LIVE current month as its goal-pace context, independent of
+ * whatever period the picker is browsing — "am I on pace this month" doesn't
+ * change because you scrolled the KPI cards back to April.
  *
  * THEME SAFETY (the app-wide rule): colored ink is only legible on FIXED
- * surfaces. The masthead is fixed graphite (white ink); every colored numeral
- * — deltas, goal ring, deadhead splits, the goal sub-row — sits on a fixed
- * bg-inset panel or a fixed tinted pill, so it reads the same on admin-light
- * and admin-dark. Themed cards (bg-card) carry only themed text (text-fg).
+ * surfaces. Every colored numeral — deltas, goal ring, deadhead splits, the
+ * goal sub-row — sits on a fixed bg-inset panel or a fixed tinted pill, so it
+ * reads the same on admin-light and admin-dark. Themed cards (bg-card) carry
+ * only themed text (text-fg).
  *
  * SCOPE: every load, not just delivered ones — a booked-but-unrun load counts
  * its rate with no odometer readings yet (net ≈ rate), and a TONU load counts
@@ -50,53 +72,151 @@ import { BrokerTable, LaneTable, LedgerTable } from "./Tables";
  */
 
 export type PerformanceData = {
-  /** e.g. "July" — the current (live) month. */
-  monthLabel: string;
-  /** Days left in the current month incl. today (business tz) — the pace denominator. */
-  daysLeft: number;
-  /** The actionable readings. Never empty — see `takeaways`. */
-  takeaways: Takeaway[];
-  currentMonth: PeriodSummary;
-  allTime: PeriodSummary;
-  /** How the current month moved (still provided; the view recomputes per selection). */
-  deltas: MonthDeltas;
-  /** Days-to-pay is all-time: one month rarely has enough paid loads to mean anything. */
-  pay: PayTiming;
-  months: MonthBucket[];
-  /** Index into `months` of the current month, or -1 if it isn't in the window. */
-  highlightIndex: number;
+  /** Every non-deleted load, pre-costed and pre-attributed by the server. */
+  loads: PerfLoad[];
   monthlyGoal: number;
-  brokers: PartyStat[];
-  lanes: PartyStat[];
-  deadhead: DeadheadSplit;
   /** Owed on delivered-but-unpaid loads (rate) and unpaid TONU loads (fee), all-time. */
   arTotal: number;
+  /** "YYYY-MM-DD", business timezone (America/Chicago) — the server's "now". */
+  today: string;
 };
 
-export function PerformanceView({ data }: { data: PerformanceData }) {
-  const {
-    daysLeft,
-    takeaways,
-    allTime,
-    months,
-    highlightIndex,
-    monthlyGoal,
-    brokers,
-    lanes,
-    deadhead,
-  } = data;
+const MONTH_WINDOW = 12;
 
-  // Default the selector to the live current month; fall back to the newest
-  // charted month if the current one somehow isn't in the window.
-  const defaultIndex =
-    highlightIndex >= 0 ? highlightIndex : Math.max(0, months.length - 1);
+const NO_DELTAS: MonthDeltas = {
+  net: null,
+  gross: null,
+  netRpm: null,
+  margin: null,
+  deadhead: null,
+};
+
+type PeriodMode = "month" | "range";
+type DateRange = { from: string; to: string };
+
+/** Days left in the calendar month `today` falls in, incl. today. */
+function daysLeftInCurrentMonth(today: string): number {
+  const p = parseDateStr(today);
+  if (!p) return 1;
+  // Day 0 of the NEXT month (m1 is already 1-based, so this is the trick).
+  const daysInMonth = new Date(Date.UTC(p.y, p.m1, 0)).getUTCDate();
+  return Math.max(1, daysInMonth - p.d + 1);
+}
+
+/** "Jul 26" — the compact form used in a custom range's label. */
+function fmtShortDate(dateStr: string): string {
+  const p = parseDateStr(dateStr);
+  if (!p) return dateStr;
+  return `${monthName(p.m1 - 1).slice(0, 3)} ${p.d}`;
+}
+
+export function PerformanceView({ data }: { data: PerformanceData }) {
+  const { loads, monthlyGoal, arTotal, today } = data;
+  const todayParts = parseDateStr(today) ?? { y: 2026, m1: 1, d: 1 };
+
+  // Trailing 12-month buckets off ALL loads — the ledger's history and both
+  // trend charts' backdrops. Computed once; the period picker never refetches
+  // or reshapes this, only what's read out of it.
+  const months = useMemo(() => monthlyBuckets(loads, MONTH_WINDOW), [loads]);
+  const curKey = monthKey(todayParts.y, todayParts.m1 - 1);
+  const liveIndex = months.findIndex((b) => b.key === curKey);
+  const defaultIndex = liveIndex >= 0 ? liveIndex : Math.max(0, months.length - 1);
+
+  const [mode, setMode] = useState<PeriodMode>("month");
   const [selIndex, setSelIndex] = useState(defaultIndex);
+  const [range, setRange] = useState<DateRange>(() => ({
+    from: toDateStr(todayParts.y, todayParts.m1, 1),
+    to: today,
+  }));
+
+  const normRange = useMemo<DateRange | null>(() => {
+    if (!range.from || !range.to) return null;
+    return range.from <= range.to
+      ? { from: range.from, to: range.to }
+      : { from: range.to, to: range.from };
+  }, [range]);
+
+  const sel = months[selIndex] ?? null;
+
+  // The selected period's loads, and the equal-length period immediately
+  // before it (for the MoM-style delta chips). Month mode compares adjacent
+  // calendar months; range mode compares against the same number of days
+  // immediately preceding the range — "vs the previous 2 weeks" for a
+  // 2-week range.
+  const periodLoads = useMemo(() => {
+    if (mode === "range") {
+      if (!normRange) return [];
+      return loads.filter(
+        (l) => l.date != null && l.date >= normRange.from && l.date <= normRange.to,
+      );
+    }
+    if (!sel) return [];
+    return loads.filter((l) => l.year === sel.year && l.month === sel.month);
+  }, [mode, normRange, loads, sel]);
+
+  const prevPeriodLoads = useMemo(() => {
+    if (mode === "range") {
+      if (!normRange) return null;
+      const span = daysBetween(normRange.from, normRange.to) + 1; // inclusive
+      const prevTo = addDays(normRange.from, -1);
+      const prevFrom = addDays(prevTo, -(span - 1));
+      return loads.filter(
+        (l) => l.date != null && l.date >= prevFrom && l.date <= prevTo,
+      );
+    }
+    if (selIndex <= 0) return null;
+    const prev = months[selIndex - 1];
+    return loads.filter((l) => l.year === prev.year && l.month === prev.month);
+  }, [mode, normRange, loads, months, selIndex]);
+
+  const curSummary = useMemo(() => summarize(periodLoads), [periodLoads]);
+  const prevSummary = useMemo(
+    () => (prevPeriodLoads ? summarize(prevPeriodLoads) : null),
+    [prevPeriodLoads],
+  );
+  const d = prevSummary ? deltasBetween(curSummary, prevSummary) : NO_DELTAS;
+
+  // Loads has no lib delta (it isn't money) — a plain count comparison.
+  const loadsDelta =
+    prevSummary && curSummary.loads !== prevSummary.loads
+      ? {
+          up: curSummary.loads > prevSummary.loads,
+          good: curSummary.loads >= prevSummary.loads,
+          body: String(Math.abs(curSummary.loads - prevSummary.loads)),
+        }
+      : null;
+
+  const periodBrokers = useMemo(() => brokerStats(periodLoads, 50), [periodLoads]);
+  const periodLanes = useMemo(() => laneStats(periodLoads, 50), [periodLoads]);
+  const periodDeadhead = useMemo(() => deadheadSplit(periodLoads), [periodLoads]);
+
+  // The Insights strip always reads the LIVE current month, independent of
+  // what period the KPI row is browsing — see the file-level doc comment.
+  const takeawayItems = useMemo(
+    () =>
+      takeaways(loads, {
+        year: todayParts.y,
+        month: todayParts.m1 - 1,
+        monthlyGoal,
+        daysRemaining: daysLeftInCurrentMonth(today),
+      }),
+    [loads, todayParts.y, todayParts.m1, monthlyGoal, today],
+  );
+
+  const periodNoun = mode === "month" ? "month" : "period";
+  const priorLabel = mode === "month" ? "last month" : "the prior period";
+  const periodLabel =
+    mode === "range"
+      ? normRange
+        ? `${fmtShortDate(normRange.from)} – ${fmtShortDate(normRange.to)}`
+        : "Custom range"
+      : (sel?.longLabel ?? "—");
 
   // No loads at all — a page of zeroes and empty axes is worse than one
   // honest sentence, so bail to a single card.
-  if (allTime.loads === 0) {
+  if (loads.length === 0) {
     return (
-      <Page selector={null}>
+      <Shell actions={null}>
         <div className="rounded-2xl border border-dashed border-line-strong bg-card px-4 py-14 text-center shadow-e1">
           <p className="text-[15px] font-semibold text-fg">No loads yet.</p>
           <p className="mx-auto mt-2 max-w-md text-[13px] text-fg-muted">
@@ -110,68 +230,67 @@ export function PerformanceView({ data }: { data: PerformanceData }) {
             Go to the load board
           </Link>
         </div>
-      </Page>
+      </Shell>
     );
   }
 
-  const sel = months[selIndex] ?? months[months.length - 1];
-  const prev = selIndex > 0 ? months[selIndex - 1] : null;
-  const isCurrent = selIndex === highlightIndex;
-  const d = monthDeltas(months, selIndex);
+  const isCurrentMonth = mode === "month" && selIndex === liveIndex;
 
-  // Loads has no lib delta (it isn't money) — a plain count comparison.
-  const loadsDelta =
-    prev && sel.loads !== prev.loads
-      ? {
-          up: sel.loads > prev.loads,
-          good: sel.loads >= prev.loads,
-          body: String(Math.abs(sel.loads - prev.loads)),
-        }
-      : null;
-
-  // Goal completion + pace, scoped to the selected month's net.
-  const completionPct = monthlyGoal > 0 ? (sel.net / monthlyGoal) * 100 : 0;
-  const remaining = Math.max(0, monthlyGoal - sel.net);
+  // Goal completion + pace, scoped to the selected period's net.
+  const completionPct = monthlyGoal > 0 ? (curSummary.net / monthlyGoal) * 100 : 0;
+  const remaining = Math.max(0, monthlyGoal - curSummary.net);
+  const daysLeft = daysLeftInCurrentMonth(today);
   const weeksLeft = Math.max(1, Math.ceil(daysLeft / 7));
-  // Pace only exists for the live month; a finished month has no week to fill.
-  const perWeek = isCurrent ? remaining / weeksLeft : null;
+  // Pace only makes sense for the live, still-in-progress month — a past
+  // month or an arbitrary custom range has no "week to fill" to pace against.
+  const perWeek = isCurrentMonth ? remaining / weeksLeft : null;
 
-  const netRpmDelta = rpmDelta(sel.netRpm, prev?.netRpm ?? null);
-  const grossRpmDelta = rpmDelta(sel.grossRpm, prev?.grossRpm ?? null);
+  const netRpmDelta = rpmDelta(curSummary.netRpm, prevSummary?.netRpm ?? null);
+  const grossRpmDelta = rpmDelta(curSummary.grossRpm, prevSummary?.grossRpm ?? null);
 
   return (
-    <Page
-      selector={
-        <MonthSelector
+    <Shell
+      actions={
+        <PeriodControls
+          mode={mode}
+          onMode={setMode}
           months={months}
           selIndex={selIndex}
-          onSelect={setSelIndex}
+          onSelectMonth={setSelIndex}
+          range={range}
+          onRange={setRange}
         />
       }
     >
-      {/* 2 — Three headline KPI cards, scoped to the selected month. */}
+      {/* 2 — Three headline KPI cards, scoped to the selected period. */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <KpiCard
           label="Net Profit"
-          sub="MTD"
-          value={usd(sel.net)}
-          loss={sel.net < 0}
+          sub={mode === "month" ? "MTD" : "RANGE"}
+          value={usd(curSummary.net)}
+          loss={curSummary.net < 0}
           delta={fmtDelta(d.net)}
-          priorText={prev ? `vs ${usd(prev.net)} last month` : "no prior month"}
+          priorText={
+            prevSummary ? `vs ${usd(prevSummary.net)} ${priorLabel}` : `no prior ${periodNoun}`
+          }
         />
         <KpiCard
           label="Total Loads"
-          sub="MTD"
-          value={String(sel.loads)}
+          sub={mode === "month" ? "MTD" : "RANGE"}
+          value={String(curSummary.loads)}
           delta={loadsDelta}
-          priorText={prev ? `vs ${prev.loads} last month` : "no prior month"}
+          priorText={
+            prevSummary ? `vs ${prevSummary.loads} ${priorLabel}` : `no prior ${periodNoun}`
+          }
         />
         <KpiCard
           label="Gross Revenue"
-          sub="MTD"
-          value={usd(sel.gross)}
+          sub={mode === "month" ? "MTD" : "RANGE"}
+          value={usd(curSummary.gross)}
           delta={fmtDelta(d.gross)}
-          priorText={prev ? `vs ${usd(prev.gross)} last month` : "no prior month"}
+          priorText={
+            prevSummary ? `vs ${usd(prevSummary.gross)} ${priorLabel}` : `no prior ${periodNoun}`
+          }
         />
       </div>
 
@@ -179,16 +298,16 @@ export function PerformanceView({ data }: { data: PerformanceData }) {
       <Card>
         <CardHead
           title="Net vs goal"
-          hint={`Monthly net profit against your ${usd(monthlyGoal)} goal`}
+          hint={`${periodLabel} against your ${usd(monthlyGoal)} monthly goal`}
         >
           <div className="text-right">
             <div
               className={
                 "text-[20px] font-bold leading-none tabular-nums sm:text-[22px] " +
-                (sel.net < 0 ? "text-bad" : "text-fg")
+                (curSummary.net < 0 ? "text-bad" : "text-fg")
               }
             >
-              {usd(sel.net)}
+              {usd(curSummary.net)}
             </div>
             <div className="mt-1 text-[11.5px] font-semibold tabular-nums text-fg-subtle">
               {Math.round(completionPct)}% of goal
@@ -199,14 +318,14 @@ export function PerformanceView({ data }: { data: PerformanceData }) {
           <NetVsGoalChart
             data={months.map((b) => ({ key: b.key, label: b.label, value: b.net }))}
             goal={monthlyGoal}
-            highlightIndex={selIndex}
+            highlightIndex={mode === "month" ? selIndex : -1}
           />
 
           {/* Goal-pace sub-row, on a fixed inset so its green/orange/blue read
               on both themes. */}
           <div className="mt-5 grid grid-cols-1 gap-2.5 sm:grid-cols-3">
             <div className="flex items-center gap-3.5 rounded-xl bg-inset px-4 py-3 shadow-e1">
-              <GoalRing pct={completionPct} size={64} loss={sel.net < 0} />
+              <GoalRing pct={completionPct} size={64} loss={curSummary.net < 0} />
               <div className="min-w-0">
                 <div className="text-[9.5px] font-bold uppercase tracking-[0.1em] text-ink-3">
                   Goal Completion
@@ -228,7 +347,9 @@ export function PerformanceView({ data }: { data: PerformanceData }) {
               hint={
                 perWeek != null
                   ? `${weeksLeft} week${weeksLeft === 1 ? "" : "s"} left`
-                  : "past month"
+                  : mode === "range"
+                    ? "custom range"
+                    : "past month"
               }
             />
           </div>
@@ -239,7 +360,7 @@ export function PerformanceView({ data }: { data: PerformanceData }) {
       <Card>
         <CardHead
           title="Rate trend"
-          hint="Average $/mi by month, over loaded miles"
+          hint={`${periodLabel} · $/mi over loaded miles`}
         />
         <div className="p-4 sm:p-5">
           <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:gap-6">
@@ -260,32 +381,34 @@ export function PerformanceView({ data }: { data: PerformanceData }) {
                   label: b.label,
                   value: b.grossRpm,
                 }))}
-                highlightIndex={selIndex}
+                highlightIndex={mode === "month" ? selIndex : -1}
               />
             )}
             <div className="grid grid-cols-2 gap-2.5 lg:w-[188px] lg:grid-cols-1">
               <RateStat
                 label="Net $/mi"
                 dot="bg-ok"
-                value={rpm(sel.netRpm)}
+                value={rpm(curSummary.netRpm)}
                 delta={netRpmDelta}
+                suffix={mode === "month" ? "vs last mo" : "vs prior period"}
               />
               <RateStat
                 label="Gross $/mi"
                 dot="bg-steel"
-                value={rpm(sel.grossRpm)}
+                value={rpm(curSummary.grossRpm)}
                 delta={grossRpmDelta}
+                suffix={mode === "month" ? "vs last mo" : "vs prior period"}
               />
             </div>
           </div>
         </div>
       </Card>
 
-      {/* 5 — Deadhead, all time. */}
+      {/* 5 — Deadhead, scoped to the selected period. */}
       <Card>
         <CardHead
           title="Deadhead — loaded vs empty miles"
-          hint="All time · empty miles burn fuel and earn nothing"
+          hint={`${periodLabel} · empty miles burn fuel and earn nothing`}
         >
           <a
             href="#ledger"
@@ -295,25 +418,25 @@ export function PerformanceView({ data }: { data: PerformanceData }) {
           </a>
         </CardHead>
         <div className="p-4 sm:p-5">
-          {deadhead.total === 0 ? (
+          {periodDeadhead.total === 0 ? (
             <Empty>No odometer readings logged yet, so miles can&rsquo;t be split.</Empty>
           ) : (
             <DeadheadBar
-              loaded={deadhead.loaded}
-              deadhead={deadhead.deadhead}
-              total={deadhead.total}
+              loaded={periodDeadhead.loaded}
+              deadhead={periodDeadhead.deadhead}
+              total={periodDeadhead.total}
             />
           )}
         </div>
       </Card>
 
-      {/* 6 — Top brokers + top lanes. */}
+      {/* 6 — Top brokers + top lanes, scoped to the selected period. */}
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
         <RankCard
           title="Top Brokers"
-          hint="All time by Net"
+          hint={`${periodLabel} by Net`}
           viewAllHref="#brokers-all"
-          rows={brokers.slice(0, 5).map((b) => ({
+          rows={periodBrokers.slice(0, 5).map((b) => ({
             key: b.name,
             name: b.name,
             value: usd(b.net),
@@ -322,9 +445,9 @@ export function PerformanceView({ data }: { data: PerformanceData }) {
         />
         <RankCard
           title="Top Lanes"
-          hint="All time by Net $/mi"
+          hint={`${periodLabel} by Net $/mi`}
           viewAllHref="#lanes-all"
-          rows={lanes.slice(0, 5).map((l) => ({
+          rows={periodLanes.slice(0, 5).map((l) => ({
             key: l.name,
             name: l.name,
             value: `${rpm(l.netRpm)}/mi`,
@@ -333,28 +456,28 @@ export function PerformanceView({ data }: { data: PerformanceData }) {
         />
       </div>
 
-      {/* Insights strip — the sentence version of the numbers above. Kept
-          compact; the reference is chart-led, so this rides quietly along. */}
-      <Takeaways items={takeaways} />
+      {/* Insights strip — always this month, regardless of the period picker
+          (see the file-level doc comment). */}
+      <Takeaways items={takeawayItems} />
 
       {/* Full sortable leaderboards + ledger — the "View all" / "View details"
-          targets, so nothing the previous page did is lost. */}
+          targets, scoped to the selected period. */}
       <div id="brokers-all" className="scroll-mt-4">
         <Card>
           <CardHead
             title="Broker leaderboard"
-            hint="All time · tap any column header to re-rank"
+            hint={`${periodLabel} · tap any column header to re-rank`}
           />
-          <BrokerTable rows={brokers} />
+          <BrokerTable rows={periodBrokers} />
         </Card>
       </div>
       <div id="lanes-all" className="scroll-mt-4">
         <Card>
           <CardHead
             title="Lane leaderboard"
-            hint="All time · sorted by net $/mi — the rate question, not the volume one"
+            hint={`${periodLabel} · sorted by net $/mi — the rate question, not the volume one`}
           />
-          <LaneTable rows={lanes} />
+          <LaneTable rows={periodLanes} />
         </Card>
       </div>
       <div id="ledger" className="scroll-mt-4">
@@ -363,19 +486,97 @@ export function PerformanceView({ data }: { data: PerformanceData }) {
             title="Monthly ledger"
             hint={`Last ${months.length} month${months.length === 1 ? "" : "s"}, newest first · MTD is still in progress`}
           />
-          <LedgerTable rows={months} currentKey={months[highlightIndex]?.key ?? null} />
+          <LedgerTable rows={months} currentKey={months[liveIndex]?.key ?? null} />
         </Card>
       </div>
-    </Page>
+    </Shell>
   );
 }
 
-// -------------------------------------------------------------- month selector
+// -------------------------------------------------------------- period controls
 
 /**
- * The masthead's month picker. A graphite button that drops a menu of the
- * charted months, newest first. Selecting one re-scopes the KPI row and the
- * goal readout — no navigation, no refetch.
+ * The header's period picker: a Month/Range toggle, then either the trailing-
+ * 12-month dropdown or a From/To custom range. Solid dark-graphite chrome
+ * (matching the Calendar's month-nav buttons) — no faint grey, high contrast
+ * on the page's light background.
+ */
+function PeriodControls({
+  mode,
+  onMode,
+  months,
+  selIndex,
+  onSelectMonth,
+  range,
+  onRange,
+}: {
+  mode: PeriodMode;
+  onMode: (m: PeriodMode) => void;
+  months: MonthBucket[];
+  selIndex: number;
+  onSelectMonth: (i: number) => void;
+  range: DateRange;
+  onRange: (r: DateRange) => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <div className="inline-flex rounded-md border border-graphite-line bg-graphite-2 p-0.5">
+        <button
+          type="button"
+          onClick={() => onMode("month")}
+          aria-pressed={mode === "month"}
+          className={
+            "rounded px-3 py-1.5 text-[12px] font-bold uppercase tracking-[0.04em] transition-colors " +
+            (mode === "month" ? "bg-accent text-white shadow-e1" : "text-white/70 hover:text-white")
+          }
+        >
+          Month
+        </button>
+        <button
+          type="button"
+          onClick={() => onMode("range")}
+          aria-pressed={mode === "range"}
+          className={
+            "rounded px-3 py-1.5 text-[12px] font-bold uppercase tracking-[0.04em] transition-colors " +
+            (mode === "range" ? "bg-accent text-white shadow-e1" : "text-white/70 hover:text-white")
+          }
+        >
+          Range
+        </button>
+      </div>
+
+      {mode === "month" ? (
+        <MonthSelector months={months} selIndex={selIndex} onSelect={onSelectMonth} />
+      ) : (
+        <div className="flex items-center gap-1.5">
+          <input
+            type="date"
+            value={range.from}
+            onChange={(e) => onRange({ ...range, from: e.target.value })}
+            aria-label="From date (Central time)"
+            className="h-9 w-[132px] appearance-none rounded-md border border-line-strong bg-card px-2 text-[13px] font-semibold text-ink outline-none [color-scheme:light] focus:border-accent focus:ring-2 focus:ring-accent/40 sm:appearance-auto"
+          />
+          <span className="text-[12px] font-bold text-white/70">–</span>
+          <input
+            type="date"
+            value={range.to}
+            onChange={(e) => onRange({ ...range, to: e.target.value })}
+            aria-label="To date (Central time)"
+            className="h-9 w-[132px] appearance-none rounded-md border border-line-strong bg-card px-2 text-[13px] font-semibold text-ink outline-none [color-scheme:light] focus:border-accent focus:ring-2 focus:ring-accent/40 sm:appearance-auto"
+          />
+          <span className="font-mono text-[9.5px] font-bold uppercase tracking-[0.08em] text-white/70">
+            CST
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The trailing-12-month picker. A graphite button that drops a menu of the
+ * charted months, newest first. Selecting one re-scopes the KPI row and every
+ * period-aware section below it — no navigation, no refetch.
  */
 function MonthSelector({
   months,
@@ -473,7 +674,7 @@ function fmtDelta(delta: Delta | null): DeltaCue {
   return { up: delta.value > 0, good: delta.good, body };
 }
 
-/** MoM move of a $/mi figure — a plain subtraction of two lib-provided rates. */
+/** MoM-style move of a $/mi figure — a plain subtraction of two lib-provided rates. */
 function rpmDelta(
   cur: number | null,
   prev: number | null,
@@ -498,7 +699,7 @@ function DeltaPill({ cue }: { cue: NonNullable<DeltaCue> }) {
         "inline-flex items-center gap-0.5 whitespace-nowrap rounded-full px-1.5 py-0.5 font-mono text-[10.5px] font-bold tabular-nums " +
         (cue.good ? "bg-ok-bg text-ok" : "bg-bad-bg text-bad")
       }
-      title={`${cue.up ? "Up" : "Down"} ${cue.body} vs last month`}
+      title={`${cue.up ? "Up" : "Down"} ${cue.body}`}
     >
       <span aria-hidden>{cue.up ? "▲" : "▼"}</span>
       {cue.up ? "+" : "−"}
@@ -587,11 +788,13 @@ function RateStat({
   dot,
   value,
   delta,
+  suffix,
 }: {
   label: string;
   dot: string;
   value: string;
   delta: ReturnType<typeof rpmDelta>;
+  suffix: string;
 }) {
   return (
     <div className="rounded-xl bg-inset px-3.5 py-3 shadow-e1">
@@ -611,7 +814,7 @@ function RateStat({
             {delta.up ? "+" : "−"}
             {delta.dollars}
             {delta.pctText ? ` (${delta.pctText})` : ""}
-            <span className="font-normal text-ink-3"> vs last mo</span>
+            <span className="font-normal text-ink-3"> {suffix}</span>
           </span>
         ) : (
           <span className="text-ink-3">—</span>
@@ -684,7 +887,7 @@ function dotClass(tone: TakeawayTone): string {
 function Takeaways({ items }: { items: Takeaway[] }) {
   return (
     <Card>
-      <CardHead title="Insights" hint="Plain-English readings of the numbers above" />
+      <CardHead title="Insights" hint="Plain-English readings of this month's numbers" />
       <ul className="divide-y divide-line">
         {items.map((item) => (
           <li key={item.id} className="flex items-start gap-2.5 px-4 py-2.5">
@@ -713,31 +916,24 @@ function Takeaways({ items }: { items: Takeaway[] }) {
 // ------------------------------------------------------------------ chrome
 
 /**
- * The page shell + the navy masthead. The masthead is fixed graphite so its
- * white title and the selector read the same on both admin themes, matching the
- * app's other dark section headers.
+ * The page shell — a light PageHeader (red "Insights" eyebrow, dark title on
+ * the normal light background) matching Calendar/Trips, with the period
+ * controls in its actions slot. No dark/graphite masthead block.
  */
-function Page({ children, selector }: { children: ReactNode; selector: ReactNode }) {
+function Shell({ children, actions }: { children: ReactNode; actions: ReactNode }) {
   return (
-    <div className="min-h-screen bg-canvas text-fg">
-      <div className="mx-auto w-full max-w-6xl px-3 py-4 sm:px-6 sm:py-6 lg:px-8">
-        <header className="mb-4 overflow-hidden rounded-2xl bg-graphite px-4 py-5 shadow-e2 sm:px-7 sm:py-6">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.16em] text-on-dark-dim">
-                Insights
-              </p>
-              <h1 className="mt-1.5 text-[24px] font-bold leading-none tracking-[-0.01em] text-white sm:text-[28px]">
-                Performance
-              </h1>
-              <p className="mt-2 max-w-md text-[12.5px] leading-snug text-on-dark-dim">
-                Real-time insights into your business performance — every
-                load, net of diesel, factoring and expenses.
-              </p>
-            </div>
-            {selector ? <div className="shrink-0">{selector}</div> : null}
-          </div>
-        </header>
+    <div className="min-h-screen border-t border-line bg-canvas text-fg">
+      <div className="mx-auto w-full max-w-6xl px-4 py-5 sm:px-6 lg:px-8">
+        <PageHeader
+          eyebrow="Insights"
+          title="Performance"
+          className="mb-1.5"
+          actions={actions}
+        />
+        <p className="mb-3 max-w-md text-[13px] text-fg-muted">
+          Real-time insights into your business — every load, net of diesel,
+          factoring and expenses.
+        </p>
         <div className="space-y-3">{children}</div>
       </div>
     </div>

@@ -11,22 +11,9 @@ import {
 import {
   closeOutDate,
   goalMonthParts,
-  currentGoalMonth,
-  currentGoalMonthLabel,
-  daysLeftInMonth,
+  currentBusinessDate,
 } from "@/lib/dispatch/goal-month";
-import {
-  monthlyBuckets,
-  brokerStats,
-  laneStats,
-  deadheadSplit,
-  payTiming,
-  summarize,
-  monthKey,
-  monthDeltas,
-  takeaways,
-  type PerfLoad,
-} from "@/lib/dispatch/performance";
+import type { PerfLoad } from "@/lib/dispatch/performance";
 import { PerformanceView, type PerformanceData } from "./PerformanceView";
 
 export const metadata: Metadata = {
@@ -56,11 +43,17 @@ export const dynamic = "force-dynamic";
  *
  * The costing below is a deliberate mirror of the load board's server page:
  * same loadDiesel → loadNet pipeline, same factoring-broker gate, same
- * goal-month attribution. That's the point — if this page's July net didn't
- * equal the load board's July net, the page would be worse than useless.
+ * goal-month attribution (pickup date, matching the Calendar). That's the
+ * point — if this page's July net didn't equal the load board's or the
+ * Calendar's July net, the page would be worse than useless.
+ *
+ * This server component ships the full, uncosted-into-buckets `PerfLoad[]`
+ * array — every aggregation (month buckets, broker/lane leaderboards,
+ * deadhead split, KPI totals) happens CLIENT-SIDE in PerformanceView, because
+ * the month/range picker has to re-slice the data interactively with no
+ * refetch. Same pattern the Calendar already uses (loadCalendar ships every
+ * load once; month navigation happens in CalendarView).
  */
-
-const MONTH_WINDOW = 12;
 
 type LoadRowDB = {
   id: string;
@@ -149,11 +142,16 @@ async function performanceData(): Promise<PerformanceData> {
   }
 
   const loads: PerfLoad[] = (rows ?? []).map((l) => {
-    const attributed = goalMonthParts(closeOutDate(l));
+    // Pickup-primary, falling back to delivery then created_at — identical to
+    // the Calendar's resolveSpan, so a load lands in the same month here as it
+    // does on the Calendar (a Jul 26–Aug 1 straddle counts in July on both).
+    const attrDate = closeOutDate(l);
+    const attributed = goalMonthParts(attrDate);
     const base = {
       id: l.id,
       year: attributed?.year ?? -1,
       month: attributed?.month ?? -1,
+      date: attrDate,
       broker: l.broker_name?.trim() || "Unknown broker",
       origin: l.origin?.trim() || "",
       destination: l.destination?.trim() || "",
@@ -198,46 +196,14 @@ async function performanceData(): Promise<PerformanceData> {
     };
   });
 
-  const now = new Date();
-  const { year: curYear, month: curMonth } = currentGoalMonth(now);
-  const months = monthlyBuckets(loads, MONTH_WINDOW);
-  const curKey = monthKey(curYear, curMonth);
-  const curIndex = months.findIndex((b) => b.key === curKey);
-
   return {
-    monthLabel: currentGoalMonthLabel(now),
-    // Days left in the current month (incl. today), business-tz — the
-    // denominator for the goal card's "avg needed per week" pace figure.
-    // Only meaningful while the current month is the one being viewed.
-    daysLeft: daysLeftInMonth(now),
-    // Read off the SAME loads array every figure below is built from — the
-    // takeaways quote the aggregations, they don't re-derive them.
-    takeaways: takeaways(loads, {
-      year: curYear,
-      month: curMonth,
-      monthlyGoal,
-      daysRemaining: daysLeftInMonth(now),
-    }),
-    currentMonth: summarize(
-      loads.filter((l) => l.year === curYear && l.month === curMonth),
-    ),
-    allTime: summarize(loads),
-    // Read off the same contiguous buckets the ledger and charts draw, so the
-    // "▲ +12%" on a tile is exactly the move between the ledger's top two rows.
-    deltas: monthDeltas(months, curIndex),
-    pay: payTiming(loads),
-    months,
-    highlightIndex: curIndex,
+    loads,
     monthlyGoal,
-    // The leaderboards are tables now, not eight-bar charts — they can carry
-    // real depth, and the operator sorts rather than scrolls to find a row.
-    brokers: brokerStats(loads, 50),
-    lanes: laneStats(loads, 50),
-    deadhead: deadheadSplit(loads),
     // A/R is money owed on WORK THAT HAPPENED — delivered loads (rate) and
     // unpaid TONU loads (tonu_amount) — never a pending/booked-not-yet-run
     // load, which hasn't been invoiced. Same definition the load board and
-    // the receivables page use for delivered loads.
+    // the receivables page use for delivered loads. Always all-time — it's a
+    // snapshot of money currently owed, not a period-scoped figure.
     arTotal: (rows ?? [])
       .filter(
         (l) =>
@@ -248,6 +214,11 @@ async function performanceData(): Promise<PerformanceData> {
         (s, l) => s + (l.status === "tonu" ? num(l.tonu_amount) : num(l.rate)),
         0,
       ),
+    // "Today" in the business timezone (America/Chicago) — the client uses
+    // this (never its own clock) to default the month/range pickers and to
+    // compute days-remaining-in-month, so a server-rendered page and a
+    // client re-render never disagree across the hydration boundary.
+    today: currentBusinessDate(new Date()),
   };
 }
 

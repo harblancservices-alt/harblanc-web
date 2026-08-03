@@ -44,9 +44,9 @@ export type LoadRow = {
   loadedMiles: number | null;
   dhMiles: number;
   /**
-   * Calendar month 0–11 the load is attributed to, by close-out date
-   * (delivery → pickup → created_at) MINUS 1 day — so a load closed out on the
-   * 1st falls into the previous month. Drives the month dropdown.
+   * Calendar month 0–11 the load is attributed to, by pickup date (falling
+   * back to delivery_date then created_at) — no shift, matching the Calendar
+   * and Performance page exactly. Drives the month dropdown.
    */
   month: number;
   status: string;

@@ -1,11 +1,12 @@
 /**
- * Goal-month attribution for the $10k net-profit goal gauge. Pure + framework-
- * free so the load-board page and its Vitest spec share ONE implementation.
+ * Goal-month attribution for the $10k net-profit goal gauge, the Load Board,
+ * Performance and the Calendar. Pure + framework-free so every page and its
+ * Vitest spec share ONE implementation.
  *
  * The gauge is monthly and resets at the start of each month. A load's net is
- * attributed to the calendar month of its close-out date MINUS one day, so a
- * load closed out on the 1st counts toward the previous month and the 2nd+
- * counts toward the current one (Jul 1 → June; Jul 2 → July).
+ * attributed to the calendar month of its PICKUP date — no rollover, no
+ * shift — matching the Calendar's resolveSpan/weekNets attribution exactly, so
+ * a load's month here is always the same month it lands on in the Calendar.
  */
 
 // Harblanc operates in US Central (Houston, TX). "Now's month" MUST be resolved
@@ -16,22 +17,22 @@
 export const BUSINESS_TZ = "America/Chicago";
 
 /**
- * A load's close-out date — the date its net is attributed to a month. Uses
- * delivery_date (closed out when delivered), falling back to pickup_date then
- * created_at for loads not yet delivered.
+ * A load's attribution date — the date its net is attributed to a month.
+ * Pickup-primary, matching the Calendar's resolveSpan: pickup_date first,
+ * falling back to delivery_date then created_at for a load missing it.
  */
 export function closeOutDate(l: {
   delivery_date: string | null;
   pickup_date: string | null;
   created_at: string | null;
 }): string | null {
-  return l.delivery_date ?? l.pickup_date ?? l.created_at ?? null;
+  return l.pickup_date ?? l.delivery_date ?? l.created_at ?? null;
 }
 
 /**
- * The {year, month} a close-out date is attributed to (month 0-based, matching
- * Date.getMonth). Implemented as the calendar month of (date − 1 day), parsed
- * from the YYYY-MM-DD prefix in UTC so it's time-zone-safe.
+ * The {year, month} an attribution date falls in (month 0-based, matching
+ * Date.getMonth) — its own calendar month, no shift. Parsed from the
+ * YYYY-MM-DD prefix in UTC so it's time-zone-safe.
  */
 export function goalMonthParts(
   dateStr: string | null,
@@ -40,7 +41,6 @@ export function goalMonthParts(
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateStr);
   if (!m) return null;
   const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
-  d.setUTCDate(d.getUTCDate() - 1);
   return { year: d.getUTCFullYear(), month: d.getUTCMonth() };
 }
 
