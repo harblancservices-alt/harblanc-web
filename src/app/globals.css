@@ -226,6 +226,41 @@ input[type="date"]::-webkit-date-and-time-value {
   --accent-hover: var(--v2-blue-hover);
 }
 
+/* ============================================================== */
+/* TMS V2 THEME — scoped override, fully independent of the admin portal
+   and the CRM. The /tms-v2 shell root carries .tms-v2-light. Per
+   docs/portal/v2-design.md's Design system & tokens section: a calm
+   Stripe/Linear/Ramp palette — white/near-black surfaces, hairlines over
+   card boxes, one brand-red accent reserved for primary actions, and
+   exactly three semantic colors (positive/negative/warning) reusing the
+   SAME --ok/--warn/--bad utility slots every other theme in this file
+   already exposes (text-ok, bg-ok-bg, text-warn, bg-warn-bg, text-bad,
+   bg-bad-bg) — this is the "extend the one token system, don't add a
+   parallel one" decision from v2-architecture.md §1.
+   --fg-subtle is intentionally pinned to the same value as --fg-muted:
+   the design doc's house rule is "text is either fully legible or not
+   shown at all" — no third, dimmer tier, even though the shared
+   @theme block exposes a text-fg-subtle utility other themes use. */
+.tms-v2-light {
+  --canvas: #ffffff;
+  --panel: #ffffff;
+  --card: #ffffff;
+  --elevated: #f1f1ef;
+  --line: #e2e2e0;
+  --line-strong: #c9c9c6;
+  --fg: #0a0a0a;
+  --fg-muted: #3f3f3f;
+  --fg-subtle: #3f3f3f;
+  --bar: #0a0a0a;
+  --bar-fg: #ffffff;
+  --accent: #c8102e;
+  --accent-hover: #a50d26;
+
+  --ok: #0f7b3d;       --ok-bg: #e4f3ea;
+  --warn: #946200;     --warn-bg: #f5ecd9;
+  --bad: #b3261e;      --bad-bg: #f8e4e2;
+}
+
 /* ADMIN DARK THEME — opt-in via the Settings toggle. When the operator
    picks Dark, an inline script sets html[data-admin-theme="dark"], which
    re-applies the approved warm-charcoal palette over the .admin-light

@@ -117,33 +117,25 @@ async function crmGate(request: NextRequest, pathname: string) {
   return response;
 }
 
-export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
-
-  // Defense-in-depth: explicit bypass for callback and other public-prefix
-  // routes. Today the matcher already excludes these; this guarantees they
-  // stay public even if the matcher is widened later.
-  if (isPublicPrefix(pathname)) {
-    return NextResponse.next();
-  }
-
-  // ── CRM (Hello Hotshot) gate ────────────────────────────────────────────
-  // Entirely INDEPENDENT of the /admin allowlist below: no ADMIN_EMAIL, no
-  // shared allowlist, no shared state. The only question here is "does the
-  // request carry a valid Supabase Auth session?" — if not, bounce to the
-  // CRM's own login. Org membership (crm_profiles) is enforced separately in
-  // the CRM layout so a signed-in dispatch admin still can't see CRM data.
-  if (pathname.startsWith("/crm")) {
-    return crmGate(request, pathname);
-  }
-
-  // Belt-and-suspenders for the matcher: only enforce under /admin/**.
-  if (!pathname.startsWith("/admin")) {
-    return NextResponse.next();
-  }
-
+/**
+ * Shared admin-session gate — the SAME gate for both /admin and /tms-v2.
+ *
+ * /tms-v2 is a clean-room app-layer rebuild that must sit behind the
+ * identical login/session/cookie as /admin (see docs/portal/v2-architecture.md
+ * §7): one Supabase Auth session, one ADMIN_EMAIL allowlist, one login
+ * screen. There is no /tms-v2/login — an unauthenticated or non-admin
+ * visitor is always bounced to /admin/login, exactly like /admin itself,
+ * so a signed-in admin never sees a second login and an unauthenticated
+ * visitor never finds a second door in.
+ *
+ * This is a refactor of the pre-existing /admin gate logic (previously
+ * inlined directly in middleware()), not new auth logic — extracted so
+ * /tms-v2 reuses it by call, not by copy.
+ */
+async function adminSessionGate(request: NextRequest, pathname: string) {
   // Public admin sub-paths (login, reset-password) bypass the session gate
-  // so locked-out admins can sign in or request a recovery email.
+  // so locked-out admins can sign in or request a recovery email. /tms-v2
+  // has no public sub-paths of its own — this only ever matches /admin/*.
   if (isPublicAdminPath(pathname)) {
     return NextResponse.next();
   }
@@ -194,7 +186,7 @@ export async function middleware(request: NextRequest) {
 
   // Authenticated and on the allowlist. Forward the verified identity to
   // server components as request headers (overwriting any client-supplied
-  // values) so the admin layout can skip a second getUser() round-trip.
+  // values) so the admin/tms-v2 layouts can skip a second getUser() round-trip.
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-admin-user-id", user.id);
   requestHeaders.set("x-admin-user-email", user.email);
@@ -216,6 +208,36 @@ export async function middleware(request: NextRequest) {
   return response;
 }
 
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Defense-in-depth: explicit bypass for callback and other public-prefix
+  // routes. Today the matcher already excludes these; this guarantees they
+  // stay public even if the matcher is widened later.
+  if (isPublicPrefix(pathname)) {
+    return NextResponse.next();
+  }
+
+  // ── CRM (Hello Hotshot) gate ────────────────────────────────────────────
+  // Entirely INDEPENDENT of the /admin allowlist below: no ADMIN_EMAIL, no
+  // shared allowlist, no shared state. The only question here is "does the
+  // request carry a valid Supabase Auth session?" — if not, bounce to the
+  // CRM's own login. Org membership (crm_profiles) is enforced separately in
+  // the CRM layout so a signed-in dispatch admin still can't see CRM data.
+  if (pathname.startsWith("/crm")) {
+    return crmGate(request, pathname);
+  }
+
+  // /admin and /tms-v2 share the exact same session gate (see
+  // adminSessionGate's doc comment) — same cookie, same allowlist, same
+  // login screen, no second implementation.
+  if (pathname.startsWith("/admin") || pathname.startsWith("/tms-v2")) {
+    return adminSessionGate(request, pathname);
+  }
+
+  return NextResponse.next();
+}
+
 export const config = {
-  matcher: ["/admin/:path*", "/crm/:path*"],
+  matcher: ["/admin/:path*", "/crm/:path*", "/tms-v2/:path*"],
 };
