@@ -29,6 +29,10 @@ import type { ComponentPropsWithoutRef, ReactNode } from "react";
  *                 same reason destructive-solid is: these sit on the always-dark
  *                 graphite section bars as often as on white cards, and a fixed
  *                 fill with a white label is legible on both admin themes.
+ *   graphite    → SOLID dark graphite (bg-bar), white text. A calm "commit"
+ *                 action that isn't the page's one red accent — e.g. the trip
+ *                 detail page's Edit button, where red is reserved for Save
+ *                 odometer alone. Fixed dark fill, legible on both themes.
  *   destructive → RED border, WHITE fill, RED text. Delete / Remove / Trash /
  *                 Cancel load — distinct from primary so a delete never reads
  *                 like a save.
@@ -51,7 +55,8 @@ export type ButtonVariant =
   | "destructive-solid"
   | "cancel"
   | "utility"
-  | "blue";
+  | "blue"
+  | "graphite";
 
 export type ButtonSize = "xs" | "sm" | "md";
 
@@ -95,6 +100,8 @@ const VARIANT: Record<ButtonVariant, string> = {
     "transition-colors border border-bad bg-bad text-white hover:bg-[#8f1c13] hover:border-[#8f1c13]",
   blue:
     "transition-colors border border-info bg-info text-white hover:bg-info-hover hover:border-info-hover",
+  graphite:
+    "transition-colors border border-bar bg-bar text-bar-fg hover:bg-graphite-2 hover:border-graphite-2",
 };
 
 // 6px radius (rounded-md). Compact, refined proportions — a fixed height keeps

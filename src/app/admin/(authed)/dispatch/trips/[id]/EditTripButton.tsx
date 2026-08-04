@@ -49,12 +49,12 @@ export function EditTripButton({
   return (
     <>
       <Button
-        variant="edit"
+        variant="graphite"
+        size="sm"
         type="button"
         onClick={() => setOpen(true)}
-        className="h-9"
       >
-        ✎ Edit trip
+        Edit
       </Button>
 
       {open ? (
@@ -101,7 +101,7 @@ export function EditTripButton({
             >
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
-                  <label className="block font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
+                  <label className="block font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-fg-muted">
                     Trip name<span className="text-red-600"> *</span>
                   </label>
                   <input
@@ -113,7 +113,7 @@ export function EditTripButton({
                   />
                 </div>
                 <div>
-                  <label className="block font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
+                  <label className="block font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-fg-muted">
                     Status
                   </label>
                   <select
@@ -141,7 +141,7 @@ export function EditTripButton({
               ) : null}
 
               <div>
-                <label className="block font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
+                <label className="block font-mono text-[10px] font-semibold uppercase tracking-[0.1em] text-fg-muted">
                   Notes
                 </label>
                 <textarea
