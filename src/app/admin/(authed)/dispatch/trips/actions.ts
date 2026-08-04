@@ -131,22 +131,47 @@ export async function updateTripOdometer(
   revalidatePath(`/admin/dispatch/trips/${id}`);
 }
 
-/** Toggle a trip between active and closed. */
+/**
+ * Toggle a trip between active and closed. Closing stamps `ended_at` (only
+ * if not already set manually) so the "Ongoing · no end" chip clears the
+ * moment a trip is closed; reopening nulls it back out since an active trip
+ * isn't finished.
+ */
 export async function setTripStatus(
   id: string,
   status: "active" | "closed",
 ): Promise<void> {
   if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   const sb = createServiceRoleClient();
-  const { error } = await sb
-    .from("trips")
-    .update({
-      status,
-      closed_at: status === "closed" ? new Date().toISOString() : null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", id);
-  if (error) throw new Error(`Could not update trip: ${error.message}`);
+  if (status === "closed") {
+    const { data: current } = await sb
+      .from("trips")
+      .select("ended_at")
+      .eq("id", id)
+      .maybeSingle<{ ended_at: string | null }>();
+    const now = new Date().toISOString();
+    const { error } = await sb
+      .from("trips")
+      .update({
+        status,
+        closed_at: now,
+        ...(current?.ended_at ? {} : { ended_at: now }),
+        updated_at: now,
+      })
+      .eq("id", id);
+    if (error) throw new Error(`Could not update trip: ${error.message}`);
+  } else {
+    const { error } = await sb
+      .from("trips")
+      .update({
+        status,
+        closed_at: null,
+        ended_at: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id);
+    if (error) throw new Error(`Could not update trip: ${error.message}`);
+  }
   revalidatePath(`/admin/dispatch/trips/${id}`);
   revalidatePath("/admin/dispatch/trips");
 }
