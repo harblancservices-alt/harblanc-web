@@ -75,3 +75,38 @@ export function formatCentralTime(value: string | Date | null | undefined): stri
   });
   return `${s} CST`;
 }
+
+/**
+ * "Now" as a YYYY-MM-DD calendar date in Central time — the same date-only
+ * shape `pickup_date`/`delivery_date` columns carry, so it can be compared
+ * to them by string equality/range. Must NOT be derived from the server's
+ * UTC clock: Central is UTC−5/−6, so from ~6-7pm Central onward UTC has
+ * already ticked to tomorrow, which would misattribute anything computed
+ * against "today" (period boundaries, day-of-month math) by a day.
+ */
+export function centralDateKey(now: Date = new Date()): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: CENTRAL_TZ,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(now);
+  const at = (type: string) => parts.find((p) => p.type === type)?.value;
+  const year = at("year");
+  const month = at("month");
+  const day = at("day");
+  if (!year || !month || !day) return now.toISOString().slice(0, 10);
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * The calendar {year, month} (month 0-based, matching Date.getMonth) that
+ * "now" falls in, evaluated in Central time — the one clock every /tms-v2
+ * period-scoped query and KPI resolves "this month" against.
+ */
+export function currentCentralPeriod(now: Date = new Date()): { year: number; month: number } {
+  const key = centralDateKey(now);
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(key);
+  if (!m) return { year: now.getUTCFullYear(), month: now.getUTCMonth() };
+  return { year: Number(m[1]), month: Number(m[2]) - 1 };
+}

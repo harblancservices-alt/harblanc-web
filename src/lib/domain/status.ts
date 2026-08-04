@@ -9,10 +9,11 @@
  * (loaded, awaiting payment), "bad" = negative (TONU, cancelled, lost),
  * "neutral" = no urgency either way (new, draft).
  *
- * The exact status vocabularies below are a reasonable starting registry
- * inferred from v2-design.md's wireframes — they get corrected against the
- * live `loads`/`trips`/quote-pipeline schema once lib/data's query layer
- * lands (a later phase); the resolution mechanism (one function, one call
+ * Load status vocabulary is the real `loads.status` column's values,
+ * confirmed against /admin's existing usage now that lib/data's query
+ * layer reads it directly (v2-architecture.md §3c, Phase 2). Trip/lead
+ * vocabularies remain a reasonable starting registry pending their own
+ * data-layer phases — the resolution mechanism (one function, one call
  * site per pill) is what's structural here, not today's exact string list.
  */
 
@@ -25,14 +26,11 @@ export type ResolvedStatus = {
 };
 
 const LOAD_STATUS: Record<string, ResolvedStatus> = {
-  booked: { label: "Booked", tone: "neutral" },
+  pending: { label: "Pending", tone: "neutral" },
   assigned: { label: "Assigned", tone: "neutral" },
   loaded: { label: "Loaded", tone: "warn" },
-  in_transit: { label: "In transit", tone: "warn" },
   delivered: { label: "Delivered", tone: "ok" },
-  paid: { label: "Paid", tone: "ok" },
   tonu: { label: "TONU", tone: "bad" },
-  cancelled: { label: "Cancelled", tone: "bad" },
 };
 
 const TRIP_STATUS: Record<string, ResolvedStatus> = {
