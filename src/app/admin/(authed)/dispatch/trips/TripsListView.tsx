@@ -345,37 +345,54 @@ function TripTableSection({
           </div>
         ) : null
       ) : (
-        <div className="overflow-hidden rounded-md border border-line-strong bg-card shadow-e1">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[900px] border-collapse text-[13px]">
-              <thead>
-                <tr className={TABLE_HEAD_ROW}>
-                  {selectMode ? <th className="w-9 px-3 py-2.5" /> : null}
-                  <th className="px-3 py-2.5 text-left">Trip</th>
-                  <th className="px-3 py-2.5 text-left">Dates</th>
-                  <th className="px-3 py-2.5 text-right">Loads</th>
-                  <th className="px-3 py-2.5 text-right">Miles</th>
-                  <th className="px-3 py-2.5 text-right">Gross</th>
-                  <th className="px-3 py-2.5 text-right">Net</th>
-                  <th className="px-3 py-2.5 text-right">Profit %</th>
-                  <th className="px-3 py-2.5 text-left">Status</th>
-                </tr>
-              </thead>
-              <tbody className={ZEBRA_ROWS}>
-                {trips.map((t) => (
-                  <TripRow
-                    key={t.id}
-                    trip={t}
-                    selectMode={selectMode}
-                    isSel={selectMode && selected.has(t.id)}
-                    onOpen={onOpen}
-                    onToggle={onToggle}
-                  />
-                ))}
-              </tbody>
-            </table>
+        <>
+          {/* Desktop / wide table — unchanged. */}
+          <div className="hidden overflow-hidden rounded-md border border-line-strong bg-card shadow-e1 lg:block">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[900px] border-collapse text-[13px]">
+                <thead>
+                  <tr className={TABLE_HEAD_ROW}>
+                    {selectMode ? <th className="w-9 px-3 py-2.5" /> : null}
+                    <th className="px-3 py-2.5 text-left">Trip</th>
+                    <th className="px-3 py-2.5 text-left">Dates</th>
+                    <th className="px-3 py-2.5 text-right">Loads</th>
+                    <th className="px-3 py-2.5 text-right">Miles</th>
+                    <th className="px-3 py-2.5 text-right">Gross</th>
+                    <th className="px-3 py-2.5 text-right">Net</th>
+                    <th className="px-3 py-2.5 text-right">Profit %</th>
+                    <th className="px-3 py-2.5 text-left">Status</th>
+                  </tr>
+                </thead>
+                <tbody className={ZEBRA_ROWS}>
+                  {trips.map((t) => (
+                    <TripRow
+                      key={t.id}
+                      trip={t}
+                      selectMode={selectMode}
+                      isSel={selectMode && selected.has(t.id)}
+                      onOpen={onOpen}
+                      onToggle={onToggle}
+                    />
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+
+          {/* Mobile — stacked rows, not a squeezed table. */}
+          <div className="divide-y divide-line-strong overflow-hidden rounded-md border border-line-strong bg-card shadow-e1 lg:hidden">
+            {trips.map((t) => (
+              <TripCardRow
+                key={t.id}
+                trip={t}
+                selectMode={selectMode}
+                isSel={selectMode && selected.has(t.id)}
+                onOpen={onOpen}
+                onToggle={onToggle}
+              />
+            ))}
+          </div>
+        </>
       )}
     </section>
   );
@@ -484,6 +501,111 @@ function TripRow({
         <StatusPill status={trip.status} />
       </td>
     </tr>
+  );
+}
+
+// Mobile row — same data as TripRow, laid out as a stacked card instead of
+// table cells: name + status pill on one line, dates/lane under it, then a
+// loads·miles meta line with net + margin right-aligned.
+function TripCardRow({
+  trip,
+  selectMode,
+  isSel,
+  onOpen,
+  onToggle,
+}: {
+  trip: TripListItem;
+  selectMode: boolean;
+  isSel: boolean;
+  onOpen: (id: string) => void;
+  onToggle: (id: string) => void;
+}) {
+  const tone = marginTone(trip.net, trip.profitPct);
+  return (
+    <div
+      role={selectMode ? "button" : "link"}
+      tabIndex={0}
+      aria-pressed={selectMode ? isSel : undefined}
+      onClick={() => (selectMode ? onToggle(trip.id) : onOpen(trip.id))}
+      onKeyDown={(e) => {
+        if (e.key !== "Enter") return;
+        if (selectMode) onToggle(trip.id);
+        else onOpen(trip.id);
+      }}
+      className={
+        "flex cursor-pointer items-start gap-3 px-3 py-3 transition-colors active:bg-elevated " +
+        (isSel ? "!bg-bad-bg" : "")
+      }
+    >
+      {selectMode ? (
+        <span
+          aria-hidden
+          onClick={(e) => {
+            e.stopPropagation();
+            onToggle(trip.id);
+          }}
+          className={
+            "mt-0.5 flex h-5 w-5 shrink-0 cursor-pointer items-center justify-center rounded border-2 text-[12px] font-bold leading-none " +
+            (isSel
+              ? "border-bad bg-bad text-white"
+              : "border-line-strong text-transparent")
+          }
+        >
+          ✓
+        </span>
+      ) : null}
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center justify-between gap-2">
+          <span className="truncate font-bold text-fg">{trip.name}</span>
+          <StatusPill status={trip.status} />
+        </div>
+
+        {trip.notes ? (
+          <div className="mt-0.5 truncate text-[11.5px] font-medium text-fg-muted">
+            {trip.notes}
+          </div>
+        ) : null}
+
+        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+          <span className="font-mono text-[12px] font-semibold text-fg">
+            {trip.datesPrimary}
+          </span>
+          {trip.ongoing ? (
+            <span className="inline-flex w-fit items-center rounded border border-warn/40 bg-warn-bg px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-[0.04em] text-warn">
+              Ongoing · no end
+            </span>
+          ) : trip.datesDuration ? (
+            <span className="font-mono text-[11px] font-semibold text-fg-muted">
+              {trip.datesDuration}
+            </span>
+          ) : null}
+        </div>
+
+        <div className="mt-1.5 flex items-end justify-between gap-2">
+          <span className="font-mono text-[11.5px] font-semibold text-fg-muted">
+            {trip.loads} load{trip.loads === 1 ? "" : "s"} ·{" "}
+            {trip.totalMiles.toLocaleString("en-US")} mi
+          </span>
+          <div className="text-right leading-tight">
+            <div
+              className={
+                "font-mono text-[14px] font-bold tabular-nums " + TONE_TEXT[tone]
+              }
+            >
+              {usd(trip.net)}
+            </div>
+            <div
+              className={
+                "font-mono text-[11px] font-semibold tabular-nums " + TONE_TEXT[tone]
+              }
+            >
+              {trip.profitPct != null ? `${Math.round(trip.profitPct)}%` : "—"}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
