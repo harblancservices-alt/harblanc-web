@@ -4,7 +4,6 @@ import { useMemo, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { softDeleteLoads } from "./actions";
 import { AddLoadButton } from "./AddLoadButton";
-import { PopoutButton } from "../email-broker/PopoutButton";
 import { Button } from "@/components/ui/Button";
 import { BoardHeader } from "./board/BoardHeader";
 import { OverviewSection } from "./board/OverviewSection";
@@ -278,9 +277,14 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
           >
             <span className="min-w-0 truncate">+ New Load</span>
           </AddLoadButton>
-          <PopoutButton variant="navigate" className={ACTION_BTN}>
+          <Button
+            href="/admin/dispatch/email-broker"
+            prefetch={false}
+            variant="navigate"
+            className={ACTION_BTN}
+          >
             <span className="min-w-0 truncate">Inquiry</span>
-          </PopoutButton>
+          </Button>
           {!selectMode && rows.length > 0 ? (
             <Button
               type="button"
@@ -308,63 +312,74 @@ export function LoadBoardView({ data }: { data: LoadBoardData }) {
           />
         </div>
 
-        {/* ── Delete-selection bar — only while in explicit delete mode. ── */}
+        {/* ── Delete-selection bar — only while in explicit delete mode. ──
+            One row of equal-width actions (Select all / Cancel / Delete
+            selected) so all three fit on a phone without wrapping, with the
+            live count + hint on its own line underneath. */}
         {selectMode && (
-          <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-bad/40 bg-bad-bg px-3.5 py-3 shadow-e1">
-            <span className="text-[13px] font-bold tabular-nums text-ink">
-              {selected.size} selected
-            </span>
-            <span className="text-[12px] text-ink-3">· tap loads to select</span>
-            {/* Bulk pick is a property of delete mode. Toggles the whole
-                VISIBLE (month + status + search) slice. */}
-            <Button
-              type="button"
-              variant="cancel"
-              size="sm"
-              onClick={() =>
-                setSelected(
-                  selected.size === rows.length
-                    ? new Set()
-                    : new Set(rows.map((r) => r.id)),
-                )
-              }
-            >
-              {selected.size === rows.length && rows.length > 0
-                ? "Clear all"
-                : "Select all"}
-            </Button>
-            <Button
-              type="button"
-              variant="cancel"
-              size="sm"
-              onClick={exitSelectMode}
-              className="ml-auto"
-            >
-              Cancel
-            </Button>
-            <form
-              action={softDeleteLoads}
-              onSubmit={(e) => {
-                if (selected.size === 0) {
-                  e.preventDefault();
-                  return;
-                }
-                if (
-                  !window.confirm(
-                    `Delete ${selected.size} load${selected.size === 1 ? "" : "s"}? They move to trash and can be restored for 30 days.`,
+          <div className="flex flex-col gap-2 rounded-2xl border border-bad/40 bg-bad-bg px-3.5 py-3 shadow-e1">
+            <div className="flex items-center gap-2">
+              {/* Bulk pick is a property of delete mode. Toggles the whole
+                  VISIBLE (month + status + search) slice. */}
+              <Button
+                type="button"
+                variant="cancel"
+                size="sm"
+                className="min-w-0 flex-1"
+                onClick={() =>
+                  setSelected(
+                    selected.size === rows.length
+                      ? new Set()
+                      : new Set(rows.map((r) => r.id)),
                   )
-                ) {
-                  e.preventDefault();
-                } else {
-                  exitSelectMode();
                 }
-              }}
-            >
-              {[...selected].map((id) => (
-                <input key={id} type="hidden" name="ids" value={id} />
-              ))}
-              <BulkDeleteButton count={selected.size} />
-            </form>
+              >
+                <span className="min-w-0 truncate">
+                  {selected.size === rows.length && rows.length > 0
+                    ? "Clear all"
+                    : "Select all"}
+                </span>
+              </Button>
+              <Button
+                type="button"
+                variant="cancel"
+                size="sm"
+                className="min-w-0 flex-1"
+                onClick={exitSelectMode}
+              >
+                <span className="min-w-0 truncate">Cancel</span>
+              </Button>
+              <form
+                action={softDeleteLoads}
+                className="min-w-0 flex-1"
+                onSubmit={(e) => {
+                  if (selected.size === 0) {
+                    e.preventDefault();
+                    return;
+                  }
+                  if (
+                    !window.confirm(
+                      `Delete ${selected.size} load${selected.size === 1 ? "" : "s"}? They move to trash and can be restored for 30 days.`,
+                    )
+                  ) {
+                    e.preventDefault();
+                  } else {
+                    exitSelectMode();
+                  }
+                }}
+              >
+                {[...selected].map((id) => (
+                  <input key={id} type="hidden" name="ids" value={id} />
+                ))}
+                <BulkDeleteButton count={selected.size} />
+              </form>
+            </div>
+            <div className="text-[12px] font-bold tabular-nums text-ink">
+              {selected.size} selected{" "}
+              <span className="font-normal text-ink-3">
+                · tap loads to select
+              </span>
+            </div>
           </div>
         )}
 
@@ -460,18 +475,22 @@ function BulkDeleteButton({ count }: { count: number }) {
       variant="destructive"
       size="sm"
       type="submit"
+      fullWidth
+      className="min-w-0"
       disabled={pending || count === 0}
       aria-busy={pending}
       leftIcon={
         pending ? (
           <span
             aria-hidden
-            className="h-3 w-3 animate-spin rounded-full border-2 border-red-600/30 border-t-red-600"
+            className="h-3 w-3 shrink-0 animate-spin rounded-full border-2 border-red-600/30 border-t-red-600"
           />
         ) : undefined
       }
     >
-      {pending ? "Deleting…" : "Delete Selected"}
+      <span className="min-w-0 truncate">
+        {pending ? "Deleting…" : "Delete Selected"}
+      </span>
     </Button>
   );
 }

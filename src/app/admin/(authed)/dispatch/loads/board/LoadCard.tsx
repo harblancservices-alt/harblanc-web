@@ -58,11 +58,25 @@ export function LoadCard({
         {/* ── Identity ──────────────────────────────────────────────────── */}
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-start gap-3">
+            {/* In select mode this circle IS the checkbox — same footprint as
+                the avatar it replaces, so selecting never collides with the
+                status pill on the right (the old top-right checkbox did). */}
             <span
               aria-hidden
-              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-graphite text-[14px] font-bold tracking-[0.02em] text-white shadow-e1"
+              className={
+                "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full shadow-e1 " +
+                (selectMode
+                  ? isSel
+                    ? "border-2 border-bad bg-bad text-white"
+                    : "border-2 border-line-strong bg-white text-transparent"
+                  : "bg-graphite text-[14px] font-bold tracking-[0.02em] text-white")
+              }
             >
-              {initials(r.broker)}
+              {selectMode ? (
+                <CheckIcon className="h-4 w-4" />
+              ) : (
+                initials(r.broker)
+              )}
             </span>
             <div className="min-w-0">
               <h3 className="truncate text-[18px] font-bold leading-tight tracking-[-0.01em] text-fg sm:text-[22px]">
@@ -110,7 +124,8 @@ export function LoadCard({
       </div>
 
       {/* Stretched target, covering the whole card now that there's no
-          action row beneath it to leave room for. */}
+          action row beneath it to leave room for. The visual checkbox lives
+          up in the avatar's spot; this button is purely the hit target. */}
       {selectMode ? (
         <button
           type="button"
@@ -118,21 +133,7 @@ export function LoadCard({
           aria-label={`Select load ${r.loadNumber}`}
           onClick={() => onToggle(r.id)}
           className="absolute inset-0 z-20 rounded-2xl focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
-        >
-          {/* Visual checkbox — the whole card is the hit target, so this is an
-              indicator pinned to the corner rather than a control of its own. */}
-          <span
-            aria-hidden
-            className={
-              "absolute right-3 top-3 flex h-6 w-6 items-center justify-center rounded-md border-2 shadow-e1 " +
-              (isSel
-                ? "border-bad bg-bad text-white"
-                : "border-line-strong bg-white text-transparent")
-            }
-          >
-            <CheckIcon className="h-3.5 w-3.5" />
-          </span>
-        </button>
+        />
       ) : (
         <Link
           href={`/admin/dispatch/loads/${r.id}`}
