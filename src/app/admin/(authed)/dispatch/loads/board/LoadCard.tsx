@@ -1,19 +1,15 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import { Button } from "@/components/ui/Button";
 import type { LoadRow } from "../LoadBoardView";
 import { BADGE, STAGES, badgeOf, initials, stageOf } from "./shared";
 import {
   BoxIcon,
   CalendarIcon,
   CheckIcon,
-  ChevronDownIcon,
   DollarIcon,
   FlagIcon,
   InvoiceIcon,
-  PhoneIcon,
   PinIcon,
   RoadIcon,
   TimelineIcon,
@@ -32,12 +28,10 @@ import {
  * (loadNet); `rate` already accounts for a cancelled load earning only its
  * TONU. The card derives two ratios from those and nothing else.
  *
- * NAVIGATION. The card body taps through to the load detail via a stretched
- * overlay link rather than a wrapping anchor — the action row holds links of
- * its own, which cannot legally nest inside one. The action row sits at z-10,
- * above the overlay, so pressing Call Broker never doubles as opening the load.
- * In delete mode the overlay is replaced by a select button and the actions are
- * withdrawn, so the whole card is one unambiguous target.
+ * NAVIGATION. The whole card is a stretched overlay link to the load detail
+ * page — there's no action row anymore, so nothing else needs to sit above it.
+ * In delete mode the overlay is replaced by a select button instead, so the
+ * whole card is one unambiguous target either way.
  */
 export function LoadCard({
   row: r,
@@ -50,10 +44,8 @@ export function LoadCard({
   isSel: boolean;
   onToggle: (id: string) => void;
 }) {
-  const [open, setOpen] = useState(false);
   const badge = BADGE[badgeOf(r)];
   const stage = stageOf(r);
-  const brokerHref = r.brokerId ? `/admin/dispatch/brokers/${r.brokerId}` : null;
 
   return (
     <article
@@ -115,88 +107,10 @@ export function LoadCard({
 
         {/* ── Shipment timeline ─────────────────────────────────────────── */}
         <Timeline stage={stage} cancelled={r.status === "tonu"} />
-
-        {/* ── More: the columns the old board's table carried that the card
-            doesn't show at rest. Kept off-screen until asked for rather than
-            dropped. */}
-        {open ? (
-          <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2.5 rounded-xl bg-inset px-3.5 py-3 shadow-e1">
-            <Detail label="Equipment" value={r.equipment || "—"} />
-            <Detail
-              label="Deadhead"
-              value={r.dhMiles > 0 ? `${Math.round(r.dhMiles).toLocaleString()} mi` : "—"}
-            />
-            <Detail label="Trip" value={r.trip || "—"} />
-            <Detail
-              label="Payment"
-              value={r.paymentStatus === "paid" ? "Paid" : "Unpaid"}
-            />
-          </dl>
-        ) : null}
       </div>
 
-      {/* ── Actions ────────────────────────────────────────────────────────
-          Above the stretched link (z-10) so a tap here never doubles as
-          navigation. Withdrawn in delete mode, where the whole card is a
-          single select target. */}
-      {selectMode ? null : (
-        <div className="relative z-10 mt-auto grid grid-cols-3 gap-2 border-t border-line px-4 py-3 sm:px-5">
-          <Button
-            href={`/admin/dispatch/loads/${r.id}`}
-            prefetch={false}
-            variant="navigate"
-            size="md"
-            fullWidth
-            className="px-1.5! text-[11px]! sm:px-3! sm:text-[12px]!"
-          >
-            <span className="min-w-0 truncate">View Details</span>
-          </Button>
-          {brokerHref ? (
-            <Button
-              href={brokerHref}
-              prefetch={false}
-              variant="navigate"
-              size="md"
-              fullWidth
-              leftIcon={<PhoneIcon className="h-3.5 w-3.5 shrink-0" />}
-              className="px-1.5! text-[11px]! sm:px-3! sm:text-[12px]!"
-            >
-              <span className="min-w-0 truncate">Call Broker</span>
-            </Button>
-          ) : (
-            <Button
-              variant="navigate"
-              size="md"
-              fullWidth
-              disabled
-              title="No broker profile linked to this load"
-              leftIcon={<PhoneIcon className="h-3.5 w-3.5 shrink-0" />}
-              className="px-1.5! text-[11px]! sm:px-3! sm:text-[12px]!"
-            >
-              <span className="min-w-0 truncate">Call Broker</span>
-            </Button>
-          )}
-          <Button
-            type="button"
-            variant="navigate"
-            size="md"
-            fullWidth
-            onClick={() => setOpen((v) => !v)}
-            aria-expanded={open}
-            className="px-1.5! text-[11px]! sm:px-3! sm:text-[12px]!"
-          >
-            <span className="min-w-0 truncate">More</span>
-            <ChevronDownIcon
-              className={
-                "h-3.5 w-3.5 shrink-0 transition-transform duration-150 " +
-                (open ? "rotate-180" : "")
-              }
-            />
-          </Button>
-        </div>
-      )}
-
-      {/* Stretched target. Rendered last so it stacks under the action row. */}
+      {/* Stretched target, covering the whole card now that there's no
+          action row beneath it to leave room for. */}
       {selectMode ? (
         <button
           type="button"
@@ -224,7 +138,7 @@ export function LoadCard({
           href={`/admin/dispatch/loads/${r.id}`}
           prefetch={false}
           aria-label={`Open load ${r.loadNumber}`}
-          className="absolute inset-x-0 top-0 bottom-[58px] rounded-t-2xl focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
+          className="absolute inset-0 rounded-2xl focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
         />
       )}
     </article>
@@ -367,18 +281,5 @@ function Pill({
       <span className="shrink-0">{icon}</span>
       <span className="min-w-0 truncate">{children}</span>
     </span>
-  );
-}
-
-function Detail({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="min-w-0">
-      <dt className="truncate text-[9px] font-bold uppercase tracking-[0.1em] text-ink-3">
-        {label}
-      </dt>
-      <dd className="mt-0.5 truncate text-[12.5px] font-semibold text-ink">
-        {value}
-      </dd>
-    </div>
   );
 }
