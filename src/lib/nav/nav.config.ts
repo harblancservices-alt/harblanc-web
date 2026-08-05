@@ -5,16 +5,16 @@ import {
   IconLoadBoard,
   IconTrips,
   IconBrokers,
-  IconReach,
   IconInquiry,
   IconPipeline,
   IconReceivables,
   IconExpenses,
-  IconAccounting,
   IconPerformance,
   IconMaintenance,
   IconFiles,
   IconCamera,
+  IconMailPreview,
+  IconPagePreview,
   IconSettings,
 } from "./icons";
 
@@ -44,7 +44,8 @@ export type NavGroupId =
   | "partners"
   | "pipeline"
   | "money"
-  | "records";
+  | "records"
+  | "previews";
 
 export const NAV_GROUP_LABEL: Record<NavGroupId, string> = {
   today: "Today",
@@ -53,6 +54,7 @@ export const NAV_GROUP_LABEL: Record<NavGroupId, string> = {
   pipeline: "Pipeline",
   money: "Money",
   records: "Records",
+  previews: "Previews",
 };
 
 export type NavItem = {
@@ -82,19 +84,20 @@ export const TMS_V2_NAV: NavItem[] = [
   { id: "trips", label: "Trips", href: "/tms-v2/trips", Icon: IconTrips, group: "loads" },
 
   { id: "brokers", label: "Brokers", href: "/tms-v2/brokers", Icon: IconBrokers, group: "partners", mobilePrimary: true },
-  { id: "reach", label: "Reach", href: "/tms-v2/reach", Icon: IconReach, group: "partners" },
   { id: "load-inquiry", label: "Load Inquiry", href: "/tms-v2/load-inquiry", Icon: IconInquiry, group: "partners" },
 
   { id: "operations", label: "Operations", href: "/tms-v2/operations", Icon: IconPipeline, group: "pipeline" },
 
   { id: "receivables", label: "Receivables", href: "/tms-v2/receivables", Icon: IconReceivables, group: "money" },
   { id: "expenses", label: "Expenses", href: "/tms-v2/expenses", Icon: IconExpenses, group: "money" },
-  { id: "accounting", label: "Accounting", href: "/tms-v2/accounting", Icon: IconAccounting, group: "money" },
   { id: "performance", label: "Performance", href: "/tms-v2/performance", Icon: IconPerformance, group: "money" },
 
   { id: "maintenance", label: "Maintenance", href: "/tms-v2/maintenance", Icon: IconMaintenance, group: "records" },
   { id: "files", label: "Files", href: "/tms-v2/files", Icon: IconFiles, group: "records" },
   { id: "camera", label: "Camera", href: "/tms-v2/camera", Icon: IconCamera, group: "records" },
+
+  { id: "email-previews", label: "Email Previews", href: "/tms-v2/previews/email", Icon: IconMailPreview, group: "previews" },
+  { id: "page-previews", label: "Page Previews", href: "/tms-v2/previews/pages", Icon: IconPagePreview, group: "previews" },
 ];
 
 /** Settings is pinned at the bottom of the shell, outside the six groups
@@ -108,7 +111,7 @@ export const TMS_V2_SETTINGS: NavItem = {
 };
 
 export function groupedNav(): { id: NavGroupId; label: string; items: NavItem[] }[] {
-  const order: NavGroupId[] = ["today", "loads", "partners", "pipeline", "money", "records"];
+  const order: NavGroupId[] = ["today", "loads", "partners", "pipeline", "money", "records", "previews"];
   return order.map((id) => ({
     id,
     label: NAV_GROUP_LABEL[id],

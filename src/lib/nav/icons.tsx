@@ -157,6 +157,25 @@ export function IconSettings({ className }: IconProps) {
   );
 }
 
+export function IconMailPreview({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <rect x="3" y="5" width="18" height="14" rx="2" />
+      <path d="m3 7 9 6 9-6" />
+    </svg>
+  );
+}
+
+export function IconPagePreview({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M3 8h18" />
+      <path d="M7 12h6M7 15h4" />
+    </svg>
+  );
+}
+
 export function IconMenu({ className }: IconProps) {
   return (
     <svg {...base} className={className}>

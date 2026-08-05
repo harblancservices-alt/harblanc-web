@@ -43,6 +43,8 @@ export default async function OperationsPage({
   const tab: TabKey = isTabKey(rawTab) ? rawTab : "quotes";
   const page = typeof sp.page === "string" ? Math.max(1, Number(sp.page) || 1) : 1;
   const status = typeof sp.status === "string" ? sp.status : undefined;
+  const opage = typeof sp.opage === "string" ? Math.max(1, Number(sp.opage) || 1) : 1;
+  const ppage = typeof sp.ppage === "string" ? Math.max(1, Number(sp.ppage) || 1) : 1;
 
   return (
     <div className="flex flex-col gap-6">
@@ -67,7 +69,7 @@ export default async function OperationsPage({
 
       {tab === "quotes" ? <QuotesTab page={page} status={status} /> : null}
       {tab === "applications" ? <ApplicationsTab page={page} /> : null}
-      {tab === "accounting" ? <AccountingTab page={page} /> : null}
+      {tab === "accounting" ? <AccountingTab outstandingPage={opage} paymentsPage={ppage} /> : null}
     </div>
   );
 }
