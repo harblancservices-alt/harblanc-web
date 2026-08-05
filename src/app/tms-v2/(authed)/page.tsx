@@ -4,21 +4,14 @@ import { Money } from "@/components/tms-v2/ui/Money";
 import { DateTimeCST } from "@/components/tms-v2/ui/DateTimeCST";
 import { StatusPill } from "@/components/tms-v2/ui/StatusPill";
 import { DataList, type DataListColumn } from "@/components/tms-v2/ui/DataList";
+import { NeedsAttentionList } from "./_components/NeedsAttentionList";
 import { getTodaySummary } from "@/lib/data/dashboard";
+import { getNeedsAttention } from "@/lib/data/attention";
 import type { LoadWithFinancials } from "@/lib/data/loads";
-import type { AttentionReceivable } from "@/lib/data/dashboard";
 
 // Today reads live, request-scoped data (this period's KPIs, active loads,
-// overdue receivables) — always fresh, matching /admin's own dashboard.
+// needs-attention list) — always fresh, matching /admin's own dashboard.
 export const dynamic = "force-dynamic";
-
-const ATTENTION_COLUMNS: DataListColumn<AttentionReceivable>[] = [
-  { key: "load", header: "Load", render: (r) => r.loadNumber ?? r.loadId },
-  { key: "broker", header: "Broker", render: (r) => r.brokerName ?? "—" },
-  { key: "delivered", header: "Delivered", render: (r) => <DateTimeCST value={r.deliveryDate} mode="date" />, hideOnMobile: true },
-  { key: "days", header: "Days unpaid", render: (r) => `${r.daysOutstanding}d`, align: "right" },
-  { key: "amount", header: "Amount", render: (r) => <Money value={r.amount} tone="negative" />, align: "right" },
-];
 
 const ACTIVE_LOAD_COLUMNS: DataListColumn<LoadWithFinancials>[] = [
   { key: "load", header: "Load", render: (l) => l.loadNumber ?? l.id.slice(0, 8) },
@@ -30,7 +23,7 @@ const ACTIVE_LOAD_COLUMNS: DataListColumn<LoadWithFinancials>[] = [
 ];
 
 export default async function TmsV2TodayPage() {
-  const summary = await getTodaySummary();
+  const [summary, attention] = await Promise.all([getTodaySummary(), getNeedsAttention()]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -52,15 +45,20 @@ export default async function TmsV2TodayPage() {
       </div>
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-[15px] font-semibold text-fg">
-          Needs attention ({summary.overdueReceivables.length})
-        </h2>
-        <DataList
-          columns={ATTENTION_COLUMNS}
-          rows={summary.overdueReceivables}
-          rowKey={(r) => r.loadId}
-          emptyMessage="Nothing overdue — every closed-out load is either paid or under 40 days unpaid."
-        />
+        <div className="flex items-center gap-2">
+          <h2 className="text-[15px] font-semibold text-fg">Needs attention</h2>
+          {attention.redCount > 0 ? (
+            <span className="inline-flex items-center rounded-full bg-bad-bg px-2 py-0.5 text-[11px] font-semibold text-bad">
+              {attention.redCount} overdue
+            </span>
+          ) : null}
+          {attention.amberCount > 0 ? (
+            <span className="inline-flex items-center rounded-full bg-warn-bg px-2 py-0.5 text-[11px] font-semibold text-warn">
+              {attention.amberCount} soon
+            </span>
+          ) : null}
+        </div>
+        <NeedsAttentionList items={attention.items} />
       </section>
 
       <section className="flex flex-col gap-2">
