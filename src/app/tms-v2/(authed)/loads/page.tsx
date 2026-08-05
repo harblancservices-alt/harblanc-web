@@ -7,9 +7,11 @@ import { StatusPill } from "@/components/tms-v2/ui/StatusPill";
 import { DataList, type DataListColumn } from "@/components/tms-v2/ui/DataList";
 import { listLoads, getLoadBoardSummary, type LoadWithFinancials, type LoadStatus } from "@/lib/data/loads";
 import { listBrokers } from "@/lib/data/brokers";
+import { listTrips } from "@/lib/data/trips";
 import { currentPeriod, type Period } from "@/lib/domain/attribution";
 import { DEFAULT_PAGE_SIZE } from "@/lib/data/pagination";
 import { LoadBoardFilters } from "./LoadBoardFilters";
+import { AddLoadButton } from "./AddLoadButton";
 
 // Loads change status/payment throughout the day — the board always reads
 // live, request-scoped data (matches Today's own force-dynamic choice).
@@ -63,10 +65,11 @@ export default async function LoadsPage({ searchParams }: { searchParams: Promis
   const status = first(sp.status) as LoadStatus | undefined;
   const brokerId = first(sp.brokerId) || undefined;
 
-  const [summary, listResult, brokersPage] = await Promise.all([
+  const [summary, listResult, brokersPage, activeTripsPage] = await Promise.all([
     getLoadBoardSummary(period),
     listLoads({ period, page, pageSize: DEFAULT_PAGE_SIZE, status, brokerId }),
     listBrokers({ pageSize: 100 }),
+    listTrips({ status: "active", pageSize: 100 }),
   ]);
 
   const baseParams = new URLSearchParams();
@@ -95,6 +98,10 @@ export default async function LoadsPage({ searchParams }: { searchParams: Promis
         description="Every load booked this period, server-paginated and searchable by status or broker."
         actions={
           <div className="flex items-center gap-2 text-[13px] font-medium text-fg">
+            <AddLoadButton
+              brokerNames={brokersPage.rows.map((b) => b.name)}
+              activeTripNames={activeTripsPage.rows.map((t) => t.name).filter((n): n is string => !!n)}
+            />
             <Link
               href={periodHref(shiftPeriod(period, -1))}
               aria-label="Previous month"

@@ -5,7 +5,10 @@ import { Money } from "@/components/tms-v2/ui/Money";
 import { DateTimeCST } from "@/components/tms-v2/ui/DateTimeCST";
 import { StatusPill } from "@/components/tms-v2/ui/StatusPill";
 import { getLoadDetail, LOAD_DOC_KIND_LABEL } from "@/lib/data/loads";
+import { listBrokers } from "@/lib/data/brokers";
+import { listTrips } from "@/lib/data/trips";
 import { MoneyLine, DetailRow, SectionHeading } from "./_parts";
+import { LoadActions } from "./LoadActions";
 
 // A load's financials/documents/status can change between visits — always
 // read live, request-scoped data (matches Today's and the Load Board's own
@@ -21,6 +24,11 @@ export default async function LoadDetailPage({ params }: { params: Promise<{ id:
   const margin = financials.gross > 0 ? (financials.net / financials.gross) * 100 : null;
   const showFactoringLine = load.brokerFactoring && !financials.isTonu;
 
+  const [brokersPage, activeTripsPage] = await Promise.all([
+    listBrokers({ pageSize: 100 }),
+    listTrips({ status: "active", pageSize: 100 }),
+  ]);
+
   return (
     <div className="flex flex-col gap-6">
       <Link
@@ -34,6 +42,28 @@ export default async function LoadDetailPage({ params }: { params: Promise<{ id:
         title={`${load.loadNumber ? `#${load.loadNumber} — ` : ""}${load.origin ?? "—"} → ${load.destination ?? "—"}`}
         description={load.brokerName ?? "No broker on file"}
         badge={<StatusPill status={load.status} domain="load" />}
+        actions={
+          <LoadActions
+            load={{
+              id: load.id,
+              loadNumber: load.loadNumber,
+              brokerName: load.brokerName,
+              originZip: load.originZip,
+              destZip: load.destZip,
+              pickupDate: load.pickupDate,
+              deliveryDate: load.deliveryDate,
+              rate: financials.isTonu ? null : financials.gross,
+              loadedMiles: financials.loadedMiles,
+              tripName: load.tripName,
+              status: load.status,
+              odoAssigned: load.odoAssigned,
+              odoLoaded: load.odoLoaded,
+              odoDelivered: load.odoDelivered,
+            }}
+            brokerNames={brokersPage.rows.map((b) => b.name)}
+            activeTripNames={activeTripsPage.rows.map((t) => t.name).filter((n): n is string => !!n)}
+          />
+        }
       />
 
       {/* Hero net — same focal-number pattern as Trip Detail. */}
@@ -157,8 +187,7 @@ export default async function LoadDetailPage({ params }: { params: Promise<{ id:
           )}
 
           <p className="text-[13px] text-fg-muted">
-            This is a read-only view for now — uploading documents and status/payment actions (Mark delivered, TONU,
-            edit) land in a later phase.
+            Document uploads and payment-status actions (Mark paid) land in a later phase.
           </p>
         </section>
       </div>

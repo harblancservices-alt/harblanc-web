@@ -9,48 +9,24 @@
  * redesign (commit d476489) rather than reimplemented.
  *
  * Scope note: this module talks to Supabase directly rather than going
- * through the shared `DataSource` (v2-architecture.md §10). Multiple other
- * /tms-v2 screens are being built concurrently against
- * `lib/demo/{data-source,live-data-source,demo-data-source}.ts` in this
- * same phase; touching those shared files here would risk stepping on that
- * work mid-flight. Routing this entity through `DataSource` properly is
- * deferred, tracked the same way every other deferred write in this phase
+ * through the shared `DataSource` (v2-architecture.md §10) — reads only;
+ * writes go through src/actions/tms-v2/expenses.ts, which also talks to
+ * Supabase directly rather than DataSource (see src/lib/demo/mutation.ts's
+ * header for why writes don't route through DataSource).
+ * Routing this entity's reads through `DataSource` properly remains a
+ * follow-up, tracked the same way every other deferred item in this phase
  * is — noted, not silently skipped.
  */
 
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { isDemoMode } from "@/lib/admin/demo";
 import { DEFAULT_PAGE_SIZE, pageRange, toPaginated, type Paginated } from "./pagination";
+import { RECURRING_FREQUENCIES, RECURRING_FREQUENCY_LABEL, EXPENSE_CATEGORIES, isFrequency, type RecurringFrequency } from "@/lib/domain/expenses";
 
-export const RECURRING_FREQUENCIES = ["monthly", "weekly", "quarterly", "annual", "onetime"] as const;
-export type RecurringFrequency = (typeof RECURRING_FREQUENCIES)[number];
-
-function isFrequency(v: string): v is RecurringFrequency {
-  return (RECURRING_FREQUENCIES as readonly string[]).includes(v);
-}
-
-export const RECURRING_FREQUENCY_LABEL: Record<RecurringFrequency, string> = {
-  monthly: "Monthly",
-  weekly: "Weekly",
-  quarterly: "Quarterly",
-  annual: "Yearly",
-  onetime: "One-time",
-};
-
-export const EXPENSE_CATEGORIES = [
-  "Office",
-  "Software",
-  "Fuel",
-  "Insurance",
-  "Equipment",
-  "Payroll",
-  "Utilities",
-  "Marketing",
-  "Travel",
-  "Taxes",
-  "Maintenance",
-  "Miscellaneous",
-] as const;
+// Re-exported so existing server-side callers (e.g. this route's page.tsx)
+// don't need a second import line — the vocabulary itself now lives in
+// lib/domain/expenses.ts (see that file's header for why).
+export { RECURRING_FREQUENCIES, RECURRING_FREQUENCY_LABEL, EXPENSE_CATEGORIES, type RecurringFrequency };
 
 /** Normalize any frequency's amount to its monthly-equivalent cost — the
  * same rule /admin's ledger uses, ported verbatim so "This month"/"YTD"
@@ -182,6 +158,13 @@ export type RecurringExpenseRow = {
    * with the rest of /tms-v2 — quarterly/annual with no anchor render null. */
   nextChargeLabel: string | null;
   nextChargeDateIso: string | null;
+  /** Raw schedule anchors — exposed (unlike money's raw columns, §3a) so the
+   * Edit expense form can prefill the field the current frequency actually
+   * uses; nextChargeLabel/-DateIso above stay the only read-path a screen
+   * displaying (not editing) the schedule should use. */
+  dayOfMonth: number | null;
+  dayOfWeek: string | null;
+  startDate: string | null;
 };
 
 export type ListRecurringExpensesOptions = {
@@ -257,6 +240,9 @@ function mapRow(r: ExpenseDbRow, accountsByName: Map<string, { type: string | nu
     archived: r.archived ?? false,
     nextChargeLabel: nextDate ? formatNextCharge(nextDate, now) : null,
     nextChargeDateIso: nextDate ? toIsoDate(nextDate) : null,
+    dayOfMonth: r.day_of_month,
+    dayOfWeek: r.day_of_week,
+    startDate: r.start_date,
   };
 }
 

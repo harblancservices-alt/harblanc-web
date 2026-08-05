@@ -7,19 +7,23 @@ import { DataList, type DataListColumn } from "@/components/tms-v2/ui/DataList";
 import {
   listRecurringExpenses,
   getRecurringExpensesKpis,
+  listExpenseAccounts,
   EXPENSE_CATEGORIES,
   RECURRING_FREQUENCIES,
   RECURRING_FREQUENCY_LABEL,
   type RecurringExpenseRow,
   type RecurringFrequency,
 } from "@/lib/data/recurring-expenses";
+import { AddExpenseButton } from "./AddExpenseButton";
+import { ExpenseRowActions } from "./ExpenseRowActions";
 
 // Money-affecting data, read fresh every visit — matches Today's pattern.
 export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 25;
 
-const COLUMNS: DataListColumn<RecurringExpenseRow>[] = [
+function buildColumns(accountNames: string[]): DataListColumn<RecurringExpenseRow>[] {
+  return [
   {
     key: "vendor",
     header: "Vendor",
@@ -49,7 +53,14 @@ const COLUMNS: DataListColumn<RecurringExpenseRow>[] = [
   { key: "next", header: "Next charge", render: (r) => r.nextChargeLabel ?? "—" },
   { key: "status", header: "Status", render: (r) => (r.archived ? "Archived" : "Active"), hideOnMobile: true },
   { key: "amount", header: "Amount", render: (r) => <Money value={r.amount} tone="negative" />, align: "right" },
-];
+  {
+    key: "actions",
+    header: "",
+    render: (r) => <ExpenseRowActions expense={r} accountNames={accountNames} />,
+    align: "right",
+  },
+  ];
+}
 
 function buildHref(params: Record<string, string | number | undefined>): string {
   const usp = new URLSearchParams();
@@ -74,18 +85,22 @@ export default async function ExpensesPage({
   const search = typeof sp.q === "string" ? sp.q : undefined;
   const page = typeof sp.page === "string" ? Math.max(1, Number(sp.page) || 1) : 1;
 
-  const [kpis, list] = await Promise.all([
+  const [kpis, list, accounts] = await Promise.all([
     getRecurringExpensesKpis(),
     listRecurringExpenses({ page, pageSize: PAGE_SIZE, category, frequency, status, search }),
+    listExpenseAccounts(),
   ]);
 
   const baseParams = { category, frequency, status, q: search };
+  const accountNames = accounts.map((a) => a.name);
+  const columns = buildColumns(accountNames);
 
   return (
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Expenses"
-        description="Manual log of recurring charges — insurance, truck payment, subscriptions. Add/edit/archive land in a later phase; this view reads the live schedule."
+        description="Manual log of recurring charges — insurance, truck payment, subscriptions."
+        actions={<AddExpenseButton accountNames={accountNames} />}
       />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -143,7 +158,7 @@ export default async function ExpensesPage({
       </form>
 
       <DataList
-        columns={COLUMNS}
+        columns={columns}
         rows={list.rows}
         rowKey={(r) => r.id}
         emptyMessage="No recurring expenses match these filters."
