@@ -23,7 +23,7 @@ export function NeedsAttentionList({ items }: { items: AttentionItem[] }) {
 
   if (items.length === 0) {
     return (
-      <div className="rounded-lg border border-line bg-card px-4 py-8 text-center">
+      <div className="rounded-xl border border-line bg-card px-4 py-8 text-center shadow-e1">
         <p className="text-[14px] font-medium text-fg">All clear</p>
         <p className="mt-1 text-[13px] text-fg-muted">
           Nothing needs attention — paperwork, receivables, maintenance, and trips all look good.
@@ -36,7 +36,7 @@ export function NeedsAttentionList({ items }: { items: AttentionItem[] }) {
   const remaining = items.length - visible.length;
 
   return (
-    <div className="flex flex-col">
+    <div className="flex flex-col rounded-xl border border-line bg-card px-3 shadow-e1">
       {visible.map((item) => (
         <Link
           key={item.id}

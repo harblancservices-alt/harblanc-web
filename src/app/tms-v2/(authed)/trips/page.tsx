@@ -57,7 +57,7 @@ export default async function TripsPage() {
           }
         />
         <KpiTile label={`Gross · ${periodLabel(period)}`} value={<Money value={monthGross} tone="none" />} />
-        <NetKpiTile label={`Net · ${periodLabel(period)}`} value={monthNet} />
+        <KpiTile label={`Net · ${periodLabel(period)}`} value={formatMoney(monthNet)} emphasis="dark" />
         <KpiTile
           label="Avg Profit %"
           value={avgProfitPct != null ? `${Math.round(avgProfitPct)}%` : "—"}
@@ -76,23 +76,6 @@ export default async function TripsPage() {
       </section>
 
       <ClosedTripsSection trips={closed.rows} />
-    </div>
-  );
-}
-
-/** The Net KPI tile as a "dark accent" tile — reuses the shell's existing
- * bar tokens (`bg-bar`/`text-bar-fg`, already pinned to near-black/white
- * under the `.tms-v2-light` scope) rather than adding a variant prop to the
- * shared <KpiTile> primitive, which lives outside this phase's file scope.
- * Mirrors the same treatment the approved /admin trips redesign gives its
- * Net tile. */
-function NetKpiTile({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="rounded-lg border border-line bg-bar p-4">
-      <div className="text-[13px] font-medium text-bar-fg/70">{label}</div>
-      <div className="mt-1 text-[28px] font-semibold leading-none text-bar-fg">
-        {formatMoney(value)}
-      </div>
     </div>
   );
 }

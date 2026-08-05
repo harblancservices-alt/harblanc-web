@@ -228,37 +228,43 @@ input[type="date"]::-webkit-date-and-time-value {
 
 /* ============================================================== */
 /* TMS V2 THEME — scoped override, fully independent of the admin portal
-   and the CRM. The /tms-v2 shell root carries .tms-v2-light. Per
-   docs/portal/v2-design.md's Design system & tokens section: a calm
-   Stripe/Linear/Ramp palette — white/near-black surfaces, hairlines over
-   card boxes, one brand-red accent reserved for primary actions, and
-   exactly three semantic colors (positive/negative/warning) reusing the
-   SAME --ok/--warn/--bad utility slots every other theme in this file
-   already exposes (text-ok, bg-ok-bg, text-warn, bg-warn-bg, text-bad,
-   bg-bad-bg) — this is the "extend the one token system, don't add a
-   parallel one" decision from v2-architecture.md §1.
-   --fg-subtle is intentionally pinned to the same value as --fg-muted:
-   the design doc's house rule is "text is either fully legible or not
-   shown at all" — no third, dimmer tier, even though the shared
-   @theme block exposes a text-fg-subtle utility other themes use. */
+   and the CRM. The /tms-v2 shell root carries .tms-v2-light.
+   PIVOT (2026-08): the original all-white/hairlines-only palette below
+   read as flat/prototype-y to the owner. /tms-v2 now adopts the SAME
+   "Fleet Ops" depth system .admin-light and .crm-light already use and
+   have already proven out — light-gray canvas behind raised white cards
+   with real elevation shadows (--v2-e1/e2/e3), graphite chrome, and the
+   full ok/warn/bad/steel/slate/info semantic set — rather than inventing
+   a third palette. This is still "extend the one token system, don't add
+   a parallel one" (v2-architecture.md §1); only the SHAPE of the
+   extension changed, not the principle. /tms-v2 keeps its own distinct
+   accent red (kept as-is, not repointed to --v2-accent) so it stays
+   visually its own product while sharing the same structural chrome.
+   --fg/--fg-muted/--fg-subtle stay pinned to the --v2-ink tiers, which
+   are already high-contrast dark slate — never faint/washed-out grey,
+   satisfying the house "no faint grey text" rule while still giving
+   labels/metadata a legible secondary tier (v2-design.md house rule #1). */
 .tms-v2-light {
-  --canvas: #ffffff;
-  --panel: #ffffff;
-  --card: #ffffff;
-  --elevated: #f1f1ef;
-  --line: #e2e2e0;
-  --line-strong: #c9c9c6;
-  --fg: #0a0a0a;
-  --fg-muted: #3f3f3f;
-  --fg-subtle: #3f3f3f;
-  --bar: #0a0a0a;
-  --bar-fg: #ffffff;
+  --canvas: var(--v2-canvas);      /* page background — gray between cards */
+  --panel: #ffffff;                /* top bar                              */
+  --card: var(--v2-card);          /* raised white cards                   */
+  --elevated: #eef0f3;             /* hover / active surface               */
+  --line: var(--v2-line);
+  --line-strong: var(--v2-line-strong);
+  --fg: var(--v2-ink);
+  --fg-muted: var(--v2-ink-2);
+  --fg-subtle: var(--v2-ink-3);
+  --bar: var(--v2-graphite);       /* solid graphite section-header bar    */
+  --bar-fg: #f4f4f5;
   --accent: #c8102e;
   --accent-hover: #a50d26;
 
-  --ok: #0f7b3d;       --ok-bg: #e4f3ea;
-  --warn: #946200;     --warn-bg: #f5ecd9;
-  --bad: #b3261e;      --bad-bg: #f8e4e2;
+  --ok: var(--v2-green);     --ok-bg: var(--v2-green-bg);
+  --warn: var(--v2-amber);   --warn-bg: var(--v2-amber-bg);
+  --bad: var(--v2-red);      --bad-bg: var(--v2-red-bg);
+  --steel: var(--v2-steel);  --steel-bg: var(--v2-steel-bg);
+  --slate: var(--v2-slate);  --slate-bg: var(--v2-slate-bg);
+  --info: var(--v2-blue);    --info-hover: var(--v2-blue-hover);
 }
 
 /* ADMIN DARK THEME — opt-in via the Settings toggle. When the operator

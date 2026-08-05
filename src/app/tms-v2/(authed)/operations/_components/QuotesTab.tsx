@@ -28,7 +28,7 @@ function buildHref(params: Record<string, string | number | undefined>): string 
 
 function FunnelStrip({ counts, total }: { counts: Record<PipelineStage, number>; total: number }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-1 gap-y-2 rounded-lg border border-line bg-card px-3 py-2.5 text-[13px]">
+    <div className="flex flex-wrap items-center gap-x-1 gap-y-2 rounded-xl border border-line bg-card px-3 py-2.5 text-[13px] shadow-e1">
       {PIPELINE_STAGES.map((s, i) => (
         <div key={s.key} className="flex items-center gap-1">
           {i > 0 ? <span className="text-fg-muted">→</span> : null}

@@ -4,10 +4,11 @@
  * not a per-page string-to-color map. `domain` picks which vocabulary a
  * status belongs to (load/trip/lead all use different status sets).
  *
- * Tones map to the shared semantic tokens every /tms-v2 primitive uses:
- * "ok" = positive (delivered, paid, active), "warn" = needs-attention
- * (loaded, awaiting payment), "bad" = negative (TONU, cancelled, lost),
- * "neutral" = no urgency either way (new, draft).
+ * Tones map to the shared semantic tokens every /tms-v2 primitive uses
+ * (v2-design.md's depth pass): "ok" = green, revenue/paid/completed;
+ * "info" = blue, active/dispatched/in-progress/informational; "warn" =
+ * orange, pending/needs-attention/upcoming; "bad" = red, overdue/failed/
+ * critical; "neutral" = gray, no urgency (draft, archived).
  *
  * Load status vocabulary is the real `loads.status` column's values,
  * confirmed against /admin's existing usage now that lib/data's query
@@ -18,7 +19,7 @@
  */
 
 export type StatusDomain = "load" | "trip" | "lead";
-export type StatusTone = "ok" | "warn" | "bad" | "neutral";
+export type StatusTone = "ok" | "warn" | "bad" | "info" | "neutral";
 
 export type ResolvedStatus = {
   label: string;
@@ -27,14 +28,14 @@ export type ResolvedStatus = {
 
 const LOAD_STATUS: Record<string, ResolvedStatus> = {
   pending: { label: "Pending", tone: "neutral" },
-  assigned: { label: "Assigned", tone: "neutral" },
-  loaded: { label: "Loaded", tone: "warn" },
+  assigned: { label: "Assigned", tone: "info" },
+  loaded: { label: "Loaded", tone: "info" },
   delivered: { label: "Delivered", tone: "ok" },
   tonu: { label: "TONU", tone: "bad" },
 };
 
 const TRIP_STATUS: Record<string, ResolvedStatus> = {
-  active: { label: "Active", tone: "warn" },
+  active: { label: "Active", tone: "info" },
   closed: { label: "Closed", tone: "ok" },
 };
 
@@ -45,8 +46,8 @@ const LEAD_STATUS: Record<string, ResolvedStatus> = {
   confirm: { label: "Confirming", tone: "warn" },
   booked: { label: "Booked", tone: "ok" },
   pay: { label: "Awaiting payment", tone: "warn" },
-  dispatch: { label: "Dispatch", tone: "ok" },
-  transit: { label: "In transit", tone: "ok" },
+  dispatch: { label: "Dispatch", tone: "info" },
+  transit: { label: "In transit", tone: "info" },
   closed: { label: "Closed", tone: "ok" },
   archived: { label: "Archived", tone: "neutral" },
   lost: { label: "Lost", tone: "bad" },

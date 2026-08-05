@@ -75,7 +75,7 @@ export default async function MaintenancePage() {
         {recentEntries.length === 0 ? (
           <p className="text-[13px] text-fg-muted">No repairs logged yet.</p>
         ) : (
-          <div className="rounded-lg border border-line bg-card px-3">
+          <div className="rounded-xl border border-line bg-card px-3 shadow-e1">
             {recentEntries.map((entry) => (
               <RecentEntryRow key={entry.id} entry={entry} />
             ))}

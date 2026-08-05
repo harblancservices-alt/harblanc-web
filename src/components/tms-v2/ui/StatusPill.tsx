@@ -1,9 +1,15 @@
 import { resolveStatus, type StatusDomain, type StatusTone } from "@/lib/domain/status";
 
+/** Semantic color map (v2-design.md's depth pass): green=revenue/completed,
+ * blue=active/dispatch/in-progress, orange=pending/needs-attention,
+ * red=overdue/critical, gray=supporting/no-urgency. "info" uses the same
+ * steel-blue chip pair /admin already reserves for status hues (never the
+ * --info button-fill blue, which is a different affordance). */
 const TONE_CLASSES: Record<StatusTone, string> = {
   ok: "bg-ok-bg text-ok",
   warn: "bg-warn-bg text-warn",
   bad: "bg-bad-bg text-bad",
+  info: "bg-steel-bg text-steel",
   neutral: "bg-elevated text-fg-muted",
 };
 

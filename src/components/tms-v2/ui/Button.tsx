@@ -30,10 +30,10 @@ type Variant = "primary" | "secondary" | "ghost" | "destructive";
 type Size = "sm" | "md";
 
 const VARIANT_CLASSES: Record<Variant, string> = {
-  primary: "bg-accent text-white hover:bg-accent-hover",
-  secondary: "bg-card text-fg border border-line-strong hover:bg-elevated",
+  primary: "bg-accent text-white shadow-e1 hover:bg-accent-hover hover:shadow-e2",
+  secondary: "bg-card text-fg border border-line-strong shadow-e1 hover:bg-elevated",
   ghost: "bg-transparent text-fg hover:bg-elevated",
-  destructive: "bg-bad text-white hover:opacity-90",
+  destructive: "bg-bad text-white shadow-e1 hover:opacity-90",
 };
 
 const SIZE_CLASSES: Record<Size, string> = {

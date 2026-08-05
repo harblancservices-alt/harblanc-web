@@ -5,16 +5,30 @@ import type { HTMLAttributes } from "react";
  * lives under components/tms-v2/ui rather than colliding with /admin's
  * existing components/ui/Card.
  *
- * Reserved for genuinely discrete objects (a KPI tile, a document
- * thumbnail) — NOT for "a section of a page" (v2-design.md house rule #4).
- * Lists use hairlines (<DataList>), not stacked card boxes. If you're
- * reaching for <Card> to wrap a page section, use a plain hairline
- * (`border-b border-line`) instead.
+ * A raised white surface (shadow-e1) sitting above the gray --canvas page
+ * background — the app's primary depth device (2026-08 depth pass). Used
+ * for genuinely discrete objects (a KPI tile, a document thumbnail, a
+ * page section that groups related content) as well as page sections that
+ * benefit from being visually separated from the canvas. Lists still
+ * prefer <DataList>'s own zebra/hairline rows for row-level data.
+ *
+ * `interactive` adds a hover elevation bump (shadow-e2) + pointer cursor
+ * for cards that are themselves a click target (e.g. a summary card that
+ * links elsewhere) — opt-in so static cards stay still.
  */
-export function Card({ className = "", ...props }: HTMLAttributes<HTMLDivElement>) {
+type CardProps = HTMLAttributes<HTMLDivElement> & {
+  interactive?: boolean;
+  /** Drop the shadow for a nested card inside another card (e.g. a
+   * sub-panel) — keeps borders for separation without stacking shadows. */
+  flat?: boolean;
+};
+
+export function Card({ className = "", interactive = false, flat = false, ...props }: CardProps) {
   return (
     <div
-      className={`rounded-lg border border-line bg-card p-4 ${className}`}
+      className={`rounded-xl border border-line bg-card p-4 ${flat ? "" : "shadow-e1"} ${
+        interactive ? "transition-shadow hover:shadow-e2" : ""
+      } ${className}`}
       {...props}
     />
   );

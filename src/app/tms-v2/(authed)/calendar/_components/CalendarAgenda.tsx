@@ -30,7 +30,7 @@ export function CalendarAgenda({
         const dayLoads = loadsByDay.get(day.dateKey) ?? [];
         const dayNet = dayLoads.reduce((s, l) => s + l.net, 0);
         return (
-          <div key={day.dateKey} className="rounded-lg border border-line bg-card p-3">
+          <div key={day.dateKey} className="rounded-xl border border-line bg-card p-3 shadow-e1">
             <div className="flex items-center justify-between">
               <span className="text-[13px] font-semibold text-fg">
                 <DateTimeCST value={day.dateKey} mode="date" />

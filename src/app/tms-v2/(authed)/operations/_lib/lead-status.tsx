@@ -10,16 +10,18 @@ import { LEAD_STATUS_LABELS, isLeadStatus, type LeadStatus } from "@/lib/dispatc
  * resolver, the same pattern the Brokers screens already use for their
  * own status vocabulary (`brokers/_lib/broker-status.tsx`).
  *
- * Tone mapping follows v2-design.md's semantic-color rule: neutral for
- * pre-commercial stages, ok once the deal is booked/progressing/closed,
- * warn while money is outstanding, bad only for a lost lead. Per-lead
- * time-sensitivity (a stale estimate, an overdue payment) is a SEPARATE
- * signal — see `<UrgencyPill>` — not baked into the status tone itself.
+ * Tone mapping follows v2-design.md's semantic-color rule: neutral (gray)
+ * for pre-commercial stages, ok (green) once the deal is booked or
+ * delivered, info (blue) while it's actively dispatched/moving, warn
+ * (orange) while money is outstanding, bad (red) only for a lost lead.
+ * Per-lead time-sensitivity (a stale estimate, an overdue payment) is a
+ * SEPARATE signal — see `<UrgencyPill>` — not baked into the status tone.
  */
 const TONE_CLASSES = {
   ok: "bg-ok-bg text-ok",
   warn: "bg-warn-bg text-warn",
   bad: "bg-bad-bg text-bad",
+  info: "bg-steel-bg text-steel",
   neutral: "bg-elevated text-fg-muted",
 } as const;
 
@@ -32,10 +34,10 @@ const TONE_BY_STATUS: Record<LeadStatus, Tone> = {
   awaiting_confirmation: "neutral",
   booked: "ok",
   awaiting_payment: "warn",
-  ready_to_dispatch: "ok",
-  dispatched: "ok",
-  picked_up: "ok",
-  in_transit: "ok",
+  ready_to_dispatch: "info",
+  dispatched: "info",
+  picked_up: "info",
+  in_transit: "info",
   delivered: "ok",
   archived: "neutral",
   lost: "bad",

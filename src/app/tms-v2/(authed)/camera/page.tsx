@@ -32,7 +32,7 @@ export default async function CameraPage() {
             <Link
               key={b.id}
               href={`/tms-v2/camera/${b.id}`}
-              className="flex items-center justify-between rounded-lg border border-line bg-card px-4 py-3 hover:bg-elevated"
+              className="flex items-center justify-between rounded-xl border border-line bg-card px-4 py-3 shadow-e1 transition-shadow hover:shadow-e2"
             >
               <div className="flex flex-col gap-0.5">
                 <span className="text-[14px] font-medium text-fg">{b.name}</span>

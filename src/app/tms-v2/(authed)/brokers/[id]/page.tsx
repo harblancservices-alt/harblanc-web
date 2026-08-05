@@ -105,7 +105,7 @@ export default async function BrokerDetailPage({ params }: { params: Promise<{ i
         {contacts.length === 0 ? (
           <p className="text-[13px] text-fg-muted">No contacts on file for this broker.</p>
         ) : (
-          <div className="rounded-lg border border-line bg-card px-3">
+          <div className="rounded-xl border border-line bg-card px-3 shadow-e1">
             {contacts.map((c) => (
               <ContactRow key={c.id} contact={c} />
             ))}

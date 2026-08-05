@@ -28,7 +28,7 @@ export function SlideOver({ open, onClose, title, children }: SlideOverProps) {
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} aria-hidden />
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-[1px]" onClick={onClose} aria-hidden />
       <div
         role="dialog"
         aria-modal="true"

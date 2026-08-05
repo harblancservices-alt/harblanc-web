@@ -10,6 +10,7 @@ import { listBrokers } from "@/lib/data/brokers";
 import { listTrips } from "@/lib/data/trips";
 import { currentPeriod, type Period } from "@/lib/domain/attribution";
 import { DEFAULT_PAGE_SIZE } from "@/lib/data/pagination";
+import { formatMoney } from "@/lib/domain/money";
 import { LoadBoardFilters } from "./LoadBoardFilters";
 import { AddLoadButton } from "./AddLoadButton";
 
@@ -123,7 +124,7 @@ export default async function LoadsPage({ searchParams }: { searchParams: Promis
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
         <KpiTile label="Gross" value={<Money value={summary.gross} tone="none" />} />
-        <KpiTile label="Net" value={<Money value={summary.net} />} />
+        <KpiTile label="Net" value={formatMoney(summary.net)} emphasis="dark" />
         <KpiTile label="Loads" value={String(summary.loadsCount)} />
         <KpiTile label="$/mi" value={summary.ratePerMile != null ? `$${summary.ratePerMile.toFixed(2)}` : "—"} />
         <KpiTile

@@ -78,7 +78,7 @@ export default async function PipelineDetailPage({ params }: { params: Promise<{
 
       <section className="flex flex-col gap-2">
         <SectionHeading>Customer</SectionHeading>
-        <div className="rounded-lg border border-line bg-card px-3">
+        <div className="rounded-xl border border-line bg-card px-3 shadow-e1">
           <Row label="Email" value={identity.email} />
           <Row label="Phone" value={identity.phone} />
           {identity.notes ? <Row label="Notes" value={identity.notes} /> : null}
@@ -89,14 +89,14 @@ export default async function PipelineDetailPage({ params }: { params: Promise<{
         <section className="flex flex-col gap-2">
           <SectionHeading>Shipment details ({shipment.status === "submitted" ? "submitted" : "in progress"})</SectionHeading>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div className="rounded-lg border border-line bg-card p-3">
+            <div className="rounded-xl border border-line bg-card p-3 shadow-e1">
               <p className="mb-2 text-[13px] font-medium text-fg-muted">Pickup</p>
               <p className="text-[14px] text-fg">{shipment.pickup.company ?? "—"}</p>
               <p className="text-[13px] text-fg-muted">{shipment.pickup.contactName ?? "—"} {shipment.pickup.contactPhone ? `· ${shipment.pickup.contactPhone}` : ""}</p>
               <p className="text-[13px] text-fg-muted">{shipment.pickup.address ?? "—"}</p>
               <p className="text-[13px] text-fg-muted">Window: {shipment.pickup.window ?? "—"}</p>
             </div>
-            <div className="rounded-lg border border-line bg-card p-3">
+            <div className="rounded-xl border border-line bg-card p-3 shadow-e1">
               <p className="mb-2 text-[13px] font-medium text-fg-muted">Delivery</p>
               <p className="text-[14px] text-fg">{shipment.delivery.company ?? "—"}</p>
               <p className="text-[13px] text-fg-muted">{shipment.delivery.contactName ?? "—"} {shipment.delivery.contactPhone ? `· ${shipment.delivery.contactPhone}` : ""}</p>
@@ -104,7 +104,7 @@ export default async function PipelineDetailPage({ params }: { params: Promise<{
               <p className="text-[13px] text-fg-muted">Window: {shipment.delivery.window ?? "—"}</p>
             </div>
           </div>
-          <div className="rounded-lg border border-line bg-card px-3">
+          <div className="rounded-xl border border-line bg-card px-3 shadow-e1">
             <Row label="Commodity details" value={shipment.commodityDetails ?? "—"} />
             <Row label="Dimensions (L × W × H)" value={shipment.dimensions ?? "—"} />
             <Row label="Exact weight" value={shipment.exactWeightLbs ? `${shipment.exactWeightLbs.toLocaleString()} lbs` : "—"} />
@@ -118,7 +118,7 @@ export default async function PipelineDetailPage({ params }: { params: Promise<{
 
       <section className="flex flex-col gap-2">
         <SectionHeading>Sent artifacts</SectionHeading>
-        <div className="rounded-lg border border-line bg-card px-3">
+        <div className="rounded-xl border border-line bg-card px-3 shadow-e1">
           {estimates.length === 0 && finalizedQuotes.length === 0 && bols.length === 0 ? (
             <p className="py-3 text-[13px] text-fg-muted">Nothing sent yet.</p>
           ) : (
@@ -209,7 +209,7 @@ export default async function PipelineDetailPage({ params }: { params: Promise<{
           />
         </div>
         {payment.entries.length > 0 ? (
-          <div className="rounded-lg border border-line bg-card px-3">
+          <div className="rounded-xl border border-line bg-card px-3 shadow-e1">
             {payment.entries.map((p) => (
               <div key={p.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-line py-2 text-[14px] last:border-b-0">
                 <span className="text-fg-muted">
@@ -230,7 +230,7 @@ export default async function PipelineDetailPage({ params }: { params: Promise<{
         {events.length === 0 ? (
           <p className="text-[13px] text-fg-muted">No events yet.</p>
         ) : (
-          <ol className="flex flex-col divide-y divide-line rounded-lg border border-line bg-card px-3">
+          <ol className="flex flex-col divide-y divide-line rounded-xl border border-line bg-card px-3 shadow-e1">
             {events.map((ev) => {
               const { label, description } = describeEvent(ev.kind, ev.payload);
               return (

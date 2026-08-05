@@ -6,6 +6,7 @@ import { StatusPill } from "@/components/tms-v2/ui/StatusPill";
 import { DataList, type DataListColumn } from "@/components/tms-v2/ui/DataList";
 import { NeedsAttentionList } from "./_components/NeedsAttentionList";
 import { getTodaySummary } from "@/lib/data/dashboard";
+import { formatMoney } from "@/lib/domain/money";
 import { getNeedsAttention } from "@/lib/data/attention";
 import type { LoadWithFinancials } from "@/lib/data/loads";
 
@@ -39,7 +40,7 @@ export default async function TmsV2TodayPage() {
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         <KpiTile label={`Gross (${summary.periodLabel})`} value={<Money value={summary.gross} tone="none" />} />
-        <KpiTile label={`Net (${summary.periodLabel})`} value={<Money value={summary.net} />} />
+        <KpiTile label={`Net (${summary.periodLabel})`} value={formatMoney(summary.net)} emphasis="dark" />
         <KpiTile label="Loads this period" value={String(summary.loadsCount)} />
         <KpiTile label="A/R outstanding" value={<Money value={summary.arTotal} tone="none" />} />
       </div>

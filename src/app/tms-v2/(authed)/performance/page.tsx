@@ -3,6 +3,9 @@ import { PageHeader } from "@/components/tms-v2/ui/PageHeader";
 import { KpiTile } from "@/components/tms-v2/ui/KpiTile";
 import { Money } from "@/components/tms-v2/ui/Money";
 import { Button } from "@/components/tms-v2/ui/Button";
+import { Card } from "@/components/tms-v2/ui/Card";
+import { ProgressBar } from "@/components/tms-v2/ui/ProgressBar";
+import { formatMoney } from "@/lib/domain/money";
 import { getAnalyticsLoads, getMonthlyNetGoal } from "@/lib/data/analytics";
 import { summarize, brokerStats, laneStats, deadheadSplit, deltasBetween } from "@/lib/dispatch/performance";
 import { rpm, pct } from "@/lib/dispatch/format";
@@ -94,27 +97,21 @@ export default async function PerformancePage({ searchParams }: PageProps) {
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <KpiTile label="Net" value={<Money value={summary.net} />} delta={<DeltaChip delta={deltas.net} />} />
+        <KpiTile label="Net" value={formatMoney(summary.net)} delta={<DeltaChip delta={deltas.net} />} emphasis="dark" />
         <KpiTile label="Gross" value={<Money value={summary.gross} tone="none" />} delta={<DeltaChip delta={deltas.gross} />} />
         <KpiTile label="Loads" value={String(summary.loads)} />
         <KpiTile label="Margin" value={pct(summary.marginPct)} delta={<DeltaChip delta={deltas.margin} />} />
       </div>
 
       {view.mode === "month" && monthlyGoal > 0 ? (
-        <section className="flex flex-col gap-2 rounded-lg border border-line bg-card p-4">
-          <div className="flex items-baseline justify-between">
-            <h2 className="text-[15px] font-semibold text-fg">Net vs goal</h2>
-            <span className="text-[13px] text-fg-muted">
-              <Money value={summary.net} tone="none" /> / <Money value={monthlyGoal} tone="none" />
-            </span>
-          </div>
-          <div className="h-2.5 w-full overflow-hidden rounded-full bg-elevated">
-            <div
-              className={`h-full rounded-full ${summary.net >= monthlyGoal ? "bg-ok" : "bg-accent"}`}
-              style={{ width: `${goalPct ?? 0}%` }}
-            />
-          </div>
-        </section>
+        <Card className="flex flex-col gap-1">
+          <ProgressBar
+            label="Net vs goal"
+            valueLabel={`${formatMoney(summary.net)} / ${formatMoney(monthlyGoal)}`}
+            value={goalPct ?? 0}
+            tone={summary.net >= monthlyGoal ? "positive" : "accent"}
+          />
+        </Card>
       ) : null}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
