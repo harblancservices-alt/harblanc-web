@@ -38,23 +38,21 @@ import {
  * serialize across the RSC boundary (same class of issue /crm's nav.ts
  * documents).
  */
-export type NavGroupId =
-  | "today"
-  | "loads"
-  | "partners"
-  | "pipeline"
-  | "money"
-  | "records"
-  | "previews";
+/**
+ * Approved IA regroup (v2-design.md): 5 groups instead of the original 7 —
+ * Command (the daily start), Dispatch (loads in motion), Money, Partners &
+ * Truck (who you work with + what you drive), Insight (records/reporting).
+ * Purely a presentation regroup — every item keeps its existing `href`, so
+ * no route changes ride along with it.
+ */
+export type NavGroupId = "command" | "dispatch" | "money" | "partners-truck" | "insight";
 
 export const NAV_GROUP_LABEL: Record<NavGroupId, string> = {
-  today: "Today",
-  loads: "Loads",
-  partners: "Partners",
-  pipeline: "Pipeline",
+  command: "Command",
+  dispatch: "Dispatch",
   money: "Money",
-  records: "Records",
-  previews: "Previews",
+  "partners-truck": "Partners & Truck",
+  insight: "Insight",
 };
 
 export type NavItem = {
@@ -77,41 +75,39 @@ export type NavItem = {
 };
 
 export const TMS_V2_NAV: NavItem[] = [
-  { id: "today", label: "Today", href: "/tms-v2", Icon: IconToday, group: "today", mobilePrimary: true },
-  { id: "calendar", label: "Calendar", href: "/tms-v2/calendar", Icon: IconCalendar, group: "today" },
+  { id: "today", label: "Today", href: "/tms-v2", Icon: IconToday, group: "command", mobilePrimary: true },
+  { id: "calendar", label: "Calendar", href: "/tms-v2/calendar", Icon: IconCalendar, group: "command" },
 
-  { id: "loads", label: "Load Board", href: "/tms-v2/loads", Icon: IconLoadBoard, group: "loads", mobilePrimary: true },
-  { id: "trips", label: "Trips", href: "/tms-v2/trips", Icon: IconTrips, group: "loads" },
-
-  { id: "brokers", label: "Brokers", href: "/tms-v2/brokers", Icon: IconBrokers, group: "partners", mobilePrimary: true },
-  { id: "load-inquiry", label: "Load Inquiry", href: "/tms-v2/load-inquiry", Icon: IconInquiry, group: "partners" },
-
-  { id: "operations", label: "Operations", href: "/tms-v2/operations", Icon: IconPipeline, group: "pipeline" },
+  { id: "loads", label: "Load Board", href: "/tms-v2/loads", Icon: IconLoadBoard, group: "dispatch", mobilePrimary: true },
+  { id: "trips", label: "Trips", href: "/tms-v2/trips", Icon: IconTrips, group: "dispatch" },
+  { id: "operations", label: "Operations", href: "/tms-v2/operations", Icon: IconPipeline, group: "dispatch" },
 
   { id: "receivables", label: "Receivables", href: "/tms-v2/receivables", Icon: IconReceivables, group: "money" },
   { id: "expenses", label: "Expenses", href: "/tms-v2/expenses", Icon: IconExpenses, group: "money" },
   { id: "performance", label: "Performance", href: "/tms-v2/performance", Icon: IconPerformance, group: "money" },
 
-  { id: "maintenance", label: "Maintenance", href: "/tms-v2/maintenance", Icon: IconMaintenance, group: "records" },
-  { id: "files", label: "Files", href: "/tms-v2/files", Icon: IconFiles, group: "records" },
-  { id: "camera", label: "Camera", href: "/tms-v2/camera", Icon: IconCamera, group: "records" },
+  { id: "brokers", label: "Brokers", href: "/tms-v2/brokers", Icon: IconBrokers, group: "partners-truck", mobilePrimary: true },
+  { id: "load-inquiry", label: "Load Inquiry", href: "/tms-v2/load-inquiry", Icon: IconInquiry, group: "partners-truck" },
+  { id: "maintenance", label: "Maintenance", href: "/tms-v2/maintenance", Icon: IconMaintenance, group: "partners-truck" },
 
-  { id: "email-previews", label: "Email Previews", href: "/tms-v2/previews/email", Icon: IconMailPreview, group: "previews" },
-  { id: "page-previews", label: "Page Previews", href: "/tms-v2/previews/pages", Icon: IconPagePreview, group: "previews" },
+  { id: "files", label: "Files", href: "/tms-v2/files", Icon: IconFiles, group: "insight" },
+  { id: "camera", label: "Camera", href: "/tms-v2/camera", Icon: IconCamera, group: "insight" },
+  { id: "email-previews", label: "Email Previews", href: "/tms-v2/previews/email", Icon: IconMailPreview, group: "insight" },
+  { id: "page-previews", label: "Page Previews", href: "/tms-v2/previews/pages", Icon: IconPagePreview, group: "insight" },
 ];
 
-/** Settings is pinned at the bottom of the shell, outside the six groups
+/** Settings is pinned at the bottom of the shell, outside the five groups
  * above — same treatment v2-design.md's shell wireframe gives it. */
 export const TMS_V2_SETTINGS: NavItem = {
   id: "settings",
   label: "Settings",
   href: "/tms-v2/settings",
   Icon: IconSettings,
-  group: "records",
+  group: "insight",
 };
 
 export function groupedNav(): { id: NavGroupId; label: string; items: NavItem[] }[] {
-  const order: NavGroupId[] = ["today", "loads", "partners", "pipeline", "money", "records", "previews"];
+  const order: NavGroupId[] = ["command", "dispatch", "money", "partners-truck", "insight"];
   return order.map((id) => ({
     id,
     label: NAV_GROUP_LABEL[id],
