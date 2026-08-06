@@ -1,14 +1,15 @@
 import Link from "next/link";
-import { IconSearch, IconBell, IconPlus } from "@/lib/nav/icons";
+import { IconBell, IconPlus } from "@/lib/nav/icons";
+import { CommandPalette } from "./CommandPalette";
 
 /**
- * Top bar — brand, search placeholder (command palette lands in a later
- * phase), notification bell placeholder, quick-add placeholder, identity +
- * sign out. Sign out posts to the EXISTING /admin/logout route handler
- * (src/app/admin/logout/route.ts) rather than a second copy — it signs out
- * the one shared Supabase Auth session and redirects to /admin/login,
- * which is correct for /tms-v2 too (v2-architecture.md §7: one session,
- * one login screen for the whole authed surface).
+ * Top bar — brand, global search / ⌘K, notification bell placeholder,
+ * quick-add placeholder, identity + sign out. Sign out posts to the
+ * EXISTING /admin/logout route handler (src/app/admin/logout/route.ts)
+ * rather than a second copy — it signs out the one shared Supabase Auth
+ * session and redirects to /admin/login, which is correct for /tms-v2 too
+ * (v2-architecture.md §7: one session, one login screen for the whole
+ * authed surface).
  */
 export function TopBar({ email }: { email: string | null }) {
   return (
@@ -20,11 +21,7 @@ export function TopBar({ email }: { email: string | null }) {
         <span className="hidden sm:inline">Harblanc</span>
       </Link>
 
-      <div className="ml-2 hidden max-w-sm flex-1 items-center gap-2 rounded-md border border-line bg-canvas px-3 py-1.5 text-[13px] text-fg-muted md:flex">
-        <IconSearch className="h-4 w-4" />
-        <span>Search or jump to…</span>
-        <kbd className="ml-auto rounded border border-line-strong px-1.5 py-0.5 text-[11px]">⌘K</kbd>
-      </div>
+      <CommandPalette />
 
       <div className="ml-auto flex items-center gap-3">
         <button

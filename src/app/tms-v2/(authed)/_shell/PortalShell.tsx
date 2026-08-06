@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { TopBar } from "./TopBar";
 import { Sidebar } from "./Sidebar";
 import { BottomNav } from "./BottomNav";
+import { Breadcrumb } from "./Breadcrumb";
 
 /**
  * The responsive app shell — desktop sidebar + mobile bottom nav, both
@@ -16,7 +17,10 @@ export function PortalShell({ email, children }: { email: string | null; childre
       <TopBar email={email} />
       <div className="mx-auto flex max-w-[1400px]">
         <Sidebar />
-        <main className="min-w-0 flex-1 px-4 pb-24 pt-6 md:px-8 md:pb-8">{children}</main>
+        <main className="min-w-0 flex-1 px-4 pb-24 pt-6 md:px-8 md:pb-8">
+          <Breadcrumb />
+          {children}
+        </main>
       </div>
       <BottomNav />
     </div>
