@@ -37,9 +37,12 @@ export function ContextDrawer({ title, subtitle, closeHref, children }: ContextD
         </div>
       </div>
 
-      {/* Desktop (>=lg): inline panel beside the hero region. */}
-      <div className="hidden shrink-0 lg:block lg:w-[400px]">
-        <div className="sticky top-[76px] flex max-h-[calc(100vh-96px)] flex-col overflow-hidden rounded-xl border border-line bg-card shadow-e2">
+      {/* Desktop (>=lg): inline panel beside the hero region, filling the
+          fixed-viewport shell's own height rather than a sticky/max-h hack
+          — the shell (PortalShell) no longer lets the document scroll, so
+          this panel's parent row already has a definite height to fill. */}
+      <div className="hidden h-full shrink-0 lg:block lg:w-[400px]">
+        <div className="flex h-full flex-col overflow-hidden rounded-xl border border-line bg-card shadow-e2">
           <DrawerHeader title={title} subtitle={subtitle} closeHref={closeHref} />
           <div className="flex-1 overflow-y-auto px-4 pb-4">{children}</div>
         </div>

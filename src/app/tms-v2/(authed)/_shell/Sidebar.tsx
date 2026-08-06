@@ -34,7 +34,7 @@ export function Sidebar() {
     }`;
 
   return (
-    <aside className="sticky top-14 hidden h-[calc(100vh-56px)] w-56 shrink-0 flex-col justify-between border-r border-graphite-line bg-bar py-4 lg:flex">
+    <aside className="hidden h-full w-56 shrink-0 flex-col justify-between border-r border-graphite-line bg-bar py-4 lg:flex">
       <nav className="flex flex-col gap-5 overflow-y-auto px-3">
         {groups.map((group) => (
           <div key={group.id}>
