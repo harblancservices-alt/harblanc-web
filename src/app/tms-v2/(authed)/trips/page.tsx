@@ -2,6 +2,7 @@ import { PageHeader } from "@/components/tms-v2/ui/PageHeader";
 import { KpiTile } from "@/components/tms-v2/ui/KpiTile";
 import { Money } from "@/components/tms-v2/ui/Money";
 import { DataList } from "@/components/tms-v2/ui/DataList";
+import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
 import { formatMoney } from "@/lib/domain/money";
 import { currentPeriod, periodLabel, isInPeriod } from "@/lib/domain/attribution";
 import { listTrips } from "@/lib/data/trips";
@@ -38,44 +39,50 @@ export default async function TripsPage() {
   const ongoingCount = active.rows.filter((t) => !t.endedAt).length;
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Trips"
-        description="Out-and-back run grouping, for P&L individual loads can't carry alone."
-      />
+    <PageScroll
+      header={
+        <>
+          <PageHeader
+            title="Trips"
+            description="Out-and-back run grouping, for P&L individual loads can't carry alone."
+          />
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <KpiTile
-          label="Active Trips"
-          value={String(active.rows.length)}
-          delta={
-            ongoingCount > 0 ? (
-              <span className="inline-flex w-fit items-center rounded-full border border-warn/40 bg-warn-bg px-2 py-0.5 text-[11px] font-medium text-warn">
-                {ongoingCount} ongoing
-              </span>
-            ) : undefined
-          }
-        />
-        <KpiTile label={`Gross · ${periodLabel(period)}`} value={<Money value={monthGross} tone="none" />} />
-        <KpiTile label={`Net · ${periodLabel(period)}`} value={formatMoney(monthNet)} emphasis="dark" />
-        <KpiTile
-          label="Avg Profit %"
-          value={avgProfitPct != null ? `${Math.round(avgProfitPct)}%` : "—"}
-        />
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <KpiTile
+              label="Active Trips"
+              value={String(active.rows.length)}
+              delta={
+                ongoingCount > 0 ? (
+                  <span className="inline-flex w-fit items-center rounded-full border border-warn/40 bg-warn-bg px-2 py-0.5 text-[11px] font-medium text-warn">
+                    {ongoingCount} ongoing
+                  </span>
+                ) : undefined
+              }
+            />
+            <KpiTile label={`Gross · ${periodLabel(period)}`} value={<Money value={monthGross} tone="none" />} />
+            <KpiTile label={`Net · ${periodLabel(period)}`} value={formatMoney(monthNet)} emphasis="dark" />
+            <KpiTile
+              label="Avg Profit %"
+              value={avgProfitPct != null ? `${Math.round(avgProfitPct)}%` : "—"}
+            />
+          </div>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-6">
+        <section className="flex flex-col gap-2">
+          <h2 className="text-[15px] font-semibold text-fg">Active ({active.rows.length})</h2>
+          <DataList
+            columns={TRIP_COLUMNS}
+            rows={active.rows}
+            rowKey={(t) => t.id}
+            getHref={(t) => `/tms-v2/trips/${t.id}`}
+            emptyMessage="No active trips right now."
+          />
+        </section>
+
+        <ClosedTripsSection trips={closed.rows} />
       </div>
-
-      <section className="flex flex-col gap-2">
-        <h2 className="text-[15px] font-semibold text-fg">Active ({active.rows.length})</h2>
-        <DataList
-          columns={TRIP_COLUMNS}
-          rows={active.rows}
-          rowKey={(t) => t.id}
-          getHref={(t) => `/tms-v2/trips/${t.id}`}
-          emptyMessage="No active trips right now."
-        />
-      </section>
-
-      <ClosedTripsSection trips={closed.rows} />
-    </div>
+    </PageScroll>
   );
 }

@@ -4,6 +4,7 @@ import { KpiTile } from "@/components/tms-v2/ui/KpiTile";
 import { Money } from "@/components/tms-v2/ui/Money";
 import { DateTimeCST } from "@/components/tms-v2/ui/DateTimeCST";
 import { DataList, type DataListColumn } from "@/components/tms-v2/ui/DataList";
+import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
 import {
   getCarrierARSummary,
   listCarrierReceivables,
@@ -72,24 +73,28 @@ export default async function ReceivablesPage({
   ]);
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Receivables"
-        description="Carrier freight A/R — every delivered or TONU'd load still unpaid, aged from its delivery date via the one computeCarrierAR rule. Distinct from customer-brokerage money on Accounting. Mark-paid lands in a later phase; this view reads live."
-      />
-
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        <KpiTile label="Outstanding" value={<Money value={summary.totalOutstanding} tone={summary.totalOutstanding > 0 ? "negative" : "none"} />} />
-        {AGING_BUCKETS.map((bucket) => (
-          <KpiTile
-            key={bucket}
-            label={AGING_BUCKET_LABEL[bucket]}
-            value={<Money value={summary.bucketTotals[bucket]} tone={bucket === "90+" && summary.bucketTotals[bucket] > 0 ? "negative" : "none"} />}
-            delta={`${summary.bucketCounts[bucket]} load${summary.bucketCounts[bucket] === 1 ? "" : "s"}`}
+    <PageScroll
+      header={
+        <>
+          <PageHeader
+            title="Receivables"
+            description="Carrier freight A/R — every delivered or TONU'd load still unpaid, aged from its delivery date via the one computeCarrierAR rule. Distinct from customer-brokerage money on Accounting. Mark-paid lands in a later phase; this view reads live."
           />
-        ))}
-      </div>
 
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            <KpiTile label="Outstanding" value={<Money value={summary.totalOutstanding} tone={summary.totalOutstanding > 0 ? "negative" : "none"} />} />
+            {AGING_BUCKETS.map((bucket) => (
+              <KpiTile
+                key={bucket}
+                label={AGING_BUCKET_LABEL[bucket]}
+                value={<Money value={summary.bucketTotals[bucket]} tone={bucket === "90+" && summary.bucketTotals[bucket] > 0 ? "negative" : "none"} />}
+                delta={`${summary.bucketCounts[bucket]} load${summary.bucketCounts[bucket] === 1 ? "" : "s"}`}
+              />
+            ))}
+          </div>
+        </>
+      }
+    >
       <DataList
         columns={COLUMNS}
         rows={list.rows}
@@ -98,7 +103,7 @@ export default async function ReceivablesPage({
         emptyMessage="No outstanding carrier receivables — every delivered or TONU'd load is paid."
       />
 
-      <div className="flex items-center justify-between text-[13px] text-fg-muted">
+      <div className="mt-4 flex items-center justify-between text-[13px] text-fg-muted">
         <span>
           {list.totalCount} outstanding load{list.totalCount === 1 ? "" : "s"} · page {page}
         </span>
@@ -115,6 +120,6 @@ export default async function ReceivablesPage({
           ) : null}
         </div>
       </div>
-    </div>
+    </PageScroll>
   );
 }

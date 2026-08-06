@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/tms-v2/ui/PageHeader";
+import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
 import { QuotesTab } from "./_components/QuotesTab";
 import { ApplicationsTab } from "./_components/ApplicationsTab";
 import { AccountingTab } from "./_components/AccountingTab";
@@ -47,29 +48,33 @@ export default async function OperationsPage({
   const ppage = typeof sp.ppage === "string" ? Math.max(1, Number(sp.ppage) || 1) : 1;
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Operations"
-        description="The lead-to-cash pipeline — quote requests, applications, and accounting, in one place. Read-only for now; sending estimates/quotes/BOLs lands in a later phase."
-      />
+    <PageScroll
+      header={
+        <>
+          <PageHeader
+            title="Operations"
+            description="The lead-to-cash pipeline — quote requests, applications, and accounting, in one place. Read-only for now; sending estimates/quotes/BOLs lands in a later phase."
+          />
 
-      <nav className="flex gap-1 border-b border-line">
-        {TABS.map((t) => (
-          <Link
-            key={t.key}
-            href={`/tms-v2/operations?tab=${t.key}`}
-            className={`px-3 py-2 text-[14px] font-medium ${
-              tab === t.key ? "border-b-2 border-accent text-fg" : "text-fg-muted hover:text-fg"
-            }`}
-          >
-            {t.label}
-          </Link>
-        ))}
-      </nav>
-
+          <nav className="flex gap-1 border-b border-line">
+            {TABS.map((t) => (
+              <Link
+                key={t.key}
+                href={`/tms-v2/operations?tab=${t.key}`}
+                className={`px-3 py-2 text-[14px] font-medium ${
+                  tab === t.key ? "border-b-2 border-accent text-fg" : "text-fg-muted hover:text-fg"
+                }`}
+              >
+                {t.label}
+              </Link>
+            ))}
+          </nav>
+        </>
+      }
+    >
       {tab === "quotes" ? <QuotesTab page={page} status={status} /> : null}
       {tab === "applications" ? <ApplicationsTab page={page} /> : null}
       {tab === "accounting" ? <AccountingTab outstandingPage={opage} paymentsPage={ppage} /> : null}
-    </div>
+    </PageScroll>
   );
 }

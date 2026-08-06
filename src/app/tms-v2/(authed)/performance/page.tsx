@@ -5,6 +5,7 @@ import { Money } from "@/components/tms-v2/ui/Money";
 import { Button } from "@/components/tms-v2/ui/Button";
 import { Card } from "@/components/tms-v2/ui/Card";
 import { ProgressBar } from "@/components/tms-v2/ui/ProgressBar";
+import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
 import { formatMoney } from "@/lib/domain/money";
 import { getAnalyticsLoads, getMonthlyNetGoal } from "@/lib/data/analytics";
 import { summarize, brokerStats, laneStats, deadheadSplit, deltasBetween } from "@/lib/dispatch/performance";
@@ -50,13 +51,15 @@ export default async function PerformancePage({ searchParams }: PageProps) {
   const goalPct = monthlyGoal > 0 ? Math.min(100, Math.max(0, (summary.net / monthlyGoal) * 100)) : null;
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Performance"
-        description="Net vs goal, rate/mile, deadhead, and top brokers/lanes — attributed by pickup date, the same rule Calendar uses."
-      />
+    <PageScroll
+      header={
+        <>
+          <PageHeader
+            title="Performance"
+            description="Net vs goal, rate/mile, deadhead, and top brokers/lanes — attributed by pickup date, the same rule Calendar uses."
+          />
 
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-4">
         <div className="flex items-center gap-2">
           <Link href={monthTabHref} className={view.mode === "month" ? NAV_BUTTON_ACTIVE : NAV_BUTTON}>
             Month
@@ -114,16 +117,18 @@ export default async function PerformancePage({ searchParams }: PageProps) {
         </Card>
       ) : null}
 
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <KpiTile label="Net $/mi" value={rpm(summary.netRpm)} delta={<DeltaChip delta={deltas.netRpm} />} />
-        <KpiTile label="Gross $/mi" value={rpm(summary.grossRpm)} />
-        <KpiTile label="Deadhead" value={pct(dh.pct)} delta={<DeltaChip delta={deltas.deadhead} />} />
-      </div>
-
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <KpiTile label="Net $/mi" value={rpm(summary.netRpm)} delta={<DeltaChip delta={deltas.netRpm} />} />
+            <KpiTile label="Gross $/mi" value={rpm(summary.grossRpm)} />
+            <KpiTile label="Deadhead" value={pct(dh.pct)} delta={<DeltaChip delta={deltas.deadhead} />} />
+          </div>
+        </>
+      }
+    >
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <PartyStatList title="Top brokers" rows={brokers} />
         <PartyStatList title="Top lanes" rows={lanes} />
       </div>
-    </div>
+    </PageScroll>
   );
 }

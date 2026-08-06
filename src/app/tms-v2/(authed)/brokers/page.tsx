@@ -2,6 +2,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/tms-v2/ui/PageHeader";
 import { Money } from "@/components/tms-v2/ui/Money";
 import { DataList, type DataListColumn } from "@/components/tms-v2/ui/DataList";
+import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
 import { listBrokerDirectory, type BrokerDirectoryRow } from "@/lib/data/broker-directory";
 import { BrokerStatusPill } from "./_lib/broker-status";
 
@@ -52,33 +53,37 @@ export default async function BrokersPage({
   const list = await listBrokerDirectory({ page, pageSize: PAGE_SIZE, search });
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Brokers"
-        description="Master directory of every broker partner — gross and A/R via the canonical, fuel-adjusted money engine. Quick-add and edit land in a later phase; this view reads live."
-      />
-
-      <form className="flex flex-wrap items-end gap-3" method="GET">
-        <label className="flex flex-col gap-1 text-[13px] text-fg-muted">
-          Search
-          <input
-            type="text"
-            name="q"
-            defaultValue={search ?? ""}
-            placeholder="Broker name…"
-            className="h-9 w-64 rounded-md border border-line-strong bg-card px-2.5 text-[14px] text-fg"
+    <PageScroll
+      header={
+        <>
+          <PageHeader
+            title="Brokers"
+            description="Master directory of every broker partner — gross and A/R via the canonical, fuel-adjusted money engine. Quick-add and edit land in a later phase; this view reads live."
           />
-        </label>
-        <button type="submit" className="h-9 rounded-md border border-line-strong bg-card px-3 text-[13px] font-medium text-fg hover:bg-elevated">
-          Search
-        </button>
-        {search ? (
-          <Link href="/tms-v2/brokers" className="text-[13px] text-fg-muted underline">
-            Clear
-          </Link>
-        ) : null}
-      </form>
 
+          <form className="flex flex-wrap items-end gap-3" method="GET">
+            <label className="flex flex-col gap-1 text-[13px] text-fg-muted">
+              Search
+              <input
+                type="text"
+                name="q"
+                defaultValue={search ?? ""}
+                placeholder="Broker name…"
+                className="h-9 w-64 rounded-md border border-line-strong bg-card px-2.5 text-[14px] text-fg"
+              />
+            </label>
+            <button type="submit" className="h-9 rounded-md border border-line-strong bg-card px-3 text-[13px] font-medium text-fg hover:bg-elevated">
+              Search
+            </button>
+            {search ? (
+              <Link href="/tms-v2/brokers" className="text-[13px] text-fg-muted underline">
+                Clear
+              </Link>
+            ) : null}
+          </form>
+        </>
+      }
+    >
       <DataList
         columns={COLUMNS}
         rows={list.rows}
@@ -87,7 +92,7 @@ export default async function BrokersPage({
         emptyMessage="No brokers match this search."
       />
 
-      <div className="flex items-center justify-between text-[13px] text-fg-muted">
+      <div className="mt-4 flex items-center justify-between text-[13px] text-fg-muted">
         <span>
           {list.totalCount} broker{list.totalCount === 1 ? "" : "s"} · page {page}
         </span>
@@ -104,6 +109,6 @@ export default async function BrokersPage({
           ) : null}
         </div>
       </div>
-    </div>
+    </PageScroll>
   );
 }

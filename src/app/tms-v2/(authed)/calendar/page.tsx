@@ -2,6 +2,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/tms-v2/ui/PageHeader";
 import { Money } from "@/components/tms-v2/ui/Money";
 import { Button } from "@/components/tms-v2/ui/Button";
+import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
 import { getAnalyticsLoads, type AnalyticsLoad } from "@/lib/data/analytics";
 import { currentPeriod, periodRange, periodLabel, type Period } from "@/lib/domain/attribution";
 import { centralDateKey } from "@/lib/domain/dates";
@@ -62,46 +63,52 @@ export default async function CalendarPage({ searchParams }: PageProps) {
   const thisMonthParam = monthParam(currentPeriod(now));
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Calendar"
-        description="Loads by pickup date — the same attribution rule Performance uses."
-      />
+    <PageScroll
+      header={
+        <>
+          <PageHeader
+            title="Calendar"
+            description="Loads by pickup date — the same attribution rule Performance uses."
+          />
 
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-4">
-        <div className="flex items-center gap-2">
-          <Link href={`/tms-v2/calendar?month=${prevParam}`} className={NAV_BUTTON} aria-label="Previous month">
-            ‹
-          </Link>
-          <Link href={`/tms-v2/calendar?month=${thisMonthParam}`} className={NAV_BUTTON}>
-            Today
-          </Link>
-          <Link href={`/tms-v2/calendar?month=${nextParam}`} className={NAV_BUTTON} aria-label="Next month">
-            ›
-          </Link>
-          <h2 className="pl-2 text-[17px] font-semibold text-fg">{periodLabel(period)}</h2>
-        </div>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-4">
+            <div className="flex items-center gap-2">
+              <Link href={`/tms-v2/calendar?month=${prevParam}`} className={NAV_BUTTON} aria-label="Previous month">
+                ‹
+              </Link>
+              <Link href={`/tms-v2/calendar?month=${thisMonthParam}`} className={NAV_BUTTON}>
+                Today
+              </Link>
+              <Link href={`/tms-v2/calendar?month=${nextParam}`} className={NAV_BUTTON} aria-label="Next month">
+                ›
+              </Link>
+              <h2 className="pl-2 text-[17px] font-semibold text-fg">{periodLabel(period)}</h2>
+            </div>
 
-        <div className="flex items-center gap-3">
-          <form action="/tms-v2/calendar" method="GET" className="flex items-center gap-1.5">
-            <input
-              type="month"
-              name="month"
-              defaultValue={monthParam(period)}
-              className="h-8 rounded-md border border-line-strong bg-card px-2 text-[13px] text-fg"
-            />
-            <Button type="submit" variant="secondary" size="sm">
-              Jump
-            </Button>
-          </form>
-          <div className="text-[13px] text-fg-muted">
-            Month net: <Money value={monthNet} />
+            <div className="flex items-center gap-3">
+              <form action="/tms-v2/calendar" method="GET" className="flex items-center gap-1.5">
+                <input
+                  type="month"
+                  name="month"
+                  defaultValue={monthParam(period)}
+                  className="h-8 rounded-md border border-line-strong bg-card px-2 text-[13px] text-fg"
+                />
+                <Button type="submit" variant="secondary" size="sm">
+                  Jump
+                </Button>
+              </form>
+              <div className="text-[13px] text-fg-muted">
+                Month net: <Money value={monthNet} />
+              </div>
+            </div>
           </div>
-        </div>
+        </>
+      }
+    >
+      <div className="flex flex-col gap-6">
+        <CalendarMonthGrid weeks={weeks} loadsByDay={loadsByDay} />
+        <CalendarAgenda weeks={weeks} loadsByDay={loadsByDay} />
       </div>
-
-      <CalendarMonthGrid weeks={weeks} loadsByDay={loadsByDay} />
-      <CalendarAgenda weeks={weeks} loadsByDay={loadsByDay} />
-    </div>
+    </PageScroll>
   );
 }

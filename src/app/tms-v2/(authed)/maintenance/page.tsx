@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/tms-v2/ui/PageHeader";
 import { Card } from "@/components/tms-v2/ui/Card";
+import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
 import { getMaintenanceOverview } from "@/lib/data/maintenance";
 import {
   IntervalBar,
@@ -17,12 +18,15 @@ export default async function MaintenancePage() {
   const { currentOdo, reminders, recentEntries } = await getMaintenanceOverview();
 
   return (
+    <PageScroll
+      header={
+        <PageHeader
+          title="Maintenance"
+          description="Odometer-driven service and repair records for the truck."
+        />
+      }
+    >
     <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Maintenance"
-        description="Odometer-driven service and repair records for the truck."
-      />
-
       <Card className="flex flex-col gap-1">
         <span className="text-[13px] font-medium text-fg-muted">Current odometer</span>
         <span className="font-mono text-[34px] font-semibold leading-none tabular-nums text-fg sm:text-[40px]">
@@ -83,5 +87,6 @@ export default async function MaintenancePage() {
         )}
       </section>
     </div>
+    </PageScroll>
   );
 }
