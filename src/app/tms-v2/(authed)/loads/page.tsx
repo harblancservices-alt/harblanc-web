@@ -5,7 +5,8 @@ import { Money } from "@/components/tms-v2/ui/Money";
 import { DateTimeCST } from "@/components/tms-v2/ui/DateTimeCST";
 import { StatusPill } from "@/components/tms-v2/ui/StatusPill";
 import { DataList, type DataListColumn } from "@/components/tms-v2/ui/DataList";
-import { listLoads, getLoadBoardSummary, type LoadWithFinancials, type LoadStatus } from "@/lib/data/loads";
+import { ContextDrawer } from "@/components/tms-v2/ui/ContextDrawer";
+import { listLoads, getLoadBoardSummary, getLoadDetail, type LoadWithFinancials, type LoadStatus } from "@/lib/data/loads";
 import { listBrokers } from "@/lib/data/brokers";
 import { listTrips } from "@/lib/data/trips";
 import { currentPeriod, type Period } from "@/lib/domain/attribution";
@@ -13,6 +14,7 @@ import { DEFAULT_PAGE_SIZE } from "@/lib/data/pagination";
 import { formatMoney } from "@/lib/domain/money";
 import { LoadBoardFilters } from "./LoadBoardFilters";
 import { AddLoadButton } from "./AddLoadButton";
+import { LoadDrawerContent } from "./LoadDrawerContent";
 
 // Loads change status/payment throughout the day — the board always reads
 // live, request-scoped data (matches Today's own force-dynamic choice).
@@ -65,13 +67,17 @@ export default async function LoadsPage({ searchParams }: { searchParams: Promis
   const page = Math.max(1, Number(first(sp.page)) || 1);
   const status = first(sp.status) as LoadStatus | undefined;
   const brokerId = first(sp.brokerId) || undefined;
+  const selectedId = first(sp.id);
 
-  const [summary, listResult, brokersPage, activeTripsPage] = await Promise.all([
+  const [summary, listResult, brokersPage, activeTripsPage, selectedLoad] = await Promise.all([
     getLoadBoardSummary(period),
     listLoads({ period, page, pageSize: DEFAULT_PAGE_SIZE, status, brokerId }),
     listBrokers({ pageSize: 100 }),
     listTrips({ status: "active", pageSize: 100 }),
+    selectedId ? getLoadDetail(selectedId) : Promise.resolve(null),
   ]);
+  const brokerNames = brokersPage.rows.map((b) => b.name);
+  const activeTripNames = activeTripsPage.rows.map((t) => t.name).filter((n): n is string => !!n);
 
   const baseParams = new URLSearchParams();
   if (status) baseParams.set("status", status);
@@ -92,16 +98,37 @@ export default async function LoadsPage({ searchParams }: { searchParams: Promis
     return `/tms-v2/loads?${params.toString()}`;
   }
 
+  // Row selection stays in the URL (same discipline as period/status/page)
+  // rather than client state, so a selected load's context drawer is a real,
+  // shareable/back-button-friendly location, not ephemeral UI state.
+  function rowHref(loadId: string): string {
+    const params = new URLSearchParams(baseParams);
+    params.set("year", String(period.year));
+    params.set("month", String(period.month));
+    if (page > 1) params.set("page", String(page));
+    params.set("id", loadId);
+    return `/tms-v2/loads?${params.toString()}`;
+  }
+
+  const closeHref = (() => {
+    const params = new URLSearchParams(baseParams);
+    params.set("year", String(period.year));
+    params.set("month", String(period.month));
+    if (page > 1) params.set("page", String(page));
+    return `/tms-v2/loads?${params.toString()}`;
+  })();
+
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex items-start gap-6">
+    <div className="flex min-w-0 flex-1 flex-col gap-6">
       <PageHeader
         title="Loads"
         description="Every load booked this period, server-paginated and searchable by status or broker."
         actions={
           <div className="flex items-center gap-2 text-[13px] font-medium text-fg">
             <AddLoadButton
-              brokerNames={brokersPage.rows.map((b) => b.name)}
-              activeTripNames={activeTripsPage.rows.map((t) => t.name).filter((n): n is string => !!n)}
+              brokerNames={brokerNames}
+              activeTripNames={activeTripNames}
             />
             <Link
               href={periodHref(shiftPeriod(period, -1))}
@@ -145,7 +172,7 @@ export default async function LoadsPage({ searchParams }: { searchParams: Promis
         columns={LOAD_COLUMNS}
         rows={listResult.rows}
         rowKey={(l) => l.id}
-        getHref={(l) => `/tms-v2/loads/${l.id}`}
+        getHref={(l) => rowHref(l.id)}
         emptyMessage="No loads match this period and filters."
       />
 
@@ -172,6 +199,17 @@ export default async function LoadsPage({ searchParams }: { searchParams: Promis
           ) : null}
         </div>
       </div>
+    </div>
+
+    {selectedLoad ? (
+      <ContextDrawer
+        title={selectedLoad.loadNumber ? `#${selectedLoad.loadNumber}` : selectedLoad.id.slice(0, 8)}
+        subtitle={`${selectedLoad.origin ?? "—"} → ${selectedLoad.destination ?? "—"}`}
+        closeHref={closeHref}
+      >
+        <LoadDrawerContent load={selectedLoad} brokerNames={brokerNames} activeTripNames={activeTripNames} />
+      </ContextDrawer>
+    ) : null}
     </div>
   );
 }
