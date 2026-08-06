@@ -14,6 +14,7 @@ import {
   type RecurringExpenseRow,
   type RecurringFrequency,
 } from "@/lib/data/recurring-expenses";
+import { expenseGaps, EXPENSE_GAP_LABEL } from "@/lib/dispatch/alerts";
 import { AddExpenseButton } from "./AddExpenseButton";
 import { ExpenseRowActions } from "./ExpenseRowActions";
 
@@ -23,16 +24,45 @@ export const dynamic = "force-dynamic";
 const PAGE_SIZE = 25;
 
 function buildColumns(accountNames: string[]): DataListColumn<RecurringExpenseRow>[] {
+  const accountNameSet = new Set(accountNames);
+
+  function gapsFor(r: RecurringExpenseRow) {
+    return expenseGaps(
+      {
+        amount: r.amount,
+        frequency: r.frequency,
+        dayOfMonth: r.dayOfMonth,
+        dayOfWeek: r.dayOfWeek,
+        startDate: r.startDate,
+        card: r.cardName,
+        category: r.category,
+      },
+      accountNameSet,
+    );
+  }
+
   return [
   {
     key: "vendor",
     header: "Vendor",
-    render: (r) => (
-      <div>
-        <div className="font-medium text-fg">{r.vendor || r.name}</div>
-        {r.vendor && r.vendor !== r.name ? <div className="text-[12px] text-fg-muted">{r.name}</div> : null}
-      </div>
-    ),
+    render: (r) => {
+      const gaps = gapsFor(r);
+      return (
+        <div className="flex items-start gap-2">
+          {gaps.length > 0 ? (
+            <span
+              className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-warn"
+              title={`Incomplete: ${gaps.map((g) => EXPENSE_GAP_LABEL[g]).join(", ")}`}
+              aria-label={`Incomplete: ${gaps.map((g) => EXPENSE_GAP_LABEL[g]).join(", ")}`}
+            />
+          ) : null}
+          <div>
+            <div className="font-medium text-fg">{r.vendor || r.name}</div>
+            {r.vendor && r.vendor !== r.name ? <div className="text-[12px] text-fg-muted">{r.name}</div> : null}
+          </div>
+        </div>
+      );
+    },
   },
   { key: "category", header: "Category", render: (r) => r.category ?? "—" },
   {
@@ -52,7 +82,10 @@ function buildColumns(accountNames: string[]): DataListColumn<RecurringExpenseRo
   { key: "frequency", header: "Frequency", render: (r) => RECURRING_FREQUENCY_LABEL[r.frequency] },
   { key: "next", header: "Next charge", render: (r) => r.nextChargeLabel ?? "—" },
   { key: "status", header: "Status", render: (r) => (r.archived ? "Archived" : "Active"), hideOnMobile: true },
-  { key: "amount", header: "Amount", render: (r) => <Money value={r.amount} tone="negative" />, align: "right" },
+  // Neutral ink by default (v2-design.md's money-is-language rule) — every
+  // row here is an expense, so coloring every amount red said nothing; the
+  // amber dot on Vendor is now what actually carries "needs a look".
+  { key: "amount", header: "Amount", render: (r) => <Money value={r.amount} tone="none" />, align: "right" },
   {
     key: "actions",
     header: "",
@@ -104,10 +137,10 @@ export default async function ExpensesPage({
       />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <KpiTile label="This month" value={<Money value={kpis.thisMonth} tone="negative" />} />
+        <KpiTile label="This month" value={<Money value={kpis.thisMonth} tone="none" />} />
         <KpiTile label="Recurring" value={String(kpis.recurringCount)} />
-        <KpiTile label="YTD" value={<Money value={kpis.ytd} tone="negative" />} />
-        <KpiTile label="Avg monthly" value={<Money value={kpis.averageMonthly} tone="negative" />} />
+        <KpiTile label="YTD" value={<Money value={kpis.ytd} tone="none" />} />
+        <KpiTile label="Avg monthly" value={<Money value={kpis.averageMonthly} tone="none" />} />
       </div>
 
       <form className="flex flex-wrap items-end gap-3" method="GET">

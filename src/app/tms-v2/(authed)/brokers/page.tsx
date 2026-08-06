@@ -16,7 +16,16 @@ const COLUMNS: DataListColumn<BrokerDirectoryRow>[] = [
     header: "Name",
     render: (b) => <span className="font-medium text-fg">{b.name}</span>,
   },
-  { key: "status", header: "Status", render: (b) => <BrokerStatusPill status={b.status} />, hideOnMobile: true },
+  {
+    key: "status",
+    header: "Status",
+    // Money-is-neutral-by-default's status-pill sibling: "active" is the
+    // overwhelming common case for a working broker relationship, so
+    // showing it on every row said nothing — the pill now only appears
+    // when a broker's status actually deviates from that default.
+    render: (b) => (b.status === "active" ? null : <BrokerStatusPill status={b.status} />),
+    hideOnMobile: true,
+  },
   { key: "loads", header: "Loads", render: (b) => String(b.loadsCount), align: "right" },
   { key: "gross", header: "Gross", render: (b) => <Money value={b.gross} tone="none" />, align: "right" },
   { key: "ar", header: "A/R", render: (b) => <Money value={b.arOutstanding} tone={b.arOutstanding > 0 ? "negative" : "none"} />, align: "right" },
