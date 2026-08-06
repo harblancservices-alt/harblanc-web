@@ -4,9 +4,11 @@ import { KpiTile } from "@/components/tms-v2/ui/KpiTile";
 import { Money } from "@/components/tms-v2/ui/Money";
 import { DateTimeCST } from "@/components/tms-v2/ui/DateTimeCST";
 import { DataList, type DataListColumn } from "@/components/tms-v2/ui/DataList";
+import { ContextDrawer } from "@/components/tms-v2/ui/ContextDrawer";
 import {
   listRecurringExpenses,
   getRecurringExpensesKpis,
+  getRecurringExpenseById,
   listExpenseAccounts,
   EXPENSE_CATEGORIES,
   RECURRING_FREQUENCIES,
@@ -15,7 +17,8 @@ import {
   type RecurringFrequency,
 } from "@/lib/data/recurring-expenses";
 import { expenseGaps, EXPENSE_GAP_LABEL } from "@/lib/dispatch/alerts";
-import { AddExpenseButton } from "./AddExpenseButton";
+import { ExpenseComposerProvider, ExpenseComposerToggleButton, ExpenseComposerPanel } from "./ExpenseComposer";
+import { ExpenseDrawerContent } from "./ExpenseDrawerContent";
 import { ExpenseRowActions } from "./ExpenseRowActions";
 
 // Money-affecting data, read fresh every visit — matches Today's pattern.
@@ -89,7 +92,7 @@ function buildColumns(accountNames: string[]): DataListColumn<RecurringExpenseRo
   {
     key: "actions",
     header: "",
-    render: (r) => <ExpenseRowActions expense={r} accountNames={accountNames} />,
+    render: (r) => <ExpenseRowActions expense={r} />,
     align: "right",
   },
   ];
@@ -117,24 +120,35 @@ export default async function ExpensesPage({
   const status = sp.status === "archived" ? "archived" : sp.status === "all" ? "all" : "active";
   const search = typeof sp.q === "string" ? sp.q : undefined;
   const page = typeof sp.page === "string" ? Math.max(1, Number(sp.page) || 1) : 1;
+  const selectedId = typeof sp.id === "string" ? sp.id : undefined;
 
-  const [kpis, list, accounts] = await Promise.all([
+  const [kpis, list, accounts, selectedExpense] = await Promise.all([
     getRecurringExpensesKpis(),
     listRecurringExpenses({ page, pageSize: PAGE_SIZE, category, frequency, status, search }),
     listExpenseAccounts(),
+    selectedId ? getRecurringExpenseById(selectedId) : Promise.resolve(null),
   ]);
 
-  const baseParams = { category, frequency, status, q: search };
+  const baseParams = { category, frequency, status, q: search, page: page > 1 ? page : undefined };
   const accountNames = accounts.map((a) => a.name);
   const columns = buildColumns(accountNames);
 
+  function rowHref(id: string): string {
+    return buildHref({ ...baseParams, id });
+  }
+  const closeHref = buildHref(baseParams);
+
   return (
-    <div className="flex flex-col gap-6">
+    <ExpenseComposerProvider>
+    <div className="flex items-start gap-6">
+    <div className="flex min-w-0 flex-1 flex-col gap-6">
       <PageHeader
         title="Expenses"
         description="Manual log of recurring charges — insurance, truck payment, subscriptions."
-        actions={<AddExpenseButton accountNames={accountNames} />}
+        actions={<ExpenseComposerToggleButton />}
       />
+
+      <ExpenseComposerPanel accountNames={accountNames} />
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <KpiTile label="This month" value={<Money value={kpis.thisMonth} tone="none" />} />
@@ -194,6 +208,7 @@ export default async function ExpensesPage({
         columns={columns}
         rows={list.rows}
         rowKey={(r) => r.id}
+        getHref={(r) => rowHref(r.id)}
         emptyMessage="No recurring expenses match these filters."
       />
 
@@ -219,5 +234,13 @@ export default async function ExpensesPage({
         Server render time: <DateTimeCST value={new Date()} />
       </p>
     </div>
+
+    {selectedExpense ? (
+      <ContextDrawer title={selectedExpense.vendor || selectedExpense.name} closeHref={closeHref}>
+        <ExpenseDrawerContent expense={selectedExpense} />
+      </ContextDrawer>
+    ) : null}
+    </div>
+    </ExpenseComposerProvider>
   );
 }

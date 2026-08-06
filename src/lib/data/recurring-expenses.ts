@@ -329,6 +329,14 @@ export async function getRecurringExpensesKpis(): Promise<RecurringExpensesKpis>
   return { thisMonth, recurringCount, ytd, averageMonthly };
 }
 
+/** Single row lookup for the Expenses ledger's context-drawer edit — reuses
+ * the same bounded fetchAll() every other read in this module does rather
+ * than adding a second query shape for one row. */
+export async function getRecurringExpenseById(id: string): Promise<RecurringExpenseRow | null> {
+  const all = await fetchAll(new Date());
+  return all.find((r) => r.id === id) ?? null;
+}
+
 export type ExpenseAccountRow = { id: string; name: string; type: string | null; last4: string | null };
 
 export async function listExpenseAccounts(): Promise<ExpenseAccountRow[]> {
