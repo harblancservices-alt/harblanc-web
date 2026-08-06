@@ -5,6 +5,7 @@ import { Money } from "@/components/tms-v2/ui/Money";
 import { DateTimeCST } from "@/components/tms-v2/ui/DateTimeCST";
 import { DataList, type DataListColumn } from "@/components/tms-v2/ui/DataList";
 import { ContextDrawer } from "@/components/tms-v2/ui/ContextDrawer";
+import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
 import {
   listRecurringExpenses,
   getRecurringExpensesKpis,
@@ -140,70 +141,75 @@ export default async function ExpensesPage({
 
   return (
     <ExpenseComposerProvider>
-    <div className="flex items-start gap-6">
-    <div className="flex min-w-0 flex-1 flex-col gap-6">
-      <PageHeader
-        title="Expenses"
-        description="Manual log of recurring charges — insurance, truck payment, subscriptions."
-        actions={<ExpenseComposerToggleButton />}
-      />
-
-      <ExpenseComposerPanel accountNames={accountNames} />
-
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <KpiTile label="This month" value={<Money value={kpis.thisMonth} tone="none" />} />
-        <KpiTile label="Recurring" value={String(kpis.recurringCount)} />
-        <KpiTile label="YTD" value={<Money value={kpis.ytd} tone="none" />} />
-        <KpiTile label="Avg monthly" value={<Money value={kpis.averageMonthly} tone="none" />} />
-      </div>
-
-      <form className="flex flex-wrap items-end gap-3" method="GET">
-        <label className="flex flex-col gap-1 text-[13px] text-fg-muted">
-          Search
-          <input
-            type="text"
-            name="q"
-            defaultValue={search ?? ""}
-            placeholder="Vendor or name…"
-            className="h-9 w-48 rounded-md border border-line-strong bg-card px-2.5 text-[14px] text-fg"
+    <div className="flex h-full min-h-0 items-start gap-6">
+    <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
+    <PageScroll
+      header={
+        <>
+          <PageHeader
+            title="Expenses"
+            description="Manual log of recurring charges — insurance, truck payment, subscriptions."
+            actions={<ExpenseComposerToggleButton />}
           />
-        </label>
-        <label className="flex flex-col gap-1 text-[13px] text-fg-muted">
-          Category
-          <select name="category" defaultValue={category ?? ""} className="h-9 rounded-md border border-line-strong bg-card px-2.5 text-[14px] text-fg">
-            <option value="">All</option>
-            {EXPENSE_CATEGORIES.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1 text-[13px] text-fg-muted">
-          Frequency
-          <select name="frequency" defaultValue={frequency ?? ""} className="h-9 rounded-md border border-line-strong bg-card px-2.5 text-[14px] text-fg">
-            <option value="">All</option>
-            {RECURRING_FREQUENCIES.map((f) => (
-              <option key={f} value={f}>{RECURRING_FREQUENCY_LABEL[f]}</option>
-            ))}
-          </select>
-        </label>
-        <label className="flex flex-col gap-1 text-[13px] text-fg-muted">
-          Status
-          <select name="status" defaultValue={status} className="h-9 rounded-md border border-line-strong bg-card px-2.5 text-[14px] text-fg">
-            <option value="active">Active</option>
-            <option value="archived">Archived</option>
-            <option value="all">All</option>
-          </select>
-        </label>
-        <button type="submit" className="h-9 rounded-md border border-line-strong bg-card px-3 text-[13px] font-medium text-fg hover:bg-elevated">
-          Apply
-        </button>
-        {category || frequency || search || status !== "active" ? (
-          <Link href="/tms-v2/expenses" className="text-[13px] text-fg-muted underline">
-            Clear filters
-          </Link>
-        ) : null}
-      </form>
 
+          <ExpenseComposerPanel accountNames={accountNames} />
+
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <KpiTile label="This month" value={<Money value={kpis.thisMonth} tone="none" />} />
+            <KpiTile label="Recurring" value={String(kpis.recurringCount)} />
+            <KpiTile label="YTD" value={<Money value={kpis.ytd} tone="none" />} />
+            <KpiTile label="Avg monthly" value={<Money value={kpis.averageMonthly} tone="none" />} />
+          </div>
+
+          <form className="flex flex-wrap items-end gap-3" method="GET">
+            <label className="flex flex-col gap-1 text-[13px] text-fg-muted">
+              Search
+              <input
+                type="text"
+                name="q"
+                defaultValue={search ?? ""}
+                placeholder="Vendor or name…"
+                className="h-9 w-48 rounded-md border border-line-strong bg-card px-2.5 text-[14px] text-fg"
+              />
+            </label>
+            <label className="flex flex-col gap-1 text-[13px] text-fg-muted">
+              Category
+              <select name="category" defaultValue={category ?? ""} className="h-9 rounded-md border border-line-strong bg-card px-2.5 text-[14px] text-fg">
+                <option value="">All</option>
+                {EXPENSE_CATEGORIES.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-[13px] text-fg-muted">
+              Frequency
+              <select name="frequency" defaultValue={frequency ?? ""} className="h-9 rounded-md border border-line-strong bg-card px-2.5 text-[14px] text-fg">
+                <option value="">All</option>
+                {RECURRING_FREQUENCIES.map((f) => (
+                  <option key={f} value={f}>{RECURRING_FREQUENCY_LABEL[f]}</option>
+                ))}
+              </select>
+            </label>
+            <label className="flex flex-col gap-1 text-[13px] text-fg-muted">
+              Status
+              <select name="status" defaultValue={status} className="h-9 rounded-md border border-line-strong bg-card px-2.5 text-[14px] text-fg">
+                <option value="active">Active</option>
+                <option value="archived">Archived</option>
+                <option value="all">All</option>
+              </select>
+            </label>
+            <button type="submit" className="h-9 rounded-md border border-line-strong bg-card px-3 text-[13px] font-medium text-fg hover:bg-elevated">
+              Apply
+            </button>
+            {category || frequency || search || status !== "active" ? (
+              <Link href="/tms-v2/expenses" className="text-[13px] text-fg-muted underline">
+                Clear filters
+              </Link>
+            ) : null}
+          </form>
+        </>
+      }
+    >
       <DataList
         columns={columns}
         rows={list.rows}
@@ -212,7 +218,7 @@ export default async function ExpensesPage({
         emptyMessage="No recurring expenses match these filters."
       />
 
-      <div className="flex items-center justify-between text-[13px] text-fg-muted">
+      <div className="mt-4 flex items-center justify-between text-[13px] text-fg-muted">
         <span>
           {list.totalCount} expense{list.totalCount === 1 ? "" : "s"} · page {page}
         </span>
@@ -230,9 +236,10 @@ export default async function ExpensesPage({
         </div>
       </div>
 
-      <p className="text-[13px] text-fg-muted">
+      <p className="mt-4 text-[13px] text-fg-muted">
         Server render time: <DateTimeCST value={new Date()} />
       </p>
+    </PageScroll>
     </div>
 
     {selectedExpense ? (
