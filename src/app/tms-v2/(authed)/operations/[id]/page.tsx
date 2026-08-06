@@ -6,6 +6,7 @@ import { KpiTile } from "@/components/tms-v2/ui/KpiTile";
 import { Money } from "@/components/tms-v2/ui/Money";
 import { DateTimeCST } from "@/components/tms-v2/ui/DateTimeCST";
 import { getPipelineDetail } from "@/lib/data/pipeline";
+import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
 import { suggestedNext, LEAD_STATUS_LABELS, isLeadStatus } from "@/lib/dispatch/status";
 import { LeadStatusPill } from "../_lib/lead-status";
 import { describeEvent } from "../_lib/timeline";
@@ -35,6 +36,7 @@ export default async function PipelineDetailPage({ params }: { params: Promise<{
   const next = isLeadStatus(identity.leadStatus) ? suggestedNext(identity.leadStatus) : null;
 
   return (
+    <PageScroll>
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
         <Link href="/tms-v2/operations?tab=quotes" className="text-[13px] text-fg-muted hover:text-fg">
@@ -249,5 +251,6 @@ export default async function PipelineDetailPage({ params }: { params: Promise<{
         )}
       </section>
     </div>
+    </PageScroll>
   );
 }

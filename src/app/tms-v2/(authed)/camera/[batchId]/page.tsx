@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/tms-v2/ui/PageHeader";
 import { DateTimeCST } from "@/components/tms-v2/ui/DateTimeCST";
+import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
 import { getCameraBatch } from "@/lib/data/camera";
 
 export const dynamic = "force-dynamic";
@@ -28,31 +29,35 @@ export default async function CameraBatchDetailPage({
   if (!batch) notFound();
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader
-        title={batch.name}
-        actions={
-          <div className="flex items-center gap-2">
-            <a href={`/admin/camera/${batch.id}/export/pdf`} className={EXPORT_LINK_CLASS}>
-              Export PDF
-            </a>
-            <a href={`/admin/camera/${batch.id}/export/zip`} className={EXPORT_LINK_CLASS}>
-              Export ZIP
-            </a>
+    <PageScroll
+      header={
+        <>
+          <PageHeader
+            title={batch.name}
+            actions={
+              <div className="flex items-center gap-2">
+                <a href={`/admin/camera/${batch.id}/export/pdf`} className={EXPORT_LINK_CLASS}>
+                  Export PDF
+                </a>
+                <a href={`/admin/camera/${batch.id}/export/zip`} className={EXPORT_LINK_CLASS}>
+                  Export ZIP
+                </a>
+              </div>
+            }
+          />
+
+          <div className="flex items-center justify-between">
+            <Link href="/tms-v2/camera" className="text-[13px] font-medium text-fg-muted hover:text-fg">
+              ← All batches
+            </Link>
+            <span className="text-[13px] text-fg-muted">
+              Captured <DateTimeCST value={batch.createdAt} mode="date" /> · {batch.photos.length} photo
+              {batch.photos.length === 1 ? "" : "s"}
+            </span>
           </div>
-        }
-      />
-
-      <div className="flex items-center justify-between">
-        <Link href="/tms-v2/camera" className="text-[13px] font-medium text-fg-muted hover:text-fg">
-          ← All batches
-        </Link>
-        <span className="text-[13px] text-fg-muted">
-          Captured <DateTimeCST value={batch.createdAt} mode="date" /> · {batch.photos.length} photo
-          {batch.photos.length === 1 ? "" : "s"}
-        </span>
-      </div>
-
+        </>
+      }
+    >
       {batch.photos.length === 0 ? (
         <p className="text-[13px] text-fg-muted">This batch has no photos yet.</p>
       ) : (
@@ -87,6 +92,6 @@ export default async function CameraBatchDetailPage({
           )}
         </div>
       )}
-    </div>
+    </PageScroll>
   );
 }

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Card } from "@/components/tms-v2/ui/Card";
+import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
 import { Money } from "@/components/tms-v2/ui/Money";
 import { StatusPill } from "@/components/tms-v2/ui/StatusPill";
 import { DateTimeCST } from "@/components/tms-v2/ui/DateTimeCST";
@@ -62,6 +63,7 @@ export default async function TripDetailPage({
   const marginBarPct = fin.profitPct == null ? 0 : Math.min(100, Math.max(0, fin.profitPct));
 
   return (
+    <PageScroll>
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
         <Link
@@ -179,6 +181,7 @@ export default async function TripDetailPage({
         />
       </section>
     </div>
+    </PageScroll>
   );
 }
 

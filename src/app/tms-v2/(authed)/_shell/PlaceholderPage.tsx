@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/tms-v2/ui/PageHeader";
 import { Card } from "@/components/tms-v2/ui/Card";
+import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
 
 /**
  * Shared shape for every Phase-1 placeholder route — every nav destination
@@ -11,11 +12,10 @@ import { Card } from "@/components/tms-v2/ui/Card";
  */
 export function PlaceholderPage({ title, description }: { title: string; description: string }) {
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader title={title} />
+    <PageScroll header={<PageHeader title={title} />}>
       <Card>
         <p className="text-[13px] text-fg-muted">{description}</p>
       </Card>
-    </div>
+    </PageScroll>
   );
 }

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { PageHeader } from "@/components/tms-v2/ui/PageHeader";
 import { DataList, type DataListColumn } from "@/components/tms-v2/ui/DataList";
 import { DateTimeCST } from "@/components/tms-v2/ui/DateTimeCST";
+import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
 import { listFiles, type FileRow, type FileSource } from "@/lib/data/files";
 import { DEFAULT_PAGE_SIZE } from "@/lib/data/pagination";
 
@@ -115,49 +116,53 @@ export default async function FilesPage({
   ];
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Files"
-        description="Every uploaded document — load paperwork, maintenance receipts, and customer intake uploads — in one searchable, newest-first timeline."
-      />
-
-      <div className="flex flex-col gap-3">
-        <form action="/tms-v2/files" method="GET" className="flex items-center gap-2">
-          {source ? <input type="hidden" name="source" value={source} /> : null}
-          <input
-            type="text"
-            name="q"
-            defaultValue={q ?? ""}
-            placeholder="Search files…"
-            className="h-9 w-full max-w-sm rounded-md border border-line-strong bg-card px-3 text-[13px] text-fg placeholder:text-fg-muted focus:border-fg focus:outline-none"
+    <PageScroll
+      header={
+        <>
+          <PageHeader
+            title="Files"
+            description="Every uploaded document — load paperwork, maintenance receipts, and customer intake uploads — in one searchable, newest-first timeline."
           />
-          <button
-            type="submit"
-            className="h-9 rounded-md border border-line-strong bg-card px-3 text-[13px] font-medium text-fg hover:bg-elevated"
-          >
-            Search
-          </button>
-        </form>
 
-        <div className="flex flex-wrap items-center gap-2 text-[13px] font-medium">
-          <Link
-            href={buildHref({ q })}
-            className={`rounded-full border px-3 py-1 ${!source ? "border-fg text-fg" : "border-line-strong text-fg-muted hover:bg-elevated"}`}
-          >
-            All ({totalAll})
-          </Link>
-          {SOURCE_CHIPS.filter((s) => result.counts[s] > 0 || source === s).map((s) => (
-            <Link
-              key={s}
-              href={buildHref({ q, source: s })}
-              className={`rounded-full border px-3 py-1 ${source === s ? "border-fg text-fg" : "border-line-strong text-fg-muted hover:bg-elevated"}`}
-            >
-              {SOURCE_LABEL[s]} ({result.counts[s]})
-            </Link>
-          ))}
-        </div>
-      </div>
+          <div className="flex flex-col gap-3">
+            <form action="/tms-v2/files" method="GET" className="flex items-center gap-2">
+              {source ? <input type="hidden" name="source" value={source} /> : null}
+              <input
+                type="text"
+                name="q"
+                defaultValue={q ?? ""}
+                placeholder="Search files…"
+                className="h-9 w-full max-w-sm rounded-md border border-line-strong bg-card px-3 text-[13px] text-fg placeholder:text-fg-muted focus:border-fg focus:outline-none"
+              />
+              <button
+                type="submit"
+                className="h-9 rounded-md border border-line-strong bg-card px-3 text-[13px] font-medium text-fg hover:bg-elevated"
+              >
+                Search
+              </button>
+            </form>
 
+            <div className="flex flex-wrap items-center gap-2 text-[13px] font-medium">
+              <Link
+                href={buildHref({ q })}
+                className={`rounded-full border px-3 py-1 ${!source ? "border-fg text-fg" : "border-line-strong text-fg-muted hover:bg-elevated"}`}
+              >
+                All ({totalAll})
+              </Link>
+              {SOURCE_CHIPS.filter((s) => result.counts[s] > 0 || source === s).map((s) => (
+                <Link
+                  key={s}
+                  href={buildHref({ q, source: s })}
+                  className={`rounded-full border px-3 py-1 ${source === s ? "border-fg text-fg" : "border-line-strong text-fg-muted hover:bg-elevated"}`}
+                >
+                  {SOURCE_LABEL[s]} ({result.counts[s]})
+                </Link>
+              ))}
+            </div>
+          </div>
+        </>
+      }
+    >
       <DataList
         columns={columns}
         rows={result.rows}
@@ -169,7 +174,7 @@ export default async function FilesPage({
         }
       />
 
-      <div className="flex items-center justify-between text-[13px] text-fg-muted">
+      <div className="mt-4 flex items-center justify-between text-[13px] text-fg-muted">
         <span>
           Page {page} · {result.totalCount} file{result.totalCount === 1 ? "" : "s"}
         </span>
@@ -192,6 +197,6 @@ export default async function FilesPage({
           ) : null}
         </div>
       </div>
-    </div>
+    </PageScroll>
   );
 }

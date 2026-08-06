@@ -9,6 +9,7 @@ import {
   SAMPLE_FINALIZED_QUOTE_PAYLOAD,
 } from "@/lib/preview/sample-data";
 import { EmailPreviewLab } from "@/components/tms-v2/previews/EmailPreviewLab";
+import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
 
 /**
  * /tms-v2/previews/email — ported from /admin/previews-2's email
@@ -36,8 +37,10 @@ export default function EmailPreviewsPage() {
   ];
 
   return (
-    <div className="mx-auto max-w-6xl">
-      <EmailPreviewLab emails={emails} />
-    </div>
+    <PageScroll>
+      <div className="mx-auto max-w-6xl">
+        <EmailPreviewLab emails={emails} />
+      </div>
+    </PageScroll>
   );
 }

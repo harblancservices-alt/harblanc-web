@@ -9,6 +9,7 @@ import { listBrokers } from "@/lib/data/brokers";
 import { listTrips } from "@/lib/data/trips";
 import { MoneyLine, DetailRow, SectionHeading } from "./_parts";
 import { LoadActions } from "./LoadActions";
+import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
 
 // A load's financials/documents/status can change between visits — always
 // read live, request-scoped data (matches Today's and the Load Board's own
@@ -30,6 +31,7 @@ export default async function LoadDetailPage({ params }: { params: Promise<{ id:
   ]);
 
   return (
+    <PageScroll>
     <div className="flex flex-col gap-6">
       <Link
         href="/tms-v2/loads"
@@ -192,5 +194,6 @@ export default async function LoadDetailPage({ params }: { params: Promise<{ id:
         </section>
       </div>
     </div>
+    </PageScroll>
   );
 }

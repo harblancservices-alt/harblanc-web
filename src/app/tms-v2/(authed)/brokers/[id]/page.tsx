@@ -8,6 +8,7 @@ import { DateTimeCST } from "@/components/tms-v2/ui/DateTimeCST";
 import { DataList, type DataListColumn } from "@/components/tms-v2/ui/DataList";
 import { getBrokerProfile, type BrokerContact, type BrokerLane, type BrokerLoadHistoryRow } from "@/lib/data/broker-profile";
 import { BrokerStatusPill } from "../_lib/broker-status";
+import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
 
 // Money-affecting data, read fresh every visit — matches Today's pattern.
 export const dynamic = "force-dynamic";
@@ -65,6 +66,7 @@ export default async function BrokerDetailPage({ params }: { params: Promise<{ i
   const { identity, kpis, aging, contacts, lanes, loadHistory } = profile;
 
   return (
+    <PageScroll>
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
         <Link href="/tms-v2/brokers" className="text-[13px] text-fg-muted hover:text-fg">
@@ -133,5 +135,6 @@ export default async function BrokerDetailPage({ params }: { params: Promise<{ i
         />
       </section>
     </div>
+    </PageScroll>
   );
 }

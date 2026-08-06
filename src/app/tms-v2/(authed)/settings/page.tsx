@@ -1,6 +1,7 @@
 import { PageHeader } from "@/components/tms-v2/ui/PageHeader";
 import { Card } from "@/components/tms-v2/ui/Card";
 import { Money } from "@/components/tms-v2/ui/Money";
+import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
 import { getDispatchSettingsSummary } from "@/lib/data/settings";
 import { isDemoMode } from "@/lib/admin/demo";
 import { company } from "@/lib/company";
@@ -21,17 +22,20 @@ export default async function TmsV2SettingsPage() {
   const [settings, demoOn] = await Promise.all([getDispatchSettingsSummary(), isDemoMode()]);
 
   return (
+    <PageScroll
+      header={
+        <PageHeader
+          title="Settings"
+          description="Business defaults the money engine runs on, and account identity. Read-only in this phase — editable forms land in a later phase."
+          badge={
+            demoOn ? (
+              <span className="rounded-full bg-warn-bg px-2.5 py-0.5 text-[12px] font-medium text-warn">Demo mode — showing sample values</span>
+            ) : null
+          }
+        />
+      }
+    >
     <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Settings"
-        description="Business defaults the money engine runs on, and account identity. Read-only in this phase — editable forms land in a later phase."
-        badge={
-          demoOn ? (
-            <span className="rounded-full bg-warn-bg px-2.5 py-0.5 text-[12px] font-medium text-warn">Demo mode — showing sample values</span>
-          ) : null
-        }
-      />
-
       <Card>
         <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Business defaults</p>
         <p className="mt-1 text-[13px] text-fg-muted">
@@ -73,5 +77,6 @@ export default async function TmsV2SettingsPage() {
         </div>
       </Card>
     </div>
+    </PageScroll>
   );
 }

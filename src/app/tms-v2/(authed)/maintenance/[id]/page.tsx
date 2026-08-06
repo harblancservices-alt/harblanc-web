@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/tms-v2/ui/PageHeader";
 import { DateTimeCST } from "@/components/tms-v2/ui/DateTimeCST";
 import { getRepairEntryDetail } from "@/lib/data/maintenance";
+import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
 import { FreshnessBadge, MoneyLine } from "../_components/parts";
 
 // A service's cost/receipts/links can change between visits — read live,
@@ -17,6 +18,7 @@ export default async function RepairEntryDetailPage({ params }: { params: Promis
   const { service } = entry;
 
   return (
+    <PageScroll>
     <div className="flex flex-col gap-6">
       <Link
         href="/tms-v2/maintenance"
@@ -155,5 +157,6 @@ export default async function RepairEntryDetailPage({ params }: { params: Promis
         </section>
       </div>
     </div>
+    </PageScroll>
   );
 }

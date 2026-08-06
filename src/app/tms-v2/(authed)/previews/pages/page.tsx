@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { PagePreviewLab, type PageTarget } from "@/components/tms-v2/previews/PagePreviewLab";
+import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
 
 /**
  * /tms-v2/previews/pages — ported from /admin/previews' AdminPreviewLab,
@@ -51,8 +52,10 @@ const TARGETS: PageTarget[] = [
 
 export default function PagePreviewsPage() {
   return (
-    <div className="mx-auto max-w-6xl">
-      <PagePreviewLab targets={TARGETS} />
-    </div>
+    <PageScroll>
+      <div className="mx-auto max-w-6xl">
+        <PagePreviewLab targets={TARGETS} />
+      </div>
+    </PageScroll>
   );
 }

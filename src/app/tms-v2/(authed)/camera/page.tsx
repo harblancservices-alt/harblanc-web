@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/tms-v2/ui/PageHeader";
 import { Card } from "@/components/tms-v2/ui/Card";
+import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
 import { DateTimeCST } from "@/components/tms-v2/ui/DateTimeCST";
 import { listCameraBatches } from "@/lib/data/camera";
 
@@ -12,12 +13,14 @@ export default async function CameraPage() {
   const batches = await listCameraBatches();
 
   return (
-    <div className="flex flex-col gap-6">
-      <PageHeader
-        title="Camera"
-        description="Scan batches captured in-cab — review photos and export a batch as a PDF or ZIP. Capture happens on /admin/camera; this is the review surface."
-      />
-
+    <PageScroll
+      header={
+        <PageHeader
+          title="Camera"
+          description="Scan batches captured in-cab — review photos and export a batch as a PDF or ZIP. Capture happens on /admin/camera; this is the review surface."
+        />
+      }
+    >
       {batches.length === 0 ? (
         <Card>
           <p className="text-[13px] text-fg-muted">
@@ -47,6 +50,6 @@ export default async function CameraPage() {
           ))}
         </div>
       )}
-    </div>
+    </PageScroll>
   );
 }
