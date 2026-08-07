@@ -209,6 +209,14 @@ export const liveDataSource: DataSource = {
     }
     if (opts.brokerId) query = query.eq("broker_id", opts.brokerId);
     if (opts.status) query = query.eq("status", opts.status);
+    if (opts.search) {
+      // Same "," / "()" sanitization the ⌘K search widening uses — those
+      // characters are the .or() filter syntax's own delimiters.
+      const q = opts.search.trim().replace(/[,()]/g, " ").trim();
+      if (q) {
+        query = query.or(["load_number", "broker_name", "origin", "destination"].map((c) => `${c}.ilike.%${q}%`).join(","));
+      }
+    }
 
     const ascending = opts.dir === "asc";
     if (opts.sort === "number") {

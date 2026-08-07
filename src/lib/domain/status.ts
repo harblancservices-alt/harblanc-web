@@ -66,3 +66,17 @@ export function resolveStatus(domain: StatusDomain, status: string): ResolvedSta
   // implied urgency either way.
   return { label: status, tone: "neutral" };
 }
+
+/** The load-board shipment timeline's stage index (0=Pickup … 5=Paid) —
+ * ported verbatim from legacy's stageOf() (admin/dispatch/loads/board/
+ * shared.ts), the exact derivation that drives which Timeline steps show
+ * as done/current/upcoming. A TONU'd load's stage doesn't matter on its
+ * own — Timeline's `cancelled` prop overrides everything to the greyed-
+ * out state regardless of what this returns for it. */
+export function loadTimelineStage(status: string, paymentStatus: "unpaid" | "paid"): number {
+  if (paymentStatus === "paid") return 5; // Paid
+  if (status === "delivered") return 4; // Invoice (delivered, not yet paid)
+  if (status === "loaded") return 2; // Transit
+  if (status === "assigned") return 1; // Loaded
+  return 0; // pending (or tonu, irrelevant — Timeline's cancelled flag wins)
+}

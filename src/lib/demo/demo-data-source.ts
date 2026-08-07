@@ -85,6 +85,20 @@ export const demoDataSource: DataSource = {
     if (opts.period) filtered = filtered.filter((l) => isInPeriod(l.pickupDate, opts.period!));
     if (opts.brokerId) filtered = filtered.filter((l) => l.brokerId === opts.brokerId);
     if (opts.status) filtered = filtered.filter((l) => l.status === opts.status);
+    if (opts.search) {
+      const q = opts.search.trim().toLowerCase();
+      if (q) {
+        filtered = filtered.filter((l) => {
+          const brokerName = brokersById.get(l.brokerId ?? "")?.name ?? "";
+          return (
+            (l.loadNumber ?? "").toLowerCase().includes(q) ||
+            brokerName.toLowerCase().includes(q) ||
+            (l.origin ?? "").toLowerCase().includes(q) ||
+            (l.destination ?? "").toLowerCase().includes(q)
+          );
+        });
+      }
+    }
 
     const dirMul = opts.dir === "asc" ? 1 : -1;
     const sorted = filtered.slice().sort((a, b) => {

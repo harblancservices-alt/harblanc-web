@@ -1,38 +1,43 @@
-"use client";
-
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import Link from "next/link";
 
 type Props = {
   statusOptions: { value: string; label: string }[];
   brokers: { id: string; name: string }[];
   status?: string;
   brokerId?: string;
+  search?: string;
+  year: number;
+  month: number;
 };
 
 /**
- * Status/broker filter bar for the Load Board (v2-design.md §4). URL-state
- * only — no client cache, no local list-filtering — so every filter change
- * re-runs the same server-paginated, scoped `listLoads()` query
- * (v2-architecture.md §3c) rather than filtering an already-fetched page.
+ * Search + status/broker filter row for the Load Board — compact, one
+ * row, matching Brent's explicit ask ("keep the search + status/broker
+ * filters, but compact — not a tall stack"). A plain GET form (same
+ * pattern Expenses' own filter bar already uses) rather than client-side
+ * router.push-per-change: one submit re-runs the same server-paginated,
+ * scoped listLoads() query (v2-architecture.md §3c), no local
+ * list-filtering. Legacy's board has search but no status/broker filter
+ * at all — those are tms-v2's own addition, kept per Brent's explicit
+ * instruction to keep them rather than drop them to match legacy exactly.
  */
-export function LoadBoardFilters({ statusOptions, brokers, status, brokerId }: Props) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-
-  function update(key: string, value: string) {
-    const params = new URLSearchParams(searchParams.toString());
-    if (value) params.set(key, value);
-    else params.delete(key);
-    params.delete("page");
-    router.push(`${pathname}?${params.toString()}`);
-  }
+export function LoadBoardFilters({ statusOptions, brokers, status, brokerId, search, year, month }: Props) {
+  const hasFilter = !!status || !!brokerId || !!search;
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <form className="flex flex-wrap items-center gap-2" method="GET">
+      <input type="hidden" name="year" value={year} />
+      <input type="hidden" name="month" value={month} />
+      <input
+        type="text"
+        name="q"
+        defaultValue={search ?? ""}
+        placeholder="Search load #, broker, lane…"
+        className="h-9 w-52 rounded-md border border-line-strong bg-card px-2.5 text-[13px] text-fg focus:border-fg focus:outline-none"
+      />
       <select
-        value={status ?? ""}
-        onChange={(e) => update("status", e.target.value)}
+        name="status"
+        defaultValue={status ?? ""}
         aria-label="Filter by status"
         className="h-9 rounded-md border border-line-strong bg-card px-2.5 text-[13px] text-fg focus:border-fg focus:outline-none"
       >
@@ -44,8 +49,8 @@ export function LoadBoardFilters({ statusOptions, brokers, status, brokerId }: P
         ))}
       </select>
       <select
-        value={brokerId ?? ""}
-        onChange={(e) => update("brokerId", e.target.value)}
+        name="brokerId"
+        defaultValue={brokerId ?? ""}
         aria-label="Filter by broker"
         className="h-9 rounded-md border border-line-strong bg-card px-2.5 text-[13px] text-fg focus:border-fg focus:outline-none"
       >
@@ -56,6 +61,14 @@ export function LoadBoardFilters({ statusOptions, brokers, status, brokerId }: P
           </option>
         ))}
       </select>
-    </div>
+      <button type="submit" className="h-9 rounded-md border border-line-strong bg-card px-3 text-[13px] font-medium text-fg hover:bg-elevated">
+        Filter
+      </button>
+      {hasFilter ? (
+        <Link href={`/tms-v2/loads?year=${year}&month=${month}`} className="text-[13px] text-fg-muted underline">
+          Clear
+        </Link>
+      ) : null}
+    </form>
   );
 }

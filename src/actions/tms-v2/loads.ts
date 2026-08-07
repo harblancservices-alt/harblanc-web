@@ -372,6 +372,23 @@ export const deleteLoad = mutation(async (id: string): Promise<MutationResult> =
   return { ok: true };
 });
 
+/** Bulk delete — the Load Board's select-mode "Delete" action (legacy's
+ * softDeleteLoads, admin/dispatch/loads/actions.ts), ported to
+ * mutation()/ids:string[] like every other tms-v2 bulk action this
+ * session. Soft-delete only, same as the singular deleteLoad — recoverable
+ * via ArchivedLoadsSection. */
+export const bulkDeleteLoads = mutation(async (ids: string[]): Promise<MutationResult> => {
+  const uniq = Array.from(new Set(ids.filter((s) => s.length > 0)));
+  if (uniq.length === 0) return { ok: false, reason: "No loads selected." };
+
+  const sb = createServiceRoleClient();
+  const { error } = await sb.from("loads").update({ deleted_at: new Date().toISOString() }).in("id", uniq);
+  if (error) return { ok: false, reason: `Could not delete loads: ${error.message}` };
+
+  revalidateLoadPaths();
+  return { ok: true };
+});
+
 /** Restore a soft-deleted load — a genuinely new capability (Phase 6 item
  * 4): no restore path for loads exists anywhere in the repo, /admin
  * included, same gap the audit found for brokers before restoreBroker

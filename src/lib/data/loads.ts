@@ -66,6 +66,9 @@ export type ListLoadsOptions = {
   status?: LoadStatus;
   sort?: LoadSortKey;
   dir?: "asc" | "desc";
+  /** Load #, broker, origin, or destination — same multi-field composite
+   * the global search widening (⌘K) uses. */
+  search?: string;
 };
 
 export async function listLoads(opts: ListLoadsOptions = {}): Promise<Paginated<LoadWithFinancials>> {
