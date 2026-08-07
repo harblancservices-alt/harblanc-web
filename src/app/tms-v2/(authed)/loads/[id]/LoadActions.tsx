@@ -4,7 +4,7 @@ import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Modal } from "@/components/tms-v2/ui/Modal";
 import { Button } from "@/components/tms-v2/ui/Button";
-import { markLoadDelivered, markLoadTonu, markLoadPaid, markLoadUnpaid, deleteLoad } from "@/actions/tms-v2/loads";
+import { markLoadDelivered, markLoadTonu, undoLoadTonu, markLoadPaid, markLoadUnpaid, deleteLoad } from "@/actions/tms-v2/loads";
 import type { MutationResult } from "@/lib/demo/mutation";
 import { Field, FormError, FormActions } from "../_form";
 import { LoadFormModal, type LoadFormValues } from "../LoadFormModal";
@@ -32,12 +32,13 @@ type Props = {
  * island. */
 export function LoadActions({ load, brokerNames, activeTripNames }: Props) {
   const router = useRouter();
-  const [openModal, setOpenModal] = useState<"edit" | "delivered" | "tonu" | "odometer" | "delete" | null>(null);
+  const [openModal, setOpenModal] = useState<"edit" | "delivered" | "tonu" | "restore" | "odometer" | "delete" | null>(null);
   const close = () => setOpenModal(null);
   const refresh = () => router.refresh();
 
   const canMarkDelivered = load.status !== "delivered" && load.status !== "tonu";
   const canMarkTonu = load.status !== "tonu";
+  const canRestoreFromTonu = load.status === "tonu";
   const isClosedOut = load.status === "delivered" || load.status === "tonu";
 
   const [payState, setPayState] = useState<{ pending: boolean; error: string | null }>({ pending: false, error: null });
@@ -72,6 +73,11 @@ export function LoadActions({ load, brokerNames, activeTripNames }: Props) {
             Mark TONU
           </Button>
         ) : null}
+        {canRestoreFromTonu ? (
+          <Button type="button" variant="primary" size="sm" onClick={() => setOpenModal("restore")}>
+            Restore load
+          </Button>
+        ) : null}
         {isClosedOut ? (
           <Button
             type="button"
@@ -100,6 +106,7 @@ export function LoadActions({ load, brokerNames, activeTripNames }: Props) {
       />
       <MarkDeliveredModal open={openModal === "delivered"} onClose={close} loadId={load.id} onSaved={refresh} />
       <MarkTonuModal open={openModal === "tonu"} onClose={close} loadId={load.id} onSaved={refresh} />
+      <RestoreTonuModal open={openModal === "restore"} onClose={close} loadId={load.id} onSaved={refresh} />
       <OdometerModal
         open={openModal === "odometer"}
         onClose={close}
@@ -189,6 +196,54 @@ function MarkDeliveredModal({
           </Button>
         </FormActions>
       </form>
+    </Modal>
+  );
+}
+
+function RestoreTonuModal({
+  open,
+  onClose,
+  loadId,
+  onSaved,
+}: {
+  open: boolean;
+  onClose: () => void;
+  loadId: string;
+  onSaved: () => void;
+}) {
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function onConfirm() {
+    setPending(true);
+    setError(null);
+    const result: MutationResult = await undoLoadTonu(loadId);
+    if (result.ok) {
+      setPending(false);
+      onSaved();
+      onClose();
+    } else {
+      setPending(false);
+      setError(result.reason);
+    }
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Restore load">
+      <div className="flex flex-col gap-3">
+        <p className="text-[13px] text-fg-muted">
+          Takes this load out of TONU and back to its active status, re-derived from its odometer readings (assigned/loaded/delivered — pending if none are logged). The TONU amount is cleared.
+        </p>
+        <FormError message={error} />
+        <FormActions>
+          <Button type="button" variant="secondary" onClick={onClose} disabled={pending}>
+            Cancel
+          </Button>
+          <Button type="button" onClick={onConfirm} disabled={pending} aria-busy={pending}>
+            {pending ? "Restoring…" : "Restore load"}
+          </Button>
+        </FormActions>
+      </div>
     </Modal>
   );
 }

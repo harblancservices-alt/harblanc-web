@@ -293,6 +293,38 @@ export const markLoadTonu = mutation(async (id: string, formData: FormData): Pro
   return { ok: true };
 });
 
+/** Restore load / Undo TONU — the one un-cancel path in tms-v2 (legacy's
+ * only escape was the edit-modal's raw status <select>, which overwrote
+ * status directly and never cleared tonu_amount — a real latent bug there,
+ * not repeated here). Re-derives status from odometer readings using the
+ * exact same rule editLoadOdometer/legacy's updateLoadOdometers already
+ * use (highest stage with a reading wins, default "pending"), and clears
+ * tonu_amount since it no longer applies once the load is active again. */
+export const undoLoadTonu = mutation(async (id: string): Promise<MutationResult> => {
+  const sb = createServiceRoleClient();
+  const { data: cur } = await sb
+    .from("loads")
+    .select("odo_assigned, odo_loaded, odo_delivered, status")
+    .eq("id", id)
+    .is("deleted_at", null)
+    .maybeSingle<{ odo_assigned: number | null; odo_loaded: number | null; odo_delivered: number | null; status: string }>();
+  if (!cur) return { ok: false, reason: "Load not found." };
+  if (cur.status !== "tonu") return { ok: false, reason: "This load isn't TONU'd." };
+
+  const derivedStatus =
+    cur.odo_delivered != null ? "delivered" : cur.odo_loaded != null ? "loaded" : cur.odo_assigned != null ? "assigned" : "pending";
+
+  const { error } = await sb
+    .from("loads")
+    .update({ status: derivedStatus, tonu_amount: null })
+    .eq("id", id)
+    .is("deleted_at", null);
+  if (error) return { ok: false, reason: `Could not restore load: ${error.message}` };
+
+  revalidateLoadPaths(id);
+  return { ok: true };
+});
+
 function revalidateArPaths(id: string) {
   revalidateLoadPaths(id);
   revalidatePath("/tms-v2/receivables");
