@@ -4,6 +4,7 @@ import { useState } from "react";
 import { DataList } from "@/components/tms-v2/ui/DataList";
 import type { TripWithFinancials } from "@/lib/data/trips";
 import { TRIP_COLUMNS } from "./trip-columns";
+import { TripCard } from "./TripCard";
 
 /**
  * Closed trips, collapsed to the most recent 5 with a "view all" expander
@@ -23,12 +24,24 @@ export function ClosedTripsSection({ trips }: { trips: TripWithFinancials[] }) {
   return (
     <section className="flex flex-col gap-2">
       <h2 className="text-[15px] font-semibold text-fg">Closed ({trips.length})</h2>
-      <DataList
-        columns={TRIP_COLUMNS}
-        rows={visible}
-        rowKey={(t) => t.id}
-        getHref={(t) => `/tms-v2/trips/${t.id}`}
-      />
+
+      {/* Mobile — Load Board-style card list. */}
+      <div className="no-scrollbar flex flex-col gap-3 lg:hidden">
+        {visible.map((t) => (
+          <TripCard key={t.id} trip={t} />
+        ))}
+      </div>
+
+      {/* Desktop — unchanged table (later PC pass owns this). */}
+      <div className="hidden lg:block">
+        <DataList
+          columns={TRIP_COLUMNS}
+          rows={visible}
+          rowKey={(t) => t.id}
+          getHref={(t) => `/tms-v2/trips/${t.id}`}
+        />
+      </div>
+
       {hiddenCount > 0 ? (
         <button
           type="button"

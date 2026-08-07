@@ -7,6 +7,7 @@ import { formatMoney } from "@/lib/domain/money";
 import { currentPeriod, periodLabel, isInPeriod } from "@/lib/domain/attribution";
 import { listTrips } from "@/lib/data/trips";
 import { TRIP_COLUMNS, tripPeriodDate } from "./trip-columns";
+import { TripCard } from "./TripCard";
 import { ClosedTripsSection } from "./ClosedTripsSection";
 import { NewTripButton } from "./NewTripButton";
 
@@ -74,13 +75,32 @@ export default async function TripsPage() {
       <div className="flex flex-col gap-6">
         <section className="flex flex-col gap-2">
           <h2 className="text-[15px] font-semibold text-fg">Active ({active.rows.length})</h2>
-          <DataList
-            columns={TRIP_COLUMNS}
-            rows={active.rows}
-            rowKey={(t) => t.id}
-            getHref={(t) => `/tms-v2/trips/${t.id}`}
-            emptyMessage="No active trips right now."
-          />
+
+          {/* Mobile — Load Board-style card list. */}
+          <div className="no-scrollbar lg:hidden">
+            {active.rows.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-line-strong bg-card px-4 py-10 text-center shadow-e1">
+                <p className="text-[13px] text-fg-muted">No active trips right now.</p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {active.rows.map((t) => (
+                  <TripCard key={t.id} trip={t} />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Desktop — unchanged table (later PC pass owns this). */}
+          <div className="hidden lg:block">
+            <DataList
+              columns={TRIP_COLUMNS}
+              rows={active.rows}
+              rowKey={(t) => t.id}
+              getHref={(t) => `/tms-v2/trips/${t.id}`}
+              emptyMessage="No active trips right now."
+            />
+          </div>
         </section>
 
         <ClosedTripsSection trips={closed.rows} />
