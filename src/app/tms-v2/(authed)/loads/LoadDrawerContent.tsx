@@ -1,18 +1,21 @@
 import Link from "next/link";
-import { Money } from "@/components/tms-v2/ui/Money";
 import { DateTimeCST } from "@/components/tms-v2/ui/DateTimeCST";
 import { StatusPill } from "@/components/tms-v2/ui/StatusPill";
 import type { LoadDetail } from "@/lib/data/loads";
-import { MoneyLine, DetailRow, SectionHeading } from "./[id]/_parts";
+import { DetailRow, SectionHeading } from "./[id]/_parts";
 import { LoadActions } from "./[id]/LoadActions";
+import { FinancialsSection } from "./[id]/FinancialsSection";
+import { DocumentsSection } from "./[id]/DocumentsSection";
 
 /**
- * Load Board's context-drawer body — the same money/detail shape Load
- * Detail shows, condensed for a 400px panel, plus the same LoadActions
- * client island (Edit / Mark delivered / Mark TONU / Edit odometer) so
- * advancing a load's status never requires leaving the board. The full
- * /tms-v2/loads/[id] page stays reachable as a deep link (Needs Attention,
- * search results) — this isn't a replacement for it, just the fast path.
+ * Load Board's context-drawer body — the same single-scroll workspace Load
+ * Detail shows (Phase 5C), condensed for a 400px panel: LoadActions,
+ * Financials (collapsed, "+ Add expense" one tap away), Documents (POD/BOL
+ * capture including the scanner), and static details — so advancing a
+ * load, logging a cost, or capturing paperwork never requires leaving the
+ * board. The full /tms-v2/loads/[id] page stays reachable as a deep link
+ * (Needs Attention, search results) — this isn't a replacement for it,
+ * just the fast path.
  */
 export function LoadDrawerContent({
   load,
@@ -59,19 +62,21 @@ export function LoadDrawerContent({
         activeTripNames={activeTripNames}
       />
 
+      <FinancialsSection
+        loadId={load.id}
+        items={load.expenseItems}
+        gross={financials.gross}
+        diesel={financials.diesel}
+        factoring={financials.factoring}
+        expenses={financials.expenses}
+        net={financials.net}
+        isTonu={financials.isTonu}
+        showFactoringLine={showFactoringLine}
+      />
+
       <div>
-        <SectionHeading>Money</SectionHeading>
-        <div className="flex flex-col divide-y divide-line border-y border-line">
-          <MoneyLine label="Rate" value={financials.gross} tone="none" />
-          {!financials.isTonu ? (
-            <>
-              <MoneyLine label="Fuel" value={-financials.diesel} tone="negative" />
-              {showFactoringLine ? <MoneyLine label="Factoring" value={-financials.factoring} tone="negative" /> : null}
-              <MoneyLine label={`Expenses (${load.expenseItems.length})`} value={-financials.expenses} tone="negative" />
-            </>
-          ) : null}
-          <MoneyLine label="Net" value={financials.net} bold />
-        </div>
+        <SectionHeading>Documents</SectionHeading>
+        <DocumentsSection loadId={load.id} docs={load.documents} />
       </div>
 
       <div>

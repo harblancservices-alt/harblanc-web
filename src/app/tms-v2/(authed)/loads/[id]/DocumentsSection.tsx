@@ -11,14 +11,16 @@ import {
 import { uploadFileToSignedUrl } from "@/lib/storage/client-upload";
 import type { LoadDocumentItem } from "@/lib/data/loads";
 import { BolSigner, type BolRole } from "./BolSigner";
+import { BolScanner } from "./BolScanner";
 
 /**
  * Load Detail's Documents section — direct-to-storage upload (V1's signed-
- * URL primitive, ported unchanged via actions/tms-v2/documents.ts), a
- * flat per-kind list, delete, and BOL receiver/carrier e-signature. No
- * full-screen DocViewer/in-browser scanner port (v2-design.md's "modernize,
- * don't copy legacy visuals") — View opens the signed URL in a new tab,
- * which is the same affordance the read-only list already had.
+ * URL primitive, ported unchanged via actions/tms-v2/documents.ts), a flat
+ * per-kind list, delete, BOL receiver/carrier e-signature, and (Phase 5C)
+ * camera-first capture per doc type: BOL gets V1's in-browser scan+dewarp
+ * (ported unchanged) with a plain file-picker fallback; POD gets a rear-
+ * camera confirm step before the shutter opens, since it's the doc a
+ * driver captures standing at the dock, one-handed, every delivery.
  */
 
 const KINDS: { kind: string; label: string }[] = [
@@ -31,6 +33,7 @@ const ACCEPT = "image/*,application/pdf";
 
 export function DocumentsSection({ loadId, docs }: { loadId: string; docs: LoadDocumentItem[] }) {
   const [signing, setSigning] = useState<{ doc: LoadDocumentItem; role: BolRole } | null>(null);
+  const [scanning, setScanning] = useState(false);
 
   function handleSign(doc: LoadDocumentItem, role: BolRole) {
     const anchorId = doc.signedFromDocId ?? doc.id;
@@ -48,12 +51,14 @@ export function DocumentsSection({ loadId, docs }: { loadId: string; docs: LoadD
           label={k.label}
           docs={docs.filter((d) => d.kind === k.kind)}
           onSign={handleSign}
+          onScan={k.kind === "bol" ? () => setScanning(true) : undefined}
         />
       ))}
 
       {signing ? (
         <BolSigner loadId={loadId} doc={signing.doc} role={signing.role} onClose={() => setSigning(null)} />
       ) : null}
+      {scanning ? <BolScanner loadId={loadId} onClose={() => setScanning(false)} /> : null}
     </div>
   );
 }
@@ -73,19 +78,23 @@ function DocKindBlock({
   label,
   docs,
   onSign,
+  onScan,
 }: {
   loadId: string;
   kind: string;
   label: string;
   docs: LoadDocumentItem[];
   onSign: (doc: LoadDocumentItem, role: BolRole) => void;
+  onScan?: () => void;
 }) {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [askCamera, setAskCamera] = useState(false);
 
   const isPod = kind === "pod";
+  const isBol = kind === "bol";
 
   async function onPick(fileList: FileList | null) {
     const files = Array.from(fileList ?? []);
@@ -134,14 +143,26 @@ function DocKindBlock({
           {label}
           {docs.length > 0 ? <span className="ml-1.5 text-fg-muted">({docs.length})</span> : null}
         </span>
-        <button
-          type="button"
-          onClick={() => inputRef.current?.click()}
-          disabled={busy}
-          className="h-7 rounded-md border border-line-strong bg-card px-2.5 text-[12px] font-medium text-fg hover:bg-elevated disabled:opacity-50"
-        >
-          {busy ? "Uploading…" : isPod ? "+ Photo" : "+ Add"}
-        </button>
+        <span className="flex shrink-0 items-center gap-1.5">
+          {isBol ? (
+            <button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              disabled={busy}
+              className="h-7 rounded-md border border-line-strong bg-card px-2.5 text-[12px] font-medium text-fg hover:bg-elevated disabled:opacity-50"
+            >
+              + Add file
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => (isBol ? onScan?.() : isPod ? setAskCamera(true) : inputRef.current?.click())}
+            disabled={busy}
+            className="h-7 rounded-md border border-accent bg-accent px-2.5 text-[12px] font-medium text-white hover:bg-accent-hover disabled:opacity-50"
+          >
+            {busy ? "Uploading…" : isBol ? "Scan BOL" : isPod ? "+ Photo" : "+ Add"}
+          </button>
+        </span>
         <input
           ref={inputRef}
           type="file"
@@ -152,6 +173,40 @@ function DocKindBlock({
           onChange={(e) => onPick(e.target.files)}
         />
       </div>
+
+      {isPod && askCamera ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setAskCamera(false)}>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Open camera"
+            className="w-full max-w-xs rounded-lg border border-line-strong bg-card p-4 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="text-[15px] font-semibold text-fg">Open camera?</p>
+            <p className="mt-1 text-[12px] text-fg-muted">Take a proof-of-delivery photo with your camera.</p>
+            <div className="mt-3 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setAskCamera(false)}
+                className="h-8 rounded-md border border-line-strong bg-card px-3 text-[13px] font-medium text-fg hover:bg-elevated"
+              >
+                No
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setAskCamera(false);
+                  inputRef.current?.click();
+                }}
+                className="h-8 rounded-md border border-accent bg-accent px-3 text-[13px] font-medium text-white hover:bg-accent-hover"
+              >
+                Open camera
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {docs.length > 0 ? (
         <div className="mt-2 flex flex-col gap-1.5">

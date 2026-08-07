@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Money } from "@/components/tms-v2/ui/Money";
 import { Button } from "@/components/tms-v2/ui/Button";
@@ -15,10 +15,22 @@ const INITIAL: SaveState = { ok: false, error: null };
 /** Load Detail's per-load expense ledger — inline add (always reachable,
  * matches the audit's "+ Add expense always one tap away" principle) and
  * per-row delete. Closes the #8/#9 record traps (audit §3): tolls/lumper
- * couldn't be recorded without leaving tms-v2 before this. */
-export function ExpensesSection({ loadId, items }: { loadId: string; items: LoadExpenseItem[] }) {
+ * couldn't be recorded without leaving tms-v2 before this. The "adding"
+ * open-state is controlled by FinancialsSection's collapsible header (Phase
+ * 5C) so its "+ Add expense" button opens the section AND the form in one
+ * tap, per the audit's "never requires opening anything first" principle. */
+export function ExpensesSection({
+  loadId,
+  items,
+  adding,
+  onAddingChange,
+}: {
+  loadId: string;
+  items: LoadExpenseItem[];
+  adding: boolean;
+  onAddingChange: (v: boolean) => void;
+}) {
   const router = useRouter();
-  const [adding, setAdding] = useState(false);
 
   const [state, formAction, pending] = useActionState<SaveState, FormData>(async (_prev, formData) => {
     const result: MutationResult = await addLoadExpense(loadId, formData);
@@ -27,10 +39,10 @@ export function ExpensesSection({ loadId, items }: { loadId: string; items: Load
 
   useEffect(() => {
     if (state.ok) {
-      setAdding(false);
+      onAddingChange(false);
       router.refresh();
     }
-  }, [state.ok, router]);
+  }, [state.ok, router, onAddingChange]);
 
   async function onDelete(expenseId: string) {
     if (!confirm("Delete this expense?")) return;
@@ -64,7 +76,7 @@ export function ExpensesSection({ loadId, items }: { loadId: string; items: Load
           <Field label="Note (optional)" name="note" />
           <FormError message={state.error} />
           <div className="flex items-center justify-end gap-2">
-            <Button type="button" variant="secondary" size="sm" onClick={() => setAdding(false)} disabled={pending}>
+            <Button type="button" variant="secondary" size="sm" onClick={() => onAddingChange(false)} disabled={pending}>
               Cancel
             </Button>
             <Button type="submit" size="sm" disabled={pending} aria-busy={pending}>
@@ -72,15 +84,9 @@ export function ExpensesSection({ loadId, items }: { loadId: string; items: Load
             </Button>
           </div>
         </form>
-      ) : (
-        <button
-          type="button"
-          onClick={() => setAdding(true)}
-          className="mt-1 w-fit text-[13px] font-medium text-accent hover:underline"
-        >
-          + Add expense
-        </button>
-      )}
+      ) : items.length === 0 ? (
+        <p className="text-[13px] text-fg-muted">No expenses logged on this load yet.</p>
+      ) : null}
     </div>
   );
 }

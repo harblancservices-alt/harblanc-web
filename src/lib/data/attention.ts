@@ -196,7 +196,9 @@ async function getDocumentGapItems(): Promise<AttentionItem[]> {
       severity: "amber" as const,
       title: `${l.brokerName?.trim() || "No broker"} — #${l.loadNumber?.trim() || l.id.slice(0, 8)}`,
       reason: `${gaps.map((g) => GAP_LABEL[g]).join(", ")} · ${l.origin ?? "—"} → ${l.destination ?? "—"}`,
-      href: `/tms-v2/loads/${l.id}`,
+      // Land pre-scrolled on the section that fixes the gap — odometer
+      // first (it's the input a driver has in hand), documents otherwise.
+      href: `/tms-v2/loads/${l.id}#${gaps.includes("odometer") ? "odometer" : "documents"}`,
     }));
 }
 
