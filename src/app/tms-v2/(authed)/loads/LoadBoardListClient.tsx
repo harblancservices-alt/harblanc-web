@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/tms-v2/ui/Button";
 import { LoadCard } from "./LoadCard";
@@ -10,14 +9,14 @@ import { bulkDeleteLoads } from "@/actions/tms-v2/loads";
 import type { MutationResult } from "@/lib/demo/mutation";
 import type { LoadWithFinancials } from "@/lib/data/loads";
 
-/** The Load Board's action row (+ New Load / Inquiry / Delete) and the
- * rich LoadCard grid with bulk-delete select mode — mirroring legacy's
- * LoadBoardView.tsx operation (the three-button row, the search-adjacent
- * delete-selection bar, tap-a-card-to-select). New Load and the card
- * grid's row links stay real <Link>/modal state; only selection is
- * client-local, matching the "URL state for navigation, local state for
- * an in-progress bulk action" split already used on Expenses/Applications/
- * Quotes bulk actions. */
+/** The Load Board's action row (Add load / Delete — Inquiry dropped per
+ * Brent's mobile review) and the rich LoadCard grid with bulk-delete select
+ * mode. Both buttons render at the same size/color (equal-width, solid
+ * destructive red) per that same review. New Load and the card grid's row
+ * links stay real <Link>/modal state; only selection is client-local,
+ * matching the "URL state for navigation, local state for an in-progress
+ * bulk action" split already used on Expenses/Applications/Quotes bulk
+ * actions. */
 export function LoadBoardListClient({
   loads,
   rowHrefBase,
@@ -78,14 +77,8 @@ export function LoadBoardListClient({
     <div className="flex flex-col gap-3">
       <div className="flex items-stretch gap-2">
         <div className="flex-1">
-          <AddLoadButton brokerNames={brokerNames} activeTripNames={activeTripNames} showFab={false} />
+          <AddLoadButton brokerNames={brokerNames} activeTripNames={activeTripNames} showFab={false} variant="destructive" />
         </div>
-        <Link
-          href="/tms-v2/load-inquiry"
-          className="flex flex-1 items-center justify-center rounded-md border border-line-strong bg-card px-4 text-[15px] font-medium text-fg shadow-e1 hover:bg-elevated"
-        >
-          Inquiry
-        </Link>
         {!selectMode && loads.length > 0 ? (
           <Button type="button" variant="destructive" onClick={() => setSelectMode(true)} className="flex-1">
             Delete

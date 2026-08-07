@@ -2,36 +2,20 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ContextDrawer } from "@/components/tms-v2/ui/ContextDrawer";
 import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
-import { listLoads, getLoadBoardSummary, getLoadDetail, listArchivedLoads, type LoadStatus } from "@/lib/data/loads";
+import { listLoads, getLoadBoardSummary, getLoadDetail, listArchivedLoads } from "@/lib/data/loads";
 import { listBrokers } from "@/lib/data/brokers";
 import { listTrips } from "@/lib/data/trips";
 import { getDispatchSettingsSummary } from "@/lib/data/settings";
 import { currentPeriod, type Period } from "@/lib/domain/attribution";
 import { DEFAULT_PAGE_SIZE } from "@/lib/data/pagination";
-import { LoadBoardFilters } from "./LoadBoardFilters";
 import { LoadBoardListClient } from "./LoadBoardListClient";
-import { LoadBoardPerformanceCard } from "./LoadBoardPerformanceCard";
+import { GoalCountdownCard } from "../_components/GoalCountdownCard";
 import { LoadDrawerContent } from "./LoadDrawerContent";
 import { ArchivedLoadsSection } from "./ArchivedLoadsSection";
-import { ExportLoadsCsvButton } from "./ExportLoadsCsvButton";
-import { SavedViews } from "../_components/SavedViews";
-
-// Bounded cap for the CSV export fetch — a whole period's rows, not just
-// the current display page, but still an explicit bound (v2-architecture.md
-// §3c), matching getLoadBoardSummary's own pageSize: 200 KPI-aggregate cap.
-const EXPORT_FETCH_SIZE = 500;
 
 // Loads change status/payment throughout the day — the board always reads
 // live, request-scoped data (matches Today's own force-dynamic choice).
 export const dynamic = "force-dynamic";
-
-const STATUS_OPTIONS: { value: LoadStatus; label: string }[] = [
-  { value: "pending", label: "Pending" },
-  { value: "assigned", label: "Assigned" },
-  { value: "loaded", label: "Loaded" },
-  { value: "delivered", label: "Delivered" },
-  { value: "tonu", label: "TONU" },
-];
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -52,57 +36,47 @@ function shiftPeriod(period: Period, delta: number): Period {
 }
 
 /**
- * Load Board — rebuilt to mirror legacy /admin's board OPERATION
- * (src/app/admin/(authed)/dispatch/loads/LoadBoardView.tsx + board/
- * LoadCard.tsx), not a pixel copy: a slim collapsible Monthly Performance
- * strip in place of the six square KPI tiles, a compact New Load/Inquiry/
- * Delete action row, a compact search+filter row, and rich shipment-
- * timeline load cards instead of a table. tms-v2's own additions (status/
- * broker filters, column CSV export, saved filter presets, an Archived-
- * loads trash section) are kept — legacy never had them, but Brent asked
- * to keep them, just compact. Column sorting is dropped along with the
- * table it belonged to (there's no table header left to sort by) — the
- * data layer's sort capability (lib/data/loads.ts's ListLoadsOptions)
- * stays intact for CSV export's own deterministic ordering.
+ * Load Board — mirrors legacy /admin's board OPERATION (src/app/admin/
+ * (authed)/dispatch/loads/LoadBoardView.tsx + board/LoadCard.tsx): a
+ * static monthly goal card (no collapsible wrapper — Brent's mobile
+ * review dropped the "Monthly Performance" toggle bar, GoalCountdownCard
+ * renders directly), a two-button Add load/Delete row (equal size, both
+ * solid red — Inquiry and CSV export both dropped from this page per that
+ * same review), and rich shipment-timeline load cards instead of a table.
+ * The search/status/broker filter cluster and saved-filter presets were
+ * also dropped per Brent's review — status/brokerId/search plumbing is
+ * gone from this page entirely along with the UI (lib/data/loads.ts's
+ * ListLoadsOptions still supports them for any other caller). Column
+ * sorting stays dropped along with the table it belonged to.
  */
 export default async function LoadsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const sp = await searchParams;
   const period = parsePeriod(sp);
   const page = Math.max(1, Number(first(sp.page)) || 1);
-  const status = first(sp.status) as LoadStatus | undefined;
-  const brokerId = first(sp.brokerId) || undefined;
-  const search = first(sp.q) || undefined;
   const selectedId = first(sp.id);
 
-  const [summary, listResult, brokersPage, activeTripsPage, selectedLoad, archivedLoads, exportResult, settings] = await Promise.all([
+  const [summary, listResult, brokersPage, activeTripsPage, selectedLoad, archivedLoads, settings] = await Promise.all([
     getLoadBoardSummary(period),
-    listLoads({ period, page, pageSize: DEFAULT_PAGE_SIZE, status, brokerId, search }),
+    listLoads({ period, page, pageSize: DEFAULT_PAGE_SIZE }),
     listBrokers({ pageSize: 100 }),
     listTrips({ status: "active", pageSize: 100 }),
     selectedId ? getLoadDetail(selectedId) : Promise.resolve(null),
     listArchivedLoads(),
-    listLoads({ period, page: 1, pageSize: EXPORT_FETCH_SIZE, status, brokerId, search }),
     getDispatchSettingsSummary(),
   ]);
   const brokerNames = brokersPage.rows.map((b) => b.name);
   const activeTripNames = activeTripsPage.rows.map((t) => t.name).filter((n): n is string => !!n);
 
-  const baseParams = new URLSearchParams();
-  if (status) baseParams.set("status", status);
-  if (brokerId) baseParams.set("brokerId", brokerId);
-  if (search) baseParams.set("q", search);
-
-  // A stale/bookmarked ?page=N (from a Next tap on a fuller period, or a
-  // filter change that used to clear it) can point past this period+
-  // filter set's actual row count — Supabase's count:"exact" still
-  // reports the true total even though .range() clips `rows` to [], so
-  // the KPI strip (always its own page:1/pageSize:200 read, independent
-  // of this page's `page` param) stays correct while the board itself
-  // renders empty. Clamp back to the last real page instead of silently
-  // showing nothing.
+  // A stale/bookmarked ?page=N (from a tap on a fuller period) can point
+  // past this period's actual row count — Supabase's count:"exact" still
+  // reports the true total even though .range() clips `rows` to [], so the
+  // KPI strip (its own page:1/pageSize:200 read, independent of this
+  // page's `page` param) stays correct while the board itself renders
+  // empty. Clamp back to the last real page instead of silently showing
+  // nothing.
   if (page > 1 && listResult.rows.length === 0 && listResult.totalCount > 0) {
     const lastPage = Math.max(1, Math.ceil(listResult.totalCount / DEFAULT_PAGE_SIZE));
-    const params = new URLSearchParams(baseParams);
+    const params = new URLSearchParams();
     params.set("year", String(period.year));
     params.set("month", String(period.month));
     if (lastPage > 1) params.set("page", String(lastPage));
@@ -110,22 +84,22 @@ export default async function LoadsPage({ searchParams }: { searchParams: Promis
   }
 
   function periodHref(p: Period): string {
-    const params = new URLSearchParams(baseParams);
+    const params = new URLSearchParams();
     params.set("year", String(p.year));
     params.set("month", String(p.month));
     return `/tms-v2/loads?${params.toString()}`;
   }
 
   function pageHref(p: number): string {
-    const params = new URLSearchParams(baseParams);
+    const params = new URLSearchParams();
     params.set("year", String(period.year));
     params.set("month", String(period.month));
     params.set("page", String(p));
     return `/tms-v2/loads?${params.toString()}`;
   }
 
-  // Row selection stays in the URL (same discipline as period/status/page)
-  // rather than client state, so a selected load's context drawer is a real,
+  // Row selection stays in the URL (same discipline as period/page) rather
+  // than client state, so a selected load's context drawer is a real,
   // shareable/back-button-friendly location, not ephemeral UI state.
   //
   // rowHrefBase (a plain string) — not a rowHref(id) FUNCTION — is what
@@ -134,18 +108,15 @@ export default async function LoadsPage({ searchParams }: { searchParams: Promis
   // arbitrary closure as a prop (only serializable values cross that
   // boundary). The client component appends `&id=` itself.
   const rowHrefBase = (() => {
-    const params = new URLSearchParams(baseParams);
+    const params = new URLSearchParams();
     params.set("year", String(period.year));
     params.set("month", String(period.month));
     if (page > 1) params.set("page", String(page));
     return params.toString();
   })();
-  function rowHref(loadId: string): string {
-    return `/tms-v2/loads?${rowHrefBase}&id=${loadId}`;
-  }
 
   const closeHref = (() => {
-    const params = new URLSearchParams(baseParams);
+    const params = new URLSearchParams();
     params.set("year", String(period.year));
     params.set("month", String(period.month));
     if (page > 1) params.set("page", String(page));
@@ -157,50 +128,35 @@ export default async function LoadsPage({ searchParams }: { searchParams: Promis
     <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
     <PageScroll
       header={
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2 text-[13px] font-medium text-fg">
-            <Link
-              href={periodHref(shiftPeriod(period, -1))}
-              aria-label="Previous month"
-              className="rounded-md border border-line-strong px-2.5 py-1.5 hover:bg-elevated"
-            >
-              ←
-            </Link>
-            <span className="min-w-[110px] text-center tabular-nums">{summary.periodLabel}</span>
-            <Link
-              href={periodHref(shiftPeriod(period, 1))}
-              aria-label="Next month"
-              className="rounded-md border border-line-strong px-2.5 py-1.5 hover:bg-elevated"
-            >
-              →
-            </Link>
-          </div>
-          <ExportLoadsCsvButton rows={exportResult.rows} />
+        <div className="flex items-center justify-center gap-1 rounded-lg border border-line-strong bg-card p-1 shadow-e1">
+          <Link
+            href={periodHref(shiftPeriod(period, -1))}
+            aria-label="Previous month"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-fg-muted hover:bg-elevated hover:text-fg"
+          >
+            ←
+          </Link>
+          <span className="min-w-[150px] text-center text-[14px] font-semibold tabular-nums text-fg">{summary.periodLabel}</span>
+          <Link
+            href={periodHref(shiftPeriod(period, 1))}
+            aria-label="Next month"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-fg-muted hover:bg-elevated hover:text-fg"
+          >
+            →
+          </Link>
         </div>
       }
     >
       <div className="flex flex-col gap-4">
-        <LoadBoardPerformanceCard goal={settings.monthlyNetGoal} net={summary.net} periodLabel={summary.periodLabel} />
+        <GoalCountdownCard goal={settings.monthlyNetGoal} net={summary.net} periodLabel={summary.periodLabel} />
 
         <LoadBoardListClient
           loads={listResult.rows}
           rowHrefBase={rowHrefBase}
           brokerNames={brokerNames}
           activeTripNames={activeTripNames}
-          emptyMessage="No loads match this period and filters."
+          emptyMessage="No loads this period."
         />
-
-        <LoadBoardFilters
-          statusOptions={STATUS_OPTIONS}
-          brokers={brokersPage.rows.map((b) => ({ id: b.id, name: b.name }))}
-          status={status}
-          brokerId={brokerId}
-          search={search}
-          year={period.year}
-          month={period.month}
-        />
-
-        <SavedViews storageKey="tms-v2:saved-filters:loads" />
 
         <div className="flex items-center justify-between text-[13px] text-fg-muted">
           <span>
