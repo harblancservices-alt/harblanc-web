@@ -11,13 +11,18 @@ import { mutation, type MutationResult } from "@/lib/demo/mutation";
  * semantics mirror V1's src/app/admin/(authed)/dispatch/loads/actions.ts
  * (same `name_key`-deduped broker/trip lookup, same soft-delete convention
  * via `deleted_at`, same zeroed legacy columns on insert) so a load written
- * here reads identically in /admin. Narrower than V1's form on purpose:
- * dispatcher-contact capture (broker_contacts) is a V1 add-load nuance, not
- * a load fact, and is left for a future Brokers-write phase; status changes
- * are NOT part of Add/Edit here — they're their own dedicated actions below
- * (markLoadDelivered / markLoadTonu / editLoadOdometer) so a load's status
- * always changes through the one flow that also captures its odometer
- * reading, never as a side effect of an unrelated field edit.
+ * here reads identically in /admin. Brent's Add Load form rebuild ported
+ * V1's FMCSA MC/DOT lookup (resolveBrokerId's `identity` param backfills
+ * MC/DOT/main-phone onto the broker record) and dispatcher-contact capture
+ * (addBrokerContactFromLoad, saved onto broker_contacts, not the broker's
+ * own main line) into this same pipeline rather than forking a second
+ * write path — LoadFormModal.tsx just sends more fields now. Status
+ * changes are still NOT part of Add/Edit here — they're their own
+ * dedicated actions below (markLoadDelivered / markLoadTonu /
+ * editLoadOdometer) so a load's status always changes through the one
+ * flow that also captures its odometer reading, never as a side effect of
+ * an unrelated field edit — V1's Add form lets you set an initial status
+ * too, deliberately not ported here to avoid re-opening that boundary.
  */
 
 function revalidateLoadPaths(id?: string) {
@@ -54,23 +59,81 @@ type Sb = ReturnType<typeof createServiceRoleClient>;
 
 /** Find a broker by normalized name, creating it if it doesn't exist yet —
  * same name_key dedupe V1 uses, so a broker typed here and one typed in
- * /admin resolve to the same record. */
-async function resolveBrokerId(sb: Sb, name: string): Promise<string> {
+ * /admin resolve to the same record. `identity` (from V1's FMCSA MC/DOT
+ * lookup on the Add Load form) backfills MC/DOT/main-phone onto an
+ * existing broker record that's missing them, or seeds them on a new one
+ * — ported from V1's resolveBrokerId (admin/dispatch/loads/actions.ts),
+ * never overwriting a value the broker record already has. */
+async function resolveBrokerId(
+  sb: Sb,
+  name: string,
+  identity?: { mc?: string | null; dot?: string | null; phone?: string | null },
+): Promise<string> {
   const key = name.trim().toLowerCase();
+  const c = identity ?? {};
   const { data: existing } = await sb
     .from("brokers")
-    .select("id")
+    .select("id, mc_number, dot_number, phone")
     .eq("name_key", key)
     .is("deleted_at", null)
-    .maybeSingle<{ id: string }>();
-  if (existing?.id) return existing.id;
+    .maybeSingle<{ id: string; mc_number: string | null; dot_number: string | null; phone: string | null }>();
+  if (existing?.id) {
+    const patch: Record<string, string> = {};
+    if (c.mc && !existing.mc_number) patch.mc_number = c.mc;
+    if (c.dot && !existing.dot_number) patch.dot_number = c.dot;
+    if (c.phone && !existing.phone) patch.phone = c.phone;
+    if (Object.keys(patch).length > 0) await sb.from("brokers").update(patch).eq("id", existing.id);
+    return existing.id;
+  }
   const { data: created, error } = await sb
     .from("brokers")
-    .insert({ name: name.trim() })
+    .insert({ name: name.trim(), mc_number: c.mc ?? null, dot_number: c.dot ?? null, phone: c.phone ?? null })
     .select("id")
     .single<{ id: string }>();
   if (error || !created) throw new Error(`Could not resolve broker: ${error?.message ?? "unknown error"}`);
   return created.id;
+}
+
+/** Record the dispatcher captured on the Add Load form as a contact under
+ * the broker (broker_contacts), rather than overwriting the broker's main
+ * line — ported from V1's addBrokerContactFromLoad. Skips creation when a
+ * contact with the same phone or email already exists for this broker, so
+ * repeat loads for the same dispatcher don't pile up duplicates. */
+async function addBrokerContactFromLoad(
+  sb: Sb,
+  brokerId: string,
+  c: { name: string | null; email: string | null; phone: string | null },
+): Promise<void> {
+  const { phone, email } = c;
+  if (!phone && !email) return;
+
+  const { data } = await sb
+    .from("broker_contacts")
+    .select("phone, email")
+    .eq("broker_id", brokerId)
+    .is("deleted_at", null)
+    .returns<{ phone: string | null; email: string | null }[]>();
+  const existing = data ?? [];
+
+  const digits = (s: string | null) => (s ?? "").replace(/\D/g, "");
+  const lower = (s: string | null) => (s ?? "").trim().toLowerCase();
+  const isDupe = existing.some(
+    (r) =>
+      (!!phone && digits(r.phone) !== "" && digits(r.phone) === digits(phone)) ||
+      (!!email && lower(r.email) !== "" && lower(r.email) === lower(email)),
+  );
+  if (isDupe) return;
+
+  const phones = phone ? [{ number: phone, ext: null, label: null }] : [];
+  const emails = email ? [{ address: email, label: null }] : [];
+  await sb.from("broker_contacts").insert({
+    broker_id: brokerId,
+    name: c.name ?? "Dispatcher",
+    phone: phone ?? null,
+    email: email ?? null,
+    phones,
+    emails,
+  });
 }
 
 /** Find a trip by normalized name, creating it (active) if it's new. */
@@ -121,7 +184,19 @@ async function loadFieldsFromForm(
   const lane = estimateLaneMiles(originZip, destZip);
   if (lane.ok) loadedMiles = lane.miles;
 
-  const brokerId = await resolveBrokerId(sb, brokerName);
+  const brokerId = await resolveBrokerId(sb, brokerName, {
+    mc: str(formData, "broker_mc"),
+    dot: str(formData, "broker_dot"),
+    phone: str(formData, "broker_main_phone"),
+  });
+  // The phone/email on the load form are a dispatcher AT the broker — store
+  // as a broker contact, never the broker's own main line (matches V1).
+  await addBrokerContactFromLoad(sb, brokerId, {
+    name: str(formData, "broker_contact_name"),
+    email: str(formData, "broker_email"),
+    phone: str(formData, "broker_phone"),
+  });
+
   const tripName = str(formData, "trip_name");
   const tripId = tripName ? await resolveTripId(sb, tripName) : null;
 
