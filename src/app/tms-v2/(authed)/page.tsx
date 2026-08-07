@@ -1,14 +1,13 @@
 import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
-import { NeedsAttentionList } from "./_components/NeedsAttentionList";
+import { NeedsAttentionBar } from "./_components/NeedsAttentionBar";
 import { ActiveLoadsList } from "./_components/ActiveLoadsList";
+import { FarmBrokerContactCard } from "./_components/FarmBrokerContactCard";
+import { CountdownPanel } from "./_components/CountdownPanel";
 import { getTodaySummary } from "@/lib/data/dashboard";
 import { getNeedsAttention } from "@/lib/data/attention";
 import { listBrokers } from "@/lib/data/brokers";
 import { listTrips } from "@/lib/data/trips";
-import { listExpenseAccounts } from "@/lib/data/recurring-expenses";
-import { AddLoadButton } from "./loads/AddLoadButton";
-import { AddExpenseButton } from "./expenses/AddExpenseButton";
-import { GoalCountdownCard } from "./_components/GoalCountdownCard";
+import { listCountdownGoals } from "@/lib/data/countdown";
 import { getDispatchSettingsSummary } from "@/lib/data/settings";
 
 // Dashboard reads live, request-scoped data (active loads, needs-attention
@@ -16,75 +15,55 @@ import { getDispatchSettingsSummary } from "@/lib/data/settings";
 export const dynamic = "force-dynamic";
 
 /**
- * Dashboard (formerly "Today") — rebuilt to mirror legacy /admin's
- * dashboard OPERATION (src/app/admin/(authed)/page.tsx +
- * DashboardView.tsx): an alerts feed up top, active loads as the primary
- * working list with inline micro-actions, goal tracking, quick add — not
- * a pixel copy, and deliberately without the KPI-tile/hero-card treatment
- * that page never had. Brent's explicit asks this pass: no "V2 — preview"
- * pill, no big dark Net hero, no square KPI cards (Gross/Loads/A-R —
- * cash/A-R doesn't belong on the dashboard), and the WHOLE page as one
- * continuous scroll on mobile — so this renders as a single stacked
- * column with no split-scroll rail and no PageScroll `header` prop
- * (nothing here is pinned).
+ * Dashboard (formerly "Today") — rebuilt a second time against a screenshot
+ * of legacy /admin's actual dashboard, per Brent's explicit correction that
+ * the first pass didn't match. Top to bottom, mirroring legacy's structure
+ * exactly (DashboardView.tsx): a collapsed "Needs attention" dropdown bar
+ * (NeedsAttentionBar — replaces the old always-open flat list), NO search
+ * bar (Brent explicitly doesn't want one here), Active Loads as the primary
+ * working list with the red "+ Add Load" living only in its empty state
+ * (matching legacy — once a load exists, new ones come from the Load
+ * Board's own action row), the green "Farm a broker contact" card when the
+ * truck is empty, and a redesigned Countdown panel at the bottom (dark
+ * header, goal rows, current cash) — the multi-goal countdown_goals system
+ * legacy has, not tms-v2's old single monthly-goal card. The whole page is
+ * one flat PageScroll column, no split-scroll rail, no header prop.
  *
- * Deliberately NOT ported from legacy this pass (flagging rather than
- * silently dropping, per the standing instruction): the per-load Rate
- * Con/BOL/POD document-count buttons (needs a new per-load doc-count
- * query nothing in tms-v2's data layer has yet), the truck-maintenance
- * quick-view widget, the "Expired quotes" section, and legacy's
- * multi-goal CountdownCards/CurrentCashRow breakdown (tms-v2 already
- * ships a deliberately-simplified single-goal card, kept as-is — see
- * GoalCountdownCard's own header comment for why that simplification was
- * chosen originally).
+ * Deliberately NOT ported this pass (flagged, not silently dropped): the
+ * per-load Rate Con/BOL/POD document-count buttons, the truck-maintenance
+ * quick-view widget, the "Expired quotes" table, and the Countdown panel's
+ * read-only pace-breakdown modal (needs a trailing-12-week net-pace query
+ * this pass doesn't add — the row-level name/target/days-left/progress bar
+ * Brent asked for doesn't need it).
  */
 export default async function TmsV2DashboardPage() {
-  const [summary, attention, brokersPage, activeTripsPage, accounts, settings] = await Promise.all([
+  const [summary, attention, brokersPage, activeTripsPage, goals, settings] = await Promise.all([
     getTodaySummary(),
     getNeedsAttention(),
     listBrokers({ pageSize: 100 }),
     listTrips({ status: "active", pageSize: 100 }),
-    listExpenseAccounts(),
+    listCountdownGoals(),
     getDispatchSettingsSummary(),
   ]);
   const brokerNames = brokersPage.rows.map((b) => b.name);
   const activeTripNames = activeTripsPage.rows.map((t) => t.name).filter((n): n is string => !!n);
-  const accountNames = accounts.map((a) => a.name);
+  const today = new Date().toISOString().slice(0, 10);
 
   return (
     <PageScroll>
-      <div className="flex flex-col gap-6">
-        <section className="flex flex-col gap-2">
-          <div className="flex items-center gap-2">
-            <h2 className="text-[15px] font-semibold text-fg">Needs attention</h2>
-            {attention.redCount > 0 ? (
-              <span className="inline-flex items-center rounded-full bg-bad-bg px-2 py-0.5 text-[11px] font-semibold text-bad">
-                {attention.redCount} overdue
-              </span>
-            ) : null}
-            {attention.amberCount > 0 ? (
-              <span className="inline-flex items-center rounded-full bg-warn-bg px-2 py-0.5 text-[11px] font-semibold text-warn">
-                {attention.amberCount} soon
-              </span>
-            ) : null}
-          </div>
-          <NeedsAttentionList items={attention.items} />
-        </section>
+      <div className="flex flex-col gap-4">
+        <NeedsAttentionBar items={attention.items} />
 
         <section className="flex flex-col gap-2">
-          <h2 className="text-[15px] font-semibold text-fg">Active loads ({summary.activeLoads.length})</h2>
-          <ActiveLoadsList loads={summary.activeLoads} />
+          <h2 className="text-[13px] font-semibold uppercase tracking-wide text-fg-muted">
+            Active loads · {summary.activeLoads.length}
+          </h2>
+          <ActiveLoadsList loads={summary.activeLoads} brokerNames={brokerNames} activeTripNames={activeTripNames} />
         </section>
 
-        <GoalCountdownCard goal={settings.monthlyNetGoal} net={summary.net} periodLabel={summary.periodLabel} />
+        {summary.activeLoads.length === 0 ? <FarmBrokerContactCard /> : null}
 
-        <section className="flex flex-col gap-2">
-          <h2 className="text-[15px] font-semibold text-fg">Quick add</h2>
-          <div className="flex flex-col gap-2 rounded-xl border border-line bg-card p-3 shadow-e1 sm:flex-row">
-            <AddLoadButton brokerNames={brokerNames} activeTripNames={activeTripNames} showFab={false} />
-            <AddExpenseButton accountNames={accountNames} showFab={false} />
-          </div>
-        </section>
+        <CountdownPanel goals={goals} currentCash={settings.currentCash} today={today} />
       </div>
     </PageScroll>
   );

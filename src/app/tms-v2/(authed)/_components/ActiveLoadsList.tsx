@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Money } from "@/components/tms-v2/ui/Money";
 import { StatusPill } from "@/components/tms-v2/ui/StatusPill";
 import { ActiveLoadRowAction } from "./ActiveLoadRowAction";
+import { AddLoadButton } from "../loads/AddLoadButton";
 import type { LoadWithFinancials } from "@/lib/data/loads";
 
 /** Dashboard's primary working list — rich stretched-link cards (status,
@@ -10,12 +11,24 @@ import type { LoadWithFinancials } from "@/lib/data/loads";
  * DashboardView.tsx) rather than a cramped table. The whole card opens
  * the Load Board's context drawer for this load; the odometer action sits
  * above the stretched link (relative z-10) so it acts as its own control
- * and never navigates — same layering trick legacy's cards use. */
-export function ActiveLoadsList({ loads }: { loads: LoadWithFinancials[] }) {
+ * and never navigates — same layering trick legacy's cards use. The empty
+ * state hosts the red "+ Add Load" button, matching legacy exactly: Add
+ * Load only appears here, when the truck is empty — once a load exists,
+ * new ones are added from the Load Board's own action row. */
+export function ActiveLoadsList({
+  loads,
+  brokerNames,
+  activeTripNames,
+}: {
+  loads: LoadWithFinancials[];
+  brokerNames: string[];
+  activeTripNames: string[];
+}) {
   if (loads.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-line-strong bg-card px-4 py-10 text-center shadow-e1">
-        <p className="text-[13px] text-fg-muted">Nothing pending, assigned, or loaded right now.</p>
+      <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-line-strong bg-card px-4 py-10 text-center shadow-e1">
+        <p className="text-[13px] text-fg-muted">No active loads.</p>
+        <AddLoadButton brokerNames={brokerNames} activeTripNames={activeTripNames} showFab={false} variant="destructive" />
       </div>
     );
   }
