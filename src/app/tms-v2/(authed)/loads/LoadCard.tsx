@@ -111,8 +111,14 @@ export function LoadCard({
         <Link href={href} aria-label={`Open load ${load.loadNumber ?? load.id.slice(0, 8)}`} className="absolute inset-0 z-0" />
       )}
 
-      {/* Mobile — Option C */}
-      <div className="relative z-10 flex flex-col gap-4 p-4 lg:hidden">
+      {/* Mobile — Option C. Deliberately NOT `relative z-10`: this content
+          has no interactive controls of its own, so it must stay a plain,
+          unpositioned layer — the absolutely-positioned stretched Link/
+          select-button above already paints above static content by
+          default and needs to stay the click target for the whole card.
+          Giving this wrapper its own stacking context (as an earlier pass
+          did) put it ABOVE that overlay and swallowed every tap. */}
+      <div className="flex flex-col gap-4 p-4 lg:hidden">
         <div className="flex items-start gap-3">
           <Avatar selectable={selectable} selected={selected} brokerName={load.brokerName} size="h-11 w-11" />
           <div className="min-w-0 flex-1">
@@ -136,8 +142,9 @@ export function LoadCard({
         <LoadTimeline stage={stage} cancelled={cancelled} paid={load.paymentStatus === "paid"} />
       </div>
 
-      {/* Desktop — unchanged, later PC pass owns this */}
-      <div className="relative z-10 hidden p-3.5 lg:block">
+      {/* Desktop — same click-through fix as the mobile block above, no
+          layout change (later PC pass still owns everything else here). */}
+      <div className="hidden p-3.5 lg:block">
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-2.5">
             <Avatar selectable={selectable} selected={selected} brokerName={load.brokerName} />
