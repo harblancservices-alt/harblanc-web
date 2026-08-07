@@ -119,12 +119,26 @@ export type RecentRepairEntry = {
   receiptCount: number;
 };
 
+export type DismissedReminder = {
+  id: string;
+  label: string;
+  partGroup: string;
+  category: Category;
+  intervalMiles: number;
+  dismissedAt: string;
+};
+
 export type MaintenanceOverview = {
   currentOdo: number;
   /** Every active (non-dismissed) reminder, worst-status first. */
   reminders: MaintenanceReminder[];
   /** Most recently logged parts, newest first. */
   recentEntries: RecentRepairEntry[];
+  /** Dismissed reminders, most-recently-dismissed first — the un-dismiss
+   * surface (QA gap: setReminderDismissed(id, false) already worked
+   * end-to-end, there was just nowhere to see a dismissed reminder to
+   * bring it back). */
+  dismissedReminders: DismissedReminder[];
 };
 
 const STATUS_RANK: Record<MaintStatus, number> = { overdue: 0, soon: 1, baseline: 2, ok: 3 };
@@ -266,17 +280,44 @@ async function fetchRecentEntries(sb: SB, currentOdo: number, todayStr: string):
   });
 }
 
+type DismissedReminderRow = {
+  id: string;
+  label: string;
+  part_group: string;
+  category: string;
+  interval_miles: number;
+  dismissed_at: string;
+};
+
+async function fetchDismissedReminders(sb: SB): Promise<DismissedReminder[]> {
+  const { data } = await sb
+    .from("repair_reminders")
+    .select("id, label, part_group, category, interval_miles, dismissed_at")
+    .not("dismissed_at", "is", null)
+    .order("dismissed_at", { ascending: false })
+    .returns<DismissedReminderRow[]>();
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    label: r.label,
+    partGroup: r.part_group,
+    category: cat(r.category),
+    intervalMiles: r.interval_miles,
+    dismissedAt: r.dismissed_at,
+  }));
+}
+
 export async function getMaintenanceOverview(): Promise<MaintenanceOverview> {
   if (await isDemoMode()) return demoOverview();
 
   const sb = createServiceRoleClient();
   const todayStr = centralDateKey();
   const currentOdo = await fetchCurrentOdo(sb);
-  const [reminders, recentEntries] = await Promise.all([
+  const [reminders, recentEntries, dismissedReminders] = await Promise.all([
     fetchReminders(sb, currentOdo),
     fetchRecentEntries(sb, currentOdo, todayStr),
+    fetchDismissedReminders(sb),
   ]);
-  return { currentOdo, reminders, recentEntries };
+  return { currentOdo, reminders, recentEntries, dismissedReminders };
 }
 
 // ---------------------------------------------------------------------------
@@ -708,7 +749,10 @@ function demoOverview(): MaintenanceOverview {
       };
     });
 
-  return { currentOdo, reminders, recentEntries };
+  // Demo mode never dismisses anything (no write path is exercised in
+  // demo), so there's nothing to show here — a deliberate empty list, not
+  // an oversight.
+  return { currentOdo, reminders, recentEntries, dismissedReminders: [] };
 }
 
 function demoEntryDetail(id: string): RepairEntryDetail | null {

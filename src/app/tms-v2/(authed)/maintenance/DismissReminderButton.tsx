@@ -5,10 +5,9 @@ import { useRouter } from "next/navigation";
 import { setReminderDismissed } from "@/actions/tms-v2/maintenance";
 
 /** Dismiss a reminder without servicing it — closes the audit's Maintenance
- * reminder-management gap. Reversible: dismissed reminders simply stop
- * appearing here (setReminderDismissed(id, false) would bring one back;
- * there's no undo surface yet since a dismissed reminder isn't listed
- * anywhere in tms-v2 today — same scope V1 shipped). */
+ * reminder-management gap. Reversible: setReminderDismissed(id, false)
+ * brings one back, now reachable via the Dismissed section's Un-dismiss
+ * button (DismissedRemindersSection.tsx) below the active list. */
 export function DismissReminderButton({ reminderId }: { reminderId: string }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);

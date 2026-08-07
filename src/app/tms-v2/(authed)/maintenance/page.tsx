@@ -10,6 +10,7 @@ import {
 } from "./_components/parts";
 import { LogServiceButton } from "./LogServiceButton";
 import { DismissReminderButton } from "./DismissReminderButton";
+import { DismissedRemindersSection } from "./DismissedRemindersSection";
 
 // Odometer/reminder status can change between visits (a service logged
 // moments ago should show up immediately) — read live, matching the rest of
@@ -17,7 +18,7 @@ import { DismissReminderButton } from "./DismissReminderButton";
 export const dynamic = "force-dynamic";
 
 export default async function MaintenancePage() {
-  const { currentOdo, reminders, recentEntries } = await getMaintenanceOverview();
+  const { currentOdo, reminders, recentEntries, dismissedReminders } = await getMaintenanceOverview();
   const partGroups = [...new Set([...reminders.map((r) => r.partGroup), ...recentEntries.map((e) => e.partGroup).filter((g): g is string => !!g)])];
 
   return (
@@ -93,6 +94,8 @@ export default async function MaintenancePage() {
           </div>
         )}
       </section>
+
+      <DismissedRemindersSection reminders={dismissedReminders} />
     </div>
     </PageScroll>
   );
