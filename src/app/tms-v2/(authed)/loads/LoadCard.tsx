@@ -18,11 +18,70 @@ function Chip({ children }: { children: ReactNode }) {
   return <span className="whitespace-nowrap rounded-full bg-elevated px-2 py-0.5 text-[11px] text-fg-muted">{children}</span>;
 }
 
+function Avatar({
+  selectable,
+  selected,
+  brokerName,
+  size = "h-9 w-9",
+}: {
+  selectable: boolean;
+  selected: boolean;
+  brokerName: string | null;
+  size?: string;
+}) {
+  if (selectable) {
+    return (
+      <span
+        aria-hidden
+        className={`flex ${size} shrink-0 items-center justify-center rounded-full border-2 text-[13px] font-semibold ${
+          selected ? "border-accent bg-accent text-white" : "border-line-strong bg-elevated text-fg-muted"
+        }`}
+      >
+        {selected ? "✓" : ""}
+      </span>
+    );
+  }
+  return (
+    <span className={`flex ${size} shrink-0 items-center justify-center rounded-full bg-elevated text-[13px] font-semibold text-fg-muted`}>
+      {initials(brokerName)}
+    </span>
+  );
+}
+
+function ChipsRow({ load }: { load: LoadWithFinancials }) {
+  return (
+    <>
+      <Chip>#{load.loadNumber ?? load.id.slice(0, 8)}</Chip>
+      {load.pickupDate ? (
+        <Chip>
+          <DateTimeCST value={load.pickupDate} mode="date" />
+          {load.deliveryDate ? (
+            <>
+              {" → "}
+              <DateTimeCST value={load.deliveryDate} mode="date" />
+            </>
+          ) : null}
+        </Chip>
+      ) : null}
+      {load.financials.loadedMiles > 0 ? <Chip>{Math.round(load.financials.loadedMiles).toLocaleString()} mi</Chip> : null}
+      {load.tripName ? <Chip>{load.tripName}</Chip> : null}
+    </>
+  );
+}
+
 /** The rich load card Brent wants back — broker avatar, status pill, lane,
  * info chips, and the shipment timeline, mirroring legacy admin's board/
  * LoadCard.tsx modernized into v2 tokens. Stretched-link card normally;
  * in select mode (bulk delete) the avatar becomes a checkbox and the
- * whole card toggles selection instead of navigating. */
+ * whole card toggles selection instead of navigating.
+ *
+ * Mobile-scoped layout split (standing rule): mobile renders Brent's
+ * chosen "Option C" — avatar on the left, the LANE as the bold headline
+ * (broker demoted to the secondary line under it, rate right-aligned
+ * beside it), then chips, then the timeline, with generous padding.
+ * Desktop keeps the original broker-headline layout unchanged until the
+ * later dedicated PC pass.
+ */
 export function LoadCard({
   load,
   href,
@@ -40,7 +99,7 @@ export function LoadCard({
   const cancelled = load.status === "tonu";
 
   return (
-    <div className="relative rounded-xl border border-line bg-card p-3.5 shadow-e1 transition-shadow hover:shadow-e2">
+    <div className="relative rounded-xl border border-line bg-card shadow-e1 transition-shadow hover:shadow-e2">
       {selectable ? (
         <button
           type="button"
@@ -52,54 +111,56 @@ export function LoadCard({
         <Link href={href} aria-label={`Open load ${load.loadNumber ?? load.id.slice(0, 8)}`} className="absolute inset-0 z-0" />
       )}
 
-      <div className="relative z-10 flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2.5">
-          {selectable ? (
-            <span
-              aria-hidden
-              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 text-[13px] font-semibold ${
-                selected ? "border-accent bg-accent text-white" : "border-line-strong bg-elevated text-fg-muted"
-              }`}
-            >
-              {selected ? "✓" : ""}
-            </span>
-          ) : (
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-elevated text-[13px] font-semibold text-fg-muted">
-              {initials(load.brokerName)}
-            </span>
-          )}
-          <div className="min-w-0">
-            <p className="truncate text-[14px] font-semibold text-fg">{load.brokerName ?? "No broker"}</p>
-            <p className="truncate text-[12px] text-fg-muted">
-              {load.origin ?? "—"} → {load.destination ?? "—"}
-            </p>
+      {/* Mobile — Option C */}
+      <div className="relative z-10 flex flex-col gap-4 p-4 lg:hidden">
+        <div className="flex items-start gap-3">
+          <Avatar selectable={selectable} selected={selected} brokerName={load.brokerName} size="h-11 w-11" />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-2">
+              <p className="min-w-0 truncate text-[15px] font-semibold text-fg">
+                {load.origin ?? "—"} → {load.destination ?? "—"}
+              </p>
+              <StatusPill status={load.status} domain="load" className="shrink-0" />
+            </div>
+            <div className="mt-1.5 flex items-center justify-between gap-2">
+              <p className="min-w-0 truncate text-[13px] text-fg-muted">{load.brokerName ?? "No broker"}</p>
+              <Money value={load.financials.gross} tone="none" className="shrink-0 text-[14px] font-semibold" />
+            </div>
           </div>
         </div>
-        <div className="flex shrink-0 flex-col items-end gap-1.5">
-          <StatusPill status={load.status} domain="load" />
-          <Money value={load.financials.gross} tone="none" className="text-[13px] font-semibold" />
+
+        <div className="flex flex-wrap gap-2">
+          <ChipsRow load={load} />
         </div>
-      </div>
 
-      <div className="relative z-10 mt-2.5 flex flex-wrap gap-1.5">
-        <Chip>#{load.loadNumber ?? load.id.slice(0, 8)}</Chip>
-        {load.pickupDate ? (
-          <Chip>
-            <DateTimeCST value={load.pickupDate} mode="date" />
-            {load.deliveryDate ? (
-              <>
-                {" → "}
-                <DateTimeCST value={load.deliveryDate} mode="date" />
-              </>
-            ) : null}
-          </Chip>
-        ) : null}
-        {load.financials.loadedMiles > 0 ? <Chip>{Math.round(load.financials.loadedMiles).toLocaleString()} mi</Chip> : null}
-        {load.tripName ? <Chip>{load.tripName}</Chip> : null}
-      </div>
-
-      <div className="relative z-10 mt-3">
         <LoadTimeline stage={stage} cancelled={cancelled} />
+      </div>
+
+      {/* Desktop — unchanged, later PC pass owns this */}
+      <div className="relative z-10 hidden p-3.5 lg:block">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <Avatar selectable={selectable} selected={selected} brokerName={load.brokerName} />
+            <div className="min-w-0">
+              <p className="truncate text-[14px] font-semibold text-fg">{load.brokerName ?? "No broker"}</p>
+              <p className="truncate text-[12px] text-fg-muted">
+                {load.origin ?? "—"} → {load.destination ?? "—"}
+              </p>
+            </div>
+          </div>
+          <div className="flex shrink-0 flex-col items-end gap-1.5">
+            <StatusPill status={load.status} domain="load" />
+            <Money value={load.financials.gross} tone="none" className="text-[13px] font-semibold" />
+          </div>
+        </div>
+
+        <div className="mt-2.5 flex flex-wrap gap-1.5">
+          <ChipsRow load={load} />
+        </div>
+
+        <div className="mt-3">
+          <LoadTimeline stage={stage} cancelled={cancelled} />
+        </div>
       </div>
     </div>
   );
