@@ -5,6 +5,7 @@ import { DateTimeCST } from "@/components/tms-v2/ui/DateTimeCST";
 import { getRepairEntryDetail } from "@/lib/data/maintenance";
 import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
 import { FreshnessBadge, MoneyLine } from "../_components/parts";
+import { EntryActions } from "./EntryActions";
 
 // A service's cost/receipts/links can change between visits — read live,
 // matching Load Detail's own force-dynamic choice.
@@ -31,6 +32,7 @@ export default async function RepairEntryDetailPage({ params }: { params: Promis
         title={entry.description}
         description={entry.partGroup ?? entry.category}
         badge={entry.freshness ? <FreshnessBadge freshness={entry.freshness} /> : null}
+        actions={<EntryActions entry={entry} />}
       />
 
       <div className="flex flex-wrap items-center gap-1.5">
@@ -149,11 +151,6 @@ export default async function RepairEntryDetailPage({ params }: { params: Promis
               ))}
             </div>
           )}
-
-          <p className="text-[13px] text-fg-muted">
-            This is a read-only view for now — logging services, editing parts, and managing reminders land in a
-            later phase.
-          </p>
         </section>
       </div>
     </div>

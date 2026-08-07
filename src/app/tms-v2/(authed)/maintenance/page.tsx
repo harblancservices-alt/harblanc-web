@@ -8,6 +8,8 @@ import {
   RecentEntryRow,
   milesRemainingText,
 } from "./_components/parts";
+import { LogServiceButton } from "./LogServiceButton";
+import { DismissReminderButton } from "./DismissReminderButton";
 
 // Odometer/reminder status can change between visits (a service logged
 // moments ago should show up immediately) — read live, matching the rest of
@@ -16,6 +18,7 @@ export const dynamic = "force-dynamic";
 
 export default async function MaintenancePage() {
   const { currentOdo, reminders, recentEntries } = await getMaintenanceOverview();
+  const partGroups = [...new Set([...reminders.map((r) => r.partGroup), ...recentEntries.map((e) => e.partGroup).filter((g): g is string => !!g)])];
 
   return (
     <PageScroll
@@ -23,6 +26,7 @@ export default async function MaintenancePage() {
         <PageHeader
           title="Maintenance"
           description="Odometer-driven service and repair records for the truck."
+          actions={<LogServiceButton currentOdo={currentOdo} partGroups={partGroups} />}
         />
       }
     >
@@ -45,7 +49,10 @@ export default async function MaintenancePage() {
               <Card key={r.id} className="flex flex-col gap-2">
                 <div className="flex items-start justify-between gap-2">
                   <span className="min-w-0 truncate text-[14px] font-medium text-fg">{r.label}</span>
-                  <MaintenanceStatusBadge status={r.status} className="shrink-0" />
+                  <div className="flex shrink-0 items-center gap-2">
+                    <MaintenanceStatusBadge status={r.status} />
+                    <DismissReminderButton reminderId={r.id} />
+                  </div>
                 </div>
                 <div className="flex items-center justify-between text-[12px] text-fg-muted">
                   <span>{r.category}</span>
