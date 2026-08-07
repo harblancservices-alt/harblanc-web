@@ -19,7 +19,13 @@ function daysSince(dateStr: string | null): number | null {
 /** One load in the broker's history — mirrors legacy's LoadHistoryCard
  * (lane leading, status pill on the right, equipment/date/age as meta
  * chips, a Rate·Net·Margin stat module) in V2 tokens. The card links to
- * the load; Mark paid stops propagation so it submits without navigating. */
+ * the load; MarkPaidCell (a Client Component) already calls
+ * preventDefault()/stopPropagation() internally so it submits without
+ * navigating — this file stays a plain Server Component and must NOT
+ * attach its own event handler to a bare element (an earlier `<span
+ * onClick={...}>` wrapper here did exactly that and crashed the RSC
+ * render for every broker with an unpaid delivered/tonu load — audit
+ * trail: the "some brokers, not others" crash report). */
 export function BrokerHistoryCard({ load: l }: { load: BrokerLoadHistoryRow }) {
   const marginPct = l.financials.gross > 0 ? Math.round((l.financials.net / l.financials.gross) * 100) : null;
   const age = daysSince(l.deliveryDate);
@@ -76,7 +82,7 @@ export function BrokerHistoryCard({ load: l }: { load: BrokerLoadHistoryRow }) {
           </div>
         </div>
         {unpaid ? (
-          <span onClick={(e) => e.preventDefault()} className="shrink-0">
+          <span className="shrink-0">
             <MarkPaidCell loadId={l.id} />
           </span>
         ) : l.paymentStatus === "paid" ? (
