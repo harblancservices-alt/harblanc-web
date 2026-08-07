@@ -204,7 +204,9 @@ export const liveDataSource: DataSource = {
     const sb = createServiceRoleClient();
 
     let query = sb.from("loads").select(LOAD_COLUMNS, { count: "exact" }).is("deleted_at", null);
-    if (opts.period) {
+    if (opts.dateRange) {
+      query = query.or(loadsPeriodFilter(opts.dateRange));
+    } else if (opts.period) {
       query = query.or(loadsPeriodFilter(periodRange(opts.period)));
     }
     if (opts.brokerId) query = query.eq("broker_id", opts.brokerId);

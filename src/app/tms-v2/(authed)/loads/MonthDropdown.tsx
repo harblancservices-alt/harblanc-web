@@ -4,32 +4,43 @@ import { useRouter } from "next/navigation";
 
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
+export type LoadBoardView = { mode: "month"; month: number } | { mode: "ytd" } | { mode: "all" };
+
 /**
- * Load Board's month selector — a real dropdown (all 12 months, not just
- * the current one) replacing the previous ← month → arrow pair per Brent's
- * mobile review. Selecting a month re-scopes the board (loads list +
- * period label) to that month, same as the arrows did — this is a UI
- * change only, still driving the same `?year=&month=` query params
- * `parsePeriod()` in page.tsx already reads. No year switcher (legacy's
- * own board dropdown doesn't have one either); `year` stays whatever the
- * page resolved (defaults to the current year).
+ * Load Board's month selector — all 12 months of the resolved year, plus
+ * "Year to date" and "All", per Brent's correction (the dropdown was
+ * missing both). Selecting an option re-scopes the board: a month scopes
+ * the loads list to that calendar month (?year=&month=), "Year to date"
+ * scopes it to Jan 1 through today (?view=ytd), "All" scopes it to every
+ * load (?view=all) — page.tsx reads whichever of these produced the
+ * current view. The goal card reads the same selection to decide which
+ * Settings goal ($10k monthly vs $120k annual) applies.
  */
-export function MonthDropdown({ year, month }: { year: number; month: number }) {
+export function MonthDropdown({ year, view }: { year: number; view: LoadBoardView }) {
   const router = useRouter();
+  const value = view.mode === "month" ? `m${view.month}` : view.mode;
+
+  function onChange(v: string) {
+    if (v === "ytd") router.push("/tms-v2/loads?view=ytd");
+    else if (v === "all") router.push("/tms-v2/loads?view=all");
+    else router.push(`/tms-v2/loads?year=${year}&month=${v.slice(1)}`);
+  }
 
   return (
     <label className="relative inline-block">
       <span className="sr-only">Month</span>
       <select
-        value={month}
-        onChange={(e) => router.push(`/tms-v2/loads?year=${year}&month=${e.target.value}`)}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
         className="h-10 w-[190px] appearance-none rounded-lg border border-line-strong bg-card py-0 pl-3.5 pr-9 text-[14px] font-semibold text-fg shadow-e1 outline-none transition-colors hover:border-line focus:border-accent focus:ring-2 focus:ring-accent/30"
       >
         {MONTHS.map((m, i) => (
-          <option key={m} value={i}>
+          <option key={m} value={`m${i}`}>
             {m} {year}
           </option>
         ))}
+        <option value="ytd">Year to date</option>
+        <option value="all">All</option>
       </select>
       <span aria-hidden className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-fg-subtle">
         ▾

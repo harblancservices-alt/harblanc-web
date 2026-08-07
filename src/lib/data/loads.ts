@@ -62,6 +62,12 @@ export type ListLoadsOptions = {
    * profit-attribution rule, applied at the query layer so a period view
    * never reads rows outside it (v2-architecture.md §3b/§3c). */
   period?: Period;
+  /** Clips the query to an arbitrary [start, end) pickup_date range — for
+   * the Load Board's "Year to date" view. Takes priority over `period`
+   * when both are set. Reuses the same attribution fallback filter
+   * (loadsPeriodFilter) periodRange(period) already goes through, just
+   * with a caller-supplied range instead of one derived from a Period. */
+  dateRange?: { start: string; end: string };
   brokerId?: string;
   status?: LoadStatus;
   sort?: LoadSortKey;

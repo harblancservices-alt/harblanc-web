@@ -82,7 +82,12 @@ export const demoDataSource: DataSource = {
     for (const e of expenses) expensesByLoad.set(e.loadId, (expensesByLoad.get(e.loadId) ?? 0) + e.amount);
 
     let filtered = loads;
-    if (opts.period) filtered = filtered.filter((l) => isInPeriod(l.pickupDate, opts.period!));
+    if (opts.dateRange) {
+      const { start, end } = opts.dateRange;
+      filtered = filtered.filter((l) => l.pickupDate != null && l.pickupDate >= start && l.pickupDate < end);
+    } else if (opts.period) {
+      filtered = filtered.filter((l) => isInPeriod(l.pickupDate, opts.period!));
+    }
     if (opts.brokerId) filtered = filtered.filter((l) => l.brokerId === opts.brokerId);
     if (opts.status) filtered = filtered.filter((l) => l.status === opts.status);
     if (opts.search) {
