@@ -2,9 +2,11 @@ import { PageHeader } from "@/components/tms-v2/ui/PageHeader";
 import { Card } from "@/components/tms-v2/ui/Card";
 import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
 import { getDispatchSettingsSummary } from "@/lib/data/settings";
+import { listExpenseAccounts } from "@/lib/data/recurring-expenses";
 import { isDemoMode } from "@/lib/admin/demo";
 import { company } from "@/lib/company";
 import { FuelSettingsForm, ProfitGoalsForm } from "./SettingsForms";
+import { PaymentMethodsCard } from "./PaymentMethodsCard";
 
 // Money-affecting data, read fresh every visit — matches Today's pattern.
 export const dynamic = "force-dynamic";
@@ -19,7 +21,7 @@ function Field({ label, value, mono }: { label: string; value: string; mono?: bo
 }
 
 export default async function TmsV2SettingsPage() {
-  const [settings, demoOn] = await Promise.all([getDispatchSettingsSummary(), isDemoMode()]);
+  const [settings, demoOn, paymentAccounts] = await Promise.all([getDispatchSettingsSummary(), isDemoMode(), listExpenseAccounts()]);
 
   return (
     <PageScroll
@@ -48,6 +50,12 @@ export default async function TmsV2SettingsPage() {
         <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Profit goals</p>
         <p className="mt-1 text-[13px] text-fg-muted">Drives Performance's goal bar and Today's pace. Current cash isn't editable here.</p>
         <ProfitGoalsForm settings={settings} disabled={demoOn} />
+      </Card>
+
+      <Card>
+        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Payment methods</p>
+        <p className="mt-1 text-[13px] text-fg-muted">Nicknames for the cards/accounts recurring expenses charge to — no card numbers stored, only a last4.</p>
+        <PaymentMethodsCard accounts={paymentAccounts} disabled={demoOn} />
       </Card>
 
       <Card>

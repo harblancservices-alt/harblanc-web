@@ -350,21 +350,21 @@ export async function getRecurringExpenseById(id: string): Promise<RecurringExpe
   return all.find((r) => r.id === id) ?? null;
 }
 
-export type ExpenseAccountRow = { id: string; name: string; type: string | null; last4: string | null };
+export type ExpenseAccountRow = { id: string; name: string; type: string | null; last4: string | null; isDefault: boolean };
 
 export async function listExpenseAccounts(): Promise<ExpenseAccountRow[]> {
   if (await isDemoMode()) {
     return [
-      { id: "demo-acct-chase", name: "Chase Ink (Demo)", type: "Credit card", last4: "4242" },
-      { id: "demo-acct-checking", name: "Business Checking (Demo)", type: "Bank account", last4: "1122" },
+      { id: "demo-acct-chase", name: "Chase Ink (Demo)", type: "Credit card", last4: "4242", isDefault: true },
+      { id: "demo-acct-checking", name: "Business Checking (Demo)", type: "Bank account", last4: "1122", isDefault: false },
     ];
   }
   const sb = createServiceRoleClient();
   const { data } = await sb
     .from("expense_accounts")
-    .select("id, name, type, last4")
+    .select("id, name, type, last4, is_default")
     .is("deleted_at", null)
     .order("name", { ascending: true })
-    .returns<AccountDbRow[]>();
-  return (data ?? []).map((a) => ({ id: a.id, name: a.name, type: a.type, last4: a.last4 }));
+    .returns<(AccountDbRow & { is_default: boolean | null })[]>();
+  return (data ?? []).map((a) => ({ id: a.id, name: a.name, type: a.type, last4: a.last4, isDefault: a.is_default ?? false }));
 }
