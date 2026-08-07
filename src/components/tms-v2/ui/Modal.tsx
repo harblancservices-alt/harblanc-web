@@ -14,13 +14,28 @@ type ModalProps = {
    * a bit more breathing room on desktop (~600px) without widening every
    * other modal in the app that uses this same shared component. */
   maxWidthClassName?: string;
+  /** Optional fixed action band (Cancel/Save) that stays visible below the
+   * scrollable body — for a caller whose form runs long, so the buttons
+   * are never scrolled out of view along with the fields. When omitted
+   * (every caller except LoadFormModal today), the dialog keeps its
+   * original single-scrolling-body shape. */
+  footer?: ReactNode;
 };
 
 /** Centered modal — Esc + backdrop click both close. Used sparingly per
  * v2-design.md's cross-cutting win #1 (inline-edit over modal-then-edit),
  * but kept as one shared implementation for the cases that genuinely need
- * it (BOL signer, Log Service, Applications detail). */
-export function Modal({ open, onClose, title, children, maxWidthClassName = "max-w-lg" }: ModalProps) {
+ * it (BOL signer, Log Service, Applications detail).
+ *
+ * Height-clamped to 90dvh (dvh, not vh — vh doesn't shrink for mobile
+ * browser chrome, so a tall form could still get clipped under an
+ * address bar even while "fitting" the layout viewport) and split into a
+ * fixed header / scrollable body / optional fixed footer, so a form
+ * taller than the screen never hides its title or its action buttons
+ * off-screen — only the FIELDS scroll. Audit trail: LoadFormModal's Add
+ * Load form (the richest one in the app) was getting clipped top and
+ * bottom on both mobile and desktop before this. */
+export function Modal({ open, onClose, title, children, maxWidthClassName = "max-w-lg", footer }: ModalProps) {
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {
@@ -38,10 +53,10 @@ export function Modal({ open, onClose, title, children, maxWidthClassName = "max
       <div
         role="dialog"
         aria-modal="true"
-        className={`relative w-full ${maxWidthClassName} rounded-xl border border-line bg-card p-5 shadow-e3`}
+        className={`relative flex max-h-[90dvh] w-full ${maxWidthClassName} flex-col rounded-xl border border-line bg-card shadow-e3`}
       >
         {title ? (
-          <div className="mb-3 flex items-center justify-between">
+          <div className="flex shrink-0 items-center justify-between border-b border-line px-5 py-4">
             <h2 className="text-[17px] font-semibold text-fg">{title}</h2>
             <button
               type="button"
@@ -53,7 +68,8 @@ export function Modal({ open, onClose, title, children, maxWidthClassName = "max
             </button>
           </div>
         ) : null}
-        {children}
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
+        {footer ? <div className="shrink-0 border-t border-line px-5 py-4">{footer}</div> : null}
       </div>
     </div>
   );

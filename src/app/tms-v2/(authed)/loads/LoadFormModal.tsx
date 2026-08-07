@@ -36,6 +36,7 @@ const INITIAL: SaveState = { ok: false, error: null };
 
 const NEW_TRIP = "__new__";
 const NO_TRIP = "";
+const FORM_ID = "tms-v2-load-form";
 
 const SECTION_TITLE = "text-[13px] font-semibold text-fg";
 const SECTION = "flex flex-col gap-2.5 rounded-md border border-line-strong bg-elevated p-2.5";
@@ -210,8 +211,29 @@ export function LoadFormModal({ open, onClose, brokerNames, activeTripNames, loa
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={editing ? "Edit load" : "Add load"} maxWidthClassName="max-w-xl">
-      <form action={formAction} className="flex flex-col gap-3">
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={editing ? "Edit load" : "Add load"}
+      maxWidthClassName="max-w-xl"
+      footer={
+        <div className="flex flex-col gap-2">
+          <FormError message={state.error} />
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-[11px] font-medium uppercase tracking-wide text-fg-subtle">Equipment: Hotshot</span>
+            <FormActions>
+              <Button type="button" variant="secondary" onClick={onClose} disabled={pending}>
+                Cancel
+              </Button>
+              <Button type="submit" form={FORM_ID} disabled={pending} aria-busy={pending}>
+                {pending ? "Saving…" : editing ? "Save changes" : "Add load"}
+              </Button>
+            </FormActions>
+          </div>
+        </div>
+      }
+    >
+      <form id={FORM_ID} action={formAction} className="flex flex-col gap-3">
         <datalist id="tms-v2-broker-options">
           {brokerNames.map((n) => (
             <option key={n} value={n} />
@@ -403,20 +425,6 @@ export function LoadFormModal({ open, onClose, brokerNames, activeTripNames, loa
             />
           </div>
         </section>
-
-        <FormError message={state.error} />
-
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-[11px] font-medium uppercase tracking-wide text-fg-subtle">Equipment: Hotshot</span>
-          <FormActions>
-            <Button type="button" variant="secondary" onClick={onClose} disabled={pending}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={pending} aria-busy={pending}>
-              {pending ? "Saving…" : editing ? "Save changes" : "Add load"}
-            </Button>
-          </FormActions>
-        </div>
       </form>
     </Modal>
   );
