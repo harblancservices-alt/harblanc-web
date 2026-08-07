@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { PageHeader } from "@/components/tms-v2/ui/PageHeader";
 import { KpiTile } from "@/components/tms-v2/ui/KpiTile";
 import { Money } from "@/components/tms-v2/ui/Money";
@@ -102,6 +103,24 @@ export default async function LoadsPage({ searchParams }: { searchParams: Promis
   if (brokerId) baseParams.set("brokerId", brokerId);
   if (sort) baseParams.set("sort", sort);
   if (sort) baseParams.set("dir", dir);
+
+  // A stale/bookmarked ?page=N (from a Next tap on a fuller period, or a
+  // filter change that used to clear it) can point past this period+
+  // filter set's actual row count — Supabase's count:"exact" still
+  // reports the true total even though .range() clips `rows` to [], so
+  // the KPI strip (always its own page:1/pageSize:200 read, independent
+  // of this page's `page` param) stays correct while the board itself
+  // renders empty. Root cause of the mobile "load's gone but the KPIs
+  // say it's there" report — clamp back to the last real page instead of
+  // silently showing nothing.
+  if (page > 1 && listResult.rows.length === 0 && listResult.totalCount > 0) {
+    const lastPage = Math.max(1, Math.ceil(listResult.totalCount / DEFAULT_PAGE_SIZE));
+    const params = new URLSearchParams(baseParams);
+    params.set("year", String(period.year));
+    params.set("month", String(period.month));
+    if (lastPage > 1) params.set("page", String(lastPage));
+    redirect(`/tms-v2/loads?${params.toString()}`);
+  }
 
   function periodHref(p: Period): string {
     const params = new URLSearchParams(baseParams);
