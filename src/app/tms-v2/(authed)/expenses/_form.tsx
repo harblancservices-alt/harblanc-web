@@ -20,8 +20,10 @@ export function Field({
 }: { label: string; className?: string } & InputHTMLAttributes<HTMLInputElement>) {
   return (
     <label className="flex flex-col gap-1 text-[13px] font-medium text-fg">
-      {label}
-      {required ? <span className="text-bad"> *</span> : null}
+      <span>
+        {label}
+        {required ? <span className="text-bad"> *</span> : null}
+      </span>
       <input
         name={name}
         required={required}
@@ -42,8 +44,10 @@ export function SelectField({
 }: { label: string; className?: string; children: ReactNode } & SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <label className="flex flex-col gap-1 text-[13px] font-medium text-fg">
-      {label}
-      {required ? <span className="text-bad"> *</span> : null}
+      <span>
+        {label}
+        {required ? <span className="text-bad"> *</span> : null}
+      </span>
       <select
         name={name}
         required={required}

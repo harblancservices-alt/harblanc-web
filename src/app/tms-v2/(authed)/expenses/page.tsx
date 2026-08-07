@@ -102,49 +102,37 @@ export default async function ExpensesPage({
             <KpiTile label="Avg monthly" value={<Money value={kpis.averageMonthly} tone="none" />} />
           </div>
 
-          <form className="flex flex-wrap items-end gap-3" method="GET">
-            <label className="flex flex-col gap-1 text-[13px] text-fg-muted">
-              Search
-              <input
-                type="text"
-                name="q"
-                defaultValue={search ?? ""}
-                placeholder="Vendor or name…"
-                className="h-9 w-48 rounded-md border border-line-strong bg-card px-2.5 text-[14px] text-fg"
-              />
-            </label>
-            <label className="flex flex-col gap-1 text-[13px] text-fg-muted">
-              Category
-              <select name="category" defaultValue={category ?? ""} className="h-9 rounded-md border border-line-strong bg-card px-2.5 text-[14px] text-fg">
-                <option value="">All</option>
-                {EXPENSE_CATEGORIES.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-            </label>
-            <label className="flex flex-col gap-1 text-[13px] text-fg-muted">
-              Frequency
-              <select name="frequency" defaultValue={frequency ?? ""} className="h-9 rounded-md border border-line-strong bg-card px-2.5 text-[14px] text-fg">
-                <option value="">All</option>
-                {RECURRING_FREQUENCIES.map((f) => (
-                  <option key={f} value={f}>{RECURRING_FREQUENCY_LABEL[f]}</option>
-                ))}
-              </select>
-            </label>
-            <label className="flex flex-col gap-1 text-[13px] text-fg-muted">
-              Status
-              <select name="status" defaultValue={status} className="h-9 rounded-md border border-line-strong bg-card px-2.5 text-[14px] text-fg">
-                <option value="active">Active</option>
-                <option value="archived">Archived</option>
-                <option value="all">All</option>
-              </select>
-            </label>
+          <form className="flex flex-wrap items-center gap-2" method="GET">
+            <input
+              type="text"
+              name="q"
+              defaultValue={search ?? ""}
+              placeholder="Search vendor or name"
+              className="h-9 w-48 rounded-md border border-line-strong bg-card px-2.5 text-[14px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
+            />
+            <select name="category" defaultValue={category ?? ""} className="h-9 rounded-md border border-line-strong bg-card px-2.5 text-[13px] text-fg focus:border-fg focus:outline-none">
+              <option value="">All categories</option>
+              {EXPENSE_CATEGORIES.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+            <select name="frequency" defaultValue={frequency ?? ""} className="h-9 rounded-md border border-line-strong bg-card px-2.5 text-[13px] text-fg focus:border-fg focus:outline-none">
+              <option value="">All frequencies</option>
+              {RECURRING_FREQUENCIES.map((f) => (
+                <option key={f} value={f}>{RECURRING_FREQUENCY_LABEL[f]}</option>
+              ))}
+            </select>
+            <select name="status" defaultValue={status} className="h-9 rounded-md border border-line-strong bg-card px-2.5 text-[13px] text-fg focus:border-fg focus:outline-none">
+              <option value="active">Active</option>
+              <option value="archived">Archived</option>
+              <option value="all">All statuses</option>
+            </select>
             <button type="submit" className="h-9 rounded-md border border-line-strong bg-card px-3 text-[13px] font-medium text-fg hover:bg-elevated">
               Apply
             </button>
             {category || frequency || search || status !== "active" ? (
               <Link href="/tms-v2/expenses" className="text-[13px] text-fg-muted underline">
-                Clear filters
+                Clear
               </Link>
             ) : null}
           </form>

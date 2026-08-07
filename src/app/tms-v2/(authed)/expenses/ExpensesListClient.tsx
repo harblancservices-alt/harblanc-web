@@ -1,12 +1,11 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { DataList, type DataListColumn } from "@/components/tms-v2/ui/DataList";
 import { Money } from "@/components/tms-v2/ui/Money";
-import { DateTimeCST } from "@/components/tms-v2/ui/DateTimeCST";
 import { Button } from "@/components/tms-v2/ui/Button";
-import type { RecurringExpenseRow } from "@/lib/data/recurring-expenses";
+import type { ExpenseSortKey, RecurringExpenseRow } from "@/lib/data/recurring-expenses";
 import { EXPENSE_CATEGORIES, RECURRING_FREQUENCY_LABEL } from "@/lib/domain/expenses";
 import { expenseGaps, EXPENSE_GAP_LABEL } from "@/lib/dispatch/alerts";
 import { bulkArchiveExpenses, bulkDeleteExpenses, bulkChangeExpenseCategory } from "@/actions/tms-v2/expenses";
@@ -21,56 +20,91 @@ function buildHref(base: Record<string, string | number | undefined>, extra: Rec
   return qs ? `/tms-v2/expenses?${qs}` : "/tms-v2/expenses";
 }
 
-function buildColumns(accountNames: string[]): DataListColumn<RecurringExpenseRow>[] {
-  const accountNameSet = new Set(accountNames);
-
-  function gapsFor(r: RecurringExpenseRow) {
-    return expenseGaps(
-      { amount: r.amount, frequency: r.frequency, dayOfMonth: r.dayOfMonth, dayOfWeek: r.dayOfWeek, startDate: r.startDate, card: r.cardName, category: r.category },
-      accountNameSet,
-    );
-  }
-
-  return [
-    {
-      key: "vendor",
-      header: "Vendor",
-      render: (r) => {
-        const gaps = gapsFor(r);
-        return (
-          <div className="flex items-start gap-2">
-            {gaps.length > 0 ? (
-              <span
-                className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-warn"
-                title={`Incomplete: ${gaps.map((g) => EXPENSE_GAP_LABEL[g]).join(", ")}`}
-                aria-label={`Incomplete: ${gaps.map((g) => EXPENSE_GAP_LABEL[g]).join(", ")}`}
-              />
-            ) : null}
-            <div>
-              <div className="font-medium text-fg">{r.vendor || r.name}</div>
-              {r.vendor && r.vendor !== r.name ? <div className="text-[12px] text-fg-muted">{r.name}</div> : null}
-            </div>
-          </div>
-        );
-      },
-      sortable: true,
-    },
-    { key: "category", header: "Category", render: (r) => r.category ?? "—", sortable: true },
-    {
-      key: "card",
-      header: "Card",
-      render: (r) => (r.cardName ? <span>{r.cardName}{r.cardLast4 ? <span className="text-fg-muted"> ····{r.cardLast4}</span> : null}</span> : "—"),
-      hideOnMobile: true,
-    },
-    { key: "frequency", header: "Frequency", render: (r) => RECURRING_FREQUENCY_LABEL[r.frequency] },
-    { key: "next", header: "Next charge", render: (r) => r.nextChargeLabel ?? "—", sortable: true },
-    { key: "status", header: "Status", render: (r) => (r.archived ? "Archived" : "Active"), hideOnMobile: true },
-    { key: "amount", header: "Amount", render: (r) => <Money value={r.amount} tone="none" />, align: "right", sortable: true },
-    { key: "actions", header: "", render: (r) => <ExpenseRowActions expense={r} />, align: "right" },
-  ];
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "—";
+  return (parts[0][0] + (parts[1]?.[0] ?? "")).toUpperCase();
 }
 
-type SaveState = { pending: boolean; error: string | null };
+function todayIso(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+const SORT_PILLS: { key: ExpenseSortKey; label: string }[] = [
+  { key: "vendor", label: "Vendor" },
+  { key: "category", label: "Category" },
+  { key: "amount", label: "Amount" },
+  { key: "next", label: "Next charge" },
+];
+
+/** One tight row — avatar-with-gap-dot, vendor + category/frequency/card
+ * subline, amount right-aligned. Same "compact directory" family as the
+ * Brokers list's CompactBrokerRow, but unsplit: this screen applies the
+ * same treatment on mobile AND desktop per Brent's explicit ask, rather
+ * than keeping a separate heavier desktop table. Money stays neutral ink
+ * (tone="none") except the one real red case — a manual (non-autopay)
+ * charge whose next charge date has arrived and hasn't been handled — no
+ * red-by-default the way a raw due-date table would render it. */
+function ExpenseRow({
+  r,
+  href,
+  selectMode,
+  selected,
+  onToggle,
+  accountNameSet,
+}: {
+  r: RecurringExpenseRow;
+  href: string;
+  selectMode: boolean;
+  selected: boolean;
+  onToggle: () => void;
+  accountNameSet: Set<string>;
+}) {
+  const gaps = expenseGaps(
+    { amount: r.amount, frequency: r.frequency, dayOfMonth: r.dayOfMonth, dayOfWeek: r.dayOfWeek, startDate: r.startDate, card: r.cardName, category: r.category },
+    accountNameSet,
+  );
+  const overdue = !r.autopay && r.nextChargeDateIso === todayIso();
+  const name = r.vendor || r.name;
+
+  return (
+    <div className={`flex items-center gap-2.5 border-b border-line px-3 py-2.5 last:border-b-0 hover:bg-elevated ${r.archived ? "opacity-60" : ""}`}>
+      {selectMode ? (
+        <input type="checkbox" checked={selected} onChange={onToggle} aria-label={`Select ${name}`} className="h-4 w-4 shrink-0" />
+      ) : null}
+      <Link href={href} className="flex min-w-0 flex-1 items-center gap-2.5">
+        <span className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-elevated text-[11px] font-semibold text-fg-muted">
+          {initials(name)}
+          {gaps.length > 0 ? (
+            <span
+              aria-hidden
+              className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-warn ring-2 ring-card"
+              title={`Incomplete: ${gaps.map((g) => EXPENSE_GAP_LABEL[g]).join(", ")}`}
+            />
+          ) : null}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <span className="truncate text-[14px] font-semibold text-fg">{name}</span>
+            {r.archived ? (
+              <span className="shrink-0 rounded-full bg-elevated px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-fg-muted">
+                Archived
+              </span>
+            ) : null}
+          </div>
+          <div className="truncate text-[12px] text-fg-muted">
+            {r.category ?? "No category"} · {RECURRING_FREQUENCY_LABEL[r.frequency]}
+            {r.cardName ? ` · ${r.cardName}` : ""}
+            {overdue ? <span className="font-medium text-bad"> · Due today</span> : r.nextChargeLabel ? ` · ${r.nextChargeLabel}` : ""}
+          </div>
+        </div>
+        <Money value={r.amount} tone={overdue ? "negative" : "none"} className="shrink-0 text-[13px] font-semibold" />
+      </Link>
+      <ExpenseRowActions expense={r} />
+    </div>
+  );
+}
 
 export function ExpensesListClient({
   rows,
@@ -84,19 +118,19 @@ export function ExpensesListClient({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [state, setState] = useState<SaveState>({ pending: false, error: null });
+  const [state, setState] = useState<{ pending: boolean; error: string | null }>({ pending: false, error: null });
   const [category, setCategory] = useState("");
 
-  const columns = useMemo(() => buildColumns(accountNames), [accountNames]);
+  const accountNameSet = useMemo(() => new Set(accountNames), [accountNames]);
+
+  const activeSort = typeof baseParams.sort === "string" ? (baseParams.sort as ExpenseSortKey) : null;
+  const activeDir = baseParams.dir === "asc" ? "asc" : "desc";
 
   function rowHref(id: string): string {
     return buildHref(baseParams, { id });
   }
 
-  const activeSort = typeof baseParams.sort === "string" ? baseParams.sort : null;
-  const activeDir = baseParams.dir === "asc" ? "asc" : "desc";
-
-  function sortHrefFor(key: string): string {
+  function sortHrefFor(key: ExpenseSortKey): string {
     const nextDir = activeSort === key && activeDir === "asc" ? "desc" : "asc";
     return buildHref({ ...baseParams, page: undefined }, { sort: key, dir: nextDir });
   }
@@ -108,10 +142,6 @@ export function ExpensesListClient({
       else next.add(id);
       return next;
     });
-  }
-
-  function onToggleAll() {
-    setSelected((prev) => (prev.size === rows.length ? new Set() : new Set(rows.map((r) => r.id))));
   }
 
   function clearAndRefresh() {
@@ -137,7 +167,7 @@ export function ExpensesListClient({
   return (
     <div className="flex flex-col gap-3">
       {selected.size > 0 ? (
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-line-strong bg-elevated px-3 py-2 text-[13px]">
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-line bg-elevated px-3.5 py-2.5 text-[13px] shadow-e1">
           <span className="font-medium text-fg">{selected.size} selected</span>
           <Button type="button" variant="secondary" size="sm" disabled={busy} onClick={() => runBulk(() => bulkArchiveExpenses(Array.from(selected)))}>
             Archive
@@ -176,19 +206,43 @@ export function ExpensesListClient({
         </div>
       ) : null}
 
-      <DataList
-        columns={columns}
-        rows={rows}
-        rowKey={(r) => r.id}
-        getHref={(r) => rowHref(r.id)}
-        emptyMessage="No recurring expenses match these filters."
-        selection={{ selectedIds: selected, onToggle, onToggleAll, allSelected: rows.length > 0 && selected.size === rows.length }}
-        sort={{ activeKey: activeSort, dir: activeDir, hrefFor: sortHrefFor }}
-      />
+      {rows.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[12px] text-fg-muted">Sort:</span>
+          {SORT_PILLS.map(({ key, label }) => (
+            <Link
+              key={key}
+              href={sortHrefFor(key)}
+              className={`rounded-full px-2.5 py-1 text-[12px] font-medium ${
+                activeSort === key ? "bg-accent text-white" : "bg-elevated text-fg-muted"
+              }`}
+            >
+              {label}
+              {activeSort === key ? <span aria-hidden> {activeDir === "asc" ? "▲" : "▼"}</span> : null}
+            </Link>
+          ))}
+        </div>
+      ) : null}
 
-      <p className="text-[13px] text-fg-muted">
-        Server render time: <DateTimeCST value={new Date()} />
-      </p>
+      {rows.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-line-strong bg-card px-4 py-10 text-center">
+          <p className="text-[13px] text-fg-muted">No recurring expenses match these filters.</p>
+        </div>
+      ) : (
+        <div className="no-scrollbar overflow-hidden rounded-xl border border-line bg-card shadow-e1">
+          {rows.map((r) => (
+            <ExpenseRow
+              key={r.id}
+              r={r}
+              href={rowHref(r.id)}
+              selectMode
+              selected={selected.has(r.id)}
+              onToggle={() => onToggle(r.id)}
+              accountNameSet={accountNameSet}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
