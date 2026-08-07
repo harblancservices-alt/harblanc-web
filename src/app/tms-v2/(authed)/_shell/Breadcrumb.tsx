@@ -10,8 +10,8 @@ import { TMS_V2_NAV, TMS_V2_SETTINGS, NAV_GROUP_LABEL } from "@/lib/nav/nav.conf
  * a per-page prop, so every route gets it for free and it can't drift out
  * of sync with the sidebar the way a hand-maintained crumb would. Longest
  * matching href wins so a detail route (e.g. /tms-v2/loads/[id]) still
- * resolves to its list page's crumb. Hidden on Today itself — the page
- * title already says "Today" and a "Today / Today" crumb is noise.
+ * resolves to its list page's crumb. Hidden on the Dashboard itself — a
+ * "Dashboard / Dashboard" crumb is noise.
  */
 export function Breadcrumb() {
   const pathname = usePathname();
@@ -25,7 +25,7 @@ export function Breadcrumb() {
   return (
     <nav aria-label="Breadcrumb" className="mb-4 flex items-center gap-1.5 text-[13px] text-fg-muted">
       <Link href="/tms-v2" prefetch={false} className="hover:text-fg">
-        Today
+        Dashboard
       </Link>
       {match ? (
         <>

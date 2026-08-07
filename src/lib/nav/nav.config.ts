@@ -75,7 +75,7 @@ export type NavItem = {
 };
 
 export const TMS_V2_NAV: NavItem[] = [
-  { id: "today", label: "Today", href: "/tms-v2", Icon: IconToday, group: "command", mobilePrimary: true },
+  { id: "today", label: "Dashboard", href: "/tms-v2", Icon: IconToday, group: "command", mobilePrimary: true },
   { id: "calendar", label: "Calendar", href: "/tms-v2/calendar", Icon: IconCalendar, group: "command" },
 
   { id: "loads", label: "Load Board", href: "/tms-v2/loads", Icon: IconLoadBoard, group: "dispatch", mobilePrimary: true },

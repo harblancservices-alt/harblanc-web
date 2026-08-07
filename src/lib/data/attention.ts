@@ -52,7 +52,7 @@ import { getMaintenanceOverview } from "./maintenance";
 import { listTrips } from "./trips";
 import { listActiveLoads } from "./loads";
 
-export type AttentionCategory = "documents" | "receivables" | "expenses" | "maintenance" | "trips" | "opportunity";
+export type AttentionCategory = "documents" | "receivables" | "expenses" | "maintenance" | "trips" | "applications" | "quotes" | "opportunity";
 /** "info" is a calm, non-urgent nudge (e.g. the empty-truck opportunity
  * card) — never counted in the red/amber badges, so it can't read as an
  * alert. */
@@ -386,6 +386,63 @@ async function getOngoingTripItems(): Promise<AttentionItem[]> {
 }
 
 // ---------------------------------------------------------------------------
+// New applications / new quote requests — the two "opportunity inbox"
+// signals legacy's dashboard leads with (admin/(authed)/page.tsx's
+// buildAlertGroups), ported here so tms-v2's Needs Attention mirrors the
+// same alert set. "New" definitions match legacy exactly: an application
+// is new if active and received in the last 24h (the table has no
+// reviewed/handled field to key off); a quote request is new if active and
+// still at its default lead_status = 'new'.
+// ---------------------------------------------------------------------------
+
+const NEW_APPLICATION_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+async function getNewApplicationItems(): Promise<AttentionItem[]> {
+  if (await isDemoMode()) return [];
+
+  const sb = createServiceRoleClient();
+  const cutoff = new Date(Date.now() - NEW_APPLICATION_WINDOW_MS).toISOString();
+  const { data } = await sb
+    .from("applications")
+    .select("id, name, created_at")
+    .is("deleted_at", null)
+    .gte("created_at", cutoff)
+    .order("created_at", { ascending: false })
+    .returns<{ id: string; name: string | null; created_at: string }[]>();
+
+  return (data ?? []).map((a) => ({
+    id: `applications:${a.id}`,
+    category: "applications" as const,
+    severity: "amber" as const,
+    title: a.name?.trim() || "New applicant",
+    reason: "Job application · last 24 hours",
+    href: `/tms-v2/operations/applications/${a.id}`,
+  }));
+}
+
+async function getNewQuoteItems(): Promise<AttentionItem[]> {
+  if (await isDemoMode()) return [];
+
+  const sb = createServiceRoleClient();
+  const { data } = await sb
+    .from("quote_requests")
+    .select("id, name, created_at")
+    .is("deleted_at", null)
+    .eq("lead_status", "new")
+    .order("created_at", { ascending: false })
+    .returns<{ id: string; name: string | null; created_at: string }[]>();
+
+  return (data ?? []).map((q) => ({
+    id: `quotes:${q.id}`,
+    category: "quotes" as const,
+    severity: "amber" as const,
+    title: q.name?.trim() || "New quote request",
+    reason: "Not yet contacted",
+    href: `/tms-v2/operations/${q.id}`,
+  }));
+}
+
+// ---------------------------------------------------------------------------
 // Opportunity — an empty truck is idle time worth turning into pipeline.
 // Not a problem (no red/amber), so it's severity "info" and sorts last;
 // "Keep Today calm, no cry-wolf" per the phase brief. Ties into Reach
@@ -437,7 +494,9 @@ const CATEGORY_PRIORITY: Record<AttentionCategory, number> = {
   documents: 2,
   trips: 3,
   expenses: 4,
-  opportunity: 5,
+  applications: 5,
+  quotes: 6,
+  opportunity: 7,
 };
 
 const SEVERITY_RANK: Record<AttentionSeverity, number> = { red: 0, amber: 1, info: 2 };
@@ -450,16 +509,18 @@ function sortItems(items: AttentionItem[]): AttentionItem[] {
 }
 
 export async function getNeedsAttention(): Promise<NeedsAttention> {
-  const [documents, receivables, expenses, maintenance, trips, opportunity, dismissed] = await Promise.all([
+  const [documents, receivables, expenses, maintenance, trips, applications, quotes, opportunity, dismissed] = await Promise.all([
     getDocumentGapItems(),
     getReceivableItems(),
     getExpenseGapItems(),
     getMaintenanceItems(),
     getOngoingTripItems(),
+    getNewApplicationItems(),
+    getNewQuoteItems(),
     getOpportunityItems(),
     fetchDismissedKeys(),
   ]);
-  const all = [...documents, ...receivables, ...expenses, ...maintenance, ...trips, ...opportunity];
+  const all = [...documents, ...receivables, ...expenses, ...maintenance, ...trips, ...applications, ...quotes, ...opportunity];
   const items = sortItems(all.filter((i) => !dismissed.has(i.id)));
   const redCount = items.filter((i) => i.severity === "red").length;
   const amberCount = items.filter((i) => i.severity === "amber").length;
