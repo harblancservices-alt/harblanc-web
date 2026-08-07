@@ -80,9 +80,8 @@ export const TMS_V2_NAV: NavItem[] = [
 
   { id: "loads", label: "Load Board", href: "/tms-v2/loads", Icon: IconLoadBoard, group: "dispatch", mobilePrimary: true },
   { id: "trips", label: "Trips", href: "/tms-v2/trips", Icon: IconTrips, group: "dispatch" },
-  { id: "operations", label: "Operations", href: "/tms-v2/operations", Icon: IconPipeline, group: "dispatch" },
+  { id: "receivables", label: "Receivables", href: "/tms-v2/receivables", Icon: IconReceivables, group: "dispatch" },
 
-  { id: "receivables", label: "Receivables", href: "/tms-v2/receivables", Icon: IconReceivables, group: "money" },
   { id: "expenses", label: "Expenses", href: "/tms-v2/expenses", Icon: IconExpenses, group: "money" },
   { id: "performance", label: "Performance", href: "/tms-v2/performance", Icon: IconPerformance, group: "money" },
 
@@ -92,6 +91,7 @@ export const TMS_V2_NAV: NavItem[] = [
 
   { id: "files", label: "Files", href: "/tms-v2/files", Icon: IconFiles, group: "insight" },
   { id: "camera", label: "Camera", href: "/tms-v2/camera", Icon: IconCamera, group: "insight" },
+  { id: "operations", label: "Operations", href: "/tms-v2/operations", Icon: IconPipeline, group: "insight" },
   { id: "email-previews", label: "Email Previews", href: "/tms-v2/previews/email", Icon: IconMailPreview, group: "insight" },
   { id: "page-previews", label: "Page Previews", href: "/tms-v2/previews/pages", Icon: IconPagePreview, group: "insight" },
 ];
@@ -108,11 +108,15 @@ export const TMS_V2_SETTINGS: NavItem = {
 
 export function groupedNav(): { id: NavGroupId; label: string; items: NavItem[] }[] {
   const order: NavGroupId[] = ["command", "dispatch", "money", "partners-truck", "insight"];
-  return order.map((id) => ({
-    id,
-    label: NAV_GROUP_LABEL[id],
-    items: TMS_V2_NAV.filter((item) => item.group === id),
-  }));
+  return order
+    .map((id) => ({
+      id,
+      label: NAV_GROUP_LABEL[id],
+      items: TMS_V2_NAV.filter((item) => item.group === id),
+    }))
+    // A group a future regroup empties out shouldn't render a heading with
+    // nothing under it (Sidebar renders every group this returns).
+    .filter((group) => group.items.length > 0);
 }
 
 /** The 3 fixed mobile bottom-nav destinations, in nav-array order. The
