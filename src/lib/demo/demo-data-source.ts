@@ -67,6 +67,9 @@ function mapDemoLoad(
     paidAt: load.paidAt,
     createdAt: load.createdAt,
     attributionDate: attributionDate({ pickup_date: load.pickupDate, delivery_date: load.deliveryDate, created_at: load.createdAt }),
+    odoAssigned: load.odoAssigned,
+    odoLoaded: load.odoLoaded,
+    odoDelivered: load.odoDelivered,
     financials,
   };
 }

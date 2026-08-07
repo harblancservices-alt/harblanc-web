@@ -4,10 +4,11 @@ import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Modal } from "@/components/tms-v2/ui/Modal";
 import { Button } from "@/components/tms-v2/ui/Button";
-import { markLoadDelivered, markLoadTonu, editLoadOdometer, markLoadPaid, markLoadUnpaid, deleteLoad } from "@/actions/tms-v2/loads";
+import { markLoadDelivered, markLoadTonu, markLoadPaid, markLoadUnpaid, deleteLoad } from "@/actions/tms-v2/loads";
 import type { MutationResult } from "@/lib/demo/mutation";
 import { Field, FormError, FormActions } from "../_form";
 import { LoadFormModal, type LoadFormValues } from "../LoadFormModal";
+import { OdometerModal } from "./OdometerModal";
 
 type SaveState = { ok: boolean; error: string | null };
 const INITIAL: SaveState = { ok: false, error: null };
@@ -229,59 +230,6 @@ function MarkTonuModal({
           </Button>
           <Button type="submit" variant="destructive" disabled={pending} aria-busy={pending}>
             {pending ? "Saving…" : "Mark TONU"}
-          </Button>
-        </FormActions>
-      </form>
-    </Modal>
-  );
-}
-
-function OdometerModal({
-  open,
-  onClose,
-  loadId,
-  odoAssigned,
-  odoLoaded,
-  odoDelivered,
-  onSaved,
-}: {
-  open: boolean;
-  onClose: () => void;
-  loadId: string;
-  odoAssigned: number | null;
-  odoLoaded: number | null;
-  odoDelivered: number | null;
-  onSaved: () => void;
-}) {
-  const [state, formAction, pending] = useActionState<SaveState, FormData>(async (_prev, formData) => {
-    const result: MutationResult = await editLoadOdometer(loadId, formData);
-    return result.ok ? { ok: true, error: null } : { ok: false, error: result.reason };
-  }, INITIAL);
-
-  useEffect(() => {
-    if (state.ok) {
-      onSaved();
-      onClose();
-    }
-  }, [state.ok, onSaved, onClose]);
-
-  return (
-    <Modal open={open} onClose={onClose} title="Edit odometer">
-      <form action={formAction} className="flex flex-col gap-3">
-        <p className="text-[13px] text-fg-muted">
-          The odometer only climbs — status is derived from the highest reading you enter (Delivered → Loaded →
-          Assigned → Pending).
-        </p>
-        <Field label="Assigned" name="odo_assigned" type="number" min="0" defaultValue={odoAssigned != null ? String(odoAssigned) : ""} />
-        <Field label="Loaded" name="odo_loaded" type="number" min="0" defaultValue={odoLoaded != null ? String(odoLoaded) : ""} />
-        <Field label="Delivered" name="odo_delivered" type="number" min="0" defaultValue={odoDelivered != null ? String(odoDelivered) : ""} />
-        <FormError message={state.error} />
-        <FormActions>
-          <Button type="button" variant="secondary" onClick={onClose} disabled={pending}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={pending} aria-busy={pending}>
-            {pending ? "Saving…" : "Save odometer"}
           </Button>
         </FormActions>
       </form>

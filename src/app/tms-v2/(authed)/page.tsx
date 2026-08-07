@@ -15,6 +15,9 @@ import { listTrips } from "@/lib/data/trips";
 import { listExpenseAccounts } from "@/lib/data/recurring-expenses";
 import { AddLoadButton } from "./loads/AddLoadButton";
 import { AddExpenseButton } from "./expenses/AddExpenseButton";
+import { ActiveLoadRowAction } from "./_components/ActiveLoadRowAction";
+import { GoalCountdownCard } from "./_components/GoalCountdownCard";
+import { getDispatchSettingsSummary } from "@/lib/data/settings";
 
 // Today reads live, request-scoped data (this period's KPIs, active loads,
 // needs-attention list) — always fresh, matching /admin's own dashboard.
@@ -27,15 +30,17 @@ const ACTIVE_LOAD_COLUMNS: DataListColumn<LoadWithFinancials>[] = [
   { key: "pickup", header: "Pickup", render: (l) => <DateTimeCST value={l.pickupDate} mode="date" /> },
   { key: "status", header: "Status", render: (l) => <StatusPill status={l.status} domain="load" /> },
   { key: "net", header: "Net", render: (l) => <Money value={l.financials.net} />, align: "right" },
+  { key: "quickOdo", header: "", render: (l) => <ActiveLoadRowAction load={l} />, align: "right" },
 ];
 
 export default async function TmsV2TodayPage() {
-  const [summary, attention, brokersPage, activeTripsPage, accounts] = await Promise.all([
+  const [summary, attention, brokersPage, activeTripsPage, accounts, settings] = await Promise.all([
     getTodaySummary(),
     getNeedsAttention(),
     listBrokers({ pageSize: 100 }),
     listTrips({ status: "active", pageSize: 100 }),
     listExpenseAccounts(),
+    getDispatchSettingsSummary(),
   ]);
   const brokerNames = brokersPage.rows.map((b) => b.name);
   const activeTripNames = activeTripsPage.rows.map((t) => t.name).filter((n): n is string => !!n);
@@ -76,16 +81,14 @@ export default async function TmsV2TodayPage() {
       }
     >
       <div className="flex h-full min-h-0 flex-col gap-6 lg:flex-row lg:items-stretch">
-        {/* Right rail (~30% on desktop): Quick Add + Needs Attention. First
-            in DOM order so it stays the mobile-priority stack (unchanged
-            from before this pass); lg:order-2 moves it to the right once
-            there's room for the two-column split. Scrolls on its own if
-            "Show more" ever expands Needs Attention past the rail's height.
-            NOTE: the approved redesign also calls for a "goal" widget here
-            — skipped. There's no stored goal/target in the schema and this
-            phase makes no schema changes, so a real one isn't possible yet;
-            faking a number would be worse than not showing one. */}
+        {/* Right rail (~30% on desktop): Goal countdown + Quick Add + Needs
+            Attention. First in DOM order so it stays the mobile-priority
+            stack; lg:order-2 moves it to the right once there's room for
+            the two-column split. Scrolls on its own if "Show more" ever
+            expands Needs Attention past the rail's height. */}
         <aside className="flex shrink-0 flex-col gap-6 overflow-y-auto lg:order-2 lg:h-full lg:w-[340px]">
+          <GoalCountdownCard goal={settings.monthlyNetGoal} net={summary.net} periodLabel={summary.periodLabel} />
+
           <section className="flex flex-col gap-2">
             <h2 className="text-[15px] font-semibold text-fg">Quick add</h2>
             <div className="flex flex-col gap-2 rounded-xl border border-line bg-card p-3 shadow-e1">

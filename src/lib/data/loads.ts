@@ -39,6 +39,13 @@ export type LoadWithFinancials = {
   /** The load's period-attribution date (v2-architecture.md §3b) — pickup
    * date, always, with fallbacks only for legacy rows missing it. */
   attributionDate: string | null;
+  /** Odometer readings — already part of every DataSource load query
+   * (LOAD_COLUMNS), just not previously exposed on this base type. Lets a
+   * list screen (Today's Active Loads) offer inline odometer entry without
+   * a second per-row fetch. */
+  odoAssigned: number | null;
+  odoLoaded: number | null;
+  odoDelivered: number | null;
   financials: LoadFinancials;
 };
 

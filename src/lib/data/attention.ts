@@ -26,8 +26,14 @@
  * (`listCarrierReceivables`, `getMaintenanceOverview`, `listTrips`), it's
  * reused as-is instead of re-querying the same tables a second time.
  *
- * Dismiss/undo (V1's `dismissed_alerts` pattern) is explicitly deferred —
- * this phase ships pure read-only aggregation, per the phase brief.
+ * Dismiss/undo (Phase 5D): reuses V1's own `dismissed_alerts` table and
+ * src/app/admin/(authed)/alert-actions.ts's dismissAlert/restoreAlert
+ * unchanged (upsert/delete keyed by alert_key = this module's own
+ * AttentionItem.id, so no format translation needed) via a thin tms-v2
+ * wrapper — see src/actions/tms-v2/attention.ts. The read side here is
+ * tolerant of the table not existing yet (same as V1's own dashboard read),
+ * so a not-yet-applied migration degrades to "nothing dismissed" instead of
+ * a broken page.
  */
 
 import { isDemoMode } from "@/lib/admin/demo";
@@ -44,9 +50,13 @@ import { parseServerTimestamp } from "@/lib/domain/dates";
 import { listCarrierReceivables, RECEIVABLE_OVERDUE_DAYS } from "./receivables";
 import { getMaintenanceOverview } from "./maintenance";
 import { listTrips } from "./trips";
+import { listActiveLoads } from "./loads";
 
-export type AttentionCategory = "documents" | "receivables" | "expenses" | "maintenance" | "trips";
-export type AttentionSeverity = "red" | "amber";
+export type AttentionCategory = "documents" | "receivables" | "expenses" | "maintenance" | "trips" | "opportunity";
+/** "info" is a calm, non-urgent nudge (e.g. the empty-truck opportunity
+ * card) — never counted in the red/amber badges, so it can't read as an
+ * alert. */
+export type AttentionSeverity = "red" | "amber" | "info";
 
 export type AttentionItem = {
   id: string;
@@ -376,8 +386,49 @@ async function getOngoingTripItems(): Promise<AttentionItem[]> {
 }
 
 // ---------------------------------------------------------------------------
-// Aggregate — flat, prioritized list: red (overdue) before amber (soon),
-// then a fixed category priority for readability within the same severity.
+// Opportunity — an empty truck is idle time worth turning into pipeline.
+// Not a problem (no red/amber), so it's severity "info" and sorts last;
+// "Keep Today calm, no cry-wolf" per the phase brief. Ties into Reach
+// (Phase 5B) rather than a generic empty state.
+// ---------------------------------------------------------------------------
+
+async function getOpportunityItems(): Promise<AttentionItem[]> {
+  const active = await listActiveLoads(1);
+  if (active.length > 0) return [];
+  return [
+    {
+      id: "opportunity:empty-truck",
+      category: "opportunity" as const,
+      severity: "info" as const,
+      title: "Truck's empty",
+      reason: "No active loads — farm a broker or send backhaul outreach",
+      href: "/tms-v2/reach",
+    },
+  ];
+}
+
+// ---------------------------------------------------------------------------
+// Dismissed alerts — reuses V1's own `dismissed_alerts` table as-is (see
+// this module's header). Tolerant of the table not existing yet: a failed
+// select just means "nothing dismissed", matching V1's own dashboard read.
+// ---------------------------------------------------------------------------
+
+async function fetchDismissedKeys(): Promise<Set<string>> {
+  if (await isDemoMode()) return new Set();
+  try {
+    const sb = createServiceRoleClient();
+    const { data, error } = await sb.from("dismissed_alerts").select("alert_key").returns<{ alert_key: string }[]>();
+    if (error || !data) return new Set();
+    return new Set(data.map((r) => r.alert_key));
+  } catch {
+    return new Set();
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Aggregate — flat, prioritized list: red (overdue) before amber (soon)
+// before info (opportunity), then a fixed category priority for
+// readability within the same severity.
 // ---------------------------------------------------------------------------
 
 const CATEGORY_PRIORITY: Record<AttentionCategory, number> = {
@@ -386,24 +437,31 @@ const CATEGORY_PRIORITY: Record<AttentionCategory, number> = {
   documents: 2,
   trips: 3,
   expenses: 4,
+  opportunity: 5,
 };
+
+const SEVERITY_RANK: Record<AttentionSeverity, number> = { red: 0, amber: 1, info: 2 };
 
 function sortItems(items: AttentionItem[]): AttentionItem[] {
   return items.slice().sort((a, b) => {
-    if (a.severity !== b.severity) return a.severity === "red" ? -1 : 1;
+    if (a.severity !== b.severity) return SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity];
     return CATEGORY_PRIORITY[a.category] - CATEGORY_PRIORITY[b.category];
   });
 }
 
 export async function getNeedsAttention(): Promise<NeedsAttention> {
-  const [documents, receivables, expenses, maintenance, trips] = await Promise.all([
+  const [documents, receivables, expenses, maintenance, trips, opportunity, dismissed] = await Promise.all([
     getDocumentGapItems(),
     getReceivableItems(),
     getExpenseGapItems(),
     getMaintenanceItems(),
     getOngoingTripItems(),
+    getOpportunityItems(),
+    fetchDismissedKeys(),
   ]);
-  const items = sortItems([...documents, ...receivables, ...expenses, ...maintenance, ...trips]);
+  const all = [...documents, ...receivables, ...expenses, ...maintenance, ...trips, ...opportunity];
+  const items = sortItems(all.filter((i) => !dismissed.has(i.id)));
   const redCount = items.filter((i) => i.severity === "red").length;
-  return { items, redCount, amberCount: items.length - redCount };
+  const amberCount = items.filter((i) => i.severity === "amber").length;
+  return { items, redCount, amberCount };
 }

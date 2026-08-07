@@ -176,6 +176,9 @@ function mapLoadRow(
     paidAt: row.paid_at,
     createdAt: row.created_at,
     attributionDate: attributionDate({ pickup_date: row.pickup_date, delivery_date: row.delivery_date, created_at: row.created_at }),
+    odoAssigned: row.odo_assigned,
+    odoLoaded: row.odo_loaded,
+    odoDelivered: row.odo_delivered,
     financials,
   };
 }
