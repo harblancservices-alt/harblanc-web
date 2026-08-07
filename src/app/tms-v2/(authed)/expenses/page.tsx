@@ -141,7 +141,7 @@ export default async function ExpensesPage({
 
   return (
     <ExpenseComposerProvider>
-    <div className="flex h-full min-h-0 items-start gap-6">
+    <div className="flex h-full min-h-0 overflow-hidden gap-6">
     <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
     <PageScroll
       header={
