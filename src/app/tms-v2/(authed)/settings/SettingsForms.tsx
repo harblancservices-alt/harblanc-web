@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/tms-v2/ui/Button";
-import { updateFuelSettings, updateProfitGoals } from "@/actions/tms-v2/settings";
+import { updateFuelSettings, updateProfitGoals, updateCurrentCash } from "@/actions/tms-v2/settings";
 import type { MutationResult } from "@/lib/demo/mutation";
 import type { DispatchSettingsSummary } from "@/lib/data/settings";
 
@@ -98,7 +98,6 @@ export function ProfitGoalsForm({ settings, disabled }: { settings: DispatchSett
       <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
         <ReadField label="Monthly net goal" value={`$${settings.monthlyNetGoal.toLocaleString()}`} />
         <ReadField label="Annual net goal" value={`$${settings.annualNetGoal.toLocaleString()}`} />
-        <ReadField label="Current cash" value={`$${settings.currentCash.toLocaleString()}`} />
         <div className="col-span-full">
           <Button type="button" variant="secondary" size="sm" onClick={() => setEditing(true)} disabled={disabled}>
             Edit profit goals
@@ -120,6 +119,56 @@ export function ProfitGoalsForm({ settings, disabled }: { settings: DispatchSett
           <input name="annual_net_goal" type="number" step="any" min="0" defaultValue={settings.annualNetGoal} required className={FIELD} />
         </label>
       </div>
+      {state.error ? <p className="text-[13px] font-medium text-bad">{state.error}</p> : null}
+      <div className="flex items-center gap-2">
+        <Button type="submit" size="sm" disabled={pending} aria-busy={pending}>
+          {pending ? "Saving…" : "Save"}
+        </Button>
+        <Button type="button" variant="secondary" size="sm" onClick={() => setEditing(false)} disabled={pending}>
+          Cancel
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+/** Owner-entered cash on hand — its own form/action (matching legacy's
+ * separate updateCurrentCash) so saving it never clobbers the goal
+ * fields. Closes the "Current cash isn't editable here" gap. */
+export function CurrentCashForm({ settings, disabled }: { settings: DispatchSettingsSummary; disabled: boolean }) {
+  const router = useRouter();
+  const [editing, setEditing] = useState(false);
+  const [state, formAction, pending] = useActionState<SaveState, FormData>(async (_prev, formData) => {
+    const result: MutationResult = await updateCurrentCash(formData);
+    return result.ok ? { ok: true, error: null } : { ok: false, error: result.reason };
+  }, INITIAL);
+
+  useEffect(() => {
+    if (state.ok) {
+      setEditing(false);
+      router.refresh();
+    }
+  }, [state.ok, router]);
+
+  if (!editing) {
+    return (
+      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <ReadField label="Current cash" value={`$${settings.currentCash.toLocaleString()}`} />
+        <div className="col-span-full">
+          <Button type="button" variant="secondary" size="sm" onClick={() => setEditing(true)} disabled={disabled}>
+            Edit current cash
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <form action={formAction} className="mt-3 flex flex-col gap-3">
+      <label className="max-w-xs">
+        <span className={LABEL}>Current cash ($)</span>
+        <input name="current_cash" type="number" step="any" min="0" defaultValue={settings.currentCash} required className={FIELD} />
+      </label>
       {state.error ? <p className="text-[13px] font-medium text-bad">{state.error}</p> : null}
       <div className="flex items-center gap-2">
         <Button type="submit" size="sm" disabled={pending} aria-busy={pending}>

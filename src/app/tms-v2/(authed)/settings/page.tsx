@@ -5,8 +5,9 @@ import { getDispatchSettingsSummary } from "@/lib/data/settings";
 import { listExpenseAccounts } from "@/lib/data/recurring-expenses";
 import { isDemoMode } from "@/lib/admin/demo";
 import { company } from "@/lib/company";
-import { FuelSettingsForm, ProfitGoalsForm } from "./SettingsForms";
+import { FuelSettingsForm, ProfitGoalsForm, CurrentCashForm } from "./SettingsForms";
 import { PaymentMethodsCard } from "./PaymentMethodsCard";
+import { DemoModeToggle } from "./DemoModeToggle";
 
 // Money-affecting data, read fresh every visit — matches Today's pattern.
 export const dynamic = "force-dynamic";
@@ -39,6 +40,14 @@ export default async function TmsV2SettingsPage() {
     >
     <div className="flex flex-col gap-6">
       <Card>
+        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Demo mode</p>
+        <p className="mt-1 text-[13px] text-fg-muted">
+          Shows the whole portal with sample data instead of the real database — no real read or write can happen while it&apos;s on. Shared with /admin: flipping this here flips it there too.
+        </p>
+        <DemoModeToggle initialOn={demoOn} />
+      </Card>
+
+      <Card>
         <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Business defaults</p>
         <p className="mt-1 text-[13px] text-fg-muted">
           Every money-computing screen (Load Board, Trips, Performance, Receivables) runs on these same values via the one money engine — edit carefully.
@@ -48,8 +57,12 @@ export default async function TmsV2SettingsPage() {
 
       <Card>
         <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Profit goals</p>
-        <p className="mt-1 text-[13px] text-fg-muted">Drives Performance's goal bar and Today's pace. Current cash isn't editable here.</p>
+        <p className="mt-1 text-[13px] text-fg-muted">Drives Performance's goal bar and Today's pace.</p>
         <ProfitGoalsForm settings={settings} disabled={demoOn} />
+        <div className="mt-4 border-t border-line pt-4">
+          <p className="text-[13px] text-fg-muted">Cash on hand — compared against the goal total to show the shortfall.</p>
+          <CurrentCashForm settings={settings} disabled={demoOn} />
+        </div>
       </Card>
 
       <Card>
