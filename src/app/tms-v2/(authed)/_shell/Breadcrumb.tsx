@@ -11,11 +11,13 @@ import { TMS_V2_NAV, TMS_V2_SETTINGS, NAV_GROUP_LABEL } from "@/lib/nav/nav.conf
  * of sync with the sidebar the way a hand-maintained crumb would. Longest
  * matching href wins so a detail route (e.g. /tms-v2/loads/[id]) still
  * resolves to its list page's crumb. Hidden on the Dashboard itself — a
- * "Dashboard / Dashboard" crumb is noise.
+ * "Dashboard / Dashboard" crumb is noise. Also hidden on the Load Board
+ * list per Brent's explicit ask (mobile review) — the sidebar already
+ * carries that nav context.
  */
 export function Breadcrumb() {
   const pathname = usePathname();
-  if (pathname === "/tms-v2") return null;
+  if (pathname === "/tms-v2" || pathname === "/tms-v2/loads") return null;
 
   const all = [...TMS_V2_NAV, TMS_V2_SETTINGS];
   const match = all

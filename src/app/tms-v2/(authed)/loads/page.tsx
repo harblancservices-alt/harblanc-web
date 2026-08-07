@@ -2,16 +2,18 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ContextDrawer } from "@/components/tms-v2/ui/ContextDrawer";
 import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
-import { listLoads, getLoadBoardSummary, getLoadDetail, listArchivedLoads } from "@/lib/data/loads";
+import { listLoads, getLoadDetail } from "@/lib/data/loads";
 import { listBrokers } from "@/lib/data/brokers";
 import { listTrips } from "@/lib/data/trips";
 import { getDispatchSettingsSummary } from "@/lib/data/settings";
+import { getAnalyticsLoads, dayAfter } from "@/lib/data/analytics";
+import { summarize } from "@/lib/dispatch/performance";
 import { currentPeriod, type Period } from "@/lib/domain/attribution";
 import { DEFAULT_PAGE_SIZE } from "@/lib/data/pagination";
 import { LoadBoardListClient } from "./LoadBoardListClient";
-import { GoalCountdownCard } from "../_components/GoalCountdownCard";
+import { MonthDropdown } from "./MonthDropdown";
+import { AnnualGoalCard } from "./AnnualGoalCard";
 import { LoadDrawerContent } from "./LoadDrawerContent";
-import { ArchivedLoadsSection } from "./ArchivedLoadsSection";
 
 // Loads change status/payment throughout the day — the board always reads
 // live, request-scoped data (matches Today's own force-dynamic choice).
@@ -30,24 +32,26 @@ function parsePeriod(sp: SearchParams): Period {
   return currentPeriod();
 }
 
-function shiftPeriod(period: Period, delta: number): Period {
-  const total = period.year * 12 + period.month + delta;
-  return { year: Math.floor(total / 12), month: ((total % 12) + 12) % 12 };
-}
-
 /**
  * Load Board — mirrors legacy /admin's board OPERATION (src/app/admin/
- * (authed)/dispatch/loads/LoadBoardView.tsx + board/LoadCard.tsx): a
- * static monthly goal card (no collapsible wrapper — Brent's mobile
- * review dropped the "Monthly Performance" toggle bar, GoalCountdownCard
- * renders directly), a two-button Add load/Delete row (equal size, both
- * solid red — Inquiry and CSV export both dropped from this page per that
- * same review), and rich shipment-timeline load cards instead of a table.
- * The search/status/broker filter cluster and saved-filter presets were
- * also dropped per Brent's review — status/brokerId/search plumbing is
- * gone from this page entirely along with the UI (lib/data/loads.ts's
- * ListLoadsOptions still supports them for any other caller). Column
- * sorting stays dropped along with the table it belonged to.
+ * (authed)/dispatch/loads/LoadBoardView.tsx + board/LoadCard.tsx): a goal
+ * card, a two-button Add load/Delete row (equal size, both solid red), and
+ * rich shipment-timeline load cards instead of a table.
+ *
+ * Per Brent's mobile review (second pass): the month arrows became a real
+ * dropdown (MonthDropdown, all 12 months of the resolved year, not just
+ * the current one — still driving the same ?year=&month= params this page
+ * already reads), the goal card now targets the $120,000 ANNUAL goal
+ * (dispatch_settings.annual_net_goal via getDispatchSettingsSummary — the
+ * same Settings-editable single source) against YEAR-TO-DATE net rather
+ * than the $10,000 monthly goal, and the bottom "Page N · M loads" text
+ * plus the "Deleted loads" section were removed. The month dropdown still
+ * scopes the loads list and the period label; the goal card does not
+ * (it's YTD-vs-annual regardless of which month is selected) — see
+ * AnnualGoalCard's header for why.
+ *
+ * The search/status/broker filter cluster, saved-filter presets, Inquiry
+ * button, and CSV export were already dropped in the prior review pass.
  */
 export default async function LoadsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const sp = await searchParams;
@@ -55,17 +59,21 @@ export default async function LoadsPage({ searchParams }: { searchParams: Promis
   const page = Math.max(1, Number(first(sp.page)) || 1);
   const selectedId = first(sp.id);
 
-  const [summary, listResult, brokersPage, activeTripsPage, selectedLoad, archivedLoads, settings] = await Promise.all([
-    getLoadBoardSummary(period),
+  const today = new Date();
+  const todayIso = today.toISOString().slice(0, 10);
+  const ytdStart = `${today.getUTCFullYear()}-01-01`;
+
+  const [listResult, brokersPage, activeTripsPage, selectedLoad, settings, ytdLoads] = await Promise.all([
     listLoads({ period, page, pageSize: DEFAULT_PAGE_SIZE }),
     listBrokers({ pageSize: 100 }),
     listTrips({ status: "active", pageSize: 100 }),
     selectedId ? getLoadDetail(selectedId) : Promise.resolve(null),
-    listArchivedLoads(),
     getDispatchSettingsSummary(),
+    getAnalyticsLoads({ start: ytdStart, end: dayAfter(todayIso) }),
   ]);
   const brokerNames = brokersPage.rows.map((b) => b.name);
   const activeTripNames = activeTripsPage.rows.map((t) => t.name).filter((n): n is string => !!n);
+  const ytdNet = summarize(ytdLoads).net;
 
   // A stale/bookmarked ?page=N (from a tap on a fuller period) can point
   // past this period's actual row count — Supabase's count:"exact" still
@@ -81,13 +89,6 @@ export default async function LoadsPage({ searchParams }: { searchParams: Promis
     params.set("month", String(period.month));
     if (lastPage > 1) params.set("page", String(lastPage));
     redirect(`/tms-v2/loads?${params.toString()}`);
-  }
-
-  function periodHref(p: Period): string {
-    const params = new URLSearchParams();
-    params.set("year", String(p.year));
-    params.set("month", String(p.month));
-    return `/tms-v2/loads?${params.toString()}`;
   }
 
   function pageHref(p: number): string {
@@ -128,27 +129,13 @@ export default async function LoadsPage({ searchParams }: { searchParams: Promis
     <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
     <PageScroll
       header={
-        <div className="flex items-center justify-center gap-1 rounded-lg border border-line-strong bg-card p-1 shadow-e1">
-          <Link
-            href={periodHref(shiftPeriod(period, -1))}
-            aria-label="Previous month"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-fg-muted hover:bg-elevated hover:text-fg"
-          >
-            ←
-          </Link>
-          <span className="min-w-[150px] text-center text-[14px] font-semibold tabular-nums text-fg">{summary.periodLabel}</span>
-          <Link
-            href={periodHref(shiftPeriod(period, 1))}
-            aria-label="Next month"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-fg-muted hover:bg-elevated hover:text-fg"
-          >
-            →
-          </Link>
+        <div className="flex items-center justify-center">
+          <MonthDropdown year={period.year} month={period.month} />
         </div>
       }
     >
       <div className="flex flex-col gap-4">
-        <GoalCountdownCard goal={settings.monthlyNetGoal} net={summary.net} periodLabel={summary.periodLabel} />
+        <AnnualGoalCard goal={settings.annualNetGoal} ytdNet={ytdNet} />
 
         <LoadBoardListClient
           loads={listResult.rows}
@@ -158,15 +145,12 @@ export default async function LoadsPage({ searchParams }: { searchParams: Promis
           emptyMessage="No loads this period."
         />
 
-        <div className="flex items-center justify-between text-[13px] text-fg-muted">
-          <span>
-            Page {page} · {listResult.totalCount} load{listResult.totalCount === 1 ? "" : "s"} this period
-          </span>
-          <div className="flex items-center gap-2">
+        {listResult.hasMore || page > 1 ? (
+          <div className="flex items-center justify-end gap-2">
             {page > 1 ? (
               <Link
                 href={pageHref(page - 1)}
-                className="rounded-md border border-line-strong px-3 py-1.5 font-medium text-fg hover:bg-elevated"
+                className="rounded-md border border-line-strong px-3 py-1.5 text-[13px] font-medium text-fg hover:bg-elevated"
               >
                 Previous
               </Link>
@@ -174,15 +158,13 @@ export default async function LoadsPage({ searchParams }: { searchParams: Promis
             {listResult.hasMore ? (
               <Link
                 href={pageHref(page + 1)}
-                className="rounded-md border border-line-strong px-3 py-1.5 font-medium text-fg hover:bg-elevated"
+                className="rounded-md border border-line-strong px-3 py-1.5 text-[13px] font-medium text-fg hover:bg-elevated"
               >
                 Next
               </Link>
             ) : null}
           </div>
-        </div>
-
-        <ArchivedLoadsSection loads={archivedLoads} />
+        ) : null}
       </div>
     </PageScroll>
     </div>
