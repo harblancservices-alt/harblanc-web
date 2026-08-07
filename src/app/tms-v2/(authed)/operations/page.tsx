@@ -28,11 +28,9 @@ function isTabKey(v: string): v is TabKey {
  * only the active tab's loader runs per request, same as /admin's
  * `OperationsTabs`.
  *
- * READ-ONLY for this phase: quote requests, applications, and the
- * accounting/payments ledger render live from Supabase, but no
- * compose/send/status-advance action exists yet (see this route's detail
- * page for the same read-only scope). That's intentionally deferred —
- * see the phase brief.
+ * The revenue workflow (estimate → finalized quote → BOL → payment) lives
+ * on this route's detail page (Phase 5B) — the hub itself stays a read
+ * list/filter surface, matching /admin's own hub/detail split.
  */
 export default async function OperationsPage({
   searchParams,
@@ -53,7 +51,7 @@ export default async function OperationsPage({
         <>
           <PageHeader
             title="Operations"
-            description="The lead-to-cash pipeline — quote requests, applications, and accounting, in one place. Read-only for now; sending estimates/quotes/BOLs lands in a later phase."
+            description="The lead-to-cash pipeline — quote requests, applications, and accounting, in one place."
           />
 
           <nav className="flex gap-1 border-b border-line">

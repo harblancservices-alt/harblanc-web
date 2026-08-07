@@ -6,10 +6,21 @@ import { KpiTile } from "@/components/tms-v2/ui/KpiTile";
 import { Money } from "@/components/tms-v2/ui/Money";
 import { DateTimeCST } from "@/components/tms-v2/ui/DateTimeCST";
 import { getPipelineDetail } from "@/lib/data/pipeline";
+import {
+  getEstimateDraft,
+  getOpenFinalizedQuoteDraftId,
+  getFinalizedQuoteDraftById,
+  getOpenBolDraftId,
+  getBolDraftById,
+} from "@/lib/data/pipeline-drafts";
 import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
 import { suggestedNext, LEAD_STATUS_LABELS, isLeadStatus } from "@/lib/dispatch/status";
 import { LeadStatusPill } from "../_lib/lead-status";
 import { describeEvent } from "../_lib/timeline";
+import { EstimateComposer } from "./EstimateComposer";
+import { FinalizedQuoteComposer } from "./FinalizedQuoteComposer";
+import { BolComposer } from "./BolComposer";
+import { PaymentSection } from "./PaymentSection";
 
 // Money/status-affecting data — read fresh every visit, matches the hub.
 export const dynamic = "force-dynamic";
@@ -34,6 +45,16 @@ export default async function PipelineDetailPage({ params }: { params: Promise<{
 
   const { identity, shipment, estimates, finalizedQuotes, bols, payment, events } = detail;
   const next = isLeadStatus(identity.leadStatus) ? suggestedNext(identity.leadStatus) : null;
+
+  const [estimateDraft, openFqDraftId, openBolDraftId] = await Promise.all([
+    getEstimateDraft(id),
+    getOpenFinalizedQuoteDraftId(id),
+    getOpenBolDraftId(id),
+  ]);
+  const [fqDraft, bolDraft] = await Promise.all([
+    openFqDraftId ? getFinalizedQuoteDraftById(openFqDraftId) : Promise.resolve(null),
+    openBolDraftId ? getBolDraftById(openBolDraftId) : Promise.resolve(null),
+  ]);
 
   return (
     <PageScroll>
@@ -60,9 +81,7 @@ export default async function PipelineDetailPage({ params }: { params: Promise<{
               · Status updated <DateTimeCST value={identity.leadStatusUpdatedAt} />
             </>
           ) : null}
-          {next && isLeadStatus(identity.leadStatus) ? (
-            <> · Likely next: {LEAD_STATUS_LABELS[next]} (informational — advancing lands in a later phase)</>
-          ) : null}
+          {next && isLeadStatus(identity.leadStatus) ? <> · Likely next: {LEAD_STATUS_LABELS[next]}</> : null}
         </p>
       </div>
 
@@ -201,6 +220,21 @@ export default async function PipelineDetailPage({ params }: { params: Promise<{
       </section>
 
       <section className="flex flex-col gap-2">
+        <SectionHeading>Send range estimate</SectionHeading>
+        <EstimateComposer quoteRequestId={id} draft={estimateDraft} />
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <SectionHeading>Finalized quote (rate confirmation)</SectionHeading>
+        <FinalizedQuoteComposer quoteRequestId={id} draftId={openFqDraftId} draft={fqDraft} />
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <SectionHeading>Bill of lading</SectionHeading>
+        <BolComposer quoteRequestId={id} draftId={openBolDraftId} draft={bolDraft} />
+      </section>
+
+      <section className="flex flex-col gap-2">
         <SectionHeading>Payment status</SectionHeading>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <KpiTile label="Total" value={payment.summary.total != null ? <Money value={payment.summary.total} tone="none" /> : "—"} />
@@ -210,21 +244,7 @@ export default async function PipelineDetailPage({ params }: { params: Promise<{
             value={payment.summary.total != null ? <Money value={payment.summary.outstanding} tone={payment.summary.outstanding > 0 ? "negative" : "none"} /> : "—"}
           />
         </div>
-        {payment.entries.length > 0 ? (
-          <div className="rounded-xl border border-line bg-card px-3 shadow-e1">
-            {payment.entries.map((p) => (
-              <div key={p.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-line py-2 text-[14px] last:border-b-0">
-                <span className="text-fg-muted">
-                  <DateTimeCST value={p.receivedAt} mode="date" /> · {p.method.replace(/_/g, " ")} · {p.status}
-                  {p.reference ? ` · ref ${p.reference}` : ""}
-                </span>
-                <Money value={p.amount} tone="none" />
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-[13px] text-fg-muted">No payments recorded yet.</p>
-        )}
+        <PaymentSection quoteRequestId={id} finalizedQuotes={finalizedQuotes} entries={payment.entries} />
       </section>
 
       <section className="flex flex-col gap-2">
