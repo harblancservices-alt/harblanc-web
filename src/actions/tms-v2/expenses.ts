@@ -194,6 +194,45 @@ export const bulkDeleteExpenses = mutation(async (ids: string[]): Promise<Mutati
   return { ok: true };
 });
 
+/* ────────────────────────────────────────────────────────────── */
+/* CSV import — ported from legacy's admin/expenses/actions.ts        */
+/* importExpenses. Parsing happens client-side (splitCsvLine, src/    */
+/* lib/csv.ts); this action just receives already-validated rows.     */
+/* ────────────────────────────────────────────────────────────── */
+
+export type ImportExpenseRow = {
+  vendor: string;
+  category: string | null;
+  description: string | null;
+  amount: number;
+  paymentMethod: string | null;
+  frequency: string;
+  startDate: string | null;
+};
+
+export const importExpenses = mutation(async (rows: ImportExpenseRow[]): Promise<MutationResult<{ count: number }>> => {
+  if (rows.length === 0) return { ok: false, reason: "No rows to import." };
+
+  const sb = createServiceRoleClient();
+  const payload = rows.map((r) => ({
+    name: r.vendor,
+    vendor: r.vendor,
+    category: r.category,
+    notes: r.description,
+    amount: r.amount,
+    frequency: isFrequency(r.frequency) ? r.frequency : "monthly",
+    start_date: r.startDate,
+    card: r.paymentMethod,
+    autopay: true,
+    archived: false,
+  }));
+  const { data, error } = await sb.from("recurring_expenses").insert(payload).select("id");
+  if (error) return { ok: false, reason: `Import failed: ${error.message}` };
+
+  revalidatePath(PATH);
+  return { ok: true, data: { count: data?.length ?? 0 } };
+});
+
 export const bulkChangeExpenseCategory = mutation(async (ids: string[], category: string): Promise<MutationResult> => {
   const uniq = dedupeIds(ids);
   if (uniq.length === 0) return { ok: false, reason: "No expenses selected." };

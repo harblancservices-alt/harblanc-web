@@ -17,11 +17,17 @@ import {
 import { ExpenseComposerProvider, ExpenseComposerToggleButton, ExpenseComposerPanel } from "./ExpenseComposer";
 import { ExpenseDrawerContent } from "./ExpenseDrawerContent";
 import { ExpensesListClient } from "./ExpensesListClient";
+import { ExportExpensesCsvButton } from "./ExportExpensesCsvButton";
+import { ImportExpensesButton } from "./ImportExpensesButton";
 
 // Money-affecting data, read fresh every visit — matches Today's pattern.
 export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 25;
+// Bounded export-fetch cap — every filtered row, not just the displayed
+// page (fetchAll() itself is already bounded to 1000, see
+// lib/data/recurring-expenses.ts — this just avoids re-paginating on top).
+const EXPORT_FETCH_SIZE = 1000;
 
 function buildHref(params: Record<string, string | number | undefined>): string {
   const usp = new URLSearchParams();
@@ -47,11 +53,12 @@ export default async function ExpensesPage({
   const page = typeof sp.page === "string" ? Math.max(1, Number(sp.page) || 1) : 1;
   const selectedId = typeof sp.id === "string" ? sp.id : undefined;
 
-  const [kpis, list, accounts, selectedExpense] = await Promise.all([
+  const [kpis, list, accounts, selectedExpense, exportList] = await Promise.all([
     getRecurringExpensesKpis(),
     listRecurringExpenses({ page, pageSize: PAGE_SIZE, category, frequency, status, search }),
     listExpenseAccounts(),
     selectedId ? getRecurringExpenseById(selectedId) : Promise.resolve(null),
+    listRecurringExpenses({ page: 1, pageSize: EXPORT_FETCH_SIZE, category, frequency, status, search }),
   ]);
 
   const baseParams = { category, frequency, status, q: search, page: page > 1 ? page : undefined };
@@ -68,7 +75,13 @@ export default async function ExpensesPage({
           <PageHeader
             title="Expenses"
             description="Manual log of recurring charges — insurance, truck payment, subscriptions."
-            actions={<ExpenseComposerToggleButton />}
+            actions={
+              <div className="flex items-center gap-2">
+                <ImportExpensesButton />
+                <ExportExpensesCsvButton rows={exportList.rows} />
+                <ExpenseComposerToggleButton />
+              </div>
+            }
           />
 
           <ExpenseComposerPanel accountNames={accountNames} />

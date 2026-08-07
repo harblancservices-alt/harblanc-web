@@ -17,6 +17,12 @@ import { LoadBoardFilters } from "./LoadBoardFilters";
 import { AddLoadButton } from "./AddLoadButton";
 import { LoadDrawerContent } from "./LoadDrawerContent";
 import { ArchivedLoadsSection } from "./ArchivedLoadsSection";
+import { ExportLoadsCsvButton } from "./ExportLoadsCsvButton";
+
+// Bounded cap for the CSV export fetch — a whole period's rows, not just
+// the current display page, but still an explicit bound (v2-architecture.md
+// §3c), matching getLoadBoardSummary's own pageSize: 200 KPI-aggregate cap.
+const EXPORT_FETCH_SIZE = 500;
 
 // Loads change status/payment throughout the day — the board always reads
 // live, request-scoped data (matches Today's own force-dynamic choice).
@@ -71,13 +77,14 @@ export default async function LoadsPage({ searchParams }: { searchParams: Promis
   const brokerId = first(sp.brokerId) || undefined;
   const selectedId = first(sp.id);
 
-  const [summary, listResult, brokersPage, activeTripsPage, selectedLoad, archivedLoads] = await Promise.all([
+  const [summary, listResult, brokersPage, activeTripsPage, selectedLoad, archivedLoads, exportResult] = await Promise.all([
     getLoadBoardSummary(period),
     listLoads({ period, page, pageSize: DEFAULT_PAGE_SIZE, status, brokerId }),
     listBrokers({ pageSize: 100 }),
     listTrips({ status: "active", pageSize: 100 }),
     selectedId ? getLoadDetail(selectedId) : Promise.resolve(null),
     listArchivedLoads(),
+    listLoads({ period, page: 1, pageSize: EXPORT_FETCH_SIZE, status, brokerId }),
   ]);
   const brokerNames = brokersPage.rows.map((b) => b.name);
   const activeTripNames = activeTripsPage.rows.map((t) => t.name).filter((n): n is string => !!n);
@@ -132,6 +139,7 @@ export default async function LoadsPage({ searchParams }: { searchParams: Promis
             description="Every load booked this period, server-paginated and searchable by status or broker."
             actions={
               <div className="flex items-center gap-2 text-[13px] font-medium text-fg">
+                <ExportLoadsCsvButton rows={exportResult.rows} />
                 <AddLoadButton
                   brokerNames={brokerNames}
                   activeTripNames={activeTripNames}
