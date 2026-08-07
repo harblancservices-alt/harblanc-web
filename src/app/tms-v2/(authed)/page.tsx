@@ -1,7 +1,6 @@
 import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
 import { NeedsAttentionBar } from "./_components/NeedsAttentionBar";
 import { ActiveLoadsList } from "./_components/ActiveLoadsList";
-import { FarmBrokerContactCard } from "./_components/FarmBrokerContactCard";
 import { CountdownPanel } from "./_components/CountdownPanel";
 import { getTodaySummary } from "@/lib/data/dashboard";
 import { getNeedsAttention } from "@/lib/data/attention";
@@ -23,11 +22,16 @@ export const dynamic = "force-dynamic";
  * bar (Brent explicitly doesn't want one here), Active Loads as the primary
  * working list with the red "+ Add Load" living only in its empty state
  * (matching legacy — once a load exists, new ones come from the Load
- * Board's own action row), the green "Farm a broker contact" card when the
- * truck is empty, and a redesigned Countdown panel at the bottom (dark
- * header, goal rows, current cash) — the multi-goal countdown_goals system
- * legacy has, not tms-v2's old single monthly-goal card. The whole page is
- * one flat PageScroll column, no split-scroll rail, no header prop.
+ * Board's own action row), and a redesigned Countdown panel at the bottom
+ * (dark header, goal rows, current cash) — the multi-goal countdown_goals
+ * system legacy has, not tms-v2's old single monthly-goal card. The whole
+ * page is one flat PageScroll column, no split-scroll rail, no header prop.
+ *
+ * The green "Farm a broker contact" empty-truck card (FarmBrokerContactCard,
+ * still in _components/) was pulled from this page per Brent's follow-up —
+ * he may relocate that concept into Load Inquiry/emails as its own "Farm"
+ * tab later, so the component and its action (farm-contact.ts) are kept
+ * in place, just unreferenced here, rather than deleted.
  *
  * Deliberately NOT ported this pass (flagged, not silently dropped): the
  * per-load Rate Con/BOL/POD document-count buttons, the truck-maintenance
@@ -60,8 +64,6 @@ export default async function TmsV2DashboardPage() {
           </h2>
           <ActiveLoadsList loads={summary.activeLoads} brokerNames={brokerNames} activeTripNames={activeTripNames} />
         </section>
-
-        {summary.activeLoads.length === 0 ? <FarmBrokerContactCard /> : null}
 
         <CountdownPanel goals={goals} currentCash={settings.currentCash} today={today} />
       </div>

@@ -20,9 +20,11 @@ import type { MutationResult } from "@/lib/demo/mutation";
  * from legacy: tapping a goal opens Edit directly rather than a read-only
  * pace-breakdown modal first (the weekly/loads-needed verdict needs a
  * trailing-12-week net-pace query this pass doesn't add — flagged, not
- * silently dropped). A separate dashed "+ Add a countdown goal" card sits
- * below, per Brent's spec; a final visual pass is expected once he sends
- * his mockup, so this stays easy to restyle.
+ * silently dropped). The only add path is the dark header's "+ Add"
+ * button — an earlier pass also had a separate dashed "+ Add a countdown
+ * goal" card below the panel, which Brent asked removed as redundant. A
+ * final visual pass is expected once he sends his mockup, so this stays
+ * easy to restyle.
  */
 export function CountdownPanel({ goals, currentCash, today }: { goals: CountdownGoal[]; currentCash: number; today: string }) {
   const [editing, setEditing] = useState<{ mode: "edit"; goal: CountdownGoal } | { mode: "new" } | null>(null);
@@ -77,14 +79,6 @@ export function CountdownPanel({ goals, currentCash, today }: { goals: Countdown
           <CurrentCashRow currentCash={currentCash} total={total} />
         </div>
       </div>
-
-      <button
-        type="button"
-        onClick={() => setEditing({ mode: "new" })}
-        className="rounded-xl border border-dashed border-line-strong bg-card px-4 py-3 text-center text-[13px] font-medium text-fg-muted shadow-e1 transition-colors hover:bg-elevated hover:text-fg"
-      >
-        + Add a countdown goal
-      </button>
 
       {editing ? <EditGoalModal goal={editing.mode === "edit" ? editing.goal : null} onClose={() => setEditing(null)} /> : null}
     </div>
