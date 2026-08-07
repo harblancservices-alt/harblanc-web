@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/tms-v2/ui/PageHeader";
 import { Money } from "@/components/tms-v2/ui/Money";
+import { formatMoney } from "@/lib/domain/money";
 import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
 import { listBrokerDirectory, type BrokerDirectoryRow, type BrokerSortKey } from "@/lib/data/broker-directory";
 import { NewBrokerButton } from "./NewBrokerButton";
@@ -50,24 +51,25 @@ function BrokerRow({ b }: { b: BrokerDirectoryRow }) {
   );
 }
 
-/** Mobile's "compact directory" row — a single tight line: small avatar
- * (with a quiet amber dot when A/R is owed, not a big chip), name, loads
- * count, gross. Denser than the desktop row above on purpose. */
+/** Mobile's "compact directory" row — a single tight line: small avatar,
+ * name, loads count, A/R owed. The right-hand figure is what's outstanding
+ * (not gross) — it already reads amber when a broker owes, so the avatar
+ * carries no separate indicator dot (would be redundant). Denser than the
+ * desktop row above on purpose. */
 function CompactBrokerRow({ b }: { b: BrokerDirectoryRow }) {
   return (
     <Link
       href={`/tms-v2/brokers/${b.id}`}
       className="flex items-center gap-2.5 border-b border-line px-3 py-2 transition-colors last:border-b-0 hover:bg-elevated"
     >
-      <span className="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-elevated text-[11px] font-semibold text-fg-muted">
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-elevated text-[11px] font-semibold text-fg-muted">
         {initials(b.name)}
-        {b.arOutstanding > 0 ? (
-          <span aria-hidden className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-warn ring-2 ring-card" />
-        ) : null}
       </span>
       <span className="min-w-0 flex-1 truncate text-[13px] font-semibold text-fg">{b.name}</span>
       <span className="shrink-0 text-[12px] tabular-nums text-fg-muted">{b.loadsCount}</span>
-      <Money value={b.gross} tone="none" className="shrink-0 text-[13px] font-semibold" />
+      <span className={`shrink-0 font-mono text-[13px] font-semibold tabular-nums ${b.arOutstanding > 0 ? "text-warn" : "text-fg"}`}>
+        {formatMoney(b.arOutstanding)}
+      </span>
     </Link>
   );
 }
