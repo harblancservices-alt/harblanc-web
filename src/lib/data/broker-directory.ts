@@ -28,6 +28,8 @@ export type BrokerDirectoryRow = {
   id: string;
   name: string;
   status: string;
+  mcNumber: string | null;
+  dotNumber: string | null;
   factoring: boolean;
   loadsCount: number;
   /** All-time gross across non-TONU loads (TONU loads earn only their flat
@@ -37,13 +39,20 @@ export type BrokerDirectoryRow = {
   arOutstanding: number;
 };
 
+export type BrokerSortKey = "name" | "gross" | "loads";
+
 export type ListBrokerDirectoryOptions = {
   page?: number;
   pageSize?: number;
   search?: string;
+  /** Mirrors legacy's BrokerListSidebar sort selector (Name A–Z / Gross
+   * high / Loads high). Sorting is by stats fetched per-page, so it's
+   * applied client-side after the page's stats are joined — fine at this
+   * scale (one page of brokers, not a full-table sort). */
+  sort?: BrokerSortKey;
 };
 
-type BrokerDbRow = { id: string; name: string; status: string; factoring: boolean | null };
+type BrokerDbRow = { id: string; name: string; status: string; mc_number: string | null; dot_number: string | null; factoring: boolean | null };
 type LoadStatsRow = {
   broker_id: string;
   status: string;
@@ -103,17 +112,23 @@ export async function listBrokerDirectory(opts: ListBrokerDirectoryOptions = {})
   const page = opts.page ?? 1;
   const pageSize = opts.pageSize ?? DEFAULT_PAGE_SIZE;
 
+  function sortRows(rows: BrokerDirectoryRow[]): BrokerDirectoryRow[] {
+    const sorted = [...rows];
+    if (opts.sort === "gross") sorted.sort((a, b) => b.gross - a.gross);
+    else if (opts.sort === "loads") sorted.sort((a, b) => b.loadsCount - a.loadsCount);
+    else sorted.sort((a, b) => a.name.localeCompare(b.name));
+    return sorted;
+  }
+
   if (await isDemoMode()) {
     const { loads } = buildDemoData();
     let brokers = DEMO_BROKERS;
     if (opts.search) {
       const q = opts.search.toLowerCase();
-      brokers = brokers.filter((b) => b.name.toLowerCase().includes(q));
+      brokers = brokers.filter((b) => b.name.toLowerCase().includes(q) || (b.mcNumber ?? "").toLowerCase().includes(q) || (b.dotNumber ?? "").toLowerCase().includes(q));
     }
-    const rows: BrokerDirectoryRow[] = brokers
-      .slice()
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .map((b) => {
+    const rows: BrokerDirectoryRow[] = sortRows(
+      brokers.map((b) => {
         const brokerLoads = loads.filter((l) => l.brokerId === b.id);
         const live = brokerLoads.filter((l) => l.status !== "tonu");
         const gross = live.reduce((s, l) => s + num(l.rate), 0);
@@ -123,27 +138,37 @@ export async function listBrokerDirectory(opts: ListBrokerDirectoryOptions = {})
         const ar = computeCarrierAR(
           unpaidClosed.map((l) => ({ id: l.id, status: l.status, paymentStatus: l.paymentStatus, deliveryDate: l.deliveryDate, rate: l.rate, tonuAmount: l.tonuAmount })),
         );
-        return { id: b.id, name: b.name, status: b.status, factoring: b.factoring, loadsCount: brokerLoads.length, gross, arOutstanding: ar.totalOutstanding };
-      });
+        return { id: b.id, name: b.name, status: b.status, mcNumber: b.mcNumber, dotNumber: b.dotNumber, factoring: b.factoring, loadsCount: brokerLoads.length, gross, arOutstanding: ar.totalOutstanding };
+      }),
+    );
     const { from, to } = pageRange(page, pageSize);
     return toPaginated(rows.slice(from, to + 1), rows.length, page, pageSize);
   }
 
   const sb = createServiceRoleClient();
-  let query = sb.from("brokers").select("id, name, status, factoring", { count: "exact" }).is("deleted_at", null);
-  if (opts.search) query = query.ilike("name", `%${opts.search}%`);
+  let query = sb.from("brokers").select("id, name, status, mc_number, dot_number, factoring", { count: "exact" }).is("deleted_at", null);
+  if (opts.search) {
+    const q = opts.search.replace(/[,()]/g, "").trim();
+    if (q) query = query.or(`name.ilike.%${q}%,mc_number.ilike.%${q}%,dot_number.ilike.%${q}%`);
+  }
+
+  // Sorting is applied after stats are joined below (gross/loads aren't
+  // columns on `brokers`), so this fetches the full matching set rather
+  // than a `.range()`'d page — bounded to 500 brokers, well above this
+  // one-owner-operator's actual broker count (v2-architecture.md §3c).
+  const { data, count } = await query.order("name", { ascending: true }).limit(500).returns<BrokerDbRow[]>();
+  const allBrokers = data ?? [];
+  const stats = await fetchStatsForBrokers(allBrokers.map((b) => b.id));
+
+  const allRows: BrokerDirectoryRow[] = sortRows(
+    allBrokers.map((b) => {
+      const s = stats.get(b.id) ?? { loadsCount: 0, gross: 0, arOutstanding: 0 };
+      return { id: b.id, name: b.name, status: b.status, mcNumber: b.mc_number, dotNumber: b.dot_number, factoring: !!b.factoring, ...s };
+    }),
+  );
 
   const { from, to } = pageRange(page, pageSize);
-  const { data, count } = await query.order("name", { ascending: true }).range(from, to).returns<BrokerDbRow[]>();
-  const brokers = data ?? [];
-  const stats = await fetchStatsForBrokers(brokers.map((b) => b.id));
-
-  const rows: BrokerDirectoryRow[] = brokers.map((b) => {
-    const s = stats.get(b.id) ?? { loadsCount: 0, gross: 0, arOutstanding: 0 };
-    return { id: b.id, name: b.name, status: b.status, factoring: !!b.factoring, ...s };
-  });
-
-  return toPaginated(rows, count ?? rows.length, page, pageSize);
+  return toPaginated(allRows.slice(from, to + 1), count ?? allRows.length, page, pageSize);
 }
 
 export type ArchivedBrokerRow = { id: string; name: string; deletedAt: string | null };

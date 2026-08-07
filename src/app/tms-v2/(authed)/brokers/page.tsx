@@ -1,10 +1,8 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/tms-v2/ui/PageHeader";
 import { Money } from "@/components/tms-v2/ui/Money";
-import { DataList, type DataListColumn } from "@/components/tms-v2/ui/DataList";
 import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
-import { listBrokerDirectory, listArchivedBrokers, type BrokerDirectoryRow } from "@/lib/data/broker-directory";
-import { BrokerStatusPill } from "./_lib/broker-status";
+import { listBrokerDirectory, listArchivedBrokers, type BrokerDirectoryRow, type BrokerSortKey } from "@/lib/data/broker-directory";
 import { NewBrokerButton } from "./NewBrokerButton";
 import { ArchivedBrokersSection } from "./ArchivedBrokersSection";
 
@@ -13,26 +11,11 @@ export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 25;
 
-const COLUMNS: DataListColumn<BrokerDirectoryRow>[] = [
-  {
-    key: "name",
-    header: "Name",
-    render: (b) => <span className="font-medium text-fg">{b.name}</span>,
-  },
-  {
-    key: "status",
-    header: "Status",
-    // Money-is-neutral-by-default's status-pill sibling: "active" is the
-    // overwhelming common case for a working broker relationship, so
-    // showing it on every row said nothing — the pill now only appears
-    // when a broker's status actually deviates from that default.
-    render: (b) => (b.status === "active" ? null : <BrokerStatusPill status={b.status} />),
-    hideOnMobile: true,
-  },
-  { key: "loads", header: "Loads", render: (b) => String(b.loadsCount), align: "right" },
-  { key: "gross", header: "Gross", render: (b) => <Money value={b.gross} tone="none" />, align: "right" },
-  { key: "ar", header: "A/R", render: (b) => <Money value={b.arOutstanding} tone={b.arOutstanding > 0 ? "negative" : "none"} />, align: "right" },
-];
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "—";
+  return (parts[0][0] + (parts[1]?.[0] ?? "")).toUpperCase();
+}
 
 function buildHref(params: Record<string, string | number | undefined>): string {
   const usp = new URLSearchParams();
@@ -43,6 +26,36 @@ function buildHref(params: Record<string, string | number | undefined>): string 
   return qs ? `/tms-v2/brokers?${qs}` : "/tms-v2/brokers";
 }
 
+function BrokerRow({ b }: { b: BrokerDirectoryRow }) {
+  return (
+    <Link
+      href={`/tms-v2/brokers/${b.id}`}
+      className="flex items-center gap-2.5 border-b border-line px-3.5 py-2.5 transition-colors last:border-b-0 hover:bg-elevated"
+    >
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-elevated text-[13px] font-semibold text-fg-muted">
+        {initials(b.name)}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[14px] font-semibold leading-tight text-fg">{b.name}</span>
+        <span className="block text-[12px] text-fg-muted">
+          {b.loadsCount} {b.loadsCount === 1 ? "load" : "loads"}
+          {b.status !== "active" ? ` · ${b.status}` : ""}
+        </span>
+      </span>
+      <Money value={b.gross} tone="none" className="shrink-0 text-[13px] font-bold" />
+    </Link>
+  );
+}
+
+/**
+ * Brokers list — reverted to legacy /admin's operation (BrokerListSidebar.tsx):
+ * avatar-chip rows with loads count + gross-in-green, a name/MC/DOT search,
+ * and a Name/Gross/Loads sort selector — no KPI strip, no bulk actions,
+ * matching what legacy never had either. Kept as tms-v2's existing
+ * server-paginated single page rather than legacy's master-detail sidebar
+ * shell (a bigger IA change Brent didn't ask for) — this restyles the row
+ * and controls to match, not the split-pane layout.
+ */
 export default async function BrokersPage({
   searchParams,
 }: {
@@ -51,9 +64,11 @@ export default async function BrokersPage({
   const sp = await searchParams;
   const search = typeof sp.q === "string" ? sp.q : undefined;
   const page = typeof sp.page === "string" ? Math.max(1, Number(sp.page) || 1) : 1;
+  const sortRaw = typeof sp.sort === "string" ? sp.sort : undefined;
+  const sort: BrokerSortKey = sortRaw === "gross" || sortRaw === "loads" ? sortRaw : "name";
 
   const [list, archived] = await Promise.all([
-    listBrokerDirectory({ page, pageSize: PAGE_SIZE, search }),
+    listBrokerDirectory({ page, pageSize: PAGE_SIZE, search, sort }),
     listArchivedBrokers(),
   ]);
 
@@ -61,28 +76,22 @@ export default async function BrokersPage({
     <PageScroll
       header={
         <>
-          <PageHeader
-            title="Brokers"
-            description="Master directory of every broker partner — gross and A/R via the canonical, fuel-adjusted money engine."
-            actions={<NewBrokerButton />}
-          />
+          <PageHeader title="Brokers" actions={<NewBrokerButton />} />
 
-          <form className="flex flex-wrap items-end gap-3" method="GET">
-            <label className="flex flex-col gap-1 text-[13px] text-fg-muted">
-              Search
-              <input
-                type="text"
-                name="q"
-                defaultValue={search ?? ""}
-                placeholder="Broker name…"
-                className="h-9 w-64 rounded-md border border-line-strong bg-card px-2.5 text-[14px] text-fg"
-              />
-            </label>
+          <form className="flex flex-wrap items-center gap-2" method="GET">
+            <input type="hidden" name="sort" value={sort} />
+            <input
+              type="text"
+              name="q"
+              defaultValue={search ?? ""}
+              placeholder="Search by name, MC, or DOT"
+              className="h-9 w-64 rounded-md border border-line-strong bg-card px-2.5 text-[13px] text-fg focus:border-fg focus:outline-none"
+            />
             <button type="submit" className="h-9 rounded-md border border-line-strong bg-card px-3 text-[13px] font-medium text-fg hover:bg-elevated">
               Search
             </button>
             {search ? (
-              <Link href="/tms-v2/brokers" className="text-[13px] text-fg-muted underline">
+              <Link href={buildHref({ sort })} className="text-[13px] text-fg-muted underline">
                 Clear
               </Link>
             ) : null}
@@ -90,26 +99,44 @@ export default async function BrokersPage({
         </>
       }
     >
-      <DataList
-        columns={COLUMNS}
-        rows={list.rows}
-        rowKey={(b) => b.id}
-        getHref={(b) => `/tms-v2/brokers/${b.id}`}
-        emptyMessage="No brokers match this search."
-      />
+      <div className="mb-3 flex items-center justify-between">
+        <div className="flex items-center gap-1 text-[13px]">
+          <span className="text-fg-muted">Sort:</span>
+          {(["name", "gross", "loads"] as const).map((s) => (
+            <Link
+              key={s}
+              href={buildHref({ q: search, sort: s })}
+              className={`rounded-md px-2 py-1 font-medium ${sort === s ? "bg-elevated text-fg" : "text-fg-muted hover:text-fg"}`}
+            >
+              {s === "name" ? "Name (A–Z)" : s === "gross" ? "Gross (high)" : "Loads (high)"}
+            </Link>
+          ))}
+        </div>
+        <span className="text-[13px] text-fg-muted">{list.totalCount} broker{list.totalCount === 1 ? "" : "s"}</span>
+      </div>
+
+      {list.rows.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-line-strong bg-card px-4 py-10 text-center">
+          <p className="text-[13px] text-fg-muted">{search ? `No match for "${search}".` : "No brokers yet."}</p>
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-xl border border-line bg-card shadow-e1">
+          {list.rows.map((b) => (
+            <BrokerRow key={b.id} b={b} />
+          ))}
+        </div>
+      )}
 
       <div className="mt-4 flex items-center justify-between text-[13px] text-fg-muted">
-        <span>
-          {list.totalCount} broker{list.totalCount === 1 ? "" : "s"} · page {page}
-        </span>
+        <span>Page {page}</span>
         <div className="flex gap-3">
           {page > 1 ? (
-            <Link href={buildHref({ q: search, page: page - 1 })} className="underline">
+            <Link href={buildHref({ q: search, sort, page: page - 1 })} className="underline">
               ← Prev
             </Link>
           ) : null}
           {list.hasMore ? (
-            <Link href={buildHref({ q: search, page: page + 1 })} className="underline">
+            <Link href={buildHref({ q: search, sort, page: page + 1 })} className="underline">
               Next →
             </Link>
           ) : null}
