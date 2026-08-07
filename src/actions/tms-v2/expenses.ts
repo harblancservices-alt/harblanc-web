@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { mutation, type MutationResult } from "@/lib/demo/mutation";
 import { RECURRING_FREQUENCIES, type RecurringFrequency } from "@/lib/domain/expenses";
+import { nextChargeDate, toIsoDate } from "@/lib/data/recurring-expenses";
 
 /**
  * Recurring-expenses writes — same mutation() pattern as
@@ -245,4 +246,56 @@ export const bulkChangeExpenseCategory = mutation(async (ids: string[], category
 
   revalidatePath(PATH);
   return { ok: true };
+});
+
+/* ────────────────────────────────────────────────────────────── */
+/* Duplicate + Skip next payment — ported from legacy's                */
+/* admin/expenses/actions.ts (duplicateExpense/skipNextPayment),       */
+/* reshaped to mutation()/MutationResult like every other action here. */
+/* ────────────────────────────────────────────────────────────── */
+
+export const duplicateExpense = mutation(async (id: string): Promise<MutationResult<{ id: string }>> => {
+  const sb = createServiceRoleClient();
+  const { data: source, error: readError } = await sb
+    .from("recurring_expenses")
+    .select("name, category, vendor, amount, frequency, day_of_month, day_of_week, start_date, card, autopay")
+    .eq("id", id)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (readError || !source) return { ok: false, reason: `Could not duplicate: ${readError?.message ?? "expense not found"}` };
+
+  const { data: copy, error: insertError } = await sb
+    .from("recurring_expenses")
+    .insert({ ...source, name: `${source.name} (copy)`, archived: false })
+    .select("id")
+    .single<{ id: string }>();
+  if (insertError || !copy) return { ok: false, reason: `Could not duplicate: ${insertError?.message ?? "unknown error"}` };
+
+  revalidatePath(PATH);
+  return { ok: true, data: { id: copy.id } };
+});
+
+export const skipNextPayment = mutation(async (id: string): Promise<MutationResult<{ skippedDate: string }>> => {
+  const sb = createServiceRoleClient();
+  const { data: row, error: readError } = await sb
+    .from("recurring_expenses")
+    .select("frequency, day_of_month, day_of_week, start_date, skip_next_date")
+    .eq("id", id)
+    .is("deleted_at", null)
+    .maybeSingle<{ frequency: string; day_of_month: number | null; day_of_week: string | null; start_date: string | null; skip_next_date: string | null }>();
+  if (readError || !row) return { ok: false, reason: `Could not load expense: ${readError?.message ?? "not found"}` };
+
+  const frequency = isFrequency(row.frequency) ? row.frequency : "monthly";
+  const upcoming = nextChargeDate(
+    { frequency, dayOfMonth: row.day_of_month, dayOfWeek: row.day_of_week, startDate: row.start_date, skipNextDate: row.skip_next_date },
+    new Date(),
+  );
+  if (!upcoming) return { ok: false, reason: "This expense has no upcoming charge to skip." };
+
+  const skipDate = toIsoDate(upcoming);
+  const { error } = await sb.from("recurring_expenses").update({ skip_next_date: skipDate }).eq("id", id);
+  if (error) return { ok: false, reason: `Could not skip payment: ${error.message}` };
+
+  revalidatePath(PATH);
+  return { ok: true, data: { skippedDate: skipDate } };
 });

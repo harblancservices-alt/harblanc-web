@@ -71,7 +71,10 @@ const WEEKDAY_INDEX: Record<string, number> = {
  * Quarterly/annual have no stored anchor date to compute a next-occurrence
  * from (same honest gap /admin's ledger has — a real schema limitation, not
  * a bug introduced here). */
-function nextChargeDate(
+/** Exported so src/actions/tms-v2/expenses.ts's skipNextPayment can reuse
+ * the exact same schedule math this module's own mapRow() uses for
+ * nextChargeLabel/-DateIso, instead of a second derivation. */
+export function nextChargeDate(
   e: { frequency: RecurringFrequency; dayOfMonth: number | null; dayOfWeek: string | null; startDate: string | null; skipNextDate: string | null },
   today: Date,
 ): Date | null {
@@ -128,7 +131,7 @@ function formatNextCharge(date: Date, today: Date): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-function toIsoDate(d: Date): string {
+export function toIsoDate(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");

@@ -3,7 +3,7 @@
 import { useActionState, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/tms-v2/ui/Button";
-import { editExpense, setExpenseArchived } from "@/actions/tms-v2/expenses";
+import { editExpense, setExpenseArchived, duplicateExpense, skipNextPayment } from "@/actions/tms-v2/expenses";
 import type { MutationResult } from "@/lib/demo/mutation";
 import type { RecurringExpenseRow } from "@/lib/data/recurring-expenses";
 import { EXPENSE_CATEGORIES, RECURRING_FREQUENCIES, RECURRING_FREQUENCY_LABEL, type RecurringFrequency } from "@/lib/domain/expenses";
@@ -21,6 +21,10 @@ export function ExpenseDrawerContent({ expense }: { expense: RecurringExpenseRow
   const router = useRouter();
   const [frequency, setFrequency] = useState<RecurringFrequency>(expense.frequency);
   const [archivePending, startArchiveTransition] = useTransition();
+  const [dupPending, startDupTransition] = useTransition();
+  const [skipPending, startSkipTransition] = useTransition();
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const [state, formAction, pending] = useActionState<SaveState, FormData>(async (_prev, formData) => {
     const result: MutationResult = await editExpense(expense.id, formData);
@@ -38,11 +42,52 @@ export function ExpenseDrawerContent({ expense }: { expense: RecurringExpenseRow
     });
   }
 
+  function onDuplicate() {
+    setActionError(null);
+    setActionMessage(null);
+    startDupTransition(async () => {
+      const result = await duplicateExpense(expense.id);
+      if (result.ok) {
+        setActionMessage(`Duplicated as "${expense.name} (copy)".`);
+        router.refresh();
+      } else {
+        setActionError(result.reason);
+      }
+    });
+  }
+
+  function onSkipNext() {
+    if (!confirm("Skip the next scheduled charge for this expense?")) return;
+    setActionError(null);
+    setActionMessage(null);
+    startSkipTransition(async () => {
+      const result = await skipNextPayment(expense.id);
+      if (result.ok) {
+        setActionMessage(`Skipped the charge due ${result.data?.skippedDate ?? "next"}.`);
+        router.refresh();
+      } else {
+        setActionError(result.reason);
+      }
+    });
+  }
+
   return (
     <div className="flex flex-col gap-4 pt-3">
-      <Button type="button" variant="secondary" size="sm" onClick={toggleArchived} disabled={archivePending}>
-        {archivePending ? "…" : expense.archived ? "Restore" : "Archive"}
-      </Button>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button type="button" variant="secondary" size="sm" onClick={toggleArchived} disabled={archivePending}>
+          {archivePending ? "…" : expense.archived ? "Restore" : "Archive"}
+        </Button>
+        <Button type="button" variant="secondary" size="sm" onClick={onDuplicate} disabled={dupPending}>
+          {dupPending ? "Duplicating…" : "Duplicate"}
+        </Button>
+        {expense.frequency !== "onetime" ? (
+          <Button type="button" variant="secondary" size="sm" onClick={onSkipNext} disabled={skipPending}>
+            {skipPending ? "Skipping…" : "Skip next payment"}
+          </Button>
+        ) : null}
+      </div>
+      {actionMessage ? <p className="text-[13px] text-fg-muted">{actionMessage}</p> : null}
+      {actionError ? <p className="text-[13px] font-medium text-bad">{actionError}</p> : null}
 
       <form action={formAction} className="flex flex-col gap-3">
         <Field label="Name" name="name" required defaultValue={expense.name} />
