@@ -9,13 +9,18 @@ type ModalProps = {
   onClose: () => void;
   title?: string;
   children: ReactNode;
+  /** Override the dialog's max-width class — defaults to `max-w-lg`
+   * (every existing caller). Add Load's richer, multi-section form needed
+   * a bit more breathing room on desktop (~600px) without widening every
+   * other modal in the app that uses this same shared component. */
+  maxWidthClassName?: string;
 };
 
 /** Centered modal — Esc + backdrop click both close. Used sparingly per
  * v2-design.md's cross-cutting win #1 (inline-edit over modal-then-edit),
  * but kept as one shared implementation for the cases that genuinely need
  * it (BOL signer, Log Service, Applications detail). */
-export function Modal({ open, onClose, title, children }: ModalProps) {
+export function Modal({ open, onClose, title, children, maxWidthClassName = "max-w-lg" }: ModalProps) {
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {
@@ -33,7 +38,7 @@ export function Modal({ open, onClose, title, children }: ModalProps) {
       <div
         role="dialog"
         aria-modal="true"
-        className="relative w-full max-w-lg rounded-xl border border-line bg-card p-5 shadow-e3"
+        className={`relative w-full ${maxWidthClassName} rounded-xl border border-line bg-card p-5 shadow-e3`}
       >
         {title ? (
           <div className="mb-3 flex items-center justify-between">

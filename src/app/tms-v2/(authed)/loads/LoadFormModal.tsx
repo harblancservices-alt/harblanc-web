@@ -38,7 +38,7 @@ const NEW_TRIP = "__new__";
 const NO_TRIP = "";
 
 const SECTION_TITLE = "text-[13px] font-semibold text-fg";
-const SECTION = "flex flex-col gap-3 rounded-md border border-line-strong bg-elevated p-3";
+const SECTION = "flex flex-col gap-2.5 rounded-md border border-line-strong bg-elevated p-2.5";
 const TOGGLE_BASE = "px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-wide transition-colors";
 
 /** Stored date → the YYYY-MM-DD a native <input type="date"> expects. */
@@ -210,8 +210,8 @@ export function LoadFormModal({ open, onClose, brokerNames, activeTripNames, loa
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={editing ? "Edit load" : "Add load"}>
-      <form action={formAction} className="flex flex-col gap-4">
+    <Modal open={open} onClose={onClose} title={editing ? "Edit load" : "Add load"} maxWidthClassName="max-w-xl">
+      <form action={formAction} className="flex flex-col gap-3">
         <datalist id="tms-v2-broker-options">
           {brokerNames.map((n) => (
             <option key={n} value={n} />
@@ -282,7 +282,7 @@ export function LoadFormModal({ open, onClose, brokerNames, activeTripNames, loa
         <section className={SECTION}>
           <p className={SECTION_TITLE}>Lane &amp; schedule</p>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2.5">
             <div className="min-w-0">
               <Field
                 label="Origin ZIP"
@@ -309,12 +309,12 @@ export function LoadFormModal({ open, onClose, brokerNames, activeTripNames, loa
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2.5">
             <Field label="Pickup date" name="pickup_date" type="date" defaultValue={dateValue(load?.pickupDate)} />
             <Field label="Delivery date" name="delivery_date" type="date" defaultValue={dateValue(load?.deliveryDate)} />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2.5">
             <Field label="Rate ($)" name="rate" type="number" step="any" min="0" required defaultValue={load?.rate != null ? String(load.rate) : ""} />
             <Field label="Loaded miles" name="loaded_miles" type="number" min="0" value={miles} onChange={(e) => setMiles(e.target.value)} autoComplete="off" />
           </div>
@@ -385,7 +385,7 @@ export function LoadFormModal({ open, onClose, brokerNames, activeTripNames, loa
             autoComplete="off"
             placeholder="e.g. Mike at Dispatch"
           />
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
             <Field
               label="Dispatcher email"
               name="broker_email"
