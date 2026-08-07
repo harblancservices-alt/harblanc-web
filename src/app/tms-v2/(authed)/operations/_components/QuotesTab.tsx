@@ -1,21 +1,11 @@
 import Link from "next/link";
-import { DataList, type DataListColumn } from "@/components/tms-v2/ui/DataList";
-import { DateTimeCST } from "@/components/tms-v2/ui/DateTimeCST";
-import { listLeads, type LeadListRow } from "@/lib/data/pipeline";
+import { listLeads, listArchivedLeads } from "@/lib/data/pipeline";
 import { loadPipelineCards, PIPELINE_STAGES, type PipelineStage } from "@/lib/dispatch/pipeline";
 import { LEAD_STATUSES, LEAD_STATUS_LABELS } from "@/lib/dispatch/status";
-import { LeadStatusPill } from "../_lib/lead-status";
-import { UrgencyPill } from "../_lib/urgency-pill";
+import { QuotesListClient } from "./QuotesListClient";
+import { ArchivedLeadsSection } from "./ArchivedLeadsSection";
 
 const PAGE_SIZE = 25;
-
-const COLUMNS: DataListColumn<LeadListRow>[] = [
-  { key: "name", header: "Name", render: (l) => <span className="font-medium text-fg">{l.name}</span> },
-  { key: "lane", header: "Lane", render: (l) => `${l.originLabel} → ${l.destLabel}`, hideOnMobile: true },
-  { key: "status", header: "Status", render: (l) => <LeadStatusPill status={l.leadStatus} /> },
-  { key: "urgency", header: "Attention", render: (l) => <UrgencyPill chip={l.topUrgency} /> },
-  { key: "created", header: "Created", render: (l) => <DateTimeCST value={l.createdAt} mode="date" />, align: "right", hideOnMobile: true },
-];
 
 function buildHref(params: Record<string, string | number | undefined>): string {
   const usp = new URLSearchParams();
@@ -42,9 +32,10 @@ function FunnelStrip({ counts, total }: { counts: Record<PipelineStage, number>;
 }
 
 export async function QuotesTab({ page, status }: { page: number; status?: string }) {
-  const [list, pipelineCards] = await Promise.all([
+  const [list, pipelineCards, archived] = await Promise.all([
     listLeads({ page, pageSize: PAGE_SIZE, status }),
     loadPipelineCards(),
+    listArchivedLeads(),
   ]);
   const activeCards = pipelineCards.filter((c) => c.status !== "expired");
   const counts = Object.fromEntries(PIPELINE_STAGES.map((s) => [s.key, 0])) as Record<PipelineStage, number>;
@@ -81,13 +72,7 @@ export async function QuotesTab({ page, status }: { page: number; status?: strin
         ) : null}
       </form>
 
-      <DataList
-        columns={COLUMNS}
-        rows={list.rows}
-        rowKey={(l) => l.id}
-        getHref={(l) => `/tms-v2/operations/${l.id}`}
-        emptyMessage="No quote requests match this filter."
-      />
+      <QuotesListClient rows={list.rows} />
 
       <div className="flex items-center justify-between text-[13px] text-fg-muted">
         <span>
@@ -106,6 +91,8 @@ export async function QuotesTab({ page, status }: { page: number; status?: strin
           ) : null}
         </div>
       </div>
+
+      <ArchivedLeadsSection leads={archived} />
     </div>
   );
 }

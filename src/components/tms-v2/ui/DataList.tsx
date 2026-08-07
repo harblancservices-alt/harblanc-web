@@ -26,6 +26,19 @@ export type DataListColumn<T> = {
   hideOnMobile?: boolean;
 };
 
+/** Multi-select for a bulk-action toolbar above/below the list (Phase 6 item
+ * 3) — checkboxes are always visible once `selection` is passed (no
+ * separate "select mode" toggle), matching legacy Expenses' BulkBar
+ * pattern rather than Applications' select-mode-toggle pattern, so every
+ * bulk-enabled tms-v2 list behaves the same way. Ids are `rowKey(row)`,
+ * the same identity DataList already keys rows by. */
+export type DataListSelection = {
+  selectedIds: Set<string>;
+  onToggle: (id: string) => void;
+  onToggleAll: () => void;
+  allSelected: boolean;
+};
+
 type DataListProps<T> = {
   columns: DataListColumn<T>[];
   rows: T[];
@@ -34,6 +47,7 @@ type DataListProps<T> = {
    * not a client-side onClick, so rows stay server-renderable. */
   getHref?: (row: T) => string | undefined;
   emptyMessage?: string;
+  selection?: DataListSelection;
 };
 
 export function DataList<T>({
@@ -42,6 +56,7 @@ export function DataList<T>({
   rowKey,
   getHref,
   emptyMessage = "Nothing here yet.",
+  selection,
 }: DataListProps<T>) {
   if (rows.length === 0) {
     return (
@@ -65,12 +80,23 @@ export function DataList<T>({
         <table className="w-full border-collapse">
           <thead>
             <tr className="sticky top-14 z-10 border-b border-line-strong bg-panel text-left">
+              {selection ? (
+                <th className="w-10 rounded-tl-xl px-3 py-2.5">
+                  <input
+                    type="checkbox"
+                    checked={selection.allSelected}
+                    onChange={selection.onToggleAll}
+                    aria-label="Select all"
+                    className="h-4 w-4"
+                  />
+                </th>
+              ) : null}
               {columns.map((col, ci) => (
                 <th
                   key={col.key}
                   className={`whitespace-nowrap px-3 py-2.5 text-[12px] font-semibold uppercase tracking-wide text-fg-muted ${
                     col.align === "right" ? "text-right" : "text-left"
-                  } ${ci === 0 ? "rounded-tl-xl" : ""} ${ci === columns.length - 1 ? "rounded-tr-xl" : ""}`}
+                  } ${ci === 0 && !selection ? "rounded-tl-xl" : ""} ${ci === columns.length - 1 ? "rounded-tr-xl" : ""}`}
                 >
                   {col.header}
                 </th>
@@ -80,6 +106,7 @@ export function DataList<T>({
           <tbody>
             {rows.map((row, i) => {
               const href = getHref?.(row);
+              const id = rowKey(row);
               return (
                 <tr
                   key={rowKey(row)}
@@ -87,6 +114,17 @@ export function DataList<T>({
                     i % 2 === 1 ? "bg-inset/60" : ""
                   }`}
                 >
+                  {selection ? (
+                    <td className="px-3 py-2.5">
+                      <input
+                        type="checkbox"
+                        checked={selection.selectedIds.has(id)}
+                        onChange={() => selection.onToggle(id)}
+                        aria-label="Select row"
+                        className="h-4 w-4"
+                      />
+                    </td>
+                  ) : null}
                   {columns.map((col) => {
                     const cell = col.render(row);
                     const alignClass = col.align === "right" ? "text-right" : "text-left";
@@ -116,6 +154,7 @@ export function DataList<T>({
       <div className="flex flex-col gap-2 md:hidden">
         {rows.map((row) => {
           const href = getHref?.(row);
+          const id = rowKey(row);
           const body = (
             <div className="rounded-xl border border-line bg-card p-3 shadow-e1 transition-shadow active:shadow-e2">
               {columns
@@ -128,12 +167,25 @@ export function DataList<T>({
                 ))}
             </div>
           );
-          return href ? (
-            <Link key={rowKey(row)} href={href}>
+          const linked = href ? (
+            <Link href={href} className="min-w-0 flex-1">
               {body}
             </Link>
           ) : (
-            <div key={rowKey(row)}>{body}</div>
+            <div className="min-w-0 flex-1">{body}</div>
+          );
+          if (!selection) return <div key={id}>{linked}</div>;
+          return (
+            <div key={id} className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={selection.selectedIds.has(id)}
+                onChange={() => selection.onToggle(id)}
+                aria-label="Select row"
+                className="h-4 w-4 shrink-0"
+              />
+              {linked}
+            </div>
           );
         })}
       </div>

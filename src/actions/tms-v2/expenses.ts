@@ -156,3 +156,54 @@ export const setExpenseArchived = mutation(async (id: string, archived: boolean)
   revalidatePath(PATH);
   return { ok: true };
 });
+
+/* ────────────────────────────────────────────────────────────── */
+/* Bulk actions — Phase 6 item 3. Ported from legacy's                */
+/* admin/expenses/actions.ts (bulkArchiveExpenses/bulkDeleteExpenses/ */
+/* bulkChangeCategory), reshaped to mutation()/ids:string[] like the  */
+/* applications.ts bulk actions. Legacy's `deleted_at` delete has no  */
+/* restore UI anywhere (a genuine, permanent-looking removal) — that  */
+/* semantic is preserved as-is, not upgraded to a trash/restore flow. */
+/* ────────────────────────────────────────────────────────────── */
+
+function dedupeIds(ids: string[]): string[] {
+  return Array.from(new Set(ids.filter((s) => s.length > 0)));
+}
+
+export const bulkArchiveExpenses = mutation(async (ids: string[]): Promise<MutationResult> => {
+  const uniq = dedupeIds(ids);
+  if (uniq.length === 0) return { ok: false, reason: "No expenses selected." };
+
+  const sb = createServiceRoleClient();
+  const { error } = await sb.from("recurring_expenses").update({ archived: true }).in("id", uniq).is("deleted_at", null);
+  if (error) return { ok: false, reason: `Could not archive expenses: ${error.message}` };
+
+  revalidatePath(PATH);
+  return { ok: true };
+});
+
+export const bulkDeleteExpenses = mutation(async (ids: string[]): Promise<MutationResult> => {
+  const uniq = dedupeIds(ids);
+  if (uniq.length === 0) return { ok: false, reason: "No expenses selected." };
+
+  const sb = createServiceRoleClient();
+  const { error } = await sb.from("recurring_expenses").update({ deleted_at: new Date().toISOString() }).in("id", uniq);
+  if (error) return { ok: false, reason: `Could not delete expenses: ${error.message}` };
+
+  revalidatePath(PATH);
+  return { ok: true };
+});
+
+export const bulkChangeExpenseCategory = mutation(async (ids: string[], category: string): Promise<MutationResult> => {
+  const uniq = dedupeIds(ids);
+  if (uniq.length === 0) return { ok: false, reason: "No expenses selected." };
+  const trimmed = category.trim();
+  if (!trimmed) return { ok: false, reason: "Choose a category." };
+
+  const sb = createServiceRoleClient();
+  const { error } = await sb.from("recurring_expenses").update({ category: trimmed }).in("id", uniq).is("deleted_at", null);
+  if (error) return { ok: false, reason: `Could not update category: ${error.message}` };
+
+  revalidatePath(PATH);
+  return { ok: true };
+});

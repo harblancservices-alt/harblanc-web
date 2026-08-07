@@ -2,8 +2,6 @@ import Link from "next/link";
 import { PageHeader } from "@/components/tms-v2/ui/PageHeader";
 import { KpiTile } from "@/components/tms-v2/ui/KpiTile";
 import { Money } from "@/components/tms-v2/ui/Money";
-import { DateTimeCST } from "@/components/tms-v2/ui/DateTimeCST";
-import { DataList, type DataListColumn } from "@/components/tms-v2/ui/DataList";
 import { ContextDrawer } from "@/components/tms-v2/ui/ContextDrawer";
 import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
 import {
@@ -14,90 +12,16 @@ import {
   EXPENSE_CATEGORIES,
   RECURRING_FREQUENCIES,
   RECURRING_FREQUENCY_LABEL,
-  type RecurringExpenseRow,
   type RecurringFrequency,
 } from "@/lib/data/recurring-expenses";
-import { expenseGaps, EXPENSE_GAP_LABEL } from "@/lib/dispatch/alerts";
 import { ExpenseComposerProvider, ExpenseComposerToggleButton, ExpenseComposerPanel } from "./ExpenseComposer";
 import { ExpenseDrawerContent } from "./ExpenseDrawerContent";
-import { ExpenseRowActions } from "./ExpenseRowActions";
+import { ExpensesListClient } from "./ExpensesListClient";
 
 // Money-affecting data, read fresh every visit — matches Today's pattern.
 export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 25;
-
-function buildColumns(accountNames: string[]): DataListColumn<RecurringExpenseRow>[] {
-  const accountNameSet = new Set(accountNames);
-
-  function gapsFor(r: RecurringExpenseRow) {
-    return expenseGaps(
-      {
-        amount: r.amount,
-        frequency: r.frequency,
-        dayOfMonth: r.dayOfMonth,
-        dayOfWeek: r.dayOfWeek,
-        startDate: r.startDate,
-        card: r.cardName,
-        category: r.category,
-      },
-      accountNameSet,
-    );
-  }
-
-  return [
-  {
-    key: "vendor",
-    header: "Vendor",
-    render: (r) => {
-      const gaps = gapsFor(r);
-      return (
-        <div className="flex items-start gap-2">
-          {gaps.length > 0 ? (
-            <span
-              className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-warn"
-              title={`Incomplete: ${gaps.map((g) => EXPENSE_GAP_LABEL[g]).join(", ")}`}
-              aria-label={`Incomplete: ${gaps.map((g) => EXPENSE_GAP_LABEL[g]).join(", ")}`}
-            />
-          ) : null}
-          <div>
-            <div className="font-medium text-fg">{r.vendor || r.name}</div>
-            {r.vendor && r.vendor !== r.name ? <div className="text-[12px] text-fg-muted">{r.name}</div> : null}
-          </div>
-        </div>
-      );
-    },
-  },
-  { key: "category", header: "Category", render: (r) => r.category ?? "—" },
-  {
-    key: "card",
-    header: "Card",
-    render: (r) =>
-      r.cardName ? (
-        <span>
-          {r.cardName}
-          {r.cardLast4 ? <span className="text-fg-muted"> ····{r.cardLast4}</span> : null}
-        </span>
-      ) : (
-        "—"
-      ),
-    hideOnMobile: true,
-  },
-  { key: "frequency", header: "Frequency", render: (r) => RECURRING_FREQUENCY_LABEL[r.frequency] },
-  { key: "next", header: "Next charge", render: (r) => r.nextChargeLabel ?? "—" },
-  { key: "status", header: "Status", render: (r) => (r.archived ? "Archived" : "Active"), hideOnMobile: true },
-  // Neutral ink by default (v2-design.md's money-is-language rule) — every
-  // row here is an expense, so coloring every amount red said nothing; the
-  // amber dot on Vendor is now what actually carries "needs a look".
-  { key: "amount", header: "Amount", render: (r) => <Money value={r.amount} tone="none" />, align: "right" },
-  {
-    key: "actions",
-    header: "",
-    render: (r) => <ExpenseRowActions expense={r} />,
-    align: "right",
-  },
-  ];
-}
 
 function buildHref(params: Record<string, string | number | undefined>): string {
   const usp = new URLSearchParams();
@@ -132,11 +56,6 @@ export default async function ExpensesPage({
 
   const baseParams = { category, frequency, status, q: search, page: page > 1 ? page : undefined };
   const accountNames = accounts.map((a) => a.name);
-  const columns = buildColumns(accountNames);
-
-  function rowHref(id: string): string {
-    return buildHref({ ...baseParams, id });
-  }
   const closeHref = buildHref(baseParams);
 
   return (
@@ -210,13 +129,7 @@ export default async function ExpensesPage({
         </>
       }
     >
-      <DataList
-        columns={columns}
-        rows={list.rows}
-        rowKey={(r) => r.id}
-        getHref={(r) => rowHref(r.id)}
-        emptyMessage="No recurring expenses match these filters."
-      />
+      <ExpensesListClient rows={list.rows} accountNames={accountNames} baseParams={baseParams} />
 
       <div className="mt-4 flex items-center justify-between text-[13px] text-fg-muted">
         <span>
@@ -235,10 +148,6 @@ export default async function ExpensesPage({
           ) : null}
         </div>
       </div>
-
-      <p className="mt-4 text-[13px] text-fg-muted">
-        Server render time: <DateTimeCST value={new Date()} />
-      </p>
     </PageScroll>
     </div>
 

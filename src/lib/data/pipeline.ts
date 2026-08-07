@@ -289,6 +289,27 @@ export async function listLeads(opts: ListLeadsOptions = {}): Promise<Paginated<
   return toPaginated(enriched, count ?? 0, page, pageSize);
 }
 
+export type ArchivedLeadRow = { id: string; name: string; deletedAt: string; deleteAfter: string | null };
+
+/** Trashed leads — Quotes tab's collapsible trash section (Phase 6 item 3),
+ * mirrors listArchivedApplications/listArchivedBrokers. */
+export async function listArchivedLeads(): Promise<ArchivedLeadRow[]> {
+  if (await isDemoMode()) return [];
+
+  const sb = createServiceRoleClient();
+  const { data } = await sb
+    .from("quote_requests")
+    .select("id, name, deleted_at, delete_after")
+    .not("deleted_at", "is", null)
+    .order("deleted_at", { ascending: false })
+    .limit(50)
+    .returns<{ id: string; name: string | null; deleted_at: string | null; delete_after: string | null }[]>();
+
+  return (data ?? [])
+    .filter((l) => l.deleted_at !== null)
+    .map((l) => ({ id: l.id, name: l.name?.trim() || "Unnamed request", deletedAt: l.deleted_at as string, deleteAfter: l.delete_after }));
+}
+
 // ---------------------------------------------------------------------------
 // Applications list — Operations hub, Applications tab
 // ---------------------------------------------------------------------------
