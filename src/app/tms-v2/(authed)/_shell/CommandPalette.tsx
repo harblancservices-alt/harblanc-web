@@ -20,7 +20,7 @@ const ALL_NAV = [...TMS_V2_NAV, TMS_V2_SETTINGS];
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SearchResults>({ loads: [], brokers: [] });
+  const [results, setResults] = useState<SearchResults>({ loads: [], brokers: [], files: [] });
   const [pending, startTransition] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
@@ -41,7 +41,7 @@ export function CommandPalette() {
   useEffect(() => {
     if (open) {
       setQuery("");
-      setResults({ loads: [], brokers: [] });
+      setResults({ loads: [], brokers: [], files: [] });
       requestAnimationFrame(() => inputRef.current?.focus());
     }
   }, [open]);
@@ -49,7 +49,7 @@ export function CommandPalette() {
   useEffect(() => {
     const q = query.trim();
     if (q.length < 2) {
-      setResults({ loads: [], brokers: [] });
+      setResults({ loads: [], brokers: [], files: [] });
       return;
     }
     const t = setTimeout(() => {
@@ -63,7 +63,8 @@ export function CommandPalette() {
 
   const navMatches = ALL_NAV.filter((n) => n.label.toLowerCase().includes(query.trim().toLowerCase())).slice(0, 6);
   const hasQuery = query.trim().length >= 2;
-  const noResults = hasQuery && !pending && navMatches.length === 0 && results.loads.length === 0 && results.brokers.length === 0;
+  const noResults =
+    hasQuery && !pending && navMatches.length === 0 && results.loads.length === 0 && results.brokers.length === 0 && results.files.length === 0;
 
   function go(href: string) {
     setOpen(false);
@@ -100,7 +101,7 @@ export function CommandPalette() {
                 ref={inputRef}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search loads, brokers, or pages…"
+                placeholder="Search loads, brokers, files, or pages…"
                 className="h-8 w-full bg-transparent text-[15px] text-fg placeholder:text-fg-muted focus:outline-none"
               />
               <kbd className="shrink-0 rounded border border-line-strong px-1.5 py-0.5 text-[11px] text-fg-muted">Esc</kbd>
@@ -131,9 +132,17 @@ export function CommandPalette() {
                 </PaletteGroup>
               ) : null}
 
+              {results.files.length > 0 ? (
+                <PaletteGroup label="Files">
+                  {results.files.map((f) => (
+                    <PaletteRow key={f.id} label={f.label} sublabel={f.sublabel} onSelect={() => go(f.href)} />
+                  ))}
+                </PaletteGroup>
+              ) : null}
+
               {!hasQuery ? (
                 <p className="px-4 py-6 text-center text-[13px] text-fg-muted">
-                  Type to search pages, loads (by #), or brokers.
+                  Type to search pages, loads, brokers, or files.
                 </p>
               ) : null}
               {pending ? <p className="px-4 py-3 text-[13px] text-fg-muted">Searching…</p> : null}
