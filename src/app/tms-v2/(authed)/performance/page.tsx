@@ -43,10 +43,9 @@ export default async function PerformancePage({ searchParams }: PageProps) {
     Promise.all(trendPeriods.map((p) => getAnalyticsLoads(periodRange(p)))),
   ]);
 
-  const trend: TrendPoint[] = trendPeriods.map((p, i) => ({
-    label: SHORT_MONTH[p.month],
-    net: summarize(trendLoadSets[i]).net,
-  }));
+  const trendSummaries = trendLoadSets.map((rows) => summarize(rows));
+  const netTrend: TrendPoint[] = trendPeriods.map((p, i) => ({ label: SHORT_MONTH[p.month], value: trendSummaries[i].net }));
+  const rateTrend: TrendPoint[] = trendPeriods.map((p, i) => ({ label: SHORT_MONTH[p.month], value: trendSummaries[i].grossRpm ?? 0 }));
 
   const summary = summarize(loads);
   const prevSummary = summarize(prevLoads);
@@ -138,12 +137,20 @@ export default async function PerformancePage({ searchParams }: PageProps) {
         </>
       }
     >
-      <Card className="mb-6">
-        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Net · trailing {TREND_MONTHS} months</p>
-        <div className="mt-3">
-          <TrendChart points={trend} />
-        </div>
-      </Card>
+      <div className="mb-6 grid grid-cols-1 gap-3 lg:grid-cols-2">
+        <Card>
+          <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Net · trailing {TREND_MONTHS} months</p>
+          <div className="mt-3">
+            <TrendChart points={netTrend} />
+          </div>
+        </Card>
+        <Card>
+          <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Rate ($/mi) · trailing {TREND_MONTHS} months</p>
+          <div className="mt-3">
+            <TrendChart points={rateTrend} formatValue={rpm} />
+          </div>
+        </Card>
+      </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <PartyStatList title="Top brokers" rows={brokers} />
