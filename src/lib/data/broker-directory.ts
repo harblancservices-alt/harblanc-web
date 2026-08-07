@@ -145,3 +145,21 @@ export async function listBrokerDirectory(opts: ListBrokerDirectoryOptions = {})
 
   return toPaginated(rows, count ?? rows.length, page, pageSize);
 }
+
+export type ArchivedBrokerRow = { id: string; name: string; deletedAt: string | null };
+
+/** Archived (soft-deleted) brokers — bounded to 50, the "restore" surface
+ * for archiveBroker/restoreBroker (audit trap #7: no restore path existed
+ * anywhere for any entity). Not shown in demo mode — nothing to restore. */
+export async function listArchivedBrokers(): Promise<ArchivedBrokerRow[]> {
+  if (await isDemoMode()) return [];
+  const sb = createServiceRoleClient();
+  const { data } = await sb
+    .from("brokers")
+    .select("id, name, deleted_at")
+    .not("deleted_at", "is", null)
+    .order("deleted_at", { ascending: false })
+    .limit(50)
+    .returns<{ id: string; name: string; deleted_at: string | null }[]>();
+  return (data ?? []).map((b) => ({ id: b.id, name: b.name, deletedAt: b.deleted_at }));
+}

@@ -6,10 +6,11 @@ import { Money } from "@/components/tms-v2/ui/Money";
 import { StatusPill } from "@/components/tms-v2/ui/StatusPill";
 import { DateTimeCST } from "@/components/tms-v2/ui/DateTimeCST";
 import { DataList, type DataListColumn } from "@/components/tms-v2/ui/DataList";
-import { getBrokerProfile, type BrokerContact, type BrokerLane, type BrokerLoadHistoryRow } from "@/lib/data/broker-profile";
+import { getBrokerProfile, type BrokerLane, type BrokerLoadHistoryRow } from "@/lib/data/broker-profile";
 import { BrokerStatusPill } from "../_lib/broker-status";
 import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
 import { MarkPaidCell } from "@/components/tms-v2/MarkPaidCell";
+import { BrokerActions, ContactsSection } from "./BrokerActions";
 
 // Money-affecting data, read fresh every visit — matches Today's pattern.
 export const dynamic = "force-dynamic";
@@ -45,26 +46,6 @@ const LANE_COLUMNS: DataListColumn<BrokerLane>[] = [
   { key: "last", header: "Last delivered", render: (l) => <DateTimeCST value={l.lastDeliveryDate} mode="date" />, hideOnMobile: true },
 ];
 
-function ContactRow({ contact }: { contact: BrokerContact }) {
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line py-2.5 text-[14px] last:border-b-0">
-      <div>
-        <span className="font-medium text-fg">{contact.name ?? "Unnamed contact"}</span>
-        {contact.title ? <span className="ml-2 text-fg-muted">{contact.title}</span> : null}
-        {contact.isBackhaul ? (
-          <span className="ml-2 inline-flex items-center rounded-full bg-warn-bg px-2 py-0.5 text-[11px] font-medium text-warn">
-            Backhaul
-          </span>
-        ) : null}
-      </div>
-      <div className="flex gap-4 text-fg-muted">
-        <span>{contact.phone ?? "—"}</span>
-        <span>{contact.email ?? "—"}</span>
-      </div>
-    </div>
-  );
-}
-
 export default async function BrokerDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const profile = await getBrokerProfile(id);
@@ -89,8 +70,16 @@ export default async function BrokerDetailPage({ params }: { params: Promise<{ i
             .filter(Boolean)
             .join(" · ")}
           badge={<BrokerStatusPill status={identity.status} />}
+          actions={<BrokerActions identity={identity} />}
         />
       </div>
+
+      {identity.notes ? (
+        <section className="flex flex-col gap-2">
+          <h2 className="text-[15px] font-semibold text-fg">Notes</h2>
+          <p className="whitespace-pre-wrap rounded-md border border-line bg-elevated px-3 py-2.5 text-[14px] text-fg">{identity.notes}</p>
+        </section>
+      ) : null}
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <KpiTile label="Loads" value={String(kpis.loadsCount)} />
@@ -111,15 +100,7 @@ export default async function BrokerDetailPage({ params }: { params: Promise<{ i
 
       <section className="flex flex-col gap-2">
         <h2 className="text-[15px] font-semibold text-fg">Contacts ({contacts.length})</h2>
-        {contacts.length === 0 ? (
-          <p className="text-[13px] text-fg-muted">No contacts on file for this broker.</p>
-        ) : (
-          <div className="rounded-xl border border-line bg-card px-3 shadow-e1">
-            {contacts.map((c) => (
-              <ContactRow key={c.id} contact={c} />
-            ))}
-          </div>
-        )}
+        <ContactsSection brokerId={identity.id} contacts={contacts} />
       </section>
 
       <section className="flex flex-col gap-2">

@@ -3,8 +3,10 @@ import { PageHeader } from "@/components/tms-v2/ui/PageHeader";
 import { Money } from "@/components/tms-v2/ui/Money";
 import { DataList, type DataListColumn } from "@/components/tms-v2/ui/DataList";
 import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
-import { listBrokerDirectory, type BrokerDirectoryRow } from "@/lib/data/broker-directory";
+import { listBrokerDirectory, listArchivedBrokers, type BrokerDirectoryRow } from "@/lib/data/broker-directory";
 import { BrokerStatusPill } from "./_lib/broker-status";
+import { NewBrokerButton } from "./NewBrokerButton";
+import { ArchivedBrokersSection } from "./ArchivedBrokersSection";
 
 // Money-affecting data, read fresh every visit — matches Today's pattern.
 export const dynamic = "force-dynamic";
@@ -50,7 +52,10 @@ export default async function BrokersPage({
   const search = typeof sp.q === "string" ? sp.q : undefined;
   const page = typeof sp.page === "string" ? Math.max(1, Number(sp.page) || 1) : 1;
 
-  const list = await listBrokerDirectory({ page, pageSize: PAGE_SIZE, search });
+  const [list, archived] = await Promise.all([
+    listBrokerDirectory({ page, pageSize: PAGE_SIZE, search }),
+    listArchivedBrokers(),
+  ]);
 
   return (
     <PageScroll
@@ -58,7 +63,8 @@ export default async function BrokersPage({
         <>
           <PageHeader
             title="Brokers"
-            description="Master directory of every broker partner — gross and A/R via the canonical, fuel-adjusted money engine. Quick-add and edit land in a later phase; this view reads live."
+            description="Master directory of every broker partner — gross and A/R via the canonical, fuel-adjusted money engine."
+            actions={<NewBrokerButton />}
           />
 
           <form className="flex flex-wrap items-end gap-3" method="GET">
@@ -109,6 +115,8 @@ export default async function BrokersPage({
           ) : null}
         </div>
       </div>
+
+      <ArchivedBrokersSection brokers={archived} />
     </PageScroll>
   );
 }
