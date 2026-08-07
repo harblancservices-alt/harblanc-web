@@ -24,21 +24,16 @@ import { usePathname, useSearchParams } from "next/navigation";
  * own box, so the scroll container needs its own clearance, not just the
  * shell's.
  *
- * ROOT CAUSE FIX (the Load Board "invisible row"): this is a nested
- * overflow-y-auto container, not the window — Next.js resets window
- * scroll on navigation but has no idea this div exists, so a scrollTop
- * picked up on a longer list (e.g. a fuller month) survives a client-side
- * navigation to a shorter one (e.g. this period's single row). DataList's
- * sticky <thead> computes its "stuck" position from that SAME stale
- * scrollTop and immediately paints its opaque bg-panel band over wherever
- * that offset lands — which, on a one-row page, is exactly on top of the
- * only row there is. The row's text was never actually invisible (DOM/
- * get_page_text always had it); it was rendered normally and then covered
- * by the sticky header's own background, which reads as a blank white gap
- * since both are near-white cards. Resetting scroll to 0 on every
- * pathname/searchParams change (period, filters, sort, page — anything
- * that changes the row set) means the sticky header can never start
- * "stuck" over content that was never actually scrolled to.
+ * Resets scroll to 0 on every pathname/searchParams change (period,
+ * filters, sort, page) so a stale scroll position from a longer list
+ * never carries over onto a shorter one after navigating — a real, if
+ * secondary, issue in its own right. NOTE: this was originally written as
+ * a (mis)diagnosed fix for the Load Board "invisible row" bug; live DOM
+ * inspection later proved that bug was actually DataList's sticky
+ * `<thead>` landing at the wrong offset even at scrollTop 0 and painting
+ * over the body row underneath it — fixed by dropping `sticky` from
+ * DataList's header entirely (see DataList.tsx). This scroll-reset stays
+ * because it's independently correct, not because it was ever the cause.
  */
 export function PageScroll({ header, children }: { header?: ReactNode; children: ReactNode }) {
   const scrollRef = useRef<HTMLDivElement>(null);

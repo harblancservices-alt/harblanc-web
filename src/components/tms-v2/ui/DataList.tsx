@@ -85,18 +85,20 @@ export function DataList<T>({
 
   return (
     <div>
-      {/* Desktop: elevated card, sticky header, zebra rows, hover highlight.
-          No overflow-hidden/overflow-x-auto wrapper here on purpose — either
-          creates a local scroll container per the CSS overflow-computation
-          rule (an explicit x/y other than visible forces the other axis to
-          "auto" too), which would trap the sticky header inside this card
-          instead of letting it stick to the page's real scroll under the
-          fixed top bar. Rounded corners are approximated on the header/last
-          row instead of clipped. */}
+      {/* Desktop: elevated card, static header, zebra rows, hover highlight.
+          Header is deliberately NOT sticky (dropped 2026-08 — see
+          DataList's confirmed-live bug: `sticky top-14` was landing at the
+          wrong offset even at scrollTop 0 and painting its opaque bg-panel
+          band straight over the body row(s) underneath it, e.g. a one-row
+          Load Board where the header covered the only row there was.
+          Brent's lists are short — a static header that scrolls with its
+          rows is a complete, simpler fix and kills this whole class of
+          bug, not just this one repro. Rounded corners are approximated on
+          the header/last row instead of clipped. */}
       <div className="hidden rounded-xl border border-line bg-card shadow-e1 md:block">
         <table className="w-full border-collapse">
           <thead>
-            <tr className="sticky top-14 z-10 border-b border-line-strong bg-panel text-left">
+            <tr className="border-b border-line-strong bg-panel text-left">
               {selection ? (
                 <th className="w-10 rounded-tl-xl px-3 py-2.5">
                   <input
