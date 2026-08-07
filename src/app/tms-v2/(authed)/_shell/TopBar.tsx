@@ -1,19 +1,30 @@
+"use client";
+
 import Link from "next/link";
-import { IconBell, IconPlus } from "@/lib/nav/icons";
-import { CommandPalette } from "./CommandPalette";
+import { IconBell, IconPlus, IconSearch } from "@/lib/nav/icons";
+import { useShellSearch } from "./ShellSearchProvider";
 
 /**
- * Top bar — brand, global search / ⌘K, notification bell placeholder,
- * quick-add placeholder, identity + sign out. Sign out posts to the
- * EXISTING /admin/logout route handler (src/app/admin/logout/route.ts)
- * rather than a second copy — it signs out the one shared Supabase Auth
- * session and redirects to /admin/login, which is correct for /tms-v2 too
- * (v2-architecture.md §7: one session, one login screen for the whole
- * authed surface).
+ * Top strip — brand mark + a minimal, BORDERLESS top-right icon cluster
+ * (search, notifications, quick-add, identity, sign out). No bar: no
+ * border, no background — Brent's explicit ask was no "header" look
+ * anywhere in /tms-v2 (nav.config.ts's registry drives the sidebar/bottom
+ * nav, which already say what page you're on; this strip is just where
+ * the account-level controls live, not a page header).
+ *
+ * Desktop-only (`hidden lg:flex` on the cluster) — on mobile these same
+ * controls live in MoreSheet instead, so nothing is lost, it's just not
+ * competing for space with the content on a small screen.
+ *
+ * Sign out posts to the EXISTING /admin/logout route handler
+ * (src/app/admin/logout/route.ts) rather than a second copy — it signs
+ * out the one shared Supabase Auth session (v2-architecture.md §7).
  */
 export function TopBar({ email }: { email: string | null }) {
+  const { setOpen } = useShellSearch();
+
   return (
-    <header className="z-40 flex h-14 shrink-0 items-center gap-3 border-b border-line bg-panel px-4 md:px-8">
+    <div className="flex h-14 shrink-0 items-center gap-3 px-4 md:px-8">
       <Link href="/tms-v2" prefetch={false} className="flex items-center gap-2 font-semibold text-fg">
         <span className="flex h-7 w-7 items-center justify-center rounded bg-accent text-[13px] font-bold text-white">
           H
@@ -21,34 +32,23 @@ export function TopBar({ email }: { email: string | null }) {
         <span className="hidden sm:inline">Harblanc</span>
       </Link>
 
-      <CommandPalette />
-
-      <div className="ml-auto flex items-center gap-3">
-        <button
-          type="button"
-          disabled
-          title="Notifications — coming soon"
-          className="text-fg-muted opacity-60"
-          aria-label="Notifications"
-        >
+      <div className="ml-auto hidden items-center gap-4 lg:flex">
+        <button type="button" onClick={() => setOpen(true)} title="Search — ⌘K" aria-label="Search" className="text-fg-muted hover:text-fg">
+          <IconSearch className="h-5 w-5" />
+        </button>
+        <button type="button" disabled title="Notifications — coming soon" aria-label="Notifications" className="text-fg-muted opacity-60">
           <IconBell className="h-5 w-5" />
         </button>
-        <button
-          type="button"
-          disabled
-          title="Quick add — coming soon"
-          className="hidden items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-[13px] font-medium text-white opacity-60 sm:inline-flex"
-        >
-          <IconPlus className="h-4 w-4" />
-          New
+        <button type="button" disabled title="Quick add — coming soon" aria-label="Quick add" className="text-fg-muted opacity-60">
+          <IconPlus className="h-5 w-5" />
         </button>
-        {email ? <span className="hidden text-[13px] text-fg-muted md:inline">{email}</span> : null}
+        {email ? <span className="text-[13px] text-fg-muted">{email}</span> : null}
         <form action="/admin/logout" method="post">
           <button type="submit" className="text-[13px] text-fg-muted hover:text-fg">
             Sign out
           </button>
         </form>
       </div>
-    </header>
+    </div>
   );
 }

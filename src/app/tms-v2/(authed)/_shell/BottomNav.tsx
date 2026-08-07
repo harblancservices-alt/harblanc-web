@@ -13,7 +13,7 @@ import { MoreSheet } from "./MoreSheet";
  * MoreSheet. Same source array as the desktop sidebar, so these can never
  * drift out of sync with it.
  */
-export function BottomNav() {
+export function BottomNav({ email }: { email: string | null }) {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
   const items = mobilePrimaryNav();
@@ -49,7 +49,7 @@ export function BottomNav() {
           More
         </button>
       </nav>
-      <MoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} />
+      <MoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} email={email} />
     </>
   );
 }

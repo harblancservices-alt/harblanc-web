@@ -3,6 +3,8 @@ import { TopBar } from "./TopBar";
 import { Sidebar } from "./Sidebar";
 import { BottomNav } from "./BottomNav";
 import { Breadcrumb } from "./Breadcrumb";
+import { ShellSearchProvider } from "./ShellSearchProvider";
+import { CommandPalette } from "./CommandPalette";
 
 /**
  * The responsive app shell — desktop sidebar + mobile bottom nav, both
@@ -28,16 +30,19 @@ import { Breadcrumb } from "./Breadcrumb";
  */
 export function PortalShell({ email, children }: { email: string | null; children: ReactNode }) {
   return (
-    <div className="tms-v2-light flex h-dvh flex-col overflow-hidden bg-canvas text-fg">
-      <TopBar email={email} />
-      <div className="mx-auto flex min-h-0 w-full max-w-[1400px] flex-1">
-        <Sidebar />
-        <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-4 pb-24 pt-6 md:px-8 md:pb-8 lg:pb-8">
-          <Breadcrumb />
-          <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
-        </main>
+    <ShellSearchProvider>
+      <div className="tms-v2-light flex h-dvh flex-col overflow-hidden bg-canvas text-fg">
+        <TopBar email={email} />
+        <div className="mx-auto flex min-h-0 w-full max-w-[1400px] flex-1">
+          <Sidebar />
+          <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-4 pb-24 pt-6 md:px-8 md:pb-8 lg:pb-8">
+            <Breadcrumb />
+            <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+          </main>
+        </div>
+        <BottomNav email={email} />
       </div>
-      <BottomNav />
-    </div>
+      <CommandPalette />
+    </ShellSearchProvider>
   );
 }
