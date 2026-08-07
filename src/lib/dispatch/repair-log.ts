@@ -12,6 +12,7 @@
 
 export {
   currentOdoFromLoads,
+  currentOdoFromSources,
   earliestOdoFromLoads,
   computeMaintenance,
   computeCostPerMile,

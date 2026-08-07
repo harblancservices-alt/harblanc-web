@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import {
   computeFreshness,
-  currentOdoFromLoads,
+  currentOdoFromSources,
   groupKey,
   isCategory,
   type Category,
@@ -112,7 +112,7 @@ async function loadDetail(entryId: string): Promise<{
 
   const serviceById = new Map((allServices ?? []).map((s) => [s.id, s]));
   const svc = serviceById.get(focused.service_id) ?? null;
-  const currentOdo = currentOdoFromLoads(odoRows);
+  const currentOdo = currentOdoFromSources(odoRows, (allServices ?? []).map((s) => s.odometer));
   const today = new Date().toISOString().slice(0, 10);
 
   const reminderInterval = new Map<string, number>();

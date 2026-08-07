@@ -8,7 +8,7 @@ import {
   categoryFromSlug,
   computeFreshness,
   computeMaintenance,
-  currentOdoFromLoads,
+  currentOdoFromSources,
   groupKey,
   isPosition,
   type Category,
@@ -114,7 +114,7 @@ async function loadCategory(category: Category): Promise<{
       .returns<{ part_group: string | null }[]>(),
   ]);
 
-  const currentOdo = currentOdoFromLoads(odoRows);
+  const currentOdo = currentOdoFromSources(odoRows, (serviceRows ?? []).map((s) => s.odometer));
   const today = new Date().toISOString().slice(0, 10);
   const serviceById = new Map((serviceRows ?? []).map((s) => [s.id, s]));
 

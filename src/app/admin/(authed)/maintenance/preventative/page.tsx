@@ -5,7 +5,7 @@ import {
   CATEGORY_SLUG,
   computeFreshness,
   computeMaintenance,
-  currentOdoFromLoads,
+  currentOdoFromSources,
   groupKey,
   isCategory,
   type Category,
@@ -117,7 +117,7 @@ async function loadPreventative(): Promise<{
       .returns<{ a_id: string; b_id: string }[]>(),
   ]);
 
-  const currentOdo = currentOdoFromLoads(odoRows);
+  const currentOdo = currentOdoFromSources(odoRows, (serviceRows ?? []).map((s) => s.odometer));
   const today = new Date().toISOString().slice(0, 10);
 
   const serviceById = new Map((serviceRows ?? []).map((s) => [s.id, s]));

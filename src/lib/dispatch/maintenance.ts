@@ -2,8 +2,15 @@
  * Maintenance math — shared by the Maintenance page and the dashboard
  * oil/fuel-filter widget so the status / next-due / progress all agree.
  *
- * Pure functions, no DB. The "current odometer" is the highest reading
- * across non-deleted loads (computed by the caller).
+ * Pure functions, no DB. The truck's "current odometer" is the highest
+ * reading across EVERY recorded source: load odometer readings
+ * (odo_assigned/odo_loaded/odo_delivered) AND logged maintenance/service
+ * odometers (repair_services.odometer) — a service can be logged at a
+ * higher reading than any load has recorded (e.g. a shop visit between
+ * loads, or the last load's delivery odo was never entered), and that
+ * reading is just as real. currentOdoFromSources() is the one place this
+ * is computed; every caller must go through it (not currentOdoFromLoads()
+ * alone) or the current-odo readout silently disagrees between pages.
  */
 
 export type MaintStatus = "overdue" | "soon" | "ok" | "baseline";
@@ -17,7 +24,11 @@ export type MaintComputed = {
   pct: number;
 };
 
-/** Highest odometer reading across the given load rows (0 if none). */
+/** Highest odometer reading across the given load rows only (0 if none).
+ * Not the truck's current odometer by itself — see currentOdoFromSources(),
+ * which also folds in logged service odometers. Kept as its own export
+ * because a couple of call sites (lane-miles/backhaul context) genuinely
+ * want "highest load reading," not the truck's overall current odometer. */
 export function currentOdoFromLoads(
   rows: ReadonlyArray<{
     odo_assigned: number | null;
@@ -28,6 +39,29 @@ export function currentOdoFromLoads(
   let max = 0;
   for (const l of rows ?? []) {
     max = Math.max(max, l.odo_assigned ?? 0, l.odo_loaded ?? 0, l.odo_delivered ?? 0);
+  }
+  return max;
+}
+
+/**
+ * The truck's current odometer — the highest reading across BOTH loads
+ * (odo_assigned/odo_loaded/odo_delivered) and logged maintenance/service
+ * odometers (repair_services.odometer). This is the one function every
+ * "current odometer" readout in the app must call; currentOdoFromLoads()
+ * alone under-counts whenever a service was logged at a higher reading
+ * than any load has recorded.
+ */
+export function currentOdoFromSources(
+  loadRows: ReadonlyArray<{
+    odo_assigned: number | null;
+    odo_loaded: number | null;
+    odo_delivered: number | null;
+  }> | null,
+  serviceOdometers: ReadonlyArray<number | null> | null,
+): number {
+  let max = currentOdoFromLoads(loadRows);
+  for (const o of serviceOdometers ?? []) {
+    if (o != null) max = Math.max(max, o);
   }
   return max;
 }

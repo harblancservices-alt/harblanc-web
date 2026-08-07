@@ -6,7 +6,7 @@ import { fetchOpenTripNames } from "@/lib/dispatch/active-trips";
 import { loadPipelineCards } from "@/lib/dispatch/pipeline";
 import {
   computeMaintenance,
-  currentOdoFromLoads,
+  currentOdoFromSources,
   groupKey,
 } from "@/lib/dispatch/repair-log";
 import {
@@ -104,6 +104,7 @@ async function loadDashboard(): Promise<DashboardData> {
     activeTrips,
     { data: reminderRows },
     { data: odoRows },
+    { data: serviceOdoRows },
     { data: goalRows },
     { data: deliveredRows },
     { data: fuelRow },
@@ -191,6 +192,10 @@ async function loadDashboard(): Promise<DashboardData> {
           odo_delivered: number | null;
         }[]
       >(),
+    // Logged maintenance/service odometers — also fold into current odometer
+    // (currentOdoFromSources): a service can be logged at a higher reading
+    // than any load has recorded.
+    sb.from("repair_services").select("odometer").returns<{ odometer: number | null }[]>(),
     // Countdown goals — the editable financial targets for the dashboard widget.
     sb
       .from("countdown_goals")
@@ -358,10 +363,11 @@ async function loadDashboard(): Promise<DashboardData> {
     .filter((n) => n.length > 0);
 
   // Maintenance widget — oil + fuel-filter reminders against the truck's
-  // current odometer (highest reading across non-deleted loads). Each
-  // reminder's last-done odometer is the highest reading among the SERVICES of
-  // the parts in its part_group, falling back to its anchor baseline.
-  const maintOdo = currentOdoFromLoads(odoRows);
+  // current odometer (highest reading across non-deleted loads AND logged
+  // service odometers — currentOdoFromSources). Each reminder's last-done
+  // odometer is the highest reading among the SERVICES of the parts in its
+  // part_group, falling back to its anchor baseline.
+  const maintOdo = currentOdoFromSources(odoRows, (serviceOdoRows ?? []).map((s) => s.odometer));
   const reminders = reminderRows ?? [];
   const maxOdoByGroup = new Map<string, number>();
   if (reminders.length > 0) {

@@ -6,7 +6,7 @@ import {
   NON_CORNER_POSITIONS,
   POSITION_LABEL,
   computeFreshness,
-  currentOdoFromLoads,
+  currentOdoFromSources,
   groupKey,
   isCategory,
   isPosition,
@@ -105,7 +105,7 @@ async function loadSet(groupParam: string): Promise<{
   });
 
   const label = rawParts.find((r) => r.part_group)?.part_group ?? groupParam;
-  const currentOdo = currentOdoFromLoads(odoRows);
+  const currentOdo = currentOdoFromSources(odoRows, (serviceRows ?? []).map((s) => s.odometer));
   const today = new Date().toISOString().slice(0, 10);
 
   // Dominant category (presets the "Log a part" form).

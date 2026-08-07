@@ -50,26 +50,42 @@ function cat(v: string | null | undefined): Category {
 }
 
 // ---------------------------------------------------------------------------
-// Current odometer — highest reading across all non-deleted loads' three
-// odometer columns, via one bounded order+limit(1) query per column instead
-// of pulling every load row to compute a client-side max.
+// Current odometer — the highest reading across BOTH loads' three odometer
+// columns AND logged maintenance/service odometers (repair_services.
+// odometer), via one bounded order+limit(1) query per source instead of
+// pulling every row to compute a client-side max. A service can be logged
+// at a higher reading than any load has recorded (e.g. a shop visit
+// between loads), so loads-only under-counts — this is the same
+// currentOdoFromSources() rule src/lib/dispatch/maintenance.ts's row-array
+// version applies, expressed as bounded queries to match this module's own
+// query-shape discipline (see its header comment).
 
 async function fetchCurrentOdo(sb: SB): Promise<number> {
-  const columns = ["odo_assigned", "odo_loaded", "odo_delivered"] as const;
-  const maxes = await Promise.all(
-    columns.map(async (col) => {
-      const { data } = await sb
-        .from("loads")
-        .select(col)
-        .is("deleted_at", null)
-        .not(col, "is", null)
-        .order(col, { ascending: false })
-        .limit(1)
-        .maybeSingle<Record<string, number | null>>();
-      return data?.[col] ?? 0;
-    }),
-  );
-  return Math.max(0, ...maxes);
+  const loadColumns = ["odo_assigned", "odo_loaded", "odo_delivered"] as const;
+  const [loadMaxes, serviceMax] = await Promise.all([
+    Promise.all(
+      loadColumns.map(async (col) => {
+        const { data } = await sb
+          .from("loads")
+          .select(col)
+          .is("deleted_at", null)
+          .not(col, "is", null)
+          .order(col, { ascending: false })
+          .limit(1)
+          .maybeSingle<Record<string, number | null>>();
+        return data?.[col] ?? 0;
+      }),
+    ),
+    sb
+      .from("repair_services")
+      .select("odometer")
+      .not("odometer", "is", null)
+      .order("odometer", { ascending: false })
+      .limit(1)
+      .maybeSingle<{ odometer: number | null }>()
+      .then(({ data }) => data?.odometer ?? 0),
+  ]);
+  return Math.max(0, ...loadMaxes, serviceMax);
 }
 
 // ---------------------------------------------------------------------------
