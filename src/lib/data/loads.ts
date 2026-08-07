@@ -161,6 +161,11 @@ export type LoadDocumentItem = {
   url: string | null;
   sizeBytes: number | null;
   mime: string | null;
+  /** Roles (receiver/carrier) signed on this BOL, resolved via its original
+   * doc when this row IS a signed output. Ordered receiver-first. */
+  signedRoles: string[];
+  /** Set on a generated "— signed.pdf": the original doc it was stamped from. */
+  signedFromDocId: string | null;
 };
 
 export const LOAD_DOC_KIND_LABEL: Record<string, string> = {
@@ -224,7 +229,7 @@ export async function getLoadDetail(id: string): Promise<LoadDetail | null> {
   }
 
   const sb = createServiceRoleClient();
-  const [{ data: extraRow }, { data: docRows }] = await Promise.all([
+  const [{ data: extraRow }, { data: docRows }, { data: sigRows }] = await Promise.all([
     sb
       .from("loads")
       .select("equipment, origin_zip, dest_zip, odo_assigned, odo_loaded, odo_delivered")
@@ -253,7 +258,18 @@ export async function getLoadDetail(id: string): Promise<LoadDetail | null> {
           signed_from_doc_id: string | null;
         }[]
       >(),
+    sb.from("bol_signatures").select("doc_id, role").eq("load_id", id).returns<{ doc_id: string; role: string }[]>(),
   ]);
+
+  // Which roles (receiver/carrier) are signed on each BOL, keyed by the
+  // ORIGINAL doc — matches /admin's role-badge resolution exactly.
+  const ROLE_ORDER = ["receiver", "carrier"];
+  const rolesByDoc = new Map<string, string[]>();
+  for (const s of sigRows ?? []) {
+    const arr = rolesByDoc.get(s.doc_id) ?? [];
+    if (!arr.includes(s.role)) arr.push(s.role);
+    rolesByDoc.set(s.doc_id, arr);
+  }
 
   const docs = docRows ?? [];
   let signedByPath = new Map<string, string>();
@@ -280,6 +296,10 @@ export async function getLoadDetail(id: string): Promise<LoadDetail | null> {
     const key = `${d.kind}|${d.signed_from_doc_id ? "s" : "u"}`;
     const index = (seqByGroup.get(key) ?? 0) + 1;
     seqByGroup.set(key, index);
+    const anchorId = d.signed_from_doc_id ?? d.id;
+    const signedRoles = (rolesByDoc.get(anchorId) ?? [])
+      .slice()
+      .sort((a, b) => ROLE_ORDER.indexOf(a) - ROLE_ORDER.indexOf(b));
     return {
       id: d.id,
       kind: d.kind,
@@ -294,6 +314,8 @@ export async function getLoadDetail(id: string): Promise<LoadDetail | null> {
       url: signedByPath.get(d.storage_path) ?? null,
       sizeBytes: d.size_bytes,
       mime: d.mime_type,
+      signedRoles,
+      signedFromDocId: d.signed_from_doc_id,
     };
   });
 

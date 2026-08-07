@@ -10,6 +10,7 @@ import { getTripById } from "@/lib/data/trips";
 import { getLoadById, type LoadWithFinancials } from "@/lib/data/loads";
 import { formatMoney } from "@/lib/domain/money";
 import { marginTone } from "../trip-columns";
+import { MarkPaidCell } from "@/components/tms-v2/MarkPaidCell";
 
 // Trip detail reads live, request-scoped data — always fresh, matching the
 // Trips list and Today.
@@ -41,6 +42,15 @@ const LINKED_LOAD_COLUMNS: DataListColumn<LoadWithFinancials>[] = [
   { key: "status", header: "Status", render: (l) => <StatusPill status={l.status} domain="load" /> },
   { key: "rate", header: "Rate", render: (l) => <Money value={l.financials.gross} tone="none" />, align: "right" },
   { key: "net", header: "Net", render: (l) => <Money value={l.financials.net} />, align: "right" },
+  {
+    key: "markPaid",
+    header: "",
+    render: (l) =>
+      (l.status === "delivered" || l.status === "tonu") && l.paymentStatus !== "paid" ? (
+        <MarkPaidCell loadId={l.id} />
+      ) : null,
+    align: "right",
+  },
 ];
 
 export default async function TripDetailPage({

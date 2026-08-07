@@ -4,7 +4,7 @@ import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Modal } from "@/components/tms-v2/ui/Modal";
 import { Button } from "@/components/tms-v2/ui/Button";
-import { markLoadDelivered, markLoadTonu, editLoadOdometer } from "@/actions/tms-v2/loads";
+import { markLoadDelivered, markLoadTonu, editLoadOdometer, markLoadPaid, markLoadUnpaid, deleteLoad } from "@/actions/tms-v2/loads";
 import type { MutationResult } from "@/lib/demo/mutation";
 import { Field, FormError, FormActions } from "../_form";
 import { LoadFormModal, type LoadFormValues } from "../LoadFormModal";
@@ -15,6 +15,7 @@ const INITIAL: SaveState = { ok: false, error: null };
 type Props = {
   load: LoadFormValues & {
     status: string;
+    paymentStatus: "unpaid" | "paid";
     odoAssigned: number | null;
     odoLoaded: number | null;
     odoDelivered: number | null;
@@ -24,36 +25,69 @@ type Props = {
 };
 
 /** Load Detail's write actions — Edit load, Mark delivered, Mark TONU, Edit
- * odometer. One component so the detail page stays a plain data-fetching
- * Server Component (v2-architecture.md §2's page-shell rule) and every
- * interactive bit lives in this one client island. */
+ * odometer, Mark paid/unpaid, Delete load. One component so the detail page
+ * stays a plain data-fetching Server Component (v2-architecture.md §2's
+ * page-shell rule) and every interactive bit lives in this one client
+ * island. */
 export function LoadActions({ load, brokerNames, activeTripNames }: Props) {
   const router = useRouter();
-  const [openModal, setOpenModal] = useState<"edit" | "delivered" | "tonu" | "odometer" | null>(null);
+  const [openModal, setOpenModal] = useState<"edit" | "delivered" | "tonu" | "odometer" | "delete" | null>(null);
   const close = () => setOpenModal(null);
   const refresh = () => router.refresh();
 
   const canMarkDelivered = load.status !== "delivered" && load.status !== "tonu";
   const canMarkTonu = load.status !== "tonu";
+  const isClosedOut = load.status === "delivered" || load.status === "tonu";
+
+  const [payState, setPayState] = useState<{ pending: boolean; error: string | null }>({ pending: false, error: null });
+
+  async function togglePaid() {
+    setPayState({ pending: true, error: null });
+    const result: MutationResult = load.paymentStatus === "paid" ? await markLoadUnpaid(load.id) : await markLoadPaid(load.id);
+    if (result.ok) {
+      setPayState({ pending: false, error: null });
+      refresh();
+    } else {
+      setPayState({ pending: false, error: result.reason });
+    }
+  }
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <Button type="button" variant="secondary" size="sm" onClick={() => setOpenModal("edit")}>
-        Edit load
-      </Button>
-      <Button type="button" variant="secondary" size="sm" onClick={() => setOpenModal("odometer")}>
-        Edit odometer
-      </Button>
-      {canMarkDelivered ? (
-        <Button type="button" variant="secondary" size="sm" onClick={() => setOpenModal("delivered")}>
-          Mark delivered
+    <div className="flex flex-col items-end gap-1">
+      <div className="flex flex-wrap items-center gap-2">
+        <Button type="button" variant="secondary" size="sm" onClick={() => setOpenModal("edit")}>
+          Edit load
         </Button>
-      ) : null}
-      {canMarkTonu ? (
-        <Button type="button" variant="destructive" size="sm" onClick={() => setOpenModal("tonu")}>
-          Mark TONU
+        <Button type="button" variant="secondary" size="sm" onClick={() => setOpenModal("odometer")}>
+          Edit odometer
         </Button>
-      ) : null}
+        {canMarkDelivered ? (
+          <Button type="button" variant="secondary" size="sm" onClick={() => setOpenModal("delivered")}>
+            Mark delivered
+          </Button>
+        ) : null}
+        {canMarkTonu ? (
+          <Button type="button" variant="destructive" size="sm" onClick={() => setOpenModal("tonu")}>
+            Mark TONU
+          </Button>
+        ) : null}
+        {isClosedOut ? (
+          <Button
+            type="button"
+            variant={load.paymentStatus === "paid" ? "secondary" : "primary"}
+            size="sm"
+            onClick={togglePaid}
+            disabled={payState.pending}
+            aria-busy={payState.pending}
+          >
+            {payState.pending ? "Saving…" : load.paymentStatus === "paid" ? "Undo mark paid" : "Mark paid"}
+          </Button>
+        ) : null}
+        <Button type="button" variant="destructive" size="sm" onClick={() => setOpenModal("delete")}>
+          Delete
+        </Button>
+      </div>
+      {payState.error ? <span className="text-[12px] text-bad">{payState.error}</span> : null}
 
       <LoadFormModal
         open={openModal === "edit"}
@@ -74,7 +108,46 @@ export function LoadActions({ load, brokerNames, activeTripNames }: Props) {
         odoDelivered={load.odoDelivered}
         onSaved={refresh}
       />
+      <DeleteLoadModal open={openModal === "delete"} onClose={close} loadId={load.id} />
     </div>
+  );
+}
+
+function DeleteLoadModal({ open, onClose, loadId }: { open: boolean; onClose: () => void; loadId: string }) {
+  const router = useRouter();
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function onConfirm() {
+    setPending(true);
+    setError(null);
+    const result: MutationResult = await deleteLoad(loadId);
+    if (result.ok) {
+      router.push("/tms-v2/loads");
+      router.refresh();
+    } else {
+      setPending(false);
+      setError(result.reason);
+    }
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title="Delete load">
+      <div className="flex flex-col gap-3">
+        <p className="text-[13px] text-fg-muted">
+          This removes the load from the Load Board, Trips, and Broker rollups. This can&apos;t be undone from tms-v2.
+        </p>
+        <FormError message={error} />
+        <FormActions>
+          <Button type="button" variant="secondary" onClick={onClose} disabled={pending}>
+            Cancel
+          </Button>
+          <Button type="button" variant="destructive" onClick={onConfirm} disabled={pending} aria-busy={pending}>
+            {pending ? "Deleting…" : "Delete load"}
+          </Button>
+        </FormActions>
+      </div>
+    </Modal>
   );
 }
 

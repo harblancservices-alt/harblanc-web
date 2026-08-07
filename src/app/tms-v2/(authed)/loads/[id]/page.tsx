@@ -4,11 +4,13 @@ import { PageHeader } from "@/components/tms-v2/ui/PageHeader";
 import { Money } from "@/components/tms-v2/ui/Money";
 import { DateTimeCST } from "@/components/tms-v2/ui/DateTimeCST";
 import { StatusPill } from "@/components/tms-v2/ui/StatusPill";
-import { getLoadDetail, LOAD_DOC_KIND_LABEL } from "@/lib/data/loads";
+import { getLoadDetail } from "@/lib/data/loads";
 import { listBrokers } from "@/lib/data/brokers";
 import { listTrips } from "@/lib/data/trips";
 import { MoneyLine, DetailRow, SectionHeading } from "./_parts";
 import { LoadActions } from "./LoadActions";
+import { ExpensesSection } from "./ExpensesSection";
+import { DocumentsSection } from "./DocumentsSection";
 import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
 
 // A load's financials/documents/status can change between visits — always
@@ -58,6 +60,7 @@ export default async function LoadDetailPage({ params }: { params: Promise<{ id:
               loadedMiles: financials.loadedMiles,
               tripName: load.tripName,
               status: load.status,
+              paymentStatus: load.paymentStatus,
               odoAssigned: load.odoAssigned,
               odoLoaded: load.odoLoaded,
               odoDelivered: load.odoDelivered,
@@ -95,20 +98,10 @@ export default async function LoadDetailPage({ params }: { params: Promise<{ id:
             <MoneyLine label="Net" value={financials.net} bold />
           </div>
 
-          {load.expenseItems.length > 0 ? (
-            <div className="flex flex-col gap-1.5">
-              <h3 className="text-[13px] font-medium text-fg-muted">Expense detail</h3>
-              {load.expenseItems.map((e) => (
-                <div key={e.id} className="flex items-center justify-between text-[13px]">
-                  <span className="min-w-0 truncate text-fg">
-                    {e.category ?? "Expense"}
-                    {e.note ? ` — ${e.note}` : ""}
-                  </span>
-                  <Money value={e.amount} tone="negative" />
-                </div>
-              ))}
-            </div>
-          ) : null}
+          <div className="flex flex-col gap-1.5">
+            <h3 className="text-[13px] font-medium text-fg-muted">Expense detail</h3>
+            <ExpensesSection loadId={load.id} items={load.expenseItems} />
+          </div>
 
           <SectionHeading>Load details</SectionHeading>
           <dl className="flex flex-col divide-y divide-line border-y border-line">
@@ -159,38 +152,7 @@ export default async function LoadDetailPage({ params }: { params: Promise<{ id:
           </dl>
 
           <SectionHeading>Documents</SectionHeading>
-          {load.documents.length === 0 ? (
-            <p className="text-[13px] text-fg-muted">No documents uploaded yet.</p>
-          ) : (
-            <div className="flex flex-col gap-1.5">
-              {load.documents.map((d) =>
-                d.url ? (
-                  <a
-                    key={d.id}
-                    href={d.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="flex items-center justify-between gap-3 rounded-md border border-line px-3 py-2 text-[13px] text-fg hover:bg-elevated"
-                  >
-                    <span className="min-w-0 truncate">{d.name}</span>
-                    <span className="shrink-0 text-fg-muted">{LOAD_DOC_KIND_LABEL[d.kind] ?? d.kind}</span>
-                  </a>
-                ) : (
-                  <div
-                    key={d.id}
-                    className="flex items-center justify-between gap-3 rounded-md border border-line px-3 py-2 text-[13px] text-fg-muted"
-                  >
-                    <span className="min-w-0 truncate">{d.name}</span>
-                    <span className="shrink-0">Unavailable</span>
-                  </div>
-                ),
-              )}
-            </div>
-          )}
-
-          <p className="text-[13px] text-fg-muted">
-            Document uploads and payment-status actions (Mark paid) land in a later phase.
-          </p>
+          <DocumentsSection loadId={load.id} docs={load.documents} />
         </section>
       </div>
     </div>

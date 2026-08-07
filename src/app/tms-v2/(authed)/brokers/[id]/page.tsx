@@ -9,6 +9,7 @@ import { DataList, type DataListColumn } from "@/components/tms-v2/ui/DataList";
 import { getBrokerProfile, type BrokerContact, type BrokerLane, type BrokerLoadHistoryRow } from "@/lib/data/broker-profile";
 import { BrokerStatusPill } from "../_lib/broker-status";
 import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
+import { MarkPaidCell } from "@/components/tms-v2/MarkPaidCell";
 
 // Money-affecting data, read fresh every visit — matches Today's pattern.
 export const dynamic = "force-dynamic";
@@ -21,6 +22,12 @@ const HISTORY_COLUMNS: DataListColumn<BrokerLoadHistoryRow>[] = [
   { key: "status", header: "Status", render: (l) => <StatusPill status={l.status} domain="load" />, hideOnMobile: true },
   { key: "rate", header: "Rate", render: (l) => <Money value={l.financials.gross} tone="none" />, align: "right" },
   { key: "net", header: "Net", render: (l) => <Money value={l.financials.net} />, align: "right" },
+  {
+    key: "markPaid",
+    header: "",
+    render: (l) => ((l.status === "delivered" || l.status === "tonu") && l.paymentStatus !== "paid" ? <MarkPaidCell loadId={l.id} /> : null),
+    align: "right",
+  },
 ];
 
 const LANE_COLUMNS: DataListColumn<BrokerLane>[] = [

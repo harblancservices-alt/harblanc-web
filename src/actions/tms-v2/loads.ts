@@ -292,3 +292,86 @@ export const markLoadTonu = mutation(async (id: string, formData: FormData): Pro
   revalidateLoadPaths(id);
   return { ok: true };
 });
+
+function revalidateArPaths(id: string) {
+  revalidateLoadPaths(id);
+  revalidatePath("/tms-v2/receivables");
+}
+
+/** Flip a load's payment_status to "paid" and stamp paid_at — the AR-Paid
+ * transition (audit's #1 finding: legacy's markLoadPaid ported to the
+ * MutationResult pattern, same fields/table). */
+export const markLoadPaid = mutation(async (id: string): Promise<MutationResult> => {
+  const sb = createServiceRoleClient();
+  const { error } = await sb
+    .from("loads")
+    .update({ payment_status: "paid", paid_at: new Date().toISOString() })
+    .eq("id", id)
+    .is("deleted_at", null);
+  if (error) return { ok: false, reason: `Could not mark paid: ${error.message}` };
+
+  revalidateArPaths(id);
+  return { ok: true };
+});
+
+/** Undo a mark-paid — the reversible half of the AR-Paid transition. */
+export const markLoadUnpaid = mutation(async (id: string): Promise<MutationResult> => {
+  const sb = createServiceRoleClient();
+  const { error } = await sb
+    .from("loads")
+    .update({ payment_status: "unpaid", paid_at: null })
+    .eq("id", id)
+    .is("deleted_at", null);
+  if (error) return { ok: false, reason: `Could not undo paid: ${error.message}` };
+
+  revalidateArPaths(id);
+  return { ok: true };
+});
+
+/** Soft-delete a load — same `deleted_at` convention every other tms-v2
+ * entity uses. Redirects back to the Load Board on success, matching V1's
+ * deleteLoad (there's nowhere useful to stay once the load is gone). */
+export const deleteLoad = mutation(async (id: string): Promise<MutationResult> => {
+  const sb = createServiceRoleClient();
+  const { error } = await sb.from("loads").update({ deleted_at: new Date().toISOString() }).eq("id", id);
+  if (error) return { ok: false, reason: `Could not delete load: ${error.message}` };
+
+  revalidateLoadPaths(id);
+  return { ok: true };
+});
+
+/** Add a manual per-load expense (toll, lumper, etc). Category autofills
+ * from prior entries on the client — this just persists whatever was typed. */
+export const addLoadExpense = mutation(async (loadId: string, formData: FormData): Promise<MutationResult> => {
+  const category = str(formData, "category");
+  const amount = numOrNull(formData, "amount");
+  if (!category) return { ok: false, reason: "Category is required." };
+  if (amount == null || amount < 0) return { ok: false, reason: "Enter a valid amount." };
+
+  const sb = createServiceRoleClient();
+  const { error } = await sb.from("load_expenses").insert({
+    load_id: loadId,
+    category,
+    amount,
+    note: str(formData, "note"),
+  });
+  if (error) return { ok: false, reason: `Could not add expense: ${error.message}` };
+
+  revalidateLoadPaths(loadId);
+  revalidatePath("/tms-v2/trips");
+  return { ok: true };
+});
+
+/** Soft-delete a per-load expense. */
+export const deleteLoadExpense = mutation(async (expenseId: string, loadId: string): Promise<MutationResult> => {
+  const sb = createServiceRoleClient();
+  const { error } = await sb
+    .from("load_expenses")
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", expenseId);
+  if (error) return { ok: false, reason: `Could not delete expense: ${error.message}` };
+
+  revalidateLoadPaths(loadId);
+  revalidatePath("/tms-v2/trips");
+  return { ok: true };
+});

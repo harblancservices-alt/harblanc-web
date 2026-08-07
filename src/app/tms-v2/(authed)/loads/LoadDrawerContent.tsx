@@ -50,6 +50,7 @@ export function LoadDrawerContent({
           loadedMiles: financials.loadedMiles,
           tripName: load.tripName,
           status: load.status,
+          paymentStatus: load.paymentStatus,
           odoAssigned: load.odoAssigned,
           odoLoaded: load.odoLoaded,
           odoDelivered: load.odoDelivered,

@@ -12,6 +12,7 @@ import {
   AGING_BUCKET_LABEL,
   type CarrierReceivableRow,
 } from "@/lib/data/receivables";
+import { MarkPaidCell } from "@/components/tms-v2/MarkPaidCell";
 
 // Money-affecting data, read fresh every visit — matches Today's pattern.
 export const dynamic = "force-dynamic";
@@ -53,6 +54,12 @@ const COLUMNS: DataListColumn<CarrierReceivableRow>[] = [
     render: (r) => <Money value={r.amount} tone={r.overdue ? "negative" : "auto"} />,
     align: "right",
   },
+  {
+    key: "markPaid",
+    header: "",
+    render: (r) => <MarkPaidCell loadId={r.loadId} />,
+    align: "right",
+  },
 ];
 
 function buildHref(page: number): string {
@@ -78,7 +85,7 @@ export default async function ReceivablesPage({
         <>
           <PageHeader
             title="Receivables"
-            description="Carrier freight A/R — every delivered or TONU'd load still unpaid, aged from its delivery date via the one computeCarrierAR rule. Distinct from customer-brokerage money on Accounting. Mark-paid lands in a later phase; this view reads live."
+            description="Carrier freight A/R — every delivered or TONU'd load still unpaid, aged from its delivery date via the one computeCarrierAR rule. Distinct from customer-brokerage money on Accounting."
           />
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
