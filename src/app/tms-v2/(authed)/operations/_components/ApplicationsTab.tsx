@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { DataList, type DataListColumn } from "@/components/tms-v2/ui/DataList";
 import { DateTimeCST } from "@/components/tms-v2/ui/DateTimeCST";
-import { listApplications, type ApplicationRow } from "@/lib/data/pipeline";
+import { listApplications, listArchivedApplications, type ApplicationRow } from "@/lib/data/pipeline";
+import { ArchivedApplicationsSection } from "./ArchivedApplicationsSection";
 
 const PAGE_SIZE = 25;
 
@@ -22,16 +23,22 @@ function buildHref(page: number): string {
 
 /** No `status` column exists on `applications` (current-tms-audit.md §15)
  * — the table deliberately omits a status pill rather than fabricate one,
- * same restraint v2-design.md §19 calls for. Row click has no destination
- * yet (a dedicated /tms-v2/operations/applications/[id] read view is a
- * follow-up, not part of this phase's scope), so rows render as plain
- * (non-linked) list entries. */
+ * same restraint v2-design.md §19 calls for. */
 export async function ApplicationsTab({ page }: { page: number }) {
-  const list = await listApplications({ page, pageSize: PAGE_SIZE });
+  const [list, archived] = await Promise.all([
+    listApplications({ page, pageSize: PAGE_SIZE }),
+    listArchivedApplications(),
+  ]);
 
   return (
     <div className="flex flex-col gap-4">
-      <DataList columns={COLUMNS} rows={list.rows} rowKey={(a) => a.id} emptyMessage="No applications submitted yet." />
+      <DataList
+        columns={COLUMNS}
+        rows={list.rows}
+        rowKey={(a) => a.id}
+        getHref={(a) => `/tms-v2/operations/applications/${a.id}`}
+        emptyMessage="No applications submitted yet."
+      />
 
       <div className="flex items-center justify-between text-[13px] text-fg-muted">
         <span>
@@ -50,6 +57,8 @@ export async function ApplicationsTab({ page }: { page: number }) {
           ) : null}
         </div>
       </div>
+
+      <ArchivedApplicationsSection applications={archived} />
     </div>
   );
 }

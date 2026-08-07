@@ -368,6 +368,121 @@ export async function listApplications(opts: ListApplicationsOptions = {}): Prom
 }
 
 // ---------------------------------------------------------------------------
+// Application detail + trash — /tms-v2/operations/applications/[id]
+// (Phase 6 item 1). Mirrors legacy's applications/[id]/page.tsx loader:
+// selects every column, including deleted_at/delete_after, with no
+// deleted_at filter — a trashed application must still be viewable so its
+// detail page can offer Restore.
+// ---------------------------------------------------------------------------
+
+export type ApplicationDetail = ApplicationRow & {
+  message: string | null;
+  userAgent: string | null;
+  ip: string | null;
+  deletedAt: string | null;
+  deleteAfter: string | null;
+};
+
+export async function getApplicationDetail(id: string): Promise<ApplicationDetail | null> {
+  if (await isDemoMode()) {
+    const demo = DEMO_APPLICATIONS.find((a) => a.id === id);
+    if (!demo) return null;
+    return { ...demo, message: "Demo application — no changes are saved.", userAgent: null, ip: null, deletedAt: null, deleteAfter: null };
+  }
+
+  const sb = createServiceRoleClient();
+  const { data } = await sb
+    .from("applications")
+    .select(
+      "id, created_at, name, phone, email, equipment_type, cdl_status, years_experience, home_base, message, user_agent, ip, deleted_at, delete_after",
+    )
+    .eq("id", id)
+    .maybeSingle<{
+      id: string;
+      created_at: string;
+      name: string;
+      phone: string;
+      email: string;
+      equipment_type: string;
+      cdl_status: string;
+      years_experience: string | null;
+      home_base: string | null;
+      message: string | null;
+      user_agent: string | null;
+      ip: string | null;
+      deleted_at: string | null;
+      delete_after: string | null;
+    }>();
+
+  if (!data) return null;
+
+  return {
+    id: data.id,
+    createdAt: data.created_at,
+    name: data.name,
+    phone: data.phone,
+    email: data.email,
+    equipmentType: data.equipment_type,
+    cdlStatus: data.cdl_status,
+    yearsExperience: data.years_experience,
+    homeBase: data.home_base,
+    message: data.message,
+    userAgent: data.user_agent,
+    ip: data.ip,
+    deletedAt: data.deleted_at,
+    deleteAfter: data.delete_after,
+  };
+}
+
+export type ArchivedApplicationRow = ApplicationRow & { deletedAt: string; deleteAfter: string | null };
+
+/** Trashed applications — the Applications tab's collapsible trash section
+ * (mirrors listArchivedBrokers in broker-directory.ts). 30-day retention is
+ * enforced by legacy's own cron/cleanup path, not re-derived here. */
+export async function listArchivedApplications(): Promise<ArchivedApplicationRow[]> {
+  if (await isDemoMode()) return [];
+
+  const sb = createServiceRoleClient();
+  const { data } = await sb
+    .from("applications")
+    .select("id, created_at, name, phone, email, equipment_type, cdl_status, years_experience, home_base, deleted_at, delete_after")
+    .not("deleted_at", "is", null)
+    .order("deleted_at", { ascending: false })
+    .limit(50)
+    .returns<
+      {
+        id: string;
+        created_at: string;
+        name: string;
+        phone: string;
+        email: string;
+        equipment_type: string;
+        cdl_status: string;
+        years_experience: string | null;
+        home_base: string | null;
+        deleted_at: string | null;
+        delete_after: string | null;
+      }[]
+    >();
+
+  return (data ?? [])
+    .filter((a) => a.deleted_at !== null)
+    .map((a) => ({
+      id: a.id,
+      createdAt: a.created_at,
+      name: a.name,
+      phone: a.phone,
+      email: a.email,
+      equipmentType: a.equipment_type,
+      cdlStatus: a.cdl_status,
+      yearsExperience: a.years_experience,
+      homeBase: a.home_base,
+      deletedAt: a.deleted_at as string,
+      deleteAfter: a.delete_after,
+    }));
+}
+
+// ---------------------------------------------------------------------------
 // Pipeline detail — /tms-v2/operations/[id] (v2-design.md §14, read-only)
 // ---------------------------------------------------------------------------
 
