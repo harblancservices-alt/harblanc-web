@@ -49,6 +49,12 @@ export type LoadWithFinancials = {
   financials: LoadFinancials;
 };
 
+/** Sortable columns on the Load Board — raw DB columns only. Rate/Net are
+ * derived by the money engine after the query runs (computeLoadNet), not
+ * something SQL can ORDER BY without fetching+computing the whole period
+ * first, so they're intentionally not sortable here (Phase 6 item 6). */
+export type LoadSortKey = "number" | "broker" | "pickup" | "status";
+
 export type ListLoadsOptions = {
   page?: number;
   pageSize?: number;
@@ -58,6 +64,8 @@ export type ListLoadsOptions = {
   period?: Period;
   brokerId?: string;
   status?: LoadStatus;
+  sort?: LoadSortKey;
+  dir?: "asc" | "desc";
 };
 
 export async function listLoads(opts: ListLoadsOptions = {}): Promise<Paginated<LoadWithFinancials>> {

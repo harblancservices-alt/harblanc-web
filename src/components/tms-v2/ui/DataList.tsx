@@ -24,6 +24,21 @@ export type DataListColumn<T> = {
   /** Omit this column from the mobile card render (still shown in the
    * desktop table) — for secondary columns that would crowd a phone card. */
   hideOnMobile?: boolean;
+  /** Header becomes a sort link when both this and the `sort` prop are
+   * present (Phase 6 item 6). */
+  sortable?: boolean;
+};
+
+/** Column sorting via URL — a real <Link>, not client state, so DataList
+ * stays server-renderable (callers like the Load Board pass columns with
+ * `render` closures straight from a Server Component; adding useState here
+ * would force DataList itself into "use client" and break every one of
+ * those callers). The caller owns sort state (its own searchParams) and
+ * just tells DataList what's active and where each column's link goes. */
+export type DataListSort = {
+  activeKey: string | null;
+  dir: "asc" | "desc";
+  hrefFor: (key: string) => string;
 };
 
 /** Multi-select for a bulk-action toolbar above/below the list (Phase 6 item
@@ -48,6 +63,7 @@ type DataListProps<T> = {
   getHref?: (row: T) => string | undefined;
   emptyMessage?: string;
   selection?: DataListSelection;
+  sort?: DataListSort;
 };
 
 export function DataList<T>({
@@ -57,6 +73,7 @@ export function DataList<T>({
   getHref,
   emptyMessage = "Nothing here yet.",
   selection,
+  sort,
 }: DataListProps<T>) {
   if (rows.length === 0) {
     return (
@@ -91,16 +108,26 @@ export function DataList<T>({
                   />
                 </th>
               ) : null}
-              {columns.map((col, ci) => (
-                <th
-                  key={col.key}
-                  className={`whitespace-nowrap px-3 py-2.5 text-[12px] font-semibold uppercase tracking-wide text-fg-muted ${
-                    col.align === "right" ? "text-right" : "text-left"
-                  } ${ci === 0 && !selection ? "rounded-tl-xl" : ""} ${ci === columns.length - 1 ? "rounded-tr-xl" : ""}`}
-                >
-                  {col.header}
-                </th>
-              ))}
+              {columns.map((col, ci) => {
+                const isSorted = sort && col.sortable && sort.activeKey === col.key;
+                return (
+                  <th
+                    key={col.key}
+                    className={`whitespace-nowrap px-3 py-2.5 text-[12px] font-semibold uppercase tracking-wide text-fg-muted ${
+                      col.align === "right" ? "text-right" : "text-left"
+                    } ${ci === 0 && !selection ? "rounded-tl-xl" : ""} ${ci === columns.length - 1 ? "rounded-tr-xl" : ""}`}
+                  >
+                    {sort && col.sortable ? (
+                      <Link href={sort.hrefFor(col.key)} className="inline-flex items-center gap-1 hover:text-fg">
+                        {col.header}
+                        {isSorted ? <span aria-hidden>{sort.dir === "asc" ? "▲" : "▼"}</span> : null}
+                      </Link>
+                    ) : (
+                      col.header
+                    )}
+                  </th>
+                );
+              })}
             </tr>
           </thead>
           <tbody>

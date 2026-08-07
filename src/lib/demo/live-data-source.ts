@@ -210,8 +210,17 @@ export const liveDataSource: DataSource = {
     if (opts.brokerId) query = query.eq("broker_id", opts.brokerId);
     if (opts.status) query = query.eq("status", opts.status);
 
+    const ascending = opts.dir === "asc";
+    if (opts.sort === "number") {
+      query = query.order("load_number", { ascending, nullsFirst: false });
+    } else if (opts.sort === "broker") {
+      query = query.order("broker_name", { ascending, nullsFirst: false });
+    } else if (opts.sort === "status") {
+      query = query.order("status", { ascending });
+    } else {
+      query = query.order("pickup_date", { ascending: opts.sort === "pickup" ? ascending : false, nullsFirst: false });
+    }
     const { data, count } = await query
-      .order("pickup_date", { ascending: false, nullsFirst: false })
       .order("created_at", { ascending: false })
       .range(from, to)
       .returns<LoadRow[]>();

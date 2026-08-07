@@ -13,12 +13,14 @@ import {
   RECURRING_FREQUENCIES,
   RECURRING_FREQUENCY_LABEL,
   type RecurringFrequency,
+  type ExpenseSortKey,
 } from "@/lib/data/recurring-expenses";
 import { ExpenseComposerProvider, ExpenseComposerToggleButton, ExpenseComposerPanel } from "./ExpenseComposer";
 import { ExpenseDrawerContent } from "./ExpenseDrawerContent";
 import { ExpensesListClient } from "./ExpensesListClient";
 import { ExportExpensesCsvButton } from "./ExportExpensesCsvButton";
 import { ImportExpensesButton } from "./ImportExpensesButton";
+import { SavedViews } from "../_components/SavedViews";
 
 // Money-affecting data, read fresh every visit — matches Today's pattern.
 export const dynamic = "force-dynamic";
@@ -28,6 +30,11 @@ const PAGE_SIZE = 25;
 // page (fetchAll() itself is already bounded to 1000, see
 // lib/data/recurring-expenses.ts — this just avoids re-paginating on top).
 const EXPORT_FETCH_SIZE = 1000;
+
+const SORT_KEYS: ExpenseSortKey[] = ["vendor", "category", "amount", "next"];
+function isExpenseSortKey(v: string | undefined): v is ExpenseSortKey {
+  return !!v && (SORT_KEYS as string[]).includes(v);
+}
 
 function buildHref(params: Record<string, string | number | undefined>): string {
   const usp = new URLSearchParams();
@@ -52,16 +59,18 @@ export default async function ExpensesPage({
   const search = typeof sp.q === "string" ? sp.q : undefined;
   const page = typeof sp.page === "string" ? Math.max(1, Number(sp.page) || 1) : 1;
   const selectedId = typeof sp.id === "string" ? sp.id : undefined;
+  const sort = isExpenseSortKey(typeof sp.sort === "string" ? sp.sort : undefined) ? (sp.sort as ExpenseSortKey) : undefined;
+  const dir = sp.dir === "asc" ? "asc" : "desc";
 
   const [kpis, list, accounts, selectedExpense, exportList] = await Promise.all([
     getRecurringExpensesKpis(),
-    listRecurringExpenses({ page, pageSize: PAGE_SIZE, category, frequency, status, search }),
+    listRecurringExpenses({ page, pageSize: PAGE_SIZE, category, frequency, status, search, sort, dir }),
     listExpenseAccounts(),
     selectedId ? getRecurringExpenseById(selectedId) : Promise.resolve(null),
-    listRecurringExpenses({ page: 1, pageSize: EXPORT_FETCH_SIZE, category, frequency, status, search }),
+    listRecurringExpenses({ page: 1, pageSize: EXPORT_FETCH_SIZE, category, frequency, status, search, sort, dir }),
   ]);
 
-  const baseParams = { category, frequency, status, q: search, page: page > 1 ? page : undefined };
+  const baseParams = { category, frequency, status, q: search, page: page > 1 ? page : undefined, sort, dir: sort ? dir : undefined };
   const accountNames = accounts.map((a) => a.name);
   const closeHref = buildHref(baseParams);
 
@@ -139,6 +148,8 @@ export default async function ExpensesPage({
               </Link>
             ) : null}
           </form>
+
+          <SavedViews storageKey="tms-v2:saved-filters:expenses" />
         </>
       }
     >

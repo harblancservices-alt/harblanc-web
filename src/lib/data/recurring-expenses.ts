@@ -167,6 +167,9 @@ export type RecurringExpenseRow = {
   startDate: string | null;
 };
 
+/** Sortable columns on the Expenses ledger (Phase 6 item 6). */
+export type ExpenseSortKey = "vendor" | "category" | "amount" | "next";
+
 export type ListRecurringExpensesOptions = {
   page?: number;
   pageSize?: number;
@@ -176,6 +179,8 @@ export type ListRecurringExpensesOptions = {
    * archived, "all" shows both — mirrors /admin's ledger toggle. */
   status?: "active" | "archived" | "all";
   search?: string;
+  sort?: ExpenseSortKey;
+  dir?: "asc" | "desc";
 };
 
 export type RecurringExpensesKpis = {
@@ -289,7 +294,15 @@ export async function listRecurringExpenses(opts: ListRecurringExpensesOptions =
     );
   }
 
+  const dirMul = opts.dir === "desc" ? -1 : 1;
   filtered = filtered.slice().sort((a, b) => {
+    if (opts.sort === "vendor") return dirMul * (a.vendor || a.name).localeCompare(b.vendor || b.name);
+    if (opts.sort === "category") return dirMul * (a.category ?? "").localeCompare(b.category ?? "");
+    if (opts.sort === "amount") return dirMul * (a.amount - b.amount);
+    if (opts.sort === "next") {
+      const d = (a.nextChargeDateIso ?? "9999-99-99").localeCompare(b.nextChargeDateIso ?? "9999-99-99");
+      return dirMul * d;
+    }
     const d = (a.nextChargeDateIso ?? "9999-99-99").localeCompare(b.nextChargeDateIso ?? "9999-99-99");
     return d !== 0 ? d : a.name.localeCompare(b.name);
   });

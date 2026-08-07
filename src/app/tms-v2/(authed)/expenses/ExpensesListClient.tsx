@@ -53,8 +53,9 @@ function buildColumns(accountNames: string[]): DataListColumn<RecurringExpenseRo
           </div>
         );
       },
+      sortable: true,
     },
-    { key: "category", header: "Category", render: (r) => r.category ?? "—" },
+    { key: "category", header: "Category", render: (r) => r.category ?? "—", sortable: true },
     {
       key: "card",
       header: "Card",
@@ -62,9 +63,9 @@ function buildColumns(accountNames: string[]): DataListColumn<RecurringExpenseRo
       hideOnMobile: true,
     },
     { key: "frequency", header: "Frequency", render: (r) => RECURRING_FREQUENCY_LABEL[r.frequency] },
-    { key: "next", header: "Next charge", render: (r) => r.nextChargeLabel ?? "—" },
+    { key: "next", header: "Next charge", render: (r) => r.nextChargeLabel ?? "—", sortable: true },
     { key: "status", header: "Status", render: (r) => (r.archived ? "Archived" : "Active"), hideOnMobile: true },
-    { key: "amount", header: "Amount", render: (r) => <Money value={r.amount} tone="none" />, align: "right" },
+    { key: "amount", header: "Amount", render: (r) => <Money value={r.amount} tone="none" />, align: "right", sortable: true },
     { key: "actions", header: "", render: (r) => <ExpenseRowActions expense={r} />, align: "right" },
   ];
 }
@@ -90,6 +91,14 @@ export function ExpensesListClient({
 
   function rowHref(id: string): string {
     return buildHref(baseParams, { id });
+  }
+
+  const activeSort = typeof baseParams.sort === "string" ? baseParams.sort : null;
+  const activeDir = baseParams.dir === "asc" ? "asc" : "desc";
+
+  function sortHrefFor(key: string): string {
+    const nextDir = activeSort === key && activeDir === "asc" ? "desc" : "asc";
+    return buildHref({ ...baseParams, page: undefined }, { sort: key, dir: nextDir });
   }
 
   function onToggle(id: string) {
@@ -174,6 +183,7 @@ export function ExpensesListClient({
         getHref={(r) => rowHref(r.id)}
         emptyMessage="No recurring expenses match these filters."
         selection={{ selectedIds: selected, onToggle, onToggleAll, allSelected: rows.length > 0 && selected.size === rows.length }}
+        sort={{ activeKey: activeSort, dir: activeDir, hrefFor: sortHrefFor }}
       />
 
       <p className="text-[13px] text-fg-muted">

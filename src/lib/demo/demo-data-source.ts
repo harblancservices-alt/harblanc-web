@@ -86,10 +86,19 @@ export const demoDataSource: DataSource = {
     if (opts.brokerId) filtered = filtered.filter((l) => l.brokerId === opts.brokerId);
     if (opts.status) filtered = filtered.filter((l) => l.status === opts.status);
 
-    const mapped = filtered
-      .slice()
-      .sort((a, b) => (b.pickupDate ?? "").localeCompare(a.pickupDate ?? ""))
-      .map((l) => mapDemoLoad(l, brokersById, expensesByLoad));
+    const dirMul = opts.dir === "asc" ? 1 : -1;
+    const sorted = filtered.slice().sort((a, b) => {
+      if (opts.sort === "number") return dirMul * (a.loadNumber ?? "").localeCompare(b.loadNumber ?? "");
+      if (opts.sort === "broker") {
+        const an = brokersById.get(a.brokerId ?? "")?.name ?? "";
+        const bn = brokersById.get(b.brokerId ?? "")?.name ?? "";
+        return dirMul * an.localeCompare(bn);
+      }
+      if (opts.sort === "status") return dirMul * a.status.localeCompare(b.status);
+      if (opts.sort === "pickup") return dirMul * (a.pickupDate ?? "").localeCompare(b.pickupDate ?? "");
+      return (b.pickupDate ?? "").localeCompare(a.pickupDate ?? "");
+    });
+    const mapped = sorted.map((l) => mapDemoLoad(l, brokersById, expensesByLoad));
     return paginate(mapped, opts.page, opts.pageSize);
   },
 

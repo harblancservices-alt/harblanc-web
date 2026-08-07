@@ -7,7 +7,7 @@ import { StatusPill } from "@/components/tms-v2/ui/StatusPill";
 import { DataList, type DataListColumn } from "@/components/tms-v2/ui/DataList";
 import { ContextDrawer } from "@/components/tms-v2/ui/ContextDrawer";
 import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
-import { listLoads, getLoadBoardSummary, getLoadDetail, listArchivedLoads, type LoadWithFinancials, type LoadStatus } from "@/lib/data/loads";
+import { listLoads, getLoadBoardSummary, getLoadDetail, listArchivedLoads, type LoadWithFinancials, type LoadStatus, type LoadSortKey } from "@/lib/data/loads";
 import { listBrokers } from "@/lib/data/brokers";
 import { listTrips } from "@/lib/data/trips";
 import { currentPeriod, type Period } from "@/lib/domain/attribution";
@@ -18,6 +18,7 @@ import { AddLoadButton } from "./AddLoadButton";
 import { LoadDrawerContent } from "./LoadDrawerContent";
 import { ArchivedLoadsSection } from "./ArchivedLoadsSection";
 import { ExportLoadsCsvButton } from "./ExportLoadsCsvButton";
+import { SavedViews } from "../_components/SavedViews";
 
 // Bounded cap for the CSV export fetch — a whole period's rows, not just
 // the current display page, but still an explicit bound (v2-architecture.md
@@ -37,19 +38,24 @@ const STATUS_OPTIONS: { value: LoadStatus; label: string }[] = [
 ];
 
 const LOAD_COLUMNS: DataListColumn<LoadWithFinancials>[] = [
-  { key: "number", header: "#", render: (l) => l.loadNumber ?? l.id.slice(0, 8) },
-  { key: "broker", header: "Broker", render: (l) => l.brokerName ?? "—" },
+  { key: "number", header: "#", render: (l) => l.loadNumber ?? l.id.slice(0, 8), sortable: true },
+  { key: "broker", header: "Broker", render: (l) => l.brokerName ?? "—", sortable: true },
   {
     key: "lane",
     header: "Lane",
     render: (l) => `${l.origin ?? "—"} → ${l.destination ?? "—"}`,
     hideOnMobile: true,
   },
-  { key: "pickup", header: "Pickup", render: (l) => <DateTimeCST value={l.pickupDate} mode="date" /> },
-  { key: "status", header: "Status", render: (l) => <StatusPill status={l.status} domain="load" /> },
+  { key: "pickup", header: "Pickup", render: (l) => <DateTimeCST value={l.pickupDate} mode="date" />, sortable: true },
+  { key: "status", header: "Status", render: (l) => <StatusPill status={l.status} domain="load" />, sortable: true },
   { key: "rate", header: "Rate", render: (l) => <Money value={l.financials.gross} tone="none" />, align: "right" },
   { key: "net", header: "Net", render: (l) => <Money value={l.financials.net} />, align: "right" },
 ];
+
+const SORT_KEYS: LoadSortKey[] = ["number", "broker", "pickup", "status"];
+function isLoadSortKey(v: string | undefined): v is LoadSortKey {
+  return !!v && (SORT_KEYS as string[]).includes(v);
+}
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -76,15 +82,17 @@ export default async function LoadsPage({ searchParams }: { searchParams: Promis
   const status = first(sp.status) as LoadStatus | undefined;
   const brokerId = first(sp.brokerId) || undefined;
   const selectedId = first(sp.id);
+  const sort = isLoadSortKey(first(sp.sort)) ? (first(sp.sort) as LoadSortKey) : undefined;
+  const dir = first(sp.dir) === "asc" ? "asc" : "desc";
 
   const [summary, listResult, brokersPage, activeTripsPage, selectedLoad, archivedLoads, exportResult] = await Promise.all([
     getLoadBoardSummary(period),
-    listLoads({ period, page, pageSize: DEFAULT_PAGE_SIZE, status, brokerId }),
+    listLoads({ period, page, pageSize: DEFAULT_PAGE_SIZE, status, brokerId, sort, dir }),
     listBrokers({ pageSize: 100 }),
     listTrips({ status: "active", pageSize: 100 }),
     selectedId ? getLoadDetail(selectedId) : Promise.resolve(null),
     listArchivedLoads(),
-    listLoads({ period, page: 1, pageSize: EXPORT_FETCH_SIZE, status, brokerId }),
+    listLoads({ period, page: 1, pageSize: EXPORT_FETCH_SIZE, status, brokerId, sort, dir }),
   ]);
   const brokerNames = brokersPage.rows.map((b) => b.name);
   const activeTripNames = activeTripsPage.rows.map((t) => t.name).filter((n): n is string => !!n);
@@ -92,6 +100,8 @@ export default async function LoadsPage({ searchParams }: { searchParams: Promis
   const baseParams = new URLSearchParams();
   if (status) baseParams.set("status", status);
   if (brokerId) baseParams.set("brokerId", brokerId);
+  if (sort) baseParams.set("sort", sort);
+  if (sort) baseParams.set("dir", dir);
 
   function periodHref(p: Period): string {
     const params = new URLSearchParams(baseParams);
@@ -127,6 +137,18 @@ export default async function LoadsPage({ searchParams }: { searchParams: Promis
     if (page > 1) params.set("page", String(page));
     return `/tms-v2/loads?${params.toString()}`;
   })();
+
+  function sortHrefFor(key: string): string {
+    const nextDir = sort === key && dir === "asc" ? "desc" : "asc";
+    const params = new URLSearchParams();
+    if (status) params.set("status", status);
+    if (brokerId) params.set("brokerId", brokerId);
+    params.set("sort", key);
+    params.set("dir", nextDir);
+    params.set("year", String(period.year));
+    params.set("month", String(period.month));
+    return `/tms-v2/loads?${params.toString()}`;
+  }
 
   return (
     <div className="flex h-full min-h-0 overflow-hidden gap-6">
@@ -181,6 +203,8 @@ export default async function LoadsPage({ searchParams }: { searchParams: Promis
             status={status}
             brokerId={brokerId}
           />
+
+          <SavedViews storageKey="tms-v2:saved-filters:loads" />
         </>
       }
     >
@@ -190,6 +214,7 @@ export default async function LoadsPage({ searchParams }: { searchParams: Promis
         rowKey={(l) => l.id}
         getHref={(l) => rowHref(l.id)}
         emptyMessage="No loads match this period and filters."
+        sort={{ activeKey: sort ?? null, dir, hrefFor: sortHrefFor }}
       />
 
       <div className="mt-4 flex items-center justify-between text-[13px] text-fg-muted">
