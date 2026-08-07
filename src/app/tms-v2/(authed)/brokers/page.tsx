@@ -2,9 +2,8 @@ import Link from "next/link";
 import { PageHeader } from "@/components/tms-v2/ui/PageHeader";
 import { Money } from "@/components/tms-v2/ui/Money";
 import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
-import { listBrokerDirectory, listArchivedBrokers, type BrokerDirectoryRow, type BrokerSortKey } from "@/lib/data/broker-directory";
+import { listBrokerDirectory, type BrokerDirectoryRow, type BrokerSortKey } from "@/lib/data/broker-directory";
 import { NewBrokerButton } from "./NewBrokerButton";
-import { ArchivedBrokersSection } from "./ArchivedBrokersSection";
 
 // Money-affecting data, read fresh every visit — matches Today's pattern.
 export const dynamic = "force-dynamic";
@@ -67,10 +66,7 @@ export default async function BrokersPage({
   const sortRaw = typeof sp.sort === "string" ? sp.sort : undefined;
   const sort: BrokerSortKey = sortRaw === "gross" || sortRaw === "loads" ? sortRaw : "name";
 
-  const [list, archived] = await Promise.all([
-    listBrokerDirectory({ page, pageSize: PAGE_SIZE, search, sort }),
-    listArchivedBrokers(),
-  ]);
+  const list = await listBrokerDirectory({ page, pageSize: PAGE_SIZE, search, sort });
 
   return (
     <PageScroll
@@ -142,8 +138,6 @@ export default async function BrokersPage({
           ) : null}
         </div>
       </div>
-
-      <ArchivedBrokersSection brokers={archived} />
     </PageScroll>
   );
 }

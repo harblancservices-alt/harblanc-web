@@ -1,9 +1,8 @@
 import Link from "next/link";
-import { listLeads, listArchivedLeads } from "@/lib/data/pipeline";
+import { listLeads } from "@/lib/data/pipeline";
 import { loadPipelineCards, PIPELINE_STAGES, type PipelineStage } from "@/lib/dispatch/pipeline";
 import { LEAD_STATUSES, LEAD_STATUS_LABELS } from "@/lib/dispatch/status";
 import { QuotesListClient } from "./QuotesListClient";
-import { ArchivedLeadsSection } from "./ArchivedLeadsSection";
 
 const PAGE_SIZE = 25;
 
@@ -32,10 +31,9 @@ function FunnelStrip({ counts, total }: { counts: Record<PipelineStage, number>;
 }
 
 export async function QuotesTab({ page, status }: { page: number; status?: string }) {
-  const [list, pipelineCards, archived] = await Promise.all([
+  const [list, pipelineCards] = await Promise.all([
     listLeads({ page, pageSize: PAGE_SIZE, status }),
     loadPipelineCards(),
-    listArchivedLeads(),
   ]);
   const activeCards = pipelineCards.filter((c) => c.status !== "expired");
   const counts = Object.fromEntries(PIPELINE_STAGES.map((s) => [s.key, 0])) as Record<PipelineStage, number>;
@@ -91,8 +89,6 @@ export async function QuotesTab({ page, status }: { page: number; status?: strin
           ) : null}
         </div>
       </div>
-
-      <ArchivedLeadsSection leads={archived} />
     </div>
   );
 }
