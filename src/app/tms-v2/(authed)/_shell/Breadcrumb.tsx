@@ -11,9 +11,16 @@ import { TMS_V2_NAV, TMS_V2_SETTINGS, NAV_GROUP_LABEL } from "@/lib/nav/nav.conf
  * of sync with the sidebar the way a hand-maintained crumb would. Longest
  * matching href wins so a detail route (e.g. /tms-v2/loads/[id]) still
  * resolves to its list page's crumb. Hidden on the Dashboard itself — a
- * "Dashboard / Dashboard" crumb is noise. Also hidden on the Load Board
- * list per Brent's explicit ask (mobile review) — the sidebar already
- * carries that nav context.
+ * "Dashboard / Dashboard" crumb is noise. Hidden outright (both
+ * breakpoints) on the Load Board list per an earlier explicit ask.
+ *
+ * MOBILE-scoped removal (standing rule, [[feedback-mobile-scoped-ui-
+ * requests]]): as of 2026-08-07 the breadcrumb is hidden on every /tms-v2
+ * page below the `lg` breakpoint (`hidden lg:flex`) — desktop keeps it
+ * unchanged, that's part of the later dedicated PC pass. Detail pages that
+ * relied on this as their way back to the list (Load/Trip/Broker/
+ * Maintenance/Operations detail) each grew their own mobile back
+ * affordance instead — see those pages' own "← Back" links.
  */
 export function Breadcrumb() {
   const pathname = usePathname();
@@ -25,7 +32,7 @@ export function Breadcrumb() {
     .sort((a, b) => b.href.length - a.href.length)[0];
 
   return (
-    <nav aria-label="Breadcrumb" className="mb-4 flex items-center gap-1.5 text-[13px] text-fg-muted">
+    <nav aria-label="Breadcrumb" className="mb-4 hidden items-center gap-1.5 text-[13px] text-fg-muted lg:flex">
       <Link href="/tms-v2" prefetch={false} className="hover:text-fg">
         Dashboard
       </Link>
