@@ -2,65 +2,14 @@ import Link from "next/link";
 import { PageHeader } from "@/components/tms-v2/ui/PageHeader";
 import { KpiTile } from "@/components/tms-v2/ui/KpiTile";
 import { Money } from "@/components/tms-v2/ui/Money";
-import { DateTimeCST } from "@/components/tms-v2/ui/DateTimeCST";
-import { DataList, type DataListColumn } from "@/components/tms-v2/ui/DataList";
 import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
-import {
-  getCarrierARSummary,
-  listCarrierReceivables,
-  AGING_BUCKETS,
-  AGING_BUCKET_LABEL,
-  type CarrierReceivableRow,
-} from "@/lib/data/receivables";
-import { MarkPaidCell } from "@/components/tms-v2/MarkPaidCell";
+import { getCarrierARSummary, listCarrierReceivables, AGING_BUCKETS, AGING_BUCKET_LABEL } from "@/lib/data/receivables";
+import { ReceivablesListClient } from "./ReceivablesListClient";
 
 // Money-affecting data, read fresh every visit — matches Today's pattern.
 export const dynamic = "force-dynamic";
 
 const PAGE_SIZE = 25;
-
-const COLUMNS: DataListColumn<CarrierReceivableRow>[] = [
-  {
-    key: "broker",
-    header: "Broker",
-    render: (r) => <span className="font-medium text-fg">{r.brokerName ?? "—"}</span>,
-  },
-  { key: "loadNumber", header: "Load #", render: (r) => r.loadNumber ?? "—" },
-  {
-    key: "lane",
-    header: "Lane",
-    render: (r) => `${r.origin ?? "—"} → ${r.destination ?? "—"}`,
-    hideOnMobile: true,
-  },
-  {
-    key: "delivery",
-    header: "Delivered",
-    render: (r) => (r.deliveryDate ? <DateTimeCST value={r.deliveryDate} mode="date" /> : "—"),
-    hideOnMobile: true,
-  },
-  {
-    key: "days",
-    header: "Days out",
-    render: (r) => (
-      <span className={r.overdue ? "font-medium text-bad" : "text-fg"}>
-        {r.bucket === "unaged" ? "—" : r.daysOutstanding}
-      </span>
-    ),
-    align: "right",
-  },
-  {
-    key: "amount",
-    header: "Amount",
-    render: (r) => <Money value={r.amount} tone={r.overdue ? "negative" : "auto"} />,
-    align: "right",
-  },
-  {
-    key: "markPaid",
-    header: "",
-    render: (r) => <MarkPaidCell loadId={r.loadId} />,
-    align: "right",
-  },
-];
 
 function buildHref(page: number): string {
   return page > 1 ? `/tms-v2/receivables?page=${page}` : "/tms-v2/receivables";
@@ -102,13 +51,7 @@ export default async function ReceivablesPage({
         </>
       }
     >
-      <DataList
-        columns={COLUMNS}
-        rows={list.rows}
-        rowKey={(r) => r.loadId}
-        getHref={(r) => `/tms-v2/loads/${r.loadId}`}
-        emptyMessage="No outstanding carrier receivables — every delivered or TONU'd load is paid."
-      />
+      <ReceivablesListClient rows={list.rows} />
 
       <div className="mt-4 flex items-center justify-between text-[13px] text-fg-muted">
         <span>
