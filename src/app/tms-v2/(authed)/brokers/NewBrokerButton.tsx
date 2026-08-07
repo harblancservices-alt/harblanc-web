@@ -12,9 +12,12 @@ import { Field, FormError, FormActions } from "../loads/_form";
 type SaveState = { ok: boolean; error: string | null; id: string | null };
 const INITIAL: SaveState = { ok: false, error: null, id: null };
 
-/** Header button (desktop) + Fab (mobile) for a dedicated "New broker" flow
- * — closes the audit's Critical Brokers gap (create was previously only
- * possible implicitly, incompletely, via the Load form's free-text field). */
+/** Compact "+ New" button (every breakpoint — the Brokers list's compact-
+ * directory redesign wants it inline beside search on mobile too, not
+ * just desktop) + Fab (kept per Brent's explicit ask, still mobile-only)
+ * for a dedicated "New broker" flow — closes the audit's Critical Brokers
+ * gap (create was previously only possible implicitly, incompletely, via
+ * the Load form's free-text field). */
 export function NewBrokerButton() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -33,8 +36,8 @@ export function NewBrokerButton() {
 
   return (
     <>
-      <Button type="button" variant="secondary" size="sm" onClick={() => setOpen(true)} className="hidden sm:inline-flex">
-        + New broker
+      <Button type="button" variant="secondary" size="sm" onClick={() => setOpen(true)} className="shrink-0">
+        + New
       </Button>
       <Fab label="New broker" onClick={() => setOpen(true)} className="sm:hidden" />
 

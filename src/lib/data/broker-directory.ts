@@ -39,7 +39,7 @@ export type BrokerDirectoryRow = {
   arOutstanding: number;
 };
 
-export type BrokerSortKey = "name" | "gross" | "loads";
+export type BrokerSortKey = "name" | "gross" | "loads" | "ar";
 
 export type ListBrokerDirectoryOptions = {
   page?: number;
@@ -116,6 +116,7 @@ export async function listBrokerDirectory(opts: ListBrokerDirectoryOptions = {})
     const sorted = [...rows];
     if (opts.sort === "gross") sorted.sort((a, b) => b.gross - a.gross);
     else if (opts.sort === "loads") sorted.sort((a, b) => b.loadsCount - a.loadsCount);
+    else if (opts.sort === "ar") sorted.sort((a, b) => b.arOutstanding - a.arOutstanding);
     else sorted.sort((a, b) => a.name.localeCompare(b.name));
     return sorted;
   }
