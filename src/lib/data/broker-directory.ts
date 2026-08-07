@@ -163,7 +163,10 @@ export async function listBrokerDirectory(opts: ListBrokerDirectoryOptions = {})
   const allRows: BrokerDirectoryRow[] = sortRows(
     allBrokers.map((b) => {
       const s = stats.get(b.id) ?? { loadsCount: 0, gross: 0, arOutstanding: 0 };
-      return { id: b.id, name: b.name, status: b.status, mcNumber: b.mc_number, dotNumber: b.dot_number, factoring: !!b.factoring, ...s };
+      // Defensive: `brokers.status`/`name` have no DB-level NOT NULL — see
+      // broker-profile.ts's getBrokerProfile() for the crash this same gap
+      // caused there.
+      return { id: b.id, name: b.name ?? "Unnamed broker", status: b.status ?? "active", mcNumber: b.mc_number, dotNumber: b.dot_number, factoring: !!b.factoring, ...s };
     }),
   );
 

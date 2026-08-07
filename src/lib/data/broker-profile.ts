@@ -362,8 +362,14 @@ export async function getBrokerProfile(id: string): Promise<BrokerProfile | null
   return {
     identity: {
       id: broker.id,
-      name: broker.name,
-      status: broker.status,
+      // `name`/`status` have no DB-level NOT NULL — brokers created before
+      // that was enforced at the app layer (e.g. implicitly via the Load
+      // form) can have either null. Normalize here so every downstream
+      // consumer gets the non-null string its type promises, rather than
+      // guarding it again at every render site (audit: "some brokers throw"
+      // — a null status crashed BrokerStatusPill's `.charAt(0)`).
+      name: broker.name ?? "Unnamed broker",
+      status: broker.status ?? "active",
       mcNumber: broker.mc_number,
       dotNumber: broker.dot_number,
       brokerType: broker.broker_type,

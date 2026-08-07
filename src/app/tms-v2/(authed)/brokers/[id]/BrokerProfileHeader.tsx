@@ -4,8 +4,8 @@ import { formatMoney } from "@/lib/domain/money";
 import { BrokerStatusPill } from "../_lib/broker-status";
 import type { BrokerIdentity } from "@/lib/data/broker-profile";
 
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
+function initials(name: string | null | undefined): string {
+  const parts = (name ?? "").trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "—";
   return (parts[0][0] + (parts[1]?.[0] ?? "")).toUpperCase();
 }
