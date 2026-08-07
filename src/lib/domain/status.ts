@@ -67,15 +67,20 @@ export function resolveStatus(domain: StatusDomain, status: string): ResolvedSta
   return { label: status, tone: "neutral" };
 }
 
-/** The load-board shipment timeline's stage index (0=Pickup … 5=Paid) —
- * ported verbatim from legacy's stageOf() (admin/dispatch/loads/board/
+/** The load-board shipment timeline's stage index (0=Pickup … 4=Paid) —
+ * originally ported from legacy's stageOf() (admin/dispatch/loads/board/
  * shared.ts), the exact derivation that drives which Timeline steps show
- * as done/current/upcoming. A TONU'd load's stage doesn't matter on its
- * own — Timeline's `cancelled` prop overrides everything to the greyed-
- * out state regardless of what this returns for it. */
+ * as done/current/upcoming. Per Brent's correction the "Invoice" step was
+ * dropped (5 steps now, not 6) — a delivered-but-unpaid load and a paid
+ * load both resolve to the same stage index (4, "Paid"); LoadTimeline's
+ * own `paid` prop is what tells the two apart visually (red vs. green) —
+ * this function only knows how far along the load is, not payment color.
+ * A TONU'd load's stage doesn't matter on its own — Timeline's
+ * `cancelled` prop overrides everything to the greyed-out state
+ * regardless of what this returns for it. */
 export function loadTimelineStage(status: string, paymentStatus: "unpaid" | "paid"): number {
-  if (paymentStatus === "paid") return 5; // Paid
-  if (status === "delivered") return 4; // Invoice (delivered, not yet paid)
+  if (paymentStatus === "paid") return 4; // Paid
+  if (status === "delivered") return 4; // Paid (delivered, outstanding — not yet paid)
   if (status === "loaded") return 2; // Transit
   if (status === "assigned") return 1; // Loaded
   return 0; // pending (or tonu, irrelevant — Timeline's cancelled flag wins)

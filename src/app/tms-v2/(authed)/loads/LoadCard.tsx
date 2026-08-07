@@ -133,7 +133,7 @@ export function LoadCard({
           <ChipsRow load={load} />
         </div>
 
-        <LoadTimeline stage={stage} cancelled={cancelled} />
+        <LoadTimeline stage={stage} cancelled={cancelled} paid={load.paymentStatus === "paid"} />
       </div>
 
       {/* Desktop — unchanged, later PC pass owns this */}
@@ -159,7 +159,7 @@ export function LoadCard({
         </div>
 
         <div className="mt-3">
-          <LoadTimeline stage={stage} cancelled={cancelled} />
+          <LoadTimeline stage={stage} cancelled={cancelled} paid={load.paymentStatus === "paid"} />
         </div>
       </div>
     </div>
