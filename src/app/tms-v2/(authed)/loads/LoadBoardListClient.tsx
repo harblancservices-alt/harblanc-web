@@ -1,22 +1,22 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/tms-v2/ui/Button";
 import { LoadCard } from "./LoadCard";
 import { AddLoadButton } from "./AddLoadButton";
-import { bulkDeleteLoads } from "@/actions/tms-v2/loads";
-import type { MutationResult } from "@/lib/demo/mutation";
+import { useLoadBoardSelection } from "./LoadBoardSelectionProvider";
 import type { LoadWithFinancials } from "@/lib/data/loads";
 
-/** The Load Board's action row (Add load / Delete — Inquiry dropped per
- * Brent's mobile review) and the rich LoadCard grid with bulk-delete select
- * mode. Both buttons render at the same size/color (equal-width, solid
- * destructive red) per that same review. New Load and the card grid's row
- * links stay real <Link>/modal state; only selection is client-local,
- * matching the "URL state for navigation, local state for an in-progress
- * bulk action" split already used on Expenses/Applications/Quotes bulk
- * actions. */
+/** The Load Board's Add load action and the rich LoadCard grid with
+ * bulk-delete select mode. Delete itself moved up to a trash-icon button
+ * in the top row (LoadBoardTopRow) beside the month dropdown — Add load
+ * is the only button left here now, full-width. Select-mode state
+ * (selectMode/selected/etc.) comes from LoadBoardSelectionProvider,
+ * shared with that top-row trigger since the two live in different
+ * PageScroll slots with no parent-child relationship of their own. New
+ * Load and the card grid's row links stay real <Link>/modal state; only
+ * selection is client-local, matching the "URL state for navigation,
+ * local state for an in-progress bulk action" split already used on
+ * Expenses/Applications/Quotes bulk actions. */
 export function LoadBoardListClient({
   loads,
   rowHrefBase,
@@ -38,53 +38,11 @@ export function LoadBoardListClient({
   function rowHref(id: string): string {
     return `/tms-v2/loads?${rowHrefBase}&id=${id}`;
   }
-  const router = useRouter();
-  const [selectMode, setSelectMode] = useState(false);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  function toggle(id: string) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
-  function exitSelectMode() {
-    setSelectMode(false);
-    setSelected(new Set());
-  }
-
-  async function onDeleteSelected() {
-    if (selected.size === 0) return;
-    if (!confirm(`Delete ${selected.size} load${selected.size === 1 ? "" : "s"}? Recoverable later from Archived loads.`)) return;
-    setPending(true);
-    setError(null);
-    const result: MutationResult = await bulkDeleteLoads(Array.from(selected));
-    setPending(false);
-    if (result.ok) {
-      exitSelectMode();
-      router.refresh();
-    } else {
-      setError(result.reason);
-    }
-  }
+  const { selectMode, selected, pending, error, exitSelectMode, toggle, selectAll, clearAll, deleteSelected } = useLoadBoardSelection();
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex items-stretch gap-2">
-        <div className="flex-1">
-          <AddLoadButton brokerNames={brokerNames} activeTripNames={activeTripNames} showFab={false} variant="destructive" />
-        </div>
-        {!selectMode && loads.length > 0 ? (
-          <Button type="button" variant="destructive" onClick={() => setSelectMode(true)} className="flex-1">
-            Delete
-          </Button>
-        ) : null}
-      </div>
+      <AddLoadButton brokerNames={brokerNames} activeTripNames={activeTripNames} showFab={false} variant="destructive" />
 
       {selectMode ? (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-bad/40 bg-bad-bg px-3.5 py-3">
@@ -93,7 +51,7 @@ export function LoadBoardListClient({
               type="button"
               variant="secondary"
               size="sm"
-              onClick={() => setSelected(selected.size === loads.length ? new Set() : new Set(loads.map((l) => l.id)))}
+              onClick={() => (selected.size === loads.length ? clearAll() : selectAll(loads.map((l) => l.id)))}
             >
               {selected.size === loads.length && loads.length > 0 ? "Clear all" : "Select all"}
             </Button>
@@ -102,7 +60,7 @@ export function LoadBoardListClient({
             </Button>
             <span className="text-[13px] text-bad">{selected.size} selected</span>
           </div>
-          <Button type="button" variant="destructive" size="sm" onClick={onDeleteSelected} disabled={pending || selected.size === 0} aria-busy={pending}>
+          <Button type="button" variant="destructive" size="sm" onClick={() => void deleteSelected()} disabled={pending || selected.size === 0} aria-busy={pending}>
             {pending ? "Deleting…" : "Delete selected"}
           </Button>
         </div>

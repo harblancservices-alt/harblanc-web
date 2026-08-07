@@ -226,3 +226,11 @@ export function IconX({ className }: IconProps) {
     </svg>
   );
 }
+
+export function IconTrash({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="M4 7h16M9 7V4h6v3M6 7l1 13a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-13M10 11v6M14 11v6" />
+    </svg>
+  );
+}

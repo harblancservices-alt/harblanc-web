@@ -29,7 +29,7 @@ export function LoadTimeline({ stage, cancelled, paid }: { stage: number; cancel
         const after = !cancelled && i < drawn;
 
         return (
-          <div key={label} className={`flex flex-col items-center ${isLast ? "" : "flex-1"}`}>
+          <div key={label} className="flex flex-1 flex-col items-center">
             <div className="flex w-full items-center">
               <div className={`h-0.5 flex-1 ${i === 0 ? "invisible" : before ? "bg-ok" : "bg-line"}`} />
               <span

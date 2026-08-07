@@ -11,7 +11,9 @@ import { summarize } from "@/lib/dispatch/performance";
 import { currentPeriod, periodLabel, type Period } from "@/lib/domain/attribution";
 import { DEFAULT_PAGE_SIZE } from "@/lib/data/pagination";
 import { LoadBoardListClient } from "./LoadBoardListClient";
-import { MonthDropdown, type LoadBoardView } from "./MonthDropdown";
+import { LoadBoardTopRow } from "./LoadBoardTopRow";
+import type { LoadBoardView } from "./MonthDropdown";
+import { LoadBoardSelectionProvider } from "./LoadBoardSelectionProvider";
 import { LoadBoardGoalCard } from "./LoadBoardGoalCard";
 import { LoadDrawerContent } from "./LoadDrawerContent";
 
@@ -46,8 +48,17 @@ function parseView(sp: SearchParams): LoadBoardView {
 
 /**
  * Load Board — mirrors legacy /admin's board OPERATION: a period-dependent
- * goal card, a two-button Add load/Delete row, and rich shipment-timeline
+ * goal card, a full-width Add load button, and rich shipment-timeline
  * load cards instead of a table.
+ *
+ * Per Brent's follow-up mobile review: Delete moved off the button row
+ * (it was a two-button Add load/Delete split before this) and up to a
+ * small trash-icon button in the top row, grouped with the month
+ * dropdown on the right (LoadBoardTopRow) — tapping it enters the same
+ * delete/select mode. Add load is now the only, full-width button below.
+ * Select-mode state is lifted into LoadBoardSelectionProvider so the
+ * top-row trigger and the card grid (LoadBoardListClient), which live in
+ * different PageScroll slots, can share it.
  *
  * Per Brent's correction to the month dropdown + goal: the dropdown now
  * lists all 12 months of the resolved year PLUS "Year to date" and "All"
@@ -155,14 +166,11 @@ export default async function LoadsPage({ searchParams }: { searchParams: Promis
   })();
 
   return (
+    <LoadBoardSelectionProvider>
     <div className="flex h-full min-h-0 overflow-hidden gap-6">
     <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
     <PageScroll
-      header={
-        <div className="flex items-center justify-center">
-          <MonthDropdown year={period.year} view={view} />
-        </div>
-      }
+      header={<LoadBoardTopRow year={period.year} view={view} hasLoads={listResult.rows.length > 0} />}
     >
       <div className="flex flex-col gap-4">
         <LoadBoardGoalCard label={goalLabel} goal={goal} net={goalNet} />
@@ -209,5 +217,6 @@ export default async function LoadsPage({ searchParams }: { searchParams: Promis
       </ContextDrawer>
     ) : null}
     </div>
+    </LoadBoardSelectionProvider>
   );
 }
