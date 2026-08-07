@@ -39,7 +39,7 @@ export function BrokerProfileTabs({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center gap-1 overflow-x-auto border-b border-line">
+      <div className="no-scrollbar flex items-center gap-1 overflow-x-auto border-b border-line">
         {TABS.map((t) => (
           <button
             key={t.id}

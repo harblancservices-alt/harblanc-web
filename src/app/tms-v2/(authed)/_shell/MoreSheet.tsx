@@ -44,12 +44,12 @@ export function MoreSheet({ open, onClose, email }: { open: boolean; onClose: ()
 
   return (
     <div role="dialog" aria-modal="true" aria-label="More" className="fixed inset-0 z-50 lg:hidden">
-      <button type="button" aria-label="Close menu" onClick={onClose} className="absolute inset-0 bg-black/40" />
+      <button type="button" aria-label="Close menu" onClick={onClose} className="absolute inset-0 touch-none bg-black/40" />
       <div
         className="absolute inset-x-3 bottom-20 flex max-h-[65vh] flex-col overflow-hidden rounded-xl border border-line bg-card shadow-e3"
         style={{ marginBottom: "env(safe-area-inset-bottom)" }}
       >
-        <nav className="min-h-0 flex-1 overflow-y-auto p-2">
+        <nav className="no-scrollbar min-h-0 flex-1 overscroll-contain overflow-y-auto p-2">
           <div className="flex flex-col gap-0.5">
             {items.map((item) => {
               const active = isNavItemActive(pathname, item.href);

@@ -257,7 +257,7 @@ function Modal({
             <ResponsivePreview target={target} />
           </main>
 
-          <aside aria-label="Other previews" className="hidden w-64 shrink-0 flex-col overflow-y-auto border-l border-line-strong bg-card md:flex">
+          <aside aria-label="Other previews" className="no-scrollbar hidden w-64 shrink-0 flex-col overflow-y-auto border-l border-line-strong bg-card md:flex">
             <div className="border-b border-line px-4 py-3">
               <p className="font-mono text-[10px] font-bold uppercase tracking-[0.14em] text-fg-muted">All previews</p>
             </div>

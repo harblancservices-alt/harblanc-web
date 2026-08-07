@@ -219,7 +219,7 @@ export function BolScanner({ loadId, onClose }: { loadId: string; onClose: () =>
       role="dialog"
       aria-modal="true"
       aria-label="Scan bill of lading"
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-3 sm:p-6"
+      className="no-scrollbar fixed inset-0 z-50 flex items-start justify-center overscroll-contain overflow-y-auto bg-black/70 p-3 sm:p-6"
       onClick={() => {
         if (status === "idle") onClose();
       }}

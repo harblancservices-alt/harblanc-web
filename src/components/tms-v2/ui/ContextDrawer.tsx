@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { IconX } from "@/lib/nav/icons";
+import { ScrollLock } from "./ScrollLock";
 
 type ContextDrawerProps = {
   title: string;
@@ -24,16 +25,25 @@ type ContextDrawerProps = {
  * a fixed-bottom-sheet and a static-inline-panel need different DOM
  * ancestry (portal-style overlay vs. in-flow flex child), not just
  * different classes on the same element.
+ *
+ * <ScrollLock/> (a tiny client-only leaf, same composition trick as
+ * ScrollToHash.tsx) locks document.body scroll for as long as this stays
+ * mounted — its mount/unmount IS the open/closed state here, so there's
+ * no boolean to hang the effect on directly without giving this whole
+ * component a "use client" boundary it doesn't otherwise need. Fixes a
+ * scroll-bleed bug: without it, scrolling past the mobile bottom sheet's
+ * own content could chain into the page behind it.
  */
 export function ContextDrawer({ title, subtitle, closeHref, children }: ContextDrawerProps) {
   return (
     <>
+      <ScrollLock />
       {/* Mobile (<lg): bottom sheet overlay. */}
       <div className="fixed inset-0 z-50 flex items-end lg:hidden">
-        <Link href={closeHref} prefetch={false} className="absolute inset-0 bg-black/50 backdrop-blur-[1px]" aria-hidden />
+        <Link href={closeHref} prefetch={false} className="absolute inset-0 touch-none bg-black/50 backdrop-blur-[1px]" aria-hidden />
         <div role="dialog" aria-modal="true" className="relative flex max-h-[85vh] w-full flex-col overflow-hidden rounded-t-2xl border-t border-line bg-card shadow-e3">
           <DrawerHeader title={title} subtitle={subtitle} closeHref={closeHref} />
-          <div className="flex-1 overflow-y-auto px-4 pb-6">{children}</div>
+          <div className="no-scrollbar flex-1 overscroll-contain overflow-y-auto px-4 pb-6">{children}</div>
         </div>
       </div>
 
@@ -44,7 +54,7 @@ export function ContextDrawer({ title, subtitle, closeHref, children }: ContextD
       <div className="hidden h-full shrink-0 lg:block lg:w-[400px]">
         <div className="flex h-full flex-col overflow-hidden rounded-xl border border-line bg-card shadow-e2">
           <DrawerHeader title={title} subtitle={subtitle} closeHref={closeHref} />
-          <div className="flex-1 overflow-y-auto px-4 pb-4">{children}</div>
+          <div className="no-scrollbar flex-1 overscroll-contain overflow-y-auto px-4 pb-4">{children}</div>
         </div>
       </div>
     </>

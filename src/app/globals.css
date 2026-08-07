@@ -30,6 +30,22 @@ input[type="date"]::-webkit-date-and-time-value {
   text-align: left;
 }
 
+/* Scrollbar-hiding utility (tms-v2 only — applied per-element via
+ * className, never globally). Content stays fully scrollable; only the
+ * scrollbar chrome itself is hidden, on every engine: `scrollbar-width`
+ * (Firefox), `-ms-overflow-style` (legacy Edge/IE), and the WebKit
+ * pseudo-element (Chrome/Safari/modern Edge). Applied to every /tms-v2
+ * scroll surface — PageScroll's body, Modal's scrollable body,
+ * ContextDrawer, the mobile More popover, DataList's own scroll region,
+ * etc. */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 /* Fixed dark theme — charcoal/near-black with red accent.
  *
  * Phase A note: background lifted from #0a0a0a to #111111 (one notch

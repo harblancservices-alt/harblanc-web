@@ -58,7 +58,7 @@ export function Sidebar({ email }: { email: string | null }) {
         </button>
       </div>
 
-      <nav className="flex flex-1 flex-col gap-5 overflow-y-auto px-3">
+      <nav className="no-scrollbar flex flex-1 flex-col gap-5 overflow-y-auto px-3">
         {groups.map((group) => (
           <div key={group.id}>
             <div className="px-2.5 pb-1 text-[11px] font-semibold uppercase tracking-wide text-bar-fg/70">

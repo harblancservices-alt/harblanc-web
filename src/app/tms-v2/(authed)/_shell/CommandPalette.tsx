@@ -36,6 +36,17 @@ export function CommandPalette() {
     }
   }, [open]);
 
+  // Scroll-bleed lock — same reasoning as Modal/MoreSheet: without this,
+  // scrolling past the results list can chain into the page behind it.
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [open]);
+
   useEffect(() => {
     const q = query.trim();
     if (q.length < 2) {
@@ -65,7 +76,7 @@ export function CommandPalette() {
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center px-4 pt-20 sm:pt-28">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-[1px]" onClick={() => setOpen(false)} aria-hidden />
+      <div className="absolute inset-0 touch-none bg-black/50 backdrop-blur-[1px]" onClick={() => setOpen(false)} aria-hidden />
       <div role="dialog" aria-modal="true" className="relative flex w-full max-w-lg flex-col overflow-hidden rounded-xl border border-line bg-card shadow-e3">
         <div className="flex items-center gap-2 border-b border-line px-3 py-2.5">
           <IconSearch className="h-4 w-4 shrink-0 text-fg-muted" />
@@ -79,7 +90,7 @@ export function CommandPalette() {
           <kbd className="shrink-0 rounded border border-line-strong px-1.5 py-0.5 text-[11px] text-fg-muted">Esc</kbd>
         </div>
 
-        <div className="max-h-96 overflow-y-auto py-1.5">
+        <div className="no-scrollbar max-h-96 overscroll-contain overflow-y-auto py-1.5">
           {navMatches.length > 0 ? (
             <PaletteGroup label="Pages">
               {navMatches.map((n) => (

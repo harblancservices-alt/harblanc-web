@@ -16,7 +16,7 @@ export function CalendarMonthGrid({
   loadsByDay: Map<string, AnalyticsLoad[]>;
 }) {
   return (
-    <div className="hidden overflow-x-auto md:block">
+    <div className="no-scrollbar hidden overflow-x-auto md:block">
       <div className="grid min-w-[880px] grid-cols-[repeat(7,1fr)_100px]">
         {WEEKDAY_LABELS.map((label, i) => (
           <div

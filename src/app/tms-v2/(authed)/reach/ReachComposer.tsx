@@ -184,7 +184,7 @@ export function ReachComposer({
         {recipients.length === 0 ? (
           <p className="text-[13px] text-fg-muted">No matching brokers with an email on file for this market.</p>
         ) : (
-          <div className="max-h-64 overflow-y-auto rounded-xl border border-line bg-card px-3 shadow-e1">
+          <div className="no-scrollbar max-h-64 overflow-y-auto rounded-xl border border-line bg-card px-3 shadow-e1">
             {recipients.map((r) => (
               <label key={r.brokerId} className="flex items-center justify-between gap-2 border-b border-line py-2 text-[13px] last:border-b-0">
                 <span className="flex items-center gap-2">

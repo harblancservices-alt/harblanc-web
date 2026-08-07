@@ -24,11 +24,21 @@ export function SlideOver({ open, onClose, title, children }: SlideOverProps) {
     return () => document.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
+  // Scroll-bleed lock — same reasoning as Modal/MoreSheet/CommandPalette.
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [open]);
+
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-[1px]" onClick={onClose} aria-hidden />
+      <div className="absolute inset-0 touch-none bg-black/50 backdrop-blur-[1px]" onClick={onClose} aria-hidden />
       <div
         role="dialog"
         aria-modal="true"
@@ -47,7 +57,7 @@ export function SlideOver({ open, onClose, title, children }: SlideOverProps) {
             </button>
           </div>
         ) : null}
-        <div className="flex-1 overflow-y-auto">{children}</div>
+        <div className="no-scrollbar flex-1 overscroll-contain overflow-y-auto">{children}</div>
       </div>
     </div>
   );

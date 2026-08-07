@@ -47,7 +47,7 @@ export function PageScroll({ header, children }: { header?: ReactNode; children:
   return (
     <div className="flex h-full min-h-0 flex-col gap-6">
       {header ? <div className="flex shrink-0 flex-col gap-6">{header}</div> : null}
-      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto pb-20 lg:pb-0">
+      <div ref={scrollRef} className="no-scrollbar min-h-0 flex-1 overflow-y-auto pb-20 lg:pb-0">
         {children}
       </div>
     </div>

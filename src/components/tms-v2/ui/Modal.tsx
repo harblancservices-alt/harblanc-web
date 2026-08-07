@@ -45,11 +45,27 @@ export function Modal({ open, onClose, title, children, maxWidthClassName = "max
     return () => document.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
+  // Scroll-bleed lock: without this, scrolling to the top/bottom of the
+  // modal's own body can "chain" into whatever scroll container sits
+  // behind it in the DOM (PageScroll's list, a parent drawer, …) even
+  // though that background is visually hidden — a real, reported bug on
+  // mobile. overscroll-contain on the body (below) stops the chaining;
+  // this is the belt-and-suspenders half, freezing the background
+  // container outright while any modal is open.
+  useEffect(() => {
+    if (!open) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [open]);
+
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50 backdrop-blur-[1px]" onClick={onClose} aria-hidden />
+      <div className="absolute inset-0 touch-none bg-black/50 backdrop-blur-[1px]" onClick={onClose} aria-hidden />
       <div
         role="dialog"
         aria-modal="true"
@@ -68,7 +84,7 @@ export function Modal({ open, onClose, title, children, maxWidthClassName = "max
             </button>
           </div>
         ) : null}
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
+        <div className="no-scrollbar min-h-0 flex-1 overscroll-contain overflow-y-auto px-5 py-4">{children}</div>
         {footer ? <div className="shrink-0 border-t border-line px-5 py-4">{footer}</div> : null}
       </div>
     </div>

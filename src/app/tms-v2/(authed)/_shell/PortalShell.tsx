@@ -42,7 +42,7 @@ export function PortalShell({ email, children }: { email: string | null; childre
           <Sidebar email={email} />
           <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-4 pb-24 pt-6 md:px-8 md:pb-8 lg:pb-8">
             <Breadcrumb />
-            <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+            <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto">{children}</div>
           </main>
         </div>
         <BottomNav email={email} />

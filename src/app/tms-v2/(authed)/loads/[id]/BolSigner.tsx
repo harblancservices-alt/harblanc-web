@@ -281,7 +281,7 @@ export function BolSigner({
         </Button>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-2 py-3">
+      <div className="no-scrollbar min-h-0 flex-1 overscroll-contain overflow-y-auto px-2 py-3">
         {step === "loading" ? (
           <p className="mt-10 text-center text-[13px] font-semibold text-white/80">Opening BOL…</p>
         ) : step === "saving" ? (
