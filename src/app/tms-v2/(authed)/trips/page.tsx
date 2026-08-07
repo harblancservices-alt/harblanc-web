@@ -8,6 +8,7 @@ import { currentPeriod, periodLabel, isInPeriod } from "@/lib/domain/attribution
 import { listTrips } from "@/lib/data/trips";
 import { TRIP_COLUMNS, tripPeriodDate } from "./trip-columns";
 import { ClosedTripsSection } from "./ClosedTripsSection";
+import { NewTripButton } from "./NewTripButton";
 
 // Trips read live, request-scoped data (active/closed trips, this month's
 // rollup) — always fresh, matching Today's own dashboard.
@@ -45,6 +46,7 @@ export default async function TripsPage() {
           <PageHeader
             title="Trips"
             description="Out-and-back run grouping, for P&L individual loads can't carry alone."
+            actions={<NewTripButton />}
           />
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

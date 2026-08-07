@@ -11,6 +11,7 @@ import { getLoadById, type LoadWithFinancials } from "@/lib/data/loads";
 import { formatMoney } from "@/lib/domain/money";
 import { marginTone } from "../trip-columns";
 import { MarkPaidCell } from "@/components/tms-v2/MarkPaidCell";
+import { TripActions } from "./TripActions";
 
 // Trip detail reads live, request-scoped data — always fresh, matching the
 // Trips list and Today.
@@ -106,9 +107,18 @@ export default async function TripDetailPage({
               ) : null}
             </div>
           </div>
-          <p className="text-[12px] text-fg-muted">
-            Editing, close/reopen land in a later phase.
-          </p>
+          <TripActions
+            trip={{
+              id: trip.id,
+              name: trip.name,
+              status: trip.status,
+              notes: trip.notes,
+              startedAt: trip.startedAt,
+              endedAt: trip.endedAt,
+              startOdometer: trip.startOdometer,
+              endOdometer: trip.endOdometer,
+            }}
+          />
         </div>
       </div>
 
@@ -163,7 +173,7 @@ export default async function TripDetailPage({
         </div>
       </section>
 
-      {/* ODOMETER — read-only bookends; entry lands with the writes phase. */}
+      {/* ODOMETER — start/end bookends drive PC miles/diesel into net. */}
       <section className="flex flex-col gap-2 border-b border-line pb-5">
         <h2 className="text-[13px] font-medium uppercase tracking-wide text-fg-muted">Odometer</h2>
         <div className="flex flex-wrap gap-x-6 gap-y-1 text-[15px] text-fg">
