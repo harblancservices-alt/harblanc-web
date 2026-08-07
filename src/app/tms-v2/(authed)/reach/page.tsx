@@ -2,9 +2,12 @@ import { PageHeader } from "@/components/tms-v2/ui/PageHeader";
 import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
 import { loadReachMarkets, loadReachSettings, loadReachTemplates } from "@/app/admin/(authed)/dispatch/reach/queries";
 import { detectPosture, buildRecipients, buildTownParen } from "@/app/admin/(authed)/dispatch/reach/logic";
+import { listReachContacts } from "@/lib/data/reach-contacts";
+import { listBrokerDirectory } from "@/lib/data/broker-directory";
 import { MarketPicker } from "./MarketPicker";
 import { ReachComposer } from "./ReachComposer";
 import { ReachSettingsForm } from "./ReachSettingsForm";
+import { ContactsSection } from "./ContactsSection";
 
 // Load state, market suppression windows, and template edits can all change
 // between visits — read live, matching Today's/Load Detail's own choice.
@@ -29,10 +32,12 @@ export default async function ReachPage({
   const sp = await searchParams;
   const marketIdParam = typeof sp.marketId === "string" ? sp.marketId : null;
 
-  const [{ markets }, settings, { templates }] = await Promise.all([
+  const [{ markets }, settings, { templates }, contacts, brokersPage] = await Promise.all([
     loadReachMarkets(),
     loadReachSettings(),
     loadReachTemplates(),
+    listReachContacts(),
+    listBrokerDirectory({ pageSize: 200 }),
   ]);
   const anchor = await detectPosture(markets);
 
@@ -74,6 +79,8 @@ export default async function ReachPage({
         )}
 
         <ReachSettingsForm settings={settings} />
+
+        <ContactsSection contacts={contacts} brokers={brokersPage.rows.map((b) => ({ id: b.id, name: b.name }))} />
       </div>
     </PageScroll>
   );
