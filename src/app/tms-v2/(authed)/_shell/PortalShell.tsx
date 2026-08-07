@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { TopBar } from "./TopBar";
 import { Sidebar } from "./Sidebar";
 import { BottomNav } from "./BottomNav";
 import { Breadcrumb } from "./Breadcrumb";
@@ -19,22 +18,28 @@ import { CommandPalette } from "./CommandPalette";
  * browser chrome showing/hiding doesn't clip or double-scroll. This is
  * self-contained to this subtree: the shared root layout (src/app/layout.tsx)
  * still lets the marketing site scroll normally, since only this div caps
- * its own height regardless of its ambient flex container's sizing. TopBar
- * and Sidebar no longer need sticky/position hacks — nothing above them
- * scrolls anymore, so they simply sit in the fixed shell. The content
- * wrapper below Breadcrumb is the ONE scroll container every page mounts
- * into; pages that want their header/KPI-strip/filter-bar pinned above an
- * internally-scrolling list use <PageScroll> inside it (components/tms-v2/
- * ui/PageScroll.tsx) — for a page that doesn't opt into that split, this
- * wrapper is still the safety net that scrolls instead of clipping.
+ * its own height regardless of its ambient flex container's sizing. The
+ * content wrapper below Breadcrumb is the ONE scroll container every page
+ * mounts into; pages that want their header/KPI-strip/filter-bar pinned
+ * above an internally-scrolling list use <PageScroll> inside it
+ * (components/tms-v2/ui/PageScroll.tsx) — for a page that doesn't opt into
+ * that split, this wrapper is still the safety net that scrolls instead of
+ * clipping.
+ *
+ * NO top bar, on any viewport (2026-08, Brent's explicit ask): there is no
+ * TopBar component here at all, not a borderless/collapsed one — its
+ * vertical space is gone too, not just its border/background. Everything
+ * it used to hold (brand mark, search, notifications, account identity,
+ * sign out) moved into Sidebar (desktop) and MoreSheet (mobile, already
+ * carrying these since the borderless-TopBar pass) — see Sidebar.tsx's
+ * header comment. Content starts flush under Breadcrumb.
  */
 export function PortalShell({ email, children }: { email: string | null; children: ReactNode }) {
   return (
     <ShellSearchProvider>
       <div className="tms-v2-light flex h-dvh flex-col overflow-hidden bg-canvas text-fg">
-        <TopBar email={email} />
         <div className="mx-auto flex min-h-0 w-full max-w-[1400px] flex-1">
-          <Sidebar />
+          <Sidebar email={email} />
           <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-4 pb-24 pt-6 md:px-8 md:pb-8 lg:pb-8">
             <Breadcrumb />
             <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
