@@ -71,6 +71,18 @@ function EditBrokerModal({
           <Field label="Phone" name="phone" type="tel" defaultValue={identity.phone ?? ""} />
           <Field label="Email" name="email" type="email" defaultValue={identity.email ?? ""} />
         </div>
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="Office" name="office" defaultValue={identity.office ?? ""} />
+          <Field label="Timezone" name="timezone" defaultValue={identity.timezone ?? ""} />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="Authority" name="authority" defaultValue={identity.authority ?? ""} />
+          <Field label="Insurance" name="insurance" defaultValue={identity.insurance ?? ""} />
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <Field label="W9" name="w9" defaultValue={identity.w9 ?? ""} />
+          <Field label="1099" name="ten99" defaultValue={identity.ten99 ?? ""} />
+        </div>
         <label className="flex flex-col gap-1 text-[13px] font-medium text-fg">
           Status
           <select

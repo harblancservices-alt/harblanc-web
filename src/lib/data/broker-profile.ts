@@ -34,8 +34,15 @@ export type BrokerIdentity = {
   status: string;
   mcNumber: string | null;
   dotNumber: string | null;
+  brokerType: string | null;
   phone: string | null;
   email: string | null;
+  office: string | null;
+  timezone: string | null;
+  authority: string | null;
+  insurance: string | null;
+  w9: string | null;
+  ten99: string | null;
   factoring: boolean;
   notes: string | null;
 };
@@ -73,7 +80,16 @@ export type BrokerLoadHistoryRow = {
   financials: LoadFinancials;
 };
 
-export type BrokerArAging = { d0to7: number; d8to14: number; d15to30: number; d31plus: number };
+export type BrokerArAging = {
+  d0to7: number;
+  d8to14: number;
+  d15to30: number;
+  d31plus: number;
+  d0to7Count: number;
+  d8to14Count: number;
+  d15to30Count: number;
+  d31plusCount: number;
+};
 
 export type BrokerProfile = {
   identity: BrokerIdentity;
@@ -93,8 +109,15 @@ type BrokerDbRow = {
   status: string;
   mc_number: string | null;
   dot_number: string | null;
+  broker_type: string | null;
   phone: string | null;
   email: string | null;
+  office: string | null;
+  timezone: string | null;
+  authority: string | null;
+  insurance: string | null;
+  w9: string | null;
+  ten99: string | null;
   factoring: boolean | null;
   notes: string | null;
 };
@@ -190,14 +213,32 @@ function daysSince(dateStr: string | null, now: Date): number {
 }
 
 function buildAging(unpaidClosed: { deliveryDate: string | null; rate: number | string | null; tonuAmount: number | string | null; status: string }[], now: Date): BrokerArAging {
-  const aging: BrokerArAging = { d0to7: 0, d8to14: 0, d15to30: 0, d31plus: 0 };
+  const aging: BrokerArAging = {
+    d0to7: 0,
+    d8to14: 0,
+    d15to30: 0,
+    d31plus: 0,
+    d0to7Count: 0,
+    d8to14Count: 0,
+    d15to30Count: 0,
+    d31plusCount: 0,
+  };
   for (const l of unpaidClosed) {
     const amount = l.status === "tonu" ? num(l.tonuAmount) : num(l.rate);
     const d = daysSince(l.deliveryDate, now);
-    if (d <= 7) aging.d0to7 += amount;
-    else if (d <= 14) aging.d8to14 += amount;
-    else if (d <= 30) aging.d15to30 += amount;
-    else aging.d31plus += amount;
+    if (d <= 7) {
+      aging.d0to7 += amount;
+      aging.d0to7Count += 1;
+    } else if (d <= 14) {
+      aging.d8to14 += amount;
+      aging.d8to14Count += 1;
+    } else if (d <= 30) {
+      aging.d15to30 += amount;
+      aging.d15to30Count += 1;
+    } else {
+      aging.d31plus += amount;
+      aging.d31plusCount += 1;
+    }
   }
   return aging;
 }
@@ -233,7 +274,24 @@ function demoProfile(id: string): BrokerProfile | null {
   const ar = computeCarrierAR(unpaidClosed.map((l) => ({ id: l.id, status: l.status, paymentStatus: l.paymentStatus, deliveryDate: l.deliveryDate, rate: l.rate, tonuAmount: l.tonuAmount })));
 
   return {
-    identity: { id: demo.id, name: demo.name, status: demo.status, mcNumber: demo.mcNumber, dotNumber: demo.dotNumber, phone: demo.phone, email: demo.email, factoring: demo.factoring, notes: null },
+    identity: {
+      id: demo.id,
+      name: demo.name,
+      status: demo.status,
+      mcNumber: demo.mcNumber,
+      dotNumber: demo.dotNumber,
+      brokerType: null,
+      phone: demo.phone,
+      email: demo.email,
+      office: null,
+      timezone: null,
+      authority: null,
+      insurance: null,
+      w9: null,
+      ten99: null,
+      factoring: demo.factoring,
+      notes: null,
+    },
     kpis: { loadsCount: brokerLoads.length, gross, net, arOutstanding: ar.totalOutstanding },
     aging: buildAging(unpaidClosed.map((l) => ({ deliveryDate: l.deliveryDate, rate: l.rate, tonuAmount: l.tonuAmount, status: l.status })), new Date()),
     contacts: [{ id: "demo-contact-1", name: "Dispatch (Demo)", title: "Dispatcher", phone: demo.phone, email: demo.email, isBackhaul: true }],
@@ -249,7 +307,7 @@ export async function getBrokerProfile(id: string): Promise<BrokerProfile | null
   const [{ data: broker }, { data: contactRows }, { data: loadRows }] = await Promise.all([
     sb
       .from("brokers")
-      .select("id, name, status, mc_number, dot_number, phone, email, factoring, notes")
+      .select("id, name, status, mc_number, dot_number, broker_type, phone, email, office, timezone, authority, insurance, w9, ten99, factoring, notes")
       .eq("id", id)
       .is("deleted_at", null)
       .maybeSingle<BrokerDbRow>(),
@@ -308,8 +366,15 @@ export async function getBrokerProfile(id: string): Promise<BrokerProfile | null
       status: broker.status,
       mcNumber: broker.mc_number,
       dotNumber: broker.dot_number,
+      brokerType: broker.broker_type,
       phone: broker.phone,
       email: broker.email,
+      office: broker.office,
+      timezone: broker.timezone,
+      authority: broker.authority,
+      insurance: broker.insurance,
+      w9: broker.w9,
+      ten99: broker.ten99,
       factoring,
       notes: broker.notes,
     },

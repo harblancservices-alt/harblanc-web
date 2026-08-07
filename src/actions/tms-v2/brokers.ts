@@ -75,10 +75,17 @@ export const updateBroker = mutation(async (id: string, formData: FormData): Pro
     .update({
       mc_number: str(formData, "mc_number"),
       dot_number: str(formData, "dot_number"),
+      broker_type: str(formData, "broker_type"),
       status: str(formData, "status") ?? "active",
       factoring: bool(formData, "factoring"),
       phone: str(formData, "phone"),
       email: str(formData, "email"),
+      office: str(formData, "office"),
+      timezone: str(formData, "timezone"),
+      authority: str(formData, "authority"),
+      insurance: str(formData, "insurance"),
+      w9: str(formData, "w9"),
+      ten99: str(formData, "ten99"),
       notes: str(formData, "notes"),
       updated_at: new Date().toISOString(),
     })
