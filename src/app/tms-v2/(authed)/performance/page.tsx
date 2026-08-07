@@ -10,10 +10,14 @@ import { formatMoney } from "@/lib/domain/money";
 import { getAnalyticsLoads, getMonthlyNetGoal } from "@/lib/data/analytics";
 import { summarize, brokerStats, laneStats, deadheadSplit, deltasBetween } from "@/lib/dispatch/performance";
 import { rpm, pct } from "@/lib/dispatch/format";
-import { currentPeriod } from "@/lib/domain/attribution";
+import { currentPeriod, periodRange } from "@/lib/domain/attribution";
 import { resolvePerformanceView, monthParam, shiftPeriod } from "./_lib/range";
 import { DeltaChip } from "./_components/DeltaChip";
 import { PartyStatList } from "./_components/PartyStatList";
+import { TrendChart, type TrendPoint } from "./_components/TrendChart";
+
+const TREND_MONTHS = 6;
+const SHORT_MONTH = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 // Server-aggregated, range-scoped rollup — never the full load history
 // re-aggregated client-side (v2-design.md §23's fixed weakness).
@@ -29,11 +33,20 @@ export default async function PerformancePage({ searchParams }: PageProps) {
   const now = new Date();
   const view = resolvePerformanceView(sp, now);
 
-  const [loads, prevLoads, monthlyGoal] = await Promise.all([
+  const anchorPeriod = view.mode === "month" ? view.period : currentPeriod(now);
+  const trendPeriods = Array.from({ length: TREND_MONTHS }, (_, i) => shiftPeriod(anchorPeriod, i - (TREND_MONTHS - 1)));
+
+  const [loads, prevLoads, monthlyGoal, trendLoadSets] = await Promise.all([
     getAnalyticsLoads(view.range),
     getAnalyticsLoads(view.prevRange),
     getMonthlyNetGoal(),
+    Promise.all(trendPeriods.map((p) => getAnalyticsLoads(periodRange(p)))),
   ]);
+
+  const trend: TrendPoint[] = trendPeriods.map((p, i) => ({
+    label: SHORT_MONTH[p.month],
+    net: summarize(trendLoadSets[i]).net,
+  }));
 
   const summary = summarize(loads);
   const prevSummary = summarize(prevLoads);
@@ -125,6 +138,13 @@ export default async function PerformancePage({ searchParams }: PageProps) {
         </>
       }
     >
+      <Card className="mb-6">
+        <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Net · trailing {TREND_MONTHS} months</p>
+        <div className="mt-3">
+          <TrendChart points={trend} />
+        </div>
+      </Card>
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <PartyStatList title="Top brokers" rows={brokers} />
         <PartyStatList title="Top lanes" rows={lanes} />
