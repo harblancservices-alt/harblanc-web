@@ -340,6 +340,19 @@ export const deleteLoad = mutation(async (id: string): Promise<MutationResult> =
   return { ok: true };
 });
 
+/** Restore a soft-deleted load — a genuinely new capability (Phase 6 item
+ * 4): no restore path for loads exists anywhere in the repo, /admin
+ * included, same gap the audit found for brokers before restoreBroker
+ * closed it. Mirrors that same deleted_at-to-null pattern. */
+export const restoreLoad = mutation(async (id: string): Promise<MutationResult> => {
+  const sb = createServiceRoleClient();
+  const { error } = await sb.from("loads").update({ deleted_at: null }).eq("id", id);
+  if (error) return { ok: false, reason: `Could not restore load: ${error.message}` };
+
+  revalidateLoadPaths(id);
+  return { ok: true };
+});
+
 /** Add a manual per-load expense (toll, lumper, etc). Category autofills
  * from prior entries on the client — this just persists whatever was typed. */
 export const addLoadExpense = mutation(async (loadId: string, formData: FormData): Promise<MutationResult> => {

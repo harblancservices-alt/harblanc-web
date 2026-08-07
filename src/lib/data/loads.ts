@@ -77,6 +77,27 @@ export async function listActiveLoads(limit = 20): Promise<LoadWithFinancials[]>
   return ds.listActiveLoads(limit);
 }
 
+export type ArchivedLoadRow = { id: string; loadNumber: string | null; brokerName: string | null; deletedAt: string };
+
+/** Soft-deleted loads — the Load Board's trash section (Phase 6 item 4), a
+ * genuinely new capability neither /admin nor tms-v2 had before this. */
+export async function listArchivedLoads(): Promise<ArchivedLoadRow[]> {
+  if (await isDemoMode()) return [];
+
+  const sb = createServiceRoleClient();
+  const { data } = await sb
+    .from("loads")
+    .select("id, load_number, broker_name, deleted_at")
+    .not("deleted_at", "is", null)
+    .order("deleted_at", { ascending: false })
+    .limit(50)
+    .returns<{ id: string; load_number: string | null; broker_name: string | null; deleted_at: string | null }[]>();
+
+  return (data ?? [])
+    .filter((l) => l.deleted_at !== null)
+    .map((l) => ({ id: l.id, loadNumber: l.load_number, brokerName: l.broker_name, deletedAt: l.deleted_at as string }));
+}
+
 // ---------------------------------------------------------------------------
 // Load Board KPI strip (v2-design.md §4).
 // ---------------------------------------------------------------------------

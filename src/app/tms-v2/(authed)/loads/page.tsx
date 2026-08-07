@@ -7,7 +7,7 @@ import { StatusPill } from "@/components/tms-v2/ui/StatusPill";
 import { DataList, type DataListColumn } from "@/components/tms-v2/ui/DataList";
 import { ContextDrawer } from "@/components/tms-v2/ui/ContextDrawer";
 import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
-import { listLoads, getLoadBoardSummary, getLoadDetail, type LoadWithFinancials, type LoadStatus } from "@/lib/data/loads";
+import { listLoads, getLoadBoardSummary, getLoadDetail, listArchivedLoads, type LoadWithFinancials, type LoadStatus } from "@/lib/data/loads";
 import { listBrokers } from "@/lib/data/brokers";
 import { listTrips } from "@/lib/data/trips";
 import { currentPeriod, type Period } from "@/lib/domain/attribution";
@@ -16,6 +16,7 @@ import { formatMoney } from "@/lib/domain/money";
 import { LoadBoardFilters } from "./LoadBoardFilters";
 import { AddLoadButton } from "./AddLoadButton";
 import { LoadDrawerContent } from "./LoadDrawerContent";
+import { ArchivedLoadsSection } from "./ArchivedLoadsSection";
 
 // Loads change status/payment throughout the day — the board always reads
 // live, request-scoped data (matches Today's own force-dynamic choice).
@@ -70,12 +71,13 @@ export default async function LoadsPage({ searchParams }: { searchParams: Promis
   const brokerId = first(sp.brokerId) || undefined;
   const selectedId = first(sp.id);
 
-  const [summary, listResult, brokersPage, activeTripsPage, selectedLoad] = await Promise.all([
+  const [summary, listResult, brokersPage, activeTripsPage, selectedLoad, archivedLoads] = await Promise.all([
     getLoadBoardSummary(period),
     listLoads({ period, page, pageSize: DEFAULT_PAGE_SIZE, status, brokerId }),
     listBrokers({ pageSize: 100 }),
     listTrips({ status: "active", pageSize: 100 }),
     selectedId ? getLoadDetail(selectedId) : Promise.resolve(null),
+    listArchivedLoads(),
   ]);
   const brokerNames = brokersPage.rows.map((b) => b.name);
   const activeTripNames = activeTripsPage.rows.map((t) => t.name).filter((n): n is string => !!n);
@@ -205,6 +207,8 @@ export default async function LoadsPage({ searchParams }: { searchParams: Promis
           ) : null}
         </div>
       </div>
+
+      <ArchivedLoadsSection loads={archivedLoads} />
     </PageScroll>
     </div>
 

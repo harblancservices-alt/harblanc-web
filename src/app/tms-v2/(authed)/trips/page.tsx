@@ -5,9 +5,10 @@ import { DataList } from "@/components/tms-v2/ui/DataList";
 import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
 import { formatMoney } from "@/lib/domain/money";
 import { currentPeriod, periodLabel, isInPeriod } from "@/lib/domain/attribution";
-import { listTrips } from "@/lib/data/trips";
+import { listTrips, listArchivedTrips } from "@/lib/data/trips";
 import { TRIP_COLUMNS, tripPeriodDate } from "./trip-columns";
 import { ClosedTripsSection } from "./ClosedTripsSection";
+import { ArchivedTripsSection } from "./ArchivedTripsSection";
 import { NewTripButton } from "./NewTripButton";
 
 // Trips read live, request-scoped data (active/closed trips, this month's
@@ -21,9 +22,10 @@ export const dynamic = "force-dynamic";
 const TRIPS_FETCH_SIZE = 100;
 
 export default async function TripsPage() {
-  const [active, closed] = await Promise.all([
+  const [active, closed, archived] = await Promise.all([
     listTrips({ status: "active", pageSize: TRIPS_FETCH_SIZE }),
     listTrips({ status: "closed", pageSize: TRIPS_FETCH_SIZE }),
+    listArchivedTrips(),
   ]);
 
   const period = currentPeriod();
@@ -84,6 +86,8 @@ export default async function TripsPage() {
         </section>
 
         <ClosedTripsSection trips={closed.rows} />
+
+        <ArchivedTripsSection trips={archived} />
       </div>
     </PageScroll>
   );

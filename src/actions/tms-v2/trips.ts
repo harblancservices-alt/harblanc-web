@@ -161,3 +161,17 @@ export const deleteTrip = mutation(async (id: string): Promise<MutationResult> =
   revalidateTripPaths(id);
   return { ok: true };
 });
+
+/** Restore a soft-deleted trip — new capability (Phase 6 item 4), same gap
+ * as loads/brokers before restoreBroker. Loads that were on this trip were
+ * unlinked (trip_id cleared) at delete time and stay unlinked — reattaching
+ * them isn't recoverable from deleted_at alone, matching the same honest
+ * limitation restoreBroker already accepts for its own linked records. */
+export const restoreTrip = mutation(async (id: string): Promise<MutationResult> => {
+  const sb = createServiceRoleClient();
+  const { error } = await sb.from("trips").update({ deleted_at: null }).eq("id", id);
+  if (error) return { ok: false, reason: `Could not restore trip: ${error.message}` };
+
+  revalidateTripPaths(id);
+  return { ok: true };
+});
