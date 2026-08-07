@@ -24,7 +24,7 @@ import { createServiceRoleClient } from "@/lib/supabase/server";
 import { isDemoMode } from "@/lib/admin/demo";
 import { buildDemoData } from "@/lib/demo/demo-dataset";
 import { computeLoadNet, FUEL_DEFAULTS, type FuelSettings } from "@/lib/domain/money";
-import { attributionDate, periodOf } from "@/lib/domain/attribution";
+import { attributionDate, periodOf, loadsPeriodFilter } from "@/lib/domain/attribution";
 import type { PerfLoad } from "@/lib/dispatch/performance";
 
 export type DateRange = { start: string; end: string }; // pickup_date in [start, end)
@@ -213,8 +213,7 @@ export async function getAnalyticsLoads(range: DateRange): Promise<AnalyticsLoad
     .from("loads")
     .select(LOAD_COLUMNS)
     .is("deleted_at", null)
-    .gte("pickup_date", range.start)
-    .lt("pickup_date", range.end)
+    .or(loadsPeriodFilter(range))
     .order("pickup_date", { ascending: true })
     .limit(2000)
     .returns<LoadRow[]>();

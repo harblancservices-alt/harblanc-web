@@ -17,7 +17,7 @@ import {
   type LoadFinancials,
   type TripRollupLoad,
 } from "@/lib/domain/money";
-import { attributionDate, currentPeriod, periodRange, periodLabel } from "@/lib/domain/attribution";
+import { attributionDate, currentPeriod, periodRange, periodLabel, loadsPeriodFilter } from "@/lib/domain/attribution";
 import { DEFAULT_PAGE_SIZE, pageRange, toPaginated, type Paginated } from "@/lib/data/pagination";
 import type { LoadWithFinancials, ListLoadsOptions, LoadStatus } from "@/lib/data/loads";
 import type { TripWithFinancials, ListTripsOptions } from "@/lib/data/trips";
@@ -202,8 +202,7 @@ export const liveDataSource: DataSource = {
 
     let query = sb.from("loads").select(LOAD_COLUMNS, { count: "exact" }).is("deleted_at", null);
     if (opts.period) {
-      const { start, end } = periodRange(opts.period);
-      query = query.gte("pickup_date", start).lt("pickup_date", end);
+      query = query.or(loadsPeriodFilter(periodRange(opts.period)));
     }
     if (opts.brokerId) query = query.eq("broker_id", opts.brokerId);
     if (opts.status) query = query.eq("status", opts.status);
@@ -345,7 +344,6 @@ export const liveDataSource: DataSource = {
   async getTodaySummary(): Promise<TodaySummary> {
     const now = new Date();
     const period = currentPeriod(now);
-    const { start, end } = periodRange(period);
     const sb = createServiceRoleClient();
 
     const [periodLoadsRes, unpaidClosedRes, activeLoads] = await Promise.all([
@@ -353,8 +351,7 @@ export const liveDataSource: DataSource = {
         .from("loads")
         .select(LOAD_COLUMNS)
         .is("deleted_at", null)
-        .gte("pickup_date", start)
-        .lt("pickup_date", end)
+        .or(loadsPeriodFilter(periodRange(period)))
         .limit(1000)
         .returns<LoadRow[]>(),
       sb

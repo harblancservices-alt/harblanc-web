@@ -66,6 +66,39 @@ export function periodRange(period: Period): { start: string; end: string } {
   return { start, end };
 }
 
+/**
+ * The SQL-side twin of attributionDate()'s fallback chain (pickup_date,
+ * then delivery_date, then created_at) — a PostgREST `.or()` filter string
+ * for `loads` so a period-scoped query includes exactly the rows
+ * attributionDate() would bucket into that period.
+ *
+ * BUG THIS FIXES: every period-scoped `loads` query used to filter with a
+ * plain `.gte("pickup_date", start).lt("pickup_date", end)`. Postgres range
+ * comparisons against NULL are never true, so a load with no pickup_date
+ * matched NO period query, ever — even though attributionDate()'s own
+ * contract says such a row should still land "somewhere" (delivery_date,
+ * then created_at) rather than vanish. A load like that was only ever
+ * visible via a status-scoped view (e.g. Active Loads); the moment it was
+ * marked delivered it dropped out of that too, with nothing left anywhere
+ * to show it — reported as "this month's load disappeared after I entered
+ * the delivery odometer." Attribution still resolves pickup-first: a load
+ * WITH a pickup_date is scoped by pickup_date alone, exactly as before;
+ * this only widens the match for the rows that were being silently dropped.
+ *
+ * Takes a raw [start, end) range rather than a Period so callers that clip
+ * to a custom day range (Performance's custom-range view), not just a
+ * calendar month, can reuse the same fallback filter — pass
+ * periodRange(period) for the month case.
+ */
+export function loadsPeriodFilter(range: { start: string; end: string }): string {
+  const { start, end } = range;
+  return [
+    `and(pickup_date.gte.${start},pickup_date.lt.${end})`,
+    `and(pickup_date.is.null,delivery_date.gte.${start},delivery_date.lt.${end})`,
+    `and(pickup_date.is.null,delivery_date.is.null,created_at.gte.${start},created_at.lt.${end})`,
+  ].join(",");
+}
+
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
