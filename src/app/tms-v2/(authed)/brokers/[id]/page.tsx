@@ -27,6 +27,32 @@ const LANE_COLUMNS: DataListColumn<BrokerLane>[] = [
   },
 ];
 
+/** Mobile card for the Lanes section — same rounded-card family as
+ * BrokerHistoryCard/LoadCard, replacing DataList's stacked-row render on
+ * phones (lanes have no detail page of their own, so this stays a plain
+ * card rather than a Link). Desktop keeps the DataList table below. */
+function LaneCard({ lane }: { lane: BrokerLane }) {
+  return (
+    <div className="rounded-xl border border-line bg-card p-3.5 shadow-e1">
+      <div className="flex items-center justify-between gap-2">
+        <span className="min-w-0 truncate text-[14px] font-semibold text-fg">
+          {lane.origin} → {lane.destination}
+        </span>
+        <span className="shrink-0 text-[12px] text-fg-muted">
+          {lane.count} {lane.count === 1 ? "load" : "loads"}
+        </span>
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]">
+        <Money value={lane.gross} tone="none" className="font-semibold" />
+        <span className="text-fg-muted">
+          avg <Money value={lane.avgRate} tone="none" className="font-medium" />
+        </span>
+        {lane.avgRatePerMile > 0 ? <span className="text-fg-muted">${lane.avgRatePerMile.toFixed(2)}/mi</span> : null}
+      </div>
+    </div>
+  );
+}
+
 /**
  * Broker profile — rebuilt per Brent's split verdict on the legacy /admin
  * profile: the TOP he disliked (both legacy's and V2's prior versions,
@@ -132,12 +158,31 @@ export default async function BrokerDetailPage({ params }: { params: Promise<{ i
 
         <section className="flex flex-col gap-2">
           <h2 className="text-[15px] font-semibold text-fg">Lanes ({lanes.length})</h2>
-          <DataList
-            columns={LANE_COLUMNS}
-            rows={lanes}
-            rowKey={(l) => `${l.origin}->${l.destination}`}
-            emptyMessage="No lanes yet — this broker has no booked loads."
-          />
+
+          {/* Mobile — Load Board-style card list. */}
+          <div className="no-scrollbar lg:hidden">
+            {lanes.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-line-strong bg-card px-4 py-10 text-center shadow-e1">
+                <p className="text-[13px] text-fg-muted">No lanes yet — this broker has no booked loads.</p>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {lanes.map((l) => (
+                  <LaneCard key={`${l.origin}->${l.destination}`} lane={l} />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Desktop — unchanged table (later PC pass owns this). */}
+          <div className="hidden lg:block">
+            <DataList
+              columns={LANE_COLUMNS}
+              rows={lanes}
+              rowKey={(l) => `${l.origin}->${l.destination}`}
+              emptyMessage="No lanes yet — this broker has no booked loads."
+            />
+          </div>
         </section>
       </div>
     </PageScroll>
