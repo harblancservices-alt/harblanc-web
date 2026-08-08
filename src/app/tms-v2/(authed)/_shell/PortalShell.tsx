@@ -38,9 +38,16 @@ export function PortalShell({ email, children }: { email: string | null; childre
   return (
     <ShellSearchProvider>
       <div className="tms-v2-light flex h-dvh flex-col overflow-hidden bg-canvas text-fg">
-        <div className="mx-auto flex min-h-0 w-full max-w-[1400px] flex-1">
+        {/* max-w-[1400px] is a mobile/tablet no-op (real widths there never
+            get near it) but was ALSO capping desktop, leaving a huge empty
+            gutter on wide monitors (Brent's report, 2026-08-08) — lg:
+            removes the cap so the sidebar+content row fills the real
+            viewport width instead. <main>'s own px-4/md:px-8/xl:px-12
+            padding below is what keeps a "sensible gutter" instead of
+            content running edge-to-edge on very wide screens. */}
+        <div className="mx-auto flex min-h-0 w-full max-w-[1400px] flex-1 lg:max-w-none">
           <Sidebar email={email} />
-          <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-4 pb-24 pt-6 md:px-8 md:pb-8 lg:pb-8">
+          <main className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-4 pb-24 pt-6 md:px-8 md:pb-8 lg:pb-8 xl:px-12">
             <Breadcrumb />
             <div className="no-scrollbar min-h-0 flex-1 overflow-y-auto">{children}</div>
           </main>
