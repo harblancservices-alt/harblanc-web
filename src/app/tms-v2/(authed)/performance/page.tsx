@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/tms-v2/ui/PageHeader";
 import { KpiTile } from "@/components/tms-v2/ui/KpiTile";
-import { Money } from "@/components/tms-v2/ui/Money";
 import { Button } from "@/components/tms-v2/ui/Button";
 import { Card } from "@/components/tms-v2/ui/Card";
 import { ProgressBar } from "@/components/tms-v2/ui/ProgressBar";
@@ -17,7 +16,7 @@ import {
   deadheadSplit,
   deltasBetween,
   takeaways,
-  comparisonTakeaway,
+  efficiencyTakeaways,
   rangeTrendBuckets,
   type TakeawayContext,
 } from "@/lib/dispatch/performance";
@@ -37,7 +36,6 @@ import { LoadPerformanceTable } from "./_components/LoadPerformanceTable";
 import { TripPerformanceTable } from "./_components/TripPerformanceTable";
 import { DeadheadSplitBar } from "./_components/DeadheadSplitBar";
 import { InsightsStrip } from "./_components/InsightsStrip";
-import { TrendChart, type TrendPoint } from "./_components/TrendChart";
 import { DualTrendChart, type DualTrendPoint } from "./_components/DualTrendChart";
 import { RateTrendChart, type RateTrendPoint } from "./_components/RateTrendChart";
 
@@ -92,6 +90,24 @@ function rangeHref(sp: PerformanceSearchParams, overrides: Partial<PerformanceSe
   return buildHref(sp, { month: undefined, year: undefined, range: undefined, from: undefined, to: undefined, loadPage: undefined, ...overrides });
 }
 
+/** What "vs ___" means for the efficiency-review Insights sentences —
+ * always the immediately-preceding equal-length period, phrased in whatever
+ * unit the selected view itself is in. */
+function vsPeriodLabel(view: PerformanceView): string {
+  switch (view.mode) {
+    case "month":
+      return "last month";
+    case "year":
+      return "last year";
+    case "ytd":
+      return "the same period last year";
+    case "range":
+      return view.preset === "this_quarter" ? "last quarter" : "the prior week";
+    case "custom":
+      return "the prior period";
+  }
+}
+
 export default async function PerformancePage({ searchParams }: PageProps) {
   const sp = await searchParams;
   const now = new Date();
@@ -101,9 +117,8 @@ export default async function PerformancePage({ searchParams }: PageProps) {
   const today = centralDateKey(now);
 
   const [loads, prevLoads, netGoals] = await Promise.all([getAnalyticsLoads(view.range), getAnalyticsLoads(view.prevRange), getNetGoals()]);
-  // Trip Analysis (Phase 2 item 5) needs the tripIds already present on the
-  // range-scoped `loads` above — no second, wider load query to find "which
-  // trips touched this period".
+  // Trip Analysis needs the tripIds already present on the range-scoped
+  // `loads` above — no second, wider load query to find "which trips".
   const trips = await getAnalyticsTrips(loads);
 
   const summary = summarize(loads);
@@ -111,20 +126,16 @@ export default async function PerformancePage({ searchParams }: PageProps) {
   const deltas = deltasBetween(summary, prevSummary);
   const dh = deadheadSplit(loads);
 
-  // Adaptive trend (Phase 2 item 2; day-level bucketing removed 2026-08-08
-  // — Brent thinks in weeks/months only) — buckets the SAME range-scoped
-  // `loads` at the granularity the selected view calls for (week/month),
-  // never a separate trailing-months fetch. This also fixes a latent
-  // "range consistency" gap in the old build: the old trend always showed
-  // a fixed trailing 6 calendar months regardless of the selected range.
+  // Adaptive trend (week/month granularity only — day-level bucketing was
+  // removed 2026-08-08, Brent thinks in weeks/months) — buckets the SAME
+  // range-scoped `loads` at the granularity the selected view calls for,
+  // never a separate trailing-months fetch.
   const trendBuckets = rangeTrendBuckets(loads, view.range, view.granularity);
   const trendLabel = GRANULARITY_LABEL[view.granularity];
   const rateTrend: RateTrendPoint[] = trendBuckets.map((b) => ({ label: b.label, grossRpm: b.grossRpm, netRpm: b.netRpm }));
   const dualTrend: DualTrendPoint[] = trendBuckets.map((b) => ({ label: b.label, gross: b.gross, net: b.net }));
-  const volumeTrend: TrendPoint[] = trendBuckets.map((b) => ({ label: b.label, value: b.loads }));
 
-  // No artificial cap (Phase 7) — the server-aggregation architecture was
-  // already correct, this just stops slicing the full set down to 6.
+  // No artificial cap — server-aggregation, every broker/lane, sortable.
   const brokerSortKey: PartySortKey = isPartySortKey(sp.brokerSort) ? sp.brokerSort : "net";
   const brokerDir = sp.brokerDir === "asc" ? "asc" : "desc";
   const brokers = sortPartyStats(brokerStats(loads, Infinity), brokerSortKey, brokerDir);
@@ -132,9 +143,9 @@ export default async function PerformancePage({ searchParams }: PageProps) {
   const laneDir = sp.laneDir === "asc" ? "asc" : "desc";
   const lanes = sortPartyStats(laneStats(loads, Infinity), laneSortKey, laneDir);
 
-  // Drill-down (Phase 7 "where practical") — a broker or lane row links
-  // back here filtered to its own constituent loads in this same period,
-  // no new route or data plumbing (same `loads` array already in scope).
+  // Drill-down — a broker or lane row links back here filtered to its own
+  // constituent loads in this same period, no new route or data plumbing
+  // (same `loads` array already in scope).
   const drillBroker = typeof sp.broker === "string" ? sp.broker : null;
   const drillLane = typeof sp.lane === "string" ? sp.lane : null;
   const drillLoads = drillBroker
@@ -146,9 +157,9 @@ export default async function PerformancePage({ searchParams }: PageProps) {
   const drillCloseHref = buildHref(sp, { broker: undefined, lane: undefined });
   const fromPath = buildHref(sp, {});
 
-  // Analytical Load Board (Phase 8) — the same range-bounded `loads` array
-  // already fetched above (never a second, wider query), filtered/sorted/
-  // paginated in memory since it's already server-side and bounded.
+  // Analytical Load Board — the same range-bounded `loads` array already
+  // fetched above (never a second, wider query), filtered/sorted/paginated
+  // in memory since it's already server-side and bounded.
   const loadSearch = typeof sp.q === "string" ? sp.q : "";
   const loadSortKey: LoadSortKey = isLoadSortKey(sp.loadSort) ? sp.loadSort : "date";
   const loadDir = sp.loadDir === "asc" ? "asc" : "desc";
@@ -157,11 +168,10 @@ export default async function PerformancePage({ searchParams }: PageProps) {
   const loadPageCount = Math.max(1, Math.ceil(loadTableRows.length / LOAD_PAGE_SIZE));
   const loadPageRows = loadTableRows.slice((loadPage - 1) * LOAD_PAGE_SIZE, loadPage * LOAD_PAGE_SIZE);
 
-  // ---- Goal pace (Phase 2 item 3/4) — monthly goal for Month view, annual
-  // goal for Year/YTD view, both through the ONE shared computeGoalPace()
-  // Today's dashboard also consumes. Pace math (remaining/required-rate/
-  // verdict) only means something for the period still in progress; a past
-  // month or year keeps the plain percent-complete bar instead.
+  // Goal pace — monthly goal for Month view, annual goal for Year/YTD view,
+  // both through the ONE shared computeGoalPace() Today's dashboard also
+  // consumes. Pace math only means something for the period still in
+  // progress; a past month/year keeps the plain percent-complete bar.
   const isCurrentMonth = view.mode === "month" && view.period.year === nowPeriod.year && view.period.month === nowPeriod.month;
   const monthlyGoalPace =
     isCurrentMonth && netGoals.monthly > 0
@@ -184,21 +194,20 @@ export default async function PerformancePage({ searchParams }: PageProps) {
         })
       : null;
 
-  // Insights strip (Phase 10, restored) — takeaways() is fully built and
-  // audited correct, aggregating only what summarize/brokerStats/etc already
-  // produced. For Year/YTD, prepend the YoY "net vs revenue" comparison
-  // (Phase 2 item 4) built from the SAME `deltas` the KPI DeltaChips use —
-  // no new arithmetic, just a sentence over it.
+  // Insights, reframed as "where to do better" (a performance REVIEW, not a
+  // dashboard) — efficiencyTakeaways() leads with deterministic sentences
+  // tied directly to the hero metrics above (Deadhead %, Net $/mi, Gross
+  // $/mi), then takeaways()'s existing broker/lane/pay findings fill out
+  // the rest. Both are pure aggregations of summarize()/brokerStats()/etc,
+  // no new money math.
   const takeawayCtx: TakeawayContext = {
     year: view.mode === "month" ? view.period.year : nowPeriod.year,
     month: view.mode === "month" ? view.period.month : nowPeriod.month,
     monthlyGoal: netGoals.monthly,
     daysRemaining: daysLeftInMonth(now),
   };
-  const baseInsights = takeaways(loads, takeawayCtx);
-  const vsLabel = view.mode === "year" ? "last year" : view.mode === "ytd" ? "the same period last year" : null;
-  const comparison = vsLabel ? comparisonTakeaway(deltas, vsLabel) : null;
-  const insights = comparison ? [comparison, ...baseInsights].slice(0, 6) : baseInsights;
+  const efficiency = efficiencyTakeaways(summary, prevSummary, vsPeriodLabel(view));
+  const insights = [...efficiency, ...takeaways(loads, takeawayCtx)].slice(0, 6);
 
   const pills: { key: string; label: string; href: string; active: boolean }[] = [
     { key: "this_week", label: "This week", href: rangeHref(sp, { range: "this_week" }), active: view.mode === "range" && view.preset === "this_week" },
@@ -227,13 +236,12 @@ export default async function PerformancePage({ searchParams }: PageProps) {
         <>
           <PageHeader
             title="Performance"
-            description="Net vs goal, rate/mile, deadhead, and top brokers/lanes for whatever period you pick — one range drives the whole page."
+            description="Net profit, rate per mile, and deadhead — where the operation is running efficiently and where it isn't."
           />
 
-          {/* Range picker — a horizontal pill strip (same scroll-strip
-              pattern the mobile StatChip row already uses) so all 10 fixed
-              presets stay reachable without clutter on a phone; Custom stays
-              the always-visible from/to form below it, unchanged. */}
+          {/* Range picker — a horizontal pill strip so all 8 presets stay
+              reachable without clutter on a phone; Custom stays the
+              always-visible from/to form below it. */}
           <div className="no-scrollbar flex items-center gap-1.5 overflow-x-auto pb-0.5">
             {pills.map((p) => (
               <Link key={p.key} href={p.href} className={p.active ? PILL_ACTIVE : PILL}>
@@ -287,33 +295,38 @@ export default async function PerformancePage({ searchParams }: PageProps) {
             </form>
           </div>
 
-          {/* Mobile — headline Net tile + a thin scrollable secondary-stat
-              strip instead of seven KPI tiles. */}
-          <div className="flex flex-col gap-3 lg:hidden">
-            <KpiTile label="Net" value={formatMoney(summary.net)} delta={<DeltaChip delta={deltas.net} />} emphasis="dark" />
-            <div className="no-scrollbar flex items-stretch gap-4 overflow-x-auto rounded-xl border border-line bg-card px-3.5 py-2.5 shadow-e1">
-              <StatChip label="Gross" value={formatMoney(summary.gross)} />
-              <StatChip label="Loads" value={String(summary.loads)} />
-              <StatChip label="Margin" value={pct(summary.marginPct)} />
-              <StatChip label="Net $/mi" value={rpm(summary.netRpm)} />
-              <StatChip label="Gross $/mi" value={rpm(summary.grossRpm)} />
-              <StatChip label="Deadhead" value={pct(dh.pct)} />
-              <StatChip label="Avg Net/Load" value={formatMoney(summary.netPerLoad ?? 0)} />
-              <StatChip label="Avg Gross/Load" value={formatMoney(summary.grossPerLoad ?? 0)} />
-            </div>
-            <Card>
-              <p className="mb-2 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Deadhead split</p>
-              <DeadheadSplitBar split={dh} />
-            </Card>
+          {/* HERO — the performance-review headline. Net profit (with Gross
+              folded in as a small context line, not a competing tile), then
+              the efficiency row Brent actually reviews: Net $/mi, Gross
+              $/mi, Deadhead %, Total miles, Loaded miles. One responsive
+              block for both breakpoints — nothing else on the page competes
+              with this for visual weight. */}
+          <KpiTile label="Net profit" value={formatMoney(summary.net)} delta={<DeltaChip delta={deltas.net} />} emphasis="dark">
+            <span className="text-[12px] text-bar-fg/70">
+              Gross {formatMoney(summary.gross)}
+              {deltas.gross ? (
+                <>
+                  {" "}
+                  · <DeltaChip delta={deltas.gross} />
+                </>
+              ) : null}
+            </span>
+          </KpiTile>
+
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            <KpiTile label="Net $/mi" value={rpm(summary.netRpm)} delta={<DeltaChip delta={deltas.netRpm} />} />
+            <KpiTile label="Gross $/mi" value={rpm(summary.grossRpm)} />
+            <KpiTile label="Deadhead %" value={pct(dh.pct)} delta={<DeltaChip delta={deltas.deadhead} />} />
+            <KpiTile label="Total miles" value={Math.round(dh.total).toLocaleString("en-US")} />
+            <KpiTile label="Loaded miles" value={Math.round(dh.loaded).toLocaleString("en-US")} />
           </div>
 
-          {/* Desktop — unchanged four/three-tile KPI grids. */}
-          <div className="hidden lg:grid lg:grid-cols-4 lg:gap-3">
-            <KpiTile label="Net" value={formatMoney(summary.net)} delta={<DeltaChip delta={deltas.net} />} emphasis="dark" />
-            <KpiTile label="Gross" value={<Money value={summary.gross} tone="none" />} delta={<DeltaChip delta={deltas.gross} />} />
-            <KpiTile label="Loads" value={String(summary.loads)} />
-            <KpiTile label="Margin" value={pct(summary.marginPct)} delta={<DeltaChip delta={deltas.margin} />} />
-          </div>
+          {/* Mileage breakdown — central to the review, stays prominent
+              right under the efficiency row, not buried below the fold. */}
+          <Card>
+            <p className="mb-2 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Mileage breakdown</p>
+            <DeadheadSplitBar split={dh} />
+          </Card>
 
           {monthlyGoalPace ? (
             <GoalPaceCard label="Net vs monthly goal" pace={monthlyGoalPace} />
@@ -341,46 +354,50 @@ export default async function PerformancePage({ searchParams }: PageProps) {
             </Card>
           ) : null}
 
-          <div className="hidden lg:grid lg:grid-cols-3 lg:gap-3">
-            <KpiTile label="Net $/mi" value={rpm(summary.netRpm)} delta={<DeltaChip delta={deltas.netRpm} />} />
-            <KpiTile label="Gross $/mi" value={rpm(summary.grossRpm)} />
-            <KpiTile label="Deadhead" value={pct(dh.pct)} delta={<DeltaChip delta={deltas.deadhead} />} />
+          {/* Secondary/supporting — demoted below the hero: small text
+              chips, not full KpiTiles, so they read as background context
+              rather than competing metrics. */}
+          <div className="no-scrollbar flex items-stretch gap-4 overflow-x-auto rounded-xl border border-line bg-card px-3.5 py-2.5 shadow-e1">
+            <StatChip label="Loads" value={String(summary.loads)} />
+            <StatChip label="Margin" value={pct(summary.marginPct)} />
+            <StatChip label="Avg Net/Load" value={formatMoney(summary.netPerLoad ?? 0)} />
+            <StatChip label="Avg Gross/Load" value={formatMoney(summary.grossPerLoad ?? 0)} />
           </div>
-
-          <div className="hidden lg:grid lg:grid-cols-2 lg:gap-3">
-            <KpiTile label="Avg Net/Load" value={<Money value={summary.netPerLoad} />} />
-            <KpiTile label="Avg Gross/Load" value={<Money value={summary.grossPerLoad} tone="none" />} />
-          </div>
-
-          <Card className="hidden lg:block">
-            <p className="mb-2 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Deadhead split</p>
-            <DeadheadSplitBar split={dh} />
-          </Card>
         </>
       }
     >
-      {/* Mobile — charts-forward: Net vs Gross, $/mi trend, then revenue by
-          broker/lane as bar charts instead of plain number rows. */}
-      <div className="mb-6 flex flex-col gap-3 lg:hidden">
+      {/* Insights first — "where to do better," the review's core narrative,
+          leading with the efficiency-tied sentences before the supporting
+          charts/tables below. */}
+      <div className="mb-6">
+        <InsightsStrip items={insights} />
+      </div>
+
+      {/* Efficiency trends — Net vs Gross $/mi first (the hero rate metrics),
+          Net vs Gross $ second (profit context). One responsive grid, no
+          separate mobile/desktop blocks. The old "loads booked" volume
+          trend was cut — it isn't one of Brent's named review metrics. */}
+      <div className="mb-6 grid grid-cols-1 gap-3 lg:grid-cols-2">
+        <Card>
+          <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Net vs gross $/loaded-mi · {trendLabel}</p>
+          <div className="mt-3">
+            <RateTrendChart points={rateTrend} />
+          </div>
+        </Card>
         <Card>
           <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Net vs gross · {trendLabel}</p>
           <div className="mt-3">
             <DualTrendChart points={dualTrend} />
           </div>
         </Card>
-        <Card>
-          <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Gross vs net $/loaded-mi · {trendLabel}</p>
-          <div className="mt-3">
-            <RateTrendChart points={rateTrend} />
-          </div>
-        </Card>
-        <Card>
-          <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Loads booked · {trendLabel}</p>
-          <div className="mt-3">
-            <TrendChart points={volumeTrend} formatValue={(v) => String(Math.round(v))} />
-          </div>
-        </Card>
-        <InsightsStrip items={insights} />
+      </div>
+
+      {/* Broker/lane analysis — supports "where to improve" (worst
+          lanes/brokers, excess deadhead), sits below the efficiency
+          headline rather than competing with it. Mobile: bar charts;
+          desktop: full sortable tables + drill-down — same underlying
+          brokers/lanes data, genuinely different presentation. */}
+      <div className="mb-6 flex flex-col gap-3 lg:hidden">
         <Card>
           <PartyBarChart title="Brokers by net" rows={brokers} />
         </Card>
@@ -389,36 +406,10 @@ export default async function PerformancePage({ searchParams }: PageProps) {
         </Card>
       </div>
 
-      {/* Desktop */}
       <div className="hidden lg:block">
-        <div className="mb-6 grid grid-cols-1 gap-3 lg:grid-cols-2">
-          <Card>
-            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Net vs gross · {trendLabel}</p>
-            <div className="mt-3">
-              <DualTrendChart points={dualTrend} />
-            </div>
-          </Card>
-          <Card>
-            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Gross vs net $/loaded-mi · {trendLabel}</p>
-            <div className="mt-3">
-              <RateTrendChart points={rateTrend} />
-            </div>
-          </Card>
-          <Card>
-            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Loads booked · {trendLabel}</p>
-            <div className="mt-3">
-              <TrendChart points={volumeTrend} formatValue={(v) => String(Math.round(v))} />
-            </div>
-          </Card>
-        </div>
-
-        <div className="mb-6">
-          <InsightsStrip items={insights} />
-        </div>
-
         {drillTitle && drillLoads ? <PartyDrillDown title={drillTitle} loads={drillLoads} closeHref={drillCloseHref} fromPath={fromPath} /> : null}
 
-        <div className="flex flex-col gap-6">
+        <div className="mb-6 flex flex-col gap-6">
           <PartyTable
             title="Brokers — full analysis"
             nameLabel="Broker"
@@ -444,9 +435,9 @@ export default async function PerformancePage({ searchParams }: PageProps) {
         </div>
       </div>
 
-      {/* Analytical Load Board (Phase 8) — "the Load Board turned into
-          analytics." DataList itself handles the desktop-table/mobile-card
-          split, so this section renders once for both breakpoints. */}
+      {/* Analytical Load Board — "the Load Board turned into analytics."
+          DataList itself handles the desktop-table/mobile-card split, so
+          this section renders once for both breakpoints. */}
       <section className="mt-6 flex flex-col gap-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-[15px] font-semibold text-fg">Load performance</h2>
@@ -499,9 +490,9 @@ export default async function PerformancePage({ searchParams }: PageProps) {
         </div>
       </section>
 
-      {/* Trip Analysis (Phase 2 item 5) — trips touched by this period, all-in
-          financials via the same computeTripNet the Trips list/detail use.
-          Personal-conveyance miles surface ONLY here (Option C) — never in
+      {/* Trip Analysis — trips touched by this period, all-in financials via
+          the same computeTripNet the Trips list/detail use. Personal-
+          conveyance miles surface ONLY here (Brent's Option C) — never in
           the top-level mileage KPIs above. */}
       <section className="mt-6 flex flex-col gap-2">
         <h2 className="text-[15px] font-semibold text-fg">Trip performance</h2>

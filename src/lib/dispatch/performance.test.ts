@@ -11,9 +11,8 @@ import {
   monthKey,
   takeaways,
   rangeTrendBuckets,
-  deltasBetween,
   formatDelta,
-  comparisonTakeaway,
+  efficiencyTakeaways,
   type PerfLoad,
   type Takeaway,
 } from "./performance";
@@ -393,34 +392,45 @@ describe("formatDelta", () => {
   });
 });
 
-/** YoY "net vs revenue" comparison sentence (Phase 2 item 4) — the headline
- * case is gross and net/mi moving in OPPOSITE directions, which a bare
- * "revenue is up" reading would miss. */
-describe("comparisonTakeaway", () => {
-  it("flags divergence when gross is up but net/mi is down", () => {
-    const cur = { net: 8000, gross: 21600, netRpm: 1.5, grossRpm: 4.05, marginPct: 37, deadheadPct: 15 };
-    const prev = { net: 8500, gross: 20000, netRpm: 1.7, grossRpm: 4.0, marginPct: 42.5, deadheadPct: 15 };
-    const deltas = deltasBetween(cur, prev);
-    const takeaway = comparisonTakeaway(deltas, "last year");
-    expect(takeaway).not.toBeNull();
-    expect(takeaway!.tone).toBe("warn");
-    const text = takeaway!.segs.map((s) => s.text).join("");
-    expect(text).toContain("Gross is ");
-    expect(text).toContain("net/mi is ");
+/** "Where to do better" efficiency-review sentences — Brent's reframe of
+ * Insights around his named headline metrics (Deadhead %, Gross $/mi,
+ * Net $/mi), phrased with absolute before/after values, not just a delta. */
+describe("efficiencyTakeaways", () => {
+  it("flags deadhead rising, phrased with the before/after percentages", () => {
+    const cur = summarize([load({ net: 700, rate: 1000, loadedMiles: 860, deadheadMiles: 140 })]); // 14% deadhead
+    const prev = summarize([load({ net: 700, rate: 1000, loadedMiles: 910, deadheadMiles: 90 })]); // 9% deadhead
+    const items = efficiencyTakeaways(cur, prev, "last period");
+    const deadhead = items.find((tk) => tk.id === "deadhead-change");
+    expect(deadhead).toBeDefined();
+    expect(deadhead!.tone).toBe("bad");
+    const text = deadhead!.segs.map((s) => s.text).join("");
+    expect(text).toContain("rose");
+    expect(text).toContain("9%");
+    expect(text).toContain("14%");
   });
 
-  it("falls back to a plain net-delta sentence when gross and net/mi agree", () => {
-    const cur = { net: 9000, gross: 20000, netRpm: 1.8, grossRpm: 4.0, marginPct: 45, deadheadPct: 10 };
-    const prev = { net: 7000, gross: 16000, netRpm: 1.5, grossRpm: 3.6, marginPct: 43.75, deadheadPct: 10 };
-    const deltas = deltasBetween(cur, prev);
-    const takeaway = comparisonTakeaway(deltas, "last year");
-    expect(takeaway).not.toBeNull();
-    expect(takeaway!.tone).toBe("good");
+  it("flags gross/mi improving while net/mi doesn't — costs ate the gain", () => {
+    const cur = summarize([load({ net: 500, rate: 2000, loadedMiles: 1000, deadheadMiles: 0 })]); // gross/mi 2.00, net/mi 0.50
+    const prev = summarize([load({ net: 700, rate: 1800, loadedMiles: 1000, deadheadMiles: 0 })]); // gross/mi 1.80, net/mi 0.70
+    const items = efficiencyTakeaways(cur, prev, "last period");
+    const divergence = items.find((tk) => tk.id === "rpm-divergence");
+    expect(divergence).toBeDefined();
+    expect(divergence!.tone).toBe("bad");
+    expect(divergence!.segs.map((s) => s.text).join("")).toContain("costs ate the gain");
   });
 
-  it("returns null with nothing to compare against", () => {
-    const cur = { net: 0, gross: 0, netRpm: null, grossRpm: null, marginPct: null, deadheadPct: null };
-    const prev = { net: 0, gross: 0, netRpm: null, grossRpm: null, marginPct: null, deadheadPct: null };
-    expect(comparisonTakeaway(deltasBetween(cur, prev), "last year")).toBeNull();
+  it("falls back to a plain net/mi sentence when net/mi and gross/mi move together", () => {
+    const cur = summarize([load({ net: 900, rate: 2000, loadedMiles: 1000, deadheadMiles: 0 })]); // net/mi 0.90
+    const prev = summarize([load({ net: 500, rate: 1600, loadedMiles: 1000, deadheadMiles: 0 })]); // net/mi 0.50
+    const items = efficiencyTakeaways(cur, prev, "last period");
+    const netChange = items.find((tk) => tk.id === "net-rpm-change");
+    expect(netChange).toBeDefined();
+    expect(netChange!.tone).toBe("good");
+  });
+
+  it("returns no items when nothing moved meaningfully", () => {
+    const cur = summarize([load({ net: 700, rate: 1000, loadedMiles: 500, deadheadMiles: 100 })]);
+    const prev = summarize([load({ net: 700, rate: 1000, loadedMiles: 500, deadheadMiles: 100 })]);
+    expect(efficiencyTakeaways(cur, prev, "last period")).toEqual([]);
   });
 });

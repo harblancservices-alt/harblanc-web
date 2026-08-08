@@ -16,7 +16,7 @@
  * lands in the same month here as it does in the load board's goal bar.
  */
 
-import { usd, rpm } from "./format";
+import { usd, rpm, pct } from "./format";
 
 /**
  * One load, pre-costed by the server — every non-deleted load, not just
@@ -891,40 +891,74 @@ export function takeaways(loads: PerfLoad[], ctx: TakeawayContext): Takeaway[] {
     .map((c) => c.takeaway);
 }
 
+/** Below these, the move rounds to nothing — a "deadhead rose" sentence that
+ * quotes a 0.1-point wobble is noise, not a finding. */
+const DEADHEAD_TAKEAWAY_FLOOR_PTS = 0.5;
+const RPM_TAKEAWAY_FLOOR = 0.01;
+
 /**
- * "Net vs revenue" comparison sentence for a period-over-period compare
- * (Year/YTD's YoY comparison per Brent's Phase 2 ask — "keep the 'explain
- * net vs revenue' framing", e.g. "Gross +8% but net/mi -4%" over a bare
- * "Revenue +8%"). Pure formatting over the `MonthDeltas` `deltasBetween`
- * already computed — no new arithmetic, and it renders through
- * `InsightsStrip` like any other `Takeaway`, no new UI. Null when there's
- * nothing to compare (no prior period, every delta rounded to noise).
+ * "Where to do better" efficiency-review sentences — the core of Brent's
+ * reframe: Performance should read as a review centered on Deadhead %,
+ * Gross $/mi, and Net $/mi (his named headline metrics), not a generic
+ * dashboard. Pure formatting/comparison over the two `PeriodSummary`
+ * objects `summarize()` already produced for the current and prior
+ * period — no new arithmetic, and results render through `InsightsStrip`
+ * like any other `Takeaway`. Absolute before/after values (not just the
+ * delta) are used deliberately so a sentence can say "rose from 9% to
+ * 14%", the exact phrasing Brent asked for — `MonthDeltas` alone only
+ * carries the point change, not the two figures either side of it.
  */
-export function comparisonTakeaway(deltas: MonthDeltas, vsLabel: string): Takeaway | null {
-  const { gross, net, netRpm } = deltas;
-  if (!gross && !net && !netRpm) return null;
+export function efficiencyTakeaways(cur: PeriodSummary, prev: PeriodSummary, vsLabel: string): Takeaway[] {
+  const out: Takeaway[] = [];
 
-  // The headline case Brent called out: revenue and rate-quality moved in
-  // OPPOSITE directions — a bare "revenue up" reading would miss this.
-  if (gross && netRpm && gross.good !== netRpm.good) {
-    return {
-      id: "period-comparison",
-      tone: netRpm.good ? "good" : "warn",
-      segs: [
-        t("Gross is "),
-        b(formatDelta(gross)),
-        t(` vs ${vsLabel}, but net/mi is `),
-        b(formatDelta(netRpm)),
-        t(netRpm.good ? " — efficiency improved even as revenue slipped." : " — revenue grew but efficiency slipped."),
-      ],
-    };
+  // Deadhead — the headline "where empty miles crept in (or didn't)" line.
+  if (cur.deadheadPct != null && prev.deadheadPct != null) {
+    const delta = cur.deadheadPct - prev.deadheadPct;
+    if (Math.abs(delta) >= DEADHEAD_TAKEAWAY_FLOOR_PTS) {
+      const rose = delta > 0;
+      out.push({
+        id: "deadhead-change",
+        tone: rose ? "bad" : "good",
+        segs: [
+          t("Deadhead "),
+          b(rose ? "rose" : "improved"),
+          t(" from "),
+          b(pct(prev.deadheadPct)),
+          t(" to "),
+          b(pct(cur.deadheadPct)),
+          t(rose ? ` vs ${vsLabel} — more empty miles this period.` : ` vs ${vsLabel}.`),
+        ],
+      });
+    }
   }
 
-  if (net) {
-    return { id: "period-comparison", tone: net.good ? "good" : "warn", segs: [t("Net is "), b(formatDelta(net)), t(` vs ${vsLabel}.`)] };
+  // Net $/mi vs Gross $/mi — the exact "costs ate the gain" divergence case,
+  // falling back to a plain net/mi move when the two aren't diverging.
+  if (cur.netRpm != null && prev.netRpm != null) {
+    const netDelta = cur.netRpm - prev.netRpm;
+    const grossDelta = cur.grossRpm != null && prev.grossRpm != null ? cur.grossRpm - prev.grossRpm : null;
+    if (Math.abs(netDelta) >= RPM_TAKEAWAY_FLOOR) {
+      if (grossDelta != null && grossDelta >= RPM_TAKEAWAY_FLOOR && netDelta <= 0) {
+        out.push({
+          id: "rpm-divergence",
+          tone: "bad",
+          segs: [
+            t("Gross/mi improved ("),
+            b(`+${rpm(grossDelta)}`),
+            t(") but net/mi didn't ("),
+            b(`${netDelta >= 0 ? "+" : "-"}${rpm(Math.abs(netDelta))}`),
+            t(`) vs ${vsLabel} — costs ate the gain.`),
+          ],
+        });
+      } else {
+        out.push({
+          id: "net-rpm-change",
+          tone: netDelta > 0 ? "good" : "bad",
+          segs: [t("Net/mi "), b(`${netDelta >= 0 ? "up" : "down"} ${rpm(Math.abs(netDelta))}`), t(` vs ${vsLabel}.`)],
+        });
+      }
+    }
   }
-  if (gross) {
-    return { id: "period-comparison", tone: gross.good ? "good" : "warn", segs: [t("Gross is "), b(formatDelta(gross)), t(` vs ${vsLabel}.`)] };
-  }
-  return null;
+
+  return out;
 }
