@@ -5,6 +5,7 @@ import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
 import { Money } from "@/components/tms-v2/ui/Money";
 import { StatusPill } from "@/components/tms-v2/ui/StatusPill";
 import { DateTimeCST } from "@/components/tms-v2/ui/DateTimeCST";
+import { BackButton } from "@/components/tms-v2/ui/BackButton";
 import { getTripById } from "@/lib/data/trips";
 import { getLoadById, type LoadWithFinancials } from "@/lib/data/loads";
 import { formatMoney } from "@/lib/domain/money";
@@ -63,12 +64,7 @@ export default async function TripDetailPage({
     <PageScroll>
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-2">
-        <Link
-          href="/tms-v2/trips"
-          className="inline-flex w-fit items-center gap-1 text-[13px] font-medium text-fg-muted hover:text-fg"
-        >
-          ‹ All trips
-        </Link>
+        <BackButton href="/tms-v2/trips" label="All trips" />
 
         {/* HEADER — name, date range, status. */}
         <div>

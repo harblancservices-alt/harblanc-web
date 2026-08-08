@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { PageHeader } from "@/components/tms-v2/ui/PageHeader";
+import { BackButton } from "@/components/tms-v2/ui/BackButton";
 import { KpiTile } from "@/components/tms-v2/ui/KpiTile";
 import { Money } from "@/components/tms-v2/ui/Money";
 import { DateTimeCST } from "@/components/tms-v2/ui/DateTimeCST";
@@ -61,9 +61,7 @@ export default async function PipelineDetailPage({ params }: { params: Promise<{
     <PageScroll>
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
-        <Link href="/tms-v2/operations?tab=quotes" className="text-[13px] text-fg-muted hover:text-fg">
-          ← Operations
-        </Link>
+        <BackButton href="/tms-v2/operations?tab=quotes" label="Operations" />
         <PageHeader
           title={identity.name}
           description={[

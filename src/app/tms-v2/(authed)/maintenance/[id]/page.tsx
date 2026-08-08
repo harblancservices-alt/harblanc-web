@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/tms-v2/ui/PageHeader";
 import { DateTimeCST } from "@/components/tms-v2/ui/DateTimeCST";
+import { BackButton } from "@/components/tms-v2/ui/BackButton";
 import { getRepairEntryDetail } from "@/lib/data/maintenance";
 import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
 import { FreshnessBadge, MoneyLine } from "../_components/parts";
@@ -21,12 +22,7 @@ export default async function RepairEntryDetailPage({ params }: { params: Promis
   return (
     <PageScroll>
     <div className="flex flex-col gap-6">
-      <Link
-        href="/tms-v2/maintenance"
-        className="inline-flex w-fit items-center gap-1.5 text-[13px] font-medium text-fg-muted hover:text-fg"
-      >
-        ← Maintenance
-      </Link>
+      <BackButton href="/tms-v2/maintenance" label="Maintenance" />
 
       <PageHeader
         title={entry.description}

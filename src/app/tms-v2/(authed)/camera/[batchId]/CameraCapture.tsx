@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/tms-v2/ui/PageHeader";
 import { Button } from "@/components/tms-v2/ui/Button";
+import { BackButton } from "@/components/tms-v2/ui/BackButton";
 import { DocViewer } from "@/components/ui/DocViewer";
 import { uploadFileToSignedUrl } from "@/lib/storage/client-upload";
 import { bolName, type BatchDetail } from "@/lib/camera/shared";
@@ -217,9 +217,7 @@ export function CameraCapture({ batch }: { batch: BatchDetail }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-col gap-1.5">
-        <Link href="/tms-v2/camera" className="text-[13px] text-fg-muted hover:text-fg">
-          ← All batches
-        </Link>
+        <BackButton href="/tms-v2/camera" label="All batches" />
         <PageHeader
           title={batch.name}
           actions={

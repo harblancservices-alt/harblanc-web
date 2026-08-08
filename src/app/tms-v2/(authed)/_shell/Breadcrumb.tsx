@@ -20,7 +20,8 @@ import { TMS_V2_NAV, TMS_V2_SETTINGS, NAV_GROUP_LABEL } from "@/lib/nav/nav.conf
  * unchanged, that's part of the later dedicated PC pass. Detail pages that
  * relied on this as their way back to the list (Load/Trip/Broker/
  * Maintenance/Operations detail) each grew their own mobile back
- * affordance instead — see those pages' own "← Back" links.
+ * affordance instead — see those pages' own BackButton (components/
+ * tms-v2/ui/BackButton.tsx).
  */
 export function Breadcrumb() {
   const pathname = usePathname();

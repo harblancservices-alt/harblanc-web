@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/tms-v2/ui/PageHeader";
 import { DateTimeCST } from "@/components/tms-v2/ui/DateTimeCST";
 import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
+import { BackButton } from "@/components/tms-v2/ui/BackButton";
 import { getApplicationDetail } from "@/lib/data/pipeline";
 import { formatPhone } from "@/lib/domain/phone";
 import { ApplicationActions } from "./ApplicationActions";
@@ -32,9 +32,7 @@ export default async function ApplicationDetailPage({ params }: { params: Promis
     <PageScroll>
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-1.5">
-          <Link href="/tms-v2/operations?tab=applications" className="text-[13px] text-fg-muted hover:text-fg">
-            ← Applications
-          </Link>
+          <BackButton href="/tms-v2/operations?tab=applications" label="Applications" />
           <PageHeader title={app.name} actions={<ApplicationActions id={app.id} isTrashed={isTrashed} />} />
           <p className="text-[13px] text-fg-muted">
             {shortAppId(app.id)} · Received <DateTimeCST value={app.createdAt} />

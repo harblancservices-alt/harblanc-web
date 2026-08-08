@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import { BackButton } from "@/components/tms-v2/ui/BackButton";
 import { Money } from "@/components/tms-v2/ui/Money";
 import { DateTimeCST } from "@/components/tms-v2/ui/DateTimeCST";
 import { StatusPill } from "@/components/tms-v2/ui/StatusPill";
@@ -93,12 +93,7 @@ export default async function LoadDetailPage({ params }: { params: Promise<{ id:
     <PageScroll>
       <ScrollToHash />
       <div className="flex flex-col gap-5">
-        <Link
-          href="/tms-v2/loads"
-          className="inline-flex w-fit items-center gap-1.5 text-[13px] font-medium text-fg-muted hover:text-fg"
-        >
-          ← Loads
-        </Link>
+        <BackButton href="/tms-v2/loads" label="Loads" />
 
         {/* COMMAND BAR — mirrors admin's 3-tier dark bar: actions, centered
             lane, $-and-$/mi KPI strip. */}

@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
 import { DataList, type DataListColumn } from "@/components/tms-v2/ui/DataList";
 import { Money } from "@/components/tms-v2/ui/Money";
+import { BackButton } from "@/components/tms-v2/ui/BackButton";
 import { getBrokerProfile, type BrokerLane } from "@/lib/data/broker-profile";
 import { BrokerProfileHeader } from "./BrokerProfileHeader";
 import { BrokerProfileTabs } from "./BrokerProfileTabs";
@@ -178,9 +178,7 @@ export default async function BrokerDetailPage({ params }: { params: Promise<{ i
     <PageScroll>
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between gap-2">
-          <Link href="/tms-v2/brokers" className="text-[13px] text-fg-muted hover:text-fg">
-            ← Brokers
-          </Link>
+          <BackButton href="/tms-v2/brokers" label="Brokers" />
           <BrokerActions identity={identity} />
         </div>
 
