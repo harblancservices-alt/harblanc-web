@@ -29,6 +29,8 @@ export default async function ReceivablesPage({
   ]);
 
   return (
+    <div className="flex h-full min-h-0 overflow-hidden gap-6">
+    <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
     <PageScroll
       header={
         <>
@@ -37,7 +39,26 @@ export default async function ReceivablesPage({
             description="Carrier freight A/R — every delivered or TONU'd load still unpaid, aged from its delivery date via the one computeCarrierAR rule. Distinct from customer-brokerage money on Accounting."
           />
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          {/* Mobile — a thin one-line aging summary, not six KPI cards. */}
+          <div className="flex items-center gap-4 overflow-x-auto no-scrollbar whitespace-nowrap border-b border-line pb-2 text-[12px] text-fg-muted lg:hidden">
+            <span className="shrink-0 font-semibold text-fg">
+              Outstanding <Money value={summary.totalOutstanding} tone={summary.totalOutstanding > 0 ? "negative" : "none"} className="text-[12px] font-semibold" />
+            </span>
+            {AGING_BUCKETS.map((bucket) => (
+              <span key={bucket} className="shrink-0">
+                {AGING_BUCKET_LABEL[bucket]}{" "}
+                <Money
+                  value={summary.bucketTotals[bucket]}
+                  tone={bucket === "90+" && summary.bucketTotals[bucket] > 0 ? "negative" : "none"}
+                  className="text-[12px]"
+                />{" "}
+                ({summary.bucketCounts[bucket]})
+              </span>
+            ))}
+          </div>
+
+          {/* Desktop — unchanged six-tile KPI grid. */}
+          <div className="hidden lg:grid lg:grid-cols-6 lg:gap-3">
             <KpiTile label="Outstanding" value={<Money value={summary.totalOutstanding} tone={summary.totalOutstanding > 0 ? "negative" : "none"} />} />
             {AGING_BUCKETS.map((bucket) => (
               <KpiTile
@@ -71,5 +92,7 @@ export default async function ReceivablesPage({
         </div>
       </div>
     </PageScroll>
+    </div>
+    </div>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { DataList, type DataListColumn } from "@/components/tms-v2/ui/DataList";
@@ -10,6 +11,64 @@ import type { MutationResult } from "@/lib/demo/mutation";
 import type { CarrierReceivableRow } from "@/lib/data/receivables";
 
 const UNDO_WINDOW_MS = 4000;
+
+function initials(name: string | null): string {
+  if (!name) return "—";
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "—";
+  return (parts[0][0] + (parts[1]?.[0] ?? "")).toUpperCase();
+}
+
+/** Mobile's load-card treatment (Brent's ask: not the bare bordered DataList
+ * row) — same rounded-card/avatar/trailing-amount family as LoadCard.tsx/
+ * TripCard.tsx, sized to receivables' own fields. Whole card opens Load
+ * Detail; Mark paid stops propagation, same pattern as the desktop row. */
+function ReceivableCard({
+  row,
+  onMarkPaid,
+  busy,
+}: {
+  row: CarrierReceivableRow;
+  onMarkPaid: () => void;
+  busy: boolean;
+}) {
+  return (
+    <div className="relative rounded-xl border border-line bg-card p-3.5 shadow-e1 transition-shadow hover:shadow-e2">
+      <Link
+        href={`/tms-v2/loads/${row.loadId}`}
+        aria-label={`Open load ${row.loadNumber ?? row.loadId.slice(0, 8)}`}
+        className="absolute inset-0 z-0"
+      />
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-elevated text-[13px] font-semibold text-fg-muted">
+            {initials(row.brokerName)}
+          </span>
+          <div className="min-w-0">
+            <p className="truncate text-[14px] font-semibold text-fg">{row.brokerName ?? "No broker"}</p>
+            <p className="truncate text-[12px] text-fg-muted">#{row.loadNumber ?? row.loadId.slice(0, 8)}</p>
+          </div>
+        </div>
+        <div className="flex shrink-0 flex-col items-end gap-0.5">
+          <Money value={row.amount} tone={row.overdue ? "negative" : "auto"} className="text-[14px] font-semibold" />
+          <span className={`text-[11px] ${row.overdue ? "font-medium text-bad" : "text-fg-muted"}`}>
+            {row.bucket === "unaged" ? "No delivery date" : `${row.daysOutstanding}d out`}
+          </span>
+        </div>
+      </div>
+      <div className="relative z-10 mt-3 flex justify-end" onClick={(e) => e.stopPropagation()}>
+        <button
+          type="button"
+          onClick={onMarkPaid}
+          disabled={busy}
+          className="h-8 shrink-0 rounded-md border border-line-strong bg-card px-3 text-[12px] font-medium text-fg hover:bg-elevated disabled:opacity-50"
+        >
+          {busy ? "Saving…" : "Mark paid"}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 /** Per-row Mark paid + a 4s inline Undo (same pattern as Today's Needs
  * Attention dismiss/undo) — closes the QA gap that Receivables had no
@@ -113,13 +172,29 @@ export function ReceivablesListClient({ rows }: { rows: CarrierReceivableRow[] }
       ) : null}
       {error ? <p className="text-[13px] font-medium text-bad">{error}</p> : null}
 
-      <DataList
-        columns={columns}
-        rows={visibleRows}
-        rowKey={(r) => r.loadId}
-        getHref={(r) => `/tms-v2/loads/${r.loadId}`}
-        emptyMessage="No outstanding carrier receivables — every delivered or TONU'd load is paid."
-      />
+      {/* Mobile — load-card list, not the bare DataList row. */}
+      <div className="flex flex-col gap-2.5 lg:hidden">
+        {visibleRows.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-line-strong bg-card px-4 py-10 text-center shadow-e1">
+            <p className="text-[13px] text-fg-muted">No outstanding carrier receivables — every delivered or TONU'd load is paid.</p>
+          </div>
+        ) : (
+          visibleRows.map((r) => (
+            <ReceivableCard key={r.loadId} row={r} busy={busyId === r.loadId} onMarkPaid={() => onMarkPaid(r)} />
+          ))
+        )}
+      </div>
+
+      {/* Desktop — unchanged DataList table. */}
+      <div className="hidden lg:block">
+        <DataList
+          columns={columns}
+          rows={visibleRows}
+          rowKey={(r) => r.loadId}
+          getHref={(r) => `/tms-v2/loads/${r.loadId}`}
+          emptyMessage="No outstanding carrier receivables — every delivered or TONU'd load is paid."
+        />
+      </div>
     </div>
   );
 }
