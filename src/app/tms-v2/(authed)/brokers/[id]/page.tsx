@@ -122,18 +122,57 @@ export default async function BrokerDetailPage({ params }: { params: Promise<{ i
     </Panel>
   );
 
-  const historyTab =
-    loadHistory.length === 0 ? (
-      <div className="rounded-xl border border-dashed border-line-strong bg-card px-4 py-10 text-center">
-        <p className="text-[13px] text-fg-muted">No loads booked with this broker yet.</p>
+  // Lanes are load-derived (a lane is just loads grouped by origin→dest), so
+  // they belong with Load History, not floating as their own always-visible
+  // section (which used to render below every tab, reading as "under
+  // Contacts" whenever that tab was open — Brent's exact bug report).
+  const lanesSection = (
+    <section className="mt-6 flex flex-col gap-2 border-t border-line pt-4">
+      <h2 className="text-[15px] font-semibold text-fg">Lanes ({lanes.length})</h2>
+
+      {/* Mobile — Load Board-style card list. */}
+      <div className="no-scrollbar lg:hidden">
+        {lanes.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-line-strong bg-card px-4 py-10 text-center shadow-e1">
+            <p className="text-[13px] text-fg-muted">No lanes yet — this broker has no booked loads.</p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3">
+            {lanes.map((l) => (
+              <LaneCard key={`${l.origin}->${l.destination}`} lane={l} />
+            ))}
+          </div>
+        )}
       </div>
-    ) : (
-      <div className="flex flex-col gap-2">
-        {loadHistory.map((l) => (
-          <BrokerHistoryCard key={l.id} load={l} />
-        ))}
+
+      {/* Desktop — unchanged table (later PC pass owns this). */}
+      <div className="hidden lg:block">
+        <DataList
+          columns={LANE_COLUMNS}
+          rows={lanes}
+          rowKey={(l) => `${l.origin}->${l.destination}`}
+          emptyMessage="No lanes yet — this broker has no booked loads."
+        />
       </div>
-    );
+    </section>
+  );
+
+  const historyTab = (
+    <div className="flex flex-col">
+      {loadHistory.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-line-strong bg-card px-4 py-10 text-center">
+          <p className="text-[13px] text-fg-muted">No loads booked with this broker yet.</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {loadHistory.map((l) => (
+            <BrokerHistoryCard key={l.id} load={l} />
+          ))}
+        </div>
+      )}
+      {lanesSection}
+    </div>
+  );
 
   return (
     <PageScroll>
@@ -155,35 +194,6 @@ export default async function BrokerDetailPage({ params }: { params: Promise<{ i
           documents={documentsTab}
           history={historyTab}
         />
-
-        <section className="flex flex-col gap-2">
-          <h2 className="text-[15px] font-semibold text-fg">Lanes ({lanes.length})</h2>
-
-          {/* Mobile — Load Board-style card list. */}
-          <div className="no-scrollbar lg:hidden">
-            {lanes.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-line-strong bg-card px-4 py-10 text-center shadow-e1">
-                <p className="text-[13px] text-fg-muted">No lanes yet — this broker has no booked loads.</p>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-3">
-                {lanes.map((l) => (
-                  <LaneCard key={`${l.origin}->${l.destination}`} lane={l} />
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Desktop — unchanged table (later PC pass owns this). */}
-          <div className="hidden lg:block">
-            <DataList
-              columns={LANE_COLUMNS}
-              rows={lanes}
-              rowKey={(l) => `${l.origin}->${l.destination}`}
-              emptyMessage="No lanes yet — this broker has no booked loads."
-            />
-          </div>
-        </section>
       </div>
     </PageScroll>
   );
