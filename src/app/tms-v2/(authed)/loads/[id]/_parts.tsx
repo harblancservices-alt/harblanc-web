@@ -67,11 +67,11 @@ export function CommandStat({
   className?: string;
 }) {
   return (
-    <div className={`p-3 ${className}`}>
-      <div className="text-[11px] font-medium uppercase tracking-wide text-bar-fg/60">{label}</div>
-      <div className={`mt-0.5 text-[19px] font-semibold leading-tight tabular-nums ${COMMAND_STAT_TONE[tone]}`}>{value}</div>
+    <div className={`px-3 py-2 ${className}`}>
+      <div className="text-[10px] font-medium uppercase tracking-wide text-bar-fg/60">{label}</div>
+      <div className={`mt-0.5 text-[17px] font-semibold leading-tight tabular-nums ${COMMAND_STAT_TONE[tone]}`}>{value}</div>
       {sub ? (
-        <span className="mt-1 inline-block rounded-full bg-bar-fg/10 px-2 py-0.5 text-[11px] font-medium text-bar-fg/70">{sub}</span>
+        <span className="mt-0.5 inline-block rounded-full bg-bar-fg/10 px-1.5 py-0.5 text-[10.5px] font-medium text-bar-fg/70">{sub}</span>
       ) : null}
     </div>
   );

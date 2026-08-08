@@ -72,7 +72,7 @@ export default async function ReceivablesPage({
         </>
       }
     >
-      <ReceivablesListClient rows={list.rows} />
+      <ReceivablesListClient rows={list.rows} fromPath={buildHref(page)} />
 
       <div className="mt-4 flex items-center justify-between text-[13px] text-fg-muted">
         <span>

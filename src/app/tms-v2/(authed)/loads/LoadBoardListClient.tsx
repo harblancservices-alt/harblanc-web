@@ -4,6 +4,7 @@ import { Button } from "@/components/tms-v2/ui/Button";
 import { LoadCard } from "./LoadCard";
 import { AddLoadButton } from "./AddLoadButton";
 import { useLoadBoardSelection } from "./LoadBoardSelectionProvider";
+import { withReturnTo } from "@/lib/nav/return-to";
 import type { LoadWithFinancials } from "@/lib/data/loads";
 
 /** The Load Board's Add load action and the rich LoadCard grid with
@@ -22,17 +23,21 @@ export function LoadBoardListClient({
   brokerNames,
   activeTripNames,
   emptyMessage,
+  fromPath,
 }: {
   loads: LoadWithFinancials[];
   brokerNames: string[];
   activeTripNames: string[];
   emptyMessage: string;
+  /** This exact board view (month/ytd/all + page) — Load Detail's back
+   * button returns here instead of a reset "current month" default. */
+  fromPath: string;
 }) {
   // Tapping a load navigates straight to its full Load Detail page — the
   // context drawer this used to open is gone (Brent's explicit ask, now
   // that Load Detail carries every capability the drawer did and more).
   function rowHref(id: string): string {
-    return `/tms-v2/loads/${id}`;
+    return withReturnTo(`/tms-v2/loads/${id}`, fromPath);
   }
   const { selectMode, selected, pending, error, exitSelectMode, toggle, selectAll, clearAll, deleteSelected } = useLoadBoardSelection();
 

@@ -140,6 +140,11 @@ export default async function LoadsPage({ searchParams }: { searchParams: Promis
     return `/tms-v2/loads?${params.toString()}`;
   }
 
+  // This exact view (month/ytd/all + page) — handed to LoadBoardListClient
+  // so a load opened from here returns to the same view, not a reset
+  // "current month" (lib/nav/return-to.ts).
+  const fromPath = page > 1 ? pageHref(page) : (() => { const qs = baseParams().toString(); return qs ? `/tms-v2/loads?${qs}` : "/tms-v2/loads"; })();
+
   return (
     <LoadBoardSelectionProvider>
     <PageScroll
@@ -153,6 +158,7 @@ export default async function LoadsPage({ searchParams }: { searchParams: Promis
           brokerNames={brokerNames}
           activeTripNames={activeTripNames}
           emptyMessage="No loads in this view."
+          fromPath={fromPath}
         />
 
         {listResult.hasMore || page > 1 ? (

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Money } from "@/components/tms-v2/ui/Money";
+import { withReturnTo } from "@/lib/nav/return-to";
 import type { AnalyticsLoad } from "@/lib/data/analytics";
 
 /** Broker/lane drill-down (Phase 7's "where practical") — clicking a row in
@@ -8,7 +9,7 @@ import type { AnalyticsLoad } from "@/lib/data/analytics";
  * data plumbing: `loads` is the same array already fetched for the page's
  * own summary/trend/leaderboard figures, just filtered client-invisibly
  * (server-rendered) to one broker or lane. */
-export function PartyDrillDown({ title, loads, closeHref }: { title: string; loads: AnalyticsLoad[]; closeHref: string }) {
+export function PartyDrillDown({ title, loads, closeHref, fromPath }: { title: string; loads: AnalyticsLoad[]; closeHref: string; fromPath: string }) {
   return (
     <div className="mb-6 rounded-xl border border-accent bg-card shadow-e1">
       <div className="flex items-center justify-between gap-2 border-b border-line px-4 py-3">
@@ -26,7 +27,7 @@ export function PartyDrillDown({ title, loads, closeHref }: { title: string; loa
           {loads.map((l) => (
             <Link
               key={l.id}
-              href={`/tms-v2/loads/${l.id}`}
+              href={withReturnTo(`/tms-v2/loads/${l.id}`, fromPath)}
               className="grid grid-cols-[80px_1fr_auto_auto] items-center gap-3 px-4 py-2 text-[13px] hover:bg-elevated"
             >
               <span className="text-fg-muted">{l.date ?? "—"}</span>

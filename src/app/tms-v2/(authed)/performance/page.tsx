@@ -396,7 +396,7 @@ export default async function PerformancePage({ searchParams }: PageProps) {
         </div>
 
         {drillTitle && drillLoads ? (
-          <PartyDrillDown title={drillTitle} loads={drillLoads} closeHref={drillCloseHref} />
+          <PartyDrillDown title={drillTitle} loads={drillLoads} closeHref={drillCloseHref} fromPath={buildHref(sp, {})} />
         ) : null}
 
         <div className="flex flex-col gap-6">
@@ -455,6 +455,7 @@ export default async function PerformancePage({ searchParams }: PageProps) {
             dir: loadDir,
             hrefFor: (key) => buildHref(sp, { loadSort: key, loadDir: loadSortKey === key && loadDir === "desc" ? "asc" : "desc", loadPage: undefined }),
           }}
+          fromPath={buildHref(sp, {})}
         />
 
         <div className="flex items-center justify-between text-[13px] text-fg-muted">

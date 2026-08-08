@@ -5,6 +5,7 @@ import { Money } from "@/components/tms-v2/ui/Money";
 import { DateTimeCST } from "@/components/tms-v2/ui/DateTimeCST";
 import { MarkPaidCell } from "@/components/tms-v2/MarkPaidCell";
 import { RECEIVABLE_OVERDUE_DAYS } from "@/lib/domain/money";
+import { withReturnTo } from "@/lib/nav/return-to";
 import type { BrokerLoadHistoryRow } from "@/lib/data/broker-profile";
 
 function daysSince(dateStr: string | null): number | null {
@@ -36,8 +37,17 @@ function Chip({ children }: { children: ReactNode }) {
  * handler to a bare element (an earlier `<span onClick={...}>` wrapper
  * here did exactly that and crashed the RSC render for every broker with
  * an unpaid delivered/tonu load — audit trail: the "some brokers, not
- * others" crash report). */
-export function BrokerHistoryCard({ load: l }: { load: BrokerLoadHistoryRow }) {
+ * others" crash report).
+ *
+ * href fixed 2026-08-08 (found during the back-button navigation audit):
+ * this pointed at `/tms-v2/loads?id=${id}` — the OLD context-drawer
+ * pattern from before the Load Board drawer was removed in favor of full
+ * Load Detail pages (commit a6cbdcb). That query param has been dead ever
+ * since; tapping a broker's load-history card silently opened the Load
+ * Board instead of the load. Now a real `/tms-v2/loads/${id}` link, with
+ * `from` (lib/nav/return-to.ts) so its back button returns to this broker
+ * profile. */
+export function BrokerHistoryCard({ load: l, fromPath }: { load: BrokerLoadHistoryRow; fromPath: string }) {
   const marginPct = l.financials.gross > 0 ? Math.round((l.financials.net / l.financials.gross) * 100) : null;
   const age = daysSince(l.deliveryDate);
   const unpaid = (l.status === "delivered" || l.status === "tonu") && l.paymentStatus !== "paid";
@@ -45,7 +55,7 @@ export function BrokerHistoryCard({ load: l }: { load: BrokerLoadHistoryRow }) {
 
   return (
     <Link
-      href={`/tms-v2/loads?id=${l.id}`}
+      href={withReturnTo(`/tms-v2/loads/${l.id}`, fromPath)}
       className="block rounded-xl border border-line bg-card p-3.5 shadow-e1 transition-shadow hover:shadow-e2"
     >
       <div className="flex items-start justify-between gap-2">

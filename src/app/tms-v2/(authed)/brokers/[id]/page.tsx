@@ -4,6 +4,7 @@ import { DataList, type DataListColumn } from "@/components/tms-v2/ui/DataList";
 import { Money } from "@/components/tms-v2/ui/Money";
 import { BackButton } from "@/components/tms-v2/ui/BackButton";
 import { getBrokerProfile, type BrokerLane } from "@/lib/data/broker-profile";
+import { resolveBackHref } from "@/lib/nav/return-to";
 import { BrokerProfileHeader } from "./BrokerProfileHeader";
 import { BrokerProfileTabs } from "./BrokerProfileTabs";
 import { BrokerHistoryCard } from "./BrokerHistoryCard";
@@ -63,8 +64,17 @@ function LaneCard({ lane }: { lane: BrokerLane }) {
  * legacy's Overview/Contacts/Documents/Load History tabs (BrokerDetail.tsx)
  * in V2 tokens: same structure and data, modernized look only.
  */
-export default async function BrokerDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function BrokerDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ from?: string }>;
+}) {
   const { id } = await params;
+  const sp = await searchParams;
+  const backHref = resolveBackHref(sp.from, "/tms-v2/brokers");
+  const fromPath = `/tms-v2/brokers/${id}`;
   const profile = await getBrokerProfile(id);
   if (!profile) notFound();
 
@@ -166,7 +176,7 @@ export default async function BrokerDetailPage({ params }: { params: Promise<{ i
       ) : (
         <div className="flex flex-col gap-2">
           {loadHistory.map((l) => (
-            <BrokerHistoryCard key={l.id} load={l} />
+            <BrokerHistoryCard key={l.id} load={l} fromPath={fromPath} />
           ))}
         </div>
       )}
@@ -178,7 +188,7 @@ export default async function BrokerDetailPage({ params }: { params: Promise<{ i
     <PageScroll>
       <div className="flex flex-col gap-4">
         <div className="flex items-center justify-between gap-2">
-          <BackButton href="/tms-v2/brokers" label="Brokers" />
+          <BackButton href={backHref} label="Brokers" />
           <BrokerActions identity={identity} />
         </div>
 

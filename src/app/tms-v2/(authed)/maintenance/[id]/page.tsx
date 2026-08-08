@@ -5,6 +5,7 @@ import { DateTimeCST } from "@/components/tms-v2/ui/DateTimeCST";
 import { BackButton } from "@/components/tms-v2/ui/BackButton";
 import { getRepairEntryDetail } from "@/lib/data/maintenance";
 import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
+import { resolveBackHref, withReturnTo } from "@/lib/nav/return-to";
 import { FreshnessBadge, MoneyLine } from "../_components/parts";
 import { EntryActions } from "./EntryActions";
 
@@ -12,8 +13,16 @@ import { EntryActions } from "./EntryActions";
 // matching Load Detail's own force-dynamic choice.
 export const dynamic = "force-dynamic";
 
-export default async function RepairEntryDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function RepairEntryDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ from?: string }>;
+}) {
   const { id } = await params;
+  const sp = await searchParams;
+  const backHref = resolveBackHref(sp.from, "/tms-v2/maintenance");
   const entry = await getRepairEntryDetail(id);
   if (!entry) notFound();
 
@@ -22,7 +31,7 @@ export default async function RepairEntryDetailPage({ params }: { params: Promis
   return (
     <PageScroll>
     <div className="flex flex-col gap-6">
-      <BackButton href="/tms-v2/maintenance" label="Maintenance" />
+      <BackButton href={backHref} label="Maintenance" />
 
       <PageHeader
         title={entry.description}
@@ -132,7 +141,7 @@ export default async function RepairEntryDetailPage({ params }: { params: Promis
               {entry.relatedParts.map((r) => (
                 <Link
                   key={r.id}
-                  href={`/tms-v2/maintenance/${r.id}`}
+                  href={withReturnTo(`/tms-v2/maintenance/${r.id}`, `/tms-v2/maintenance/${entry.id}`)}
                   className="flex items-center justify-between gap-3 rounded-md border border-line px-3 py-2 text-[13px] text-fg hover:bg-elevated"
                 >
                   <div className="min-w-0">

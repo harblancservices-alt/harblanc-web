@@ -7,6 +7,7 @@ import { DataList, type DataListColumn } from "@/components/tms-v2/ui/DataList";
 import { DateTimeCST } from "@/components/tms-v2/ui/DateTimeCST";
 import { Money } from "@/components/tms-v2/ui/Money";
 import { markLoadPaid, markLoadUnpaid } from "@/actions/tms-v2/loads";
+import { withReturnTo } from "@/lib/nav/return-to";
 import type { MutationResult } from "@/lib/demo/mutation";
 import type { CarrierReceivableRow } from "@/lib/data/receivables";
 
@@ -27,15 +28,17 @@ function ReceivableCard({
   row,
   onMarkPaid,
   busy,
+  fromPath,
 }: {
   row: CarrierReceivableRow;
   onMarkPaid: () => void;
   busy: boolean;
+  fromPath: string;
 }) {
   return (
     <div className="relative rounded-xl border border-line bg-card p-3.5 shadow-e1 transition-shadow hover:shadow-e2">
       <Link
-        href={`/tms-v2/loads/${row.loadId}`}
+        href={withReturnTo(`/tms-v2/loads/${row.loadId}`, fromPath)}
         aria-label={`Open load ${row.loadNumber ?? row.loadId.slice(0, 8)}`}
         className="absolute inset-0 z-0"
       />
@@ -75,7 +78,7 @@ function ReceivableCard({
  * in-place undo. A load leaves the outstanding-A/R query the moment it's
  * paid, so without this the only recovery from a mis-tap was navigating
  * to Load Detail and toggling it back there. */
-export function ReceivablesListClient({ rows }: { rows: CarrierReceivableRow[] }) {
+export function ReceivablesListClient({ rows, fromPath }: { rows: CarrierReceivableRow[]; fromPath: string }) {
   const router = useRouter();
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
   const [pendingUndo, setPendingUndo] = useState<CarrierReceivableRow | null>(null);
@@ -180,7 +183,7 @@ export function ReceivablesListClient({ rows }: { rows: CarrierReceivableRow[] }
           </div>
         ) : (
           visibleRows.map((r) => (
-            <ReceivableCard key={r.loadId} row={r} busy={busyId === r.loadId} onMarkPaid={() => onMarkPaid(r)} />
+            <ReceivableCard key={r.loadId} row={r} busy={busyId === r.loadId} onMarkPaid={() => onMarkPaid(r)} fromPath={fromPath} />
           ))
         )}
       </div>
@@ -191,7 +194,7 @@ export function ReceivablesListClient({ rows }: { rows: CarrierReceivableRow[] }
           columns={columns}
           rows={visibleRows}
           rowKey={(r) => r.loadId}
-          getHref={(r) => `/tms-v2/loads/${r.loadId}`}
+          getHref={(r) => withReturnTo(`/tms-v2/loads/${r.loadId}`, fromPath)}
           emptyMessage="No outstanding carrier receivables — every delivered or TONU'd load is paid."
         />
       </div>

@@ -1,6 +1,7 @@
 import { DataList, type DataListColumn, type DataListSort } from "@/components/tms-v2/ui/DataList";
 import { Money } from "@/components/tms-v2/ui/Money";
 import { rpm } from "@/lib/dispatch/format";
+import { withReturnTo } from "@/lib/nav/return-to";
 import type { LoadTableRow } from "../_lib/load-table";
 
 /**
@@ -11,7 +12,7 @@ import type { LoadTableRow } from "../_lib/load-table";
  * scoped to the selected period) — never the whole load history, and never
  * re-aggregated client-side (this stays a plain server component).
  */
-export function LoadPerformanceTable({ rows, sort }: { rows: LoadTableRow[]; sort: DataListSort }) {
+export function LoadPerformanceTable({ rows, sort, fromPath }: { rows: LoadTableRow[]; sort: DataListSort; fromPath: string }) {
   const columns: DataListColumn<LoadTableRow>[] = [
     { key: "loadNumber", header: "Load#", sortable: true, render: (r) => (r.loadNumber ? `#${r.loadNumber}` : "—") },
     { key: "date", header: "Date", sortable: true, render: (r) => r.date ?? "—" },
@@ -54,7 +55,7 @@ export function LoadPerformanceTable({ rows, sort }: { rows: LoadTableRow[]; sor
       columns={columns}
       rows={rows}
       rowKey={(r) => r.id}
-      getHref={(r) => `/tms-v2/loads/${r.id}`}
+      getHref={(r) => withReturnTo(`/tms-v2/loads/${r.id}`, fromPath)}
       sort={sort}
       emptyMessage="No loads match this period/filter."
     />

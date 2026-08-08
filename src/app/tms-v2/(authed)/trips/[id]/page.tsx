@@ -9,6 +9,7 @@ import { BackButton } from "@/components/tms-v2/ui/BackButton";
 import { getTripById } from "@/lib/data/trips";
 import { getLoadById, type LoadWithFinancials } from "@/lib/data/loads";
 import { formatMoney } from "@/lib/domain/money";
+import { resolveBackHref, withReturnTo } from "@/lib/nav/return-to";
 import { TripActions } from "./TripActions";
 
 // Trip detail reads live, request-scoped data — always fresh, matching the
@@ -19,11 +20,14 @@ export const dynamic = "force-dynamic";
  * compact: load#, lane, broker, status, rate, net), not a DataList table.
  * Brent's "Option B" layout wants this page reading as one clean card
  * stack with minimal scrolling on any device, not a desktop table plus a
- * separate mobile fallback. */
-function TripLoadCard({ load }: { load: LoadWithFinancials }) {
+ * separate mobile fallback. Tapping through carries `from` (lib/nav/
+ * return-to.ts) so Load Detail's own back button returns to THIS trip,
+ * not the Trips list — the bug Brent reported for the Broker/Trip jump
+ * buttons applies just as much to this direction. */
+function TripLoadCard({ load, fromPath }: { load: LoadWithFinancials; fromPath: string }) {
   return (
     <Link
-      href={`/tms-v2/loads/${load.id}`}
+      href={withReturnTo(`/tms-v2/loads/${load.id}`, fromPath)}
       className="flex items-center justify-between gap-3 rounded-xl border border-line bg-card p-3.5 shadow-e1 transition-shadow hover:shadow-e2"
     >
       <div className="min-w-0 flex-1">
@@ -46,10 +50,14 @@ function TripLoadCard({ load }: { load: LoadWithFinancials }) {
 
 export default async function TripDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ from?: string }>;
 }) {
   const { id } = await params;
+  const sp = await searchParams;
+  const backHref = resolveBackHref(sp.from, "/tms-v2/trips");
   const trip = await getTripById(id);
   if (!trip) notFound();
 
@@ -64,7 +72,7 @@ export default async function TripDetailPage({
     <PageScroll>
     <div className="flex flex-col gap-5">
       <div className="flex flex-col gap-2">
-        <BackButton href="/tms-v2/trips" label="All trips" />
+        <BackButton href={backHref} label="All trips" />
 
         {/* HEADER — name, date range, status. */}
         <div>
@@ -140,7 +148,7 @@ export default async function TripDetailPage({
         ) : (
           <div className="flex flex-col gap-2.5">
             {linkedLoads.map((l) => (
-              <TripLoadCard key={l.id} load={l} />
+              <TripLoadCard key={l.id} load={l} fromPath={`/tms-v2/trips/${trip.id}`} />
             ))}
           </div>
         )}
