@@ -171,19 +171,23 @@ export function monthlyBuckets(loads: PerfLoad[], limit = 12): MonthBucket[] {
 // ---------------------------------------------------------- range trends
 
 /**
- * Adaptive trend bucketing (Brent's spec: Day/Week/Month ranges trend
- * daily, Quarter trends weekly, Year/YTD trend monthly) — generalizes
- * `monthlyBuckets` above from "trailing N calendar months regardless of
- * range" to "however many buckets the SELECTED range actually spans, at the
- * granularity that range calls for". Buckets are windowed by the range's own
- * [start, end) bounds, not by where loads happen to exist, so an empty
- * day/week/month inside the range still renders as a real zero bar (same
- * "don't fake continuity" rule `monthlyBuckets` already follows).
+ * Adaptive trend bucketing (Week/Month ranges trend weekly, Quarter trends
+ * weekly, Year/YTD trend monthly) — generalizes `monthlyBuckets` above from
+ * "trailing N calendar months regardless of range" to "however many
+ * buckets the SELECTED range actually spans, at the granularity that range
+ * calls for". Buckets are windowed by the range's own [start, end) bounds,
+ * not by where loads happen to exist, so an empty week/month inside the
+ * range still renders as a real zero bar (same "don't fake continuity"
+ * rule `monthlyBuckets` already follows).
+ *
+ * There is no "day" granularity (removed 2026-08-08) — Brent thinks in
+ * weeks and months only, so a single-week range (This week/Last week)
+ * collapses to its own one-bucket total rather than a 7-bar daily chart.
  */
-export type TrendGranularity = "day" | "week" | "month";
+export type TrendGranularity = "week" | "month";
 
 export type TrendBucket = {
-  /** Sortable identity — a date for day/week, "YYYY-MM" for month. */
+  /** Sortable identity — the chunk's start date for week, "YYYY-MM" for month. */
   key: string;
   /** Axis tick, e.g. "Aug 3" or "Jan". */
   label: string;
@@ -202,7 +206,8 @@ function addDaysUtc(dateStr: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-function dayLabel(dateStr: string): string {
+/** A week bucket's axis label — the chunk's start date, e.g. "Aug 3". */
+function weekLabel(dateStr: string): string {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateStr);
   if (!m) return dateStr;
   return `${MONTH_LABELS[Number(m[2]) - 1]} ${Number(m[3])}`;
@@ -234,21 +239,20 @@ function accumulate(b: TrendBucket, l: PerfLoad): void {
   b.deadheadMiles += l.deadheadMiles;
 }
 
-function dayOrWeekBuckets(loads: PerfLoad[], range: { start: string; end: string }, stepDays: 1 | 7): TrendBucket[] {
+const WEEK_STEP_DAYS = 7;
+
+function weekRangeBuckets(loads: PerfLoad[], range: { start: string; end: string }): TrendBucket[] {
   const buckets: TrendBucket[] = [];
-  const byKey = new Map<string, TrendBucket>();
-  for (let cursor = range.start; cursor < range.end; cursor = addDaysUtc(cursor, stepDays)) {
-    const b = newBucket(cursor, dayLabel(cursor));
-    buckets.push(b);
-    byKey.set(cursor, b);
+  for (let cursor = range.start; cursor < range.end; cursor = addDaysUtc(cursor, WEEK_STEP_DAYS)) {
+    buckets.push(newBucket(cursor, weekLabel(cursor)));
   }
   if (buckets.length === 0) return [];
   for (const l of loads) {
     if (!l.date || l.date < range.start || l.date >= range.end) continue;
-    // Find the bucket whose [key, key+stepDays) window contains this date —
-    // buckets are contiguous stepDays-day chunks anchored at range.start.
+    // Find the bucket whose [key, key+7) window contains this date — buckets
+    // are contiguous 7-day chunks anchored at range.start.
     const offset = Math.floor((new Date(`${l.date}T00:00:00Z`).getTime() - new Date(`${range.start}T00:00:00Z`).getTime()) / 86_400_000);
-    const chunkIndex = Math.floor(offset / stepDays);
+    const chunkIndex = Math.floor(offset / WEEK_STEP_DAYS);
     const b = buckets[chunkIndex];
     if (b) accumulate(b, l);
   }
@@ -282,9 +286,7 @@ function monthRangeBuckets(loads: PerfLoad[], range: { start: string; end: strin
 /** The one entry point the Performance page calls — picks the right bucket
  * shape for the granularity the selected view resolved to. */
 export function rangeTrendBuckets(loads: PerfLoad[], range: { start: string; end: string }, granularity: TrendGranularity): TrendBucket[] {
-  if (granularity === "day") return dayOrWeekBuckets(loads, range, 1);
-  if (granularity === "week") return dayOrWeekBuckets(loads, range, 7);
-  return monthRangeBuckets(loads, range);
+  return granularity === "week" ? weekRangeBuckets(loads, range) : monthRangeBuckets(loads, range);
 }
 
 export type PartyStat = {

@@ -13,13 +13,15 @@
  *                Covers "This year"/"Last year" and any other year.
  *   - "ytd"    — Jan 1 of the current year through today (`?range=ytd`).
  *                Always "current" by construction — no browsing.
- *   - "range"  — a fixed preset with no browsing: today, yesterday, this
- *                week, last week, this quarter (`?range=<preset>`).
+ *   - "range"  — a fixed preset with no browsing: this week, last week,
+ *                this quarter (`?range=<preset>`).
  *   - "custom" — an explicit day range (`?from=&to=`), unchanged from before.
  *
- * `granularity` tells the page which trend-bucket size to use (day/week/
- * month) per Brent's adaptive-trend spec — Day/Week/Month ranges trend
- * daily, Quarter trends weekly, Year/YTD trend monthly.
+ * `granularity` tells the page which trend-bucket size to use. Brent thinks
+ * in weeks and months only — day-level presets (Today/Yesterday) and any
+ * day-level trend bucketing were removed entirely (2026-08-08): Week/Month
+ * ranges trend weekly, Quarter trends weekly, Year/YTD trend monthly. There
+ * is no "day" granularity anywhere in this module anymore.
  */
 
 import { currentPeriod, periodRange, periodLabel, type Period } from "@/lib/domain/attribution";
@@ -27,18 +29,18 @@ import { dayAfter, type DateRange } from "@/lib/data/analytics";
 import { centralDateKey } from "@/lib/domain/dates";
 import { formatCentralDate } from "@/lib/domain/dates";
 
-export type TrendGranularity = "day" | "week" | "month";
+export type TrendGranularity = "week" | "month";
 
-export type RangePreset = "today" | "yesterday" | "this_week" | "last_week" | "this_quarter";
+export type RangePreset = "this_week" | "last_week" | "this_quarter";
 
 export type PerformanceView =
-  | { mode: "month"; period: Period; range: DateRange; prevRange: DateRange; label: string; granularity: "day" }
+  | { mode: "month"; period: Period; range: DateRange; prevRange: DateRange; label: string; granularity: "week" }
   | { mode: "year"; year: number; range: DateRange; prevRange: DateRange; label: string; granularity: "month" }
   | { mode: "ytd"; year: number; range: DateRange; prevRange: DateRange; label: string; granularity: "month" }
   | { mode: "range"; preset: RangePreset; range: DateRange; prevRange: DateRange; label: string; granularity: TrendGranularity }
   | { mode: "custom"; from: string; to: string; range: DateRange; prevRange: DateRange; label: string; granularity: TrendGranularity };
 
-const RANGE_PRESETS: RangePreset[] = ["today", "yesterday", "this_week", "last_week", "this_quarter"];
+const RANGE_PRESETS: RangePreset[] = ["this_week", "last_week", "this_quarter"];
 
 export function isRangePreset(v: string | undefined): v is RangePreset {
   return !!v && (RANGE_PRESETS as string[]).includes(v);
@@ -127,41 +129,27 @@ function quarterRange(year: number, qIdx: number): DateRange {
   return { start: `${sy}-${pad2(sm + 1)}-01`, end: `${ey}-${pad2(em + 1)}-01` };
 }
 
-/** Trend granularity for a range with no explicit rule (custom) — mirrors
- * Brent's Day/Week/Month→daily, Quarter→weekly, Year/YTD→monthly ladder by
- * span length: <=31 days reads fine as daily bars, <=~1 quarter as weekly,
- * anything longer collapses to monthly so the chart doesn't render 200+ bars. */
+/** Trend granularity for a range with no explicit rule (custom) — week for
+ * anything up to ~a quarter, month beyond that so the chart doesn't render
+ * 50+ bars. No "day" tier: Brent thinks in weeks and months only. */
 function granularityForSpan(days: number): TrendGranularity {
-  if (days <= 31) return "day";
-  if (days <= 100) return "week";
-  return "month";
+  return days <= 100 ? "week" : "month";
 }
 
 function presetRange(preset: RangePreset, today: string): { range: DateRange; prevRange: DateRange; granularity: TrendGranularity } {
   switch (preset) {
-    case "today": {
-      const range = { start: today, end: dayAfter(today) };
-      const yesterday = shiftDate(today, -1);
-      return { range, prevRange: { start: yesterday, end: today }, granularity: "day" };
-    }
-    case "yesterday": {
-      const yesterday = shiftDate(today, -1);
-      const range = { start: yesterday, end: today };
-      const dayBefore = shiftDate(yesterday, -1);
-      return { range, prevRange: { start: dayBefore, end: yesterday }, granularity: "day" };
-    }
     case "this_week": {
       const start = sundayOnOrBefore(today);
       const end = shiftDate(start, 7);
       const prevStart = shiftDate(start, -7);
-      return { range: { start, end }, prevRange: { start: prevStart, end: start }, granularity: "day" };
+      return { range: { start, end }, prevRange: { start: prevStart, end: start }, granularity: "week" };
     }
     case "last_week": {
       const thisWeekStart = sundayOnOrBefore(today);
       const start = shiftDate(thisWeekStart, -7);
       const end = thisWeekStart;
       const prevStart = shiftDate(start, -7);
-      return { range: { start, end }, prevRange: { start: prevStart, end: start }, granularity: "day" };
+      return { range: { start, end }, prevRange: { start: prevStart, end: start }, granularity: "week" };
     }
     case "this_quarter": {
       const [y, m] = today.split("-").map(Number);
@@ -176,10 +164,6 @@ function presetRange(preset: RangePreset, today: string): { range: DateRange; pr
 
 function presetLabel(preset: RangePreset, range: DateRange): string {
   switch (preset) {
-    case "today":
-      return `Today · ${formatCentralDate(range.start)}`;
-    case "yesterday":
-      return `Yesterday · ${formatCentralDate(range.start)}`;
     case "this_week":
       return `This week · ${formatCentralDate(range.start)} – ${formatCentralDate(shiftDate(range.end, -1))}`;
     case "last_week":
@@ -221,7 +205,7 @@ export function resolvePerformanceView(
   if (period != null) {
     const range = periodRange(period);
     const prevRange = periodRange(shiftPeriod(period, -1));
-    return { mode: "month", period, range, prevRange, label: periodLabel(period), granularity: "day" };
+    return { mode: "month", period, range, prevRange, label: periodLabel(period), granularity: "week" };
   }
 
   const today = centralDateKey(now);
@@ -242,5 +226,5 @@ export function resolvePerformanceView(
   const defaultPeriod = currentPeriod(now);
   const range = periodRange(defaultPeriod);
   const prevRange = periodRange(shiftPeriod(defaultPeriod, -1));
-  return { mode: "month", period: defaultPeriod, range, prevRange, label: periodLabel(defaultPeriod), granularity: "day" };
+  return { mode: "month", period: defaultPeriod, range, prevRange, label: periodLabel(defaultPeriod), granularity: "week" };
 }

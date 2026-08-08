@@ -50,7 +50,7 @@ export const dynamic = "force-dynamic";
 const PILL = "shrink-0 rounded-full border border-line-strong px-3 py-1.5 text-[13px] text-fg hover:bg-elevated";
 const PILL_ACTIVE = "shrink-0 rounded-full border border-accent bg-accent/10 px-3 py-1.5 text-[13px] font-medium text-accent";
 const NAV_ARROW = "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-line-strong text-fg hover:bg-elevated";
-const GRANULARITY_LABEL: Record<PerformanceView["granularity"], string> = { day: "daily", week: "weekly", month: "monthly" };
+const GRANULARITY_LABEL: Record<PerformanceView["granularity"], string> = { week: "weekly", month: "monthly" };
 
 type PerformanceSearchParams = {
   month?: string;
@@ -111,11 +111,12 @@ export default async function PerformancePage({ searchParams }: PageProps) {
   const deltas = deltasBetween(summary, prevSummary);
   const dh = deadheadSplit(loads);
 
-  // Adaptive trend (Phase 2 item 2) — buckets the SAME range-scoped `loads`
-  // at the granularity the selected view calls for (day/week/month), never
-  // a separate trailing-months fetch. This also fixes a latent "range
-  // consistency" gap in the old build: the old trend always showed a fixed
-  // trailing 6 calendar months regardless of the selected range.
+  // Adaptive trend (Phase 2 item 2; day-level bucketing removed 2026-08-08
+  // — Brent thinks in weeks/months only) — buckets the SAME range-scoped
+  // `loads` at the granularity the selected view calls for (week/month),
+  // never a separate trailing-months fetch. This also fixes a latent
+  // "range consistency" gap in the old build: the old trend always showed
+  // a fixed trailing 6 calendar months regardless of the selected range.
   const trendBuckets = rangeTrendBuckets(loads, view.range, view.granularity);
   const trendLabel = GRANULARITY_LABEL[view.granularity];
   const rateTrend: RateTrendPoint[] = trendBuckets.map((b) => ({ label: b.label, grossRpm: b.grossRpm, netRpm: b.netRpm }));
@@ -200,8 +201,6 @@ export default async function PerformancePage({ searchParams }: PageProps) {
   const insights = comparison ? [comparison, ...baseInsights].slice(0, 6) : baseInsights;
 
   const pills: { key: string; label: string; href: string; active: boolean }[] = [
-    { key: "today", label: "Today", href: rangeHref(sp, { range: "today" }), active: view.mode === "range" && view.preset === "today" },
-    { key: "yesterday", label: "Yesterday", href: rangeHref(sp, { range: "yesterday" }), active: view.mode === "range" && view.preset === "yesterday" },
     { key: "this_week", label: "This week", href: rangeHref(sp, { range: "this_week" }), active: view.mode === "range" && view.preset === "this_week" },
     { key: "last_week", label: "Last week", href: rangeHref(sp, { range: "last_week" }), active: view.mode === "range" && view.preset === "last_week" },
     {
