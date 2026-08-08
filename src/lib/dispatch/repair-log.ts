@@ -144,6 +144,69 @@ export function isCategory(v: string | null | undefined): v is Category {
   return v != null && (CATEGORIES as readonly string[]).includes(v);
 }
 
+// ---------------------------------------------------------------------------
+// Sub-categories — the Log Service form's dependent second dropdown (cascades
+// from CATEGORIES). Not a taxonomy the user builds; a fixed list per
+// mechanical home, drawn from the same vocabulary CATEGORY_RULES/
+// PREVENTATIVE_KEYWORDS below already use so a sub-category never disagrees
+// with which CATEGORIES bucket a description would auto-classify into.
+// Distinct from `partGroup` (still freeform + autocompleted from history) —
+// this is a short curated pick-list, that's an open-ended label.
+export const SUB_CATEGORIES: Record<Category, string[]> = {
+  "Steering & Suspension": [
+    "Wheel bearings",
+    "Ball joints",
+    "Control arms",
+    "Track bar",
+    "Sway bar / links",
+    "Tie rods",
+    "Kingpins",
+    "Springs (coil/leaf)",
+    "Shocks",
+    "Alignment",
+    "Greasing",
+    "Other",
+  ],
+  Drivetrain: [
+    "Differential fluid",
+    "Transmission fluid",
+    "Transfer case fluid",
+    "U-joints",
+    "Driveshaft",
+    "Carrier bearing",
+    "Clutch",
+    "Axle shafts",
+    "Other",
+  ],
+  "Engine Bay": [
+    "Engine oil & filter",
+    "Fuel filter(s)",
+    "Air filter",
+    "Cabin filter",
+    "Coolant / antifreeze",
+    "DEF",
+    "Belts",
+    "Battery",
+    "Alternator / starter",
+    "Turbo",
+    "Injectors",
+    "Other",
+  ],
+  Brakes: [
+    "Brake pads",
+    "Brake shoes",
+    "Rotors / drums",
+    "Brake lines",
+    "Air brake chambers",
+    "Slack adjusters",
+    "ABS",
+    "Other",
+  ],
+  "Tires & Wheels": ["Tire rotation", "Tire replacement", "Wheel balance", "TPMS", "Other"],
+  Trailer: ["Trailer brakes", "Trailer tires", "Landing gear", "Trailer lights / wiring", "Other"],
+  Other: ["Other"],
+};
+
 // The Preventative lens — an aggregate view, not a stored category. It has its
 // own card + route but is never written to repair_entries.category.
 export const PREVENTATIVE_LABEL = "Preventative";

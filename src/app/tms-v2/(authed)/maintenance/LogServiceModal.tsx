@@ -5,7 +5,7 @@ import { createReceiptUploadUrl, deleteService, logService, updateService } from
 import { uploadFileToSignedUrl } from "@/lib/storage/client-upload";
 import { Modal } from "@/components/tms-v2/ui/Modal";
 import { Button } from "@/components/tms-v2/ui/Button";
-import { CATEGORIES, POSITIONS, POSITION_LABEL, categoryForText, isCategory, type Category } from "@/lib/dispatch/repair-log";
+import { CATEGORIES, SUB_CATEGORIES, categoryForText, isCategory, type Category } from "@/lib/dispatch/repair-log";
 import type { MutationResult } from "@/lib/demo/mutation";
 
 /**
@@ -22,7 +22,7 @@ export type ServiceFormPart = {
   id?: string;
   description: string;
   category: Category;
-  position: string | null;
+  subCategory: string | null;
   partGroup: string | null;
   reminderInterval: number | null;
 };
@@ -43,7 +43,7 @@ type PartState = {
   name: string;
   category: Category;
   categoryTouched: boolean;
-  position: string;
+  subCategory: string;
   partGroup: string;
   remind: string;
 };
@@ -51,7 +51,7 @@ type PartState = {
 type NewFile = { id: string; file: File };
 
 function blankPart(): PartState {
-  return { key: crypto.randomUUID(), name: "", category: "Other", categoryTouched: false, position: "", partGroup: "", remind: "" };
+  return { key: crypto.randomUUID(), name: "", category: "Other", categoryTouched: false, subCategory: "", partGroup: "", remind: "" };
 }
 
 function seedParts(editService: ServiceFull | null | undefined): PartState[] {
@@ -62,7 +62,7 @@ function seedParts(editService: ServiceFull | null | undefined): PartState[] {
       name: p.description,
       category: p.category,
       categoryTouched: true,
-      position: p.position ?? "",
+      subCategory: p.subCategory ?? "",
       partGroup: p.partGroup ?? "",
       remind: p.reminderInterval != null ? String(p.reminderInterval) : "",
     }));
@@ -195,7 +195,7 @@ export function LogServiceModal({
           id: p.id,
           description: p.name.trim(),
           category: p.category,
-          position: p.position || null,
+          subCategory: p.subCategory || null,
           partGroup: p.partGroup.trim() || null,
           reminderInterval: p.remind.trim() ? Number(p.remind) : null,
         }));
@@ -276,7 +276,11 @@ export function LogServiceModal({
                   <select
                     value={p.category}
                     onChange={(e) => {
-                      if (isCategory(e.target.value)) patchPart(p.key, { category: e.target.value, categoryTouched: true });
+                      if (isCategory(e.target.value)) {
+                        // Sub-category options are category-scoped — a stale
+                        // pick from the old category would be invalid here.
+                        patchPart(p.key, { category: e.target.value, categoryTouched: true, subCategory: "" });
+                      }
                     }}
                     aria-label="Category"
                     className="min-w-0 flex-1 rounded-md border border-line-strong bg-card px-2 py-1 text-[12px] font-medium text-fg outline-none focus:border-fg"
@@ -288,15 +292,15 @@ export function LogServiceModal({
                     ))}
                   </select>
                   <select
-                    value={p.position}
-                    onChange={(e) => patchPart(p.key, { position: e.target.value })}
-                    aria-label="Position"
-                    className="rounded-md border border-line-strong bg-card px-2 py-1 text-[12px] text-fg outline-none focus:border-fg"
+                    value={p.subCategory}
+                    onChange={(e) => patchPart(p.key, { subCategory: e.target.value })}
+                    aria-label="Sub-category"
+                    className="min-w-0 flex-1 rounded-md border border-line-strong bg-card px-2 py-1 text-[12px] text-fg outline-none focus:border-fg"
                   >
-                    <option value="">No position</option>
-                    {POSITIONS.map((pos) => (
-                      <option key={pos} value={pos}>
-                        {POSITION_LABEL[pos]}
+                    <option value="">No sub-category</option>
+                    {SUB_CATEGORIES[p.category].map((sub) => (
+                      <option key={sub} value={sub}>
+                        {sub}
                       </option>
                     ))}
                   </select>
@@ -309,7 +313,7 @@ export function LogServiceModal({
                     className="w-[92px] rounded-md border border-line-strong bg-card px-2 py-1 text-[12px] tabular-nums text-fg outline-none placeholder:text-fg-subtle focus:border-fg"
                   />
                 </div>
-                {p.position || p.remind.trim() ? (
+                {p.remind.trim() ? (
                   <input
                     value={p.partGroup}
                     onChange={(e) => patchPart(p.key, { partGroup: e.target.value })}

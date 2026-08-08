@@ -17,7 +17,7 @@ import {
  * Maintenance actions — SERVICE-based, parts-first. A repair_service is one
  * shop/dealer visit that holds many parts (repair_entries). Date, odometer, the
  * optional total, and receipts live on the service; each part carries just its
- * identity (description, category, position, part_group).
+ * identity (description, category, position, sub_category, part_group).
  *
  * Service-role client (admin-only, behind the authed shell). Actions throw on
  * failure so the modal surfaces the error inline. Receipts follow the SAME
@@ -199,6 +199,7 @@ type ParsedPart = {
   description: string;
   category: Category;
   position: string | null;
+  subCategory: string | null;
   partGroup: string | null;
   reminderInterval: number | null;
 };
@@ -218,6 +219,12 @@ function parseParts(fd: FormData): ParsedPart[] {
 
     const rawPos = typeof p.position === "string" ? p.position : "";
     const position = isPosition(rawPos) ? rawPos : null;
+
+    // tms-v2's Log Service form (Parts Replaced row) sends this instead of
+    // position — a category-scoped pick-list item, not an axle/side slot.
+    // /admin's own modal doesn't send it, so it's null for those parts.
+    const subCategory =
+      typeof p.subCategory === "string" && p.subCategory.trim().length > 0 ? p.subCategory.trim().slice(0, 120) : null;
 
     const rawRemind =
       typeof p.reminderInterval === "number"
@@ -242,6 +249,7 @@ function parseParts(fd: FormData): ParsedPart[] {
       description: description.slice(0, 200),
       category,
       position,
+      subCategory,
       partGroup: partGroup ? partGroup.slice(0, 120) : null,
       reminderInterval,
     });
@@ -339,6 +347,7 @@ async function insertPart(
     description: p.description,
     category: p.category,
     position: p.position,
+    sub_category: p.subCategory,
     part_group: p.partGroup,
     is_preventative: isPrev,
   });
@@ -522,6 +531,7 @@ export async function updateService(
           description: p.description,
           category: p.category,
           position: p.position,
+          sub_category: p.subCategory,
           part_group: p.partGroup,
           is_preventative: isPrev,
           updated_at: new Date().toISOString(),

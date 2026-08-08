@@ -333,6 +333,7 @@ export type RepairEntryDetail = {
   description: string;
   category: Category;
   position: string | null;
+  subCategory: string | null;
   partGroup: string | null;
   reminderIntervalMiles: number | null;
   freshness: Freshness | null;
@@ -346,7 +347,7 @@ export type RepairEntryDetail = {
     notes: string | null;
     receipts: ReceiptView[];
   };
-  otherParts: { id: string; description: string; category: Category; position: string | null; partGroup: string | null }[];
+  otherParts: { id: string; description: string; category: Category; position: string | null; subCategory: string | null; partGroup: string | null }[];
   relatedParts: {
     id: string;
     description: string;
@@ -360,6 +361,7 @@ type EntryRow = {
   id: string;
   description: string;
   position: string | null;
+  sub_category: string | null;
   part_group: string | null;
   category: string;
   service_id: string;
@@ -412,7 +414,7 @@ export async function getRepairEntryDetail(id: string): Promise<RepairEntryDetai
 
   const { data: focused } = await sb
     .from("repair_entries")
-    .select("id, description, position, part_group, category, service_id")
+    .select("id, description, position, sub_category, part_group, category, service_id")
     .eq("id", id)
     .is("deleted_at", null)
     .maybeSingle<EntryRow>();
@@ -426,11 +428,11 @@ export async function getRepairEntryDetail(id: string): Promise<RepairEntryDetai
       .maybeSingle<ServiceRow>(),
     sb
       .from("repair_entries")
-      .select("id, description, category, position, part_group")
+      .select("id, description, category, position, sub_category, part_group")
       .eq("service_id", focused.service_id)
       .neq("id", id)
       .is("deleted_at", null)
-      .returns<{ id: string; description: string; category: string; position: string | null; part_group: string | null }[]>(),
+      .returns<{ id: string; description: string; category: string; position: string | null; sub_category: string | null; part_group: string | null }[]>(),
     sb
       .from("repair_links")
       .select("a_id, b_id")
@@ -497,6 +499,7 @@ export async function getRepairEntryDetail(id: string): Promise<RepairEntryDetai
     description: focused.description,
     category: cat(focused.category),
     position: focused.position,
+    subCategory: focused.sub_category,
     partGroup: focused.part_group,
     reminderIntervalMiles,
     freshness: computeFreshness(svcOdo, currentOdo, svcDate, todayStr),
@@ -515,6 +518,7 @@ export async function getRepairEntryDetail(id: string): Promise<RepairEntryDetai
       description: p.description,
       category: cat(p.category),
       position: p.position,
+      subCategory: p.sub_category,
       partGroup: p.part_group,
     })),
     relatedParts,
@@ -772,6 +776,7 @@ function demoEntryDetail(id: string): RepairEntryDetail | null {
     description: f.description,
     category: f.category,
     position: null,
+    subCategory: null,
     partGroup: f.partGroup,
   }));
   // Same-visit parts are auto-linked as related, matching the real
@@ -800,6 +805,7 @@ function demoEntryDetail(id: string): RepairEntryDetail | null {
     description: focused.description,
     category: focused.category,
     position: null,
+    subCategory: null,
     partGroup: focused.partGroup,
     reminderIntervalMiles: focused.reminderIntervalMiles,
     freshness: computeFreshness(odometer, currentOdo, date, todayStr),
