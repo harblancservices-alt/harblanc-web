@@ -13,7 +13,7 @@ function ordinal(n: number): string {
   return `${n}th`;
 }
 
-function cadenceText(r: RecurringExpenseRow): string {
+export function cadenceText(r: RecurringExpenseRow): string {
   if (r.frequency === "monthly") return r.dayOfMonth != null ? ordinal(r.dayOfMonth) : "monthly";
   if (r.frequency === "weekly") return "weekly";
   if (r.frequency === "quarterly") return "quarterly";
@@ -24,7 +24,7 @@ function cadenceText(r: RecurringExpenseRow): string {
 // Non-monthly bills show their real per-charge amount on the row (never a
 // monthly-equivalent conversion — Brent's correction), tagged with the
 // cycle it's actually charged on.
-const CYCLE_SUFFIX: Partial<Record<RecurringFrequency, string>> = {
+export const CYCLE_SUFFIX: Partial<Record<RecurringFrequency, string>> = {
   weekly: "/ wk",
   quarterly: "/ qtr",
   annual: "/ yr",

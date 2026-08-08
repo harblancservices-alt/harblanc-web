@@ -430,3 +430,77 @@ export const markBillPaidThisCycle = mutation(async (id: string): Promise<Mutati
   revalidatePath(PATH);
   return { ok: true, data: { paidThroughDate: res.skippedDate } };
 });
+
+/** Desktop Load Board table's "Undo" (Expenses desktop pass, 2026-08-08):
+ * reverses markBillPaidThisCycle by restoring `skip_next_date` to whatever
+ * it was immediately before that mark-paid call — the caller (a client
+ * component) captures that prior value from the row's own already-loaded
+ * props before firing the mutation, so this is a precise undo of THIS
+ * action specifically, not a blind null-out that could also erase an
+ * unrelated skipNextPayment a user had set earlier. Mobile's "Coming up"
+ * row never needed this — it collapses the row away instead of offering
+ * an undo — so this is desktop-table-only. */
+export const undoMarkBillPaid = mutation(async (id: string, restoreSkipNextDate: string | null): Promise<MutationResult> => {
+  const sb = createServiceRoleClient();
+  const { error } = await sb.from("recurring_expenses").update({ skip_next_date: restoreSkipNextDate }).eq("id", id);
+  if (error) return { ok: false, reason: `Could not undo: ${error.message}` };
+
+  await logActivity(sb, id, "Undid mark paid");
+  revalidatePath(PATH);
+  return { ok: true };
+});
+
+/** Desktop table's "⋯ → Change account" quick action — updates just the
+ * payment account (id + the `card` text /admin's ledger still reads, kept
+ * in sync the same way editExpense already does via resolveAccount), no
+ * other field. A lighter-weight sibling to the full Edit form for this one
+ * common case. */
+export const changeExpenseAccount = mutation(async (id: string, expenseAccountId: string | null): Promise<MutationResult> => {
+  const sb = createServiceRoleClient();
+  const account = await resolveAccount(sb, expenseAccountId);
+  const { error } = await sb
+    .from("recurring_expenses")
+    .update({ expense_account_id: account.id, card: account.name })
+    .eq("id", id)
+    .is("deleted_at", null);
+  if (error) return { ok: false, reason: `Could not change account: ${error.message}` };
+
+  await logActivity(sb, id, "Payment method changed", account.name ?? "None");
+  revalidatePath(PATH);
+  return { ok: true };
+});
+
+/** Desktop table's "⋯ → Make one-time" — converts a recurring bill into a
+ * single onetime charge dated on its own next scheduled occurrence (the
+ * same nextChargeDate() engine every other read/write here uses, not a
+ * fabricated date), clearing the recurring anchors (day_of_month/
+ * day_of_week/skip_next_date) that no longer apply once frequency is
+ * "onetime". */
+export const makeExpenseOneTime = mutation(async (id: string): Promise<MutationResult> => {
+  const sb = createServiceRoleClient();
+  const { data: row, error: readError } = await sb
+    .from("recurring_expenses")
+    .select("frequency, day_of_month, day_of_week, start_date, skip_next_date")
+    .eq("id", id)
+    .is("deleted_at", null)
+    .maybeSingle<ScheduleRow>();
+  if (readError || !row) return { ok: false, reason: `Could not load expense: ${readError?.message ?? "not found"}` };
+
+  const frequency = isFrequency(row.frequency) ? row.frequency : "monthly";
+  const occurrence = nextChargeDate(
+    { frequency, dayOfMonth: row.day_of_month, dayOfWeek: row.day_of_week, startDate: row.start_date, skipNextDate: row.skip_next_date },
+    new Date(),
+  );
+  if (!occurrence) return { ok: false, reason: "This bill has no upcoming charge to convert." };
+
+  const startDate = toIsoDate(occurrence);
+  const { error } = await sb
+    .from("recurring_expenses")
+    .update({ frequency: "onetime", start_date: startDate, day_of_month: null, day_of_week: null, skip_next_date: null })
+    .eq("id", id);
+  if (error) return { ok: false, reason: `Could not convert: ${error.message}` };
+
+  await logActivity(sb, id, "Converted to one-time", startDate);
+  revalidatePath(PATH);
+  return { ok: true };
+});

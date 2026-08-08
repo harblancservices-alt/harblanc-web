@@ -6,16 +6,22 @@ import type { RecurringExpenseRow } from "@/lib/data/recurring-expenses";
 // command bar's --bar graphite, matching the reference he sent.
 const HEADER_BG = "#0d1117";
 
-/**
- * Expenses' new header (replaces the recurring-bill calendar's month/year
- * KPI strip) — one number: total FIXED MONTHLY spend across every active
- * recurring bill, each frequency normalized to its monthly-equivalent cost
- * (lib/data/recurring-expenses.ts's monthlyAmount(), the same formula the
- * old calendar's "Projected annual" figure already used — not a new
- * calculation). "Active"/"paused" here means has-an-amount vs. $0, not the
- * archived flag (archived rows never reach this component at all).
- */
-export function FixedMonthlyHeaderCard({ rows }: { rows: RecurringExpenseRow[] }) {
+export type FixedMonthlySummary = {
+  monthlyTotal: number;
+  annualTotal: number;
+  /** Has-an-amount vs. $0 — NOT the archived flag (archived rows never
+   * reach this at all, since callers only ever pass the active-status
+   * fetch). A $0 bill is "paused" in the sense that nothing is actually
+   * leaving the account for it right now, not that it's hidden. */
+  activeCount: number;
+  pausedCount: number;
+  topCategories: [string, number][];
+};
+
+/** Shared by FixedMonthlyHeaderCard (mobile) and ExpensesDesktopHeaderBand
+ * (desktop) — one computation, two renderings, so "$3,319 / 14 active / 4
+ * paused" always means the exact same thing on both breakpoints. */
+export function computeFixedMonthlySummary(rows: RecurringExpenseRow[]): FixedMonthlySummary {
   const monthlyTotal = rows.reduce((s, r) => s + r.monthlyAmount, 0);
   const annualTotal = monthlyTotal * 12;
   const activeCount = rows.filter((r) => r.monthlyAmount > 0).length;
@@ -31,6 +37,21 @@ export function FixedMonthlyHeaderCard({ rows }: { rows: RecurringExpenseRow[] }
   // the row; two cells reads cleaner and the flex-1 layout below already
   // expands to fill whatever width is left with no other change needed).
   const topCategories = [...byCategory.entries()].sort((a, b) => b[1] - a[1]).slice(0, 2);
+
+  return { monthlyTotal, annualTotal, activeCount, pausedCount, topCategories };
+}
+
+/**
+ * Expenses' new header (replaces the recurring-bill calendar's month/year
+ * KPI strip) — one number: total FIXED MONTHLY spend across every active
+ * recurring bill, each frequency normalized to its monthly-equivalent cost
+ * (lib/data/recurring-expenses.ts's monthlyAmount(), the same formula the
+ * old calendar's "Projected annual" figure already used — not a new
+ * calculation). "Active"/"paused" here means has-an-amount vs. $0, not the
+ * archived flag (archived rows never reach this component at all).
+ */
+export function FixedMonthlyHeaderCard({ rows }: { rows: RecurringExpenseRow[] }) {
+  const { monthlyTotal, annualTotal, activeCount, pausedCount, topCategories } = computeFixedMonthlySummary(rows);
 
   return (
     <div className="overflow-hidden rounded-xl shadow-e2" style={{ backgroundColor: HEADER_BG }}>

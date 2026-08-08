@@ -38,10 +38,10 @@ function useComposer() {
   return ctx;
 }
 
-export function ExpenseComposerToggleButton() {
+export function ExpenseComposerToggleButton({ size = "md" }: { size?: "sm" | "md" }) {
   const { setOpen } = useComposer();
   return (
-    <Button type="button" onClick={() => setOpen(true)}>
+    <Button type="button" size={size} onClick={() => setOpen(true)}>
       + Add bill
     </Button>
   );

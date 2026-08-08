@@ -1,12 +1,14 @@
-import { PageHeader } from "@/components/tms-v2/ui/PageHeader";
 import { ContextDrawer } from "@/components/tms-v2/ui/ContextDrawer";
 import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
 import { getRecurringExpenseById, getExpenseActivity, listExpenseAccounts, listRecurringExpenses } from "@/lib/data/recurring-expenses";
-import { ExpenseComposerProvider, ExpenseComposerToggleButton, ExpenseComposerFab, ExpenseComposerPanel } from "./ExpenseComposer";
+import { ExpenseComposerProvider, ExpenseComposerFab, ExpenseComposerPanel } from "./ExpenseComposer";
 import { ExpenseDrawerContent } from "./ExpenseDrawerContent";
 import { FixedMonthlyHeaderCard } from "./FixedMonthlyHeaderCard";
 import { ComingUpCard } from "./ComingUpCard";
 import { AllBillsCard } from "./AllBillsCard";
+import { ExpensesDesktopToolbar } from "./ExpensesDesktopToolbar";
+import { ExpensesDesktopHeaderBand } from "./ExpensesDesktopHeaderBand";
+import { ExpensesDesktopTable } from "./ExpensesDesktopTable";
 
 // Money-affecting data, read fresh every visit — matches Today's pattern.
 export const dynamic = "force-dynamic";
@@ -64,24 +66,26 @@ export default async function ExpensesPage({
     <PageScroll
       header={
         <>
-          <PageHeader
-            title="Expenses"
-            description="What recurring money is leaving the business, and when."
-            actions={
-              <div className="hidden lg:block">
-                <ExpenseComposerToggleButton />
-              </div>
-            }
-          />
+          <div className="hidden lg:block">
+            <ExpensesDesktopToolbar />
+          </div>
 
           <ExpenseComposerPanel accounts={accounts} />
         </>
       }
     >
-      <div className="flex flex-col gap-4">
+      {/* MOBILE — unchanged: fixed-monthly card, Coming up countdown ring,
+          All recurring bills list. */}
+      <div className="flex flex-col gap-4 lg:hidden">
         <FixedMonthlyHeaderCard rows={bills} />
         <ComingUpCard rows={bills} rowHref={rowHref} />
         <AllBillsCard rows={bills} rowHref={rowHref} />
+      </div>
+
+      {/* DESKTOP — new, per Brent's approved mockup. */}
+      <div className="hidden flex-col gap-4 lg:flex">
+        <ExpensesDesktopHeaderBand rows={bills} />
+        <ExpensesDesktopTable rows={bills} accounts={accounts} rowHref={rowHref} />
       </div>
     </PageScroll>
     </div>

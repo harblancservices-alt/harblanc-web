@@ -8,8 +8,9 @@ function dateBadge(iso: string): { mon: string; day: string } {
 
 /** Whole days from today to `iso` (can go negative for an overdue date,
  * clamped to 0 by the ring itself). String-date arithmetic, not a `Date`
- * subtraction across a DST boundary. */
-function daysUntil(iso: string): number {
+ * subtraction across a DST boundary. Exported for ExpensesDesktopTable's
+ * countdown pill — the exact same day-math, not a second derivation. */
+export function daysUntil(iso: string): number {
   const target = new Date(`${iso}T00:00:00`);
   const today = new Date();
   const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
