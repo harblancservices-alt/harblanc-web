@@ -16,15 +16,18 @@ import { daysLeftInMonth, currentBusinessDate } from "@/lib/dispatch/goal-month"
 import { computeGoalPace } from "@/lib/domain/goal-pace";
 import { resolvePerformanceView, monthParam, shiftPeriod } from "./_lib/range";
 import { isPartySortKey, sortPartyStats, type PartySortKey } from "./_lib/party-sort";
+import { toLoadTableRows, filterLoadRows, sortLoadRows, isLoadSortKey, type LoadSortKey } from "./_lib/load-table";
 import { DeltaChip } from "./_components/DeltaChip";
 import { PartyBarChart } from "./_components/PartyBarChart";
 import { PartyTable } from "./_components/PartyTable";
 import { PartyDrillDown } from "./_components/PartyDrillDown";
+import { LoadPerformanceTable } from "./_components/LoadPerformanceTable";
 import { TrendChart, type TrendPoint } from "./_components/TrendChart";
 import { DualTrendChart, type DualTrendPoint } from "./_components/DualTrendChart";
 import { RateTrendChart, type RateTrendPoint } from "./_components/RateTrendChart";
 
 const TREND_MONTHS = 6;
+const LOAD_PAGE_SIZE = 50;
 const SHORT_MONTH = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 // Server-aggregated, range-scoped rollup — never the full load history
@@ -44,6 +47,10 @@ type PerformanceSearchParams = {
   laneDir?: string;
   broker?: string;
   lane?: string;
+  loadSort?: string;
+  loadDir?: string;
+  loadPage?: string;
+  q?: string;
 };
 
 type PageProps = { searchParams: Promise<PerformanceSearchParams> };
@@ -113,6 +120,17 @@ export default async function PerformancePage({ searchParams }: PageProps) {
       : null;
   const drillTitle = drillBroker ?? drillLane;
   const drillCloseHref = buildHref(sp, { broker: undefined, lane: undefined });
+
+  // Analytical Load Board (Phase 8) — the same range-bounded `loads` array
+  // already fetched above (never a second, wider query), filtered/sorted/
+  // paginated in memory since it's already server-side and bounded.
+  const loadSearch = typeof sp.q === "string" ? sp.q : "";
+  const loadSortKey: LoadSortKey = isLoadSortKey(sp.loadSort) ? sp.loadSort : "date";
+  const loadDir = sp.loadDir === "asc" ? "asc" : "desc";
+  const loadTableRows = sortLoadRows(filterLoadRows(toLoadTableRows(loads), loadSearch), loadSortKey, loadDir);
+  const loadPage = Math.max(1, Number(sp.loadPage) || 1);
+  const loadPageCount = Math.max(1, Math.ceil(loadTableRows.length / LOAD_PAGE_SIZE));
+  const loadPageRows = loadTableRows.slice((loadPage - 1) * LOAD_PAGE_SIZE, loadPage * LOAD_PAGE_SIZE);
 
   const thisMonthParam = monthParam(currentPeriod(now));
   const monthTabHref =
@@ -357,6 +375,57 @@ export default async function PerformancePage({ searchParams }: PageProps) {
           />
         </div>
       </div>
+
+      {/* Analytical Load Board (Phase 8) — "the Load Board turned into
+          analytics." DataList itself handles the desktop-table/mobile-card
+          split, so this section renders once for both breakpoints. */}
+      <section className="mt-6 flex flex-col gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-[15px] font-semibold text-fg">Load performance</h2>
+          <form action="/tms-v2/performance" method="GET" className="flex items-center gap-1.5">
+            {view.mode === "month" ? <input type="hidden" name="month" value={monthParam(view.period)} /> : null}
+            {view.mode === "custom" ? <input type="hidden" name="from" value={view.from} /> : null}
+            {view.mode === "custom" ? <input type="hidden" name="to" value={view.to} /> : null}
+            <input
+              type="text"
+              name="q"
+              defaultValue={loadSearch}
+              placeholder="Search load #, lane, or broker"
+              className="h-9 w-56 rounded-md border border-line-strong bg-card px-2.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
+            />
+            <Button type="submit" variant="secondary" size="sm">
+              Search
+            </Button>
+          </form>
+        </div>
+
+        <LoadPerformanceTable
+          rows={loadPageRows}
+          sort={{
+            activeKey: loadSortKey,
+            dir: loadDir,
+            hrefFor: (key) => buildHref(sp, { loadSort: key, loadDir: loadSortKey === key && loadDir === "desc" ? "asc" : "desc", loadPage: undefined }),
+          }}
+        />
+
+        <div className="flex items-center justify-between text-[13px] text-fg-muted">
+          <span>
+            {loadTableRows.length} load{loadTableRows.length === 1 ? "" : "s"} · page {loadPage} of {loadPageCount}
+          </span>
+          <div className="flex gap-3">
+            {loadPage > 1 ? (
+              <Link href={buildHref(sp, { loadPage: String(loadPage - 1) })} className="underline">
+                ← Prev
+              </Link>
+            ) : null}
+            {loadPage < loadPageCount ? (
+              <Link href={buildHref(sp, { loadPage: String(loadPage + 1) })} className="underline">
+                Next →
+              </Link>
+            ) : null}
+          </div>
+        </div>
+      </section>
     </PageScroll>
   );
 }

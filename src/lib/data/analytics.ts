@@ -32,6 +32,8 @@ export type DateRange = { start: string; end: string }; // pickup_date in [start
 export type AnalyticsLoad = PerfLoad & {
   loadNumber: string | null;
   status: string;
+  tripId: string | null;
+  tripName: string | null;
 };
 
 function num(v: number | string | null | undefined): number {
@@ -82,6 +84,7 @@ type LoadInput = {
   status: string;
   paidAt: string | null;
   createdAt: string | null;
+  tripId: string | null;
 };
 
 /** Runs a raw load through the one money engine + the one attribution rule,
@@ -91,6 +94,7 @@ function toAnalyticsLoad(
   expensesTotal: number,
   fuel: FuelSettings,
   brokerFactoring: boolean,
+  tripName: string | null,
 ): AnalyticsLoad {
   const financials = computeLoadNet(
     {
@@ -128,11 +132,13 @@ function toAnalyticsLoad(
     destination: row.destination ?? "—",
     deliveryDate: row.deliveryDate,
     paidAt: row.paidAt,
+    tripId: row.tripId,
+    tripName,
   };
 }
 
 const LOAD_COLUMNS =
-  "id, load_number, broker_id, broker_name, origin, destination, pickup_date, delivery_date, rate, tonu_amount, loaded_miles, odo_assigned, odo_loaded, odo_delivered, status, paid_at, created_at";
+  "id, load_number, broker_id, broker_name, origin, destination, pickup_date, delivery_date, rate, tonu_amount, loaded_miles, odo_assigned, odo_loaded, odo_delivered, status, paid_at, created_at, trip_id";
 
 type LoadRow = {
   id: string;
@@ -152,6 +158,7 @@ type LoadRow = {
   status: string;
   paid_at: string | null;
   created_at: string | null;
+  trip_id: string | null;
 };
 
 async function fetchFuelSettings(sb: SupabaseClient): Promise<FuelSettings> {
@@ -199,6 +206,18 @@ async function fetchFactoringBrokerIds(sb: SupabaseClient, brokerIds: string[]):
   return set;
 }
 
+/** Bounded: only the trip names for the given trip ids — the analytical
+ * Load Board's "Trip" column (Phase 8). */
+async function fetchTripNames(sb: SupabaseClient, tripIds: string[]): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  if (tripIds.length === 0) return map;
+  const { data } = await sb.from("trips").select("id, name").in("id", tripIds).returns<{ id: string; name: string | null }[]>();
+  for (const row of data ?? []) {
+    if (row.name) map.set(row.id, row.name);
+  }
+  return map;
+}
+
 /**
  * Every load attributed (by pickup date, the one rule) to `[range.start,
  * range.end)` — bounded by the range itself, never an unbounded scan.
@@ -223,11 +242,13 @@ export async function getAnalyticsLoads(range: DateRange): Promise<AnalyticsLoad
 
   const loadIds = rows.map((r) => r.id);
   const brokerIds = [...new Set(rows.map((r) => r.broker_id).filter((id): id is string => !!id))];
+  const tripIds = [...new Set(rows.map((r) => r.trip_id).filter((id): id is string => !!id))];
 
-  const [fuel, expensesByLoad, factoringIds] = await Promise.all([
+  const [fuel, expensesByLoad, factoringIds, tripNames] = await Promise.all([
     fetchFuelSettings(sb),
     fetchExpensesByLoadId(sb, loadIds),
     fetchFactoringBrokerIds(sb, brokerIds),
+    fetchTripNames(sb, tripIds),
   ]);
 
   return rows.map((r) =>
@@ -250,17 +271,20 @@ export async function getAnalyticsLoads(range: DateRange): Promise<AnalyticsLoad
         status: r.status,
         paidAt: r.paid_at,
         createdAt: r.created_at,
+        tripId: r.trip_id,
       },
       expensesByLoad.get(r.id) ?? 0,
       fuel,
       r.broker_id != null && factoringIds.has(r.broker_id),
+      r.trip_id ? (tripNames.get(r.trip_id) ?? null) : null,
     ),
   );
 }
 
 function getDemoAnalyticsLoads(range: DateRange): AnalyticsLoad[] {
-  const { loads, brokers, expenses } = buildDemoData();
+  const { loads, brokers, trips, expenses } = buildDemoData();
   const brokersById = new Map(brokers.map((b) => [b.id, b]));
+  const tripsById = new Map(trips.map((t) => [t.id, t]));
   const expensesByLoad = new Map<string, number>();
   for (const e of expenses) expensesByLoad.set(e.loadId, (expensesByLoad.get(e.loadId) ?? 0) + e.amount);
 
@@ -287,10 +311,12 @@ function getDemoAnalyticsLoads(range: DateRange): AnalyticsLoad[] {
           status: l.status,
           paidAt: l.paidAt,
           createdAt: l.createdAt,
+          tripId: l.tripId,
         },
         expensesByLoad.get(l.id) ?? 0,
         FUEL_DEFAULTS,
         broker?.factoring ?? false,
+        l.tripId ? (tripsById.get(l.tripId)?.name ?? null) : null,
       );
     });
 }
