@@ -11,6 +11,7 @@ import { Field, FormError, FormActions } from "../loads/_form";
 
 type SaveState = { ok: boolean; error: string | null; id: string | null };
 const INITIAL: SaveState = { ok: false, error: null, id: null };
+const FORM_ID = "tms-v2-new-broker-form";
 
 /** Compact "+ New" button (every breakpoint — the Brokers list's compact-
  * directory redesign wants it inline beside search on mobile too, not
@@ -41,8 +42,25 @@ export function NewBrokerButton() {
       </Button>
       <Fab label="New broker" onClick={() => setOpen(true)} className="sm:hidden" />
 
-      <Modal open={open} onClose={() => setOpen(false)} title="New broker">
-        <form action={formAction} className="flex flex-col gap-3">
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        title="New broker"
+        footer={
+          <div className="flex flex-col gap-2">
+            <FormError message={state.error} />
+            <FormActions>
+              <Button type="button" variant="secondary" onClick={() => setOpen(false)} disabled={pending}>
+                Cancel
+              </Button>
+              <Button type="submit" form={FORM_ID} disabled={pending} aria-busy={pending}>
+                {pending ? "Creating…" : "Create broker"}
+              </Button>
+            </FormActions>
+          </div>
+        }
+      >
+        <form id={FORM_ID} action={formAction} className="flex flex-col gap-3">
           <Field label="Name" name="name" placeholder="Broker company name" required />
           <div className="grid grid-cols-2 gap-2">
             <Field label="MC #" name="mc_number" />
@@ -56,15 +74,6 @@ export function NewBrokerButton() {
             <input type="checkbox" name="factoring" className="h-4 w-4" />
             Factoring
           </label>
-          <FormError message={state.error} />
-          <FormActions>
-            <Button type="button" variant="secondary" onClick={() => setOpen(false)} disabled={pending}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={pending} aria-busy={pending}>
-              {pending ? "Creating…" : "Create broker"}
-            </Button>
-          </FormActions>
         </form>
       </Modal>
     </>

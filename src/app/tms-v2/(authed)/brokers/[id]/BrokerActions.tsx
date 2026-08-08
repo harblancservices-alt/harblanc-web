@@ -7,10 +7,13 @@ import { Button } from "@/components/tms-v2/ui/Button";
 import { updateBroker, archiveBroker, addBrokerContact, updateBrokerContact, deleteBrokerContact } from "@/actions/tms-v2/brokers";
 import type { MutationResult } from "@/lib/demo/mutation";
 import type { BrokerIdentity, BrokerContact } from "@/lib/data/broker-profile";
-import { Field, FormError, FormActions } from "../../loads/_form";
+import { Field, SelectField, FormError, FormActions } from "../../loads/_form";
 
 type SaveState = { ok: boolean; error: string | null };
 const INITIAL: SaveState = { ok: false, error: null };
+
+const EDIT_BROKER_FORM_ID = "tms-v2-edit-broker-form";
+const CONTACT_FORM_ID = "tms-v2-broker-contact-form";
 
 /** Broker Profile's write actions — Edit (MC/DOT/status/factoring/phone/
  * email/notes), Archive, and contact add/edit/delete. Closes the audit's
@@ -37,6 +40,11 @@ export function BrokerActions({ identity }: { identity: BrokerIdentity }) {
   );
 }
 
+/** Same fixed-header/scrollable-body/fixed-footer split the Add Load form
+ * got (Modal's `footer` prop + a `form={id}` submit button outside the
+ * scrollable area) — this is the longest form on the broker profile (10
+ * fields + notes), so it's the one most at risk of clipping its Save
+ * button off-screen on a short mobile viewport. */
 function EditBrokerModal({
   open,
   onClose,
@@ -61,8 +69,25 @@ function EditBrokerModal({
   }, [state.ok, onSaved, onClose]);
 
   return (
-    <Modal open={open} onClose={onClose} title="Edit broker">
-      <form action={formAction} className="flex flex-col gap-3">
+    <Modal
+      open={open}
+      onClose={onClose}
+      title="Edit broker"
+      footer={
+        <div className="flex flex-col gap-2">
+          <FormError message={state.error} />
+          <FormActions>
+            <Button type="button" variant="secondary" onClick={onClose} disabled={pending}>
+              Cancel
+            </Button>
+            <Button type="submit" form={EDIT_BROKER_FORM_ID} disabled={pending} aria-busy={pending}>
+              {pending ? "Saving…" : "Save broker"}
+            </Button>
+          </FormActions>
+        </div>
+      }
+    >
+      <form id={EDIT_BROKER_FORM_ID} action={formAction} className="flex flex-col gap-3">
         <div className="grid grid-cols-2 gap-2">
           <Field label="MC #" name="mc_number" defaultValue={identity.mcNumber ?? ""} />
           <Field label="DOT #" name="dot_number" defaultValue={identity.dotNumber ?? ""} />
@@ -83,17 +108,10 @@ function EditBrokerModal({
           <Field label="W9" name="w9" defaultValue={identity.w9 ?? ""} />
           <Field label="1099" name="ten99" defaultValue={identity.ten99 ?? ""} />
         </div>
-        <label className="flex flex-col gap-1 text-[13px] font-medium text-fg">
-          Status
-          <select
-            name="status"
-            defaultValue={identity.status}
-            className="h-10 rounded-md border border-line-strong bg-card px-2.5 text-[14px] text-fg focus:border-fg focus:outline-none"
-          >
-            <option value="active">Active</option>
-            <option value="inactive">Inactive</option>
-          </select>
-        </label>
+        <SelectField label="Status" name="status" defaultValue={identity.status}>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </SelectField>
         <label className="flex items-center gap-2 text-[13px] font-medium text-fg">
           <input type="checkbox" name="factoring" defaultChecked={identity.factoring} className="h-4 w-4" />
           Factoring
@@ -104,18 +122,9 @@ function EditBrokerModal({
             name="notes"
             rows={3}
             defaultValue={identity.notes ?? ""}
-            className="rounded-md border border-line-strong bg-card px-2.5 py-2 text-[14px] text-fg focus:border-fg focus:outline-none"
+            className="rounded-md border border-line-strong bg-card px-2.5 py-2 text-[14px] font-normal text-fg focus:border-fg focus:outline-none"
           />
         </label>
-        <FormError message={state.error} />
-        <FormActions>
-          <Button type="button" variant="secondary" onClick={onClose} disabled={pending}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={pending} aria-busy={pending}>
-            {pending ? "Saving…" : "Save broker"}
-          </Button>
-        </FormActions>
       </form>
     </Modal>
   );
@@ -159,109 +168,114 @@ function ArchiveBrokerModal({ open, onClose, brokerId }: { open: boolean; onClos
   );
 }
 
+function initials(name: string | null | undefined): string {
+  const parts = (name ?? "").trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "—";
+  return (parts[0][0] + (parts[1]?.[0] ?? "")).toUpperCase();
+}
+
+/** One contact — small avatar-initials circle (same compact-row language
+ * as the Brokers directory) instead of a bare name line, name/title
+ * leading, phone/email trailing, edit/delete actions. Replaces the old
+ * cramped single-line-of-everything row. */
+function ContactRow({ contact: c, onEdit, onDelete }: { contact: BrokerContact; onEdit: () => void; onDelete: () => void }) {
+  return (
+    <div className="flex flex-wrap items-center gap-3 border-b border-line px-3.5 py-2.5 last:border-b-0">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-elevated text-[11px] font-semibold text-fg-muted">
+        {initials(c.name)}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          <span className="truncate text-[14px] font-semibold text-fg">{c.name ?? "Unnamed contact"}</span>
+          {c.isBackhaul ? (
+            <span className="shrink-0 rounded-full bg-warn-bg px-2 py-0.5 text-[11px] font-medium text-warn">Backhaul</span>
+          ) : null}
+        </div>
+        {c.title ? <div className="truncate text-[12px] text-fg-muted">{c.title}</div> : null}
+      </div>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-fg-muted">
+        {c.phone ? <span>{c.phone}</span> : null}
+        {c.email ? <span className="truncate">{c.email}</span> : null}
+      </div>
+      <div className="flex shrink-0 items-center gap-3 text-[13px]">
+        <button type="button" onClick={onEdit} className="font-medium text-accent hover:underline">
+          Edit
+        </button>
+        <button type="button" onClick={onDelete} className="font-medium text-bad hover:underline">
+          Delete
+        </button>
+      </div>
+    </div>
+  );
+}
+
+type ContactModalState = { mode: "add" } | { mode: "edit"; contact: BrokerContact } | null;
+
 export function ContactsSection({ brokerId, contacts }: { brokerId: string; contacts: BrokerContact[] }) {
   const router = useRouter();
-  const [adding, setAdding] = useState(false);
-  const [editing, setEditing] = useState<BrokerContact | null>(null);
-
-  const [addState, addAction, addPending] = useActionState<SaveState, FormData>(async (_prev, formData) => {
-    const result: MutationResult = await addBrokerContact(brokerId, formData);
-    return result.ok ? { ok: true, error: null } : { ok: false, error: result.reason };
-  }, INITIAL);
-
-  useEffect(() => {
-    if (addState.ok) {
-      setAdding(false);
-      router.refresh();
-    }
-  }, [addState.ok, router]);
+  const [modal, setModal] = useState<ContactModalState>(null);
+  const refresh = () => router.refresh();
 
   async function onDelete(contactId: string) {
     if (!confirm("Delete this contact?")) return;
     await deleteBrokerContact(contactId, brokerId);
-    router.refresh();
+    refresh();
   }
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-3">
       {contacts.length === 0 ? (
-        <p className="text-[13px] text-fg-muted">No contacts on file for this broker.</p>
+        <div className="rounded-xl border border-dashed border-line-strong bg-card px-4 py-10 text-center">
+          <p className="text-[13px] text-fg-muted">No contacts on file for this broker.</p>
+        </div>
       ) : (
-        <div className="rounded-xl border border-line bg-card px-3 shadow-e1">
+        <div className="no-scrollbar overflow-hidden rounded-xl border border-line bg-card shadow-e1">
           {contacts.map((c) => (
-            <div key={c.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-line py-2.5 text-[14px] last:border-b-0">
-              <div>
-                <span className="font-medium text-fg">{c.name ?? "Unnamed contact"}</span>
-                {c.title ? <span className="ml-2 text-fg-muted">{c.title}</span> : null}
-                {c.isBackhaul ? (
-                  <span className="ml-2 inline-flex items-center rounded-full bg-warn-bg px-2 py-0.5 text-[11px] font-medium text-warn">Backhaul</span>
-                ) : null}
-              </div>
-              <div className="flex items-center gap-3 text-fg-muted">
-                <span>{c.phone ?? "—"}</span>
-                <span>{c.email ?? "—"}</span>
-                <button type="button" onClick={() => setEditing(c)} className="font-medium text-accent hover:underline">
-                  Edit
-                </button>
-                <button type="button" onClick={() => onDelete(c.id)} className="font-medium text-bad hover:underline">
-                  Delete
-                </button>
-              </div>
-            </div>
+            <ContactRow key={c.id} contact={c} onEdit={() => setModal({ mode: "edit", contact: c })} onDelete={() => onDelete(c.id)} />
           ))}
         </div>
       )}
 
-      {adding ? (
-        <form action={addAction} className="flex flex-col gap-2 rounded-md border border-line-strong bg-card p-3">
-          <div className="grid grid-cols-2 gap-2">
-            <Field label="Name" name="name" required />
-            <Field label="Title" name="title" />
-          </div>
-          <div className="grid grid-cols-2 gap-2">
-            <Field label="Phone" name="phone" type="tel" />
-            <Field label="Email" name="email" type="email" />
-          </div>
-          <label className="flex items-center gap-2 text-[13px] font-medium text-fg">
-            <input type="checkbox" name="is_backhaul" className="h-4 w-4" />
-            Backhaul contact
-          </label>
-          <FormError message={addState.error} />
-          <FormActions>
-            <Button type="button" variant="secondary" size="sm" onClick={() => setAdding(false)} disabled={addPending}>
-              Cancel
-            </Button>
-            <Button type="submit" size="sm" disabled={addPending} aria-busy={addPending}>
-              {addPending ? "Saving…" : "Add contact"}
-            </Button>
-          </FormActions>
-        </form>
-      ) : (
-        <button type="button" onClick={() => setAdding(true)} className="w-fit text-[13px] font-medium text-accent hover:underline">
-          + Add contact
-        </button>
-      )}
+      <Button type="button" variant="secondary" size="sm" className="self-start" onClick={() => setModal({ mode: "add" })}>
+        + Add contact
+      </Button>
 
-      {editing ? (
-        <EditContactModal brokerId={brokerId} contact={editing} onClose={() => setEditing(null)} onSaved={() => router.refresh()} />
+      {modal ? (
+        <ContactModal
+          key={modal.mode === "edit" ? modal.contact.id : "add"}
+          brokerId={brokerId}
+          contact={modal.mode === "edit" ? modal.contact : null}
+          onClose={() => setModal(null)}
+          onSaved={refresh}
+        />
       ) : null}
     </div>
   );
 }
 
-function EditContactModal({
+/** One modal, two callers (Add/Edit) — same optional-entity pattern as
+ * LoadFormModal (`contact` present = editing, absent = adding). Mounted
+ * only while a modal is open (parent conditionally renders it, keyed by
+ * which contact — or "add" — is being edited) so useActionState's error/
+ * pending state can't leak from one contact's form into the next. Same
+ * fixed-footer split as Edit broker above. */
+function ContactModal({
+  onClose,
   brokerId,
   contact,
-  onClose,
   onSaved,
 }: {
-  brokerId: string;
-  contact: BrokerContact;
   onClose: () => void;
+  brokerId: string;
+  contact: BrokerContact | null;
   onSaved: () => void;
 }) {
+  const editing = contact != null;
+
   const [state, formAction, pending] = useActionState<SaveState, FormData>(async (_prev, formData) => {
-    const result: MutationResult = await updateBrokerContact(contact.id, brokerId, formData);
+    const result: MutationResult = editing
+      ? await updateBrokerContact(contact.id, brokerId, formData)
+      : await addBrokerContact(brokerId, formData);
     return result.ok ? { ok: true, error: null } : { ok: false, error: result.reason };
   }, INITIAL);
 
@@ -273,29 +287,37 @@ function EditContactModal({
   }, [state.ok, onSaved, onClose]);
 
   return (
-    <Modal open onClose={onClose} title="Edit contact">
-      <form action={formAction} className="flex flex-col gap-3">
+    <Modal
+      open
+      onClose={onClose}
+      title={editing ? "Edit contact" : "Add contact"}
+      footer={
+        <div className="flex flex-col gap-2">
+          <FormError message={state.error} />
+          <FormActions>
+            <Button type="button" variant="secondary" onClick={onClose} disabled={pending}>
+              Cancel
+            </Button>
+            <Button type="submit" form={CONTACT_FORM_ID} disabled={pending} aria-busy={pending}>
+              {pending ? "Saving…" : editing ? "Save contact" : "Add contact"}
+            </Button>
+          </FormActions>
+        </div>
+      }
+    >
+      <form id={CONTACT_FORM_ID} action={formAction} className="flex flex-col gap-3">
         <div className="grid grid-cols-2 gap-2">
-          <Field label="Name" name="name" defaultValue={contact.name ?? ""} required />
-          <Field label="Title" name="title" defaultValue={contact.title ?? ""} />
+          <Field label="Name" name="name" defaultValue={contact?.name ?? ""} required />
+          <Field label="Title" name="title" defaultValue={contact?.title ?? ""} />
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <Field label="Phone" name="phone" type="tel" defaultValue={contact.phone ?? ""} />
-          <Field label="Email" name="email" type="email" defaultValue={contact.email ?? ""} />
+          <Field label="Phone" name="phone" type="tel" defaultValue={contact?.phone ?? ""} />
+          <Field label="Email" name="email" type="email" defaultValue={contact?.email ?? ""} />
         </div>
         <label className="flex items-center gap-2 text-[13px] font-medium text-fg">
-          <input type="checkbox" name="is_backhaul" defaultChecked={contact.isBackhaul} className="h-4 w-4" />
+          <input type="checkbox" name="is_backhaul" defaultChecked={contact?.isBackhaul ?? false} className="h-4 w-4" />
           Backhaul contact
         </label>
-        <FormError message={state.error} />
-        <FormActions>
-          <Button type="button" variant="secondary" onClick={onClose} disabled={pending}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={pending} aria-busy={pending}>
-            {pending ? "Saving…" : "Save contact"}
-          </Button>
-        </FormActions>
       </form>
     </Modal>
   );
