@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { CRM_ACTIVITY } from "@/lib/crm/activity";
-import { PageShell, Card, CardHead, BTN_EDIT } from "../../_shell/ui";
+import { PageShell, Card, CardHead } from "../../_shell/ui";
 import { BackButton } from "../../_shell/BackButton";
 import { formatDate, formatMoney, firstName } from "../../_shell/format";
 import { parsePhones, parseLinks, normalizeHref } from "../../_shell/contactFields";
@@ -13,7 +13,7 @@ import { FinalizeBanner } from "./FinalizeBanner";
 import { CompanyCard } from "./CompanyCard";
 import { ContactsSection, type CrmContact } from "./ContactsSection";
 import { StrayNumbersSection } from "./StrayNumbersSection";
-import { ContactDialog } from "./ContactDialog";
+import { AddPersonButton } from "./AddPersonButton";
 import { AiResearchSection, type CrmNote } from "./AiResearchSection";
 import { PeopleSection, type CrmPerson } from "./PeopleSection";
 import { HistorySection, type CrmHistoryItem } from "./HistorySection";
@@ -23,7 +23,6 @@ import { LogCallButton } from "./LogCallButton";
 import { callOutcomeLabel } from "../../calls/outcomes";
 import { type CrmTaskItem } from "../../tasks/TaskRow";
 import { BolSection, type CrmBolDocument } from "./BolSection";
-import { IconPlus } from "../../_shell/icons";
 
 export const dynamic = "force-dynamic";
 
@@ -403,20 +402,7 @@ export default async function AccountDetailPage({
                 accountId={account.id as string}
                 contacts={contacts.map((c) => ({ id: c.id, name: c.name }))}
               />
-              <ContactDialog
-                accountId={account.id as string}
-                mode="create"
-                trigger={(open) => (
-                  <button
-                    type="button"
-                    onClick={open}
-                    className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors ${BTN_EDIT}`}
-                  >
-                    <IconPlus width={14} height={14} />
-                    Add person
-                  </button>
-                )}
-              />
+              <AddPersonButton accountId={account.id as string} />
             </div>
           </div>
 

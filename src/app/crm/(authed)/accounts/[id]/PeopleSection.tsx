@@ -1,3 +1,5 @@
+"use client";
+
 import { Card, CardHead, BTN_PRIMARY, BTN_EDIT, ZEBRA_ROWS } from "../../_shell/ui";
 import { IconPlus, IconContacts } from "../../_shell/icons";
 import { digitsForTel, type PhoneEntry } from "../../_shell/contactFields";
