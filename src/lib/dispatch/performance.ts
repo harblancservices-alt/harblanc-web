@@ -341,6 +341,8 @@ export type PeriodSummary = {
   marginPct: number | null;
   /** net ÷ loads — what an average load is worth after costs. */
   netPerLoad: number | null;
+  /** gross ÷ loads — what an average load billed before costs. */
+  grossPerLoad: number | null;
   deadheadPct: number | null;
 };
 
@@ -359,6 +361,7 @@ export function summarize(loads: PerfLoad[]): PeriodSummary {
     grossRpm: dh.loaded > 0 ? gross / dh.loaded : null,
     marginPct: gross > 0 ? (net / gross) * 100 : null,
     netPerLoad: loads.length > 0 ? net / loads.length : null,
+    grossPerLoad: loads.length > 0 ? gross / loads.length : null,
     deadheadPct: dh.pct,
   };
 }

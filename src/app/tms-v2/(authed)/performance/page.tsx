@@ -22,6 +22,7 @@ import { PartyBarChart } from "./_components/PartyBarChart";
 import { PartyTable } from "./_components/PartyTable";
 import { PartyDrillDown } from "./_components/PartyDrillDown";
 import { LoadPerformanceTable } from "./_components/LoadPerformanceTable";
+import { DeadheadSplitBar } from "./_components/DeadheadSplitBar";
 import { TrendChart, type TrendPoint } from "./_components/TrendChart";
 import { DualTrendChart, type DualTrendPoint } from "./_components/DualTrendChart";
 import { RateTrendChart, type RateTrendPoint } from "./_components/RateTrendChart";
@@ -83,7 +84,6 @@ export default async function PerformancePage({ searchParams }: PageProps) {
   ]);
 
   const trendSummaries = trendLoadSets.map((rows) => summarize(rows));
-  const netTrend: TrendPoint[] = trendPeriods.map((p, i) => ({ label: SHORT_MONTH[p.month], value: trendSummaries[i].net }));
   const rateTrend: RateTrendPoint[] = trendPeriods.map((p, i) => ({
     label: SHORT_MONTH[p.month],
     grossRpm: trendSummaries[i].grossRpm,
@@ -94,6 +94,10 @@ export default async function PerformancePage({ searchParams }: PageProps) {
     gross: trendSummaries[i].gross,
     net: trendSummaries[i].net,
   }));
+  // Load-volume trend (audit §J.6 "where useful") — answers "am I booking
+  // more or fewer loads month to month," a different question than the
+  // dollar/rate trends above it. Reuses the same bounded trendSummaries.
+  const volumeTrend: TrendPoint[] = trendPeriods.map((p, i) => ({ label: SHORT_MONTH[p.month], value: trendSummaries[i].loads }));
 
   const summary = summarize(loads);
   const prevSummary = summarize(prevLoads);
@@ -274,7 +278,13 @@ export default async function PerformancePage({ searchParams }: PageProps) {
               <StatChip label="Net $/mi" value={rpm(summary.netRpm)} />
               <StatChip label="Gross $/mi" value={rpm(summary.grossRpm)} />
               <StatChip label="Deadhead" value={pct(dh.pct)} />
+              <StatChip label="Avg Net/Load" value={formatMoney(summary.netPerLoad ?? 0)} />
+              <StatChip label="Avg Gross/Load" value={formatMoney(summary.grossPerLoad ?? 0)} />
             </div>
+            <Card>
+              <p className="mb-2 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Deadhead split</p>
+              <DeadheadSplitBar split={dh} />
+            </Card>
           </div>
 
           {/* Desktop — unchanged four/three-tile KPI grids. */}
@@ -303,6 +313,16 @@ export default async function PerformancePage({ searchParams }: PageProps) {
             <KpiTile label="Gross $/mi" value={rpm(summary.grossRpm)} />
             <KpiTile label="Deadhead" value={pct(dh.pct)} delta={<DeltaChip delta={deltas.deadhead} />} />
           </div>
+
+          <div className="hidden lg:grid lg:grid-cols-2 lg:gap-3">
+            <KpiTile label="Avg Net/Load" value={<Money value={summary.netPerLoad} />} />
+            <KpiTile label="Avg Gross/Load" value={<Money value={summary.grossPerLoad} tone="none" />} />
+          </div>
+
+          <Card className="hidden lg:block">
+            <p className="mb-2 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Deadhead split</p>
+            <DeadheadSplitBar split={dh} />
+          </Card>
         </>
       }
     >
@@ -322,6 +342,12 @@ export default async function PerformancePage({ searchParams }: PageProps) {
           </div>
         </Card>
         <Card>
+          <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Loads booked · trailing {TREND_MONTHS} months</p>
+          <div className="mt-3">
+            <TrendChart points={volumeTrend} formatValue={(v) => String(Math.round(v))} />
+          </div>
+        </Card>
+        <Card>
           <PartyBarChart title="Brokers by net" rows={brokers} />
         </Card>
         <Card>
@@ -333,15 +359,21 @@ export default async function PerformancePage({ searchParams }: PageProps) {
       <div className="hidden lg:block">
         <div className="mb-6 grid grid-cols-1 gap-3 lg:grid-cols-2">
           <Card>
-            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Net · trailing {TREND_MONTHS} months</p>
+            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Net vs gross · trailing {TREND_MONTHS} months</p>
             <div className="mt-3">
-              <TrendChart points={netTrend} />
+              <DualTrendChart points={dualTrend} />
             </div>
           </Card>
           <Card>
             <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Gross vs net $/loaded-mi · trailing {TREND_MONTHS} months</p>
             <div className="mt-3">
               <RateTrendChart points={rateTrend} />
+            </div>
+          </Card>
+          <Card>
+            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Loads booked · trailing {TREND_MONTHS} months</p>
+            <div className="mt-3">
+              <TrendChart points={volumeTrend} formatValue={(v) => String(Math.round(v))} />
             </div>
           </Card>
         </div>
