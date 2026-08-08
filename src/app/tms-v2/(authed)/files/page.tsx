@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/tms-v2/ui/PageHeader";
-import { DataList, type DataListColumn } from "@/components/tms-v2/ui/DataList";
 import { DateTimeCST } from "@/components/tms-v2/ui/DateTimeCST";
 import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
 import { listFiles, type FileRow, type FileSource } from "@/lib/data/files";
@@ -24,6 +23,48 @@ const SOURCE_LABEL: Record<FileSource, string> = {
 };
 
 const SOURCE_CHIPS: FileSource[] = ["load", "receipt", "intake"];
+
+// Real button classes (matching Button.tsx's secondary/sm variant) — these
+// two actions are a <a target="_blank"> and a <Link>, neither of which
+// Button.tsx (a plain <button>) can render, so the look is replicated here
+// rather than leaving them as bare text links.
+const ACTION_BUTTON =
+  "inline-flex h-8 shrink-0 items-center justify-center gap-1.5 rounded-md border border-line-strong bg-card px-3 text-[13px] font-medium text-fg shadow-e1 transition-colors hover:bg-elevated";
+
+/** One file — icon + title, tidy broker/lane + date meta, and the View/
+ * Record actions clearly grouped as real buttons — replaces the old
+ * DataList row (bare "View"/"Record" text links) with the same card
+ * language the rest of the app uses (LoadCard, TripLoadCard, etc.). */
+function FileCard({ file: f }: { file: FileRow }) {
+  return (
+    <div className="flex items-start gap-3 rounded-xl border border-line bg-card p-3.5 shadow-e1">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-elevated text-[18px]" aria-hidden>
+        {SOURCE_GLYPH[f.source]}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-[14px] font-semibold text-fg">{f.name}</div>
+        <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[12px] text-fg-muted">
+          <span className="truncate">{f.subtitle}</span>
+          <span>·</span>
+          <DateTimeCST value={f.createdAt} mode="date" />
+          <span className="rounded-md border border-line-strong bg-elevated px-1.5 py-0.5 text-[11px] font-medium text-fg-muted">{f.typeLabel}</span>
+        </div>
+        <div className="mt-2.5 flex items-center gap-2">
+          {f.url ? (
+            <a href={f.url} target="_blank" rel="noopener noreferrer" className={ACTION_BUTTON}>
+              View
+            </a>
+          ) : (
+            <span className="text-[12px] text-fg-muted">Unavailable</span>
+          )}
+          <Link href={f.parentHref} className={ACTION_BUTTON}>
+            Record
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -59,61 +100,6 @@ export default async function FilesPage({
 
   const result = await listFiles({ page, pageSize: DEFAULT_PAGE_SIZE, q, source });
   const totalAll = SOURCE_CHIPS.reduce((sum, s) => sum + result.counts[s], 0);
-
-  const columns: DataListColumn<FileRow>[] = [
-    {
-      key: "file",
-      header: "File",
-      render: (f) => (
-        <div className="flex flex-col gap-0.5">
-          <span className="flex items-center gap-1.5">
-            <span aria-hidden>{SOURCE_GLYPH[f.source]}</span>
-            <span className="font-medium">{f.name}</span>
-          </span>
-          <span className="text-[12px] text-fg-muted">{f.subtitle}</span>
-        </div>
-      ),
-    },
-    {
-      key: "type",
-      header: "Type",
-      render: (f) => (
-        <span className="rounded-md border border-line-strong bg-elevated px-2 py-0.5 text-[12px] font-medium text-fg-muted">
-          {f.typeLabel}
-        </span>
-      ),
-      hideOnMobile: true,
-    },
-    {
-      key: "date",
-      header: "Date",
-      render: (f) => <DateTimeCST value={f.createdAt} mode="date" />,
-    },
-    {
-      key: "actions",
-      header: "Actions",
-      align: "right",
-      render: (f) => (
-        <div className="flex items-center justify-end gap-3 text-[13px] font-medium">
-          {f.url ? (
-            <a
-              href={f.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-accent hover:underline"
-            >
-              View
-            </a>
-          ) : (
-            <span className="text-fg-muted">Unavailable</span>
-          )}
-          <Link href={f.parentHref} className="text-fg-muted hover:text-fg hover:underline">
-            Record
-          </Link>
-        </div>
-      ),
-    },
-  ];
 
   return (
     <PageScroll
@@ -163,16 +149,17 @@ export default async function FilesPage({
         </>
       }
     >
-      <DataList
-        columns={columns}
-        rows={result.rows}
-        rowKey={(f) => f.id}
-        emptyMessage={
-          q || source
-            ? "No files match this search."
-            : "No documents uploaded yet."
-        }
-      />
+      {result.rows.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-line-strong bg-card px-4 py-10 text-center shadow-e1">
+          <p className="text-[13px] text-fg-muted">{q || source ? "No files match this search." : "No documents uploaded yet."}</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-2">
+          {result.rows.map((f) => (
+            <FileCard key={f.id} file={f} />
+          ))}
+        </div>
+      )}
 
       <div className="mt-4 flex items-center justify-between text-[13px] text-fg-muted">
         <span>
