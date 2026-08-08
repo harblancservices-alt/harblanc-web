@@ -67,10 +67,32 @@ const WEEKDAY_INDEX: Record<string, number> = {
   Saturday: 6,
 };
 
-/** Next occurrence of a monthly/weekly/one-time charge on or after `today`.
- * Quarterly/annual have no stored anchor date to compute a next-occurrence
- * from (same honest gap /admin's ledger has — a real schema limitation, not
- * a bug introduced here). */
+/** Last day-of-month for a given year/0-based-month, honoring the same
+ * day clamp used throughout this module (e.g. day 31 in February -> 28). */
+function clampedDay(day: number, year: number, month: number): number {
+  return Math.min(day, new Date(year, month + 1, 0).getDate());
+}
+
+/** Next occurrence of a quarterly/annual charge on or after `base`, anchored
+ * to `start`'s day-of-month, stepping forward by `intervalMonths` (3 or 12)
+ * from start's own month — a real anchor (start_date), not a fake date. */
+function nextIntervalOccurrence(start: Date, intervalMonths: number, base: Date): Date {
+  let monthIndex = start.getFullYear() * 12 + start.getMonth();
+  const day = start.getDate();
+  let candidate: Date;
+  do {
+    const y = Math.floor(monthIndex / 12);
+    const m = monthIndex % 12;
+    candidate = new Date(y, m, clampedDay(day, y, m));
+    monthIndex += intervalMonths;
+  } while (candidate < base);
+  return candidate;
+}
+
+/** Next occurrence of a monthly/weekly/quarterly/annual/one-time charge on or
+ * after `today`. Quarterly/annual are anchored to start_date's day-of-month
+ * and step forward every 3/12 months — no occurrence if start_date isn't
+ * set (a real gap, not fabricated). */
 /** Exported so src/actions/tms-v2/expenses.ts's skipNextPayment can reuse
  * the exact same schedule math this module's own mapRow() uses for
  * nextChargeLabel/-DateIso, instead of a second derivation. */
@@ -98,13 +120,12 @@ export function nextChargeDate(
   } else if (e.frequency === "monthly" && e.dayOfMonth != null) {
     const y = base.getFullYear();
     const m = base.getMonth();
-    const clampedThis = Math.min(e.dayOfMonth, new Date(y, m + 1, 0).getDate());
-    const thisMonth = new Date(y, m, clampedThis);
-    if (thisMonth >= base) {
-      occurrence = thisMonth;
-    } else {
-      const clampedNext = Math.min(e.dayOfMonth, new Date(y, m + 2, 0).getDate());
-      occurrence = new Date(y, m + 1, clampedNext);
+    const thisMonth = new Date(y, m, clampedDay(e.dayOfMonth, y, m));
+    occurrence = thisMonth >= base ? thisMonth : new Date(y, m + 1, clampedDay(e.dayOfMonth, y, m + 1));
+  } else if ((e.frequency === "quarterly" || e.frequency === "annual") && e.startDate) {
+    const start = parseIsoDate(e.startDate);
+    if (start) {
+      occurrence = nextIntervalOccurrence(start, e.frequency === "quarterly" ? 3 : 12, base);
     }
   }
 
@@ -129,6 +150,66 @@ export function nextChargeDate(
   }
 
   return occurrence;
+}
+
+/** Every real occurrence of a recurring charge that falls within the given
+ * calendar month (0-based `month`), honoring start_date/end_date/
+ * skip_next_date — the building block for the month/year selector's
+ * "scheduled recurring this month" total. Unlike nextChargeDate() (single
+ * next occurrence), a weekly bill can legitimately occur multiple times in
+ * one month; this returns all of them so the total doesn't undercount, and
+ * never double-counts since each occurrence is a distinct real date. */
+export function occurrencesInMonth(
+  e: { frequency: RecurringFrequency; dayOfMonth: number | null; dayOfWeek: string | null; startDate: string | null; endDate: string | null; skipNextDate: string | null },
+  year: number,
+  month: number,
+): Date[] {
+  const monthStart = new Date(year, month, 1);
+  const monthEnd = new Date(year, month, clampedDay(31, year, month));
+  const start = e.startDate ? parseIsoDate(e.startDate) : null;
+  const end = e.endDate ? parseIsoDate(e.endDate) : null;
+  const skip = e.skipNextDate ? parseIsoDate(e.skipNextDate) : null;
+
+  function inBounds(d: Date): boolean {
+    if (start && d < start) return false;
+    if (end && d > end) return false;
+    if (skip && d.getTime() === skip.getTime()) return false;
+    return true;
+  }
+
+  if (e.frequency === "onetime") {
+    return start && start >= monthStart && start <= monthEnd ? [start] : [];
+  }
+
+  if (e.frequency === "weekly") {
+    const targetDow = e.dayOfWeek ? WEEKDAY_INDEX[e.dayOfWeek] : undefined;
+    if (targetDow == null) return [];
+    const results: Date[] = [];
+    for (let day = 1; day <= monthEnd.getDate(); day++) {
+      const d = new Date(year, month, day);
+      if (d.getDay() === targetDow && inBounds(d)) results.push(d);
+    }
+    return results;
+  }
+
+  if (e.frequency === "monthly") {
+    if (e.dayOfMonth == null) return [];
+    const occ = new Date(year, month, clampedDay(e.dayOfMonth, year, month));
+    return inBounds(occ) ? [occ] : [];
+  }
+
+  if (e.frequency === "quarterly" || e.frequency === "annual") {
+    if (!start) return [];
+    const intervalMonths = e.frequency === "quarterly" ? 3 : 12;
+    const startMonthIndex = start.getFullYear() * 12 + start.getMonth();
+    const targetMonthIndex = year * 12 + month;
+    const diff = targetMonthIndex - startMonthIndex;
+    if (diff < 0 || diff % intervalMonths !== 0) return [];
+    const occ = new Date(year, month, clampedDay(start.getDate(), year, month));
+    return inBounds(occ) ? [occ] : [];
+  }
+
+  return [];
 }
 
 function formatNextCharge(date: Date, today: Date): string {
@@ -184,6 +265,7 @@ export type RecurringExpenseRow = {
   dayOfMonth: number | null;
   dayOfWeek: string | null;
   startDate: string | null;
+  skipNextDate: string | null;
 };
 
 /** Sortable columns on the Expenses ledger (Phase 6 item 6). */
@@ -292,6 +374,7 @@ function mapRow(
     dayOfMonth: r.day_of_month,
     dayOfWeek: r.day_of_week,
     startDate: r.start_date,
+    skipNextDate: r.skip_next_date,
   };
 }
 
@@ -422,6 +505,56 @@ export async function listExpenseAccounts(): Promise<ExpenseAccountRow[]> {
     .order("name", { ascending: true })
     .returns<(AccountDbRow & { is_default: boolean | null })[]>();
   return (data ?? []).map((a) => ({ id: a.id, name: a.name, type: a.type, last4: a.last4, isDefault: a.is_default ?? false }));
+}
+
+export type MonthScheduleItem = {
+  expenseId: string;
+  name: string;
+  vendor: string | null;
+  category: string | null;
+  cardName: string | null;
+  amount: number;
+  dateIso: string;
+};
+
+export type MonthSchedule = {
+  items: MonthScheduleItem[];
+  scheduledTotal: number;
+  projectedAnnualTotal: number;
+};
+
+/** The month/year selector's payload (Phase 3): every real occurrence of an
+ * active recurring bill in the given calendar month, plus the two totals
+ * Brent asked for — "scheduled recurring for selected month" (the actual
+ * per-occurrence sum, correctly counting a weekly bill's multiple
+ * occurrences) and "projected annual recurring" (the current active
+ * run-rate, §H's monthlyAmount()×12 formula — independent of which month is
+ * selected, since it's "if nothing changes, this is the year's total"). */
+export async function getMonthlyBillSchedule(year: number, month: number): Promise<MonthSchedule> {
+  const now = new Date();
+  const all = await fetchAll(now);
+  const activeRecurring = all.filter((r) => !r.archived && r.frequency !== "onetime");
+
+  const items: MonthScheduleItem[] = [];
+  for (const r of activeRecurring) {
+    const occs = occurrencesInMonth(
+      { frequency: r.frequency, dayOfMonth: r.dayOfMonth, dayOfWeek: r.dayOfWeek, startDate: r.startDate, endDate: r.endDate, skipNextDate: r.skipNextDate },
+      year,
+      month,
+    );
+    for (const d of occs) {
+      items.push({ expenseId: r.id, name: r.name, vendor: r.vendor, category: r.category, cardName: r.cardName, amount: r.amount, dateIso: toIsoDate(d) });
+    }
+  }
+  items.sort((a, b) => a.dateIso.localeCompare(b.dateIso) || a.name.localeCompare(b.name));
+  const scheduledTotal = items.reduce((s, i) => s + i.amount, 0);
+
+  const nowIso = toIsoDate(now);
+  const projectedAnnualTotal = activeRecurring
+    .filter((r) => !r.endDate || r.endDate >= nowIso)
+    .reduce((s, r) => s + r.monthlyAmount * 12, 0);
+
+  return { items, scheduledTotal, projectedAnnualTotal };
 }
 
 export type ExpenseActivityRow = { id: string; action: string; detail: string | null; whenLabel: string };

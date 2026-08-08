@@ -9,6 +9,7 @@ import {
   getRecurringExpensesKpis,
   getRecurringExpenseById,
   getExpenseActivity,
+  getMonthlyBillSchedule,
   listExpenseAccounts,
   EXPENSE_CATEGORIES,
   RECURRING_FREQUENCIES,
@@ -21,6 +22,8 @@ import { ExpenseDrawerContent } from "./ExpenseDrawerContent";
 import { ExpensesListClient } from "./ExpensesListClient";
 import { ExportExpensesCsvButton } from "./ExportExpensesCsvButton";
 import { ImportExpensesButton } from "./ImportExpensesButton";
+import { UpcomingBills } from "./UpcomingBills";
+import { MonthlyBillCalendar } from "./MonthlyBillCalendar";
 import { SavedViews } from "../_components/SavedViews";
 import { expenseGaps } from "@/lib/dispatch/alerts";
 
@@ -64,7 +67,12 @@ export default async function ExpensesPage({
   const sort = isExpenseSortKey(typeof sp.sort === "string" ? sp.sort : undefined) ? (sp.sort as ExpenseSortKey) : undefined;
   const dir = sp.dir === "asc" ? "asc" : "desc";
 
-  const [kpis, list, accounts, selectedExpense, exportList, allActive] = await Promise.all([
+  const now = new Date();
+  const billsMonthMatch = typeof sp.billsMonth === "string" ? /^(\d{4})-(\d{2})$/.exec(sp.billsMonth) : null;
+  const billsYear = billsMonthMatch ? Number(billsMonthMatch[1]) : now.getFullYear();
+  const billsMonth = billsMonthMatch ? Number(billsMonthMatch[2]) - 1 : now.getMonth();
+
+  const [kpis, list, accounts, selectedExpense, exportList, allActive, monthSchedule] = await Promise.all([
     getRecurringExpensesKpis(),
     listRecurringExpenses({ page, pageSize: PAGE_SIZE, category, frequency, status, search, sort, dir }),
     listExpenseAccounts(),
@@ -73,8 +81,11 @@ export default async function ExpensesPage({
     // Unfiltered (status: active only), bounded read for the mobile totals
     // strip's top-category/needs-review aggregates — those summarize the
     // WHOLE active ledger, not whatever the current filter form narrowed
-    // `list`/`exportList` down to.
+    // `list`/`exportList` down to. Also the source for the Upcoming Bills
+    // primary view, which ignores the ledger's own filters (it's always
+    // "what's actually due", not a filtered subset).
     listRecurringExpenses({ page: 1, pageSize: EXPORT_FETCH_SIZE, status: "active" }),
+    getMonthlyBillSchedule(billsYear, billsMonth),
   ]);
   const activity = selectedId ? await getExpenseActivity(selectedId) : [];
 
@@ -107,7 +118,7 @@ export default async function ExpensesPage({
         <>
           <PageHeader
             title="Expenses"
-            description="Manual log of recurring charges — insurance, truck payment, subscriptions."
+            description="What recurring money is leaving the business, and when."
             actions={
               <div className="flex items-center gap-2">
                 <ImportExpensesButton />
@@ -184,6 +195,12 @@ export default async function ExpensesPage({
         </>
       }
     >
+      <div className="flex flex-col gap-4">
+        <UpcomingBills rows={allActive.rows} closeHref={(id) => buildHref({ ...baseParams, id })} />
+        <MonthlyBillCalendar year={billsYear} month={billsMonth} schedule={monthSchedule} />
+      </div>
+
+      <div className="mt-6 mb-2 text-[13px] font-semibold text-fg">Manage recurring &amp; one-time expenses</div>
       <ExpensesListClient rows={list.rows} accountNames={accountNames} baseParams={baseParams} />
 
       <div className="mt-4 flex items-center justify-between text-[13px] text-fg-muted">
