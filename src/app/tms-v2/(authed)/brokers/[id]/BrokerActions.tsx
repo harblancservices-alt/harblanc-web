@@ -174,36 +174,45 @@ function initials(name: string | null | undefined): string {
   return (parts[0][0] + (parts[1]?.[0] ?? "")).toUpperCase();
 }
 
-/** One contact — small avatar-initials circle (same compact-row language
- * as the Brokers directory) instead of a bare name line, name/title
- * leading, phone/email trailing, edit/delete actions. Replaces the old
- * cramped single-line-of-everything row. */
+/** One contact — a clean stacked card, not a single row cramming avatar/
+ * name/role/phone/email/actions together (the old layout: role tag
+ * overlapping the phone number, the name effectively invisible next to a
+ * bare initials circle, cramped). Top line is avatar + name + role tag
+ * (tag sits beside the name, never on top of anything else); phone and
+ * email each get their own line; Edit/Delete are real Button components,
+ * not bare colored text. */
 function ContactRow({ contact: c, onEdit, onDelete }: { contact: BrokerContact; onEdit: () => void; onDelete: () => void }) {
   return (
-    <div className="flex flex-wrap items-center gap-3 border-b border-line px-3.5 py-2.5 last:border-b-0">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-elevated text-[11px] font-semibold text-fg-muted">
-        {initials(c.name)}
-      </span>
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <span className="truncate text-[14px] font-semibold text-fg">{c.name ?? "Unnamed contact"}</span>
-          {c.isBackhaul ? (
-            <span className="shrink-0 rounded-full bg-warn-bg px-2 py-0.5 text-[11px] font-medium text-warn">Backhaul</span>
-          ) : null}
+    <div className="flex flex-col gap-2 border-b border-line px-3.5 py-3 last:border-b-0">
+      <div className="flex items-center gap-2.5">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-elevated text-[12px] font-semibold text-fg-muted">
+          {initials(c.name)}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="truncate text-[14px] font-semibold text-fg">{c.name ?? "Unnamed contact"}</span>
+            {c.isBackhaul ? (
+              <span className="shrink-0 rounded-full bg-warn-bg px-2 py-0.5 text-[11px] font-medium text-warn">Backhaul</span>
+            ) : null}
+          </div>
+          {c.title ? <div className="truncate text-[12px] text-fg-muted">{c.title}</div> : null}
         </div>
-        {c.title ? <div className="truncate text-[12px] text-fg-muted">{c.title}</div> : null}
       </div>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-fg-muted">
-        {c.phone ? <span>{c.phone}</span> : null}
-        {c.email ? <span className="truncate">{c.email}</span> : null}
-      </div>
-      <div className="flex shrink-0 items-center gap-3 text-[13px]">
-        <button type="button" onClick={onEdit} className="font-medium text-accent hover:underline">
+
+      {c.phone || c.email ? (
+        <div className="flex flex-col gap-0.5 pl-11 text-[13px] text-fg-muted">
+          {c.phone ? <div className="truncate">{c.phone}</div> : null}
+          {c.email ? <div className="truncate">{c.email}</div> : null}
+        </div>
+      ) : null}
+
+      <div className="flex items-center gap-2 pl-11">
+        <Button type="button" variant="secondary" size="sm" onClick={onEdit}>
           Edit
-        </button>
-        <button type="button" onClick={onDelete} className="font-medium text-bad hover:underline">
+        </Button>
+        <Button type="button" variant="destructive" size="sm" onClick={onDelete}>
           Delete
-        </button>
+        </Button>
       </div>
     </div>
   );
