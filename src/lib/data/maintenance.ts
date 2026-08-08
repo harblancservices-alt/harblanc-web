@@ -37,6 +37,7 @@ import {
   type Freshness,
 } from "@/lib/dispatch/repair-log";
 import { computeMaintenance, type MaintStatus } from "@/lib/dispatch/maintenance";
+import { CANONICAL_SERVICE_TYPES, slugify } from "@/lib/dispatch/service-types";
 
 export type { Category, Freshness, MaintStatus };
 
@@ -318,6 +319,346 @@ export async function getMaintenanceOverview(): Promise<MaintenanceOverview> {
     fetchDismissedReminders(sb),
   ]);
   return { currentOdo, reminders, recentEntries, dismissedReminders };
+}
+
+// ---------------------------------------------------------------------------
+// Service types (Brent's per-service redesign, 2026-08-08): every service
+// is tracked by its TYPE, each with its own history and its own logging —
+// no more one combined mass log. A "type" is just `part_group` (already the
+// join key between a `repair_reminders` interval and the `repair_entries`
+// logged against it, see fetchReminders() above) — no schema change. This
+// section builds the merged type catalog (real reminders + real entries +
+// lib/dispatch/service-types.ts's curated baseline list) that both the
+// Maintenance home (cards) and a type's own profile page read from.
+
+type GroupStats = {
+  /** First-seen original-cased part_group text — the exact value already
+   * in use in the DB, reused verbatim so new writes against this type
+   * (the per-type "+ Log this service" preset) keep matching it. */
+  originalLabel: string;
+  category: Category;
+  lastOdo: number | null;
+  lastDate: string | null;
+};
+
+/** Last-serviced odo/date per part_group, from every real, non-deleted
+ * repair_entries row that has one — the same max-across-entries rule
+ * fetchReminders() above already uses, just computed for every part_group
+ * in the log (not only ones a reminder already references), since an
+ * ad hoc type (no reminder yet) still needs its own "last done" line. */
+async function computeGroupStats(sb: SB): Promise<Map<string, GroupStats>> {
+  const { data: entryRows } = await sb
+    .from("repair_entries")
+    .select("part_group, category, service_id")
+    .is("deleted_at", null)
+    .not("part_group", "is", null)
+    .returns<{ part_group: string | null; category: string; service_id: string }[]>();
+  const entries = (entryRows ?? []).filter((e): e is { part_group: string; category: string; service_id: string } => !!e.part_group);
+  const stats = new Map<string, GroupStats>();
+  if (entries.length === 0) return stats;
+
+  const serviceIds = [...new Set(entries.map((e) => e.service_id))];
+  const { data: serviceRows } = await sb.from("repair_services").select("id, service_date, odometer").in("id", serviceIds).returns<ServiceLite[]>();
+  const serviceById = new Map((serviceRows ?? []).map((s) => [s.id, s]));
+
+  for (const e of entries) {
+    const key = groupKey(e.part_group);
+    if (!key) continue;
+    const svc = serviceById.get(e.service_id);
+    const existing = stats.get(key) ?? { originalLabel: e.part_group, category: cat(e.category), lastOdo: null, lastDate: null };
+    if (svc?.odometer != null) existing.lastOdo = existing.lastOdo == null ? svc.odometer : Math.max(existing.lastOdo, svc.odometer);
+    if (svc?.service_date && (existing.lastDate == null || existing.lastDate < svc.service_date)) existing.lastDate = svc.service_date;
+    stats.set(key, existing);
+  }
+  return stats;
+}
+
+type ResolvedServiceType = {
+  /** groupKey() of the real or canonical label — the one identity every
+   * source (reminder/entries/canonical) merges on. */
+  key: string;
+  slug: string;
+  label: string;
+  category: Category;
+  intervalMiles: number | null;
+  lastOdo: number | null;
+  lastDate: string | null;
+};
+
+/** Real reminders + real entry history + the curated baseline list,
+ * deduplicated by groupKey (real data always wins over a canonical
+ * placeholder — see service-types.ts's header for why). */
+function mergeServiceTypes(reminderRows: ReminderRow[], groupStats: Map<string, GroupStats>): ResolvedServiceType[] {
+  const byKey = new Map<string, ResolvedServiceType>();
+
+  for (const r of reminderRows) {
+    const key = groupKey(r.part_group);
+    if (!key) continue;
+    const stats = groupStats.get(key);
+    byKey.set(key, {
+      key,
+      slug: slugify(r.part_group),
+      label: r.label || r.part_group,
+      category: cat(r.category),
+      intervalMiles: r.interval_miles,
+      lastOdo: stats?.lastOdo ?? r.anchor_odo ?? null,
+      lastDate: stats?.lastDate ?? r.anchor_date ?? null,
+    });
+  }
+
+  for (const [key, stats] of groupStats) {
+    if (byKey.has(key)) continue;
+    byKey.set(key, {
+      key,
+      slug: slugify(stats.originalLabel),
+      label: stats.originalLabel,
+      category: stats.category,
+      intervalMiles: null,
+      lastOdo: stats.lastOdo,
+      lastDate: stats.lastDate,
+    });
+  }
+
+  for (const c of CANONICAL_SERVICE_TYPES) {
+    const candidateKeys = [c.label, ...c.aliases].map(groupKey).filter((k): k is string => !!k);
+    if (candidateKeys.some((k) => byKey.has(k))) continue;
+    const key = groupKey(c.label) as string;
+    byKey.set(key, { key, slug: c.slug, label: c.label, category: c.category, intervalMiles: null, lastOdo: null, lastDate: null });
+  }
+
+  return [...byKey.values()];
+}
+
+export type ServiceTypeCard = {
+  slug: string;
+  label: string;
+  category: Category;
+  /** Null = no active reminder for this type yet — the card shows an
+   * informational "no interval set" state instead of a status pill. */
+  intervalMiles: number | null;
+  lastOdo: number | null;
+  lastDate: string | null;
+  status: MaintStatus | null;
+  milesRemaining: number | null;
+  pct: number;
+};
+
+function toServiceTypeCard(t: ResolvedServiceType, currentOdo: number): ServiceTypeCard {
+  if (t.intervalMiles == null) {
+    return { slug: t.slug, label: t.label, category: t.category, intervalMiles: null, lastOdo: t.lastOdo, lastDate: t.lastDate, status: null, milesRemaining: null, pct: 0 };
+  }
+  const m = computeMaintenance(t.intervalMiles, t.lastOdo, currentOdo);
+  return { slug: t.slug, label: t.label, category: t.category, intervalMiles: t.intervalMiles, lastOdo: t.lastOdo, lastDate: t.lastDate, status: m.status, milesRemaining: m.milesRemaining, pct: m.pct };
+}
+
+const CARD_RANK: Record<string, number> = { overdue: 0, soon: 1, baseline: 2, ok: 3 };
+
+/** Worst-status first (matches the existing reminder-grid convention,
+ * STATUS_RANK above); untracked types (no interval at all) sort last,
+ * alphabetically among themselves. */
+function cardSort(a: ServiceTypeCard, b: ServiceTypeCard): number {
+  const rankA = a.status ? CARD_RANK[a.status] : 4;
+  const rankB = b.status ? CARD_RANK[b.status] : 4;
+  if (rankA !== rankB) return rankA - rankB;
+  if (a.status == null) return a.label.localeCompare(b.label);
+  return (a.milesRemaining ?? Number.POSITIVE_INFINITY) - (b.milesRemaining ?? Number.POSITIVE_INFINITY);
+}
+
+export async function getServiceTypesOverview(): Promise<{ currentOdo: number; types: ServiceTypeCard[] }> {
+  if (await isDemoMode()) return demoServiceTypesOverview();
+
+  const sb = createServiceRoleClient();
+  const currentOdo = await fetchCurrentOdo(sb);
+  const [{ data: reminderRows }, groupStats] = await Promise.all([
+    sb
+      .from("repair_reminders")
+      .select("id, label, part_group, category, interval_miles, anchor_odo, anchor_date")
+      .is("dismissed_at", null)
+      .returns<ReminderRow[]>(),
+    computeGroupStats(sb),
+  ]);
+  const types = mergeServiceTypes(reminderRows ?? [], groupStats)
+    .map((t) => toServiceTypeCard(t, currentOdo))
+    .sort(cardSort);
+  return { currentOdo, types };
+}
+
+export type ServiceTypeHistoryItem = {
+  serviceId: string;
+  date: string | null;
+  odometer: number | null;
+  /** Joined descriptions of every part logged against this type in that
+   * visit (usually one). */
+  partsSummary: string;
+  shop: string | null;
+  receiptCount: number;
+  cost: number | null;
+};
+
+export type ServiceTypeDetail = {
+  slug: string;
+  label: string;
+  category: Category;
+  intervalMiles: number | null;
+  lastOdo: number | null;
+  lastDate: string | null;
+  status: MaintStatus | null;
+  nextDue: number | null;
+  milesRemaining: number | null;
+  currentOdo: number;
+  /** The real part_group text to write when logging against this type —
+   * the canonical label when nothing's been logged for it yet. */
+  partGroup: string;
+  history: ServiceTypeHistoryItem[];
+};
+
+export async function getServiceTypeDetail(slug: string): Promise<ServiceTypeDetail | null> {
+  if (await isDemoMode()) return demoServiceTypeDetail(slug);
+
+  const sb = createServiceRoleClient();
+  const currentOdo = await fetchCurrentOdo(sb);
+  const [{ data: reminderRows }, groupStats] = await Promise.all([
+    sb
+      .from("repair_reminders")
+      .select("id, label, part_group, category, interval_miles, anchor_odo, anchor_date")
+      .is("dismissed_at", null)
+      .returns<ReminderRow[]>(),
+    computeGroupStats(sb),
+  ]);
+  const type = mergeServiceTypes(reminderRows ?? [], groupStats).find((t) => t.slug === slug);
+  if (!type) return null;
+
+  const partGroupText = groupStats.get(type.key)?.originalLabel ?? type.label;
+  const m = type.intervalMiles != null ? computeMaintenance(type.intervalMiles, type.lastOdo, currentOdo) : null;
+
+  const { data: entryRows } = await sb
+    .from("repair_entries")
+    .select("id, description, service_id")
+    .is("deleted_at", null)
+    .ilike("part_group", partGroupText)
+    .returns<{ id: string; description: string; service_id: string }[]>();
+  const entries = entryRows ?? [];
+
+  let history: ServiceTypeHistoryItem[] = [];
+  if (entries.length > 0) {
+    const serviceIds = [...new Set(entries.map((e) => e.service_id))];
+    const [{ data: serviceRows }, { data: attRows }] = await Promise.all([
+      sb
+        .from("repair_services")
+        .select("id, service_date, odometer, shop, total_cost")
+        .in("id", serviceIds)
+        .returns<{ id: string; service_date: string | null; odometer: number | null; shop: string | null; total_cost: number | string | null }[]>(),
+      sb.from("repair_attachments").select("service_id").in("service_id", serviceIds).returns<{ service_id: string }[]>(),
+    ]);
+    const serviceById = new Map((serviceRows ?? []).map((s) => [s.id, s]));
+    const receiptCountByService = new Map<string, number>();
+    for (const a of attRows ?? []) receiptCountByService.set(a.service_id, (receiptCountByService.get(a.service_id) ?? 0) + 1);
+
+    const bySvc = new Map<string, string[]>();
+    for (const e of entries) {
+      const arr = bySvc.get(e.service_id) ?? [];
+      arr.push(e.description);
+      bySvc.set(e.service_id, arr);
+    }
+    history = [...bySvc.entries()]
+      .map(([serviceId, descriptions]) => {
+        const svc = serviceById.get(serviceId);
+        return {
+          serviceId,
+          date: svc?.service_date ?? null,
+          odometer: svc?.odometer ?? null,
+          partsSummary: descriptions.join(", "),
+          shop: svc?.shop ?? null,
+          receiptCount: receiptCountByService.get(serviceId) ?? 0,
+          cost: num(svc?.total_cost),
+        };
+      })
+      .sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
+  }
+
+  return {
+    slug: type.slug,
+    label: type.label,
+    category: type.category,
+    intervalMiles: type.intervalMiles,
+    lastOdo: type.lastOdo,
+    lastDate: type.lastDate,
+    status: m?.status ?? null,
+    nextDue: m?.nextDue ?? null,
+    milesRemaining: m?.milesRemaining ?? null,
+    currentOdo,
+    partGroup: partGroupText,
+    history,
+  };
+}
+
+export type MaintenanceServiceFull = {
+  id: string;
+  date: string | null;
+  odometer: number | null;
+  totalCost: number | null;
+  notes: string | null;
+  receipts: ReceiptView[];
+  parts: { id: string; description: string; category: Category; subCategory: string | null; partGroup: string | null; reminderInterval: number | null }[];
+};
+
+/** One whole service (visit), for the "tap a history row to edit" flow —
+ * unlike getRepairEntryDetail() (anchored to one PART), this is anchored to
+ * the SERVICE itself, so a type-profile's history row can open the same
+ * edit modal regardless of which of the visit's parts matched this type. */
+export async function getServiceFull(serviceId: string): Promise<MaintenanceServiceFull | null> {
+  if (await isDemoMode()) return demoServiceFull(serviceId);
+  if (!serviceId) return null;
+  const sb = createServiceRoleClient();
+
+  const { data: svc } = await sb
+    .from("repair_services")
+    .select("id, service_date, odometer, total_cost, notes")
+    .eq("id", serviceId)
+    .maybeSingle<{ id: string; service_date: string | null; odometer: number | null; total_cost: number | string | null; notes: string | null }>();
+  if (!svc) return null;
+
+  let { data: partRows, error: partsError } = await sb
+    .from("repair_entries")
+    .select(ENTRY_COLUMNS_FULL)
+    .eq("service_id", serviceId)
+    .is("deleted_at", null)
+    .returns<EntryRow[]>();
+  if (partsError && isMissingColumnError(partsError, "sub_category")) {
+    ({ data: partRows } = await sb.from("repair_entries").select(ENTRY_COLUMNS_BASE).eq("service_id", serviceId).is("deleted_at", null).returns<EntryRow[]>());
+  }
+  const parts = partRows ?? [];
+
+  const partGroups = [...new Set(parts.map((p) => p.part_group).filter((g): g is string => !!g))];
+  const { data: reminderRows } =
+    partGroups.length > 0
+      ? await sb
+          .from("repair_reminders")
+          .select("part_group, interval_miles")
+          .is("dismissed_at", null)
+          .in("part_group", partGroups)
+          .returns<{ part_group: string; interval_miles: number }[]>()
+      : { data: [] as { part_group: string; interval_miles: number }[] };
+  const intervalByKey = new Map((reminderRows ?? []).map((r) => [groupKey(r.part_group) as string, r.interval_miles]));
+
+  const receipts = await fetchReceipts(sb, serviceId);
+
+  return {
+    id: svc.id,
+    date: svc.service_date,
+    odometer: svc.odometer,
+    totalCost: num(svc.total_cost),
+    notes: svc.notes,
+    receipts,
+    parts: parts.map((p) => ({
+      id: p.id,
+      description: p.description,
+      category: cat(p.category),
+      subCategory: p.sub_category ?? null,
+      partGroup: p.part_group,
+      reminderInterval: p.part_group ? (intervalByKey.get(groupKey(p.part_group) as string) ?? null) : null,
+    })),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -803,6 +1144,139 @@ function demoOverview(): MaintenanceOverview {
   // demo), so there's nothing to show here — a deliberate empty list, not
   // an oversight.
   return { currentOdo, reminders, recentEntries, dismissedReminders: [] };
+}
+
+function demoGroupStats(): Map<string, GroupStats> {
+  const now = demoNow();
+  const currentOdo = demoCurrentOdo(now);
+  const stats = new Map<string, GroupStats>();
+  for (const f of demoFixtures()) {
+    if (!f.partGroup) continue;
+    const key = groupKey(f.partGroup);
+    if (!key) continue;
+    const odometer = currentOdo - f.milesAgo;
+    const date = toIsoDate(new Date(now.getTime() - f.daysAgo * 86_400_000));
+    const existing = stats.get(key) ?? { originalLabel: f.partGroup, category: f.category, lastOdo: null, lastDate: null };
+    existing.lastOdo = existing.lastOdo == null ? odometer : Math.max(existing.lastOdo, odometer);
+    if (existing.lastDate == null || existing.lastDate < date) existing.lastDate = date;
+    stats.set(key, existing);
+  }
+  return stats;
+}
+
+function demoReminderRows(): ReminderRow[] {
+  const fixtures = demoFixtures().filter((f) => f.reminderIntervalMiles != null && f.partGroup);
+  const byKey = new Map<string, DemoFixture>();
+  for (const f of fixtures) {
+    const key = groupKey(f.partGroup);
+    if (!key) continue;
+    const existing = byKey.get(key);
+    if (!existing || f.milesAgo < existing.milesAgo) byKey.set(key, f);
+  }
+  const rows: ReminderRow[] = [...byKey.values()].map((f) => ({
+    id: `demo-reminder-${groupKey(f.partGroup)}`,
+    label: f.description,
+    part_group: f.partGroup as string,
+    category: f.category,
+    interval_miles: f.reminderIntervalMiles as number,
+    anchor_odo: null,
+    anchor_date: null,
+  }));
+  rows.push({
+    id: DEMO_BASELINE_REMINDER.id,
+    label: DEMO_BASELINE_REMINDER.label,
+    part_group: DEMO_BASELINE_REMINDER.partGroup,
+    category: DEMO_BASELINE_REMINDER.category,
+    interval_miles: DEMO_BASELINE_REMINDER.intervalMiles,
+    anchor_odo: null,
+    anchor_date: null,
+  });
+  return rows;
+}
+
+function demoServiceTypesOverview(): { currentOdo: number; types: ServiceTypeCard[] } {
+  const currentOdo = demoCurrentOdo(demoNow());
+  const types = mergeServiceTypes(demoReminderRows(), demoGroupStats())
+    .map((t) => toServiceTypeCard(t, currentOdo))
+    .sort(cardSort);
+  return { currentOdo, types };
+}
+
+function demoServiceTypeDetail(slug: string): ServiceTypeDetail | null {
+  const now = demoNow();
+  const currentOdo = demoCurrentOdo(now);
+  const groupStats = demoGroupStats();
+  const type = mergeServiceTypes(demoReminderRows(), groupStats).find((t) => t.slug === slug);
+  if (!type) return null;
+
+  const fixtures = demoFixtures().filter((f) => f.partGroup && groupKey(f.partGroup) === type.key);
+  const bySvc = new Map<string, DemoFixture[]>();
+  for (const f of fixtures) {
+    const arr = bySvc.get(f.serviceId) ?? [];
+    arr.push(f);
+    bySvc.set(f.serviceId, arr);
+  }
+  const history: ServiceTypeHistoryItem[] = [...bySvc.entries()]
+    .map(([serviceId, fx]) => {
+      const first = fx[0];
+      return {
+        serviceId,
+        date: toIsoDate(new Date(now.getTime() - first.daysAgo * 86_400_000)),
+        odometer: currentOdo - first.milesAgo,
+        partsSummary: fx.map((f) => f.description).join(", "),
+        shop: first.shop,
+        receiptCount: fx.filter((f) => f.hasReceipt).length,
+        cost: first.serviceTotalCost,
+      };
+    })
+    .sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
+
+  const m = type.intervalMiles != null ? computeMaintenance(type.intervalMiles, type.lastOdo, currentOdo) : null;
+  const partGroupText = groupStats.get(type.key)?.originalLabel ?? type.label;
+
+  return {
+    slug: type.slug,
+    label: type.label,
+    category: type.category,
+    intervalMiles: type.intervalMiles,
+    lastOdo: type.lastOdo,
+    lastDate: type.lastDate,
+    status: m?.status ?? null,
+    nextDue: m?.nextDue ?? null,
+    milesRemaining: m?.milesRemaining ?? null,
+    currentOdo,
+    partGroup: partGroupText,
+    history,
+  };
+}
+
+function demoServiceFull(serviceId: string): MaintenanceServiceFull | null {
+  const now = demoNow();
+  const currentOdo = demoCurrentOdo(now);
+  const fixtures = demoFixtures().filter((f) => f.serviceId === serviceId);
+  if (fixtures.length === 0) return null;
+  const first = fixtures[0];
+
+  const receipts: ReceiptView[] = fixtures
+    .filter((f) => f.hasReceipt)
+    .map((f) => ({ id: `${f.id}-receipt`, name: f.receiptIsImage ? "receipt.jpg" : "receipt.pdf", url: null, isImage: f.receiptIsImage }));
+
+  return {
+    id: serviceId,
+    date: toIsoDate(new Date(now.getTime() - first.daysAgo * 86_400_000)),
+    odometer: currentOdo - first.milesAgo,
+    totalCost: first.serviceTotalCost,
+    notes: first.notes,
+    receipts,
+    parts: fixtures.map((f) => ({
+      id: f.id,
+      description: f.description,
+      category: f.category,
+      subCategory: null,
+      partGroup: f.partGroup,
+      reminderInterval: f.reminderIntervalMiles,
+    })),
+  };
 }
 
 function demoEntryDetail(id: string): RepairEntryDetail | null {

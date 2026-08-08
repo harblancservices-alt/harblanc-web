@@ -46,15 +46,33 @@ type PartState = {
   subCategory: string;
   partGroup: string;
   remind: string;
+  /** True for a service-type profile's "+ Log this service" first row —
+   * the type is pre-filled, not chosen (Brent's ask), so its name/category/
+   * sub-category/part-group render as a fixed chip instead of editable
+   * controls and the row can't be removed. Only ever true for a fresh
+   * (non-edit) part seeded from `preset`. */
+  locked?: boolean;
 };
 
 type NewFile = { id: string; file: File };
+
+/** A service-type profile's fixed identity for its own "+ Log this
+ * service" button — skips the category/sub-category picker entirely
+ * (that's the global logger's job) and pre-fills the remind-interval field
+ * with whatever's already configured, so confirming it is a single tap. */
+export type ServiceTypePreset = {
+  typeLabel: string;
+  category: Category;
+  subCategory: string | null;
+  partGroup: string;
+  reminderIntervalMiles: number | null;
+};
 
 function blankPart(): PartState {
   return { key: crypto.randomUUID(), name: "", category: "Other", categoryTouched: false, subCategory: "", partGroup: "", remind: "" };
 }
 
-function seedParts(editService: ServiceFull | null | undefined): PartState[] {
+function seedParts(editService: ServiceFull | null | undefined, preset: ServiceTypePreset | null | undefined): PartState[] {
   if (editService && editService.parts.length > 0) {
     return editService.parts.map((p) => ({
       key: crypto.randomUUID(),
@@ -67,6 +85,20 @@ function seedParts(editService: ServiceFull | null | undefined): PartState[] {
       remind: p.reminderInterval != null ? String(p.reminderInterval) : "",
     }));
   }
+  if (preset) {
+    return [
+      {
+        key: crypto.randomUUID(),
+        name: preset.typeLabel,
+        category: preset.category,
+        categoryTouched: true,
+        subCategory: preset.subCategory ?? "",
+        partGroup: preset.partGroup,
+        remind: preset.reminderIntervalMiles != null ? String(preset.reminderIntervalMiles) : "",
+        locked: true,
+      },
+    ];
+  }
   return [blankPart()];
 }
 
@@ -74,6 +106,7 @@ export function LogServiceModal({
   open,
   currentOdo,
   partGroups,
+  preset,
   editService,
   onClose,
   onSaved,
@@ -82,6 +115,9 @@ export function LogServiceModal({
   open: boolean;
   currentOdo: number;
   partGroups: string[];
+  /** Present = the per-service-type logger (type locked); absent = the
+   * global logger (category/sub-category picker shown, as before). */
+  preset?: ServiceTypePreset | null;
   editService?: ServiceFull | null;
   onClose: () => void;
   onSaved?: () => void;
@@ -97,7 +133,7 @@ export function LogServiceModal({
   });
   const [total, setTotal] = useState(editService?.totalCost != null ? String(editService.totalCost) : "");
   const [notes, setNotes] = useState(editService?.notes ?? "");
-  const [parts, setParts] = useState<PartState[]>(() => seedParts(editService));
+  const [parts, setParts] = useState<PartState[]>(() => seedParts(editService, preset));
 
   const [existing, setExisting] = useState<ReceiptView[]>(editService?.receipts ?? []);
   const [removedIds, setRemovedIds] = useState<string[]>([]);
@@ -115,7 +151,7 @@ export function LogServiceModal({
     setOdo(seed != null && seed > 0 ? seed.toLocaleString("en-US") : "");
     setTotal(editService?.totalCost != null ? String(editService.totalCost) : "");
     setNotes(editService?.notes ?? "");
-    setParts(seedParts(editService));
+    setParts(seedParts(editService, preset));
     setExisting(editService?.receipts ?? []);
     setRemovedIds([]);
     setFiles([]);
@@ -141,7 +177,7 @@ export function LogServiceModal({
     setParts((prev) => [...prev, blankPart()]);
   }
   function removePart(key: string) {
-    setParts((prev) => (prev.length <= 1 ? prev : prev.filter((p) => p.key !== key)));
+    setParts((prev) => (prev.length <= 1 ? prev : prev.filter((p) => p.key !== key || p.locked)));
   }
 
   function addFiles(list: FileList | null) {
@@ -251,80 +287,106 @@ export function LogServiceModal({
             </Button>
           </div>
           <div className="mt-1.5 space-y-2">
-            {parts.map((p) => (
-              <div key={p.key} className="rounded-md border border-line bg-elevated p-2.5">
-                <div className="flex items-center gap-2">
-                  <input
-                    value={p.name}
-                    onChange={(e) => onPartName(p.key, e.target.value)}
-                    placeholder="Part (e.g. Front-left wheel bearing)"
-                    aria-label="Part name"
-                    className="block w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
-                  />
-                  {parts.length > 1 ? (
-                    <button
-                      type="button"
-                      onClick={() => removePart(p.key)}
-                      aria-label="Remove part"
-                      className="shrink-0 rounded-md border border-line-strong bg-card px-2 py-1 text-[15px] leading-none text-fg-muted hover:text-bad"
+            {parts.map((p) =>
+              p.locked ? (
+                // Service-type profile's preset row: type pre-filled, not
+                // chosen — a fixed chip instead of the name/category/sub-
+                // category controls below, so it can't drift off the type
+                // this button was opened for. "remind mi" stays editable:
+                // it's how this type's interval gets set/updated (upsertReminder,
+                // src/app/admin/(authed)/maintenance/actions.ts).
+                <div key={p.key} className="rounded-md border border-line bg-elevated p-2.5">
+                  <div className="flex items-center gap-2 rounded-md border border-line-strong bg-card px-2.5 py-1.5">
+                    <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-fg">{p.name}</span>
+                    <span className="shrink-0 rounded-full bg-elevated px-2 py-0.5 text-[11px] font-medium text-fg-muted">{p.category}</span>
+                  </div>
+                  <div className="mt-2 flex items-center gap-1.5">
+                    <input
+                      value={p.remind}
+                      onChange={(e) => patchPart(p.key, { remind: e.target.value.replace(/[^\d]/g, "") })}
+                      inputMode="numeric"
+                      placeholder="remind mi"
+                      aria-label="Remind every miles"
+                      className="w-[92px] rounded-md border border-line-strong bg-card px-2 py-1 text-[12px] tabular-nums text-fg outline-none placeholder:text-fg-subtle focus:border-fg"
+                    />
+                    <span className="text-[11.5px] text-fg-muted">Interval for this type — leave as-is or update it.</span>
+                  </div>
+                </div>
+              ) : (
+                <div key={p.key} className="rounded-md border border-line bg-elevated p-2.5">
+                  <div className="flex items-center gap-2">
+                    <input
+                      value={p.name}
+                      onChange={(e) => onPartName(p.key, e.target.value)}
+                      placeholder="Part (e.g. Front-left wheel bearing)"
+                      aria-label="Part name"
+                      className="block w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
+                    />
+                    {parts.length > 1 ? (
+                      <button
+                        type="button"
+                        onClick={() => removePart(p.key)}
+                        aria-label="Remove part"
+                        className="shrink-0 rounded-md border border-line-strong bg-card px-2 py-1 text-[15px] leading-none text-fg-muted hover:text-bad"
+                      >
+                        ×
+                      </button>
+                    ) : null}
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                    <select
+                      value={p.category}
+                      onChange={(e) => {
+                        if (isCategory(e.target.value)) {
+                          // Sub-category options are category-scoped — a stale
+                          // pick from the old category would be invalid here.
+                          patchPart(p.key, { category: e.target.value, categoryTouched: true, subCategory: "" });
+                        }
+                      }}
+                      aria-label="Category"
+                      className="min-w-0 flex-1 rounded-md border border-line-strong bg-card px-2 py-1 text-[12px] font-medium text-fg outline-none focus:border-fg"
                     >
-                      ×
-                    </button>
+                      {CATEGORIES.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      value={p.subCategory}
+                      onChange={(e) => patchPart(p.key, { subCategory: e.target.value })}
+                      aria-label="Sub-category"
+                      className="min-w-0 flex-1 rounded-md border border-line-strong bg-card px-2 py-1 text-[12px] text-fg outline-none focus:border-fg"
+                    >
+                      <option value="">No sub-category</option>
+                      {SUB_CATEGORIES[p.category].map((sub) => (
+                        <option key={sub} value={sub}>
+                          {sub}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      value={p.remind}
+                      onChange={(e) => patchPart(p.key, { remind: e.target.value.replace(/[^\d]/g, "") })}
+                      inputMode="numeric"
+                      placeholder="remind mi"
+                      aria-label="Remind every miles"
+                      className="w-[92px] rounded-md border border-line-strong bg-card px-2 py-1 text-[12px] tabular-nums text-fg outline-none placeholder:text-fg-subtle focus:border-fg"
+                    />
+                  </div>
+                  {p.remind.trim() ? (
+                    <input
+                      value={p.partGroup}
+                      onChange={(e) => patchPart(p.key, { partGroup: e.target.value })}
+                      list="tms-v2-repair-part-groups"
+                      placeholder="Set / part group (e.g. Wheel bearings)"
+                      aria-label="Set / part group"
+                      className="mt-2 block w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[12.5px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
+                    />
                   ) : null}
                 </div>
-                <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                  <select
-                    value={p.category}
-                    onChange={(e) => {
-                      if (isCategory(e.target.value)) {
-                        // Sub-category options are category-scoped — a stale
-                        // pick from the old category would be invalid here.
-                        patchPart(p.key, { category: e.target.value, categoryTouched: true, subCategory: "" });
-                      }
-                    }}
-                    aria-label="Category"
-                    className="min-w-0 flex-1 rounded-md border border-line-strong bg-card px-2 py-1 text-[12px] font-medium text-fg outline-none focus:border-fg"
-                  >
-                    {CATEGORIES.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    value={p.subCategory}
-                    onChange={(e) => patchPart(p.key, { subCategory: e.target.value })}
-                    aria-label="Sub-category"
-                    className="min-w-0 flex-1 rounded-md border border-line-strong bg-card px-2 py-1 text-[12px] text-fg outline-none focus:border-fg"
-                  >
-                    <option value="">No sub-category</option>
-                    {SUB_CATEGORIES[p.category].map((sub) => (
-                      <option key={sub} value={sub}>
-                        {sub}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    value={p.remind}
-                    onChange={(e) => patchPart(p.key, { remind: e.target.value.replace(/[^\d]/g, "") })}
-                    inputMode="numeric"
-                    placeholder="remind mi"
-                    aria-label="Remind every miles"
-                    className="w-[92px] rounded-md border border-line-strong bg-card px-2 py-1 text-[12px] tabular-nums text-fg outline-none placeholder:text-fg-subtle focus:border-fg"
-                  />
-                </div>
-                {p.remind.trim() ? (
-                  <input
-                    value={p.partGroup}
-                    onChange={(e) => patchPart(p.key, { partGroup: e.target.value })}
-                    list="tms-v2-repair-part-groups"
-                    placeholder="Set / part group (e.g. Wheel bearings)"
-                    aria-label="Set / part group"
-                    className="mt-2 block w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[12.5px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
-                  />
-                ) : null}
-              </div>
-            ))}
+              ),
+            )}
           </div>
           <datalist id="tms-v2-repair-part-groups">
             {partGroups.map((g) => (

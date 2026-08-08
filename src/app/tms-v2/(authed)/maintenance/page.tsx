@@ -1,102 +1,46 @@
-import { PageHeader } from "@/components/tms-v2/ui/PageHeader";
-import { Card } from "@/components/tms-v2/ui/Card";
 import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
-import { getMaintenanceOverview } from "@/lib/data/maintenance";
-import {
-  IntervalBar,
-  MaintenanceStatusBadge,
-  RecentEntryRow,
-  milesRemainingText,
-} from "./_components/parts";
+import { getServiceTypesOverview } from "@/lib/data/maintenance";
+import { MaintenanceHero } from "./MaintenanceHero";
+import { ServiceCard } from "./ServiceCard";
 import { LogServiceButton } from "./LogServiceButton";
-import { DismissReminderButton } from "./DismissReminderButton";
-import { DismissedRemindersSection } from "./DismissedRemindersSection";
 
-// Odometer/reminder status can change between visits (a service logged
-// moments ago should show up immediately) — read live, matching the rest of
-// /tms-v2's money-and-status-affecting pages (Today, Load Detail).
+// Odometer/status can change between visits (a service logged moments ago
+// should show up immediately) — read live, matching the rest of /tms-v2's
+// money-and-status-affecting pages (Today, Load Detail).
 export const dynamic = "force-dynamic";
 
+/**
+ * Maintenance home — rebuilt around Brent's per-service model (2026-08-08):
+ * every service is tracked by its TYPE (Engine Oil & Filter, Tire
+ * Rotation, Brakes, ...), each with its own history and its own logging,
+ * instead of one combined reminders-grid + flat repair log. A "type" is
+ * `repair_entries`/`repair_reminders.part_group` — no schema change; see
+ * lib/data/maintenance.ts's "Service types" section header for the full
+ * merge rule (real reminders + real entry history + lib/dispatch/
+ * service-types.ts's curated baseline list, deduplicated).
+ *
+ * Single continuous scroll, mobile-scoped: dark odometer hero, one card per
+ * type (worst-status first), one red "+ Log a service" button at the
+ * bottom (the ONLY action here — a type's own history/logging lives on its
+ * profile page, type/[slug]/page.tsx, reached by tapping its card).
+ */
 export default async function MaintenancePage() {
-  const { currentOdo, reminders, recentEntries, dismissedReminders } = await getMaintenanceOverview();
-  const partGroups = [...new Set([...reminders.map((r) => r.partGroup), ...recentEntries.map((e) => e.partGroup).filter((g): g is string => !!g)])];
+  const { currentOdo, types } = await getServiceTypesOverview();
+  const partGroups = [...new Set(types.map((t) => t.label))];
 
   return (
-    <PageScroll
-      header={
-        <PageHeader
-          title="Maintenance"
-          description="Odometer-driven service and repair records for the truck."
-          actions={<LogServiceButton currentOdo={currentOdo} partGroups={partGroups} />}
-        />
-      }
-    >
-    <div className="flex flex-col gap-6">
-      <Card className="flex flex-col gap-1">
-        <span className="text-[13px] font-medium text-fg-muted">Current odometer</span>
-        <span className="font-mono text-[34px] font-semibold leading-none tabular-nums text-fg sm:text-[40px]">
-          {currentOdo.toLocaleString()} <span className="text-[16px] font-medium text-fg-muted">mi</span>
-        </span>
-        <span className="text-[12px] text-fg-muted">Highest reading across all loads.</span>
-      </Card>
+    <PageScroll>
+      <div className="flex flex-col gap-4">
+        <MaintenanceHero currentOdo={currentOdo} />
 
-      <section className="flex flex-col gap-3">
-        <h2 className="text-[15px] font-semibold text-fg">Reminders ({reminders.length})</h2>
-        {reminders.length === 0 ? (
-          <p className="text-[13px] text-fg-muted">No active reminders — nothing has a mileage interval set yet.</p>
-        ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {reminders.map((r) => (
-              <Card key={r.id} className="flex flex-col gap-2">
-                <div className="flex items-start justify-between gap-2">
-                  <span className="min-w-0 truncate text-[14px] font-medium text-fg">{r.label}</span>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <MaintenanceStatusBadge status={r.status} />
-                    <DismissReminderButton reminderId={r.id} />
-                  </div>
-                </div>
-                <div className="flex items-center justify-between text-[12px] text-fg-muted">
-                  <span>{r.category}</span>
-                  <span>every {r.intervalMiles.toLocaleString()} mi</span>
-                </div>
-                <IntervalBar pct={r.pct} status={r.status} />
-                <div className="flex items-center justify-between text-[12.5px]">
-                  <span
-                    className={
-                      r.status === "overdue"
-                        ? "font-medium text-bad"
-                        : r.status === "soon"
-                          ? "font-medium text-warn"
-                          : "text-fg-muted"
-                    }
-                  >
-                    {milesRemainingText(r.milesRemaining)}
-                  </span>
-                  <span className="text-fg-subtle">
-                    {r.lastOdo != null ? `Last: ${r.lastOdo.toLocaleString()} mi` : "Never serviced"}
-                  </span>
-                </div>
-              </Card>
-            ))}
-          </div>
-        )}
-      </section>
+        <div className="flex flex-col gap-2.5">
+          {types.map((t) => (
+            <ServiceCard key={t.slug} type={t} />
+          ))}
+        </div>
 
-      <section className="flex flex-col gap-2">
-        <h2 className="text-[15px] font-semibold text-fg">Recent repair log ({recentEntries.length})</h2>
-        {recentEntries.length === 0 ? (
-          <p className="text-[13px] text-fg-muted">No repairs logged yet.</p>
-        ) : (
-          <div className="rounded-xl border border-line bg-card px-3 shadow-e1">
-            {recentEntries.map((entry) => (
-              <RecentEntryRow key={entry.id} entry={entry} />
-            ))}
-          </div>
-        )}
-      </section>
-
-      <DismissedRemindersSection reminders={dismissedReminders} />
-    </div>
+        <LogServiceButton currentOdo={currentOdo} partGroups={partGroups} />
+      </div>
     </PageScroll>
   );
 }

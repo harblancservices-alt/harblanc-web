@@ -3,12 +3,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/tms-v2/ui/Button";
-import { Fab } from "@/components/tms-v2/ui/Fab";
 import { LogServiceModal } from "./LogServiceModal";
 
-/** Header button (desktop) + Fab (mobile) opening the Log Service form —
- * closes the audit's Critical Maintenance gap: previously nothing could be
- * recorded from tms-v2 at all, not even a partial record. */
+/** Maintenance home's one "+ Log a service" action (Brent's per-service
+ * redesign, 2026-08-08) — a single red button pinned at the bottom of the
+ * page content, not a header button + a separate mobile Fab (the previous
+ * shape). Opens the global logger: category/sub-category picker shown, the
+ * user picks the type here (a service-type profile's own "+ Log this
+ * service" — ServiceTypeActions.tsx — skips this picker instead). */
 export function LogServiceButton({ currentOdo, partGroups }: { currentOdo: number; partGroups: string[] }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -20,10 +22,9 @@ export function LogServiceButton({ currentOdo, partGroups }: { currentOdo: numbe
 
   return (
     <>
-      <Button type="button" variant="secondary" size="sm" onClick={() => setOpen(true)} className="hidden sm:inline-flex">
-        + Log service
+      <Button type="button" variant="primary" onClick={() => setOpen(true)} className="w-full">
+        + Log a service
       </Button>
-      <Fab label="Log service" onClick={() => setOpen(true)} className="sm:hidden" />
       <LogServiceModal open={open} currentOdo={currentOdo} partGroups={partGroups} onClose={() => setOpen(false)} onSaved={onSaved} />
     </>
   );

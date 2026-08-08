@@ -11,6 +11,8 @@ import {
   setReminderDismissed as legacySetReminderDismissed,
   type CreateUploadUrlResult,
 } from "@/app/admin/(authed)/maintenance/actions";
+import { getServiceFull, type MaintenanceServiceFull } from "@/lib/data/maintenance";
+import { adminFromMiddleware } from "@/lib/auth/session";
 import type { MutationResult } from "@/lib/demo/mutation";
 
 /**
@@ -88,6 +90,17 @@ export async function deleteReceipt(serviceId: string, attachmentId: string): Pr
   } catch (e) {
     return toResult(e);
   }
+}
+
+/** Read-only — a service-type profile's history row fetches the whole
+ * service (all its parts, not just the one matching this type) on tap, to
+ * open it in LogServiceModal's edit mode. Not wrapped in mutation() (that
+ * wrapper is write-only, per its own header) but still re-verifies the
+ * admin session directly, the same guard mutation() applies internally,
+ * since a Server Action is reachable even bypassing the (authed) layout. */
+export async function fetchServiceFull(serviceId: string): Promise<MaintenanceServiceFull | null> {
+  await adminFromMiddleware();
+  return getServiceFull(serviceId);
 }
 
 export async function setReminderDismissed(reminderId: string, dismissed: boolean): Promise<MutationResult> {
