@@ -19,7 +19,20 @@ function monthHref(year: number, month: number): string {
   return `/tms-v2/expenses?billsMonth=${year}-${mm}#calendar`;
 }
 
-export function MonthlyBillCalendar({ year, month, schedule }: { year: number; month: number; schedule: MonthSchedule }) {
+export function MonthlyBillCalendar({
+  year,
+  month,
+  schedule,
+  rowHref,
+}: {
+  year: number;
+  month: number;
+  schedule: MonthSchedule;
+  /** Tap-to-edit (Brent's ask when this page was stripped to calendar-only:
+   * management stays reachable from here) — each occurrence links to the
+   * same page with the expense's id set, opening the edit drawer. */
+  rowHref: (expenseId: string) => string;
+}) {
   const prevMonth = month === 0 ? 11 : month - 1;
   const prevYear = month === 0 ? year - 1 : year;
   const nextMonth = month === 11 ? 0 : month + 1;
@@ -61,7 +74,11 @@ export function MonthlyBillCalendar({ year, month, schedule }: { year: number; m
       ) : (
         <div className="flex flex-col divide-y divide-line">
           {schedule.items.map((item, i) => (
-            <div key={`${item.expenseId}-${item.dateIso}-${i}`} className="grid grid-cols-[80px_1fr_auto] items-center gap-3 px-4 py-2 text-[13px] sm:grid-cols-[80px_1.4fr_1fr_1fr_auto]">
+            <Link
+              key={`${item.expenseId}-${item.dateIso}-${i}`}
+              href={rowHref(item.expenseId)}
+              className="grid grid-cols-[80px_1fr_auto] items-center gap-3 px-4 py-2 text-[13px] hover:bg-elevated sm:grid-cols-[80px_1.4fr_1fr_1fr_auto]"
+            >
               <span className="text-fg-muted">
                 {new Date(item.dateIso + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })}
               </span>
@@ -69,7 +86,7 @@ export function MonthlyBillCalendar({ year, month, schedule }: { year: number; m
               <span className="hidden truncate text-fg-muted sm:block">{item.cardName ?? "—"}</span>
               <span className="hidden truncate text-fg-muted sm:block">{item.category ?? "—"}</span>
               <Money value={item.amount} tone="none" className="justify-self-end font-semibold" />
-            </div>
+            </Link>
           ))}
         </div>
       )}

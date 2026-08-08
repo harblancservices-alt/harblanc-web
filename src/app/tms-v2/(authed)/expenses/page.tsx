@@ -1,50 +1,31 @@
-import Link from "next/link";
 import { PageHeader } from "@/components/tms-v2/ui/PageHeader";
-import { KpiTile } from "@/components/tms-v2/ui/KpiTile";
-import { Money } from "@/components/tms-v2/ui/Money";
 import { ContextDrawer } from "@/components/tms-v2/ui/ContextDrawer";
 import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
-import {
-  listRecurringExpenses,
-  getRecurringExpensesKpis,
-  getRecurringExpenseById,
-  getExpenseActivity,
-  getMonthlyBillSchedule,
-  listExpenseAccounts,
-  EXPENSE_CATEGORIES,
-  RECURRING_FREQUENCIES,
-  RECURRING_FREQUENCY_LABEL,
-  type RecurringFrequency,
-  type ExpenseSortKey,
-} from "@/lib/data/recurring-expenses";
+import { getRecurringExpenseById, getExpenseActivity, getMonthlyBillSchedule, listExpenseAccounts } from "@/lib/data/recurring-expenses";
 import { ExpenseComposerProvider, ExpenseComposerToggleButton, ExpenseComposerFab, ExpenseComposerPanel } from "./ExpenseComposer";
 import { ExpenseDrawerContent } from "./ExpenseDrawerContent";
-import { ExpensesListClient } from "./ExpensesListClient";
-import { ExportExpensesCsvButton } from "./ExportExpensesCsvButton";
-import { ImportExpensesButton } from "./ImportExpensesButton";
-import { UpcomingBills } from "./UpcomingBills";
 import { MonthlyBillCalendar } from "./MonthlyBillCalendar";
-import { SavedViews } from "../_components/SavedViews";
-import { expenseGaps } from "@/lib/dispatch/alerts";
 
 // Money-affecting data, read fresh every visit — matches Today's pattern.
 export const dynamic = "force-dynamic";
 
-const PAGE_SIZE = 25;
-// Bounded export-fetch cap — every filtered row, not just the displayed
-// page (fetchAll() itself is already bounded to 1000, see
-// lib/data/recurring-expenses.ts — this just avoids re-paginating on top).
-const EXPORT_FETCH_SIZE = 1000;
+/**
+ * Expenses, stripped to the recurring-bill calendar as its sole view per
+ * Brent's explicit scope change (2026-08-08) — this page previously also
+ * had a KPI strip, an "Upcoming Bills" list, and the full filterable ledger
+ * (ExpensesListClient) with a one-time-expenses section. All of that code
+ * still exists (UpcomingBills.tsx, ExpensesListClient.tsx, the getRecurring
+ * ExpensesKpis()/listRecurringExpenses() data functions, every server
+ * action) — it's just not rendered here anymore. Bill MANAGEMENT stays
+ * reachable from the calendar itself: tap a scheduled bill to open the same
+ * edit drawer (archive/restore/duplicate/skip-next/delete, all still wired),
+ * and "+ Add bill" / the mobile FAB open the same add-expense composer.
+ */
 
-const SORT_KEYS: ExpenseSortKey[] = ["vendor", "category", "amount", "next"];
-function isExpenseSortKey(v: string | undefined): v is ExpenseSortKey {
-  return !!v && (SORT_KEYS as string[]).includes(v);
-}
-
-function buildHref(params: Record<string, string | number | undefined>): string {
+function buildHref(params: Record<string, string | undefined>): string {
   const usp = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) {
-    if (v !== undefined && v !== "" && v !== "all") usp.set(k, String(v));
+    if (v !== undefined && v !== "") usp.set(k, v);
   }
   const qs = usp.toString();
   return qs ? `/tms-v2/expenses?${qs}` : "/tms-v2/expenses";
@@ -56,58 +37,22 @@ export default async function ExpensesPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const sp = await searchParams;
-  const category = typeof sp.category === "string" ? sp.category : undefined;
-  const frequency = typeof sp.frequency === "string" && (RECURRING_FREQUENCIES as readonly string[]).includes(sp.frequency)
-    ? (sp.frequency as RecurringFrequency)
-    : undefined;
-  const status = sp.status === "archived" ? "archived" : sp.status === "all" ? "all" : "active";
-  const search = typeof sp.q === "string" ? sp.q : undefined;
-  const page = typeof sp.page === "string" ? Math.max(1, Number(sp.page) || 1) : 1;
   const selectedId = typeof sp.id === "string" ? sp.id : undefined;
-  const sort = isExpenseSortKey(typeof sp.sort === "string" ? sp.sort : undefined) ? (sp.sort as ExpenseSortKey) : undefined;
-  const dir = sp.dir === "asc" ? "asc" : "desc";
 
   const now = new Date();
   const billsMonthMatch = typeof sp.billsMonth === "string" ? /^(\d{4})-(\d{2})$/.exec(sp.billsMonth) : null;
   const billsYear = billsMonthMatch ? Number(billsMonthMatch[1]) : now.getFullYear();
   const billsMonth = billsMonthMatch ? Number(billsMonthMatch[2]) - 1 : now.getMonth();
+  const billsMonthParam = billsMonthMatch ? sp.billsMonth as string : undefined;
 
-  const [kpis, list, accounts, selectedExpense, exportList, allActive, monthSchedule] = await Promise.all([
-    getRecurringExpensesKpis(),
-    listRecurringExpenses({ page, pageSize: PAGE_SIZE, category, frequency, status, search, sort, dir }),
+  const [accounts, selectedExpense, monthSchedule] = await Promise.all([
     listExpenseAccounts(),
     selectedId ? getRecurringExpenseById(selectedId) : Promise.resolve(null),
-    listRecurringExpenses({ page: 1, pageSize: EXPORT_FETCH_SIZE, category, frequency, status, search, sort, dir }),
-    // Unfiltered (status: active only), bounded read for the mobile totals
-    // strip's top-category/needs-review aggregates — those summarize the
-    // WHOLE active ledger, not whatever the current filter form narrowed
-    // `list`/`exportList` down to. Also the source for the Upcoming Bills
-    // primary view, which ignores the ledger's own filters (it's always
-    // "what's actually due", not a filtered subset).
-    listRecurringExpenses({ page: 1, pageSize: EXPORT_FETCH_SIZE, status: "active" }),
     getMonthlyBillSchedule(billsYear, billsMonth),
   ]);
   const activity = selectedId ? await getExpenseActivity(selectedId) : [];
 
-  const baseParams = { category, frequency, status, q: search, page: page > 1 ? page : undefined, sort, dir: sort ? dir : undefined };
-  const accountNames = accounts.map((a) => a.name);
-  const closeHref = buildHref(baseParams);
-
-  // Mobile totals strip: top category by monthly-equivalent spend, and a
-  // count of active expenses with a gap (missing amount/date/account/
-  // category — same expenseGaps() rule the ledger's amber dot already uses).
-  const accountNameSet = new Set(accountNames);
-  const categoryTotals = new Map<string, number>();
-  let needsReviewCount = 0;
-  for (const r of allActive.rows) {
-    const gaps = expenseGaps(
-      { amount: r.amount, frequency: r.frequency, dayOfMonth: r.dayOfMonth, dayOfWeek: r.dayOfWeek, startDate: r.startDate, card: r.cardName, category: r.category },
-      accountNameSet,
-    );
-    if (gaps.length > 0) needsReviewCount++;
-    if (r.category) categoryTotals.set(r.category, (categoryTotals.get(r.category) ?? 0) + r.monthlyAmount);
-  }
-  const topCategory = [...categoryTotals.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+  const closeHref = buildHref({ billsMonth: billsMonthParam });
 
   return (
     <ExpenseComposerProvider>
@@ -120,106 +65,22 @@ export default async function ExpensesPage({
             title="Expenses"
             description="What recurring money is leaving the business, and when."
             actions={
-              <div className="flex items-center gap-2">
-                <ImportExpensesButton />
-                <ExportExpensesCsvButton rows={exportList.rows} />
-                <div className="hidden lg:block">
-                  <ExpenseComposerToggleButton />
-                </div>
+              <div className="hidden lg:block">
+                <ExpenseComposerToggleButton />
               </div>
             }
           />
 
           <ExpenseComposerPanel accounts={accounts} />
-
-          {/* Mobile — thin totals strip, not the desktop's four KPI tiles. */}
-          <div className="flex items-stretch divide-x divide-line rounded-xl border border-line bg-card shadow-e1 lg:hidden">
-            <div className="min-w-0 flex-1 px-3.5 py-2.5">
-              <div className="text-[10px] font-medium uppercase tracking-wide text-fg-muted">Spent this month</div>
-              <Money value={kpis.thisMonth} tone="none" className="mt-0.5 block truncate text-[15px] font-semibold" />
-            </div>
-            <div className="min-w-0 flex-1 px-3.5 py-2.5">
-              <div className="text-[10px] font-medium uppercase tracking-wide text-fg-muted">Top category</div>
-              <div className="mt-0.5 truncate text-[14px] font-semibold text-fg">{topCategory ?? "—"}</div>
-            </div>
-            <div className="min-w-0 flex-1 px-3.5 py-2.5">
-              <div className="text-[10px] font-medium uppercase tracking-wide text-fg-muted">Needs review</div>
-              <div className={`mt-0.5 text-[15px] font-semibold ${needsReviewCount > 0 ? "text-warn" : "text-fg"}`}>{needsReviewCount}</div>
-            </div>
-          </div>
-
-          {/* Desktop — unchanged four-tile KPI grid. */}
-          <div className="hidden grid-cols-2 gap-3 sm:grid-cols-4 lg:grid">
-            <KpiTile label="This month" value={<Money value={kpis.thisMonth} tone="none" />} />
-            <KpiTile label="Recurring" value={String(kpis.recurringCount)} />
-            <KpiTile label="YTD" value={<Money value={kpis.ytd} tone="none" />} />
-            <KpiTile label="Avg monthly" value={<Money value={kpis.averageMonthly} tone="none" />} />
-          </div>
-
-          <form className="flex flex-wrap items-center gap-2" method="GET">
-            <input
-              type="text"
-              name="q"
-              defaultValue={search ?? ""}
-              placeholder="Search vendor or name"
-              className="h-9 w-48 rounded-md border border-line-strong bg-card px-2.5 text-[14px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
-            />
-            <select name="category" defaultValue={category ?? ""} className="h-9 rounded-md border border-line-strong bg-card px-2.5 text-[13px] text-fg focus:border-fg focus:outline-none">
-              <option value="">All categories</option>
-              {EXPENSE_CATEGORIES.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-            <select name="frequency" defaultValue={frequency ?? ""} className="h-9 rounded-md border border-line-strong bg-card px-2.5 text-[13px] text-fg focus:border-fg focus:outline-none">
-              <option value="">All frequencies</option>
-              {RECURRING_FREQUENCIES.map((f) => (
-                <option key={f} value={f}>{RECURRING_FREQUENCY_LABEL[f]}</option>
-              ))}
-            </select>
-            <select name="status" defaultValue={status} className="h-9 rounded-md border border-line-strong bg-card px-2.5 text-[13px] text-fg focus:border-fg focus:outline-none">
-              <option value="active">Active</option>
-              <option value="archived">Archived</option>
-              <option value="all">All statuses</option>
-            </select>
-            <button type="submit" className="h-9 rounded-md border border-line-strong bg-card px-3 text-[13px] font-medium text-fg hover:bg-elevated">
-              Apply
-            </button>
-            {category || frequency || search || status !== "active" ? (
-              <Link href="/tms-v2/expenses" className="text-[13px] text-fg-muted underline">
-                Clear
-              </Link>
-            ) : null}
-          </form>
-
-          <SavedViews storageKey="tms-v2:saved-filters:expenses" />
         </>
       }
     >
-      <div className="flex flex-col gap-4">
-        <UpcomingBills rows={allActive.rows} closeHref={(id) => buildHref({ ...baseParams, id })} />
-        <MonthlyBillCalendar year={billsYear} month={billsMonth} schedule={monthSchedule} />
-      </div>
-
-      <div className="mt-6 mb-2 text-[13px] font-semibold text-fg">Manage recurring &amp; one-time expenses</div>
-      <ExpensesListClient rows={list.rows} accountNames={accountNames} baseParams={baseParams} />
-
-      <div className="mt-4 flex items-center justify-between text-[13px] text-fg-muted">
-        <span>
-          {list.totalCount} expense{list.totalCount === 1 ? "" : "s"} · page {page}
-        </span>
-        <div className="flex gap-3">
-          {page > 1 ? (
-            <Link href={buildHref({ ...baseParams, page: page - 1 })} className="underline">
-              ← Prev
-            </Link>
-          ) : null}
-          {list.hasMore ? (
-            <Link href={buildHref({ ...baseParams, page: page + 1 })} className="underline">
-              Next →
-            </Link>
-          ) : null}
-        </div>
-      </div>
+      <MonthlyBillCalendar
+        year={billsYear}
+        month={billsMonth}
+        schedule={monthSchedule}
+        rowHref={(expenseId) => buildHref({ billsMonth: billsMonthParam, id: expenseId })}
+      />
     </PageScroll>
     </div>
 
