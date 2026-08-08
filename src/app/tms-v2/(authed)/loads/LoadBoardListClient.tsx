@@ -19,24 +19,20 @@ import type { LoadWithFinancials } from "@/lib/data/loads";
  * Expenses/Applications/Quotes bulk actions. */
 export function LoadBoardListClient({
   loads,
-  rowHrefBase,
   brokerNames,
   activeTripNames,
   emptyMessage,
 }: {
   loads: LoadWithFinancials[];
-  /** Query string (no leading "?", no `id`) already carrying year/month/
-   * status/brokerId/q/page — appended with `&id=` per card. A plain
-   * string, not a rowHref(id) function: this component is "use client"
-   * and can't receive an arbitrary closure from the Server Component page
-   * that renders it. */
-  rowHrefBase: string;
   brokerNames: string[];
   activeTripNames: string[];
   emptyMessage: string;
 }) {
+  // Tapping a load navigates straight to its full Load Detail page — the
+  // context drawer this used to open is gone (Brent's explicit ask, now
+  // that Load Detail carries every capability the drawer did and more).
   function rowHref(id: string): string {
-    return `/tms-v2/loads?${rowHrefBase}&id=${id}`;
+    return `/tms-v2/loads/${id}`;
   }
   const { selectMode, selected, pending, error, exitSelectMode, toggle, selectAll, clearAll, deleteSelected } = useLoadBoardSelection();
 

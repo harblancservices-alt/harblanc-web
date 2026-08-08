@@ -1,8 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ContextDrawer } from "@/components/tms-v2/ui/ContextDrawer";
 import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
-import { listLoads, getLoadDetail, getLoadBoardSummary } from "@/lib/data/loads";
+import { listLoads, getLoadBoardSummary } from "@/lib/data/loads";
 import { listBrokers } from "@/lib/data/brokers";
 import { listTrips } from "@/lib/data/trips";
 import { getDispatchSettingsSummary } from "@/lib/data/settings";
@@ -15,7 +14,6 @@ import { LoadBoardTopRow } from "./LoadBoardTopRow";
 import type { LoadBoardView } from "./MonthDropdown";
 import { LoadBoardSelectionProvider } from "./LoadBoardSelectionProvider";
 import { LoadBoardGoalCard } from "./LoadBoardGoalCard";
-import { LoadDrawerContent } from "./LoadDrawerContent";
 
 // Loads change status/payment throughout the day — the board always reads
 // live, request-scoped data (matches Today's own force-dynamic choice).
@@ -83,7 +81,6 @@ export default async function LoadsPage({ searchParams }: { searchParams: Promis
   const view = parseView(sp);
   const period = parsePeriod(sp);
   const page = Math.max(1, Number(first(sp.page)) || 1);
-  const selectedId = first(sp.id);
 
   const today = new Date();
   const todayIso = today.toISOString().slice(0, 10);
@@ -96,11 +93,10 @@ export default async function LoadsPage({ searchParams }: { searchParams: Promis
         ? { dateRange: { start: ytdStart, end: dayAfter(todayIso) }, page, pageSize: DEFAULT_PAGE_SIZE }
         : { page, pageSize: DEFAULT_PAGE_SIZE }; // "all" — no period/dateRange means every load
 
-  const [listResult, brokersPage, activeTripsPage, selectedLoad, settings, goalNet] = await Promise.all([
+  const [listResult, brokersPage, activeTripsPage, settings, goalNet] = await Promise.all([
     listLoads(scopedListOpts),
     listBrokers({ pageSize: 100 }),
     listTrips({ status: "active", pageSize: 100 }),
-    selectedId ? getLoadDetail(selectedId) : Promise.resolve(null),
     getDispatchSettingsSummary(),
     view.mode === "month"
       ? getLoadBoardSummary(period).then((s) => s.net)
@@ -144,31 +140,8 @@ export default async function LoadsPage({ searchParams }: { searchParams: Promis
     return `/tms-v2/loads?${params.toString()}`;
   }
 
-  // Row selection stays in the URL (same discipline as period/page) rather
-  // than client state, so a selected load's context drawer is a real,
-  // shareable/back-button-friendly location, not ephemeral UI state.
-  //
-  // rowHrefBase (a plain string) — not a rowHref(id) FUNCTION — is what
-  // gets passed to LoadBoardListClient below: that component is "use
-  // client", and a Server Component can't hand a Client Component an
-  // arbitrary closure as a prop (only serializable values cross that
-  // boundary). The client component appends `&id=` itself.
-  const rowHrefBase = (() => {
-    const params = baseParams();
-    if (page > 1) params.set("page", String(page));
-    return params.toString();
-  })();
-
-  const closeHref = (() => {
-    const params = baseParams();
-    if (page > 1) params.set("page", String(page));
-    return `/tms-v2/loads?${params.toString()}`;
-  })();
-
   return (
     <LoadBoardSelectionProvider>
-    <div className="flex h-full min-h-0 overflow-hidden gap-6">
-    <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col">
     <PageScroll
       header={<LoadBoardTopRow year={period.year} view={view} hasLoads={listResult.rows.length > 0} />}
     >
@@ -177,7 +150,6 @@ export default async function LoadsPage({ searchParams }: { searchParams: Promis
 
         <LoadBoardListClient
           loads={listResult.rows}
-          rowHrefBase={rowHrefBase}
           brokerNames={brokerNames}
           activeTripNames={activeTripNames}
           emptyMessage="No loads in this view."
@@ -205,18 +177,6 @@ export default async function LoadsPage({ searchParams }: { searchParams: Promis
         ) : null}
       </div>
     </PageScroll>
-    </div>
-
-    {selectedLoad ? (
-      <ContextDrawer
-        title={selectedLoad.loadNumber ? `#${selectedLoad.loadNumber}` : selectedLoad.id.slice(0, 8)}
-        subtitle={`${selectedLoad.origin ?? "—"} → ${selectedLoad.destination ?? "—"}`}
-        closeHref={closeHref}
-      >
-        <LoadDrawerContent load={selectedLoad} brokerNames={brokerNames} activeTripNames={activeTripNames} />
-      </ContextDrawer>
-    ) : null}
-    </div>
     </LoadBoardSelectionProvider>
   );
 }
