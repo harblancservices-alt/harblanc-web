@@ -9,7 +9,7 @@ import { GoalPaceCard } from "@/components/tms-v2/ui/GoalPaceCard";
 import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
 import { formatMoney } from "@/lib/domain/money";
 import { getAnalyticsLoads, getMonthlyNetGoal } from "@/lib/data/analytics";
-import { summarize, brokerStats, laneStats, laneKey, deadheadSplit, deltasBetween } from "@/lib/dispatch/performance";
+import { summarize, brokerStats, laneStats, laneKey, deadheadSplit, deltasBetween, takeaways, type TakeawayContext } from "@/lib/dispatch/performance";
 import { rpm, pct } from "@/lib/dispatch/format";
 import { currentPeriod, periodRange } from "@/lib/domain/attribution";
 import { daysLeftInMonth, currentBusinessDate } from "@/lib/dispatch/goal-month";
@@ -23,6 +23,7 @@ import { PartyTable } from "./_components/PartyTable";
 import { PartyDrillDown } from "./_components/PartyDrillDown";
 import { LoadPerformanceTable } from "./_components/LoadPerformanceTable";
 import { DeadheadSplitBar } from "./_components/DeadheadSplitBar";
+import { InsightsStrip } from "./_components/InsightsStrip";
 import { TrendChart, type TrendPoint } from "./_components/TrendChart";
 import { DualTrendChart, type DualTrendPoint } from "./_components/DualTrendChart";
 import { RateTrendChart, type RateTrendPoint } from "./_components/RateTrendChart";
@@ -161,6 +162,17 @@ export default async function PerformancePage({ searchParams }: PageProps) {
           daysRemaining,
         })
       : null;
+
+  // Insights strip (Phase 10) — takeaways() was already fully built and
+  // audited correct; it just wasn't imported anywhere under tms-v2. No new
+  // arithmetic here, only wiring the viewed period's loads through it.
+  const takeawayCtx: TakeawayContext = {
+    year: view.mode === "month" ? view.period.year : nowPeriod.year,
+    month: view.mode === "month" ? view.period.month : nowPeriod.month,
+    monthlyGoal,
+    daysRemaining,
+  };
+  const insights = takeaways(loads, takeawayCtx);
 
   return (
     <PageScroll
@@ -347,6 +359,7 @@ export default async function PerformancePage({ searchParams }: PageProps) {
             <TrendChart points={volumeTrend} formatValue={(v) => String(Math.round(v))} />
           </div>
         </Card>
+        <InsightsStrip items={insights} />
         <Card>
           <PartyBarChart title="Brokers by net" rows={brokers} />
         </Card>
@@ -376,6 +389,10 @@ export default async function PerformancePage({ searchParams }: PageProps) {
               <TrendChart points={volumeTrend} formatValue={(v) => String(Math.round(v))} />
             </div>
           </Card>
+        </div>
+
+        <div className="mb-6">
+          <InsightsStrip items={insights} />
         </div>
 
         {drillTitle && drillLoads ? (
