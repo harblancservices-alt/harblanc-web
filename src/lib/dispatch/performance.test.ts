@@ -10,6 +10,10 @@ import {
   summarize,
   monthKey,
   takeaways,
+  rangeTrendBuckets,
+  deltasBetween,
+  formatDelta,
+  comparisonTakeaway,
   type PerfLoad,
   type Takeaway,
 } from "./performance";
@@ -340,5 +344,82 @@ describe("takeaways", () => {
       }),
     );
     expect(takeaways(many, ctx).length).toBeLessThanOrEqual(6);
+  });
+});
+
+/** Adaptive trend bucketing (Phase 2 item 2) — buckets the SELECTED range's
+ * own loads at day/week/month granularity, windowed by the range itself
+ * (not by where loads happen to exist), so an empty day/week/month inside
+ * the range still renders as a real zero bar. */
+describe("rangeTrendBuckets", () => {
+  it("day granularity produces one bucket per calendar day in the range, zero-filled", () => {
+    const loads = [load({ date: "2026-08-01", rate: 1000, net: 700, loadedMiles: 500, deadheadMiles: 100 })];
+    const buckets = rangeTrendBuckets(loads, { start: "2026-08-01", end: "2026-08-04" }, "day");
+    expect(buckets.map((b) => b.key)).toEqual(["2026-08-01", "2026-08-02", "2026-08-03"]);
+    expect(buckets[0].gross).toBe(1000);
+    expect(buckets[0].net).toBe(700);
+    expect(buckets[1].gross).toBe(0); // zero-filled, not skipped
+    expect(buckets[0].netRpm).toBe(1.4);
+  });
+
+  it("week granularity chunks into 7-day windows anchored at range.start", () => {
+    const loads = [
+      load({ date: "2026-08-01", rate: 100, net: 50, loadedMiles: 100, deadheadMiles: 0 }),
+      load({ date: "2026-08-09", rate: 200, net: 100, loadedMiles: 100, deadheadMiles: 0 }),
+    ];
+    const buckets = rangeTrendBuckets(loads, { start: "2026-08-01", end: "2026-08-15" }, "week");
+    expect(buckets).toHaveLength(2);
+    expect(buckets[0].gross).toBe(100);
+    expect(buckets[1].gross).toBe(200);
+  });
+
+  it("month granularity windows by the RANGE, not by where loads exist — a full year shows 12 months even with 1 load", () => {
+    const loads = [load({ date: "2026-03-15", year: 2026, month: 2, rate: 500, net: 300, loadedMiles: 200, deadheadMiles: 0 })];
+    const buckets = rangeTrendBuckets(loads, { start: "2026-01-01", end: "2027-01-01" }, "month");
+    expect(buckets).toHaveLength(12);
+    expect(buckets[2].label).toBe("Mar");
+    expect(buckets[2].gross).toBe(500);
+    expect(buckets[0].gross).toBe(0);
+  });
+});
+
+describe("formatDelta", () => {
+  it("formats each Delta kind with the sign outside the unit", () => {
+    expect(formatDelta({ kind: "pct", value: 8, good: true })).toBe("+8%");
+    expect(formatDelta({ kind: "usd", value: -310, good: false })).toBe("-$310");
+    expect(formatDelta({ kind: "rpm", value: -0.04, good: false })).toBe("-$0.04/mi");
+    expect(formatDelta({ kind: "pts", value: 3, good: true })).toBe("+3.0pts");
+  });
+});
+
+/** YoY "net vs revenue" comparison sentence (Phase 2 item 4) — the headline
+ * case is gross and net/mi moving in OPPOSITE directions, which a bare
+ * "revenue is up" reading would miss. */
+describe("comparisonTakeaway", () => {
+  it("flags divergence when gross is up but net/mi is down", () => {
+    const cur = { net: 8000, gross: 21600, netRpm: 1.5, grossRpm: 4.05, marginPct: 37, deadheadPct: 15 };
+    const prev = { net: 8500, gross: 20000, netRpm: 1.7, grossRpm: 4.0, marginPct: 42.5, deadheadPct: 15 };
+    const deltas = deltasBetween(cur, prev);
+    const takeaway = comparisonTakeaway(deltas, "last year");
+    expect(takeaway).not.toBeNull();
+    expect(takeaway!.tone).toBe("warn");
+    const text = takeaway!.segs.map((s) => s.text).join("");
+    expect(text).toContain("Gross is ");
+    expect(text).toContain("net/mi is ");
+  });
+
+  it("falls back to a plain net-delta sentence when gross and net/mi agree", () => {
+    const cur = { net: 9000, gross: 20000, netRpm: 1.8, grossRpm: 4.0, marginPct: 45, deadheadPct: 10 };
+    const prev = { net: 7000, gross: 16000, netRpm: 1.5, grossRpm: 3.6, marginPct: 43.75, deadheadPct: 10 };
+    const deltas = deltasBetween(cur, prev);
+    const takeaway = comparisonTakeaway(deltas, "last year");
+    expect(takeaway).not.toBeNull();
+    expect(takeaway!.tone).toBe("good");
+  });
+
+  it("returns null with nothing to compare against", () => {
+    const cur = { net: 0, gross: 0, netRpm: null, grossRpm: null, marginPct: null, deadheadPct: null };
+    const prev = { net: 0, gross: 0, netRpm: null, grossRpm: null, marginPct: null, deadheadPct: null };
+    expect(comparisonTakeaway(deltasBetween(cur, prev), "last year")).toBeNull();
   });
 });

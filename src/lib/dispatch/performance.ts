@@ -168,6 +168,125 @@ export function monthlyBuckets(loads: PerfLoad[], limit = 12): MonthBucket[] {
   return out;
 }
 
+// ---------------------------------------------------------- range trends
+
+/**
+ * Adaptive trend bucketing (Brent's spec: Day/Week/Month ranges trend
+ * daily, Quarter trends weekly, Year/YTD trend monthly) — generalizes
+ * `monthlyBuckets` above from "trailing N calendar months regardless of
+ * range" to "however many buckets the SELECTED range actually spans, at the
+ * granularity that range calls for". Buckets are windowed by the range's own
+ * [start, end) bounds, not by where loads happen to exist, so an empty
+ * day/week/month inside the range still renders as a real zero bar (same
+ * "don't fake continuity" rule `monthlyBuckets` already follows).
+ */
+export type TrendGranularity = "day" | "week" | "month";
+
+export type TrendBucket = {
+  /** Sortable identity — a date for day/week, "YYYY-MM" for month. */
+  key: string;
+  /** Axis tick, e.g. "Aug 3" or "Jan". */
+  label: string;
+  loads: number;
+  gross: number;
+  net: number;
+  loadedMiles: number;
+  deadheadMiles: number;
+  netRpm: number | null;
+  grossRpm: number | null;
+};
+
+function addDaysUtc(dateStr: string, days: number): string {
+  const d = new Date(`${dateStr}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function dayLabel(dateStr: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateStr);
+  if (!m) return dateStr;
+  return `${MONTH_LABELS[Number(m[2]) - 1]} ${Number(m[3])}`;
+}
+
+function monthOrdinal(dateStr: string): number {
+  const m = /^(\d{4})-(\d{2})/.exec(dateStr);
+  if (!m) return 0;
+  return Number(m[1]) * 12 + (Number(m[2]) - 1);
+}
+
+function newBucket(key: string, label: string): TrendBucket {
+  return { key, label, loads: 0, gross: 0, net: 0, loadedMiles: 0, deadheadMiles: 0, netRpm: null, grossRpm: null };
+}
+
+function finalize(b: TrendBucket): TrendBucket {
+  return {
+    ...b,
+    netRpm: b.loadedMiles > 0 ? b.net / b.loadedMiles : null,
+    grossRpm: b.loadedMiles > 0 ? b.gross / b.loadedMiles : null,
+  };
+}
+
+function accumulate(b: TrendBucket, l: PerfLoad): void {
+  b.loads += 1;
+  b.gross += l.rate;
+  b.net += l.net;
+  b.loadedMiles += l.loadedMiles;
+  b.deadheadMiles += l.deadheadMiles;
+}
+
+function dayOrWeekBuckets(loads: PerfLoad[], range: { start: string; end: string }, stepDays: 1 | 7): TrendBucket[] {
+  const buckets: TrendBucket[] = [];
+  const byKey = new Map<string, TrendBucket>();
+  for (let cursor = range.start; cursor < range.end; cursor = addDaysUtc(cursor, stepDays)) {
+    const b = newBucket(cursor, dayLabel(cursor));
+    buckets.push(b);
+    byKey.set(cursor, b);
+  }
+  if (buckets.length === 0) return [];
+  for (const l of loads) {
+    if (!l.date || l.date < range.start || l.date >= range.end) continue;
+    // Find the bucket whose [key, key+stepDays) window contains this date —
+    // buckets are contiguous stepDays-day chunks anchored at range.start.
+    const offset = Math.floor((new Date(`${l.date}T00:00:00Z`).getTime() - new Date(`${range.start}T00:00:00Z`).getTime()) / 86_400_000);
+    const chunkIndex = Math.floor(offset / stepDays);
+    const b = buckets[chunkIndex];
+    if (b) accumulate(b, l);
+  }
+  return buckets.map(finalize);
+}
+
+function monthRangeBuckets(loads: PerfLoad[], range: { start: string; end: string }): TrendBucket[] {
+  const startOrd = monthOrdinal(range.start);
+  const endOrd = monthOrdinal(addDaysUtc(range.end, -1));
+  if (endOrd < startOrd) return [];
+  const crossesYear = Math.floor(startOrd / 12) !== Math.floor(endOrd / 12);
+  const byOrd = new Map<number, TrendBucket>();
+  const buckets: TrendBucket[] = [];
+  for (let ord = startOrd; ord <= endOrd; ord++) {
+    const year = Math.floor(ord / 12);
+    const month = ord - year * 12;
+    const label = crossesYear ? `${MONTH_LABELS[month]} ’${String(year).slice(2)}` : MONTH_LABELS[month];
+    const b = newBucket(monthKey(year, month), label);
+    buckets.push(b);
+    byOrd.set(ord, b);
+  }
+  for (const l of loads) {
+    if (!Number.isFinite(l.year) || l.month < 0 || l.month > 11) continue;
+    const ord = ordinal(l.year, l.month);
+    const b = byOrd.get(ord);
+    if (b) accumulate(b, l);
+  }
+  return buckets.map(finalize);
+}
+
+/** The one entry point the Performance page calls — picks the right bucket
+ * shape for the granularity the selected view resolved to. */
+export function rangeTrendBuckets(loads: PerfLoad[], range: { start: string; end: string }, granularity: TrendGranularity): TrendBucket[] {
+  if (granularity === "day") return dayOrWeekBuckets(loads, range, 1);
+  if (granularity === "week") return dayOrWeekBuckets(loads, range, 7);
+  return monthRangeBuckets(loads, range);
+}
+
 export type PartyStat = {
   /** Broker name, or "Origin → Destination" for a lane. */
   name: string;
@@ -418,6 +537,24 @@ const DELTA_FLOOR: Record<DeltaKind, number> = {
 function delta(kind: DeltaKind, value: number, good: boolean): Delta | null {
   if (!Number.isFinite(value) || Math.abs(value) < DELTA_FLOOR[kind]) return null;
   return { kind, value, good };
+}
+
+/** The one Delta → display-string formatter (was duplicated locally inside
+ * DeltaChip.tsx; moved here so the comparison takeaway below and any future
+ * caller render the exact same "+8%" / "-$310" / "+$0.04/mi" text). */
+export function formatDelta(d: Delta): string {
+  const abs = Math.abs(d.value);
+  const sign = d.value >= 0 ? "+" : "-";
+  switch (d.kind) {
+    case "pct":
+      return `${sign}${abs.toFixed(0)}%`;
+    case "usd":
+      return `${sign}$${Math.round(abs).toLocaleString("en-US")}`;
+    case "rpm":
+      return `${sign}$${abs.toFixed(2)}/mi`;
+    case "pts":
+      return `${sign}${abs.toFixed(1)}pts`;
+  }
 }
 
 /** A total's move: percent when the base is positive, dollars when it isn't. */
@@ -750,4 +887,42 @@ export function takeaways(loads: PerfLoad[], ctx: TakeawayContext): Takeaway[] {
     .sort((x, y) => y.priority - x.priority)
     .slice(0, MAX_TAKEAWAYS)
     .map((c) => c.takeaway);
+}
+
+/**
+ * "Net vs revenue" comparison sentence for a period-over-period compare
+ * (Year/YTD's YoY comparison per Brent's Phase 2 ask — "keep the 'explain
+ * net vs revenue' framing", e.g. "Gross +8% but net/mi -4%" over a bare
+ * "Revenue +8%"). Pure formatting over the `MonthDeltas` `deltasBetween`
+ * already computed — no new arithmetic, and it renders through
+ * `InsightsStrip` like any other `Takeaway`, no new UI. Null when there's
+ * nothing to compare (no prior period, every delta rounded to noise).
+ */
+export function comparisonTakeaway(deltas: MonthDeltas, vsLabel: string): Takeaway | null {
+  const { gross, net, netRpm } = deltas;
+  if (!gross && !net && !netRpm) return null;
+
+  // The headline case Brent called out: revenue and rate-quality moved in
+  // OPPOSITE directions — a bare "revenue up" reading would miss this.
+  if (gross && netRpm && gross.good !== netRpm.good) {
+    return {
+      id: "period-comparison",
+      tone: netRpm.good ? "good" : "warn",
+      segs: [
+        t("Gross is "),
+        b(formatDelta(gross)),
+        t(` vs ${vsLabel}, but net/mi is `),
+        b(formatDelta(netRpm)),
+        t(netRpm.good ? " — efficiency improved even as revenue slipped." : " — revenue grew but efficiency slipped."),
+      ],
+    };
+  }
+
+  if (net) {
+    return { id: "period-comparison", tone: net.good ? "good" : "warn", segs: [t("Net is "), b(formatDelta(net)), t(` vs ${vsLabel}.`)] };
+  }
+  if (gross) {
+    return { id: "period-comparison", tone: gross.good ? "good" : "warn", segs: [t("Gross is "), b(formatDelta(gross)), t(` vs ${vsLabel}.`)] };
+  }
+  return null;
 }

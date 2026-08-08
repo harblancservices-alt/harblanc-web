@@ -1,19 +1,4 @@
-import type { Delta } from "@/lib/dispatch/performance";
-
-function formatDelta(d: Delta): string {
-  const abs = Math.abs(d.value);
-  const sign = d.value >= 0 ? "+" : "-";
-  switch (d.kind) {
-    case "pct":
-      return `${sign}${abs.toFixed(0)}%`;
-    case "usd":
-      return `${sign}$${Math.round(abs).toLocaleString("en-US")}`;
-    case "rpm":
-      return `${sign}$${abs.toFixed(2)}/mi`;
-    case "pts":
-      return `${sign}${abs.toFixed(1)}pts`;
-  }
-}
+import { formatDelta, type Delta } from "@/lib/dispatch/performance";
 
 /** MoM-style delta chip for a <KpiTile> — reuses `lib/dispatch/performance
  * .ts`'s `Delta` shape/sign logic verbatim (v2-design.md §23), never a

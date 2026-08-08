@@ -23,7 +23,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { isDemoMode } from "@/lib/admin/demo";
 import { buildDemoData } from "@/lib/demo/demo-dataset";
-import { computeLoadNet, FUEL_DEFAULTS, type FuelSettings } from "@/lib/domain/money";
+import { computeLoadNet, computeTripNet, FUEL_DEFAULTS, type FuelSettings, type TripFinancials, type TripRollupLoad } from "@/lib/domain/money";
 import { attributionDate, periodOf, loadsPeriodFilter } from "@/lib/domain/attribution";
 import type { PerfLoad } from "@/lib/dispatch/performance";
 
@@ -51,19 +51,33 @@ export function dayAfter(dateStr: string): string {
 }
 
 const DEFAULT_MONTHLY_GOAL = 10000;
+const DEFAULT_ANNUAL_GOAL = 120000;
 
-/** The monthly net-profit goal from `dispatch_settings` — the same figure
- * Today's goal widget and Performance's goal card must agree on (both
- * consume lib/domain/goal-pace.ts's computeGoalPace() with this number). */
-export async function getMonthlyNetGoal(): Promise<number> {
-  if (await isDemoMode()) return DEFAULT_MONTHLY_GOAL;
+/** Both net-profit goals from `dispatch_settings` in one round trip — the
+ * same figures Today's goal widget, the Load Board goal bar, and
+ * Performance's monthly AND annual goal cards must all agree on (every
+ * consumer feeds these into the one shared lib/domain/goal-pace.ts's
+ * computeGoalPace(), never a page-local goal number). */
+export async function getNetGoals(): Promise<{ monthly: number; annual: number }> {
+  if (await isDemoMode()) return { monthly: DEFAULT_MONTHLY_GOAL, annual: DEFAULT_ANNUAL_GOAL };
   const sb = createServiceRoleClient();
   const { data } = await sb
     .from("dispatch_settings")
-    .select("monthly_net_goal")
+    .select("monthly_net_goal, annual_net_goal")
     .eq("id", true)
-    .maybeSingle<{ monthly_net_goal: number | string | null }>();
-  return data?.monthly_net_goal != null ? num(data.monthly_net_goal) : DEFAULT_MONTHLY_GOAL;
+    .maybeSingle<{ monthly_net_goal: number | string | null; annual_net_goal: number | string | null }>();
+  return {
+    monthly: data?.monthly_net_goal != null ? num(data.monthly_net_goal) : DEFAULT_MONTHLY_GOAL,
+    annual: data?.annual_net_goal != null ? num(data.annual_net_goal) : DEFAULT_ANNUAL_GOAL,
+  };
+}
+
+/** The monthly net-profit goal alone — thin wrapper over getNetGoals() kept
+ * for existing single-value callers (Today's dashboard, the Load Board goal
+ * bar); Performance itself calls getNetGoals() directly to avoid firing the
+ * same settings query twice now that it also needs the annual figure. */
+export async function getMonthlyNetGoal(): Promise<number> {
+  return (await getNetGoals()).monthly;
 }
 
 type LoadInput = {
@@ -318,5 +332,128 @@ function getDemoAnalyticsLoads(range: DateRange): AnalyticsLoad[] {
         broker?.factoring ?? false,
         l.tripId ? (tripsById.get(l.tripId)?.name ?? null) : null,
       );
+    });
+}
+
+// ------------------------------------------------------------- Trip Analysis
+
+export type AnalyticsTrip = {
+  id: string;
+  name: string | null;
+  status: string;
+  startedAt: string | null;
+  endedAt: string | null;
+  closedAt: string | null;
+  financials: TripFinancials;
+};
+
+type TripAnalyticsRow = {
+  id: string;
+  name: string | null;
+  status: string;
+  start_odometer: number | null;
+  end_odometer: number | null;
+  started_at: string | null;
+  ended_at: string | null;
+  closed_at: string | null;
+};
+
+/**
+ * Trip Analysis (Phase 2 item 5) — every trip touched by the selected range:
+ * any trip with at least one load whose attribution date fell in the range,
+ * i.e. the distinct `tripId`s already present on the range-scoped
+ * `AnalyticsLoad[]` the page fetched for its own KPIs/trend/leaderboards —
+ * no second, wider load query to find "which trips". Each trip's financials
+ * are computed over its FULL load set (not just the in-range slice, since a
+ * trip can straddle a range boundary) via `computeTripNet` — the SAME
+ * function the Trips list and Trip Detail page use — so a trip reads
+ * identically here as it does anywhere else, including its trip-scoped PC
+ * miles/diesel. PC only ever surfaces here (Brent's Option C): never folded
+ * into Performance's top-level mileage KPIs.
+ */
+export async function getAnalyticsTrips(loads: AnalyticsLoad[]): Promise<AnalyticsTrip[]> {
+  const tripIds = [...new Set(loads.map((l) => l.tripId).filter((id): id is string => !!id))];
+  if (tripIds.length === 0) return [];
+
+  if (await isDemoMode()) return getDemoAnalyticsTrips(tripIds);
+
+  const sb = createServiceRoleClient();
+  const { data: tripRows } = await sb
+    .from("trips")
+    .select("id, name, status, start_odometer, end_odometer, started_at, ended_at, closed_at")
+    .in("id", tripIds)
+    .is("deleted_at", null)
+    .returns<TripAnalyticsRow[]>();
+  const trips = tripRows ?? [];
+  if (trips.length === 0) return [];
+
+  const { data: tripLoadRows } = await sb
+    .from("loads")
+    .select("id, trip_id, rate, loaded_miles, odo_assigned, odo_loaded, odo_delivered, broker_id, status")
+    .is("deleted_at", null)
+    .in("trip_id", tripIds)
+    .returns<(TripRollupLoad & { trip_id: string })[]>();
+  const tripLoads = tripLoadRows ?? [];
+
+  const [fuel, expensesByLoad, factoringIds] = await Promise.all([
+    fetchFuelSettings(sb),
+    fetchExpensesByLoadId(sb, tripLoads.map((l) => l.id)),
+    fetchFactoringBrokerIds(sb, tripLoads.map((l) => l.broker_id).filter((id): id is string => !!id)),
+  ]);
+
+  return trips
+    .map((trip) => {
+      const rows = tripLoads.filter((l) => l.trip_id === trip.id);
+      const financials = computeTripNet(rows, fuel, factoringIds, expensesByLoad, {
+        start: trip.start_odometer,
+        end: trip.end_odometer,
+      });
+      return {
+        id: trip.id,
+        name: trip.name,
+        status: trip.status,
+        startedAt: trip.started_at,
+        endedAt: trip.ended_at,
+        closedAt: trip.closed_at,
+        financials,
+      };
+    })
+    .sort((a, b) => (b.startedAt ?? "").localeCompare(a.startedAt ?? ""));
+}
+
+function getDemoAnalyticsTrips(tripIds: string[]): AnalyticsTrip[] {
+  const { trips, loads, brokers, expenses } = buildDemoData();
+  const expensesByLoad = new Map<string, number>();
+  for (const e of expenses) expensesByLoad.set(e.loadId, (expensesByLoad.get(e.loadId) ?? 0) + e.amount);
+  const factoringIds = new Set(brokers.filter((b) => b.factoring).map((b) => b.id));
+
+  return trips
+    .filter((t) => tripIds.includes(t.id))
+    .map((trip) => {
+      const rows: TripRollupLoad[] = loads
+        .filter((l) => l.tripId === trip.id)
+        .map((l) => ({
+          id: l.id,
+          rate: l.rate,
+          loaded_miles: l.loadedMilesEstimate,
+          odo_assigned: l.odoAssigned,
+          odo_loaded: l.odoLoaded,
+          odo_delivered: l.odoDelivered,
+          broker_id: l.brokerId,
+          status: l.status,
+        }));
+      const financials = computeTripNet(rows, FUEL_DEFAULTS, factoringIds, expensesByLoad, {
+        start: trip.startOdometer,
+        end: trip.endOdometer,
+      });
+      return {
+        id: trip.id,
+        name: trip.name,
+        status: trip.status,
+        startedAt: trip.startedAt,
+        endedAt: trip.endedAt,
+        closedAt: trip.closedAt,
+        financials,
+      };
     });
 }

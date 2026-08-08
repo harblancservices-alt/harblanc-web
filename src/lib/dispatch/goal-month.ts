@@ -116,3 +116,31 @@ export function daysLeftInMonth(now: Date, tz: string = BUSINESS_TZ): number {
 export function currentGoalMonthLabel(now: Date, tz: string = BUSINESS_TZ): string {
   return now.toLocaleString("en-US", { month: "long", timeZone: tz });
 }
+
+/**
+ * 1-based day-of-year for a YYYY-MM-DD business date — the numerator for the
+ * annual goal's "days elapsed" (mirrors `daysLeftInMonth`'s day-of-month
+ * role, generalized to a year). Jan 1 is day 1, matching the "today counts"
+ * rule daysLeftInMonth/daysLeftInYear both use.
+ */
+export function dayOfYear(dateStr: string): number {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateStr);
+  if (!m) return 1;
+  const year = Number(m[1]);
+  const start = Date.UTC(year, 0, 1);
+  const cur = Date.UTC(year, Number(m[2]) - 1, Number(m[3]));
+  return Math.max(1, Math.round((cur - start) / 86_400_000) + 1);
+}
+
+/**
+ * Days left in the current CALENDAR YEAR including today, in the business
+ * timezone — the denominator for the annual goal's required-pace figure,
+ * the same "today still counts" rule `daysLeftInMonth` uses.
+ */
+export function daysLeftInYear(now: Date, tz: string = BUSINESS_TZ): number {
+  const today = currentBusinessDate(now, tz);
+  const year = Number(today.slice(0, 4));
+  const isLeap = (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+  const daysInYear = isLeap ? 366 : 365;
+  return Math.max(1, daysInYear - dayOfYear(today) + 1);
+}

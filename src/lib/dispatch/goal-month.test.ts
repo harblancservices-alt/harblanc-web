@@ -5,6 +5,8 @@ import {
   currentGoalMonth,
   currentGoalMonthLabel,
   currentBusinessDate,
+  dayOfYear,
+  daysLeftInYear,
 } from "./goal-month";
 
 /**
@@ -156,5 +158,31 @@ describe("current goal month (business-timezone)", () => {
   it("mid-month is unaffected by the timezone offset", () => {
     const now = new Date("2026-06-15T18:00:00Z");
     expect(currentGoalMonth(now)).toEqual({ year: 2026, month: 5 }); // June
+  });
+});
+
+/** Annual goal-pace denominators (Phase 2 item 3) — daysLeftInYear/dayOfYear
+ * generalize daysLeftInMonth's "today still counts" rule to a calendar year. */
+describe("dayOfYear / daysLeftInYear", () => {
+  it("Jan 1 is day 1", () => {
+    expect(dayOfYear("2026-01-01")).toBe(1);
+  });
+
+  it("Dec 31 in a non-leap year is day 365", () => {
+    expect(dayOfYear("2026-12-31")).toBe(365);
+  });
+
+  it("Dec 31 in a leap year is day 366", () => {
+    expect(dayOfYear("2028-12-31")).toBe(366);
+  });
+
+  it("daysLeftInYear counts today, so Dec 31 still returns 1, never 0", () => {
+    const now = new Date("2026-12-31T18:00:00Z"); // mid-afternoon Central
+    expect(daysLeftInYear(now)).toBe(1);
+  });
+
+  it("daysLeftInYear on Jan 1 is the full year (365, today included)", () => {
+    const now = new Date("2026-01-01T18:00:00Z");
+    expect(daysLeftInYear(now)).toBe(365);
   });
 });

@@ -8,13 +8,25 @@ import { ProgressBar } from "@/components/tms-v2/ui/ProgressBar";
 import { GoalPaceCard } from "@/components/tms-v2/ui/GoalPaceCard";
 import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
 import { formatMoney } from "@/lib/domain/money";
-import { getAnalyticsLoads, getMonthlyNetGoal } from "@/lib/data/analytics";
-import { summarize, brokerStats, laneStats, laneKey, deadheadSplit, deltasBetween, takeaways, type TakeawayContext } from "@/lib/dispatch/performance";
+import { getAnalyticsLoads, getAnalyticsTrips, getNetGoals } from "@/lib/data/analytics";
+import {
+  summarize,
+  brokerStats,
+  laneStats,
+  laneKey,
+  deadheadSplit,
+  deltasBetween,
+  takeaways,
+  comparisonTakeaway,
+  rangeTrendBuckets,
+  type TakeawayContext,
+} from "@/lib/dispatch/performance";
 import { rpm, pct } from "@/lib/dispatch/format";
-import { currentPeriod, periodRange } from "@/lib/domain/attribution";
-import { daysLeftInMonth, currentBusinessDate } from "@/lib/dispatch/goal-month";
+import { currentPeriod } from "@/lib/domain/attribution";
+import { daysLeftInMonth, daysLeftInYear, dayOfYear, currentBusinessDate } from "@/lib/dispatch/goal-month";
+import { centralDateKey } from "@/lib/domain/dates";
 import { computeGoalPace } from "@/lib/domain/goal-pace";
-import { resolvePerformanceView, monthParam, shiftPeriod } from "./_lib/range";
+import { resolvePerformanceView, monthParam, shiftPeriod, type PerformanceView } from "./_lib/range";
 import { isPartySortKey, sortPartyStats, type PartySortKey } from "./_lib/party-sort";
 import { toLoadTableRows, filterLoadRows, sortLoadRows, isLoadSortKey, type LoadSortKey } from "./_lib/load-table";
 import { DeltaChip } from "./_components/DeltaChip";
@@ -22,25 +34,28 @@ import { PartyBarChart } from "./_components/PartyBarChart";
 import { PartyTable } from "./_components/PartyTable";
 import { PartyDrillDown } from "./_components/PartyDrillDown";
 import { LoadPerformanceTable } from "./_components/LoadPerformanceTable";
+import { TripPerformanceTable } from "./_components/TripPerformanceTable";
 import { DeadheadSplitBar } from "./_components/DeadheadSplitBar";
 import { InsightsStrip } from "./_components/InsightsStrip";
 import { TrendChart, type TrendPoint } from "./_components/TrendChart";
 import { DualTrendChart, type DualTrendPoint } from "./_components/DualTrendChart";
 import { RateTrendChart, type RateTrendPoint } from "./_components/RateTrendChart";
 
-const TREND_MONTHS = 6;
 const LOAD_PAGE_SIZE = 50;
-const SHORT_MONTH = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 // Server-aggregated, range-scoped rollup — never the full load history
 // re-aggregated client-side (v2-design.md §23's fixed weakness).
 export const dynamic = "force-dynamic";
 
-const NAV_BUTTON = "inline-flex h-8 items-center justify-center rounded-md border border-line-strong px-3 text-[13px] text-fg hover:bg-elevated";
-const NAV_BUTTON_ACTIVE = "inline-flex h-8 items-center justify-center rounded-md border border-accent px-3 text-[13px] font-medium text-accent";
+const PILL = "shrink-0 rounded-full border border-line-strong px-3 py-1.5 text-[13px] text-fg hover:bg-elevated";
+const PILL_ACTIVE = "shrink-0 rounded-full border border-accent bg-accent/10 px-3 py-1.5 text-[13px] font-medium text-accent";
+const NAV_ARROW = "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-line-strong text-fg hover:bg-elevated";
+const GRANULARITY_LABEL: Record<PerformanceView["granularity"], string> = { day: "daily", week: "weekly", month: "monthly" };
 
 type PerformanceSearchParams = {
   month?: string;
+  year?: string;
+  range?: string;
   from?: string;
   to?: string;
   brokerSort?: string;
@@ -69,40 +84,44 @@ function buildHref(sp: PerformanceSearchParams, overrides: Partial<PerformanceSe
   return qs ? `/tms-v2/performance?${qs}` : "/tms-v2/performance";
 }
 
+/** A range-switching link: clears every OTHER range-defining param (and
+ * pagination) before applying the new one — "the selected range drives the
+ * ENTIRE page" means switching presets can't leave a stale `month=`/`from=`
+ * behind to silently win on the next request. */
+function rangeHref(sp: PerformanceSearchParams, overrides: Partial<PerformanceSearchParams>): string {
+  return buildHref(sp, { month: undefined, year: undefined, range: undefined, from: undefined, to: undefined, loadPage: undefined, ...overrides });
+}
+
 export default async function PerformancePage({ searchParams }: PageProps) {
   const sp = await searchParams;
   const now = new Date();
   const view = resolvePerformanceView(sp, now);
+  const nowPeriod = currentPeriod(now);
+  const nowYear = nowPeriod.year;
+  const today = centralDateKey(now);
 
-  const anchorPeriod = view.mode === "month" ? view.period : currentPeriod(now);
-  const trendPeriods = Array.from({ length: TREND_MONTHS }, (_, i) => shiftPeriod(anchorPeriod, i - (TREND_MONTHS - 1)));
-
-  const [loads, prevLoads, monthlyGoal, trendLoadSets] = await Promise.all([
-    getAnalyticsLoads(view.range),
-    getAnalyticsLoads(view.prevRange),
-    getMonthlyNetGoal(),
-    Promise.all(trendPeriods.map((p) => getAnalyticsLoads(periodRange(p)))),
-  ]);
-
-  const trendSummaries = trendLoadSets.map((rows) => summarize(rows));
-  const rateTrend: RateTrendPoint[] = trendPeriods.map((p, i) => ({
-    label: SHORT_MONTH[p.month],
-    grossRpm: trendSummaries[i].grossRpm,
-    netRpm: trendSummaries[i].netRpm,
-  }));
-  const dualTrend: DualTrendPoint[] = trendPeriods.map((p, i) => ({
-    label: SHORT_MONTH[p.month],
-    gross: trendSummaries[i].gross,
-    net: trendSummaries[i].net,
-  }));
-  // Load-volume trend (audit §J.6 "where useful") — answers "am I booking
-  // more or fewer loads month to month," a different question than the
-  // dollar/rate trends above it. Reuses the same bounded trendSummaries.
-  const volumeTrend: TrendPoint[] = trendPeriods.map((p, i) => ({ label: SHORT_MONTH[p.month], value: trendSummaries[i].loads }));
+  const [loads, prevLoads, netGoals] = await Promise.all([getAnalyticsLoads(view.range), getAnalyticsLoads(view.prevRange), getNetGoals()]);
+  // Trip Analysis (Phase 2 item 5) needs the tripIds already present on the
+  // range-scoped `loads` above — no second, wider load query to find "which
+  // trips touched this period".
+  const trips = await getAnalyticsTrips(loads);
 
   const summary = summarize(loads);
   const prevSummary = summarize(prevLoads);
   const deltas = deltasBetween(summary, prevSummary);
+  const dh = deadheadSplit(loads);
+
+  // Adaptive trend (Phase 2 item 2) — buckets the SAME range-scoped `loads`
+  // at the granularity the selected view calls for (day/week/month), never
+  // a separate trailing-months fetch. This also fixes a latent "range
+  // consistency" gap in the old build: the old trend always showed a fixed
+  // trailing 6 calendar months regardless of the selected range.
+  const trendBuckets = rangeTrendBuckets(loads, view.range, view.granularity);
+  const trendLabel = GRANULARITY_LABEL[view.granularity];
+  const rateTrend: RateTrendPoint[] = trendBuckets.map((b) => ({ label: b.label, grossRpm: b.grossRpm, netRpm: b.netRpm }));
+  const dualTrend: DualTrendPoint[] = trendBuckets.map((b) => ({ label: b.label, gross: b.gross, net: b.net }));
+  const volumeTrend: TrendPoint[] = trendBuckets.map((b) => ({ label: b.label, value: b.loads }));
+
   // No artificial cap (Phase 7) — the server-aggregation architecture was
   // already correct, this just stops slicing the full set down to 6.
   const brokerSortKey: PartySortKey = isPartySortKey(sp.brokerSort) ? sp.brokerSort : "net";
@@ -111,7 +130,6 @@ export default async function PerformancePage({ searchParams }: PageProps) {
   const laneSortKey: PartySortKey = isPartySortKey(sp.laneSort) ? sp.laneSort : "netRpm";
   const laneDir = sp.laneDir === "asc" ? "asc" : "desc";
   const lanes = sortPartyStats(laneStats(loads, Infinity), laneSortKey, laneDir);
-  const dh = deadheadSplit(loads);
 
   // Drill-down (Phase 7 "where practical") — a broker or lane row links
   // back here filtered to its own constituent loads in this same period,
@@ -125,6 +143,7 @@ export default async function PerformancePage({ searchParams }: PageProps) {
       : null;
   const drillTitle = drillBroker ?? drillLane;
   const drillCloseHref = buildHref(sp, { broker: undefined, lane: undefined });
+  const fromPath = buildHref(sp, {});
 
   // Analytical Load Board (Phase 8) — the same range-bounded `loads` array
   // already fetched above (never a second, wider query), filtered/sorted/
@@ -137,42 +156,71 @@ export default async function PerformancePage({ searchParams }: PageProps) {
   const loadPageCount = Math.max(1, Math.ceil(loadTableRows.length / LOAD_PAGE_SIZE));
   const loadPageRows = loadTableRows.slice((loadPage - 1) * LOAD_PAGE_SIZE, loadPage * LOAD_PAGE_SIZE);
 
-  const thisMonthParam = monthParam(currentPeriod(now));
-  const monthTabHref =
-    view.mode === "month" ? `/tms-v2/performance?month=${monthParam(view.period)}` : `/tms-v2/performance?month=${thisMonthParam}`;
-  const prevMonthParam = view.mode === "month" ? monthParam(shiftPeriod(view.period, -1)) : null;
-  const nextMonthParam = view.mode === "month" ? monthParam(shiftPeriod(view.period, 1)) : null;
-
-  const goalPct = monthlyGoal > 0 ? Math.min(100, Math.max(0, (summary.net / monthlyGoal) * 100)) : null;
-
-  // Pace math (remaining/required-per-day/-week, on-pace verdict) only means
-  // something for the month still in progress — a past month is over, a
-  // future one hasn't started accruing. Other months keep the plain
-  // percent-complete bar. Same shared module Today's dashboard consumes
-  // (lib/domain/goal-pace.ts) — never a second calculation.
-  const nowPeriod = currentPeriod(now);
+  // ---- Goal pace (Phase 2 item 3/4) — monthly goal for Month view, annual
+  // goal for Year/YTD view, both through the ONE shared computeGoalPace()
+  // Today's dashboard also consumes. Pace math (remaining/required-rate/
+  // verdict) only means something for the period still in progress; a past
+  // month or year keeps the plain percent-complete bar instead.
   const isCurrentMonth = view.mode === "month" && view.period.year === nowPeriod.year && view.period.month === nowPeriod.month;
-  const daysRemaining = daysLeftInMonth(now);
-  const goalPace =
-    isCurrentMonth && monthlyGoal > 0
+  const monthlyGoalPace =
+    isCurrentMonth && netGoals.monthly > 0
       ? computeGoalPace({
-          goal: monthlyGoal,
+          goal: netGoals.monthly,
           currentNet: summary.net,
           daysElapsed: Number(currentBusinessDate(now).slice(8, 10)) || 1,
-          daysRemaining,
+          daysRemaining: daysLeftInMonth(now),
         })
       : null;
 
-  // Insights strip (Phase 10) — takeaways() was already fully built and
-  // audited correct; it just wasn't imported anywhere under tms-v2. No new
-  // arithmetic here, only wiring the viewed period's loads through it.
+  const isCurrentYear = (view.mode === "year" && view.year === nowYear) || view.mode === "ytd";
+  const annualGoalPace =
+    isCurrentYear && netGoals.annual > 0
+      ? computeGoalPace({
+          goal: netGoals.annual,
+          currentNet: summary.net,
+          daysElapsed: dayOfYear(today),
+          daysRemaining: daysLeftInYear(now),
+        })
+      : null;
+
+  // Insights strip (Phase 10, restored) — takeaways() is fully built and
+  // audited correct, aggregating only what summarize/brokerStats/etc already
+  // produced. For Year/YTD, prepend the YoY "net vs revenue" comparison
+  // (Phase 2 item 4) built from the SAME `deltas` the KPI DeltaChips use —
+  // no new arithmetic, just a sentence over it.
   const takeawayCtx: TakeawayContext = {
     year: view.mode === "month" ? view.period.year : nowPeriod.year,
     month: view.mode === "month" ? view.period.month : nowPeriod.month,
-    monthlyGoal,
-    daysRemaining,
+    monthlyGoal: netGoals.monthly,
+    daysRemaining: daysLeftInMonth(now),
   };
-  const insights = takeaways(loads, takeawayCtx);
+  const baseInsights = takeaways(loads, takeawayCtx);
+  const vsLabel = view.mode === "year" ? "last year" : view.mode === "ytd" ? "the same period last year" : null;
+  const comparison = vsLabel ? comparisonTakeaway(deltas, vsLabel) : null;
+  const insights = comparison ? [comparison, ...baseInsights].slice(0, 6) : baseInsights;
+
+  const pills: { key: string; label: string; href: string; active: boolean }[] = [
+    { key: "today", label: "Today", href: rangeHref(sp, { range: "today" }), active: view.mode === "range" && view.preset === "today" },
+    { key: "yesterday", label: "Yesterday", href: rangeHref(sp, { range: "yesterday" }), active: view.mode === "range" && view.preset === "yesterday" },
+    { key: "this_week", label: "This week", href: rangeHref(sp, { range: "this_week" }), active: view.mode === "range" && view.preset === "this_week" },
+    { key: "last_week", label: "Last week", href: rangeHref(sp, { range: "last_week" }), active: view.mode === "range" && view.preset === "last_week" },
+    {
+      key: "this_month",
+      label: "This month",
+      href: rangeHref(sp, { month: monthParam(nowPeriod) }),
+      active: view.mode === "month" && view.period.year === nowPeriod.year && view.period.month === nowPeriod.month,
+    },
+    {
+      key: "last_month",
+      label: "Last month",
+      href: rangeHref(sp, { month: monthParam(shiftPeriod(nowPeriod, -1)) }),
+      active: view.mode === "month" && monthParam(view.period) === monthParam(shiftPeriod(nowPeriod, -1)),
+    },
+    { key: "this_quarter", label: "This quarter", href: rangeHref(sp, { range: "this_quarter" }), active: view.mode === "range" && view.preset === "this_quarter" },
+    { key: "this_year", label: "This year", href: rangeHref(sp, { year: String(nowYear) }), active: view.mode === "year" && view.year === nowYear },
+    { key: "ytd", label: "YTD", href: rangeHref(sp, { range: "ytd" }), active: view.mode === "ytd" },
+    { key: "last_year", label: "Last year", href: rangeHref(sp, { year: String(nowYear - 1) }), active: view.mode === "year" && view.year === nowYear - 1 },
+  ];
 
   return (
     <PageScroll
@@ -180,84 +228,45 @@ export default async function PerformancePage({ searchParams }: PageProps) {
         <>
           <PageHeader
             title="Performance"
-            description="Net vs goal, rate/mile, deadhead, and top brokers/lanes — attributed by pickup date, the same rule Calendar uses."
+            description="Net vs goal, rate/mile, deadhead, and top brokers/lanes for whatever period you pick — one range drives the whole page."
           />
 
-          {/* Mobile — compact period control: pill prev/next around the
-              month label, custom range tucked into one tight row below.
-              Same functionality as desktop's control, just less chrome. */}
-          <div className="flex flex-col gap-2 lg:hidden">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1.5">
-                {view.mode === "month" && prevMonthParam && nextMonthParam ? (
-                  <>
-                    <Link
-                      href={`/tms-v2/performance?month=${prevMonthParam}`}
-                      aria-label="Previous month"
-                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-line-strong text-fg hover:bg-elevated"
-                    >
-                      ‹
-                    </Link>
-                    <span className="px-0.5 text-[15px] font-semibold text-fg">{view.label}</span>
-                    <Link
-                      href={`/tms-v2/performance?month=${nextMonthParam}`}
-                      aria-label="Next month"
-                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-line-strong text-fg hover:bg-elevated"
-                    >
-                      ›
-                    </Link>
-                  </>
-                ) : (
-                  <span className="rounded-full border border-accent px-3 py-1 text-[13px] font-medium text-accent">Custom: {view.label}</span>
-                )}
-              </div>
-              {view.mode === "custom" ? (
-                <Link href={monthTabHref} className="shrink-0 text-[12px] font-medium text-accent underline">
-                  This month
-                </Link>
-              ) : null}
-            </div>
-
-            <form action="/tms-v2/performance" method="GET" className="flex items-center gap-1.5">
-              <input
-                type="date"
-                name="from"
-                defaultValue={view.mode === "custom" ? view.from : undefined}
-                className="h-8 w-full min-w-0 rounded-md border border-line-strong bg-card px-2 text-[13px] text-fg"
-              />
-              <span className="shrink-0 text-[12px] text-fg-muted">to</span>
-              <input
-                type="date"
-                name="to"
-                defaultValue={view.mode === "custom" ? view.to : undefined}
-                className="h-8 w-full min-w-0 rounded-md border border-line-strong bg-card px-2 text-[13px] text-fg"
-              />
-              <Button type="submit" variant="secondary" size="sm" className="shrink-0">
-                Go
-              </Button>
-            </form>
+          {/* Range picker — a horizontal pill strip (same scroll-strip
+              pattern the mobile StatChip row already uses) so all 10 fixed
+              presets stay reachable without clutter on a phone; Custom stays
+              the always-visible from/to form below it, unchanged. */}
+          <div className="no-scrollbar flex items-center gap-1.5 overflow-x-auto pb-0.5">
+            {pills.map((p) => (
+              <Link key={p.key} href={p.href} className={p.active ? PILL_ACTIVE : PILL}>
+                {p.label}
+              </Link>
+            ))}
           </div>
 
-          {/* Desktop — unchanged (later PC pass owns this). */}
-          <div className="hidden flex-wrap items-center justify-between gap-3 border-b border-line pb-4 lg:flex">
-            <div className="flex items-center gap-2">
-              <Link href={monthTabHref} className={view.mode === "month" ? NAV_BUTTON_ACTIVE : NAV_BUTTON}>
-                Month
-              </Link>
-              {view.mode === "month" && prevMonthParam && nextMonthParam ? (
-                <>
-                  <Link href={`/tms-v2/performance?month=${prevMonthParam}`} className={NAV_BUTTON} aria-label="Previous month">
-                    ‹
-                  </Link>
-                  <span className="px-1 text-[14px] font-medium text-fg">{view.label}</span>
-                  <Link href={`/tms-v2/performance?month=${nextMonthParam}`} className={NAV_BUTTON} aria-label="Next month">
-                    ›
-                  </Link>
-                </>
-              ) : (
-                <span className={view.mode === "custom" ? NAV_BUTTON_ACTIVE : "hidden"}>Custom: {view.label}</span>
-              )}
-            </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-3">
+            {view.mode === "month" ? (
+              <div className="flex items-center gap-1.5">
+                <Link href={rangeHref(sp, { month: monthParam(shiftPeriod(view.period, -1)) })} className={NAV_ARROW} aria-label="Previous month">
+                  ‹
+                </Link>
+                <span className="px-1 text-[14px] font-medium text-fg">{view.label}</span>
+                <Link href={rangeHref(sp, { month: monthParam(shiftPeriod(view.period, 1)) })} className={NAV_ARROW} aria-label="Next month">
+                  ›
+                </Link>
+              </div>
+            ) : view.mode === "year" ? (
+              <div className="flex items-center gap-1.5">
+                <Link href={rangeHref(sp, { year: String(view.year - 1) })} className={NAV_ARROW} aria-label="Previous year">
+                  ‹
+                </Link>
+                <span className="px-1 text-[14px] font-medium text-fg">{view.label}</span>
+                <Link href={rangeHref(sp, { year: String(view.year + 1) })} className={NAV_ARROW} aria-label="Next year">
+                  ›
+                </Link>
+              </div>
+            ) : (
+              <span className="px-1 text-[14px] font-medium text-fg">{view.label}</span>
+            )}
 
             <form action="/tms-v2/performance" method="GET" className="flex items-center gap-1.5">
               <input
@@ -274,7 +283,7 @@ export default async function PerformancePage({ searchParams }: PageProps) {
                 className="h-8 rounded-md border border-line-strong bg-card px-2 text-[13px] text-fg"
               />
               <Button type="submit" variant="secondary" size="sm">
-                Apply range
+                Custom
               </Button>
             </form>
           </div>
@@ -307,15 +316,28 @@ export default async function PerformancePage({ searchParams }: PageProps) {
             <KpiTile label="Margin" value={pct(summary.marginPct)} delta={<DeltaChip delta={deltas.margin} />} />
           </div>
 
-          {goalPace ? (
-            <GoalPaceCard label="Net vs goal" pace={goalPace} />
-          ) : view.mode === "month" && monthlyGoal > 0 ? (
+          {monthlyGoalPace ? (
+            <GoalPaceCard label="Net vs monthly goal" pace={monthlyGoalPace} />
+          ) : view.mode === "month" && netGoals.monthly > 0 ? (
             <Card className="flex flex-col gap-1">
               <ProgressBar
-                label="Net vs goal"
-                valueLabel={`${formatMoney(summary.net)} / ${formatMoney(monthlyGoal)}`}
-                value={goalPct ?? 0}
-                tone={summary.net >= monthlyGoal ? "positive" : "accent"}
+                label="Net vs monthly goal"
+                valueLabel={`${formatMoney(summary.net)} / ${formatMoney(netGoals.monthly)}`}
+                value={netGoals.monthly > 0 ? Math.min(100, Math.max(0, (summary.net / netGoals.monthly) * 100)) : 0}
+                tone={summary.net >= netGoals.monthly ? "positive" : "accent"}
+              />
+            </Card>
+          ) : null}
+
+          {annualGoalPace ? (
+            <GoalPaceCard label="Net vs annual goal" pace={annualGoalPace} />
+          ) : (view.mode === "year" || view.mode === "ytd") && netGoals.annual > 0 ? (
+            <Card className="flex flex-col gap-1">
+              <ProgressBar
+                label="Net vs annual goal"
+                valueLabel={`${formatMoney(summary.net)} / ${formatMoney(netGoals.annual)}`}
+                value={netGoals.annual > 0 ? Math.min(100, Math.max(0, (summary.net / netGoals.annual) * 100)) : 0}
+                tone={summary.net >= netGoals.annual ? "positive" : "accent"}
               />
             </Card>
           ) : null}
@@ -342,19 +364,19 @@ export default async function PerformancePage({ searchParams }: PageProps) {
           broker/lane as bar charts instead of plain number rows. */}
       <div className="mb-6 flex flex-col gap-3 lg:hidden">
         <Card>
-          <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Net vs gross · trailing {TREND_MONTHS} months</p>
+          <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Net vs gross · {trendLabel}</p>
           <div className="mt-3">
             <DualTrendChart points={dualTrend} />
           </div>
         </Card>
         <Card>
-          <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Gross vs net $/loaded-mi · trailing {TREND_MONTHS} months</p>
+          <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Gross vs net $/loaded-mi · {trendLabel}</p>
           <div className="mt-3">
             <RateTrendChart points={rateTrend} />
           </div>
         </Card>
         <Card>
-          <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Loads booked · trailing {TREND_MONTHS} months</p>
+          <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Loads booked · {trendLabel}</p>
           <div className="mt-3">
             <TrendChart points={volumeTrend} formatValue={(v) => String(Math.round(v))} />
           </div>
@@ -368,23 +390,23 @@ export default async function PerformancePage({ searchParams }: PageProps) {
         </Card>
       </div>
 
-      {/* Desktop — unchanged (later PC pass owns this). */}
+      {/* Desktop */}
       <div className="hidden lg:block">
         <div className="mb-6 grid grid-cols-1 gap-3 lg:grid-cols-2">
           <Card>
-            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Net vs gross · trailing {TREND_MONTHS} months</p>
+            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Net vs gross · {trendLabel}</p>
             <div className="mt-3">
               <DualTrendChart points={dualTrend} />
             </div>
           </Card>
           <Card>
-            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Gross vs net $/loaded-mi · trailing {TREND_MONTHS} months</p>
+            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Gross vs net $/loaded-mi · {trendLabel}</p>
             <div className="mt-3">
               <RateTrendChart points={rateTrend} />
             </div>
           </Card>
           <Card>
-            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Loads booked · trailing {TREND_MONTHS} months</p>
+            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Loads booked · {trendLabel}</p>
             <div className="mt-3">
               <TrendChart points={volumeTrend} formatValue={(v) => String(Math.round(v))} />
             </div>
@@ -395,9 +417,7 @@ export default async function PerformancePage({ searchParams }: PageProps) {
           <InsightsStrip items={insights} />
         </div>
 
-        {drillTitle && drillLoads ? (
-          <PartyDrillDown title={drillTitle} loads={drillLoads} closeHref={drillCloseHref} fromPath={buildHref(sp, {})} />
-        ) : null}
+        {drillTitle && drillLoads ? <PartyDrillDown title={drillTitle} loads={drillLoads} closeHref={drillCloseHref} fromPath={fromPath} /> : null}
 
         <div className="flex flex-col gap-6">
           <PartyTable
@@ -433,6 +453,9 @@ export default async function PerformancePage({ searchParams }: PageProps) {
           <h2 className="text-[15px] font-semibold text-fg">Load performance</h2>
           <form action="/tms-v2/performance" method="GET" className="flex items-center gap-1.5">
             {view.mode === "month" ? <input type="hidden" name="month" value={monthParam(view.period)} /> : null}
+            {view.mode === "year" ? <input type="hidden" name="year" value={String(view.year)} /> : null}
+            {view.mode === "ytd" ? <input type="hidden" name="range" value="ytd" /> : null}
+            {view.mode === "range" ? <input type="hidden" name="range" value={view.preset} /> : null}
             {view.mode === "custom" ? <input type="hidden" name="from" value={view.from} /> : null}
             {view.mode === "custom" ? <input type="hidden" name="to" value={view.to} /> : null}
             <input
@@ -455,7 +478,7 @@ export default async function PerformancePage({ searchParams }: PageProps) {
             dir: loadDir,
             hrefFor: (key) => buildHref(sp, { loadSort: key, loadDir: loadSortKey === key && loadDir === "desc" ? "asc" : "desc", loadPage: undefined }),
           }}
-          fromPath={buildHref(sp, {})}
+          fromPath={fromPath}
         />
 
         <div className="flex items-center justify-between text-[13px] text-fg-muted">
@@ -475,6 +498,15 @@ export default async function PerformancePage({ searchParams }: PageProps) {
             ) : null}
           </div>
         </div>
+      </section>
+
+      {/* Trip Analysis (Phase 2 item 5) — trips touched by this period, all-in
+          financials via the same computeTripNet the Trips list/detail use.
+          Personal-conveyance miles surface ONLY here (Option C) — never in
+          the top-level mileage KPIs above. */}
+      <section className="mt-6 flex flex-col gap-2">
+        <h2 className="text-[15px] font-semibold text-fg">Trip performance</h2>
+        <TripPerformanceTable trips={trips} fromPath={fromPath} />
       </section>
     </PageScroll>
   );
