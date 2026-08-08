@@ -36,8 +36,12 @@ export function ArchivedApplicationsSection({ applications }: { applications: Ar
 
   async function onRestore(id: string) {
     setPendingId(id);
-    await restoreApplication(id);
+    const result = await restoreApplication(id);
     setPendingId(null);
+    if (!result.ok) {
+      alert(result.reason);
+      return;
+    }
     router.refresh();
   }
 

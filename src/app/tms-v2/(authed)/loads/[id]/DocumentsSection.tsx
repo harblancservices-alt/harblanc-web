@@ -132,7 +132,11 @@ function DocKindBlock({
 
   async function onDelete(doc: LoadDocumentItem) {
     if (!confirm(`Delete "${doc.name}"? This can't be undone.`)) return;
-    await deleteLoadDocument(doc.id, loadId);
+    const res = await deleteLoadDocument(doc.id, loadId);
+    if (!res.ok) {
+      setErr(res.reason);
+      return;
+    }
     router.refresh();
   }
 

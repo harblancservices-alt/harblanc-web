@@ -30,8 +30,12 @@ export function ArchivedLeadsSection({ leads }: { leads: ArchivedLeadRow[] }) {
 
   async function onRestore(id: string) {
     setPendingId(id);
-    await restoreLead(id);
+    const result = await restoreLead(id);
     setPendingId(null);
+    if (!result.ok) {
+      alert(result.reason);
+      return;
+    }
     router.refresh();
   }
 

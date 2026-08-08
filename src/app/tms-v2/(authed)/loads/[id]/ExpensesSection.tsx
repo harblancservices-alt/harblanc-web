@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Money } from "@/components/tms-v2/ui/Money";
 import { Button } from "@/components/tms-v2/ui/Button";
@@ -35,6 +35,7 @@ export function ExpensesSection({
   editing?: boolean;
 }) {
   const router = useRouter();
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const [state, formAction, pending] = useActionState<SaveState, FormData>(async (_prev, formData) => {
     const result: MutationResult = await addLoadExpense(loadId, formData);
@@ -50,12 +51,18 @@ export function ExpensesSection({
 
   async function onDelete(expenseId: string) {
     if (!confirm("Delete this expense?")) return;
-    await deleteLoadExpense(expenseId, loadId);
+    setDeleteError(null);
+    const result = await deleteLoadExpense(expenseId, loadId);
+    if (!result.ok) {
+      setDeleteError(result.reason);
+      return;
+    }
     router.refresh();
   }
 
   return (
     <div className="flex flex-col gap-1.5">
+      {deleteError ? <p className="text-[12px] font-medium text-bad">{deleteError}</p> : null}
       {items.map((e) => (
         <div key={e.id} className="flex items-center justify-between gap-2 text-[13px]">
           <span className="min-w-0 truncate text-fg">

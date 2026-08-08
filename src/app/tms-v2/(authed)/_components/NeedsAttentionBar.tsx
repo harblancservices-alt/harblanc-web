@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type { AttentionCategory, AttentionItem } from "@/lib/data/attention";
 import { dismissAlert, restoreAlert } from "@/actions/tms-v2/attention";
+import type { MutationResult } from "@/lib/demo/mutation";
 
 const CATEGORY_LABEL: Partial<Record<AttentionCategory, string>> = {
   maintenance: "Maintenance",
@@ -60,7 +61,9 @@ export function NeedsAttentionBar({ items }: { items: AttentionItem[] }) {
   const [open, setOpen] = useState(false);
   const [openCategories, setOpenCategories] = useState<Set<AttentionCategory>>(new Set());
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
+  const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
   const [pendingUndo, setPendingUndo] = useState<AttentionItem | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -69,30 +72,53 @@ export function NeedsAttentionBar({ items }: { items: AttentionItem[] }) {
     };
   }, []);
 
+  // Hide/restore only happen once the write actually confirms — an
+  // optimistic hide-then-write here would silently desync the visible list
+  // from the database on a failed request (the audit's finding). The
+  // pendingIds disable state gives the same "it registered" feedback an
+  // optimistic update would, without pretending success early.
   async function onDismiss(e: React.MouseEvent, item: AttentionItem) {
     e.preventDefault();
     e.stopPropagation();
+    setError(null);
+    setPendingIds((prev) => new Set(prev).add(item.id));
+    const result: MutationResult = await dismissAlert(item.id);
+    setPendingIds((prev) => {
+      const next = new Set(prev);
+      next.delete(item.id);
+      return next;
+    });
+    if (!result.ok) {
+      setError(result.reason);
+      return;
+    }
     setHiddenIds((prev) => new Set(prev).add(item.id));
     setPendingUndo(item);
     if (undoTimer.current) clearTimeout(undoTimer.current);
     undoTimer.current = setTimeout(() => {
       setPendingUndo((cur) => (cur?.id === item.id ? null : cur));
     }, UNDO_WINDOW_MS);
-    await dismissAlert(item.id);
     router.refresh();
   }
 
   async function onUndo() {
     if (!pendingUndo) return;
     const item = pendingUndo;
+    setError(null);
     if (undoTimer.current) clearTimeout(undoTimer.current);
     setPendingUndo(null);
+    const result: MutationResult = await restoreAlert(item.id);
+    if (!result.ok) {
+      setError(result.reason);
+      // The item stays hidden — restore failed, so it's still dismissed in
+      // the database; re-showing it here would desync from that.
+      return;
+    }
     setHiddenIds((prev) => {
       const next = new Set(prev);
       next.delete(item.id);
       return next;
     });
-    await restoreAlert(item.id);
     router.refresh();
   }
 
@@ -116,6 +142,7 @@ export function NeedsAttentionBar({ items }: { items: AttentionItem[] }) {
           <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-ok text-white">✓</span>
           <span className="text-[13px] font-medium text-ok">All clear — nothing needs attention.</span>
         </div>
+        {error ? <p className="mt-2 text-[13px] font-medium text-bad">{error}</p> : null}
         <UndoBar item={pendingUndo} onUndo={onUndo} />
       </>
     );
@@ -206,10 +233,11 @@ export function NeedsAttentionBar({ items }: { items: AttentionItem[] }) {
                         <button
                           type="button"
                           onClick={(e) => onDismiss(e, item)}
+                          disabled={pendingIds.has(item.id)}
                           aria-label={`Dismiss ${item.title}`}
-                          className="shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-medium text-fg-subtle hover:bg-card hover:text-fg"
+                          className="shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-medium text-fg-subtle hover:bg-card hover:text-fg disabled:opacity-50"
                         >
-                          Dismiss
+                          {pendingIds.has(item.id) ? "…" : "Dismiss"}
                         </button>
                       </Link>
                     ))}
@@ -228,6 +256,7 @@ export function NeedsAttentionBar({ items }: { items: AttentionItem[] }) {
           </div>
         ) : null}
       </div>
+      {error ? <p className="mt-2 text-[13px] font-medium text-bad">{error}</p> : null}
       <UndoBar item={pendingUndo} onUndo={onUndo} />
     </>
   );

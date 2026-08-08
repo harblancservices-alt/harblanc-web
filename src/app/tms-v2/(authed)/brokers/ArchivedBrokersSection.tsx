@@ -12,13 +12,19 @@ export function ArchivedBrokersSection({ brokers }: { brokers: ArchivedBrokerRow
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   if (brokers.length === 0) return null;
 
   async function onRestore(id: string) {
     setPendingId(id);
-    await restoreBroker(id);
+    setError(null);
+    const result = await restoreBroker(id);
     setPendingId(null);
+    if (!result.ok) {
+      setError(result.reason);
+      return;
+    }
     router.refresh();
   }
 
@@ -29,6 +35,7 @@ export function ArchivedBrokersSection({ brokers }: { brokers: ArchivedBrokerRow
       </button>
       {open ? (
         <div className="mt-2 flex flex-col gap-1.5">
+          {error ? <p className="text-[12px] font-medium text-bad">{error}</p> : null}
           {brokers.map((b) => (
             <div key={b.id} className="flex items-center justify-between gap-3 rounded-md border border-line px-3 py-2 text-[13px]">
               <span className="text-fg">{b.name}</span>

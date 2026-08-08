@@ -30,6 +30,7 @@ export function PaymentSection({
 }) {
   const router = useRouter();
   const [adding, setAdding] = useState(false);
+  const [undoError, setUndoError] = useState<string | null>(null);
   const sentQuotes = finalizedQuotes.filter((f) => f.sentAt != null);
 
   const [state, formAction, pending] = useActionState<SaveState, FormData>(async (_prev, formData) => {
@@ -46,7 +47,12 @@ export function PaymentSection({
 
   async function onUndo(paymentId: string) {
     if (!confirm("Undo this payment? This does not roll back an auto-advanced lead status.")) return;
-    await softDeletePayment(paymentId, quoteRequestId);
+    setUndoError(null);
+    const result: MutationResult = await softDeletePayment(paymentId, quoteRequestId);
+    if (!result.ok) {
+      setUndoError(result.reason);
+      return;
+    }
     router.refresh();
   }
 
@@ -56,6 +62,7 @@ export function PaymentSection({
 
   return (
     <div className="flex flex-col gap-2">
+      {undoError ? <p className="text-[13px] font-medium text-bad">{undoError}</p> : null}
       {entries.length > 0 ? (
         <div className="rounded-xl border border-line bg-card px-3 shadow-e1">
           {entries.map((p) => (

@@ -758,20 +758,33 @@ export async function recordLoadDocuments(
 export async function deleteLoadDocument(
   docId: string,
   loadId: string,
-): Promise<void> {
-  if (await blockedByDemo()) return; // DEMO: no-op before any DB/storage write.
-  const sb = createServiceRoleClient();
-  const { data: row } = await sb
-    .from("load_documents")
-    .select("id, storage_path")
-    .eq("id", docId)
-    .eq("load_id", loadId)
-    .maybeSingle<{ id: string; storage_path: string }>();
-  if (!row) return;
-  await sb.storage.from(DOC_BUCKET).remove([row.storage_path]);
-  await sb.from("load_documents").delete().eq("id", row.id);
-  revalidatePath(`/admin/dispatch/loads/${loadId}`);
-  revalidatePath("/admin");
+): Promise<DocUploadResult> {
+  if (await blockedByDemo()) {
+    return { ok: false, reason: "Demo mode — document deletion is disabled." };
+  }
+  try {
+    const sb = createServiceRoleClient();
+    const { data: row } = await sb
+      .from("load_documents")
+      .select("id, storage_path")
+      .eq("id", docId)
+      .eq("load_id", loadId)
+      .maybeSingle<{ id: string; storage_path: string }>();
+    if (!row) return { ok: false, reason: "Document not found." };
+    const { error: storageError } = await sb.storage.from(DOC_BUCKET).remove([row.storage_path]);
+    if (storageError) return { ok: false, reason: `Could not delete file: ${storageError.message}` };
+    const { error: dbError } = await sb.from("load_documents").delete().eq("id", row.id);
+    if (dbError) return { ok: false, reason: `Could not delete document: ${dbError.message}` };
+    revalidatePath(`/admin/dispatch/loads/${loadId}`);
+    revalidatePath("/admin");
+    return { ok: true };
+  } catch (e) {
+    console.error("[deleteLoadDocument] failed:", e);
+    return {
+      ok: false,
+      reason: `Could not delete document: ${e instanceof Error ? e.message : "unexpected error"}`,
+    };
+  }
 }
 
 // ── BOL signatures (Receiver + Carrier) ────────────────────────────────────

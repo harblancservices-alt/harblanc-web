@@ -50,9 +50,10 @@ export async function recordLoadDocuments(loadId: string, kind: string, docs: Re
   return res;
 }
 
-export async function deleteLoadDocument(docId: string, loadId: string): Promise<void> {
-  await legacyDeleteLoadDocument(docId, loadId);
-  revalidateLoadDocPaths(loadId);
+export async function deleteLoadDocument(docId: string, loadId: string): Promise<DocUploadResult> {
+  const res = await legacyDeleteLoadDocument(docId, loadId);
+  if (res.ok) revalidateLoadDocPaths(loadId);
+  return res;
 }
 
 export async function signBolRole(

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import type { MutationResult } from "@/lib/demo/mutation";
 import { useRouter } from "next/navigation";
 import { DataList, type DataListColumn } from "@/components/tms-v2/ui/DataList";
 import { DateTimeCST } from "@/components/tms-v2/ui/DateTimeCST";
@@ -18,27 +19,36 @@ import { suggestedNext, isLeadStatus, LEAD_STATUS_LABELS } from "@/lib/dispatch/
 function AdvanceCell({ lead }: { lead: LeadListRow }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
   const next = isLeadStatus(lead.leadStatus) ? suggestedNext(lead.leadStatus) : null;
   if (!next) return null;
 
   function onClick(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
+    setError(null);
     startTransition(async () => {
-      await advanceLeadStatus(lead.id, next as string);
+      const result: MutationResult = await advanceLeadStatus(lead.id, next as string);
+      if (!result.ok) {
+        setError(result.reason);
+        return;
+      }
       router.refresh();
     });
   }
 
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={pending}
-      className="rounded-md border border-line-strong bg-card px-2 py-1 text-[12px] font-medium text-fg hover:bg-elevated disabled:opacity-50"
-    >
-      {pending ? "…" : `→ ${LEAD_STATUS_LABELS[next]}`}
-    </button>
+    <span className="inline-flex flex-col items-end gap-0.5">
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={pending}
+        className="rounded-md border border-line-strong bg-card px-2 py-1 text-[12px] font-medium text-fg hover:bg-elevated disabled:opacity-50"
+      >
+        {pending ? "…" : `→ ${LEAD_STATUS_LABELS[next]}`}
+      </button>
+      {error ? <span className="text-[11px] font-medium text-bad">{error}</span> : null}
+    </span>
   );
 }
 
