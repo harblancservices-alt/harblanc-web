@@ -73,7 +73,7 @@ export function LoadBoardListClient({
           <p className="text-[13px] text-fg-muted">{emptyMessage}</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3">
           {loads.map((l) => (
             <LoadCard
               key={l.id}

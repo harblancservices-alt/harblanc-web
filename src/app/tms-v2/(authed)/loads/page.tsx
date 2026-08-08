@@ -1,16 +1,21 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
-import { listLoads, getLoadBoardSummary } from "@/lib/data/loads";
+import { listLoads, listArchivedLoads, type LoadStatus, type LoadSortKey, type LoadWithFinancials } from "@/lib/data/loads";
 import { listBrokers } from "@/lib/data/brokers";
 import { listTrips } from "@/lib/data/trips";
 import { getDispatchSettingsSummary } from "@/lib/data/settings";
 import { getAnalyticsLoads, dayAfter } from "@/lib/data/analytics";
 import { summarize } from "@/lib/dispatch/performance";
-import { currentPeriod, periodLabel, type Period } from "@/lib/domain/attribution";
+import { currentPeriod, periodLabel, periodRange, type Period } from "@/lib/domain/attribution";
+import { withReturnTo } from "@/lib/nav/return-to";
 import { DEFAULT_PAGE_SIZE } from "@/lib/data/pagination";
 import { LoadBoardListClient } from "./LoadBoardListClient";
 import { LoadBoardTopRow } from "./LoadBoardTopRow";
+import { LoadBoardDesktopToolbar } from "./LoadBoardDesktopToolbar";
+import { LoadBoardSummaryStrip } from "./LoadBoardSummaryStrip";
+import { LoadBoardDesktopTable } from "./LoadBoardDesktopTable";
+import { ArchivedLoadsSection } from "./ArchivedLoadsSection";
 import type { LoadBoardView } from "./MonthDropdown";
 import { LoadBoardSelectionProvider } from "./LoadBoardSelectionProvider";
 import { LoadBoardGoalCard } from "./LoadBoardGoalCard";
@@ -44,43 +49,91 @@ function parseView(sp: SearchParams): LoadBoardView {
   return { mode: "month", month: parsePeriod(sp).month };
 }
 
+const STATUS_VALUES: LoadStatus[] = ["pending", "assigned", "loaded", "delivered", "tonu"];
+function parseStatus(sp: SearchParams): LoadStatus | undefined {
+  const v = first(sp.status);
+  return v && (STATUS_VALUES as string[]).includes(v) ? (v as LoadStatus) : undefined;
+}
+
+// In-memory sort of the currently-fetched page — desktop-table-only
+// (Brent's mockup wants Miles/Gross/Net/Net-$/mi sortable, none of which
+// listLoads()'s own DB-level `sort` supports — see LoadSortKey's own
+// comment on why: they're derived post-query by the money engine, not raw
+// columns SQL can ORDER BY without computing the whole page first). Every
+// value sorted here is already the canonical computed figure
+// (`financials`), never re-derived — this only orders rows that are
+// already on the page, it doesn't touch the query or the math.
+const DESKTOP_SORT_KEYS = new Set(["number", "status", "pickup", "broker", "miles", "gross", "net", "netRpm"]);
+function sortForDesktop(rows: LoadWithFinancials[], key: string | undefined, dir: "asc" | "desc"): LoadWithFinancials[] {
+  if (!key || !DESKTOP_SORT_KEYS.has(key)) return rows;
+  const mul = dir === "asc" ? 1 : -1;
+  const val = (l: LoadWithFinancials): number | string => {
+    switch (key) {
+      case "number":
+        return l.loadNumber ?? "";
+      case "status":
+        return l.status;
+      case "pickup":
+        return l.pickupDate ?? "";
+      case "broker":
+        return l.brokerName ?? "";
+      case "miles":
+        return l.financials.loadedMiles;
+      case "gross":
+        return l.financials.gross;
+      case "net":
+        return l.financials.net;
+      case "netRpm":
+        return l.financials.loadedMiles > 0 ? l.financials.net / l.financials.loadedMiles : -Infinity;
+      default:
+        return "";
+    }
+  };
+  return [...rows].sort((a, b) => {
+    const av = val(a);
+    const bv = val(b);
+    const cmp = typeof av === "string" ? av.localeCompare(bv as string) : (av as number) - (bv as number);
+    return cmp * mul;
+  });
+}
+
 /**
- * Load Board — mirrors legacy /admin's board OPERATION: a period-dependent
- * goal card, a full-width Add load button, and rich shipment-timeline
- * load cards instead of a table.
+ * Load Board.
  *
- * Per Brent's follow-up mobile review: Delete moved off the button row
- * (it was a two-button Add load/Delete split before this) and up to a
- * small trash-icon button in the top row, grouped with the month
- * dropdown on the right (LoadBoardTopRow) — tapping it enters the same
- * delete/select mode. Add load is now the only, full-width button below.
- * Select-mode state is lifted into LoadBoardSelectionProvider so the
- * top-row trigger and the card grid (LoadBoardListClient), which live in
- * different PageScroll slots, can share it.
+ * MOBILE (<lg): unchanged — Brent's explicit ask, this pass is desktop-
+ * only. Goal card, full-width Add-load button + card grid, month-only
+ * dropdown + delete-select mode all stay exactly as they were.
  *
- * Per Brent's correction to the month dropdown + goal: the dropdown now
- * lists all 12 months of the resolved year PLUS "Year to date" and "All"
- * (MonthDropdown) — it was missing the individual months and both of
- * those before. The selection drives BOTH which loads show and which
- * Settings goal the card targets: a specific month -> the $10,000
- * MONTHLY goal and that month's net; "Year to date" -> the $120,000
- * ANNUAL goal and Jan-1-through-today net; "All" -> the $120,000 ANNUAL
- * goal and all-time net. Both goal figures come from
- * getDispatchSettingsSummary() (dispatch_settings.monthly_net_goal /
- * annual_net_goal) — never hardcoded (LoadBoardGoalCard, replacing the
- * old YTD-only AnnualGoalCard).
+ * DESKTOP (lg+, this pass, per Brent's approved mockup): a slim toolbar
+ * (title, period prev/next+dropdown, status filter, search, a small
+ * "+ Add load") — no goal banner, no full-width Add button; a quiet
+ * one-line summary strip; a dense sortable DataList table (Load #/Status/
+ * Pickup/Delivery/Broker/Lane/Miles/Gross/Net/Net-$/mi) with a totals
+ * footer row; deleted-loads access (ArchivedLoadsSection, ported in here
+ * for the first time — it existed in code but was never actually rendered
+ * anywhere before this).
  *
- * "Year to date"/"All" scope the loads list itself via
- * lib/data/loads.ts's new `dateRange` option (reusing the same
- * loadsPeriodFilter() attribution-fallback filter periodRange() already
- * built on) — "All" passes no period/dateRange at all, which the data
- * layer already treated as "every load," no new capability needed there.
+ * Both breakpoints share the SAME `listLoads()` fetch (no forked query)
+ * and the SAME canonical `financials` on each row — the desktop table
+ * only sorts/displays what's already computed, never recalculates.
+ *
+ * Note: the footer/strip totals are the period's REAL totals
+ * (getAnalyticsLoads + summarize(), matching Performance's own aggregation
+ * exactly), not a sum of whatever page of rows the table happens to be
+ * showing — the same reason the old goal card never derived its figure
+ * from listResult.rows either. They only diverge from the visible table's
+ * own sum if a period has more than one page of loads (DEFAULT_PAGE_SIZE
+ * = 25), which is realistically rare at this business's scale.
  */
 export default async function LoadsPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const sp = await searchParams;
   const view = parseView(sp);
   const period = parsePeriod(sp);
   const page = Math.max(1, Number(first(sp.page)) || 1);
+  const status = parseStatus(sp);
+  const q = first(sp.q)?.trim() || undefined;
+  const sortKey = first(sp.sort);
+  const sortDir: "asc" | "desc" = first(sp.dir) === "asc" ? "asc" : "desc";
 
   const today = new Date();
   const todayIso = today.toISOString().slice(0, 10);
@@ -88,25 +141,38 @@ export default async function LoadsPage({ searchParams }: { searchParams: Promis
 
   const scopedListOpts =
     view.mode === "month"
-      ? { period, page, pageSize: DEFAULT_PAGE_SIZE }
+      ? { period, page, pageSize: DEFAULT_PAGE_SIZE, status, search: q }
       : view.mode === "ytd"
-        ? { dateRange: { start: ytdStart, end: dayAfter(todayIso) }, page, pageSize: DEFAULT_PAGE_SIZE }
-        : { page, pageSize: DEFAULT_PAGE_SIZE }; // "all" — no period/dateRange means every load
+        ? { dateRange: { start: ytdStart, end: dayAfter(todayIso) }, page, pageSize: DEFAULT_PAGE_SIZE, status, search: q }
+        : { page, pageSize: DEFAULT_PAGE_SIZE, status, search: q }; // "all" — no period/dateRange means every load
 
-  const [listResult, brokersPage, activeTripsPage, settings, goalNet] = await Promise.all([
+  // One period-complete range for the summary/footer totals — never the
+  // paginated listResult.rows, which can be a partial page.
+  const summaryRange =
+    view.mode === "month" ? periodRange(period) : { start: view.mode === "ytd" ? ytdStart : ALL_TIME_START, end: dayAfter(todayIso) };
+
+  const [listResult, brokersPage, activeTripsPage, summaryLoads, archived, settings] = await Promise.all([
     listLoads(scopedListOpts),
     listBrokers({ pageSize: 100 }),
     listTrips({ status: "active", pageSize: 100 }),
+    getAnalyticsLoads(summaryRange),
+    listArchivedLoads(),
     getDispatchSettingsSummary(),
-    view.mode === "month"
-      ? getLoadBoardSummary(period).then((s) => s.net)
-      : getAnalyticsLoads({ start: view.mode === "ytd" ? ytdStart : ALL_TIME_START, end: dayAfter(todayIso) }).then((rows) => summarize(rows).net),
   ]);
   const brokerNames = brokersPage.rows.map((b) => b.name);
   const activeTripNames = activeTripsPage.rows.map((t) => t.name).filter((n): n is string => !!n);
+  const summary = summarize(summaryLoads);
 
+  // Mobile goal card target — a specific month targets the MONTHLY goal,
+  // "Year to date"/"All" both target the ANNUAL goal (Brent's earlier
+  // correction, unchanged by this pass). The desktop strip/table have no
+  // goal concept at all (Brent's mockup explicitly drops the goal banner
+  // there) — `summary.net` is reused as both the mobile card's "net so
+  // far" and the desktop figures, but `goal`/`goalLabel` are mobile-only.
   const goal = view.mode === "month" ? settings.monthlyNetGoal : settings.annualNetGoal;
   const goalLabel = view.mode === "month" ? `${periodLabel(period)} net goal` : view.mode === "ytd" ? "Annual net goal · year to date" : "Annual net goal · all-time";
+
+  const viewLabel = view.mode === "month" ? periodLabel(period) : view.mode === "ytd" ? "Year to date" : "All time";
 
   // The base query string for this view — reused by pagination, row
   // selection, and the redirect-clamp below so all of them stay scoped
@@ -119,6 +185,8 @@ export default async function LoadsPage({ searchParams }: { searchParams: Promis
     } else {
       params.set("view", view.mode);
     }
+    if (status) params.set("status", status);
+    if (q) params.set("q", q);
     return params;
   }
 
@@ -140,18 +208,46 @@ export default async function LoadsPage({ searchParams }: { searchParams: Promis
     return `/tms-v2/loads?${params.toString()}`;
   }
 
+  function sortHrefFor(key: string): string {
+    const params = baseParams();
+    const nextDir = sortKey === key && sortDir === "desc" ? "asc" : "desc";
+    params.set("sort", key);
+    params.set("dir", nextDir);
+    return `/tms-v2/loads?${params.toString()}`;
+  }
+
   // This exact view (month/ytd/all + page) — handed to LoadBoardListClient
   // so a load opened from here returns to the same view, not a reset
   // "current month" (lib/nav/return-to.ts).
   const fromPath = page > 1 ? pageHref(page) : (() => { const qs = baseParams().toString(); return qs ? `/tms-v2/loads?${qs}` : "/tms-v2/loads"; })();
 
+  const desktopRows = sortForDesktop(listResult.rows, sortKey, sortDir);
+
   return (
     <LoadBoardSelectionProvider>
     <PageScroll
-      header={<LoadBoardTopRow year={period.year} view={view} hasLoads={listResult.rows.length > 0} />}
+      header={
+        <>
+          <div className="lg:hidden">
+            <LoadBoardTopRow year={period.year} view={view} hasLoads={listResult.rows.length > 0} />
+          </div>
+          <div className="hidden lg:block">
+            <LoadBoardDesktopToolbar
+              year={period.year}
+              view={view}
+              status={status}
+              q={q}
+              brokerNames={brokerNames}
+              activeTripNames={activeTripNames}
+              otherParams={sortKey ? { sort: sortKey, dir: sortDir } : {}}
+            />
+          </div>
+        </>
+      }
     >
-      <div className="flex flex-col gap-4">
-        <LoadBoardGoalCard label={goalLabel} goal={goal} net={goalNet} />
+      {/* MOBILE — unchanged. */}
+      <div className="flex flex-col gap-4 lg:hidden">
+        <LoadBoardGoalCard label={goalLabel} goal={goal} net={summary.net} />
 
         <LoadBoardListClient
           loads={listResult.rows}
@@ -160,28 +256,43 @@ export default async function LoadsPage({ searchParams }: { searchParams: Promis
           emptyMessage="No loads in this view."
           fromPath={fromPath}
         />
-
-        {listResult.hasMore || page > 1 ? (
-          <div className="flex items-center justify-end gap-2">
-            {page > 1 ? (
-              <Link
-                href={pageHref(page - 1)}
-                className="rounded-md border border-line-strong px-3 py-1.5 text-[13px] font-medium text-fg hover:bg-elevated"
-              >
-                Previous
-              </Link>
-            ) : null}
-            {listResult.hasMore ? (
-              <Link
-                href={pageHref(page + 1)}
-                className="rounded-md border border-line-strong px-3 py-1.5 text-[13px] font-medium text-fg hover:bg-elevated"
-              >
-                Next
-              </Link>
-            ) : null}
-          </div>
-        ) : null}
       </div>
+
+      {/* DESKTOP — new, per Brent's approved mockup. */}
+      <div className="hidden flex-col gap-4 lg:flex">
+        <LoadBoardSummaryStrip summary={summary} />
+
+        <LoadBoardDesktopTable
+          loads={desktopRows}
+          sort={{ activeKey: sortKey ?? null, dir: sortDir, hrefFor: sortHrefFor }}
+          summary={summary}
+          periodLabel={viewLabel}
+          getHref={(id) => withReturnTo(`/tms-v2/loads/${id}`, fromPath)}
+        />
+
+        <ArchivedLoadsSection loads={archived} />
+      </div>
+
+      {listResult.hasMore || page > 1 ? (
+        <div className="mt-4 flex items-center justify-end gap-2">
+          {page > 1 ? (
+            <Link
+              href={pageHref(page - 1)}
+              className="rounded-md border border-line-strong px-3 py-1.5 text-[13px] font-medium text-fg hover:bg-elevated"
+            >
+              Previous
+            </Link>
+          ) : null}
+          {listResult.hasMore ? (
+            <Link
+              href={pageHref(page + 1)}
+              className="rounded-md border border-line-strong px-3 py-1.5 text-[13px] font-medium text-fg hover:bg-elevated"
+            >
+              Next
+            </Link>
+          ) : null}
+        </div>
+      ) : null}
     </PageScroll>
     </LoadBoardSelectionProvider>
   );

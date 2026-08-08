@@ -64,6 +64,12 @@ type DataListProps<T> = {
   emptyMessage?: string;
   selection?: DataListSelection;
   sort?: DataListSort;
+  /** Optional totals/summary band pinned under the desktop table, inside
+   * the same bordered card (Load Board's "N loads · period + summed
+   * miles/gross/net/$mi" row). Desktop-only, matching the table itself —
+   * not shown on the mobile card stack, which has no equivalent row to
+   * anchor a footer to. */
+  footer?: ReactNode;
 };
 
 export function DataList<T>({
@@ -74,6 +80,7 @@ export function DataList<T>({
   emptyMessage = "Nothing here yet.",
   selection,
   sort,
+  footer,
 }: DataListProps<T>) {
   if (rows.length === 0) {
     return (
@@ -95,7 +102,7 @@ export function DataList<T>({
           rows is a complete, simpler fix and kills this whole class of
           bug, not just this one repro. Rounded corners are approximated on
           the header/last row instead of clipped. */}
-      <div className="hidden rounded-xl border border-line bg-card shadow-e1 md:block">
+      <div className="hidden overflow-hidden rounded-xl border border-line bg-card shadow-e1 md:block">
         <table className="w-full border-collapse">
           <thead>
             <tr className="border-b border-line-strong bg-panel text-left">
@@ -177,6 +184,7 @@ export function DataList<T>({
             })}
           </tbody>
         </table>
+        {footer ? <div className="hidden border-t border-line-strong bg-elevated px-3 py-2.5 md:block">{footer}</div> : null}
       </div>
 
       {/* Mobile: stacked cards, same data model. */}
