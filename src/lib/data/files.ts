@@ -1,39 +1,41 @@
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { isDemoMode } from "@/lib/admin/demo";
-import { loadAllFiles, type FileItem, type FileSource } from "@/lib/admin/files";
-import { pageRange, toPaginated, type Paginated } from "./pagination";
+import { loadAllFiles, type FileCategory, type FileItem } from "@/lib/admin/files";
 
-export type { FileItem, FileSource } from "@/lib/admin/files";
+export type { FileItem, FileSource, FileCategory } from "@/lib/admin/files";
 
 export type FileRow = FileItem & {
-  /** Signed view/download URL — populated only for the current page's rows
-   * (lazy signing, per the audit's already-correct lever, moved server-side
-   * so only what's on screen is ever signed). */
+  /** Signed view/download URL — populated only for the current search/
+   * filter result set (lazy signing, per the audit's already-correct
+   * lever, moved server-side). */
   url: string | null;
   thumbUrl: string | null;
 };
 
 export type ListFilesOptions = {
-  page: number;
-  pageSize: number;
   q?: string;
-  source?: FileSource;
+  /** Scope to one document type (rate_con/bol/signed_bol/pod/load_other/
+   * receipt/application) — replaces the old coarser `source` (load/
+   * receipt/intake) filter now that the page groups/colors by the finer
+   * category instead. */
+  category?: FileCategory;
 };
 
-export type FileSourceCounts = Record<FileSource, number>;
+export type FileCategoryCounts = Partial<Record<FileCategory, number>>;
 
-export type FilesPage = Paginated<FileRow> & { counts: FileSourceCounts };
-
-const EMPTY_COUNTS: FileSourceCounts = { load: 0, receipt: 0, intake: 0 };
+export type FilesPage = { rows: FileRow[]; totalCount: number; counts: FileCategoryCounts };
 
 /**
- * Searchable, paginated view over /admin's existing canonical file
- * aggregation (`lib/admin/files.ts`'s `loadAllFiles()` — the one source of
- * truth for "every uploaded document," reused here rather than
- * reimplemented, per v2-architecture.md §2's "second copy shouldn't exist"
- * rule). This module adds what the admin Files page still does client-side:
- * search/type scoping and pagination happen here, server-side, so only the
- * current page's rows are ever serialized to the client or signed.
+ * Searchable view over /admin's existing canonical file aggregation
+ * (`lib/admin/files.ts`'s `loadAllFiles()` — the one source of truth for
+ * "every uploaded document," reused here rather than reimplemented, per
+ * v2-architecture.md §2's "second copy shouldn't exist" rule).
+ *
+ * No pagination (dropped 2026-08-08 when the page moved to per-type
+ * grouped sections — a "page" of results doesn't group cleanly, and this
+ * one-truck operation's realistic total is well under a hundred files, so
+ * signing and rendering everything that matches the current search/filter
+ * is simpler and still bounded in practice).
  *
  * Bypasses the shared `DataSource` interface deliberately, the same way
  * `lib/data/loads.ts`'s `getLoadDetail()` does — Files/Camera aren't in
@@ -42,7 +44,7 @@ const EMPTY_COUNTS: FileSourceCounts = { load: 0, receipt: 0, intake: 0 };
  */
 export async function listFiles(opts: ListFilesOptions): Promise<FilesPage> {
   if (await isDemoMode()) {
-    return { rows: [], totalCount: 0, hasMore: false, counts: EMPTY_COUNTS };
+    return { rows: [], totalCount: 0, counts: {} };
   }
 
   const all = await loadAllFiles();
@@ -50,22 +52,16 @@ export async function listFiles(opts: ListFilesOptions): Promise<FilesPage> {
   const q = opts.q?.trim().toLowerCase();
   const searchFiltered = q ? all.filter((f) => f.searchText.includes(q)) : all;
 
-  const counts: FileSourceCounts = { load: 0, receipt: 0, intake: 0 };
-  for (const item of searchFiltered) counts[item.source] += 1;
+  const counts: FileCategoryCounts = {};
+  for (const item of searchFiltered) counts[item.category] = (counts[item.category] ?? 0) + 1;
 
-  const filtered = opts.source
-    ? searchFiltered.filter((f) => f.source === opts.source)
-    : searchFiltered;
+  const filtered = opts.category ? searchFiltered.filter((f) => f.category === opts.category) : searchFiltered;
 
-  const totalCount = filtered.length;
-  const { from, to } = pageRange(opts.page, opts.pageSize);
-  const pageItems = filtered.slice(from, to + 1);
-
-  const rows = await signPage(pageItems);
-  return { ...toPaginated(rows, totalCount, opts.page, opts.pageSize), counts };
+  const rows = await signAll(filtered);
+  return { rows, totalCount: filtered.length, counts };
 }
 
-async function signPage(items: FileItem[]): Promise<FileRow[]> {
+async function signAll(items: FileItem[]): Promise<FileRow[]> {
   if (items.length === 0) return [];
   const sb = createServiceRoleClient();
 
