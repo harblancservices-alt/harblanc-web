@@ -76,8 +76,11 @@ type ExpenseFields = {
   day_of_month: number | null;
   day_of_week: string | null;
   start_date: string | null;
+  end_date: string | null;
   card: string | null;
+  expense_account_id: string | null;
   autopay: boolean;
+  notes: string | null;
 };
 
 function parseFields(formData: FormData): { ok: true; fields: ExpenseFields } | { ok: false; reason: string } {
@@ -96,6 +99,11 @@ function parseFields(formData: FormData): { ok: true; fields: ExpenseFields } | 
   if (isOnetime && !isoDateOrNull(str(formData, "start_date"))) {
     return { ok: false, reason: "Pick a date." };
   }
+  const startDate = isoDateOrNull(str(formData, "start_date"));
+  const endDate = isoDateOrNull(str(formData, "end_date"));
+  if (startDate && endDate && endDate < startDate) {
+    return { ok: false, reason: "End date can't be before the start date." };
+  }
 
   return {
     ok: true,
@@ -107,11 +115,27 @@ function parseFields(formData: FormData): { ok: true; fields: ExpenseFields } | 
       frequency,
       day_of_month: isWeekly || isOnetime ? null : dayOfMonthOrNull(str(formData, "day_of_month")),
       day_of_week: isWeekly ? dayOfWeekOrNull(str(formData, "day_of_week")) : null,
-      start_date: isoDateOrNull(str(formData, "start_date")),
+      start_date: startDate,
+      end_date: endDate,
       card: str(formData, "card"),
+      expense_account_id: str(formData, "expense_account_id"),
       autopay: bool(formData, "autopay"),
+      notes: str(formData, "notes"),
     },
   };
+}
+
+/** Resolves the chosen payment account to both its id (the real FK) and its
+ * name (kept in `card` too, so /admin's ledger — which only reads `card`
+ * text — stays in sync without needing its own changes). Null fields when
+ * no account is selected. */
+async function resolveAccount(
+  sb: ReturnType<typeof createServiceRoleClient>,
+  expenseAccountId: string | null,
+): Promise<{ id: string | null; name: string | null }> {
+  if (!expenseAccountId) return { id: null, name: null };
+  const { data } = await sb.from("expense_accounts").select("id, name").eq("id", expenseAccountId).maybeSingle<{ id: string; name: string }>();
+  return data ? { id: data.id, name: data.name } : { id: null, name: null };
 }
 
 export const addExpense = mutation(async (formData: FormData): Promise<MutationResult<{ id: string }>> => {
@@ -119,9 +143,10 @@ export const addExpense = mutation(async (formData: FormData): Promise<MutationR
   if (!parsed.ok) return { ok: false, reason: parsed.reason };
 
   const sb = createServiceRoleClient();
+  const account = await resolveAccount(sb, parsed.fields.expense_account_id);
   const { data, error } = await sb
     .from("recurring_expenses")
-    .insert({ ...parsed.fields, archived: false })
+    .insert({ ...parsed.fields, card: account.name ?? parsed.fields.card, expense_account_id: account.id, archived: false })
     .select("id")
     .single<{ id: string }>();
   if (error || !data) return { ok: false, reason: `Could not add expense: ${error?.message ?? "unknown error"}` };
@@ -135,9 +160,10 @@ export const editExpense = mutation(async (id: string, formData: FormData): Prom
   if (!parsed.ok) return { ok: false, reason: parsed.reason };
 
   const sb = createServiceRoleClient();
+  const account = await resolveAccount(sb, parsed.fields.expense_account_id);
   const { error } = await sb
     .from("recurring_expenses")
-    .update({ ...parsed.fields, updated_at: new Date().toISOString() })
+    .update({ ...parsed.fields, card: account.name ?? parsed.fields.card, expense_account_id: account.id, updated_at: new Date().toISOString() })
     .eq("id", id)
     .is("deleted_at", null);
   if (error) return { ok: false, reason: `Could not save expense: ${error.message}` };
@@ -258,7 +284,7 @@ export const duplicateExpense = mutation(async (id: string): Promise<MutationRes
   const sb = createServiceRoleClient();
   const { data: source, error: readError } = await sb
     .from("recurring_expenses")
-    .select("name, category, vendor, amount, frequency, day_of_month, day_of_week, start_date, card, autopay")
+    .select("name, category, vendor, amount, frequency, day_of_month, day_of_week, start_date, end_date, card, expense_account_id, autopay, notes")
     .eq("id", id)
     .is("deleted_at", null)
     .maybeSingle();

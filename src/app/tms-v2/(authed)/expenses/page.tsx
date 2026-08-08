@@ -117,7 +117,7 @@ export default async function ExpensesPage({
             }
           />
 
-          <ExpenseComposerPanel accountNames={accountNames} />
+          <ExpenseComposerPanel accounts={accounts} />
 
           {/* Mobile — thin totals strip, not the desktop's four KPI tiles. */}
           <div className="flex items-stretch divide-x divide-line rounded-xl border border-line bg-card shadow-e1 lg:hidden">
@@ -208,7 +208,7 @@ export default async function ExpensesPage({
 
     {selectedExpense ? (
       <ContextDrawer title={selectedExpense.vendor || selectedExpense.name} closeHref={closeHref}>
-        <ExpenseDrawerContent expense={selectedExpense} />
+        <ExpenseDrawerContent expense={selectedExpense} accounts={accounts} />
       </ContextDrawer>
     ) : null}
     </div>

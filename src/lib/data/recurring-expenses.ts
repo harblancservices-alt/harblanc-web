@@ -75,7 +75,7 @@ const WEEKDAY_INDEX: Record<string, number> = {
  * the exact same schedule math this module's own mapRow() uses for
  * nextChargeLabel/-DateIso, instead of a second derivation. */
 export function nextChargeDate(
-  e: { frequency: RecurringFrequency; dayOfMonth: number | null; dayOfWeek: string | null; startDate: string | null; skipNextDate: string | null },
+  e: { frequency: RecurringFrequency; dayOfMonth: number | null; dayOfWeek: string | null; startDate: string | null; skipNextDate: string | null; endDate?: string | null },
   today: Date,
 ): Date | null {
   const base = startOfDay(today);
@@ -109,6 +109,14 @@ export function nextChargeDate(
   }
 
   if (!occurrence) return null;
+
+  // A bill with a known payoff/cancellation date has no next charge once
+  // that occurrence would fall after it (equipment financing, a truck
+  // payment with a payoff date).
+  if (e.endDate) {
+    const end = parseIsoDate(e.endDate);
+    if (end && occurrence > end) return null;
+  }
 
   if (e.skipNextDate) {
     const skip = parseIsoDate(e.skipNextDate);
@@ -152,11 +160,19 @@ export type RecurringExpenseRow = {
   amount: number;
   monthlyAmount: number;
   frequency: RecurringFrequency;
+  /** Real FK when resolved (either a genuine expense_account_id column, or,
+   * pre-migration, a fallback match of `card` text against expense_accounts
+   * .name) — null when no account is set or none matches. */
+  expenseAccountId: string | null;
   cardName: string | null;
   cardType: string | null;
   cardLast4: string | null;
   autopay: boolean;
   archived: boolean;
+  notes: string | null;
+  /** Nullable payoff/cancellation date — a bill with one has no next charge
+   * past it (equipment financing, a truck payment with a payoff date). */
+  endDate: string | null;
   /** Preformatted server-side ("Today"/"Tomorrow"/"Aug 15"), CST-consistent
    * with the rest of /tms-v2 — quarterly/annual with no anchor render null. */
   nextChargeLabel: string | null;
@@ -203,10 +219,13 @@ type ExpenseDbRow = {
   day_of_month: number | null;
   day_of_week: string | null;
   start_date: string | null;
+  end_date?: string | null;
   card: string | null;
+  expense_account_id?: string | null;
   autopay: boolean | null;
   archived: boolean | null;
   skip_next_date: string | null;
+  notes: string | null;
 };
 
 type AccountDbRow = { id: string; name: string; type: string | null; last4: string | null };
@@ -216,23 +235,42 @@ type AccountDbRow = { id: string; name: string; type: string | null; last4: stri
  * so this stays local rather than growing that shared file mid-phase. */
 function demoRows(now: Date): RecurringExpenseRow[] {
   const raw: Array<Omit<ExpenseDbRow, "id"> & { id: string }> = [
-    { id: "demo-exp-insurance", name: "Progressive Insurance", category: "Insurance", vendor: "Progressive", amount: 410, frequency: "monthly", day_of_month: 15, day_of_week: null, start_date: null, card: "Chase Ink (Demo)", autopay: true, archived: false, skip_next_date: null },
-    { id: "demo-exp-truckpmt", name: "Ryder Lease", category: "Equipment", vendor: "Ryder", amount: 1280, frequency: "monthly", day_of_month: 1, day_of_week: null, start_date: null, card: "Business Checking (Demo)", autopay: true, archived: false, skip_next_date: null },
-    { id: "demo-exp-samsara", name: "Samsara ELD", category: "Software", vendor: "Samsara", amount: 450, frequency: "annual", day_of_month: 1, day_of_week: null, start_date: "2026-03-01", card: "Chase Ink (Demo)", autopay: true, archived: false, skip_next_date: null },
-    { id: "demo-exp-phone", name: "Verizon", category: "Utilities", vendor: "Verizon", amount: 95, frequency: "monthly", day_of_month: 20, day_of_week: null, start_date: null, card: "Chase Ink (Demo)", autopay: true, archived: false, skip_next_date: null },
+    { id: "demo-exp-insurance", name: "Progressive Insurance", category: "Insurance", vendor: "Progressive", amount: 410, frequency: "monthly", day_of_month: 15, day_of_week: null, start_date: null, end_date: null, card: "Chase Ink (Demo)", expense_account_id: "demo-acct-chase", autopay: true, archived: false, skip_next_date: null, notes: null },
+    { id: "demo-exp-truckpmt", name: "Ryder Lease", category: "Equipment", vendor: "Ryder", amount: 1280, frequency: "monthly", day_of_month: 1, day_of_week: null, start_date: null, end_date: "2028-06-01", card: "Business Checking (Demo)", expense_account_id: "demo-acct-checking", autopay: true, archived: false, skip_next_date: null, notes: "5-year lease, payoff 2028-06" },
+    { id: "demo-exp-samsara", name: "Samsara ELD", category: "Software", vendor: "Samsara", amount: 450, frequency: "annual", day_of_month: 1, day_of_week: null, start_date: "2026-03-01", end_date: null, card: "Chase Ink (Demo)", expense_account_id: "demo-acct-chase", autopay: true, archived: false, skip_next_date: null, notes: null },
+    { id: "demo-exp-phone", name: "Verizon", category: "Utilities", vendor: "Verizon", amount: 95, frequency: "monthly", day_of_month: 20, day_of_week: null, start_date: null, end_date: null, card: "Chase Ink (Demo)", expense_account_id: "demo-acct-chase", autopay: true, archived: false, skip_next_date: null, notes: null },
   ];
-  return raw.map((r) => mapRow(r as ExpenseDbRow, new Map([["Chase Ink (Demo)", { type: "Credit card", last4: "4242" }], ["Business Checking (Demo)", { type: "Bank account", last4: "1122" }]]), now));
+  const accountsById = new Map([
+    ["demo-acct-chase", { name: "Chase Ink (Demo)", type: "Credit card", last4: "4242" }],
+    ["demo-acct-checking", { name: "Business Checking (Demo)", type: "Bank account", last4: "1122" }],
+  ]);
+  const accountsByName = new Map([["Chase Ink (Demo)", { id: "demo-acct-chase", type: "Credit card", last4: "4242" }], ["Business Checking (Demo)", { id: "demo-acct-checking", type: "Bank account", last4: "1122" }]]);
+  return raw.map((r) => mapRow(r as ExpenseDbRow, accountsById, accountsByName, now));
 }
 
-function mapRow(r: ExpenseDbRow, accountsByName: Map<string, { type: string | null; last4: string | null }>, now: Date): RecurringExpenseRow {
+function mapRow(
+  r: ExpenseDbRow,
+  accountsById: Map<string, { name: string; type: string | null; last4: string | null }>,
+  accountsByName: Map<string, { id: string; type: string | null; last4: string | null }>,
+  now: Date,
+): RecurringExpenseRow {
   const rawFrequency = r.frequency ?? "";
   const frequency = isFrequency(rawFrequency) ? rawFrequency : "monthly";
   const amount = num(r.amount);
+  const endDate = r.end_date ?? null;
   const nextDate = nextChargeDate(
-    { frequency, dayOfMonth: r.day_of_month, dayOfWeek: r.day_of_week, startDate: r.start_date, skipNextDate: r.skip_next_date },
+    { frequency, dayOfMonth: r.day_of_month, dayOfWeek: r.day_of_week, startDate: r.start_date, skipNextDate: r.skip_next_date, endDate },
     now,
   );
-  const account = r.card ? accountsByName.get(r.card) : undefined;
+  // Real FK first; fall back to the soft `card` text match (either the
+  // migration hasn't run yet in this environment, or this particular row
+  // predates the FK being backfilled).
+  const byId = r.expense_account_id ? accountsById.get(r.expense_account_id) : undefined;
+  const byName = !byId && r.card ? accountsByName.get(r.card) : undefined;
+  const resolvedId = r.expense_account_id ?? byName?.id ?? null;
+  const cardName = byId?.name ?? r.card;
+  const cardType = byId?.type ?? byName?.type ?? null;
+  const cardLast4 = byId?.last4 ?? byName?.last4 ?? null;
   return {
     id: r.id,
     name: r.name,
@@ -241,11 +279,14 @@ function mapRow(r: ExpenseDbRow, accountsByName: Map<string, { type: string | nu
     amount,
     monthlyAmount: monthlyAmount(amount, frequency),
     frequency,
-    cardName: r.card,
-    cardType: account?.type ?? null,
-    cardLast4: account?.last4 ?? null,
+    expenseAccountId: resolvedId,
+    cardName,
+    cardType,
+    cardLast4,
     autopay: r.autopay ?? true,
     archived: r.archived ?? false,
+    notes: r.notes,
+    endDate,
     nextChargeLabel: nextDate ? formatNextCharge(nextDate, now) : null,
     nextChargeDateIso: nextDate ? toIsoDate(nextDate) : null,
     dayOfMonth: r.day_of_month,
@@ -253,6 +294,17 @@ function mapRow(r: ExpenseDbRow, accountsByName: Map<string, { type: string | nu
     startDate: r.start_date,
   };
 }
+
+const EXPENSE_COLUMNS_BASE =
+  "id, name, category, vendor, amount, frequency, day_of_month, day_of_week, start_date, card, autopay, archived, skip_next_date, notes";
+// end_date / expense_account_id — supabase/migrations/20260807000000_expenses_end_date_account_fk.sql.
+// That migration can only be applied by hand (see the migration file's
+// header); until it's confirmed live everywhere, selecting these columns
+// 400s the whole query. Falling back to the base column set on that specific
+// failure keeps the ledger working during the rollout window instead of
+// breaking the page — remove this fallback once the migration is confirmed
+// applied in every environment this code runs against.
+const EXPENSE_COLUMNS_FULL = `${EXPENSE_COLUMNS_BASE}, end_date, expense_account_id`;
 
 /** Loads every non-deleted recurring-expense row plus the account directory
  * needed to resolve card type/last4 — bounded (this is a hand-kept schedule
@@ -264,22 +316,20 @@ async function fetchAll(now: Date): Promise<RecurringExpenseRow[]> {
   if (await isDemoMode()) return demoRows(now);
 
   const sb = createServiceRoleClient();
-  const [{ data: expenseRows }, { data: accountRows }] = await Promise.all([
-    sb
-      .from("recurring_expenses")
-      .select("id, name, category, vendor, amount, frequency, day_of_month, day_of_week, start_date, card, autopay, archived, skip_next_date")
-      .is("deleted_at", null)
-      .limit(1000)
-      .returns<ExpenseDbRow[]>(),
-    sb
-      .from("expense_accounts")
-      .select("id, name, type, last4")
-      .is("deleted_at", null)
-      .returns<AccountDbRow[]>(),
+  const [expenseResult, { data: accountRows }] = await Promise.all([
+    sb.from("recurring_expenses").select(EXPENSE_COLUMNS_FULL).is("deleted_at", null).limit(1000).returns<ExpenseDbRow[]>(),
+    sb.from("expense_accounts").select("id, name, type, last4").is("deleted_at", null).returns<AccountDbRow[]>(),
   ]);
 
-  const accountsByName = new Map((accountRows ?? []).map((a) => [a.name, { type: a.type, last4: a.last4 }]));
-  return (expenseRows ?? []).map((r) => mapRow(r, accountsByName, now));
+  let expenseRows = expenseResult.data;
+  if (expenseResult.error) {
+    const retry = await sb.from("recurring_expenses").select(EXPENSE_COLUMNS_BASE).is("deleted_at", null).limit(1000).returns<ExpenseDbRow[]>();
+    expenseRows = retry.data;
+  }
+
+  const accountsById = new Map((accountRows ?? []).map((a) => [a.id, { name: a.name, type: a.type, last4: a.last4 }]));
+  const accountsByName = new Map((accountRows ?? []).map((a) => [a.name, { id: a.id, type: a.type, last4: a.last4 }]));
+  return (expenseRows ?? []).map((r) => mapRow(r, accountsById, accountsByName, now));
 }
 
 export async function listRecurringExpenses(opts: ListRecurringExpensesOptions = {}): Promise<Paginated<RecurringExpenseRow>> {
@@ -325,14 +375,16 @@ export async function listRecurringExpenses(opts: ListRecurringExpensesOptions =
  */
 export async function getRecurringExpensesKpis(): Promise<RecurringExpensesKpis> {
   const now = new Date();
+  const nowIso = toIsoDate(now);
   const all = await fetchAll(now);
   const active = all.filter((r) => !r.archived);
   // One-time charges contribute 0 to monthlyAmount (see monthlyAmount()
   // above) and this aggregate doesn't retain start_date per row, so their
   // dated-month contribution to This Month/YTD is a known, honest estimate
   // gap here — the recurring-schedule total is what's shown, same scope
-  // limitation /admin's ledger already carries.
-  const recurringActive = active.filter((r) => r.frequency !== "onetime");
+  // limitation /admin's ledger already carries. A bill whose end_date has
+  // already passed has stopped recurring and no longer counts either.
+  const recurringActive = active.filter((r) => r.frequency !== "onetime" && (!r.endDate || r.endDate >= nowIso));
 
   const monthsElapsed = now.getMonth() + 1;
   const monthlyTotal = recurringActive.reduce((s, r) => s + r.monthlyAmount, 0);

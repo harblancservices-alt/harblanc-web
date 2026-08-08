@@ -34,6 +34,24 @@ export function Field({
   );
 }
 
+export function TextareaField({
+  label,
+  name,
+  className = "",
+  ...props
+}: { label: string; className?: string } & import("react").TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return (
+    <label className="flex flex-col gap-1 text-[13px] font-medium text-fg">
+      <span>{label}</span>
+      <textarea
+        name={name}
+        className={`rounded-md border border-line-strong bg-card px-2.5 py-2 text-[14px] font-normal text-fg focus:border-fg focus:outline-none ${className}`}
+        {...props}
+      />
+    </label>
+  );
+}
+
 export function SelectField({
   label,
   name,

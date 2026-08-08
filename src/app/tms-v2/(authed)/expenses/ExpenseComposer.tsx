@@ -7,7 +7,7 @@ import { Fab } from "@/components/tms-v2/ui/Fab";
 import { addExpense } from "@/actions/tms-v2/expenses";
 import type { MutationResult } from "@/lib/demo/mutation";
 import { EXPENSE_CATEGORIES, RECURRING_FREQUENCIES, RECURRING_FREQUENCY_LABEL, type RecurringFrequency } from "@/lib/domain/expenses";
-import { Field, SelectField, FormError, FormActions } from "./_form";
+import { Field, SelectField, TextareaField, FormError, FormActions } from "./_form";
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -57,7 +57,7 @@ export function ExpenseComposerFab() {
   return <Fab label="Add expense" onClick={() => setOpen(true)} />;
 }
 
-export function ExpenseComposerPanel({ accountNames }: { accountNames: string[] }) {
+export function ExpenseComposerPanel({ accounts }: { accounts: { id: string; name: string }[] }) {
   const { open, setOpen } = useComposer();
   const router = useRouter();
   const [frequency, setFrequency] = useState<RecurringFrequency>("monthly");
@@ -80,12 +80,6 @@ export function ExpenseComposerPanel({ accountNames }: { accountNames: string[] 
   return (
     <div className="rounded-xl border border-line bg-card p-4 shadow-e1">
       <form action={formAction} className="flex flex-col gap-3">
-        <datalist id="tms-v2-expense-account-options">
-          {accountNames.map((n) => (
-            <option key={n} value={n} />
-          ))}
-        </datalist>
-
         <Field label="Name" name="name" required />
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -102,7 +96,14 @@ export function ExpenseComposerPanel({ accountNames }: { accountNames: string[] 
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label="Amount ($)" name="amount" type="number" step="any" min="0" required />
-          <Field label="Card / account" name="card" list="tms-v2-expense-account-options" autoComplete="off" />
+          <SelectField label="Payment account" name="expense_account_id" defaultValue="">
+            <option value="">None</option>
+            {accounts.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name}
+              </option>
+            ))}
+          </SelectField>
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -128,6 +129,12 @@ export function ExpenseComposerPanel({ accountNames }: { accountNames: string[] 
             <Field label="Day of month" name="day_of_month" type="number" min="1" max="31" />
           )}
         </div>
+
+        {frequency !== "onetime" ? (
+          <Field label="End date (optional)" name="end_date" type="date" />
+        ) : null}
+
+        <TextareaField label="Notes (optional)" name="notes" rows={2} />
 
         <label className="flex items-center gap-2 text-[13px] font-medium text-fg">
           <input type="checkbox" name="autopay" defaultChecked className="h-4 w-4" />

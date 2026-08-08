@@ -7,7 +7,7 @@ import { editExpense, setExpenseArchived, duplicateExpense, skipNextPayment } fr
 import type { MutationResult } from "@/lib/demo/mutation";
 import type { RecurringExpenseRow } from "@/lib/data/recurring-expenses";
 import { EXPENSE_CATEGORIES, RECURRING_FREQUENCIES, RECURRING_FREQUENCY_LABEL, type RecurringFrequency } from "@/lib/domain/expenses";
-import { Field, SelectField, FormError, FormActions } from "./_form";
+import { Field, SelectField, TextareaField, FormError, FormActions } from "./_form";
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -17,7 +17,7 @@ const INITIAL: SaveState = { ok: false, error: null };
 /** Expenses ledger's context-drawer body — edit form (same field set the
  * old modal used) plus Archive/Restore, replacing the modal-based Edit
  * flow ExpenseRowActions used to trigger. */
-export function ExpenseDrawerContent({ expense }: { expense: RecurringExpenseRow }) {
+export function ExpenseDrawerContent({ expense, accounts }: { expense: RecurringExpenseRow; accounts: { id: string; name: string }[] }) {
   const router = useRouter();
   const [frequency, setFrequency] = useState<RecurringFrequency>(expense.frequency);
   const [archivePending, startArchiveTransition] = useTransition();
@@ -106,7 +106,14 @@ export function ExpenseDrawerContent({ expense }: { expense: RecurringExpenseRow
 
         <div className="grid grid-cols-2 gap-3">
           <Field label="Amount ($)" name="amount" type="number" step="any" min="0" required defaultValue={String(expense.amount)} />
-          <Field label="Card / account" name="card" autoComplete="off" defaultValue={expense.cardName ?? ""} />
+          <SelectField label="Payment account" name="expense_account_id" defaultValue={expense.expenseAccountId ?? ""}>
+            <option value="">None</option>
+            {accounts.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name}
+              </option>
+            ))}
+          </SelectField>
         </div>
 
         <SelectField label="Frequency" name="frequency" value={frequency} onChange={(e) => setFrequency(e.target.value as RecurringFrequency)}>
@@ -137,6 +144,12 @@ export function ExpenseDrawerContent({ expense }: { expense: RecurringExpenseRow
             defaultValue={expense.dayOfMonth != null ? String(expense.dayOfMonth) : ""}
           />
         )}
+
+        {frequency !== "onetime" ? (
+          <Field label="End date (optional)" name="end_date" type="date" defaultValue={expense.endDate ?? ""} />
+        ) : null}
+
+        <TextareaField label="Notes (optional)" name="notes" rows={2} defaultValue={expense.notes ?? ""} />
 
         <label className="flex items-center gap-2 text-[13px] font-medium text-fg">
           <input type="checkbox" name="autopay" defaultChecked={expense.autopay} className="h-4 w-4" />
