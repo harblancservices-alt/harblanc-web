@@ -335,22 +335,49 @@ async function upsertReminder(
     .is("deleted_at", null);
 }
 
-/** Insert a part row for a service; upserts its reminder if flagged. */
+/** True for a Postgrest "unknown column" error naming `column` — either a
+ * raw Postgres 42703 (undefined_column) or Postgrest's own PGRST204 schema-
+ * cache miss, depending on how the request was rejected. */
+function isMissingColumnError(
+  error: { code?: string | null; message?: string | null } | null,
+  column: string,
+): boolean {
+  if (!error) return false;
+  return (error.code === "42703" || error.code === "PGRST204") && (error.message ?? "").includes(column);
+}
+
+/** Insert a part row for a service; upserts its reminder if flagged.
+ *
+ * `sub_category` (supabase/migrations/20260808000000_repair_entries_sub_
+ * category.sql) can only be applied by hand (see that file's header) — until
+ * it's confirmed live, sending it 400s the whole insert with a schema-cache
+ * miss. Before that fallback existed, that 400 threw AFTER the parent
+ * repair_services row was already created (logService inserts the service
+ * first, then its parts), so a "Log service" tap left an orphaned service
+ * with zero parts: nothing recognizable as saved, no root cause visible
+ * anywhere in the UI. Retrying without sub_category on that specific
+ * failure keeps the part (and its service) intact — same rollout-window
+ * pattern lib/data/recurring-expenses.ts's EXPENSE_COLUMNS_FULL/BASE
+ * fallback already uses — at the cost of that one field until the
+ * migration is confirmed applied. */
 async function insertPart(
   sb: SB,
   serviceId: string,
   p: ParsedPart,
 ): Promise<void> {
   const isPrev = await computeIsPreventative(sb, p);
-  const { error } = await sb.from("repair_entries").insert({
+  const base = {
     service_id: serviceId,
     description: p.description,
     category: p.category,
     position: p.position,
-    sub_category: p.subCategory,
     part_group: p.partGroup,
     is_preventative: isPrev,
-  });
+  };
+  let { error } = await sb.from("repair_entries").insert({ ...base, sub_category: p.subCategory });
+  if (error && isMissingColumnError(error, "sub_category")) {
+    ({ error } = await sb.from("repair_entries").insert(base));
+  }
   if (error) throw new Error(`Could not save part: ${error.message}`);
   if (p.reminderInterval != null && p.partGroup) {
     await upsertReminder(sb, p.partGroup, p.reminderInterval, p.category);
@@ -525,18 +552,22 @@ export async function updateService(
     if (p.id && existingIds.has(p.id)) {
       keptIds.add(p.id);
       const isPrev = await computeIsPreventative(sb, p);
-      const { error } = await sb
+      const baseUpdate = {
+        description: p.description,
+        category: p.category,
+        position: p.position,
+        part_group: p.partGroup,
+        is_preventative: isPrev,
+        updated_at: new Date().toISOString(),
+      };
+      // Same sub_category rollout-window fallback as insertPart above.
+      let { error } = await sb
         .from("repair_entries")
-        .update({
-          description: p.description,
-          category: p.category,
-          position: p.position,
-          sub_category: p.subCategory,
-          part_group: p.partGroup,
-          is_preventative: isPrev,
-          updated_at: new Date().toISOString(),
-        })
+        .update({ ...baseUpdate, sub_category: p.subCategory })
         .eq("id", p.id);
+      if (error && isMissingColumnError(error, "sub_category")) {
+        ({ error } = await sb.from("repair_entries").update(baseUpdate).eq("id", p.id));
+      }
       if (error) throw new Error(`Could not update part: ${error.message}`);
       if (p.reminderInterval != null && p.partGroup) {
         await upsertReminder(sb, p.partGroup, p.reminderInterval, p.category);

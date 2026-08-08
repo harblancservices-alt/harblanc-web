@@ -361,11 +361,35 @@ type EntryRow = {
   id: string;
   description: string;
   position: string | null;
-  sub_category: string | null;
+  // Optional, not `| null` — see ENTRY_COLUMNS_BASE/-FULL below: the
+  // fallback query genuinely omits this key rather than returning it null.
+  sub_category?: string | null;
   part_group: string | null;
   category: string;
   service_id: string;
 };
+
+/** True for a Postgrest "unknown column" error naming `column` — either a
+ * raw Postgres 42703 (undefined_column) or Postgrest's own PGRST204 schema-
+ * cache miss, depending on how the request was rejected. Mirrors admin/
+ * (authed)/maintenance/actions.ts's identical write-side guard. */
+function isMissingColumnError(error: { code?: string | null; message?: string | null } | null, column: string): boolean {
+  if (!error) return false;
+  return (error.code === "42703" || error.code === "PGRST204") && (error.message ?? "").includes(column);
+}
+
+// sub_category (supabase/migrations/20260808000000_repair_entries_sub_
+// category.sql) can only be applied by hand — until it's confirmed live,
+// selecting it 400s the whole query. Both entry-detail selects below try
+// the full column list first and fall back to the base list on that
+// specific failure, so this page keeps working (minus that one field)
+// during the rollout window instead of showing "not found" for every
+// entry — same pattern lib/data/recurring-expenses.ts's EXPENSE_COLUMNS_
+// FULL/BASE already established.
+const ENTRY_COLUMNS_BASE = "id, description, position, part_group, category, service_id";
+const ENTRY_COLUMNS_FULL = `${ENTRY_COLUMNS_BASE}, sub_category`;
+const SIBLING_COLUMNS_BASE = "id, description, category, position, part_group";
+const SIBLING_COLUMNS_FULL = `${SIBLING_COLUMNS_BASE}, sub_category`;
 
 type ServiceRow = {
   id: string;
@@ -412,27 +436,37 @@ export async function getRepairEntryDetail(id: string): Promise<RepairEntryDetai
 
   const sb = createServiceRoleClient();
 
-  const { data: focused } = await sb
+  let { data: focused, error: focusedError } = await sb
     .from("repair_entries")
-    .select("id, description, position, sub_category, part_group, category, service_id")
+    .select(ENTRY_COLUMNS_FULL)
     .eq("id", id)
     .is("deleted_at", null)
     .maybeSingle<EntryRow>();
+  if (focusedError && isMissingColumnError(focusedError, "sub_category")) {
+    ({ data: focused } = await sb
+      .from("repair_entries")
+      .select(ENTRY_COLUMNS_BASE)
+      .eq("id", id)
+      .is("deleted_at", null)
+      .maybeSingle<EntryRow>());
+  }
   if (!focused) return null;
 
-  const [{ data: svc }, { data: siblingRows }, { data: linkRows }, currentOdo, receipts] = await Promise.all([
+  let siblingsQuery = sb
+    .from("repair_entries")
+    .select(SIBLING_COLUMNS_FULL)
+    .eq("service_id", focused.service_id)
+    .neq("id", id)
+    .is("deleted_at", null)
+    .returns<{ id: string; description: string; category: string; position: string | null; sub_category?: string | null; part_group: string | null }[]>();
+
+  const [{ data: svc }, { data: siblingRows, error: siblingError }, { data: linkRows }, currentOdo, receipts] = await Promise.all([
     sb
       .from("repair_services")
       .select("id, service_date, odometer, shop, total_cost, notes")
       .eq("id", focused.service_id)
       .maybeSingle<ServiceRow>(),
-    sb
-      .from("repair_entries")
-      .select("id, description, category, position, sub_category, part_group")
-      .eq("service_id", focused.service_id)
-      .neq("id", id)
-      .is("deleted_at", null)
-      .returns<{ id: string; description: string; category: string; position: string | null; sub_category: string | null; part_group: string | null }[]>(),
+    siblingsQuery,
     sb
       .from("repair_links")
       .select("a_id, b_id")
@@ -441,6 +475,18 @@ export async function getRepairEntryDetail(id: string): Promise<RepairEntryDetai
     fetchCurrentOdo(sb),
     fetchReceipts(sb, focused.service_id),
   ]);
+
+  let siblings = siblingRows;
+  if (siblingError && isMissingColumnError(siblingError, "sub_category")) {
+    const retry = await sb
+      .from("repair_entries")
+      .select(SIBLING_COLUMNS_BASE)
+      .eq("service_id", focused.service_id)
+      .neq("id", id)
+      .is("deleted_at", null)
+      .returns<{ id: string; description: string; category: string; position: string | null; sub_category?: string | null; part_group: string | null }[]>();
+    siblings = retry.data;
+  }
 
   const svcDate = svc?.service_date ?? null;
   const svcOdo = svc?.odometer ?? null;
@@ -499,7 +545,7 @@ export async function getRepairEntryDetail(id: string): Promise<RepairEntryDetai
     description: focused.description,
     category: cat(focused.category),
     position: focused.position,
-    subCategory: focused.sub_category,
+    subCategory: focused.sub_category ?? null,
     partGroup: focused.part_group,
     reminderIntervalMiles,
     freshness: computeFreshness(svcOdo, currentOdo, svcDate, todayStr),
@@ -513,12 +559,12 @@ export async function getRepairEntryDetail(id: string): Promise<RepairEntryDetai
       notes: svc?.notes ?? null,
       receipts,
     },
-    otherParts: (siblingRows ?? []).map((p) => ({
+    otherParts: (siblings ?? []).map((p) => ({
       id: p.id,
       description: p.description,
       category: cat(p.category),
       position: p.position,
-      subCategory: p.sub_category,
+      subCategory: p.sub_category ?? null,
       partGroup: p.part_group,
     })),
     relatedParts,
