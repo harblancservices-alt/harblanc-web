@@ -58,9 +58,13 @@ export function Card({
  * AI Agent, AI Review) reads identically. A solid graphite `bg-bar` bar with
  * white `text-bar-fg` lettering — the same dark chrome token the sidebar
  * uses — so the header unmistakably "sits above" the list beneath it rather
- * than blending into it. Raw `<table>` column-header rows use the matching
- * `LIST_HEAD_ROW` class below so the two ways a CRM list renders (Card+
- * CardHead, or a `<thead>`) read as one consistent style.
+ * than blending into it. Deliberately slim (a title bar, not a banner) — the
+ * owner's call after the original py-4/15.5px treatment ate too much vertical
+ * space stacked across a page of cards. Raw `<table>` column-header rows use
+ * the matching `LIST_HEAD_ROW` class below so the two ways a CRM list renders
+ * (Card+CardHead, or a `<thead>`) read as one consistent style; any hand-built
+ * dark bar elsewhere in the CRM (e.g. the calendar day modal) should match
+ * this exact padding/type scale rather than drifting its own.
  */
 export function CardHead({
   title,
@@ -72,13 +76,13 @@ export function CardHead({
   right?: ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-t-2xl border-b border-graphite-line bg-bar px-5 py-4">
+    <div className="flex items-center justify-between gap-3 rounded-t-2xl border-b border-graphite-line bg-bar px-4 py-2.5">
       <div className="min-w-0">
-        <h2 className="truncate text-[15.5px] font-bold tracking-tight text-bar-fg">
+        <h2 className="truncate text-[13.5px] font-bold tracking-tight text-bar-fg">
           {title}
         </h2>
         {hint && (
-          <p className="mt-0.5 truncate text-[12px] font-medium text-bar-fg/70">
+          <p className="truncate text-[11px] font-medium text-bar-fg/70">
             {hint}
           </p>
         )}
@@ -92,7 +96,8 @@ export function CardHead({
  * Companies, …) — the tabular equivalent of CardHead, same `bg-bar` /
  * `text-bar-fg` dark treatment so every CRM list header reads identically
  * whether it's a card section or a real table. Apply to the `<tr>` inside
- * `<thead>`; each `<th>` keeps its own padding. */
+ * `<thead>`; each `<th>` keeps its own padding — use `px-5 py-2` to match
+ * CardHead's slim height. */
 export const LIST_HEAD_ROW =
   "bg-bar text-[11px] font-semibold uppercase tracking-[0.1em] text-bar-fg";
 

@@ -95,14 +95,14 @@ export function NotesSection({
         }
       />
 
-      <div className="border-b-2 border-accent/15 bg-accent/[0.04] px-5 py-5">
-        <form onSubmit={submit} className="flex flex-col gap-3">
+      <div className="border-b-2 border-accent/15 bg-accent/[0.04] px-4 py-3.5">
+        <form onSubmit={submit} className="flex flex-col gap-2.5">
           <textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}
             placeholder="Add a note about this company…"
-            rows={3}
-            className="resize-y rounded-lg border border-fg-subtle bg-card px-3.5 py-3 text-[14.5px] font-medium leading-relaxed text-fg outline-none focus:ring-2 focus:ring-accent/40"
+            rows={2}
+            className="resize-y rounded-lg border border-fg-subtle bg-card px-3.5 py-2.5 text-[14.5px] font-medium leading-relaxed text-fg outline-none focus:ring-2 focus:ring-accent/40"
           />
           {error && <p className="text-[12.5px] text-bad">{error}</p>}
           <div className="flex items-center justify-between gap-3">
@@ -127,13 +127,13 @@ export function NotesSection({
       </div>
 
       {notes.length === 0 ? (
-        <p className="px-5 py-10 text-center text-[13.5px] text-fg-muted">
+        <p className="px-5 py-7 text-center text-[13.5px] text-fg-muted">
           No team notes yet. Jot the first one above.
         </p>
       ) : (
-        <ul className={`divide-y divide-line-strong ${ZEBRA_ROWS}`}>
+        <ul className={`max-h-[380px] divide-y divide-line-strong overflow-y-auto ${ZEBRA_ROWS}`}>
           {notes.map((n) => (
-            <li key={n.id} className="px-5 py-4">
+            <li key={n.id} className="px-4 py-3">
               <div className="mb-1.5 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 text-[12.5px] text-fg-subtle">
                   <span className="font-bold text-fg">{n.author || "Someone"}</span>

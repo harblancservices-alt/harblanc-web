@@ -146,12 +146,12 @@ export default async function ContactsPage({
             <table className="w-full min-w-[820px] text-left text-[13.5px]">
               <thead>
                 <tr className={LIST_HEAD_ROW}>
-                  <th className="px-5 py-3 font-semibold">Contact</th>
-                  <th className="px-5 py-3 font-semibold">Company</th>
-                  <th className="px-5 py-3 font-semibold">Email</th>
-                  <th className="px-5 py-3 font-semibold">Phone</th>
-                  <th className="px-5 py-3 font-semibold">Follow-up</th>
-                  <th className="px-5 py-3 font-semibold">Actions</th>
+                  <th className="px-5 py-2 font-semibold">Contact</th>
+                  <th className="px-5 py-2 font-semibold">Company</th>
+                  <th className="px-5 py-2 font-semibold">Email</th>
+                  <th className="px-5 py-2 font-semibold">Phone</th>
+                  <th className="px-5 py-2 font-semibold">Follow-up</th>
+                  <th className="px-5 py-2 font-semibold">Actions</th>
                 </tr>
               </thead>
               <tbody className={ZEBRA_ROWS}>

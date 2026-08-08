@@ -25,16 +25,16 @@ export function ActivityTimeline({ activities }: { activities: CrmActivity[] }) 
         hint={activities.length ? `${activities.length} events` : undefined}
       />
       {activities.length === 0 ? (
-        <p className="px-5 py-8 text-center text-[13px] text-fg-muted">
+        <p className="px-5 py-7 text-center text-[13px] text-fg-muted">
           No activity yet. Actions on this company will appear here.
         </p>
       ) : (
-        <ol className="px-5 py-4">
+        <ol className="max-h-[380px] overflow-y-auto px-4 py-3">
           {activities.map((a, i) => {
             const tone = KIND_TONE[a.kind] ?? "bg-slate";
             const last = i === activities.length - 1;
             return (
-              <li key={a.id} className="relative flex gap-3 pb-4 last:pb-0">
+              <li key={a.id} className="relative flex gap-3 pb-3 last:pb-0">
                 {/* rail */}
                 <div className="flex flex-col items-center">
                   <span

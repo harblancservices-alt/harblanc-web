@@ -91,8 +91,8 @@ export function TasksSection({
       {error && <p className="px-5 pt-3 text-[12.5px] text-bad">{error}</p>}
 
       {tasks.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">
-          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-inset text-fg-subtle">
+        <div className="flex flex-col items-center gap-2 px-6 py-7 text-center">
+          <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-inset text-fg-subtle">
             <IconTasks />
           </span>
           <p className="text-[14px] font-semibold text-fg">No tasks yet</p>
@@ -102,7 +102,9 @@ export function TasksSection({
         </div>
       ) : (
         <>
-          <ul className="flex flex-col gap-2.5 p-3">
+          {/* Capped and scrollable rather than an endless column — every open
+              task is still here, just not all forced into view at once. */}
+          <ul className="flex max-h-[420px] flex-col gap-2 overflow-y-auto p-2.5">
             {open.map((t) => (
               <TaskRow
                 key={t.id}
@@ -119,10 +121,10 @@ export function TasksSection({
           </ul>
           {done.length > 0 && (
             <details className="border-t border-line-strong">
-              <summary className="cursor-pointer list-none px-5 py-3 text-[12.5px] font-semibold text-fg-subtle transition-colors hover:text-fg">
+              <summary className="cursor-pointer list-none px-4 py-2.5 text-[12px] font-semibold text-fg-subtle transition-colors hover:text-fg">
                 {done.length} completed
               </summary>
-              <ul className="flex flex-col gap-2.5 border-t border-line-strong p-3">
+              <ul className="flex max-h-[320px] flex-col gap-2 overflow-y-auto border-t border-line-strong p-2.5">
                 {done.map((t) => (
                   <TaskRow
                     key={t.id}

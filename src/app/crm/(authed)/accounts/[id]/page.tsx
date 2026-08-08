@@ -291,41 +291,45 @@ export default async function AccountDetailPage({
   };
 
   return (
-    <PageShell
-      back={<BackButton fallbackHref="/crm/accounts" />}
-      actions={
-        <>
-          <LogCallButton
-            accountId={account.id as string}
-            contacts={contacts.map((c) => ({ id: c.id, name: c.name }))}
-          />
-          <EditCompany defaults={editDefaults} reps={reps} canDelete={isOwner} />
-        </>
-      }
-    >
+    <PageShell back={<BackButton fallbackHref="/crm/accounts" />}>
       {account.needs_finalize && <FinalizeBanner defaults={editDefaults} reps={reps} />}
 
-      {/* Which company this is — kept as plain page content (not a masthead)
-          since it's the record's identity, not a redundant page-name label. */}
-      <div>
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-[22px] font-bold leading-tight tracking-tight text-fg">
-            {account.name as string}
-          </h1>
-          <span
-            className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${stageTone(stage)}`}
-          >
-            {stageLabel(stage)}
+      {/* The profile's masthead — a real title bar (matching every other
+          slim dark bar in the CRM) rather than plain page text, since this is
+          the one place Edit belongs: it's the primary action for the record
+          the whole page is about. Log call stays alongside as a secondary
+          action; industry/location/rep sit in a light sub-row underneath so
+          the dark bar itself stays to just the identity + actions. */}
+      <Card>
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-t-2xl border-b border-graphite-line bg-bar px-4 py-3">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <h1 className="truncate text-[17px] font-bold tracking-tight text-bar-fg">
+              {account.name as string}
+            </h1>
+            <span
+              className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${stageTone(stage)}`}
+            >
+              {stageLabel(stage)}
+            </span>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <LogCallButton
+              accountId={account.id as string}
+              contacts={contacts.map((c) => ({ id: c.id, name: c.name }))}
+            />
+            <EditCompany defaults={editDefaults} reps={reps} canDelete={isOwner} />
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 text-[13px]">
+          <span className="text-fg-muted">
+            {[account.industry, location].filter(Boolean).join(" · ") ||
+              "No industry or location set"}
+          </span>
+          <span className="text-fg-subtle">
+            Rep: <span className="text-fg-muted">{repName || "Unassigned"}</span>
           </span>
         </div>
-        <p className="mt-1 text-[13px] text-fg-muted">
-          {[account.industry, location].filter(Boolean).join(" · ") ||
-            "No industry or location set"}
-        </p>
-        <p className="mt-1 text-[12px] text-fg-subtle">
-          Rep: <span className="text-fg-muted">{repName || "Unassigned"}</span>
-        </p>
-      </div>
+      </Card>
 
       <ProfileTabs
         overview={
@@ -345,7 +349,7 @@ export default async function AccountDetailPage({
                 commodities={account.commodities as string | null}
               />
             </div>
-            <div className="flex min-w-0 flex-col gap-4">
+            <div className="flex min-w-0 flex-col gap-3">
               <TasksSection
                 accountId={account.id as string}
                 tasks={tasks}

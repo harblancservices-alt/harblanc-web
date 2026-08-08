@@ -239,11 +239,11 @@ export default async function CompaniesPage({
             <table className="w-full min-w-[860px] text-left text-[13.5px]">
               <thead>
                 <tr className={LIST_HEAD_ROW}>
-                  <th className="px-5 py-3 font-semibold">Company</th>
-                  <th className="px-5 py-3 font-semibold">Stage</th>
-                  <th className="px-5 py-3 font-semibold">Location</th>
-                  <th className="px-5 py-3 font-semibold">Primary contact</th>
-                  <th className="px-5 py-3 font-semibold">
+                  <th className="px-5 py-2 font-semibold">Company</th>
+                  <th className="px-5 py-2 font-semibold">Stage</th>
+                  <th className="px-5 py-2 font-semibold">Location</th>
+                  <th className="px-5 py-2 font-semibold">Primary contact</th>
+                  <th className="px-5 py-2 font-semibold">
                     <Link
                       href={sortHref}
                       prefetch={false}
@@ -253,7 +253,7 @@ export default async function CompaniesPage({
                       Last contact{sortStale ? " ↑" : ""}
                     </Link>
                   </th>
-                  <th className="px-5 py-3 font-semibold">Tags</th>
+                  <th className="px-5 py-2 font-semibold">Tags</th>
                 </tr>
               </thead>
               <tbody className={ZEBRA_ROWS}>

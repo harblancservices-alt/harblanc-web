@@ -61,13 +61,13 @@ export function CallsSection({
       {error && <p className="px-5 pt-3 text-[12.5px] text-bad">{error}</p>}
 
       {calls.length === 0 ? (
-        <p className="px-5 py-8 text-center text-[13px] text-fg-muted">
+        <p className="px-5 py-7 text-center text-[13px] text-fg-muted">
           No calls logged yet. Use "Log call" above to record one.
         </p>
       ) : (
-        <ul className={`divide-y divide-line-strong ${ZEBRA_ROWS}`}>
+        <ul className={`max-h-[380px] divide-y divide-line-strong overflow-y-auto ${ZEBRA_ROWS}`}>
           {calls.map((c) => (
-            <li key={c.id} className="px-5 py-3.5">
+            <li key={c.id} className="px-4 py-2.5">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">

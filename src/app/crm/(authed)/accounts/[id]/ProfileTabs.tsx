@@ -53,7 +53,7 @@ export function ProfileTabs({
       <div
         role="tablist"
         aria-label="Company profile sections"
-        className="mb-4 flex gap-1 rounded-xl border border-line-strong bg-card p-1 shadow-e2"
+        className="mb-4 flex gap-1 rounded-2xl border border-line-strong bg-inset p-1.5 shadow-inner"
       >
         {TABS.map((t) => (
           <button
@@ -62,17 +62,17 @@ export function ProfileTabs({
             role="tab"
             aria-selected={tab === t.key}
             onClick={() => setTab(t.key)}
-            className={`flex-1 rounded-lg px-3 py-2 text-[13px] font-semibold transition-colors sm:flex-none sm:px-5 ${
+            className={`flex-1 rounded-xl px-3 py-2.5 text-[13.5px] font-bold transition-all sm:flex-none sm:px-6 ${
               tab === t.key
-                ? "bg-accent text-white"
-                : "text-fg-muted hover:bg-inset hover:text-fg"
+                ? "bg-card text-accent shadow-e2 ring-1 ring-line-strong"
+                : "text-fg-muted hover:bg-card/60 hover:text-fg"
             }`}
           >
             {t.label}
             {t.key === "contacts" && contactsCount ? (
               <span
                 className={`ml-1.5 font-mono tabular-nums ${
-                  tab === t.key ? "text-white/80" : "text-fg-subtle"
+                  tab === t.key ? "text-accent/70" : "text-fg-subtle"
                 }`}
               >
                 {contactsCount}
@@ -81,7 +81,7 @@ export function ProfileTabs({
             {t.key === "bol" && bolCount ? (
               <span
                 className={`ml-1.5 font-mono tabular-nums ${
-                  tab === t.key ? "text-white/80" : "text-fg-subtle"
+                  tab === t.key ? "text-accent/70" : "text-fg-subtle"
                 }`}
               >
                 {bolCount}
@@ -90,7 +90,7 @@ export function ProfileTabs({
             {t.key === "aiResearch" && aiResearchCount ? (
               <span
                 className={`ml-1.5 font-mono tabular-nums ${
-                  tab === t.key ? "text-white/80" : "text-fg-subtle"
+                  tab === t.key ? "text-accent/70" : "text-fg-subtle"
                 }`}
               >
                 {aiResearchCount}

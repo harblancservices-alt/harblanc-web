@@ -277,12 +277,12 @@ function DayDetailModal({
         aria-modal="true"
         aria-label={formatDayHeading(dateKey)}
       >
-        <div className="flex shrink-0 items-center justify-between gap-3 rounded-t-2xl border-b border-graphite-line bg-bar px-5 py-4">
+        <div className="flex shrink-0 items-center justify-between gap-3 rounded-t-2xl border-b border-graphite-line bg-bar px-4 py-2.5">
           <div className="min-w-0">
-            <h2 className="truncate text-[15.5px] font-bold tracking-tight text-bar-fg">
+            <h2 className="truncate text-[13.5px] font-bold tracking-tight text-bar-fg">
               {formatDayHeading(dateKey)}
             </h2>
-            <p className="mt-0.5 truncate text-[12px] font-medium text-bar-fg/70">
+            <p className="truncate text-[11px] font-medium text-bar-fg/70">
               {items.length} item{items.length === 1 ? "" : "s"}
             </p>
           </div>
@@ -290,7 +290,7 @@ function DayDetailModal({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-bad text-white shadow-sm transition-colors hover:bg-bad/80"
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-bad text-white shadow-sm transition-colors hover:bg-bad/80"
           >
             <IconClose />
           </button>
