@@ -2,6 +2,7 @@
 
 import { createContext, useActionState, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Modal } from "@/components/tms-v2/ui/Modal";
 import { Button } from "@/components/tms-v2/ui/Button";
 import { Fab } from "@/components/tms-v2/ui/Fab";
 import { addExpense } from "@/actions/tms-v2/expenses";
@@ -10,19 +11,19 @@ import { EXPENSE_CATEGORIES, RECURRING_FREQUENCIES, RECURRING_FREQUENCY_LABEL, t
 import { Field, SelectField, TextareaField, FormError, FormActions } from "./_form";
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const FORM_ID = "tms-v2-add-bill-form";
 
 type SaveState = { ok: boolean; error: string | null };
 const INITIAL: SaveState = { ok: false, error: null };
 
 /**
- * The Expenses ledger's "primary action top-right, same spot every page"
- * shell anchor and its inline composer are one open/closed state shared
- * across two different DOM locations (the PageHeader action button, the
- * panel above the ledger) — a small context is the least-ceremony way to
- * connect them across that gap without lifting form state into the
- * server-rendered page itself. Replaces the old Add-expense modal
- * (v2-design.md's "inline composer" instruction): the form now expands in
- * place above the ledger instead of covering the screen.
+ * "Add bill" — a real Modal (Brent's explicit ask: same treatment as
+ * LoadFormModal's Add Load — max-h-90dvh, fixed header/footer, scrollable
+ * body — the prior inline-expanding panel wasn't a proper overlay and let
+ * the FAB show through underneath it). The open/closed state is shared
+ * across two different trigger locations (the PageHeader action button,
+ * the mobile Fab) — a small context is the least-ceremony way to connect
+ * them without lifting form state into the server-rendered page itself.
  */
 const ComposerCtx = createContext<{ open: boolean; setOpen: (v: boolean) => void } | null>(null);
 
@@ -38,23 +39,23 @@ function useComposer() {
 }
 
 export function ExpenseComposerToggleButton() {
-  const { open, setOpen } = useComposer();
+  const { setOpen } = useComposer();
   return (
-    <Button type="button" onClick={() => setOpen(!open)}>
-      {open ? "Close" : "Add expense"}
+    <Button type="button" onClick={() => setOpen(true)}>
+      Add bill
     </Button>
   );
 }
 
 /** Mobile's thumb-zone counterpart to the toggle button above — same
- * shared open/closed state, same "Add expense" composer panel, just
+ * shared open/closed state, same "Add bill" composer modal, just
  * triggered from the Fab pattern every other primary mobile action uses
  * (AddLoadButton, NewBrokerButton) instead of a header button. Fab is
  * self-hiding at lg (matches the header button's `hidden lg:inline-flex`
  * at its call site), so exactly one trigger is visible per breakpoint. */
 export function ExpenseComposerFab() {
   const { setOpen } = useComposer();
-  return <Fab label="Add expense" onClick={() => setOpen(true)} />;
+  return <Fab label="Add bill" onClick={() => setOpen(true)} />;
 }
 
 export function ExpenseComposerPanel({ accounts }: { accounts: { id: string; name: string }[] }) {
@@ -75,14 +76,29 @@ export function ExpenseComposerPanel({ accounts }: { accounts: { id: string; nam
     }
   }, [state.ok, setOpen, router]);
 
-  if (!open) return null;
-
   return (
-    <div className="rounded-xl border border-line bg-card p-4 shadow-e1">
-      <form action={formAction} className="flex flex-col gap-3">
+    <Modal
+      open={open}
+      onClose={() => setOpen(false)}
+      title="Add bill"
+      footer={
+        <div className="flex flex-col gap-2">
+          <FormError message={state.error} />
+          <FormActions>
+            <Button type="button" variant="secondary" onClick={() => setOpen(false)} disabled={pending}>
+              Cancel
+            </Button>
+            <Button type="submit" form={FORM_ID} disabled={pending} aria-busy={pending}>
+              {pending ? "Saving…" : "Add bill"}
+            </Button>
+          </FormActions>
+        </div>
+      }
+    >
+      <form id={FORM_ID} action={formAction} className="flex flex-col gap-2.5">
         <Field label="Name" name="name" required />
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-2 gap-2.5">
           <SelectField label="Category" name="category" defaultValue="">
             <option value="">None</option>
             {EXPENSE_CATEGORIES.map((c) => (
@@ -91,22 +107,19 @@ export function ExpenseComposerPanel({ accounts }: { accounts: { id: string; nam
               </option>
             ))}
           </SelectField>
-          <Field label="Vendor" name="vendor" />
-        </div>
-
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label="Amount ($)" name="amount" type="number" step="any" min="0" required />
-          <SelectField label="Payment account" name="expense_account_id" defaultValue="">
-            <option value="">None</option>
-            {accounts.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
-          </SelectField>
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <SelectField label="Payment account" name="expense_account_id" defaultValue="">
+          <option value="">None</option>
+          {accounts.map((a) => (
+            <option key={a.id} value={a.id}>
+              {a.name}
+            </option>
+          ))}
+        </SelectField>
+
+        <div className="grid grid-cols-2 gap-2.5">
           <SelectField label="Frequency" name="frequency" value={frequency} onChange={(e) => setFrequency(e.target.value as RecurringFrequency)}>
             {RECURRING_FREQUENCIES.map((f) => (
               <option key={f} value={f}>
@@ -140,18 +153,7 @@ export function ExpenseComposerPanel({ accounts }: { accounts: { id: string; nam
           <input type="checkbox" name="autopay" defaultChecked className="h-4 w-4" />
           Autopay
         </label>
-
-        <FormError message={state.error} />
-
-        <FormActions>
-          <Button type="button" variant="secondary" onClick={() => setOpen(false)} disabled={pending}>
-            Cancel
-          </Button>
-          <Button type="submit" disabled={pending} aria-busy={pending}>
-            {pending ? "Saving…" : "Add expense"}
-          </Button>
-        </FormActions>
       </form>
-    </div>
+    </Modal>
   );
 }
