@@ -175,10 +175,15 @@ export type PartyStat = {
   gross: number;
   net: number;
   loadedMiles: number;
+  deadheadMiles: number;
   netRpm: number | null;
   grossRpm: number | null;
   /** net ÷ gross × 100 — how much of the revenue actually survived the run. */
   marginPct: number | null;
+  /** gross ÷ loads — what an average load with this party billed. */
+  avgGrossPerLoad: number | null;
+  /** net ÷ loads — what an average load with this party actually kept. */
+  avgNetPerLoad: number | null;
   /**
    * Mean days from delivery to paid across THIS party's paid loads — the
    * leaderboard's "who actually pays on time" column. Null when none of its
@@ -193,6 +198,7 @@ function toStat(name: string, rows: PerfLoad[]): PartyStat {
   const gross = rows.reduce((s, r) => s + r.rate, 0);
   const net = rows.reduce((s, r) => s + r.net, 0);
   const loadedMiles = rows.reduce((s, r) => s + r.loadedMiles, 0);
+  const deadheadMiles = rows.reduce((s, r) => s + r.deadheadMiles, 0);
   const pay = payTiming(rows);
   return {
     name,
@@ -200,9 +206,12 @@ function toStat(name: string, rows: PerfLoad[]): PartyStat {
     gross,
     net,
     loadedMiles,
+    deadheadMiles,
     netRpm: loadedMiles > 0 ? net / loadedMiles : null,
     grossRpm: loadedMiles > 0 ? gross / loadedMiles : null,
     marginPct: gross > 0 ? (net / gross) * 100 : null,
+    avgGrossPerLoad: rows.length > 0 ? gross / rows.length : null,
+    avgNetPerLoad: rows.length > 0 ? net / rows.length : null,
     payDays: pay.avgDays,
     paySample: pay.sample,
   };

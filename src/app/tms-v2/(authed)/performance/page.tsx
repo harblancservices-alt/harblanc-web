@@ -9,15 +9,17 @@ import { GoalPaceCard } from "@/components/tms-v2/ui/GoalPaceCard";
 import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
 import { formatMoney } from "@/lib/domain/money";
 import { getAnalyticsLoads, getMonthlyNetGoal } from "@/lib/data/analytics";
-import { summarize, brokerStats, laneStats, deadheadSplit, deltasBetween } from "@/lib/dispatch/performance";
+import { summarize, brokerStats, laneStats, laneKey, deadheadSplit, deltasBetween } from "@/lib/dispatch/performance";
 import { rpm, pct } from "@/lib/dispatch/format";
 import { currentPeriod, periodRange } from "@/lib/domain/attribution";
 import { daysLeftInMonth, currentBusinessDate } from "@/lib/dispatch/goal-month";
 import { computeGoalPace } from "@/lib/domain/goal-pace";
 import { resolvePerformanceView, monthParam, shiftPeriod } from "./_lib/range";
+import { isPartySortKey, sortPartyStats, type PartySortKey } from "./_lib/party-sort";
 import { DeltaChip } from "./_components/DeltaChip";
-import { PartyStatList } from "./_components/PartyStatList";
 import { PartyBarChart } from "./_components/PartyBarChart";
+import { PartyTable } from "./_components/PartyTable";
+import { PartyDrillDown } from "./_components/PartyDrillDown";
 import { TrendChart, type TrendPoint } from "./_components/TrendChart";
 import { DualTrendChart, type DualTrendPoint } from "./_components/DualTrendChart";
 import { RateTrendChart, type RateTrendPoint } from "./_components/RateTrendChart";
@@ -32,7 +34,31 @@ export const dynamic = "force-dynamic";
 const NAV_BUTTON = "inline-flex h-8 items-center justify-center rounded-md border border-line-strong px-3 text-[13px] text-fg hover:bg-elevated";
 const NAV_BUTTON_ACTIVE = "inline-flex h-8 items-center justify-center rounded-md border border-accent px-3 text-[13px] font-medium text-accent";
 
-type PageProps = { searchParams: Promise<{ month?: string; from?: string; to?: string }> };
+type PerformanceSearchParams = {
+  month?: string;
+  from?: string;
+  to?: string;
+  brokerSort?: string;
+  brokerDir?: string;
+  laneSort?: string;
+  laneDir?: string;
+  broker?: string;
+  lane?: string;
+};
+
+type PageProps = { searchParams: Promise<PerformanceSearchParams> };
+
+/** Preserves every other param while overriding the given ones — the same
+ * pattern Expenses' ledger uses for its own sort/filter links. */
+function buildHref(sp: PerformanceSearchParams, overrides: Partial<PerformanceSearchParams>): string {
+  const merged: PerformanceSearchParams = { ...sp, ...overrides };
+  const usp = new URLSearchParams();
+  for (const [k, v] of Object.entries(merged)) {
+    if (v !== undefined && v !== "") usp.set(k, String(v));
+  }
+  const qs = usp.toString();
+  return qs ? `/tms-v2/performance?${qs}` : "/tms-v2/performance";
+}
 
 export default async function PerformancePage({ searchParams }: PageProps) {
   const sp = await searchParams;
@@ -65,9 +91,28 @@ export default async function PerformancePage({ searchParams }: PageProps) {
   const summary = summarize(loads);
   const prevSummary = summarize(prevLoads);
   const deltas = deltasBetween(summary, prevSummary);
-  const brokers = brokerStats(loads, 6);
-  const lanes = laneStats(loads, 6);
+  // No artificial cap (Phase 7) — the server-aggregation architecture was
+  // already correct, this just stops slicing the full set down to 6.
+  const brokerSortKey: PartySortKey = isPartySortKey(sp.brokerSort) ? sp.brokerSort : "net";
+  const brokerDir = sp.brokerDir === "asc" ? "asc" : "desc";
+  const brokers = sortPartyStats(brokerStats(loads, Infinity), brokerSortKey, brokerDir);
+  const laneSortKey: PartySortKey = isPartySortKey(sp.laneSort) ? sp.laneSort : "netRpm";
+  const laneDir = sp.laneDir === "asc" ? "asc" : "desc";
+  const lanes = sortPartyStats(laneStats(loads, Infinity), laneSortKey, laneDir);
   const dh = deadheadSplit(loads);
+
+  // Drill-down (Phase 7 "where practical") — a broker or lane row links
+  // back here filtered to its own constituent loads in this same period,
+  // no new route or data plumbing (same `loads` array already in scope).
+  const drillBroker = typeof sp.broker === "string" ? sp.broker : null;
+  const drillLane = typeof sp.lane === "string" ? sp.lane : null;
+  const drillLoads = drillBroker
+    ? loads.filter((l) => l.broker.trim() === drillBroker)
+    : drillLane
+      ? loads.filter((l) => laneKey(l.origin, l.destination) === drillLane)
+      : null;
+  const drillTitle = drillBroker ?? drillLane;
+  const drillCloseHref = buildHref(sp, { broker: undefined, lane: undefined });
 
   const thisMonthParam = monthParam(currentPeriod(now));
   const monthTabHref =
@@ -259,10 +304,10 @@ export default async function PerformancePage({ searchParams }: PageProps) {
           </div>
         </Card>
         <Card>
-          <PartyBarChart title="Revenue by broker" rows={brokers} />
+          <PartyBarChart title="Brokers by net" rows={brokers} />
         </Card>
         <Card>
-          <PartyBarChart title="Revenue by lane" rows={lanes} />
+          <PartyBarChart title="Lanes by net" rows={lanes} />
         </Card>
       </div>
 
@@ -283,9 +328,33 @@ export default async function PerformancePage({ searchParams }: PageProps) {
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <PartyStatList title="Top brokers" rows={brokers} />
-          <PartyStatList title="Top lanes" rows={lanes} />
+        {drillTitle && drillLoads ? (
+          <PartyDrillDown title={drillTitle} loads={drillLoads} closeHref={drillCloseHref} />
+        ) : null}
+
+        <div className="flex flex-col gap-6">
+          <PartyTable
+            title="Brokers — full analysis"
+            nameLabel="Broker"
+            rows={brokers}
+            rowHref={(name) => buildHref(sp, { broker: name, lane: undefined })}
+            sort={{
+              activeKey: brokerSortKey,
+              dir: brokerDir,
+              hrefFor: (key) => buildHref(sp, { brokerSort: key, brokerDir: brokerSortKey === key && brokerDir === "desc" ? "asc" : "desc" }),
+            }}
+          />
+          <PartyTable
+            title="Lanes — full analysis"
+            nameLabel="Lane"
+            rows={lanes}
+            rowHref={(name) => buildHref(sp, { lane: name, broker: undefined })}
+            sort={{
+              activeKey: laneSortKey,
+              dir: laneDir,
+              hrefFor: (key) => buildHref(sp, { laneSort: key, laneDir: laneSortKey === key && laneDir === "desc" ? "asc" : "desc" }),
+            }}
+          />
         </div>
       </div>
     </PageScroll>
