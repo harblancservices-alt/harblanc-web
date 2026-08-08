@@ -373,14 +373,23 @@ export const duplicateExpense = mutation(async (id: string): Promise<MutationRes
   return { ok: true, data: { id: copy.id } };
 });
 
-export const skipNextPayment = mutation(async (id: string): Promise<MutationResult<{ skippedDate: string }>> => {
-  const sb = createServiceRoleClient();
+type ScheduleRow = { frequency: string; day_of_month: number | null; day_of_week: string | null; start_date: string | null; skip_next_date: string | null };
+
+/** Shared by skipNextPayment/markBillPaidThisCycle: both just move
+ * skip_next_date onto the bill's current next occurrence, which is exactly
+ * what nextChargeDate() (lib/data/recurring-expenses.ts) already treats as
+ * "not due again until the following one" — no separate paid-through
+ * column needed. */
+async function advancePastNextOccurrence(
+  sb: ReturnType<typeof createServiceRoleClient>,
+  id: string,
+): Promise<{ ok: true; skippedDate: string } | { ok: false; reason: string }> {
   const { data: row, error: readError } = await sb
     .from("recurring_expenses")
     .select("frequency, day_of_month, day_of_week, start_date, skip_next_date")
     .eq("id", id)
     .is("deleted_at", null)
-    .maybeSingle<{ frequency: string; day_of_month: number | null; day_of_week: string | null; start_date: string | null; skip_next_date: string | null }>();
+    .maybeSingle<ScheduleRow>();
   if (readError || !row) return { ok: false, reason: `Could not load expense: ${readError?.message ?? "not found"}` };
 
   const frequency = isFrequency(row.frequency) ? row.frequency : "monthly";
@@ -388,13 +397,36 @@ export const skipNextPayment = mutation(async (id: string): Promise<MutationResu
     { frequency, dayOfMonth: row.day_of_month, dayOfWeek: row.day_of_week, startDate: row.start_date, skipNextDate: row.skip_next_date },
     new Date(),
   );
-  if (!upcoming) return { ok: false, reason: "This expense has no upcoming charge to skip." };
+  if (!upcoming) return { ok: false, reason: "This bill has no upcoming charge." };
 
   const skipDate = toIsoDate(upcoming);
   const { error } = await sb.from("recurring_expenses").update({ skip_next_date: skipDate }).eq("id", id);
-  if (error) return { ok: false, reason: `Could not skip payment: ${error.message}` };
+  if (error) return { ok: false, reason: error.message };
+  return { ok: true, skippedDate: skipDate };
+}
 
-  await logActivity(sb, id, "Skipped next payment", skipDate);
+export const skipNextPayment = mutation(async (id: string): Promise<MutationResult<{ skippedDate: string }>> => {
+  const sb = createServiceRoleClient();
+  const res = await advancePastNextOccurrence(sb, id);
+  if (!res.ok) return { ok: false, reason: `Could not skip payment: ${res.reason}` };
+
+  await logActivity(sb, id, "Skipped next payment", res.skippedDate);
   revalidatePath(PATH);
-  return { ok: true, data: { skippedDate: skipDate } };
+  return { ok: true, data: { skippedDate: res.skippedDate } };
+});
+
+/** Expenses' "Coming up" card swipe-to-pay (Brent's ask, 2026-08-08): marks
+ * the bill's current occurrence paid and advances the schedule to the
+ * next one, using the exact same skip_next_date mechanism skipNextPayment
+ * uses above — no schema migration needed. Only the activity-log wording
+ * differs, so the audit trail reads "Marked paid" rather than implying the
+ * charge was skipped unpaid. */
+export const markBillPaidThisCycle = mutation(async (id: string): Promise<MutationResult<{ paidThroughDate: string }>> => {
+  const sb = createServiceRoleClient();
+  const res = await advancePastNextOccurrence(sb, id);
+  if (!res.ok) return { ok: false, reason: `Could not mark paid: ${res.reason}` };
+
+  await logActivity(sb, id, "Marked paid", res.skippedDate);
+  revalidatePath(PATH);
+  return { ok: true, data: { paidThroughDate: res.skippedDate } };
 });
