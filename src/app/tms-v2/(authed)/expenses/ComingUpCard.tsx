@@ -6,6 +6,16 @@ function dateBadge(iso: string): { mon: string; day: string } {
   return { mon: d.toLocaleDateString("en-US", { month: "short" }).toUpperCase(), day: String(d.getDate()) };
 }
 
+/** Whole days from today to `iso` (can go negative for an overdue date,
+ * clamped to 0 by the ring itself). String-date arithmetic, not a `Date`
+ * subtraction across a DST boundary. */
+function daysUntil(iso: string): number {
+  const target = new Date(`${iso}T00:00:00`);
+  const today = new Date();
+  const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  return Math.round((target.getTime() - todayMidnight.getTime()) / 86_400_000);
+}
+
 /**
  * "Coming up" — the next 3 day-of-month-anchored bills due, nearest first.
  * Scoped to `dayOfMonth != null` (Brent's explicit ask): weekly/quarterly/
@@ -14,9 +24,10 @@ function dateBadge(iso: string): { mon: string; day: string } {
  * the real next occurrence (lib/data/recurring-expenses.ts's
  * nextChargeDate, honoring start/end/skip dates) — not re-derived here.
  *
- * Each row (ComingUpRow, a client component) is swipe-to-pay: swiping
- * either direction past the threshold marks that bill's current occurrence
- * paid and advances its schedule to the next one.
+ * Each row (ComingUpRow, a client component) shows a countdown ring that
+ * doubles as the mark-paid control — tap it, it flips green, the bill's
+ * schedule advances to its next cycle. No swipe gesture (an earlier pass
+ * had one; Brent had it removed 2026-08-08).
  */
 export function ComingUpCard({ rows, rowHref }: { rows: RecurringExpenseRow[]; rowHref: (id: string) => string }) {
   const upcoming = rows
@@ -34,7 +45,18 @@ export function ComingUpCard({ rows, rowHref }: { rows: RecurringExpenseRow[]; r
       <div className="flex flex-col">
         {upcoming.map((r) => {
           const { mon, day } = dateBadge(r.nextChargeDateIso);
-          return <ComingUpRow key={r.id} id={r.id} name={r.name} amount={r.amount} mon={mon} day={day} href={rowHref(r.id)} />;
+          return (
+            <ComingUpRow
+              key={r.id}
+              id={r.id}
+              name={r.name}
+              amount={r.amount}
+              mon={mon}
+              day={day}
+              daysUntil={daysUntil(r.nextChargeDateIso)}
+              href={rowHref(r.id)}
+            />
+          );
         })}
       </div>
     </div>

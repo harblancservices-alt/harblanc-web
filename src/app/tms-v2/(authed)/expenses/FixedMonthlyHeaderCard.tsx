@@ -27,7 +27,10 @@ export function FixedMonthlyHeaderCard({ rows }: { rows: RecurringExpenseRow[] }
     const key = r.category ?? "Uncategorized";
     byCategory.set(key, (byCategory.get(key) ?? 0) + r.monthlyAmount);
   }
-  const topCategories = [...byCategory.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3);
+  // Top 2 (not 3, per Brent's follow-up 2026-08-08 — a 3rd tile crowded
+  // the row; two cells reads cleaner and the flex-1 layout below already
+  // expands to fill whatever width is left with no other change needed).
+  const topCategories = [...byCategory.entries()].sort((a, b) => b[1] - a[1]).slice(0, 2);
 
   return (
     <div className="overflow-hidden rounded-xl shadow-e2" style={{ backgroundColor: HEADER_BG }}>
