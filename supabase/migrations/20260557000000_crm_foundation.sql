@@ -330,13 +330,21 @@ create table if not exists public.crm_calls (
   followup_required boolean not null default false,
   reminder_at timestamptz,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz
 );
 
 create index if not exists crm_calls_org_idx on public.crm_calls (org_id);
 create index if not exists crm_calls_account_idx on public.crm_calls (account_id, occurred_at desc);
 create index if not exists crm_calls_contact_idx on public.crm_calls (contact_id);
 create index if not exists crm_calls_reminder_idx on public.crm_calls (org_id, reminder_at) where followup_required;
+
+-- Reconciles this committed migration with a column (deleted_at, for
+-- deleteCall's soft delete) that was already added directly to prod without
+-- a matching migration file — safe to leave as a plain ALTER since the
+-- `create table if not exists` above is a no-op on any environment where
+-- crm_calls already exists.
+alter table public.crm_calls add column if not exists deleted_at timestamptz;
 
 alter table public.crm_calls enable row level security;
 

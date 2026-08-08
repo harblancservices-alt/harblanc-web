@@ -301,3 +301,32 @@ export function dueCountdown(
 export function timestampMs(iso: string | null | undefined): number | null {
   return parseServerTimestamp(iso)?.getTime() ?? null;
 }
+
+export type ContactFreshness = "fresh" | "aging" | "cold" | "never";
+
+/**
+ * Relative "how long since we last touched this company" readout for the
+ * Companies list — drives both the label and the freshness tier a caller
+ * colors it by, so a cold account is obvious without opening the profile.
+ * Takes a precomputed epoch-ms (the caller reduces crm_calls/crm_activities
+ * to a single MAX(occurred_at) per account) rather than an ISO string, since
+ * the list already needs the numeric value to sort by.
+ */
+export function lastContactStatus(
+  ms: number | null,
+  now: Date = new Date(),
+): { text: string; freshness: ContactFreshness } {
+  if (ms === null) return { text: "Never contacted", freshness: "never" };
+
+  const days = Math.floor((now.getTime() - ms) / 86_400_000);
+  if (days <= 0) return { text: "Today", freshness: "fresh" };
+  if (days === 1) return { text: "Yesterday", freshness: "fresh" };
+  if (days <= 7) return { text: `${days}d ago`, freshness: "fresh" };
+  if (days <= 30) return { text: `${days}d ago`, freshness: "aging" };
+  if (days <= 90) {
+    const weeks = Math.round(days / 7);
+    return { text: `${weeks}w ago`, freshness: "cold" };
+  }
+  const months = Math.round(days / 30);
+  return { text: `${months}mo ago`, freshness: "cold" };
+}

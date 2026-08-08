@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
+import { CRM_ACTIVITY } from "@/lib/crm/activity";
 import { PageShell, Card, CardHead } from "../../_shell/ui";
 import { BackButton } from "../../_shell/BackButton";
 import { formatDate, formatMoney, firstName } from "../../_shell/format";
@@ -98,10 +99,14 @@ export default async function AccountDetailPage({
       .is("deleted_at", null)
       .order("occurred_at", { ascending: false })
       .limit(200),
+    // Calls are excluded here — they already have their own dedicated feed
+    // (CallsSection below); without this, every call shows up twice on the
+    // Overview tab (once as a call-log row, once as a timeline summary line).
     supabase
       .from("crm_activities")
       .select("id, kind, summary, body, occurred_at, user_id")
       .eq("account_id", id)
+      .neq("kind", CRM_ACTIVITY.call)
       .order("occurred_at", { ascending: false })
       .limit(100),
     supabase

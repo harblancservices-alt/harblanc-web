@@ -6,7 +6,7 @@ import { IconCompanies } from "../_shell/icons";
 import { AddCompany } from "./AddCompany";
 import { AccountsFilters } from "./AccountsFilters";
 import { stageLabel, stageTone } from "./lifecycle";
-import { firstName } from "../_shell/format";
+import { firstName, lastContactStatus, timestampMs } from "../_shell/format";
 import type { RepOption } from "./CompanyDialog";
 import type { CrmTag } from "./tags";
 import { AddContactDialog } from "../contacts/AddContactDialog";
@@ -52,7 +52,7 @@ function toPrefixQuery(input: string): string {
 export default async function CompaniesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; stage?: string; rep?: string }>;
+  searchParams: Promise<{ q?: string; stage?: string; rep?: string; sort?: string }>;
 }) {
   await requireCrmUser();
   const supabase = await createCrmServerClient();
@@ -61,6 +61,7 @@ export default async function CompaniesPage({
   const q = (sp.q ?? "").trim();
   const stage = (sp.stage ?? "").trim();
   const rep = (sp.rep ?? "").trim();
+  const sortStale = (sp.sort ?? "").trim() === "stale";
 
   // Filter-option rosters (RLS-scoped to the caller's org).
   const [tagsRes, profilesRes] = await Promise.all([
@@ -121,7 +122,7 @@ export default async function CompaniesPage({
     ...new Set(accounts.map((a) => a.primary_contact_id).filter(Boolean) as string[]),
   ];
 
-  const [primaryRes, tagLinkRes] = await Promise.all([
+  const [primaryRes, tagLinkRes, lastCallsRes, lastActivitiesRes] = await Promise.all([
     primaryIds.length
       ? supabase.from("crm_contacts").select("id, name").in("id", primaryIds)
       : Promise.resolve({ data: [] as { id: string; name: string }[] }),
@@ -131,6 +132,26 @@ export default async function CompaniesPage({
           .select("account_id, tag_id")
           .in("account_id", accountIds)
       : Promise.resolve({ data: [] as { account_id: string; tag_id: string }[] }),
+    // Last-contact column: newest-first rows from each source, capped well
+    // above what 200 companies' worth of recent history could need — reduced
+    // to a single MAX(occurred_at) per company below.
+    accountIds.length
+      ? supabase
+          .from("crm_calls")
+          .select("account_id, occurred_at")
+          .in("account_id", accountIds)
+          .is("deleted_at", null)
+          .order("occurred_at", { ascending: false })
+          .limit(2000)
+      : Promise.resolve({ data: [] as { account_id: string; occurred_at: string }[] }),
+    accountIds.length
+      ? supabase
+          .from("crm_activities")
+          .select("account_id, occurred_at")
+          .in("account_id", accountIds)
+          .order("occurred_at", { ascending: false })
+          .limit(2000)
+      : Promise.resolve({ data: [] as { account_id: string; occurred_at: string }[] }),
   ]);
 
   const primaryName = new Map(
@@ -149,7 +170,40 @@ export default async function CompaniesPage({
     tagsByAccount.set(link.account_id, list);
   }
 
+  // Last-contact — the more recent of the account's last logged call and its
+  // last timeline activity (a call already lands in crm_activities too, but a
+  // note/stage-change/contact-add with no call should still count as contact).
+  const lastContactMsByAccount = new Map<string, number>();
+  for (const row of [
+    ...((lastCallsRes.data ?? []) as { account_id: string; occurred_at: string }[]),
+    ...((lastActivitiesRes.data ?? []) as { account_id: string; occurred_at: string }[]),
+  ]) {
+    const ms = timestampMs(row.occurred_at);
+    if (ms === null) continue;
+    const current = lastContactMsByAccount.get(row.account_id);
+    if (current === undefined || ms > current) lastContactMsByAccount.set(row.account_id, ms);
+  }
+
+  if (sortStale) {
+    // Coldest (or never-contacted) first, so stale accounts surface at the
+    // top rather than requiring a scroll through everything else.
+    accounts.sort((a, b) => {
+      const am = lastContactMsByAccount.get(a.id) ?? -Infinity;
+      const bm = lastContactMsByAccount.get(b.id) ?? -Infinity;
+      return am - bm;
+    });
+  }
+
   const filtersActive = Boolean(q || stage || rep);
+  const sortHref = (() => {
+    const params = new URLSearchParams();
+    if (q) params.set("q", q);
+    if (stage) params.set("stage", stage);
+    if (rep) params.set("rep", rep);
+    if (!sortStale) params.set("sort", "stale");
+    const qs = params.toString();
+    return qs ? `/crm/accounts?${qs}` : "/crm/accounts";
+  })();
 
   return (
     <PageShell
@@ -182,13 +236,23 @@ export default async function CompaniesPage({
           )
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-left text-[13.5px]">
+            <table className="w-full min-w-[860px] text-left text-[13.5px]">
               <thead>
                 <tr className={LIST_HEAD_ROW}>
                   <th className="px-5 py-3 font-semibold">Company</th>
                   <th className="px-5 py-3 font-semibold">Stage</th>
                   <th className="px-5 py-3 font-semibold">Location</th>
                   <th className="px-5 py-3 font-semibold">Primary contact</th>
+                  <th className="px-5 py-3 font-semibold">
+                    <Link
+                      href={sortHref}
+                      prefetch={false}
+                      className="inline-flex items-center gap-1 hover:text-fg"
+                      title={sortStale ? "Showing coldest first" : "Sort by last contact"}
+                    >
+                      Last contact{sortStale ? " ↑" : ""}
+                    </Link>
+                  </th>
                   <th className="px-5 py-3 font-semibold">Tags</th>
                 </tr>
               </thead>
@@ -230,6 +294,9 @@ export default async function CompaniesPage({
                         {contact || <span className="text-fg-subtle">—</span>}
                       </td>
                       <td className="px-5 py-3">
+                        <LastContactBadge ms={lastContactMsByAccount.get(a.id) ?? null} />
+                      </td>
+                      <td className="px-5 py-3">
                         {rowTags.length ? (
                           <div className="flex flex-wrap gap-1">
                             {rowTags.map((t) => (
@@ -258,5 +325,31 @@ export default async function CompaniesPage({
         )}
       </Card>
     </PageShell>
+  );
+}
+
+/** Freshness tiers use the CRM's fixed status tints (never theme-dependent
+ *  grey) so a cold or never-contacted company reads as an alert, not a
+ *  quiet label — "fresh" is plain readable text since there's nothing to
+ *  flag. */
+const FRESHNESS_CLASS: Record<"aging" | "cold" | "never", string> = {
+  aging: "bg-warn-bg text-warn",
+  cold: "bg-bad-bg text-bad",
+  never: "bg-bad-bg text-bad",
+};
+
+function LastContactBadge({ ms }: { ms: number | null }) {
+  const { text, freshness } = lastContactStatus(ms);
+
+  if (freshness === "fresh") {
+    return <span className="text-[13px] font-medium text-fg-muted">{text}</span>;
+  }
+
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold ${FRESHNESS_CLASS[freshness]}`}
+    >
+      {text}
+    </span>
   );
 }
