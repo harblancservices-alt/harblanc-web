@@ -20,6 +20,7 @@ import { PartyStatList } from "./_components/PartyStatList";
 import { PartyBarChart } from "./_components/PartyBarChart";
 import { TrendChart, type TrendPoint } from "./_components/TrendChart";
 import { DualTrendChart, type DualTrendPoint } from "./_components/DualTrendChart";
+import { RateTrendChart, type RateTrendPoint } from "./_components/RateTrendChart";
 
 const TREND_MONTHS = 6;
 const SHORT_MONTH = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -50,7 +51,11 @@ export default async function PerformancePage({ searchParams }: PageProps) {
 
   const trendSummaries = trendLoadSets.map((rows) => summarize(rows));
   const netTrend: TrendPoint[] = trendPeriods.map((p, i) => ({ label: SHORT_MONTH[p.month], value: trendSummaries[i].net }));
-  const rateTrend: TrendPoint[] = trendPeriods.map((p, i) => ({ label: SHORT_MONTH[p.month], value: trendSummaries[i].grossRpm ?? 0 }));
+  const rateTrend: RateTrendPoint[] = trendPeriods.map((p, i) => ({
+    label: SHORT_MONTH[p.month],
+    grossRpm: trendSummaries[i].grossRpm,
+    netRpm: trendSummaries[i].netRpm,
+  }));
   const dualTrend: DualTrendPoint[] = trendPeriods.map((p, i) => ({
     label: SHORT_MONTH[p.month],
     gross: trendSummaries[i].gross,
@@ -248,9 +253,9 @@ export default async function PerformancePage({ searchParams }: PageProps) {
           </div>
         </Card>
         <Card>
-          <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Rate ($/mi) · trailing {TREND_MONTHS} months</p>
+          <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Gross vs net $/loaded-mi · trailing {TREND_MONTHS} months</p>
           <div className="mt-3">
-            <TrendChart points={rateTrend} formatValue={rpm} />
+            <RateTrendChart points={rateTrend} />
           </div>
         </Card>
         <Card>
@@ -271,9 +276,9 @@ export default async function PerformancePage({ searchParams }: PageProps) {
             </div>
           </Card>
           <Card>
-            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Rate ($/mi) · trailing {TREND_MONTHS} months</p>
+            <p className="font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Gross vs net $/loaded-mi · trailing {TREND_MONTHS} months</p>
             <div className="mt-3">
-              <TrendChart points={rateTrend} formatValue={rpm} />
+              <RateTrendChart points={rateTrend} />
             </div>
           </Card>
         </div>
