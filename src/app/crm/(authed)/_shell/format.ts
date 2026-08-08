@@ -302,6 +302,34 @@ export function timestampMs(iso: string | null | undefined): number | null {
   return parseServerTimestamp(iso)?.getTime() ?? null;
 }
 
+/**
+ * Date-group label for a History-feed entry — "Today" / "Yesterday" / "This
+ * week" / "Last week", then a month (± year) for anything older. Bucketed
+ * against the Central calendar day/week (matching every other day-boundary
+ * helper above) so the grouping turns over at Central midnight, not the
+ * server's UTC day.
+ */
+export function historyBucketLabel(ms: number | null, now: Date = new Date()): string {
+  if (ms === null) return "Undated";
+
+  const { startMs: todayStart } = centralDayRange(now);
+  const DAY = 86_400_000;
+  const dayIndex = Math.floor((todayStart - centralDayRange(new Date(ms)).startMs) / DAY);
+
+  if (dayIndex <= 0) return "Today";
+  if (dayIndex === 1) return "Yesterday";
+  if (dayIndex <= 7) return "This week";
+  if (dayIndex <= 14) return "Last week";
+
+  const a = centralParts(now);
+  const b = centralParts(new Date(ms));
+  return new Date(ms).toLocaleDateString("en-US", {
+    timeZone: CENTRAL_TZ,
+    month: "long",
+    ...(b.year !== a.year ? { year: "numeric" as const } : {}),
+  });
+}
+
 export type ContactFreshness = "fresh" | "aging" | "cold" | "never";
 
 /**

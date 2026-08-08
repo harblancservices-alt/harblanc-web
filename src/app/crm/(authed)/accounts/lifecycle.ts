@@ -8,6 +8,15 @@
  * Tones are the design-system's FIXED status tints (bg-*-bg / text-*), which
  * are theme-independent aliases — safe to sit on a white .crm-light card per
  * the core rule (colour only on fixed surfaces).
+ *
+ * LIFECYCLE_STAGES is the full historical vocabulary — kept so normalize/
+ * label/tone stay correct for any company already sitting in "contacted" or
+ * "qualified" (or "inactive"/"lost"). SELECTABLE_LIFECYCLE_STAGES is the
+ * shorter list new pickers (the profile's stage pills) actually offer —
+ * "contacted" and "qualified" were dropped from the funnel by request; a
+ * company already on one of the removed stages still displays correctly
+ * (normalizeStage still recognizes it), it just can't be picked again from
+ * the reduced pill row.
  */
 export const LIFECYCLE_STAGES = [
   "lead",
@@ -20,6 +29,13 @@ export const LIFECYCLE_STAGES = [
 ] as const;
 
 export type LifecycleStage = (typeof LIFECYCLE_STAGES)[number];
+
+/** The pickable set on the profile's stage-pill row. */
+export const SELECTABLE_LIFECYCLE_STAGES = [
+  "lead",
+  "researching",
+  "customer",
+] as const satisfies readonly LifecycleStage[];
 
 export const DEFAULT_LIFECYCLE: LifecycleStage = "lead";
 

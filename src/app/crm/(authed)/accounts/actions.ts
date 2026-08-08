@@ -39,32 +39,45 @@ function optNum(fd: FormData, key: string): number | null {
 }
 
 /**
- * The full company field set, shared by create and edit. `phones`/`links`
- * are the source of truth (edited via PhonesEditor/LinksEditor); `phone` and
- * `website` are still written alongside, mirrored from the first entry of
- * each list, purely so anything else that still reads those scalar columns
- * directly keeps working.
+ * The company field set, shared by create and edit — but PARTIAL by design:
+ * a key only appears in the returned object when that form actually
+ * submitted it (`fd.has(...)`). CompanyDialog's full modal always includes
+ * every field, so its behavior is unchanged; the profile's inline Company
+ * card only edits a subset (name/address/phones/links/commodities) and must
+ * NOT silently null out industry/company_size/spend/source just because its
+ * smaller form doesn't carry them. `phones`/`links` are the source of truth
+ * (edited via PhonesEditor/LinksEditor) — `phone`/`website` are mirrored
+ * alongside from the first entry of each, purely so anything else that still
+ * reads those scalar columns directly keeps working.
  */
-function accountFieldsFromForm(fd: FormData) {
-  const phones = phonesFromFormValue(fd.get("phones"));
-  const links = linksFromFormValue(fd.get("links"));
-  return {
-    name: str(fd, "name"),
-    industry: optStr(fd, "industry"),
-    website: links[0]?.url || null,
-    phone: phones[0]?.number || null,
-    phones,
-    links,
-    address: optStr(fd, "address"),
-    city: optStr(fd, "city"),
-    state: optStr(fd, "state"),
-    zip: optStr(fd, "zip"),
-    company_size: optStr(fd, "company_size"),
-    commodities: optStr(fd, "commodities"),
-    annual_freight_spend: optNum(fd, "annual_freight_spend"),
-    revenue_potential: optNum(fd, "revenue_potential"),
-    source: optStr(fd, "source"),
-  };
+function accountFieldsFromForm(fd: FormData): Record<string, unknown> {
+  const fields: Record<string, unknown> = {};
+  if (fd.has("name")) fields.name = str(fd, "name");
+  if (fd.has("industry")) fields.industry = optStr(fd, "industry");
+  if (fd.has("phones")) {
+    const phones = phonesFromFormValue(fd.get("phones"));
+    fields.phones = phones;
+    fields.phone = phones[0]?.number || null;
+  }
+  if (fd.has("links")) {
+    const links = linksFromFormValue(fd.get("links"));
+    fields.links = links;
+    fields.website = links[0]?.url || null;
+  }
+  if (fd.has("address")) fields.address = optStr(fd, "address");
+  if (fd.has("city")) fields.city = optStr(fd, "city");
+  if (fd.has("state")) fields.state = optStr(fd, "state");
+  if (fd.has("zip")) fields.zip = optStr(fd, "zip");
+  if (fd.has("company_size")) fields.company_size = optStr(fd, "company_size");
+  if (fd.has("commodities")) fields.commodities = optStr(fd, "commodities");
+  if (fd.has("annual_freight_spend")) {
+    fields.annual_freight_spend = optNum(fd, "annual_freight_spend");
+  }
+  if (fd.has("revenue_potential")) {
+    fields.revenue_potential = optNum(fd, "revenue_potential");
+  }
+  if (fd.has("source")) fields.source = optStr(fd, "source");
+  return fields;
 }
 
 function revalidateAccount(id?: string) {
@@ -123,12 +136,14 @@ export async function createAccount(
 }
 
 /**
- * Update every editable field on a company. If the lifecycle stage moves as
- * part of the edit, that change is logged too (the edit form is one of the two
- * ways a stage can change). Always clears needs_finalize — this is the ONLY
- * write path behind the full CompanyDialog edit form, so a save here is
- * exactly the "someone filled the rest in" signal the finalize alert (the
- * dashboard's "Finalize company" queue + the profile banner) is waiting for.
+ * Update a company's fields — partial, driven entirely by whatever the
+ * caller's form actually submits (see accountFieldsFromForm). Two callers:
+ * CompanyDialog's full modal (every field, still reachable from the profile's
+ * Details tab) and the profile's inline Company card (name/address/phones/
+ * links/commodities only). If the lifecycle stage moves as part of the edit,
+ * that change is logged too. Always clears needs_finalize — a save from
+ * either path is the "someone filled the rest in" signal the finalize alert
+ * (the dashboard's "Finalize company" queue + the profile banner) waits for.
  */
 export async function updateAccount(
   id: string,
@@ -762,25 +777,6 @@ export async function addContactNote(
   });
 
   revalidateAccount(accountId ?? undefined);
-  return { ok: true };
-}
-
-/** Pin or unpin a note. */
-export async function setNotePinned(
-  noteId: string,
-  accountId: string,
-  pinned: boolean,
-): Promise<ActionResult> {
-  await requireCrmUser();
-  const supabase = await createCrmServerClient();
-
-  const { error } = await supabase
-    .from("crm_notes")
-    .update({ is_pinned: pinned })
-    .eq("id", noteId);
-
-  if (error) return { ok: false, error: "Could not update the note." };
-  revalidateAccount(accountId);
   return { ok: true };
 }
 

@@ -1,7 +1,16 @@
 import { Card, CardHead } from "../../_shell/ui";
 import { IconAiAgent } from "../../_shell/icons";
 import { formatDateTime } from "../../_shell/format";
-import type { CrmNote } from "./NotesSection";
+
+export type CrmNote = {
+  id: string;
+  body: string;
+  is_pinned: boolean;
+  is_ai: boolean;
+  created_at: string;
+  author: string | null;
+  contactName?: string | null;
+};
 
 /**
  * The company profile's "AI Research" tab — every is_ai=true crm_notes row
