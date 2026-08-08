@@ -152,66 +152,6 @@ export function nextChargeDate(
   return occurrence;
 }
 
-/** Every real occurrence of a recurring charge that falls within the given
- * calendar month (0-based `month`), honoring start_date/end_date/
- * skip_next_date — the building block for the month/year selector's
- * "scheduled recurring this month" total. Unlike nextChargeDate() (single
- * next occurrence), a weekly bill can legitimately occur multiple times in
- * one month; this returns all of them so the total doesn't undercount, and
- * never double-counts since each occurrence is a distinct real date. */
-export function occurrencesInMonth(
-  e: { frequency: RecurringFrequency; dayOfMonth: number | null; dayOfWeek: string | null; startDate: string | null; endDate: string | null; skipNextDate: string | null },
-  year: number,
-  month: number,
-): Date[] {
-  const monthStart = new Date(year, month, 1);
-  const monthEnd = new Date(year, month, clampedDay(31, year, month));
-  const start = e.startDate ? parseIsoDate(e.startDate) : null;
-  const end = e.endDate ? parseIsoDate(e.endDate) : null;
-  const skip = e.skipNextDate ? parseIsoDate(e.skipNextDate) : null;
-
-  function inBounds(d: Date): boolean {
-    if (start && d < start) return false;
-    if (end && d > end) return false;
-    if (skip && d.getTime() === skip.getTime()) return false;
-    return true;
-  }
-
-  if (e.frequency === "onetime") {
-    return start && start >= monthStart && start <= monthEnd ? [start] : [];
-  }
-
-  if (e.frequency === "weekly") {
-    const targetDow = e.dayOfWeek ? WEEKDAY_INDEX[e.dayOfWeek] : undefined;
-    if (targetDow == null) return [];
-    const results: Date[] = [];
-    for (let day = 1; day <= monthEnd.getDate(); day++) {
-      const d = new Date(year, month, day);
-      if (d.getDay() === targetDow && inBounds(d)) results.push(d);
-    }
-    return results;
-  }
-
-  if (e.frequency === "monthly") {
-    if (e.dayOfMonth == null) return [];
-    const occ = new Date(year, month, clampedDay(e.dayOfMonth, year, month));
-    return inBounds(occ) ? [occ] : [];
-  }
-
-  if (e.frequency === "quarterly" || e.frequency === "annual") {
-    if (!start) return [];
-    const intervalMonths = e.frequency === "quarterly" ? 3 : 12;
-    const startMonthIndex = start.getFullYear() * 12 + start.getMonth();
-    const targetMonthIndex = year * 12 + month;
-    const diff = targetMonthIndex - startMonthIndex;
-    if (diff < 0 || diff % intervalMonths !== 0) return [];
-    const occ = new Date(year, month, clampedDay(start.getDate(), year, month));
-    return inBounds(occ) ? [occ] : [];
-  }
-
-  return [];
-}
-
 function formatNextCharge(date: Date, today: Date): string {
   const base = startOfDay(today);
   const days = Math.round((date.getTime() - base.getTime()) / 86_400_000);
@@ -505,56 +445,6 @@ export async function listExpenseAccounts(): Promise<ExpenseAccountRow[]> {
     .order("name", { ascending: true })
     .returns<(AccountDbRow & { is_default: boolean | null })[]>();
   return (data ?? []).map((a) => ({ id: a.id, name: a.name, type: a.type, last4: a.last4, isDefault: a.is_default ?? false }));
-}
-
-export type MonthScheduleItem = {
-  expenseId: string;
-  name: string;
-  vendor: string | null;
-  category: string | null;
-  cardName: string | null;
-  amount: number;
-  dateIso: string;
-};
-
-export type MonthSchedule = {
-  items: MonthScheduleItem[];
-  scheduledTotal: number;
-  projectedAnnualTotal: number;
-};
-
-/** The month/year selector's payload (Phase 3): every real occurrence of an
- * active recurring bill in the given calendar month, plus the two totals
- * Brent asked for — "scheduled recurring for selected month" (the actual
- * per-occurrence sum, correctly counting a weekly bill's multiple
- * occurrences) and "projected annual recurring" (the current active
- * run-rate, §H's monthlyAmount()×12 formula — independent of which month is
- * selected, since it's "if nothing changes, this is the year's total"). */
-export async function getMonthlyBillSchedule(year: number, month: number): Promise<MonthSchedule> {
-  const now = new Date();
-  const all = await fetchAll(now);
-  const activeRecurring = all.filter((r) => !r.archived && r.frequency !== "onetime");
-
-  const items: MonthScheduleItem[] = [];
-  for (const r of activeRecurring) {
-    const occs = occurrencesInMonth(
-      { frequency: r.frequency, dayOfMonth: r.dayOfMonth, dayOfWeek: r.dayOfWeek, startDate: r.startDate, endDate: r.endDate, skipNextDate: r.skipNextDate },
-      year,
-      month,
-    );
-    for (const d of occs) {
-      items.push({ expenseId: r.id, name: r.name, vendor: r.vendor, category: r.category, cardName: r.cardName, amount: r.amount, dateIso: toIsoDate(d) });
-    }
-  }
-  items.sort((a, b) => a.dateIso.localeCompare(b.dateIso) || a.name.localeCompare(b.name));
-  const scheduledTotal = items.reduce((s, i) => s + i.amount, 0);
-
-  const nowIso = toIsoDate(now);
-  const projectedAnnualTotal = activeRecurring
-    .filter((r) => !r.endDate || r.endDate >= nowIso)
-    .reduce((s, r) => s + r.monthlyAmount * 12, 0);
-
-  return { items, scheduledTotal, projectedAnnualTotal };
 }
 
 export type ExpenseActivityRow = { id: string; action: string; detail: string | null; whenLabel: string };

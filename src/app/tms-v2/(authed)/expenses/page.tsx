@@ -1,25 +1,29 @@
 import { PageHeader } from "@/components/tms-v2/ui/PageHeader";
 import { ContextDrawer } from "@/components/tms-v2/ui/ContextDrawer";
 import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
-import { getRecurringExpenseById, getExpenseActivity, getMonthlyBillSchedule, listExpenseAccounts } from "@/lib/data/recurring-expenses";
+import { getRecurringExpenseById, getExpenseActivity, listExpenseAccounts, listRecurringExpenses } from "@/lib/data/recurring-expenses";
 import { ExpenseComposerProvider, ExpenseComposerToggleButton, ExpenseComposerFab, ExpenseComposerPanel } from "./ExpenseComposer";
 import { ExpenseDrawerContent } from "./ExpenseDrawerContent";
-import { MonthlyBillCalendar } from "./MonthlyBillCalendar";
+import { FixedMonthlyHeaderCard } from "./FixedMonthlyHeaderCard";
+import { ComingUpCard } from "./ComingUpCard";
+import { AllBillsCard } from "./AllBillsCard";
 
 // Money-affecting data, read fresh every visit — matches Today's pattern.
 export const dynamic = "force-dynamic";
 
 /**
- * Expenses, stripped to the recurring-bill calendar as its sole view per
- * Brent's explicit scope change (2026-08-08) — this page previously also
- * had a KPI strip, an "Upcoming Bills" list, and the full filterable ledger
- * (ExpensesListClient) with a one-time-expenses section. All of that code
- * still exists (UpcomingBills.tsx, ExpensesListClient.tsx, the getRecurring
- * ExpensesKpis()/listRecurringExpenses() data functions, every server
- * action) — it's just not rendered here anymore. Bill MANAGEMENT stays
- * reachable from the calendar itself: tap a scheduled bill to open the same
- * edit drawer (archive/restore/duplicate/skip-next/delete, all still wired),
- * and "+ Add bill" / the mobile FAB open the same add-expense composer.
+ * Expenses — redesigned from a month/year recurring-bill CALENDAR to a
+ * clean list (Brent's explicit approval, 2026-08-08, replacing the
+ * calendar this page shipped with the same day): a dark FIXED MONTHLY
+ * header card (every active recurring bill normalized to its
+ * monthly-equivalent, lib/data/recurring-expenses.ts's monthlyAmount()),
+ * a "Coming up" strip of the next day-of-month-anchored bills, and "All
+ * recurring bills" — every active bill including the $0 ones the old
+ * calendar silently hid. No month/year picker, no KPI strip beyond the
+ * header card, single continuous scroll. Bill MANAGEMENT stays reachable
+ * the same way it was on the calendar: tap a row to open the same edit
+ * drawer (archive/restore/duplicate/skip-next/delete, all still wired),
+ * "+ Add bill" / the mobile FAB open the same add-expense composer.
  */
 
 function buildHref(params: Record<string, string | undefined>): string {
@@ -39,20 +43,19 @@ export default async function ExpensesPage({
   const sp = await searchParams;
   const selectedId = typeof sp.id === "string" ? sp.id : undefined;
 
-  const now = new Date();
-  const billsMonthMatch = typeof sp.billsMonth === "string" ? /^(\d{4})-(\d{2})$/.exec(sp.billsMonth) : null;
-  const billsYear = billsMonthMatch ? Number(billsMonthMatch[1]) : now.getFullYear();
-  const billsMonth = billsMonthMatch ? Number(billsMonthMatch[2]) - 1 : now.getMonth();
-  const billsMonthParam = billsMonthMatch ? sp.billsMonth as string : undefined;
-
-  const [accounts, selectedExpense, monthSchedule] = await Promise.all([
+  const [accounts, selectedExpense, billsPage] = await Promise.all([
     listExpenseAccounts(),
     selectedId ? getRecurringExpenseById(selectedId) : Promise.resolve(null),
-    getMonthlyBillSchedule(billsYear, billsMonth),
+    listRecurringExpenses({ status: "active", pageSize: 1000 }),
   ]);
   const activity = selectedId ? await getExpenseActivity(selectedId) : [];
 
-  const closeHref = buildHref({ billsMonth: billsMonthParam });
+  // Recurring bills only — one-time charges (frequency "onetime") aren't a
+  // fixed monthly obligation and have no place in this schedule view.
+  const bills = billsPage.rows.filter((r) => r.frequency !== "onetime");
+
+  const closeHref = buildHref({});
+  const rowHref = (id: string) => buildHref({ id });
 
   return (
     <ExpenseComposerProvider>
@@ -75,12 +78,11 @@ export default async function ExpensesPage({
         </>
       }
     >
-      <MonthlyBillCalendar
-        year={billsYear}
-        month={billsMonth}
-        schedule={monthSchedule}
-        rowHref={(expenseId) => buildHref({ billsMonth: billsMonthParam, id: expenseId })}
-      />
+      <div className="flex flex-col gap-4">
+        <FixedMonthlyHeaderCard rows={bills} />
+        <ComingUpCard rows={bills} rowHref={rowHref} />
+        <AllBillsCard rows={bills} rowHref={rowHref} />
+      </div>
     </PageScroll>
     </div>
 

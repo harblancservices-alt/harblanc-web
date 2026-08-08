@@ -42,7 +42,7 @@ export function ExpenseComposerToggleButton() {
   const { setOpen } = useComposer();
   return (
     <Button type="button" onClick={() => setOpen(true)}>
-      Add bill
+      + Add bill
     </Button>
   );
 }
