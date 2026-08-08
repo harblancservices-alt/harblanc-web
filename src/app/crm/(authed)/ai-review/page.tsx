@@ -3,6 +3,7 @@ import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { PageShell, Card, CardHead, EmptyState, ZEBRA_ROWS } from "../_shell/ui";
 import { IconAiReview } from "../_shell/icons";
 import { ReviewCard, type AiReviewLead } from "./ReviewCard";
+import { titleCaseWords, upperCaseState } from "../_shell/format";
 
 export const dynamic = "force-dynamic";
 
@@ -80,12 +81,17 @@ export default async function AiReviewPage() {
     if (!noteByAccount.has(n.account_id)) noteByAccount.set(n.account_id, n.body);
   }
 
+  // Name/address/city/state are title-cased/uppercased for display here —
+  // same helpers and same "read-boundary" pattern used everywhere else in
+  // the CRM, applied per Brent's follow-up request. Phone stays exactly as
+  // scraped (formatPhone in ReviewCard.tsx already just reformats digits,
+  // it doesn't touch the field itself).
   const reviewLeads: AiReviewLead[] = leads.map((l) => ({
     id: l.id,
-    name: l.name,
-    address: l.address,
-    city: l.city,
-    state: l.state,
+    name: titleCaseWords(l.name),
+    address: titleCaseWords(l.address) || null,
+    city: titleCaseWords(l.city) || null,
+    state: upperCaseState(l.state) || null,
     zip: l.zip,
     website: l.website,
     phone: l.phone,
