@@ -51,7 +51,8 @@ export function dayAfter(dateStr: string): string {
 const DEFAULT_MONTHLY_GOAL = 10000;
 
 /** The monthly net-profit goal from `dispatch_settings` — the same figure
- * the Today pace bar and Performance's goal ring must agree on. */
+ * Today's goal widget and Performance's goal card must agree on (both
+ * consume lib/domain/goal-pace.ts's computeGoalPace() with this number). */
 export async function getMonthlyNetGoal(): Promise<number> {
   if (await isDemoMode()) return DEFAULT_MONTHLY_GOAL;
   const sb = createServiceRoleClient();

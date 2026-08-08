@@ -1,4 +1,5 @@
 import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
+import { GoalPaceCard } from "@/components/tms-v2/ui/GoalPaceCard";
 import { NeedsAttentionBar } from "./_components/NeedsAttentionBar";
 import { ActiveLoadsList } from "./_components/ActiveLoadsList";
 import { CountdownPanel } from "./_components/CountdownPanel";
@@ -8,6 +9,9 @@ import { listBrokers } from "@/lib/data/brokers";
 import { listTrips } from "@/lib/data/trips";
 import { listCountdownGoals } from "@/lib/data/countdown";
 import { getDispatchSettingsSummary } from "@/lib/data/settings";
+import { getMonthlyNetGoal } from "@/lib/data/analytics";
+import { daysLeftInMonth, currentBusinessDate } from "@/lib/dispatch/goal-month";
+import { computeGoalPace } from "@/lib/domain/goal-pace";
 
 // Dashboard reads live, request-scoped data (active loads, needs-attention
 // list) — always fresh, matching /admin's own dashboard.
@@ -41,22 +45,41 @@ export const dynamic = "force-dynamic";
  * Brent asked for doesn't need it).
  */
 export default async function TmsV2DashboardPage() {
-  const [summary, attention, brokersPage, activeTripsPage, goals, settings] = await Promise.all([
+  const [summary, attention, brokersPage, activeTripsPage, goals, settings, monthlyGoal] = await Promise.all([
     getTodaySummary(),
     getNeedsAttention(),
     listBrokers({ pageSize: 100 }),
     listTrips({ status: "active", pageSize: 100 }),
     listCountdownGoals(),
     getDispatchSettingsSummary(),
+    getMonthlyNetGoal(),
   ]);
   const brokerNames = brokersPage.rows.map((b) => b.name);
   const activeTripNames = activeTripsPage.rows.map((t) => t.name).filter((n): n is string => !!n);
   const today = new Date().toISOString().slice(0, 10);
 
+  // Restores the monthly net-goal widget the dashboard lost when this page
+  // was rebuilt around countdown_goals (see this file's own header) — same
+  // shared pace module Performance's goal card consumes (lib/domain/
+  // goal-pace.ts), not a second calculation. summary.net/period are already
+  // the current calendar month, computed via the one money engine.
+  const now = new Date();
+  const goalPace =
+    monthlyGoal > 0
+      ? computeGoalPace({
+          goal: monthlyGoal,
+          currentNet: summary.net,
+          daysElapsed: Number(currentBusinessDate(now).slice(8, 10)) || 1,
+          daysRemaining: daysLeftInMonth(now),
+        })
+      : null;
+
   return (
     <PageScroll>
       <div className="flex flex-col gap-4">
         <NeedsAttentionBar items={attention.items} />
+
+        {goalPace ? <GoalPaceCard label={`${summary.periodLabel} net goal`} pace={goalPace} /> : null}
 
         <section className="flex flex-col gap-2">
           <h2 className="text-[13px] font-semibold uppercase tracking-wide text-fg-muted">

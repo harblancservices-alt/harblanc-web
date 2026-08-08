@@ -5,12 +5,15 @@ import { Money } from "@/components/tms-v2/ui/Money";
 import { Button } from "@/components/tms-v2/ui/Button";
 import { Card } from "@/components/tms-v2/ui/Card";
 import { ProgressBar } from "@/components/tms-v2/ui/ProgressBar";
+import { GoalPaceCard } from "@/components/tms-v2/ui/GoalPaceCard";
 import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
 import { formatMoney } from "@/lib/domain/money";
 import { getAnalyticsLoads, getMonthlyNetGoal } from "@/lib/data/analytics";
 import { summarize, brokerStats, laneStats, deadheadSplit, deltasBetween } from "@/lib/dispatch/performance";
 import { rpm, pct } from "@/lib/dispatch/format";
 import { currentPeriod, periodRange } from "@/lib/domain/attribution";
+import { daysLeftInMonth, currentBusinessDate } from "@/lib/dispatch/goal-month";
+import { computeGoalPace } from "@/lib/domain/goal-pace";
 import { resolvePerformanceView, monthParam, shiftPeriod } from "./_lib/range";
 import { DeltaChip } from "./_components/DeltaChip";
 import { PartyStatList } from "./_components/PartyStatList";
@@ -68,6 +71,24 @@ export default async function PerformancePage({ searchParams }: PageProps) {
   const nextMonthParam = view.mode === "month" ? monthParam(shiftPeriod(view.period, 1)) : null;
 
   const goalPct = monthlyGoal > 0 ? Math.min(100, Math.max(0, (summary.net / monthlyGoal) * 100)) : null;
+
+  // Pace math (remaining/required-per-day/-week, on-pace verdict) only means
+  // something for the month still in progress — a past month is over, a
+  // future one hasn't started accruing. Other months keep the plain
+  // percent-complete bar. Same shared module Today's dashboard consumes
+  // (lib/domain/goal-pace.ts) — never a second calculation.
+  const nowPeriod = currentPeriod(now);
+  const isCurrentMonth = view.mode === "month" && view.period.year === nowPeriod.year && view.period.month === nowPeriod.month;
+  const daysRemaining = daysLeftInMonth(now);
+  const goalPace =
+    isCurrentMonth && monthlyGoal > 0
+      ? computeGoalPace({
+          goal: monthlyGoal,
+          currentNet: summary.net,
+          daysElapsed: Number(currentBusinessDate(now).slice(8, 10)) || 1,
+          daysRemaining,
+        })
+      : null;
 
   return (
     <PageScroll
@@ -196,7 +217,9 @@ export default async function PerformancePage({ searchParams }: PageProps) {
             <KpiTile label="Margin" value={pct(summary.marginPct)} delta={<DeltaChip delta={deltas.margin} />} />
           </div>
 
-          {view.mode === "month" && monthlyGoal > 0 ? (
+          {goalPace ? (
+            <GoalPaceCard label="Net vs goal" pace={goalPace} />
+          ) : view.mode === "month" && monthlyGoal > 0 ? (
             <Card className="flex flex-col gap-1">
               <ProgressBar
                 label="Net vs goal"
