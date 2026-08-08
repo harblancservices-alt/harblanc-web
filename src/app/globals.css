@@ -283,23 +283,6 @@ input[type="date"]::-webkit-date-and-time-value {
   --info: var(--v2-blue);    --info-hover: var(--v2-blue-hover);
 }
 
-/* SQUARE CORNERS (2026-08, Brent's explicit ask) — every rounded-* Tailwind
-   utility anywhere in /tms-v2 (cards, panels, the dark section bars, KPI
-   tiles, inputs, selects, tables, badges/pills/status chips, avatars,
-   modals/drawers) is forced to border-radius: 0, EXCEPT <button> elements,
-   which keep whatever rounding they already have (Button.tsx, Fab.tsx, and
-   every inline <button>). Unlayered so it wins over Tailwind's own
-   utilities regardless of source order — same technique the mobile
-   input-font-size fix above this file already relies on. One rule here
-   instead of touching every rounded-* class site individually, per the
-   "shared component / design-token level, not one-off per element" ask.
-   The Expenses countdown ring is drawn as raw SVG <circle> elements, not
-   CSS border-radius, so it was never affected by rounded-* in the first
-   place and needs no exception here. */
-.tms-v2-light *:not(button) {
-  border-radius: 0 !important;
-}
-
 /* ADMIN DARK THEME — opt-in via the Settings toggle. When the operator
    picks Dark, an inline script sets html[data-admin-theme="dark"], which
    re-applies the approved warm-charcoal palette over the .admin-light
