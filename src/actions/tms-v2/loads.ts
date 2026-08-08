@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { lookupZip, estimateLaneMiles } from "@/lib/dispatch/distance";
 import { mutation, type MutationResult } from "@/lib/demo/mutation";
+import { findBrokerByNormalizedName } from "@/lib/domain/broker";
 
 /**
  * Loads writes — the reference implementation of the mutation() pattern
@@ -57,13 +58,22 @@ function intOrNull(fd: FormData, key: string): number | null {
 
 type Sb = ReturnType<typeof createServiceRoleClient>;
 
+type BrokerCandidateRow = { id: string; name: string; mc_number: string | null; dot_number: string | null; phone: string | null };
+
 /** Find a broker by normalized name, creating it if it doesn't exist yet —
  * same name_key dedupe V1 uses, so a broker typed here and one typed in
  * /admin resolve to the same record. `identity` (from V1's FMCSA MC/DOT
  * lookup on the Add Load form) backfills MC/DOT/main-phone onto an
  * existing broker record that's missing them, or seeds them on a new one
  * — ported from V1's resolveBrokerId (admin/dispatch/loads/actions.ts),
- * never overwriting a value the broker record already has. */
+ * never overwriting a value the broker record already has.
+ *
+ * Two-tier match (audit fix, 2026-08-08): first the fast exact indexed
+ * name_key lookup (unchanged — still the common case, a broker typed the
+ * same way twice); if that misses, a second pass fetches the active
+ * broker set and compares via normalizeBrokerName() (lib/domain/broker.ts)
+ * so "C.H. Robinson" typed on one load and "CH Robinson" on another
+ * resolve to the same broker instead of quietly creating a duplicate. */
 async function resolveBrokerId(
   sb: Sb,
   name: string,
@@ -71,13 +81,8 @@ async function resolveBrokerId(
 ): Promise<string> {
   const key = name.trim().toLowerCase();
   const c = identity ?? {};
-  const { data: existing } = await sb
-    .from("brokers")
-    .select("id, mc_number, dot_number, phone")
-    .eq("name_key", key)
-    .is("deleted_at", null)
-    .maybeSingle<{ id: string; mc_number: string | null; dot_number: string | null; phone: string | null }>();
-  if (existing?.id) {
+
+  async function backfillAndReturn(existing: BrokerCandidateRow): Promise<string> {
     const patch: Record<string, string> = {};
     if (c.mc && !existing.mc_number) patch.mc_number = c.mc;
     if (c.dot && !existing.dot_number) patch.dot_number = c.dot;
@@ -85,6 +90,24 @@ async function resolveBrokerId(
     if (Object.keys(patch).length > 0) await sb.from("brokers").update(patch).eq("id", existing.id);
     return existing.id;
   }
+
+  const { data: existing } = await sb
+    .from("brokers")
+    .select("id, name, mc_number, dot_number, phone")
+    .eq("name_key", key)
+    .is("deleted_at", null)
+    .maybeSingle<BrokerCandidateRow>();
+  if (existing?.id) return backfillAndReturn(existing);
+
+  const { data: candidates } = await sb
+    .from("brokers")
+    .select("id, name, mc_number, dot_number, phone")
+    .is("deleted_at", null)
+    .limit(1000)
+    .returns<BrokerCandidateRow[]>();
+  const fuzzyMatch = findBrokerByNormalizedName(candidates ?? [], name);
+  if (fuzzyMatch) return backfillAndReturn(fuzzyMatch);
+
   const { data: created, error } = await sb
     .from("brokers")
     .insert({ name: name.trim(), mc_number: c.mc ?? null, dot_number: c.dot ?? null, phone: c.phone ?? null })

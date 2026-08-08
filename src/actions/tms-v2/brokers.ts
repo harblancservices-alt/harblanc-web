@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { mutation, type MutationResult } from "@/lib/demo/mutation";
+import { findBrokerByNormalizedName } from "@/lib/domain/broker";
 
 /**
  * Broker writes — same mutation() pattern as src/actions/tms-v2/loads.ts.
@@ -48,6 +49,23 @@ export const createBroker = mutation(async (formData: FormData): Promise<Mutatio
   if (existing?.id) {
     revalidateBrokerPaths(existing.id);
     return { ok: true, data: { id: existing.id } };
+  }
+
+  // Exact name_key missed — fall back to a normalized-name match (audit
+  // fix, 2026-08-08: "C.H. Robinson" vs "CH Robinson" would otherwise
+  // create a duplicate here even though loads.ts's resolveBrokerId would
+  // already treat them as the same broker) before deciding this is
+  // genuinely a new company.
+  const { data: candidates } = await sb
+    .from("brokers")
+    .select("id, name")
+    .is("deleted_at", null)
+    .limit(1000)
+    .returns<{ id: string; name: string }[]>();
+  const fuzzyMatch = findBrokerByNormalizedName(candidates ?? [], name);
+  if (fuzzyMatch) {
+    revalidateBrokerPaths(fuzzyMatch.id);
+    return { ok: true, data: { id: fuzzyMatch.id } };
   }
 
   const { data: created, error } = await sb
