@@ -141,7 +141,7 @@ export function CompanyCard({
           </button>
         }
       />
-      <div className="flex flex-col gap-5 p-4">
+      <div className="flex min-w-0 flex-col gap-5 p-4">
         <div>
           <SectionLabel>Lifecycle stage</SectionLabel>
           <LifecycleControl accountId={accountId} current={stage} />
@@ -153,26 +153,24 @@ export function CompanyCard({
         </div>
 
         {editing ? (
-          <form onSubmit={onSubmit} className="flex flex-col gap-4">
+          <form onSubmit={onSubmit} className="flex w-full min-w-0 flex-col gap-3.5">
             <FormError message={error} />
 
             <Field label="Company name" name="name" required defaultValue={name} />
 
             <Field label="Address" name="address" defaultValue={address} />
-            <div className="grid grid-cols-6 gap-2">
-              <div className="col-span-3">
-                <Field label="City" name="city" defaultValue={city} />
-              </div>
-              <div className="col-span-1">
+            <Field label="City" name="city" defaultValue={city} />
+            <div className="flex w-full gap-2">
+              <div className="w-20 shrink-0">
                 <Field label="State" name="state" defaultValue={state} />
               </div>
-              <div className="col-span-2">
+              <div className="min-w-0 flex-1">
                 <Field label="ZIP" name="zip" defaultValue={zip} />
               </div>
             </div>
 
-            <PhonesEditor defaultValue={phones} />
-            <LinksEditor defaultValue={links} />
+            <PhonesEditor defaultValue={phones} compact />
+            <LinksEditor defaultValue={links} compact />
 
             <div>
               <SectionLabel>Commodities</SectionLabel>
@@ -208,7 +206,7 @@ export function CompanyCard({
                     }
                   }}
                   placeholder="e.g. Reefer"
-                  className={`h-10 flex-1 ${CONTROL}`}
+                  className={`h-10 min-w-0 flex-1 ${CONTROL}`}
                 />
                 <button
                   type="button"

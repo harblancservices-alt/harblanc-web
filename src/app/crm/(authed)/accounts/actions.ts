@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { logActivity, CRM_ACTIVITY } from "@/lib/crm/activity";
 import { normalizeStage, stageLabel, DEFAULT_LIFECYCLE } from "./lifecycle";
-import { firstName, centralInputToIso } from "../_shell/format";
+import { firstName, centralInputToIso, titleCaseWords, upperCaseState } from "../_shell/format";
 import { phonesFromFormValue, linksFromFormValue, parsePhones } from "../_shell/contactFields";
 
 /**
@@ -37,6 +37,16 @@ function optNum(fd: FormData, key: string): number | null {
   const n = Number.parseFloat(v.replace(/[^0-9.-]/g, ""));
   return Number.isFinite(n) ? n : null;
 }
+/** Proper-noun fields (name/company/address/city) — title-cased on save so
+ * garbage/inconsistent casing never reaches the DB for new writes. */
+function optTitleCase(fd: FormData, key: string): string | null {
+  const v = optStr(fd, key);
+  return v ? titleCaseWords(v) : null;
+}
+function optState(fd: FormData, key: string): string | null {
+  const v = optStr(fd, key);
+  return v ? upperCaseState(v) : null;
+}
 
 /**
  * The company field set, shared by create and edit — but PARTIAL by design:
@@ -52,7 +62,7 @@ function optNum(fd: FormData, key: string): number | null {
  */
 function accountFieldsFromForm(fd: FormData): Record<string, unknown> {
   const fields: Record<string, unknown> = {};
-  if (fd.has("name")) fields.name = str(fd, "name");
+  if (fd.has("name")) fields.name = titleCaseWords(str(fd, "name"));
   if (fd.has("industry")) fields.industry = optStr(fd, "industry");
   if (fd.has("phones")) {
     const phones = phonesFromFormValue(fd.get("phones"));
@@ -64,9 +74,9 @@ function accountFieldsFromForm(fd: FormData): Record<string, unknown> {
     fields.links = links;
     fields.website = links[0]?.url || null;
   }
-  if (fd.has("address")) fields.address = optStr(fd, "address");
-  if (fd.has("city")) fields.city = optStr(fd, "city");
-  if (fd.has("state")) fields.state = optStr(fd, "state");
+  if (fd.has("address")) fields.address = optTitleCase(fd, "address");
+  if (fd.has("city")) fields.city = optTitleCase(fd, "city");
+  if (fd.has("state")) fields.state = optState(fd, "state");
   if (fd.has("zip")) fields.zip = optStr(fd, "zip");
   if (fd.has("company_size")) fields.company_size = optStr(fd, "company_size");
   if (fd.has("commodities")) fields.commodities = optStr(fd, "commodities");
@@ -405,7 +415,7 @@ function contactFieldsFromForm(fd: FormData) {
   const phones = phonesFromFormValue(fd.get("phones"));
   const links = linksFromFormValue(fd.get("links"));
   return {
-    name: str(fd, "name"),
+    name: titleCaseWords(str(fd, "name")),
     title: optStr(fd, "title"),
     email: optStr(fd, "email"),
     phone: phones[0]?.number || null,

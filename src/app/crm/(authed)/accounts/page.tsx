@@ -6,7 +6,7 @@ import { IconCompanies } from "../_shell/icons";
 import { AddCompany } from "./AddCompany";
 import { AccountsFilters } from "./AccountsFilters";
 import { stageLabel, stageTone } from "./lifecycle";
-import { firstName, lastContactStatus, timestampMs } from "../_shell/format";
+import { firstName, lastContactStatus, timestampMs, titleCaseWords, upperCaseState } from "../_shell/format";
 import type { RepOption } from "./CompanyDialog";
 import type { CrmTag } from "./tags";
 import { AddContactDialog } from "../contacts/AddContactDialog";
@@ -91,7 +91,10 @@ export default async function CompaniesPage({
     .is("deleted_at", null)
     .order("name", { ascending: true })
     .limit(1000);
-  const companyOptions = (companyOptionsData ?? []) as CompanyOption[];
+  const companyOptions = ((companyOptionsData ?? []) as CompanyOption[]).map((a) => ({
+    id: a.id,
+    name: titleCaseWords(a.name),
+  }));
 
   let query = supabase
     .from("crm_accounts")
@@ -259,7 +262,9 @@ export default async function CompaniesPage({
               <tbody className={ZEBRA_ROWS}>
                 {accounts.map((a) => {
                   const stageValue = a.lifecycle_status;
-                  const location = [a.city, a.state].filter(Boolean).join(", ");
+                  const location = [titleCaseWords(a.city), upperCaseState(a.state)]
+                    .filter(Boolean)
+                    .join(", ");
                   const contact = a.primary_contact_id
                     ? primaryName.get(a.primary_contact_id)
                     : null;
@@ -276,7 +281,7 @@ export default async function CompaniesPage({
                           prefetch={false}
                           className="font-semibold text-fg hover:text-accent"
                         >
-                          {a.name}
+                          {titleCaseWords(a.name)}
                         </Link>
                         {a.industry && (
                           <div className="text-[12px] text-fg-subtle">{a.industry}</div>
@@ -291,7 +296,7 @@ export default async function CompaniesPage({
                       </td>
                       <td className="px-5 py-3 text-fg-muted">{location || "—"}</td>
                       <td className="px-5 py-3 text-fg-muted">
-                        {contact || <span className="text-fg-subtle">—</span>}
+                        {contact ? titleCaseWords(contact) : <span className="text-fg-subtle">—</span>}
                       </td>
                       <td className="px-5 py-3">
                         <LastContactBadge ms={lastContactMsByAccount.get(a.id) ?? null} />

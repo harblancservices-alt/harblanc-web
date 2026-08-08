@@ -7,6 +7,8 @@ import {
   timestampMs,
   firstName as profileFirstName,
   centralDayRange,
+  titleCaseWords,
+  upperCaseState,
 } from "./_shell/format";
 import { parsePhones } from "./_shell/contactFields";
 import { TaskRow, type CrmTaskItem } from "./tasks/TaskRow";
@@ -167,14 +169,24 @@ export default async function CrmDashboardPage() {
 
   const followupRows = (followupContactsRes.data ?? []) as FollowupContactRow[];
   const openTaskRows = (openTasksRes.data ?? []) as TaskRowData[];
-  const newAiLeads = (newAiLeadsRes.data ?? []) as NewLead[];
+  // Title-cased/uppercased once here so pre-existing not-quite-capitalized
+  // data displays clean too (new writes are already clean via
+  // accounts/actions.ts).
+  const newAiLeads = ((newAiLeadsRes.data ?? []) as NewLead[]).map((l) => ({
+    ...l,
+    name: titleCaseWords(l.name),
+    city: titleCaseWords(l.city) || null,
+    state: upperCaseState(l.state) || null,
+  }));
   const profiles = (profilesRes.data ?? []) as ProfileRow[];
   const profileNameById = new Map(
     profiles.map((p) => [p.id, profileFirstName(p.full_name, p.email) || "Unnamed rep"]),
   );
 
   // ── Quick-action data ──
-  const companyOptions = (companyOptionsRes.data ?? []) as { id: string; name: string }[];
+  const companyOptions = ((companyOptionsRes.data ?? []) as { id: string; name: string }[]).map(
+    (a) => ({ id: a.id, name: titleCaseWords(a.name) }),
+  );
   const orgContacts = (orgContactsRes.data ?? []) as {
     id: string;
     name: string;
@@ -182,7 +194,7 @@ export default async function CrmDashboardPage() {
   }[];
   const quickTaskContacts = orgContacts.map((c) => ({
     id: c.id,
-    name: c.name,
+    name: titleCaseWords(c.name),
     accountId: c.account_id,
   }));
   const canAssignOthers = user.role === "owner";
@@ -214,7 +226,7 @@ export default async function CrmDashboardPage() {
     phone: string | null;
     phones: unknown;
   }[];
-  const nameById = new Map(nameRowsTyped.map((a) => [a.id, a.name]));
+  const nameById = new Map(nameRowsTyped.map((a) => [a.id, titleCaseWords(a.name)]));
   const companyPhoneById = new Map(
     nameRowsTyped.map((a) => [a.id, parsePhones(a.phones)[0]?.number || a.phone || null]),
   );
@@ -224,7 +236,7 @@ export default async function CrmDashboardPage() {
     const ms = timestampMs(c.next_followup_at);
     return {
       id: c.id,
-      name: c.name,
+      name: titleCaseWords(c.name),
       account_id: c.account_id,
       companyName: c.account_id ? nameById.get(c.account_id) ?? null : null,
       next_followup_at: c.next_followup_at,

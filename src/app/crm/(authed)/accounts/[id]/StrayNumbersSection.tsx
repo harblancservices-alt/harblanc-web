@@ -7,6 +7,7 @@ import { LABEL, CONTROL } from "../../_shell/form";
 import { LabelPicker } from "../../_shell/LabelPicker";
 import { PHONE_LABEL_PRESETS, digitsForTel, type PhoneEntry } from "../../_shell/contactFields";
 import { assignCompanyPhoneToContact, createContactFromPhone } from "../actions";
+import { formatPhone } from "@/lib/domain/phone";
 
 export type StrayContactOption = { id: string; name: string };
 
@@ -121,7 +122,7 @@ function StrayNumberRow({
           href={`tel:${digitsForTel(phone.number)}`}
           className="shrink-0 font-mono text-[14px] font-semibold text-accent hover:underline"
         >
-          {phone.number}
+          {formatPhone(phone.number)}
         </a>
         <div className="w-44">
           <LabelPicker value={label} onChange={setLabel} presets={PHONE_LABEL_PRESETS} />

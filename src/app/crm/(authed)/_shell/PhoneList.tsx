@@ -3,6 +3,7 @@
 import { LogCallDialog } from "../calls/LogCallDialog";
 import { digitsForTel, type PhoneEntry } from "./contactFields";
 import { BTN_EDIT } from "./ui";
+import { formatPhone } from "@/lib/domain/phone";
 
 /**
  * Read-only display of a labeled phone-number list — tap-to-call (tel:) plus
@@ -47,7 +48,7 @@ export function PhoneList({
               href={`tel:${digitsForTel(p.number)}`}
               className="font-mono text-[14px] font-semibold text-accent hover:underline"
             >
-              {p.number}
+              {formatPhone(p.number)}
             </a>
           </div>
           <LogCallDialog

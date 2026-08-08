@@ -17,10 +17,13 @@ export function LinksEditor({
   name = "links",
   label = "Links",
   defaultValue,
+  /** Stacked, narrower-friendly row layout — see PhonesEditor's `compact`. */
+  compact = false,
 }: {
   name?: string;
   label?: string;
   defaultValue?: LinkEntry[];
+  compact?: boolean;
 }) {
   const [rows, setRows] = useState<LinkEntry[]>(
     defaultValue && defaultValue.length ? defaultValue : [{ label: "", url: "" }],
@@ -42,32 +45,68 @@ export function LinksEditor({
     <div className="flex flex-col gap-2">
       <span className={LABEL}>{label}</span>
       <div className="flex flex-col gap-2">
-        {rows.map((row, i) => (
-          <div key={i} className="grid grid-cols-[1fr_1.6fr_auto] items-center gap-2">
-            <LabelPicker
-              value={row.label}
-              onChange={(next) => update(i, { label: next })}
-              presets={LINK_LABEL_PRESETS}
-            />
-            <input
-              type="text"
-              inputMode="url"
-              value={row.url}
-              onChange={(e) => update(i, { url: e.target.value })}
-              placeholder="https://…"
-              className={`h-11 ${CONTROL}`}
-            />
-            <button
-              type="button"
-              onClick={() => remove(i)}
-              disabled={rows.length <= 1}
-              aria-label="Remove link"
-              className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors ${BTN_DANGER}`}
+        {rows.map((row, i) =>
+          compact ? (
+            <div
+              key={i}
+              className="flex flex-col gap-1.5 rounded-lg border border-line-strong bg-inset p-2"
             >
-              <IconX width={16} height={16} />
-            </button>
-          </div>
-        ))}
+              <div className="flex items-center gap-2">
+                <div className="min-w-0 flex-1">
+                  <LabelPicker
+                    value={row.label}
+                    onChange={(next) => update(i, { label: next })}
+                    presets={LINK_LABEL_PRESETS}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => remove(i)}
+                  disabled={rows.length <= 1}
+                  aria-label="Remove link"
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors ${BTN_DANGER}`}
+                >
+                  <IconX width={14} height={14} />
+                </button>
+              </div>
+              <input
+                type="text"
+                inputMode="url"
+                value={row.url}
+                onChange={(e) => update(i, { url: e.target.value })}
+                placeholder="https://…"
+                className={`h-11 w-full min-w-0 ${CONTROL}`}
+              />
+            </div>
+          ) : (
+            <div key={i} className="grid grid-cols-[1fr_1.6fr_auto] items-center gap-2">
+              <div className="min-w-0">
+                <LabelPicker
+                  value={row.label}
+                  onChange={(next) => update(i, { label: next })}
+                  presets={LINK_LABEL_PRESETS}
+                />
+              </div>
+              <input
+                type="text"
+                inputMode="url"
+                value={row.url}
+                onChange={(e) => update(i, { url: e.target.value })}
+                placeholder="https://…"
+                className={`h-11 w-full min-w-0 ${CONTROL}`}
+              />
+              <button
+                type="button"
+                onClick={() => remove(i)}
+                disabled={rows.length <= 1}
+                aria-label="Remove link"
+                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors ${BTN_DANGER}`}
+              >
+                <IconX width={16} height={16} />
+              </button>
+            </div>
+          ),
+        )}
       </div>
       <button
         type="button"

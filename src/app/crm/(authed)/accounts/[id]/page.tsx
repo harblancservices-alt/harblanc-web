@@ -3,7 +3,7 @@ import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { CRM_ACTIVITY } from "@/lib/crm/activity";
 import { PageShell, Card, CardHead } from "../../_shell/ui";
 import { BackButton } from "../../_shell/BackButton";
-import { formatDate, formatMoney, firstName } from "../../_shell/format";
+import { formatDate, formatMoney, firstName, titleCaseWords, upperCaseState } from "../../_shell/format";
 import { parsePhones, parseLinks, normalizeHref } from "../../_shell/contactFields";
 import { ProfileTabs } from "./ProfileTabs";
 import { stageLabel, stageTone } from "../lifecycle";
@@ -65,6 +65,16 @@ export default async function AccountDetailPage({
     .maybeSingle();
 
   if (!account) notFound();
+
+  // Title-cased/uppercased once here so every consumer below (the
+  // permanent Company card's view AND edit-mode defaults, the top strip's
+  // heading, the Details tab's edit dialog, the task "company" line) reads
+  // the same normalized value — including pre-existing not-quite-
+  // capitalized data (new writes are already clean via accounts/actions.ts).
+  const accountName = titleCaseWords(account.name as string);
+  const accountAddress = titleCaseWords(account.address as string | null) || null;
+  const accountCity = titleCaseWords(account.city as string | null) || null;
+  const accountState = upperCaseState(account.state as string | null) || null;
 
   // Fan out the related reads (each RLS-scoped to the caller's org).
   const [
@@ -146,7 +156,13 @@ export default async function AccountDetailPage({
     .map((p) => ({ id: p.id, label: profileName(p) ?? "Unnamed rep" }))
     .sort((a, b) => a.label.localeCompare(b.label));
 
-  const contactRows = (contactsRes.data ?? []) as {
+  // Names are title-cased here, once, right at the read boundary — every
+  // downstream consumer (contacts/people arrays, the name lookup maps,
+  // task/history "who" lines) reads from this array, so nothing displays a
+  // contact's name without going through this normalization, including
+  // pre-existing not-quite-capitalized data (new writes are already clean
+  // via accounts/actions.ts, but this covers what's already stored).
+  const contactRows = ((contactsRes.data ?? []) as {
     id: string;
     name: string;
     title: string | null;
@@ -159,7 +175,7 @@ export default async function AccountDetailPage({
     next_followup_at: string | null;
     last_contacted_at: string | null;
     role_category: string | null;
-  }[];
+  }[]).map((c) => ({ ...c, name: titleCaseWords(c.name) }));
   const contacts: CrmContact[] = contactRows.map((c) => ({
     ...c,
     phones: parsePhones(c.phones),
@@ -218,7 +234,7 @@ export default async function AccountDetailPage({
     assigned_user_id: string | null;
   }[]).map((t) => ({
     ...t,
-    companyName: account.name as string,
+    companyName: accountName,
     contactName: t.contact_id ? contactNameById.get(t.contact_id) ?? null : null,
     assigneeName: t.assigned_user_id
       ? profileName(profileById.get(t.assigned_user_id))
@@ -343,13 +359,13 @@ export default async function AccountDetailPage({
 
   const editDefaults = {
     id: account.id as string,
-    name: account.name as string,
+    name: accountName,
     industry: account.industry as string | null,
     phones,
     links,
-    address: account.address as string | null,
-    city: account.city as string | null,
-    state: account.state as string | null,
+    address: accountAddress,
+    city: accountCity,
+    state: accountState,
     zip: account.zip as string | null,
     company_size: account.company_size as string | null,
     commodities: account.commodities as string | null,
@@ -370,13 +386,13 @@ export default async function AccountDetailPage({
         <CompanyCard
           accountId={account.id as string}
           orgId={user.orgId}
-          name={account.name as string}
+          name={accountName}
           stage={stage}
           assignedUserId={account.assigned_user_id as string | null}
           reps={reps}
-          address={account.address as string | null}
-          city={account.city as string | null}
-          state={account.state as string | null}
+          address={accountAddress}
+          city={accountCity}
+          state={accountState}
           zip={account.zip as string | null}
           phones={phones}
           links={links}
@@ -389,7 +405,7 @@ export default async function AccountDetailPage({
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line-strong bg-card px-4 py-3 shadow-e2">
             <div className="flex min-w-0 items-center gap-2.5">
               <h1 className="truncate text-[18px] font-bold tracking-tight text-fg">
-                {account.name as string}
+                {accountName}
               </h1>
               <span
                 className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${stageTone(stage)}`}

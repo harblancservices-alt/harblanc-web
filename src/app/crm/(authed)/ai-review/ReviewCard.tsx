@@ -6,6 +6,7 @@ import Link from "next/link";
 import { formatDateTime } from "../_shell/format";
 import { digitsForTel } from "../_shell/contactFields";
 import { releaseAiLead, discardAiLead } from "./actions";
+import { formatPhone } from "@/lib/domain/phone";
 import { BTN_DANGER, BTN_EDIT, BTN_SUCCESS } from "../_shell/ui";
 
 export type AiReviewLead = {
@@ -115,7 +116,7 @@ export function ReviewCard({ lead }: { lead: AiReviewLead }) {
               href={`tel:${digitsForTel(lead.phone)}`}
               className="font-mono text-accent hover:underline"
             >
-              {lead.phone}
+              {formatPhone(lead.phone)}
             </a>
           </Line>
         )}

@@ -58,7 +58,7 @@ export function Field({
   step?: string;
 }) {
   return (
-    <label className="flex flex-col gap-1.5">
+    <label className="flex w-full min-w-0 flex-col gap-1.5">
       <FieldLabel required={required}>{label}</FieldLabel>
       <input
         name={name}
@@ -69,7 +69,7 @@ export function Field({
         defaultValue={defaultValue ?? undefined}
         inputMode={inputMode}
         step={step}
-        className={`h-11 ${CONTROL}`}
+        className={`h-11 w-full min-w-0 ${CONTROL}`}
       />
     </label>
   );
@@ -93,7 +93,7 @@ export function TextareaField({
   autoFocus?: boolean;
 }) {
   return (
-    <label className="flex flex-col gap-1.5">
+    <label className="flex w-full min-w-0 flex-col gap-1.5">
       <FieldLabel required={required}>{label}</FieldLabel>
       <textarea
         name={name}
@@ -102,7 +102,7 @@ export function TextareaField({
         defaultValue={defaultValue ?? undefined}
         rows={rows}
         autoFocus={autoFocus}
-        className={`resize-y py-2.5 leading-relaxed ${CONTROL}`}
+        className={`w-full min-w-0 resize-y py-2.5 leading-relaxed ${CONTROL}`}
       />
     </label>
   );
@@ -129,7 +129,7 @@ export function SelectField({
   children: ReactNode;
 }) {
   return (
-    <label className="flex flex-col gap-1.5">
+    <label className="flex w-full min-w-0 flex-col gap-1.5">
       <FieldLabel required={required}>{label}</FieldLabel>
       <select
         name={name}
@@ -137,7 +137,7 @@ export function SelectField({
         required={required}
         disabled={disabled}
         onChange={onChange}
-        className={`h-11 disabled:opacity-60 ${CONTROL}`}
+        className={`h-11 w-full min-w-0 disabled:opacity-60 ${CONTROL}`}
       >
         {children}
       </select>

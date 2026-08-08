@@ -5,6 +5,7 @@ import {
   formatDateTime,
   timestampMs,
   centralDateKey,
+  titleCaseWords,
 } from "../_shell/format";
 import { callOutcomeLabel } from "../calls/outcomes";
 import { CalendarView, type CalendarItem } from "./CalendarView";
@@ -79,7 +80,7 @@ export default async function CrmCalendarPage() {
   ]);
 
   const accountNameById = new Map(
-    ((accountsRes.data ?? []) as AccountRow[]).map((a) => [a.id, a.name]),
+    ((accountsRes.data ?? []) as AccountRow[]).map((a) => [a.id, titleCaseWords(a.name)]),
   );
   const profileNameById = new Map(
     ((profilesRes.data ?? []) as ProfileRow[]).map((p) => [
@@ -87,7 +88,12 @@ export default async function CrmCalendarPage() {
       firstName(p.full_name, p.email) || "Unnamed rep",
     ]),
   );
-  const contactRows = (contactsRes.data ?? []) as ContactRow[];
+  // Title-cased once here so pre-existing not-quite-capitalized data
+  // displays clean too (new writes are already clean via accounts/actions.ts).
+  const contactRows = ((contactsRes.data ?? []) as ContactRow[]).map((c) => ({
+    ...c,
+    name: titleCaseWords(c.name),
+  }));
   const contactNameById = new Map(contactRows.map((c) => [c.id, c.name]));
 
   const now = Date.now();

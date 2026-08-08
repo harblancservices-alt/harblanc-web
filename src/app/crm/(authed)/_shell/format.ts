@@ -358,3 +358,32 @@ export function lastContactStatus(
   const months = Math.round(days / 30);
   return { text: `${months}mo ago`, freshness: "cold" };
 }
+
+/**
+ * Title-case a proper-noun field — a person's name, a company name, a
+ * street address, or a city — so "john smith", "JOHN SMITH", and "John
+ * smith" all read as "John Smith". Applied both when a form saves one of
+ * these fields (accounts/actions.ts, contacts/actions.ts) and wherever one
+ * is displayed, so pre-existing not-quite-capitalized data reads clean too
+ * without needing a backfill. Every word is lowercased first, then the
+ * letter after the start of the string or after a space/hyphen/apostrophe/
+ * slash is capitalized (handles "Mary-Jane", "O'Brien", "123 Main St").
+ * Deliberately simple — no proper-noun dictionary, so an intentional
+ * all-caps acronym in a company name ("ABC LLC") gets normalized to "Abc
+ * Llc" too; the owner's call is that this reads cleaner overall than
+ * leaving inconsistent casing as-is. Never applied to free-form note/
+ * summary body text — only to name/company/address/city fields.
+ */
+export function titleCaseWords(value: string | null | undefined): string {
+  if (!value) return "";
+  return value
+    .toLowerCase()
+    .replace(/(^|[\s\-'/])([a-z])/g, (_m, sep: string, ch: string) => sep + ch.toUpperCase());
+}
+
+/** State abbreviation, uppercased — "tx" / "Tx" / "TX" all save/display as
+ * "TX". Trivial, but named so every call site reads its intent. */
+export function upperCaseState(value: string | null | undefined): string {
+  if (!value) return "";
+  return value.toUpperCase();
+}

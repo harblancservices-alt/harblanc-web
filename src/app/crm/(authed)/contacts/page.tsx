@@ -5,6 +5,8 @@ import { ClickableRow } from "../_shell/ClickableRow";
 import { IconContacts } from "../_shell/icons";
 import { firstName } from "../_shell/format";
 import { DueCountdown } from "../_shell/DueCountdown";
+import { formatPhone } from "@/lib/domain/phone";
+import { titleCaseWords } from "../_shell/format";
 import { ContactsSearch } from "./ContactsSearch";
 import { AddContactDialog } from "./AddContactDialog";
 import { ContactRowActions } from "./ContactRowActions";
@@ -75,7 +77,13 @@ export default async function ContactsPage({
   }
 
   const { data } = await query.order("name", { ascending: true }).limit(300);
-  const contacts = (data ?? []) as ContactRow[];
+  // Title-cased once here, right at the read boundary, so pre-existing
+  // not-quite-capitalized data displays clean too (new writes are already
+  // clean via contacts/actions.ts and accounts/actions.ts).
+  const contacts = ((data ?? []) as ContactRow[]).map((c) => ({
+    ...c,
+    name: titleCaseWords(c.name),
+  }));
 
   // Resolve each contact's company name for the "Company" column.
   const accountIds = [
@@ -85,7 +93,10 @@ export default async function ContactsPage({
     ? await supabase.from("crm_accounts").select("id, name").in("id", accountIds)
     : { data: [] as { id: string; name: string }[] };
   const accountName = new Map(
-    ((accountsData ?? []) as { id: string; name: string }[]).map((a) => [a.id, a.name]),
+    ((accountsData ?? []) as { id: string; name: string }[]).map((a) => [
+      a.id,
+      titleCaseWords(a.name),
+    ]),
   );
 
   // The full org roster (id/name only) for the "Add contact" dialog's company
@@ -200,7 +211,7 @@ export default async function ContactsPage({
                       <td className="px-5 py-3 font-mono text-fg-muted">
                         {c.phone || c.mobile ? (
                           <>
-                            {c.phone || c.mobile}
+                            {formatPhone(c.phone || c.mobile)}
                             {c.phone && c.extension ? ` ×${c.extension}` : ""}
                           </>
                         ) : (

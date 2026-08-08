@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { logActivity, CRM_ACTIVITY } from "@/lib/crm/activity";
 import { DEFAULT_LIFECYCLE } from "../accounts/lifecycle";
-import { centralInputToIso } from "../_shell/format";
+import { centralInputToIso, titleCaseWords } from "../_shell/format";
 import { phonesFromFormValue, linksFromFormValue } from "../_shell/contactFields";
 
 export type ActionResult =
@@ -45,12 +45,12 @@ function revalidateContactPaths(accountId: string | null) {
 export async function createContactQuick(formData: FormData): Promise<ActionResult> {
   const user = await requireCrmUser();
 
-  const name = str(formData, "name");
+  const name = titleCaseWords(str(formData, "name"));
   if (!name) return { ok: false, error: "Contact name is required." };
 
   const companyMode = str(formData, "company_mode");
   const companyId = str(formData, "company_id");
-  const companyName = str(formData, "company_name");
+  const companyName = titleCaseWords(str(formData, "company_name"));
 
   const supabase = await createCrmServerClient();
 

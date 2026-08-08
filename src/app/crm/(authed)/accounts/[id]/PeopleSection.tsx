@@ -4,6 +4,7 @@ import { Card, CardHead, BTN_PRIMARY, BTN_EDIT, ZEBRA_ROWS } from "../../_shell/
 import { IconPlus, IconContacts } from "../../_shell/icons";
 import { digitsForTel, type PhoneEntry } from "../../_shell/contactFields";
 import { lastContactStatus, timestampMs } from "../../_shell/format";
+import { formatPhone } from "@/lib/domain/phone";
 import { ContactDialog } from "./ContactDialog";
 import { QuickNoteDialog } from "./QuickNoteDialog";
 
@@ -154,7 +155,7 @@ function PersonRow({ accountId, person }: { accountId: string; person: CrmPerson
             {primaryPhone && (
               <span className="font-mono text-fg-muted">
                 {primaryPhone.label ? `${primaryPhone.label}: ` : ""}
-                {primaryPhone.number}
+                {formatPhone(primaryPhone.number)}
               </span>
             )}
             {person.email && (

@@ -5,6 +5,8 @@ import { IconCustomers } from "../_shell/icons";
 import { firstName } from "../_shell/format";
 import { digitsForTel } from "../_shell/contactFields";
 import { stageLabel, stageTone } from "../accounts/lifecycle";
+import { formatPhone } from "@/lib/domain/phone";
+import { titleCaseWords, upperCaseState } from "../_shell/format";
 
 export const dynamic = "force-dynamic";
 
@@ -48,7 +50,15 @@ export default async function ActiveCustomersPage() {
     .order("name", { ascending: true })
     .limit(500);
 
-  const accounts = (data ?? []) as AccountRow[];
+  // Title-cased/uppercased once here so pre-existing not-quite-capitalized
+  // data displays clean too (new writes are already clean via
+  // accounts/actions.ts).
+  const accounts = ((data ?? []) as AccountRow[]).map((a) => ({
+    ...a,
+    name: titleCaseWords(a.name),
+    city: titleCaseWords(a.city) || null,
+    state: upperCaseState(a.state) || null,
+  }));
   const ids = accounts.map((a) => a.id);
 
   const assigneeIds = [
@@ -74,7 +84,7 @@ export default async function ActiveCustomersPage() {
   const contactsByAccount = new Map<string, ContactRow[]>();
   for (const c of (contactsRes.data ?? []) as ContactRow[]) {
     const list = contactsByAccount.get(c.account_id) ?? [];
-    list.push(c);
+    list.push({ ...c, name: titleCaseWords(c.name) });
     contactsByAccount.set(c.account_id, list);
   }
 
@@ -166,7 +176,7 @@ function CustomerRow({
                   href={`tel:${digitsForTel((c.phone || c.mobile) as string)}`}
                   className="font-mono text-accent hover:underline"
                 >
-                  {c.phone || c.mobile}
+                  {formatPhone(c.phone || c.mobile)}
                 </a>
               )}
             </li>
