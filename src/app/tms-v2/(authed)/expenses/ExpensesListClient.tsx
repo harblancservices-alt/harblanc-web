@@ -179,6 +179,13 @@ export function ExpensesListClient({
 
   const busy = isPending || state.pending;
 
+  // Distinct sections (Phase 4) — a one-time charge has no real "next
+  // charge" cadence, so it never belongs sorted into the recurring bills'
+  // list. Same combined fetch/sort/pagination as before; split for display
+  // only, preserving whatever order the server already returned.
+  const recurringRows = rows.filter((r) => r.frequency !== "onetime");
+  const oneTimeRows = rows.filter((r) => r.frequency === "onetime");
+
   return (
     <div className="flex flex-col gap-3">
       {selected.size > 0 ? (
@@ -241,22 +248,56 @@ export function ExpensesListClient({
 
       {rows.length === 0 ? (
         <div className="rounded-xl border border-dashed border-line-strong bg-card px-4 py-10 text-center">
-          <p className="text-[13px] text-fg-muted">No recurring expenses match these filters.</p>
+          <p className="text-[13px] text-fg-muted">No expenses match these filters.</p>
         </div>
       ) : (
-        <div className="no-scrollbar overflow-hidden rounded-xl border border-line bg-card shadow-e1">
-          {rows.map((r) => (
-            <ExpenseRow
-              key={r.id}
-              r={r}
-              href={rowHref(r.id)}
-              selectMode
-              selected={selected.has(r.id)}
-              onToggle={() => onToggle(r.id)}
-              accountNameSet={accountNameSet}
-            />
-          ))}
-        </div>
+        <>
+          <div>
+            <div className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-fg-muted">
+              Recurring bills {recurringRows.length > 0 ? `· ${recurringRows.length}` : ""}
+            </div>
+            {recurringRows.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-line-strong bg-card px-4 py-6 text-center">
+                <p className="text-[13px] text-fg-muted">No recurring bills match these filters.</p>
+              </div>
+            ) : (
+              <div className="no-scrollbar overflow-hidden rounded-xl border border-line bg-card shadow-e1">
+                {recurringRows.map((r) => (
+                  <ExpenseRow
+                    key={r.id}
+                    r={r}
+                    href={rowHref(r.id)}
+                    selectMode
+                    selected={selected.has(r.id)}
+                    onToggle={() => onToggle(r.id)}
+                    accountNameSet={accountNameSet}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {oneTimeRows.length > 0 ? (
+            <div>
+              <div className="mb-1.5 text-[12px] font-semibold uppercase tracking-wide text-fg-muted">
+                One-time expenses · {oneTimeRows.length}
+              </div>
+              <div className="no-scrollbar overflow-hidden rounded-xl border border-line bg-card shadow-e1">
+                {oneTimeRows.map((r) => (
+                  <ExpenseRow
+                    key={r.id}
+                    r={r}
+                    href={rowHref(r.id)}
+                    selectMode
+                    selected={selected.has(r.id)}
+                    onToggle={() => onToggle(r.id)}
+                    accountNameSet={accountNameSet}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </>
       )}
     </div>
   );
