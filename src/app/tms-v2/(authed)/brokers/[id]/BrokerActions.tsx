@@ -168,45 +168,30 @@ function ArchiveBrokerModal({ open, onClose, brokerId }: { open: boolean; onClos
   );
 }
 
-function initials(name: string | null | undefined): string {
-  const parts = (name ?? "").trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "—";
-  return (parts[0][0] + (parts[1]?.[0] ?? "")).toUpperCase();
-}
-
-/** One contact — a clean stacked card, not a single row cramming avatar/
- * name/role/phone/email/actions together (the old layout: role tag
- * overlapping the phone number, the name effectively invisible next to a
- * bare initials circle, cramped). Top line is avatar + name + role tag
- * (tag sits beside the name, never on top of anything else); phone and
- * email each get their own line; Edit/Delete are real Button components,
- * not bare colored text. */
+/** One contact row — no avatar/initials circle (Brent's explicit ask: no
+ * pfp). Name is the clear primary line (with the role tag beside it, never
+ * overlapping anything since it's inline on the same text row), phone and
+ * email underneath on their own line, and Edit/Delete as real rectangular
+ * buttons right-aligned on the row. */
 function ContactRow({ contact: c, onEdit, onDelete }: { contact: BrokerContact; onEdit: () => void; onDelete: () => void }) {
   return (
-    <div className="flex flex-col gap-2 border-b border-line px-3.5 py-3 last:border-b-0">
-      <div className="flex items-center gap-2.5">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-elevated text-[12px] font-semibold text-fg-muted">
-          {initials(c.name)}
-        </span>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="truncate text-[14px] font-semibold text-fg">{c.name ?? "Unnamed contact"}</span>
-            {c.isBackhaul ? (
-              <span className="shrink-0 rounded-full bg-warn-bg px-2 py-0.5 text-[11px] font-medium text-warn">Backhaul</span>
-            ) : null}
+    <div className="flex items-start justify-between gap-3 border-b border-line px-3.5 py-3 last:border-b-0">
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="truncate text-[14px] font-semibold text-fg">{c.name ?? "Unnamed contact"}</span>
+          {c.isBackhaul ? (
+            <span className="shrink-0 rounded-full bg-warn-bg px-2 py-0.5 text-[11px] font-medium text-warn">Backhaul</span>
+          ) : null}
+        </div>
+        {c.title ? <div className="truncate text-[12px] text-fg-muted">{c.title}</div> : null}
+        {c.phone || c.email ? (
+          <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[13px] text-fg-muted">
+            {c.phone ? <span className="truncate">{c.phone}</span> : null}
+            {c.email ? <span className="truncate">{c.email}</span> : null}
           </div>
-          {c.title ? <div className="truncate text-[12px] text-fg-muted">{c.title}</div> : null}
-        </div>
+        ) : null}
       </div>
-
-      {c.phone || c.email ? (
-        <div className="flex flex-col gap-0.5 pl-11 text-[13px] text-fg-muted">
-          {c.phone ? <div className="truncate">{c.phone}</div> : null}
-          {c.email ? <div className="truncate">{c.email}</div> : null}
-        </div>
-      ) : null}
-
-      <div className="flex items-center gap-2 pl-11">
+      <div className="flex shrink-0 items-center gap-2">
         <Button type="button" variant="secondary" size="sm" onClick={onEdit}>
           Edit
         </Button>
@@ -233,6 +218,10 @@ export function ContactsSection({ brokerId, contacts }: { brokerId: string; cont
 
   return (
     <div className="flex flex-col gap-3">
+      <Button type="button" variant="secondary" size="sm" className="self-start" onClick={() => setModal({ mode: "add" })}>
+        + Add contact
+      </Button>
+
       {contacts.length === 0 ? (
         <div className="rounded-xl border border-dashed border-line-strong bg-card px-4 py-10 text-center">
           <p className="text-[13px] text-fg-muted">No contacts on file for this broker.</p>
@@ -244,10 +233,6 @@ export function ContactsSection({ brokerId, contacts }: { brokerId: string; cont
           ))}
         </div>
       )}
-
-      <Button type="button" variant="secondary" size="sm" className="self-start" onClick={() => setModal({ mode: "add" })}>
-        + Add contact
-      </Button>
 
       {modal ? (
         <ContactModal
