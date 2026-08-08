@@ -13,13 +13,29 @@ import { nextChargeDate, toIsoDate } from "@/lib/data/recurring-expenses";
  * frequency/day-anchor rules are ported from V1's
  * src/app/admin/(authed)/expenses/actions.ts so a row written here reads
  * identically on /admin's ledger — same table (`recurring_expenses`), same
- * soft-delete-by-`deleted_at` convention (unused here — archive is a flag,
- * not a delete, matching V1). expense_accounts (the card dropdown) stays
- * read-only in this phase (lib/data/recurring-expenses.ts's
- * listExpenseAccounts) — adding/editing payment methods is a later phase.
+ * soft-delete-by-`deleted_at` convention.
+ *
+ * Every mutation below also writes to `expense_activity` (same table
+ * /admin's ledger already reads/writes — not a second audit system),
+ * mirroring legacy's own logActivity()/getExpenseActivity() rather than
+ * reimplementing them: best-effort, never blocks or fails the caller's
+ * mutation on a logging hiccup.
  */
 
 const PATH = "/tms-v2/expenses";
+
+async function logActivity(
+  sb: ReturnType<typeof createServiceRoleClient>,
+  expenseId: string,
+  action: string,
+  detail?: string | null,
+): Promise<void> {
+  try {
+    await sb.from("expense_activity").insert({ expense_id: expenseId, action, detail: detail ?? null });
+  } catch {
+    // best-effort only
+  }
+}
 
 function str(fd: FormData, key: string): string | null {
   const v = fd.get(key);
@@ -151,22 +167,60 @@ export const addExpense = mutation(async (formData: FormData): Promise<MutationR
     .single<{ id: string }>();
   if (error || !data) return { ok: false, reason: `Could not add expense: ${error?.message ?? "unknown error"}` };
 
+  await logActivity(sb, data.id, "Created", parsed.fields.vendor ? `Vendor: ${parsed.fields.vendor}` : null);
   revalidatePath(PATH);
   return { ok: true, data: { id: data.id } };
 });
+
+type PriorRow = {
+  amount: number | string | null;
+  card: string | null;
+  expense_account_id: string | null;
+  start_date: string | null;
+  day_of_month: number | null;
+  day_of_week: string | null;
+};
 
 export const editExpense = mutation(async (id: string, formData: FormData): Promise<MutationResult> => {
   const parsed = parseFields(formData);
   if (!parsed.ok) return { ok: false, reason: parsed.reason };
 
   const sb = createServiceRoleClient();
-  const account = await resolveAccount(sb, parsed.fields.expense_account_id);
+  const [account, { data: prior }] = await Promise.all([
+    resolveAccount(sb, parsed.fields.expense_account_id),
+    sb
+      .from("recurring_expenses")
+      .select("amount, card, expense_account_id, start_date, day_of_month, day_of_week")
+      .eq("id", id)
+      .maybeSingle<PriorRow>(),
+  ]);
   const { error } = await sb
     .from("recurring_expenses")
     .update({ ...parsed.fields, card: account.name ?? parsed.fields.card, expense_account_id: account.id, updated_at: new Date().toISOString() })
     .eq("id", id)
     .is("deleted_at", null);
   if (error) return { ok: false, reason: `Could not save expense: ${error.message}` };
+
+  const changes: [string, string | null][] = [];
+  if (prior) {
+    const priorAmount = prior.amount == null ? null : Number(prior.amount);
+    if (priorAmount != null && priorAmount !== parsed.fields.amount) {
+      changes.push(["Amount changed", `$${priorAmount.toFixed(2)} → $${parsed.fields.amount.toFixed(2)}`]);
+    }
+    const priorAccountKey = prior.expense_account_id ?? prior.card ?? null;
+    const nextAccountKey = account.id ?? parsed.fields.card ?? null;
+    if (priorAccountKey !== nextAccountKey) {
+      changes.push(["Payment method changed", `${prior.card ?? "None"} → ${account.name ?? parsed.fields.card ?? "None"}`]);
+    }
+    if (prior.start_date !== parsed.fields.start_date || prior.day_of_month !== parsed.fields.day_of_month || prior.day_of_week !== parsed.fields.day_of_week) {
+      changes.push(["Date changed", null]);
+    }
+  }
+  if (changes.length > 0) {
+    await Promise.all(changes.map(([action, detail]) => logActivity(sb, id, action, detail)));
+  } else {
+    await logActivity(sb, id, "Updated");
+  }
 
   revalidatePath(PATH);
   return { ok: true };
@@ -180,6 +234,19 @@ export const setExpenseArchived = mutation(async (id: string, archived: boolean)
   const { error } = await sb.from("recurring_expenses").update({ archived }).eq("id", id).is("deleted_at", null);
   if (error) return { ok: false, reason: `Could not ${archived ? "archive" : "restore"} expense: ${error.message}` };
 
+  await logActivity(sb, id, archived ? "Archived" : "Restored");
+  revalidatePath(PATH);
+  return { ok: true };
+});
+
+/** Single-row delete — was bulk-only (bulkDeleteExpenses); the per-row kebab-
+ * menu case legacy has always had. Same soft-delete-by-`deleted_at`. */
+export const deleteExpense = mutation(async (id: string): Promise<MutationResult> => {
+  const sb = createServiceRoleClient();
+  const { error } = await sb.from("recurring_expenses").update({ deleted_at: new Date().toISOString() }).eq("id", id);
+  if (error) return { ok: false, reason: `Could not delete expense: ${error.message}` };
+
+  await logActivity(sb, id, "Deleted");
   revalidatePath(PATH);
   return { ok: true };
 });
@@ -205,6 +272,7 @@ export const bulkArchiveExpenses = mutation(async (ids: string[]): Promise<Mutat
   const { error } = await sb.from("recurring_expenses").update({ archived: true }).in("id", uniq).is("deleted_at", null);
   if (error) return { ok: false, reason: `Could not archive expenses: ${error.message}` };
 
+  await Promise.all(uniq.map((id) => logActivity(sb, id, "Archived", "Bulk action")));
   revalidatePath(PATH);
   return { ok: true };
 });
@@ -217,6 +285,7 @@ export const bulkDeleteExpenses = mutation(async (ids: string[]): Promise<Mutati
   const { error } = await sb.from("recurring_expenses").update({ deleted_at: new Date().toISOString() }).in("id", uniq);
   if (error) return { ok: false, reason: `Could not delete expenses: ${error.message}` };
 
+  await Promise.all(uniq.map((id) => logActivity(sb, id, "Deleted", "Bulk action")));
   revalidatePath(PATH);
   return { ok: true };
 });
@@ -256,6 +325,7 @@ export const importExpenses = mutation(async (rows: ImportExpenseRow[]): Promise
   const { data, error } = await sb.from("recurring_expenses").insert(payload).select("id");
   if (error) return { ok: false, reason: `Import failed: ${error.message}` };
 
+  await Promise.all((data ?? []).map((r: { id: string }) => logActivity(sb, r.id, "Created", "Imported from CSV")));
   revalidatePath(PATH);
   return { ok: true, data: { count: data?.length ?? 0 } };
 });
@@ -270,6 +340,7 @@ export const bulkChangeExpenseCategory = mutation(async (ids: string[], category
   const { error } = await sb.from("recurring_expenses").update({ category: trimmed }).in("id", uniq).is("deleted_at", null);
   if (error) return { ok: false, reason: `Could not update category: ${error.message}` };
 
+  await Promise.all(uniq.map((id) => logActivity(sb, id, "Category changed", trimmed)));
   revalidatePath(PATH);
   return { ok: true };
 });
@@ -297,6 +368,7 @@ export const duplicateExpense = mutation(async (id: string): Promise<MutationRes
     .single<{ id: string }>();
   if (insertError || !copy) return { ok: false, reason: `Could not duplicate: ${insertError?.message ?? "unknown error"}` };
 
+  await logActivity(sb, copy.id, "Duplicated", `From "${source.name}"`);
   revalidatePath(PATH);
   return { ok: true, data: { id: copy.id } };
 });
@@ -322,6 +394,7 @@ export const skipNextPayment = mutation(async (id: string): Promise<MutationResu
   const { error } = await sb.from("recurring_expenses").update({ skip_next_date: skipDate }).eq("id", id);
   if (error) return { ok: false, reason: `Could not skip payment: ${error.message}` };
 
+  await logActivity(sb, id, "Skipped next payment", skipDate);
   revalidatePath(PATH);
   return { ok: true, data: { skippedDate: skipDate } };
 });

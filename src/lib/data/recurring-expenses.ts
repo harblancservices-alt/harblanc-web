@@ -423,3 +423,26 @@ export async function listExpenseAccounts(): Promise<ExpenseAccountRow[]> {
     .returns<(AccountDbRow & { is_default: boolean | null })[]>();
   return (data ?? []).map((a) => ({ id: a.id, name: a.name, type: a.type, last4: a.last4, isDefault: a.is_default ?? false }));
 }
+
+export type ExpenseActivityRow = { id: string; action: string; detail: string | null; whenLabel: string };
+
+/** Recent audit trail for one expense — ported from /admin's ledger
+ * (`getExpenseActivity`), same `expense_activity` table, not a second
+ * system. Writes happen in src/actions/tms-v2/expenses.ts's logActivity(). */
+export async function getExpenseActivity(id: string): Promise<ExpenseActivityRow[]> {
+  if (!id || (await isDemoMode())) return [];
+  const sb = createServiceRoleClient();
+  const { data } = await sb
+    .from("expense_activity")
+    .select("id, action, detail, created_at")
+    .eq("expense_id", id)
+    .order("created_at", { ascending: false })
+    .limit(25)
+    .returns<{ id: string; action: string; detail: string | null; created_at: string }[]>();
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    action: r.action,
+    detail: r.detail,
+    whenLabel: new Date(r.created_at).toLocaleString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" }),
+  }));
+}

@@ -8,6 +8,7 @@ import {
   listRecurringExpenses,
   getRecurringExpensesKpis,
   getRecurringExpenseById,
+  getExpenseActivity,
   listExpenseAccounts,
   EXPENSE_CATEGORIES,
   RECURRING_FREQUENCIES,
@@ -75,6 +76,7 @@ export default async function ExpensesPage({
     // `list`/`exportList` down to.
     listRecurringExpenses({ page: 1, pageSize: EXPORT_FETCH_SIZE, status: "active" }),
   ]);
+  const activity = selectedId ? await getExpenseActivity(selectedId) : [];
 
   const baseParams = { category, frequency, status, q: search, page: page > 1 ? page : undefined, sort, dir: sort ? dir : undefined };
   const accountNames = accounts.map((a) => a.name);
@@ -208,7 +210,7 @@ export default async function ExpensesPage({
 
     {selectedExpense ? (
       <ContextDrawer title={selectedExpense.vendor || selectedExpense.name} closeHref={closeHref}>
-        <ExpenseDrawerContent expense={selectedExpense} accounts={accounts} />
+        <ExpenseDrawerContent expense={selectedExpense} accounts={accounts} activity={activity} />
       </ContextDrawer>
     ) : null}
     </div>

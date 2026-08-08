@@ -3,9 +3,9 @@
 import { useActionState, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/tms-v2/ui/Button";
-import { editExpense, setExpenseArchived, duplicateExpense, skipNextPayment } from "@/actions/tms-v2/expenses";
+import { editExpense, setExpenseArchived, deleteExpense, duplicateExpense, skipNextPayment } from "@/actions/tms-v2/expenses";
 import type { MutationResult } from "@/lib/demo/mutation";
-import type { RecurringExpenseRow } from "@/lib/data/recurring-expenses";
+import type { RecurringExpenseRow, ExpenseActivityRow } from "@/lib/data/recurring-expenses";
 import { EXPENSE_CATEGORIES, RECURRING_FREQUENCIES, RECURRING_FREQUENCY_LABEL, type RecurringFrequency } from "@/lib/domain/expenses";
 import { Field, SelectField, TextareaField, FormError, FormActions } from "./_form";
 
@@ -17,12 +17,21 @@ const INITIAL: SaveState = { ok: false, error: null };
 /** Expenses ledger's context-drawer body — edit form (same field set the
  * old modal used) plus Archive/Restore, replacing the modal-based Edit
  * flow ExpenseRowActions used to trigger. */
-export function ExpenseDrawerContent({ expense, accounts }: { expense: RecurringExpenseRow; accounts: { id: string; name: string }[] }) {
+export function ExpenseDrawerContent({
+  expense,
+  accounts,
+  activity,
+}: {
+  expense: RecurringExpenseRow;
+  accounts: { id: string; name: string }[];
+  activity: ExpenseActivityRow[];
+}) {
   const router = useRouter();
   const [frequency, setFrequency] = useState<RecurringFrequency>(expense.frequency);
   const [archivePending, startArchiveTransition] = useTransition();
   const [dupPending, startDupTransition] = useTransition();
   const [skipPending, startSkipTransition] = useTransition();
+  const [deletePending, startDeleteTransition] = useTransition();
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -71,6 +80,21 @@ export function ExpenseDrawerContent({ expense, accounts }: { expense: Recurring
     });
   }
 
+  function onDelete() {
+    if (!confirm(`Delete "${expense.name}"? This can't be undone from here.`)) return;
+    setActionError(null);
+    setActionMessage(null);
+    startDeleteTransition(async () => {
+      const result = await deleteExpense(expense.id);
+      if (result.ok) {
+        router.push("/tms-v2/expenses");
+        router.refresh();
+      } else {
+        setActionError(result.reason);
+      }
+    });
+  }
+
   return (
     <div className="flex flex-col gap-4 pt-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -85,6 +109,9 @@ export function ExpenseDrawerContent({ expense, accounts }: { expense: Recurring
             {skipPending ? "Skipping…" : "Skip next payment"}
           </Button>
         ) : null}
+        <Button type="button" variant="destructive" size="sm" onClick={onDelete} disabled={deletePending} className="ml-auto">
+          {deletePending ? "Deleting…" : "Delete"}
+        </Button>
       </div>
       {actionMessage ? <p className="text-[13px] text-fg-muted">{actionMessage}</p> : null}
       {actionError ? <p className="text-[13px] font-medium text-bad">{actionError}</p> : null}
@@ -164,6 +191,20 @@ export function ExpenseDrawerContent({ expense, accounts }: { expense: Recurring
           </Button>
         </FormActions>
       </form>
+
+      {activity.length > 0 ? (
+        <div className="border-t border-line pt-3">
+          <div className="text-[12px] font-medium uppercase tracking-wide text-fg-muted">Activity</div>
+          <ul className="mt-2 flex flex-col gap-1.5">
+            {activity.map((a) => (
+              <li key={a.id} className="text-[13px] text-fg-muted">
+                <span className="font-medium text-fg">{a.action}</span>
+                {a.detail ? ` — ${a.detail}` : ""} · {a.whenLabel}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
     </div>
   );
 }
