@@ -9,13 +9,46 @@ import type { LeadListRow } from "@/lib/data/pipeline";
 import { LeadStatusPill } from "../_lib/lead-status";
 import { UrgencyPill } from "../_lib/urgency-pill";
 import { softDeleteLeads } from "@/actions/tms-v2/quotes";
+import { advanceLeadStatus } from "@/actions/tms-v2/pipeline";
+import { suggestedNext, isLeadStatus, LEAD_STATUS_LABELS } from "@/lib/dispatch/status";
+
+/** One-tap "advance to <next stage>" — the row itself already navigates to
+ * detail (DataList wraps every cell in its own <Link>), so this button's
+ * click has to stop that Link's navigation, not just its own default. */
+function AdvanceCell({ lead }: { lead: LeadListRow }) {
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  const next = isLeadStatus(lead.leadStatus) ? suggestedNext(lead.leadStatus) : null;
+  if (!next) return null;
+
+  function onClick(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    startTransition(async () => {
+      await advanceLeadStatus(lead.id, next as string);
+      router.refresh();
+    });
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={pending}
+      className="rounded-md border border-line-strong bg-card px-2 py-1 text-[12px] font-medium text-fg hover:bg-elevated disabled:opacity-50"
+    >
+      {pending ? "…" : `→ ${LEAD_STATUS_LABELS[next]}`}
+    </button>
+  );
+}
 
 const COLUMNS: DataListColumn<LeadListRow>[] = [
   { key: "name", header: "Name", render: (l) => <span className="font-medium text-fg">{l.name}</span> },
   { key: "lane", header: "Lane", render: (l) => `${l.originLabel} → ${l.destLabel}`, hideOnMobile: true },
   { key: "status", header: "Status", render: (l) => <LeadStatusPill status={l.leadStatus} /> },
-  { key: "urgency", header: "Attention", render: (l) => <UrgencyPill chip={l.topUrgency} /> },
+  { key: "urgency", header: "Attention", render: (l) => <UrgencyPill chip={l.topUrgency} />, hideOnMobile: true },
   { key: "created", header: "Created", render: (l) => <DateTimeCST value={l.createdAt} mode="date" />, align: "right", hideOnMobile: true },
+  { key: "advance", header: "", render: (l) => <AdvanceCell lead={l} />, align: "right" },
 ];
 
 /** Quote requests active list + bulk trash — same always-on-checkbox

@@ -54,13 +54,13 @@ export default async function OperationsPage({
             description="The lead-to-cash pipeline — quote requests, applications, and accounting, in one place."
           />
 
-          <nav className="flex gap-1 border-b border-line">
+          <nav className="flex w-fit items-center gap-1 rounded-lg bg-elevated p-1">
             {TABS.map((t) => (
               <Link
                 key={t.key}
                 href={`/tms-v2/operations?tab=${t.key}`}
-                className={`px-3 py-2 text-[14px] font-medium ${
-                  tab === t.key ? "border-b-2 border-accent text-fg" : "text-fg-muted hover:text-fg"
+                className={`whitespace-nowrap rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors ${
+                  tab === t.key ? "bg-card text-fg shadow-e1" : "text-fg-muted hover:text-fg"
                 }`}
               >
                 {t.label}

@@ -9,6 +9,7 @@ import {
   saveDraftEstimate as legacySaveDraftEstimate,
   buildEstimatePreview as legacyBuildEstimatePreview,
   sendEstimate as legacySendEstimate,
+  updateLeadStatus as legacyUpdateLeadStatus,
   type EmailPreview,
 } from "@/app/admin/(authed)/quotes/actions";
 import {
@@ -102,6 +103,22 @@ export async function buildEstimatePreview(formData: FormData): Promise<PreviewR
 export async function sendEstimate(quoteRequestId: string): Promise<MutationResult> {
   try {
     await legacySendEstimate(quoteRequestId);
+    revalidatePipelinePaths(quoteRequestId);
+    return { ok: true };
+  } catch (e) {
+    return toResult(e);
+  }
+}
+
+/** Manual one-tap stage advance (lead_status only — no email/PDF side
+ * effects) — ported from V1's Phase 3A updateLeadStatus(), which already
+ * logs the transition to dispatch_events. tms-v2's hub previously had no
+ * way to move a lead forward except as a side effect of sending an
+ * estimate/finalized quote; this is the "advance lead" capability the
+ * pipeline strip needs to be more than read-only. */
+export async function advanceLeadStatus(quoteRequestId: string, newStatus: string): Promise<MutationResult> {
+  try {
+    await legacyUpdateLeadStatus(quoteRequestId, newStatus);
     revalidatePipelinePaths(quoteRequestId);
     return { ok: true };
   } catch (e) {

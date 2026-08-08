@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { listApplications } from "@/lib/data/pipeline";
+import { listApplications, listArchivedApplications } from "@/lib/data/pipeline";
 import { ApplicationsListClient } from "./ApplicationsListClient";
+import { ArchivedApplicationsSection } from "./ArchivedApplicationsSection";
 
 const PAGE_SIZE = 25;
 
@@ -12,7 +13,10 @@ function buildHref(page: number): string {
  * — the table deliberately omits a status pill rather than fabricate one,
  * same restraint v2-design.md §19 calls for. */
 export async function ApplicationsTab({ page }: { page: number }) {
-  const list = await listApplications({ page, pageSize: PAGE_SIZE });
+  const [list, archived] = await Promise.all([
+    listApplications({ page, pageSize: PAGE_SIZE }),
+    listArchivedApplications(),
+  ]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -35,6 +39,8 @@ export async function ApplicationsTab({ page }: { page: number }) {
           ) : null}
         </div>
       </div>
+
+      <ArchivedApplicationsSection applications={archived} />
     </div>
   );
 }
