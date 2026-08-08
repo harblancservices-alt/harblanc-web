@@ -8,10 +8,12 @@
 -- 1. end_date — nullable, for bills with a known payoff/cancellation date
 --    (equipment financing, a truck/trailer payment with a payoff date).
 -- 2. expense_account_id — a real FK to expense_accounts(id). Existing rows
---    are backfilled by matching `card` (text) against expense_accounts.name
---    (confirmed clean 1:1 match against live data — no duplicate active
---    account names, no orphaned card strings). `card` is kept as a fallback
---    display value / for any not-yet-matched rows; not dropped here.
+--    are backfilled by matching `card` (text) against expense_accounts.name,
+--    case/trim-insensitive (confirmed clean match against live data — no
+--    duplicate active account names, no orphaned card strings; applied to
+--    prod 2026-08-07: 10 of 18 rows linked, every row with a `card` value
+--    matched). `card` is kept as a fallback display value / for any
+--    not-yet-matched rows; not dropped here.
 
 alter table public.recurring_expenses
   add column if not exists end_date date;
@@ -24,7 +26,7 @@ set expense_account_id = ea.id
 from public.expense_accounts ea
 where re.expense_account_id is null
   and re.card is not null
-  and re.card = ea.name
+  and trim(lower(re.card)) = trim(lower(ea.name))
   and ea.deleted_at is null;
 
 create index if not exists recurring_expenses_expense_account_id_idx
