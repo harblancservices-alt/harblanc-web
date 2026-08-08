@@ -5,11 +5,14 @@ import { useRouter } from "next/navigation";
 import { Modal } from "@/components/tms-v2/ui/Modal";
 import { Button } from "@/components/tms-v2/ui/Button";
 import { updateTrip, updateTripOdometer, closeTrip, reopenTrip, deleteTrip } from "@/actions/tms-v2/trips";
+import { addLoadExpense } from "@/actions/tms-v2/loads";
 import type { MutationResult } from "@/lib/demo/mutation";
-import { Field, FormError, FormActions } from "../../loads/_form";
+import { Field, SelectField, FormError, FormActions } from "../../loads/_form";
 
 type SaveState = { ok: boolean; error: string | null };
 const INITIAL: SaveState = { ok: false, error: null };
+
+type TripLoadOption = { id: string; label: string };
 
 type Props = {
   trip: {
@@ -22,6 +25,11 @@ type Props = {
     startOdometer: number | null;
     endOdometer: number | null;
   };
+  /** This trip's linked loads, for the "Add expense" modal's load picker —
+   * there's no trip-level expense table, so this reuses the same per-load
+   * addLoadExpense() the Load Board already uses, just scoped to picking
+   * one of this trip's own loads. */
+  loads: TripLoadOption[];
 };
 
 function toDateInput(iso: string | null): string {
@@ -33,9 +41,9 @@ function toDateInput(iso: string | null): string {
  * (status stays derived by an explicit action, never a free dropdown), and
  * Delete. Closes the audit's record-trap #4 (a trip started in tms-v2
  * couldn't be closed or given odometer bookends). */
-export function TripActions({ trip }: Props) {
+export function TripActions({ trip, loads }: Props) {
   const router = useRouter();
-  const [openModal, setOpenModal] = useState<"edit" | "odometer" | "delete" | null>(null);
+  const [openModal, setOpenModal] = useState<"edit" | "odometer" | "delete" | "expense" | null>(null);
   const close = () => setOpenModal(null);
   const refresh = () => router.refresh();
 
@@ -56,14 +64,8 @@ export function TripActions({ trip }: Props) {
   }
 
   return (
-    <div className="flex flex-col items-end gap-1">
+    <div className="flex flex-col items-stretch gap-1 border-t border-line pt-4 sm:items-end">
       <div className="flex flex-wrap items-center gap-2">
-        <Button type="button" variant="secondary" size="sm" onClick={() => setOpenModal("edit")}>
-          Edit trip
-        </Button>
-        <Button type="button" variant="secondary" size="sm" onClick={() => setOpenModal("odometer")}>
-          Edit odometer
-        </Button>
         <Button
           type="button"
           variant={trip.status === "closed" ? "secondary" : "primary"}
@@ -74,6 +76,15 @@ export function TripActions({ trip }: Props) {
         >
           {statusPending ? "Saving…" : trip.status === "closed" ? "Reopen trip" : "Close trip"}
         </Button>
+        <Button type="button" variant="secondary" size="sm" onClick={() => setOpenModal("expense")} disabled={loads.length === 0}>
+          Add expense
+        </Button>
+        <Button type="button" variant="secondary" size="sm" onClick={() => setOpenModal("edit")}>
+          Edit trip
+        </Button>
+        <Button type="button" variant="secondary" size="sm" onClick={() => setOpenModal("odometer")}>
+          Edit odometer
+        </Button>
         <Button type="button" variant="destructive" size="sm" onClick={() => setOpenModal("delete")}>
           Delete
         </Button>
@@ -83,7 +94,66 @@ export function TripActions({ trip }: Props) {
       <EditTripModal open={openModal === "edit"} onClose={close} trip={trip} onSaved={refresh} />
       <OdometerModal open={openModal === "odometer"} onClose={close} trip={trip} onSaved={refresh} />
       <DeleteTripModal open={openModal === "delete"} onClose={close} tripId={trip.id} />
+      <AddExpenseModal open={openModal === "expense"} onClose={close} loads={loads} onSaved={refresh} />
     </div>
+  );
+}
+
+function AddExpenseModal({
+  open,
+  onClose,
+  loads,
+  onSaved,
+}: {
+  open: boolean;
+  onClose: () => void;
+  loads: TripLoadOption[];
+  onSaved: () => void;
+}) {
+  const [loadId, setLoadId] = useState(loads[0]?.id ?? "");
+
+  useEffect(() => {
+    if (open) setLoadId(loads[0]?.id ?? "");
+  }, [open, loads]);
+
+  const [state, formAction, pending] = useActionState<SaveState, FormData>(async (_prev, formData) => {
+    if (!loadId) return { ok: false, error: "Pick a load." };
+    const result: MutationResult = await addLoadExpense(loadId, formData);
+    return result.ok ? { ok: true, error: null } : { ok: false, error: result.reason };
+  }, INITIAL);
+
+  useEffect(() => {
+    if (state.ok) {
+      onSaved();
+      onClose();
+    }
+  }, [state.ok, onSaved, onClose]);
+
+  return (
+    <Modal open={open} onClose={onClose} title="Add expense">
+      <form action={formAction} className="flex flex-col gap-3">
+        <p className="text-[13px] text-fg-muted">There's no trip-level expense log — pick which of this trip's loads the charge belongs to.</p>
+        <SelectField label="Load" name="load_id" value={loadId} onChange={(e) => setLoadId(e.target.value)}>
+          {loads.map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.label}
+            </option>
+          ))}
+        </SelectField>
+        <Field label="Category" name="category" required placeholder="Toll, lumper, parking…" />
+        <Field label="Amount ($)" name="amount" type="number" step="any" min="0" required />
+        <Field label="Note (optional)" name="note" />
+        <FormError message={state.error} />
+        <FormActions>
+          <Button type="button" variant="secondary" onClick={onClose} disabled={pending}>
+            Cancel
+          </Button>
+          <Button type="submit" disabled={pending || !loadId} aria-busy={pending}>
+            {pending ? "Saving…" : "Add expense"}
+          </Button>
+        </FormActions>
+      </form>
+    </Modal>
   );
 }
 
