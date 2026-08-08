@@ -7,6 +7,7 @@ import { MarkPaidCell } from "@/components/tms-v2/MarkPaidCell";
 import { RECEIVABLE_OVERDUE_DAYS } from "@/lib/domain/money";
 import { withReturnTo } from "@/lib/nav/return-to";
 import type { BrokerLoadHistoryRow } from "@/lib/data/broker-profile";
+import { LoadDocButtons } from "./LoadDocButtons";
 
 function daysSince(dateStr: string | null): number | null {
   if (!dateStr) return null;
@@ -75,7 +76,7 @@ export function BrokerHistoryCard({ load: l, fromPath }: { load: BrokerLoadHisto
         ) : null}
       </div>
 
-      <div className="mt-2.5 flex items-center justify-between gap-2">
+      <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-[13px]">
           <Money value={l.financials.gross} tone="none" className="font-semibold" />
           <span className="text-fg-subtle">·</span>
@@ -83,16 +84,20 @@ export function BrokerHistoryCard({ load: l, fromPath }: { load: BrokerLoadHisto
           {marginPct != null ? <span className="text-[12px] text-fg-muted">{marginPct}%</span> : null}
         </div>
 
-        {unpaid ? (
-          <span className="flex shrink-0 items-center gap-2">
-            {age != null ? (
-              <span className={`text-[11px] font-semibold tabular-nums ${overdue ? "text-bad" : "text-fg-muted"}`}>{age}d</span>
-            ) : null}
-            <MarkPaidCell loadId={l.id} />
-          </span>
-        ) : l.paymentStatus === "paid" ? (
-          <span className="shrink-0 text-[11px] font-bold uppercase tracking-wide text-ok">Paid</span>
-        ) : null}
+        <div className="flex flex-wrap items-center justify-end gap-1.5">
+          <LoadDocButtons documents={l.documents} />
+
+          {unpaid ? (
+            <span className="flex shrink-0 items-center gap-2">
+              {age != null ? (
+                <span className={`text-[11px] font-semibold tabular-nums ${overdue ? "text-bad" : "text-fg-muted"}`}>{age}d</span>
+              ) : null}
+              <MarkPaidCell loadId={l.id} />
+            </span>
+          ) : l.paymentStatus === "paid" ? (
+            <span className="shrink-0 text-[11px] font-bold uppercase tracking-wide text-ok">Paid</span>
+          ) : null}
+        </div>
       </div>
     </Link>
   );

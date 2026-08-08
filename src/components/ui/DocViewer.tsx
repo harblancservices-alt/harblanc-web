@@ -384,8 +384,13 @@ function withExtension(name: string, url: string, mime: string): string {
  * container width so the whole page shows with no horizontal panning. Pages are
  * emitted at a fixed raster width and displayed at `w-full`, so the viewer's
  * zoom scales them without re-rendering.
+ *
+ * Exported so a smaller, non-fullscreen presentation (e.g. tms-v2's
+ * DocumentPreviewModal, which wraps the same rendering logic in the shared
+ * Modal component instead of this file's own fixed-inset-0 shell) can reuse
+ * the exact same PDF rendering — one PDF renderer, not two.
  */
-function PdfViewerPages({ url, name }: { url: string; name: string }) {
+export function PdfViewerPages({ url, name }: { url: string; name: string }) {
   const [pages, setPages] = useState<string[] | null>(null);
   const [failed, setFailed] = useState(false);
 

@@ -67,6 +67,18 @@ export type BrokerLane = {
   lastDeliveryDate: string | null;
 };
 
+/** One document, for the Load History tab's per-type view buttons (BOL/
+ * Rate Con/POD) — a lighter shape than lib/data/loads.ts's
+ * `LoadDocumentItem` (no signedRoles/signedFromDocId; this surface only
+ * VIEWS a document, it never signs one). `kind` is the same `rate_con`/
+ * `bol`/`pod` vocabulary LOAD_DOC_KIND_LABEL (loads.ts) already defines. */
+export type LoadDocSummary = {
+  kind: string;
+  name: string;
+  url: string | null;
+  mime: string | null;
+};
+
 export type BrokerLoadHistoryRow = {
   id: string;
   loadNumber: string | null;
@@ -78,6 +90,9 @@ export type BrokerLoadHistoryRow = {
   status: string;
   paymentStatus: "unpaid" | "paid";
   financials: LoadFinancials;
+  /** Most-recent-first per load (so `.find(d => d.kind === k)` picks the
+   * latest of that kind when a load has more than one). */
+  documents: LoadDocSummary[];
 };
 
 export type BrokerArAging = {
@@ -168,6 +183,39 @@ async function fetchExpensesByLoadId(loadIds: string[]): Promise<Map<string, num
     .returns<{ load_id: string; amount: number | string }[]>();
   for (const row of data ?? []) {
     map.set(row.load_id, (map.get(row.load_id) ?? 0) + num(row.amount));
+  }
+  return map;
+}
+
+const LOAD_DOCUMENTS_BUCKET = "load-documents";
+
+/** Batched, same shape as fetchExpensesByLoadId above — one query for every
+ * load in the history list, not one per row. Ordered newest-first so each
+ * load's array already has its most-recent doc of a given kind first. */
+async function fetchDocumentsByLoadId(loadIds: string[]): Promise<Map<string, LoadDocSummary[]>> {
+  const map = new Map<string, LoadDocSummary[]>();
+  if (loadIds.length === 0) return map;
+  const sb = createServiceRoleClient();
+  const { data } = await sb
+    .from("load_documents")
+    .select("load_id, kind, original_filename, storage_path, mime_type, created_at")
+    .in("load_id", loadIds)
+    .order("created_at", { ascending: false })
+    .returns<{ load_id: string; kind: string; original_filename: string; storage_path: string; mime_type: string | null; created_at: string }[]>();
+  const rows = data ?? [];
+  if (rows.length === 0) return map;
+
+  const { data: signedList } = await sb.storage.from(LOAD_DOCUMENTS_BUCKET).createSignedUrls(rows.map((r) => r.storage_path), 3600);
+  const signedByPath = new Map(
+    (signedList ?? [])
+      .filter((s): s is { path: string; signedUrl: string; error: null } => !!s.path && !!s.signedUrl && !s.error)
+      .map((s) => [s.path, s.signedUrl]),
+  );
+
+  for (const r of rows) {
+    const arr = map.get(r.load_id) ?? [];
+    arr.push({ kind: r.kind, name: r.original_filename, url: signedByPath.get(r.storage_path) ?? null, mime: r.mime_type });
+    map.set(r.load_id, arr);
   }
   return map;
 }
@@ -266,6 +314,9 @@ function demoProfile(id: string): BrokerProfile | null {
       fuel,
       demo.factoring,
     ),
+    // Demo mode ships no fake documents (matches getLoadDetail()'s own
+    // demo-mode convention, lib/data/loads.ts).
+    documents: [],
   }));
 
   const gross = loadHistory.filter((l) => l.status !== "tonu").reduce((s, l) => s + l.financials.gross, 0);
@@ -331,7 +382,11 @@ export async function getBrokerProfile(id: string): Promise<BrokerProfile | null
   if (!broker) return null;
 
   const loads = loadRows ?? [];
-  const [fuel, expensesByLoad] = await Promise.all([fetchFuelSettings(), fetchExpensesByLoadId(loads.map((l) => l.id))]);
+  const [fuel, expensesByLoad, documentsByLoad] = await Promise.all([
+    fetchFuelSettings(),
+    fetchExpensesByLoadId(loads.map((l) => l.id)),
+    fetchDocumentsByLoadId(loads.map((l) => l.id)),
+  ]);
   const factoring = broker.factoring ?? false;
 
   const loadHistory: BrokerLoadHistoryRow[] = loads.map((l) => ({
@@ -350,6 +405,7 @@ export async function getBrokerProfile(id: string): Promise<BrokerProfile | null
       fuel,
       factoring,
     ),
+    documents: documentsByLoad.get(l.id) ?? [],
   }));
 
   const gross = loadHistory.filter((l) => l.status !== "tonu").reduce((s, l) => s + l.financials.gross, 0);
