@@ -139,9 +139,18 @@ function DocKindBlock({
   return (
     <div className="rounded-md border border-line px-3 py-2.5">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[13px] font-medium text-fg">
+        <span className="flex items-center gap-1.5 text-[13px] font-medium text-fg">
+          {docs.length > 0 ? (
+            <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-ok text-[10px] font-bold text-white" aria-hidden>
+              ✓
+            </span>
+          ) : (
+            <span className="h-4 w-4 shrink-0 rounded-full border-2 border-line-strong" aria-hidden />
+          )}
           {label}
-          {docs.length > 0 ? <span className="ml-1.5 text-fg-muted">({docs.length})</span> : null}
+          {docs.length > 0 ? (
+            <span className="rounded-full bg-elevated px-1.5 py-0.5 text-[11px] font-semibold text-fg-muted">{docs.length}</span>
+          ) : null}
         </span>
         <span className="flex shrink-0 items-center gap-1.5">
           {isBol ? (
@@ -149,7 +158,7 @@ function DocKindBlock({
               type="button"
               onClick={() => inputRef.current?.click()}
               disabled={busy}
-              className="h-7 rounded-md border border-line-strong bg-card px-2.5 text-[12px] font-medium text-fg hover:bg-elevated disabled:opacity-50"
+              className="h-7 rounded-md bg-info px-2.5 text-[12px] font-medium text-white hover:bg-info-hover disabled:opacity-50"
             >
               + Add file
             </button>
@@ -160,7 +169,7 @@ function DocKindBlock({
             disabled={busy}
             className="h-7 rounded-md border border-accent bg-accent px-2.5 text-[12px] font-medium text-white hover:bg-accent-hover disabled:opacity-50"
           >
-            {busy ? "Uploading…" : isBol ? "Scan BOL" : isPod ? "+ Photo" : "+ Add"}
+            {busy ? "Uploading…" : isBol ? "+ Scan" : isPod ? "+ Take photo" : "+ Add"}
           </button>
         </span>
         <input
@@ -245,6 +254,9 @@ function DocKindBlock({
               >
                 Delete
               </button>
+              <span className="shrink-0 text-fg-subtle" aria-hidden>
+                ›
+              </span>
             </div>
           ))}
         </div>

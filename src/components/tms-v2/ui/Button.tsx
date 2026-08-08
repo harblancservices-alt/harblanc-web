@@ -24,9 +24,14 @@ import type { ButtonHTMLAttributes } from "react";
  *
  * Variants map to the one-accent-color house rule (v2-design.md): "primary"
  * is the only surface allowed to use --accent as a fill — never repeated
- * for decoration elsewhere.
+ * for decoration elsewhere. "info" is a second, deliberately distinct fill —
+ * the --info/--v2-blue token already exists in globals.css specifically for
+ * this ("Action blue — the secondary/edit button fill: Edit / Trip / Broker
+ * / Add files / TONU"), matching legacy /admin's own blue-button precedent
+ * (components/ui/Button.tsx's `variant="blue"`) — not a dilution of the red
+ * accent, a distinct semantic color for a distinct class of action.
  */
-type Variant = "primary" | "secondary" | "ghost" | "destructive";
+type Variant = "primary" | "secondary" | "ghost" | "destructive" | "info";
 type Size = "sm" | "md";
 
 const VARIANT_CLASSES: Record<Variant, string> = {
@@ -34,6 +39,7 @@ const VARIANT_CLASSES: Record<Variant, string> = {
   secondary: "bg-card text-fg border border-line-strong shadow-e1 hover:bg-elevated",
   ghost: "bg-transparent text-fg hover:bg-elevated",
   destructive: "bg-bad text-white shadow-e1 hover:opacity-90",
+  info: "bg-info text-white shadow-e1 hover:bg-info-hover",
 };
 
 const SIZE_CLASSES: Record<Size, string> = {

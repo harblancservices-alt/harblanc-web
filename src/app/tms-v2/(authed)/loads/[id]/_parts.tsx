@@ -42,27 +42,37 @@ export function SectionHeading({ children }: { children: ReactNode }) {
   return <h2 className="text-[15px] font-semibold text-fg">{children}</h2>;
 }
 
+const COMMAND_STAT_TONE = {
+  default: "text-bar-fg",
+  ok: "text-ok",
+  warn: "text-warn",
+} as const;
+
 /** Small stat used in the command-bar KPI strip — a headline figure plus an
- * optional secondary line (e.g. "$1.85/mi"), mirroring legacy /admin's
- * dispatch/loads/[id] command-bar tiles (Revenue/Net/Total mi/Deadhead,
- * each with a $/mi or fuel-$ sub-value) rather than the plain KpiTile the
- * page used before. */
+ * optional secondary grey pill (e.g. "$1.85/mi"), mirroring legacy /admin's
+ * dispatch/loads/[id] command-bar tiles (Revenue/Net green, Total mi white,
+ * Deadhead amber/"yellow" — `tone` picks which). `className` carries the
+ * red divider border the 2×2 grid needs between columns. */
 export function CommandStat({
   label,
   value,
   sub,
-  accent = false,
+  tone = "default",
+  className = "",
 }: {
   label: string;
   value: ReactNode;
   sub?: ReactNode;
-  accent?: boolean;
+  tone?: keyof typeof COMMAND_STAT_TONE;
+  className?: string;
 }) {
   return (
-    <div className={`rounded-lg p-3 ${accent ? "border border-accent/50 bg-bar-fg/5" : ""}`}>
+    <div className={`p-3 ${className}`}>
       <div className="text-[11px] font-medium uppercase tracking-wide text-bar-fg/60">{label}</div>
-      <div className="mt-0.5 text-[19px] font-semibold leading-tight tabular-nums text-bar-fg">{value}</div>
-      {sub ? <div className="mt-0.5 text-[11px] font-medium text-bar-fg/60">{sub}</div> : null}
+      <div className={`mt-0.5 text-[19px] font-semibold leading-tight tabular-nums ${COMMAND_STAT_TONE[tone]}`}>{value}</div>
+      {sub ? (
+        <span className="mt-1 inline-block rounded-full bg-bar-fg/10 px-2 py-0.5 text-[11px] font-medium text-bar-fg/70">{sub}</span>
+      ) : null}
     </div>
   );
 }

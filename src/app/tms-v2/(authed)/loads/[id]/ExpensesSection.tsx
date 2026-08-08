@@ -24,11 +24,15 @@ export function ExpensesSection({
   items,
   adding,
   onAddingChange,
+  editing = false,
 }: {
   loadId: string;
   items: LoadExpenseItem[];
   adding: boolean;
   onAddingChange: (v: boolean) => void;
+  /** Mirrors admin's FinancialsPanel "Edit" toggle — Delete only shows once
+   * the section is put into edit mode, instead of always-visible. */
+  editing?: boolean;
 }) {
   const router = useRouter();
 
@@ -60,9 +64,11 @@ export function ExpensesSection({
           </span>
           <span className="flex shrink-0 items-center gap-2">
             <Money value={e.amount} tone="negative" />
-            <button type="button" onClick={() => onDelete(e.id)} className="text-[12px] font-medium text-bad hover:underline">
-              Delete
-            </button>
+            {editing ? (
+              <button type="button" onClick={() => onDelete(e.id)} className="text-[12px] font-medium text-bad hover:underline">
+                Delete
+              </button>
+            ) : null}
           </span>
         </div>
       ))}

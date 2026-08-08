@@ -1,9 +1,11 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { createContext, useActionState, useContext, useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Modal } from "@/components/tms-v2/ui/Modal";
 import { Button } from "@/components/tms-v2/ui/Button";
+import { IconTrash } from "@/lib/nav/icons";
 import { markLoadDelivered, markLoadTonu, undoLoadTonu, markLoadPaid, markLoadUnpaid, deleteLoad } from "@/actions/tms-v2/loads";
 import type { MutationResult } from "@/lib/demo/mutation";
 import { Field, FormError, FormActions } from "../_form";
@@ -13,24 +15,51 @@ import { OdometerModal } from "./OdometerModal";
 type SaveState = { ok: boolean; error: string | null };
 const INITIAL: SaveState = { ok: false, error: null };
 
+type LoadActionsLoad = LoadFormValues & {
+  status: string;
+  paymentStatus: "unpaid" | "paid";
+  odoAssigned: number | null;
+  odoLoaded: number | null;
+  odoDelivered: number | null;
+};
+
 type Props = {
-  load: LoadFormValues & {
-    status: string;
-    paymentStatus: "unpaid" | "paid";
-    odoAssigned: number | null;
-    odoLoaded: number | null;
-    odoDelivered: number | null;
-  };
+  load: LoadActionsLoad;
   brokerNames: string[];
   activeTripNames: string[];
 };
 
-/** Load Detail's write actions — Edit load, Mark delivered, Mark TONU, Edit
- * odometer, Mark paid/unpaid, Delete load. One component so the detail page
- * stays a plain data-fetching Server Component (v2-architecture.md §2's
- * page-shell rule) and every interactive bit lives in this one client
- * island. */
-export function LoadActions({ load, brokerNames, activeTripNames }: Props) {
+/**
+ * Load Detail's write actions, split across the page the way legacy /admin
+ * splits them (Brent's "almost to the T" ask) — the top command bar gets
+ * Edit/TONU/Delete, the Odometer card gets its own Edit (+ Mark delivered),
+ * the Financials card gets Mark paid — rather than one button row. All of
+ * them share ONE modal/mutation controller (this context) so there's still
+ * only one place owning `openModal` state and only one copy of each modal,
+ * even though the trigger buttons now render in three different DOM
+ * locations across the page.
+ */
+type Ctx = {
+  load: LoadActionsLoad;
+  setOpenModal: (m: "edit" | "delivered" | "tonu" | "restore" | "odometer" | "delete" | null) => void;
+  togglePaid: () => void;
+  payPending: boolean;
+  payError: string | null;
+  canMarkDelivered: boolean;
+  canMarkTonu: boolean;
+  canRestoreFromTonu: boolean;
+  isClosedOut: boolean;
+};
+
+const LoadActionsCtx = createContext<Ctx | null>(null);
+
+function useLoadActions(): Ctx {
+  const ctx = useContext(LoadActionsCtx);
+  if (!ctx) throw new Error("Load Detail's action buttons must render inside <LoadActionsProvider>.");
+  return ctx;
+}
+
+export function LoadActionsProvider({ load, brokerNames, activeTripNames, children }: Props & { children: ReactNode }) {
   const router = useRouter();
   const [openModal, setOpenModal] = useState<"edit" | "delivered" | "tonu" | "restore" | "odometer" | "delete" | null>(null);
   const close = () => setOpenModal(null);
@@ -55,46 +84,20 @@ export function LoadActions({ load, brokerNames, activeTripNames }: Props) {
   }
 
   return (
-    <div className="flex flex-col items-end gap-1">
-      <div className="flex flex-wrap items-center gap-2">
-        <Button type="button" variant="secondary" size="sm" onClick={() => setOpenModal("edit")}>
-          Edit load
-        </Button>
-        <Button type="button" variant="secondary" size="sm" onClick={() => setOpenModal("odometer")}>
-          Edit odometer
-        </Button>
-        {canMarkDelivered ? (
-          <Button type="button" variant="secondary" size="sm" onClick={() => setOpenModal("delivered")}>
-            Mark delivered
-          </Button>
-        ) : null}
-        {canMarkTonu ? (
-          <Button type="button" variant="destructive" size="sm" onClick={() => setOpenModal("tonu")}>
-            Mark TONU
-          </Button>
-        ) : null}
-        {canRestoreFromTonu ? (
-          <Button type="button" variant="primary" size="sm" onClick={() => setOpenModal("restore")}>
-            Restore load
-          </Button>
-        ) : null}
-        {isClosedOut ? (
-          <Button
-            type="button"
-            variant={load.paymentStatus === "paid" ? "secondary" : "primary"}
-            size="sm"
-            onClick={togglePaid}
-            disabled={payState.pending}
-            aria-busy={payState.pending}
-          >
-            {payState.pending ? "Saving…" : load.paymentStatus === "paid" ? "Undo mark paid" : "Mark paid"}
-          </Button>
-        ) : null}
-        <Button type="button" variant="destructive" size="sm" onClick={() => setOpenModal("delete")}>
-          Delete
-        </Button>
-      </div>
-      {payState.error ? <span className="text-[12px] text-bad">{payState.error}</span> : null}
+    <LoadActionsCtx.Provider
+      value={{
+        load,
+        setOpenModal,
+        togglePaid,
+        payPending: payState.pending,
+        payError: payState.error,
+        canMarkDelivered,
+        canMarkTonu,
+        canRestoreFromTonu,
+        isClosedOut,
+      }}
+    >
+      {children}
 
       <LoadFormModal
         open={openModal === "edit"}
@@ -117,6 +120,85 @@ export function LoadActions({ load, brokerNames, activeTripNames }: Props) {
         onSaved={refresh}
       />
       <DeleteLoadModal open={openModal === "delete"} onClose={close} loadId={load.id} />
+    </LoadActionsCtx.Provider>
+  );
+}
+
+/** The "✎ Edit" trigger for LoadFormModal — reused both in the top command
+ * bar and in the Load details card header (admin shows Edit in both
+ * places too), one shared trigger for the one edit flow. */
+export function EditLoadTriggerButton() {
+  const { setOpenModal } = useLoadActions();
+  return (
+    <Button type="button" variant="info" size="sm" onClick={() => setOpenModal("edit")}>
+      ✎ Edit
+    </Button>
+  );
+}
+
+/** Command bar (top of page): Edit (blue) / TONU or Restore (blue) / Delete
+ * (red, icon-only trash) — matches admin's exact 3-button top-bar set. */
+export function TopBarActions() {
+  const { setOpenModal, canMarkTonu, canRestoreFromTonu } = useLoadActions();
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <EditLoadTriggerButton />
+      {canMarkTonu ? (
+        <Button type="button" variant="info" size="sm" onClick={() => setOpenModal("tonu")}>
+          TONU
+        </Button>
+      ) : null}
+      {canRestoreFromTonu ? (
+        <Button type="button" variant="info" size="sm" onClick={() => setOpenModal("restore")}>
+          Restore
+        </Button>
+      ) : null}
+      <Button type="button" variant="destructive" size="sm" onClick={() => setOpenModal("delete")} aria-label="Delete load" title="Delete load">
+        <IconTrash className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+}
+
+/** Odometer & status card header: Mark delivered (when applicable) + Edit
+ * odometer (blue) — admin doesn't have "Mark delivered" as its own button
+ * (status is purely odometer-derived there), but tms-v2 keeps the shortcut,
+ * placed here since it's the same odometer-driving concern. */
+export function OdometerActions() {
+  const { setOpenModal, canMarkDelivered } = useLoadActions();
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {canMarkDelivered ? (
+        <Button type="button" variant="secondary" size="sm" onClick={() => setOpenModal("delivered")}>
+          Mark delivered
+        </Button>
+      ) : null}
+      <Button type="button" variant="info" size="sm" onClick={() => setOpenModal("odometer")}>
+        ✎ Edit
+      </Button>
+    </div>
+  );
+}
+
+/** Financials card header: Mark paid/Undo mark paid — admin's Load Detail
+ * has no payment-status control at all, so this is tms-v2-only; placed here
+ * since payment status is a financial fact. */
+export function FinancialsPayAction() {
+  const { load, togglePaid, payPending, payError, isClosedOut } = useLoadActions();
+  if (!isClosedOut) return null;
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <Button
+        type="button"
+        variant={load.paymentStatus === "paid" ? "secondary" : "primary"}
+        size="sm"
+        onClick={togglePaid}
+        disabled={payPending}
+        aria-busy={payPending}
+      >
+        {payPending ? "Saving…" : load.paymentStatus === "paid" ? "Undo mark paid" : "Mark paid"}
+      </Button>
+      {payError ? <span className="text-[12px] text-bad">{payError}</span> : null}
     </div>
   );
 }
