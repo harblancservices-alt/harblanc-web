@@ -3,6 +3,7 @@
 import { createContext, useActionState, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/tms-v2/ui/Button";
+import { Fab } from "@/components/tms-v2/ui/Fab";
 import { addExpense } from "@/actions/tms-v2/expenses";
 import type { MutationResult } from "@/lib/demo/mutation";
 import { EXPENSE_CATEGORIES, RECURRING_FREQUENCIES, RECURRING_FREQUENCY_LABEL, type RecurringFrequency } from "@/lib/domain/expenses";
@@ -43,6 +44,17 @@ export function ExpenseComposerToggleButton() {
       {open ? "Close" : "Add expense"}
     </Button>
   );
+}
+
+/** Mobile's thumb-zone counterpart to the toggle button above — same
+ * shared open/closed state, same "Add expense" composer panel, just
+ * triggered from the Fab pattern every other primary mobile action uses
+ * (AddLoadButton, NewBrokerButton) instead of a header button. Fab is
+ * self-hiding at lg (matches the header button's `hidden lg:inline-flex`
+ * at its call site), so exactly one trigger is visible per breakpoint. */
+export function ExpenseComposerFab() {
+  const { setOpen } = useComposer();
+  return <Fab label="Add expense" onClick={() => setOpen(true)} />;
 }
 
 export function ExpenseComposerPanel({ accountNames }: { accountNames: string[] }) {

@@ -15,12 +15,13 @@ import {
   type RecurringFrequency,
   type ExpenseSortKey,
 } from "@/lib/data/recurring-expenses";
-import { ExpenseComposerProvider, ExpenseComposerToggleButton, ExpenseComposerPanel } from "./ExpenseComposer";
+import { ExpenseComposerProvider, ExpenseComposerToggleButton, ExpenseComposerFab, ExpenseComposerPanel } from "./ExpenseComposer";
 import { ExpenseDrawerContent } from "./ExpenseDrawerContent";
 import { ExpensesListClient } from "./ExpensesListClient";
 import { ExportExpensesCsvButton } from "./ExportExpensesCsvButton";
 import { ImportExpensesButton } from "./ImportExpensesButton";
 import { SavedViews } from "../_components/SavedViews";
+import { expenseGaps } from "@/lib/dispatch/alerts";
 
 // Money-affecting data, read fresh every visit — matches Today's pattern.
 export const dynamic = "force-dynamic";
@@ -62,17 +63,38 @@ export default async function ExpensesPage({
   const sort = isExpenseSortKey(typeof sp.sort === "string" ? sp.sort : undefined) ? (sp.sort as ExpenseSortKey) : undefined;
   const dir = sp.dir === "asc" ? "asc" : "desc";
 
-  const [kpis, list, accounts, selectedExpense, exportList] = await Promise.all([
+  const [kpis, list, accounts, selectedExpense, exportList, allActive] = await Promise.all([
     getRecurringExpensesKpis(),
     listRecurringExpenses({ page, pageSize: PAGE_SIZE, category, frequency, status, search, sort, dir }),
     listExpenseAccounts(),
     selectedId ? getRecurringExpenseById(selectedId) : Promise.resolve(null),
     listRecurringExpenses({ page: 1, pageSize: EXPORT_FETCH_SIZE, category, frequency, status, search, sort, dir }),
+    // Unfiltered (status: active only), bounded read for the mobile totals
+    // strip's top-category/needs-review aggregates — those summarize the
+    // WHOLE active ledger, not whatever the current filter form narrowed
+    // `list`/`exportList` down to.
+    listRecurringExpenses({ page: 1, pageSize: EXPORT_FETCH_SIZE, status: "active" }),
   ]);
 
   const baseParams = { category, frequency, status, q: search, page: page > 1 ? page : undefined, sort, dir: sort ? dir : undefined };
   const accountNames = accounts.map((a) => a.name);
   const closeHref = buildHref(baseParams);
+
+  // Mobile totals strip: top category by monthly-equivalent spend, and a
+  // count of active expenses with a gap (missing amount/date/account/
+  // category — same expenseGaps() rule the ledger's amber dot already uses).
+  const accountNameSet = new Set(accountNames);
+  const categoryTotals = new Map<string, number>();
+  let needsReviewCount = 0;
+  for (const r of allActive.rows) {
+    const gaps = expenseGaps(
+      { amount: r.amount, frequency: r.frequency, dayOfMonth: r.dayOfMonth, dayOfWeek: r.dayOfWeek, startDate: r.startDate, card: r.cardName, category: r.category },
+      accountNameSet,
+    );
+    if (gaps.length > 0) needsReviewCount++;
+    if (r.category) categoryTotals.set(r.category, (categoryTotals.get(r.category) ?? 0) + r.monthlyAmount);
+  }
+  const topCategory = [...categoryTotals.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
 
   return (
     <ExpenseComposerProvider>
@@ -88,14 +110,33 @@ export default async function ExpensesPage({
               <div className="flex items-center gap-2">
                 <ImportExpensesButton />
                 <ExportExpensesCsvButton rows={exportList.rows} />
-                <ExpenseComposerToggleButton />
+                <div className="hidden lg:block">
+                  <ExpenseComposerToggleButton />
+                </div>
               </div>
             }
           />
 
           <ExpenseComposerPanel accountNames={accountNames} />
 
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {/* Mobile — thin totals strip, not the desktop's four KPI tiles. */}
+          <div className="flex items-stretch divide-x divide-line rounded-xl border border-line bg-card shadow-e1 lg:hidden">
+            <div className="min-w-0 flex-1 px-3.5 py-2.5">
+              <div className="text-[10px] font-medium uppercase tracking-wide text-fg-muted">Spent this month</div>
+              <Money value={kpis.thisMonth} tone="none" className="mt-0.5 block truncate text-[15px] font-semibold" />
+            </div>
+            <div className="min-w-0 flex-1 px-3.5 py-2.5">
+              <div className="text-[10px] font-medium uppercase tracking-wide text-fg-muted">Top category</div>
+              <div className="mt-0.5 truncate text-[14px] font-semibold text-fg">{topCategory ?? "—"}</div>
+            </div>
+            <div className="min-w-0 flex-1 px-3.5 py-2.5">
+              <div className="text-[10px] font-medium uppercase tracking-wide text-fg-muted">Needs review</div>
+              <div className={`mt-0.5 text-[15px] font-semibold ${needsReviewCount > 0 ? "text-warn" : "text-fg"}`}>{needsReviewCount}</div>
+            </div>
+          </div>
+
+          {/* Desktop — unchanged four-tile KPI grid. */}
+          <div className="hidden grid-cols-2 gap-3 sm:grid-cols-4 lg:grid">
             <KpiTile label="This month" value={<Money value={kpis.thisMonth} tone="none" />} />
             <KpiTile label="Recurring" value={String(kpis.recurringCount)} />
             <KpiTile label="YTD" value={<Money value={kpis.ytd} tone="none" />} />
@@ -162,6 +203,8 @@ export default async function ExpensesPage({
       </div>
     </PageScroll>
     </div>
+
+    <ExpenseComposerFab />
 
     {selectedExpense ? (
       <ContextDrawer title={selectedExpense.vendor || selectedExpense.name} closeHref={closeHref}>

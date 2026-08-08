@@ -38,14 +38,23 @@ const SORT_PILLS: { key: ExpenseSortKey; label: string }[] = [
   { key: "next", label: "Next charge" },
 ];
 
-/** One tight row — avatar-with-gap-dot, vendor + category/frequency/card
- * subline, amount right-aligned. Same "compact directory" family as the
- * Brokers list's CompactBrokerRow, but unsplit: this screen applies the
- * same treatment on mobile AND desktop per Brent's explicit ask, rather
- * than keeping a separate heavier desktop table. Money stays neutral ink
- * (tone="none") except the one real red case — a manual (non-autopay)
- * charge whose next charge date has arrived and hasn't been handled — no
- * red-by-default the way a raw due-date table would render it. */
+function CategoryPill({ category }: { category: string | null }) {
+  return (
+    <span className="shrink-0 rounded-full bg-elevated px-2 py-0.5 text-[11px] font-medium text-fg-muted">
+      {category ?? "No category"}
+    </span>
+  );
+}
+
+/** One tight row — avatar-with-gap-dot, vendor/payee + category pill +
+ * frequency, amount with its next-charge date stacked underneath. Same
+ * "compact directory" family as the Brokers list's CompactBrokerRow, but
+ * unsplit: this screen applies the same treatment on mobile AND desktop
+ * per Brent's explicit ask, rather than keeping a separate heavier desktop
+ * table. Money stays neutral ink (tone="none") except the one real red
+ * case — a manual (non-autopay) charge whose next charge date has arrived
+ * and hasn't been handled — no red-by-default the way a raw due-date table
+ * would render it. */
 function ExpenseRow({
   r,
   href,
@@ -93,13 +102,19 @@ function ExpenseRow({
               </span>
             ) : null}
           </div>
-          <div className="truncate text-[12px] text-fg-muted">
-            {r.category ?? "No category"} · {RECURRING_FREQUENCY_LABEL[r.frequency]}
-            {r.cardName ? ` · ${r.cardName}` : ""}
-            {overdue ? <span className="font-medium text-bad"> · Due today</span> : r.nextChargeLabel ? ` · ${r.nextChargeLabel}` : ""}
+          <div className="mt-1 flex items-center gap-1.5">
+            <CategoryPill category={r.category} />
+            <span className="truncate text-[12px] text-fg-muted">{RECURRING_FREQUENCY_LABEL[r.frequency]}</span>
           </div>
         </div>
-        <Money value={r.amount} tone={overdue ? "negative" : "none"} className="shrink-0 text-[13px] font-semibold" />
+        <div className="flex shrink-0 flex-col items-end gap-0.5">
+          <Money value={r.amount} tone={overdue ? "negative" : "none"} className="text-[13px] font-semibold" />
+          {overdue ? (
+            <span className="text-[11px] font-medium text-bad">Due today</span>
+          ) : r.nextChargeLabel ? (
+            <span className="text-[11px] text-fg-muted">{r.nextChargeLabel}</span>
+          ) : null}
+        </div>
       </Link>
       <ExpenseRowActions expense={r} />
     </div>
