@@ -5,9 +5,11 @@ import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
 import { listLoads } from "@/lib/data/loads";
 import { currentPeriod, periodLabel, type Period } from "@/lib/domain/attribution";
 import { centralDateKey } from "@/lib/domain/dates";
-import { addDays, dateOnly, assignLanes, monthMatrix, parseDateStr, weekdayOf } from "@/lib/dispatch/calendar";
+import { addDays, dateOnly, assignLanes, federalHolidays, monthMatrix, parseDateStr, weekdayOf, type Holiday } from "@/lib/dispatch/calendar";
 import { formatMoney } from "@/lib/domain/money";
-import { CalendarMonthGrid, type LoadBar, type WeekNet } from "./_components/CalendarMonthGrid";
+import { isDemoMode } from "@/lib/admin/demo";
+import { createServiceRoleClient } from "@/lib/supabase/server";
+import { CalendarMonthGrid, WrenchGlyph, FlagGlyph, type LoadBar, type WeekNet, type RepairChip } from "./_components/CalendarMonthGrid";
 
 // Live, unbounded read of every load (mirrors legacy /admin's own Calendar
 // query exactly — see resolveSpan()'s header below for why a period filter
@@ -58,6 +60,47 @@ function resolveSpan(l: { pickupDate: string | null; deliveryDate: string | null
   return created ? { start: created, end: created, approx: true } : null;
 }
 
+type PartRow = { id: string; description: string; service_id: string; created_at: string };
+type ServiceRow = { id: string; service_date: string | null; created_at: string };
+
+/**
+ * Repair-service wrench chips — ported from admin's own loadCalendar()
+ * (src/app/admin/(authed)/calendar/page.tsx), one chip per SERVICE (visit),
+ * not per part: groups repair_entries by their service_id, earliest-created
+ * part leads the chip's label + is the link target (maintenance's per-part
+ * detail route is keyed on a part id, same as admin's). Demo mode shows no
+ * repair chips — the maintenance demo fixtures are local to lib/data/
+ * maintenance.ts and unrelated to this shared loads/calendar view; the
+ * calendar's demo mode still shows every load bar, just no repair markers.
+ */
+async function fetchRepairChips(): Promise<RepairChip[]> {
+  if (await isDemoMode()) return [];
+  const sb = createServiceRoleClient();
+  const [{ data: partRows }, { data: serviceRows }] = await Promise.all([
+    sb.from("repair_entries").select("id, description, service_id, created_at").is("deleted_at", null).returns<PartRow[]>(),
+    sb.from("repair_services").select("id, service_date, created_at").returns<ServiceRow[]>(),
+  ]);
+
+  const partsByService = new Map<string, PartRow[]>();
+  for (const p of partRows ?? []) {
+    const arr = partsByService.get(p.service_id);
+    if (arr) arr.push(p);
+    else partsByService.set(p.service_id, [p]);
+  }
+
+  const repairs: RepairChip[] = [];
+  for (const s of serviceRows ?? []) {
+    const parts = (partsByService.get(s.id) ?? []).sort((a, b) => a.created_at.localeCompare(b.created_at));
+    if (parts.length === 0) continue; // a service with no parts has nothing to show
+    const date = dateOnly(s.service_date) ?? dateOnly(s.created_at);
+    if (!date) continue;
+    const first = parts[0];
+    const label = parts.length === 1 ? first.description : `${first.description} +${parts.length - 1}`;
+    repairs.push({ id: s.id, date, label, partCount: parts.length, href: `/tms-v2/maintenance/${first.id}` });
+  }
+  return repairs;
+}
+
 type SearchParams = { month?: string };
 
 export default async function CalendarPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
@@ -93,6 +136,20 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   const gridEnd = weeks[weeks.length - 1][6];
   const visibleLoads = loadBars.filter((l) => l.end >= gridStart && l.start <= gridEnd);
   const lanes = assignLanes(visibleLoads);
+
+  // Holidays for every year the grid touches (a Dec/Jan grid spans two) —
+  // federalHolidays() is pure, reused directly from lib/dispatch/calendar.ts.
+  const holidays = new Map<string, Holiday>();
+  const holidayYears = new Set([parseDateStr(gridStart)!.y, parseDateStr(gridEnd)!.y]);
+  for (const y of holidayYears) for (const [k, v] of federalHolidays(y)) holidays.set(k, v);
+
+  const repairs = await fetchRepairChips();
+  const repairsByDate = new Map<string, RepairChip[]>();
+  for (const r of repairs) {
+    const arr = repairsByDate.get(r.date);
+    if (arr) arr.push(r);
+    else repairsByDate.set(r.date, [r]);
+  }
 
   // Weekly net, keyed by each week's Sunday: sum of canonical net for loads
   // that PICKED UP (bar start) in that Sun-Sat week, excluding TONU'd loads
@@ -148,6 +205,18 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
                 <span className="h-3 w-4 rounded-sm bg-green-700" />
                 Loaded
               </span>
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-fg-muted">
+                <span className="inline-flex h-4 w-4 items-center justify-center rounded-sm border border-amber-200 bg-amber-50 text-amber-700">
+                  <WrenchGlyph className="h-2.5 w-2.5" />
+                </span>
+                Repair
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-fg-muted">
+                <span className="inline-flex h-4 w-4 items-center justify-center rounded-sm border border-blue-200 bg-blue-50 text-blue-700">
+                  <FlagGlyph className="h-2.5 w-2.5" />
+                </span>
+                Holiday
+              </span>
               <form action="/tms-v2/calendar" method="GET" className="flex items-center gap-1.5">
                 <input type="month" name="month" defaultValue={monthParam(period)} className="h-8 rounded-md border border-line-strong bg-card px-2 text-[13px] text-fg" />
                 <Button type="submit" variant="secondary" size="sm">
@@ -170,6 +239,8 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
         monthMaxProfit={monthMaxProfit}
         monthTotal={monthTotal}
         monthLabel={periodLabel(period)}
+        holidays={holidays}
+        repairsByDate={repairsByDate}
       />
     </PageScroll>
   );

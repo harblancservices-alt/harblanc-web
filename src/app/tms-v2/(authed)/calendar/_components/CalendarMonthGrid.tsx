@@ -1,23 +1,20 @@
 import Link from "next/link";
-import { dropCounts, parseDateStr, spanTrim, weekdayOf, WEEKDAY_LABELS, type SpanEvent } from "@/lib/dispatch/calendar";
+import { dropCounts, parseDateStr, spanTrim, weekdayOf, WEEKDAY_LABELS, type Holiday, type SpanEvent } from "@/lib/dispatch/calendar";
 import { formatMoney } from "@/lib/domain/money";
 
 /**
  * Ported from legacy /admin's Calendar (src/app/admin/(authed)/calendar/
  * CalendarView.tsx) at Brent's explicit request, 2026-08-08 — "the exact
  * green activity bars so I can tell at a glance which days I worked and how
- * busy each day was." Same visual system, same lane-packing math (reused
- * directly from lib/dispatch/calendar.ts, not reimplemented), same literal
- * green/slate/amber Tailwind colors — only the page shell differs (this
- * page is a Server Component driven by tms-v2's own URL-based month nav,
- * where admin's is client-state; the grid itself needs no client JS at all
- * since every interactive element is a plain <Link>).
- *
- * Deliberately NOT ported: the repair-service wrench chips and federal-
- * holiday flags admin's calendar also shows. Brent's ask was specifically
- * the day-activity (load) bars + "whatever the old one did" for the weekly
- * profit rail — both ported below. Flagging the trim, not silently
- * dropping it.
+ * busy each day was," then a 2026-08-08 follow-up to add back the repair-
+ * service wrench chips and federal-holiday flags admin's calendar also
+ * shows (left out of the first pass, disclosed at the time). Same visual
+ * system, same lane-packing math (reused directly from lib/dispatch/
+ * calendar.ts, not reimplemented), same literal green/slate/amber/blue
+ * Tailwind colors — only the page shell differs (this page is a Server
+ * Component driven by tms-v2's own URL-based month nav, where admin's is
+ * client-state; the grid itself needs no client JS at all since every
+ * interactive element is a plain <Link>).
  */
 
 export type LoadBar = {
@@ -32,6 +29,14 @@ export type LoadBar = {
 
 export type WeekNet = { net: number; count: number };
 
+export type RepairChip = {
+  id: string;
+  date: string; // YYYY-MM-DD
+  label: string;
+  partCount: number;
+  href: string;
+};
+
 const WEEKEND_BG = "bg-[#FBF1E8]";
 function isWeekendCol(i: number): boolean {
   return i === 0 || i === 6;
@@ -41,6 +46,22 @@ const HEADER_H = 24;
 const BAR_H = 20;
 const HEADER_H_SM = 18;
 const BAR_H_SM = 16;
+
+export function WrenchGlyph({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+      <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
+    </svg>
+  );
+}
+
+export function FlagGlyph({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden>
+      <path d="M4 22V4M4 4h13l-2 4 2 4H4" />
+    </svg>
+  );
+}
 
 function fmtNet(n: number): string {
   return formatMoney(Math.round(n));
@@ -118,6 +139,8 @@ export function CalendarMonthGrid({
   monthMaxProfit,
   monthTotal,
   monthLabel,
+  holidays,
+  repairsByDate,
 }: {
   weeks: string[][];
   /** 0-based month of the VIEWED period — used only to shade adjacent-month
@@ -130,6 +153,8 @@ export function CalendarMonthGrid({
   monthMaxProfit: number;
   monthTotal: number;
   monthLabel: string;
+  holidays: Map<string, Holiday>;
+  repairsByDate: Map<string, RepairChip[]>;
 }) {
   return (
     <>
@@ -161,6 +186,8 @@ export function CalendarMonthGrid({
             lanes={lanes}
             weekNet={weekNets.get(week[0])}
             monthMaxProfit={monthMaxProfit}
+            holidays={holidays}
+            repairsByDate={repairsByDate}
           />
         ))}
 
@@ -191,7 +218,17 @@ export function CalendarMonthGrid({
           ))}
         </div>
         {weeks.map((week) => (
-          <MobileWeekRow key={week[0]} week={week} month0={month0} today={today} loads={loads} lanes={lanes} weekNet={weekNets.get(week[0])} />
+          <MobileWeekRow
+            key={week[0]}
+            week={week}
+            month0={month0}
+            today={today}
+            loads={loads}
+            lanes={lanes}
+            weekNet={weekNets.get(week[0])}
+            holidays={holidays}
+            repairsByDate={repairsByDate}
+          />
         ))}
       </div>
     </>
@@ -206,6 +243,8 @@ function DesktopWeekRow({
   lanes,
   weekNet,
   monthMaxProfit,
+  holidays,
+  repairsByDate,
 }: {
   week: string[];
   month0: number;
@@ -214,6 +253,8 @@ function DesktopWeekRow({
   lanes: Map<string, number>;
   weekNet: WeekNet | undefined;
   monthMaxProfit: number;
+  holidays: Map<string, Holiday>;
+  repairsByDate: Map<string, RepairChip[]>;
 }) {
   const weekStart = week[0];
   const segments = weekSegments(week, loads, lanes);
@@ -227,6 +268,8 @@ function DesktopWeekRow({
         const p = parseDateStr(date)!;
         const inMonth = p.m1 - 1 === month0;
         const isToday = date === today;
+        const holiday = holidays.get(date);
+        const dayRepairs = repairsByDate.get(date) ?? [];
         return (
           <div key={date} className={`min-h-[110px] border-r border-line-strong ${!inMonth ? "bg-elevated/60" : isWeekendCol(i) ? WEEKEND_BG : ""}`}>
             <div className="flex items-center px-1.5" style={{ height: HEADER_H }}>
@@ -239,6 +282,30 @@ function DesktopWeekRow({
               </span>
             </div>
             <div style={{ height: barZoneH }} />
+            {/* Holiday flag + repair wrench chips, flowing beneath the bars. */}
+            <div className="flex flex-col gap-1 px-1.5 pb-1.5">
+              {holiday ? (
+                <span
+                  className="inline-flex items-center gap-1 truncate rounded border border-blue-200 bg-blue-50 px-1.5 py-0.5 text-[10.5px] font-medium leading-tight text-blue-700"
+                  title={holiday.name}
+                >
+                  <FlagGlyph className="h-2.5 w-2.5 shrink-0" />
+                  <span className="truncate">{holiday.name}</span>
+                </span>
+              ) : null}
+              {dayRepairs.map((r) => (
+                <Link
+                  key={r.id}
+                  href={r.href}
+                  prefetch={false}
+                  title={`${r.label} · ${r.partCount} part${r.partCount === 1 ? "" : "s"}`}
+                  className="inline-flex items-center gap-1 truncate rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10.5px] font-medium leading-tight text-amber-700 transition-colors hover:bg-amber-100"
+                >
+                  <WrenchGlyph className="h-2.5 w-2.5 shrink-0" />
+                  <span className="truncate">{r.label}</span>
+                </Link>
+              ))}
+            </div>
           </div>
         );
       })}
@@ -296,6 +363,8 @@ function MobileWeekRow({
   loads,
   lanes,
   weekNet,
+  holidays,
+  repairsByDate,
 }: {
   week: string[];
   month0: number;
@@ -303,6 +372,8 @@ function MobileWeekRow({
   loads: LoadBar[];
   lanes: Map<string, number>;
   weekNet: WeekNet | undefined;
+  holidays: Map<string, Holiday>;
+  repairsByDate: Map<string, RepairChip[]>;
 }) {
   const weekStart = week[0];
   const segments = weekSegments(week, loads, lanes);
@@ -316,6 +387,8 @@ function MobileWeekRow({
           const p = parseDateStr(date)!;
           const inMonth = p.m1 - 1 === month0;
           const isToday = date === today;
+          const holiday = holidays.get(date);
+          const dayRepairs = repairsByDate.get(date) ?? [];
           return (
             <div key={date} className={`min-h-[54px] border-r border-line-strong last:border-r-0 ${!inMonth ? "bg-elevated/60" : isWeekendCol(i) ? WEEKEND_BG : ""}`}>
               <div className="flex items-center justify-center" style={{ height: HEADER_H_SM }}>
@@ -328,6 +401,29 @@ function MobileWeekRow({
                 </span>
               </div>
               <div style={{ height: barZoneH }} />
+              {/* Dot markers — holiday and repair chips shrunk to fit phone
+                  width; tapping a repair dot still opens that maintenance
+                  entry. */}
+              <div className="flex flex-wrap items-center justify-center gap-x-0.5 px-0.5 pb-1">
+                {holiday ? (
+                  <span className="flex h-4 w-4 items-center justify-center" title={holiday.name}>
+                    <span className="h-2 w-2 rounded-full bg-blue-600" />
+                    <span className="sr-only">{holiday.name}</span>
+                  </span>
+                ) : null}
+                {dayRepairs.map((r) => (
+                  <Link
+                    key={r.id}
+                    href={r.href}
+                    prefetch={false}
+                    title={`${r.label} · ${r.partCount} part${r.partCount === 1 ? "" : "s"}`}
+                    className="flex h-4 w-4 items-center justify-center transition-opacity active:opacity-60"
+                  >
+                    <span className="h-2 w-2 rounded-full bg-amber-500" />
+                    <span className="sr-only">{r.label}</span>
+                  </Link>
+                ))}
+              </div>
             </div>
           );
         })}
