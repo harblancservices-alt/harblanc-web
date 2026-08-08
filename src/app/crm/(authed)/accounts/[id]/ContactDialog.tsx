@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Modal } from "../../_shell/Modal";
 import {
   Field,
+  SelectField,
   TextareaField,
   CheckboxField,
   SubmitButton,
@@ -16,6 +17,7 @@ import { LinksEditor } from "../../_shell/LinksEditor";
 import type { PhoneEntry, LinkEntry } from "../../_shell/contactFields";
 import { createContact, updateContact } from "../actions";
 import { toDatetimeLocal } from "../../_shell/format";
+import { ROLE_CATEGORIES, ROLE_LABEL } from "./PeopleSection";
 
 export type ContactDefaults = {
   id?: string;
@@ -28,6 +30,9 @@ export type ContactDefaults = {
   is_decision_maker?: boolean | null;
   notes?: string | null;
   next_followup_at?: string | null;
+  /** A CrmPersonRoleCategory slug (see PeopleSection.tsx), or null/unset —
+   * drives the color-coded role tag on the Overview tab's People list. */
+  role_category?: string | null;
 };
 
 /**
@@ -98,6 +103,15 @@ export function ContactDialog({
             inputMode="email"
             defaultValue={d.email}
           />
+
+          <SelectField label="Role" name="role_category" defaultValue={d.role_category ?? ""}>
+            <option value="">No role set</option>
+            {ROLE_CATEGORIES.map((r) => (
+              <option key={r} value={r}>
+                {ROLE_LABEL[r]}
+              </option>
+            ))}
+          </SelectField>
 
           <PhonesEditor defaultValue={d.phones} />
           <LinksEditor defaultValue={d.links} />

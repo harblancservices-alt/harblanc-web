@@ -6,12 +6,10 @@ import { ContactDialog } from "./ContactDialog";
 import { QuickNoteDialog } from "./QuickNoteDialog";
 
 /**
- * The role/category vocabulary driving each person's color-coded tag.
- * `role_category` is not yet a column on crm_contacts (reported separately as
- * DDL) — every CrmPerson.role_category is therefore always null/undefined
- * today, so PersonRow's tag falls back to a neutral chip. The vocabulary and
- * tone map already exist here so wiring the real column later is a one-line
- * change (select it in page.tsx, add it to ContactDialog), not a redesign.
+ * The role/category vocabulary driving each person's color-coded tag —
+ * crm_contacts.role_category (text, applied directly, no migration file).
+ * Exported so ContactDialog's role picker shares this exact same vocabulary/
+ * label set rather than a second copy that could drift.
  */
 export type CrmPersonRoleCategory =
   | "purchasing"
@@ -20,7 +18,15 @@ export type CrmPersonRoleCategory =
   | "manager_owner"
   | "sales";
 
-const ROLE_LABEL: Record<CrmPersonRoleCategory, string> = {
+export const ROLE_CATEGORIES: CrmPersonRoleCategory[] = [
+  "purchasing",
+  "shipping_receiving",
+  "dispatch",
+  "manager_owner",
+  "sales",
+];
+
+export const ROLE_LABEL: Record<CrmPersonRoleCategory, string> = {
   purchasing: "Purchasing",
   shipping_receiving: "Shipping / Receiving",
   dispatch: "Dispatch",
@@ -49,7 +55,8 @@ export type CrmPerson = {
   phones: PhoneEntry[];
   is_decision_maker: boolean;
   last_contacted_at?: string | null;
-  /** Always undefined until the role_category column exists — see the
+  /** A CrmPersonRoleCategory slug, or null when unset — anything else falls
+   * back to a neutral chip in PersonRow rather than throwing. See the
    * module docstring above. */
   role_category?: string | null;
 };

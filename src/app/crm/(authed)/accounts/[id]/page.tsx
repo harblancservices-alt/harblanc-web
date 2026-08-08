@@ -82,7 +82,7 @@ export default async function AccountDetailPage({
     supabase
       .from("crm_contacts")
       .select(
-        "id, name, title, email, phones, links, best_time_to_call, is_decision_maker, notes, next_followup_at, last_contacted_at",
+        "id, name, title, email, phones, links, best_time_to_call, is_decision_maker, notes, next_followup_at, last_contacted_at, role_category",
       )
       .eq("account_id", id)
       .is("deleted_at", null)
@@ -159,6 +159,7 @@ export default async function AccountDetailPage({
     notes: string | null;
     next_followup_at: string | null;
     last_contacted_at: string | null;
+    role_category: string | null;
   }[];
   const contacts: CrmContact[] = contactRows.map((c) => ({
     ...c,
@@ -178,9 +179,7 @@ export default async function AccountDetailPage({
     phones: parsePhones(c.phones),
     is_decision_maker: c.is_decision_maker,
     last_contacted_at: c.last_contacted_at,
-    // role_category isn't a column yet (see PeopleSection.tsx) — always null
-    // until that DDL lands.
-    role_category: null,
+    role_category: c.role_category,
   }));
 
   const notesRows = (notesRes.data ?? []) as {

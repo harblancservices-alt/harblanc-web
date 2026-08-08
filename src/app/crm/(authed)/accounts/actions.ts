@@ -419,6 +419,9 @@ function contactFieldsFromForm(fd: FormData) {
     // (toDatetimeLocal) — convert back through the same Central
     // interpretation rather than storing the naive string as-is.
     next_followup_at: centralInputToIso(optStr(fd, "next_followup_at")),
+    // A CrmPersonRoleCategory slug (see PeopleSection.tsx) or null — drives
+    // the color-coded role tag on the profile's People list.
+    role_category: optStr(fd, "role_category"),
   };
 }
 
