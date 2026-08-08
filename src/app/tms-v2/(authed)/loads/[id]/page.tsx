@@ -6,7 +6,6 @@ import { DateTimeCST } from "@/components/tms-v2/ui/DateTimeCST";
 import { StatusPill } from "@/components/tms-v2/ui/StatusPill";
 import { rpm } from "@/lib/dispatch/format";
 import { formatMoney } from "@/lib/domain/money";
-import { formatPhone } from "@/lib/domain/phone";
 import { getLoadDetail } from "@/lib/data/loads";
 import { listBrokers } from "@/lib/data/brokers";
 import { listTrips } from "@/lib/data/trips";
@@ -210,18 +209,6 @@ export default async function LoadDetailPage({
                       <DetailRow label="Load #" value={load.loadNumber} />
                       <DetailRow label="Broker" value={load.brokerName} />
                       <DetailRow label="Trip" value={load.tripName} />
-                      <DetailRow
-                        label="Payment"
-                        value={
-                          load.paymentStatus === "paid" ? (
-                            <>
-                              Paid{load.paidAt ? <> · <DateTimeCST value={load.paidAt} mode="date" /></> : null}
-                            </>
-                          ) : (
-                            "Unpaid"
-                          )
-                        }
-                      />
                     </dl>
                   </div>
                   <div>
@@ -232,21 +219,8 @@ export default async function LoadDetailPage({
                       <DetailRow label="Mileage" value={`${totalMiles.toLocaleString("en-US")} mi`} />
                       <DetailRow label="Origin" value={[load.origin, load.originZip].filter(Boolean).join(" ")} />
                       <DetailRow label="Dest" value={[load.destination, load.destZip].filter(Boolean).join(" ")} />
-                      <DetailRow label="Equipment" value={load.equipment} />
                     </dl>
                   </div>
-                  {load.brokerName ? (
-                    <div>
-                      <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-fg-muted">Broker</div>
-                      <dl className="flex flex-col divide-y divide-line border-y border-line">
-                        <DetailRow label="Broker MC #" value={load.brokerMcNumber} />
-                        <DetailRow label="Broker DOT #" value={load.brokerDotNumber} />
-                        <DetailRow label="Broker phone" value={formatPhone(load.brokerPhone)} />
-                        <DetailRow label="Broker email" value={load.brokerEmail} />
-                        <DetailRow label="Factoring" value={load.brokerFactoring ? "Yes" : "No"} />
-                      </dl>
-                    </div>
-                  ) : null}
                 </div>
               </DarkBarCard>
 

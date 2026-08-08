@@ -27,6 +27,24 @@ export function parseServerTimestamp(value: string | Date | null | undefined): D
   const trimmed = value.trim();
   if (!trimmed) return null;
 
+  // Date-only columns (pickup_date, delivery_date, service_date, ...) come
+  // back as a bare "YYYY-MM-DD". The offset-fixup below is for timestamptz
+  // values only; run a bare date through it and it misreads the
+  // day-of-month's trailing "-DD" as a UTC offset needing ":00" appended —
+  // "2026-08-05" becomes "2026-08-05:00", Invalid Date. That silently
+  // blanked every Pickup/Delivery date on Load Detail (bug report,
+  // 2026-08-08) since EVERY date-only value ends in a 2-digit day, so this
+  // always matched. Handle this shape first, before that logic ever runs —
+  // anchored at NOON UTC, not midnight: midnight UTC formatted back in
+  // America/Chicago (UTC-5/-6) lands on the PREVIOUS calendar day, which
+  // would silently shift every date-only value back by one. Noon UTC has a
+  // 12-hour margin either direction, so it always lands on the same
+  // calendar day the column actually stored, in and out of DST.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    const d = new Date(`${trimmed}T12:00:00Z`);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+
   let s = trimmed.replace(" ", "T");
   s = s.replace(/([+-]\d{2})$/, "$1:00");
   if (!/[zZ]$/.test(s) && !/[+-]\d{2}:\d{2}$/.test(s)) s += "Z";
