@@ -15,14 +15,7 @@ export default async function CrmAuthedLayout({
   children: React.ReactNode;
 }) {
   const user = await requireCrmUser();
-
-  // Org name for the shell header. Scoped by RLS to the user's own org.
   const supabase = await createCrmServerClient();
-  const { data: org } = await supabase
-    .from("crm_orgs")
-    .select("name")
-    .eq("id", user.orgId)
-    .maybeSingle();
 
   // Pending-review count for the nav badge — owners only, so this extra
   // count-only query never runs for regular members. Covers both AI-agent
@@ -62,7 +55,6 @@ export default async function CrmAuthedLayout({
     <CrmShell
       email={user.email}
       fullName={user.fullName}
-      orgName={(org?.name as string) ?? "Hello Hotshot"}
       role={user.role}
       pendingReviewCount={pendingReviewCount}
       unclaimedAiLeadsCount={unclaimedAiCount ?? 0}

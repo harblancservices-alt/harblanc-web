@@ -11,7 +11,6 @@ import { ActivityTracker } from "./ActivityTracker";
 type CrmShellProps = {
   email: string;
   fullName: string | null;
-  orgName: string;
   /** CRM role ("owner"/"member") — only the role and counts (plain,
    * serializable values) cross the Server->Client boundary from layout.tsx;
    * the nav itself (built with icon COMPONENT references, which are function
@@ -28,13 +27,21 @@ type CrmShellProps = {
  * The Hello Hotshot CRM application shell. Carries the `.crm-light` theme
  * scope (so the shared V2 design tokens resolve to the CRM's premium light
  * palette with a steel-blue brand accent), and renders the CRM's OWN nav —
- * a desktop sidebar, a sticky top bar, and a mobile bottom bar. It shares no
- * markup or state with the admin PortalShell.
+ * a desktop sidebar and a mobile bottom bar. It shares no markup or state
+ * with the admin PortalShell.
+ *
+ * NO top bar, on any viewport (matches the tms-v2 shell's PortalShell/
+ * Sidebar precedent) — its vertical space is gone too, not just its border/
+ * background. What it used to hold moved rather than disappeared: the brand
+ * mark is now the first thing in the desktop sidebar, and the account
+ * identity + sign out were already pinned at the sidebar's bottom (and
+ * already duplicated into MobileMoreSheet for mobile) before this pass —
+ * removing the top bar didn't strand either. Content starts flush at the
+ * top of <main> on every viewport.
  */
 export function CrmShell({
   email,
   fullName,
-  orgName,
   role,
   pendingReviewCount,
   unclaimedAiLeadsCount,
@@ -64,22 +71,11 @@ export function CrmShell({
       {/* Silent, owner-only-visible activity logging — renders nothing. */}
       <ActivityTracker />
 
-      {/* Desktop sticky top bar */}
-      <header className="sticky top-0 z-30 hidden h-14 items-center justify-between border-b border-line bg-panel px-5 lg:flex">
-        <BrandMark />
-        <div className="flex items-center gap-3">
-          <span className="hidden text-[12px] font-medium text-fg-subtle sm:inline">
-            {orgName}
-          </span>
-          <span className="h-8 w-8 shrink-0 rounded-full bg-graphite text-center text-[13px] font-semibold leading-8 text-white">
-            {initial}
-          </span>
-        </div>
-      </header>
-
       <div className="flex">
         {/* Desktop sidebar */}
-        <aside className="sticky top-14 hidden h-[calc(100vh-3.5rem)] w-[220px] shrink-0 flex-col border-r border-graphite-line bg-graphite lg:flex">
+        <aside className="sticky top-0 hidden h-screen w-[220px] shrink-0 flex-col border-r border-graphite-line bg-graphite lg:flex">
+          <BrandMark dark />
+
           <nav className="flex flex-1 flex-col gap-2 overflow-y-auto p-3">
             {navItems.map((item) => {
               const active = isActive(pathname, item);
@@ -153,17 +149,11 @@ export function CrmShell({
           </div>
         </aside>
 
-        {/* Content column */}
-        <main className="min-w-0 flex-1 pb-24 lg:pb-0">
-          {/* Mobile top bar */}
-          <div className="sticky top-0 z-20 flex h-14 items-center justify-between border-b border-line bg-panel px-4 lg:hidden">
-            <BrandMark />
-            <span className="h-8 w-8 shrink-0 rounded-full bg-graphite text-center text-[13px] font-semibold leading-8 text-white">
-              {initial}
-            </span>
-          </div>
-          {children}
-        </main>
+        {/* Content column — no mobile top bar either; the brand mark isn't
+            needed on mobile (the bottom nav is the primary chrome there,
+            same as tms-v2), and account identity/sign out already live in
+            MobileMoreSheet. Content starts flush at the top. */}
+        <main className="min-w-0 flex-1 pb-24 lg:pb-0">{children}</main>
       </div>
 
       {/* Mobile bottom nav */}
@@ -207,17 +197,30 @@ export function CrmShell({
   );
 }
 
-function BrandMark() {
+/** `dark` sits it on the sidebar's graphite background (white/dim-white
+ * wordmark) instead of the light `.crm-light` panel it was originally
+ * built for — the only caller left since the top bars were removed. */
+function BrandMark({ dark = false }: { dark?: boolean }) {
   return (
-    <Link href="/crm" prefetch={false} className="flex items-center gap-2.5">
-      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-accent text-[15px] font-black text-white">
+    <Link
+      href="/crm"
+      prefetch={false}
+      className="flex items-center gap-2.5 px-3 pb-4 pt-3"
+    >
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-accent text-[15px] font-black text-white">
         H
       </span>
       <span className="flex flex-col leading-none">
-        <span className="text-[15px] font-bold tracking-tight text-fg">
+        <span
+          className={`text-[15px] font-bold tracking-tight ${dark ? "text-white" : "text-fg"}`}
+        >
           Hello Hotshot
         </span>
-        <span className="text-[9.5px] font-semibold uppercase tracking-[0.22em] text-fg-subtle">
+        <span
+          className={`text-[9.5px] font-semibold uppercase tracking-[0.22em] ${
+            dark ? "text-on-dark-dim" : "text-fg-subtle"
+          }`}
+        >
           CRM
         </span>
       </span>
