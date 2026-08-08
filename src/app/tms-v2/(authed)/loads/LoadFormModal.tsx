@@ -5,7 +5,7 @@ import { Modal } from "@/components/tms-v2/ui/Modal";
 import { Button } from "@/components/tms-v2/ui/Button";
 import { addLoad, editLoad } from "@/actions/tms-v2/loads";
 import type { MutationResult } from "@/lib/demo/mutation";
-import { Field, SelectField, FormError, FormActions } from "./_form";
+import { Field, PhoneField, SelectField, FormError, FormActions } from "./_form";
 
 export type LoadFormValues = {
   id: string;
@@ -86,7 +86,6 @@ export function LoadFormModal({ open, onClose, brokerNames, activeTripNames, loa
   const [brokerMainPhone, setBrokerMainPhone] = useState("");
   const [brokerContactName, setBrokerContactName] = useState("");
   const [brokerEmail, setBrokerEmail] = useState("");
-  const [brokerPhone, setBrokerPhone] = useState("");
   const [lookupKind, setLookupKind] = useState<"mc" | "dot">("mc");
   const [lookupVal, setLookupVal] = useState("");
   const [lookupLoading, setLookupLoading] = useState(false);
@@ -416,13 +415,7 @@ export function LoadFormModal({ open, onClose, brokerNames, activeTripNames, loa
               onChange={(e) => setBrokerEmail(e.target.value)}
               autoComplete="off"
             />
-            <Field
-              label="Dispatcher phone"
-              name="broker_phone"
-              value={brokerPhone}
-              onChange={(e) => setBrokerPhone(e.target.value)}
-              autoComplete="off"
-            />
+            <PhoneField label="Dispatcher phone" name="broker_phone" />
           </div>
         </section>
       </form>

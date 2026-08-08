@@ -7,7 +7,8 @@ import { Modal } from "@/components/tms-v2/ui/Modal";
 import { addBrokerContact, updateBrokerContact, deleteBrokerContact } from "@/actions/tms-v2/brokers";
 import type { MutationResult } from "@/lib/demo/mutation";
 import type { ReachContactRow } from "@/lib/data/reach-contacts";
-import { Field, FormError, FormActions } from "../loads/_form";
+import { Field, PhoneField, FormError, FormActions } from "../loads/_form";
+import { formatPhone } from "@/lib/domain/phone";
 
 /** Reach's Contacts management — closes the "recipients are only
  * auto-derived" gap. Legacy's own Contacts tab (ContactsTab.tsx) only
@@ -107,7 +108,7 @@ export function ContactsSection({ contacts, brokers }: { contacts: ReachContactR
                   </div>
                   <div className="flex items-center gap-3 text-fg-muted">
                     <span>{c.email ?? "—"}</span>
-                    <span>{c.phone ?? "—"}</span>
+                    <span>{c.phone ? formatPhone(c.phone) : "—"}</span>
                     <button
                       type="button"
                       onClick={() => onToggleInclude(c)}
@@ -199,7 +200,7 @@ function AddContactModal({
           <Field label="Title" name="title" />
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <Field label="Phone" name="phone" type="tel" />
+          <PhoneField label="Phone" name="phone" />
           <Field label="Email" name="email" type="email" />
         </div>
         <label className="flex items-center gap-2 text-[13px] font-medium text-fg">
@@ -248,7 +249,7 @@ function EditContactModal({ contact, onClose, onSaved }: { contact: ReachContact
           <Field label="Title" name="title" defaultValue={contact.title ?? ""} />
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <Field label="Phone" name="phone" type="tel" defaultValue={contact.phone ?? ""} />
+          <PhoneField label="Phone" name="phone" defaultValue={contact.phone} />
           <Field label="Email" name="email" type="email" defaultValue={contact.email ?? ""} />
         </div>
         <label className="flex items-center gap-2 text-[13px] font-medium text-fg">

@@ -5,6 +5,7 @@ import { getDispatchSettingsSummary } from "@/lib/data/settings";
 import { listExpenseAccounts } from "@/lib/data/recurring-expenses";
 import { isDemoMode } from "@/lib/admin/demo";
 import { company } from "@/lib/company";
+import { formatPhone } from "@/lib/domain/phone";
 import { FuelSettingsForm, ProfitGoalsForm, CurrentCashForm } from "./SettingsForms";
 import { PaymentMethodsCard } from "./PaymentMethodsCard";
 import { DemoModeToggle } from "./DemoModeToggle";
@@ -80,7 +81,7 @@ export default async function TmsV2SettingsPage() {
           <Field label="USDOT number" value={company.dot} mono />
           <Field label="Dispatch model" value={company.dispatchModel} />
           <Field label="Dispatch email" value={company.dispatchEmail} />
-          <Field label="Phone" value={company.dispatchPhone} mono />
+          <Field label="Phone" value={formatPhone(company.dispatchPhone)} mono />
           <Field label="Authority" value={company.authorityText} />
           <Field label="Service area" value={company.serviceArea} />
         </div>

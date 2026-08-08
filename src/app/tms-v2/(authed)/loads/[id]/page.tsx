@@ -5,6 +5,7 @@ import { DateTimeCST } from "@/components/tms-v2/ui/DateTimeCST";
 import { StatusPill } from "@/components/tms-v2/ui/StatusPill";
 import { rpm } from "@/lib/dispatch/format";
 import { formatMoney } from "@/lib/domain/money";
+import { formatPhone } from "@/lib/domain/phone";
 import { getLoadDetail } from "@/lib/data/loads";
 import { listBrokers } from "@/lib/data/brokers";
 import { listTrips } from "@/lib/data/trips";
@@ -168,7 +169,7 @@ export default async function LoadDetailPage({ params }: { params: Promise<{ id:
                   <dl className="flex flex-col divide-y divide-line border-y border-line">
                     <DetailRow label="Broker MC #" value={load.brokerMcNumber} />
                     <DetailRow label="Broker DOT #" value={load.brokerDotNumber} />
-                    <DetailRow label="Broker phone" value={load.brokerPhone} />
+                    <DetailRow label="Broker phone" value={formatPhone(load.brokerPhone)} />
                     <DetailRow label="Broker email" value={load.brokerEmail} />
                     <DetailRow label="Factoring" value={load.brokerFactoring ? "Yes" : "No"} />
                   </dl>

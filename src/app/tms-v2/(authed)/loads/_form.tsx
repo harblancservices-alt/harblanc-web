@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from "react";
+import { formatPhone, formatPhoneInput } from "@/lib/domain/phone";
 
 /**
  * Small form primitives colocated under loads/ (not components/tms-v2/ui —
@@ -36,6 +38,40 @@ export function Field({
         {...props}
       />
     </label>
+  );
+}
+
+/** A phone <input> that auto-formats to "(XXX) XXX-XXXX" as the user types
+ * (lib/domain/phone.ts's formatPhoneInput) — the one shared phone field
+ * every tms-v2 form using this file's `Field` primitive should use instead
+ * of a bare `<Field type="tel">`. Manages its own controlled state
+ * internally so callers keep the same drop-in shape (`defaultValue`, not
+ * `value`/`onChange`) every other uncontrolled Field call site already has. */
+export function PhoneField({
+  label,
+  name,
+  required,
+  defaultValue,
+  className = "",
+}: {
+  label: string;
+  name: string;
+  required?: boolean;
+  defaultValue?: string | null;
+  className?: string;
+}) {
+  const [value, setValue] = useState(() => formatPhone(defaultValue ?? "") || (defaultValue ?? ""));
+  return (
+    <Field
+      label={label}
+      name={name}
+      type="tel"
+      required={required}
+      value={value}
+      onChange={(e) => setValue(formatPhoneInput(e.target.value))}
+      autoComplete="off"
+      className={className}
+    />
   );
 }
 

@@ -7,7 +7,8 @@ import { Button } from "@/components/tms-v2/ui/Button";
 import { updateBroker, archiveBroker, addBrokerContact, updateBrokerContact, deleteBrokerContact } from "@/actions/tms-v2/brokers";
 import type { MutationResult } from "@/lib/demo/mutation";
 import type { BrokerIdentity, BrokerContact } from "@/lib/data/broker-profile";
-import { Field, SelectField, FormError, FormActions } from "../../loads/_form";
+import { Field, PhoneField, SelectField, FormError, FormActions } from "../../loads/_form";
+import { formatPhone } from "@/lib/domain/phone";
 
 type SaveState = { ok: boolean; error: string | null };
 const INITIAL: SaveState = { ok: false, error: null };
@@ -93,7 +94,7 @@ function EditBrokerModal({
           <Field label="DOT #" name="dot_number" defaultValue={identity.dotNumber ?? ""} />
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <Field label="Phone" name="phone" type="tel" defaultValue={identity.phone ?? ""} />
+          <PhoneField label="Phone" name="phone" defaultValue={identity.phone} />
           <Field label="Email" name="email" type="email" defaultValue={identity.email ?? ""} />
         </div>
         <div className="grid grid-cols-2 gap-2">
@@ -186,7 +187,7 @@ function ContactRow({ contact: c, onEdit, onDelete }: { contact: BrokerContact; 
         {c.title ? <div className="truncate text-[12px] text-fg-muted">{c.title}</div> : null}
         {c.phone || c.email ? (
           <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[13px] text-fg-muted">
-            {c.phone ? <span className="truncate">{c.phone}</span> : null}
+            {c.phone ? <span className="truncate">{formatPhone(c.phone)}</span> : null}
             {c.email ? <span className="truncate">{c.email}</span> : null}
           </div>
         ) : null}
@@ -305,7 +306,7 @@ function ContactModal({
           <Field label="Title" name="title" defaultValue={contact?.title ?? ""} />
         </div>
         <div className="grid grid-cols-2 gap-2">
-          <Field label="Phone" name="phone" type="tel" defaultValue={contact?.phone ?? ""} />
+          <PhoneField label="Phone" name="phone" defaultValue={contact?.phone} />
           <Field label="Email" name="email" type="email" defaultValue={contact?.email ?? ""} />
         </div>
         <label className="flex items-center gap-2 text-[13px] font-medium text-fg">

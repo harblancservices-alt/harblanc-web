@@ -1,5 +1,8 @@
 "use client";
 
+import { useState } from "react";
+import { formatPhone, formatPhoneInput } from "@/lib/domain/phone";
+
 /**
  * Data-driven field grid for the revenue composers (Estimate/Finalized
  * Quote/BOL) — these forms carry 10-40 fields each (pickup/delivery
@@ -10,6 +13,26 @@
  * unchanged — no translation layer between this form and V1's business
  * logic.
  */
+
+/** The one "tel" field renders through this — controlled + auto-formatting
+ * (lib/domain/phone.ts), while every other field type in this grid stays
+ * plain `defaultValue`/uncontrolled. */
+function TelField({ label, name, defaultValue }: { label: string; name: string; defaultValue: string }) {
+  const [value, setValue] = useState(() => formatPhone(defaultValue) || defaultValue);
+  return (
+    <label className="flex flex-col gap-1 text-[12px] font-medium text-fg-muted">
+      {label}
+      <input
+        name={name}
+        type="tel"
+        value={value}
+        onChange={(e) => setValue(formatPhoneInput(e.target.value))}
+        autoComplete="off"
+        className="h-9 rounded-md border border-line-strong bg-card px-2.5 text-[13px] text-fg focus:border-fg focus:outline-none"
+      />
+    </label>
+  );
+}
 
 export type FieldSpec =
   | { name: string; label: string; type: "text" | "number" | "date" | "tel" | "email" }
@@ -64,6 +87,9 @@ export function FieldGrid({ fields, defaults }: { fields: FieldSpec[]; defaults:
               {f.label}
             </label>
           );
+        }
+        if (f.type === "tel") {
+          return <TelField key={f.name} name={f.name} label={f.label} defaultValue={raw == null ? "" : String(raw)} />;
         }
         return (
           <label key={f.name} className="flex flex-col gap-1 text-[12px] font-medium text-fg-muted">

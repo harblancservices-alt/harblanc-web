@@ -6,6 +6,7 @@ import { KpiTile } from "@/components/tms-v2/ui/KpiTile";
 import { Money } from "@/components/tms-v2/ui/Money";
 import { DateTimeCST } from "@/components/tms-v2/ui/DateTimeCST";
 import { getPipelineDetail } from "@/lib/data/pipeline";
+import { formatPhone } from "@/lib/domain/phone";
 import {
   getEstimateDraft,
   getOpenFinalizedQuoteDraftId,
@@ -101,7 +102,7 @@ export default async function PipelineDetailPage({ params }: { params: Promise<{
         <SectionHeading>Customer</SectionHeading>
         <div className="rounded-xl border border-line bg-card px-3 shadow-e1">
           <Row label="Email" value={identity.email} />
-          <Row label="Phone" value={identity.phone} />
+          <Row label="Phone" value={formatPhone(identity.phone)} />
           {identity.notes ? <Row label="Notes" value={identity.notes} /> : null}
         </div>
       </section>
@@ -113,14 +114,14 @@ export default async function PipelineDetailPage({ params }: { params: Promise<{
             <div className="rounded-xl border border-line bg-card p-3 shadow-e1">
               <p className="mb-2 text-[13px] font-medium text-fg-muted">Pickup</p>
               <p className="text-[14px] text-fg">{shipment.pickup.company ?? "—"}</p>
-              <p className="text-[13px] text-fg-muted">{shipment.pickup.contactName ?? "—"} {shipment.pickup.contactPhone ? `· ${shipment.pickup.contactPhone}` : ""}</p>
+              <p className="text-[13px] text-fg-muted">{shipment.pickup.contactName ?? "—"} {shipment.pickup.contactPhone ? `· ${formatPhone(shipment.pickup.contactPhone)}` : ""}</p>
               <p className="text-[13px] text-fg-muted">{shipment.pickup.address ?? "—"}</p>
               <p className="text-[13px] text-fg-muted">Window: {shipment.pickup.window ?? "—"}</p>
             </div>
             <div className="rounded-xl border border-line bg-card p-3 shadow-e1">
               <p className="mb-2 text-[13px] font-medium text-fg-muted">Delivery</p>
               <p className="text-[14px] text-fg">{shipment.delivery.company ?? "—"}</p>
-              <p className="text-[13px] text-fg-muted">{shipment.delivery.contactName ?? "—"} {shipment.delivery.contactPhone ? `· ${shipment.delivery.contactPhone}` : ""}</p>
+              <p className="text-[13px] text-fg-muted">{shipment.delivery.contactName ?? "—"} {shipment.delivery.contactPhone ? `· ${formatPhone(shipment.delivery.contactPhone)}` : ""}</p>
               <p className="text-[13px] text-fg-muted">{shipment.delivery.address ?? "—"}</p>
               <p className="text-[13px] text-fg-muted">Window: {shipment.delivery.window ?? "—"}</p>
             </div>

@@ -7,7 +7,7 @@ import { Button } from "@/components/tms-v2/ui/Button";
 import { Fab } from "@/components/tms-v2/ui/Fab";
 import { createBroker } from "@/actions/tms-v2/brokers";
 import type { MutationResult } from "@/lib/demo/mutation";
-import { Field, FormError, FormActions } from "../loads/_form";
+import { Field, PhoneField, FormError, FormActions } from "../loads/_form";
 
 type SaveState = { ok: boolean; error: string | null; id: string | null };
 const INITIAL: SaveState = { ok: false, error: null, id: null };
@@ -67,7 +67,7 @@ export function NewBrokerButton() {
             <Field label="DOT #" name="dot_number" />
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <Field label="Phone" name="phone" type="tel" />
+            <PhoneField label="Phone" name="phone" />
             <Field label="Email" name="email" type="email" />
           </div>
           <label className="flex items-center gap-2 text-[13px] font-medium text-fg">

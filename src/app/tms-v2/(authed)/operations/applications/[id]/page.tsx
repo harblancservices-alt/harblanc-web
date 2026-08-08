@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/tms-v2/ui/PageHeader";
 import { DateTimeCST } from "@/components/tms-v2/ui/DateTimeCST";
 import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
 import { getApplicationDetail } from "@/lib/data/pipeline";
+import { formatPhone } from "@/lib/domain/phone";
 import { ApplicationActions } from "./ApplicationActions";
 
 // Trash status/retention window is time-sensitive — read fresh every visit.
@@ -58,7 +59,7 @@ export default async function ApplicationDetailPage({ params }: { params: Promis
             <span className="font-medium text-fg">{app.name}</span>
             {app.phone ? (
               <a href={`tel:${app.phone}`} className="text-accent hover:underline">
-                {app.phone}
+                {formatPhone(app.phone)}
               </a>
             ) : null}
             {app.email ? (

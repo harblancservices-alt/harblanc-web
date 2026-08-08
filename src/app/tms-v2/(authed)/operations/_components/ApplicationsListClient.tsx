@@ -6,11 +6,12 @@ import { DataList, type DataListColumn } from "@/components/tms-v2/ui/DataList";
 import { DateTimeCST } from "@/components/tms-v2/ui/DateTimeCST";
 import { Button } from "@/components/tms-v2/ui/Button";
 import type { ApplicationRow } from "@/lib/data/pipeline";
+import { formatPhone } from "@/lib/domain/phone";
 import { softDeleteApplications } from "@/actions/tms-v2/applications";
 
 const COLUMNS: DataListColumn<ApplicationRow>[] = [
   { key: "name", header: "Name", render: (a) => <span className="font-medium text-fg">{a.name}</span> },
-  { key: "phone", header: "Phone", render: (a) => a.phone },
+  { key: "phone", header: "Phone", render: (a) => formatPhone(a.phone) },
   { key: "email", header: "Email", render: (a) => a.email, hideOnMobile: true },
   { key: "equipment", header: "Equipment", render: (a) => a.equipmentType },
   { key: "cdl", header: "CDL", render: (a) => a.cdlStatus, hideOnMobile: true },

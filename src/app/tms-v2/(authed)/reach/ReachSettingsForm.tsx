@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/tms-v2/ui/Button";
 import { updateReachSettings } from "@/app/admin/(authed)/dispatch/reach/actions";
 import { LEVERAGES, STYLE_LABEL, type ReachSettings, type Leverage } from "@/app/admin/(authed)/dispatch/reach/types";
+import { formatPhone, formatPhoneInput } from "@/lib/domain/phone";
 
 /** Reach's own settings — truck line, reply-to identity, default style, and
  * the exact-town precision toggle. Reuses V1's updateReachSettings action
@@ -14,6 +15,7 @@ export function ReachSettingsForm({ settings }: { settings: ReachSettings }) {
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [phone, setPhone] = useState(() => formatPhone(settings.phone) || settings.phone);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -74,7 +76,14 @@ export function ReachSettingsForm({ settings }: { settings: ReachSettings }) {
             </label>
             <label className="flex flex-col gap-1 text-[12px] font-medium text-fg-muted">
               Phone (signature)
-              <input name="phone" defaultValue={settings.phone} className="h-9 rounded-md border border-line-strong bg-card px-2.5 text-[13px] text-fg focus:border-fg focus:outline-none" />
+              <input
+                name="phone"
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(formatPhoneInput(e.target.value))}
+                autoComplete="off"
+                className="h-9 rounded-md border border-line-strong bg-card px-2.5 text-[13px] text-fg focus:border-fg focus:outline-none"
+              />
             </label>
           </div>
           <label className="flex items-center gap-2 text-[13px] font-medium text-fg">

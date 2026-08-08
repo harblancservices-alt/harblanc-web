@@ -6,6 +6,7 @@ import { Button } from "@/components/tms-v2/ui/Button";
 import { Modal } from "@/components/tms-v2/ui/Modal";
 import { farmBrokerContact } from "@/actions/tms-v2/farm-contact";
 import type { MutationResult } from "@/lib/demo/mutation";
+import { formatPhone, formatPhoneInput } from "@/lib/domain/phone";
 
 const US_STATES = [
   "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA", "HI", "ID", "IL", "IN", "IA",
@@ -85,7 +86,7 @@ function FarmModal({ onClose }: { onClose: () => void }) {
       const name = data.name ?? data.dbaName ?? "";
       setBrokerName(name);
       setDot(data.dotNumber ?? "");
-      if (data.phone) setPhone(data.phone);
+      if (data.phone) setPhone(formatPhone(data.phone));
       setFmcsa({ name, phone: data.phone ?? null, mc: data.mcNumber ?? v, dot: data.dotNumber ?? "" });
     } catch {
       setFmcsa(null);
@@ -161,7 +162,7 @@ function FarmModal({ onClose }: { onClose: () => void }) {
             <p className="mt-0.5 text-[12px] text-fg-muted">
               MC {fmcsa.mc || "—"}
               {fmcsa.dot ? ` · DOT ${fmcsa.dot}` : ""}
-              {fmcsa.phone ? ` · ${fmcsa.phone}` : ""}
+              {fmcsa.phone ? ` · ${formatPhone(fmcsa.phone)}` : ""}
             </p>
           </div>
         ) : null}
@@ -190,8 +191,9 @@ function FarmModal({ onClose }: { onClose: () => void }) {
             <label className="block text-[12px] font-medium text-fg-muted">Phone</label>
             <input
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => setPhone(formatPhoneInput(e.target.value))}
               type="tel"
+              autoComplete="off"
               className="mt-1 h-9 w-full rounded-md border border-line-strong bg-card px-2.5 text-[13px] text-fg focus:border-fg focus:outline-none"
             />
           </div>
