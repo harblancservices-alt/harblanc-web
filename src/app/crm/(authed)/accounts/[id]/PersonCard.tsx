@@ -29,10 +29,16 @@ const GRID_BTN =
  * design everywhere a contact renders, not two diverging layouts). Avatar +
  * name + role pill on top; below that, labeled phone/email/last-contacted on
  * the left BESIDE a compact 2×2 grid of red (dc2626) operational actions
- * (Log call / Add task / Note / Email) on the right — the two stack (info
- * above, buttons below) under the `sm` breakpoint so a 3-across grid never
- * gets cramped on a phone. Clicking the card (anywhere that isn't one of its
- * own buttons/links) opens
+ * (Log call / Add task / Note / Email) on the right. The card carries
+ * `@container` and switches to that side-by-side layout at `@[340px]` — a
+ * CONTAINER query on the card's own rendered width, not the viewport, since
+ * the grid it sits in (see PeopleSection.tsx/ContactsSection.tsx) is itself
+ * responsive (auto-fill, min 340px per card) — a card can be full-bleed-wide
+ * with only 1-2 contacts on a huge monitor, or exactly 340px on a phone, and
+ * either way this is the width that actually matters for whether info +
+ * buttons fit side by side. Below that width the two stack (info above,
+ * buttons below, full width) instead of cramming. Clicking the card
+ * (anywhere that isn't one of its own buttons/links) opens
  * the contact's own profile page — see contacts/[contactId]/page.tsx — via
  * ClickableListItem, which already ignores clicks on nested interactive
  * elements. The primary-contact toggle and Delete are OPTIONAL: only the
@@ -84,7 +90,7 @@ export function PersonCard({
   return (
     <ClickableListItem
       href={`/crm/contacts/${person.id}`}
-      className="flex flex-col gap-3 border border-line-strong bg-card p-4 shadow-e1 hover:border-accent/40"
+      className="@container flex flex-col gap-3 border border-line-strong bg-card p-4 shadow-e1 hover:border-accent/40"
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2.5">
@@ -131,7 +137,7 @@ export function PersonCard({
       {/* Info on the left, the 2x2 red action grid on the right — stacks
           (info above, buttons below, full-width) below the `sm` breakpoint
           so it never gets cramped on a phone. */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+      <div className="flex flex-col gap-3 @[340px]:flex-row @[340px]:items-start @[340px]:justify-between">
         <div className="flex min-w-0 flex-1 flex-col gap-1 text-[12.5px]">
           {primaryPhone ? (
             <span className="font-mono text-fg-muted">
@@ -151,7 +157,7 @@ export function PersonCard({
           <span className="text-fg-subtle">Last contacted: {lastContacted}</span>
         </div>
 
-        <div className="grid w-full grid-cols-2 gap-1.5 sm:w-40 sm:shrink-0">
+        <div className="grid w-full grid-cols-2 gap-1.5 @[340px]:w-40 @[340px]:shrink-0">
           <LogCallDialog
             accountId={accountId}
             contacts={contactOptions}
