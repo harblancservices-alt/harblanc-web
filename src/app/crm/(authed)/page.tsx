@@ -536,7 +536,7 @@ export default async function CrmDashboardPage() {
         {nextItems.length === 0 ? (
           <Empty text="Nothing due today. You're all caught up." />
         ) : (
-          <ul className="grid grid-cols-1 items-start gap-2.5 p-3 sm:grid-cols-2">
+          <ul className="grid grid-cols-1 items-start gap-2.5 p-3 sm:grid-cols-2 lg:grid-cols-3">
             {nextItems.map((item) => item.node)}
           </ul>
         )}

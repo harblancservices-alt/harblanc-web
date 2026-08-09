@@ -196,7 +196,7 @@ export default async function TasksPage() {
                 <summary className="cursor-pointer list-none border-b border-line-strong px-5 py-3.5 text-[14px] font-semibold text-fg-subtle transition-colors hover:text-fg">
                   Done · {doneTasks.length}
                 </summary>
-                <ul className="grid grid-cols-1 items-start gap-2.5 p-3 sm:grid-cols-2">
+                <ul className="grid grid-cols-1 items-start gap-2.5 p-3 sm:grid-cols-2 lg:grid-cols-3">
                   {doneTasks.map((t) => (
                     <TaskRow key={t.id} task={t} showCompany {...dialogProps}>
                       <DeleteTaskButton taskId={t.id} accountId={t.account_id} title={t.title} />
@@ -233,7 +233,7 @@ function Group({
   return (
     <Card>
       <CardHead title={title} hint={`${tasks.length}`} />
-      <ul className="grid grid-cols-1 items-start gap-2.5 p-3 sm:grid-cols-2">
+      <ul className="grid grid-cols-1 items-start gap-2.5 p-3 sm:grid-cols-2 lg:grid-cols-3">
         {tasks.map((t) => (
           <TaskRow key={t.id} task={t} showCompany {...dialogProps}>
             <DeleteTaskButton taskId={t.id} accountId={t.account_id} title={t.title} />
