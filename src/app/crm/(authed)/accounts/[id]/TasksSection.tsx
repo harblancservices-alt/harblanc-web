@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { BTN_DANGER, BTN_PRIMARY, Card, CardHead } from "../../_shell/ui";
 import { IconPlus, IconTasks } from "../../_shell/icons";
@@ -10,11 +11,17 @@ import { TaskRow, type CrmTaskItem } from "../../tasks/TaskRow";
 import { deleteTask } from "../../tasks/actions";
 
 /**
- * Tasks on the company profile — add, edit, complete/reopen, and delete. Open
- * tasks show first, completed ones underneath. Add/edit route through the task
- * dialog (company fixed to this profile; contact offered from this company's
- * own roster); completion toggles inline via each row's checkbox. All writes
- * stamp org_id from the session and revalidate the dashboard + Tasks page.
+ * Tasks on the company profile — the header doubles as the profile's action
+ * bar (Log call / Add person / Add task), so every primary action lives in
+ * one place instead of being scattered across the top strip and each
+ * section's own header. `logCall`/`addPerson` arrive as already-rendered
+ * ReactNode slots from page.tsx (an RSC composing the client LogCallButton/
+ * AddPersonButton) rather than function props, which can't cross the server/
+ * client boundary. Open tasks show first, completed ones underneath.
+ * Add/edit route through the task dialog (company fixed to this profile;
+ * contact offered from this company's own roster); completion toggles inline
+ * via each row's checkbox. All writes stamp org_id from the session and
+ * revalidate the dashboard + Tasks page.
  */
 export function TasksSection({
   accountId,
@@ -23,6 +30,8 @@ export function TasksSection({
   contacts,
   canAssignOthers,
   currentUser,
+  logCall,
+  addPerson,
 }: {
   accountId: string;
   tasks: CrmTaskItem[];
@@ -30,6 +39,8 @@ export function TasksSection({
   contacts: TaskContactOption[];
   canAssignOthers: boolean;
   currentUser: { id: string; label: string };
+  logCall: ReactNode;
+  addPerson: ReactNode;
 }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -67,24 +78,28 @@ export function TasksSection({
         title="Tasks"
         hint={open.length ? `${open.length} open` : undefined}
         right={
-          <TaskDialog
-            accountId={accountId}
-            mode="create"
-            reps={reps}
-            contacts={contacts}
-            canAssignOthers={canAssignOthers}
-            currentUser={currentUser}
-            trigger={(openDialog) => (
-              <button
-                type="button"
-                onClick={openDialog}
-                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_PRIMARY}`}
-              >
-                <IconPlus width={14} height={14} />
-                Add task
-              </button>
-            )}
-          />
+          <div className="flex flex-wrap items-center gap-2">
+            {logCall}
+            {addPerson}
+            <TaskDialog
+              accountId={accountId}
+              mode="create"
+              reps={reps}
+              contacts={contacts}
+              canAssignOthers={canAssignOthers}
+              currentUser={currentUser}
+              trigger={(openDialog) => (
+                <button
+                  type="button"
+                  onClick={openDialog}
+                  className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_PRIMARY}`}
+                >
+                  <IconPlus width={14} height={14} />
+                  Add task
+                </button>
+              )}
+            />
+          </div>
         }
       />
 

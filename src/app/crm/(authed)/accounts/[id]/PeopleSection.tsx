@@ -1,12 +1,13 @@
 "use client";
 
-import { Card, CardHead, BTN_PRIMARY, BTN_EDIT, ZEBRA_ROWS } from "../../_shell/ui";
-import { IconPlus, IconContacts } from "../../_shell/icons";
+import { Card, CardHead, BTN_EDIT, ZEBRA_ROWS } from "../../_shell/ui";
+import { IconContacts } from "../../_shell/icons";
 import { digitsForTel, type PhoneEntry } from "../../_shell/contactFields";
 import { lastContactStatus, timestampMs } from "../../_shell/format";
 import { formatPhone } from "@/lib/domain/phone";
-import { ContactDialog } from "./ContactDialog";
 import { QuickNoteDialog } from "./QuickNoteDialog";
+import { TaskDialog, type TaskContactOption } from "../../tasks/TaskDialog";
+import type { RepOption } from "../CompanyDialog";
 
 /**
  * The role/category vocabulary driving each person's color-coded tag —
@@ -67,39 +68,32 @@ export type CrmPerson = {
 /**
  * "People at this company" — the Overview tab's compact, scannable roster
  * (distinct from the full CRUD list on the Contacts tab): role tag, direct
- * labeled line, email, last-contacted, and one-tap Call/Note. Reuses the
+ * labeled line, email, last-contacted, and one-tap Call/Note/Task. Reuses the
  * same contacts data the page already fetches for the Contacts tab — no
- * second query — and the same ContactDialog/QuickNoteDialog every other
- * "add person" / "add note" entry point in the CRM uses.
+ * second query. "Add person" now lives in the Tasks button bar above rather
+ * than in this section's own header (see page.tsx/TasksSection.tsx) — this
+ * card is display + quick-action only.
  */
 export function PeopleSection({
   accountId,
   people,
+  reps,
+  contactOptions,
+  canAssignOthers,
+  currentUser,
 }: {
   accountId: string;
   people: CrmPerson[];
+  reps: RepOption[];
+  contactOptions: TaskContactOption[];
+  canAssignOthers: boolean;
+  currentUser: { id: string; label: string };
 }) {
   return (
     <Card>
       <CardHead
         title="People at this company"
         hint={people.length ? `${people.length} on file` : undefined}
-        right={
-          <ContactDialog
-            accountId={accountId}
-            mode="create"
-            trigger={(open) => (
-              <button
-                type="button"
-                onClick={open}
-                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_PRIMARY}`}
-              >
-                <IconPlus width={14} height={14} />
-                Add person
-              </button>
-            )}
-          />
-        }
       />
 
       {people.length === 0 ? (
@@ -115,7 +109,15 @@ export function PeopleSection({
       ) : (
         <ul className={`divide-y divide-line-strong ${ZEBRA_ROWS}`}>
           {people.map((p) => (
-            <PersonRow key={p.id} accountId={accountId} person={p} />
+            <PersonRow
+              key={p.id}
+              accountId={accountId}
+              person={p}
+              reps={reps}
+              contactOptions={contactOptions}
+              canAssignOthers={canAssignOthers}
+              currentUser={currentUser}
+            />
           ))}
         </ul>
       )}
@@ -123,7 +125,21 @@ export function PeopleSection({
   );
 }
 
-function PersonRow({ accountId, person }: { accountId: string; person: CrmPerson }) {
+function PersonRow({
+  accountId,
+  person,
+  reps,
+  contactOptions,
+  canAssignOthers,
+  currentUser,
+}: {
+  accountId: string;
+  person: CrmPerson;
+  reps: RepOption[];
+  contactOptions: TaskContactOption[];
+  canAssignOthers: boolean;
+  currentUser: { id: string; label: string };
+}) {
   const primaryPhone = person.phones[0] ?? null;
   const role = (person.role_category ?? null) as CrmPersonRoleCategory | null;
   const roleLabel = role ? ROLE_LABEL[role] : null;
@@ -187,6 +203,24 @@ function PersonRow({ accountId, person }: { accountId: string; person: CrmPerson
                 className={`inline-flex h-8 items-center rounded-lg px-2.5 text-[12px] font-semibold transition-colors ${BTN_EDIT}`}
               >
                 Note
+              </button>
+            )}
+          />
+          <TaskDialog
+            mode="create"
+            accountId={accountId}
+            contacts={contactOptions}
+            reps={reps}
+            canAssignOthers={canAssignOthers}
+            currentUser={currentUser}
+            defaults={{ contact_id: person.id }}
+            trigger={(open) => (
+              <button
+                type="button"
+                onClick={open}
+                className={`inline-flex h-8 items-center rounded-lg px-2.5 text-[12px] font-semibold transition-colors ${BTN_EDIT}`}
+              >
+                + Task
               </button>
             )}
           />

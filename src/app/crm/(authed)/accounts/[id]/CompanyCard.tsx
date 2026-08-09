@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardHead, BTN_PRIMARY, BTN_NEUTRAL } from "../../_shell/ui";
+import { Card } from "../../_shell/ui";
 import { Field, SubmitButton, FormError, CONTROL } from "../../_shell/form";
 import { PhonesEditor } from "../../_shell/PhonesEditor";
 import { LinksEditor } from "../../_shell/LinksEditor";
@@ -11,10 +11,8 @@ import { LinkList } from "../../_shell/LinkList";
 import { IconX } from "../../_shell/icons";
 import type { PhoneEntry, LinkEntry } from "../../_shell/contactFields";
 import { updateAccount } from "../actions";
-import type { RepOption } from "../CompanyDialog";
-import { LifecycleControl } from "./LifecycleControl";
-import { RepControl } from "./RepControl";
-import { CommodityPhotoTiles, type CrmCommodityPhoto } from "./CommodityPhotoTiles";
+import { BackButton } from "../../_shell/BackButton";
+import { ActivitySection, type CrmActivityItem } from "./ActivitySection";
 
 function parseCommodities(value: string | null): string[] {
   if (!value) return [];
@@ -32,23 +30,30 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
+const BAR_BACK_BTN =
+  "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12.5px] font-semibold text-bar-fg/80 transition-colors hover:bg-white/10 hover:text-bar-fg";
+
+const TAB_BTN_BASE =
+  "px-3 py-1.5 text-[12.5px] font-bold transition-colors rounded-lg";
+
 /**
  * The permanent LEFT column of the company profile — stays mounted across
- * every tab (it lives outside ProfileTabs in page.tsx, not inside it).
- * Lifecycle stage and assigned rep are always-live controls (their own
- * dedicated instant-save actions, same as before); "Edit" toggles the rest
- * of the card (name/address/phones/links/commodities) between a read-only
+ * every tab (it lives outside ProfileTabs in page.tsx, not inside it). Its
+ * own black bar holds Back (left), centered Company/Activity tabs, and Edit
+ * (right) — Back moved off its old standalone row into here, and lifecycle
+ * stage / assigned rep moved UP to the profile's top title strip (see
+ * page.tsx), so this card only carries address/phones/links/commodities
+ * (Company tab) plus the relocated activity feed (Activity tab, calls +
+ * events, no notes — see ActivitySection.tsx). Commodity photos moved to the
+ * Details tab. "Edit" toggles the Company tab's fields between a read-only
  * view and one inline form that saves through the shared updateAccount
- * action — no modal. Commodity photos are their own always-visible uploader
- * (upload is its own action regardless of the Edit toggle).
+ * action — no modal; clicking it while on Activity switches back to Company
+ * first so the form is actually visible.
  */
 export function CompanyCard({
   accountId,
-  orgId,
+  fallbackHref,
   name,
-  stage,
-  assignedUserId,
-  reps,
   address,
   city,
   state,
@@ -56,14 +61,11 @@ export function CompanyCard({
   phones,
   links,
   commodities,
-  photos,
+  activityItems,
 }: {
   accountId: string;
-  orgId: string;
+  fallbackHref: string;
   name: string;
-  stage: string;
-  assignedUserId: string | null;
-  reps: RepOption[];
   address: string | null;
   city: string | null;
   state: string | null;
@@ -71,8 +73,9 @@ export function CompanyCard({
   phones: PhoneEntry[];
   links: LinkEntry[];
   commodities: string | null;
-  photos: CrmCommodityPhoto[];
+  activityItems: CrmActivityItem[];
 }) {
+  const [tab, setTab] = useState<"company" | "activity">("company");
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -122,148 +125,165 @@ export function CompanyCard({
     });
   }
 
+  function toggleEdit() {
+    setError(null);
+    setTab("company");
+    setEditing((v) => !v);
+  }
+
   return (
     <Card>
-      <CardHead
-        title="Company"
-        right={
+      <div className="flex items-center justify-between gap-2 border-b border-graphite-line bg-bar px-2.5 py-2.5">
+        <div className="flex flex-1 justify-start">
+          <BackButton fallbackHref={fallbackHref} className={BAR_BACK_BTN} />
+        </div>
+        <div role="tablist" aria-label="Company card sections" className="flex shrink-0 gap-1">
           <button
             type="button"
-            onClick={() => {
-              setError(null);
-              setEditing((v) => !v);
-            }}
-            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
-              editing ? BTN_NEUTRAL : BTN_PRIMARY
+            role="tab"
+            aria-selected={tab === "company"}
+            onClick={() => setTab("company")}
+            className={`${TAB_BTN_BASE} ${tab === "company" ? "bg-white/15 text-bar-fg" : "text-bar-fg/60 hover:bg-white/10 hover:text-bar-fg"}`}
+          >
+            Company
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={tab === "activity"}
+            onClick={() => setTab("activity")}
+            className={`${TAB_BTN_BASE} ${tab === "activity" ? "bg-white/15 text-bar-fg" : "text-bar-fg/60 hover:bg-white/10 hover:text-bar-fg"}`}
+          >
+            Activity
+          </button>
+        </div>
+        <div className="flex flex-1 justify-end">
+          <button
+            type="button"
+            onClick={toggleEdit}
+            className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
+              editing
+                ? "border border-white/25 bg-white/5 text-bar-fg/70 hover:bg-white/10"
+                : "border border-white/25 bg-white/10 text-bar-fg hover:bg-white/20"
             }`}
           >
             {editing ? "Cancel" : "Edit"}
           </button>
-        }
-      />
-      <div className="flex min-w-0 flex-col gap-5 p-4">
-        <div>
-          <SectionLabel>Lifecycle stage</SectionLabel>
-          <LifecycleControl accountId={accountId} current={stage} />
-        </div>
-
-        <div>
-          <SectionLabel>Assigned rep</SectionLabel>
-          <RepControl accountId={accountId} current={assignedUserId} reps={reps} />
-        </div>
-
-        {editing ? (
-          <form onSubmit={onSubmit} className="flex w-full min-w-0 flex-col gap-3.5">
-            <FormError message={error} />
-
-            <Field label="Company name" name="name" required defaultValue={name} />
-
-            <Field label="Address" name="address" defaultValue={address} />
-            <Field label="City" name="city" defaultValue={city} />
-            <div className="flex w-full gap-2">
-              <div className="w-20 shrink-0">
-                <Field label="State" name="state" defaultValue={state} />
-              </div>
-              <div className="min-w-0 flex-1">
-                <Field label="ZIP" name="zip" defaultValue={zip} />
-              </div>
-            </div>
-
-            <PhonesEditor defaultValue={phones} compact />
-            <LinksEditor defaultValue={links} compact />
-
-            <div>
-              <SectionLabel>Commodities</SectionLabel>
-              {chips.length > 0 && (
-                <div className="mb-2 flex flex-wrap gap-1.5">
-                  {chips.map((c) => (
-                    <span
-                      key={c}
-                      className="inline-flex items-center gap-1 border border-line-strong bg-inset py-1 pl-3 pr-1.5 text-[12.5px] font-medium text-fg"
-                    >
-                      {c}
-                      <button
-                        type="button"
-                        onClick={() => removeChip(c)}
-                        aria-label={`Remove ${c}`}
-                        className="flex h-5 w-5 items-center justify-center text-fg-subtle hover:bg-bad-bg hover:text-bad"
-                      >
-                        <IconX width={11} height={11} />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={chipInput}
-                  onChange={(e) => setChipInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      addChip();
-                    }
-                  }}
-                  placeholder="e.g. Reefer"
-                  className={`h-10 min-w-0 flex-1 ${CONTROL}`}
-                />
-                <button
-                  type="button"
-                  onClick={addChip}
-                  className={`shrink-0 rounded-lg px-3 text-[12.5px] font-semibold transition-colors ${BTN_PRIMARY}`}
-                >
-                  + Add
-                </button>
-              </div>
-            </div>
-
-            <SubmitButton pending={pending}>Save changes</SubmitButton>
-          </form>
-        ) : (
-          <>
-            <div>
-              <SectionLabel>Address</SectionLabel>
-              <p className={`text-[14px] ${fullAddress ? "text-fg" : "text-fg-subtle"}`}>
-                {fullAddress || "—"}
-              </p>
-            </div>
-
-            <div>
-              <SectionLabel>Phone numbers</SectionLabel>
-              <PhoneList accountId={accountId} phones={phones} emptyText="No phone numbers on file." />
-            </div>
-
-            <div>
-              <SectionLabel>Links</SectionLabel>
-              <LinkList links={links} emptyText="No links on file." />
-            </div>
-
-            <div>
-              <SectionLabel>Commodities</SectionLabel>
-              {viewChips.length ? (
-                <div className="flex flex-wrap gap-1.5">
-                  {viewChips.map((c) => (
-                    <span
-                      key={c}
-                      className="inline-flex items-center border border-line-strong bg-inset px-3 py-1 text-[12.5px] font-medium text-fg"
-                    >
-                      {c}
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-[13px] text-fg-subtle">No commodities on file.</p>
-              )}
-            </div>
-          </>
-        )}
-
-        <div>
-          <SectionLabel>Commodity photos</SectionLabel>
-          <CommodityPhotoTiles accountId={accountId} orgId={orgId} photos={photos} />
         </div>
       </div>
+
+      {tab === "activity" ? (
+        <ActivitySection accountId={accountId} items={activityItems} />
+      ) : (
+        <div className="flex min-w-0 flex-col gap-5 p-4">
+          {editing ? (
+            <form onSubmit={onSubmit} className="flex w-full min-w-0 flex-col gap-3.5">
+              <FormError message={error} />
+
+              <Field label="Company name" name="name" required defaultValue={name} />
+
+              <Field label="Address" name="address" defaultValue={address} />
+              <Field label="City" name="city" defaultValue={city} />
+              <div className="flex w-full gap-2">
+                <div className="w-20 shrink-0">
+                  <Field label="State" name="state" defaultValue={state} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <Field label="ZIP" name="zip" defaultValue={zip} />
+                </div>
+              </div>
+
+              <PhonesEditor defaultValue={phones} compact />
+              <LinksEditor defaultValue={links} compact />
+
+              <div>
+                <SectionLabel>Commodities</SectionLabel>
+                {chips.length > 0 && (
+                  <div className="mb-2 flex flex-wrap gap-1.5">
+                    {chips.map((c) => (
+                      <span
+                        key={c}
+                        className="inline-flex items-center gap-1 border border-line-strong bg-inset py-1 pl-3 pr-1.5 text-[12.5px] font-medium text-fg"
+                      >
+                        {c}
+                        <button
+                          type="button"
+                          onClick={() => removeChip(c)}
+                          aria-label={`Remove ${c}`}
+                          className="flex h-5 w-5 items-center justify-center text-fg-subtle hover:bg-bad-bg hover:text-bad"
+                        >
+                          <IconX width={11} height={11} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={chipInput}
+                    onChange={(e) => setChipInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        addChip();
+                      }
+                    }}
+                    placeholder="e.g. Reefer"
+                    className={`h-10 min-w-0 flex-1 ${CONTROL}`}
+                  />
+                  <button
+                    type="button"
+                    onClick={addChip}
+                    className="shrink-0 rounded-lg border border-accent bg-accent px-3 text-[12.5px] font-semibold text-white transition-colors hover:bg-accent-hover"
+                  >
+                    + Add
+                  </button>
+                </div>
+              </div>
+
+              <SubmitButton pending={pending}>Save changes</SubmitButton>
+            </form>
+          ) : (
+            <>
+              <div>
+                <SectionLabel>Address</SectionLabel>
+                <p className={`text-[14px] ${fullAddress ? "text-fg" : "text-fg-subtle"}`}>
+                  {fullAddress || "—"}
+                </p>
+              </div>
+
+              <div>
+                <SectionLabel>Phone numbers</SectionLabel>
+                <PhoneList accountId={accountId} phones={phones} emptyText="No phone numbers on file." />
+              </div>
+
+              <div>
+                <SectionLabel>Links</SectionLabel>
+                <LinkList links={links} emptyText="No links on file." />
+              </div>
+
+              <div>
+                <SectionLabel>Commodities</SectionLabel>
+                {viewChips.length ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {viewChips.map((c) => (
+                      <span
+                        key={c}
+                        className="inline-flex items-center border border-line-strong bg-inset px-3 py-1 text-[12.5px] font-medium text-fg"
+                      >
+                        {c}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-[13px] text-fg-subtle">No commodities on file.</p>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      )}
     </Card>
   );
 }

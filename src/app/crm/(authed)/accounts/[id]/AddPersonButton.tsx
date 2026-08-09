@@ -19,7 +19,7 @@ export function AddPersonButton({ accountId }: { accountId: string }) {
         <button
           type="button"
           onClick={open}
-          className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors ${BTN_EDIT}`}
+          className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_EDIT}`}
         >
           <IconPlus width={14} height={14} />
           Add person

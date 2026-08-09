@@ -4,13 +4,16 @@ import { formatDate, formatMoney } from "../../_shell/format";
 import { stageLabel, stageTone } from "../lifecycle";
 import { EditCompany } from "./EditCompany";
 import type { CompanyDefaults, RepOption } from "../CompanyDialog";
+import { CommodityPhotoTiles, type CrmCommodityPhoto } from "./CommodityPhotoTiles";
 
 export type CrmDetailsTag = { id: string; label: string; color: string | null };
 
 /**
- * Details tab — company firmographics as a clean 2-column READ grid.
- * Firmographic fields live here (not on Overview, which is the operational
- * work surface). "Edit details" is the one write path — the full
+ * Details tab — company firmographics as a clean 2-column READ grid, plus
+ * the commodity reference-photo tile grid (relocated here from the left
+ * Company card — it belongs with the freight profile, not the always-visible
+ * card). Firmographic fields live here (not on Overview, which is the
+ * operational work surface). "Edit details" is the one write path — the full
  * CompanyDialog/updateAccount, same as everywhere else in the CRM edits a
  * company — so nothing here needs its own save logic. "Added by" resolves
  * from the account's first crm_activities row (kind=account_created) —
@@ -32,6 +35,9 @@ export function DetailsSection({
   editDefaults,
   reps,
   canDelete,
+  accountId,
+  orgId,
+  photos,
 }: {
   legalName: string;
   industry: string | null;
@@ -48,6 +54,9 @@ export function DetailsSection({
   editDefaults: CompanyDefaults & { id: string };
   reps: RepOption[];
   canDelete: boolean;
+  accountId: string;
+  orgId: string;
+  photos: CrmCommodityPhoto[];
 }) {
   const addedLine = [addedByName, addedAt ? formatDate(addedAt) : null].filter(Boolean).join(" · ");
 
@@ -111,6 +120,13 @@ export function DetailsSection({
         />
         <Fact label="Address" value={fullAddress} />
         <Fact label="Added by" value={addedLine || null} />
+      </div>
+
+      <div className="border-t border-line-strong p-5">
+        <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
+          Commodity photos
+        </p>
+        <CommodityPhotoTiles accountId={accountId} orgId={orgId} photos={photos} />
       </div>
     </Card>
   );

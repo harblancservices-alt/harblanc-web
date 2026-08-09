@@ -2,12 +2,10 @@ import { notFound } from "next/navigation";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { CRM_ACTIVITY } from "@/lib/crm/activity";
 import { PageShell } from "../../_shell/ui";
-import { BackButton } from "../../_shell/BackButton";
 import { firstName, titleCaseWords, upperCaseState } from "../../_shell/format";
 import { parsePhones, parseLinks, normalizeHref } from "../../_shell/contactFields";
 import { formatPhone } from "@/lib/domain/phone";
 import { ProfileTabs } from "./ProfileTabs";
-import { stageLabel, stageTone } from "../lifecycle";
 import type { RepOption } from "../CompanyDialog";
 import { FinalizeBanner } from "./FinalizeBanner";
 import { CompanyCard } from "./CompanyCard";
@@ -16,14 +14,23 @@ import { StrayNumbersSection } from "./StrayNumbersSection";
 import { AddPersonButton } from "./AddPersonButton";
 import { AiResearchSection, type CrmNote } from "./AiResearchSection";
 import { PeopleSection, type CrmPerson } from "./PeopleSection";
-import { HistorySection, type CrmHistoryItem } from "./HistorySection";
+import type { CrmActivityItem } from "./ActivitySection";
+import { LifecycleControl } from "./LifecycleControl";
+import { RepControl } from "./RepControl";
 import { DetailsSection, type CrmDetailsTag } from "./DetailsSection";
 import { type CrmCommodityPhoto } from "./CommodityPhotoTiles";
 import { TasksSection } from "./TasksSection";
 import { LogCallButton } from "./LogCallButton";
 import { callOutcomeLabel } from "../../calls/outcomes";
 import { type CrmTaskItem } from "../../tasks/TaskRow";
+import type { TaskContactOption } from "../../tasks/TaskDialog";
 import { BolSection, type CrmBolDocument } from "./BolSection";
+import { AiSuggestionsPanel } from "./AiSuggestionsPanel";
+import { CompanyProfileSection } from "./CompanyProfileSection";
+import { FreightProfileSection } from "./FreightProfileSection";
+import { LocationsSection } from "./LocationsSection";
+import { CommercialSection } from "./CommercialSection";
+import { ContextNotesSection } from "./ContextNotesSection";
 
 export const dynamic = "force-dynamic";
 
@@ -40,11 +47,12 @@ function profileName(p: ProfileRow | undefined): string | null {
 /**
  * Company profile — the premium, full-record view of a single crm_account.
  * Everything is RLS-scoped to the caller's org. Layout: a permanent LEFT
- * "Company" card (lifecycle/rep/address/phones/links/commodities/photos —
- * see CompanyCard.tsx) that stays mounted across every tab, and a RIGHT
- * column that's the only thing ProfileTabs switches — a name/stage/actions
- * strip above a segmented tab bar. The Overview tab stacks Tasks, People,
- * and History (a merged, date-grouped notes+calls+activity feed).
+ * "Company" card (tabbed Company/Activity — address/phones/links/commodities
+ * plus the relocated activity feed; see CompanyCard.tsx) that stays mounted
+ * across every tab, and a RIGHT column that's the only thing ProfileTabs
+ * switches — a name + lifecycle-stage-control + assigned-rep strip above a
+ * segmented tab bar. The Overview tab stacks Tasks (whose header doubles as
+ * the Log call / Add person / Add task button bar) and People.
  */
 export default async function AccountDetailPage({
   params,
@@ -211,6 +219,10 @@ export default async function AccountDetailPage({
   const contactPhoneById = new Map(contacts.map((c) => [c.id, c.phones[0]?.number || null]));
   const contactEmailById = new Map(contacts.map((c) => [c.id, c.email]));
   const companyPhone = parsePhones(account.phones)[0]?.number || (account.phone as string | null) || null;
+  // Shared {id, name} roster fed to every "attach a contact to this
+  // action" control on the profile — Log call, Add task (from the Tasks bar
+  // and each person row's one-tap + Task), the Tasks section's own dialog.
+  const contactOptions: TaskContactOption[] = contacts.map((c) => ({ id: c.id, name: c.name }));
 
   const people: CrmPerson[] = contactRows.map((c) => ({
     id: c.id,
@@ -330,24 +342,10 @@ export default async function AccountDetailPage({
   const lastResearchRequestedAt =
     (lastResearchRequestRes.data as { occurred_at: string } | null)?.occurred_at ?? null;
 
-  // ── History — notes + calls + the remaining (non-call, non-note) activity
-  // rows, merged into one newest-first feed. See HistorySection.tsx. ──
-  const historyFromNotes: CrmHistoryItem[] = notesRows
-    .filter((n) => !n.is_ai)
-    .map((n) => {
-      const contactName = n.contact_id
-        ? firstName(contactNameById.get(n.contact_id) ?? null) || null
-        : null;
-      return {
-        id: n.id,
-        type: "note" as const,
-        occurredAt: n.created_at,
-        author: n.user_id ? profileName(profileById.get(n.user_id)) : null,
-        title: contactName ? `Note re ${contactName}: ${n.body}` : n.body,
-        body: null,
-      };
-    });
-
+  // ── Activity — calls + the remaining (non-call, non-note) activity rows,
+  // merged into one newest-first feed for the left card's Activity tab.
+  // Notes are deliberately excluded (still loggable per-person via the Note
+  // action, just not surfaced here) — see ActivitySection.tsx. ──
   const callRows = (callsRes.data ?? []) as {
     id: string;
     contact_id: string | null;
@@ -358,7 +356,7 @@ export default async function AccountDetailPage({
     occurred_at: string;
     user_id: string | null;
   }[];
-  const historyFromCalls: CrmHistoryItem[] = callRows.map((c) => {
+  const activityFromCalls: CrmActivityItem[] = callRows.map((c) => {
     const contactName = c.contact_id ? contactNameById.get(c.contact_id) ?? null : null;
     const durLabel = c.duration_seconds ? ` · ${Math.round(c.duration_seconds / 60)}m` : "";
     const title = `Call · ${callOutcomeLabel(c.outcome)}${durLabel}${contactName ? ` · ${contactName}` : ""}`;
@@ -373,7 +371,7 @@ export default async function AccountDetailPage({
     };
   });
 
-  const historyFromActivities: CrmHistoryItem[] = ((activitiesRes.data ?? []) as {
+  const activityFromEvents: CrmActivityItem[] = ((activitiesRes.data ?? []) as {
     id: string;
     kind: string;
     summary: string | null;
@@ -389,11 +387,9 @@ export default async function AccountDetailPage({
     body: a.body,
   }));
 
-  const historyItems: CrmHistoryItem[] = [
-    ...historyFromNotes,
-    ...historyFromCalls,
-    ...historyFromActivities,
-  ].sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime());
+  const activityItems: CrmActivityItem[] = [...activityFromCalls, ...activityFromEvents].sort(
+    (a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime(),
+  );
 
   const stage = account.lifecycle_status as string;
   const website = account.website as string | null;
@@ -426,7 +422,7 @@ export default async function AccountDetailPage({
   };
 
   return (
-    <PageShell back={<BackButton fallbackHref="/crm/accounts" />}>
+    <PageShell>
       {account.needs_finalize && <FinalizeBanner defaults={editDefaults} reps={reps} />}
 
       {/* Two columns: the permanent Company card (never moves when a tab
@@ -434,11 +430,8 @@ export default async function AccountDetailPage({
       <div className="grid gap-4 lg:grid-cols-[380px_1fr] lg:items-start">
         <CompanyCard
           accountId={account.id as string}
-          orgId={user.orgId}
+          fallbackHref="/crm/accounts"
           name={accountName}
-          stage={stage}
-          assignedUserId={account.assigned_user_id as string | null}
-          reps={reps}
           address={accountAddress}
           city={accountCity}
           state={accountState}
@@ -446,28 +439,26 @@ export default async function AccountDetailPage({
           phones={phones}
           links={links}
           commodities={account.commodities as string | null}
-          photos={commodityPhotos}
+          activityItems={activityItems}
         />
 
         <div className="flex min-w-0 flex-col gap-4">
-          {/* Top strip — identity + primary actions, above the tabs. */}
+          {/* Top strip — identity + the lifecycle stage / assigned rep
+              controls (moved up here from the left Company card). Log
+              call/Add person live in the Tasks section's button bar below. */}
           <div className="flex flex-wrap items-center justify-between gap-3 border border-line-strong bg-card px-4 py-3 shadow-e2">
-            <div className="flex min-w-0 items-center gap-2.5">
+            <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
               <h1 className="truncate text-[18px] font-bold tracking-tight text-fg">
                 {accountName}
               </h1>
-              <span
-                className={`inline-flex shrink-0 items-center px-2.5 py-0.5 text-[11px] font-semibold ${stageTone(stage)}`}
-              >
-                {stageLabel(stage)}
-              </span>
+              <LifecycleControl accountId={account.id as string} current={stage} />
             </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <LogCallButton
+            <div className="shrink-0">
+              <RepControl
                 accountId={account.id as string}
-                contacts={contacts.map((c) => ({ id: c.id, name: c.name }))}
+                current={account.assigned_user_id as string | null}
+                reps={reps}
               />
-              <AddPersonButton accountId={account.id as string} />
             </div>
           </div>
 
@@ -478,12 +469,22 @@ export default async function AccountDetailPage({
                   accountId={account.id as string}
                   tasks={tasks}
                   reps={reps}
-                  contacts={contacts.map((c) => ({ id: c.id, name: c.name }))}
+                  contacts={contactOptions}
+                  canAssignOthers={isOwner}
+                  currentUser={{ id: user.id, label: firstName(user.fullName, user.email) || "You" }}
+                  logCall={
+                    <LogCallButton accountId={account.id as string} contacts={contactOptions} />
+                  }
+                  addPerson={<AddPersonButton accountId={account.id as string} />}
+                />
+                <PeopleSection
+                  accountId={account.id as string}
+                  people={people}
+                  reps={reps}
+                  contactOptions={contactOptions}
                   canAssignOthers={isOwner}
                   currentUser={{ id: user.id, label: firstName(user.fullName, user.email) || "You" }}
                 />
-                <PeopleSection accountId={account.id as string} people={people} />
-                <HistorySection accountId={account.id as string} items={historyItems} />
               </div>
             }
             contacts={
@@ -491,35 +492,50 @@ export default async function AccountDetailPage({
                 <StrayNumbersSection
                   accountId={account.id as string}
                   phones={phones}
-                  contacts={contacts.map((c) => ({ id: c.id, name: c.name }))}
+                  contacts={contactOptions}
                 />
                 <ContactsSection
                   accountId={account.id as string}
                   contacts={contacts}
                   primaryContactId={account.primary_contact_id as string | null}
                   canDelete={isOwner}
+                  reps={reps}
+                  contactOptions={contactOptions}
+                  canAssignOthers={isOwner}
+                  currentUser={{ id: user.id, label: firstName(user.fullName, user.email) || "You" }}
                 />
               </div>
             }
             contactsCount={contacts.length}
             details={
-              <DetailsSection
-                legalName={accountName}
-                industry={account.industry as string | null}
-                companySize={account.company_size as string | null}
-                annualFreightSpend={account.annual_freight_spend as number | null}
-                source={account.source as string | null}
-                stage={stage}
-                website={website}
-                websiteHref={websiteHref}
-                tags={detailsTags}
-                fullAddress={fullAddress}
-                addedByName={addedByName}
-                addedAt={account.created_at as string}
-                editDefaults={editDefaults}
-                reps={reps}
-                canDelete={isOwner}
-              />
+              <div className="flex flex-col gap-4">
+                <DetailsSection
+                  legalName={accountName}
+                  industry={account.industry as string | null}
+                  companySize={account.company_size as string | null}
+                  annualFreightSpend={account.annual_freight_spend as number | null}
+                  source={account.source as string | null}
+                  stage={stage}
+                  website={website}
+                  websiteHref={websiteHref}
+                  tags={detailsTags}
+                  fullAddress={fullAddress}
+                  addedByName={addedByName}
+                  addedAt={account.created_at as string}
+                  editDefaults={editDefaults}
+                  reps={reps}
+                  canDelete={isOwner}
+                  accountId={account.id as string}
+                  orgId={user.orgId}
+                  photos={commodityPhotos}
+                />
+                <AiSuggestionsPanel accountId={account.id as string} />
+                <CompanyProfileSection accountId={account.id as string} />
+                <FreightProfileSection accountId={account.id as string} />
+                <LocationsSection accountId={account.id as string} />
+                <CommercialSection accountId={account.id as string} />
+                <ContextNotesSection accountId={account.id as string} />
+              </div>
             }
             bol={
               <BolSection

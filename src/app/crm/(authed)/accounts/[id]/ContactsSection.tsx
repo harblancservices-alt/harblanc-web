@@ -19,6 +19,8 @@ import { ContactDialog, type ContactDefaults } from "./ContactDialog";
 import { QuickNoteDialog } from "./QuickNoteDialog";
 import { ROLE_LABEL, ROLE_TONE, type CrmPersonRoleCategory } from "./PeopleSection";
 import { deleteContact, setPrimaryContact } from "../actions";
+import { TaskDialog, type TaskContactOption } from "../../tasks/TaskDialog";
+import type { RepOption } from "../CompanyDialog";
 
 export type CrmContact = ContactDefaults & {
   id: string;
@@ -42,6 +44,10 @@ export function ContactsSection({
   contacts,
   primaryContactId,
   canDelete = false,
+  reps,
+  contactOptions,
+  canAssignOthers,
+  currentUser,
 }: {
   accountId: string;
   contacts: CrmContact[];
@@ -49,6 +55,10 @@ export function ContactsSection({
   /** Contacts are a shared record — deletion is owner-only, enforced again
    * server-side in deleteContact regardless of this UI gate. */
   canDelete?: boolean;
+  reps: RepOption[];
+  contactOptions: TaskContactOption[];
+  canAssignOthers: boolean;
+  currentUser: { id: string; label: string };
 }) {
   const [pending, startTransition] = useTransition();
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -222,6 +232,24 @@ export function ContactsSection({
                             className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_EDIT}`}
                           >
                             Edit
+                          </button>
+                        )}
+                      />
+                      <TaskDialog
+                        mode="create"
+                        accountId={accountId}
+                        contacts={contactOptions}
+                        reps={reps}
+                        canAssignOthers={canAssignOthers}
+                        currentUser={currentUser}
+                        defaults={{ contact_id: c.id }}
+                        trigger={(open) => (
+                          <button
+                            type="button"
+                            onClick={open}
+                            className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_EDIT}`}
+                          >
+                            + Task
                           </button>
                         )}
                       />
