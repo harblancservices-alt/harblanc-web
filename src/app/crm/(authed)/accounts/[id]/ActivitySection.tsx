@@ -27,7 +27,15 @@ const TYPE_TONE: Record<CrmActivityItem["type"], string> = {
  * The left company card's "Activity" tab — calls + activity events (stage
  * changes, tasks created, people added, etc.), date-grouped newest first.
  * Read-only display (no note composer — that's what distinguishes this from
- * the old HistorySection it replaces).
+ * the old HistorySection it replaces). Deliberately NOT its own scroll box —
+ * no max-height/overflow-y here — so the list grows to fit the full feed and
+ * the PAGE scrolls, not a cramped inner viewport (a fixed-height scroll
+ * container previously here also triggered a horizontal scrollbar: setting
+ * only overflow-y makes browsers compute overflow-x as auto too, per the CSS
+ * Overflow spec, so any near-edge content could trip it). Every row also
+ * carries min-w-0 down its flex chain plus break-words on the text, so a
+ * pathologically long unbroken token (a URL, a run-on company name) wraps
+ * instead of ever forcing width past the card.
  */
 export function ActivitySection({
   accountId,
@@ -64,23 +72,23 @@ export function ActivitySection({
           No activity yet. Calls and other events will show up here.
         </p>
       ) : (
-        <ul className="max-h-[420px] overflow-y-auto">
+        <ul className="min-w-0">
           {items.map((item, i) => {
             const bucket = buckets[i];
             const showHeader = i === 0 || bucket !== buckets[i - 1];
             return (
-              <li key={`${item.type}-${item.id}`}>
+              <li key={`${item.type}-${item.id}`} className="min-w-0">
                 {showHeader && (
-                  <p className="sticky top-0 -mx-4 bg-card px-4 pb-1.5 pt-3 text-[11px] font-bold uppercase tracking-[0.1em] text-fg-subtle">
+                  <p className="-mx-4 bg-card px-4 pb-1.5 pt-3 text-[11px] font-bold uppercase tracking-[0.1em] text-fg-subtle">
                     {bucket}
                   </p>
                 )}
-                <div className="flex gap-2.5 py-2">
+                <div className="flex min-w-0 gap-2.5 py-2">
                   <span aria-hidden className={`mt-1.5 h-2 w-2 shrink-0 ${TYPE_TONE[item.type]}`} />
                   <div className="min-w-0 flex-1">
-                    <p className="text-[13.5px] font-medium text-fg">{item.title}</p>
+                    <p className="break-words text-[13.5px] font-medium text-fg">{item.title}</p>
                     {item.body && (
-                      <p className="mt-0.5 whitespace-pre-wrap text-[12.5px] leading-relaxed text-fg-muted">
+                      <p className="mt-0.5 whitespace-pre-wrap break-words text-[12.5px] leading-relaxed text-fg-muted">
                         {item.body}
                       </p>
                     )}
