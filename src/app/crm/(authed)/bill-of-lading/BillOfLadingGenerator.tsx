@@ -68,7 +68,6 @@ type BolState = {
 
   // Charge terms
   chargeTerms: ChargeTerms;
-  masterBol: boolean;
 
   // Special instructions (optional)
   showSpecialInstructions: boolean;
@@ -135,7 +134,6 @@ function initialState(makeIds: () => string[]): BolState {
     billToAddress: "",
 
     chargeTerms: "",
-    masterBol: false,
 
     showSpecialInstructions: false,
     specialInstructions: "",
@@ -382,11 +380,6 @@ function BolForm({
             { value: "collect", label: "Collect" },
             { value: "third_party", label: "3rd Party" },
           ]}
-        />
-        <ToggleRow
-          label="Master BOL — with attached underlying BOLs"
-          checked={state.masterBol}
-          onChange={(v) => set("masterBol", v)}
         />
         <ToggleRow
           label="Include Special Instructions"
@@ -652,11 +645,11 @@ function BolDocument({
           <p className="bol-wordmark">{BROKER_PROFILE.name.toUpperCase()}</p>
           {BROKER_PROFILE.address && <p className="bol-broker-line">{BROKER_PROFILE.address}</p>}
           <p className="bol-broker-line">
-            <Blank value={state.brokerContact} width={110} /> &nbsp;·&nbsp;{" "}
-            <Blank value={state.brokerPhone} width={100} />
+            <Blank value={state.brokerContact} width={110} noLine /> &nbsp;·&nbsp;{" "}
+            <Blank value={state.brokerPhone} width={100} noLine />
           </p>
           <p className="bol-broker-line">
-            <Blank value={state.brokerEmail} width={160} />
+            <Blank value={state.brokerEmail} width={160} noLine />
           </p>
           <p className="bol-broker-line">
             MC {BROKER_PROFILE.mc} &nbsp;·&nbsp; DOT {BROKER_PROFILE.dot}
@@ -666,19 +659,19 @@ function BolDocument({
           <p className="bol-doc-title">BILL OF LADING</p>
           <p className="bol-doc-subtitle">STRAIGHT BILL OF LADING — NOT NEGOTIABLE</p>
           <p className="bol-header-line">
-            BOL #: <Blank value={state.bolNumber} width={90} />
+            BOL #: <Blank value={state.bolNumber} width={90} noLine />
           </p>
           <p className="bol-header-line">
-            Date: <Blank value={state.date} width={90} />
+            Date: <Blank value={state.date} width={90} noLine />
           </p>
           <p className="bol-header-line">
-            Load / Ref #: <Blank value={state.loadRef} width={90} />
+            Load / Ref #: <Blank value={state.loadRef} width={90} noLine />
           </p>
         </div>
       </header>
 
       <section className="bol-cols-2 bol-section">
-        <div className="bol-box">
+        <div className="bol-box-solid">
           <SectionHeading>Ship From</SectionHeading>
           <DocField label="Name" value={state.shipFromName} />
           <DocField label="Address" value={state.shipFromAddress} />
@@ -688,7 +681,7 @@ function BolDocument({
             <DocField label="Contact / Phone" value={joinContact(state.shipFromContact, state.shipFromPhone)} />
           </div>
         </div>
-        <div className="bol-box">
+        <div className="bol-box-solid">
           <SectionHeading>Ship To</SectionHeading>
           <DocField label="Name" value={state.shipToName} />
           <DocField label="Address" value={state.shipToAddress} />
@@ -701,7 +694,7 @@ function BolDocument({
       </section>
 
       <section className="bol-cols-2 bol-section">
-        <div className="bol-box">
+        <div className="bol-box-solid">
           <SectionHeading>Carrier</SectionHeading>
           <DocField label="Name" value={state.carrierName} />
           <div className="bol-cols-2">
@@ -713,7 +706,7 @@ function BolDocument({
             <DocField label="Pro #" value={state.proNumber} />
           </div>
         </div>
-        <div className="bol-box">
+        <div className="bol-box-solid">
           <SectionHeading>Third-Party Bill-To</SectionHeading>
           {state.showBillTo ? (
             <>
@@ -733,7 +726,6 @@ function BolDocument({
           <CheckOption label="Collect" checked={state.chargeTerms === "collect"} />
           <CheckOption label="3rd Party" checked={state.chargeTerms === "third_party"} />
         </div>
-        <CheckOption label="Master BOL — with attached underlying BOLs" checked={state.masterBol} />
       </section>
 
       {state.showSpecialInstructions && state.specialInstructions.trim() && (
@@ -863,7 +855,7 @@ function SectionHeading({ children }: { children: ReactNode }) {
 function DocField({ label, value }: { label: string; value: string }) {
   return (
     <p className="bol-doc-field">
-      <span className="bol-doc-field-label">{label}:</span> <Blank value={value} />
+      <span className="bol-doc-field-label">{label}:</span> <Blank value={value} noLine />
     </p>
   );
 }
@@ -872,14 +864,16 @@ function Blank({
   value,
   width,
   block,
+  noLine,
 }: {
   value: string;
   width?: number;
   block?: boolean;
+  noLine?: boolean;
 }) {
   return (
     <span
-      className={`bol-blank${block ? " bol-blank-block" : ""}`}
+      className={`bol-blank${block ? " bol-blank-block" : ""}${noLine ? " bol-blank-noline" : ""}`}
       style={width ? { minWidth: width } : undefined}
     >
       {value ? value : " "}

@@ -92,6 +92,14 @@
   padding: 5px 7px;
 }
 
+/* Solid-black variant for Ship From/To, Carrier, and Third-Party Bill-To —
+ * deliberately a separate class from .bol-box (which stays light gray for
+ * Special Instructions) so only these four sections read as heavier boxes. */
+.bol-box-solid {
+  border: 1.5px solid #000;
+  padding: 5px 7px;
+}
+
 .bol-heading {
   font-size: 8.5pt;
   font-weight: 700;
@@ -128,11 +136,23 @@
   padding: 0 2px 1px;
 }
 
+/* Header fields and the Ship From/To/Carrier/Bill-To boxes render values
+ * with no underline at all — the black box (or, in the header, no box) is
+ * the only line. */
+.bol-blank-noline {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
 .bol-blank-block {
   display: block;
   width: 100%;
   min-height: 1.1em;
   min-width: 0;
+  /* The Customer Order Information table gets its grid lines from the
+   * table cell borders now (see .bol-table), not from this span's own
+   * underline — block is only ever used inside that table. */
+  border-bottom: none;
 }
 
 /* --- header ---------------------------------------------------------------- */
@@ -192,7 +212,7 @@
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 6px 18px;
-  border: 1px solid var(--bol-line-strong);
+  border: 1.5px solid #000;
   padding: 4px 8px;
 }
 
@@ -225,6 +245,17 @@
   font-size: 8.5pt;
 }
 
+/* Full black grid — every cell carries its own border, so border-collapse
+ * merges adjacent edges into solid row AND column dividers, with the
+ * outermost cells' borders forming the table's outer border. Replaces the
+ * old approach of a light-gray underline per blank value, which left gaps
+ * between columns instead of a continuous grid line. */
+.bol-table th,
+.bol-table td {
+  border: 1px solid #000;
+  padding: 4px 6px;
+}
+
 .bol-table th {
   text-align: left;
   font-size: 7pt;
@@ -232,13 +263,10 @@
   text-transform: uppercase;
   letter-spacing: 0.03em;
   color: #444;
-  border-bottom: 1px solid #000;
-  padding: 2px 6px 3px 2px;
 }
 
 .bol-table td {
-  padding: 2px 6px 2px 2px;
-  vertical-align: bottom;
+  vertical-align: middle;
 }
 
 .bol-col-narrow {
@@ -251,8 +279,7 @@
 }
 
 .bol-total-row td {
-  border-top: 1.5px solid #000;
-  padding-top: 4px;
+  border-top: 2px solid #000;
   font-weight: 700;
   font-size: 8.5pt;
 }
