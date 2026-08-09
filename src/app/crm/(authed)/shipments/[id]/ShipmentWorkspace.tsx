@@ -7,7 +7,7 @@ import { FormError } from "../../_shell/form";
 import { AsyncSearchPicker } from "../../_shell/AsyncSearchPicker";
 import { toDatetimeLocal, centralInputToIso, titleCaseWords } from "../../_shell/format";
 import { IconChevronDown, IconRateConfirmation, IconBillOfLading } from "../../_shell/icons";
-import { TextRow, TextAreaRow, MoneyRow, SelectRow, FormRow2 } from "./fields";
+import { TextRow, TextAreaRow, MoneyRow, SelectRow, FormRow2, SelectedEntityChip } from "./fields";
 import { LocationPickerModal } from "./LocationPickerModal";
 import { CarrierFormDialog } from "../../carriers/CarrierFormDialog";
 import { updateShipment, searchCustomers, createAccountLocation, softDeleteShipment } from "../actions";
@@ -144,9 +144,9 @@ function toLocal(shipment: CrmShipmentDetail): LocalState {
  * Freight / Pickup / Delivery / Rate / Carrier sections, each field
  * autosaved on blur (or immediately for pickers/selects) via updateShipment.
  * Every picker (customer, shipper/consignee location, carrier) only ever
- * FILLS fields — nothing is ever locked, and every selection carries its own
- * "Clear" control that detaches the id link without touching whatever text
- * is currently in the fields it filled.
+ * FILLS fields — nothing is ever locked, and every selected entity carries
+ * a small Change (reopen the picker to swap) / Reset (detach the id link
+ * AND blank whatever it filled) control, compact style 2026-08-09.
  */
 export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail }) {
   const router = useRouter();
@@ -155,6 +155,8 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
   const [carrier, setCarrier] = useState<CrmCarrier | null>(shipment.carrier);
   const [shipperAutoFill, setShipperAutoFill] = useState<AutoFill>(null);
   const [consigneeAutoFill, setConsigneeAutoFill] = useState<AutoFill>(null);
+  const [customerPickerOpen, setCustomerPickerOpen] = useState(false);
+  const [carrierPickerOpen, setCarrierPickerOpen] = useState(false);
 
   const [saveError, setSaveError] = useState<string | null>(null);
   const [, startSaveTransition] = useTransition();
@@ -198,13 +200,15 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
   // ── Customer ────────────────────────────────────────────────────────────
 
   function selectCustomer(c: CustomerSearchResult) {
+    setCustomerPickerOpen(false);
     setState((prev) => ({ ...prev, accountId: c.id, customerName: c.name }));
     commit({ accountId: c.id, customerName: c.name });
   }
 
-  function clearCustomer() {
-    setState((prev) => ({ ...prev, accountId: "" }));
-    commit({ accountId: null });
+  function resetCustomer() {
+    setCustomerPickerOpen(false);
+    setState((prev) => ({ ...prev, accountId: "", customerName: "" }));
+    commit({ accountId: null, customerName: null });
   }
 
   // ── Shipper / Consignee locations ──────────────────────────────────────
@@ -257,15 +261,45 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
     );
   }
 
-  function clearLocation(side: "shipper" | "consignee") {
+  function resetLocation(side: "shipper" | "consignee") {
     if (side === "shipper") {
-      setState((prev) => ({ ...prev, shipperLocationId: "" }));
+      setState((prev) => ({
+        ...prev,
+        shipperLocationId: "",
+        shipperName: "",
+        shipperAddress: "",
+        shipperCity: "",
+        shipperState: "",
+        shipperZip: "",
+      }));
       setShipperAutoFill(null);
-      commit({ shipperLocationId: null });
+      commit({
+        shipperLocationId: null,
+        shipperName: null,
+        shipperAddress: null,
+        shipperCity: null,
+        shipperState: null,
+        shipperZip: null,
+      });
     } else {
-      setState((prev) => ({ ...prev, consigneeLocationId: "" }));
+      setState((prev) => ({
+        ...prev,
+        consigneeLocationId: "",
+        consigneeName: "",
+        consigneeAddress: "",
+        consigneeCity: "",
+        consigneeState: "",
+        consigneeZip: "",
+      }));
       setConsigneeAutoFill(null);
-      commit({ consigneeLocationId: null });
+      commit({
+        consigneeLocationId: null,
+        consigneeName: null,
+        consigneeAddress: null,
+        consigneeCity: null,
+        consigneeState: null,
+        consigneeZip: null,
+      });
     }
   }
 
@@ -312,11 +346,13 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
   // ── Carrier ─────────────────────────────────────────────────────────────
 
   function selectCarrier(c: CrmCarrier) {
+    setCarrierPickerOpen(false);
     setCarrier(c);
     commit({ carrierId: c.id });
   }
 
-  function clearCarrier() {
+  function resetCarrier() {
+    setCarrierPickerOpen(false);
     setCarrier(null);
     commit({ carrierId: null });
   }
@@ -422,30 +458,32 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <SectionCard title="Customer">
-          <AsyncSearchPicker<CustomerSearchResult>
-            label="Search customers"
-            placeholder="Search by company name…"
-            search={searchCustomers}
-            getKey={(c) => c.id}
-            onSelect={selectCustomer}
-            renderOption={(c) => (
-              <>
-                <span className="font-medium">{titleCaseWords(c.name)}</span>
-                {(c.city || c.state) && (
-                  <span className="ml-1.5 text-[11px] text-fg-subtle">
-                    {[c.city, c.state].filter(Boolean).join(", ")}
-                  </span>
-                )}
-              </>
-            )}
-          />
+          {(!state.accountId || customerPickerOpen) && (
+            <AsyncSearchPicker<CustomerSearchResult>
+              label="Search customers"
+              placeholder="Search by company name…"
+              search={searchCustomers}
+              getKey={(c) => c.id}
+              onSelect={selectCustomer}
+              renderOption={(c) => (
+                <>
+                  <span className="font-medium">{titleCaseWords(c.name)}</span>
+                  {(c.city || c.state) && (
+                    <span className="ml-1.5 text-[11px] text-fg-subtle">
+                      {[c.city, c.state].filter(Boolean).join(", ")}
+                    </span>
+                  )}
+                </>
+              )}
+            />
+          )}
           {state.accountId && (
-            <p className="text-[12px] font-medium text-ok">
-              ✓ Linked to an existing company —{" "}
-              <button type="button" onClick={clearCustomer} className="font-semibold underline">
-                Clear
-              </button>
-            </p>
+            <SelectedEntityChip
+              title={titleCaseWords(state.customerName) || "Linked company"}
+              detail="Linked to an existing company"
+              onChange={() => setCustomerPickerOpen(true)}
+              onReset={resetCustomer}
+            />
           )}
           <TextRow
             label="Customer name"
@@ -456,30 +494,28 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
         </SectionCard>
 
         <SectionCard title="Carrier" subtitle="Assign who's hauling this load">
-          <AsyncSearchPicker<CrmCarrier>
-            label="Search carriers"
-            placeholder="Search by name, MC, or DOT…"
-            search={listCarriers}
-            getKey={(c) => c.id}
-            onSelect={selectCarrier}
-            renderOption={(c) => (
-              <>
-                <span className="font-medium">{titleCaseWords(c.name)}</span>
-                {c.mcNumber && <span className="ml-1.5 text-[11px] text-fg-subtle">MC {c.mcNumber}</span>}
-              </>
-            )}
-          />
+          {(!carrier || carrierPickerOpen) && (
+            <AsyncSearchPicker<CrmCarrier>
+              label="Search carriers"
+              placeholder="Search by name, MC, or DOT…"
+              search={listCarriers}
+              getKey={(c) => c.id}
+              onSelect={selectCarrier}
+              renderOption={(c) => (
+                <>
+                  <span className="font-medium">{titleCaseWords(c.name)}</span>
+                  {c.mcNumber && <span className="ml-1.5 text-[11px] text-fg-subtle">MC {c.mcNumber}</span>}
+                </>
+              )}
+            />
+          )}
           {carrier ? (
-            <div className="rounded-md border border-line-strong bg-inset px-3 py-2">
-              <p className="text-[13.5px] font-semibold text-fg">{titleCaseWords(carrier.name)}</p>
-              <p className="text-[12px] text-fg-muted">
-                {[carrier.mcNumber ? `MC ${carrier.mcNumber}` : null, carrier.phone].filter(Boolean).join(" · ") ||
-                  "No details on file"}
-              </p>
-              <button type="button" onClick={clearCarrier} className="mt-1 text-[12px] font-semibold text-accent underline">
-                Clear
-              </button>
-            </div>
+            <SelectedEntityChip
+              title={titleCaseWords(carrier.name)}
+              detail={[carrier.mcNumber ? `MC ${carrier.mcNumber}` : null, carrier.phone].filter(Boolean).join(" · ") || null}
+              onChange={() => setCarrierPickerOpen(true)}
+              onReset={resetCarrier}
+            />
           ) : (
             <p className="text-[12px] text-fg-subtle">No carrier assigned yet.</p>
           )}
@@ -511,7 +547,7 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
               <LocationPickerModal
                 accountId={state.accountId}
                 customerName={state.customerName}
-                label="Choose location"
+                label={state.shipperLocationId ? "Change location" : "Choose location"}
                 onSelect={(loc) => fillFromLocation("shipper", loc)}
               />
             ) : undefined
@@ -519,12 +555,7 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
         >
           <AutoFillNote autoFill={shipperAutoFill} />
           {state.shipperLocationId && (
-            <p className="text-[12px] font-medium text-ok">
-              ✓ Linked to a saved location —{" "}
-              <button type="button" onClick={() => clearLocation("shipper")} className="font-semibold underline">
-                Clear
-              </button>
-            </p>
+            <SelectedEntityChip title={state.shipperName || "Saved location"} detail="Linked to a saved location" onReset={() => resetLocation("shipper")} />
           )}
           <TextRow
             label="Name"
@@ -596,7 +627,7 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
               <LocationPickerModal
                 accountId={state.accountId}
                 customerName={state.customerName}
-                label="Choose location"
+                label={state.consigneeLocationId ? "Change location" : "Choose location"}
                 onSelect={(loc) => fillFromLocation("consignee", loc)}
               />
             ) : undefined
@@ -604,12 +635,7 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
         >
           <AutoFillNote autoFill={consigneeAutoFill} />
           {state.consigneeLocationId && (
-            <p className="text-[12px] font-medium text-ok">
-              ✓ Linked to a saved location —{" "}
-              <button type="button" onClick={() => clearLocation("consignee")} className="font-semibold underline">
-                Clear
-              </button>
-            </p>
+            <SelectedEntityChip title={state.consigneeName || "Saved location"} detail="Linked to a saved location" onReset={() => resetLocation("consignee")} />
           )}
           <TextRow
             label="Name"
@@ -858,21 +884,21 @@ function SectionCard({
   return (
     <Card>
       <details open className="group">
-        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 border-b border-graphite-line bg-bar px-4 py-2.5 [&::-webkit-details-marker]:hidden">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-3 border-b border-line px-4 pb-2 pt-3 [&::-webkit-details-marker]:hidden">
           <div className="min-w-0">
-            <h2 className="truncate text-[13.5px] font-bold tracking-tight text-bar-fg">{title}</h2>
-            {subtitle && <p className="truncate text-[11px] font-medium text-bar-fg/70">{subtitle}</p>}
+            <h2 className="truncate text-[11px] font-bold uppercase tracking-[0.08em] text-fg">{title}</h2>
+            {subtitle && <p className="truncate text-[10.5px] text-fg-subtle">{subtitle}</p>}
           </div>
           <div className="flex shrink-0 items-center gap-2" onClick={(e) => e.stopPropagation()}>
             {right}
             <IconChevronDown
-              width={14}
-              height={14}
-              className="pointer-events-none shrink-0 text-bar-fg/70 transition-transform group-open:rotate-180"
+              width={12}
+              height={12}
+              className="pointer-events-none shrink-0 text-fg-subtle transition-transform group-open:rotate-180"
             />
           </div>
         </summary>
-        <div className="flex flex-col gap-3 p-4">{children}</div>
+        <div className="flex flex-col gap-2 p-3">{children}</div>
       </details>
     </Card>
   );

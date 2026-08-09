@@ -4,10 +4,10 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { DocViewer } from "@/components/ui/DocViewer";
-import { Card, CardHead, BTN_PRIMARY, BTN_EDIT, BTN_ACTION, BTN_DANGER, BTN_NEUTRAL, BTN_SUCCESS, ZEBRA_ROWS, LIST_HEAD_ROW } from "../../../../_shell/ui";
+import { Card, BTN_PRIMARY, BTN_EDIT, BTN_ACTION, BTN_DANGER, BTN_NEUTRAL, BTN_SUCCESS, ZEBRA_ROWS } from "../../../../_shell/ui";
 import { FormError } from "../../../../_shell/form";
 import { formatDateTime, titleCaseWords } from "../../../../_shell/format";
-import { TextRow, SelectRow } from "../../fields";
+import { TextRow, SelectRow, SectionDivider } from "../../fields";
 import { DocumentSigner } from "../../DocumentSigner";
 import { docStatusLabel, docStatusTone } from "../../../docStatusMeta";
 import { getSignedPdfUrl, openStoredPdf } from "../../../pdfClient";
@@ -315,7 +315,7 @@ export function BolEditor({
         </div>
 
         {bol.supersededBy && (
-          <p className="mt-2 rounded-md border border-warn/30 bg-warn/10 px-3 py-2 text-[12.5px] text-warn">
+          <p className="mt-2 rounded-md border border-warn/30 bg-warn/10 px-2.5 py-1.5 text-[12.5px] text-warn">
             Superseded by{" "}
             <Link href={`/crm/shipments/${shipment.id}/bol/${bol.supersededBy}`} className="font-semibold underline">
               a newer bill of lading
@@ -473,8 +473,16 @@ export function BolEditor({
           editHref={`/crm/shipments/${shipment.id}`}
         />
         <Card>
-          <CardHead title="Carrier" hint="Set on the shipment" />
-          <div className="flex flex-col gap-1 p-4 text-[13.5px] text-fg">
+          <SectionDivider
+            label="Carrier"
+            hint="Set on the shipment"
+            right={
+              <Link href={`/crm/shipments/${shipment.id}`} className="text-[11px] font-semibold text-accent underline underline-offset-2">
+                Change
+              </Link>
+            }
+          />
+          <div className="flex flex-col gap-1 p-3 text-[13px] text-fg">
             {shipment.carrier ? (
               <>
                 <p className="font-semibold">{titleCaseWords(shipment.carrier.name)}</p>
@@ -484,16 +492,13 @@ export function BolEditor({
             ) : (
               <p className="text-fg-subtle">No carrier assigned yet.</p>
             )}
-            <Link href={`/crm/shipments/${shipment.id}`} className="mt-2 w-fit text-[12px] font-semibold text-accent underline">
-              Edit on shipment
-            </Link>
           </div>
         </Card>
 
         <div className="lg:col-span-3">
           <Card>
-            <CardHead title="Freight charges" />
-            <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-3">
+            <SectionDivider label="Freight charges" />
+            <div className="grid grid-cols-1 gap-2 p-3 sm:grid-cols-3">
               <SelectRow
                 label="Freight charge terms"
                 value={state.freightChargeTerms}
@@ -526,80 +531,80 @@ export function BolEditor({
 
         <div className="lg:col-span-3">
           <Card>
-            <CardHead title="Line items" />
+            <SectionDivider label="Line items" />
             <FormError message={itemError} />
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[820px] text-[13px]">
+              <table className="w-full min-w-[820px] text-[12.5px]">
                 <thead>
-                  <tr className={LIST_HEAD_ROW}>
-                    <th className="px-3 py-2 text-left">Description</th>
-                    <th className="px-3 py-2 text-left">Qty</th>
-                    <th className="px-3 py-2 text-left">Unit</th>
-                    <th className="px-3 py-2 text-left">Weight</th>
-                    <th className="px-3 py-2 text-left">NMFC</th>
-                    <th className="px-3 py-2 text-left">Class</th>
-                    <th className="px-3 py-2 text-left">Hazmat</th>
-                    <th className="px-3 py-2" />
+                  <tr className="border-b border-line text-[10.5px] font-bold uppercase tracking-[0.06em] text-fg-subtle">
+                    <th className="px-3 py-1.5 text-left">Description</th>
+                    <th className="px-3 py-1.5 text-left">Qty</th>
+                    <th className="px-3 py-1.5 text-left">Unit</th>
+                    <th className="px-3 py-1.5 text-left">Weight</th>
+                    <th className="px-3 py-1.5 text-left">NMFC</th>
+                    <th className="px-3 py-1.5 text-left">Class</th>
+                    <th className="px-3 py-1.5 text-left">Hazmat</th>
+                    <th className="px-3 py-1.5" />
                   </tr>
                 </thead>
                 <tbody className={ZEBRA_ROWS}>
                   {items.map((row) => (
                     <tr key={row.id}>
-                      <td className="px-3 py-2">
+                      <td className="px-2.5 py-1.5">
                         <input
                           type="text"
                           value={row.description}
                           onChange={(e) => setItemField(row.id, "description", e.target.value)}
                           onBlur={() => commitItems(items)}
-                          className="h-9 w-full min-w-[160px] rounded-md border border-fg-subtle bg-card px-2 text-[13px] font-medium text-fg outline-none focus:ring-2 focus:ring-accent/40"
+                          className="h-8 w-full min-w-[140px] rounded-[5px] border border-fg-subtle bg-card px-2 text-[13px] font-medium text-fg outline-none focus:ring-1 focus:ring-accent/50 sm:h-[26px] sm:text-[12px]"
                         />
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-2.5 py-1.5">
                         <input
                           type="text"
                           value={row.qty}
                           onChange={(e) => setItemField(row.id, "qty", e.target.value)}
                           onBlur={() => commitItems(items)}
-                          className="h-9 w-16 rounded-md border border-fg-subtle bg-card px-2 text-[13px] font-medium text-fg outline-none focus:ring-2 focus:ring-accent/40"
+                          className="h-8 w-14 rounded-[5px] border border-fg-subtle bg-card px-2 text-[13px] font-medium text-fg outline-none focus:ring-1 focus:ring-accent/50 sm:h-[26px] sm:text-[12px]"
                         />
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-2.5 py-1.5">
                         <input
                           type="text"
                           value={row.unitType}
                           onChange={(e) => setItemField(row.id, "unitType", e.target.value)}
                           onBlur={() => commitItems(items)}
-                          className="h-9 w-20 rounded-md border border-fg-subtle bg-card px-2 text-[13px] font-medium text-fg outline-none focus:ring-2 focus:ring-accent/40"
+                          className="h-8 w-16 rounded-[5px] border border-fg-subtle bg-card px-2 text-[13px] font-medium text-fg outline-none focus:ring-1 focus:ring-accent/50 sm:h-[26px] sm:text-[12px]"
                         />
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-2.5 py-1.5">
                         <input
                           type="text"
                           value={row.weight}
                           onChange={(e) => setItemField(row.id, "weight", e.target.value)}
                           onBlur={() => commitItems(items)}
-                          className="h-9 w-20 rounded-md border border-fg-subtle bg-card px-2 text-[13px] font-medium text-fg outline-none focus:ring-2 focus:ring-accent/40"
+                          className="h-8 w-16 rounded-[5px] border border-fg-subtle bg-card px-2 text-[13px] font-medium text-fg outline-none focus:ring-1 focus:ring-accent/50 sm:h-[26px] sm:text-[12px]"
                         />
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-2.5 py-1.5">
                         <input
                           type="text"
                           value={row.nmfc}
                           onChange={(e) => setItemField(row.id, "nmfc", e.target.value)}
                           onBlur={() => commitItems(items)}
-                          className="h-9 w-20 rounded-md border border-fg-subtle bg-card px-2 text-[13px] font-medium text-fg outline-none focus:ring-2 focus:ring-accent/40"
+                          className="h-8 w-16 rounded-[5px] border border-fg-subtle bg-card px-2 text-[13px] font-medium text-fg outline-none focus:ring-1 focus:ring-accent/50 sm:h-[26px] sm:text-[12px]"
                         />
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-2.5 py-1.5">
                         <input
                           type="text"
                           value={row.freightClass}
                           onChange={(e) => setItemField(row.id, "freightClass", e.target.value)}
                           onBlur={() => commitItems(items)}
-                          className="h-9 w-16 rounded-md border border-fg-subtle bg-card px-2 text-[13px] font-medium text-fg outline-none focus:ring-2 focus:ring-accent/40"
+                          className="h-8 w-14 rounded-[5px] border border-fg-subtle bg-card px-2 text-[13px] font-medium text-fg outline-none focus:ring-1 focus:ring-accent/50 sm:h-[26px] sm:text-[12px]"
                         />
                       </td>
-                      <td className="px-3 py-2 text-center">
+                      <td className="px-2.5 py-1.5 text-center">
                         <input
                           type="checkbox"
                           checked={row.hazmat}
@@ -611,7 +616,7 @@ export function BolEditor({
                           className="h-4 w-4 accent-[var(--accent)]"
                         />
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-2.5 py-1.5">
                         <button
                           type="button"
                           onClick={() => removeItem(row.id)}
@@ -624,41 +629,41 @@ export function BolEditor({
                     </tr>
                   ))}
                   <tr className="bg-inset">
-                    <td className="px-3 py-2">
+                    <td className="px-2.5 py-1.5">
                       <input
                         type="text"
                         value={newItem.description}
                         onChange={(e) => setNewItem((prev) => ({ ...prev, description: e.target.value }))}
                         placeholder="New item"
-                        className="h-9 w-full min-w-[160px] rounded-md border border-dashed border-fg-subtle bg-card px-2 text-[13px] font-medium text-fg outline-none focus:ring-2 focus:ring-accent/40"
+                        className="h-8 w-full min-w-[140px] rounded-[5px] border border-dashed border-fg-subtle bg-card px-2 text-[13px] font-medium text-fg outline-none focus:ring-1 focus:ring-accent/50 sm:h-[26px] sm:text-[12px]"
                       />
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-2.5 py-1.5">
                       <input
                         type="text"
                         value={newItem.qty}
                         onChange={(e) => setNewItem((prev) => ({ ...prev, qty: e.target.value }))}
-                        className="h-9 w-16 rounded-md border border-dashed border-fg-subtle bg-card px-2 text-[13px] font-medium text-fg outline-none focus:ring-2 focus:ring-accent/40"
+                        className="h-8 w-14 rounded-[5px] border border-dashed border-fg-subtle bg-card px-2 text-[13px] font-medium text-fg outline-none focus:ring-1 focus:ring-accent/50 sm:h-[26px] sm:text-[12px]"
                       />
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-2.5 py-1.5">
                       <input
                         type="text"
                         value={newItem.unitType}
                         onChange={(e) => setNewItem((prev) => ({ ...prev, unitType: e.target.value }))}
-                        className="h-9 w-20 rounded-md border border-dashed border-fg-subtle bg-card px-2 text-[13px] font-medium text-fg outline-none focus:ring-2 focus:ring-accent/40"
+                        className="h-8 w-16 rounded-[5px] border border-dashed border-fg-subtle bg-card px-2 text-[13px] font-medium text-fg outline-none focus:ring-1 focus:ring-accent/50 sm:h-[26px] sm:text-[12px]"
                       />
                     </td>
-                    <td className="px-3 py-2">
+                    <td className="px-2.5 py-1.5">
                       <input
                         type="text"
                         value={newItem.weight}
                         onChange={(e) => setNewItem((prev) => ({ ...prev, weight: e.target.value }))}
-                        className="h-9 w-20 rounded-md border border-dashed border-fg-subtle bg-card px-2 text-[13px] font-medium text-fg outline-none focus:ring-2 focus:ring-accent/40"
+                        className="h-8 w-16 rounded-[5px] border border-dashed border-fg-subtle bg-card px-2 text-[13px] font-medium text-fg outline-none focus:ring-1 focus:ring-accent/50 sm:h-[26px] sm:text-[12px]"
                       />
                     </td>
-                    <td className="px-3 py-2" colSpan={2} />
-                    <td className="px-3 py-2">
+                    <td className="px-2.5 py-1.5" colSpan={2} />
+                    <td className="px-2.5 py-1.5">
                       <button
                         type="button"
                         onClick={addItem}
@@ -727,15 +732,20 @@ function ReadOnlyPartyCard({
   const cityStateZip = [[city, state].filter(Boolean).join(", "), zip].filter(Boolean).join(" ");
   return (
     <Card>
-      <CardHead title={title} hint="Read-only — sourced from the shipment" />
-      <div className="flex flex-col gap-1 p-4 text-[13.5px] text-fg">
+      <SectionDivider
+        label={title}
+        hint="Read-only — sourced from the shipment"
+        right={
+          <Link href={editHref} className="text-[11px] font-semibold text-accent underline underline-offset-2">
+            Change
+          </Link>
+        }
+      />
+      <div className="flex flex-col gap-1 p-3 text-[13px] text-fg">
         <p className="font-semibold">{name ? titleCaseWords(name) : "—"}</p>
         {address && <p className="text-fg-muted">{address}</p>}
         {cityStateZip && <p className="text-fg-muted">{cityStateZip}</p>}
         {(contact || phone) && <p className="text-fg-muted">{[contact, phone].filter(Boolean).join(" · ")}</p>}
-        <Link href={editHref} className="mt-2 w-fit text-[12px] font-semibold text-accent underline">
-          Edit on shipment
-        </Link>
       </div>
     </Card>
   );

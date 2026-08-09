@@ -4,13 +4,15 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { DocViewer } from "@/components/ui/DocViewer";
-import { Card, CardHead, BTN_PRIMARY, BTN_EDIT, BTN_ACTION, BTN_DANGER, BTN_NEUTRAL, BTN_SUCCESS, ZEBRA_ROWS } from "../../../../_shell/ui";
+import { Card, BTN_PRIMARY, BTN_EDIT, BTN_ACTION, BTN_DANGER, BTN_NEUTRAL, BTN_SUCCESS, ZEBRA_ROWS } from "../../../../_shell/ui";
 import { FormError } from "../../../../_shell/form";
+import { AsyncSearchPicker } from "../../../../_shell/AsyncSearchPicker";
 import { formatMoney, formatDateTime, titleCaseWords } from "../../../../_shell/format";
-import { TextRow, TextAreaRow, FormRow2 } from "../../fields";
+import { TextRow, TextAreaRow, FormRow2, FormRow3, SectionDivider, SelectedEntityChip } from "../../fields";
 import { DocumentSigner } from "../../DocumentSigner";
 import { docStatusLabel, docStatusTone } from "../../../docStatusMeta";
 import { getSignedPdfUrl, openStoredPdf } from "../../../pdfClient";
+import { listCarriers, getCarrier } from "../../../carriers-actions";
 import {
   getRateConfirmation,
   saveRateConfirmationDraft,
@@ -26,7 +28,7 @@ import {
   supersedeRateConfirmation,
   softDeleteRateConfirmation,
 } from "../../../rate-confirmation-actions";
-import type { CrmRateConfirmationDetail, CrmShipmentDetail, RateConfirmationFields } from "../../../types";
+import type { CrmCarrier, CrmRateConfirmationDetail, CrmShipmentDetail, RateConfirmationFields } from "../../../types";
 
 function str(v: string | null | undefined): string {
   return v ?? "";
@@ -53,6 +55,15 @@ type CarrierFieldsState = {
   quickPay: string;
   notes: string;
 };
+
+const CARRIER_SNAPSHOT_KEYS = [
+  "carrierName",
+  "carrierMc",
+  "carrierDot",
+  "carrierContact",
+  "carrierPhone",
+  "carrierEmail",
+] as const satisfies readonly (keyof CarrierFieldsState)[];
 
 function toLocal(rc: CrmRateConfirmationDetail): CarrierFieldsState {
   return {
@@ -82,6 +93,15 @@ function toLineRows(rc: CrmRateConfirmationDetail): LineRow[] {
  * client-side — every line mutation calls refresh() to re-pull the server's
  * recomputed total (see recomputeTotal in that file), same contract the
  * server enforces.
+ *
+ * The carrier card also drives crm_rate_confirmations.carrier_id — a real
+ * (if previously UI-less) link column, snapshotted from the shipment's
+ * carrier at RC creation. Picking from the directory here mirrors that same
+ * snapshot logic (carrier's own phone/email, falling back to its oldest
+ * contact) client-side via the existing listCarriers/getCarrier actions —
+ * no server changes. Selecting only ever fills text fields; every field
+ * stays hand-editable, and Reset detaches carrier_id and blanks what it
+ * filled.
  */
 export function RateConfirmationEditor({
   shipment,
@@ -93,6 +113,9 @@ export function RateConfirmationEditor({
   const router = useRouter();
   const [rc, setRc] = useState(initialRc);
   const [state, setState] = useState<CarrierFieldsState>(() => toLocal(initialRc));
+  const [carrierId, setCarrierId] = useState<string | null>(initialRc.carrierId);
+  const [carrierAutoFill, setCarrierAutoFill] = useState<Set<keyof CarrierFieldsState> | null>(null);
+  const [carrierPickerOpen, setCarrierPickerOpen] = useState(false);
   const [lines, setLines] = useState<LineRow[]>(() => toLineRows(initialRc));
   const [newLine, setNewLine] = useState({ label: "", amount: "" });
 
@@ -113,11 +136,22 @@ export function RateConfirmationEditor({
     if (!fresh) return;
     setRc(fresh);
     setState(toLocal(fresh));
+    setCarrierId(fresh.carrierId);
     setLines(toLineRows(fresh));
   }
 
   function set<K extends keyof CarrierFieldsState>(key: K, value: CarrierFieldsState[K]) {
     setState((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function setCarrierField<K extends keyof CarrierFieldsState>(key: K, value: CarrierFieldsState[K]) {
+    set(key, value);
+    setCarrierAutoFill((prev) => {
+      if (!prev || !prev.has(key)) return prev;
+      const next = new Set(prev);
+      next.delete(key);
+      return next.size ? next : null;
+    });
   }
 
   function commit(fields: Partial<RateConfirmationFields>) {
@@ -131,6 +165,7 @@ export function RateConfirmationEditor({
     setSaveError(null);
     startSave(async () => {
       const result = await saveRateConfirmationDraft(rc.id, {
+        carrierId,
         carrierName: orNull(state.carrierName),
         carrierMc: orNull(state.carrierMc),
         carrierDot: orNull(state.carrierDot),
@@ -142,6 +177,53 @@ export function RateConfirmationEditor({
         notes: orNull(state.notes),
       });
       setSaveError(result.ok ? null : result.error);
+    });
+  }
+
+  // ── Carrier picker ──────────────────────────────────────────────────────
+
+  function selectCarrier(c: CrmCarrier) {
+    setCarrierPickerOpen(false);
+    setSaveError(null);
+    startSave(async () => {
+      const detail = await getCarrier(c.id);
+      const primary = detail?.contacts[0] ?? null;
+      const patch: Pick<CarrierFieldsState, (typeof CARRIER_SNAPSHOT_KEYS)[number]> = {
+        carrierName: detail?.name ?? c.name,
+        carrierMc: str(detail?.mcNumber ?? c.mcNumber),
+        carrierDot: str(detail?.dotNumber ?? c.dotNumber),
+        carrierContact: str(primary?.name),
+        carrierPhone: str(detail?.phone ?? primary?.phone),
+        carrierEmail: str(detail?.email ?? primary?.email),
+      };
+      setState((prev) => ({ ...prev, ...patch }));
+      setCarrierId(c.id);
+      setCarrierAutoFill(new Set(CARRIER_SNAPSHOT_KEYS));
+      const result = await saveRateConfirmationDraft(rc.id, { carrierId: c.id, ...patch });
+      setSaveError(result.ok ? null : result.error);
+    });
+  }
+
+  function resetCarrier() {
+    setCarrierId(null);
+    setCarrierAutoFill(null);
+    setState((prev) => ({
+      ...prev,
+      carrierName: "",
+      carrierMc: "",
+      carrierDot: "",
+      carrierContact: "",
+      carrierPhone: "",
+      carrierEmail: "",
+    }));
+    commit({
+      carrierId: null,
+      carrierName: null,
+      carrierMc: null,
+      carrierDot: null,
+      carrierContact: null,
+      carrierPhone: null,
+      carrierEmail: null,
     });
   }
 
@@ -433,68 +515,113 @@ export function RateConfirmationEditor({
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
-          <CardHead title="Carrier" hint="Independent of the shipment — edits here don't change the assigned carrier" />
-          <div className="flex flex-col gap-3 p-4">
+          <SectionDivider
+            label="Carrier"
+            hint="Independent of the shipment — edits here don't change the assigned carrier"
+            right={
+              !locked && !carrierPickerOpen ? (
+                <button
+                  type="button"
+                  onClick={() => setCarrierPickerOpen(true)}
+                  className="text-[11px] font-semibold text-accent underline underline-offset-2"
+                >
+                  {carrierId ? "Change" : "Pick from directory"}
+                </button>
+              ) : undefined
+            }
+          />
+          <div className="flex flex-col gap-2 p-3">
+            {!locked && (!carrierId || carrierPickerOpen) && (
+              <AsyncSearchPicker<CrmCarrier>
+                label="Search carrier directory"
+                placeholder="Search by name, MC, or DOT…"
+                search={listCarriers}
+                getKey={(c) => c.id}
+                onSelect={selectCarrier}
+                renderOption={(c) => (
+                  <>
+                    <span className="font-medium">{titleCaseWords(c.name)}</span>
+                    {c.mcNumber && <span className="ml-1.5 text-[11px] text-fg-subtle">MC {c.mcNumber}</span>}
+                  </>
+                )}
+              />
+            )}
+            {carrierId && (
+              <SelectedEntityChip
+                title={titleCaseWords(state.carrierName || "Selected carrier")}
+                detail={[state.carrierMc && `MC ${state.carrierMc}`, state.carrierPhone].filter(Boolean).join(" · ") || null}
+                onChange={locked ? undefined : () => setCarrierPickerOpen(true)}
+                onReset={resetCarrier}
+              />
+            )}
             <TextRow
               label="Carrier name"
               value={state.carrierName}
-              onChange={(v) => set("carrierName", v)}
+              onChange={(v) => setCarrierField("carrierName", v)}
               onBlur={() => commit({ carrierName: orNull(state.carrierName) })}
+              highlight={carrierAutoFill?.has("carrierName")}
             />
-            <FormRow2>
+            <FormRow3>
               <TextRow
                 label="MC #"
                 value={state.carrierMc}
-                onChange={(v) => set("carrierMc", v)}
+                onChange={(v) => setCarrierField("carrierMc", v)}
                 onBlur={() => commit({ carrierMc: orNull(state.carrierMc) })}
+                highlight={carrierAutoFill?.has("carrierMc")}
               />
               <TextRow
                 label="DOT #"
                 value={state.carrierDot}
-                onChange={(v) => set("carrierDot", v)}
+                onChange={(v) => setCarrierField("carrierDot", v)}
                 onBlur={() => commit({ carrierDot: orNull(state.carrierDot) })}
+                highlight={carrierAutoFill?.has("carrierDot")}
               />
-            </FormRow2>
-            <TextRow
-              label="Contact"
-              value={state.carrierContact}
-              onChange={(v) => set("carrierContact", v)}
-              onBlur={() => commit({ carrierContact: orNull(state.carrierContact) })}
-            />
+              <TextRow
+                label="Contact"
+                value={state.carrierContact}
+                onChange={(v) => setCarrierField("carrierContact", v)}
+                onBlur={() => commit({ carrierContact: orNull(state.carrierContact) })}
+                highlight={carrierAutoFill?.has("carrierContact")}
+              />
+            </FormRow3>
             <FormRow2>
               <TextRow
                 label="Phone"
                 value={state.carrierPhone}
-                onChange={(v) => set("carrierPhone", v)}
+                onChange={(v) => setCarrierField("carrierPhone", v)}
                 onBlur={() => commit({ carrierPhone: orNull(state.carrierPhone) })}
+                highlight={carrierAutoFill?.has("carrierPhone")}
               />
               <TextRow
                 label="Email"
                 value={state.carrierEmail}
-                onChange={(v) => set("carrierEmail", v)}
+                onChange={(v) => setCarrierField("carrierEmail", v)}
                 onBlur={() => commit({ carrierEmail: orNull(state.carrierEmail) })}
+                highlight={carrierAutoFill?.has("carrierEmail")}
               />
             </FormRow2>
           </div>
         </Card>
 
         <Card>
-          <CardHead title="Payment" />
-          <div className="flex flex-col gap-3 p-4">
-            <TextRow
-              label="Payment terms"
-              value={state.paymentTerms}
-              onChange={(v) => set("paymentTerms", v)}
-              onBlur={() => commit({ paymentTerms: orNull(state.paymentTerms) })}
-              placeholder="e.g. Net 30"
-            />
-            <TextRow
-              label="Quick pay"
-              value={state.quickPay}
-              onChange={(v) => set("quickPay", v)}
-              onBlur={() => commit({ quickPay: orNull(state.quickPay) })}
-              placeholder="e.g. 2% for pay in 24hrs"
-            />
+          <SectionDivider label="Payment" />
+          <div className="flex flex-col gap-2 p-3">
+            <FormRow2>
+              <TextRow
+                label="Payment terms"
+                value={state.paymentTerms}
+                onChange={(v) => set("paymentTerms", v)}
+                onBlur={() => commit({ paymentTerms: orNull(state.paymentTerms) })}
+                placeholder="e.g. Net 30"
+              />
+              <TextRow
+                label="Quick pay"
+                value={state.quickPay}
+                onChange={(v) => set("quickPay", v)}
+                onBlur={() => commit({ quickPay: orNull(state.quickPay) })}
+                placeholder="e.g. 2% for pay in 24hrs"
+              />
+            </FormRow2>
             <TextAreaRow
               label="Notes"
               value={state.notes}
@@ -507,21 +634,21 @@ export function RateConfirmationEditor({
 
         <div className="lg:col-span-2">
           <Card>
-            <CardHead title="Carrier pay line items" hint="Total is computed server-side" />
+            <SectionDivider label="Carrier pay line items" hint="Total is computed server-side" />
             <FormError message={lineError} />
-            <ul className={`divide-y divide-line-strong ${ZEBRA_ROWS}`}>
+            <ul className={`divide-y divide-line ${ZEBRA_ROWS}`}>
               {lines.map((line) => (
-                <li key={line.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
+                <li key={line.id} className="flex flex-wrap items-center gap-2 px-3 py-2">
                   <input
                     type="text"
                     value={line.label}
                     onChange={(e) => setLineField(line.id, "label", e.target.value)}
                     onBlur={() => commitLine(line.id, line.label, line.amount)}
-                    className="h-10 min-w-0 flex-1 rounded-md border border-fg-subtle bg-card px-3 text-[13.5px] font-medium text-fg outline-none focus:ring-2 focus:ring-accent/40"
+                    className="h-8 min-w-0 flex-1 rounded-[5px] border border-fg-subtle bg-card px-2.5 text-[13px] font-medium text-fg outline-none focus:ring-1 focus:ring-accent/50 sm:h-[26px] sm:text-[12.5px]"
                     placeholder="Line label"
                   />
-                  <div className="relative w-36 shrink-0">
-                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-fg-subtle">
+                  <div className="relative w-32 shrink-0">
+                    <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[12px] text-fg-subtle">
                       $
                     </span>
                     <input
@@ -530,29 +657,29 @@ export function RateConfirmationEditor({
                       value={line.amount}
                       onChange={(e) => setLineField(line.id, "amount", e.target.value)}
                       onBlur={() => commitLine(line.id, line.label, line.amount)}
-                      className="h-10 w-full rounded-md border border-fg-subtle bg-card pl-6 pr-3 text-[13.5px] font-medium text-fg outline-none focus:ring-2 focus:ring-accent/40"
+                      className="h-8 w-full rounded-[5px] border border-fg-subtle bg-card pl-5 pr-2 text-[13px] font-medium text-fg outline-none focus:ring-1 focus:ring-accent/50 sm:h-[26px] sm:text-[12.5px]"
                     />
                   </div>
                   <button
                     type="button"
                     onClick={() => removeLine(line.id)}
                     disabled={linePending}
-                    className={`shrink-0 rounded-md px-3 py-2 text-[12.5px] font-semibold transition-colors disabled:opacity-60 ${BTN_DANGER}`}
+                    className={`shrink-0 rounded-md px-2.5 py-1.5 text-[12px] font-semibold transition-colors disabled:opacity-60 ${BTN_DANGER}`}
                   >
                     Remove
                   </button>
                 </li>
               ))}
-              <li className="flex flex-wrap items-center gap-3 bg-inset px-4 py-3">
+              <li className="flex flex-wrap items-center gap-2 bg-inset px-3 py-2">
                 <input
                   type="text"
                   value={newLine.label}
                   onChange={(e) => setNewLine((prev) => ({ ...prev, label: e.target.value }))}
                   placeholder="New line label"
-                  className="h-10 min-w-0 flex-1 rounded-md border border-dashed border-fg-subtle bg-card px-3 text-[13.5px] font-medium text-fg outline-none focus:ring-2 focus:ring-accent/40"
+                  className="h-8 min-w-0 flex-1 rounded-[5px] border border-dashed border-fg-subtle bg-card px-2.5 text-[13px] font-medium text-fg outline-none focus:ring-1 focus:ring-accent/50 sm:h-[26px] sm:text-[12.5px]"
                 />
-                <div className="relative w-36 shrink-0">
-                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-fg-subtle">
+                <div className="relative w-32 shrink-0">
+                  <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[12px] text-fg-subtle">
                     $
                   </span>
                   <input
@@ -561,22 +688,22 @@ export function RateConfirmationEditor({
                     value={newLine.amount}
                     onChange={(e) => setNewLine((prev) => ({ ...prev, amount: e.target.value }))}
                     placeholder="0.00"
-                    className="h-10 w-full rounded-md border border-dashed border-fg-subtle bg-card pl-6 pr-3 text-[13.5px] font-medium text-fg outline-none focus:ring-2 focus:ring-accent/40"
+                    className="h-8 w-full rounded-[5px] border border-dashed border-fg-subtle bg-card pl-5 pr-2 text-[13px] font-medium text-fg outline-none focus:ring-1 focus:ring-accent/50 sm:h-[26px] sm:text-[12.5px]"
                   />
                 </div>
                 <button
                   type="button"
                   onClick={addLine}
                   disabled={linePending || !newLine.label.trim()}
-                  className={`shrink-0 rounded-md px-3.5 py-2 text-[12.5px] font-semibold transition-colors disabled:opacity-60 ${BTN_PRIMARY}`}
+                  className={`shrink-0 rounded-md px-3 py-1.5 text-[12px] font-semibold transition-colors disabled:opacity-60 ${BTN_PRIMARY}`}
                 >
                   Add line
                 </button>
               </li>
             </ul>
-            <div className="flex items-center justify-between border-t border-line-strong bg-bar px-4 py-3">
-              <span className="text-[12.5px] font-semibold uppercase tracking-[0.1em] text-bar-fg">Total carrier pay</span>
-              <span className="font-mono text-[18px] font-bold text-bar-fg">{formatMoney(rc.totalCarrierPay)}</span>
+            <div className="flex items-center justify-between border-t border-line px-4 py-2.5">
+              <span className="text-[11px] font-bold uppercase tracking-[0.08em] text-fg">Total carrier pay</span>
+              <span className="font-mono text-[16px] font-bold text-fg">{formatMoney(rc.totalCarrierPay)}</span>
             </div>
           </Card>
         </div>
