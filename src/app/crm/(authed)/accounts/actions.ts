@@ -64,6 +64,8 @@ function accountFieldsFromForm(fd: FormData): Record<string, unknown> {
   const fields: Record<string, unknown> = {};
   if (fd.has("name")) fields.name = titleCaseWords(str(fd, "name"));
   if (fd.has("industry")) fields.industry = optStr(fd, "industry");
+  if (fd.has("company_type")) fields.company_type = optStr(fd, "company_type");
+  if (fd.has("email")) fields.email = optStr(fd, "email");
   if (fd.has("phones")) {
     const phones = phonesFromFormValue(fd.get("phones"));
     fields.phones = phones;

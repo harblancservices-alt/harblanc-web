@@ -31,31 +31,37 @@ export async function CommercialSection({ accountId }: { accountId: string }) {
   const paymentTerms = (data?.payment_terms as string | null) ?? null;
   const currentCarrier = (data?.current_carrier as string | null) ?? null;
   const confirmed = (data?.ai_confirmed_fields as Record<string, unknown> | null) ?? {};
+  const isEmpty = !fitRating && !paymentTerms && !currentCarrier;
+  const dialog = (
+    <CommercialDialog
+      accountId={accountId}
+      defaults={{ fit_rating: fitRating, payment_terms: paymentTerms, current_carrier: currentCarrier }}
+    />
+  );
 
   return (
     <Card>
-      <CardHead
-        title="Commercial"
-        right={
-          <CommercialDialog
-            accountId={accountId}
-            defaults={{ fit_rating: fitRating, payment_terms: paymentTerms, current_carrier: currentCarrier }}
+      <CardHead title="Commercial" right={isEmpty ? undefined : dialog} />
+      {isEmpty ? (
+        <div className="flex items-center justify-between gap-3 px-5 py-5">
+          <p className="text-[13px] text-fg-muted">No commercial terms on file yet — fit rating, payment terms.</p>
+          {dialog}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-x-8 gap-y-4 p-5 sm:grid-cols-2">
+          <DetailFact
+            label="Priority / fit rating"
+            value={fitRating ? <FitStars rating={fitRating} /> : null}
+            fromAi={!!confirmed.fit_rating}
           />
-        }
-      />
-      <div className="grid grid-cols-1 gap-x-8 gap-y-4 p-5 sm:grid-cols-2">
-        <DetailFact
-          label="Priority / fit rating"
-          value={fitRating ? <FitStars rating={fitRating} /> : null}
-          fromAi={!!confirmed.fit_rating}
-        />
-        <DetailFact label="Payment / credit terms" value={paymentTerms} fromAi={!!confirmed.payment_terms} />
-        <DetailFact
-          label="Incumbent carrier / competitor"
-          value={currentCarrier}
-          fromAi={!!confirmed.current_carrier}
-        />
-      </div>
+          <DetailFact label="Payment / credit terms" value={paymentTerms} fromAi={!!confirmed.payment_terms} />
+          <DetailFact
+            label="Incumbent carrier / competitor"
+            value={currentCarrier}
+            fromAi={!!confirmed.current_carrier}
+          />
+        </div>
+      )}
     </Card>
   );
 }

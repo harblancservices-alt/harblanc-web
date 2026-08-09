@@ -5,32 +5,25 @@ import { PageShell } from "../../_shell/ui";
 import { firstName, titleCaseWords, upperCaseState } from "../../_shell/format";
 import { parsePhones, parseLinks, normalizeHref } from "../../_shell/contactFields";
 import { formatPhone } from "@/lib/domain/phone";
-import { ProfileTabs } from "./ProfileTabs";
 import type { RepOption } from "../CompanyDialog";
 import { FinalizeBanner } from "./FinalizeBanner";
-import { CompanyCard } from "./CompanyCard";
-import { ContactsSection, type CrmContact } from "./ContactsSection";
-import { StrayNumbersSection } from "./StrayNumbersSection";
-import { AddPersonButton } from "./AddPersonButton";
-import { AiResearchSection, type CrmNote } from "./AiResearchSection";
-import { PeopleSection } from "./PeopleSection";
-import type { CrmActivityItem } from "./ActivitySection";
+import { CompanyHeader } from "./CompanyHeader";
 import { StageTracker } from "./StageTracker";
-import { RepControl } from "./RepControl";
+import { CallAngleSection } from "./CallAngleSection";
+import { CompanyContactsList, type CrmContact } from "./CompanyContactsList";
+import { CompanyScaleSection } from "./CompanyScaleSection";
+import { ActivityLogSection, type CrmActivityLogItem } from "./ActivityLogSection";
 import { DetailsSection, type CrmDetailsTag } from "./DetailsSection";
 import { type CrmCommodityPhoto } from "./CommodityPhotoTiles";
-import { TasksSection } from "./TasksSection";
-import { LogCallButton } from "./LogCallButton";
 import { callOutcomeLabel } from "../../calls/outcomes";
-import { type CrmTaskItem } from "../../tasks/TaskRow";
 import type { TaskContactOption } from "../../tasks/TaskDialog";
 import { BolSection, type CrmBolDocument } from "./BolSection";
 import { AiSuggestionsPanel } from "./AiSuggestionsPanel";
+import { AiResearchSection, type CrmNote } from "./AiResearchSection";
 import { CompanyProfileSection } from "./CompanyProfileSection";
 import { FreightProfileSection } from "./FreightProfileSection";
-import { LocationsSection } from "./LocationsSection";
 import { CommercialSection } from "./CommercialSection";
-import { ContextNotesSection } from "./ContextNotesSection";
+import { StrayNumbersSection } from "./StrayNumbersSection";
 
 export const dynamic = "force-dynamic";
 
@@ -45,15 +38,20 @@ function profileName(p: ProfileRow | undefined): string | null {
 }
 
 /**
- * Company profile — the premium, full-record view of a single crm_account.
- * Everything is RLS-scoped to the caller's org. Layout: a permanent LEFT
- * "Company" card (tabbed Company/Activity — address/phones/links/commodities
- * plus the relocated activity feed; see CompanyCard.tsx) that stays mounted
- * across every tab, and a RIGHT column that's the only thing ProfileTabs
- * switches — a name + assigned-rep strip, then the full-width chevron stage
- * tracker (StageTracker.tsx — Option A, Brent's approved mock), above a
- * segmented tab bar. The Overview tab stacks Tasks (whose header doubles as
- * the Log call / Add person / Add task button bar) and People.
+ * Company profile — surface 1 of the CRM Company/Contact rebuild (see
+ * Brent's 2026-08-08 build spec). A single stacked column: a STICKY header
+ * (name, stage pill, industry/company-type tags, one-tap Call/Email/Map),
+ * the existing chevron StageTracker (kept — Brent approved it the same day,
+ * and it's the one place that actually MOVES the stage; the header pill is
+ * read-only, both driven by the same lifecycle.ts LIFECYCLE_TONE), then five
+ * sections in the spec's order: Call angle, Contacts, Company scale,
+ * Activity log, Details. AI Suggestions / AI Research / BOL / Stray numbers
+ * ride along right after Details, each its own isolated card — untouched
+ * functionality, just relocated out of the old tabbed layout (ProfileTabs,
+ * CompanyCard, and the Overview/Contacts split it replaced are deleted).
+ * Tasks are NOT rendered on this surface in this pass — see the completion
+ * report for what that drops from view here (still reachable via the
+ * dashboard queue and the global Tasks page).
  */
 export default async function AccountDetailPage({
   params,
@@ -68,7 +66,7 @@ export default async function AccountDetailPage({
   const { data: account } = await supabase
     .from("crm_accounts")
     .select(
-      "id, name, industry, website, phone, phones, links, address, city, state, zip, company_size, commodities, annual_freight_spend, revenue_potential, source, lifecycle_status, assigned_user_id, primary_contact_id, needs_finalize, created_at",
+      "id, name, industry, website, phone, phones, links, address, city, state, zip, company_size, commodities, annual_freight_spend, revenue_potential, source, lifecycle_status, assigned_user_id, primary_contact_id, needs_finalize, created_at, updated_at, dot_number, mc_number, company_type, email, context_notes",
     )
     .eq("id", id)
     .is("deleted_at", null)
@@ -76,24 +74,20 @@ export default async function AccountDetailPage({
 
   if (!account) notFound();
 
-  // Title-cased/uppercased once here so every consumer below (the
-  // permanent Company card's view AND edit-mode defaults, the top strip's
-  // heading, the Details tab's edit dialog, the task "company" line) reads
-  // the same normalized value — including pre-existing not-quite-
-  // capitalized data (new writes are already clean via accounts/actions.ts).
+  // Title-cased/uppercased once here so every consumer below (the header,
+  // the Details tab's edit dialog defaults, etc.) reads the same normalized
+  // value — including pre-existing not-quite-capitalized data.
   const accountName = titleCaseWords(account.name as string);
   const accountAddress = titleCaseWords(account.address as string | null) || null;
   const accountCity = titleCaseWords(account.city as string | null) || null;
   const accountState = upperCaseState(account.state as string | null) || null;
 
-  // Fan out the related reads (each RLS-scoped to the caller's org).
   const [
     profilesRes,
     contactsRes,
     notesRes,
     callsRes,
     activitiesRes,
-    tasksRes,
     documentsRes,
     commodityPhotosRes,
     accountTagsRes,
@@ -118,7 +112,7 @@ export default async function AccountDetailPage({
     supabase
       .from("crm_calls")
       .select(
-        "id, contact_id, outcome, duration_seconds, summary, notes, occurred_at, user_id",
+        "id, contact_id, outcome, duration_seconds, summary, notes, occurred_at, user_id, followup_required, reminder_at",
       )
       .eq("account_id", id)
       .is("deleted_at", null)
@@ -134,16 +128,6 @@ export default async function AccountDetailPage({
       .not("kind", "in", `(${CRM_ACTIVITY.call},${CRM_ACTIVITY.noteAdded})`)
       .order("occurred_at", { ascending: false })
       .limit(150),
-    supabase
-      .from("crm_tasks")
-      .select(
-        "id, title, notes, task_type, due_at, priority, status, completed_at, reminder_at, account_id, contact_id, assigned_user_id",
-      )
-      .eq("account_id", id)
-      .is("deleted_at", null)
-      .order("status", { ascending: true })
-      .order("due_at", { ascending: true, nullsFirst: false })
-      .order("created_at", { ascending: false }),
     supabase
       .from("crm_documents")
       .select("id, file_name, storage_path, mime_type, size_bytes, created_at, user_id")
@@ -161,9 +145,6 @@ export default async function AccountDetailPage({
       .order("created_at", { ascending: false })
       .limit(60),
     supabase.from("crm_account_tags").select("tag_id").eq("account_id", id),
-    // "Added by" — the account's own first activity row rather than a new
-    // created_by column: accountCreated is already logged on every create
-    // path, so this needs no schema.
     supabase
       .from("crm_activities")
       .select("user_id")
@@ -172,8 +153,6 @@ export default async function AccountDetailPage({
       .order("occurred_at", { ascending: true })
       .limit(1)
       .maybeSingle(),
-    // Drives the AI Research tab's "Last requested" label — see
-    // ai-research-actions.ts::requestAiResearch.
     supabase
       .from("crm_activities")
       .select("occurred_at")
@@ -191,12 +170,6 @@ export default async function AccountDetailPage({
     .map((p) => ({ id: p.id, label: profileName(p) ?? "Unnamed rep" }))
     .sort((a, b) => a.label.localeCompare(b.label));
 
-  // Names are title-cased here, once, right at the read boundary — every
-  // downstream consumer (contacts/people arrays, the name lookup maps,
-  // task/history "who" lines) reads from this array, so nothing displays a
-  // contact's name without going through this normalization, including
-  // pre-existing not-quite-capitalized data (new writes are already clean
-  // via accounts/actions.ts, but this covers what's already stored).
   const contactRows = ((contactsRes.data ?? []) as {
     id: string;
     name: string;
@@ -217,13 +190,11 @@ export default async function AccountDetailPage({
     links: parseLinks(c.links),
   }));
   const contactNameById = new Map(contacts.map((c) => [c.id, c.name]));
-  const contactPhoneById = new Map(contacts.map((c) => [c.id, c.phones[0]?.number || null]));
-  const contactEmailById = new Map(contacts.map((c) => [c.id, c.email]));
-  const companyPhone = parsePhones(account.phones)[0]?.number || (account.phone as string | null) || null;
-  // Shared {id, name} roster fed to every "attach a contact to this
-  // action" control on the profile — Log call, Add task (from the Tasks bar
-  // and each person row's one-tap + Task), the Tasks section's own dialog.
   const contactOptions: TaskContactOption[] = contacts.map((c) => ({ id: c.id, name: c.name }));
+
+  const primaryContactEmail = account.primary_contact_id
+    ? contacts.find((c) => c.id === account.primary_contact_id)?.email ?? null
+    : null;
 
   const notesRows = (notesRes.data ?? []) as {
     id: string;
@@ -242,35 +213,8 @@ export default async function AccountDetailPage({
       is_ai: true,
       created_at: n.created_at,
       author: n.user_id ? profileName(profileById.get(n.user_id)) : null,
-      contactName: n.contact_id
-        ? firstName(contactNameById.get(n.contact_id) ?? null) || null
-        : null,
+      contactName: n.contact_id ? firstName(contactNameById.get(n.contact_id) ?? null) || null : null,
     }));
-
-  const tasks: CrmTaskItem[] = ((tasksRes.data ?? []) as {
-    id: string;
-    title: string;
-    notes: string | null;
-    task_type: string | null;
-    due_at: string | null;
-    priority: string | null;
-    status: string;
-    completed_at: string | null;
-    reminder_at: string | null;
-    account_id: string | null;
-    contact_id: string | null;
-    assigned_user_id: string | null;
-  }[]).map((t) => ({
-    ...t,
-    companyName: accountName,
-    contactName: t.contact_id ? contactNameById.get(t.contact_id) ?? null : null,
-    assigneeName: t.assigned_user_id
-      ? profileName(profileById.get(t.assigned_user_id))
-      : null,
-    contactPhone: t.contact_id ? contactPhoneById.get(t.contact_id) ?? null : null,
-    contactEmail: t.contact_id ? contactEmailById.get(t.contact_id) ?? null : null,
-    companyPhone,
-  }));
 
   const documents: CrmBolDocument[] = ((documentsRes.data ?? []) as {
     id: string;
@@ -290,8 +234,6 @@ export default async function AccountDetailPage({
     uploaderName: d.user_id ? profileName(profileById.get(d.user_id)) : null,
   }));
 
-  // Commodity photos — signed URLs are resolved server-side (the bucket is
-  // private) in one batch call rather than per-tile client fetches.
   const commodityPhotoRows = (commodityPhotosRes.data ?? []) as {
     id: string;
     file_name: string;
@@ -315,27 +257,21 @@ export default async function AccountDetailPage({
     signedUrl: signedUrlByPath.get(p.storage_path) ?? null,
   }));
 
-  // Details tab's Tags fact — two-step, same reason as the signed URLs
-  // above (the tag ids aren't known until crm_account_tags resolves).
   const accountTagIds = ((accountTagsRes.data ?? []) as { tag_id: string }[]).map((t) => t.tag_id);
   let detailsTags: CrmDetailsTag[] = [];
   if (accountTagIds.length) {
-    const { data: tagRows } = await supabase
-      .from("crm_tags")
-      .select("id, label, color")
-      .in("id", accountTagIds);
+    const { data: tagRows } = await supabase.from("crm_tags").select("id, label, color").in("id", accountTagIds);
     detailsTags = (tagRows ?? []) as CrmDetailsTag[];
   }
 
   const addedByUserId = (addedByRes.data as { user_id: string | null } | null)?.user_id ?? null;
   const addedByName = addedByUserId ? profileName(profileById.get(addedByUserId)) : null;
-  const lastResearchRequestedAt =
-    (lastResearchRequestRes.data as { occurred_at: string } | null)?.occurred_at ?? null;
+  const lastResearchRequestedAt = (lastResearchRequestRes.data as { occurred_at: string } | null)?.occurred_at ?? null;
 
-  // ── Activity — calls + the remaining (non-call, non-note) activity rows,
-  // merged into one newest-first feed for the left card's Activity tab.
-  // Notes are deliberately excluded (still loggable per-person via the Note
-  // action, just not surfaced here) — see ActivitySection.tsx. ──
+  // ── Activity log — calls + human notes + the remaining activity events,
+  // merged into one newest-first feed (see ActivityLogSection.tsx). AI
+  // research notes are excluded here (they have their own AI Research card)
+  // to avoid showing the same content twice. ──
   const callRows = (callsRes.data ?? []) as {
     id: string;
     contact_id: string | null;
@@ -345,23 +281,37 @@ export default async function AccountDetailPage({
     notes: string | null;
     occurred_at: string;
     user_id: string | null;
+    followup_required: boolean | null;
+    reminder_at: string | null;
   }[];
-  const activityFromCalls: CrmActivityItem[] = callRows.map((c) => {
-    const contactName = c.contact_id ? contactNameById.get(c.contact_id) ?? null : null;
+  const activityFromCalls: CrmActivityLogItem[] = callRows.map((c) => {
     const durLabel = c.duration_seconds ? ` · ${Math.round(c.duration_seconds / 60)}m` : "";
-    const title = `Call · ${callOutcomeLabel(c.outcome)}${durLabel}${contactName ? ` · ${contactName}` : ""}`;
-    const body = [c.summary, c.notes].filter(Boolean).join("\n") || null;
     return {
       id: c.id,
       type: "call" as const,
       occurredAt: c.occurred_at,
       author: c.user_id ? profileName(profileById.get(c.user_id)) : null,
-      title,
-      body,
+      contactName: c.contact_id ? contactNameById.get(c.contact_id) ?? null : null,
+      title: `Call · ${callOutcomeLabel(c.outcome)}${durLabel}`,
+      body: [c.summary, c.notes].filter(Boolean).join("\n") || null,
+      followupAt: c.followup_required ? c.reminder_at : null,
     };
   });
 
-  const activityFromEvents: CrmActivityItem[] = ((activitiesRes.data ?? []) as {
+  const activityFromNotes: CrmActivityLogItem[] = notesRows
+    .filter((n) => !n.is_ai)
+    .map((n) => ({
+      id: n.id,
+      type: "note" as const,
+      occurredAt: n.created_at,
+      author: n.user_id ? profileName(profileById.get(n.user_id)) : null,
+      contactName: n.contact_id ? contactNameById.get(n.contact_id) ?? null : null,
+      title: "Note",
+      body: n.body,
+      followupAt: null,
+    }));
+
+  const activityFromEvents: CrmActivityLogItem[] = ((activitiesRes.data ?? []) as {
     id: string;
     kind: string;
     summary: string | null;
@@ -373,11 +323,13 @@ export default async function AccountDetailPage({
     type: "activity" as const,
     occurredAt: a.occurred_at,
     author: a.user_id ? profileName(profileById.get(a.user_id)) : null,
+    contactName: null,
     title: a.summary || "Activity",
     body: a.body,
+    followupAt: null,
   }));
 
-  const activityItems: CrmActivityItem[] = [...activityFromCalls, ...activityFromEvents].sort(
+  const activityItems: CrmActivityLogItem[] = [...activityFromCalls, ...activityFromNotes, ...activityFromEvents].sort(
     (a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime(),
   );
 
@@ -387,15 +339,17 @@ export default async function AccountDetailPage({
   const phones = parsePhones(account.phones);
   const links = parseLinks(account.links);
   const fullAddress =
-    [accountAddress, [accountCity, accountState].filter(Boolean).join(", "), account.zip]
-      .filter(Boolean)
-      .join(", ") || null;
-  const companyPhoneFormatted = companyPhone ? formatPhone(companyPhone) : null;
+    [accountAddress, [accountCity, accountState].filter(Boolean).join(", "), account.zip].filter(Boolean).join(", ") ||
+    null;
+  const companyPhone = phones[0]?.number || (account.phone as string | null) || null;
+  const companyEmail = (account.email as string | null) || primaryContactEmail;
 
   const editDefaults = {
     id: account.id as string,
     name: accountName,
     industry: account.industry as string | null,
+    company_type: account.company_type as string | null,
+    email: account.email as string | null,
     phones,
     links,
     address: accountAddress,
@@ -415,143 +369,82 @@ export default async function AccountDetailPage({
     <PageShell>
       {account.needs_finalize && <FinalizeBanner defaults={editDefaults} reps={reps} />}
 
-      {/* Two columns: the permanent Company card (never moves when a tab
-          changes — it lives here, outside ProfileTabs) and the tab area. */}
-      <div className="grid gap-4 lg:grid-cols-[380px_1fr] lg:items-start">
-        <CompanyCard
-          accountId={account.id as string}
-          fallbackHref="/crm/accounts"
+      <div className="flex flex-col gap-4">
+        <CompanyHeader
           name={accountName}
-          address={accountAddress}
-          city={accountCity}
-          state={accountState}
-          zip={account.zip as string | null}
-          phones={phones}
-          links={links}
-          commodities={account.commodities as string | null}
-          activityItems={activityItems}
+          stage={stage}
+          industry={account.industry as string | null}
+          companyType={account.company_type as string | null}
+          phone={companyPhone}
+          email={companyEmail}
+          mapsAddress={fullAddress}
         />
 
-        <div className="flex min-w-0 flex-col gap-4">
-          {/* Top strip — identity + assigned rep only now; the lifecycle
-              stage moved into its own full-width chevron tracker below (see
-              StageTracker.tsx). Log call/Add person live in the Tasks
-              section's button bar further down. */}
-          <div className="flex flex-wrap items-center justify-between gap-3 border border-line-strong bg-card px-4 py-3 shadow-e2">
-            <h1 className="truncate text-[18px] font-bold tracking-tight text-fg">
-              {accountName}
-            </h1>
-            <div className="shrink-0">
-              <RepControl
-                accountId={account.id as string}
-                current={account.assigned_user_id as string | null}
-                reps={reps}
-              />
-            </div>
-          </div>
-
-          {/* Stage tracker — full width, prominent, at the top of the
-              profile's main area (right above the tabs). */}
-          <div className="w-full border border-line-strong bg-card p-4 shadow-e2">
-            <StageTracker accountId={account.id as string} current={stage} />
-          </div>
-
-          <ProfileTabs
-            overview={
-              <div className="flex flex-col gap-4">
-                <TasksSection
-                  accountId={account.id as string}
-                  tasks={tasks}
-                  reps={reps}
-                  contacts={contactOptions}
-                  canAssignOthers={isOwner}
-                  currentUser={{ id: user.id, label: firstName(user.fullName, user.email) || "You" }}
-                  logCall={
-                    <LogCallButton accountId={account.id as string} contacts={contactOptions} />
-                  }
-                  addPerson={<AddPersonButton accountId={account.id as string} />}
-                />
-                <PeopleSection
-                  accountId={account.id as string}
-                  people={contacts}
-                  reps={reps}
-                  contactOptions={contactOptions}
-                  canAssignOthers={isOwner}
-                  currentUser={{ id: user.id, label: firstName(user.fullName, user.email) || "You" }}
-                />
-              </div>
-            }
-            contacts={
-              <div className="flex flex-col gap-4">
-                <StrayNumbersSection
-                  accountId={account.id as string}
-                  phones={phones}
-                  contacts={contactOptions}
-                />
-                <ContactsSection
-                  accountId={account.id as string}
-                  contacts={contacts}
-                  primaryContactId={account.primary_contact_id as string | null}
-                  canDelete={isOwner}
-                  reps={reps}
-                  contactOptions={contactOptions}
-                  canAssignOthers={isOwner}
-                  currentUser={{ id: user.id, label: firstName(user.fullName, user.email) || "You" }}
-                />
-              </div>
-            }
-            contactsCount={contacts.length}
-            details={
-              <div className="flex flex-col gap-4">
-                <DetailsSection
-                  legalName={accountName}
-                  industry={account.industry as string | null}
-                  companySize={account.company_size as string | null}
-                  annualFreightSpend={account.annual_freight_spend as number | null}
-                  source={account.source as string | null}
-                  stage={stage}
-                  website={website}
-                  websiteHref={websiteHref}
-                  tags={detailsTags}
-                  fullAddress={fullAddress}
-                  addedByName={addedByName}
-                  addedAt={account.created_at as string}
-                  editDefaults={editDefaults}
-                  reps={reps}
-                  canDelete={isOwner}
-                  accountId={account.id as string}
-                  orgId={user.orgId}
-                  photos={commodityPhotos}
-                />
-                <AiSuggestionsPanel accountId={account.id as string} />
-                <CompanyProfileSection accountId={account.id as string} />
-                <FreightProfileSection accountId={account.id as string} />
-                <LocationsSection accountId={account.id as string} />
-                <CommercialSection accountId={account.id as string} />
-                <ContextNotesSection accountId={account.id as string} />
-              </div>
-            }
-            bol={
-              <BolSection
-                accountId={account.id as string}
-                orgId={user.orgId}
-                documents={documents}
-                shipperName={accountName}
-                shipperAddress={fullAddress}
-                shipperPhone={companyPhoneFormatted}
-              />
-            }
-            bolCount={documents.length}
-            aiResearch={
-              <AiResearchSection
-                accountId={account.id as string}
-                notes={aiNotes}
-                lastRequestedAt={lastResearchRequestedAt}
-              />
-            }
-            aiResearchCount={aiNotes.length}
-          />
+        <div className="w-full border border-line-strong bg-card p-4 shadow-e2">
+          <StageTracker accountId={account.id as string} current={stage} />
         </div>
+
+        <CallAngleSection
+          accountId={account.id as string}
+          commodities={account.commodities as string | null}
+          contextNotes={account.context_notes as string | null}
+        />
+
+        <CompanyContactsList
+          accountId={account.id as string}
+          contacts={contacts}
+          contactOptions={contactOptions}
+        />
+
+        <CompanyScaleSection accountId={account.id as string} companySize={account.company_size as string | null} />
+
+        <ActivityLogSection accountId={account.id as string} items={activityItems} />
+
+        <DetailsSection
+          industry={account.industry as string | null}
+          companyType={account.company_type as string | null}
+          email={account.email as string | null}
+          annualFreightSpend={account.annual_freight_spend as number | null}
+          source={account.source as string | null}
+          website={website}
+          websiteHref={websiteHref}
+          tags={detailsTags}
+          fullAddress={fullAddress}
+          dotNumber={account.dot_number as string | null}
+          mcNumber={account.mc_number as string | null}
+          addedByName={addedByName}
+          addedAt={account.created_at as string}
+          updatedAt={account.updated_at as string | null}
+          editDefaults={editDefaults}
+          reps={reps}
+          currentRepId={account.assigned_user_id as string | null}
+          canDelete={isOwner}
+          accountId={account.id as string}
+          orgId={user.orgId}
+          photos={commodityPhotos}
+        />
+
+        {phones.length > 0 && (
+          <StrayNumbersSection accountId={account.id as string} phones={phones} contacts={contactOptions} />
+        )}
+
+        <AiSuggestionsPanel accountId={account.id as string} />
+        <CompanyProfileSection accountId={account.id as string} />
+        <FreightProfileSection accountId={account.id as string} />
+        <CommercialSection accountId={account.id as string} />
+        <AiResearchSection
+          accountId={account.id as string}
+          notes={aiNotes}
+          lastRequestedAt={lastResearchRequestedAt}
+        />
+        <BolSection
+          accountId={account.id as string}
+          orgId={user.orgId}
+          documents={documents}
+          shipperName={accountName}
+          shipperAddress={fullAddress}
+          shipperPhone={companyPhone ? formatPhone(companyPhone) : null}
+        />
       </div>
     </PageShell>
   );

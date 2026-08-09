@@ -24,39 +24,45 @@ export async function CompanyProfileSection({ accountId }: { accountId: string }
   const yearFounded = (data?.year_founded as number | null) ?? null;
   const ownershipType = (data?.ownership_type as string | null) ?? null;
   const confirmed = (data?.ai_confirmed_fields as Record<string, unknown> | null) ?? {};
+  const isEmpty = !dba && !linkedinUrl && !yearFounded && !ownershipType;
+  const dialog = (
+    <CompanyProfileDialog
+      accountId={accountId}
+      defaults={{ dba, linkedin_url: linkedinUrl, year_founded: yearFounded, ownership_type: ownershipType }}
+    />
+  );
 
   return (
     <Card>
-      <CardHead
-        title="Company profile"
-        right={
-          <CompanyProfileDialog
-            accountId={accountId}
-            defaults={{ dba, linkedin_url: linkedinUrl, year_founded: yearFounded, ownership_type: ownershipType }}
+      <CardHead title="Company profile" right={isEmpty ? undefined : dialog} />
+      {isEmpty ? (
+        <div className="flex items-center justify-between gap-3 px-5 py-5">
+          <p className="text-[13px] text-fg-muted">No company profile on file yet — DBA, LinkedIn, ownership.</p>
+          {dialog}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-x-8 gap-y-4 p-5 sm:grid-cols-2">
+          <DetailFact label="DBA" value={dba} fromAi={!!confirmed.dba} />
+          <DetailFact
+            label="LinkedIn"
+            value={
+              linkedinUrl ? (
+                <a
+                  href={normalizeHref(linkedinUrl)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-accent hover:underline"
+                >
+                  {linkedinUrl}
+                </a>
+              ) : null
+            }
+            fromAi={!!confirmed.linkedin_url}
           />
-        }
-      />
-      <div className="grid grid-cols-1 gap-x-8 gap-y-4 p-5 sm:grid-cols-2">
-        <DetailFact label="DBA" value={dba} fromAi={!!confirmed.dba} />
-        <DetailFact
-          label="LinkedIn"
-          value={
-            linkedinUrl ? (
-              <a
-                href={normalizeHref(linkedinUrl)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-accent hover:underline"
-              >
-                {linkedinUrl}
-              </a>
-            ) : null
-          }
-          fromAi={!!confirmed.linkedin_url}
-        />
-        <DetailFact label="Year founded" value={yearFounded} mono fromAi={!!confirmed.year_founded} />
-        <DetailFact label="Ownership" value={ownershipType} fromAi={!!confirmed.ownership_type} />
-      </div>
+          <DetailFact label="Year founded" value={yearFounded} mono fromAi={!!confirmed.year_founded} />
+          <DetailFact label="Ownership" value={ownershipType} fromAi={!!confirmed.ownership_type} />
+        </div>
+      )}
     </Card>
   );
 }

@@ -21,6 +21,8 @@ export type CompanyDefaults = {
   id?: string;
   name?: string | null;
   industry?: string | null;
+  company_type?: string | null;
+  email?: string | null;
   phones?: PhoneEntry[];
   links?: LinkEntry[];
   address?: string | null;
@@ -35,6 +37,11 @@ export type CompanyDefaults = {
   lifecycle_status?: string | null;
   assigned_user_id?: string | null;
 };
+
+/** Freight-fit classification — the header's second badge alongside industry.
+ * A plain text column with no DB check constraint, same reasoning as
+ * lifecycle's "quoted" stage (see lifecycle.ts). */
+export const COMPANY_TYPES = ["Shipper", "Carrier", "Prospect", "Vendor", "Partner", "Other"] as const;
 
 export type RepOption = { id: string; label: string };
 
@@ -133,7 +140,25 @@ export function CompanyDialog({
             autoFocus
             defaultValue={d.name}
           />
-          <Field label="Industry" name="industry" defaultValue={d.industry} />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Field label="Industry" name="industry" defaultValue={d.industry} />
+            <SelectField label="Company type" name="company_type" defaultValue={d.company_type ?? ""}>
+              <option value="">Not set</option>
+              {COMPANY_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </SelectField>
+          </div>
+
+          <Field
+            label="Company email"
+            name="email"
+            type="email"
+            inputMode="email"
+            defaultValue={d.email}
+          />
 
           <PhonesEditor defaultValue={d.phones} />
           <LinksEditor defaultValue={d.links} />
