@@ -43,6 +43,26 @@ export const CRM_ACTIVITY = {
 export type CrmActivityKind =
   (typeof CRM_ACTIVITY)[keyof typeof CRM_ACTIVITY];
 
+/**
+ * Activity kinds that represent genuine human contact with a company — the
+ * source of truth for "last contact" (Companies list, stale-account sort).
+ * Matches the CRM's original intent for that computation (a note, a stage
+ * move, or a new contact with no call should still count as contact — a call
+ * already lands here too via kind=call) while excluding every system/
+ * automated kind: AI research/suggestions, AI lead lifecycle, record
+ * creation/deletion, rep reassignment, task/deal/location/detail changes.
+ * None of those mean a human actually talked to the company, so a company
+ * whose only recent crm_activities row is e.g. an AI-research run must not
+ * read as recently contacted. Any new automated kind added later should NOT
+ * be added here unless it truly represents a rep reaching the company.
+ */
+export const CRM_CONTACT_ACTIVITY_KINDS: CrmActivityKind[] = [
+  CRM_ACTIVITY.call,
+  CRM_ACTIVITY.noteAdded,
+  CRM_ACTIVITY.contactAdded,
+  CRM_ACTIVITY.lifecycleChanged,
+];
+
 export async function logActivity(
   supabase: SupabaseClient,
   input: {

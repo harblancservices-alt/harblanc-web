@@ -7,6 +7,7 @@ import { AddCompany } from "./AddCompany";
 import { AccountsFilters } from "./AccountsFilters";
 import { stageLabel, stageTone } from "./lifecycle";
 import { firstName, lastContactStatus, timestampMs, titleCaseWords, upperCaseState } from "../_shell/format";
+import { CRM_CONTACT_ACTIVITY_KINDS } from "@/lib/crm/activity";
 import type { RepOption } from "./CompanyDialog";
 import type { CrmTag } from "./tags";
 import { AddContactDialog } from "../contacts/AddContactDialog";
@@ -152,6 +153,10 @@ export default async function CompaniesPage({
           .from("crm_activities")
           .select("account_id, occurred_at")
           .in("account_id", accountIds)
+          // Only kinds that represent a human actually reaching the company
+          // — see CRM_CONTACT_ACTIVITY_KINDS. Without this, an AI-research
+          // run or any other system/automated event reads as "contacted."
+          .in("kind", CRM_CONTACT_ACTIVITY_KINDS)
           .order("occurred_at", { ascending: false })
           .limit(2000)
       : Promise.resolve({ data: [] as { account_id: string; occurred_at: string }[] }),
@@ -174,8 +179,11 @@ export default async function CompaniesPage({
   }
 
   // Last-contact — the more recent of the account's last logged call and its
-  // last timeline activity (a call already lands in crm_activities too, but a
-  // note/stage-change/contact-add with no call should still count as contact).
+  // last CONTACT-kind timeline activity (a call already lands in
+  // crm_activities too, but a note/stage-change/contact-add with no call
+  // should still count as contact). The activities query above is filtered
+  // to CRM_CONTACT_ACTIVITY_KINDS, so system/automated rows (AI research, AI
+  // suggestions, record creation, etc.) never inflate this.
   const lastContactMsByAccount = new Map<string, number>();
   for (const row of [
     ...((lastCallsRes.data ?? []) as { account_id: string; occurred_at: string }[]),
