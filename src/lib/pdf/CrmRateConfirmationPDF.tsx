@@ -92,6 +92,7 @@ const styles = StyleSheet.create({
   headingTotal: { fontSize: 10.5, fontWeight: 700 },
   grid6: { flexDirection: "row", flexWrap: "wrap" },
   gridCell: { width: "33.33%", marginBottom: 6, paddingRight: 8 },
+  gridCellHalf: { width: "50%", marginBottom: 6, paddingRight: 8 },
   fieldLabel: {
     fontSize: 7,
     fontWeight: 700,
@@ -102,7 +103,8 @@ const styles = StyleSheet.create({
   fieldValue: { fontSize: 9.5, marginTop: 1 },
   cols2: { flexDirection: "row", gap: 20 },
   col: { flex: 1 },
-  box: { border: "1pt solid #bdbdbd", padding: 8, marginTop: 6 },
+  stopLabel: { marginBottom: 4 },
+  box: { border: "1pt solid #bdbdbd", padding: 8 },
   rateTable: { marginTop: 4 },
   rateRow: {
     flexDirection: "row",
@@ -146,19 +148,21 @@ const styles = StyleSheet.create({
 
 function StopBlock({ title, stop }: { title: string; stop: StopInfo }) {
   return (
-    <View style={styles.box}>
-      <Text style={[styles.heading, { marginBottom: 4 }]}>{title}</Text>
-      <Field label="Facility / Company" value={stop.name} />
-      <Field label="Address" value={[stop.address, stop.cityStateZip].filter(Boolean).join(", ") || null} />
-      <View style={styles.cols2}>
-        <Field label="Contact" value={stop.contact} />
-        <Field label="Phone" value={stop.phone} />
+    <View style={styles.col}>
+      <Text style={[styles.heading, styles.stopLabel]}>{title}</Text>
+      <View style={styles.box}>
+        <Field label="Facility / Company" value={stop.name} />
+        <Field label="Address" value={[stop.address, stop.cityStateZip].filter(Boolean).join(", ") || null} />
+        <View style={styles.cols2}>
+          <Field label="Contact" value={stop.contact} />
+          <Field label="Phone" value={stop.phone} />
+        </View>
+        <View style={styles.cols2}>
+          <Field label="Window" value={stop.window} />
+          <Field label="Number" value={stop.number} />
+        </View>
+        <Field label="Notes" value={stop.notes} />
       </View>
-      <View style={styles.cols2}>
-        <Field label="Window" value={stop.window} />
-        <Field label="Number" value={stop.number} />
-      </View>
-      {stop.notes && <Field label="Notes" value={stop.notes} />}
     </View>
   );
 }
@@ -198,50 +202,57 @@ export function CrmRateConfirmationPDF({ data }: { data: CrmRateConfirmationPdfD
         </View>
 
         <View style={styles.section}>
-          <View style={styles.grid6}>
-            <View style={styles.gridCell}>
-              <Field label="Equipment" value={data.shipment.equipment} />
+          <View style={styles.cols2}>
+            <View style={styles.col}>
+              <View style={styles.headingRow}>
+                <Text style={styles.heading}>Load / Commodity</Text>
+              </View>
+              <View style={styles.grid6}>
+                <View style={styles.gridCellHalf}>
+                  <Field label="Equipment" value={data.shipment.equipment} />
+                </View>
+                <View style={styles.gridCellHalf}>
+                  <Field label="Commodity" value={data.shipment.commodity} />
+                </View>
+                <View style={styles.gridCellHalf}>
+                  <Field label="Weight" value={data.shipment.weight} />
+                </View>
+                <View style={styles.gridCellHalf}>
+                  <Field label="Pieces / Pallets" value={data.shipment.pieces} />
+                </View>
+                <View style={styles.gridCellHalf}>
+                  <Field label="PO #" value={data.shipment.poNumber} />
+                </View>
+                <View style={styles.gridCellHalf}>
+                  <Field label="Ref #s" value={data.shipment.refNumbers} />
+                </View>
+              </View>
             </View>
-            <View style={styles.gridCell}>
-              <Field label="Commodity" value={data.shipment.commodity} />
-            </View>
-            <View style={styles.gridCell}>
-              <Field label="Weight" value={data.shipment.weight} />
-            </View>
-            <View style={styles.gridCell}>
-              <Field label="Pieces / Pallets" value={data.shipment.pieces} />
-            </View>
-            <View style={styles.gridCell}>
-              <Field label="PO #" value={data.shipment.poNumber} />
-            </View>
-            <View style={styles.gridCell}>
-              <Field label="Ref #s" value={data.shipment.refNumbers} />
-            </View>
-          </View>
-        </View>
 
-        <View style={styles.section}>
-          <View style={styles.headingRow}>
-            <Text style={styles.heading}>Carrier</Text>
-          </View>
-          <View style={styles.grid6}>
-            <View style={styles.gridCell}>
-              <Field label="Carrier Legal Name" value={data.carrier.name} />
-            </View>
-            <View style={styles.gridCell}>
-              <Field label="MC #" value={data.carrier.mc} />
-            </View>
-            <View style={styles.gridCell}>
-              <Field label="DOT #" value={data.carrier.dot} />
-            </View>
-            <View style={styles.gridCell}>
-              <Field label="Dispatcher / Contact" value={data.carrier.contact} />
-            </View>
-            <View style={styles.gridCell}>
-              <Field label="Phone" value={data.carrier.phone} />
-            </View>
-            <View style={styles.gridCell}>
-              <Field label="Email" value={data.carrier.email} />
+            <View style={styles.col}>
+              <View style={styles.headingRow}>
+                <Text style={styles.heading}>Carrier</Text>
+              </View>
+              <View style={styles.grid6}>
+                <View style={styles.gridCellHalf}>
+                  <Field label="Carrier Legal Name" value={data.carrier.name} />
+                </View>
+                <View style={styles.gridCellHalf}>
+                  <Field label="MC #" value={data.carrier.mc} />
+                </View>
+                <View style={styles.gridCellHalf}>
+                  <Field label="DOT #" value={data.carrier.dot} />
+                </View>
+                <View style={styles.gridCellHalf}>
+                  <Field label="Dispatcher / Contact" value={data.carrier.contact} />
+                </View>
+                <View style={styles.gridCellHalf}>
+                  <Field label="Phone" value={data.carrier.phone} />
+                </View>
+                <View style={styles.gridCellHalf}>
+                  <Field label="Email" value={data.carrier.email} />
+                </View>
+              </View>
             </View>
           </View>
         </View>
@@ -251,14 +262,12 @@ export function CrmRateConfirmationPDF({ data }: { data: CrmRateConfirmationPdfD
           <StopBlock title="Delivery" stop={data.delivery} />
         </View>
 
-        {data.specialInstructions && (
-          <View style={styles.section}>
-            <View style={styles.headingRow}>
-              <Text style={styles.heading}>Special Instructions</Text>
-            </View>
-            <Text style={styles.fieldValue}>{data.specialInstructions}</Text>
+        <View style={styles.section}>
+          <View style={styles.headingRow}>
+            <Text style={styles.heading}>Special Instructions</Text>
           </View>
-        )}
+          <Text style={styles.fieldValue}>{data.specialInstructions || "—"}</Text>
+        </View>
 
         <View style={styles.section} wrap={false}>
           <View style={styles.headingRow}>
@@ -283,7 +292,7 @@ export function CrmRateConfirmationPDF({ data }: { data: CrmRateConfirmationPdfD
             <Field label="Payment Terms" value={data.paymentTerms} />
             <Field label="Quick Pay" value={data.quickPay} />
           </View>
-          {data.notes && <Field label="Notes" value={data.notes} />}
+          <Field label="Notes" value={data.notes} />
           <Text style={styles.notice}>
             Signed POD and invoice are required for payment. Accessorial charges require
             prior written broker approval. No double brokering, rebrokering, or unauthorized

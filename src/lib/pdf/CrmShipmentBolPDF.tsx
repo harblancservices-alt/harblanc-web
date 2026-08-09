@@ -161,18 +161,20 @@ const styles = StyleSheet.create({
 
 function PartyBox({ title, refLabel, party }: { title: string; refLabel: string; party: PartyInfo }) {
   return (
-    <View style={[styles.col, styles.boxSolid]}>
+    <View style={styles.col}>
       <Text style={styles.heading}>{title}</Text>
-      <Text style={styles.fieldLine}>{party.name || "—"}</Text>
-      {party.address && <Text style={styles.fieldLine}>{party.address}</Text>}
-      {party.cityStateZip && <Text style={styles.fieldLine}>{party.cityStateZip}</Text>}
-      <View style={styles.cols2}>
-        <Text style={[styles.fieldLine, { flex: 1 }]}>
-          {refLabel}: {party.refNumber || "—"}
-        </Text>
-        <Text style={[styles.fieldLine, { flex: 1 }]}>
-          {[party.contact, party.phone].filter(Boolean).join(" · ") || "—"}
-        </Text>
+      <View style={styles.boxSolid}>
+        <Text style={styles.fieldLine}>{party.name || "—"}</Text>
+        <Text style={styles.fieldLine}>{party.address || "—"}</Text>
+        <Text style={styles.fieldLine}>{party.cityStateZip || "—"}</Text>
+        <View style={styles.cols2}>
+          <Text style={[styles.fieldLine, { flex: 1 }]}>
+            {refLabel}: {party.refNumber || "—"}
+          </Text>
+          <Text style={[styles.fieldLine, { flex: 1 }]}>
+            {[party.contact, party.phone].filter(Boolean).join(" · ") || "—"}
+          </Text>
+        </View>
       </View>
     </View>
   );
@@ -212,7 +214,7 @@ export function CrmShipmentBolPDF({ data }: { data: CrmShipmentBolPdfData }) {
             <Text style={styles.docSubtitle}>STRAIGHT BILL OF LADING — NOT NEGOTIABLE</Text>
             <Text style={styles.headerLine}>BOL #: {data.bolNumber}</Text>
             <Text style={styles.headerLine}>Date: {data.date}</Text>
-            {data.loadRef && <Text style={styles.headerLine}>Load / Ref #: {data.loadRef}</Text>}
+            <Text style={styles.headerLine}>Load / Ref #: {data.loadRef || "—"}</Text>
           </View>
         </View>
 
@@ -222,18 +224,20 @@ export function CrmShipmentBolPDF({ data }: { data: CrmShipmentBolPdfData }) {
         </View>
 
         <View style={[styles.section, styles.cols2]}>
-          <View style={[styles.col, styles.boxSolid]}>
+          <View style={styles.col}>
             <Text style={styles.heading}>Carrier</Text>
-            <Text style={styles.fieldLine}>{data.carrier.name || "—"}</Text>
-            <View style={styles.cols2}>
-              <Text style={[styles.fieldLine, { flex: 1 }]}>
-                Trailer/Unit: {data.carrier.trailerNumber || "—"}
-              </Text>
-              <Text style={[styles.fieldLine, { flex: 1 }]}>Seal: {data.carrier.sealNumber || "—"}</Text>
-            </View>
-            <View style={styles.cols2}>
-              <Text style={[styles.fieldLine, { flex: 1 }]}>SCAC: {data.carrier.scac || "—"}</Text>
-              <Text style={[styles.fieldLine, { flex: 1 }]}>Pro #: {data.carrier.proNumber || "—"}</Text>
+            <View style={styles.boxSolid}>
+              <Text style={styles.fieldLine}>{data.carrier.name || "—"}</Text>
+              <View style={styles.cols2}>
+                <Text style={[styles.fieldLine, { flex: 1 }]}>
+                  Trailer/Unit: {data.carrier.trailerNumber || "—"}
+                </Text>
+                <Text style={[styles.fieldLine, { flex: 1 }]}>Seal: {data.carrier.sealNumber || "—"}</Text>
+              </View>
+              <View style={styles.cols2}>
+                <Text style={[styles.fieldLine, { flex: 1 }]}>SCAC: {data.carrier.scac || "—"}</Text>
+                <Text style={[styles.fieldLine, { flex: 1 }]}>Pro #: {data.carrier.proNumber || "—"}</Text>
+              </View>
             </View>
           </View>
           <View style={styles.col} />
@@ -246,12 +250,10 @@ export function CrmShipmentBolPDF({ data }: { data: CrmShipmentBolPdfData }) {
           <CheckOption label="3rd Party" checked={data.freightChargeTerms === "third_party"} />
         </View>
 
-        {data.specialInstructions && (
-          <View style={styles.section}>
-            <Text style={styles.heading}>Special Instructions</Text>
-            <Text style={styles.fieldLine}>{data.specialInstructions}</Text>
-          </View>
-        )}
+        <View style={styles.section}>
+          <Text style={styles.heading}>Special Instructions</Text>
+          <Text style={styles.fieldLine}>{data.specialInstructions || "—"}</Text>
+        </View>
 
         <View style={styles.section}>
           <Text style={styles.heading}>Customer Order Information</Text>
@@ -286,9 +288,9 @@ export function CrmShipmentBolPDF({ data }: { data: CrmShipmentBolPdfData }) {
 
         <View style={[styles.section, styles.cols2]}>
           <View style={styles.col}>
-            {data.codAmount !== null && (
-              <Text style={styles.codLine}>COD Amount: ${data.codAmount.toFixed(2)}</Text>
-            )}
+            <Text style={styles.codLine}>
+              COD Amount: {data.codAmount !== null ? `$${data.codAmount.toFixed(2)}` : "—"}
+            </Text>
             <Text style={styles.codLine}>Agreed / Declared Value: {data.declaredValue || "—"}</Text>
           </View>
           <Text style={[styles.col, styles.notice]}>
