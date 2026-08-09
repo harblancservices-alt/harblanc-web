@@ -110,7 +110,6 @@ export async function createContactQuick(formData: FormData): Promise<ActionResu
       linkedin_url: links[0]?.url || null,
       links,
       best_time_to_call: optStr(formData, "best_time_to_call"),
-      is_decision_maker: str(formData, "is_decision_maker") === "on",
       notes: optStr(formData, "notes"),
       next_followup_at: centralInputToIso(optStr(formData, "next_followup_at")),
     })

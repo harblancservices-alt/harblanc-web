@@ -4,19 +4,12 @@ import { useState, useTransition } from "react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Modal } from "../../_shell/Modal";
-import {
-  Field,
-  FieldLabel,
-  TextareaField,
-  SubmitButton,
-  FormError,
-} from "../../_shell/form";
+import { Field, TextareaField, SubmitButton, FormError } from "../../_shell/form";
 import { PhonesEditor } from "../../_shell/PhonesEditor";
 import { LinksEditor } from "../../_shell/LinksEditor";
 import type { PhoneEntry, LinkEntry } from "../../_shell/contactFields";
 import { createContact, updateContact } from "../actions";
 import { toDatetimeLocal } from "../../_shell/format";
-import { ROLE_CATEGORIES, ROLE_LABEL, ROLE_TONE } from "./roles";
 
 export type ContactDefaults = {
   id?: string;
@@ -35,11 +28,12 @@ export type ContactDefaults = {
 
 /**
  * Add / edit a contact for a company. Full field set (title, email, labeled
- * phones, labeled links, best time to call, a single-select role pill row,
- * notes, next follow-up date+time). The role pills replaced a separate
- * decision-maker checkbox entirely (Brent's call — one job-role choice is
- * the categorization now, not a second yes/no flag). Create and edit share
- * the form; both log to the timeline via their server actions.
+ * phones, labeled links, best time to call, notes, next follow-up
+ * date+time) — deliberately NOT role: role-setting lives exclusively in the
+ * inline RoleControl pills on every surface a contact renders (its own
+ * profile page, the Contacts tab rows, the Overview People cards), saving
+ * instantly via setContactRole rather than through this dialog. Create and
+ * edit share the form; both log to the timeline via their server actions.
  */
 export function ContactDialog({
   accountId,
@@ -55,7 +49,6 @@ export function ContactDialog({
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const [role, setRole] = useState<string>("");
   const router = useRouter();
 
   const d = defaults ?? {};
@@ -82,7 +75,6 @@ export function ContactDialog({
     <>
       {trigger(() => {
         setError(null);
-        setRole(d.role_category ?? "");
         setOpen(true);
       })}
 
@@ -105,31 +97,6 @@ export function ContactDialog({
             inputMode="email"
             defaultValue={d.email}
           />
-
-          <div>
-            <FieldLabel>Role</FieldLabel>
-            <div className="mt-1.5 flex flex-wrap gap-1.5">
-              {ROLE_CATEGORIES.map((r) => {
-                const selected = role === r;
-                return (
-                  <button
-                    key={r}
-                    type="button"
-                    aria-pressed={selected}
-                    onClick={() => setRole((prev) => (prev === r ? "" : r))}
-                    className={`px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
-                      selected
-                        ? `${ROLE_TONE[r]} ring-2 ring-offset-1 ring-current`
-                        : "bg-inset text-fg-muted hover:bg-card hover:text-fg"
-                    }`}
-                  >
-                    {ROLE_LABEL[r]}
-                  </button>
-                );
-              })}
-            </div>
-            <input type="hidden" name="role_category" value={role} />
-          </div>
 
           <PhonesEditor defaultValue={d.phones} />
           <LinksEditor defaultValue={d.links} />

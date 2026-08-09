@@ -7,7 +7,7 @@ import { PageShell, Card, CardHead } from "../../_shell/ui";
 import { BackButton } from "../../_shell/BackButton";
 import { firstName, titleCaseWords, timestampMs, lastContactStatus } from "../../_shell/format";
 import { parsePhones, parseLinks } from "../../_shell/contactFields";
-import { ROLE_LABEL, ROLE_TONE, type CrmPersonRoleCategory } from "../../accounts/[id]/roles";
+import { RoleControl } from "../../accounts/[id]/RoleControl";
 import type { TaskContactOption } from "../../tasks/TaskDialog";
 import { TaskRow, type CrmTaskItem } from "../../tasks/TaskRow";
 import { callOutcomeLabel } from "../../calls/outcomes";
@@ -190,9 +190,6 @@ export default async function ContactProfilePage({
   const phones = parsePhones(contact.phones);
   const links = parseLinks(contact.links);
   const primaryPhone = phones[0] ?? null;
-  const role = (contact.role_category as string | null) as CrmPersonRoleCategory | null;
-  const roleLabel = role ? ROLE_LABEL[role] : null;
-  const roleTone = role ? ROLE_TONE[role] : "bg-inset text-fg-subtle";
   const lastContacted = lastContactStatus(timestampMs(contact.last_contacted_at as string | null)).text;
 
   const editDefaults = {
@@ -237,20 +234,22 @@ export default async function ContactProfilePage({
               {contactName.charAt(0).toUpperCase() || "?"}
             </span>
             <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-[17px] font-bold text-fg">{contactName}</span>
-                {roleLabel && (
-                  <span
-                    className={`inline-flex items-center px-2.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${roleTone}`}
-                  >
-                    {roleLabel}
-                  </span>
-                )}
-              </div>
+              <span className="text-[17px] font-bold text-fg">{contactName}</span>
               {contact.title ? (
                 <p className="mt-0.5 text-[13px] text-fg-muted">{contact.title as string}</p>
               ) : null}
             </div>
+          </div>
+
+          <div>
+            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
+              Role
+            </p>
+            <RoleControl
+              contactId={contact.id as string}
+              accountId={accountId}
+              current={contact.role_category as string | null}
+            />
           </div>
 
           <div className="grid grid-cols-1 gap-x-8 gap-y-2 text-[13.5px] sm:grid-cols-2">

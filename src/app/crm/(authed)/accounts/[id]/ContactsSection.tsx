@@ -2,10 +2,11 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { BTN_RED, Card, CardHead } from "../../_shell/ui";
+import { BTN_RED, Card, CardHead, ZEBRA_ROWS } from "../../_shell/ui";
 import { IconPlus, IconContacts } from "../../_shell/icons";
 import { ContactDialog } from "./ContactDialog";
-import { PersonCard, type CrmContact } from "./PersonCard";
+import type { CrmContact } from "./PersonCard";
+import { ContactRow } from "./ContactRow";
 import { deleteContact, setPrimaryContact } from "../actions";
 import type { TaskContactOption } from "../../tasks/TaskDialog";
 import type { RepOption } from "../CompanyDialog";
@@ -13,9 +14,11 @@ import type { RepOption } from "../CompanyDialog";
 export type { CrmContact };
 
 /**
- * Contacts tab — the complete roster of everyone at this company (full CRUD),
- * same PersonCard grid as the Overview tab's People section but with the
- * primary-contact toggle and Delete, since this is the full directory.
+ * Contacts tab — the complete roster of everyone at this company (full
+ * CRUD), full-width ROWS (one line per contact, see ContactRow.tsx) —
+ * deliberately DIFFERENT from the Overview tab's square PersonCard grid.
+ * Adds the primary-contact toggle and Delete on top of what ContactRow
+ * already carries, since this is the full directory.
  */
 export function ContactsSection({
   accountId,
@@ -121,12 +124,12 @@ export function ContactsSection({
           </p>
         </div>
       ) : (
-        <ul className="grid gap-3 p-3 [grid-template-columns:repeat(auto-fill,minmax(min(340px,100%),1fr))]">
+        <ul className={`divide-y divide-line-strong ${ZEBRA_ROWS}`}>
           {contacts.map((c) => {
             const isPrimary = c.id === primaryContactId;
             const isBusy = busyId === c.id;
             return (
-              <PersonCard
+              <ContactRow
                 key={c.id}
                 accountId={accountId}
                 person={c}

@@ -7,11 +7,11 @@ import type { TaskContactOption } from "../../tasks/TaskDialog";
 import type { RepOption } from "../CompanyDialog";
 
 /**
- * "People at this company" — the Overview tab's roster, same PersonCard grid
- * as the Contacts tab (Brent's approved mock: one card design everywhere a
- * contact renders) but without the primary-contact toggle or Delete — those
- * stay Contacts-tab-only capabilities, matching this section's original
- * narrower "display + quick-action" scope. "Add person" lives in the Tasks
+ * "People at this company" — the Overview tab's square 3-across card grid
+ * (see PersonCard.tsx). DELIBERATELY DIFFERENT from the Contacts tab's
+ * full-width rows (see ContactRow.tsx/ContactsSection.tsx) — this stays
+ * display + quick-action only (no primary-contact toggle, no Delete),
+ * matching its original narrower scope. "Add person" lives in the Tasks
  * button bar above (see page.tsx/TasksSection.tsx), not in this header.
  */
 export function PeopleSection({

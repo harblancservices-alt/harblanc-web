@@ -4,13 +4,7 @@ import { useState, useTransition } from "react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Modal } from "../_shell/Modal";
-import {
-  Field,
-  TextareaField,
-  CheckboxField,
-  SubmitButton,
-  FormError,
-} from "../_shell/form";
+import { Field, TextareaField, SubmitButton, FormError } from "../_shell/form";
 import { IconPlus } from "../_shell/icons";
 import { BTN_RED } from "../_shell/ui";
 import { PhonesEditor } from "../_shell/PhonesEditor";
@@ -107,11 +101,6 @@ export function AddContactDialog({
           />
           <Field label="Next follow-up (CST)" name="next_followup_at" type="datetime-local" />
           <TextareaField label="Notes" name="notes" />
-          <CheckboxField
-            label="Decision-maker"
-            name="is_decision_maker"
-            hint="Flag this contact as someone who can say yes."
-          />
 
           <SubmitButton pending={pending}>Save contact</SubmitButton>
         </form>

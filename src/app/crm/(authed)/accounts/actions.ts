@@ -428,9 +428,11 @@ function contactFieldsFromForm(fd: FormData) {
     // (toDatetimeLocal) — convert back through the same Central
     // interpretation rather than storing the naive string as-is.
     next_followup_at: centralInputToIso(optStr(fd, "next_followup_at")),
-    // A CrmPersonRoleCategory slug (see PeopleSection.tsx) or null — drives
-    // the color-coded role tag on the profile's People list.
-    role_category: optStr(fd, "role_category"),
+    // role_category is deliberately NOT here — ContactDialog no longer
+    // submits it (role-setting moved to the inline RoleControl pills, saved
+    // instantly via setContactRole). Leaving it out of this object means
+    // create/update never touch the column, so a save from this form can't
+    // silently null out a role a rep already set via the pills.
   };
 }
 
@@ -567,6 +569,35 @@ export async function setPrimaryContact(
 
   if (error) return { ok: false, error: "Could not set the primary contact." };
   revalidateAccount(accountId);
+  return { ok: true };
+}
+
+/**
+ * Set (or clear) a contact's role category — a single-field instant-save,
+ * same shape as updateLifecycleStatus/assignRep, so the role pills on the
+ * contact profile page, the Contacts tab rows, and the Overview People cards
+ * can all write directly with one tap instead of going through the edit
+ * dialog (role-setting was deliberately pulled OUT of ContactDialog once
+ * every surface got its own inline picker — see roles.ts/RoleControl.tsx).
+ * accountId is nullable (a contact can exist with no company) purely for
+ * cache revalidation, not a DB filter.
+ */
+export async function setContactRole(
+  contactId: string,
+  accountId: string | null,
+  role: string | null,
+): Promise<ActionResult> {
+  await requireCrmUser();
+  const supabase = await createCrmServerClient();
+
+  const { error } = await supabase
+    .from("crm_contacts")
+    .update({ role_category: role })
+    .eq("id", contactId);
+
+  if (error) return { ok: false, error: "Could not update the role." };
+  revalidateAccount(accountId ?? undefined);
+  revalidatePath(`/crm/contacts/${contactId}`);
   return { ok: true };
 }
 
