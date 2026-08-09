@@ -34,7 +34,6 @@ export function NeedsAttentionRow({ company }: { company: NeedsAttentionCompany 
         <Link
           href={`/crm/accounts/${company.id}`}
           prefetch={false}
-          onClick={(e) => e.stopPropagation()}
           className="truncate text-[14px] font-semibold text-fg hover:underline"
         >
           {company.name}
@@ -44,7 +43,6 @@ export function NeedsAttentionRow({ company }: { company: NeedsAttentionCompany 
       {company.phone ? (
         <a
           href={`tel:${digitsForTel(company.phone)}`}
-          onClick={(e) => e.stopPropagation()}
           className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 text-[12.5px] font-semibold transition-colors ${BTN_ACTION}`}
         >
           <IconPhone width={12} height={12} />
