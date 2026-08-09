@@ -10,6 +10,7 @@ import {
   type LifecycleStage,
 } from "../lifecycle";
 import { IconCheck } from "../../_shell/icons";
+import { Modal } from "../../_shell/Modal";
 
 /** The arrow's point/notch depth in px — same value feeds the clip-path and
  * the negative margin that nests each segment's notch into the previous
@@ -42,6 +43,16 @@ function clipPath(isFirst: boolean, isLast: boolean): string {
  * lost — a company that dropped OUT of the funnel) shows a plain notice
  * instead of highlighting any chevron as current, since none of the 7
  * pipeline stages actually match.
+ *
+ * 2026-08-09 follow-up (confirmed w/ Brent): lifecycle.ts's normalizeStage
+ * still silently folds "quoted" into "active_customer" for every OTHER
+ * write path (the edit-company dialog's Lifecycle select, contact
+ * auto-create, etc.) — that part is unchanged. But clicking the Quoted
+ * chevron specifically, right here, is no longer silent: it opens a confirm
+ * modal ("Move to Active Customers") and only writes on confirm. Cancel
+ * leaves the stage untouched. Same updateLifecycleStatus call either way —
+ * this is purely a client-side gate in front of it, so the actual
+ * quoted→active_customer graduation logic still lives in one place.
  */
 export function StageTracker({
   accountId,
@@ -60,10 +71,22 @@ export function StageTracker({
   const [pending, startTransition] = useTransition();
   const [busyStage, setBusyStage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [confirmQuoted, setConfirmQuoted] = useState(false);
+  const [confirming, startConfirmTransition] = useTransition();
+  const [confirmError, setConfirmError] = useState<string | null>(null);
   const router = useRouter();
 
   function setStage(stage: LifecycleStage) {
     if (stage === active || pending) return;
+    // Quoted graduates the company straight to Active Customer (see the
+    // 2026-08-09 follow-up note above) — that write is real and worth a
+    // confirm step, so it's gated behind a modal instead of firing on click
+    // like every other stage.
+    if (stage === "quoted") {
+      setConfirmError(null);
+      setConfirmQuoted(true);
+      return;
+    }
     setBusyStage(stage);
     setError(null);
     startTransition(async () => {
@@ -71,6 +94,19 @@ export function StageTracker({
       setBusyStage(null);
       if (res.ok) router.refresh();
       else setError(res.error);
+    });
+  }
+
+  function confirmGraduateToActiveCustomer() {
+    setConfirmError(null);
+    startConfirmTransition(async () => {
+      const res = await updateLifecycleStatus(accountId, "quoted");
+      if (res.ok) {
+        setConfirmQuoted(false);
+        router.refresh();
+      } else {
+        setConfirmError(res.error);
+      }
     });
   }
 
@@ -135,6 +171,27 @@ export function StageTracker({
         </p>
       )}
       {error && <p className="mt-1.5 text-[12px] text-bad">{error}</p>}
+
+      <Modal
+        open={confirmQuoted}
+        onClose={() => !confirming && setConfirmQuoted(false)}
+        busy={confirming}
+        title="Move to Active Customers"
+      >
+        <p className="text-[14px] leading-relaxed text-fg-muted">
+          Marking this company Quoted moves it straight to <span className="font-semibold text-fg">Active Customer</span> — sending a
+          quote is this shop&apos;s signal that the account is active. This can&apos;t be undone from here.
+        </p>
+        {confirmError && <p className="mt-2 text-[12.5px] text-bad">{confirmError}</p>}
+        <button
+          type="button"
+          onClick={confirmGraduateToActiveCustomer}
+          disabled={confirming}
+          className="mt-4 inline-flex h-11 w-full items-center justify-center rounded-lg bg-[#2563eb] text-[14px] font-semibold text-white transition-colors hover:bg-[#1d4ed8] disabled:opacity-60"
+        >
+          {confirming ? "Moving…" : "Move to Active Customer"}
+        </button>
+      </Modal>
     </div>
   );
 }
