@@ -855,6 +855,28 @@ export async function addContactNote(
   return { ok: true };
 }
 
+/** Edit an existing note's body in place. Same no-role-gate reasoning as
+ * deleteNote — a note is operational, not a shared org-wide record. */
+export async function updateNote(
+  noteId: string,
+  accountId: string | null,
+  body: string,
+): Promise<ActionResult> {
+  await requireCrmUser();
+  const trimmed = body.trim();
+  if (!trimmed) return { ok: false, error: "Note can't be empty." };
+
+  const supabase = await createCrmServerClient();
+  const { error } = await supabase
+    .from("crm_notes")
+    .update({ body: trimmed })
+    .eq("id", noteId);
+
+  if (error) return { ok: false, error: "Could not update the note." };
+  revalidateAccount(accountId ?? undefined);
+  return { ok: true };
+}
+
 /**
  * Soft-delete a note. Notes are operational (not a shared org-wide record
  * like a company/contact/deal), so this is allowed for any CRM user — no

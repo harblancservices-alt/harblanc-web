@@ -41,7 +41,18 @@ function initialsBadge(name: string, roleCategory: string | null | undefined, si
 }
 
 /** Small "More" popover — Edit / Delete for the selected contact. Same
- * outside-click/Escape pattern as CompanyMoreMenu.tsx. */
+ * outside-click/Escape pattern as CompanyMoreMenu.tsx.
+ *
+ * 2026-08-10 bugfix: the popover's Edit item used to live inside
+ * `{open && (...)}` — a conditional MOUNT, not just a visibility toggle. The
+ * Edit button's onClick set `open` to false (closing the popover) and called
+ * ContactDialog's `openDialog()` (to open its Modal) in the same handler;
+ * both state updates land in the same React commit, but the popover closing
+ * unmounts ContactDialog itself, destroying the "please open" state before
+ * the Modal ever renders. Net effect: Edit visibly did nothing. Fix: the
+ * popover panel now always stays mounted (toggled with the `hidden` class
+ * instead of being removed from the tree), so ContactDialog — and its
+ * Modal — survive the popover closing. */
 function ContactMoreMenu({
   contact,
   accountId,
@@ -55,6 +66,7 @@ function ContactMoreMenu({
 }) {
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
@@ -68,12 +80,16 @@ function ContactMoreMenu({
   }, [open]);
 
   function remove() {
-    if (!window.confirm(`Delete ${contact.name}? This can't be undone from here.`)) return;
+    if (!window.confirm(`Are you sure you want to delete ${contact.name}? This can't be undone from here.`)) return;
+    setError(null);
     startTransition(async () => {
       const res = await deleteContact(contact.id, accountId);
       if (res.ok) {
+        setOpen(false);
         onDeleted();
         router.refresh();
+      } else {
+        setError(res.error);
       }
     });
   }
@@ -88,37 +104,39 @@ function ContactMoreMenu({
       >
         <IconMore width={16} height={16} />
       </button>
-      {open && (
-        <div className="absolute right-0 top-full z-20 mt-1 w-44 border border-line-strong bg-card shadow-e3">
-          <ContactDialog
-            accountId={accountId}
-            mode="edit"
-            defaults={contact}
-            trigger={(openDialog) => (
-              <button
-                type="button"
-                onClick={() => {
-                  setOpen(false);
-                  openDialog();
-                }}
-                className="block w-full px-4 py-3 text-left text-[13px] font-semibold text-fg hover:bg-inset"
-              >
-                Edit
-              </button>
-            )}
-          />
-          {canDelete && (
+      {/* Always mounted (visibility toggled via `hidden`, not a conditional
+          render) — see the bugfix note above; ContactDialog must stay in the
+          tree across popover open/close for its own Modal state to survive. */}
+      <div className={`absolute right-0 top-full z-20 mt-1 w-44 border border-line-strong bg-card shadow-e3 ${open ? "" : "hidden"}`}>
+        <ContactDialog
+          accountId={accountId}
+          mode="edit"
+          defaults={contact}
+          trigger={(openDialog) => (
             <button
               type="button"
-              onClick={remove}
-              disabled={pending}
-              className="block w-full border-t border-line-strong px-4 py-3 text-left text-[13px] font-semibold text-bad hover:bg-bad-bg disabled:opacity-60"
+              onClick={() => {
+                setOpen(false);
+                openDialog();
+              }}
+              className="block w-full px-4 py-3 text-left text-[13px] font-semibold text-fg hover:bg-inset"
             >
-              {pending ? "…" : "Delete"}
+              Edit
             </button>
           )}
-        </div>
-      )}
+        />
+        {canDelete && (
+          <button
+            type="button"
+            onClick={remove}
+            disabled={pending}
+            className="block w-full border-t border-line-strong px-4 py-3 text-left text-[13px] font-semibold text-bad hover:bg-bad-bg disabled:opacity-60"
+          >
+            {pending ? "…" : "Delete"}
+          </button>
+        )}
+      </div>
+      {error && <p className="absolute right-0 top-full mt-1 w-44 text-[11.5px] text-bad">{error}</p>}
     </div>
   );
 }
