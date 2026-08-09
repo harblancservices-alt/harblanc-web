@@ -244,3 +244,13 @@ export function IconRateConfirmation(props: IconProps) {
     </svg>
   );
 }
+
+export function IconBillOfLading(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M6 3.5h9l4 4V19a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1Z" />
+      <path d="M14.5 3.5V8h4.5" />
+      <path d="M8 12h8M8 15h8M8 18h5" />
+    </svg>
+  );
+}
