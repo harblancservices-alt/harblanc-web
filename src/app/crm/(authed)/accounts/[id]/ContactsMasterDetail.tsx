@@ -248,17 +248,24 @@ export function ContactsMasterDetail({
           ) : (
             filtered.map((c) => {
               const isSelected = c.id === selectedId;
+              const cardPhone = c.phones[0] ?? null;
               return (
-                <li key={c.id}>
+                <li
+                  key={c.id}
+                  className={`flex w-full min-w-0 items-center gap-1 border-b border-line-strong pr-2 transition-colors ${
+                    isSelected ? "bg-accent/10" : "hover:bg-inset"
+                  }`}
+                >
+                  {/* Selects the contact — a sibling of the tel:/mailto: links
+                      below (not a parent), since nesting <a> inside <button>
+                      is invalid HTML and would break the tap targets. */}
                   <button
                     type="button"
                     onClick={() => {
                       setSelectedId(c.id);
                       setSubTab("activity");
                     }}
-                    className={`flex w-full min-w-0 items-center gap-2.5 border-b border-line-strong px-4 py-3 text-left transition-colors ${
-                      isSelected ? "bg-accent/10" : "hover:bg-inset"
-                    }`}
+                    className="flex min-w-0 flex-1 items-center gap-2.5 px-4 py-3 text-left"
                   >
                     {initialsBadge(c.name, c.role_category, "sm")}
                     <span className="min-w-0 flex-1">
@@ -266,6 +273,27 @@ export function ContactsMasterDetail({
                       {c.title && <span className="block truncate text-[11.5px] text-fg-muted">{c.title}</span>}
                     </span>
                   </button>
+
+                  <div className="flex shrink-0 items-center gap-1">
+                    {cardPhone && (
+                      <a
+                        href={`tel:${digitsForTel(cardPhone.number)}`}
+                        aria-label={`Call ${c.name}`}
+                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#2563eb]/30 text-[#2563eb] transition-colors hover:bg-[#2563eb]/10"
+                      >
+                        <IconPhone width={14} height={14} />
+                      </a>
+                    )}
+                    {c.email && (
+                      <a
+                        href={`mailto:${c.email}`}
+                        aria-label={`Email ${c.name}`}
+                        className="flex h-9 w-9 items-center justify-center rounded-lg border border-[#2563eb]/30 text-[#2563eb] transition-colors hover:bg-[#2563eb]/10"
+                      >
+                        <IconMail width={14} height={14} />
+                      </a>
+                    )}
+                  </div>
                 </li>
               );
             })
