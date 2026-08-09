@@ -80,7 +80,7 @@ export function TasksTab({
         </div>
       ) : (
         <>
-          <ul className="flex max-h-[420px] flex-col gap-2 overflow-y-auto px-3 pb-3">
+          <ul className="grid max-h-[420px] grid-cols-1 items-start gap-2 overflow-y-auto px-3 pb-3 sm:grid-cols-2">
             {open.map((t) => (
               <TaskRow key={t.id} task={t} accountId={accountId} reps={reps} contacts={contacts} canAssignOthers={canAssignOthers} currentUser={currentUser}>
                 <button type="button" onClick={() => remove(t)} disabled={pending} className={`inline-flex items-center rounded-lg px-2.5 py-1.5 text-[12px] font-semibold transition-colors ${BTN_DANGER}`}>
@@ -94,7 +94,7 @@ export function TasksTab({
               <summary className="cursor-pointer list-none px-4 py-2.5 text-[12px] font-semibold text-fg-subtle transition-colors hover:text-fg">
                 {done.length} completed
               </summary>
-              <ul className="flex max-h-[320px] flex-col gap-2 overflow-y-auto border-t border-line-strong p-3">
+              <ul className="grid max-h-[320px] grid-cols-1 items-start gap-2 overflow-y-auto border-t border-line-strong p-3 sm:grid-cols-2">
                 {done.map((t) => (
                   <TaskRow key={t.id} task={t} accountId={accountId} reps={reps} contacts={contacts} canAssignOthers={canAssignOthers} currentUser={currentUser}>
                     <button type="button" onClick={() => remove(t)} disabled={pending} className={`inline-flex items-center rounded-lg px-2.5 py-1.5 text-[12px] font-semibold transition-colors ${BTN_DANGER}`}>

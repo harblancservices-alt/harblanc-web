@@ -204,7 +204,14 @@ export default async function ContactProfilePage({
 
   return (
     <PageShell>
-      <div className="flex flex-col gap-4">
+      {/* 2026-08-09 compact pass: this page used to stretch its cards edge to
+          edge inside PageShell's full 1600px container — a Role/Tasks/
+          Activity/Notes card with only a few lines of content read as a huge
+          empty white bar at that width. Capped to a centered ~800px column
+          here (PageShell/PAGE_CONTAINER itself is untouched — every other
+          /crm page still gets the full width) with tighter gaps/padding
+          throughout. */}
+      <div className="mx-auto flex w-full max-w-[800px] flex-col gap-3">
         <ContactHeader
           contact={editDefaults}
           accountId={accountId}
@@ -217,7 +224,7 @@ export default async function ContactProfilePage({
 
         <Card>
           <CardHead title="Role" />
-          <div className="p-5">
+          <div className="p-4">
             <RoleControl contactId={contact.id as string} accountId={accountId} current={contact.role_category as string | null} />
           </div>
         </Card>
@@ -225,7 +232,7 @@ export default async function ContactProfilePage({
         {hasDetails && (
           <Card>
             <CardHead title="Details" />
-            <div className="grid grid-cols-1 gap-x-8 gap-y-4 p-5 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-x-6 gap-y-3 p-4 sm:grid-cols-3">
               {contact.best_time_to_call && (
                 <div>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">Best time to call</p>
@@ -264,20 +271,20 @@ export default async function ContactProfilePage({
             }
           />
           {tasks.length === 0 ? (
-            <p className="px-5 py-7 text-center text-[13px] text-fg-muted">No tasks tied to {contactName} yet.</p>
+            <p className="px-5 py-6 text-center text-[13px] text-fg-muted">No tasks tied to {contactName} yet.</p>
           ) : (
             <>
-              <ul className="flex flex-col gap-2 p-2.5">
+              <ul className="grid grid-cols-1 items-start gap-2 p-2.5 sm:grid-cols-2">
                 {openTasks.map((t) => (
                   <TaskRow key={t.id} task={t} accountId={accountId ?? undefined} reps={reps} contacts={contactOptions} canAssignOthers={isOwner} currentUser={currentUser} />
                 ))}
               </ul>
               {doneTasks.length > 0 && (
                 <details className="border-t border-line-strong">
-                  <summary className="cursor-pointer list-none px-4 py-2.5 text-[12px] font-semibold text-fg-subtle transition-colors hover:text-fg">
+                  <summary className="cursor-pointer list-none px-4 py-2 text-[12px] font-semibold text-fg-subtle transition-colors hover:text-fg">
                     {doneTasks.length} completed
                   </summary>
-                  <ul className="flex flex-col gap-2 border-t border-line-strong p-2.5">
+                  <ul className="grid grid-cols-1 items-start gap-2 border-t border-line-strong p-2.5 sm:grid-cols-2">
                     {doneTasks.map((t) => (
                       <TaskRow key={t.id} task={t} accountId={accountId ?? undefined} reps={reps} contacts={contactOptions} canAssignOthers={isOwner} currentUser={currentUser} />
                     ))}

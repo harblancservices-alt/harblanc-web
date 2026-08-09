@@ -77,7 +77,7 @@ export function NotesTab({
 
   return (
     <div className="flex flex-col gap-4 px-5 py-4">
-      <form onSubmit={submit} className="flex flex-col gap-2">
+      <form onSubmit={submit} className="flex flex-col items-start gap-2">
         <FormError message={error} />
         <TextareaField
           label="Add a note"
