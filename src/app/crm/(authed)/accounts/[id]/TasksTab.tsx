@@ -6,7 +6,7 @@ import { BTN_DANGER, BTN_ACTION } from "../../_shell/ui";
 import { IconPlus, IconTasks } from "../../_shell/icons";
 import type { RepOption } from "../CompanyDialog";
 import { TaskDialog, type TaskContactOption } from "../../tasks/TaskDialog";
-import { TaskRow, type CrmTaskItem } from "../../tasks/TaskRow";
+import { TaskRow, TASK_ACTION_BTN, type CrmTaskItem } from "../../tasks/TaskRow";
 import { deleteTask } from "../../tasks/actions";
 
 /**
@@ -83,7 +83,7 @@ export function TasksTab({
           <ul className="grid max-h-[640px] grid-cols-1 items-start gap-2 overflow-y-auto px-3 pb-3 sm:grid-cols-2">
             {open.map((t) => (
               <TaskRow key={t.id} task={t} accountId={accountId} reps={reps} contacts={contacts} canAssignOthers={canAssignOthers} currentUser={currentUser}>
-                <button type="button" onClick={() => remove(t)} disabled={pending} className={`inline-flex items-center rounded-lg px-2.5 py-1.5 text-[12px] font-semibold transition-colors ${BTN_DANGER}`}>
+                <button type="button" onClick={() => remove(t)} disabled={pending} className={`${TASK_ACTION_BTN} ${BTN_DANGER}`}>
                   Delete
                 </button>
               </TaskRow>

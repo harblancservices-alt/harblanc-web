@@ -17,7 +17,6 @@ import {
   type TaskContactOption,
 } from "./TaskDialog";
 import type { RepOption } from "../accounts/CompanyDialog";
-import { IconCheck } from "../_shell/icons";
 import { BTN_ACTION, BTN_NEUTRAL } from "../_shell/ui";
 
 export type CrmTaskItem = {
@@ -139,8 +138,13 @@ function typePillTone(taskType: string | null | undefined): string {
 
 const PILL = "inline-flex items-center rounded-full px-2.5 py-0.5 text-[10.5px] font-semibold";
 
-const ACTION_BTN =
+/** Shared pill-button shape for the action row — exported so DeleteTaskButton
+ * (a standalone component, rendered via the `children` slot) and TasksTab's
+ * own inline delete control render the exact same pill shape as Done/
+ * Reschedule/Edit rather than drifting to a plain rounded-rect. */
+export const TASK_ACTION_BTN =
   "inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors disabled:opacity-60";
+const ACTION_BTN = TASK_ACTION_BTN;
 
 /** Light-blue action tone (Reschedule, and the Call/Email context action) —
  * distinct from BTN_ACTION's solid fill (Done) and BTN_NEUTRAL's light
@@ -150,15 +154,17 @@ const BTN_LIGHT_BLUE =
 
 /**
  * One task CARD — the shared "H1" layout (Brent's approved mockup): a left
- * urgency rail, a big tappable complete circle, title + type/priority/
- * urgency pills, company + contact (both linking to their profiles), a
- * divider, a due/phone-or-rep meta row, and a pill action row (Done,
- * Reschedule, Edit, plus a task_type-driven Call/Email). Shared by the
- * dashboard's What's-next queue, the global Tasks page, and the company
- * profile's Tasks tab — every caller passes the same dialog data (reps/
- * contacts/canAssignOthers/currentUser) it already loads for its own "Add
- * task" entry point, so Edit/Reschedule reuse the exact same TaskDialog +
- * actions rather than duplicating a second form.
+ * urgency rail, title (starting right at the rail — no complete circle,
+ * Brent's explicit call; completion only happens via the Done/Reopen pill
+ * below) + type/priority/urgency pills, company + contact (both linking to
+ * their profiles), a divider, a due/phone-or-rep meta row, and a pill action
+ * row (Done, Reschedule, Edit, plus a task_type-driven Call/Email — Delete
+ * rides in via `children`, same pill shape). Shared by the dashboard's
+ * What's-next queue, the global Tasks page, and the company profile's Tasks
+ * tab — every caller passes the same dialog data (reps/contacts/
+ * canAssignOthers/currentUser) it already loads for its own "Add task" entry
+ * point, so Edit/Reschedule reuse the exact same TaskDialog + actions rather
+ * than duplicating a second form.
  */
 export function TaskRow({
   task,
@@ -222,182 +228,163 @@ export function TaskRow({
     <div className="flex min-w-0 flex-1 items-stretch gap-0">
       <span aria-hidden className={`w-1.5 shrink-0 ${RAIL_COLOR[bucket]}`} />
 
-      <div className="flex min-w-0 flex-1 gap-3 p-3">
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            toggle();
-          }}
-          disabled={pending}
-          aria-label={optimisticDone ? "Reopen task" : "Mark task complete"}
-          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 transition-colors disabled:opacity-60 ${
-            optimisticDone
-              ? "border-[#15803d] bg-[#15803d] text-white"
-              : "border-line-strong bg-card text-transparent hover:border-[#2563eb]"
+      <div className="min-w-0 flex-1 p-3">
+        <p
+          className={`text-[14.5px] font-bold ${
+            optimisticDone ? "text-fg-subtle line-through" : "text-fg"
           }`}
         >
-          {optimisticDone && <IconCheck width={18} height={18} />}
-        </button>
+          {task.title}
+        </p>
 
-        <div className="min-w-0 flex-1">
-          <p
-            className={`text-[14.5px] font-bold ${
-              optimisticDone ? "text-fg-subtle line-through" : "text-fg"
-            }`}
-          >
-            {task.title}
-          </p>
+        <div className="mt-1 flex flex-wrap items-center gap-1.5">
+          {task.task_type && (
+            <span className={`${PILL} ${typePillTone(task.task_type)}`}>{task.task_type}</span>
+          )}
+          {isHighPriority && <span className={`${PILL} bg-warn-bg text-warn`}>HIGH</span>}
+          {pill && <span className={`${PILL} ${URGENCY_PILL_TONE[pill.tone]}`}>{pill.label}</span>}
+        </div>
 
-          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-            {task.task_type && (
-              <span className={`${PILL} ${typePillTone(task.task_type)}`}>{task.task_type}</span>
+        {hasCompanyOrContact ? (
+          <div className="mt-1.5 min-w-0">
+            {showCompany && task.account_id && (
+              <Link
+                href={`/crm/accounts/${task.account_id}`}
+                prefetch={false}
+                className="block truncate text-[13.5px] font-bold text-fg hover:underline"
+              >
+                {task.companyName || "Company"}
+              </Link>
             )}
-            {isHighPriority && <span className={`${PILL} bg-warn-bg text-warn`}>HIGH</span>}
-            {pill && <span className={`${PILL} ${URGENCY_PILL_TONE[pill.tone]}`}>{pill.label}</span>}
+            {task.contactName && (
+              <Link
+                href={task.contact_id ? `/crm/contacts/${task.contact_id}` : "#"}
+                prefetch={false}
+                onClick={(e) => {
+                  if (!task.contact_id) e.preventDefault();
+                }}
+                className={`block truncate text-[12.5px] font-semibold text-fg-muted ${
+                  task.contact_id ? "hover:underline hover:text-fg" : ""
+                }`}
+              >
+                {task.contactName}
+                {task.contactTitle ? ` · ${task.contactTitle}` : ""}
+              </Link>
+            )}
           </div>
+        ) : null}
 
-          {hasCompanyOrContact ? (
-            <div className="mt-1.5 min-w-0">
-              {showCompany && task.account_id && (
-                <Link
-                  href={`/crm/accounts/${task.account_id}`}
-                  prefetch={false}
-                  className="block truncate text-[13.5px] font-bold text-fg hover:underline"
-                >
-                  {task.companyName || "Company"}
-                </Link>
-              )}
-              {task.contactName && (
-                <Link
-                  href={task.contact_id ? `/crm/contacts/${task.contact_id}` : "#"}
-                  prefetch={false}
-                  onClick={(e) => {
-                    if (!task.contact_id) e.preventDefault();
-                  }}
-                  className={`block truncate text-[12.5px] font-semibold text-fg-muted ${
-                    task.contact_id ? "hover:underline hover:text-fg" : ""
-                  }`}
-                >
-                  {task.contactName}
-                  {task.contactTitle ? ` · ${task.contactTitle}` : ""}
-                </Link>
-              )}
-            </div>
-          ) : null}
+        {task.notes && (
+          <p className="mt-1.5 line-clamp-2 text-[12.5px] leading-relaxed text-fg-muted">
+            {task.notes}
+          </p>
+        )}
 
-          {task.notes && (
-            <p className="mt-1.5 line-clamp-2 text-[12.5px] leading-relaxed text-fg-muted">
-              {task.notes}
-            </p>
+        {error && <p className="mt-1.5 text-[12px] text-bad">{error}</p>}
+
+        <div className="mt-2 grid grid-cols-2 gap-3 border-t border-line pt-2">
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-fg-subtle">Due</p>
+            {task.due_at ? (
+              <p className={`truncate text-[12.5px] font-semibold ${DUE_TEXT_COLOR[bucket]}`}>
+                {formatDateTime(task.due_at)}
+              </p>
+            ) : (
+              <p className="text-[12.5px] text-fg-subtle">No due date</p>
+            )}
+          </div>
+          <div className="min-w-0 text-right">
+            {phone ? (
+              <>
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-fg-subtle">Phone</p>
+                <a
+                  href={`tel:${digitsForTel(phone)}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="truncate text-[12.5px] font-semibold text-accent underline"
+                >
+                  {formatPhone(phone)}
+                </a>
+              </>
+            ) : task.assigneeName ? (
+              <>
+                <p className="text-[10px] font-semibold uppercase tracking-wide text-fg-subtle">Rep</p>
+                <p className="truncate text-[12.5px] font-semibold text-fg">{task.assigneeName}</p>
+              </>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              toggle();
+            }}
+            disabled={pending}
+            className={`${ACTION_BTN} ${optimisticDone ? BTN_NEUTRAL : BTN_ACTION}`}
+          >
+            {optimisticDone ? "Reopen" : "Done"}
+          </button>
+
+          {context && (
+            <a
+              href={context.href}
+              onClick={(e) => e.stopPropagation()}
+              className={`${ACTION_BTN} ${BTN_LIGHT_BLUE}`}
+            >
+              {context.kind === "call" ? "Call" : "Email"}
+            </a>
           )}
 
-          {error && <p className="mt-1.5 text-[12px] text-bad">{error}</p>}
-
-          <div className="mt-2.5 grid grid-cols-2 gap-3 border-t border-line pt-2">
-            <div className="min-w-0">
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-fg-subtle">Due</p>
-              {task.due_at ? (
-                <p className={`truncate text-[12.5px] font-semibold ${DUE_TEXT_COLOR[bucket]}`}>
-                  {formatDateTime(task.due_at)}
-                </p>
-              ) : (
-                <p className="text-[12.5px] text-fg-subtle">No due date</p>
-              )}
-            </div>
-            <div className="min-w-0 text-right">
-              {phone ? (
-                <>
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-fg-subtle">Phone</p>
-                  <a
-                    href={`tel:${digitsForTel(phone)}`}
-                    onClick={(e) => e.stopPropagation()}
-                    className="truncate text-[12.5px] font-semibold text-accent hover:underline"
-                  >
-                    {formatPhone(phone)}
-                  </a>
-                </>
-              ) : task.assigneeName ? (
-                <>
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-fg-subtle">Rep</p>
-                  <p className="truncate text-[12.5px] font-semibold text-fg">{task.assigneeName}</p>
-                </>
-              ) : null}
-            </div>
-          </div>
-
-          <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                toggle();
-              }}
-              disabled={pending}
-              className={`${ACTION_BTN} ${optimisticDone ? BTN_NEUTRAL : BTN_ACTION}`}
-            >
-              {optimisticDone ? "Reopen" : "Done"}
-            </button>
-
-            {context && (
-              <a
-                href={context.href}
-                onClick={(e) => e.stopPropagation()}
+          <TaskDialog
+            mode="edit"
+            accountId={accountId}
+            accounts={accounts}
+            contacts={contacts}
+            reps={reps}
+            canAssignOthers={canAssignOthers}
+            currentUser={currentUser}
+            defaults={task}
+            initialFocus="due_at"
+            trigger={(open) => (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  open();
+                }}
                 className={`${ACTION_BTN} ${BTN_LIGHT_BLUE}`}
               >
-                {context.kind === "call" ? "Call" : "Email"}
-              </a>
+                {task.due_at ? "Reschedule" : "Set due date"}
+              </button>
             )}
+          />
 
-            <TaskDialog
-              mode="edit"
-              accountId={accountId}
-              accounts={accounts}
-              contacts={contacts}
-              reps={reps}
-              canAssignOthers={canAssignOthers}
-              currentUser={currentUser}
-              defaults={task}
-              initialFocus="due_at"
-              trigger={(open) => (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    open();
-                  }}
-                  className={`${ACTION_BTN} ${BTN_LIGHT_BLUE}`}
-                >
-                  {task.due_at ? "Reschedule" : "Set due date"}
-                </button>
-              )}
-            />
+          <TaskDialog
+            mode="edit"
+            accountId={accountId}
+            accounts={accounts}
+            contacts={contacts}
+            reps={reps}
+            canAssignOthers={canAssignOthers}
+            currentUser={currentUser}
+            defaults={task}
+            trigger={(open) => (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  open();
+                }}
+                className={`${ACTION_BTN} ${BTN_NEUTRAL}`}
+              >
+                Edit
+              </button>
+            )}
+          />
 
-            <TaskDialog
-              mode="edit"
-              accountId={accountId}
-              accounts={accounts}
-              contacts={contacts}
-              reps={reps}
-              canAssignOthers={canAssignOthers}
-              currentUser={currentUser}
-              defaults={task}
-              trigger={(open) => (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    open();
-                  }}
-                  className={`${ACTION_BTN} ${BTN_NEUTRAL}`}
-                >
-                  Edit
-                </button>
-              )}
-            />
-
-            {children}
-          </div>
+          {children}
         </div>
       </div>
     </div>
