@@ -2,14 +2,13 @@ import { notFound } from "next/navigation";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { CRM_ACTIVITY } from "@/lib/crm/activity";
 import { PageShell } from "../../_shell/ui";
-import { firstName, titleCaseWords, upperCaseState, formatDate, lastContactStatus, timestampMs, centralDayRange } from "../../_shell/format";
+import { firstName, titleCaseWords, upperCaseState } from "../../_shell/format";
 import { parsePhones, parseLinks, normalizeHref } from "../../_shell/contactFields";
 import { formatPhone } from "@/lib/domain/phone";
 import type { RepOption } from "../CompanyDialog";
 import { FinalizeBanner } from "./FinalizeBanner";
 import { CompanyHeader } from "./CompanyHeader";
 import { StageTracker } from "./StageTracker";
-import { KpiStrip, type KpiTileData } from "./KpiStrip";
 import { AboutCard } from "./AboutCard";
 import { TagsCard, type CrmTagOption } from "./TagsCard";
 import { CompanyOwnerCard } from "./CompanyOwnerCard";
@@ -25,8 +24,6 @@ import { type CrmCommodityPhoto } from "./CommodityPhotoTiles";
 import { callOutcomeLabel } from "../../calls/outcomes";
 import type { TaskContactOption } from "../../tasks/TaskDialog";
 import { type CrmBolDocument } from "./BolSection";
-import { AiSuggestionsPanel } from "./AiSuggestionsPanel";
-import { AiResearchSection, type CrmNote } from "./AiResearchSection";
 import { CompanyProfileSection } from "./CompanyProfileSection";
 import { FreightProfileSection } from "./FreightProfileSection";
 import { CommercialSection } from "./CommercialSection";
@@ -47,19 +44,21 @@ function profileName(p: ProfileRow | undefined): string | null {
 }
 
 /**
- * Company profile — rebuilt to Brent's reference layout (2026-08-08, second
- * pass): top bar (breadcrumb + name + More/Edit) → StageTracker (kept from
- * the first pass — it's the one control that actually moves the stage) → a
- * KPI strip → three columns (About/Tags/Company owner | tabbed Timeline/
- * Contacts/Tasks/Notes/Files, default Contacts | Company details/Custom
- * fields). Deals tab/KPI only ever appear if crm_deals actually has rows for
- * this account — the table exists in the schema but nothing in this codebase
- * has ever written to it, so in practice this CRM has none and that whole
- * surface stays invisible, per Brent's "don't build a deals module"
- * instruction. AI Suggestions/Company profile/Freight profile/Commercial/
- * Locations/AI Research/Stray numbers ride below the three columns as
- * isolated cards — real data/functionality the reference design doesn't
- * name but that must still display somewhere.
+ * Company profile — rebuilt to Brent's reference layout (2026-08-08), with
+ * two later trims: the KPI strip (Total contacts/Open tasks/Last contact/
+ * Added/Total deals) and the AI Suggestions/AI Research panels were both
+ * pulled from the UI on request. Layout now: top bar (breadcrumb + name +
+ * More/Edit) → StageTracker (kept — it's the one control that actually
+ * moves the stage) → three columns (About/Tags/Company owner | tabbed
+ * Timeline/Contacts/Tasks/Notes/Files, default Contacts | Company details/
+ * Custom fields). No Deals tab — crm_deals has no real usage anywhere in
+ * this codebase. Company profile/Freight profile/Commercial/Locations/
+ * Stray numbers ride below the three columns as isolated cards — real
+ * data/functionality the reference design doesn't name but that must still
+ * display somewhere. The AI Suggestions/AI Research components (and their
+ * underlying crm_ai_suggestions data / ai_status columns) still exist on
+ * disk — see AiSuggestionsPanel.tsx/AiResearchSection.tsx — just not
+ * rendered here anymore.
  */
 export default async function AccountDetailPage({
   params,
@@ -98,8 +97,6 @@ export default async function AccountDetailPage({
     commodityPhotosRes,
     accountTagsRes,
     orgTagsRes,
-    lastResearchRequestRes,
-    dealsCountRes,
   ] = await Promise.all([
     supabase.from("crm_profiles").select("id, full_name, email, is_active, role"),
     supabase
@@ -160,15 +157,6 @@ export default async function AccountDetailPage({
       .limit(60),
     supabase.from("crm_account_tags").select("tag_id").eq("account_id", id),
     supabase.from("crm_tags").select("id, label, color").order("label", { ascending: true }),
-    supabase
-      .from("crm_activities")
-      .select("occurred_at")
-      .eq("account_id", id)
-      .eq("kind", CRM_ACTIVITY.aiResearchRequested)
-      .order("occurred_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-    supabase.from("crm_deals").select("id", { count: "exact", head: true }).eq("account_id", id).is("deleted_at", null),
   ]);
 
   const profiles = (profilesRes.data ?? []) as ProfileRow[];
@@ -215,17 +203,6 @@ export default async function AccountDetailPage({
     user_id: string | null;
     contact_id: string | null;
   }[];
-  const aiNotes: CrmNote[] = notesRows
-    .filter((n) => n.is_ai)
-    .map((n) => ({
-      id: n.id,
-      body: n.body,
-      is_pinned: false,
-      is_ai: true,
-      created_at: n.created_at,
-      author: n.user_id ? profileName(profileById.get(n.user_id)) : null,
-      contactName: n.contact_id ? firstName(contactNameById.get(n.contact_id) ?? null) || null : null,
-    }));
   const humanNotes: CrmNoteItem[] = notesRows
     .filter((n) => !n.is_ai)
     .map((n) => ({
@@ -302,9 +279,6 @@ export default async function AccountDetailPage({
   const accountTagIds = new Set(((accountTagsRes.data ?? []) as { tag_id: string }[]).map((t) => t.tag_id));
   const orgTags = ((orgTagsRes.data ?? []) as CrmTagOption[]);
   const attachedTags = orgTags.filter((t) => accountTagIds.has(t.id));
-
-  const lastResearchRequestedAt = (lastResearchRequestRes.data as { occurred_at: string } | null)?.occurred_at ?? null;
-  const dealsCount = dealsCountRes.count ?? 0;
 
   // ── Activity log — calls + human notes + the remaining activity events,
   // merged newest-first (drives both the Timeline tab and each contact's
@@ -404,39 +378,7 @@ export default async function AccountDetailPage({
     assigned_user_id: account.assigned_user_id as string | null,
   };
 
-  // ── KPI strip ──
   const openTasks = tasks.filter((t) => t.status !== "completed");
-  const { startMs: todayStartMs } = centralDayRange();
-  const overdueTasks = openTasks.filter((t) => {
-    const ms = timestampMs(t.due_at);
-    return ms !== null && ms < todayStartMs;
-  });
-  const lastTouch = [...activityFromCalls, ...activityFromNotes].sort(
-    (a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime(),
-  )[0];
-
-  const kpiTiles: KpiTileData[] = [
-    { label: "Total contacts", value: String(contacts.length) },
-    {
-      label: "Open tasks",
-      value: String(openTasks.length),
-      sub: overdueTasks.length ? `${overdueTasks.length} overdue` : undefined,
-      subTone: "danger",
-    },
-    {
-      label: "Last contact",
-      value: lastTouch ? formatDate(lastTouch.occurredAt) : "Never",
-      sub: lastTouch?.author ? `by ${lastTouch.author}` : undefined,
-    },
-    {
-      label: "Added",
-      value: formatDate(account.created_at as string),
-      sub: lastContactStatus(timestampMs(account.created_at as string)).text,
-    },
-  ];
-  if (dealsCount > 0) {
-    kpiTiles.push({ label: "Total deals", value: String(dealsCount) });
-  }
 
   const currentUser = { id: user.id, label: firstName(user.fullName, user.email) || "You" };
   const currentRepId = account.assigned_user_id as string | null;
@@ -459,8 +401,6 @@ export default async function AccountDetailPage({
         <div className="w-full border border-line-strong bg-card p-4 shadow-e2">
           <StageTracker accountId={account.id as string} current={stage} />
         </div>
-
-        <KpiStrip tiles={kpiTiles} />
 
         <div className="grid gap-4 lg:grid-cols-[300px_1fr_300px] lg:items-start">
           {/* LEFT */}
@@ -543,11 +483,9 @@ export default async function AccountDetailPage({
 
         {phones.length > 0 && <StrayNumbersSection accountId={account.id as string} phones={phones} contacts={contactOptions} />}
         <LocationsSection accountId={account.id as string} />
-        <AiSuggestionsPanel accountId={account.id as string} />
         <CompanyProfileSection accountId={account.id as string} />
         <FreightProfileSection accountId={account.id as string} />
         <CommercialSection accountId={account.id as string} />
-        <AiResearchSection accountId={account.id as string} notes={aiNotes} lastRequestedAt={lastResearchRequestedAt} />
       </div>
     </PageShell>
   );
