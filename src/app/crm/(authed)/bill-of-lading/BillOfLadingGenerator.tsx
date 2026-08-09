@@ -2,17 +2,9 @@
 
 import { useRef, useState, type ReactNode } from "react";
 import { CONTROL, LABEL } from "../_shell/form";
-import { BROKER_PROFILE } from "../_shell/brokerProfile";
+import type { BrokerProfile } from "../_shell/brokerProfile";
+import type { OrgUser } from "../_shell/orgUsers";
 import "./bill-of-lading.css";
-
-export type OrgUser = {
-  id: string;
-  name: string;
-  email: string;
-  /** Always "" today — crm_profiles has no phone column. Stays editable
-   * client-side either way (see BillOfLadingPage's fetch comment). */
-  phone: string;
-};
 
 type ChargeTerms = "prepaid" | "collect" | "third_party" | "";
 type SigParty = "shipper" | "driver" | "";
@@ -171,7 +163,13 @@ function numeric(value: string): number {
  * rate-confirmation.css — the left form and app shell never appear in the
  * printed/PDF output.
  */
-export function BillOfLadingGenerator({ orgUsers }: { orgUsers: OrgUser[] }) {
+export function BillOfLadingGenerator({
+  orgUsers,
+  brokerProfile,
+}: {
+  orgUsers: OrgUser[];
+  brokerProfile: BrokerProfile;
+}) {
   const idCounter = useRef(0);
 
   function nextId() {
@@ -242,7 +240,12 @@ export function BillOfLadingGenerator({ orgUsers }: { orgUsers: OrgUser[] }) {
           removeLineItem={removeLineItem}
         />
         <div className="bol-preview-panel">
-          <BolDocument state={state} totalPkgs={totalPkgs} totalWeight={totalWeight} />
+          <BolDocument
+            state={state}
+            totalPkgs={totalPkgs}
+            totalWeight={totalWeight}
+            brokerProfile={brokerProfile}
+          />
         </div>
       </div>
 
@@ -252,7 +255,12 @@ export function BillOfLadingGenerator({ orgUsers }: { orgUsers: OrgUser[] }) {
           bill-of-lading.css). */}
       <div className="bol-print-only">
         <div id="bol-print-area">
-          <BolDocument state={state} totalPkgs={totalPkgs} totalWeight={totalWeight} />
+          <BolDocument
+            state={state}
+            totalPkgs={totalPkgs}
+            totalWeight={totalWeight}
+            brokerProfile={brokerProfile}
+          />
         </div>
       </div>
     </div>
@@ -633,17 +641,19 @@ function BolDocument({
   state,
   totalPkgs,
   totalWeight,
+  brokerProfile,
 }: {
   state: BolState;
   totalPkgs: number;
   totalWeight: number;
+  brokerProfile: BrokerProfile;
 }) {
   return (
     <div className="bol-page">
       <header className="bol-header">
         <div>
-          <p className="bol-wordmark">{BROKER_PROFILE.name.toUpperCase()}</p>
-          {BROKER_PROFILE.address && <p className="bol-broker-line">{BROKER_PROFILE.address}</p>}
+          <p className="bol-wordmark">{brokerProfile.name.toUpperCase()}</p>
+          {brokerProfile.address && <p className="bol-broker-line">{brokerProfile.address}</p>}
           <p className="bol-broker-line">
             <Blank value={state.brokerContact} width={110} noLine /> &nbsp;·&nbsp;{" "}
             <Blank value={state.brokerPhone} width={100} noLine />
@@ -652,7 +662,7 @@ function BolDocument({
             <Blank value={state.brokerEmail} width={160} noLine />
           </p>
           <p className="bol-broker-line">
-            MC {BROKER_PROFILE.mc} &nbsp;·&nbsp; DOT {BROKER_PROFILE.dot}
+            MC {brokerProfile.mc} &nbsp;·&nbsp; DOT {brokerProfile.dot}
           </p>
         </div>
         <div className="bol-header-right">

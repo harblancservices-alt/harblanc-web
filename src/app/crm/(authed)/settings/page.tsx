@@ -4,6 +4,8 @@ import { BTN_EDIT, PageShell, Card, CardHead, ZEBRA_ROWS } from "../_shell/ui";
 import { firstName } from "../_shell/format";
 import { LocalTime } from "../_shell/LocalTime";
 import { MemberEditButton } from "./MemberEditButton";
+import { BrokerProfileEditButton } from "./BrokerProfileEditButton";
+import { getBrokerProfile } from "../_shell/brokerProfile";
 
 export const dynamic = "force-dynamic";
 
@@ -40,10 +42,13 @@ export default async function SettingsPage() {
   const user = await requireCrmUser();
   const supabase = await createCrmServerClient();
 
-  const { data } = await supabase
-    .from("crm_profiles")
-    .select("id, full_name, email, title, role, is_active")
-    .order("full_name", { ascending: true });
+  const [{ data }, brokerProfile] = await Promise.all([
+    supabase
+      .from("crm_profiles")
+      .select("id, full_name, email, title, role, is_active")
+      .order("full_name", { ascending: true }),
+    getBrokerProfile(),
+  ]);
 
   const members = ((data ?? []) as MemberRow[]).slice().sort((a, b) => {
     if (a.role === "owner" && b.role !== "owner") return -1;
@@ -89,6 +94,20 @@ export default async function SettingsPage() {
         </div>
         <dl className="divide-y divide-line-strong border-t border-line-strong">
           <Row label="Role" value={roleLabel(user.role)} />
+        </dl>
+      </Card>
+
+      <Card>
+        <CardHead
+          title="Company / Brokerage Info"
+          hint="The letterhead every generated document reads from."
+          right={isAdmin && <BrokerProfileEditButton profile={brokerProfile} />}
+        />
+        <dl className="divide-y divide-line-strong">
+          <Row label="Company name" value={brokerProfile.name || "—"} />
+          <Row label="MC #" value={brokerProfile.mc || "—"} />
+          <Row label="DOT #" value={brokerProfile.dot || "—"} />
+          <Row label="Address" value={brokerProfile.address || "—"} />
         </dl>
       </Card>
 

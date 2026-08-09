@@ -1,6 +1,8 @@
-import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
+import { requireCrmUser } from "@/lib/crm/auth";
 import { PageShell } from "../_shell/ui";
-import { BillOfLadingGenerator, type OrgUser } from "./BillOfLadingGenerator";
+import { getActiveOrgUsers } from "../_shell/orgUsers";
+import { getBrokerProfile } from "../_shell/brokerProfile";
+import { BillOfLadingGenerator } from "./BillOfLadingGenerator";
 
 export const dynamic = "force-dynamic";
 
@@ -12,35 +14,22 @@ export const dynamic = "force-dynamic";
  * re-render as-you-type with blank underlines instead of bracket
  * placeholders. No persistence.
  *
- * The one thing this Server Component DOES fetch: the org's active CRM
- * users, for the Broker Contact dropdown. crm_profiles has no phone
- * column (see supabase/migrations/20260557000000_crm_foundation.sql) —
- * phone always comes back "" and stays editable client-side, same as the
- * "leave blank if the user record has none" fallback for any user who
- * genuinely lacks one once a phone column exists.
+ * This Server Component fetches the org's active CRM users (for the Broker
+ * Contact dropdown) and the org's broker letterhead info (company/MC/DOT/
+ * address, edited from CRM Settings) and hands both down as props — the
+ * client generator below has no server access of its own.
  */
 export default async function BillOfLadingPage() {
   await requireCrmUser();
-  const supabase = await createCrmServerClient();
 
-  const { data } = await supabase
-    .from("crm_profiles")
-    .select("id, full_name, email")
-    .eq("is_active", true)
-    .order("full_name", { ascending: true });
-
-  const orgUsers: OrgUser[] = ((data ?? []) as { id: string; full_name: string | null; email: string | null }[]).map(
-    (u) => ({
-      id: u.id,
-      name: u.full_name || u.email || "Unnamed",
-      email: u.email || "",
-      phone: "",
-    }),
-  );
+  const [orgUsers, brokerProfile] = await Promise.all([
+    getActiveOrgUsers(),
+    getBrokerProfile(),
+  ]);
 
   return (
     <PageShell>
-      <BillOfLadingGenerator orgUsers={orgUsers} />
+      <BillOfLadingGenerator orgUsers={orgUsers} brokerProfile={brokerProfile} />
     </PageShell>
   );
 }

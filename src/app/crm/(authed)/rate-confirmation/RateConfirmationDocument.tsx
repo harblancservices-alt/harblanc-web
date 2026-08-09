@@ -1,13 +1,20 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import type { BrokerProfile } from "../_shell/brokerProfile";
+import type { OrgUser } from "../_shell/orgUsers";
 import "./rate-confirmation.css";
 
 /**
- * Fillable, print-to-PDF Hello Hotshot carrier Rate Confirmation. Pure
- * client component (no server data, no persistence) — every field is an
- * uncontrolled <input>/<textarea> the user types into directly before
- * printing; window.print() renders whatever is currently in the DOM.
+ * Fillable, print-to-PDF Hello Hotshot carrier Rate Confirmation. Almost
+ * every field is an uncontrolled <input>/<textarea> the user types into
+ * directly before printing (no server data, no persistence) —
+ * window.print() renders whatever is currently in the DOM. The exception is
+ * the broker header: company name/MC/DOT/address come from `brokerProfile`
+ * (fetched server-side from CRM Settings' crm_broker_profile) and the
+ * Broker Contact person is picked from a dropdown of `orgUsers`, same
+ * auto-fill pattern as /crm/bill-of-lading — selecting a rep fills their
+ * name/phone/email into controlled state, still editable afterward.
  *
  * The document itself is intentionally grayscale (black/white/light-gray)
  * regardless of the CRM's `.crm-light` theme — see rate-confirmation.css.
@@ -15,7 +22,26 @@ import "./rate-confirmation.css";
  * shell (sidebar/bottom nav) never appears in the printed/PDF output,
  * without touching CrmShell itself.
  */
-export function RateConfirmationDocument() {
+export function RateConfirmationDocument({
+  orgUsers,
+  brokerProfile,
+}: {
+  orgUsers: OrgUser[];
+  brokerProfile: BrokerProfile;
+}) {
+  const [repId, setRepId] = useState("");
+  const [brokerContact, setBrokerContact] = useState("");
+  const [brokerPhone, setBrokerPhone] = useState("");
+  const [brokerEmail, setBrokerEmail] = useState("");
+
+  function selectRep(id: string) {
+    const rep = orgUsers.find((u) => u.id === id);
+    setRepId(id);
+    setBrokerContact(rep ? rep.name : "");
+    setBrokerPhone(rep ? rep.phone : "");
+    setBrokerEmail(rep ? rep.email : "");
+  }
+
   return (
     <div className="rc-wrap">
       <div className="rc-noprint mb-4 flex items-center justify-between gap-3">
@@ -37,11 +63,15 @@ export function RateConfirmationDocument() {
         <div className="rc-page">
           <header className="rc-header">
             <div>
-              <p className="rc-wordmark">HELLO HOTSHOT</p>
-              <p className="rc-wordmark-sub">Freight Brokerage</p>
-              <p className="rc-broker-line">[Broker Contact Name]</p>
-              <p className="rc-broker-line">[Broker Phone] &nbsp;·&nbsp; [Broker Email]</p>
-              <p className="rc-broker-line">Broker MC [ ] · DOT [ ]</p>
+              <p className="rc-wordmark">{brokerProfile.name.toUpperCase()}</p>
+              {brokerProfile.address && <p className="rc-broker-line">{brokerProfile.address}</p>}
+              <p className="rc-broker-line">{brokerContact || "[Broker Contact Name]"}</p>
+              <p className="rc-broker-line">
+                {brokerPhone || "[Broker Phone]"} &nbsp;·&nbsp; {brokerEmail || "[Broker Email]"}
+              </p>
+              <p className="rc-broker-line">
+                MC {brokerProfile.mc || "[ ]"} &nbsp;·&nbsp; DOT {brokerProfile.dot || "[ ]"}
+              </p>
             </div>
             <div className="rc-header-right">
               <p className="rc-doc-title">RATE CONFIRMATION</p>
@@ -72,19 +102,25 @@ export function RateConfirmationDocument() {
           <section className="rc-section rc-cols-2">
             <div>
               <SectionHeading>Broker</SectionHeading>
-              <Field
-                label="Brokerage"
-                name="broker_brokerage"
-                defaultValue="Hello Hotshot"
-              />
+              <label className="rc-field rc-noprint">
+                <span className="rc-field-label">Broker Contact</span>
+                <select
+                  value={repId}
+                  onChange={(e) => selectRep(e.target.value)}
+                  className="rc-input"
+                >
+                  <option value="">— Select —</option>
+                  {orgUsers.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <div className="rc-row-3">
-                <Field label="Contact" name="broker_contact" />
-                <Field label="Phone" name="broker_phone" />
-                <Field label="Email" name="broker_email" />
-              </div>
-              <div className="rc-row-3">
-                <Field label="MC #" name="broker_mc" />
-                <Field label="DOT #" name="broker_dot" />
+                <ControlledField label="Contact" value={brokerContact} onChange={setBrokerContact} />
+                <ControlledField label="Phone" value={brokerPhone} onChange={setBrokerPhone} />
+                <ControlledField label="Email" value={brokerEmail} onChange={setBrokerEmail} />
               </div>
             </div>
             <div>
@@ -383,6 +419,34 @@ function Field({
         type="text"
         name={name}
         defaultValue={defaultValue}
+        placeholder={placeholder ?? `[${label}]`}
+        className="rc-input"
+      />
+    </label>
+  );
+}
+
+/** Controlled counterpart to Field, for the handful of fields (broker
+ * contact/phone/email) driven by the Broker Contact dropdown's auto-fill —
+ * every other field on this doc stays an uncontrolled defaultValue input. */
+function ControlledField({
+  label,
+  value,
+  onChange,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+}) {
+  return (
+    <label className="rc-field">
+      <span className="rc-field-label">{label}</span>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder ?? `[${label}]`}
         className="rc-input"
       />
