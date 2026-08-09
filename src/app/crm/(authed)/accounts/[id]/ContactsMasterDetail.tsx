@@ -16,6 +16,7 @@ import { ActivityLogSection, type CrmActivityLogItem } from "./ActivityLogSectio
 import { NotesTab, type CrmNoteItem } from "./NotesTab";
 import { deleteContact } from "../actions";
 import type { RepOption } from "../CompanyDialog";
+import { ROLE_AVATAR_BG, normalizeRoleCategory } from "./roles";
 
 export type CrmContact = ContactDefaults & {
   id: string;
@@ -24,20 +25,13 @@ export type CrmContact = ContactDefaults & {
   links: LinkEntry[];
 };
 
-const ROLE_AVATAR_BG: Record<string, string> = {
-  purchasing: "bg-ok",
-  shipping_receiving: "bg-warn",
-  dispatch: "bg-[#7c3aed]",
-  manager_owner: "bg-slate",
-  sales: "bg-accent",
-};
-
 const SUB_TABS = ["activity", "tasks", "notes"] as const;
 type SubTab = (typeof SUB_TABS)[number];
 const SUB_TAB_LABEL: Record<SubTab, string> = { activity: "Activity", tasks: "Tasks", notes: "Notes" };
 
 function initialsBadge(name: string, roleCategory: string | null | undefined, size: "sm" | "lg") {
-  const bg = (roleCategory && ROLE_AVATAR_BG[roleCategory]) || "bg-graphite";
+  const normalized = normalizeRoleCategory(roleCategory);
+  const bg = (normalized && ROLE_AVATAR_BG[normalized]) || "bg-graphite";
   const dims = size === "lg" ? "h-12 w-12 text-[17px]" : "h-9 w-9 text-[13px]";
   return (
     <span className={`flex ${dims} shrink-0 items-center justify-center ${bg} font-semibold text-white`}>

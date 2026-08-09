@@ -7,15 +7,11 @@ import { IconMail, IconPhone } from "../_shell/icons";
 import { formatDate } from "../_shell/format";
 import { digitsForTel } from "../_shell/contactFields";
 import { formatPhone } from "@/lib/domain/phone";
-import { ROLE_CATEGORIES, ROLE_LABEL, ROLE_TONE, type CrmPersonRoleCategory } from "../accounts/[id]/roles";
+import { ROLE_LABEL, ROLE_TONE, normalizeRoleCategory } from "../accounts/[id]/roles";
 import type { ContactCardData } from "./ContactListCard";
 
 const CELL_BTN =
   "inline-flex h-7 items-center justify-center gap-1.5 rounded-lg px-2 text-[12px] font-semibold transition-colors";
-
-function knownRole(value: string | null): CrmPersonRoleCategory | null {
-  return value && (ROLE_CATEGORIES as readonly string[]).includes(value) ? (value as CrmPersonRoleCategory) : null;
-}
 
 /**
  * Desktop (md+) table rendering of the global Contacts directory —
@@ -59,7 +55,7 @@ export function ContactTable({ contacts }: { contacts: ContactCardData[] }) {
 }
 
 function ContactTableRow({ contact }: { contact: ContactCardData }) {
-  const role = knownRole(contact.roleCategory);
+  const role = normalizeRoleCategory(contact.roleCategory);
 
   return (
     <ClickableRow href={`/crm/contacts/${contact.id}`}>

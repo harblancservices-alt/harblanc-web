@@ -4,7 +4,7 @@ import { BackButton } from "../../_shell/BackButton";
 import { IconMail, IconPhone } from "../../_shell/icons";
 import { digitsForTel } from "../../_shell/contactFields";
 import { formatPhone } from "@/lib/domain/phone";
-import { ROLE_LABEL, ROLE_TONE, type CrmPersonRoleCategory } from "../../accounts/[id]/roles";
+import { ROLE_LABEL, ROLE_TONE, normalizeRoleCategory } from "../../accounts/[id]/roles";
 import { EditContactButton } from "./ContactProfileActions";
 import { ContactMoreMenu } from "./ContactMoreMenu";
 import type { ContactDefaults } from "../../accounts/[id]/ContactDialog";
@@ -38,7 +38,7 @@ export function ContactHeader({
   contactOptions: TaskContactOption[];
   canDelete: boolean;
 }) {
-  const role = (contact.role_category as CrmPersonRoleCategory | null) ?? null;
+  const role = normalizeRoleCategory(contact.role_category as string | null);
 
   return (
     <div className="flex flex-col gap-3 border border-line-strong bg-card px-4 py-3.5 shadow-e2">
