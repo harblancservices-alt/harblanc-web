@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useRef, useState, useTransition } from "react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Modal } from "../_shell/Modal";
 import {
   Field,
@@ -12,10 +13,10 @@ import {
 } from "../_shell/form";
 import { PhonesEditor } from "../_shell/PhonesEditor";
 import { LinksEditor } from "../_shell/LinksEditor";
-import type { PhoneEntry, LinkEntry } from "../_shell/contactFields";
-import { createAccount, updateAccount, deleteAccount } from "./actions";
+import { phonesFromFormValue, type PhoneEntry, type LinkEntry } from "../_shell/contactFields";
+import { createAccount, updateAccount, deleteAccount, findPossibleDuplicates, type DuplicateMatch } from "./actions";
 import { LIFECYCLE_STAGES, LIFECYCLE_LABEL, DEFAULT_LIFECYCLE } from "./lifecycle";
-import { BTN_DANGER } from "../_shell/ui";
+import { BTN_DANGER, BTN_NEUTRAL } from "../_shell/ui";
 
 export type CompanyDefaults = {
   id?: string;
@@ -70,31 +71,65 @@ export function CompanyDialog({
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [duplicates, setDuplicates] = useState<DuplicateMatch[] | null>(null);
+  const [checkingDup, setCheckingDup] = useState(false);
+  const pendingFormData = useRef<FormData | null>(null);
   const router = useRouter();
 
   const d = defaults ?? {};
+
+  async function save(formData: FormData) {
+    const result =
+      mode === "create"
+        ? await createAccount(formData)
+        : await updateAccount(d.id as string, formData);
+
+    if (result.ok) {
+      setOpen(false);
+      setDuplicates(null);
+      if (mode === "create" && "id" in result) {
+        router.push(`/crm/accounts/${result.id}`);
+      } else {
+        router.refresh();
+      }
+    } else {
+      setError(result.error);
+    }
+  }
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     setError(null);
-    startTransition(async () => {
-      const result =
-        mode === "create"
-          ? await createAccount(formData)
-          : await updateAccount(d.id as string, formData);
 
-      if (result.ok) {
-        setOpen(false);
-        if (mode === "create" && "id" in result) {
-          router.push(`/crm/accounts/${result.id}`);
-        } else {
-          router.refresh();
-        }
-      } else {
-        setError(result.error);
+    if (mode !== "create") {
+      startTransition(() => save(formData));
+      return;
+    }
+
+    // Basic duplicate check on NEW companies only — name/phone/email-domain
+    // against existing accounts (see findPossibleDuplicates). A warning, not
+    // a block: the rep can always proceed via "Create anyway" below.
+    pendingFormData.current = formData;
+    startTransition(async () => {
+      setCheckingDup(true);
+      const name = String(formData.get("name") ?? "").trim();
+      const phones = phonesFromFormValue(formData.get("phones"));
+      const email = String(formData.get("email") ?? "").trim();
+      const found = await findPossibleDuplicates(name, phones[0]?.number ?? null, email || null);
+      setCheckingDup(false);
+      if (found.length > 0) {
+        setDuplicates(found);
+        return;
       }
+      await save(formData);
     });
+  }
+
+  function createAnyway() {
+    if (!pendingFormData.current) return;
+    setDuplicates(null);
+    startTransition(() => save(pendingFormData.current as FormData));
   }
 
   function onDelete() {
@@ -122,6 +157,7 @@ export function CompanyDialog({
     <>
       {trigger(() => {
         setError(null);
+        setDuplicates(null);
         setOpen(true);
       })}
 
@@ -238,9 +274,44 @@ export function CompanyDialog({
             </SelectField>
           </div>
 
-          <SubmitButton pending={pending}>
-            {mode === "create" ? "Save company" : "Save changes"}
-          </SubmitButton>
+          {duplicates && duplicates.length > 0 && (
+            <div className="flex flex-col gap-2 border border-warn/40 bg-warn-bg px-3.5 py-3">
+              <p className="text-[13px] font-semibold text-warn">This might already be a company here:</p>
+              <ul className="flex flex-col gap-1">
+                {duplicates.map((m) => (
+                  <li key={m.id} className="text-[12.5px] text-fg">
+                    <Link href={`/crm/accounts/${m.id}`} target="_blank" className="font-semibold text-accent hover:underline">
+                      {m.name}
+                    </Link>{" "}
+                    <span className="text-fg-muted">— matches on {m.matchedOn.join(", ")}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDuplicates(null)}
+                  className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_NEUTRAL}`}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={createAnyway}
+                  disabled={pending}
+                  className="rounded-lg bg-warn px-3 py-1.5 text-[12.5px] font-semibold text-white transition-colors hover:opacity-90 disabled:opacity-60"
+                >
+                  Create anyway
+                </button>
+              </div>
+            </div>
+          )}
+
+          {(!duplicates || duplicates.length === 0) && (
+            <SubmitButton pending={pending} pendingLabel={checkingDup ? "Checking…" : "Saving…"}>
+              {mode === "create" ? "Save company" : "Save changes"}
+            </SubmitButton>
+          )}
 
           {mode === "edit" && canDelete && (
             <button

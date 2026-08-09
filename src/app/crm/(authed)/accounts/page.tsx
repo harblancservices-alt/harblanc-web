@@ -1,12 +1,11 @@
-import Link from "next/link";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
-import { PageShell, Card, EmptyState, LIST_HEAD_ROW, ZEBRA_ROWS } from "../_shell/ui";
-import { ClickableRow } from "../_shell/ClickableRow";
+import { PageShell, Card, EmptyState } from "../_shell/ui";
 import { IconCompanies } from "../_shell/icons";
 import { AddCompany } from "./AddCompany";
 import { AccountsFilters } from "./AccountsFilters";
-import { stageLabel, stageTone } from "./lifecycle";
-import { firstName, lastContactStatus, timestampMs, titleCaseWords, upperCaseState } from "../_shell/format";
+import { CompanyListCard, type CompanyCardData } from "./CompanyListCard";
+import { firstName, titleCaseWords, timestampMs } from "../_shell/format";
+import { parsePhones } from "../_shell/contactFields";
 import { CRM_CONTACT_ACTIVITY_KINDS } from "@/lib/crm/activity";
 import type { RepOption } from "./CompanyDialog";
 import type { CrmTag } from "./tags";
@@ -18,12 +17,12 @@ export const dynamic = "force-dynamic";
 type AccountRow = {
   id: string;
   name: string;
-  industry: string | null;
   city: string | null;
   state: string | null;
   lifecycle_status: string | null;
   assigned_user_id: string | null;
-  primary_contact_id: string | null;
+  phone: string | null;
+  phones: unknown;
   created_at: string;
 };
 
@@ -43,17 +42,20 @@ function toPrefixQuery(input: string): string {
 }
 
 /**
- * Companies list — reads crm_accounts for the caller's org ONLY (RLS-scoped;
- * no dispatch table is ever queried). Full-text search over search_tsv plus
- * lifecycle / rep filters, all driven from the URL so any view is shareable.
- * Each row shows the company, lifecycle badge, city/state, primary contact,
- * and its tags (tags are display-only here — there's no tag filter or editor
- * anymore, see tags.ts).
+ * Companies list — SURFACE 2 of the Company/Contact rebuild, rebuilt from
+ * the old table into a mobile-first card grid matching the design system
+ * the Company detail page (surface 1) established: LIFECYCLE_TONE stage
+ * pills, BTN_RED for the tap-to-call action, square corners. Reads
+ * crm_accounts for the caller's org ONLY (RLS-scoped). Full-text search over
+ * search_tsv plus lifecycle / rep / tag filters and a sort control, all
+ * driven from the URL so any view is shareable. Each card shows exactly the
+ * fields Brent specified — stage, city/state, one tag, last-contact, contact
+ * count, call button — never a table row's worth of dense columns.
  */
 export default async function CompaniesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; stage?: string; rep?: string; sort?: string }>;
+  searchParams: Promise<{ q?: string; stage?: string; rep?: string; tag?: string; sort?: string }>;
 }) {
   await requireCrmUser();
   const supabase = await createCrmServerClient();
@@ -62,7 +64,8 @@ export default async function CompaniesPage({
   const q = (sp.q ?? "").trim();
   const stage = (sp.stage ?? "").trim();
   const rep = (sp.rep ?? "").trim();
-  const sortStale = (sp.sort ?? "").trim() === "stale";
+  const tagFilter = (sp.tag ?? "").trim();
+  const sort = (sp.sort ?? "").trim();
 
   // Filter-option rosters (RLS-scoped to the caller's org).
   const [tagsRes, profilesRes] = await Promise.all([
@@ -97,11 +100,20 @@ export default async function CompaniesPage({
     name: titleCaseWords(a.name),
   }));
 
+  // A tag filter requires a join crm_accounts doesn't carry directly — first
+  // resolve which accounts actually have the selected tag.
+  let tagFilterAccountIds: string[] | null = null;
+  if (tagFilter) {
+    const { data: tagAccountRows } = await supabase
+      .from("crm_account_tags")
+      .select("account_id")
+      .eq("tag_id", tagFilter);
+    tagFilterAccountIds = ((tagAccountRows ?? []) as { account_id: string }[]).map((r) => r.account_id);
+  }
+
   let query = supabase
     .from("crm_accounts")
-    .select(
-      "id, name, industry, city, state, lifecycle_status, assigned_user_id, primary_contact_id, created_at",
-    )
+    .select("id, name, city, state, lifecycle_status, assigned_user_id, phone, phones, created_at")
     .is("deleted_at", null)
     // Pending-review AI leads live in the admin review queue (/crm/ai-review)
     // until released — they must not leak into Companies before that. Written
@@ -113,29 +125,28 @@ export default async function CompaniesPage({
   if (stage) query = query.eq("lifecycle_status", stage);
   if (rep === "unassigned") query = query.is("assigned_user_id", null);
   else if (rep) query = query.eq("assigned_user_id", rep);
+  if (tagFilterAccountIds !== null) {
+    query = tagFilterAccountIds.length ? query.in("id", tagFilterAccountIds) : query.eq("id", "00000000-0000-0000-0000-000000000000");
+  }
 
   const ts = q ? toPrefixQuery(q) : "";
   if (ts) query = query.textSearch("search_tsv", ts, { config: "simple" });
 
-  const { data } = await query.order("created_at", { ascending: false }).limit(200);
+  if (sort === "name") query = query.order("name", { ascending: true });
+  else query = query.order("created_at", { ascending: false });
+
+  const { data } = await query.limit(200);
   const accounts = (data ?? []) as AccountRow[];
 
-  // Stitch in primary-contact names and tags for the visible rows.
   const accountIds = accounts.map((a) => a.id);
-  const primaryIds = [
-    ...new Set(accounts.map((a) => a.primary_contact_id).filter(Boolean) as string[]),
-  ];
 
-  const [primaryRes, tagLinkRes, lastCallsRes, lastActivitiesRes] = await Promise.all([
-    primaryIds.length
-      ? supabase.from("crm_contacts").select("id, name").in("id", primaryIds)
-      : Promise.resolve({ data: [] as { id: string; name: string }[] }),
+  const [tagLinkRes, contactsRes, lastCallsRes, lastActivitiesRes] = await Promise.all([
     accountIds.length
-      ? supabase
-          .from("crm_account_tags")
-          .select("account_id, tag_id")
-          .in("account_id", accountIds)
+      ? supabase.from("crm_account_tags").select("account_id, tag_id").in("account_id", accountIds)
       : Promise.resolve({ data: [] as { account_id: string; tag_id: string }[] }),
+    accountIds.length
+      ? supabase.from("crm_contacts").select("id, account_id").in("account_id", accountIds).is("deleted_at", null)
+      : Promise.resolve({ data: [] as { id: string; account_id: string }[] }),
     // Last-contact column: newest-first rows from each source, capped well
     // above what 200 companies' worth of recent history could need — reduced
     // to a single MAX(occurred_at) per company below.
@@ -162,20 +173,19 @@ export default async function CompaniesPage({
       : Promise.resolve({ data: [] as { account_id: string; occurred_at: string }[] }),
   ]);
 
-  const primaryName = new Map(
-    ((primaryRes.data ?? []) as { id: string; name: string }[]).map((c) => [c.id, c.name]),
-  );
-
   const tagsByAccount = new Map<string, CrmTag[]>();
-  for (const link of (tagLinkRes.data ?? []) as {
-    account_id: string;
-    tag_id: string;
-  }[]) {
+  for (const link of (tagLinkRes.data ?? []) as { account_id: string; tag_id: string }[]) {
     const t = tagById.get(link.tag_id);
     if (!t) continue;
     const list = tagsByAccount.get(link.account_id) ?? [];
     list.push(t);
     tagsByAccount.set(link.account_id, list);
+  }
+  for (const list of tagsByAccount.values()) list.sort((a, b) => a.label.localeCompare(b.label));
+
+  const contactCountByAccount = new Map<string, number>();
+  for (const c of (contactsRes.data ?? []) as { id: string; account_id: string }[]) {
+    contactCountByAccount.set(c.account_id, (contactCountByAccount.get(c.account_id) ?? 0) + 1);
   }
 
   // Last-contact — the more recent of the account's last logged call and its
@@ -195,7 +205,7 @@ export default async function CompaniesPage({
     if (current === undefined || ms > current) lastContactMsByAccount.set(row.account_id, ms);
   }
 
-  if (sortStale) {
+  if (sort === "stale") {
     // Coldest (or never-contacted) first, so stale accounts surface at the
     // top rather than requiring a scroll through everything else.
     accounts.sort((a, b) => {
@@ -205,16 +215,19 @@ export default async function CompaniesPage({
     });
   }
 
-  const filtersActive = Boolean(q || stage || rep);
-  const sortHref = (() => {
-    const params = new URLSearchParams();
-    if (q) params.set("q", q);
-    if (stage) params.set("stage", stage);
-    if (rep) params.set("rep", rep);
-    if (!sortStale) params.set("sort", "stale");
-    const qs = params.toString();
-    return qs ? `/crm/accounts?${qs}` : "/crm/accounts";
-  })();
+  const cards: CompanyCardData[] = accounts.map((a) => ({
+    id: a.id,
+    name: a.name,
+    stage: a.lifecycle_status,
+    city: a.city,
+    state: a.state,
+    primaryTag: tagsByAccount.get(a.id)?.[0] ?? null,
+    contactCount: contactCountByAccount.get(a.id) ?? 0,
+    lastContactMs: lastContactMsByAccount.get(a.id) ?? null,
+    phone: parsePhones(a.phones)[0]?.number || a.phone,
+  }));
+
+  const filtersActive = Boolean(q || stage || rep || tagFilter || sort);
 
   return (
     <PageShell
@@ -226,12 +239,12 @@ export default async function CompaniesPage({
       }
     >
       <Card className="p-4">
-        <AccountsFilters q={q} stage={stage} rep={rep} reps={reps} />
+        <AccountsFilters q={q} stage={stage} rep={rep} tag={tagFilter} sort={sort} reps={reps} tags={allTags} />
       </Card>
 
-      <Card>
-        {accounts.length === 0 ? (
-          filtersActive ? (
+      {cards.length === 0 ? (
+        <Card>
+          {filtersActive ? (
             <EmptyState
               icon={<IconCompanies />}
               title="No companies match"
@@ -244,125 +257,15 @@ export default async function CompaniesPage({
               body="Add your first carrier or shipper to start building your pipeline."
               action={<AddCompany reps={reps} />}
             />
-          )
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[860px] text-left text-[13.5px]">
-              <thead>
-                <tr className={LIST_HEAD_ROW}>
-                  <th className="px-5 py-2 font-semibold">Company</th>
-                  <th className="px-5 py-2 font-semibold">Stage</th>
-                  <th className="px-5 py-2 font-semibold">Location</th>
-                  <th className="px-5 py-2 font-semibold">Primary contact</th>
-                  <th className="px-5 py-2 font-semibold">
-                    <Link
-                      href={sortHref}
-                      prefetch={false}
-                      className="inline-flex items-center gap-1 hover:text-fg"
-                      title={sortStale ? "Showing coldest first" : "Sort by last contact"}
-                    >
-                      Last contact{sortStale ? " ↑" : ""}
-                    </Link>
-                  </th>
-                  <th className="px-5 py-2 font-semibold">Tags</th>
-                </tr>
-              </thead>
-              <tbody className={ZEBRA_ROWS}>
-                {accounts.map((a) => {
-                  const stageValue = a.lifecycle_status;
-                  const location = [titleCaseWords(a.city), upperCaseState(a.state)]
-                    .filter(Boolean)
-                    .join(", ");
-                  const contact = a.primary_contact_id
-                    ? primaryName.get(a.primary_contact_id)
-                    : null;
-                  const rowTags = tagsByAccount.get(a.id) ?? [];
-                  return (
-                    <ClickableRow
-                      key={a.id}
-                      href={`/crm/accounts/${a.id}`}
-                      className="border-b border-line-strong last:border-0"
-                    >
-                      <td className="px-5 py-3">
-                        <Link
-                          href={`/crm/accounts/${a.id}`}
-                          prefetch={false}
-                          className="font-semibold text-fg hover:text-accent"
-                        >
-                          {titleCaseWords(a.name)}
-                        </Link>
-                        {a.industry && (
-                          <div className="text-[12px] text-fg-subtle">{a.industry}</div>
-                        )}
-                      </td>
-                      <td className="px-5 py-3">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-0.5 text-[11px] font-semibold ${stageTone(stageValue)}`}
-                        >
-                          {stageLabel(stageValue)}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3 text-fg-muted">{location || "—"}</td>
-                      <td className="px-5 py-3 text-fg-muted">
-                        {contact ? titleCaseWords(contact) : <span className="text-fg-subtle">—</span>}
-                      </td>
-                      <td className="px-5 py-3">
-                        <LastContactBadge ms={lastContactMsByAccount.get(a.id) ?? null} />
-                      </td>
-                      <td className="px-5 py-3">
-                        {rowTags.length ? (
-                          <div className="flex flex-wrap gap-1">
-                            {rowTags.map((t) => (
-                              <span
-                                key={t.id}
-                                className="inline-flex items-center gap-1 border border-line bg-inset py-0.5 pl-1.5 pr-2 text-[11.5px] font-medium text-fg"
-                              >
-                                <span
-                                  className="h-1.5 w-1.5 shrink-0"
-                                  style={{ background: t.color || "var(--fg-subtle)" }}
-                                />
-                                {t.label}
-                              </span>
-                            ))}
-                          </div>
-                        ) : (
-                          <span className="text-fg-subtle">—</span>
-                        )}
-                      </td>
-                    </ClickableRow>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
+          )}
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 gap-3 [grid-auto-rows:1fr] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {cards.map((c) => (
+            <CompanyListCard key={c.id} company={c} />
+          ))}
+        </div>
+      )}
     </PageShell>
-  );
-}
-
-/** Freshness tiers use the CRM's fixed status tints (never theme-dependent
- *  grey) so a cold or never-contacted company reads as an alert, not a
- *  quiet label — "fresh" is plain readable text since there's nothing to
- *  flag. */
-const FRESHNESS_CLASS: Record<"aging" | "cold" | "never", string> = {
-  aging: "bg-warn-bg text-warn",
-  cold: "bg-bad-bg text-bad",
-  never: "bg-bad-bg text-bad",
-};
-
-function LastContactBadge({ ms }: { ms: number | null }) {
-  const { text, freshness } = lastContactStatus(ms);
-
-  if (freshness === "fresh") {
-    return <span className="text-[13px] font-medium text-fg-muted">{text}</span>;
-  }
-
-  return (
-    <span
-      className={`inline-flex items-center px-2.5 py-0.5 text-[11.5px] font-semibold ${FRESHNESS_CLASS[freshness]}`}
-    >
-      {text}
-    </span>
   );
 }

@@ -101,6 +101,50 @@ function revalidateAccount(id?: string) {
 
 // ── Companies ────────────────────────────────────────────────────────────────
 
+export type DuplicateMatch = { id: string; name: string; matchedOn: string[] };
+
+/**
+ * Basic duplicate check run before a NEW company is created — name (exact,
+ * case-insensitive, after the same normalization saved names already go
+ * through), phone (digits-only against the mirrored `phone` scalar), and
+ * email domain (against the mirrored `email` scalar). Deliberately basic per
+ * the "flag deeper dedupe for later" instruction — no fuzzy/MC/DOT matching,
+ * no blocking (the caller can always proceed after seeing the warning).
+ */
+export async function findPossibleDuplicates(
+  name: string,
+  phone: string | null,
+  email: string | null,
+): Promise<DuplicateMatch[]> {
+  await requireCrmUser();
+  const supabase = await createCrmServerClient();
+
+  const normalizedName = titleCaseWords(name).trim();
+  const phoneDigits = phone ? phone.replace(/\D/g, "") : "";
+  const emailDomain = email && email.includes("@") ? email.split("@")[1]?.toLowerCase() : null;
+
+  if (!normalizedName && !phoneDigits && !emailDomain) return [];
+
+  const { data } = await supabase
+    .from("crm_accounts")
+    .select("id, name, phone, email")
+    .is("deleted_at", null)
+    .limit(500);
+
+  const matches = new Map<string, DuplicateMatch>();
+  for (const row of (data ?? []) as { id: string; name: string; phone: string | null; email: string | null }[]) {
+    const reasons: string[] = [];
+    if (normalizedName && row.name.trim().toLowerCase() === normalizedName.toLowerCase()) reasons.push("name");
+    if (phoneDigits && row.phone && row.phone.replace(/\D/g, "") === phoneDigits) reasons.push("phone");
+    if (emailDomain && row.email && row.email.includes("@") && row.email.split("@")[1]?.toLowerCase() === emailDomain) {
+      reasons.push("email domain");
+    }
+    if (reasons.length) matches.set(row.id, { id: row.id, name: row.name, matchedOn: reasons });
+  }
+
+  return Array.from(matches.values());
+}
+
 /**
  * Create a company for the caller's org and log the first timeline entry.
  * org_id + assigned rep come from the session; RLS WITH CHECK enforces org.

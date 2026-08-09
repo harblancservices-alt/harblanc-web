@@ -1,0 +1,90 @@
+"use client";
+
+import { ClickableListItem } from "../_shell/ClickableRow";
+import { BTN_RED } from "../_shell/ui";
+import { IconPhone } from "../_shell/icons";
+import { stageLabel, stageTone } from "./lifecycle";
+import { lastContactStatus, titleCaseWords, upperCaseState } from "../_shell/format";
+import { digitsForTel } from "../_shell/contactFields";
+import { formatPhone } from "@/lib/domain/phone";
+import type { CrmTag } from "./tags";
+
+export type CompanyCardData = {
+  id: string;
+  name: string;
+  stage: string | null;
+  city: string | null;
+  state: string | null;
+  primaryTag: CrmTag | null;
+  contactCount: number;
+  lastContactMs: number | null;
+  phone: string | null;
+};
+
+/**
+ * One company card in the Companies grid — Brent's spec: name, stage pill
+ * (same LIFECYCLE_TONE system as the detail page), city/state, primary tag,
+ * last-contact date, contact count, and a tap-to-call button. Every card is
+ * the SAME structure regardless of how much data it has (the call button
+ * slot always renders, muted when there's no phone) so the grid reads as
+ * uniform rows — the parent grid's `auto-rows-fr` (see page.tsx) then
+ * stretches every card in a row to match its tallest neighbor.
+ */
+export function CompanyListCard({ company }: { company: CompanyCardData }) {
+  const location = [titleCaseWords(company.city), upperCaseState(company.state)].filter(Boolean).join(", ");
+  const lastContact = lastContactStatus(company.lastContactMs);
+
+  return (
+    <ClickableListItem
+      href={`/crm/accounts/${company.id}`}
+      className="flex h-full min-h-[172px] flex-col justify-between border border-line-strong bg-card p-4 shadow-e1 hover:border-accent/40"
+    >
+      <div className="flex flex-col gap-2">
+        <div className="flex items-start justify-between gap-2">
+          <p className="min-w-0 truncate text-[14.5px] font-bold text-fg">{titleCaseWords(company.name)}</p>
+          <span
+            className={`shrink-0 inline-flex items-center px-2 py-0.5 text-[10.5px] font-semibold ${stageTone(company.stage)}`}
+          >
+            {stageLabel(company.stage)}
+          </span>
+        </div>
+
+        <p className="text-[12.5px] text-fg-muted">{location || "—"}</p>
+
+        {company.primaryTag && (
+          <span className="inline-flex w-fit items-center gap-1 border border-line-strong bg-inset py-0.5 pl-1.5 pr-2 text-[11px] font-medium text-fg">
+            <span className="h-1.5 w-1.5 shrink-0" style={{ background: company.primaryTag.color || "var(--fg-subtle)" }} />
+            {company.primaryTag.label}
+          </span>
+        )}
+
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-fg-subtle">
+          <span>
+            {company.contactCount} contact{company.contactCount === 1 ? "" : "s"}
+          </span>
+          <span>
+            {lastContact.freshness === "never" ? "Never contacted" : `Last contact: ${lastContact.text}`}
+          </span>
+        </div>
+      </div>
+
+      {company.phone ? (
+        <a
+          href={`tel:${digitsForTel(company.phone)}`}
+          className={`mt-3 inline-flex h-10 items-center justify-center gap-1.5 rounded-lg text-[12.5px] font-semibold transition-colors ${BTN_RED}`}
+        >
+          <IconPhone width={13} height={13} />
+          {formatPhone(company.phone)}
+        </a>
+      ) : (
+        <span
+          aria-disabled
+          className="mt-3 inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border border-fg-subtle bg-card text-[12.5px] font-semibold text-fg-subtle opacity-50"
+        >
+          <IconPhone width={13} height={13} />
+          No phone on file
+        </span>
+      )}
+    </ClickableListItem>
+  );
+}

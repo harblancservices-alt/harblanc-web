@@ -4,39 +4,55 @@ import { useState, useTransition } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { LIFECYCLE_STAGES, LIFECYCLE_LABEL } from "./lifecycle";
 import type { RepOption } from "./CompanyDialog";
+import type { CrmTag } from "./tags";
 import { BTN_NEUTRAL, BTN_PRIMARY } from "../_shell/ui";
 
+const SORT_OPTIONS = [
+  { value: "", label: "Newest first" },
+  { value: "name", label: "Name (A–Z)" },
+  { value: "stale", label: "Last contact (coldest first)" },
+] as const;
+
 /**
- * The Companies-list toolbar: full-text search plus lifecycle / rep filters.
- * Every control writes its state into the URL query string and lets the
- * server component re-query — so the list stays server-rendered and
- * RLS-scoped, and any filtered view is shareable/bookmarkable. Selects apply on
- * change; search applies on submit (Enter or the button).
+ * The Companies-list toolbar: full-text search plus lifecycle / rep / tag
+ * filters and a sort control. Every control writes its state into the URL
+ * query string and lets the server component re-query — so the list stays
+ * server-rendered and RLS-scoped, and any filtered/sorted view is
+ * shareable/bookmarkable. Selects apply on change; search applies on submit
+ * (Enter or the button).
  */
 export function AccountsFilters({
   q,
   stage,
   rep,
+  tag,
+  sort,
   reps,
+  tags,
 }: {
   q: string;
   stage: string;
   rep: string;
+  tag: string;
+  sort: string;
   reps: RepOption[];
+  tags: CrmTag[];
 }) {
   const router = useRouter();
   const pathname = usePathname();
   const [pending, startTransition] = useTransition();
   const [search, setSearch] = useState(q);
 
-  const active = Boolean(q || stage || rep);
+  const active = Boolean(q || stage || rep || tag || sort);
 
-  function push(next: { q?: string; stage?: string; rep?: string }) {
-    const merged = { q, stage, rep, ...next };
+  function push(next: { q?: string; stage?: string; rep?: string; tag?: string; sort?: string }) {
+    const merged = { q, stage, rep, tag, sort, ...next };
     const params = new URLSearchParams();
     if (merged.q) params.set("q", merged.q);
     if (merged.stage) params.set("stage", merged.stage);
     if (merged.rep) params.set("rep", merged.rep);
+    if (merged.tag) params.set("tag", merged.tag);
+    if (merged.sort) params.set("sort", merged.sort);
     const qs = params.toString();
     startTransition(() => router.push(qs ? `${pathname}?${qs}` : pathname));
   }
@@ -102,6 +118,37 @@ export function AccountsFilters({
           {reps.map((r) => (
             <option key={r.id} value={r.id}>
               {r.label}
+            </option>
+          ))}
+        </select>
+
+        {tags.length > 0 && (
+          <select
+            value={tag}
+            onChange={(e) => push({ tag: e.target.value })}
+            disabled={pending}
+            aria-label="Filter by tag"
+            className={selectClass}
+          >
+            <option value="">All tags</option>
+            {tags.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+        )}
+
+        <select
+          value={sort}
+          onChange={(e) => push({ sort: e.target.value })}
+          disabled={pending}
+          aria-label="Sort companies"
+          className={selectClass}
+        >
+          {SORT_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
             </option>
           ))}
         </select>
