@@ -1,125 +1,497 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Modal } from "../_shell/Modal";
+import { Field, TextareaField, FormError, LABEL, CONTROL, FieldLabel } from "../_shell/form";
+import { BTN_NEUTRAL } from "../_shell/ui";
 import {
-  Field,
-  SelectField,
-  TextareaField,
-  SubmitButton,
-  FormError,
-} from "../_shell/form";
+  phoneDigits,
+  phoneMatchKey,
+  findMatchingAccount,
+  findMatchingContact,
+  type CallDirectory,
+  type DirectoryAccount,
+  type DirectoryContact,
+} from "../_shell/contactFields";
 import { CALL_OUTCOMES } from "./outcomes";
-import { logCall } from "./actions";
+import { logCall, getCallDirectory } from "./actions";
 import { FollowupFields } from "./FollowupFields";
 
-export type CallContactOption = { id: string; name: string };
+type FieldState = { text: string; id: string | null; autofilled: boolean };
+type PhoneState = { text: string; autofilled: boolean };
+
+type PendingConfirm =
+  | { kind: "duplicate"; field: "contact"; match: DirectoryContact }
+  | { kind: "duplicate"; field: "company"; match: DirectoryAccount }
+  | { kind: "create"; lines: string[] }
+  | null;
+
+type PhoneHit = { number: string; label: string; contact?: DirectoryContact; account?: DirectoryAccount };
+
+function displayPhone(raw: string): string {
+  const d = raw.replace(/\D/g, "");
+  return d.length === 10 ? `(${d.slice(0, 3)}) ${d.slice(3, 6)}-${d.slice(6)}` : raw;
+}
+
+function phoneSuggestions(dir: CallDirectory, query: string): PhoneHit[] {
+  const q = phoneDigits(query);
+  if (q.length < 3) return [];
+  const hits: PhoneHit[] = [];
+  for (const c of dir.contacts) {
+    const p = c.phones.find((p) => phoneDigits(p.number).includes(q));
+    if (p) hits.push({ number: p.number, label: `${c.name}${c.accountName ? ` — ${c.accountName}` : ""}`, contact: c });
+  }
+  for (const a of dir.accounts) {
+    const p = a.phones.find((p) => phoneDigits(p.number).includes(q));
+    if (p) hits.push({ number: p.number, label: `${a.name} (company)`, account: a });
+  }
+  return hits.slice(0, 8);
+}
+
+function findExactPhoneHit(dir: CallDirectory, raw: string): PhoneHit | null {
+  const key = phoneMatchKey(raw);
+  if (key.length !== 10) return null;
+  for (const c of dir.contacts) {
+    const p = c.phones.find((p) => phoneMatchKey(p.number) === key);
+    if (p) return { number: p.number, label: c.name, contact: c };
+  }
+  for (const a of dir.accounts) {
+    const p = a.phones.find((p) => phoneMatchKey(p.number) === key);
+    if (p) return { number: p.number, label: a.name, account: a };
+  }
+  return null;
+}
+
+const DROPDOWN =
+  "absolute left-0 top-[4.6rem] z-20 max-h-56 w-full overflow-y-auto border border-line-strong bg-card py-1 shadow-e3";
+const DROPDOWN_ROW = "block w-full px-3 py-2 text-left text-[13px] text-fg transition-colors hover:bg-inset";
 
 /**
- * Log a call for a company. First-class capture: outcome (required), the
- * contact spoken to, duration, a one-line summary, notes, and a follow-up
- * toggle that reveals an OPTIONAL reminder date + time — a rep can flag
- * follow-up required without pinning an exact moment, set just a date, or
- * just a time; whatever's left blank stays blank (no forced default — see
- * actions.ts::logCall, which only forms a real reminder_at timestamp when
- * BOTH date and time are present). The time picker is a friendly 12-hour
- * AM/PM dropdown plus four quick-tap presets, not the native time spinner.
- * Saving writes crm_calls AND a timeline activity via the server action. The
- * trigger is a render prop so the profile header and each contact card can
- * style their own opener while sharing the form (a contact card preselects
- * itself via defaultContactId).
+ * "Who did you talk to?" — logs a call against any combination of an existing
+ * or brand-new contact, company, and phone number, filled in in ANY order.
+ * Picking an existing record cross-autofills the others (contact → its
+ * company + phone; company → its primary contact + main phone, scoped to
+ * that company's contacts; a known phone → its owning contact/company); each
+ * autofilled field stays editable. Creating a new contact/company runs a
+ * dedupe check against the org's directory (self-fetched via
+ * getCallDirectory on first open — no caller needs to pass a roster down)
+ * and, if nothing looks like a duplicate, requires one extra confirming
+ * click before anything is actually created — see computeNextStep. A call
+ * with only a phone number (no contact/company resolved) is allowed and
+ * creates nothing; the raw number is stored on crm_calls.phone so it can be
+ * reconciled later.
+ *
+ * `accountId`/`contactId`/`phone` are OPTIONAL context hints for the call
+ * sites that already know who's being called (a company profile, a contact
+ * card, a specific phone-list row) — they just pre-run the same cross-autofill
+ * a manual selection would, and remain fully editable.
  */
 export function LogCallDialog({
-  accountId,
-  contacts,
-  defaultContactId,
+  accountId = null,
+  contactId = null,
+  phone: phoneHint = null,
   trigger,
 }: {
-  accountId: string;
-  contacts: CallContactOption[];
-  defaultContactId?: string | null;
+  accountId?: string | null;
+  contactId?: string | null;
+  phone?: string | null;
   trigger: (open: () => void) => ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [followup, setFollowup] = useState(false);
-  const [reminderDate, setReminderDate] = useState("");
-  const [reminderTime, setReminderTime] = useState("");
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
-  function reset() {
+  const [directory, setDirectory] = useState<CallDirectory | null>(null);
+  const [loadingDirectory, setLoadingDirectory] = useState(false);
+  const [pendingHints, setPendingHints] = useState(false);
+
+  const [contact, setContact] = useState<FieldState>({ text: "", id: null, autofilled: false });
+  const [company, setCompany] = useState<FieldState>({ text: "", id: null, autofilled: false });
+  const [phone, setPhone] = useState<PhoneState>({ text: "", autofilled: false });
+  const [contactOpen, setContactOpen] = useState(false);
+  const [companyOpen, setCompanyOpen] = useState(false);
+  const [phoneOpen, setPhoneOpen] = useState(false);
+
+  const [outcome, setOutcome] = useState("");
+  const [followup, setFollowup] = useState(false);
+  const [reminderDate, setReminderDate] = useState("");
+  const [reminderTime, setReminderTime] = useState("");
+
+  const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm>(null);
+  const [dismissedContactDup, setDismissedContactDup] = useState(false);
+  const [dismissedCompanyDup, setDismissedCompanyDup] = useState(false);
+  const [confirmedCreate, setConfirmedCreate] = useState(false);
+
+  // Fetch the org directory once, the first time the dialog is opened.
+  useEffect(() => {
+    if (!open || directory || loadingDirectory) return;
+    setLoadingDirectory(true);
+    getCallDirectory()
+      .then((dir) => setDirectory(dir))
+      .catch(() => setError("Could not load contacts/companies. Try again."))
+      .finally(() => setLoadingDirectory(false));
+  }, [open, directory, loadingDirectory]);
+
+  // Apply accountId/contactId/phone hints as soon as the directory is ready.
+  useEffect(() => {
+    if (!pendingHints || !directory) return;
+    setPendingHints(false);
+    if (contactId) {
+      const c = directory.contacts.find((x) => x.id === contactId);
+      if (c) selectContact(c);
+    } else if (accountId) {
+      const a = directory.accounts.find((x) => x.id === accountId);
+      if (a) selectCompany(a);
+    }
+    if (phoneHint) {
+      setPhone((p) => (p.text ? p : { text: phoneHint, autofilled: false }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingHints, directory]);
+
+  function resetFields() {
     setError(null);
+    setContact({ text: "", id: null, autofilled: false });
+    setCompany({ text: "", id: null, autofilled: false });
+    setPhone({ text: "", autofilled: false });
+    setOutcome("");
     setFollowup(false);
     setReminderDate("");
     setReminderTime("");
+    setPendingConfirm(null);
+    setDismissedContactDup(false);
+    setDismissedCompanyDup(false);
+    setConfirmedCreate(false);
+    setPendingHints(true);
+  }
+
+  function selectContact(c: DirectoryContact) {
+    setContact({ text: c.name, id: c.id, autofilled: false });
+    setDismissedContactDup(false);
+    setConfirmedCreate(false);
+    setPendingConfirm(null);
+    if (c.accountId) {
+      const acctName = c.accountName ?? directory?.accounts.find((a) => a.id === c.accountId)?.name ?? "";
+      setCompany({ text: acctName, id: c.accountId, autofilled: true });
+    }
+    const firstPhone = c.phones[0]?.number;
+    if (firstPhone) setPhone({ text: firstPhone, autofilled: true });
+  }
+
+  function selectCompany(a: DirectoryAccount) {
+    setCompany({ text: a.name, id: a.id, autofilled: false });
+    setDismissedCompanyDup(false);
+    setConfirmedCreate(false);
+    setPendingConfirm(null);
+
+    const contactEmpty = !contact.id && !contact.text.trim();
+    const phoneEmpty = !phone.text.trim();
+    if (contactEmpty) {
+      const primary = a.primaryContactId ? directory?.contacts.find((c) => c.id === a.primaryContactId) : null;
+      if (primary) {
+        setContact({ text: primary.name, id: primary.id, autofilled: true });
+        const firstPhone = primary.phones[0]?.number ?? a.phones[0]?.number;
+        if (firstPhone && phoneEmpty) setPhone({ text: firstPhone, autofilled: true });
+      } else if (a.phones[0]?.number && phoneEmpty) {
+        setPhone({ text: a.phones[0].number, autofilled: true });
+      }
+    }
+  }
+
+  function applyPhoneHit(hit: PhoneHit) {
+    setPhone({ text: hit.number, autofilled: false });
+    setPhoneOpen(false);
+    if (hit.contact) {
+      setContact({ text: hit.contact.name, id: hit.contact.id, autofilled: true });
+      setDismissedContactDup(false);
+      if (hit.contact.accountId) {
+        const acctName =
+          hit.contact.accountName ?? directory?.accounts.find((a) => a.id === hit.contact!.accountId)?.name ?? "";
+        setCompany({ text: acctName, id: hit.contact.accountId, autofilled: true });
+        setDismissedCompanyDup(false);
+      }
+    } else if (hit.account) {
+      setCompany({ text: hit.account.name, id: hit.account.id, autofilled: true });
+      setDismissedCompanyDup(false);
+      if (hit.account.primaryContactId) {
+        const pc = directory?.contacts.find((c) => c.id === hit.account!.primaryContactId);
+        if (pc) {
+          setContact({ text: pc.name, id: pc.id, autofilled: true });
+          setDismissedContactDup(false);
+        }
+      }
+    }
+    setConfirmedCreate(false);
+    setPendingConfirm(null);
+  }
+
+  function handlePhoneBlur() {
+    setPhoneOpen(false);
+    if (!directory) return;
+    if (contact.id || contact.text.trim() || company.id || company.text.trim()) return;
+    const hit = findExactPhoneHit(directory, phone.text);
+    if (hit) applyPhoneHit(hit);
+  }
+
+  function computeNextStep(): PendingConfirm | "ready" {
+    if (!directory) return "ready";
+    const contactWillCreate = !contact.id && contact.text.trim().length > 0;
+    const companyWillCreate = !company.id && company.text.trim().length > 0;
+
+    if (contactWillCreate && !dismissedContactDup) {
+      const m = findMatchingContact(directory.contacts, contact.text, phone.text);
+      if (m) return { kind: "duplicate", field: "contact", match: m };
+    }
+    if (companyWillCreate && !dismissedCompanyDup) {
+      const m = findMatchingAccount(directory.accounts, company.text, phone.text);
+      if (m) return { kind: "duplicate", field: "company", match: m };
+    }
+    if ((contactWillCreate || companyWillCreate) && !confirmedCreate) {
+      const lines: string[] = [];
+      if (contactWillCreate && companyWillCreate) {
+        lines.push(`Create contact "${contact.text.trim()}" under new company "${company.text.trim()}" and link them.`);
+      } else if (contactWillCreate) {
+        lines.push(
+          `Create contact "${contact.text.trim()}"${company.id ? ` under ${company.text.trim()}` : " with no company"}.`,
+        );
+      } else if (companyWillCreate) {
+        lines.push(`Create company "${company.text.trim()}".`);
+      }
+      return { kind: "create", lines };
+    }
+    return "ready";
   }
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
     setError(null);
+    const form = e.currentTarget;
+
+    if (!outcome) {
+      setError("Pick a call outcome.");
+      return;
+    }
+    if (!directory) {
+      setError("Still loading contacts — try again in a moment.");
+      return;
+    }
+
+    const step = computeNextStep();
+    if (step !== "ready") {
+      setPendingConfirm(step);
+      if (step.kind === "create") setConfirmedCreate(true);
+      return;
+    }
+
     startTransition(async () => {
-      const res = await logCall(accountId, formData);
+      const res = await logCall(new FormData(form));
       if (res.ok) {
         setOpen(false);
-        reset();
+        resetFields();
         router.refresh();
       } else {
         setError(res.error);
+        setConfirmedCreate(false);
       }
     });
   }
 
+  const phoneMatches = directory && phoneOpen ? phoneSuggestions(directory, phone.text) : [];
+  const contactMatches =
+    directory && contactOpen && contact.text.trim()
+      ? (company.id ? directory.contacts.filter((c) => c.accountId === company.id) : directory.contacts)
+          .filter((c) => c.name.toLowerCase().includes(contact.text.trim().toLowerCase()))
+          .slice(0, 8)
+      : [];
+  const companyMatches =
+    directory && companyOpen && company.text.trim()
+      ? directory.accounts.filter((a) => a.name.toLowerCase().includes(company.text.trim().toLowerCase())).slice(0, 8)
+      : [];
+
+  const saveLabel = pendingConfirm?.kind === "create" ? "Confirm & save call" : pending ? "Logging…" : "Save call";
+  const saveGreen = pendingConfirm?.kind === "create";
+
   return (
     <>
       {trigger(() => {
-        reset();
+        resetFields();
         setOpen(true);
       })}
 
-      <Modal
-        open={open}
-        onClose={() => setOpen(false)}
-        busy={pending}
-        title="Log a call"
-      >
+      <Modal open={open} onClose={() => setOpen(false)} busy={pending} title="Who did you talk to?">
         <FormError message={error} />
         <form onSubmit={onSubmit} className="flex flex-col gap-3">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <SelectField label="Outcome" name="outcome" required defaultValue="">
-              <option value="" disabled>
-                Select outcome…
-              </option>
+          <input type="hidden" name="outcome" value={outcome} />
+          <input type="hidden" name="contact_mode" value={contact.id ? "existing" : contact.text.trim() ? "new" : "none"} />
+          <input type="hidden" name="contact_id" value={contact.id ?? ""} />
+          <input type="hidden" name="contact_name" value={contact.text.trim()} />
+          <input type="hidden" name="account_mode" value={company.id ? "existing" : company.text.trim() ? "new" : "none"} />
+          <input type="hidden" name="account_id" value={company.id ?? ""} />
+          <input type="hidden" name="company_name" value={company.text.trim()} />
+          <input type="hidden" name="phone" value={phone.text.trim()} />
+          <input type="hidden" name="contact_force" value={dismissedContactDup ? "on" : ""} />
+          <input type="hidden" name="account_force" value={dismissedCompanyDup ? "on" : ""} />
+
+          {/* Contact */}
+          <div className="relative flex flex-col gap-1.5">
+            <label className="flex flex-col gap-1.5">
+              <span className={LABEL}>Contact</span>
+              <input
+                type="text"
+                value={contact.text}
+                onChange={(e) => {
+                  setContact({ text: e.target.value, id: null, autofilled: false });
+                  setDismissedContactDup(false);
+                  setConfirmedCreate(false);
+                  setPendingConfirm(null);
+                  setContactOpen(true);
+                }}
+                onFocus={() => setContactOpen(true)}
+                onBlur={() => setContactOpen(false)}
+                placeholder="Search or type a new contact name…"
+                autoComplete="off"
+                className={`h-11 ${CONTROL}`}
+              />
+            </label>
+            {contact.autofilled ? (
+              <p className="text-[11.5px] font-semibold text-ok">Auto-filled — edit if needed.</p>
+            ) : (
+              <p className="text-[12px] text-fg-subtle">
+                {company.id && !contact.text.trim()
+                  ? "Showing this company's contacts."
+                  : contact.id
+                    ? "Existing contact."
+                    : contact.text.trim()
+                      ? `No match — will create "${contact.text.trim()}" as a new contact.`
+                      : "Optional — leave blank for an unlinked call."}
+              </p>
+            )}
+            {contactOpen && contactMatches.length > 0 && (
+              <ul className={DROPDOWN}>
+                {contactMatches.map((c) => (
+                  <li key={c.id}>
+                    <button type="button" onMouseDown={(e) => { e.preventDefault(); selectContact(c); }} className={DROPDOWN_ROW}>
+                      <span className="font-medium">{c.name}</span>
+                      {c.accountName && <span className="text-fg-subtle"> — {c.accountName}</span>}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* Company */}
+          <div className="relative flex flex-col gap-1.5">
+            <label className="flex flex-col gap-1.5">
+              <span className={LABEL}>Company</span>
+              <input
+                type="text"
+                value={company.text}
+                onChange={(e) => {
+                  setCompany({ text: e.target.value, id: null, autofilled: false });
+                  setDismissedCompanyDup(false);
+                  setConfirmedCreate(false);
+                  setPendingConfirm(null);
+                  setCompanyOpen(true);
+                }}
+                onFocus={() => setCompanyOpen(true)}
+                onBlur={() => setCompanyOpen(false)}
+                placeholder="Search or type a new company name…"
+                autoComplete="off"
+                className={`h-11 ${CONTROL}`}
+              />
+            </label>
+            {company.autofilled ? (
+              <p className="text-[11.5px] font-semibold text-ok">Auto-filled — edit if needed.</p>
+            ) : (
+              <p className="text-[12px] text-fg-subtle">
+                {company.id
+                  ? "Existing company."
+                  : company.text.trim()
+                    ? `No match — will create "${company.text.trim()}" as a new company.`
+                    : "Optional — leave blank for an unlinked call."}
+              </p>
+            )}
+            {companyOpen && companyMatches.length > 0 && (
+              <ul className={DROPDOWN}>
+                {companyMatches.map((a) => (
+                  <li key={a.id}>
+                    <button type="button" onMouseDown={(e) => { e.preventDefault(); selectCompany(a); }} className={DROPDOWN_ROW}>
+                      {a.name}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* Phone */}
+          <div className="relative flex flex-col gap-1.5">
+            <label className="flex flex-col gap-1.5">
+              <span className={LABEL}>Phone</span>
+              <input
+                type="tel"
+                value={phone.text}
+                onChange={(e) => {
+                  setPhone({ text: e.target.value, autofilled: false });
+                  setPhoneOpen(true);
+                }}
+                onFocus={() => setPhoneOpen(true)}
+                onBlur={handlePhoneBlur}
+                placeholder="Number dialed…"
+                autoComplete="off"
+                className={`h-11 ${CONTROL}`}
+              />
+            </label>
+            {phone.autofilled ? (
+              <p className="text-[11.5px] font-semibold text-ok">Auto-filled — edit if needed.</p>
+            ) : (
+              <p className="text-[12px] text-fg-subtle">
+                {phone.text.trim() && !contact.id && !company.id
+                  ? "No contact/company matched — this call will be saved as an unlinked number."
+                  : "Optional."}
+              </p>
+            )}
+            {phoneOpen && phoneMatches.length > 0 && (
+              <ul className={DROPDOWN}>
+                {phoneMatches.map((hit, i) => (
+                  <li key={`${hit.number}-${i}`}>
+                    <button type="button" onMouseDown={(e) => { e.preventDefault(); applyPhoneHit(hit); }} className={DROPDOWN_ROW}>
+                      <span className="font-mono">{displayPhone(hit.number)}</span>
+                      <span className="text-fg-subtle"> — {hit.label}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* Outcome */}
+          <div className="flex flex-col gap-1.5">
+            <FieldLabel required>Outcome</FieldLabel>
+            <div className="flex flex-wrap gap-1.5">
               {CALL_OUTCOMES.map((o) => (
-                <option key={o.value} value={o.value}>
+                <button
+                  key={o.value}
+                  type="button"
+                  onClick={() => setOutcome(o.value)}
+                  className={`rounded-lg border px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
+                    outcome === o.value
+                      ? "border-ok bg-ok text-white"
+                      : "border-fg-subtle bg-card text-fg-muted hover:bg-inset hover:text-fg"
+                  }`}
+                >
                   {o.label}
-                </option>
+                </button>
               ))}
-            </SelectField>
-            <SelectField
-              label="Contact"
-              name="contact_id"
-              defaultValue={defaultContactId ?? ""}
-            >
-              <option value="">No specific contact</option>
-              {contacts.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </SelectField>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field
-              label="Duration (min)"
-              name="duration_minutes"
-              inputMode="numeric"
-              placeholder="e.g. 5"
-            />
+            <Field label="Duration (min)" name="duration_minutes" inputMode="numeric" placeholder="e.g. 5" />
             <Field label="Summary" name="summary" placeholder="One-line recap" />
           </div>
 
@@ -134,12 +506,9 @@ export function LogCallDialog({
               className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--accent)]"
             />
             <span className="min-w-0">
-              <span className="block text-[13.5px] font-medium text-fg">
-                Follow-up required
-              </span>
+              <span className="block text-[13.5px] font-medium text-fg">Follow-up required</span>
               <span className="mt-0.5 block text-[12px] text-fg-subtle">
-                Sets a reminder that surfaces on your dashboard. Date and time
-                are both optional.
+                Sets a reminder that surfaces on your dashboard. Date and time are both optional.
               </span>
             </span>
           </label>
@@ -153,9 +522,61 @@ export function LogCallDialog({
             />
           )}
 
-          <SubmitButton pending={pending} pendingLabel="Logging…">
-            Log call
-          </SubmitButton>
+          {pendingConfirm?.kind === "duplicate" && (
+            <div className="border border-warn/40 bg-warn-bg px-3 py-2.5 text-[13px]">
+              <p className="font-semibold text-warn">
+                {pendingConfirm.field === "contact" ? "Contact" : "Company"} already exists
+              </p>
+              <p className="mt-1 text-fg-muted">
+                &ldquo;{pendingConfirm.match.name}&rdquo; looks like a match — link this call to it instead of creating a
+                duplicate?
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (pendingConfirm.field === "contact") selectContact(pendingConfirm.match as DirectoryContact);
+                    else selectCompany(pendingConfirm.match as DirectoryAccount);
+                  }}
+                  className="rounded-lg border border-ok bg-ok px-3 py-1.5 text-[12.5px] font-semibold text-white transition-colors hover:bg-ok/90"
+                >
+                  Use existing
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (pendingConfirm.field === "contact") setDismissedContactDup(true);
+                    else setDismissedCompanyDup(true);
+                    setPendingConfirm(null);
+                  }}
+                  className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_NEUTRAL}`}
+                >
+                  Create new anyway
+                </button>
+              </div>
+            </div>
+          )}
+
+          {pendingConfirm?.kind === "create" && (
+            <div className="border border-ok/40 bg-ok-bg px-3 py-2.5 text-[13px]">
+              <p className="font-semibold text-ok">Saving will also create:</p>
+              <ul className="mt-1 list-disc pl-4 text-fg-muted">
+                {pendingConfirm.lines.map((line, i) => (
+                  <li key={i}>{line}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={pending || loadingDirectory}
+            className={`mt-1 inline-flex h-11 items-center justify-center gap-1.5 rounded-lg text-[14px] font-semibold text-white transition-colors disabled:opacity-60 ${
+              saveGreen ? "bg-ok hover:bg-ok/90" : "bg-accent hover:bg-accent-hover"
+            }`}
+          >
+            {saveLabel}
+          </button>
         </form>
       </Modal>
     </>

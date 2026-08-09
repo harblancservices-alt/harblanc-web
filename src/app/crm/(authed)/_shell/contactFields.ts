@@ -86,3 +86,86 @@ export function normalizeHref(url: string): string {
 export function digitsForTel(number: string): string {
   return number.replace(/[^0-9+]/g, "");
 }
+
+// ── Call-log directory + dedupe matching ────────────────────────────────────
+// Shared by calls/actions.ts (server-side directory fetch + dedupe re-check)
+// and LogCallDialog.tsx (client-side autocomplete + the same dedupe check
+// run against the already-loaded directory, so a duplicate can be surfaced
+// before the round trip). Plain module, no hooks — safe from both sides.
+
+export type DirectoryAccount = {
+  id: string;
+  name: string;
+  phones: PhoneEntry[];
+  primaryContactId: string | null;
+};
+
+export type DirectoryContact = {
+  id: string;
+  name: string;
+  accountId: string | null;
+  accountName: string | null;
+  phones: PhoneEntry[];
+};
+
+export type CallDirectory = {
+  accounts: DirectoryAccount[];
+  contacts: DirectoryContact[];
+};
+
+/** Digits only, no length cap — used for storage, not display. */
+export function phoneDigits(raw: string | null | undefined): string {
+  return (raw ?? "").replace(/\D/g, "");
+}
+
+/** Last 10 digits — the comparison key for "is this the same number", so a
+ * leading country code (+1) doesn't defeat a match. Shorter/malformed input
+ * is returned as-is (never padded), so it simply won't match anything. */
+export function phoneMatchKey(raw: string | null | undefined): string {
+  const digits = phoneDigits(raw);
+  return digits.length > 10 ? digits.slice(-10) : digits;
+}
+
+/** Case/whitespace-insensitive name comparison key. */
+export function nameMatchKey(raw: string | null | undefined): string {
+  return (raw ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+}
+
+/** Probable-duplicate check for a company about to be created — exact
+ * (normalized) name match, or a phone that matches one of the company's
+ * known numbers. Deliberately basic (no fuzzy matching), matching
+ * accounts/actions.ts::findPossibleDuplicates. */
+export function findMatchingAccount(
+  accounts: DirectoryAccount[],
+  name: string,
+  phone: string,
+): DirectoryAccount | null {
+  const nameKey = name.trim() ? nameMatchKey(name) : null;
+  const phoneKey = phone.trim() ? phoneMatchKey(phone) : null;
+  if (!nameKey && !(phoneKey && phoneKey.length === 10)) return null;
+  return (
+    accounts.find(
+      (a) =>
+        (nameKey && nameMatchKey(a.name) === nameKey) ||
+        (phoneKey && phoneKey.length === 10 && a.phones.some((p) => phoneMatchKey(p.number) === phoneKey)),
+    ) ?? null
+  );
+}
+
+/** Same idea as findMatchingAccount, for a contact about to be created. */
+export function findMatchingContact(
+  contacts: DirectoryContact[],
+  name: string,
+  phone: string,
+): DirectoryContact | null {
+  const nameKey = name.trim() ? nameMatchKey(name) : null;
+  const phoneKey = phone.trim() ? phoneMatchKey(phone) : null;
+  if (!nameKey && !(phoneKey && phoneKey.length === 10)) return null;
+  return (
+    contacts.find(
+      (c) =>
+        (nameKey && nameMatchKey(c.name) === nameKey) ||
+        (phoneKey && phoneKey.length === 10 && c.phones.some((p) => phoneMatchKey(p.number) === phoneKey)),
+    ) ?? null
+  );
+}

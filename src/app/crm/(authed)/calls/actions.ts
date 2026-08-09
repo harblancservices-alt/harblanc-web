@@ -4,7 +4,18 @@ import { revalidatePath } from "next/cache";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { logActivity, CRM_ACTIVITY } from "@/lib/crm/activity";
 import { callOutcomeLabel } from "./outcomes";
-import { centralInputToIso } from "../_shell/format";
+import { centralInputToIso, titleCaseWords } from "../_shell/format";
+import { DEFAULT_LIFECYCLE } from "../accounts/lifecycle";
+import {
+  parsePhones,
+  phoneDigits,
+  phoneMatchKey,
+  findMatchingAccount,
+  findMatchingContact,
+  type CallDirectory,
+  type DirectoryAccount,
+  type DirectoryContact,
+} from "../_shell/contactFields";
 
 /**
  * Call logging. A call is a first-class record in crm_calls AND an append-only
@@ -12,6 +23,15 @@ import { centralInputToIso } from "../_shell/format";
  * contract as every CRM write: resolve the caller with requireCrmUser(), run
  * through the RLS-scoped client, and stamp org_id/user_id from the SESSION so a
  * row can never be written into another org.
+ *
+ * The "who did you talk to" flow (LogCallDialog) lets Contact/Company/Phone be
+ * filled in ANY order and cross-autofills the others when an existing record
+ * is picked. Creating a brand-new contact/company on save goes through a
+ * server-side dedupe re-check (getCallDirectory powers both the dialog's
+ * client-side autocomplete AND this re-check, so the matching rule is defined
+ * once — see findMatchingAccount/findMatchingContact in _shell/contactFields)
+ * before anything is inserted, so a rep can't accidentally spin up a
+ * near-duplicate company/contact just because the picker didn't catch it.
  */
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -30,40 +50,116 @@ function optInt(fd: FormData, key: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
-function revalidate(accountId: string) {
+function revalidate(accountId: string | null, contactId: string | null) {
   revalidatePath("/crm");
   revalidatePath("/crm/tasks");
-  revalidatePath(`/crm/accounts/${accountId}`);
+  if (accountId) revalidatePath(`/crm/accounts/${accountId}`);
+  if (contactId) revalidatePath(`/crm/contacts/${contactId}`);
+}
+
+function mergePhones(scalar: unknown, jsonb: unknown) {
+  const parsed = parsePhones(jsonb);
+  if (parsed.length) return parsed;
+  const s = typeof scalar === "string" ? scalar.trim() : "";
+  return s ? [{ label: "", number: s }] : [];
 }
 
 /**
- * Log a call against a company (optionally tied to a specific contact). Writes
- * the crm_calls row, bumps the contact's last_contacted_at when one was picked,
- * and drops a timeline activity carrying the outcome so the profile feed shows
- * what happened. A follow-up flagged here surfaces in the dashboard call-back
- * queue via crm_calls (followup_required + reminder_at).
+ * The org's full contact/company roster (id, name, phones) for LogCallDialog's
+ * three linked comboboxes — fetched once when the dialog opens so all the
+ * cross-autofill and dedupe matching can run client-side against an in-memory
+ * list, same shape logCall re-fetches server-side before creating anything.
  */
-export async function logCall(
-  accountId: string,
-  formData: FormData,
-): Promise<ActionResult> {
+export async function getCallDirectory(): Promise<CallDirectory> {
+  const user = await requireCrmUser();
+  const supabase = await createCrmServerClient();
+
+  const [{ data: accountRows }, { data: contactRows }] = await Promise.all([
+    supabase
+      .from("crm_accounts")
+      .select("id, name, phone, phones, primary_contact_id")
+      .eq("org_id", user.orgId)
+      .is("deleted_at", null)
+      .order("name"),
+    supabase
+      .from("crm_contacts")
+      .select("id, name, account_id, phone, phones")
+      .eq("org_id", user.orgId)
+      .is("deleted_at", null)
+      .order("name"),
+  ]);
+
+  const accountNameById = new Map<string, string>();
+  const accounts: DirectoryAccount[] = (
+    (accountRows ?? []) as {
+      id: string;
+      name: string;
+      phone: string | null;
+      phones: unknown;
+      primary_contact_id: string | null;
+    }[]
+  ).map((a) => {
+    accountNameById.set(a.id, a.name);
+    return {
+      id: a.id,
+      name: a.name,
+      phones: mergePhones(a.phone, a.phones),
+      primaryContactId: a.primary_contact_id ?? null,
+    };
+  });
+
+  const contacts: DirectoryContact[] = (
+    (contactRows ?? []) as {
+      id: string;
+      name: string;
+      account_id: string | null;
+      phone: string | null;
+      phones: unknown;
+    }[]
+  ).map((c) => ({
+    id: c.id,
+    name: c.name,
+    accountId: c.account_id ?? null,
+    accountName: c.account_id ? accountNameById.get(c.account_id) ?? null : null,
+    phones: mergePhones(c.phone, c.phones),
+  }));
+
+  return { accounts, contacts };
+}
+
+/**
+ * Log a call. Contact/company can be an EXISTING record (contact_mode /
+ * account_mode = "existing", ids supplied) a BRAND-NEW one to create
+ * (= "new", name supplied) or absent (= "none" — the phone-only/unknown-call
+ * path, allowed as long as a phone number was captured). Never re-parents an
+ * already-existing contact to a different company — if the rep picked an
+ * existing contact, the call links to exactly that contact and whatever
+ * company it already belongs to; a company typed alongside it only affects
+ * NEW records.
+ */
+export async function logCall(formData: FormData): Promise<ActionResult> {
   const user = await requireCrmUser();
 
   const outcome = optStr(formData, "outcome");
   if (!outcome) return { ok: false, error: "Pick a call outcome." };
 
-  const contactId = optStr(formData, "contact_id");
+  const contactMode = str(formData, "contact_mode");
+  const accountMode = str(formData, "account_mode");
+  const existingContactId = optStr(formData, "contact_id");
+  const existingAccountId = optStr(formData, "account_id");
+  const newContactName = optStr(formData, "contact_name");
+  const newCompanyName = optStr(formData, "company_name");
+  const forceCreateContact = str(formData, "contact_force") === "on";
+  const forceCreateAccount = str(formData, "account_force") === "on";
+  const rawPhone = optStr(formData, "phone");
+  const phoneKey = rawPhone ? phoneMatchKey(rawPhone) : "";
+
   const durationMinutes = optInt(formData, "duration_minutes");
   const durationSeconds =
     durationMinutes !== null && durationMinutes >= 0 ? durationMinutes * 60 : null;
   const summary = optStr(formData, "summary");
   const notes = optStr(formData, "notes");
   const followupRequired = str(formData, "followup_required") === "on";
-  // Date and time are each independently optional (LogCallDialog's date
-  // input + friendly AM/PM time dropdown) — a rep can flag follow-up
-  // required without pinning an exact moment. Only form a real reminder_at
-  // timestamp when BOTH are present; anything partial stays null rather than
-  // silently defaulting to midnight or "now" for the missing half.
   const reminderDate = optStr(formData, "reminder_date");
   const reminderTime = optStr(formData, "reminder_time");
   const reminderAt =
@@ -72,7 +168,132 @@ export async function logCall(
       : null;
 
   const supabase = await createCrmServerClient();
-  const { error } = await supabase.from("crm_calls").insert({
+
+  const needsDirectory = accountMode === "new" || contactMode === "new";
+  const directory: CallDirectory | null = needsDirectory ? await getCallDirectory() : null;
+
+  // ── Company ────────────────────────────────────────────────────────────
+  let accountId: string | null = null;
+  let accountCreated = false;
+
+  if (accountMode === "existing" && existingAccountId) {
+    const { data: acct } = await supabase
+      .from("crm_accounts")
+      .select("id")
+      .eq("id", existingAccountId)
+      .eq("org_id", user.orgId)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (!acct) return { ok: false, error: "That company could not be found. Pick it again." };
+    accountId = acct.id as string;
+  } else if (accountMode === "new" && newCompanyName) {
+    const titled = titleCaseWords(newCompanyName);
+    const match = findMatchingAccount(directory!.accounts, titled, rawPhone ?? "");
+    if (match && !forceCreateAccount) {
+      return {
+        ok: false,
+        error: `A company named "${match.name}" already exists — pick it from the list instead of creating a new one.`,
+      };
+    }
+
+    const { data: newAccount, error } = await supabase
+      .from("crm_accounts")
+      .insert({
+        org_id: user.orgId,
+        name: titled,
+        lifecycle_status: DEFAULT_LIFECYCLE,
+        source: "manual",
+        needs_finalize: true,
+      })
+      .select("id")
+      .single();
+    if (error || !newAccount) {
+      return { ok: false, error: "Could not create the company. Please try again." };
+    }
+    accountId = newAccount.id as string;
+    accountCreated = true;
+
+    await logActivity(supabase, {
+      orgId: user.orgId,
+      userId: user.id,
+      accountId,
+      kind: CRM_ACTIVITY.accountCreated,
+      summary: `Company added from call log: ${titled}`,
+    });
+  }
+
+  // ── Contact ────────────────────────────────────────────────────────────
+  let contactId: string | null = null;
+  let contactCreated = false;
+
+  if (contactMode === "existing" && existingContactId) {
+    const { data: contact } = await supabase
+      .from("crm_contacts")
+      .select("id")
+      .eq("id", existingContactId)
+      .eq("org_id", user.orgId)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (!contact) return { ok: false, error: "That contact could not be found. Pick it again." };
+    contactId = contact.id as string;
+  } else if (contactMode === "new" && newContactName) {
+    const titled = titleCaseWords(newContactName);
+    const match = findMatchingContact(directory!.contacts, titled, rawPhone ?? "");
+    if (match && !forceCreateContact) {
+      return {
+        ok: false,
+        error: `A contact named "${match.name}" already exists — pick them from the list instead of creating a new one.`,
+      };
+    }
+
+    const contactPhones = rawPhone ? [{ label: "Main", number: rawPhone }] : [];
+    const { data: newContact, error } = await supabase
+      .from("crm_contacts")
+      .insert({
+        org_id: user.orgId,
+        // Only ever the company just resolved above — an EXISTING contact
+        // (the branch above) never has its account_id touched here. null is
+        // fine and expected: a contact with no company is explicitly allowed.
+        account_id: accountId,
+        name: titled,
+        phone: rawPhone || null,
+        phones: contactPhones,
+      })
+      .select("id")
+      .single();
+    if (error || !newContact) {
+      return { ok: false, error: "Could not create the contact. Please try again." };
+    }
+    contactId = newContact.id as string;
+    contactCreated = true;
+
+    await logActivity(supabase, {
+      orgId: user.orgId,
+      userId: user.id,
+      accountId,
+      contactId,
+      kind: CRM_ACTIVITY.contactAdded,
+      summary: `Contact added from call log: ${titled}`,
+    });
+  }
+
+  // Both created together in this same submission — link them and make the
+  // new contact the company's primary contact (never touches an existing
+  // company's already-set primary contact).
+  if (accountCreated && contactCreated && accountId && contactId) {
+    await supabase.from("crm_accounts").update({ primary_contact_id: contactId }).eq("id", accountId);
+  }
+
+  // Reconciliation-friendly, consistent storage form: 10 US digits when the
+  // number resolves to that, otherwise whatever digits were typed (an
+  // extension, a malformed entry) rather than mangling it.
+  const normalizedPhone = rawPhone
+    ? phoneKey.length === 10
+      ? phoneKey
+      : phoneDigits(rawPhone)
+    : null;
+
+  const { error: callError } = await supabase.from("crm_calls").insert({
     org_id: user.orgId,
     account_id: accountId,
     contact_id: contactId,
@@ -83,9 +304,10 @@ export async function logCall(
     notes,
     followup_required: followupRequired,
     reminder_at: reminderAt,
+    phone: normalizedPhone,
   });
 
-  if (error) {
+  if (callError) {
     return { ok: false, error: "Could not log the call. Please try again." };
   }
 
@@ -99,23 +321,25 @@ export async function logCall(
 
   const label = callOutcomeLabel(outcome);
   const durLabel = durationMinutes ? ` · ${durationMinutes}m` : "";
+  const unlinkedNote = !accountId && !contactId && normalizedPhone ? " · Unlinked number" : "";
   await logActivity(supabase, {
     orgId: user.orgId,
     userId: user.id,
     accountId,
     contactId,
     kind: CRM_ACTIVITY.call,
-    summary: `Call · ${label}${durLabel}`,
+    summary: `Call · ${label}${durLabel}${unlinkedNote}`,
     body: summary,
     meta: {
       outcome,
       duration_seconds: durationSeconds,
       followup_required: followupRequired,
       reminder_at: reminderAt,
+      phone: normalizedPhone,
     },
   });
 
-  revalidate(accountId);
+  revalidate(accountId, contactId);
   return { ok: true };
 }
 
@@ -140,6 +364,6 @@ export async function deleteCall(
 
   if (error) return { ok: false, error: "Could not delete the call." };
 
-  revalidate(accountId);
+  revalidate(accountId, null);
   return { ok: true };
 }
