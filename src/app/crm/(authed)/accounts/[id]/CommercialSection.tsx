@@ -1,5 +1,5 @@
 import { createCrmServerClient } from "@/lib/crm/auth";
-import { Card, CardHead, BTN_EDIT } from "../../_shell/ui";
+import { Card, CardHead } from "../../_shell/ui";
 import { DetailFact } from "./DetailFact";
 import { CommercialDialog } from "./CommercialDialog";
 
@@ -40,15 +40,6 @@ export async function CommercialSection({ accountId }: { accountId: string }) {
           <CommercialDialog
             accountId={accountId}
             defaults={{ fit_rating: fitRating, payment_terms: paymentTerms, current_carrier: currentCarrier }}
-            trigger={(open) => (
-              <button
-                type="button"
-                onClick={open}
-                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_EDIT}`}
-              >
-                Edit
-              </button>
-            )}
           />
         }
       />

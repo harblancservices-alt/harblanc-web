@@ -1,5 +1,5 @@
 import { createCrmServerClient } from "@/lib/crm/auth";
-import { Card, CardHead, BTN_EDIT } from "../../_shell/ui";
+import { Card, CardHead } from "../../_shell/ui";
 import { DetailFact } from "./DetailFact";
 import type { LaneEntry } from "../../_shell/LanesEditor";
 import { FreightProfileDialog } from "./FreightProfileDialog";
@@ -69,15 +69,6 @@ export async function FreightProfileSection({ accountId }: { accountId: string }
               weight_range: weightRange,
               special_requirements: specialRequirements,
             }}
-            trigger={(open) => (
-              <button
-                type="button"
-                onClick={open}
-                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_EDIT}`}
-              >
-                Edit
-              </button>
-            )}
           />
         }
       />

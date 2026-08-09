@@ -1,8 +1,8 @@
 import { createCrmServerClient } from "@/lib/crm/auth";
-import { Card, CardHead, BTN_PRIMARY, ZEBRA_ROWS } from "../../_shell/ui";
-import { IconPlus } from "../../_shell/icons";
-import { LocationDialog, type LocationDefaults } from "./LocationDialog";
+import { Card, CardHead, ZEBRA_ROWS } from "../../_shell/ui";
+import type { LocationDefaults } from "./LocationDialog";
 import { LocationRow } from "./LocationRow";
+import { AddLocationButton } from "./AddLocationButton";
 
 /**
  * Details tab — "Locations & docks" group. Repeatable facilities, each its
@@ -27,22 +27,7 @@ export async function LocationsSection({ accountId }: { accountId: string }) {
       <CardHead
         title="Locations & docks"
         hint={locations.length ? `${locations.length} on file` : undefined}
-        right={
-          <LocationDialog
-            accountId={accountId}
-            mode="create"
-            trigger={(open) => (
-              <button
-                type="button"
-                onClick={open}
-                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_PRIMARY}`}
-              >
-                <IconPlus width={14} height={14} />
-                Add location
-              </button>
-            )}
-          />
-        }
+        right={<AddLocationButton accountId={accountId} />}
       />
       {locations.length === 0 ? (
         <p className="px-5 py-8 text-center text-[13.5px] text-fg-muted">

@@ -1,5 +1,5 @@
 import { createCrmServerClient } from "@/lib/crm/auth";
-import { Card, CardHead, BTN_EDIT } from "../../_shell/ui";
+import { Card, CardHead } from "../../_shell/ui";
 import { DetailFact } from "./DetailFact";
 import { normalizeHref } from "../../_shell/contactFields";
 import { CompanyProfileDialog } from "./CompanyProfileDialog";
@@ -33,15 +33,6 @@ export async function CompanyProfileSection({ accountId }: { accountId: string }
           <CompanyProfileDialog
             accountId={accountId}
             defaults={{ dba, linkedin_url: linkedinUrl, year_founded: yearFounded, ownership_type: ownershipType }}
-            trigger={(open) => (
-              <button
-                type="button"
-                onClick={open}
-                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_EDIT}`}
-              >
-                Edit
-              </button>
-            )}
           />
         }
       />

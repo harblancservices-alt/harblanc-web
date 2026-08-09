@@ -1,5 +1,5 @@
 import { createCrmServerClient } from "@/lib/crm/auth";
-import { Card, CardHead, BTN_EDIT } from "../../_shell/ui";
+import { Card, CardHead } from "../../_shell/ui";
 import { ContextNotesDialog } from "./ContextNotesDialog";
 
 /**
@@ -22,19 +22,7 @@ export async function ContextNotesSection({ accountId }: { accountId: string }) 
       <CardHead
         title="Notes"
         right={
-          <ContextNotesDialog
-            accountId={accountId}
-            defaultValue={notes}
-            trigger={(open) => (
-              <button
-                type="button"
-                onClick={open}
-                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_EDIT}`}
-              >
-                Edit
-              </button>
-            )}
-          />
+          <ContextNotesDialog accountId={accountId} defaultValue={notes} />
         }
       />
       <div className="p-5">
