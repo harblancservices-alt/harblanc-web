@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { BTN_NEUTRAL, BTN_RED, EmptyState } from "../../_shell/ui";
+import { BTN_NEUTRAL, BTN_ACTION, EmptyState } from "../../_shell/ui";
 import { LABEL, CONTROL } from "../../_shell/form";
 import { IconContacts, IconMail, IconMore, IconPhone, IconPlus } from "../../_shell/icons";
 import { digitsForTel, type PhoneEntry, type LinkEntry } from "../../_shell/contactFields";
@@ -205,7 +205,7 @@ export function ContactsMasterDetail({
             accountId={accountId}
             mode="create"
             trigger={(open) => (
-              <button type="button" onClick={open} className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors ${BTN_RED}`}>
+              <button type="button" onClick={open} className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors ${BTN_ACTION}`}>
                 <IconPlus width={14} height={14} />
                 Add contact
               </button>
@@ -226,7 +226,7 @@ export function ContactsMasterDetail({
             accountId={accountId}
             mode="create"
             trigger={(open) => (
-              <button type="button" onClick={open} aria-label="Add contact" className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${BTN_RED}`}>
+              <button type="button" onClick={open} aria-label="Add contact" className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${BTN_ACTION}`}>
                 <IconPlus width={14} height={14} />
               </button>
             )}
@@ -289,13 +289,13 @@ export function ContactsMasterDetail({
               </div>
               <div className="flex shrink-0 items-center gap-2">
                 {selected.email ? (
-                  <a href={`mailto:${selected.email}`} className={`inline-flex h-10 items-center gap-1.5 rounded-lg px-3 text-[12.5px] font-semibold transition-colors ${BTN_RED}`}>
+                  <a href={`mailto:${selected.email}`} className={`inline-flex h-10 items-center gap-1.5 rounded-lg px-3 text-[12.5px] font-semibold transition-colors ${BTN_ACTION}`}>
                     <IconMail width={13} height={13} />
                     Email
                   </a>
                 ) : null}
                 {primaryPhone ? (
-                  <a href={`tel:${digitsForTel(primaryPhone.number)}`} className={`inline-flex h-10 items-center gap-1.5 rounded-lg px-3 text-[12.5px] font-semibold transition-colors ${BTN_RED}`}>
+                  <a href={`tel:${digitsForTel(primaryPhone.number)}`} className={`inline-flex h-10 items-center gap-1.5 rounded-lg px-3 text-[12.5px] font-semibold transition-colors ${BTN_ACTION}`}>
                     <IconPhone width={13} height={13} />
                     Call
                   </a>

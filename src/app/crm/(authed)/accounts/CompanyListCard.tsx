@@ -1,7 +1,7 @@
 "use client";
 
 import { ClickableListItem } from "../_shell/ClickableRow";
-import { BTN_RED } from "../_shell/ui";
+import { BTN_ACTION } from "../_shell/ui";
 import { IconPhone } from "../_shell/icons";
 import { stageLabel, stageTone } from "./lifecycle";
 import { lastContactStatus, titleCaseWords, upperCaseState } from "../_shell/format";
@@ -71,7 +71,7 @@ export function CompanyListCard({ company }: { company: CompanyCardData }) {
       {company.phone ? (
         <a
           href={`tel:${digitsForTel(company.phone)}`}
-          className={`mt-3 inline-flex h-10 items-center justify-center gap-1.5 rounded-lg text-[12.5px] font-semibold transition-colors ${BTN_RED}`}
+          className={`mt-3 inline-flex h-10 items-center justify-center gap-1.5 rounded-lg text-[12.5px] font-semibold transition-colors ${BTN_ACTION}`}
         >
           <IconPhone width={13} height={13} />
           {formatPhone(company.phone)}

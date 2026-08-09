@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { BTN_DANGER, BTN_NEUTRAL, BTN_RED } from "../../_shell/ui";
+import { BTN_DANGER, BTN_NEUTRAL, BTN_ACTION } from "../../_shell/ui";
 import { ContactDialog, type ContactDefaults } from "../../accounts/[id]/ContactDialog";
 import { QuickNoteDialog } from "../../accounts/[id]/QuickNoteDialog";
 import { LogCallDialog } from "../../calls/LogCallDialog";
@@ -139,7 +139,7 @@ export function ContactActionsRow({
               contacts={contactOptions}
               defaultContactId={contactId}
               trigger={(open) => (
-                <button type="button" onClick={open} className={`${GRID_BTN} ${BTN_RED}`}>
+                <button type="button" onClick={open} className={`${GRID_BTN} ${BTN_ACTION}`}>
                   Log call
                 </button>
               )}
@@ -155,7 +155,7 @@ export function ContactActionsRow({
               currentUser={currentUser}
               defaults={{ contact_id: contactId }}
               trigger={(open) => (
-                <button type="button" onClick={open} className={`${GRID_BTN} ${BTN_RED}`}>
+                <button type="button" onClick={open} className={`${GRID_BTN} ${BTN_ACTION}`}>
                   Add task
                 </button>
               )}
@@ -166,17 +166,17 @@ export function ContactActionsRow({
             contactId={contactId}
             contactName={contactName}
             trigger={(open) => (
-              <button type="button" onClick={open} className={`${GRID_BTN} ${BTN_RED}`}>
+              <button type="button" onClick={open} className={`${GRID_BTN} ${BTN_ACTION}`}>
                 Note
               </button>
             )}
           />
           {contactEmail ? (
-            <a href={`mailto:${contactEmail}`} className={`${GRID_BTN} ${BTN_RED}`}>
+            <a href={`mailto:${contactEmail}`} className={`${GRID_BTN} ${BTN_ACTION}`}>
               Email
             </a>
           ) : (
-            <span aria-disabled title="No email on file" className={`${GRID_BTN} ${BTN_RED} cursor-not-allowed opacity-40`}>
+            <span aria-disabled title="No email on file" className={`${GRID_BTN} ${BTN_ACTION} cursor-not-allowed opacity-40`}>
               Email
             </span>
           )}

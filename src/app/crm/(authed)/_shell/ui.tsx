@@ -127,13 +127,20 @@ export const ZEBRA_ROWS =
  * buttons had drifted to a single faint-gray "does everything" look
  * regardless of what the button actually did — buttons should carry meaning.
  *
- *   BTN_PRIMARY — filled blue.   Save / Add / Create / Search / primary CTA.
+ *   BTN_PRIMARY — filled steel-blue (var(--accent)). Save / Add / Create /
+ *                 Search / primary CTA.
  *   BTN_SUCCESS — filled green.  Done / Complete / Release to team / approve.
- *   BTN_RED     — filled dc2626. Operational actions — Log call, Add person,
+ *   BTN_ACTION  — filled 2563eb. Operational actions — Log call, Add person,
  *                 Add task, Note, Email, and the per-contact card actions.
  *                 Brent's explicit call: these read as "do something now"
- *                 across the whole CRM, distinct from BTN_DANGER's lighter
- *                 red (an actual destructive Delete/Discard/Remove).
+ *                 across the whole CRM, distinct from both BTN_PRIMARY's
+ *                 steel-blue and BTN_DANGER's red (an actual destructive
+ *                 Delete/Discard/Remove). Was BTN_RED/dc2626 — Brent's
+ *                 2026-08-08 correction retired every red operational
+ *                 button in favor of this blue; the STAGE tracker's
+ *                 current-stage chevron matches (see StageTracker.tsx).
+ *                 Destructive actions (BTN_DANGER) are unchanged — that's a
+ *                 different semantic category, not a "primary/action" button.
  *   BTN_EDIT    — blue outline.  Edit / Open / View / secondary navigate.
  *   BTN_WARNING — amber outline. Reschedule / snooze / date changes.
  *   BTN_DANGER  — red outline.   Delete / Discard / Remove / Reject.
@@ -143,8 +150,8 @@ export const BTN_PRIMARY =
   "border border-accent bg-accent text-white hover:bg-accent-hover disabled:opacity-60";
 export const BTN_SUCCESS =
   "border border-ok bg-ok text-white hover:bg-ok/90 disabled:opacity-60";
-export const BTN_RED =
-  "border border-[#dc2626] bg-[#dc2626] text-white hover:bg-[#b91c1c] disabled:opacity-60";
+export const BTN_ACTION =
+  "border border-[#2563eb] bg-[#2563eb] text-white hover:bg-[#1d4ed8] disabled:opacity-60";
 export const BTN_EDIT =
   "border border-accent/40 bg-card text-accent hover:bg-accent/10 disabled:opacity-60";
 export const BTN_WARNING =

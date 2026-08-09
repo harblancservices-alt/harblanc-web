@@ -45,7 +45,7 @@ function toPrefixQuery(input: string): string {
  * Companies list — SURFACE 2 of the Company/Contact rebuild, rebuilt from
  * the old table into a mobile-first card grid matching the design system
  * the Company detail page (surface 1) established: LIFECYCLE_TONE stage
- * pills, BTN_RED for the tap-to-call action, square corners. Reads
+ * pills, BTN_ACTION for the tap-to-call action, square corners. Reads
  * crm_accounts for the caller's org ONLY (RLS-scoped). Full-text search over
  * search_tsv plus lifecycle / rep / tag filters and a sort control, all
  * driven from the URL so any view is shareable. Each card shows exactly the

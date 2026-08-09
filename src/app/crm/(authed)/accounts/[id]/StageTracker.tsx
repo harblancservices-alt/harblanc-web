@@ -29,8 +29,9 @@ function clipPath(isFirst: boolean, isLast: boolean): string {
  * The company profile's stage tracker — Option A, a horizontal chevron
  * pipeline (Brent's approved mock), REPLACING the old plain lifecycle pill
  * row in the top title bar entirely (see page.tsx). Completed stages fill
- * green with a check, the CURRENT stage is red (the same dc2626 as the
- * CRM's other red operational accents), upcoming stages are gray. There's
+ * green with a check, the CURRENT stage is blue (2563eb, the same BTN_ACTION
+ * blue as the CRM's other operational accents — Brent's 2026-08-08
+ * correction retired the red this used to be), upcoming stages are gray. There's
  * no separate "Advance" control — clicking any chevron sets the company
  * straight to that stage, writing through the same updateLifecycleStatus
  * action the old pill row used (still logs the transition to the timeline).
@@ -83,7 +84,7 @@ export function StageTracker({ accountId, current }: { accountId: string; curren
           const fill = done
             ? "bg-ok text-white hover:bg-ok/90"
             : isCurrent
-              ? "bg-[#dc2626] text-white hover:bg-[#b91c1c]"
+              ? "bg-[#2563eb] text-white hover:bg-[#1d4ed8]"
               : "bg-inset text-fg-muted hover:bg-line-strong";
 
           return (
