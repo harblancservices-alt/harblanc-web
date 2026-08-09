@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { PageShell } from "../_shell/ui";
-import { IconPlus, IconTruck } from "../_shell/icons";
-import { BTN_PRIMARY, BTN_EDIT } from "../_shell/ui";
+import { IconTruck } from "../_shell/icons";
+import { BTN_EDIT } from "../_shell/ui";
 import { listShipments } from "./actions";
 import { ShipmentsListClient, type ShipmentListRow } from "./ShipmentsListClient";
+import { NewShipmentButton } from "./NewShipmentButton";
 
 export const dynamic = "force-dynamic";
 
@@ -44,13 +45,7 @@ export default async function ShipmentsPage() {
             <IconTruck width={16} height={16} />
             Carriers
           </Link>
-          <Link
-            href="/crm/shipments/new"
-            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-[15px] font-bold shadow-e2 transition-all hover:-translate-y-0.5 hover:shadow-e3 ${BTN_PRIMARY}`}
-          >
-            <IconPlus width={16} height={16} />
-            New Shipment
-          </Link>
+          <NewShipmentButton />
         </>
       }
     >
