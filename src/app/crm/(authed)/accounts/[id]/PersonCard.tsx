@@ -21,15 +21,18 @@ export type CrmContact = ContactDefaults & {
 };
 
 const GRID_BTN =
-  "inline-flex h-9 items-center justify-center rounded-lg px-2 text-center text-[12px] font-semibold leading-tight transition-colors";
+  "inline-flex items-center justify-center rounded-lg px-1.5 py-1.5 text-center text-[10.5px] font-semibold leading-tight transition-colors";
 
 /**
  * The person card — shared by the Overview tab's "People at this company"
  * and the Contacts tab's full directory (Brent's approved mock: one card
  * design everywhere a contact renders, not two diverging layouts). Avatar +
- * name + role pill, labeled phone/email/last-contacted, then a 2×2 grid of
- * red (dc2626) operational actions: Log call / Add task / Note / Email.
- * Clicking the card (anywhere that isn't one of its own buttons/links) opens
+ * name + role pill on top; below that, labeled phone/email/last-contacted on
+ * the left BESIDE a compact 2×2 grid of red (dc2626) operational actions
+ * (Log call / Add task / Note / Email) on the right — the two stack (info
+ * above, buttons below) under the `sm` breakpoint so a 3-across grid never
+ * gets cramped on a phone. Clicking the card (anywhere that isn't one of its
+ * own buttons/links) opens
  * the contact's own profile page — see contacts/[contactId]/page.tsx — via
  * ClickableListItem, which already ignores clicks on nested interactive
  * elements. The primary-contact toggle and Delete are OPTIONAL: only the
@@ -125,73 +128,78 @@ export function PersonCard({
 
       {person.title && <p className="text-[12.5px] text-fg-muted">{person.title}</p>}
 
-      <div className="flex flex-col gap-1 text-[12.5px]">
-        {primaryPhone ? (
-          <span className="font-mono text-fg-muted">
-            {primaryPhone.label ? `${primaryPhone.label}: ` : ""}
-            {formatPhone(primaryPhone.number)}
-          </span>
-        ) : (
-          <span className="text-fg-subtle">No phone on file</span>
-        )}
-        {person.email ? (
-          <a href={`mailto:${person.email}`} className="truncate text-accent hover:underline">
-            {person.email}
-          </a>
-        ) : (
-          <span className="text-fg-subtle">No email on file</span>
-        )}
-        <span className="text-fg-subtle">Last contacted: {lastContacted}</span>
-      </div>
+      {/* Info on the left, the 2x2 red action grid on the right — stacks
+          (info above, buttons below, full-width) below the `sm` breakpoint
+          so it never gets cramped on a phone. */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex min-w-0 flex-1 flex-col gap-1 text-[12.5px]">
+          {primaryPhone ? (
+            <span className="font-mono text-fg-muted">
+              {primaryPhone.label ? `${primaryPhone.label}: ` : ""}
+              {formatPhone(primaryPhone.number)}
+            </span>
+          ) : (
+            <span className="text-fg-subtle">No phone on file</span>
+          )}
+          {person.email ? (
+            <a href={`mailto:${person.email}`} className="truncate text-accent hover:underline">
+              {person.email}
+            </a>
+          ) : (
+            <span className="text-fg-subtle">No email on file</span>
+          )}
+          <span className="text-fg-subtle">Last contacted: {lastContacted}</span>
+        </div>
 
-      <div className="grid grid-cols-2 gap-2">
-        <LogCallDialog
-          accountId={accountId}
-          contacts={contactOptions}
-          defaultContactId={person.id}
-          trigger={(open) => (
-            <button type="button" onClick={open} className={`${GRID_BTN} ${BTN_RED}`}>
-              Log call
-            </button>
+        <div className="grid w-full grid-cols-2 gap-1.5 sm:w-40 sm:shrink-0">
+          <LogCallDialog
+            accountId={accountId}
+            contacts={contactOptions}
+            defaultContactId={person.id}
+            trigger={(open) => (
+              <button type="button" onClick={open} className={`${GRID_BTN} ${BTN_RED}`}>
+                Log call
+              </button>
+            )}
+          />
+          <TaskDialog
+            mode="create"
+            accountId={accountId}
+            contacts={contactOptions}
+            reps={reps}
+            canAssignOthers={canAssignOthers}
+            currentUser={currentUser}
+            defaults={{ contact_id: person.id }}
+            trigger={(open) => (
+              <button type="button" onClick={open} className={`${GRID_BTN} ${BTN_RED}`}>
+                Add task
+              </button>
+            )}
+          />
+          <QuickNoteDialog
+            accountId={accountId}
+            contactId={person.id}
+            contactName={person.name}
+            trigger={(open) => (
+              <button type="button" onClick={open} className={`${GRID_BTN} ${BTN_RED}`}>
+                Note
+              </button>
+            )}
+          />
+          {person.email ? (
+            <a href={`mailto:${person.email}`} className={`${GRID_BTN} ${BTN_RED}`}>
+              Email
+            </a>
+          ) : (
+            <span
+              aria-disabled
+              title="No email on file"
+              className={`${GRID_BTN} ${BTN_RED} cursor-not-allowed opacity-40`}
+            >
+              Email
+            </span>
           )}
-        />
-        <TaskDialog
-          mode="create"
-          accountId={accountId}
-          contacts={contactOptions}
-          reps={reps}
-          canAssignOthers={canAssignOthers}
-          currentUser={currentUser}
-          defaults={{ contact_id: person.id }}
-          trigger={(open) => (
-            <button type="button" onClick={open} className={`${GRID_BTN} ${BTN_RED}`}>
-              Add task
-            </button>
-          )}
-        />
-        <QuickNoteDialog
-          accountId={accountId}
-          contactId={person.id}
-          contactName={person.name}
-          trigger={(open) => (
-            <button type="button" onClick={open} className={`${GRID_BTN} ${BTN_RED}`}>
-              Note
-            </button>
-          )}
-        />
-        {person.email ? (
-          <a href={`mailto:${person.email}`} className={`${GRID_BTN} ${BTN_RED}`}>
-            Email
-          </a>
-        ) : (
-          <span
-            aria-disabled
-            title="No email on file"
-            className={`${GRID_BTN} ${BTN_RED} cursor-not-allowed opacity-40`}
-          >
-            Email
-          </span>
-        )}
+        </div>
       </div>
 
       {showFooter && (

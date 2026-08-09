@@ -22,6 +22,41 @@ function parseCommodities(value: string | null): string[] {
     .filter(Boolean);
 }
 
+/**
+ * commodities is one free-text field, but in practice it often carries a
+ * handful of short tags followed by a longer researched description (e.g.
+ * "Custom furniture, fixtures, lighting, and interior build-outs —
+ * fabricated in-house and shipped nationwide..."). Naively comma-splitting
+ * the WHOLE string into chips turns that trailing sentence into a run of
+ * ugly little boxes. This walks the comma-split fragments and keeps them as
+ * chips only while each one still reads like a short tag (no sentence
+ * punctuation, under ~28 chars); the first fragment that doesn't qualify —
+ * plus everything after it, REJOINED with ", " to restore the original
+ * prose rather than leaving it comma-fragmented — becomes one clean
+ * paragraph instead. A value that's all short tags (most companies) yields
+ * no prose at all; a value that's pure description yields no chips at all.
+ */
+function splitCommodities(value: string | null): { chips: string[]; prose: string | null } {
+  const parts = parseCommodities(value);
+  const chips: string[] = [];
+  let proseStart = -1;
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    if (part.length <= 28 && !/[.!?]|—/.test(part)) {
+      chips.push(part);
+    } else {
+      proseStart = i;
+      break;
+    }
+  }
+  const prose = proseStart === -1 ? null : parts.slice(proseStart).join(", ");
+  return { chips, prose };
+}
+
+function mapsHref(address: string): string {
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+}
+
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-subtle">
@@ -97,7 +132,7 @@ export function CompanyCard({
 
   const location = [city, state].filter(Boolean).join(", ");
   const fullAddress = [address, location, zip].filter(Boolean).join(", ");
-  const viewChips = parseCommodities(commodities);
+  const { chips: viewChips, prose: commodityProse } = splitCommodities(commodities);
 
   function addChip() {
     const v = chipInput.trim();
@@ -248,9 +283,18 @@ export function CompanyCard({
             <>
               <div>
                 <SectionLabel>Address</SectionLabel>
-                <p className={`text-[14px] ${fullAddress ? "text-fg" : "text-fg-subtle"}`}>
-                  {fullAddress || "—"}
-                </p>
+                {fullAddress ? (
+                  <a
+                    href={mapsHref(fullAddress)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[14px] text-accent hover:underline"
+                  >
+                    {fullAddress}
+                  </a>
+                ) : (
+                  <p className="text-[14px] text-fg-subtle">—</p>
+                )}
               </div>
 
               <div>
@@ -265,7 +309,7 @@ export function CompanyCard({
 
               <div>
                 <SectionLabel>Commodities</SectionLabel>
-                {viewChips.length ? (
+                {viewChips.length > 0 && (
                   <div className="flex flex-wrap gap-1.5">
                     {viewChips.map((c) => (
                       <span
@@ -276,7 +320,15 @@ export function CompanyCard({
                       </span>
                     ))}
                   </div>
-                ) : (
+                )}
+                {commodityProse && (
+                  <p
+                    className={`text-[13.5px] leading-relaxed text-fg-muted ${viewChips.length ? "mt-2" : ""}`}
+                  >
+                    {commodityProse}
+                  </p>
+                )}
+                {!viewChips.length && !commodityProse && (
                   <p className="text-[13px] text-fg-subtle">No commodities on file.</p>
                 )}
               </div>
