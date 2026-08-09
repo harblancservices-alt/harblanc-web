@@ -2,6 +2,8 @@
 
 import { useRef, useState, type ReactNode } from "react";
 import { CONTROL, LABEL } from "../_shell/form";
+import { BROKER_PROFILE } from "../_shell/brokerProfile";
+import { REPS, repFullName } from "../_shell/reps";
 import "./bill-of-lading.css";
 
 type ChargeTerms = "prepaid" | "collect" | "third_party" | "";
@@ -23,11 +25,10 @@ type BolState = {
   bolNumber: string;
   date: string;
   loadRef: string;
+  repId: string;
   brokerContact: string;
   brokerPhone: string;
   brokerEmail: string;
-  brokerMc: string;
-  brokerDot: string;
 
   // Ship From
   shipFromName: string;
@@ -96,11 +97,10 @@ function initialState(makeIds: () => string[]): BolState {
     bolNumber: "",
     date: todayISO(),
     loadRef: "",
+    repId: "",
     brokerContact: "",
     brokerPhone: "",
     brokerEmail: "",
-    brokerMc: "",
-    brokerDot: "",
 
     shipFromName: "",
     shipFromAddress: "",
@@ -181,6 +181,17 @@ export function BillOfLadingGenerator() {
     setState((prev) => ({ ...prev, [key]: value }));
   }
 
+  function selectRep(repId: string) {
+    const rep = REPS.find((r) => r.id === repId);
+    setState((prev) => ({
+      ...prev,
+      repId,
+      brokerContact: rep ? repFullName(rep) : "",
+      brokerPhone: rep ? rep.phone : "",
+      brokerEmail: rep ? rep.email : "",
+    }));
+  }
+
   function updateLineItem(id: string, patch: Partial<LineItem>) {
     setState((prev) => ({
       ...prev,
@@ -218,6 +229,7 @@ export function BillOfLadingGenerator() {
         <BolForm
           state={state}
           set={set}
+          selectRep={selectRep}
           updateLineItem={updateLineItem}
           addLineItem={addLineItem}
           removeLineItem={removeLineItem}
@@ -247,12 +259,14 @@ export function BillOfLadingGenerator() {
 function BolForm({
   state,
   set,
+  selectRep,
   updateLineItem,
   addLineItem,
   removeLineItem,
 }: {
   state: BolState;
   set: <K extends keyof BolState>(key: K, value: BolState[K]) => void;
+  selectRep: (repId: string) => void;
   updateLineItem: (id: string, patch: Partial<LineItem>) => void;
   addLineItem: () => void;
   removeLineItem: (id: string) => void;
@@ -265,6 +279,15 @@ function BolForm({
           <TextInput label="Date" value={state.date} onChange={(v) => set("date", v)} type="date" />
         </FormRow>
         <TextInput label="Load / Ref #" value={state.loadRef} onChange={(v) => set("loadRef", v)} />
+        <SelectInput
+          label="Broker Rep"
+          value={state.repId}
+          onChange={selectRep}
+          options={[
+            { value: "", label: "— Select —" },
+            ...REPS.map((r) => ({ value: r.id, label: repFullName(r) })),
+          ]}
+        />
         <FormRow>
           <TextInput
             label="Broker Contact"
@@ -274,10 +297,6 @@ function BolForm({
           <TextInput label="Broker Phone" value={state.brokerPhone} onChange={(v) => set("brokerPhone", v)} />
         </FormRow>
         <TextInput label="Broker Email" value={state.brokerEmail} onChange={(v) => set("brokerEmail", v)} />
-        <FormRow>
-          <TextInput label="Broker MC #" value={state.brokerMc} onChange={(v) => set("brokerMc", v)} />
-          <TextInput label="Broker DOT #" value={state.brokerDot} onChange={(v) => set("brokerDot", v)} />
-        </FormRow>
       </FormSection>
 
       <FormSection title="Ship From">
@@ -619,8 +638,8 @@ function BolDocument({
     <div className="bol-page">
       <header className="bol-header">
         <div>
-          <p className="bol-wordmark">HELLO HOTSHOT</p>
-          <p className="bol-wordmark-sub">Freight Brokerage</p>
+          <p className="bol-wordmark">{BROKER_PROFILE.name.toUpperCase()}</p>
+          {BROKER_PROFILE.address && <p className="bol-broker-line">{BROKER_PROFILE.address}</p>}
           <p className="bol-broker-line">
             <Blank value={state.brokerContact} width={110} /> &nbsp;·&nbsp;{" "}
             <Blank value={state.brokerPhone} width={100} />
@@ -629,8 +648,7 @@ function BolDocument({
             <Blank value={state.brokerEmail} width={160} />
           </p>
           <p className="bol-broker-line">
-            MC <Blank value={state.brokerMc} width={60} /> &nbsp;·&nbsp; DOT{" "}
-            <Blank value={state.brokerDot} width={60} />
+            MC {BROKER_PROFILE.mc} &nbsp;·&nbsp; DOT {BROKER_PROFILE.dot}
           </p>
         </div>
         <div className="bol-header-right">
