@@ -10,18 +10,21 @@
  * the core rule (colour only on fixed surfaces).
  *
  * LIFECYCLE_STAGES is the full historical vocabulary — kept so normalize/
- * label/tone stay correct for any company already sitting in "contacted" or
- * "qualified" (or "inactive"/"lost"). SELECTABLE_LIFECYCLE_STAGES is the
- * shorter list new pickers (the profile's stage pills) actually offer —
- * "contacted" and "qualified" were dropped from the funnel by request; a
- * company already on one of the removed stages still displays correctly
- * (normalizeStage still recognizes it), it just can't be picked again from
- * the reduced pill row.
+ * label/tone stay correct for any company already sitting in "qualified" (or
+ * "inactive"/"lost"), stages dropped from the active funnel at various
+ * points. SELECTABLE_LIFECYCLE_STAGES is the funnel the profile's chevron
+ * stage tracker (StageTracker.tsx) actually walks — the approved 5-stage
+ * pipeline (Lead → Researching → Contacted → Quoted → Customer). "quoted" is
+ * a plain text column with no DB check constraint (confirmed live before
+ * adding it here), so this needed no migration. A company already on
+ * "qualified"/"inactive"/"lost" still displays correctly (normalizeStage
+ * still recognizes it) but reads as a legacy stage outside the tracker.
  */
 export const LIFECYCLE_STAGES = [
   "lead",
   "researching",
   "contacted",
+  "quoted",
   "qualified",
   "customer",
   "inactive",
@@ -30,10 +33,12 @@ export const LIFECYCLE_STAGES = [
 
 export type LifecycleStage = (typeof LIFECYCLE_STAGES)[number];
 
-/** The pickable set on the profile's stage-pill row. */
+/** The ordered funnel the profile's chevron stage tracker walks. */
 export const SELECTABLE_LIFECYCLE_STAGES = [
   "lead",
   "researching",
+  "contacted",
+  "quoted",
   "customer",
 ] as const satisfies readonly LifecycleStage[];
 
@@ -44,6 +49,7 @@ export const LIFECYCLE_LABEL: Record<LifecycleStage, string> = {
   lead: "Lead",
   researching: "Researching",
   contacted: "Contacted",
+  quoted: "Quoted",
   qualified: "Qualified",
   customer: "Customer",
   inactive: "Inactive",
@@ -58,6 +64,7 @@ export const LIFECYCLE_TONE: Record<LifecycleStage, string> = {
   lead: "bg-slate-bg text-slate",
   researching: "bg-slate-bg text-slate",
   contacted: "bg-steel-bg text-steel",
+  quoted: "bg-steel-bg text-steel",
   qualified: "bg-steel-bg text-steel",
   customer: "bg-ok-bg text-ok",
   inactive: "bg-warn-bg text-warn",

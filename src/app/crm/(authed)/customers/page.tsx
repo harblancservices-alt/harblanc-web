@@ -31,7 +31,7 @@ type ContactRow = {
 
 /**
  * Active Customers — every crm_account marked lifecycle_status='customer'
- * via the profile's lifecycle stepper (accounts/[id]/LifecycleControl.tsx →
+ * via the profile's chevron stage tracker (accounts/[id]/StageTracker.tsx →
  * updateLifecycleStatus). Purely a read view: there is no write path here —
  * moving a company in or out of this list is done on its profile, which
  * already exists. Visible to every CRM user, org-scoped by RLS. Sorted

@@ -15,7 +15,7 @@ import { AddPersonButton } from "./AddPersonButton";
 import { AiResearchSection, type CrmNote } from "./AiResearchSection";
 import { PeopleSection } from "./PeopleSection";
 import type { CrmActivityItem } from "./ActivitySection";
-import { LifecycleControl } from "./LifecycleControl";
+import { StageTracker } from "./StageTracker";
 import { RepControl } from "./RepControl";
 import { DetailsSection, type CrmDetailsTag } from "./DetailsSection";
 import { type CrmCommodityPhoto } from "./CommodityPhotoTiles";
@@ -50,7 +50,8 @@ function profileName(p: ProfileRow | undefined): string | null {
  * "Company" card (tabbed Company/Activity — address/phones/links/commodities
  * plus the relocated activity feed; see CompanyCard.tsx) that stays mounted
  * across every tab, and a RIGHT column that's the only thing ProfileTabs
- * switches — a name + lifecycle-stage-control + assigned-rep strip above a
+ * switches — a name + assigned-rep strip, then the full-width chevron stage
+ * tracker (StageTracker.tsx — Option A, Brent's approved mock), above a
  * segmented tab bar. The Overview tab stacks Tasks (whose header doubles as
  * the Log call / Add person / Add task button bar) and People.
  */
@@ -432,16 +433,14 @@ export default async function AccountDetailPage({
         />
 
         <div className="flex min-w-0 flex-col gap-4">
-          {/* Top strip — identity + the lifecycle stage / assigned rep
-              controls (moved up here from the left Company card). Log
-              call/Add person live in the Tasks section's button bar below. */}
+          {/* Top strip — identity + assigned rep only now; the lifecycle
+              stage moved into its own full-width chevron tracker below (see
+              StageTracker.tsx). Log call/Add person live in the Tasks
+              section's button bar further down. */}
           <div className="flex flex-wrap items-center justify-between gap-3 border border-line-strong bg-card px-4 py-3 shadow-e2">
-            <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
-              <h1 className="truncate text-[18px] font-bold tracking-tight text-fg">
-                {accountName}
-              </h1>
-              <LifecycleControl accountId={account.id as string} current={stage} />
-            </div>
+            <h1 className="truncate text-[18px] font-bold tracking-tight text-fg">
+              {accountName}
+            </h1>
             <div className="shrink-0">
               <RepControl
                 accountId={account.id as string}
@@ -449,6 +448,12 @@ export default async function AccountDetailPage({
                 reps={reps}
               />
             </div>
+          </div>
+
+          {/* Stage tracker — full width, prominent, at the top of the
+              profile's main area (right above the tabs). */}
+          <div className="w-full border border-line-strong bg-card p-4 shadow-e2">
+            <StageTracker accountId={account.id as string} current={stage} />
           </div>
 
           <ProfileTabs
