@@ -142,7 +142,7 @@ export function UpgradeComposer({ orgId }: { orgId: string }) {
       <CardHead title="New request" hint="Visible to the whole team — Brent sees every request" />
       <div className="flex flex-col gap-3 p-4">
         {error && (
-          <p className="border border-bad/30 bg-bad-bg px-3 py-2 text-[13px] text-bad">{error}</p>
+          <p className="rounded-md border border-bad/30 bg-bad-bg px-3 py-2 text-[13px] text-bad">{error}</p>
         )}
 
         <label className="flex w-full flex-col gap-1.5">
@@ -179,7 +179,7 @@ export function UpgradeComposer({ orgId }: { orgId: string }) {
             }}
             onDragLeave={() => setDragOver(false)}
             onDrop={onDrop}
-            className={`flex flex-col items-center gap-2 border-2 border-dashed px-4 py-6 text-center outline-none transition-colors ${
+            className={`flex flex-col items-center gap-2 rounded-lg border-2 border-dashed px-4 py-6 text-center outline-none transition-colors ${
               dragOver ? "border-accent bg-accent/5" : "border-line-strong"
             }`}
           >
@@ -212,7 +212,7 @@ export function UpgradeComposer({ orgId }: { orgId: string }) {
               {pending.map((p) => (
                 <div
                   key={p.key}
-                  className="group relative aspect-square overflow-hidden border border-line-strong bg-inset"
+                  className="group relative aspect-square overflow-hidden rounded-lg border border-line-strong bg-inset"
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={p.previewUrl} alt={p.file.name} className="h-full w-full object-cover" />

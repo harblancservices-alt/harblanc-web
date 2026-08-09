@@ -89,7 +89,7 @@ export function LoginForm() {
       {error && (
         <div
           role="alert"
-          className="border border-[#4a2327] bg-[#2a181a] px-3.5 py-2.5 text-[13px] leading-snug text-[#f4a3a3]"
+          className="rounded-md border border-[#4a2327] bg-[#2a181a] px-3.5 py-2.5 text-[13px] leading-snug text-[#f4a3a3]"
         >
           {error}
         </div>
@@ -106,7 +106,7 @@ export function LoginForm() {
           required
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="h-11 border border-[#3a424d] bg-[#1b212a] px-3.5 text-[15px] text-white outline-none transition-colors focus:border-[#3f8ae0] focus:ring-2 focus:ring-[#3f8ae0]/25"
+          className="h-11 rounded-md border border-[#3a424d] bg-[#1b212a] px-3.5 text-[15px] text-white outline-none transition-colors focus:border-[#3f8ae0] focus:ring-2 focus:ring-[#3f8ae0]/25"
         />
       </label>
 
@@ -122,7 +122,7 @@ export function LoginForm() {
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="h-11 w-full border border-[#3a424d] bg-[#1b212a] pl-3.5 pr-16 text-[15px] text-white outline-none transition-colors focus:border-[#3f8ae0] focus:ring-2 focus:ring-[#3f8ae0]/25"
+            className="h-11 w-full rounded-md border border-[#3a424d] bg-[#1b212a] pl-3.5 pr-16 text-[15px] text-white outline-none transition-colors focus:border-[#3f8ae0] focus:ring-2 focus:ring-[#3f8ae0]/25"
           />
           <button
             type="button"

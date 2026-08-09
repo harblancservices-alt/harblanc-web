@@ -48,7 +48,7 @@ export function FollowupFields({
   onTimeChange: (value: string) => void;
 }) {
   return (
-    <div className="flex flex-col gap-2.5 border border-fg-subtle bg-inset px-3 py-3">
+    <div className="flex flex-col gap-2.5 rounded-md border border-fg-subtle bg-inset px-3 py-3">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <label className="flex w-full min-w-0 flex-col gap-1.5">
           <FieldLabel>Reminder date (CST)</FieldLabel>

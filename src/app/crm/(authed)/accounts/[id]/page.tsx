@@ -434,7 +434,7 @@ export default async function AccountDetailPage({
             gets the full tracker. Existing "customer" rows normalize to
             "active_customer" (see lifecycle.ts), so this covers them too. */}
         {normalizeStage(stage) !== "active_customer" && (
-          <div className="w-full border border-line-strong bg-card p-4 shadow-e2">
+          <div className="w-full rounded-lg border border-line-strong bg-card p-4 shadow-e2">
             <StageTracker accountId={account.id as string} current={stage} prospectLevel={prospectLevel} />
           </div>
         )}

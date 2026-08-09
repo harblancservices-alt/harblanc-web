@@ -43,7 +43,7 @@ export function ContactHeader({
   const role = normalizeRoleCategory(contact.role_category as string | null);
 
   return (
-    <div className="flex flex-col gap-3 border border-line-strong bg-card px-4 py-3.5 shadow-e2">
+    <div className="flex flex-col gap-3 rounded-lg border border-line-strong bg-card px-4 py-3.5 shadow-e2">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <BackButton fallbackHref={accountId ? `/crm/accounts/${accountId}` : "/crm/contacts"} label={accountId ? accountName || "Company" : "Contacts"} />

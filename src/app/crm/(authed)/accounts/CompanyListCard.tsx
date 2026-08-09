@@ -37,13 +37,13 @@ export function CompanyListCard({ company }: { company: CompanyCardData }) {
   return (
     <ClickableListItem
       href={`/crm/accounts/${company.id}`}
-      className="flex h-full min-h-[172px] flex-col justify-between border border-line-strong bg-card p-4 shadow-e1 hover:border-accent/40"
+      className="flex h-full min-h-[172px] flex-col justify-between rounded-lg border border-line-strong bg-card p-4 shadow-e1 hover:border-accent/40"
     >
       <div className="flex flex-col gap-2">
         <div className="flex items-start justify-between gap-2">
           <p className="min-w-0 truncate text-[14.5px] font-bold text-fg">{titleCaseWords(company.name)}</p>
           <span
-            className={`shrink-0 inline-flex items-center px-2 py-0.5 text-[10.5px] font-semibold ${stageTone(company.stage)}`}
+            className={`shrink-0 inline-flex items-center rounded-md px-2 py-0.5 text-[10.5px] font-semibold ${stageTone(company.stage)}`}
           >
             {stageLabel(company.stage)}
           </span>
@@ -52,7 +52,7 @@ export function CompanyListCard({ company }: { company: CompanyCardData }) {
         <p className="text-[12.5px] text-fg-muted">{location || "—"}</p>
 
         {company.primaryTag && (
-          <span className="inline-flex w-fit items-center gap-1 border border-line-strong bg-inset py-0.5 pl-1.5 pr-2 text-[11px] font-medium text-fg">
+          <span className="inline-flex w-fit items-center gap-1 rounded-md border border-line-strong bg-inset py-0.5 pl-1.5 pr-2 text-[11px] font-medium text-fg">
             <span className="h-1.5 w-1.5 shrink-0" style={{ background: company.primaryTag.color || "var(--fg-subtle)" }} />
             {company.primaryTag.label}
           </span>

@@ -132,7 +132,7 @@ export function NotesTab({
           {notes.map((n) => {
             const isEditing = editingId === n.id;
             return (
-              <li key={n.id} className="border border-line-strong bg-inset p-3">
+              <li key={n.id} className="rounded-md border border-line-strong bg-inset p-3">
                 {isEditing ? (
                   <div className="flex flex-col items-start gap-2">
                     {error && <p className="text-[12px] text-bad">{error}</p>}

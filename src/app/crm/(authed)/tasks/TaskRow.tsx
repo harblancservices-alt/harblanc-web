@@ -390,7 +390,7 @@ export function TaskRow({
     </div>
   );
 
-  const cardClass = "relative flex overflow-hidden border border-line-strong bg-card shadow-e1";
+  const cardClass = "relative flex overflow-hidden rounded-lg border border-line-strong bg-card shadow-e1";
 
   if (linkTo) {
     return (

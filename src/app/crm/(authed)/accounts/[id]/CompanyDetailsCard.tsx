@@ -47,7 +47,7 @@ function Chips({ values, fromAi }: { values: string[]; fromAi?: boolean }) {
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       {values.map((v) => (
-        <span key={v} className="border border-line-strong bg-inset px-2 py-0.5 text-[11.5px] font-medium text-fg">
+        <span key={v} className="rounded-md border border-line-strong bg-inset px-2 py-0.5 text-[11.5px] font-medium text-fg">
           {v}
         </span>
       ))}

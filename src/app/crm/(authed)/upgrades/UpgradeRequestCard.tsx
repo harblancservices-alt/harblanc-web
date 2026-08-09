@@ -166,7 +166,7 @@ export function UpgradeRequestCard({
               key={a.id}
               type="button"
               onClick={() => a.signedUrl && setLightbox(a)}
-              className="h-16 w-16 overflow-hidden border border-line-strong bg-inset"
+              className="h-16 w-16 overflow-hidden rounded-lg border border-line-strong bg-inset"
             >
               {a.signedUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -233,7 +233,7 @@ export function UpgradeRequestCard({
                     key={a.id}
                     type="button"
                     onClick={() => a.signedUrl && setLightbox(a)}
-                    className="h-20 w-20 overflow-hidden border border-line-strong bg-inset"
+                    className="h-20 w-20 overflow-hidden rounded-lg border border-line-strong bg-inset"
                   >
                     {a.signedUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element

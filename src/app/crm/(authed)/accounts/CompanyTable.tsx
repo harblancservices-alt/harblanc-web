@@ -61,7 +61,7 @@ function CompanyTableRow({ company }: { company: CompanyCardData }) {
       <td className={`${GRID_CELL} truncate font-semibold text-fg`}>{titleCaseWords(company.name)}</td>
       <td className={GRID_CELL}>
         <span
-          className={`inline-flex items-center px-2 py-0.5 text-[10.5px] font-semibold ${stageTone(company.stage)}`}
+          className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10.5px] font-semibold ${stageTone(company.stage)}`}
         >
           {stageLabel(company.stage)}
         </span>
@@ -69,7 +69,7 @@ function CompanyTableRow({ company }: { company: CompanyCardData }) {
       <td className={`${GRID_CELL} truncate text-fg-muted`}>{location || "—"}</td>
       <td className={`${GRID_CELL} truncate`}>
         {company.primaryTag ? (
-          <span className="inline-flex w-fit items-center gap-1 border border-line-strong bg-inset py-0.5 pl-1.5 pr-2 text-[11px] font-medium text-fg">
+          <span className="inline-flex w-fit items-center gap-1 rounded-md border border-line-strong bg-inset py-0.5 pl-1.5 pr-2 text-[11px] font-medium text-fg">
             <span
               className="h-1.5 w-1.5 shrink-0"
               style={{ background: company.primaryTag.color || "var(--fg-subtle)" }}

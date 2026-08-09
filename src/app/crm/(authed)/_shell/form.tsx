@@ -15,7 +15,7 @@ import type { ChangeEvent, ReactNode } from "react";
 // box on the white card (border-fg-subtle, not the barely-visible
 // border-line-strong), with near-black entered text.
 export const CONTROL =
-  "border border-fg-subtle bg-card px-3 text-[14px] font-medium text-fg outline-none transition-shadow focus:ring-2 focus:ring-accent/40";
+  "rounded-md border border-fg-subtle bg-card px-3 text-[14px] font-medium text-fg outline-none transition-shadow focus:ring-2 focus:ring-accent/40";
 
 // Near-black, not the faint fg-subtle gray — labels need to read clearly
 // against the white card, matching the CRM's high-contrast form standard.
@@ -157,7 +157,7 @@ export function CheckboxField({
   hint?: string;
 }) {
   return (
-    <label className="flex items-start gap-2.5 border border-fg-subtle bg-card px-3 py-2.5">
+    <label className="flex items-start gap-2.5 rounded-md border border-fg-subtle bg-card px-3 py-2.5">
       <input
         type="checkbox"
         name={name}
@@ -201,7 +201,7 @@ export function FormError({ message }: { message: string | null }) {
   return (
     <div
       role="alert"
-      className="mb-3 border border-bad/30 bg-bad-bg px-3 py-2 text-[13px] text-bad"
+      className="mb-3 rounded-md border border-bad/30 bg-bad-bg px-3 py-2 text-[13px] text-bad"
     >
       {message}
     </div>

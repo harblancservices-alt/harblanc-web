@@ -75,7 +75,7 @@ export function CompanyHeader({
   canDelete: boolean;
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border border-line-strong bg-card px-4 py-3.5 shadow-e2">
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line-strong bg-card px-4 py-3.5 shadow-e2">
       <div className="flex min-w-0 flex-wrap items-center gap-3">
         <BackButton fallbackHref="/crm/accounts" label="Companies" />
         <span className="flex h-9 w-9 shrink-0 items-center justify-center bg-inset text-fg-subtle">

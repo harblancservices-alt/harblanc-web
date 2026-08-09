@@ -243,7 +243,7 @@ export function BolSection({
           }}
           onDragLeave={() => setDragOver(false)}
           onDrop={onDrop}
-          className={`flex flex-col items-center gap-2 border-2 border-dashed px-4 py-6 text-center transition-colors ${
+          className={`flex flex-col items-center gap-2 rounded-lg border-2 border-dashed px-4 py-6 text-center transition-colors ${
             dragOver ? "border-accent bg-accent/5" : "border-line-strong"
           }`}
         >

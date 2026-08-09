@@ -87,7 +87,7 @@ export function CompanyCombobox({
       )}
 
       {showDropdown && (
-        <ul className="absolute left-0 top-[4.6rem] z-10 max-h-56 w-full overflow-y-auto border border-line-strong bg-card py-1 shadow-e3">
+        <ul className="absolute left-0 top-[4.6rem] z-10 max-h-56 w-full overflow-y-auto rounded-lg border border-line-strong bg-card py-1 shadow-e3">
           {matches.map((c) => (
             <li key={c.id}>
               <button

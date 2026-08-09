@@ -275,7 +275,7 @@ export function CompanyDialog({
           </div>
 
           {duplicates && duplicates.length > 0 && (
-            <div className="flex flex-col gap-2 border border-warn/40 bg-warn-bg px-3.5 py-3">
+            <div className="flex flex-col gap-2 rounded-md border border-warn/40 bg-warn-bg px-3.5 py-3">
               <p className="text-[13px] font-semibold text-warn">This might already be a company here:</p>
               <ul className="flex flex-col gap-1">
                 {duplicates.map((m) => (

@@ -56,11 +56,11 @@ export function DashboardSearch({
         }}
         placeholder="Search companies or contacts…"
         aria-label="Search companies or contacts"
-        className="h-11 w-full min-w-0 border border-fg-subtle bg-card px-3 text-[14px] font-medium text-fg outline-none transition-shadow focus:ring-2 focus:ring-accent/40"
+        className="h-11 w-full min-w-0 rounded-md border border-fg-subtle bg-card px-3 text-[14px] font-medium text-fg outline-none transition-shadow focus:ring-2 focus:ring-accent/40"
       />
 
       {showPanel && (
-        <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-30 max-h-[70vh] overflow-y-auto border border-line-strong bg-card shadow-e3">
+        <div className="absolute left-0 right-0 top-[calc(100%+4px)] z-30 max-h-[70vh] overflow-y-auto rounded-lg border border-line-strong bg-card shadow-e3">
           {!hasResults ? (
             <p className="px-4 py-4 text-[13px] text-fg-muted">No matches for &quot;{value.trim()}&quot;</p>
           ) : (

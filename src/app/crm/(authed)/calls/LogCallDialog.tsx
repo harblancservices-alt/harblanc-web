@@ -65,7 +65,7 @@ function findExactPhoneHit(dir: CallDirectory, raw: string): PhoneHit | null {
 }
 
 const DROPDOWN =
-  "absolute left-0 top-[4.6rem] z-20 max-h-56 w-full overflow-y-auto border border-line-strong bg-card py-1 shadow-e3";
+  "absolute left-0 top-[4.6rem] z-20 max-h-56 w-full overflow-y-auto rounded-lg border border-line-strong bg-card py-1 shadow-e3";
 const DROPDOWN_ROW = "block w-full px-3 py-2 text-left text-[13px] text-fg transition-colors hover:bg-inset";
 
 /**
@@ -497,7 +497,7 @@ export function LogCallDialog({
 
           <TextareaField label="Notes" name="notes" placeholder="What was said, next steps…" />
 
-          <label className="flex items-start gap-2.5 border border-fg-subtle bg-card px-3 py-2.5">
+          <label className="flex items-start gap-2.5 rounded-md border border-fg-subtle bg-card px-3 py-2.5">
             <input
               type="checkbox"
               name="followup_required"
@@ -523,7 +523,7 @@ export function LogCallDialog({
           )}
 
           {pendingConfirm?.kind === "duplicate" && (
-            <div className="border border-warn/40 bg-warn-bg px-3 py-2.5 text-[13px]">
+            <div className="rounded-md border border-warn/40 bg-warn-bg px-3 py-2.5 text-[13px]">
               <p className="font-semibold text-warn">
                 {pendingConfirm.field === "contact" ? "Contact" : "Company"} already exists
               </p>
@@ -558,7 +558,7 @@ export function LogCallDialog({
           )}
 
           {pendingConfirm?.kind === "create" && (
-            <div className="border border-ok/40 bg-ok-bg px-3 py-2.5 text-[13px]">
+            <div className="rounded-md border border-ok/40 bg-ok-bg px-3 py-2.5 text-[13px]">
               <p className="font-semibold text-ok">Saving will also create:</p>
               <ul className="mt-1 list-disc pl-4 text-fg-muted">
                 {pendingConfirm.lines.map((line, i) => (

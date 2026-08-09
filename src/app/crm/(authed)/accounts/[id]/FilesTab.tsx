@@ -36,7 +36,7 @@ export function FilesTab({
         shipperAddress={shipperAddress}
         shipperPhone={shipperPhone}
       />
-      <div className="border border-line-strong bg-card p-5 shadow-e2">
+      <div className="rounded-lg border border-line-strong bg-card p-5 shadow-e2">
         <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">Commodity photos</p>
         <CommodityPhotoTiles accountId={accountId} orgId={orgId} photos={photos} />
       </div>

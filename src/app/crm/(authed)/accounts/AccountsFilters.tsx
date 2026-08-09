@@ -68,7 +68,7 @@ export function AccountsFilters({
   }
 
   const selectClass =
-    "h-10 border border-fg-subtle bg-card px-2.5 text-[13px] font-medium text-fg outline-none transition-shadow focus:ring-2 focus:ring-accent/40 disabled:opacity-60";
+    "h-10 rounded-md border border-fg-subtle bg-card px-2.5 text-[13px] font-medium text-fg outline-none transition-shadow focus:ring-2 focus:ring-accent/40 disabled:opacity-60";
 
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
@@ -79,7 +79,7 @@ export function AccountsFilters({
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search companies…"
           aria-label="Search companies"
-          className="h-10 min-w-0 flex-1 border border-fg-subtle bg-card px-3 text-[13.5px] font-medium text-fg outline-none transition-shadow focus:ring-2 focus:ring-accent/40"
+          className="h-10 min-w-0 flex-1 rounded-md border border-fg-subtle bg-card px-3 text-[13.5px] font-medium text-fg outline-none transition-shadow focus:ring-2 focus:ring-accent/40"
         />
         <button
           type="submit"

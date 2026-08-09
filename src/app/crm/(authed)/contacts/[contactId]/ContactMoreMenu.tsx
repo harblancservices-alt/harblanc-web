@@ -75,13 +75,13 @@ export function ContactMoreMenu({
         onClick={() => setOpen((v) => !v)}
         aria-label="More actions"
         aria-expanded={open}
-        className="flex h-11 w-11 items-center justify-center border border-fg-subtle bg-card text-fg-muted transition-colors hover:bg-inset hover:text-fg"
+        className="flex h-11 w-11 items-center justify-center rounded-lg border border-fg-subtle bg-card text-fg-muted transition-colors hover:bg-inset hover:text-fg"
       >
         <IconMore width={18} height={18} />
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-20 mt-1 w-44 border border-line-strong bg-card shadow-e3">
+        <div className="absolute right-0 top-full z-20 mt-1 w-44 overflow-hidden rounded-lg border border-line-strong bg-card shadow-e3">
           {accountId && (
             <button
               type="button"

@@ -11,7 +11,7 @@ export default function Loading() {
     <div className={PAGE_CONTAINER}>
       <div className="grid grid-cols-1 gap-3 [grid-auto-rows:1fr] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 md:hidden">
         {Array.from({ length: 8 }).map((_, i) => (
-          <div key={i} className="flex h-[172px] flex-col gap-3 border border-line-strong bg-card p-4">
+          <div key={i} className="flex h-[172px] flex-col gap-3 rounded-lg border border-line-strong bg-card p-4">
             <div className="h-4 w-2/3 animate-pulse bg-inset" />
             <div className="h-3 w-1/3 animate-pulse bg-inset" />
             <div className="h-3 w-1/2 animate-pulse bg-inset" />
@@ -20,7 +20,7 @@ export default function Loading() {
         ))}
       </div>
 
-      <div className="hidden h-64 animate-pulse border border-line-strong bg-card md:block" />
+      <div className="hidden h-64 animate-pulse rounded-lg border border-line-strong bg-card md:block" />
     </div>
   );
 }

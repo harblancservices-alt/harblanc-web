@@ -271,7 +271,7 @@ function DayDetailModal({
       role="presentation"
     >
       <div
-        className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden border border-line-strong bg-card shadow-e3"
+        className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-line-strong bg-card shadow-e3"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -374,7 +374,7 @@ function DayCell({
         {visible.map((it) => (
           <span
             key={it.id}
-            className={`truncate rounded px-1 py-0.5 text-[10px] font-semibold leading-tight ${itemTone(it).chip}`}
+            className={`truncate rounded-md px-1 py-0.5 text-[10px] font-semibold leading-tight ${itemTone(it).chip}`}
           >
             {it.label}
           </span>
@@ -487,14 +487,14 @@ function ModeToggle({
   onChange: (mode: "month" | "list") => void;
 }) {
   return (
-    <div className="inline-flex gap-1 border border-white/15 bg-black/20 p-1">
+    <div className="inline-flex gap-1 rounded-md border border-white/15 bg-black/20 p-1">
       {(["month", "list"] as const).map((m) => (
         <button
           key={m}
           type="button"
           onClick={() => onChange(m)}
           className={[
-            "px-3.5 py-1.5 text-[11.5px] font-semibold capitalize transition-colors",
+            "rounded px-3.5 py-1.5 text-[11.5px] font-semibold capitalize transition-colors",
             mode === m
               ? "bg-accent text-white shadow-sm"
               : "border border-white/25 text-bar-fg/90 hover:border-white/50 hover:bg-white/10 hover:text-bar-fg",

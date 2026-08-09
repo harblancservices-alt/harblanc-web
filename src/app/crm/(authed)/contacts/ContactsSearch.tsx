@@ -37,7 +37,7 @@ export function ContactsSearch({ q }: { q: string }) {
         onChange={(e) => setSearch(e.target.value)}
         placeholder="Search contacts by name, email, title…"
         aria-label="Search contacts"
-        className="h-10 min-w-0 flex-1 border border-fg-subtle bg-card px-3 text-[13.5px] font-medium text-fg outline-none transition-shadow focus:ring-2 focus:ring-accent/40"
+        className="h-10 min-w-0 flex-1 rounded-md border border-fg-subtle bg-card px-3 text-[13.5px] font-medium text-fg outline-none transition-shadow focus:ring-2 focus:ring-accent/40"
       />
       <button
         type="submit"

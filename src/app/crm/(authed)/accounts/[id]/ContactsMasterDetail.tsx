@@ -89,14 +89,14 @@ function ContactMoreMenu({
         type="button"
         onClick={() => setOpen((v) => !v)}
         aria-label="More actions"
-        className="flex h-10 w-10 items-center justify-center border border-fg-subtle bg-card text-fg-muted transition-colors hover:bg-inset hover:text-fg"
+        className="flex h-10 w-10 items-center justify-center rounded-lg border border-fg-subtle bg-card text-fg-muted transition-colors hover:bg-inset hover:text-fg"
       >
         <IconMore width={16} height={16} />
       </button>
       {/* Always mounted (visibility toggled via `hidden`, not a conditional
           render) — see the bugfix note above; ContactDialog must stay in the
           tree across popover open/close for its own Modal state to survive. */}
-      <div className={`absolute right-0 top-full z-20 mt-1 w-44 border border-line-strong bg-card shadow-e3 ${open ? "" : "hidden"}`}>
+      <div className={`absolute right-0 top-full z-20 mt-1 w-44 overflow-hidden rounded-lg border border-line-strong bg-card shadow-e3 ${open ? "" : "hidden"}`}>
         <ContactDialog
           accountId={accountId}
           mode="edit"

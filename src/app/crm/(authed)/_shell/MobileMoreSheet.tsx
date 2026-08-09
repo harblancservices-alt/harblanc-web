@@ -48,7 +48,7 @@ export function MobileMoreSheet({
       role="presentation"
     >
       <div
-        className="max-h-[80vh] w-full overflow-y-auto border-t border-graphite-line bg-graphite pb-[calc(env(safe-area-inset-bottom)+0.5rem)] shadow-e3"
+        className="max-h-[80vh] w-full overflow-y-auto rounded-t-lg border-t border-graphite-line bg-graphite pb-[calc(env(safe-area-inset-bottom)+0.5rem)] shadow-e3"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"

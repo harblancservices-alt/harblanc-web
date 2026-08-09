@@ -31,7 +31,7 @@ export default function CrmLoginPage() {
           </p>
         </div>
 
-        <div className="border border-[#242b35] bg-[#12161c] p-8 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.7)]">
+        <div className="rounded-lg border border-[#242b35] bg-[#12161c] p-8 shadow-[0_24px_60px_-20px_rgba(0,0,0,0.7)]">
           <h1 className="mb-1 text-[22px] font-semibold text-white">Sign in</h1>
           <p className="mb-6 text-[13px] text-[#8b93a0]">
             Access your Hello Hotshot pipeline.

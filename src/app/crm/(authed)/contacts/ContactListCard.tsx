@@ -45,7 +45,7 @@ export function ContactListCard({ contact }: { contact: ContactCardData }) {
   return (
     <ClickableListItem
       href={`/crm/contacts/${contact.id}`}
-      className="flex h-full min-h-[172px] flex-col justify-between border border-line-strong bg-card p-4 shadow-e1 hover:border-accent/40"
+      className="flex h-full min-h-[172px] flex-col justify-between rounded-lg border border-line-strong bg-card p-4 shadow-e1 hover:border-accent/40"
     >
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">

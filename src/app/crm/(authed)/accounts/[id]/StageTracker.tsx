@@ -238,7 +238,7 @@ function ProspectLevelMeter({
         style={{ left: `${centerPct}%` }}
         aria-hidden
       />
-      <div className="flex flex-col items-center gap-1.5 border border-line-strong bg-inset px-3 py-2">
+      <div className="flex flex-col items-center gap-1.5 rounded-lg border border-line-strong bg-inset px-3 py-2">
         <p className="text-[10.5px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
           Prospect level {value ? `· ${value}/10` : ""}
         </p>

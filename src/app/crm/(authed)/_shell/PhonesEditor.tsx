@@ -57,7 +57,7 @@ export function PhonesEditor({
           compact ? (
             <div
               key={i}
-              className="flex flex-col gap-1.5 border border-line-strong bg-inset p-2"
+              className="flex flex-col gap-1.5 rounded-md border border-line-strong bg-inset p-2"
             >
               <div className="flex items-center gap-2">
                 <div className="min-w-0 flex-1">

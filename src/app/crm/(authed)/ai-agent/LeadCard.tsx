@@ -39,7 +39,7 @@ export function LeadCard({ lead }: { lead: AiAgentLead }) {
   const location = [lead.city, lead.state].filter(Boolean).join(", ");
 
   return (
-    <div className="relative border border-line-strong bg-card p-4 shadow-e2 transition-shadow hover:shadow-e3">
+    <div className="relative rounded-lg border border-line-strong bg-card p-4 shadow-e2 transition-shadow hover:shadow-e3">
       <Link
         href={`/crm/accounts/${lead.id}`}
         prefetch={false}
