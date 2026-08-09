@@ -11,6 +11,7 @@ import type { CrmRateConfirmationPdfData } from "@/lib/pdf/CrmRateConfirmationPD
 import { storeDocumentVersion } from "./document-lifecycle";
 import { mapRateConfirmationRow, mapRateConfirmationLineRow } from "./mappers";
 import type {
+  CrmCarrierContactRow,
   CrmCarrierRow,
   CrmRateConfirmationDetail,
   CrmRateConfirmationLineRow,
@@ -26,6 +27,28 @@ function cityStateZip(city: string | null, state: string | null, zip: string | n
   const csz = [city, state].filter(Boolean).join(", ");
   const full = [csz, zip].filter(Boolean).join(" ").trim();
   return full || null;
+}
+
+/** The carrier's primary dispatcher/contact — oldest crm_carrier_contacts
+ * row (same "first added" convention getCarrier() uses to order a carrier's
+ * contact list), since the table has no explicit is-primary flag. Used to
+ * fill carrier_contact (no equivalent field exists on crm_carriers itself)
+ * and as a fallback for carrier_phone/carrier_email when the carrier's own
+ * phone/email are blank — in practice a dispatcher's direct line is often
+ * the only phone/email actually on file. */
+async function loadPrimaryCarrierContact(
+  supabase: SupabaseClient,
+  carrierId: string,
+): Promise<CrmCarrierContactRow | null> {
+  const { data } = await supabase
+    .from("crm_carrier_contacts")
+    .select("*")
+    .eq("carrier_id", carrierId)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  return (data as CrmCarrierContactRow) ?? null;
 }
 
 /**
@@ -140,13 +163,14 @@ export async function createRateConfirmationFromShipment(shipmentId: string): Pr
   const shipmentRow = shipmentData as CrmShipmentRow;
 
   let carrierRow: CrmCarrierRow | null = null;
+  let primaryContact: CrmCarrierContactRow | null = null;
   if (shipmentRow.carrier_id) {
-    const { data } = await supabase
-      .from("crm_carriers")
-      .select("*")
-      .eq("id", shipmentRow.carrier_id)
-      .maybeSingle();
-    carrierRow = (data as CrmCarrierRow) ?? null;
+    const [{ data: carrierData }, contact] = await Promise.all([
+      supabase.from("crm_carriers").select("*").eq("id", shipmentRow.carrier_id).maybeSingle(),
+      loadPrimaryCarrierContact(supabase, shipmentRow.carrier_id),
+    ]);
+    carrierRow = (carrierData as CrmCarrierRow) ?? null;
+    primaryContact = contact;
   }
 
   const { data: rcData, error } = await supabase
@@ -159,9 +183,10 @@ export async function createRateConfirmationFromShipment(shipmentId: string): Pr
       carrier_name: carrierRow?.name ?? null,
       carrier_mc: carrierRow?.mc_number ?? null,
       carrier_dot: carrierRow?.dot_number ?? null,
-      carrier_phone: carrierRow?.phone ?? null,
-      carrier_email: carrierRow?.email ?? null,
-      doc_snapshot: { shipment: shipmentRow, carrier: carrierRow },
+      carrier_contact: primaryContact?.name ?? null,
+      carrier_phone: carrierRow?.phone ?? primaryContact?.phone ?? null,
+      carrier_email: carrierRow?.email ?? primaryContact?.email ?? null,
+      doc_snapshot: { shipment: shipmentRow, carrier: carrierRow, carrierContact: primaryContact },
       total_carrier_pay: 0,
     })
     .select("*")
