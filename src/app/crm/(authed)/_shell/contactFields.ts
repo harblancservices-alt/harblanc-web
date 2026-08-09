@@ -28,8 +28,11 @@ export const PHONE_LABEL_PRESETS = [
 ] as const;
 
 /** Preset link-label options shown by LabelPicker in LinksEditor. Same
- * free-type "Other" fallback as phone labels. */
-export const LINK_LABEL_PRESETS = ["LinkedIn", "Website", "Load board"] as const;
+ * free-type "Other" fallback as phone labels. Facebook/Instagram added
+ * 2026-08-10 so the company profile's Socials section (CompanyDetailsCard)
+ * has real presets to add social links under — no new column, still the
+ * same `links` jsonb array every label/url pair already lives in. */
+export const LINK_LABEL_PRESETS = ["LinkedIn", "Website", "Facebook", "Instagram", "Load board"] as const;
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === "object" && v !== null;

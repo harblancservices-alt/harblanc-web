@@ -73,7 +73,7 @@ export default async function AccountDetailPage({
   const { data: account } = await supabase
     .from("crm_accounts")
     .select(
-      "id, name, industry, website, phone, phones, links, address, city, state, zip, company_size, commodities, annual_freight_spend, revenue_potential, source, lifecycle_status, assigned_user_id, primary_contact_id, needs_finalize, created_at, updated_at, dot_number, mc_number, company_type, email, context_notes, custom, equipment_needed, lanes, volume_frequency, weight_range, special_requirements, ai_confirmed_fields",
+      "id, name, industry, website, phone, phones, links, address, city, state, zip, company_size, commodities, annual_freight_spend, revenue_potential, source, lifecycle_status, assigned_user_id, primary_contact_id, needs_finalize, created_at, updated_at, dot_number, mc_number, company_type, email, context_notes, custom, equipment_needed, lanes, volume_frequency, weight_range, special_requirements, ai_confirmed_fields, linkedin_url",
     )
     .eq("id", id)
     .is("deleted_at", null)
@@ -450,23 +450,20 @@ export default async function AccountDetailPage({
           <CompanyDetailsCard
             accountId={account.id as string}
             name={accountName}
+            industry={account.industry as string | null}
             email={companyEmail}
             website={website}
             websiteHref={websiteHref}
-            industry={account.industry as string | null}
-            companyType={account.company_type as string | null}
-            companySize={account.company_size as string | null}
-            annualFreightSpend={account.annual_freight_spend as number | null}
-            source={account.source as string | null}
-            description={account.context_notes as string | null}
-            dotNumber={account.dot_number as string | null}
-            mcNumber={account.mc_number as string | null}
             fullAddress={fullAddress}
             phones={phones}
             legacyPhone={companyPhone}
+            linkedinUrl={account.linkedin_url as string | null}
+            links={links}
             freight={freight}
             attachedTags={attachedTags}
             orgTags={orgTags}
+            editDefaults={editDefaults}
+            reps={reps}
           />
 
           <div className="flex flex-col gap-4">
