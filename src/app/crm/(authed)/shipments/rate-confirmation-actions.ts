@@ -111,6 +111,13 @@ export type CreateRcResult =
   | { ok: true; id: string; rateConfirmation: CrmRateConfirmationDetail }
   | { ok: false; error: string };
 
+/** Single-record read for the RC editor — fields + lines in one call. */
+export async function getRateConfirmation(id: string): Promise<CrmRateConfirmationDetail | null> {
+  await requireCrmUser();
+  const supabase = await createCrmServerClient();
+  return loadDetail(supabase, id);
+}
+
 /**
  * Create a draft RC from a shipment. Snapshots the shipment row + the
  * assigned carrier row (if any) into doc_snapshot, mirrors the carrier onto

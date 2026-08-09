@@ -1,34 +1,34 @@
-import { requireCrmUser } from "@/lib/crm/auth";
-import { PageShell, Card, EmptyState } from "../../../../_shell/ui";
+import { notFound } from "next/navigation";
+import { PageShell } from "../../../../_shell/ui";
 import { BackButton } from "../../../../_shell/BackButton";
-import { IconBillOfLading } from "../../../../_shell/icons";
+import { getBol } from "../../../bol-actions";
+import { getShipment } from "../../../actions";
+import { BolEditor } from "./BolEditor";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Placeholder landing for a Bill of Lading generated from a shipment — the
- * fillable editor + PDF preview/lifecycle controls (send/sign/complete/
- * supersede, all already backed by bol-actions.ts) are a follow-up build.
- * This just confirms the BOL exists and gives a way back to the shipment it
- * came from.
+ * The Bill of Lading document editor — replaces the earlier placeholder
+ * landing now that the fillable editor + PDF lifecycle controls exist (see
+ * BolEditor.tsx). Loads both the BOL (fields + line items) and its parent
+ * shipment in parallel: the shipment supplies the shipper/consignee/carrier
+ * snapshot fields (crm_bills_of_lading has no scalar columns of its own for
+ * those — see bol-actions.ts's header comment), shown read-only with a link
+ * back to the shipment for edits, plus the header's "back to shipment"
+ * context.
  */
 export default async function BolDocPage({
   params,
 }: {
   params: Promise<{ id: string; bolId: string }>;
 }) {
-  await requireCrmUser();
   const { id, bolId } = await params;
+  const [bol, shipment] = await Promise.all([getBol(bolId), getShipment(id)]);
+  if (!bol || !shipment) notFound();
 
   return (
     <PageShell back={<BackButton fallbackHref={`/crm/shipments/${id}`} label="Shipment" />}>
-      <Card>
-        <EmptyState
-          icon={<IconBillOfLading />}
-          title="Bill of Lading created"
-          body={`BOL ${bolId} was created from this shipment. The fillable editor and PDF preview are coming in a follow-up update.`}
-        />
-      </Card>
+      <BolEditor shipment={shipment} initialBol={bol} />
     </PageShell>
   );
 }

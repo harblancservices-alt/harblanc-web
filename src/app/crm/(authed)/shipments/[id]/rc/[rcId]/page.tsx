@@ -1,34 +1,31 @@
-import { requireCrmUser } from "@/lib/crm/auth";
-import { PageShell, Card, EmptyState } from "../../../../_shell/ui";
+import { notFound } from "next/navigation";
+import { PageShell } from "../../../../_shell/ui";
 import { BackButton } from "../../../../_shell/BackButton";
-import { IconRateConfirmation } from "../../../../_shell/icons";
+import { getRateConfirmation } from "../../../rate-confirmation-actions";
+import { getShipment } from "../../../actions";
+import { RateConfirmationEditor } from "./RateConfirmationEditor";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Placeholder landing for a Rate Confirmation generated from a shipment —
- * the fillable editor + PDF preview/lifecycle controls (send/accept/
- * complete/supersede, all already backed by rate-confirmation-actions.ts)
- * are a follow-up build. This just confirms the RC exists and gives a way
- * back to the shipment it came from.
+ * The Rate Confirmation document editor — replaces the earlier placeholder
+ * landing now that the fillable editor + PDF lifecycle controls exist (see
+ * RateConfirmationEditor.tsx). Loads both the RC (fields + lines) and its
+ * parent shipment in parallel: the shipment is only needed for the header's
+ * "back to shipment" context and route summary, never written from here.
  */
 export default async function RateConfirmationDocPage({
   params,
 }: {
   params: Promise<{ id: string; rcId: string }>;
 }) {
-  await requireCrmUser();
   const { id, rcId } = await params;
+  const [rc, shipment] = await Promise.all([getRateConfirmation(rcId), getShipment(id)]);
+  if (!rc || !shipment) notFound();
 
   return (
     <PageShell back={<BackButton fallbackHref={`/crm/shipments/${id}`} label="Shipment" />}>
-      <Card>
-        <EmptyState
-          icon={<IconRateConfirmation />}
-          title="Rate Confirmation created"
-          body={`RC ${rcId} was created from this shipment. The fillable editor and PDF preview are coming in a follow-up update.`}
-        />
-      </Card>
+      <RateConfirmationEditor shipment={shipment} initialRc={rc} />
     </PageShell>
   );
 }

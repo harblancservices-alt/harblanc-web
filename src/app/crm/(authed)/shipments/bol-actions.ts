@@ -85,6 +85,13 @@ export type CreateBolResult =
   | { ok: true; id: string; bol: CrmBillOfLadingDetail }
   | { ok: false; error: string };
 
+/** Single-record read for the BOL editor — fields + line items in one call. */
+export async function getBol(id: string): Promise<CrmBillOfLadingDetail | null> {
+  await requireCrmUser();
+  const supabase = await createCrmServerClient();
+  return loadDetail(supabase, id);
+}
+
 /**
  * Create a draft BOL from a shipment. Snapshots the shipment (shipper/
  * consignee/pickup/delivery) + assigned carrier (if any) into doc_snapshot,
