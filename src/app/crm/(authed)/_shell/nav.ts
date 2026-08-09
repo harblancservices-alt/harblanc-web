@@ -67,13 +67,6 @@ export function buildCrmNav(
   const nav: CrmNavItem[] = [
     { href: "/crm", label: "Dashboard", Icon: IconDashboard },
     { href: "/crm/accounts", label: "Companies", Icon: IconCompanies },
-    {
-      href: "/crm/customers",
-      label: "Active Customers",
-      Icon: IconCustomers,
-      badge: customerCount > 0 ? customerCount : undefined,
-      badgeTone: "neutral",
-    },
     { href: "/crm/contacts", label: "Contacts", Icon: IconContacts },
     {
       href: "/crm/ai-agent",
@@ -84,6 +77,13 @@ export function buildCrmNav(
     },
     { href: "/crm/tasks", label: "Tasks", Icon: IconTasks },
     { href: "/crm/calendar", label: "Calendar", Icon: IconCalendar },
+    {
+      href: "/crm/customers",
+      label: "Active Customers",
+      Icon: IconCustomers,
+      badge: customerCount > 0 ? customerCount : undefined,
+      badgeTone: "neutral",
+    },
   ];
   if (role === "owner") {
     nav.push({
