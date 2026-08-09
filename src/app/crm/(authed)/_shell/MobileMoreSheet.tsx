@@ -71,6 +71,7 @@ export function MobileMoreSheet({
           {items.map((item) => {
             const active = isActive(pathname, item);
             const ownerOnly = !!item.ownerOnly;
+            const redAccent = !!item.redAccent;
             return (
               <Link
                 key={item.href}
@@ -82,14 +83,26 @@ export function MobileMoreSheet({
                   active
                     ? ownerOnly
                       ? "border-warn bg-graphite-2 text-warn"
-                      : "border-accent bg-graphite-2 text-white"
+                      : redAccent
+                        ? "border-bad bg-graphite-2 text-bad"
+                        : "border-accent bg-graphite-2 text-white"
                     : ownerOnly
                       ? "border-transparent text-warn/90 hover:bg-graphite-2/60 hover:text-warn"
-                      : "border-transparent text-on-dark-dim hover:bg-graphite-2/60 hover:text-white",
+                      : redAccent
+                        ? "border-transparent text-bad/90 hover:bg-graphite-2/60 hover:text-bad"
+                        : "border-transparent text-on-dark-dim hover:bg-graphite-2/60 hover:text-white",
                 ].join(" ")}
               >
                 <item.Icon
-                  className={ownerOnly ? "text-warn" : active ? "text-accent" : "text-on-dark-dim"}
+                  className={
+                    ownerOnly
+                      ? "text-warn"
+                      : redAccent
+                        ? "text-bad"
+                        : active
+                          ? "text-accent"
+                          : "text-on-dark-dim"
+                  }
                 />
                 <span className="flex-1">{item.label}</span>
                 {!!item.badge && (

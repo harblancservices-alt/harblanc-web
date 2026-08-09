@@ -198,3 +198,12 @@ export function IconCheck(props: IconProps) {
     </svg>
   );
 }
+
+export function IconUpgrades(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 4.5h13l3 4-3 4H4Z" />
+      <path d="M4 12.5v7" />
+    </svg>
+  );
+}

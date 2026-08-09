@@ -9,6 +9,7 @@ import {
   IconAiReview,
   IconCustomers,
   IconCalendar,
+  IconUpgrades,
 } from "./icons";
 
 export type CrmNavItem = {
@@ -31,6 +32,13 @@ export type CrmNavItem = {
    * everyday ones at a glance, in both the desktop sidebar and the mobile
    * More sheet. */
   ownerOnly?: boolean;
+  /** True for items that should read as urgent/attention-grabbing for EVERY
+   * user, not just the owner (currently just Upgrades — a place to flag
+   * things Brent should look at). CrmShell and MobileMoreSheet render these
+   * in the CRM's red `--bad` token — icon + label — regardless of active
+   * state, same mechanism as `ownerOnly`'s always-orange treatment but not
+   * role-gated. An item is never expected to set both. */
+  redAccent?: boolean;
 };
 
 /**
@@ -83,6 +91,12 @@ export function buildCrmNav(
       Icon: IconCustomers,
       badge: customerCount > 0 ? customerCount : undefined,
       badgeTone: "neutral",
+    },
+    {
+      href: "/crm/upgrades",
+      label: "Upgrades",
+      Icon: IconUpgrades,
+      redAccent: true,
     },
   ];
   if (role === "owner") {
