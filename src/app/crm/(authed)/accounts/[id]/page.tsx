@@ -5,7 +5,6 @@ import { PageShell, Card, CardHead } from "../../_shell/ui";
 import { firstName, titleCaseWords, upperCaseState } from "../../_shell/format";
 import { parsePhones, parseLinks, normalizeHref } from "../../_shell/contactFields";
 import { formatPhone } from "@/lib/domain/phone";
-import { IconCheck } from "../../_shell/icons";
 import type { LaneEntry } from "../../_shell/LanesEditor";
 import type { RepOption } from "../CompanyDialog";
 import { normalizeStage } from "../lifecycle";
@@ -420,23 +419,19 @@ export default async function AccountDetailPage({
           editDefaults={editDefaults}
           reps={reps}
           repLabel={currentRepLabel}
+          isActiveCustomer={normalizeStage(stage) === "active_customer"}
           canDelete={isOwner}
         />
 
         {/* Active Customer is the funnel's final stage — the company is
             through it, so the process tracker has nothing left to track.
-            Swap it for a small status badge instead of an empty-looking
-            "every stage is done" bar. Every other stage still gets the full
-            tracker. Existing "customer" rows normalize to "active_customer"
-            (see lifecycle.ts), so this covers them too. */}
-        {normalizeStage(stage) === "active_customer" ? (
-          <div className="flex w-full items-center border border-line-strong bg-card px-4 py-3 shadow-e2">
-            <span className="inline-flex items-center gap-1.5 bg-ok-bg px-3 py-1.5 text-[12.5px] font-bold uppercase tracking-wide text-ok">
-              <IconCheck width={14} height={14} />
-              Active Customer
-            </span>
-          </div>
-        ) : (
+            The indicator for that lives inline in CompanyHeader's title row
+            (a solid green pill next to the name) instead of a standalone
+            box here — Brent's 2026-08-10 call, replacing an earlier version
+            that put it in its own outlined bar. Every other stage still
+            gets the full tracker. Existing "customer" rows normalize to
+            "active_customer" (see lifecycle.ts), so this covers them too. */}
+        {normalizeStage(stage) !== "active_customer" && (
           <div className="w-full border border-line-strong bg-card p-4 shadow-e2">
             <StageTracker accountId={account.id as string} current={stage} prospectLevel={prospectLevel} />
           </div>
