@@ -1,5 +1,5 @@
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
-import { PageShell, Card, CardHead, EmptyState, LIST_HEAD_ROW, ZEBRA_ROWS, GRID_TABLE, GRID_HEAD_CELL } from "../_shell/ui";
+import { PageShell, Card, CardHead, EmptyState } from "../_shell/ui";
 import { IconTasks } from "../_shell/icons";
 import { firstName, timestampMs, centralDayRange } from "../_shell/format";
 import { parsePhones } from "../_shell/contactFields";
@@ -63,7 +63,7 @@ export default async function TasksPage() {
       .limit(500),
     supabase
       .from("crm_contacts")
-      .select("id, name, account_id, phone, phones, email")
+      .select("id, name, account_id, phone, phones, email, title")
       .is("deleted_at", null)
       .order("name")
       .limit(2000),
@@ -90,12 +90,14 @@ export default async function TasksPage() {
     phone: string | null;
     phones: unknown;
     email: string | null;
+    title: string | null;
   }[];
   const contactNameById = new Map(contactRows.map((c) => [c.id, c.name]));
   const contactPhoneById = new Map(
     contactRows.map((c) => [c.id, parsePhones(c.phones)[0]?.number || c.phone || null]),
   );
   const contactEmailById = new Map(contactRows.map((c) => [c.id, c.email]));
+  const contactTitleById = new Map(contactRows.map((c) => [c.id, c.title]));
   const contactOptions = contactRows.map((c) => ({
     id: c.id,
     name: c.name,
@@ -125,6 +127,7 @@ export default async function TasksPage() {
     ...r,
     companyName: r.account_id ? nameById.get(r.account_id) ?? null : null,
     contactName: r.contact_id ? contactNameById.get(r.contact_id) ?? null : null,
+    contactTitle: r.contact_id ? contactTitleById.get(r.contact_id) ?? null : null,
     assigneeName: r.assigned_user_id ? profileNameById.get(r.assigned_user_id) ?? null : null,
     contactPhone: r.contact_id ? contactPhoneById.get(r.contact_id) ?? null : null,
     contactEmail: r.contact_id ? contactEmailById.get(r.contact_id) ?? null : null,
@@ -193,16 +196,13 @@ export default async function TasksPage() {
                 <summary className="cursor-pointer list-none border-b border-line-strong px-5 py-3.5 text-[14px] font-semibold text-fg-subtle transition-colors hover:text-fg">
                   Done · {doneTasks.length}
                 </summary>
-                <ul className="flex flex-col gap-2.5 p-3 md:hidden">
+                <ul className="grid grid-cols-1 items-start gap-2.5 p-3 sm:grid-cols-2">
                   {doneTasks.map((t) => (
                     <TaskRow key={t.id} task={t} showCompany {...dialogProps}>
                       <DeleteTaskButton taskId={t.id} accountId={t.account_id} title={t.title} />
                     </TaskRow>
                   ))}
                 </ul>
-                <div className="hidden overflow-x-auto md:block">
-                  <TaskTable tasks={doneTasks} dialogProps={dialogProps} withDelete />
-                </div>
               </details>
             </Card>
           )}
@@ -233,57 +233,13 @@ function Group({
   return (
     <Card>
       <CardHead title={title} hint={`${tasks.length}`} />
-      <ul className="flex flex-col gap-2.5 p-3 md:hidden">
+      <ul className="grid grid-cols-1 items-start gap-2.5 p-3 sm:grid-cols-2">
         {tasks.map((t) => (
           <TaskRow key={t.id} task={t} showCompany {...dialogProps}>
             <DeleteTaskButton taskId={t.id} accountId={t.account_id} title={t.title} />
           </TaskRow>
         ))}
       </ul>
-      <div className="hidden overflow-x-auto md:block">
-        <TaskTable tasks={tasks} dialogProps={dialogProps} withDelete />
-      </div>
     </Card>
-  );
-}
-
-/** Desktop (md+) rows for a Tasks group — left-to-right Task/Company-Contact/
- * Due/Status/Actions columns, reusing TaskRow's `variant="row"` so the same
- * Done-toggle/dialog logic drives both breakpoints. */
-function TaskTable({
-  tasks,
-  dialogProps,
-  withDelete,
-}: {
-  tasks: CrmTaskItem[];
-  dialogProps: TaskDialogProps;
-  withDelete?: boolean;
-}) {
-  return (
-    <table className={GRID_TABLE}>
-      <colgroup>
-        <col className="w-[28%]" />
-        <col className="w-[18%]" />
-        <col className="w-[16%]" />
-        <col className="w-[13%]" />
-        <col className="w-[25%]" />
-      </colgroup>
-      <thead>
-        <tr className={LIST_HEAD_ROW}>
-          <th className={GRID_HEAD_CELL}>Task</th>
-          <th className={GRID_HEAD_CELL}>Company/Contact</th>
-          <th className={GRID_HEAD_CELL}>Due</th>
-          <th className={GRID_HEAD_CELL}>Status</th>
-          <th className={`${GRID_HEAD_CELL} text-right`}>Actions</th>
-        </tr>
-      </thead>
-      <tbody className={ZEBRA_ROWS}>
-        {tasks.map((t) => (
-          <TaskRow key={t.id} task={t} showCompany variant="row" {...dialogProps}>
-            {withDelete && <DeleteTaskButton taskId={t.id} accountId={t.account_id} title={t.title} />}
-          </TaskRow>
-        ))}
-      </tbody>
-    </table>
   );
 }

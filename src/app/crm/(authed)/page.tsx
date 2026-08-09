@@ -43,6 +43,7 @@ type TaskRowData = {
   completed_at: string | null;
   reminder_at: string | null;
   account_id: string | null;
+  contact_id: string | null;
   assigned_user_id: string | null;
 };
 
@@ -132,7 +133,7 @@ export default async function CrmDashboardPage() {
     supabase
       .from("crm_tasks")
       .select(
-        "id, title, notes, task_type, due_at, priority, status, completed_at, reminder_at, account_id, assigned_user_id",
+        "id, title, notes, task_type, due_at, priority, status, completed_at, reminder_at, account_id, contact_id, assigned_user_id",
       )
       .eq("status", "open")
       .is("deleted_at", null)
@@ -148,10 +149,13 @@ export default async function CrmDashboardPage() {
       .is("deleted_at", null)
       .order("name", { ascending: true })
       .limit(1000),
-    // Contact roster for the quick-task/quick-call dialogs' contact pickers.
+    // Contact roster for the quick-task/quick-call dialogs' contact pickers
+    // — phone/phones, email, and title also ride along so the What's-next
+    // task cards can resolve their linked contact's phone/title without a
+    // second query.
     supabase
       .from("crm_contacts")
-      .select("id, name, account_id")
+      .select("id, name, account_id, phone, phones, email, title")
       .is("deleted_at", null)
       .order("name", { ascending: true })
       .limit(2000),
@@ -205,12 +209,22 @@ export default async function CrmDashboardPage() {
     id: string;
     name: string;
     account_id: string | null;
+    phone: string | null;
+    phones: unknown;
+    email: string | null;
+    title: string | null;
   }[];
   const quickTaskContacts = orgContacts.map((c) => ({
     id: c.id,
     name: titleCaseWords(c.name),
     accountId: c.account_id,
   }));
+  const contactNameById = new Map(orgContacts.map((c) => [c.id, titleCaseWords(c.name)]));
+  const contactTitleById = new Map(orgContacts.map((c) => [c.id, c.title]));
+  const contactEmailById = new Map(orgContacts.map((c) => [c.id, c.email]));
+  const contactPhoneById = new Map(
+    orgContacts.map((c) => [c.id, parsePhones(c.phones)[0]?.number || c.phone || null]),
+  );
   const canAssignOthers = user.role === "owner";
   const currentUser = {
     id: user.id,
@@ -277,6 +291,10 @@ export default async function CrmDashboardPage() {
   const allOpenTasks: CrmTaskItem[] = openTaskRows.map((t) => ({
     ...t,
     companyName: t.account_id ? (nameById.get(t.account_id) ?? null) : null,
+    contactName: t.contact_id ? (contactNameById.get(t.contact_id) ?? null) : null,
+    contactTitle: t.contact_id ? (contactTitleById.get(t.contact_id) ?? null) : null,
+    contactEmail: t.contact_id ? (contactEmailById.get(t.contact_id) ?? null) : null,
+    contactPhone: t.contact_id ? (contactPhoneById.get(t.contact_id) ?? null) : null,
     assigneeName: t.assigned_user_id ? (profileNameById.get(t.assigned_user_id) ?? null) : null,
     companyPhone: t.account_id ? (companyPhoneById.get(t.account_id) ?? null) : null,
   }));

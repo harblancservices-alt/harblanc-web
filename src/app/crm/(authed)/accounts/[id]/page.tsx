@@ -200,6 +200,7 @@ export default async function AccountDetailPage({
   const contactNameById = new Map(contacts.map((c) => [c.id, c.name]));
   const contactPhoneById = new Map(contacts.map((c) => [c.id, c.phones[0]?.number || null]));
   const contactEmailById = new Map(contacts.map((c) => [c.id, c.email]));
+  const contactTitleById = new Map(contacts.map((c) => [c.id, c.title]));
   const contactOptions: TaskContactOption[] = contacts.map((c) => ({ id: c.id, name: c.name }));
 
   const primaryContactEmail = account.primary_contact_id
@@ -243,6 +244,7 @@ export default async function AccountDetailPage({
     ...t,
     companyName: accountName,
     contactName: t.contact_id ? contactNameById.get(t.contact_id) ?? null : null,
+    contactTitle: t.contact_id ? contactTitleById.get(t.contact_id) ?? null : null,
     assigneeName: t.assigned_user_id ? profileName(profileById.get(t.assigned_user_id)) : null,
     contactPhone: t.contact_id ? contactPhoneById.get(t.contact_id) ?? null : null,
     contactEmail: t.contact_id ? contactEmailById.get(t.contact_id) ?? null : null,

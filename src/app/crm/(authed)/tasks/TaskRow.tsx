@@ -4,11 +4,11 @@ import { useState, useTransition } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ClickableListItem, ClickableRow } from "../_shell/ClickableRow";
-import { centralDayRange, timestampMs, formatDateTime } from "../_shell/format";
-import { DueCountdown } from "../_shell/DueCountdown";
+import { ClickableListItem } from "../_shell/ClickableRow";
+import { centralDayRange, timestampMs, formatDateTime, dueCountdown } from "../_shell/format";
 import { digitsForTel } from "../_shell/contactFields";
-import { priorityLabel, priorityTone } from "./priority";
+import { formatPhone } from "@/lib/domain/phone";
+import { normalizePriority } from "./priority";
 import { TASK_TYPE_CHIP_TONE } from "./taskType";
 import { completeTask, reopenTask } from "./actions";
 import {
@@ -17,7 +17,8 @@ import {
   type TaskContactOption,
 } from "./TaskDialog";
 import type { RepOption } from "../accounts/CompanyDialog";
-import { BTN_EDIT, BTN_NEUTRAL, BTN_SUCCESS, BTN_WARNING, GRID_CELL } from "../_shell/ui";
+import { IconCheck } from "../_shell/icons";
+import { BTN_ACTION, BTN_NEUTRAL } from "../_shell/ui";
 
 export type CrmTaskItem = {
   id: string;
@@ -33,19 +34,22 @@ export type CrmTaskItem = {
   assigned_user_id: string | null;
   companyName: string | null;
   /** Optional: contact linkage is only resolved where a row needs to show it
-   * (the global Tasks page and the company profile's Tasks section). Left
-   * undefined on the dashboard queue rather than adding an extra query that
-   * surface isn't asking for. */
+   * — now every surface (dashboard, global Tasks, company profile) resolves
+   * it, since the shared card always shows a linked contact + its phone. */
   contact_id?: string | null;
   contactName?: string | null;
+  /** crm_contacts.title (free-text job title) — rendered next to the
+   * contact's name, e.g. "Dave Kowalski · Purchasing". */
+  contactTitle?: string | null;
   /** Every task list resolves this (dashboard, global Tasks, company
    * profile) — tasks are shared org-wide, not per-user, so the row always
    * needs to show who actually owns the task. */
   assigneeName?: string | null;
   /** First phone number for the linked contact (or the company, as a
-   * fallback) — drives the action row's "Call" button for call-type tasks.
-   * Same `parsePhones(...)[0]?.number || phone` resolution used everywhere
-   * else in the CRM a single "best" number is needed. */
+   * fallback) — drives the meta row's PHONE readout and the action row's
+   * Call button for call-type tasks. Same `parsePhones(...)[0]?.number ||
+   * phone` resolution used everywhere else in the CRM a single "best"
+   * number is needed. */
   contactPhone?: string | null;
   companyPhone?: string | null;
   /** crm_contacts.email — there's no equivalent column on crm_accounts, so
@@ -71,53 +75,90 @@ function contextAction(
   return null;
 }
 
-type DueBucket = "overdue" | "today" | "later" | "none";
+type UrgencyBucket = "overdue" | "today" | "upcoming" | "done";
 
-function dueBucket(task: CrmTaskItem, done: boolean): DueBucket {
+/** Rail/meta urgency bucket — a simpler 4-way split than the countdown pill
+ * below (no "no due date" state of its own; an undated open task reads as
+ * "upcoming" blue, same as a far-future one) since the rail/meta-row only
+ * needs a color, not a message. */
+function urgencyBucket(task: CrmTaskItem, done: boolean): UrgencyBucket {
+  if (done) return "done";
   const ms = timestampMs(task.due_at);
-  if (ms === null) return "none";
-  if (done) return "later";
+  if (ms === null) return "upcoming";
   const { startMs, endMs } = centralDayRange();
   if (ms < startMs) return "overdue";
   if (ms <= endMs) return "today";
-  return "later";
+  return "upcoming";
 }
 
-const URGENCY_BAR: Record<DueBucket, string> = {
-  overdue: "bg-bad",
-  today: "bg-warn",
-  later: "bg-line-strong",
-  none: "bg-line-strong",
+/** Left rail color — literal hex per the approved mockup (distinct from the
+ * app's --bad/--warn/--ok design tokens, which are close but not identical). */
+const RAIL_COLOR: Record<UrgencyBucket, string> = {
+  overdue: "bg-[#b91c1c]",
+  today: "bg-[#b45309]",
+  upcoming: "bg-[#2563eb]",
+  done: "bg-[#15803d]",
 };
 
-/** Desktop row Status chip tone — overdue red / due-today amber / upcoming
- * blue, per the owner's spec for the Tasks table. */
-const STATUS_CHIP: Record<DueBucket, string> = {
-  overdue: "bg-bad-bg text-bad",
-  today: "bg-warn-bg text-warn",
-  later: "bg-accent/10 text-accent",
-  none: "bg-inset text-fg-subtle",
+const DUE_TEXT_COLOR: Record<UrgencyBucket, string> = {
+  overdue: "text-bad",
+  today: "text-warn",
+  upcoming: "text-accent",
+  done: "text-ok",
 };
 
-const STATUS_LABEL: Record<DueBucket, string> = {
-  overdue: "Overdue",
-  today: "Due today",
-  later: "Upcoming",
-  none: "No due date",
+/** Compact urgency pill label ("OVERDUE 1d" / "TODAY" / "TOMORROW" /
+ * "IN 2 DAYS") — reuses dueCountdown's tone/wording, reshaped to the short
+ * all-caps style of the mockup's pill (only the leading word gets forced
+ * caps for the overdue case, so "1d"/"3h" stay lowercase per the spec). */
+function urgencyPill(task: CrmTaskItem, done: boolean): { label: string; tone: "danger" | "warning" | "accent" } | null {
+  if (done) return null;
+  const { text, tone } = dueCountdown(task.due_at);
+  if (tone === "muted") return null;
+  if (tone === "danger") return { label: text.replace(/^\S+/, (w) => w.toUpperCase()), tone };
+  if (tone === "warning") return { label: text === "Tomorrow" ? "TOMORROW" : "TODAY", tone };
+  return { label: text.toUpperCase(), tone };
+}
+
+const URGENCY_PILL_TONE: Record<"danger" | "warning" | "accent", string> = {
+  danger: "bg-bad-bg text-bad",
+  warning: "bg-warn-bg text-warn",
+  accent: "bg-accent/10 text-accent",
 };
+
+/** Type pill color — Call/voicemail tasks read blue, email neutral, a bare
+ * "follow-up" (no call/email keyword) neutral/purple, everything else the
+ * shared neutral chip tone. */
+function typePillTone(taskType: string | null | undefined): string {
+  const t = (taskType ?? "").toLowerCase();
+  if (t.includes("call") || t.includes("voicemail")) return "bg-[#2563eb]/10 text-[#2563eb]";
+  if (t.includes("email")) return TASK_TYPE_CHIP_TONE;
+  if (t.includes("follow")) return "bg-violet-100 text-violet-700";
+  return TASK_TYPE_CHIP_TONE;
+}
+
+const PILL = "inline-flex items-center rounded-full px-2.5 py-0.5 text-[10.5px] font-semibold";
 
 const ACTION_BTN =
-  "inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-[12px] font-semibold transition-colors disabled:opacity-60";
+  "inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors disabled:opacity-60";
+
+/** Light-blue action tone (Reschedule, and the Call/Email context action) —
+ * distinct from BTN_ACTION's solid fill (Done) and BTN_NEUTRAL's light
+ * neutral (Edit), matching the mockup's three-tier action-row color scheme. */
+const BTN_LIGHT_BLUE =
+  "border border-[#2563eb]/30 bg-[#2563eb]/10 text-[#2563eb] hover:bg-[#2563eb]/20 disabled:opacity-60";
 
 /**
- * One task CARD — a left urgency bar (red overdue / amber due-today / gray
- * later-or-none), title + type chip, company · contact, a due/assignee/
- * priority line, and an action row (Done, a task_type-driven Call or Email,
- * Reschedule, Edit). Shared by the dashboard Tasks section, the global Tasks
- * page, and the company profile's Tasks section — every caller passes the
- * same dialog data (reps/contacts/canAssignOthers/currentUser) it already
- * loads for its own "Add task" entry point, so Edit/Reschedule reuse the
- * exact same TaskDialog + actions rather than duplicating a second form.
+ * One task CARD — the shared "H1" layout (Brent's approved mockup): a left
+ * urgency rail, a big tappable complete circle, title + type/priority/
+ * urgency pills, company + contact (both linking to their profiles), a
+ * divider, a due/phone-or-rep meta row, and a pill action row (Done,
+ * Reschedule, Edit, plus a task_type-driven Call/Email). Shared by the
+ * dashboard's What's-next queue, the global Tasks page, and the company
+ * profile's Tasks tab — every caller passes the same dialog data (reps/
+ * contacts/canAssignOthers/currentUser) it already loads for its own "Add
+ * task" entry point, so Edit/Reschedule reuse the exact same TaskDialog +
+ * actions rather than duplicating a second form.
  */
 export function TaskRow({
   task,
@@ -130,7 +171,6 @@ export function TaskRow({
   accountId,
   accounts,
   children,
-  variant = "card",
 }: {
   task: CrmTaskItem;
   showCompany?: boolean;
@@ -149,9 +189,6 @@ export function TaskRow({
   accounts?: TaskAccountOption[];
   /** Extra trailing action (e.g. Delete) appended to the action row. */
   children?: ReactNode;
-  /** "row" renders a `<tr>` (desktop Tasks table) instead of the mobile
-   * card — same hooks/dialogs, different layout. Defaults to "card". */
-  variant?: "card" | "row";
 }) {
   const [pending, startTransition] = useTransition();
   const router = useRouter();
@@ -173,198 +210,204 @@ export function TaskRow({
     });
   }
 
-  const bucket = dueBucket(task, optimisticDone);
+  const bucket = urgencyBucket(task, optimisticDone);
+  const pill = urgencyPill(task, optimisticDone);
   const context = contextAction(task);
+  const isHighPriority = normalizePriority(task.priority) === "high";
+  const phone = task.contactPhone || task.companyPhone || null;
 
-  const actionButtons = (
-    <>
-      <button
-        type="button"
-        onClick={toggle}
-        disabled={pending}
-        className={`${ACTION_BTN} ${optimisticDone ? BTN_NEUTRAL : BTN_SUCCESS}`}
-      >
-        {optimisticDone ? "Reopen" : "Done"}
-      </button>
-
-      {context && (
-        <a href={context.href} onClick={(e) => e.stopPropagation()} className={`${ACTION_BTN} ${BTN_EDIT}`}>
-          {context.kind === "call" ? "Call" : "Email"}
-        </a>
-      )}
-
-      <TaskDialog
-        mode="edit"
-        accountId={accountId}
-        accounts={accounts}
-        contacts={contacts}
-        reps={reps}
-        canAssignOthers={canAssignOthers}
-        currentUser={currentUser}
-        defaults={task}
-        initialFocus="due_at"
-        trigger={(open) => (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              open();
-            }}
-            className={`${ACTION_BTN} ${BTN_WARNING}`}
-          >
-            {task.due_at ? "Reschedule" : "Set due date"}
-          </button>
-        )}
-      />
-
-      <TaskDialog
-        mode="edit"
-        accountId={accountId}
-        accounts={accounts}
-        contacts={contacts}
-        reps={reps}
-        canAssignOthers={canAssignOthers}
-        currentUser={currentUser}
-        defaults={task}
-        trigger={(open) => (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              open();
-            }}
-            className={`${ACTION_BTN} ${BTN_EDIT}`}
-          >
-            Edit
-          </button>
-        )}
-      />
-
-      {children}
-    </>
-  );
-
-  if (variant === "row") {
-    const rowCells = (
-      <>
-        <td className={`${GRID_CELL} min-w-0`}>
-          <p className={`truncate text-[13px] font-semibold ${optimisticDone ? "text-fg-subtle line-through" : "text-fg"}`}>
-            {task.title}
-          </p>
-          {task.task_type && (
-            <span className={`mt-0.5 inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold ${TASK_TYPE_CHIP_TONE}`}>
-              {task.task_type}
-            </span>
-          )}
-        </td>
-        <td className={`${GRID_CELL} min-w-0 text-[12.5px] text-fg-subtle`}>
-          {showCompany && task.account_id && (
-            <Link
-              href={`/crm/accounts/${task.account_id}`}
-              prefetch={false}
-              onClick={(e) => e.stopPropagation()}
-              className="block truncate font-medium text-accent hover:underline"
-            >
-              {task.companyName || "Company"}
-            </Link>
-          )}
-          {task.contactName && <span className="block truncate">{task.contactName}</span>}
-          {!(showCompany && task.account_id) && !task.contactName && <span className="text-fg-subtle">—</span>}
-        </td>
-        <td className={`${GRID_CELL} text-[12.5px] text-fg-muted`}>{formatDateTime(task.due_at)}</td>
-        <td className={GRID_CELL}>
-          <span
-            className={`inline-flex items-center px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide ${
-              optimisticDone ? "bg-ok-bg text-ok" : STATUS_CHIP[bucket]
-            }`}
-          >
-            {optimisticDone ? "Done" : STATUS_LABEL[bucket]}
-          </span>
-        </td>
-        <td className={GRID_CELL}>
-          <div className="flex flex-wrap items-center justify-end gap-1.5">{actionButtons}</div>
-        </td>
-      </>
-    );
-
-    if (linkTo) {
-      return <ClickableRow href={linkTo}>{rowCells}</ClickableRow>;
-    }
-    return <tr>{rowCells}</tr>;
-  }
+  const hasCompanyOrContact = (showCompany && task.account_id) || task.contactName;
 
   const cardContent = (
-    <div className="flex min-w-0 flex-1 items-stretch gap-3">
-      <span aria-hidden className={`w-1 shrink-0 ${URGENCY_BAR[bucket]}`} />
+    <div className="flex min-w-0 flex-1 items-stretch gap-0">
+      <span aria-hidden className={`w-1.5 shrink-0 ${RAIL_COLOR[bucket]}`} />
 
-      <div className="min-w-0 flex-1 py-3 pr-3">
-        <div className="flex flex-wrap items-start gap-x-2 gap-y-1">
+      <div className="flex min-w-0 flex-1 gap-3 p-3">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            toggle();
+          }}
+          disabled={pending}
+          aria-label={optimisticDone ? "Reopen task" : "Mark task complete"}
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 transition-colors disabled:opacity-60 ${
+            optimisticDone
+              ? "border-[#15803d] bg-[#15803d] text-white"
+              : "border-line-strong bg-card text-transparent hover:border-[#2563eb]"
+          }`}
+        >
+          {optimisticDone && <IconCheck width={18} height={18} />}
+        </button>
+
+        <div className="min-w-0 flex-1">
           <p
-            className={`text-[14.5px] font-semibold ${
+            className={`text-[14.5px] font-bold ${
               optimisticDone ? "text-fg-subtle line-through" : "text-fg"
             }`}
           >
             {task.title}
           </p>
-          {task.task_type && (
-            <span
-              className={`inline-flex items-center px-2 py-0.5 text-[10.5px] font-semibold ${TASK_TYPE_CHIP_TONE}`}
-            >
-              {task.task_type}
-            </span>
-          )}
-        </div>
 
-        {(showCompany && task.account_id) || task.contactName ? (
-          <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-[12.5px] text-fg-subtle">
-            {showCompany && task.account_id && (
-              <Link
-                href={`/crm/accounts/${task.account_id}`}
-                prefetch={false}
-                className="font-medium text-accent hover:underline"
-              >
-                {task.companyName || "Company"}
-              </Link>
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+            {task.task_type && (
+              <span className={`${PILL} ${typePillTone(task.task_type)}`}>{task.task_type}</span>
             )}
-            {showCompany && task.account_id && task.contactName && <span>·</span>}
-            {task.contactName && <span>{task.contactName}</span>}
-          </p>
-        ) : null}
+            {isHighPriority && <span className={`${PILL} bg-warn-bg text-warn`}>HIGH</span>}
+            {pill && <span className={`${PILL} ${URGENCY_PILL_TONE[pill.tone]}`}>{pill.label}</span>}
+          </div>
 
-        {task.notes && (
-          <p className="mt-1 line-clamp-2 text-[12.5px] leading-relaxed text-fg-muted">
-            {task.notes}
-          </p>
-        )}
+          {hasCompanyOrContact ? (
+            <div className="mt-1.5 min-w-0">
+              {showCompany && task.account_id && (
+                <Link
+                  href={`/crm/accounts/${task.account_id}`}
+                  prefetch={false}
+                  className="block truncate text-[13.5px] font-bold text-fg hover:underline"
+                >
+                  {task.companyName || "Company"}
+                </Link>
+              )}
+              {task.contactName && (
+                <Link
+                  href={task.contact_id ? `/crm/contacts/${task.contact_id}` : "#"}
+                  prefetch={false}
+                  onClick={(e) => {
+                    if (!task.contact_id) e.preventDefault();
+                  }}
+                  className={`block truncate text-[12.5px] font-semibold text-fg-muted ${
+                    task.contact_id ? "hover:underline hover:text-fg" : ""
+                  }`}
+                >
+                  {task.contactName}
+                  {task.contactTitle ? ` · ${task.contactTitle}` : ""}
+                </Link>
+              )}
+            </div>
+          ) : null}
 
-        {error && <p className="mt-1 text-[12px] text-bad">{error}</p>}
+          {task.notes && (
+            <p className="mt-1.5 line-clamp-2 text-[12.5px] leading-relaxed text-fg-muted">
+              {task.notes}
+            </p>
+          )}
 
-        <div className="mt-1.5 flex flex-wrap items-start gap-x-3 gap-y-1.5 text-[12.5px]">
-          <DueCountdown iso={task.due_at} />
-          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pt-1">
-            {task.assigneeName && <span className="text-fg-subtle">{task.assigneeName}</span>}
-            <span
-              className={`inline-flex items-center px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide ${priorityTone(task.priority)}`}
+          {error && <p className="mt-1.5 text-[12px] text-bad">{error}</p>}
+
+          <div className="mt-2.5 grid grid-cols-2 gap-3 border-t border-line pt-2">
+            <div className="min-w-0">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-fg-subtle">Due</p>
+              {task.due_at ? (
+                <p className={`truncate text-[12.5px] font-semibold ${DUE_TEXT_COLOR[bucket]}`}>
+                  {formatDateTime(task.due_at)}
+                </p>
+              ) : (
+                <p className="text-[12.5px] text-fg-subtle">No due date</p>
+              )}
+            </div>
+            <div className="min-w-0 text-right">
+              {phone ? (
+                <>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-fg-subtle">Phone</p>
+                  <a
+                    href={`tel:${digitsForTel(phone)}`}
+                    onClick={(e) => e.stopPropagation()}
+                    className="truncate text-[12.5px] font-semibold text-accent hover:underline"
+                  >
+                    {formatPhone(phone)}
+                  </a>
+                </>
+              ) : task.assigneeName ? (
+                <>
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-fg-subtle">Rep</p>
+                  <p className="truncate text-[12.5px] font-semibold text-fg">{task.assigneeName}</p>
+                </>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                toggle();
+              }}
+              disabled={pending}
+              className={`${ACTION_BTN} ${optimisticDone ? BTN_NEUTRAL : BTN_ACTION}`}
             >
-              {priorityLabel(task.priority)}
-            </span>
+              {optimisticDone ? "Reopen" : "Done"}
+            </button>
+
+            {context && (
+              <a
+                href={context.href}
+                onClick={(e) => e.stopPropagation()}
+                className={`${ACTION_BTN} ${BTN_LIGHT_BLUE}`}
+              >
+                {context.kind === "call" ? "Call" : "Email"}
+              </a>
+            )}
+
+            <TaskDialog
+              mode="edit"
+              accountId={accountId}
+              accounts={accounts}
+              contacts={contacts}
+              reps={reps}
+              canAssignOthers={canAssignOthers}
+              currentUser={currentUser}
+              defaults={task}
+              initialFocus="due_at"
+              trigger={(open) => (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    open();
+                  }}
+                  className={`${ACTION_BTN} ${BTN_LIGHT_BLUE}`}
+                >
+                  {task.due_at ? "Reschedule" : "Set due date"}
+                </button>
+              )}
+            />
+
+            <TaskDialog
+              mode="edit"
+              accountId={accountId}
+              accounts={accounts}
+              contacts={contacts}
+              reps={reps}
+              canAssignOthers={canAssignOthers}
+              currentUser={currentUser}
+              defaults={task}
+              trigger={(open) => (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    open();
+                  }}
+                  className={`${ACTION_BTN} ${BTN_NEUTRAL}`}
+                >
+                  Edit
+                </button>
+              )}
+            />
+
+            {children}
           </div>
         </div>
-
-        <div className="mt-2.5 flex flex-wrap items-center gap-1.5">{actionButtons}</div>
       </div>
     </div>
   );
 
-  const cardClass =
-    "relative flex overflow-hidden border border-line-strong bg-card shadow-e1";
+  const cardClass = "relative flex overflow-hidden border border-line-strong bg-card shadow-e1";
 
   if (linkTo) {
     return (
-      <ClickableListItem
-        href={linkTo}
-        className={`${cardClass} hover:border-accent/40`}
-      >
+      <ClickableListItem href={linkTo} className={`${cardClass} hover:border-accent/40`}>
         {cardContent}
       </ClickableListItem>
     );
