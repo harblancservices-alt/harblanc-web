@@ -1,7 +1,7 @@
 "use client";
 
 import { LogCallDialog, type CallContactOption } from "../../calls/LogCallDialog";
-import { BTN_EDIT } from "../../_shell/ui";
+import { BTN_RED } from "../../_shell/ui";
 
 /**
  * The profile's "Log call" action — the shared LogCallDialog opened from a
@@ -25,7 +25,7 @@ export function LogCallButton({
         <button
           type="button"
           onClick={open}
-          className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_EDIT}`}
+          className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_RED}`}
         >
           Log call
         </button>

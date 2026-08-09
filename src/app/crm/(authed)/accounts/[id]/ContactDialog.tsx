@@ -6,9 +6,8 @@ import { useRouter } from "next/navigation";
 import { Modal } from "../../_shell/Modal";
 import {
   Field,
-  SelectField,
+  FieldLabel,
   TextareaField,
-  CheckboxField,
   SubmitButton,
   FormError,
 } from "../../_shell/form";
@@ -17,7 +16,7 @@ import { LinksEditor } from "../../_shell/LinksEditor";
 import type { PhoneEntry, LinkEntry } from "../../_shell/contactFields";
 import { createContact, updateContact } from "../actions";
 import { toDatetimeLocal } from "../../_shell/format";
-import { ROLE_CATEGORIES, ROLE_LABEL } from "./PeopleSection";
+import { ROLE_CATEGORIES, ROLE_LABEL, ROLE_TONE } from "./roles";
 
 export type ContactDefaults = {
   id?: string;
@@ -27,19 +26,20 @@ export type ContactDefaults = {
   phones?: PhoneEntry[];
   links?: LinkEntry[];
   best_time_to_call?: string | null;
-  is_decision_maker?: boolean | null;
   notes?: string | null;
   next_followup_at?: string | null;
   /** A CrmPersonRoleCategory slug (see PeopleSection.tsx), or null/unset —
-   * drives the color-coded role tag on the Overview tab's People list. */
+   * drives the color-coded role pill everywhere a contact renders. */
   role_category?: string | null;
 };
 
 /**
  * Add / edit a contact for a company. Full field set (title, email, labeled
- * phones, labeled links, best time to call, decision-maker flag, notes, next
- * follow-up date+time). Create and edit share the form; both log to the
- * timeline via their server actions.
+ * phones, labeled links, best time to call, a single-select role pill row,
+ * notes, next follow-up date+time). The role pills replaced a separate
+ * decision-maker checkbox entirely (Brent's call — one job-role choice is
+ * the categorization now, not a second yes/no flag). Create and edit share
+ * the form; both log to the timeline via their server actions.
  */
 export function ContactDialog({
   accountId,
@@ -55,6 +55,7 @@ export function ContactDialog({
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const [role, setRole] = useState<string>("");
   const router = useRouter();
 
   const d = defaults ?? {};
@@ -81,6 +82,7 @@ export function ContactDialog({
     <>
       {trigger(() => {
         setError(null);
+        setRole(d.role_category ?? "");
         setOpen(true);
       })}
 
@@ -104,14 +106,30 @@ export function ContactDialog({
             defaultValue={d.email}
           />
 
-          <SelectField label="Role" name="role_category" defaultValue={d.role_category ?? ""}>
-            <option value="">No role set</option>
-            {ROLE_CATEGORIES.map((r) => (
-              <option key={r} value={r}>
-                {ROLE_LABEL[r]}
-              </option>
-            ))}
-          </SelectField>
+          <div>
+            <FieldLabel>Role</FieldLabel>
+            <div className="mt-1.5 flex flex-wrap gap-1.5">
+              {ROLE_CATEGORIES.map((r) => {
+                const selected = role === r;
+                return (
+                  <button
+                    key={r}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => setRole((prev) => (prev === r ? "" : r))}
+                    className={`px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
+                      selected
+                        ? `${ROLE_TONE[r]} ring-2 ring-offset-1 ring-current`
+                        : "bg-inset text-fg-muted hover:bg-card hover:text-fg"
+                    }`}
+                  >
+                    {ROLE_LABEL[r]}
+                  </button>
+                );
+              })}
+            </div>
+            <input type="hidden" name="role_category" value={role} />
+          </div>
 
           <PhonesEditor defaultValue={d.phones} />
           <LinksEditor defaultValue={d.links} />
@@ -129,12 +147,6 @@ export function ContactDialog({
             defaultValue={toDatetimeLocal(d.next_followup_at)}
           />
           <TextareaField label="Notes" name="notes" defaultValue={d.notes} />
-          <CheckboxField
-            label="Decision-maker"
-            name="is_decision_maker"
-            defaultChecked={!!d.is_decision_maker}
-            hint="Flag this contact as someone who can say yes."
-          />
 
           <SubmitButton pending={pending}>
             {mode === "create" ? "Save contact" : "Save changes"}

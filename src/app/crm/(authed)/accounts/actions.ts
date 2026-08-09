@@ -423,7 +423,6 @@ function contactFieldsFromForm(fd: FormData) {
     linkedin_url: links[0]?.url || null,
     links,
     best_time_to_call: optStr(fd, "best_time_to_call"),
-    is_decision_maker: str(fd, "is_decision_maker") === "on",
     notes: optStr(fd, "notes"),
     // Comes in as a datetime-local value the dialog shows in Central time
     // (toDatetimeLocal) — convert back through the same Central

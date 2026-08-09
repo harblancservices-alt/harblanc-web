@@ -13,7 +13,7 @@ import { ContactsSection, type CrmContact } from "./ContactsSection";
 import { StrayNumbersSection } from "./StrayNumbersSection";
 import { AddPersonButton } from "./AddPersonButton";
 import { AiResearchSection, type CrmNote } from "./AiResearchSection";
-import { PeopleSection, type CrmPerson } from "./PeopleSection";
+import { PeopleSection } from "./PeopleSection";
 import type { CrmActivityItem } from "./ActivitySection";
 import { LifecycleControl } from "./LifecycleControl";
 import { RepControl } from "./RepControl";
@@ -223,17 +223,6 @@ export default async function AccountDetailPage({
   // action" control on the profile — Log call, Add task (from the Tasks bar
   // and each person row's one-tap + Task), the Tasks section's own dialog.
   const contactOptions: TaskContactOption[] = contacts.map((c) => ({ id: c.id, name: c.name }));
-
-  const people: CrmPerson[] = contactRows.map((c) => ({
-    id: c.id,
-    name: c.name,
-    title: c.title,
-    email: c.email,
-    phones: parsePhones(c.phones),
-    is_decision_maker: c.is_decision_maker,
-    last_contacted_at: c.last_contacted_at,
-    role_category: c.role_category,
-  }));
 
   const notesRows = (notesRes.data ?? []) as {
     id: string;
@@ -479,7 +468,7 @@ export default async function AccountDetailPage({
                 />
                 <PeopleSection
                   accountId={account.id as string}
-                  people={people}
+                  people={contacts}
                   reps={reps}
                   contactOptions={contactOptions}
                   canAssignOthers={isOwner}

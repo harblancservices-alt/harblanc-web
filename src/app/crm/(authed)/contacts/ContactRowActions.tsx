@@ -2,7 +2,7 @@
 
 import { LogCallDialog } from "../calls/LogCallDialog";
 import { QuickNoteDialog } from "../accounts/[id]/QuickNoteDialog";
-import { BTN_EDIT } from "../_shell/ui";
+import { BTN_RED } from "../_shell/ui";
 import { IconNote } from "../_shell/icons";
 
 /**
@@ -38,7 +38,7 @@ export function ContactRowActions({
             <button
               type="button"
               onClick={open}
-              className={`rounded-lg px-2.5 py-1.5 text-[12px] font-semibold transition-colors ${BTN_EDIT}`}
+              className={`rounded-lg px-2.5 py-1.5 text-[12px] font-semibold transition-colors ${BTN_RED}`}
             >
               Log call
             </button>
@@ -53,7 +53,7 @@ export function ContactRowActions({
           <button
             type="button"
             onClick={open}
-            className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12px] font-semibold transition-colors ${BTN_EDIT}`}
+            className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12px] font-semibold transition-colors ${BTN_RED}`}
           >
             <IconNote width={12} height={12} />
             Add note
