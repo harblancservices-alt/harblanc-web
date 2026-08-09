@@ -20,9 +20,10 @@ type AccountRow = {
 };
 
 /**
- * Active Customers — every crm_account marked lifecycle_status='customer'
- * via the profile's chevron stage tracker (accounts/[id]/StageTracker.tsx →
- * updateLifecycleStatus). Purely a read view: there is no write path here —
+ * Active Customers — every crm_account marked lifecycle_status='active_customer'
+ * (the funnel's final stage — see accounts/lifecycle.ts) via the profile's
+ * chevron stage tracker (accounts/[id]/StageTracker.tsx → updateLifecycleStatus).
+ * Purely a read view: there is no write path here —
  * moving a company in or out of this list is done on its profile, which
  * already exists.
  *
@@ -38,12 +39,12 @@ export default async function ActiveCustomersPage() {
   const { data } = await supabase
     .from("crm_accounts")
     .select("id, name, city, state, phone, phones")
-    .eq("lifecycle_status", "customer")
+    .eq("lifecycle_status", "active_customer")
     .is("deleted_at", null)
     .order("name", { ascending: true })
     .limit(500);
 
-  const accounts = ((data ?? []) as AccountRow[]).map((a) => ({ ...a, lifecycle_status: "customer" as const }));
+  const accounts = ((data ?? []) as AccountRow[]).map((a) => ({ ...a, lifecycle_status: "active_customer" as const }));
   const accountIds = accounts.map((a) => a.id);
 
   const [tagsRes, tagLinkRes, contactsRes, lastCallsRes, lastActivitiesRes] = await Promise.all([

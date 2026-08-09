@@ -2,7 +2,6 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardHead } from "../../_shell/ui";
 import { LABEL, CONTROL } from "../../_shell/form";
 import { IconPlus, IconX } from "../../_shell/icons";
 import { attachTag, createTag, detachTag } from "../actions";
@@ -12,11 +11,12 @@ export type CrmTagOption = { id: string; label: string; color: string | null };
 const TAG_COLORS = ["#dc2626", "#d97706", "#16a34a", "#2563eb", "#7c3aed", "#64748b"];
 
 /**
- * LEFT column — "Tags": attached tag pills (each with a remove ×) plus an
- * "Add tag" popover that lists the org's other tags to attach and a small
- * inline form to create a brand-new one. No tag editor existed on this page
- * before — the Companies list only ever filtered/displayed tags — so this is
- * new UI wired onto the existing attachTag/detachTag/createTag actions.
+ * A subsection of the merged "Company Details" card (2026-08-09 profile
+ * rebuild) — attached tag pills (each with a remove ×) plus an "Add tag"
+ * popover that lists the org's other tags to attach and a small inline form
+ * to create a brand-new one. Owns no Card/CardHead of its own — the parent
+ * card supplies the outer chrome, this renders just the "Tags" subsection
+ * heading + content, matching CompanyDetailsCard's other subsections.
  */
 export function TagsCard({
   accountId,
@@ -77,21 +77,19 @@ export function TagsCard({
   }
 
   return (
-    <Card>
-      <CardHead
-        title="Tags"
-        right={
-          <button
-            type="button"
-            onClick={() => setOpen((v) => !v)}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-accent/40 bg-card px-3 py-1.5 text-[12.5px] font-semibold text-accent transition-colors hover:bg-accent/10"
-          >
-            <IconPlus width={13} height={13} />
-            Add tag
-          </button>
-        }
-      />
-      <div className="flex flex-col gap-3 p-5">
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-[11px] font-bold uppercase tracking-[0.12em] text-fg-subtle">Tags</h3>
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          className="inline-flex items-center gap-1.5 border border-accent/40 bg-card px-2.5 py-1 text-[12px] font-semibold text-accent transition-colors hover:bg-accent/10"
+        >
+          <IconPlus width={12} height={12} />
+          Add tag
+        </button>
+      </div>
+      <div className="flex flex-col gap-3">
         {attached.length === 0 ? (
           <p className="text-[13px] text-fg-muted">No tags yet.</p>
         ) : (
@@ -183,6 +181,6 @@ export function TagsCard({
           </div>
         )}
       </div>
-    </Card>
+    </div>
   );
 }

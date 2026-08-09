@@ -1,31 +1,29 @@
 import { notFound } from "next/navigation";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { CRM_ACTIVITY } from "@/lib/crm/activity";
-import { PageShell } from "../../_shell/ui";
+import { PageShell, Card, CardHead } from "../../_shell/ui";
 import { firstName, titleCaseWords, upperCaseState } from "../../_shell/format";
 import { parsePhones, parseLinks, normalizeHref } from "../../_shell/contactFields";
 import { formatPhone } from "@/lib/domain/phone";
+import type { LaneEntry } from "../../_shell/LanesEditor";
 import type { RepOption } from "../CompanyDialog";
 import { FinalizeBanner } from "./FinalizeBanner";
 import { CompanyHeader } from "./CompanyHeader";
 import { StageTracker } from "./StageTracker";
-import { AboutCard } from "./AboutCard";
-import { TagsCard, type CrmTagOption } from "./TagsCard";
-import { CompanyOwnerCard } from "./CompanyOwnerCard";
+import type { CrmTagOption } from "./TagsCard";
 import { ProfileCenterTabs } from "./ProfileCenterTabs";
 import { ActivityLogSection, type CrmActivityLogItem } from "./ActivityLogSection";
 import { ContactsMasterDetail, type CrmContact } from "./ContactsMasterDetail";
 import { TasksTab } from "./TasksTab";
 import { NotesTab, type CrmNoteItem } from "./NotesTab";
 import { FilesTab } from "./FilesTab";
-import { CompanyDetailsCard } from "./CompanyDetailsCard";
+import { CompanyDetailsCard, type CompanyFreightData } from "./CompanyDetailsCard";
 import { CustomFieldsCard } from "./CustomFieldsCard";
 import { type CrmCommodityPhoto } from "./CommodityPhotoTiles";
 import { callOutcomeLabel } from "../../calls/outcomes";
 import type { TaskContactOption } from "../../tasks/TaskDialog";
 import { type CrmBolDocument } from "./BolSection";
 import { CompanyProfileSection } from "./CompanyProfileSection";
-import { FreightProfileSection } from "./FreightProfileSection";
 import { CommercialSection } from "./CommercialSection";
 import { StrayNumbersSection } from "./StrayNumbersSection";
 import { LocationsSection } from "./LocationsSection";
@@ -44,20 +42,21 @@ function profileName(p: ProfileRow | undefined): string | null {
 }
 
 /**
- * Company profile — rebuilt to Brent's reference layout (2026-08-08), with
- * two later trims: the KPI strip (Total contacts/Open tasks/Last contact/
- * Added/Total deals) and the AI Suggestions/AI Research panels were both
- * pulled from the UI on request. Layout now: top bar (breadcrumb + name +
- * More/Edit) → StageTracker (kept — it's the one control that actually
- * moves the stage) → three columns (About/Tags/Company owner | tabbed
- * Timeline/Contacts/Tasks/Notes/Files, default Contacts | Company details/
- * Custom fields). No Deals tab — crm_deals has no real usage anywhere in
- * this codebase. Company profile/Freight profile/Commercial/Locations/
- * Stray numbers ride below the three columns as isolated cards — real
- * data/functionality the reference design doesn't name but that must still
- * display somewhere. The AI Suggestions/AI Research components (and their
- * underlying crm_ai_suggestions data / ai_status columns) still exist on
- * disk — see AiSuggestionsPanel.tsx/AiResearchSection.tsx — just not
+ * Company profile — rebuilt to Brent's reference layout (2026-08-08), then
+ * relaid out again (2026-08-09) into two columns: top bar (breadcrumb + name
+ * + More/Edit) → StageTracker (now a 7-stage funnel; the one control that
+ * actually moves the stage) → CompanyDetailsCard (left, fixed width — a
+ * single merged card absorbing what used to be four separate cards: About,
+ * Tags, Company owner/Sales rep, and the old right-column Company details +
+ * Freight profile) | a widened tabbed Timeline/Contacts/Tasks/Files panel
+ * (default Contacts) with its own standalone Notes card underneath (Notes
+ * used to be a tab in that same panel). No Deals tab — crm_deals has no real
+ * usage anywhere in this codebase. Company profile/Commercial/Locations/
+ * Stray numbers/Custom fields ride below the two columns as isolated cards —
+ * real data/functionality the reference design doesn't name but that must
+ * still display somewhere. The AI Suggestions/AI Research components (and
+ * their underlying crm_ai_suggestions data / ai_status columns) still exist
+ * on disk — see AiSuggestionsPanel.tsx/AiResearchSection.tsx — just not
  * rendered here anymore.
  */
 export default async function AccountDetailPage({
@@ -73,13 +72,25 @@ export default async function AccountDetailPage({
   const { data: account } = await supabase
     .from("crm_accounts")
     .select(
-      "id, name, industry, website, phone, phones, links, address, city, state, zip, company_size, commodities, annual_freight_spend, revenue_potential, source, lifecycle_status, assigned_user_id, primary_contact_id, needs_finalize, created_at, updated_at, dot_number, mc_number, company_type, email, context_notes, custom",
+      "id, name, industry, website, phone, phones, links, address, city, state, zip, company_size, commodities, annual_freight_spend, revenue_potential, source, lifecycle_status, assigned_user_id, primary_contact_id, needs_finalize, created_at, updated_at, dot_number, mc_number, company_type, email, context_notes, custom, equipment_needed, lanes, volume_frequency, weight_range, special_requirements, ai_confirmed_fields",
     )
     .eq("id", id)
     .is("deleted_at", null)
     .maybeSingle();
 
   if (!account) notFound();
+
+  // Prospect-level meter's value — a separate, error-tolerant query rather
+  // than a column on the main select above: prospect_level is a very recent
+  // addition, and if it somehow isn't live yet this must NOT take the whole
+  // profile page down with it (see the CRM's "verify migrations live" scars).
+  // A failed/missing column just means the meter renders empty.
+  const { data: levelRow } = await supabase
+    .from("crm_accounts")
+    .select("prospect_level")
+    .eq("id", id)
+    .maybeSingle();
+  const prospectLevel = (levelRow?.prospect_level as number | null | undefined) ?? null;
 
   const accountName = titleCaseWords(account.name as string);
   const accountAddress = titleCaseWords(account.address as string | null) || null;
@@ -357,6 +368,17 @@ export default async function AccountDetailPage({
     [accountAddress, [accountCity, accountState].filter(Boolean).join(", "), account.zip].filter(Boolean).join(", ") || null;
   const companyEmail = (account.email as string | null) || primaryContactEmail;
 
+  const aiConfirmedFields = (account.ai_confirmed_fields as Record<string, unknown> | null) ?? {};
+  const freight: CompanyFreightData = {
+    commodities: (account.commodities as string | null) ?? null,
+    equipmentNeeded: ((account.equipment_needed as string[] | null) ?? []).filter(Boolean),
+    lanes: ((account.lanes as LaneEntry[] | null) ?? []).filter((l) => l.origin || l.destination),
+    volumeFrequency: (account.volume_frequency as string | null) ?? null,
+    weightRange: (account.weight_range as string | null) ?? null,
+    specialRequirements: ((account.special_requirements as string[] | null) ?? []).filter(Boolean),
+    confirmed: aiConfirmedFields,
+  };
+
   const editDefaults = {
     id: account.id as string,
     name: accountName,
@@ -399,93 +421,97 @@ export default async function AccountDetailPage({
         />
 
         <div className="w-full border border-line-strong bg-card p-4 shadow-e2">
-          <StageTracker accountId={account.id as string} current={stage} />
+          <StageTracker accountId={account.id as string} current={stage} prospectLevel={prospectLevel} />
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-[300px_1fr_300px] lg:items-start">
-          {/* LEFT */}
-          <div className="flex flex-col gap-4">
-            <AboutCard
-              name={accountName}
-              phone={companyPhone}
-              email={companyEmail}
-              website={website}
-              websiteHref={websiteHref}
-              industry={account.industry as string | null}
-              fullAddress={fullAddress}
-            />
-            <TagsCard accountId={account.id as string} attached={attachedTags} orgTags={orgTags} />
-            <CompanyOwnerCard accountId={account.id as string} currentRepId={currentRepId} currentRepRole={currentRepRole} reps={reps} />
-          </div>
-
-          {/* CENTER */}
-          <ProfileCenterTabs
-            timeline={<ActivityLogSection accountId={account.id as string} items={activityItems} />}
-            timelineCount={activityItems.length}
-            contacts={
-              <ContactsMasterDetail
-                accountId={account.id as string}
-                contacts={contacts}
-                contactOptions={contactOptions}
-                activityItems={activityItems}
-                tasks={tasks}
-                notes={humanNotes}
-                reps={reps}
-                canAssignOthers={isOwner}
-                canDelete={isOwner}
-                currentUser={currentUser}
-              />
-            }
-            contactsCount={contacts.length}
-            tasks={
-              <TasksTab
-                accountId={account.id as string}
-                tasks={tasks}
-                reps={reps}
-                contacts={contactOptions}
-                canAssignOthers={isOwner}
-                currentUser={currentUser}
-              />
-            }
-            tasksCount={openTasks.length}
-            notes={<NotesTab accountId={account.id as string} notes={humanNotes} />}
-            notesCount={humanNotes.length}
-            files={
-              <FilesTab
-                accountId={account.id as string}
-                orgId={user.orgId}
-                documents={documents}
-                photos={commodityPhotos}
-                shipperName={accountName}
-                shipperAddress={fullAddress}
-                shipperPhone={companyPhone ? formatPhone(companyPhone) : null}
-              />
-            }
+        {/* 2026-08-09 relayout: Company Details (left, unchanged width) absorbs
+            what used to be four separate cards (About/Tags/Company owner/the
+            old right-column Company Details+Freight profile); the freed-up
+            right column's space goes to widening the Contacts/Timeline/Tasks
+            card, with Notes now its own card underneath. On mobile this grid
+            collapses to one column and already stacks in the right order —
+            Company Details, then Contacts, then Notes. */}
+        <div className="grid gap-4 lg:grid-cols-[300px_1fr] lg:items-start">
+          <CompanyDetailsCard
+            accountId={account.id as string}
+            name={accountName}
+            email={companyEmail}
+            website={website}
+            websiteHref={websiteHref}
+            industry={account.industry as string | null}
+            companyType={account.company_type as string | null}
+            companySize={account.company_size as string | null}
+            annualFreightSpend={account.annual_freight_spend as number | null}
+            source={account.source as string | null}
+            description={account.context_notes as string | null}
+            dotNumber={account.dot_number as string | null}
+            mcNumber={account.mc_number as string | null}
+            fullAddress={fullAddress}
+            phones={phones}
+            legacyPhone={companyPhone}
+            freight={freight}
+            attachedTags={attachedTags}
+            orgTags={orgTags}
+            currentRepId={currentRepId}
+            currentRepRole={currentRepRole}
+            reps={reps}
           />
 
-          {/* RIGHT */}
           <div className="flex flex-col gap-4">
-            <CompanyDetailsCard
-              companyType={account.company_type as string | null}
-              industry={account.industry as string | null}
-              companySize={account.company_size as string | null}
-              annualFreightSpend={account.annual_freight_spend as number | null}
-              stage={stage}
-              source={account.source as string | null}
-              description={account.context_notes as string | null}
-              commodities={account.commodities as string | null}
-              dotNumber={account.dot_number as string | null}
-              mcNumber={account.mc_number as string | null}
+            <ProfileCenterTabs
+              timeline={<ActivityLogSection accountId={account.id as string} items={activityItems} />}
+              timelineCount={activityItems.length}
+              contacts={
+                <ContactsMasterDetail
+                  accountId={account.id as string}
+                  contacts={contacts}
+                  contactOptions={contactOptions}
+                  activityItems={activityItems}
+                  tasks={tasks}
+                  notes={humanNotes}
+                  reps={reps}
+                  canAssignOthers={isOwner}
+                  canDelete={isOwner}
+                  currentUser={currentUser}
+                />
+              }
+              contactsCount={contacts.length}
+              tasks={
+                <TasksTab
+                  accountId={account.id as string}
+                  tasks={tasks}
+                  reps={reps}
+                  contacts={contactOptions}
+                  canAssignOthers={isOwner}
+                  currentUser={currentUser}
+                />
+              }
+              tasksCount={openTasks.length}
+              files={
+                <FilesTab
+                  accountId={account.id as string}
+                  orgId={user.orgId}
+                  documents={documents}
+                  photos={commodityPhotos}
+                  shipperName={accountName}
+                  shipperAddress={fullAddress}
+                  shipperPhone={companyPhone ? formatPhone(companyPhone) : null}
+                />
+              }
             />
-            <CustomFieldsCard custom={account.custom as Record<string, unknown> | null} />
+
+            <Card>
+              <CardHead title="Notes" hint={humanNotes.length ? `${humanNotes.length} on file` : undefined} />
+              <NotesTab accountId={account.id as string} notes={humanNotes} />
+            </Card>
           </div>
         </div>
 
         {phones.length > 0 && <StrayNumbersSection accountId={account.id as string} phones={phones} contacts={contactOptions} />}
         <LocationsSection accountId={account.id as string} />
         <CompanyProfileSection accountId={account.id as string} />
-        <FreightProfileSection accountId={account.id as string} />
         <CommercialSection accountId={account.id as string} />
+        <CustomFieldsCard custom={account.custom as Record<string, unknown> | null} />
       </div>
     </PageShell>
   );

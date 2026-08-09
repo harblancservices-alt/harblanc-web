@@ -45,10 +45,12 @@ export default async function CrmAuthedLayout({
 
   // Active-customers count for the nav badge — visible to every CRM user
   // (the tab itself isn't owner-gated), same predicate as /crm/customers.
+  // "active_customer" is the 2026-08-09 canonical final-stage slug (see
+  // accounts/lifecycle.ts) — was "customer" before the 7-stage funnel rebuild.
   const { count: customerCount } = await supabase
     .from("crm_accounts")
     .select("id", { count: "exact", head: true })
-    .eq("lifecycle_status", "customer")
+    .eq("lifecycle_status", "active_customer")
     .is("deleted_at", null);
 
   return (

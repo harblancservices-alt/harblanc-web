@@ -24,10 +24,10 @@ export function PipelineSection({ counts }: { counts: PipelineCounts }) {
           {SELECTABLE_LIFECYCLE_STAGES.map((stage) => {
             const count = counts[stage];
             const pct = Math.max(count > 0 ? 4 : 0, Math.round((count / max) * 100));
-            const isCustomer = stage === "customer";
+            const isCustomer = stage === "active_customer";
             return (
               <li key={stage} className="flex items-center gap-3">
-                <span className="w-[92px] shrink-0 text-[12.5px] font-semibold text-fg-muted">
+                <span className="w-[104px] shrink-0 text-[12px] font-semibold leading-tight text-fg-muted">
                   {LIFECYCLE_LABEL[stage]}
                 </span>
                 <span className="h-5 min-w-0 flex-1 bg-inset">

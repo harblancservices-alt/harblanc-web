@@ -8,19 +8,22 @@ const TABS = [
   { key: "timeline", label: "Timeline" },
   { key: "contacts", label: "Contacts" },
   { key: "tasks", label: "Tasks" },
-  { key: "notes", label: "Notes" },
   { key: "files", label: "Files" },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
 
 /**
- * The CENTER column's tabbed panel — Timeline / Contacts / Tasks / Notes /
- * Files (no Deals/Emails tabs — neither has real backing in this CRM; see
- * page.tsx's completion notes). Default tab is Contacts, per Brent's spec.
- * Every panel stays mounted (just hidden) rather than swapping, so client
- * state inside one (the Contacts master-detail selection, an in-flight BOL
- * upload) survives switching tabs — same reasoning the old ProfileTabs used.
+ * The CENTER column's tabbed panel — Timeline / Contacts / Tasks / Files (no
+ * Deals/Emails tabs — neither has real backing in this CRM; see page.tsx's
+ * completion notes). Default tab is Contacts, per Brent's spec. Every panel
+ * stays mounted (just hidden) rather than swapping, so client state inside
+ * one (the Contacts master-detail selection, an in-flight BOL upload)
+ * survives switching tabs — same reasoning the old ProfileTabs used.
+ *
+ * 2026-08-09 profile relayout: Notes moved OUT of this tab strip into its
+ * own standalone card underneath (this card widened to fill the space the
+ * old right-column Company Details card freed up) — see page.tsx.
  */
 export function ProfileCenterTabs({
   timeline,
@@ -29,8 +32,6 @@ export function ProfileCenterTabs({
   contactsCount,
   tasks,
   tasksCount,
-  notes,
-  notesCount,
   files,
 }: {
   timeline: ReactNode;
@@ -39,8 +40,6 @@ export function ProfileCenterTabs({
   contactsCount?: number;
   tasks: ReactNode;
   tasksCount?: number;
-  notes: ReactNode;
-  notesCount?: number;
   files: ReactNode;
 }) {
   const [tab, setTab] = useState<TabKey>("contacts");
@@ -48,7 +47,6 @@ export function ProfileCenterTabs({
     timeline: timelineCount,
     contacts: contactsCount,
     tasks: tasksCount,
-    notes: notesCount,
   };
 
   return (
@@ -78,7 +76,6 @@ export function ProfileCenterTabs({
       <div className={tab === "timeline" ? "" : "hidden"}>{timeline}</div>
       <div className={tab === "contacts" ? "" : "hidden"}>{contacts}</div>
       <div className={tab === "tasks" ? "" : "hidden"}>{tasks}</div>
-      <div className={tab === "notes" ? "" : "hidden"}>{notes}</div>
       <div className={tab === "files" ? "" : "hidden"}>{files}</div>
     </Card>
   );

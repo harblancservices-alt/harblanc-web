@@ -296,6 +296,34 @@ export async function updateLifecycleStatus(
   return { ok: true };
 }
 
+/** Set (or clear, passing null) the 1–10 Prospect-stage level meter on the
+ * stage tracker — crm_accounts.prospect_level. Only ever shown/editable while
+ * the company sits on the Prospect stage, but the write itself doesn't
+ * re-check that: an out-of-stage value just won't be visible until the
+ * company is back on Prospect. */
+export async function updateProspectLevel(
+  id: string,
+  level: number | null,
+): Promise<ActionResult> {
+  await requireCrmUser();
+  if (level !== null && (!Number.isInteger(level) || level < 1 || level > 10)) {
+    return { ok: false, error: "Level must be between 1 and 10." };
+  }
+  const supabase = await createCrmServerClient();
+
+  const { error } = await supabase
+    .from("crm_accounts")
+    .update({ prospect_level: level })
+    .eq("id", id);
+
+  if (error) {
+    return { ok: false, error: "Could not save the prospect level. Please try again." };
+  }
+
+  revalidateAccount(id);
+  return { ok: true };
+}
+
 /**
  * Soft-delete a company (set deleted_at). Admin-only (role=owner) — a
  * company is a shared record, same defense-in-depth reasoning as
