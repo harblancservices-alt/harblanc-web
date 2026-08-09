@@ -1,5 +1,5 @@
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
-import { PageShell, Card, CardHead, ZEBRA_ROWS } from "./_shell/ui";
+import { PageShell, Card, CardHead } from "./_shell/ui";
 import {
   formatDate,
   timestampMs,
@@ -21,7 +21,8 @@ import { DashboardSearch, type SearchContactOption } from "./DashboardSearch";
 import { NextUpFollowupCard, type CallListContact } from "./NextUpFollowupCard";
 import { RecentActivityCard, type RecentActivityItem } from "./RecentActivityCard";
 import { PipelineSection, type PipelineCounts } from "./PipelineSection";
-import { NeedsAttentionRow, type NeedsAttentionCompany } from "./NeedsAttentionRow";
+import { NeedsAttentionSection } from "./NeedsAttentionSection";
+import type { NeedsAttentionCompany } from "./NeedsAttentionRow";
 import { SELECTABLE_LIFECYCLE_STAGES, normalizeStage, type LifecycleStage } from "./accounts/lifecycle";
 import { CRM_ACTIVITY, CRM_CONTACT_ACTIVITY_KINDS } from "@/lib/crm/activity";
 import { callOutcomeLabel } from "./calls/outcomes";
@@ -502,22 +503,10 @@ export default async function CrmDashboardPage() {
         <QuickAddContactButton companies={companyOptions} />
       </div>
 
-      {/* Needs attention — companies gone quiet. */}
-      <Card>
-        <CardHead
-          title="Needs attention"
-          hint={needsAttention.length ? `${needsAttention.length} gone quiet` : undefined}
-        />
-        {needsAttention.length === 0 ? (
-          <Empty text="Nothing needs attention. Every account is being worked." />
-        ) : (
-          <ul className={`divide-y divide-line-strong ${ZEBRA_ROWS}`}>
-            {needsAttention.map((c) => (
-              <NeedsAttentionRow key={c.id} company={c} />
-            ))}
-          </ul>
-        )}
-      </Card>
+      {/* Needs attention — companies gone quiet. Collapsible, closed by
+          default; rings/pulses on a slow cycle while collapsed and there's
+          something waiting. */}
+      <NeedsAttentionSection companies={needsAttention} />
 
       {/* What's next — today's due follow-ups + tasks, merged, overdue first. */}
       <Card id="next-up" className="scroll-mt-20">

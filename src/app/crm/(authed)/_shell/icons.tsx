@@ -225,3 +225,12 @@ export function IconUpgrades(props: IconProps) {
     </svg>
   );
 }
+
+export function IconBell(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M6 8a6 6 0 0 1 12 0v4.5l1.6 2.9a1 1 0 0 1-.9 1.6H5.3a1 1 0 0 1-.9-1.6L6 12.5Z" />
+      <path d="M9.5 20a2.5 2.5 0 0 0 5 0" />
+    </svg>
+  );
+}
