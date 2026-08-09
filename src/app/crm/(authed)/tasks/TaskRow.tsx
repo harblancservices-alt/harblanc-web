@@ -4,8 +4,8 @@ import { useState, useTransition } from "react";
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ClickableListItem } from "../_shell/ClickableRow";
-import { centralDayRange, timestampMs } from "../_shell/format";
+import { ClickableListItem, ClickableRow } from "../_shell/ClickableRow";
+import { centralDayRange, timestampMs, formatDateTime } from "../_shell/format";
 import { DueCountdown } from "../_shell/DueCountdown";
 import { digitsForTel } from "../_shell/contactFields";
 import { priorityLabel, priorityTone } from "./priority";
@@ -90,6 +90,22 @@ const URGENCY_BAR: Record<DueBucket, string> = {
   none: "bg-line-strong",
 };
 
+/** Desktop row Status chip tone — overdue red / due-today amber / upcoming
+ * blue, per the owner's spec for the Tasks table. */
+const STATUS_CHIP: Record<DueBucket, string> = {
+  overdue: "bg-bad-bg text-bad",
+  today: "bg-warn-bg text-warn",
+  later: "bg-accent/10 text-accent",
+  none: "bg-inset text-fg-subtle",
+};
+
+const STATUS_LABEL: Record<DueBucket, string> = {
+  overdue: "Overdue",
+  today: "Due today",
+  later: "Upcoming",
+  none: "No due date",
+};
+
 const ACTION_BTN =
   "inline-flex items-center gap-1 rounded-lg border px-2.5 py-1.5 text-[12px] font-semibold transition-colors disabled:opacity-60";
 
@@ -114,6 +130,7 @@ export function TaskRow({
   accountId,
   accounts,
   children,
+  variant = "card",
 }: {
   task: CrmTaskItem;
   showCompany?: boolean;
@@ -132,6 +149,9 @@ export function TaskRow({
   accounts?: TaskAccountOption[];
   /** Extra trailing action (e.g. Delete) appended to the action row. */
   children?: ReactNode;
+  /** "row" renders a `<tr>` (desktop Tasks table) instead of the mobile
+   * card — same hooks/dialogs, different layout. Defaults to "card". */
+  variant?: "card" | "row";
 }) {
   const [pending, startTransition] = useTransition();
   const router = useRouter();
@@ -155,6 +175,123 @@ export function TaskRow({
 
   const bucket = dueBucket(task, optimisticDone);
   const context = contextAction(task);
+
+  const actionButtons = (
+    <>
+      <button
+        type="button"
+        onClick={toggle}
+        disabled={pending}
+        className={`${ACTION_BTN} ${optimisticDone ? BTN_NEUTRAL : BTN_SUCCESS}`}
+      >
+        {optimisticDone ? "Reopen" : "Done"}
+      </button>
+
+      {context && (
+        <a href={context.href} onClick={(e) => e.stopPropagation()} className={`${ACTION_BTN} ${BTN_EDIT}`}>
+          {context.kind === "call" ? "Call" : "Email"}
+        </a>
+      )}
+
+      <TaskDialog
+        mode="edit"
+        accountId={accountId}
+        accounts={accounts}
+        contacts={contacts}
+        reps={reps}
+        canAssignOthers={canAssignOthers}
+        currentUser={currentUser}
+        defaults={task}
+        initialFocus="due_at"
+        trigger={(open) => (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              open();
+            }}
+            className={`${ACTION_BTN} ${BTN_WARNING}`}
+          >
+            {task.due_at ? "Reschedule" : "Set due date"}
+          </button>
+        )}
+      />
+
+      <TaskDialog
+        mode="edit"
+        accountId={accountId}
+        accounts={accounts}
+        contacts={contacts}
+        reps={reps}
+        canAssignOthers={canAssignOthers}
+        currentUser={currentUser}
+        defaults={task}
+        trigger={(open) => (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              open();
+            }}
+            className={`${ACTION_BTN} ${BTN_EDIT}`}
+          >
+            Edit
+          </button>
+        )}
+      />
+
+      {children}
+    </>
+  );
+
+  if (variant === "row") {
+    const rowCells = (
+      <>
+        <td className="min-w-0 px-5 py-2.5">
+          <p className={`truncate text-[13.5px] font-semibold ${optimisticDone ? "text-fg-subtle line-through" : "text-fg"}`}>
+            {task.title}
+          </p>
+          {task.task_type && (
+            <span className={`mt-0.5 inline-flex items-center px-1.5 py-0.5 text-[10px] font-semibold ${TASK_TYPE_CHIP_TONE}`}>
+              {task.task_type}
+            </span>
+          )}
+        </td>
+        <td className="min-w-0 px-5 py-2.5 text-[12.5px] text-fg-subtle">
+          {showCompany && task.account_id && (
+            <Link
+              href={`/crm/accounts/${task.account_id}`}
+              prefetch={false}
+              onClick={(e) => e.stopPropagation()}
+              className="block truncate font-medium text-accent hover:underline"
+            >
+              {task.companyName || "Company"}
+            </Link>
+          )}
+          {task.contactName && <span className="block truncate">{task.contactName}</span>}
+          {!(showCompany && task.account_id) && !task.contactName && <span className="text-fg-subtle">—</span>}
+        </td>
+        <td className="px-5 py-2.5 text-[12.5px] text-fg-muted">{formatDateTime(task.due_at)}</td>
+        <td className="px-5 py-2.5">
+          <span
+            className={`inline-flex items-center px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide ${
+              optimisticDone ? "bg-ok-bg text-ok" : STATUS_CHIP[bucket]
+            }`}
+          >
+            {optimisticDone ? "Done" : STATUS_LABEL[bucket]}
+          </span>
+        </td>
+        <td className="px-5 py-2.5">
+          <div className="flex flex-wrap items-center justify-end gap-1.5">{actionButtons}</div>
+        </td>
+      </>
+    );
+
+    if (linkTo) {
+      return <ClickableRow href={linkTo}>{rowCells}</ClickableRow>;
+    }
+    return <tr>{rowCells}</tr>;
+  }
 
   const cardContent = (
     <div className="flex min-w-0 flex-1 items-stretch gap-3">
@@ -214,75 +351,7 @@ export function TaskRow({
           </div>
         </div>
 
-        <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-          <button
-            type="button"
-            onClick={toggle}
-            disabled={pending}
-            className={`${ACTION_BTN} ${optimisticDone ? BTN_NEUTRAL : BTN_SUCCESS}`}
-          >
-            {optimisticDone ? "Reopen" : "Done"}
-          </button>
-
-          {context && (
-            <a
-              href={context.href}
-              onClick={(e) => e.stopPropagation()}
-              className={`${ACTION_BTN} ${BTN_EDIT}`}
-            >
-              {context.kind === "call" ? "Call" : "Email"}
-            </a>
-          )}
-
-          <TaskDialog
-            mode="edit"
-            accountId={accountId}
-            accounts={accounts}
-            contacts={contacts}
-            reps={reps}
-            canAssignOthers={canAssignOthers}
-            currentUser={currentUser}
-            defaults={task}
-            initialFocus="due_at"
-            trigger={(open) => (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  open();
-                }}
-                className={`${ACTION_BTN} ${BTN_WARNING}`}
-              >
-                {task.due_at ? "Reschedule" : "Set due date"}
-              </button>
-            )}
-          />
-
-          <TaskDialog
-            mode="edit"
-            accountId={accountId}
-            accounts={accounts}
-            contacts={contacts}
-            reps={reps}
-            canAssignOthers={canAssignOthers}
-            currentUser={currentUser}
-            defaults={task}
-            trigger={(open) => (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  open();
-                }}
-                className={`${ACTION_BTN} ${BTN_EDIT}`}
-              >
-                Edit
-              </button>
-            )}
-          />
-
-          {children}
-        </div>
+        <div className="mt-2.5 flex flex-wrap items-center gap-1.5">{actionButtons}</div>
       </div>
     </div>
   );

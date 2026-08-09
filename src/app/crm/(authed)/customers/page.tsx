@@ -1,12 +1,11 @@
-import Link from "next/link";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
-import { PageShell, Card, CardHead, EmptyState, ZEBRA_ROWS } from "../_shell/ui";
+import { PageShell, Card, CardHead, EmptyState } from "../_shell/ui";
 import { IconCustomers } from "../_shell/icons";
-import { firstName } from "../_shell/format";
-import { digitsForTel } from "../_shell/contactFields";
-import { stageLabel, stageTone } from "../accounts/lifecycle";
-import { formatPhone } from "@/lib/domain/phone";
-import { titleCaseWords, upperCaseState } from "../_shell/format";
+import { firstName, titleCaseWords, upperCaseState, timestampMs } from "../_shell/format";
+import { parsePhones } from "../_shell/contactFields";
+import { CRM_CONTACT_ACTIVITY_KINDS } from "@/lib/crm/activity";
+import { CustomerListCard, type CustomerCardData } from "./CustomerListCard";
+import { CustomerTable } from "./CustomerTable";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +17,8 @@ type AccountRow = {
   industry: string | null;
   commodities: string | null;
   assigned_user_id: string | null;
+  phone: string | null;
+  phones: unknown;
 };
 
 type ContactRow = {
@@ -27,6 +28,7 @@ type ContactRow = {
   title: string | null;
   phone: string | null;
   mobile: string | null;
+  is_decision_maker: boolean;
 };
 
 /**
@@ -37,6 +39,12 @@ type ContactRow = {
  * already exists. Visible to every CRM user, org-scoped by RLS. Sorted
  * alphabetically, since this is a directory to scan for a specific customer
  * rather than a work queue like the dashboard.
+ *
+ * Rebuilt onto the same CompanyListCard/CompanyTable-style responsive
+ * treatment as Companies/Contacts: mobile card grid, desktop table with a
+ * real column-header row. Last-contact uses the identical crm_calls +
+ * crm_activities(CRM_CONTACT_ACTIVITY_KINDS) rollup Companies already computes,
+ * so "recently contacted" means the same thing everywhere in the CRM.
  */
 export default async function ActiveCustomersPage() {
   await requireCrmUser();
@@ -44,15 +52,12 @@ export default async function ActiveCustomersPage() {
 
   const { data } = await supabase
     .from("crm_accounts")
-    .select("id, name, city, state, industry, commodities, assigned_user_id")
+    .select("id, name, city, state, industry, commodities, assigned_user_id, phone, phones")
     .eq("lifecycle_status", "customer")
     .is("deleted_at", null)
     .order("name", { ascending: true })
     .limit(500);
 
-  // Title-cased/uppercased once here so pre-existing not-quite-capitalized
-  // data displays clean too (new writes are already clean via
-  // accounts/actions.ts).
   const accounts = ((data ?? []) as AccountRow[]).map((a) => ({
     ...a,
     name: titleCaseWords(a.name),
@@ -61,24 +66,40 @@ export default async function ActiveCustomersPage() {
   }));
   const ids = accounts.map((a) => a.id);
 
-  const assigneeIds = [
-    ...new Set(accounts.map((a) => a.assigned_user_id).filter(Boolean) as string[]),
-  ];
+  const assigneeIds = [...new Set(accounts.map((a) => a.assigned_user_id).filter(Boolean) as string[])];
 
-  const [contactsRes, profilesRes] = await Promise.all([
+  const [contactsRes, profilesRes, lastCallsRes, lastActivitiesRes] = await Promise.all([
     ids.length
       ? supabase
           .from("crm_contacts")
-          .select("id, account_id, name, title, phone, mobile")
+          .select("id, account_id, name, title, phone, mobile, is_decision_maker")
           .in("account_id", ids)
           .is("deleted_at", null)
           .order("name", { ascending: true })
       : Promise.resolve({ data: [] as ContactRow[] }),
     assigneeIds.length
       ? supabase.from("crm_profiles").select("id, full_name, email").in("id", assigneeIds)
-      : Promise.resolve({
-          data: [] as { id: string; full_name: string | null; email: string | null }[],
-        }),
+      : Promise.resolve({ data: [] as { id: string; full_name: string | null; email: string | null }[] }),
+    // Last-contact rollup — identical shape to accounts/page.tsx's Companies
+    // list, so "recently contacted" reads the same across both lists.
+    ids.length
+      ? supabase
+          .from("crm_calls")
+          .select("account_id, occurred_at")
+          .in("account_id", ids)
+          .is("deleted_at", null)
+          .order("occurred_at", { ascending: false })
+          .limit(2000)
+      : Promise.resolve({ data: [] as { account_id: string; occurred_at: string }[] }),
+    ids.length
+      ? supabase
+          .from("crm_activities")
+          .select("account_id, occurred_at")
+          .in("account_id", ids)
+          .in("kind", CRM_CONTACT_ACTIVITY_KINDS)
+          .order("occurred_at", { ascending: false })
+          .limit(2000)
+      : Promise.resolve({ data: [] as { account_id: string; occurred_at: string }[] }),
   ]);
 
   const contactsByAccount = new Map<string, ContactRow[]>();
@@ -87,106 +108,76 @@ export default async function ActiveCustomersPage() {
     list.push({ ...c, name: titleCaseWords(c.name) });
     contactsByAccount.set(c.account_id, list);
   }
+  // Decision-makers surface first so "primary contact" reads as the actual
+  // point of contact rather than whoever happens to sort first alphabetically.
+  for (const list of contactsByAccount.values()) {
+    list.sort((a, b) => Number(b.is_decision_maker) - Number(a.is_decision_maker));
+  }
 
   const repName = new Map(
     (
-      (profilesRes.data ?? []) as {
-        id: string;
-        full_name: string | null;
-        email: string | null;
-      }[]
+      (profilesRes.data ?? []) as { id: string; full_name: string | null; email: string | null }[]
     ).map((p) => [p.id, firstName(p.full_name, p.email) || "Unnamed rep"]),
   );
 
+  const lastContactMsByAccount = new Map<string, number>();
+  for (const row of [
+    ...((lastCallsRes.data ?? []) as { account_id: string; occurred_at: string }[]),
+    ...((lastActivitiesRes.data ?? []) as { account_id: string; occurred_at: string }[]),
+  ]) {
+    const ms = timestampMs(row.occurred_at);
+    if (ms === null) continue;
+    const current = lastContactMsByAccount.get(row.account_id);
+    if (current === undefined || ms > current) lastContactMsByAccount.set(row.account_id, ms);
+  }
+
+  const cards: CustomerCardData[] = accounts.map((a) => {
+    const primaryContact = contactsByAccount.get(a.id)?.[0] ?? null;
+    return {
+      id: a.id,
+      name: a.name,
+      city: a.city,
+      state: a.state,
+      industry: a.industry,
+      commodities: a.commodities,
+      repName: a.assigned_user_id ? repName.get(a.assigned_user_id) ?? null : null,
+      primaryContactName: primaryContact?.name ?? null,
+      primaryContactTitle: primaryContact?.title ?? null,
+      phone: primaryContact?.phone || primaryContact?.mobile || parsePhones(a.phones)[0]?.number || a.phone || null,
+      lastContactMs: lastContactMsByAccount.get(a.id) ?? null,
+    };
+  });
+
   return (
     <PageShell>
-      <Card>
-        <CardHead
-          title="Active Customers"
-          hint={accounts.length ? `${accounts.length} ${accounts.length === 1 ? "customer" : "customers"}` : undefined}
-        />
-        {accounts.length === 0 ? (
+      {cards.length === 0 ? (
+        <Card>
+          <CardHead title="Active Customers" />
           <EmptyState
             icon={<IconCustomers />}
             title="No active customers yet"
-            body={`Mark a company "${stageLabel("customer")}" on its profile to see it here.`}
+            body='Mark a company "Customer" on its profile to see it here.'
           />
-        ) : (
-          <ul className={`divide-y divide-line-strong ${ZEBRA_ROWS}`}>
-            {accounts.map((a) => (
-              <CustomerRow
-                key={a.id}
-                account={a}
-                contacts={contactsByAccount.get(a.id) ?? []}
-                repName={a.assigned_user_id ? (repName.get(a.assigned_user_id) ?? null) : null}
-              />
-            ))}
-          </ul>
-        )}
-      </Card>
-    </PageShell>
-  );
-}
-
-function CustomerRow({
-  account,
-  contacts,
-  repName,
-}: {
-  account: AccountRow;
-  contacts: ContactRow[];
-  repName: string | null;
-}) {
-  const location = [account.city, account.state].filter(Boolean).join(", ");
-  const industryLine = [account.industry, account.commodities].filter(Boolean).join(" · ");
-
-  return (
-    <li className="px-5 py-4">
-      <div className="min-w-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <Link
-            href={`/crm/accounts/${account.id}`}
-            prefetch={false}
-            className="text-[15px] font-semibold text-fg hover:text-accent"
-          >
-            {account.name}
-          </Link>
-          <span
-            className={`px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide ${stageTone("customer")}`}
-          >
-            {stageLabel("customer")}
-          </span>
-        </div>
-        <p className="mt-0.5 text-[12.5px] text-fg-muted">
-          {[location, industryLine].filter(Boolean).join(" · ") || "No details on file"}
-        </p>
-        <p className="mt-0.5 text-[12px] text-fg-subtle">
-          Rep: <span className="text-fg-muted">{repName || "Unassigned"}</span>
-        </p>
-      </div>
-
-      {contacts.length > 0 ? (
-        <ul className="mt-3 flex flex-col gap-1.5 border-t border-line pt-3">
-          {contacts.map((c) => (
-            <li key={c.id} className="flex flex-wrap items-baseline gap-x-2 text-[13px]">
-              <span className="font-medium text-fg">{c.name}</span>
-              {c.title && <span className="text-fg-subtle">{c.title}</span>}
-              {(c.phone || c.mobile) && (
-                <a
-                  href={`tel:${digitsForTel((c.phone || c.mobile) as string)}`}
-                  className="font-mono text-accent hover:underline"
-                >
-                  {formatPhone(c.phone || c.mobile)}
-                </a>
-              )}
-            </li>
-          ))}
-        </ul>
+        </Card>
       ) : (
-        <p className="mt-3 border-t border-line pt-3 text-[12.5px] text-fg-subtle">
-          No contacts on file yet.
-        </p>
+        <>
+          <div className="grid grid-cols-1 gap-3 [grid-auto-rows:1fr] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 md:hidden">
+            {cards.map((c) => (
+              <CustomerListCard key={c.id} customer={c} />
+            ))}
+          </div>
+
+          <Card className="hidden md:block">
+            <CardHead
+              title="Active Customers"
+              hint={`${cards.length} ${cards.length === 1 ? "customer" : "customers"}`}
+            />
+            <div className="overflow-x-auto">
+              <CustomerTable customers={cards} />
+            </div>
+          </Card>
+        </>
       )}
-    </li>
+    </PageShell>
   );
 }

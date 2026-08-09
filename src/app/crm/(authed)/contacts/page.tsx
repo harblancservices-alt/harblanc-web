@@ -1,10 +1,11 @@
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
-import { PageShell, Card, EmptyState } from "../_shell/ui";
+import { PageShell, Card, CardHead, EmptyState } from "../_shell/ui";
 import { IconContacts } from "../_shell/icons";
 import { firstName, titleCaseWords } from "../_shell/format";
 import { ContactsSearch } from "./ContactsSearch";
 import { AddContactDialog } from "./AddContactDialog";
 import { ContactListCard, type ContactCardData } from "./ContactListCard";
+import { ContactTable } from "./ContactTable";
 import type { CompanyOption } from "./CompanyCombobox";
 import { AddCompany } from "../accounts/AddCompany";
 import type { RepOption } from "../accounts/CompanyDialog";
@@ -128,11 +129,20 @@ export default async function ContactsPage({
           />
         </Card>
       ) : (
-        <div className="grid grid-cols-1 gap-3 [grid-auto-rows:1fr] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {cards.map((c) => (
-            <ContactListCard key={c.id} contact={c} />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 gap-3 [grid-auto-rows:1fr] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 md:hidden">
+            {cards.map((c) => (
+              <ContactListCard key={c.id} contact={c} />
+            ))}
+          </div>
+
+          <Card className="hidden md:block">
+            <CardHead title="Contacts" hint={`${cards.length} ${cards.length === 1 ? "contact" : "contacts"}`} />
+            <div className="overflow-x-auto">
+              <ContactTable contacts={cards} />
+            </div>
+          </Card>
+        </>
       )}
     </PageShell>
   );

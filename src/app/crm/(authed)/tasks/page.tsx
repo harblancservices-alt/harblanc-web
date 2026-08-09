@@ -1,5 +1,5 @@
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
-import { PageShell, Card, CardHead, EmptyState } from "../_shell/ui";
+import { PageShell, Card, CardHead, EmptyState, LIST_HEAD_ROW, ZEBRA_ROWS } from "../_shell/ui";
 import { IconTasks } from "../_shell/icons";
 import { firstName, timestampMs, centralDayRange } from "../_shell/format";
 import { parsePhones } from "../_shell/contactFields";
@@ -193,13 +193,16 @@ export default async function TasksPage() {
                 <summary className="cursor-pointer list-none border-b border-line-strong px-5 py-3.5 text-[14px] font-semibold text-fg-subtle transition-colors hover:text-fg">
                   Done · {doneTasks.length}
                 </summary>
-                <ul className="flex flex-col gap-2.5 p-3">
+                <ul className="flex flex-col gap-2.5 p-3 md:hidden">
                   {doneTasks.map((t) => (
                     <TaskRow key={t.id} task={t} showCompany {...dialogProps}>
                       <DeleteTaskButton taskId={t.id} accountId={t.account_id} title={t.title} />
                     </TaskRow>
                   ))}
                 </ul>
+                <div className="hidden overflow-x-auto md:block">
+                  <TaskTable tasks={doneTasks} dialogProps={dialogProps} withDelete />
+                </div>
               </details>
             </Card>
           )}
@@ -230,13 +233,57 @@ function Group({
   return (
     <Card>
       <CardHead title={title} hint={`${tasks.length}`} />
-      <ul className="flex flex-col gap-2.5 p-3">
+      <ul className="flex flex-col gap-2.5 p-3 md:hidden">
         {tasks.map((t) => (
           <TaskRow key={t.id} task={t} showCompany {...dialogProps}>
             <DeleteTaskButton taskId={t.id} accountId={t.account_id} title={t.title} />
           </TaskRow>
         ))}
       </ul>
+      <div className="hidden overflow-x-auto md:block">
+        <TaskTable tasks={tasks} dialogProps={dialogProps} withDelete />
+      </div>
     </Card>
+  );
+}
+
+/** Desktop (md+) rows for a Tasks group — left-to-right Task/Company-Contact/
+ * Due/Status/Actions columns, reusing TaskRow's `variant="row"` so the same
+ * Done-toggle/dialog logic drives both breakpoints. */
+function TaskTable({
+  tasks,
+  dialogProps,
+  withDelete,
+}: {
+  tasks: CrmTaskItem[];
+  dialogProps: TaskDialogProps;
+  withDelete?: boolean;
+}) {
+  return (
+    <table className="w-full table-fixed border-collapse text-[13px]">
+      <colgroup>
+        <col className="w-[28%]" />
+        <col className="w-[18%]" />
+        <col className="w-[16%]" />
+        <col className="w-[13%]" />
+        <col className="w-[25%]" />
+      </colgroup>
+      <thead>
+        <tr className={LIST_HEAD_ROW}>
+          <th className="px-5 py-2 text-left">Task</th>
+          <th className="px-5 py-2 text-left">Company/Contact</th>
+          <th className="px-5 py-2 text-left">Due</th>
+          <th className="px-5 py-2 text-left">Status</th>
+          <th className="px-5 py-2 text-right">Actions</th>
+        </tr>
+      </thead>
+      <tbody className={ZEBRA_ROWS}>
+        {tasks.map((t) => (
+          <TaskRow key={t.id} task={t} showCompany variant="row" {...dialogProps}>
+            {withDelete && <DeleteTaskButton taskId={t.id} accountId={t.account_id} title={t.title} />}
+          </TaskRow>
+        ))}
+      </tbody>
+    </table>
   );
 }

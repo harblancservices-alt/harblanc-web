@@ -1,9 +1,10 @@
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
-import { PageShell, Card, EmptyState } from "../_shell/ui";
+import { PageShell, Card, CardHead, EmptyState } from "../_shell/ui";
 import { IconCompanies } from "../_shell/icons";
 import { AddCompany } from "./AddCompany";
 import { AccountsFilters } from "./AccountsFilters";
 import { CompanyListCard, type CompanyCardData } from "./CompanyListCard";
+import { CompanyTable } from "./CompanyTable";
 import { firstName, titleCaseWords, timestampMs } from "../_shell/format";
 import { parsePhones } from "../_shell/contactFields";
 import { CRM_CONTACT_ACTIVITY_KINDS } from "@/lib/crm/activity";
@@ -260,11 +261,20 @@ export default async function CompaniesPage({
           )}
         </Card>
       ) : (
-        <div className="grid grid-cols-1 gap-3 [grid-auto-rows:1fr] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {cards.map((c) => (
-            <CompanyListCard key={c.id} company={c} />
-          ))}
-        </div>
+        <>
+          <div className="grid grid-cols-1 gap-3 [grid-auto-rows:1fr] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 md:hidden">
+            {cards.map((c) => (
+              <CompanyListCard key={c.id} company={c} />
+            ))}
+          </div>
+
+          <Card className="hidden md:block">
+            <CardHead title="Companies" hint={`${cards.length} ${cards.length === 1 ? "company" : "companies"}`} />
+            <div className="overflow-x-auto">
+              <CompanyTable companies={cards} />
+            </div>
+          </Card>
+        </>
       )}
     </PageShell>
   );
