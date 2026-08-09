@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { buildCrmNav, bottomNav, moreNav, isActive } from "./nav";
-import { IconLogout, IconMore } from "./icons";
+import { IconLogout, IconMore, IconSettings } from "./icons";
 import { MobileMoreSheet } from "./MobileMoreSheet";
 import { ActivityTracker } from "./ActivityTracker";
 
@@ -20,6 +20,7 @@ type CrmShellProps = {
   pendingReviewCount: number;
   unclaimedAiLeadsCount: number;
   customerCount: number;
+  outstandingUpgradeCount: number;
   children: React.ReactNode;
 };
 
@@ -46,12 +47,26 @@ export function CrmShell({
   pendingReviewCount,
   unclaimedAiLeadsCount,
   customerCount,
+  outstandingUpgradeCount,
   children,
 }: CrmShellProps) {
   const pathname = usePathname() ?? "";
   const initial = (fullName || email || "?").trim().charAt(0).toUpperCase();
-  const navItems = buildCrmNav(role, pendingReviewCount, unclaimedAiLeadsCount, customerCount);
+  const navItems = buildCrmNav(
+    role,
+    pendingReviewCount,
+    unclaimedAiLeadsCount,
+    customerCount,
+    outstandingUpgradeCount,
+  );
   const mobileNav = bottomNav(navItems);
+  // Settings moved to the bottom identity block on desktop (between the
+  // profile row and Sign out) — pulled out of the scrolling nav list so it
+  // reads as account-level chrome, not a destination alongside Dashboard/
+  // Companies/etc. Mobile is untouched: it stays in `moreNav` below and
+  // still surfaces in the "More" sheet exactly as before.
+  const settingsItem = navItems.find((item) => item.href === "/crm/settings");
+  const sidebarNavItems = navItems.filter((item) => item.href !== "/crm/settings");
   // Everything the bottom bar's 4 fixed slots don't cover (Active
   // Customers, Prospects, Settings, and — owner-only — AI Review) surfaces
   // in the mobile "More" sheet instead, so no destination the desktop
@@ -77,7 +92,7 @@ export function CrmShell({
           <BrandMark dark />
 
           <nav className="flex flex-1 flex-col gap-2 overflow-y-auto p-3">
-            {navItems.map((item) => {
+            {sidebarNavItems.map((item) => {
               const active = isActive(pathname, item);
               // Owner-only items (currently just AI Review) render in an
               // orange accent — the CRM's existing --warn/amber token —
@@ -152,6 +167,21 @@ export function CrmShell({
                 </span>
               </span>
             </div>
+            {settingsItem && (
+              <Link
+                href={settingsItem.href}
+                prefetch={false}
+                className={[
+                  "mb-1 flex items-center gap-2 rounded-lg px-3 py-2 text-[12.5px] font-medium transition-colors",
+                  isActive(pathname, settingsItem)
+                    ? "bg-graphite-2 text-white"
+                    : "text-on-dark-dim hover:bg-graphite-2/60 hover:text-white",
+                ].join(" ")}
+              >
+                <IconSettings width={18} height={18} />
+                Settings
+              </Link>
+            )}
             <form action="/crm/logout" method="post">
               <button
                 type="submit"

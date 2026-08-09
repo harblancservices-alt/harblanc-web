@@ -61,16 +61,17 @@ export type CrmNavItem = {
  * settings render-prop crash — "pipeline" the deal-dialog crash, not the
  * removed nav tab). layout.tsx (a Server Component) must pass only plain
  * primitives — role, pendingReviewCount, unclaimedAiLeadsCount,
- * customerCount — into CrmShell, which calls this itself instead of
- * receiving its output as a prop. Since /crm routes are all force-dynamic
- * and never prerendered at build time, `next build`/`tsc` won't catch a
- * regression here — it only throws on a real request.
+ * customerCount, outstandingUpgradeCount — into CrmShell, which calls this
+ * itself instead of receiving its output as a prop. Since /crm routes are
+ * all force-dynamic and never prerendered at build time, `next build`/`tsc`
+ * won't catch a regression here — it only throws on a real request.
  */
 export function buildCrmNav(
   role: string,
   pendingReviewCount: number,
   unclaimedAiLeadsCount: number,
   customerCount: number,
+  outstandingUpgradeCount: number,
 ): CrmNavItem[] {
   const nav: CrmNavItem[] = [
     { href: "/crm", label: "Dashboard", Icon: IconDashboard },
@@ -97,6 +98,11 @@ export function buildCrmNav(
       label: "Upgrades",
       Icon: IconUpgrades,
       redAccent: true,
+      // Backlog count, not a time-sensitive queue (see badgeTone doc above)
+      // — same "neutral" bucket as Active Customers/AI Review, independent
+      // of the item's always-on red accent.
+      badge: outstandingUpgradeCount > 0 ? outstandingUpgradeCount : undefined,
+      badgeTone: "neutral",
     },
   ];
   if (role === "owner") {

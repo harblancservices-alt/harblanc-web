@@ -53,6 +53,15 @@ export default async function CrmAuthedLayout({
     .eq("lifecycle_status", "active_customer")
     .is("deleted_at", null);
 
+  // Outstanding (not-done) Upgrades requests for the nav badge — visible to
+  // every CRM user, same as the other backlog counts above; the board itself
+  // isn't owner-gated, only marking a request done is (see upgrades/actions.ts).
+  const { count: outstandingUpgradeCount } = await supabase
+    .from("crm_upgrade_requests")
+    .select("id", { count: "exact", head: true })
+    .neq("status", "done")
+    .is("deleted_at", null);
+
   return (
     <CrmShell
       email={user.email}
@@ -61,6 +70,7 @@ export default async function CrmAuthedLayout({
       pendingReviewCount={pendingReviewCount}
       unclaimedAiLeadsCount={unclaimedAiCount ?? 0}
       customerCount={customerCount ?? 0}
+      outstandingUpgradeCount={outstandingUpgradeCount ?? 0}
     >
       {children}
     </CrmShell>
