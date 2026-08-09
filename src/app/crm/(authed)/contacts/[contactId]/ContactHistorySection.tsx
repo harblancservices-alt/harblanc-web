@@ -25,11 +25,12 @@ const TYPE_TONE: Record<CrmContactHistoryItem["type"], string> = {
 };
 
 /**
- * The contact profile's unified history — ALL of this person's notes, calls,
- * and activity events, one feed, newest first, date-grouped. Unlike the
- * company profile's Activity tab (which deliberately excludes notes),
- * this page's whole point is showing everything tied to this one person
- * in one place, so notes stay in.
+ * The contact profile's "Activity" — calls and activity events for this one
+ * person, newest first, date-grouped. Notes get their OWN card now (surface
+ * 4 rebuild — see NotesTab.tsx below page.tsx), matching the company
+ * profile's Timeline/Notes split, so the caller only ever passes "call"/
+ * "activity" items here even though the type still allows "note" (kept for
+ * the shared type shape / in case a future caller wants the merged view).
  */
 export function ContactHistorySection({
   accountId,
@@ -60,12 +61,12 @@ export function ContactHistorySection({
 
   return (
     <Card>
-      <CardHead title="History" hint={items.length ? `${items.length} events` : undefined} />
+      <CardHead title="Activity" hint={items.length ? `${items.length} events` : undefined} />
       {error && <p className="px-4 pt-3 text-[12.5px] text-bad">{error}</p>}
 
       {items.length === 0 ? (
         <p className="px-5 py-8 text-center text-[13px] text-fg-muted">
-          No history yet. Calls, notes, and other activity will show up here.
+          No activity yet. Calls and other events will show up here.
         </p>
       ) : (
         <ul className="max-h-[560px] overflow-y-auto px-4 py-2">

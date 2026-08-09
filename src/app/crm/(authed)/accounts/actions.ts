@@ -876,7 +876,7 @@ export async function addContactNote(
  */
 export async function deleteNote(
   noteId: string,
-  accountId: string,
+  accountId: string | null,
 ): Promise<ActionResult> {
   await requireCrmUser();
   const supabase = await createCrmServerClient();
@@ -887,6 +887,6 @@ export async function deleteNote(
     .eq("id", noteId);
 
   if (error) return { ok: false, error: "Could not delete the note." };
-  revalidateAccount(accountId);
+  revalidateAccount(accountId ?? undefined);
   return { ok: true };
 }

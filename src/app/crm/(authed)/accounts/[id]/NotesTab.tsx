@@ -29,7 +29,12 @@ export function NotesTab({
   contactName,
   notes,
 }: {
-  accountId: string;
+  /** Null on the contact detail page (surface 4) for a contact with no
+   * company — addContactNote accepts that; addNote (the no-contactId,
+   * company-wide branch) never runs in that case since this component is
+   * only ever used without `contactId` from the company page, where an
+   * account always exists. */
+  accountId: string | null;
   contactId?: string | null;
   contactName?: string | null;
   notes: CrmNoteItem[];
@@ -46,7 +51,9 @@ export function NotesTab({
     if (!trimmed) return;
     setError(null);
     startTransition(async () => {
-      const res = contactId ? await addContactNote(contactId, accountId, trimmed) : await addNote(accountId, trimmed, false);
+      const res = contactId
+        ? await addContactNote(contactId, accountId, trimmed)
+        : await addNote(accountId as string, trimmed, false);
       if (res.ok) {
         form.reset();
         router.refresh();

@@ -1,18 +1,17 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { CRM_ACTIVITY } from "@/lib/crm/activity";
-import { formatPhone } from "@/lib/domain/phone";
 import { PageShell, Card, CardHead } from "../../_shell/ui";
-import { BackButton } from "../../_shell/BackButton";
-import { firstName, titleCaseWords, timestampMs, lastContactStatus } from "../../_shell/format";
+import { firstName, titleCaseWords, formatDate, formatDateTime } from "../../_shell/format";
 import { parsePhones, parseLinks } from "../../_shell/contactFields";
 import { RoleControl } from "../../accounts/[id]/RoleControl";
 import type { TaskContactOption } from "../../tasks/TaskDialog";
 import { TaskRow, type CrmTaskItem } from "../../tasks/TaskRow";
 import { callOutcomeLabel } from "../../calls/outcomes";
 import type { RepOption } from "../../accounts/CompanyDialog";
-import { EditContactButton, AddTaskButton, ContactActionsRow } from "./ContactProfileActions";
+import { NotesTab, type CrmNoteItem } from "../../accounts/[id]/NotesTab";
+import { ContactHeader } from "./ContactHeader";
+import { AddTaskButton } from "./ContactProfileActions";
 import { ContactHistorySection, type CrmContactHistoryItem } from "./ContactHistorySection";
 
 export const dynamic = "force-dynamic";
@@ -25,12 +24,12 @@ function profileName(p: ProfileRow | undefined): string | null {
 }
 
 /**
- * A single contact's own profile — everything tied to this ONE person in one
- * place: identity, the company they belong to, and every note/call/activity
- * event (see ContactHistorySection.tsx) plus every task linked to them. No
- * schema needed — crm_notes/crm_calls/crm_activities/crm_tasks already carry
- * contact_id (built for the company profile's contact↔task linkage), this
- * page just queries them scoped by contact_id instead of account_id.
+ * A single contact's own profile — surface 4 of the Company/Contact rebuild.
+ * Header (name/title/company-link/role "status", one-tap Call/Email, Edit +
+ * More) then this one person's own Tasks / Activity / Notes, each hiding to
+ * a real empty state when there's nothing yet. No schema needed —
+ * crm_notes/crm_calls/crm_activities/crm_tasks already carry contact_id,
+ * this page just queries them scoped by contact_id instead of account_id.
  */
 export default async function ContactProfilePage({
   params,
@@ -75,9 +74,6 @@ export default async function ContactProfilePage({
       .is("deleted_at", null)
       .order("occurred_at", { ascending: false })
       .limit(200),
-    // Calls and "note added" rows are excluded — both already have a richer
-    // record included directly above, so the generic activity-log line
-    // would just repeat the same event.
     supabase
       .from("crm_activities")
       .select("id, kind, summary, body, occurred_at, user_id")
@@ -113,14 +109,16 @@ export default async function ContactProfilePage({
     created_at: string;
     user_id: string | null;
   }[];
-  const historyFromNotes: CrmContactHistoryItem[] = notesRows.map((n) => ({
-    id: n.id,
-    type: "note" as const,
-    occurredAt: n.created_at,
-    author: n.user_id ? profileName(profileById.get(n.user_id)) : null,
-    title: n.is_ai ? `AI note: ${n.body}` : n.body,
-    body: null,
-  }));
+  const humanNotes: CrmNoteItem[] = notesRows
+    .filter((n) => !n.is_ai)
+    .map((n) => ({
+      id: n.id,
+      body: n.body,
+      createdAt: n.created_at,
+      author: n.user_id ? profileName(profileById.get(n.user_id)) : null,
+      contactId,
+      contactName: null,
+    }));
 
   const callRows = (callsRes.data ?? []) as {
     id: string;
@@ -159,11 +157,9 @@ export default async function ContactProfilePage({
     body: a.body,
   }));
 
-  const historyItems: CrmContactHistoryItem[] = [
-    ...historyFromNotes,
-    ...historyFromCalls,
-    ...historyFromActivities,
-  ].sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime());
+  const historyItems: CrmContactHistoryItem[] = [...historyFromCalls, ...historyFromActivities].sort(
+    (a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime(),
+  );
 
   const tasks: CrmTaskItem[] = ((tasksRes.data ?? []) as {
     id: string;
@@ -190,7 +186,6 @@ export default async function ContactProfilePage({
   const phones = parsePhones(contact.phones);
   const links = parseLinks(contact.links);
   const primaryPhone = phones[0] ?? null;
-  const lastContacted = lastContactStatus(timestampMs(contact.last_contacted_at as string | null)).text;
 
   const editDefaults = {
     id: contact.id as string,
@@ -205,160 +200,101 @@ export default async function ContactProfilePage({
   };
 
   const currentUser = { id: user.id, label: firstName(user.fullName, user.email) || "You" };
+  const hasDetails = Boolean(contact.best_time_to_call || contact.next_followup_at || contact.last_contacted_at);
 
   return (
-    <PageShell
-      back={
-        <BackButton
-          fallbackHref={accountId ? `/crm/accounts/${accountId}` : "/crm/contacts"}
-          label={accountId ? accountName || "Back to company" : "Back to Contacts"}
-        />
-      }
-    >
-      <Card>
-        <CardHead
-          title={contactName}
-          hint={
-            accountId ? (
-              <Link href={`/crm/accounts/${accountId}`} prefetch={false} className="hover:underline">
-                {accountName}
-              </Link>
-            ) : undefined
-          }
-          right={<EditContactButton accountId={accountId} defaults={editDefaults} />}
+    <PageShell>
+      <div className="flex flex-col gap-4">
+        <ContactHeader
+          contact={editDefaults}
+          accountId={accountId}
+          accountName={accountName}
+          phone={primaryPhone?.number ?? null}
+          email={contact.email as string | null}
+          contactOptions={contactOptions}
+          canDelete={isOwner}
         />
 
-        <div className="flex flex-col gap-4 p-4">
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="flex h-14 w-14 shrink-0 items-center justify-center bg-graphite text-[20px] font-semibold text-white">
-              {contactName.charAt(0).toUpperCase() || "?"}
-            </span>
-            <div className="min-w-0">
-              <span className="text-[17px] font-bold text-fg">{contactName}</span>
-              {contact.title ? (
-                <p className="mt-0.5 text-[13px] text-fg-muted">{contact.title as string}</p>
-              ) : null}
-            </div>
+        <Card>
+          <CardHead title="Role" />
+          <div className="p-5">
+            <RoleControl contactId={contact.id as string} accountId={accountId} current={contact.role_category as string | null} />
           </div>
+        </Card>
 
-          <div>
-            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
-              Role
-            </p>
-            <RoleControl
-              contactId={contact.id as string}
-              accountId={accountId}
-              current={contact.role_category as string | null}
-            />
-          </div>
-
-          <div className="grid grid-cols-1 gap-x-8 gap-y-2 text-[13.5px] sm:grid-cols-2">
-            <div>
-              <span className="text-fg-subtle">Phone: </span>
-              {primaryPhone ? (
-                <span className="font-mono text-fg">
-                  {primaryPhone.label ? `${primaryPhone.label}: ` : ""}
-                  {formatPhone(primaryPhone.number)}
-                </span>
-              ) : (
-                <span className="text-fg-subtle">—</span>
+        {hasDetails && (
+          <Card>
+            <CardHead title="Details" />
+            <div className="grid grid-cols-1 gap-x-8 gap-y-4 p-5 sm:grid-cols-3">
+              {contact.best_time_to_call && (
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">Best time to call</p>
+                  <p className="mt-1 text-[14px] text-fg">{contact.best_time_to_call as string}</p>
+                </div>
+              )}
+              {contact.next_followup_at && (
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">Next follow-up</p>
+                  <p className="mt-1 text-[14px] text-fg">{formatDateTime(contact.next_followup_at as string)}</p>
+                </div>
+              )}
+              {contact.last_contacted_at && (
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">Last contacted</p>
+                  <p className="mt-1 text-[14px] text-fg">{formatDate(contact.last_contacted_at as string)}</p>
+                </div>
               )}
             </div>
-            <div>
-              <span className="text-fg-subtle">Email: </span>
-              {contact.email ? (
-                <a href={`mailto:${contact.email as string}`} className="text-accent hover:underline">
-                  {contact.email as string}
-                </a>
-              ) : (
-                <span className="text-fg-subtle">—</span>
-              )}
-            </div>
-            <div>
-              <span className="text-fg-subtle">Last contacted: </span>
-              <span className="text-fg">{lastContacted}</span>
-            </div>
-            {contact.best_time_to_call ? (
-              <div>
-                <span className="text-fg-subtle">Best time to call: </span>
-                <span className="text-fg">{contact.best_time_to_call as string}</span>
-              </div>
-            ) : null}
-          </div>
-
-          <ContactActionsRow
-            accountId={accountId}
-            contactId={contact.id as string}
-            contactName={contactName}
-            contactEmail={contact.email as string | null}
-            contactOptions={contactOptions}
-            reps={reps}
-            canAssignOthers={isOwner}
-            currentUser={currentUser}
-            canDelete={isOwner}
-          />
-        </div>
-      </Card>
-
-      <Card>
-        <CardHead
-          title="Tasks"
-          hint={openTasks.length ? `${openTasks.length} open` : undefined}
-          right={
-            <AddTaskButton
-              accountId={accountId}
-              contactOptions={contactOptions}
-              reps={reps}
-              canAssignOthers={isOwner}
-              currentUser={currentUser}
-              defaultContactId={contact.id as string}
-            />
-          }
-        />
-        {tasks.length === 0 ? (
-          <p className="px-5 py-7 text-center text-[13px] text-fg-muted">
-            No tasks tied to {contactName} yet.
-          </p>
-        ) : (
-          <>
-            <ul className="flex flex-col gap-2 p-2.5">
-              {openTasks.map((t) => (
-                <TaskRow
-                  key={t.id}
-                  task={t}
-                  accountId={accountId ?? undefined}
-                  reps={reps}
-                  contacts={contactOptions}
-                  canAssignOthers={isOwner}
-                  currentUser={currentUser}
-                />
-              ))}
-            </ul>
-            {doneTasks.length > 0 && (
-              <details className="border-t border-line-strong">
-                <summary className="cursor-pointer list-none px-4 py-2.5 text-[12px] font-semibold text-fg-subtle transition-colors hover:text-fg">
-                  {doneTasks.length} completed
-                </summary>
-                <ul className="flex flex-col gap-2 border-t border-line-strong p-2.5">
-                  {doneTasks.map((t) => (
-                    <TaskRow
-                      key={t.id}
-                      task={t}
-                      accountId={accountId ?? undefined}
-                      reps={reps}
-                      contacts={contactOptions}
-                      canAssignOthers={isOwner}
-                      currentUser={currentUser}
-                    />
-                  ))}
-                </ul>
-              </details>
-            )}
-          </>
+          </Card>
         )}
-      </Card>
 
-      <ContactHistorySection accountId={accountId} items={historyItems} />
+        <Card>
+          <CardHead
+            title="Tasks"
+            hint={openTasks.length ? `${openTasks.length} open` : undefined}
+            right={
+              <AddTaskButton
+                accountId={accountId}
+                contactOptions={contactOptions}
+                reps={reps}
+                canAssignOthers={isOwner}
+                currentUser={currentUser}
+                defaultContactId={contact.id as string}
+              />
+            }
+          />
+          {tasks.length === 0 ? (
+            <p className="px-5 py-7 text-center text-[13px] text-fg-muted">No tasks tied to {contactName} yet.</p>
+          ) : (
+            <>
+              <ul className="flex flex-col gap-2 p-2.5">
+                {openTasks.map((t) => (
+                  <TaskRow key={t.id} task={t} accountId={accountId ?? undefined} reps={reps} contacts={contactOptions} canAssignOthers={isOwner} currentUser={currentUser} />
+                ))}
+              </ul>
+              {doneTasks.length > 0 && (
+                <details className="border-t border-line-strong">
+                  <summary className="cursor-pointer list-none px-4 py-2.5 text-[12px] font-semibold text-fg-subtle transition-colors hover:text-fg">
+                    {doneTasks.length} completed
+                  </summary>
+                  <ul className="flex flex-col gap-2 border-t border-line-strong p-2.5">
+                    {doneTasks.map((t) => (
+                      <TaskRow key={t.id} task={t} accountId={accountId ?? undefined} reps={reps} contacts={contactOptions} canAssignOthers={isOwner} currentUser={currentUser} />
+                    ))}
+                  </ul>
+                </details>
+              )}
+            </>
+          )}
+        </Card>
+
+        <ContactHistorySection accountId={accountId} items={historyItems} />
+
+        <Card>
+          <CardHead title="Notes" hint={humanNotes.length ? `${humanNotes.length} on file` : undefined} />
+          <NotesTab accountId={accountId} contactId={contact.id as string} contactName={contactName} notes={humanNotes} />
+        </Card>
+      </div>
     </PageShell>
   );
 }
