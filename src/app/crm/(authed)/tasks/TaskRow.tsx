@@ -17,7 +17,7 @@ import {
   type TaskContactOption,
 } from "./TaskDialog";
 import type { RepOption } from "../accounts/CompanyDialog";
-import { BTN_EDIT, BTN_NEUTRAL, BTN_SUCCESS, BTN_WARNING } from "../_shell/ui";
+import { BTN_EDIT, BTN_NEUTRAL, BTN_SUCCESS, BTN_WARNING, GRID_CELL } from "../_shell/ui";
 
 export type CrmTaskItem = {
   id: string;
@@ -247,8 +247,8 @@ export function TaskRow({
   if (variant === "row") {
     const rowCells = (
       <>
-        <td className="min-w-0 px-5 py-2.5">
-          <p className={`truncate text-[13.5px] font-semibold ${optimisticDone ? "text-fg-subtle line-through" : "text-fg"}`}>
+        <td className={`${GRID_CELL} min-w-0`}>
+          <p className={`truncate text-[13px] font-semibold ${optimisticDone ? "text-fg-subtle line-through" : "text-fg"}`}>
             {task.title}
           </p>
           {task.task_type && (
@@ -257,7 +257,7 @@ export function TaskRow({
             </span>
           )}
         </td>
-        <td className="min-w-0 px-5 py-2.5 text-[12.5px] text-fg-subtle">
+        <td className={`${GRID_CELL} min-w-0 text-[12.5px] text-fg-subtle`}>
           {showCompany && task.account_id && (
             <Link
               href={`/crm/accounts/${task.account_id}`}
@@ -271,8 +271,8 @@ export function TaskRow({
           {task.contactName && <span className="block truncate">{task.contactName}</span>}
           {!(showCompany && task.account_id) && !task.contactName && <span className="text-fg-subtle">—</span>}
         </td>
-        <td className="px-5 py-2.5 text-[12.5px] text-fg-muted">{formatDateTime(task.due_at)}</td>
-        <td className="px-5 py-2.5">
+        <td className={`${GRID_CELL} text-[12.5px] text-fg-muted`}>{formatDateTime(task.due_at)}</td>
+        <td className={GRID_CELL}>
           <span
             className={`inline-flex items-center px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide ${
               optimisticDone ? "bg-ok-bg text-ok" : STATUS_CHIP[bucket]
@@ -281,7 +281,7 @@ export function TaskRow({
             {optimisticDone ? "Done" : STATUS_LABEL[bucket]}
           </span>
         </td>
-        <td className="px-5 py-2.5">
+        <td className={GRID_CELL}>
           <div className="flex flex-wrap items-center justify-end gap-1.5">{actionButtons}</div>
         </td>
       </>

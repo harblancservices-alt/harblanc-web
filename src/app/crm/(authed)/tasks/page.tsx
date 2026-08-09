@@ -1,5 +1,5 @@
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
-import { PageShell, Card, CardHead, EmptyState, LIST_HEAD_ROW, ZEBRA_ROWS } from "../_shell/ui";
+import { PageShell, Card, CardHead, EmptyState, LIST_HEAD_ROW, ZEBRA_ROWS, GRID_TABLE, GRID_HEAD_CELL } from "../_shell/ui";
 import { IconTasks } from "../_shell/icons";
 import { firstName, timestampMs, centralDayRange } from "../_shell/format";
 import { parsePhones } from "../_shell/contactFields";
@@ -260,7 +260,7 @@ function TaskTable({
   withDelete?: boolean;
 }) {
   return (
-    <table className="w-full table-fixed border-collapse text-[13px]">
+    <table className={GRID_TABLE}>
       <colgroup>
         <col className="w-[28%]" />
         <col className="w-[18%]" />
@@ -270,11 +270,11 @@ function TaskTable({
       </colgroup>
       <thead>
         <tr className={LIST_HEAD_ROW}>
-          <th className="px-5 py-2 text-left">Task</th>
-          <th className="px-5 py-2 text-left">Company/Contact</th>
-          <th className="px-5 py-2 text-left">Due</th>
-          <th className="px-5 py-2 text-left">Status</th>
-          <th className="px-5 py-2 text-right">Actions</th>
+          <th className={GRID_HEAD_CELL}>Task</th>
+          <th className={GRID_HEAD_CELL}>Company/Contact</th>
+          <th className={GRID_HEAD_CELL}>Due</th>
+          <th className={GRID_HEAD_CELL}>Status</th>
+          <th className={`${GRID_HEAD_CELL} text-right`}>Actions</th>
         </tr>
       </thead>
       <tbody className={ZEBRA_ROWS}>

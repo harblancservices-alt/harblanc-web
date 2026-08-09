@@ -21,6 +21,13 @@ export type ContactCardData = {
   nextFollowupAt: string | null;
   accountId: string | null;
   companyName: string | null;
+  /** crm_contacts.role_category — only rendered by the desktop ContactTable's
+   * colored Role pill (ROLE_LABEL/ROLE_TONE); the mobile card keeps showing
+   * the free-text `title` job title instead, unchanged. */
+  roleCategory: string | null;
+  /** crm_contacts.last_contacted_at — only rendered by the desktop
+   * ContactTable; not part of the mobile card's layout. */
+  lastContactedAt: string | null;
 };
 
 const ICON_BTN =
