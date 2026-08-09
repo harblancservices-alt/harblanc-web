@@ -7,6 +7,7 @@ import { formatPhone } from "@/lib/domain/phone";
 import { ROLE_LABEL, ROLE_TONE, normalizeRoleCategory } from "../../accounts/[id]/roles";
 import { EditContactButton } from "./ContactProfileActions";
 import { ContactMoreMenu } from "./ContactMoreMenu";
+import { ContactAvatar } from "../../_shell/ContactAvatar";
 import type { ContactDefaults } from "../../accounts/[id]/ContactDialog";
 import type { TaskContactOption } from "../../tasks/TaskDialog";
 
@@ -15,11 +16,12 @@ const ACTION_BTN =
 
 /**
  * The contact profile's header — breadcrumb back to the company (or
- * Contacts when there isn't one), initials + name/title, company link,
- * role/"status" pill (crm_contacts.role_category — the closest thing a
- * contact has to a status), Edit + More (Log call/Delete), and one-tap
- * Call/Email. Same shape as the company profile's CompanyHeader.tsx, scaled
- * to a single person instead of three columns.
+ * Contacts when there isn't one), a silhouette placeholder avatar (was a
+ * black square with the contact's initial, replaced 2026-08-10) + name/
+ * title, company link, role/"status" pill (crm_contacts.role_category — the
+ * closest thing a contact has to a status), Edit + More (Log call/Delete),
+ * and one-tap Call/Email. Same shape as the company profile's
+ * CompanyHeader.tsx, scaled to a single person instead of three columns.
  */
 export function ContactHeader({
   contact,
@@ -45,9 +47,7 @@ export function ContactHeader({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <BackButton fallbackHref={accountId ? `/crm/accounts/${accountId}` : "/crm/contacts"} label={accountId ? accountName || "Company" : "Contacts"} />
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center bg-graphite text-[16px] font-semibold text-white">
-            {contact.name.charAt(0).toUpperCase() || "?"}
-          </span>
+          <ContactAvatar className="h-11 w-11" />
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <h1 className="truncate text-[17px] font-bold tracking-tight text-fg">{contact.name}</h1>

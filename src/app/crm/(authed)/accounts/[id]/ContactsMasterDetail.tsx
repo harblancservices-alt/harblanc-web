@@ -16,7 +16,7 @@ import { ActivityLogSection, type CrmActivityLogItem } from "./ActivityLogSectio
 import { NotesTab, type CrmNoteItem } from "./NotesTab";
 import { deleteContact } from "../actions";
 import type { RepOption } from "../CompanyDialog";
-import { ROLE_AVATAR_BG, normalizeRoleCategory } from "./roles";
+import { ContactAvatar } from "../../_shell/ContactAvatar";
 
 export type CrmContact = ContactDefaults & {
   id: string;
@@ -28,17 +28,6 @@ export type CrmContact = ContactDefaults & {
 const SUB_TABS = ["activity", "tasks", "notes"] as const;
 type SubTab = (typeof SUB_TABS)[number];
 const SUB_TAB_LABEL: Record<SubTab, string> = { activity: "Activity", tasks: "Tasks", notes: "Notes" };
-
-function initialsBadge(name: string, roleCategory: string | null | undefined, size: "sm" | "lg") {
-  const normalized = normalizeRoleCategory(roleCategory);
-  const bg = (normalized && ROLE_AVATAR_BG[normalized]) || "bg-graphite";
-  const dims = size === "lg" ? "h-12 w-12 text-[17px]" : "h-9 w-9 text-[13px]";
-  return (
-    <span className={`flex ${dims} shrink-0 items-center justify-center ${bg} font-semibold text-white`}>
-      {name.charAt(0).toUpperCase() || "?"}
-    </span>
-  );
-}
 
 /** Small "More" popover — Edit / Delete for the selected contact. Same
  * outside-click/Escape pattern as CompanyMoreMenu.tsx.
@@ -279,7 +268,7 @@ export function ContactsMasterDetail({
                     }}
                     className="flex min-w-0 flex-1 items-center gap-2.5 px-4 py-3 text-left"
                   >
-                    {initialsBadge(c.name, c.role_category, "sm")}
+                    <ContactAvatar className="h-9 w-9" />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[13.5px] font-semibold text-fg">{c.name}</span>
                       {c.title && <span className="block truncate text-[11.5px] text-fg-muted">{c.title}</span>}
@@ -321,7 +310,7 @@ export function ContactsMasterDetail({
           <div className="flex flex-col gap-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="flex min-w-0 items-center gap-3">
-                {initialsBadge(selected.name, selected.role_category, "lg")}
+                <ContactAvatar className="h-12 w-12" />
                 <div className="min-w-0">
                   <p className="truncate text-[16px] font-bold text-fg">{selected.name}</p>
                   {selected.title && <p className="text-[13px] text-fg-muted">{selected.title}</p>}

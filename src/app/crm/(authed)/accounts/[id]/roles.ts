@@ -1,11 +1,10 @@
 /**
  * The role/category vocabulary driving every contact's color-coded pill —
  * crm_contacts.role_category (text, applied directly, no migration needed).
- * Single shared source for the pill picker (RoleControl), the read-only
- * badges (ContactHeader, ContactTable, ContactsMasterDetail's avatar chip),
- * and anywhere else a contact's role renders, so the CRM never carries a
- * second copy of this vocabulary that could drift. A plain data module (no
- * "use client", no component imports).
+ * Single shared source for the pill picker (RoleControl) and the read-only
+ * badges (ContactHeader, ContactTable), and anywhere else a contact's role
+ * renders, so the CRM never carries a second copy of this vocabulary that
+ * could drift. A plain data module (no "use client", no component imports).
  *
  * 2026-08-09: "manager_owner" (a single combined role) split into two real
  * roles, "manager" and "owner", and the set grew to 10 — Owner, Manager,
@@ -14,6 +13,12 @@
  * "manager_owner" aren't migrated in the DB — normalizeRoleCategory maps
  * that (and anything else unrecognized) so every surface that reads a
  * contact's role keeps rendering correctly without a migration.
+ *
+ * 2026-08-10: the role-colored avatar CHIP (ContactsMasterDetail's roster/
+ * detail-panel initials circle) is gone — contacts now show a neutral
+ * silhouette placeholder (_shell/ContactAvatar.tsx) instead, so role no
+ * longer drives an avatar color anywhere. ROLE_TONE (the read-only badge
+ * pill) is untouched.
  */
 export type CrmPersonRoleCategory =
   | "owner"
@@ -70,22 +75,6 @@ export const ROLE_TONE: Record<CrmPersonRoleCategory, string> = {
   accounts_payable: "bg-[#fce7f3] text-[#be185d]",
   sales: "bg-accent/10 text-accent",
   executive: "bg-graphite text-white",
-};
-
-/** Solid (non-tint) version of ROLE_TONE's colors, for the small round
- * initials avatar (ContactsMasterDetail) which needs a filled circle rather
- * than a tinted pill. */
-export const ROLE_AVATAR_BG: Record<CrmPersonRoleCategory, string> = {
-  owner: "bg-slate",
-  manager: "bg-steel",
-  operations: "bg-warn",
-  dispatch: "bg-[#7c3aed]",
-  purchasing: "bg-ok",
-  shipping_receiving: "bg-[#0f766e]",
-  logistics: "bg-[#4338ca]",
-  accounts_payable: "bg-[#be185d]",
-  sales: "bg-accent",
-  executive: "bg-graphite",
 };
 
 /** Old, no-longer-selectable raw values mapped onto the current role set —
