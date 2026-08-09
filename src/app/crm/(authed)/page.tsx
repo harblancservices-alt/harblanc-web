@@ -88,10 +88,11 @@ function centralHour(date: Date): number {
  * The CRM dashboard — rebuilt around Brent's approved mockup: NO KPI stat
  * cards. Order top to bottom: header (greeting + due count + search + Add),
  * a button cockpit (the primary quick actions, replacing the KPI row),
- * What's next (today's due tasks + follow-ups, merged into one queue),
- * Recent activity (org-wide calls/notes/timeline events), Pipeline (company
- * count per lifecycle stage), and Needs attention (companies gone quiet).
- * Everything RLS-scoped to the caller's org; force-dynamic keeps it live.
+ * Needs attention (companies gone quiet), What's next (today's due tasks +
+ * follow-ups, merged into one queue), Pipeline (clickable stage tiles,
+ * filter-linked into the Companies list), and Recent activity (org-wide
+ * calls/notes/timeline events) at the very bottom. Everything RLS-scoped to
+ * the caller's org; force-dynamic keeps it live.
  */
 export default async function CrmDashboardPage() {
   const user = await requireCrmUser();
@@ -501,26 +502,6 @@ export default async function CrmDashboardPage() {
         <QuickAddContactButton companies={companyOptions} />
       </div>
 
-      {/* What's next — today's due follow-ups + tasks, merged, overdue first. */}
-      <Card id="next-up" className="scroll-mt-20">
-        <CardHead
-          title="What's next · Today"
-          hint={nextItems.length ? `${nextItems.length} due` : "Nothing due"}
-          right={<LateBadge count={overdueTaskCount + overdueFollowupCount} />}
-        />
-        {nextItems.length === 0 ? (
-          <Empty text="Nothing due today. You're all caught up." />
-        ) : (
-          <ul className="flex flex-col gap-2.5 p-3">{nextItems.map((item) => item.node)}</ul>
-        )}
-      </Card>
-
-      {/* Recent activity — latest calls/notes/timeline events, org-wide. */}
-      <RecentActivityCard items={recentActivityItems} />
-
-      {/* Pipeline — company count per lifecycle stage. */}
-      <PipelineSection counts={pipelineCounts} />
-
       {/* Needs attention — companies gone quiet. */}
       <Card>
         <CardHead
@@ -537,6 +518,26 @@ export default async function CrmDashboardPage() {
           </ul>
         )}
       </Card>
+
+      {/* What's next — today's due follow-ups + tasks, merged, overdue first. */}
+      <Card id="next-up" className="scroll-mt-20">
+        <CardHead
+          title="What's next · Today"
+          hint={nextItems.length ? `${nextItems.length} due` : "Nothing due"}
+          right={<LateBadge count={overdueTaskCount + overdueFollowupCount} />}
+        />
+        {nextItems.length === 0 ? (
+          <Empty text="Nothing due today. You're all caught up." />
+        ) : (
+          <ul className="flex flex-col gap-2.5 p-3">{nextItems.map((item) => item.node)}</ul>
+        )}
+      </Card>
+
+      {/* Pipeline — company count per lifecycle stage. */}
+      <PipelineSection counts={pipelineCounts} />
+
+      {/* Recent activity — latest calls/notes/timeline events, org-wide. */}
+      <RecentActivityCard items={recentActivityItems} />
     </PageShell>
   );
 }
