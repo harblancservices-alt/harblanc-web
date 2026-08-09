@@ -35,22 +35,37 @@ export type DetailsFieldDef = {
   options?: readonly string[];
 };
 
+/** No "Other" entry — MultiSelectChips' own "+ Add" pill covers anything not
+ * listed here, so the preset list only needs to carry real presets. */
 export const EQUIPMENT_OPTIONS = [
-  "Flatbed",
+  "Dry Van",
   "Reefer",
-  "Dry van",
+  "Flatbed",
+  "Step Deck",
   "Hotshot",
-  "Step deck",
-  "Other",
+  "Power Only",
+  "Conestoga",
+  "RGN / Lowboy",
+  "Box Truck",
+  "Tanker",
+  "Double Drop",
 ] as const;
 
 export const SPECIAL_REQUIREMENT_OPTIONS = [
   "Tarps",
-  "Permits",
-  "Hazmat",
-  "Appointments required",
-  "Team drivers",
+  "Straps",
+  "Chains",
+  "Load bars",
   "Liftgate",
+  "Pallet jack",
+  "Team drivers",
+  "Hazmat",
+  "TWIC",
+  "Temp control",
+  "Appointment required",
+  "Inside delivery",
+  "Blanket wrap",
+  "Oversize / Permits",
 ] as const;
 
 export const DETAILS_FIELDS: readonly DetailsFieldDef[] = [

@@ -1,15 +1,26 @@
 "use client";
 
 import { useState } from "react";
-import { LABEL, CONTROL } from "./form";
-import { IconX } from "./icons";
+import { LABEL } from "./form";
+import { IconPlus } from "./icons";
 
 /**
- * Toggleable chip picker over a fixed option list, plus a free-type "Other"
- * entry for anything not on the list — used by the Details tab's Freight
- * profile group (equipment needed, special requirements). Uncontrolled at
- * the <form> level like PhonesEditor/LinksEditor: state lives here, and a
- * hidden JSON-array input carries the selection on submit.
+ * Tappable pill multi-select — same tap-to-select/tap-again-to-deselect
+ * interaction as the contact role pills (RoleControl.tsx), just multi- not
+ * single-select and GREEN (bg-ok) instead of per-category tones, per Brent's
+ * 2026-08-09 call for the Freight profile group's Equipment needed/Special
+ * requirements fields (FreightProfileDialog.tsx, its only caller). A saved
+ * value that isn't in `options` (an old free-typed entry) still renders as
+ * its own selected pill rather than being silently dropped — it just has no
+ * "unselected" state of its own, so tapping it off removes it outright
+ * instead of leaving a dangling empty pill. New custom values come from the
+ * "+ Add" pill, which swaps in a small text input (LabelPicker's Other…
+ * pattern) rather than a permanently-visible prompt row.
+ *
+ * Still uncontrolled at the <form> level like PhonesEditor/LinksEditor:
+ * state lives here, a hidden JSON-array input carries the selection on
+ * submit — the target column (equipment_needed/special_requirements) is
+ * untouched, this only changed the input widget.
  */
 export function MultiSelectChips({
   name,
@@ -23,6 +34,7 @@ export function MultiSelectChips({
   defaultValue?: string[];
 }) {
   const [selected, setSelected] = useState<string[]>(defaultValue ?? []);
+  const [adding, setAdding] = useState(false);
   const [customText, setCustomText] = useState("");
 
   function toggle(opt: string) {
@@ -30,21 +42,22 @@ export function MultiSelectChips({
   }
   function addCustom() {
     const v = customText.trim();
-    if (!v || selected.includes(v)) return;
-    setSelected((prev) => [...prev, v]);
+    if (v && !selected.includes(v)) setSelected((prev) => [...prev, v]);
     setCustomText("");
-  }
-  function remove(v: string) {
-    setSelected((prev) => prev.filter((x) => x !== v));
+    setAdding(false);
   }
 
+  // Preset options first, then any currently-selected value that isn't a
+  // preset (a legacy free-typed entry) — every pill, preset or custom, is
+  // rendered through the same toggle().
   const extras = selected.filter((v) => !options.includes(v));
+  const pills = [...options, ...extras];
 
   return (
     <div className="flex flex-col gap-2">
       <span className={LABEL}>{label}</span>
-      <div className="flex flex-wrap gap-1.5">
-        {options.map((opt) => {
+      <div className="flex flex-wrap gap-2">
+        {pills.map((opt) => {
           const active = selected.includes(opt);
           return (
             <button
@@ -52,42 +65,55 @@ export function MultiSelectChips({
               type="button"
               onClick={() => toggle(opt)}
               aria-pressed={active}
-              className={`px-2.5 py-1.5 text-[12.5px] font-semibold transition-colors ${
+              className={`flex min-h-11 items-center rounded-full px-3.5 text-[13px] font-semibold transition-colors ${
                 active
-                  ? "border border-accent bg-accent text-white"
-                  : "border border-fg-subtle bg-card text-fg-muted hover:bg-inset"
+                  ? "border border-ok bg-ok text-white hover:bg-ok/90"
+                  : "border border-fg-subtle bg-card text-fg hover:bg-inset"
               }`}
             >
               {opt}
             </button>
           );
         })}
-        {extras.map((v) => (
-          <span
-            key={v}
-            className="inline-flex items-center gap-1 border border-accent bg-accent px-2.5 py-1.5 text-[12.5px] font-semibold text-white"
-          >
-            {v}
-            <button type="button" onClick={() => remove(v)} aria-label={`Remove ${v}`}>
-              <IconX width={12} height={12} />
+
+        {adding ? (
+          <div className="flex min-h-11 items-center gap-1.5 rounded-full border border-fg-subtle bg-card pl-3.5 pr-1.5">
+            <input
+              type="text"
+              value={customText}
+              onChange={(e) => setCustomText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addCustom();
+                } else if (e.key === "Escape") {
+                  setCustomText("");
+                  setAdding(false);
+                }
+              }}
+              autoFocus
+              placeholder="Custom…"
+              className="h-8 w-32 min-w-0 border-0 bg-transparent p-0 text-[13px] font-medium text-fg outline-none"
+            />
+            <button
+              type="button"
+              onClick={addCustom}
+              disabled={!customText.trim()}
+              className="flex h-8 shrink-0 items-center rounded-full bg-accent px-3 text-[12.5px] font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
+            >
+              Add
             </button>
-          </span>
-        ))}
-      </div>
-      <div className="flex items-center gap-2">
-        <input
-          type="text"
-          value={customText}
-          onChange={(e) => setCustomText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              addCustom();
-            }
-          }}
-          placeholder="Other (type and press Enter)"
-          className={`h-9 w-full min-w-0 ${CONTROL}`}
-        />
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setAdding(true)}
+            className="flex min-h-11 items-center gap-1 rounded-full border border-dashed border-fg-subtle bg-card px-3.5 text-[13px] font-semibold text-fg-muted transition-colors hover:border-accent/50 hover:text-accent"
+          >
+            <IconPlus width={13} height={13} />
+            Add
+          </button>
+        )}
       </div>
       <input type="hidden" name={name} value={JSON.stringify(selected)} />
     </div>
