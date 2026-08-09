@@ -13,16 +13,23 @@ import {
 } from "../_shell/form";
 import { CALL_OUTCOMES } from "./outcomes";
 import { logCall } from "./actions";
+import { FollowupFields } from "./FollowupFields";
 
 export type CallContactOption = { id: string; name: string };
 
 /**
  * Log a call for a company. First-class capture: outcome (required), the
  * contact spoken to, duration, a one-line summary, notes, and a follow-up
- * toggle that reveals a reminder date. Saving writes crm_calls AND a timeline
- * activity via the server action. The trigger is a render prop so the profile
- * header and each contact card can style their own opener while sharing the
- * form (a contact card preselects itself via defaultContactId).
+ * toggle that reveals an OPTIONAL reminder date + time — a rep can flag
+ * follow-up required without pinning an exact moment, set just a date, or
+ * just a time; whatever's left blank stays blank (no forced default — see
+ * actions.ts::logCall, which only forms a real reminder_at timestamp when
+ * BOTH date and time are present). The time picker is a friendly 12-hour
+ * AM/PM dropdown plus four quick-tap presets, not the native time spinner.
+ * Saving writes crm_calls AND a timeline activity via the server action. The
+ * trigger is a render prop so the profile header and each contact card can
+ * style their own opener while sharing the form (a contact card preselects
+ * itself via defaultContactId).
  */
 export function LogCallDialog({
   accountId,
@@ -38,8 +45,17 @@ export function LogCallDialog({
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [followup, setFollowup] = useState(false);
+  const [reminderDate, setReminderDate] = useState("");
+  const [reminderTime, setReminderTime] = useState("");
   const [pending, startTransition] = useTransition();
   const router = useRouter();
+
+  function reset() {
+    setError(null);
+    setFollowup(false);
+    setReminderDate("");
+    setReminderTime("");
+  }
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -49,7 +65,7 @@ export function LogCallDialog({
       const res = await logCall(accountId, formData);
       if (res.ok) {
         setOpen(false);
-        setFollowup(false);
+        reset();
         router.refresh();
       } else {
         setError(res.error);
@@ -60,8 +76,7 @@ export function LogCallDialog({
   return (
     <>
       {trigger(() => {
-        setError(null);
-        setFollowup(false);
+        reset();
         setOpen(true);
       })}
 
@@ -123,13 +138,19 @@ export function LogCallDialog({
                 Follow-up required
               </span>
               <span className="mt-0.5 block text-[12px] text-fg-subtle">
-                Sets a reminder that surfaces on your dashboard.
+                Sets a reminder that surfaces on your dashboard. Date and time
+                are both optional.
               </span>
             </span>
           </label>
 
           {followup && (
-            <Field label="Reminder (CST)" name="reminder_at" type="datetime-local" />
+            <FollowupFields
+              date={reminderDate}
+              time={reminderTime}
+              onDateChange={setReminderDate}
+              onTimeChange={setReminderTime}
+            />
           )}
 
           <SubmitButton pending={pending} pendingLabel="Logging…">

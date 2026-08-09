@@ -59,9 +59,17 @@ export async function logCall(
   const summary = optStr(formData, "summary");
   const notes = optStr(formData, "notes");
   const followupRequired = str(formData, "followup_required") === "on";
-  // Comes in as a datetime-local value the dialog shows in Central time —
-  // convert back through the same Central interpretation before storing.
-  const reminderAt = followupRequired ? centralInputToIso(optStr(formData, "reminder_at")) : null;
+  // Date and time are each independently optional (LogCallDialog's date
+  // input + friendly AM/PM time dropdown) — a rep can flag follow-up
+  // required without pinning an exact moment. Only form a real reminder_at
+  // timestamp when BOTH are present; anything partial stays null rather than
+  // silently defaulting to midnight or "now" for the missing half.
+  const reminderDate = optStr(formData, "reminder_date");
+  const reminderTime = optStr(formData, "reminder_time");
+  const reminderAt =
+    followupRequired && reminderDate && reminderTime
+      ? centralInputToIso(`${reminderDate}T${reminderTime}`)
+      : null;
 
   const supabase = await createCrmServerClient();
   const { error } = await supabase.from("crm_calls").insert({

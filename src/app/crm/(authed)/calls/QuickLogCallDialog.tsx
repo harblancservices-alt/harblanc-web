@@ -14,6 +14,7 @@ import {
 import { CompanyCombobox, type CompanyOption, type CompanySelection } from "../contacts/CompanyCombobox";
 import { CALL_OUTCOMES } from "./outcomes";
 import { logCall } from "./actions";
+import { FollowupFields } from "./FollowupFields";
 
 export type QuickCallContactOption = { id: string; name: string; accountId?: string | null };
 
@@ -38,6 +39,8 @@ export function QuickLogCallDialog({
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [followup, setFollowup] = useState(false);
+  const [reminderDate, setReminderDate] = useState("");
+  const [reminderTime, setReminderTime] = useState("");
   const [pending, startTransition] = useTransition();
   const [company, setCompany] = useState<CompanySelection>({ text: "", selectedId: null });
   const router = useRouter();
@@ -50,6 +53,8 @@ export function QuickLogCallDialog({
   function reset() {
     setError(null);
     setFollowup(false);
+    setReminderDate("");
+    setReminderTime("");
     setCompany({ text: "", selectedId: null });
   }
 
@@ -144,13 +149,19 @@ export function QuickLogCallDialog({
                 Follow-up required
               </span>
               <span className="mt-0.5 block text-[12px] text-fg-subtle">
-                Sets a reminder that surfaces on your dashboard.
+                Sets a reminder that surfaces on your dashboard. Date and time
+                are both optional.
               </span>
             </span>
           </label>
 
           {followup && (
-            <Field label="Reminder (CST)" name="reminder_at" type="datetime-local" />
+            <FollowupFields
+              date={reminderDate}
+              time={reminderTime}
+              onDateChange={setReminderDate}
+              onTimeChange={setReminderTime}
+            />
           )}
 
           <SubmitButton pending={pending} pendingLabel="Logging…">
