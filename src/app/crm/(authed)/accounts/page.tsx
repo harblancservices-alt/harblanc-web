@@ -289,7 +289,7 @@ export default async function CompaniesPage({
                       </td>
                       <td className="px-5 py-3">
                         <span
-                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${stageTone(stageValue)}`}
+                          className={`inline-flex items-center px-2.5 py-0.5 text-[11px] font-semibold ${stageTone(stageValue)}`}
                         >
                           {stageLabel(stageValue)}
                         </span>
@@ -307,10 +307,10 @@ export default async function CompaniesPage({
                             {rowTags.map((t) => (
                               <span
                                 key={t.id}
-                                className="inline-flex items-center gap-1 rounded-full border border-line bg-inset py-0.5 pl-1.5 pr-2 text-[11.5px] font-medium text-fg"
+                                className="inline-flex items-center gap-1 border border-line bg-inset py-0.5 pl-1.5 pr-2 text-[11.5px] font-medium text-fg"
                               >
                                 <span
-                                  className="h-1.5 w-1.5 shrink-0 rounded-full"
+                                  className="h-1.5 w-1.5 shrink-0"
                                   style={{ background: t.color || "var(--fg-subtle)" }}
                                 />
                                 {t.label}
@@ -352,7 +352,7 @@ function LastContactBadge({ ms }: { ms: number | null }) {
 
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11.5px] font-semibold ${FRESHNESS_CLASS[freshness]}`}
+      className={`inline-flex items-center px-2.5 py-0.5 text-[11.5px] font-semibold ${FRESHNESS_CLASS[freshness]}`}
     >
       {text}
     </span>

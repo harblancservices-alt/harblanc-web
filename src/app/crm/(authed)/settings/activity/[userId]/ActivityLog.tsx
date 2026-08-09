@@ -68,11 +68,11 @@ export function ActivityLog({ events }: { events: ActivityEvent[] }) {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     {e.kind === "login" ? (
-                      <span className="rounded-full bg-ok-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ok">
+                      <span className="bg-ok-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ok">
                         Login
                       </span>
                     ) : (
-                      <span className="rounded-full bg-steel-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-steel">
+                      <span className="bg-steel-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-steel">
                         {e.kind === "action" ? "Action" : "Page"}
                       </span>
                     )}

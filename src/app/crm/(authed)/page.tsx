@@ -386,7 +386,7 @@ export default async function CrmDashboardPage() {
 function AlertCountBadge({ count }: { count: number }) {
   if (count <= 0) return null;
   return (
-    <span className="inline-flex h-6 min-w-[24px] shrink-0 items-center justify-center rounded-full bg-bad px-2 text-[12px] font-bold tabular-nums text-white shadow-e1">
+    <span className="inline-flex h-6 min-w-[24px] shrink-0 items-center justify-center bg-bad px-2 text-[12px] font-bold tabular-nums text-white shadow-e1">
       {count}
     </span>
   );
@@ -397,7 +397,7 @@ function AlertCountBadge({ count }: { count: number }) {
 function LateBadge({ count }: { count: number }) {
   if (count <= 0) return null;
   return (
-    <span className="inline-flex h-6 shrink-0 items-center justify-center rounded-full bg-bad px-2.5 text-[12px] font-bold tabular-nums text-white shadow-e1">
+    <span className="inline-flex h-6 shrink-0 items-center justify-center bg-bad px-2.5 text-[12px] font-bold tabular-nums text-white shadow-e1">
       {count} late
     </span>
   );

@@ -19,7 +19,7 @@ export function FinalizeBanner({
   reps: RepOption[];
 }) {
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-warn/30 bg-warn-bg px-5 py-3.5">
+    <div className="flex flex-wrap items-center justify-between gap-3 border border-warn/30 bg-warn-bg px-5 py-3.5">
       <div className="min-w-0">
         <p className="text-[13.5px] font-semibold text-warn">Quick-added company</p>
         <p className="mt-0.5 text-[12.5px] text-fg-muted">

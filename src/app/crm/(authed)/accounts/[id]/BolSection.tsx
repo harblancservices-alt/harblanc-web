@@ -4,9 +4,11 @@ import { useRef, useState } from "react";
 import type { DragEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
-import { BTN_DANGER, BTN_EDIT, Card, CardHead, ZEBRA_ROWS } from "../../_shell/ui";
+import { BTN_DANGER, BTN_EDIT, BTN_PRIMARY, Card, CardHead, ZEBRA_ROWS } from "../../_shell/ui";
 import { formatDateTime } from "../../_shell/format";
 import { createBolDocument, deleteBolDocument } from "./bol-actions";
+import { GenerateBolDialog } from "./GenerateBolDialog";
+import { IconPlus } from "../../_shell/icons";
 
 export type CrmBolDocument = {
   id: string;
@@ -51,24 +53,40 @@ function formatBytes(bytes: number | null): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+/** Short type chip from the stored mime type — "PDF" / "IMAGE" / "FILE". */
+function typeLabel(mimeType: string | null): string {
+  if (mimeType === "application/pdf") return "PDF";
+  if (mimeType?.startsWith("image/")) return "IMAGE";
+  return "FILE";
+}
+
 /**
- * The company profile's BOL tab — upload, list, view, and delete Bills of
- * Lading (crm_documents, kind='bol'). Uploads go straight from the browser
- * to Supabase Storage (bucket "crm-documents") using the signed-in user's own
- * session/RLS, under `<org_id>/bol/<account_id>/<uuid>-<sanitizedFileName>` —
- * NEVER through a server action, since those cap the request body around
- * 1MB and a BOL photo/PDF routinely exceeds that. Only the metadata (file
- * name, storage path, mime type, size) is written server-side afterward, via
- * bol-actions.ts::createBolDocument.
+ * The company profile's BOL tab — upload, generate, view, download, and
+ * delete Bills of Lading (crm_documents, kind='bol'). Uploads go straight
+ * from the browser to Supabase Storage (bucket "crm-documents") using the
+ * signed-in user's own session/RLS, under
+ * `<org_id>/bol/<account_id>/<uuid>-<sanitizedFileName>` — NEVER through a
+ * server action, since those cap the request body around 1MB and a BOL
+ * photo/PDF routinely exceeds that. Only the metadata (file name, storage
+ * path, mime type, size) is written server-side afterward, via
+ * bol-actions.ts::createBolDocument. "Generate BOL" is the one exception —
+ * that PDF is small and server-rendered, so bol-actions.ts::generateBol
+ * renders AND uploads it in one server-side call (see GenerateBolDialog.tsx).
  */
 export function BolSection({
   accountId,
   orgId,
   documents,
+  shipperName,
+  shipperAddress,
+  shipperPhone,
 }: {
   accountId: string;
   orgId: string;
   documents: CrmBolDocument[];
+  shipperName: string;
+  shipperAddress: string | null;
+  shipperPhone: string | null;
 }) {
   const [uploads, setUploads] = useState<UploadItem[]>([]);
   const [listError, setListError] = useState<string | null>(null);
@@ -164,6 +182,23 @@ export function BolSection({
     window.open(data.signedUrl, "_blank", "noopener,noreferrer");
   }
 
+  /** Same signed-URL mechanism as `view`, but with the `download` option so
+   * the browser saves the file (with its real name) instead of opening it
+   * inline. */
+  async function download(doc: CrmBolDocument) {
+    setListError(null);
+    const supabase = createSupabaseBrowserClient();
+    const { data, error } = await supabase.storage
+      .from(STORAGE_BUCKET)
+      .createSignedUrl(doc.storagePath, SIGNED_URL_TTL_SECONDS, { download: doc.fileName });
+
+    if (error || !data?.signedUrl) {
+      setListError("Could not download this file. Please try again.");
+      return;
+    }
+    window.open(data.signedUrl, "_blank", "noopener,noreferrer");
+  }
+
   function remove(doc: CrmBolDocument) {
     if (!window.confirm(`Delete "${doc.fileName}"? This can't be undone from here.`)) return;
     setListError(null);
@@ -180,6 +215,24 @@ export function BolSection({
       <CardHead
         title="Bills of Lading"
         hint={documents.length ? `${documents.length} on file` : undefined}
+        right={
+          <GenerateBolDialog
+            accountId={accountId}
+            shipperName={shipperName}
+            shipperAddress={shipperAddress}
+            shipperPhone={shipperPhone}
+            trigger={(open) => (
+              <button
+                type="button"
+                onClick={open}
+                className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_PRIMARY}`}
+              >
+                <IconPlus width={14} height={14} />
+                Generate BOL
+              </button>
+            )}
+          />
+        }
       />
 
       <div className="border-b border-line-strong px-5 py-4">
@@ -190,7 +243,7 @@ export function BolSection({
           }}
           onDragLeave={() => setDragOver(false)}
           onDrop={onDrop}
-          className={`flex flex-col items-center gap-2 rounded-xl border-2 border-dashed px-4 py-6 text-center transition-colors ${
+          className={`flex flex-col items-center gap-2 border-2 border-dashed px-4 py-6 text-center transition-colors ${
             dragOver ? "border-accent bg-accent/5" : "border-line-strong"
           }`}
         >
@@ -223,7 +276,7 @@ export function BolSection({
             {uploads.map((u) => (
               <li
                 key={u.key}
-                className={`flex items-center justify-between gap-3 rounded-lg px-3 py-2 text-[12.5px] ${
+                className={`flex items-center justify-between gap-3 px-3 py-2 text-[12.5px] ${
                   u.status === "error" ? "bg-bad-bg text-bad" : "bg-inset text-fg-muted"
                 }`}
               >
@@ -255,15 +308,20 @@ export function BolSection({
 
       {documents.length === 0 ? (
         <p className="px-5 py-10 text-center text-[13px] text-fg-muted">
-          No BOLs yet. Upload the pickup paperwork above.
+          No BOLs yet. Upload the pickup paperwork above, or generate one.
         </p>
       ) : (
         <ul className={`divide-y divide-line-strong ${ZEBRA_ROWS}`}>
           {documents.map((doc) => (
             <li key={doc.id} className="flex items-center justify-between gap-3 px-5 py-3.5">
               <div className="min-w-0">
-                <p className="truncate text-[13.5px] font-semibold text-fg">{doc.fileName}</p>
-                <p className="mt-0.5 text-[12px] text-fg-subtle">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="shrink-0 bg-steel-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-steel">
+                    {typeLabel(doc.mimeType)}
+                  </span>
+                  <p className="truncate text-[13.5px] font-semibold text-fg">{doc.fileName}</p>
+                </div>
+                <p className="mt-1 text-[12px] text-fg-subtle">
                   {[formatBytes(doc.sizeBytes), formatDateTime(doc.createdAt), doc.uploaderName]
                     .filter(Boolean)
                     .join(" · ")}
@@ -276,6 +334,13 @@ export function BolSection({
                   className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_EDIT}`}
                 >
                   View
+                </button>
+                <button
+                  type="button"
+                  onClick={() => download(doc)}
+                  className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_EDIT}`}
+                >
+                  Download
                 </button>
                 <button
                   type="button"

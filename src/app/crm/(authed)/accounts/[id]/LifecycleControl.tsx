@@ -53,7 +53,7 @@ export function LifecycleControl({
       <div className="flex flex-wrap items-center gap-1.5">
         {isLegacy && (
           <span
-            className="rounded-full border border-warn/40 bg-warn-bg px-3 py-1.5 text-[12.5px] font-semibold text-warn"
+            className="border border-warn/40 bg-warn-bg px-3 py-1.5 text-[12.5px] font-semibold text-warn"
             title="Legacy stage — pick one below to move it into the current funnel"
           >
             {LIFECYCLE_LABEL[active]} (legacy)
@@ -70,7 +70,7 @@ export function LifecycleControl({
               disabled={pending}
               aria-pressed={isActive}
               className={[
-                "rounded-full border px-3 py-1.5 text-[12.5px] font-semibold transition-colors disabled:opacity-60",
+                "border px-3 py-1.5 text-[12.5px] font-semibold transition-colors disabled:opacity-60",
                 isActive
                   ? "border-accent bg-accent text-white"
                   : "border-line-strong bg-card text-fg-muted hover:bg-inset hover:text-fg",

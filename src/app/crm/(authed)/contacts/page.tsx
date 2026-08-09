@@ -174,7 +174,7 @@ export default async function ContactsPage({
                         <div className="flex flex-wrap items-center gap-2">
                           <span className="font-semibold text-fg">{c.name}</span>
                           {c.is_decision_maker && (
-                            <span className="rounded-full bg-ok-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ok">
+                            <span className="bg-ok-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ok">
                               Decision-maker
                             </span>
                           )}

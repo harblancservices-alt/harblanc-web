@@ -271,13 +271,13 @@ function DayDetailModal({
       role="presentation"
     >
       <div
-        className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-line-strong bg-card shadow-e3"
+        className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden border border-line-strong bg-card shadow-e3"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-label={formatDayHeading(dateKey)}
       >
-        <div className="flex shrink-0 items-center justify-between gap-3 rounded-t-2xl border-b border-graphite-line bg-bar px-4 py-2.5">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-graphite-line bg-bar px-4 py-2.5">
           <div className="min-w-0">
             <h2 className="truncate text-[13.5px] font-bold tracking-tight text-bar-fg">
               {formatDayHeading(dateKey)}
@@ -364,7 +364,7 @@ function DayCell({
     >
       <span
         className={[
-          "inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[12px] font-semibold tabular-nums",
+          "inline-flex h-6 w-6 shrink-0 items-center justify-center text-[12px] font-semibold tabular-nums",
           isToday ? "bg-accent text-white" : inMonth ? "text-fg" : "text-fg-subtle",
         ].join(" ")}
       >
@@ -439,7 +439,7 @@ function ItemRow({ item }: { item: CalendarItem }) {
         prefetch={false}
         className="flex items-start gap-3 px-5 py-3 transition-colors hover:bg-fg/[0.04]"
       >
-        <span className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${tone.dot}`} aria-hidden />
+        <span className={`mt-1.5 h-2.5 w-2.5 shrink-0 ${tone.dot}`} aria-hidden />
         <div className="min-w-0 flex-1">
           <p className={`text-[14px] font-medium ${item.overdue ? "text-bad" : "text-fg"}`}>
             {item.label}
@@ -450,7 +450,7 @@ function ItemRow({ item }: { item: CalendarItem }) {
           </p>
         </div>
         {item.overdue && (
-          <span className="mt-0.5 shrink-0 rounded-full bg-bad px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+          <span className="mt-0.5 shrink-0 bg-bad px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
             Overdue
           </span>
         )}
@@ -473,7 +473,7 @@ function Legend() {
 function LegendDot({ tone, label }: { tone: string; label: string }) {
   return (
     <span className="inline-flex items-center gap-2">
-      <span className={`h-3.5 w-3.5 shrink-0 rounded-full ${tone}`} />
+      <span className={`h-3.5 w-3.5 shrink-0 ${tone}`} />
       {label}
     </span>
   );
@@ -487,14 +487,14 @@ function ModeToggle({
   onChange: (mode: "month" | "list") => void;
 }) {
   return (
-    <div className="inline-flex gap-1 rounded-lg border border-white/15 bg-black/20 p-1">
+    <div className="inline-flex gap-1 border border-white/15 bg-black/20 p-1">
       {(["month", "list"] as const).map((m) => (
         <button
           key={m}
           type="button"
           onClick={() => onChange(m)}
           className={[
-            "rounded-md px-3.5 py-1.5 text-[11.5px] font-semibold capitalize transition-colors",
+            "px-3.5 py-1.5 text-[11.5px] font-semibold capitalize transition-colors",
             mode === m
               ? "bg-accent text-white shadow-sm"
               : "border border-white/25 text-bar-fg/90 hover:border-white/50 hover:bg-white/10 hover:text-bar-fg",

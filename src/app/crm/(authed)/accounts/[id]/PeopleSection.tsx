@@ -42,7 +42,7 @@ export const ROLE_LABEL: Record<CrmPersonRoleCategory, string> = {
  * same light-bg/saturated-text shape; "blue" reuses the brand accent (the
  * same bg-accent/10 text-accent pairing DueCountdown already uses for its
  * "accent" tone) rather than inventing a second blue. */
-const ROLE_TONE: Record<CrmPersonRoleCategory, string> = {
+export const ROLE_TONE: Record<CrmPersonRoleCategory, string> = {
   purchasing: "bg-ok-bg text-ok",
   shipping_receiving: "bg-warn-bg text-warn",
   dispatch: "bg-[#f1e8fb] text-[#7c3aed]",
@@ -104,7 +104,7 @@ export function PeopleSection({
 
       {people.length === 0 ? (
         <div className="flex flex-col items-center gap-2 px-6 py-8 text-center">
-          <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-inset text-fg-subtle">
+          <span className="flex h-10 w-10 items-center justify-center bg-inset text-fg-subtle">
             <IconContacts />
           </span>
           <p className="text-[14px] font-semibold text-fg">No people yet</p>
@@ -138,13 +138,13 @@ function PersonRow({ accountId, person }: { accountId: string; person: CrmPerson
             <span className="text-[14px] font-semibold text-fg">{person.name}</span>
             {roleLabel && (
               <span
-                className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${roleTone}`}
+                className={`px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${roleTone}`}
               >
                 {roleLabel}
               </span>
             )}
             {person.is_decision_maker && (
-              <span className="rounded-full bg-ok-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ok">
+              <span className="bg-ok-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ok">
                 Decision-maker
               </span>
             )}

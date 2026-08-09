@@ -27,6 +27,7 @@ export const CRM_ACTIVITY = {
   aiLeadReleased: "ai_lead_released",
   aiLeadDiscarded: "ai_lead_discarded",
   aiLeadClaimed: "ai_lead_claimed",
+  aiResearchRequested: "ai_research_requested",
   accountDeleted: "account_deleted",
   contactDeleted: "contact_deleted",
   dealDeleted: "deal_deleted",

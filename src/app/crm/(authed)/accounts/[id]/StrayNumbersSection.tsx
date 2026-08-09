@@ -148,7 +148,7 @@ function StrayNumberRow({
       {error && <p className="text-[12.5px] text-bad">{error}</p>}
 
       {mode === "assign" && (
-        <div className="flex flex-wrap items-center gap-2 rounded-lg bg-inset p-3">
+        <div className="flex flex-wrap items-center gap-2 bg-inset p-3">
           <select
             value={targetContactId}
             onChange={(e) => setTargetContactId(e.target.value)}
@@ -173,7 +173,7 @@ function StrayNumberRow({
       )}
 
       {mode === "new" && (
-        <div className="flex flex-col gap-2 rounded-lg bg-inset p-3 sm:flex-row sm:items-end">
+        <div className="flex flex-col gap-2 bg-inset p-3 sm:flex-row sm:items-end">
           <label className="flex flex-1 flex-col gap-1.5">
             <span className={LABEL}>Name</span>
             <input

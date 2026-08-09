@@ -89,7 +89,7 @@ export function LabelPicker({
       {open && (
         <div
           role="listbox"
-          className="absolute left-0 top-[calc(100%+4px)] z-20 max-h-64 w-full min-w-[10rem] overflow-y-auto rounded-lg border border-line-strong bg-card py-1 shadow-e3"
+          className="absolute left-0 top-[calc(100%+4px)] z-20 max-h-64 w-full min-w-[10rem] overflow-y-auto border border-line-strong bg-card py-1 shadow-e3"
         >
           {presets.map((p) => (
             <button

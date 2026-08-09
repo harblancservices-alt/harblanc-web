@@ -4,10 +4,12 @@ import { useEffect } from "react";
 
 /**
  * The CRM's one modal shell — a bottom-sheet on mobile, a centred dialog on
- * desktop, matching the premium .crm-light chrome (rounded-2xl card on the
- * e3 shadow over a dimmed scrim). Every CRM dialog (company create/edit,
- * contact add/edit, tag create) renders through this so the overlay behaviour,
- * escape-to-close, and scroll-lock stay identical everywhere.
+ * desktop, matching the premium .crm-light chrome (a square card on the e3
+ * shadow over a dimmed scrim — square corners are the CRM-wide rule except
+ * on buttons, and the modal panel itself isn't one). Every CRM dialog
+ * (company create/edit, contact add/edit, tag create) renders through this
+ * so the overlay behaviour, escape-to-close, and scroll-lock stay identical
+ * everywhere.
  */
 export function Modal({
   open,
@@ -45,7 +47,7 @@ export function Modal({
       role="presentation"
     >
       <div
-        className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-2xl border border-line bg-card p-5 shadow-e3 sm:rounded-2xl"
+        className="max-h-[92vh] w-full max-w-lg overflow-y-auto border border-line bg-card p-5 shadow-e3"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"

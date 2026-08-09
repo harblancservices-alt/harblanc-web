@@ -11,14 +11,13 @@ import {
   CardHead,
   ZEBRA_ROWS,
 } from "../../_shell/ui";
-import { IconPlus, IconContacts, IconNote } from "../../_shell/icons";
-import { DueCountdown } from "../../_shell/DueCountdown";
-import { PhoneList } from "../../_shell/PhoneList";
-import { LinkList } from "../../_shell/LinkList";
-import type { PhoneEntry, LinkEntry } from "../../_shell/contactFields";
+import { IconPlus, IconContacts } from "../../_shell/icons";
+import { digitsForTel, type PhoneEntry, type LinkEntry } from "../../_shell/contactFields";
+import { lastContactStatus, timestampMs } from "../../_shell/format";
+import { formatPhone } from "@/lib/domain/phone";
 import { ContactDialog, type ContactDefaults } from "./ContactDialog";
 import { QuickNoteDialog } from "./QuickNoteDialog";
-import { LogCallDialog, type CallContactOption } from "../../calls/LogCallDialog";
+import { ROLE_LABEL, ROLE_TONE, type CrmPersonRoleCategory } from "./PeopleSection";
 import { deleteContact, setPrimaryContact } from "../actions";
 
 export type CrmContact = ContactDefaults & {
@@ -26,14 +25,17 @@ export type CrmContact = ContactDefaults & {
   name: string;
   phones: PhoneEntry[];
   links: LinkEntry[];
+  last_contacted_at?: string | null;
 };
 
 /**
- * Contacts on the company profile — full CRUD, the top card of the
- * operational RIGHT column. Add opens the contact dialog; each contact card
- * shows its labeled phone numbers (tap-to-call + Log call per number), its
- * labeled links, a follow-up date/time, and a quick Note button. The
- * company's primary contact is badged and can be set/cleared here.
+ * Contacts tab — the complete roster of everyone at this company (full CRUD),
+ * richer than the Overview tab's People snippet because it's the whole list
+ * rather than a compact preview. Each row: a square initial avatar, name +
+ * color-coded role tag (same vocabulary as PeopleSection.tsx), the primary
+ * labeled phone number, email, last-contacted, and Call/Note/Edit. Primary-
+ * contact and delete stay available as smaller secondary controls — real
+ * capabilities, just not the row's visual headline per the approved mockup.
  */
 export function ContactsSection({
   accountId,
@@ -53,11 +55,6 @@ export function ContactsSection({
   const [errorId, setErrorId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-
-  const callContacts: CallContactOption[] = contacts.map((c) => ({
-    id: c.id,
-    name: c.name,
-  }));
 
   function makePrimary(id: string) {
     setBusyId(id);
@@ -118,7 +115,7 @@ export function ContactsSection({
                 className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_PRIMARY}`}
               >
                 <IconPlus width={14} height={14} />
-                Add contact
+                Add person
               </button>
             )}
           />
@@ -127,7 +124,7 @@ export function ContactsSection({
 
       {contacts.length === 0 ? (
         <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">
-          <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-inset text-fg-subtle">
+          <span className="flex h-11 w-11 items-center justify-center bg-inset text-fg-subtle">
             <IconContacts />
           </span>
           <p className="text-[14px] font-semibold text-fg">No contacts yet</p>
@@ -140,154 +137,132 @@ export function ContactsSection({
           {contacts.map((c) => {
             const isPrimary = c.id === primaryContactId;
             const isBusy = busyId === c.id;
+            const primaryPhone = c.phones[0] ?? null;
+            const role = (c.role_category ?? null) as CrmPersonRoleCategory | null;
+            const roleLabel = role ? ROLE_LABEL[role] : null;
+            const roleTone = role ? ROLE_TONE[role] : "bg-inset text-fg-subtle";
+            const lastContacted = lastContactStatus(timestampMs(c.last_contacted_at)).text;
+
             return (
               <li key={c.id} className="px-5 py-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-[14.5px] font-semibold text-fg">
-                        {c.name}
-                      </span>
+                <div className="flex items-start gap-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center bg-graphite text-[14px] font-semibold text-white">
+                    {c.name.charAt(0).toUpperCase() || "?"}
+                  </span>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className="text-[14.5px] font-semibold text-fg">{c.name}</span>
+                      {roleLabel && (
+                        <span
+                          className={`px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${roleTone}`}
+                        >
+                          {roleLabel}
+                        </span>
+                      )}
                       {isPrimary && (
-                        <span className="rounded-full bg-steel-bg px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide text-steel">
+                        <span className="bg-steel-bg px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide text-steel">
                           Primary
                         </span>
                       )}
                       {c.is_decision_maker && (
-                        <span className="rounded-full bg-ok-bg px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide text-ok">
+                        <span className="bg-ok-bg px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide text-ok">
                           Decision-maker
                         </span>
                       )}
                     </div>
-                    {c.title && (
-                      <p className="mt-0.5 text-[12.5px] text-fg-muted">{c.title}</p>
-                    )}
-                    {c.email && (
-                      <a
-                        href={`mailto:${c.email}`}
-                        className="mt-0.5 block text-[13px] text-accent hover:underline"
-                      >
-                        {c.email}
-                      </a>
+                    {c.title && <p className="mt-0.5 text-[12.5px] text-fg-muted">{c.title}</p>}
+
+                    <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12.5px]">
+                      {primaryPhone && (
+                        <span className="font-mono text-fg-muted">
+                          {primaryPhone.label ? `${primaryPhone.label}: ` : ""}
+                          {formatPhone(primaryPhone.number)}
+                        </span>
+                      )}
+                      {c.email && (
+                        <a href={`mailto:${c.email}`} className="text-accent hover:underline">
+                          {c.email}
+                        </a>
+                      )}
+                      <span className="text-fg-subtle">Last contacted: {lastContacted}</span>
+                    </div>
+
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      {primaryPhone && (
+                        <a
+                          href={`tel:${digitsForTel(primaryPhone.number)}`}
+                          className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_EDIT}`}
+                        >
+                          Call
+                        </a>
+                      )}
+                      <QuickNoteDialog
+                        accountId={accountId}
+                        contactId={c.id}
+                        contactName={c.name}
+                        trigger={(open) => (
+                          <button
+                            type="button"
+                            onClick={open}
+                            className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_EDIT}`}
+                          >
+                            Note
+                          </button>
+                        )}
+                      />
+                      <ContactDialog
+                        accountId={accountId}
+                        mode="edit"
+                        defaults={c}
+                        trigger={(open) => (
+                          <button
+                            type="button"
+                            onClick={open}
+                            className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_EDIT}`}
+                          >
+                            Edit
+                          </button>
+                        )}
+                      />
+
+                      {/* Secondary controls — real capabilities, kept out of
+                          the row's visual headline per the approved mockup. */}
+                      {isPrimary ? (
+                        <button
+                          type="button"
+                          onClick={() => clearPrimary(c.id)}
+                          disabled={pending}
+                          className={`rounded-lg px-3 py-1.5 text-[12px] font-medium transition-colors ${BTN_NEUTRAL}`}
+                        >
+                          {isBusy ? "…" : "Unset primary"}
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => makePrimary(c.id)}
+                          disabled={pending}
+                          className={`rounded-lg px-3 py-1.5 text-[12px] font-medium transition-colors ${BTN_NEUTRAL}`}
+                        >
+                          {isBusy ? "…" : "Make primary"}
+                        </button>
+                      )}
+                      {canDelete && (
+                        <button
+                          type="button"
+                          onClick={() => remove(c.id, c.name)}
+                          disabled={pending}
+                          className={`rounded-lg px-3 py-1.5 text-[12px] font-medium transition-colors ${BTN_DANGER}`}
+                        >
+                          {isBusy ? "…" : "Delete"}
+                        </button>
+                      )}
+                    </div>
+                    {errorId === c.id && error && (
+                      <p className="mt-2 text-[12.5px] text-bad">{error}</p>
                     )}
                   </div>
                 </div>
-
-                <div className="mt-3">
-                  <PhoneList
-                    accountId={accountId}
-                    phones={c.phones}
-                    contactId={c.id}
-                    contactName={c.name}
-                  />
-                </div>
-
-                {c.links.length > 0 && (
-                  <div className="mt-2">
-                    <LinkList links={c.links} />
-                  </div>
-                )}
-
-                <dl className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-[13px]">
-                  {c.best_time_to_call && (
-                    <div className="flex gap-2">
-                      <dt className="shrink-0 text-fg-subtle">Best time</dt>
-                      <dd className="text-fg">{c.best_time_to_call}</dd>
-                    </div>
-                  )}
-                  {c.next_followup_at && (
-                    <div className="flex items-start gap-2">
-                      <dt className="shrink-0 pt-1 text-fg-subtle">Follow-up</dt>
-                      <dd>
-                        <DueCountdown iso={c.next_followup_at} />
-                      </dd>
-                    </div>
-                  )}
-                </dl>
-
-                {c.notes && (
-                  <p className="mt-2 whitespace-pre-wrap rounded-lg bg-inset px-3 py-2 text-[12.5px] leading-relaxed text-fg-muted">
-                    {c.notes}
-                  </p>
-                )}
-
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <LogCallDialog
-                    accountId={accountId}
-                    contacts={callContacts}
-                    defaultContactId={c.id}
-                    trigger={(open) => (
-                      <button
-                        type="button"
-                        onClick={open}
-                        className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_EDIT}`}
-                      >
-                        Log call
-                      </button>
-                    )}
-                  />
-                  <QuickNoteDialog
-                    accountId={accountId}
-                    contactId={c.id}
-                    contactName={c.name}
-                    trigger={(open) => (
-                      <button
-                        type="button"
-                        onClick={open}
-                        className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_EDIT}`}
-                      >
-                        <IconNote width={13} height={13} />
-                        Note
-                      </button>
-                    )}
-                  />
-                  <ContactDialog
-                    accountId={accountId}
-                    mode="edit"
-                    defaults={c}
-                    trigger={(open) => (
-                      <button
-                        type="button"
-                        onClick={open}
-                        className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_EDIT}`}
-                      >
-                        Edit
-                      </button>
-                    )}
-                  />
-                  {isPrimary ? (
-                    <button
-                      type="button"
-                      onClick={() => clearPrimary(c.id)}
-                      disabled={pending}
-                      className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_NEUTRAL}`}
-                    >
-                      {isBusy ? "…" : "Unset primary"}
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => makePrimary(c.id)}
-                      disabled={pending}
-                      className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_NEUTRAL}`}
-                    >
-                      {isBusy ? "…" : "Make primary"}
-                    </button>
-                  )}
-                  {canDelete && (
-                    <button
-                      type="button"
-                      onClick={() => remove(c.id, c.name)}
-                      disabled={pending}
-                      className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_DANGER}`}
-                    >
-                      {isBusy ? "…" : "Delete"}
-                    </button>
-                  )}
-                </div>
-                {errorId === c.id && error && (
-                  <p className="mt-2 text-[12.5px] text-bad">{error}</p>
-                )}
               </li>
             );
           })}

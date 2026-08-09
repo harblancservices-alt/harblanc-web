@@ -16,7 +16,7 @@ export function LinkList({ links, emptyText }: { links: LinkEntry[]; emptyText?:
             href={normalizeHref(l.url)}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-inset px-3 py-1.5 text-[12.5px] font-semibold text-accent hover:underline"
+            className="inline-flex items-center gap-1.5 border border-line-strong bg-inset px-3 py-1.5 text-[12.5px] font-semibold text-accent hover:underline"
           >
             {l.label || l.url} ↗
           </a>

@@ -118,7 +118,7 @@ export function CommodityPhotoTiles({
         {photos.map((p) => (
           <div
             key={p.id}
-            className="group relative aspect-square overflow-hidden rounded-lg border border-line-strong bg-inset"
+            className="group relative aspect-square overflow-hidden border border-line-strong bg-inset"
           >
             {p.signedUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -143,7 +143,7 @@ export function CommodityPhotoTiles({
         {uploads.map((u) => (
           <div
             key={u.key}
-            className={`flex aspect-square items-center justify-center rounded-lg border px-1.5 text-center text-[10px] ${
+            className={`flex aspect-square items-center justify-center border px-1.5 text-center text-[10px] ${
               u.status === "error"
                 ? "border-bad/40 bg-bad-bg text-bad"
                 : "border-line-strong bg-inset text-fg-subtle"
@@ -158,7 +158,7 @@ export function CommodityPhotoTiles({
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          className="flex aspect-square flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-line-strong text-fg-subtle transition-colors hover:border-accent/40 hover:text-accent"
+          className="flex aspect-square flex-col items-center justify-center gap-1 border-2 border-dashed border-line-strong text-fg-subtle transition-colors hover:border-accent/40 hover:text-accent"
         >
           <IconPlus width={16} height={16} />
           <span className="text-[10.5px] font-semibold">Add photo</span>

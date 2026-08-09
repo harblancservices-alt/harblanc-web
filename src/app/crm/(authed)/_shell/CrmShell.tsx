@@ -90,7 +90,7 @@ export function CrmShell({
                   href={item.href}
                   prefetch={false}
                   className={[
-                    "flex items-center gap-3.5 rounded-lg border-l-2 px-3.5 py-3 text-[15px] font-medium transition-colors",
+                    "flex items-center gap-3.5 border-l-2 px-3.5 py-3 text-[15px] font-medium transition-colors",
                     active
                       ? ownerOnly
                         ? "border-warn bg-graphite-2 text-warn"
@@ -108,7 +108,7 @@ export function CrmShell({
                   <span className="flex-1">{item.label}</span>
                   {!!item.badge && (
                     <span
-                      className={`inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10.5px] font-bold leading-none tabular-nums ${
+                      className={`inline-flex h-[18px] min-w-[18px] items-center justify-center px-1 text-[10.5px] font-bold leading-none tabular-nums ${
                         item.badgeTone === "alert"
                           ? "bg-bad text-white"
                           : "bg-graphite-2 text-on-dark-dim"
@@ -125,7 +125,7 @@ export function CrmShell({
           {/* Identity + sign out */}
           <div className="border-t border-graphite-line p-3">
             <div className="mb-2 flex items-center gap-2.5 px-1">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-[13px] font-semibold text-white">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center bg-accent text-[13px] font-semibold text-white">
                 {initial}
               </span>
               <span className="min-w-0">
@@ -185,7 +185,7 @@ export function CrmShell({
           <IconMore width={22} height={22} />
           More
           {moreAlertTotal > 0 && (
-            <span className="absolute right-[24%] top-1 inline-flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-bad px-1 text-[9.5px] font-bold leading-none tabular-nums text-white">
+            <span className="absolute right-[24%] top-1 inline-flex h-[16px] min-w-[16px] items-center justify-center bg-bad px-1 text-[9.5px] font-bold leading-none tabular-nums text-white">
               {moreAlertTotal > 99 ? "99+" : moreAlertTotal}
             </span>
           )}
@@ -207,7 +207,7 @@ function BrandMark({ dark = false }: { dark?: boolean }) {
       prefetch={false}
       className="flex items-center gap-2.5 px-3 pb-4 pt-3"
     >
-      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-accent text-[15px] font-black text-white">
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center bg-accent text-[15px] font-black text-white">
         H
       </span>
       <span className="flex flex-col leading-none">

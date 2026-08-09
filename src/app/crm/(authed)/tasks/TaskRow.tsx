@@ -158,7 +158,7 @@ export function TaskRow({
 
   const cardContent = (
     <div className="flex min-w-0 flex-1 items-stretch gap-3">
-      <span aria-hidden className={`w-1 shrink-0 rounded-full ${URGENCY_BAR[bucket]}`} />
+      <span aria-hidden className={`w-1 shrink-0 ${URGENCY_BAR[bucket]}`} />
 
       <div className="min-w-0 flex-1 py-3 pr-3">
         <div className="flex flex-wrap items-start gap-x-2 gap-y-1">
@@ -171,7 +171,7 @@ export function TaskRow({
           </p>
           {task.task_type && (
             <span
-              className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${TASK_TYPE_CHIP_TONE}`}
+              className={`inline-flex items-center px-2 py-0.5 text-[10.5px] font-semibold ${TASK_TYPE_CHIP_TONE}`}
             >
               {task.task_type}
             </span>
@@ -207,7 +207,7 @@ export function TaskRow({
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 pt-1">
             {task.assigneeName && <span className="text-fg-subtle">{task.assigneeName}</span>}
             <span
-              className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide ${priorityTone(task.priority)}`}
+              className={`inline-flex items-center px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide ${priorityTone(task.priority)}`}
             >
               {priorityLabel(task.priority)}
             </span>
@@ -288,7 +288,7 @@ export function TaskRow({
   );
 
   const cardClass =
-    "relative flex overflow-hidden rounded-xl border border-line-strong bg-card shadow-e1";
+    "relative flex overflow-hidden border border-line-strong bg-card shadow-e1";
 
   if (linkTo) {
     return (

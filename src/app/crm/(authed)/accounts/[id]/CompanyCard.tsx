@@ -179,14 +179,14 @@ export function CompanyCard({
                   {chips.map((c) => (
                     <span
                       key={c}
-                      className="inline-flex items-center gap-1 rounded-full border border-line-strong bg-inset py-1 pl-3 pr-1.5 text-[12.5px] font-medium text-fg"
+                      className="inline-flex items-center gap-1 border border-line-strong bg-inset py-1 pl-3 pr-1.5 text-[12.5px] font-medium text-fg"
                     >
                       {c}
                       <button
                         type="button"
                         onClick={() => removeChip(c)}
                         aria-label={`Remove ${c}`}
-                        className="flex h-5 w-5 items-center justify-center rounded-full text-fg-subtle hover:bg-bad-bg hover:text-bad"
+                        className="flex h-5 w-5 items-center justify-center text-fg-subtle hover:bg-bad-bg hover:text-bad"
                       >
                         <IconX width={11} height={11} />
                       </button>
@@ -246,7 +246,7 @@ export function CompanyCard({
                   {viewChips.map((c) => (
                     <span
                       key={c}
-                      className="inline-flex items-center rounded-full border border-line-strong bg-inset px-3 py-1 text-[12.5px] font-medium text-fg"
+                      className="inline-flex items-center border border-line-strong bg-inset px-3 py-1 text-[12.5px] font-medium text-fg"
                     >
                       {c}
                     </span>

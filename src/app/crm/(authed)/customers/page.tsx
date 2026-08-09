@@ -152,7 +152,7 @@ function CustomerRow({
             {account.name}
           </Link>
           <span
-            className={`rounded-full px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide ${stageTone("customer")}`}
+            className={`px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide ${stageTone("customer")}`}
           >
             {stageLabel("customer")}
           </span>

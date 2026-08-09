@@ -39,11 +39,11 @@ export function LeadCard({ lead }: { lead: AiAgentLead }) {
   const location = [lead.city, lead.state].filter(Boolean).join(", ");
 
   return (
-    <div className="relative rounded-2xl border border-line-strong bg-card p-4 shadow-e2 transition-shadow hover:shadow-e3">
+    <div className="relative border border-line-strong bg-card p-4 shadow-e2 transition-shadow hover:shadow-e3">
       <Link
         href={`/crm/accounts/${lead.id}`}
         prefetch={false}
-        className="absolute inset-0 z-0 rounded-2xl"
+        className="absolute inset-0 z-0"
         aria-label={`Open ${lead.name}`}
       />
       <div className="relative z-10 pointer-events-none">
@@ -51,7 +51,7 @@ export function LeadCard({ lead }: { lead: AiAgentLead }) {
           <p className="min-w-0 truncate text-[14.5px] font-semibold text-fg">
             {lead.name}
           </p>
-          <span className="shrink-0 rounded-full bg-steel-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-steel">
+          <span className="shrink-0 bg-steel-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-steel">
             New
           </span>
         </div>

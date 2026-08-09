@@ -31,7 +31,7 @@ export function CallListRow({ contact }: { contact: CallListContact }) {
     <>
       <span
         aria-hidden
-        className={`mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full ${contact.overdue ? "bg-bad" : "bg-warn"}`}
+        className={`mt-1.5 h-2.5 w-2.5 shrink-0 ${contact.overdue ? "bg-bad" : "bg-warn"}`}
       />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">

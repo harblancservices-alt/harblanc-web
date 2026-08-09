@@ -36,7 +36,7 @@ export function PhoneList({
       {phones.map((p, i) => (
         <li
           key={i}
-          className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line-strong bg-inset px-3 py-2"
+          className="flex flex-wrap items-center justify-between gap-2 border border-line-strong bg-inset px-3 py-2"
         >
           <div className="min-w-0">
             {p.label && (

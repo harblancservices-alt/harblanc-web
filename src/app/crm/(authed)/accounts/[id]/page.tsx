@@ -1,14 +1,14 @@
 import { notFound } from "next/navigation";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { CRM_ACTIVITY } from "@/lib/crm/activity";
-import { PageShell, Card, CardHead } from "../../_shell/ui";
+import { PageShell } from "../../_shell/ui";
 import { BackButton } from "../../_shell/BackButton";
-import { formatDate, formatMoney, firstName, titleCaseWords, upperCaseState } from "../../_shell/format";
+import { firstName, titleCaseWords, upperCaseState } from "../../_shell/format";
 import { parsePhones, parseLinks, normalizeHref } from "../../_shell/contactFields";
+import { formatPhone } from "@/lib/domain/phone";
 import { ProfileTabs } from "./ProfileTabs";
 import { stageLabel, stageTone } from "../lifecycle";
 import type { RepOption } from "../CompanyDialog";
-import { EditCompany } from "./EditCompany";
 import { FinalizeBanner } from "./FinalizeBanner";
 import { CompanyCard } from "./CompanyCard";
 import { ContactsSection, type CrmContact } from "./ContactsSection";
@@ -17,6 +17,7 @@ import { AddPersonButton } from "./AddPersonButton";
 import { AiResearchSection, type CrmNote } from "./AiResearchSection";
 import { PeopleSection, type CrmPerson } from "./PeopleSection";
 import { HistorySection, type CrmHistoryItem } from "./HistorySection";
+import { DetailsSection, type CrmDetailsTag } from "./DetailsSection";
 import { type CrmCommodityPhoto } from "./CommodityPhotoTiles";
 import { TasksSection } from "./TasksSection";
 import { LogCallButton } from "./LogCallButton";
@@ -86,6 +87,9 @@ export default async function AccountDetailPage({
     tasksRes,
     documentsRes,
     commodityPhotosRes,
+    accountTagsRes,
+    addedByRes,
+    lastResearchRequestRes,
   ] = await Promise.all([
     supabase.from("crm_profiles").select("id, full_name, email, is_active"),
     supabase
@@ -147,6 +151,28 @@ export default async function AccountDetailPage({
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(60),
+    supabase.from("crm_account_tags").select("tag_id").eq("account_id", id),
+    // "Added by" — the account's own first activity row rather than a new
+    // created_by column: accountCreated is already logged on every create
+    // path, so this needs no schema.
+    supabase
+      .from("crm_activities")
+      .select("user_id")
+      .eq("account_id", id)
+      .eq("kind", CRM_ACTIVITY.accountCreated)
+      .order("occurred_at", { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+    // Drives the AI Research tab's "Last requested" label — see
+    // ai-research-actions.ts::requestAiResearch.
+    supabase
+      .from("crm_activities")
+      .select("occurred_at")
+      .eq("account_id", id)
+      .eq("kind", CRM_ACTIVITY.aiResearchRequested)
+      .order("occurred_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   const profiles = (profilesRes.data ?? []) as ProfileRow[];
@@ -287,6 +313,23 @@ export default async function AccountDetailPage({
     signedUrl: signedUrlByPath.get(p.storage_path) ?? null,
   }));
 
+  // Details tab's Tags fact — two-step, same reason as the signed URLs
+  // above (the tag ids aren't known until crm_account_tags resolves).
+  const accountTagIds = ((accountTagsRes.data ?? []) as { tag_id: string }[]).map((t) => t.tag_id);
+  let detailsTags: CrmDetailsTag[] = [];
+  if (accountTagIds.length) {
+    const { data: tagRows } = await supabase
+      .from("crm_tags")
+      .select("id, label, color")
+      .in("id", accountTagIds);
+    detailsTags = (tagRows ?? []) as CrmDetailsTag[];
+  }
+
+  const addedByUserId = (addedByRes.data as { user_id: string | null } | null)?.user_id ?? null;
+  const addedByName = addedByUserId ? profileName(profileById.get(addedByUserId)) : null;
+  const lastResearchRequestedAt =
+    (lastResearchRequestRes.data as { occurred_at: string } | null)?.occurred_at ?? null;
+
   // ── History — notes + calls + the remaining (non-call, non-note) activity
   // rows, merged into one newest-first feed. See HistorySection.tsx. ──
   const historyFromNotes: CrmHistoryItem[] = notesRows
@@ -353,9 +396,15 @@ export default async function AccountDetailPage({
   ].sort((a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime());
 
   const stage = account.lifecycle_status as string;
-  const website = account.website ? normalizeHref(account.website as string) : null;
+  const website = account.website as string | null;
+  const websiteHref = website ? normalizeHref(website) : null;
   const phones = parsePhones(account.phones);
   const links = parseLinks(account.links);
+  const fullAddress =
+    [accountAddress, [accountCity, accountState].filter(Boolean).join(", "), account.zip]
+      .filter(Boolean)
+      .join(", ") || null;
+  const companyPhoneFormatted = companyPhone ? formatPhone(companyPhone) : null;
 
   const editDefaults = {
     id: account.id as string,
@@ -402,13 +451,13 @@ export default async function AccountDetailPage({
 
         <div className="flex min-w-0 flex-col gap-4">
           {/* Top strip — identity + primary actions, above the tabs. */}
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line-strong bg-card px-4 py-3 shadow-e2">
+          <div className="flex flex-wrap items-center justify-between gap-3 border border-line-strong bg-card px-4 py-3 shadow-e2">
             <div className="flex min-w-0 items-center gap-2.5">
               <h1 className="truncate text-[18px] font-bold tracking-tight text-fg">
                 {accountName}
               </h1>
               <span
-                className={`inline-flex shrink-0 items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${stageTone(stage)}`}
+                className={`inline-flex shrink-0 items-center px-2.5 py-0.5 text-[11px] font-semibold ${stageTone(stage)}`}
               >
                 {stageLabel(stage)}
               </span>
@@ -454,81 +503,46 @@ export default async function AccountDetailPage({
             }
             contactsCount={contacts.length}
             details={
-              <Card>
-                <CardHead
-                  title="Details"
-                  right={<EditCompany defaults={editDefaults} reps={reps} canDelete={isOwner} />}
-                />
-                <div className="grid grid-cols-2 gap-x-6 gap-y-4 p-5 md:grid-cols-3">
-                  <Fact label="Industry" value={account.industry as string | null} />
-                  <Fact
-                    label="Website"
-                    value={
-                      website ? (
-                        <a
-                          href={website}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-accent hover:underline"
-                        >
-                          {account.website as string}
-                        </a>
-                      ) : null
-                    }
-                  />
-                  <Fact label="Company size" value={account.company_size as string | null} />
-                  <Fact
-                    label="Annual freight spend"
-                    value={formatMoney(account.annual_freight_spend as number | null)}
-                    mono
-                  />
-                  <Fact
-                    label="Revenue potential"
-                    value={formatMoney(account.revenue_potential as number | null)}
-                    mono
-                  />
-                  <Fact label="Source" value={account.source as string | null} />
-                  <Fact label="Created" value={formatDate(account.created_at as string)} />
-                </div>
-              </Card>
+              <DetailsSection
+                legalName={accountName}
+                industry={account.industry as string | null}
+                companySize={account.company_size as string | null}
+                annualFreightSpend={account.annual_freight_spend as number | null}
+                source={account.source as string | null}
+                stage={stage}
+                website={website}
+                websiteHref={websiteHref}
+                tags={detailsTags}
+                fullAddress={fullAddress}
+                addedByName={addedByName}
+                addedAt={account.created_at as string}
+                editDefaults={editDefaults}
+                reps={reps}
+                canDelete={isOwner}
+              />
             }
             bol={
               <BolSection
                 accountId={account.id as string}
                 orgId={user.orgId}
                 documents={documents}
+                shipperName={accountName}
+                shipperAddress={fullAddress}
+                shipperPhone={companyPhoneFormatted}
               />
             }
             bolCount={documents.length}
-            aiResearch={<AiResearchSection notes={aiNotes} />}
+            aiResearch={
+              <AiResearchSection
+                accountId={account.id as string}
+                notes={aiNotes}
+                lastRequestedAt={lastResearchRequestedAt}
+              />
+            }
             aiResearchCount={aiNotes.length}
           />
         </div>
       </div>
     </PageShell>
-  );
-}
-
-function Fact({
-  label,
-  value,
-  mono,
-}: {
-  label: string;
-  value: React.ReactNode;
-  mono?: boolean;
-}) {
-  const empty = value === null || value === undefined || value === "—" || value === "";
-  return (
-    <div className="min-w-0">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
-        {label}
-      </p>
-      <p
-        className={`mt-1 break-words text-[14px] ${empty ? "text-fg-subtle" : "text-fg"} ${mono && !empty ? "font-mono" : ""}`}
-      >
-        {empty ? "—" : value}
-      </p>
-    </div>
   );
 }

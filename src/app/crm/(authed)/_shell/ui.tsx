@@ -2,9 +2,12 @@ import type { ComponentPropsWithoutRef, ReactNode } from "react";
 import Link from "next/link";
 
 /**
- * CRM page-content primitives — rounded-2xl white cards on shadow-e2,
- * resolved against the `.crm-light` theme scope so surfaces stay
- * theme-correct.
+ * CRM page-content primitives — square white cards on shadow-e2, resolved
+ * against the `.crm-light` theme scope so surfaces stay theme-correct.
+ * Square corners are the CRM-wide rule everywhere EXCEPT buttons (Brent's
+ * explicit call) — Card/CardHead/StatTile/etc. below carry no rounded-*
+ * class; BTN_PRIMARY/BTN_EDIT/etc. further down are still meant to be
+ * rendered with a rounded-* class at the call site, unchanged.
  */
 
 /** Shared page-content width, used by PageShell and the couple of detail
@@ -44,7 +47,7 @@ export function Card({
 }: ComponentPropsWithoutRef<"div">) {
   return (
     <div
-      className={`overflow-hidden rounded-2xl border border-line-strong bg-card shadow-e2 ${className ?? ""}`}
+      className={`overflow-hidden border border-line-strong bg-card shadow-e2 ${className ?? ""}`}
       {...rest}
     >
       {children}
@@ -76,7 +79,7 @@ export function CardHead({
   right?: ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 rounded-t-2xl border-b border-graphite-line bg-bar px-4 py-2.5">
+    <div className="flex items-center justify-between gap-3 border-b border-graphite-line bg-bar px-4 py-2.5">
       <div className="min-w-0">
         <h2 className="truncate text-[13.5px] font-bold tracking-tight text-bar-fg">
           {title}
@@ -154,7 +157,7 @@ export function StatTile({
   sub?: string;
 }) {
   return (
-    <div className="rounded-2xl border border-line-strong bg-card p-4 shadow-e2">
+    <div className="border border-line-strong bg-card p-4 shadow-e2">
       <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-subtle">
         {label}
       </p>
@@ -191,14 +194,14 @@ export function StatButton({
     <button
       type="button"
       onClick={onClick}
-      className="group flex w-full flex-col items-start rounded-2xl border border-line-strong bg-card p-4 text-left shadow-e2 transition-all hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-e3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+      className="group flex w-full flex-col items-start border border-line-strong bg-card p-4 text-left shadow-e2 transition-all hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-e3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
     >
       <div className="flex w-full items-center justify-between gap-2">
         <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-subtle">
           {label}
         </p>
         {icon && (
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent transition-colors group-hover:bg-accent group-hover:text-white">
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center bg-accent/10 text-accent transition-colors group-hover:bg-accent group-hover:text-white">
             {icon}
           </span>
         )}
@@ -228,7 +231,7 @@ export function StatLinkTile({
     <Link
       href={href}
       prefetch={false}
-      className="group flex flex-col items-start rounded-2xl border border-line-strong bg-card p-4 text-left shadow-e2 transition-all hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-e3"
+      className="group flex flex-col items-start border border-line-strong bg-card p-4 text-left shadow-e2 transition-all hover:-translate-y-0.5 hover:border-accent/40 hover:shadow-e3"
     >
       <div className="flex w-full items-center justify-between gap-2">
         <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-subtle">
@@ -259,7 +262,7 @@ export function EmptyState({
   return (
     <div className="flex flex-col items-center justify-center gap-3 px-6 py-14 text-center">
       {icon && (
-        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-inset text-fg-subtle">
+        <span className="flex h-12 w-12 items-center justify-center bg-inset text-fg-subtle">
           {icon}
         </span>
       )}

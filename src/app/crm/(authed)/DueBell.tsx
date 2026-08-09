@@ -67,7 +67,7 @@ export function DueBell({
           bell so the number stays legible even where it overlaps. */}
       <span
         aria-hidden
-        className="alert-badge absolute -right-0.5 -top-0.5 inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-bad px-1 text-[11px] font-bold leading-none tabular-nums text-white shadow-e1 ring-2 ring-bar"
+        className="alert-badge absolute -right-0.5 -top-0.5 inline-flex h-[18px] min-w-[18px] items-center justify-center bg-bad px-1 text-[11px] font-bold leading-none tabular-nums text-white shadow-e1 ring-2 ring-bar"
       >
         {display}
       </span>

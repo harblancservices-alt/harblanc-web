@@ -45,7 +45,7 @@ export function RepControl({
         onChange={onChange}
         disabled={pending}
         aria-label="Assigned rep"
-        className="h-9 rounded-lg border border-fg-subtle bg-card px-2.5 text-[13px] font-medium text-fg outline-none transition-shadow focus:ring-2 focus:ring-accent/40 disabled:opacity-60"
+        className="h-9 border border-fg-subtle bg-card px-2.5 text-[13px] font-medium text-fg outline-none transition-shadow focus:ring-2 focus:ring-accent/40 disabled:opacity-60"
       >
         <option value="">Unassigned</option>
         {reps.map((r) => (

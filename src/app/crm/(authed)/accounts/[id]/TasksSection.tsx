@@ -92,7 +92,7 @@ export function TasksSection({
 
       {tasks.length === 0 ? (
         <div className="flex flex-col items-center gap-2 px-6 py-7 text-center">
-          <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-inset text-fg-subtle">
+          <span className="flex h-10 w-10 items-center justify-center bg-inset text-fg-subtle">
             <IconTasks />
           </span>
           <p className="text-[14px] font-semibold text-fg">No tasks yet</p>

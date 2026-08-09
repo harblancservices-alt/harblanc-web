@@ -94,7 +94,7 @@ export function HistorySection({
             onChange={(e) => setBody(e.target.value)}
             placeholder="Add a note about this company…"
             rows={2}
-            className="resize-y rounded-lg border border-fg-subtle bg-card px-3.5 py-2.5 text-[14.5px] font-medium leading-relaxed text-fg outline-none focus:ring-2 focus:ring-accent/40"
+            className="resize-y border border-fg-subtle bg-card px-3.5 py-2.5 text-[14.5px] font-medium leading-relaxed text-fg outline-none focus:ring-2 focus:ring-accent/40"
           />
           {error && <p className="text-[12.5px] text-bad">{error}</p>}
           <div className="flex justify-end">
@@ -128,7 +128,7 @@ export function HistorySection({
                 <div className="flex gap-2.5 py-2">
                   <span
                     aria-hidden
-                    className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${TYPE_TONE[item.type]}`}
+                    className={`mt-1.5 h-2 w-2 shrink-0 ${TYPE_TONE[item.type]}`}
                   />
                   <div className="min-w-0 flex-1">
                     <p className="text-[13.5px] font-medium text-fg">{item.title}</p>

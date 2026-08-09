@@ -82,7 +82,7 @@ export function MemberDialog({
           {isSelf ? (
             <>
               <input type="hidden" name="is_active" value="on" />
-              <p className="rounded-lg border border-line-strong bg-inset px-3 py-2.5 text-[12.5px] text-fg-subtle">
+              <p className="border border-line-strong bg-inset px-3 py-2.5 text-[12.5px] text-fg-subtle">
                 You can&rsquo;t deactivate your own account here.
               </p>
             </>

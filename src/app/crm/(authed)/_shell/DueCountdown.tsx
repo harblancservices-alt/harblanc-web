@@ -31,7 +31,7 @@ export function DueCountdown({
   return (
     <div className={`flex flex-col items-start gap-0.5 ${className ?? ""}`}>
       <span
-        className={`inline-flex w-fit items-center rounded-full px-2.5 py-1 text-[15px] font-bold leading-none ${TONE_CLASS[tone]}`}
+        className={`inline-flex w-fit items-center px-2.5 py-1 text-[15px] font-bold leading-none ${TONE_CLASS[tone]}`}
       >
         {text}
       </span>

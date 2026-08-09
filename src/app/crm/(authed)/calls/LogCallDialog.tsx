@@ -110,7 +110,7 @@ export function LogCallDialog({
 
           <TextareaField label="Notes" name="notes" placeholder="What was said, next steps…" />
 
-          <label className="flex items-start gap-2.5 rounded-lg border border-fg-subtle bg-card px-3 py-2.5">
+          <label className="flex items-start gap-2.5 border border-fg-subtle bg-card px-3 py-2.5">
             <input
               type="checkbox"
               name="followup_required"

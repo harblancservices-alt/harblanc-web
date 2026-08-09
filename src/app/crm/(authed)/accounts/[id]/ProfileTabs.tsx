@@ -53,7 +53,7 @@ export function ProfileTabs({
       <div
         role="tablist"
         aria-label="Company profile sections"
-        className="mb-4 flex gap-1 rounded-2xl border border-line-strong bg-inset p-1.5 shadow-inner"
+        className="mb-4 flex gap-1 border border-line-strong bg-inset p-1.5 shadow-inner"
       >
         {TABS.map((t) => (
           <button
@@ -62,7 +62,7 @@ export function ProfileTabs({
             role="tab"
             aria-selected={tab === t.key}
             onClick={() => setTab(t.key)}
-            className={`flex-1 rounded-xl px-3 py-2.5 text-[13.5px] font-bold transition-all sm:flex-none sm:px-6 ${
+            className={`flex-1 px-3 py-2.5 text-[13.5px] font-bold transition-all sm:flex-none sm:px-6 ${
               tab === t.key
                 ? "bg-card text-accent shadow-e2 ring-1 ring-line-strong"
                 : "text-fg-muted hover:bg-card/60 hover:text-fg"

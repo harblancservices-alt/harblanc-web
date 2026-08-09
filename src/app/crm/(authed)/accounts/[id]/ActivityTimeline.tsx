@@ -38,7 +38,7 @@ export function ActivityTimeline({ activities }: { activities: CrmActivity[] }) 
                 {/* rail */}
                 <div className="flex flex-col items-center">
                   <span
-                    className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ring-4 ring-card ${tone}`}
+                    className={`mt-1 h-2.5 w-2.5 shrink-0 ring-4 ring-card ${tone}`}
                   />
                   {!last && <span className="w-px flex-1 bg-line" />}
                 </div>

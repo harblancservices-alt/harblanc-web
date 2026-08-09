@@ -114,17 +114,17 @@ export default async function SettingsPage() {
                         {firstName(m.full_name, m.email) || "Unnamed"}
                       </span>
                       {isSelf && (
-                        <span className="rounded-full bg-steel-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-steel">
+                        <span className="bg-steel-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-steel">
                           You
                         </span>
                       )}
                       {m.role === "owner" && (
-                        <span className="rounded-full bg-ok-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ok">
+                        <span className="bg-ok-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ok">
                           Admin
                         </span>
                       )}
                       {!m.is_active && (
-                        <span className="rounded-full bg-warn-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-warn">
+                        <span className="bg-warn-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-warn">
                           Inactive
                         </span>
                       )}
@@ -194,7 +194,7 @@ function Avatar({
 }) {
   return (
     <span
-      className="flex shrink-0 items-center justify-center rounded-full bg-accent font-semibold text-white"
+      className="flex shrink-0 items-center justify-center bg-accent font-semibold text-white"
       style={{ width: size, height: size, fontSize: Math.round(size * 0.36) }}
     >
       {initials(name ?? null, email ?? null)}

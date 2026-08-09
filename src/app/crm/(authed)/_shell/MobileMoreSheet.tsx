@@ -48,7 +48,7 @@ export function MobileMoreSheet({
       role="presentation"
     >
       <div
-        className="max-h-[80vh] w-full overflow-y-auto rounded-t-2xl border-t border-graphite-line bg-graphite pb-[calc(env(safe-area-inset-bottom)+0.5rem)] shadow-e3"
+        className="max-h-[80vh] w-full overflow-y-auto border-t border-graphite-line bg-graphite pb-[calc(env(safe-area-inset-bottom)+0.5rem)] shadow-e3"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
@@ -78,7 +78,7 @@ export function MobileMoreSheet({
                 prefetch={false}
                 onClick={onClose}
                 className={[
-                  "flex items-center gap-3 rounded-lg border-l-2 px-3 py-2.5 text-[14px] font-medium transition-colors",
+                  "flex items-center gap-3 border-l-2 px-3 py-2.5 text-[14px] font-medium transition-colors",
                   active
                     ? ownerOnly
                       ? "border-warn bg-graphite-2 text-warn"
@@ -94,7 +94,7 @@ export function MobileMoreSheet({
                 <span className="flex-1">{item.label}</span>
                 {!!item.badge && (
                   <span
-                    className={`inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10.5px] font-bold leading-none tabular-nums ${
+                    className={`inline-flex h-[18px] min-w-[18px] items-center justify-center px-1 text-[10.5px] font-bold leading-none tabular-nums ${
                       item.badgeTone === "alert"
                         ? "bg-bad text-white"
                         : "bg-graphite-2 text-on-dark-dim"
