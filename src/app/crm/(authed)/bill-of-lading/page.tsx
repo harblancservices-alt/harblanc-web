@@ -2,6 +2,7 @@ import { requireCrmUser } from "@/lib/crm/auth";
 import { PageShell } from "../_shell/ui";
 import { getActiveOrgUsers } from "../_shell/orgUsers";
 import { getBrokerProfile } from "../_shell/brokerProfile";
+import { getActiveCustomers } from "../_shell/customerDirectory";
 import { BillOfLadingGenerator } from "./BillOfLadingGenerator";
 
 export const dynamic = "force-dynamic";
@@ -15,21 +16,23 @@ export const dynamic = "force-dynamic";
  * placeholders. No persistence.
  *
  * This Server Component fetches the org's active CRM users (for the Broker
- * Contact dropdown) and the org's broker letterhead info (company/MC/DOT/
- * address, edited from CRM Settings) and hands both down as props — the
- * client generator below has no server access of its own.
+ * Contact dropdown), the org's broker letterhead info (company/MC/DOT/
+ * address, edited from CRM Settings), and the org's Active Customers (for
+ * the form's "start from a customer" auto-fill) and hands all three down as
+ * props — the client generator below has no server access of its own.
  */
 export default async function BillOfLadingPage() {
   await requireCrmUser();
 
-  const [orgUsers, brokerProfile] = await Promise.all([
+  const [orgUsers, brokerProfile, customers] = await Promise.all([
     getActiveOrgUsers(),
     getBrokerProfile(),
+    getActiveCustomers(),
   ]);
 
   return (
     <PageShell>
-      <BillOfLadingGenerator orgUsers={orgUsers} brokerProfile={brokerProfile} />
+      <BillOfLadingGenerator orgUsers={orgUsers} brokerProfile={brokerProfile} customers={customers} />
     </PageShell>
   );
 }

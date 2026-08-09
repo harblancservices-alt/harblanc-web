@@ -4,6 +4,7 @@ import { useRef, useState, type ReactNode } from "react";
 import { CONTROL, LABEL } from "../_shell/form";
 import type { BrokerProfile } from "../_shell/brokerProfile";
 import type { OrgUser } from "../_shell/orgUsers";
+import type { CustomerOption } from "../_shell/customerDirectory";
 import "./bill-of-lading.css";
 
 type ChargeTerms = "prepaid" | "collect" | "third_party" | "";
@@ -80,6 +81,36 @@ type BolState = {
   freightCountedBy: FreightCountedBy;
   carrierSignedDate: string;
 };
+
+/** The Ship From / Ship To fields a customer pick can fill — shared by the
+ * "start from a customer" fill functions and the auto-fill highlight
+ * tracking below, so the two never drift apart. */
+const SHIP_FROM_AUTOFILL_KEYS = [
+  "shipFromName",
+  "shipFromAddress",
+  "shipFromCityStateZip",
+  "shipFromContact",
+  "shipFromPhone",
+] as const satisfies readonly (keyof BolState)[];
+
+const SHIP_TO_AUTOFILL_KEYS = [
+  "shipToName",
+  "shipToAddress",
+  "shipToCityStateZip",
+  "shipToContact",
+  "shipToPhone",
+] as const satisfies readonly (keyof BolState)[];
+
+/** Which customer a Ship From/To block was last auto-filled from, and which
+ * of its fields still hold that customer's untouched value — editing a
+ * tracked field drops it from `fields` (see setShipFromField/setShipToField)
+ * so the "auto-filled" marker only ever describes what's still true. */
+type AutoFill = { source: string; fields: Set<keyof BolState> } | null;
+
+function cityStateZip(c: CustomerOption): string {
+  const csz = [c.city, c.state].filter(Boolean).join(", ");
+  return [csz, c.zip].filter(Boolean).join(" ").trim();
+}
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -166,9 +197,11 @@ function numeric(value: string): number {
 export function BillOfLadingGenerator({
   orgUsers,
   brokerProfile,
+  customers,
 }: {
   orgUsers: OrgUser[];
   brokerProfile: BrokerProfile;
+  customers: CustomerOption[];
 }) {
   const idCounter = useRef(0);
 
@@ -180,9 +213,57 @@ export function BillOfLadingGenerator({
   const [state, setState] = useState<BolState>(() =>
     initialState(() => Array.from({ length: INITIAL_LINE_COUNT }, () => nextId())),
   );
+  const [shipFromAutoFill, setShipFromAutoFill] = useState<AutoFill>(null);
+  const [shipToAutoFill, setShipToAutoFill] = useState<AutoFill>(null);
 
   function set<K extends keyof BolState>(key: K, value: BolState[K]) {
     setState((prev) => ({ ...prev, [key]: value }));
+  }
+
+  /** Drops `key` from an AutoFill's tracked fields once the admin edits it
+   * by hand, so the highlight only ever marks values still untouched since
+   * the customer pick. */
+  function untrack(setter: (updater: (prev: AutoFill) => AutoFill) => void, key: keyof BolState) {
+    setter((prev) => {
+      if (!prev || !prev.fields.has(key)) return prev;
+      const fields = new Set(prev.fields);
+      fields.delete(key);
+      return fields.size ? { ...prev, fields } : null;
+    });
+  }
+
+  function setShipFromField<K extends keyof BolState>(key: K, value: BolState[K]) {
+    set(key, value);
+    untrack(setShipFromAutoFill, key);
+  }
+
+  function setShipToField<K extends keyof BolState>(key: K, value: BolState[K]) {
+    set(key, value);
+    untrack(setShipToAutoFill, key);
+  }
+
+  function fillShipFromFromCustomer(customer: CustomerOption) {
+    setState((prev) => ({
+      ...prev,
+      shipFromName: customer.name,
+      shipFromAddress: customer.address,
+      shipFromCityStateZip: cityStateZip(customer),
+      shipFromContact: customer.contactName,
+      shipFromPhone: customer.contactPhone || customer.phone,
+    }));
+    setShipFromAutoFill({ source: customer.name, fields: new Set(SHIP_FROM_AUTOFILL_KEYS) });
+  }
+
+  function fillShipToFromCustomer(customer: CustomerOption) {
+    setState((prev) => ({
+      ...prev,
+      shipToName: customer.name,
+      shipToAddress: customer.address,
+      shipToCityStateZip: cityStateZip(customer),
+      shipToContact: customer.contactName,
+      shipToPhone: customer.contactPhone || customer.phone,
+    }));
+    setShipToAutoFill({ source: customer.name, fields: new Set(SHIP_TO_AUTOFILL_KEYS) });
   }
 
   function selectRep(repId: string) {
@@ -234,10 +315,17 @@ export function BillOfLadingGenerator({
           state={state}
           set={set}
           orgUsers={orgUsers}
+          customers={customers}
           selectRep={selectRep}
           updateLineItem={updateLineItem}
           addLineItem={addLineItem}
           removeLineItem={removeLineItem}
+          shipFromAutoFill={shipFromAutoFill}
+          shipToAutoFill={shipToAutoFill}
+          setShipFromField={setShipFromField}
+          setShipToField={setShipToField}
+          fillShipFromFromCustomer={fillShipFromFromCustomer}
+          fillShipToFromCustomer={fillShipToFromCustomer}
         />
         <div className="bol-preview-panel">
           <BolDocument
@@ -275,27 +363,63 @@ function BolForm({
   state,
   set,
   orgUsers,
+  customers,
   selectRep,
   updateLineItem,
   addLineItem,
   removeLineItem,
+  shipFromAutoFill,
+  shipToAutoFill,
+  setShipFromField,
+  setShipToField,
+  fillShipFromFromCustomer,
+  fillShipToFromCustomer,
 }: {
   state: BolState;
   set: <K extends keyof BolState>(key: K, value: BolState[K]) => void;
   orgUsers: OrgUser[];
+  customers: CustomerOption[];
   selectRep: (repId: string) => void;
   updateLineItem: (id: string, patch: Partial<LineItem>) => void;
   addLineItem: () => void;
   removeLineItem: (id: string) => void;
+  shipFromAutoFill: AutoFill;
+  shipToAutoFill: AutoFill;
+  setShipFromField: <K extends keyof BolState>(key: K, value: BolState[K]) => void;
+  setShipToField: <K extends keyof BolState>(key: K, value: BolState[K]) => void;
+  fillShipFromFromCustomer: (customer: CustomerOption) => void;
+  fillShipToFromCustomer: (customer: CustomerOption) => void;
 }) {
   return (
     <div className="bol-form-panel">
+      <FormSection title="Start From a Customer" accent>
+        <p className="text-[12px] italic text-fg-subtle">Ties into your Active Customer logs</p>
+        {customers.length ? (
+          <>
+            <CustomerPicker
+              customers={customers}
+              placeholder="Search active customers…"
+              onSelect={fillShipFromFromCustomer}
+            />
+            <AutoFillNote autoFill={shipFromAutoFill} target="Ship From" />
+          </>
+        ) : (
+          <p className="text-[12px] text-fg-subtle">
+            No active customers yet — mark a company &ldquo;Active Customer&rdquo; on its profile
+            to pick it here, or just fill in Ship From manually below.
+          </p>
+        )}
+      </FormSection>
+
       <FormSection title="Document">
         <FormRow>
           <TextInput label="BOL #" value={state.bolNumber} onChange={(v) => set("bolNumber", v)} />
           <TextInput label="Date" value={state.date} onChange={(v) => set("date", v)} type="date" />
         </FormRow>
         <TextInput label="Load / Ref #" value={state.loadRef} onChange={(v) => set("loadRef", v)} />
+      </FormSection>
+
+      <FormSection title="Broker Contact">
         <SelectInput
           label="Assign Broker Contact"
           value={state.repId}
@@ -317,33 +441,88 @@ function BolForm({
       </FormSection>
 
       <FormSection title="Ship From">
-        <TextInput label="Name" value={state.shipFromName} onChange={(v) => set("shipFromName", v)} />
-        <TextInput label="Address" value={state.shipFromAddress} onChange={(v) => set("shipFromAddress", v)} />
+        <TextInput
+          label="Name"
+          value={state.shipFromName}
+          onChange={(v) => setShipFromField("shipFromName", v)}
+          highlight={shipFromAutoFill?.fields.has("shipFromName")}
+        />
+        <TextInput
+          label="Address"
+          value={state.shipFromAddress}
+          onChange={(v) => setShipFromField("shipFromAddress", v)}
+          highlight={shipFromAutoFill?.fields.has("shipFromAddress")}
+        />
         <TextInput
           label="City / State / ZIP"
           value={state.shipFromCityStateZip}
-          onChange={(v) => set("shipFromCityStateZip", v)}
+          onChange={(v) => setShipFromField("shipFromCityStateZip", v)}
+          highlight={shipFromAutoFill?.fields.has("shipFromCityStateZip")}
         />
         <FormRow>
           <TextInput label="SID #" value={state.shipFromSid} onChange={(v) => set("shipFromSid", v)} />
-          <TextInput label="Contact" value={state.shipFromContact} onChange={(v) => set("shipFromContact", v)} />
+          <TextInput
+            label="Contact"
+            value={state.shipFromContact}
+            onChange={(v) => setShipFromField("shipFromContact", v)}
+            highlight={shipFromAutoFill?.fields.has("shipFromContact")}
+          />
         </FormRow>
-        <TextInput label="Phone" value={state.shipFromPhone} onChange={(v) => set("shipFromPhone", v)} />
+        <TextInput
+          label="Phone"
+          value={state.shipFromPhone}
+          onChange={(v) => setShipFromField("shipFromPhone", v)}
+          highlight={shipFromAutoFill?.fields.has("shipFromPhone")}
+        />
       </FormSection>
 
       <FormSection title="Ship To">
-        <TextInput label="Name" value={state.shipToName} onChange={(v) => set("shipToName", v)} />
-        <TextInput label="Address" value={state.shipToAddress} onChange={(v) => set("shipToAddress", v)} />
+        {customers.length > 0 && (
+          <div className="space-y-1.5 rounded-md border border-dashed border-fg-subtle/70 bg-inset/40 p-2">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-fg-muted">
+              Fill from a customer (optional)
+            </span>
+            <CustomerPicker
+              customers={customers}
+              placeholder="Search active customers…"
+              onSelect={fillShipToFromCustomer}
+            />
+            <AutoFillNote autoFill={shipToAutoFill} target="Ship To" />
+          </div>
+        )}
+        <TextInput
+          label="Name"
+          value={state.shipToName}
+          onChange={(v) => setShipToField("shipToName", v)}
+          highlight={shipToAutoFill?.fields.has("shipToName")}
+        />
+        <TextInput
+          label="Address"
+          value={state.shipToAddress}
+          onChange={(v) => setShipToField("shipToAddress", v)}
+          highlight={shipToAutoFill?.fields.has("shipToAddress")}
+        />
         <TextInput
           label="City / State / ZIP"
           value={state.shipToCityStateZip}
-          onChange={(v) => set("shipToCityStateZip", v)}
+          onChange={(v) => setShipToField("shipToCityStateZip", v)}
+          highlight={shipToAutoFill?.fields.has("shipToCityStateZip")}
         />
         <FormRow>
           <TextInput label="CID #" value={state.shipToCid} onChange={(v) => set("shipToCid", v)} />
-          <TextInput label="Contact" value={state.shipToContact} onChange={(v) => set("shipToContact", v)} />
+          <TextInput
+            label="Contact"
+            value={state.shipToContact}
+            onChange={(v) => setShipToField("shipToContact", v)}
+            highlight={shipToAutoFill?.fields.has("shipToContact")}
+          />
         </FormRow>
-        <TextInput label="Phone" value={state.shipToPhone} onChange={(v) => set("shipToPhone", v)} />
+        <TextInput
+          label="Phone"
+          value={state.shipToPhone}
+          onChange={(v) => setShipToField("shipToPhone", v)}
+          highlight={shipToAutoFill?.fields.has("shipToPhone")}
+        />
       </FormSection>
 
       <FormSection title="Carrier / Bill-To">
@@ -523,10 +702,31 @@ function BolForm({
   );
 }
 
-function FormSection({ title, children }: { title: string; children: ReactNode }) {
+function FormSection({
+  title,
+  children,
+  accent,
+}: {
+  title: string;
+  children: ReactNode;
+  /** Accent-tinted card for the one section that should stand out from the
+   * rest of the form (Start From a Customer) — everything else uses the
+   * plain on-theme card. */
+  accent?: boolean;
+}) {
   return (
-    <div className="mb-4 space-y-2.5 border-b border-fg-subtle/40 pb-4 last:border-b-0">
-      <h3 className="text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">{title}</h3>
+    <div
+      className={`mb-3 space-y-2.5 rounded-lg border p-3 ${
+        accent ? "border-accent/35 bg-accent/5" : "border-fg-subtle/50 bg-card/70"
+      }`}
+    >
+      <h3
+        className={`text-[11px] font-bold uppercase tracking-[0.12em] ${
+          accent ? "text-accent" : "text-fg-muted"
+        }`}
+      >
+        {title}
+      </h3>
       {children}
     </div>
   );
@@ -536,25 +736,120 @@ function FormRow({ children }: { children: ReactNode }) {
   return <div className="grid grid-cols-2 gap-2.5">{children}</div>;
 }
 
+/**
+ * Searchable dropdown over the org's Active Customers — browsable (shows up
+ * to 8 rows on focus even before typing) or filterable by name. Selecting a
+ * row fires `onSelect` and clears the input so the same picker is ready to
+ * search again; it's the caller's job (fillShipFrom/ToFromCustomer) to apply
+ * the pick to form state.
+ */
+function CustomerPicker({
+  customers,
+  placeholder,
+  onSelect,
+}: {
+  customers: CustomerOption[];
+  placeholder: string;
+  onSelect: (customer: CustomerOption) => void;
+}) {
+  const [text, setText] = useState("");
+  const [open, setOpen] = useState(false);
+
+  const trimmed = text.trim();
+  const matches = (
+    trimmed ? customers.filter((c) => c.name.toLowerCase().includes(trimmed.toLowerCase())) : customers
+  ).slice(0, 8);
+
+  return (
+    <div className="relative">
+      <input
+        type="text"
+        value={text}
+        onChange={(e) => {
+          setText(e.target.value);
+          setOpen(true);
+        }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+        placeholder={placeholder}
+        autoComplete="off"
+        className={`h-9 w-full min-w-0 text-[13px] ${CONTROL}`}
+      />
+      {open && (
+        <ul className="absolute left-0 top-[2.35rem] z-20 max-h-56 w-full overflow-y-auto rounded-md border border-fg-subtle bg-card py-1 shadow-e3">
+          {matches.length === 0 && (
+            <li className="px-3 py-2 text-[12px] text-fg-subtle">No matching active customers.</li>
+          )}
+          {matches.map((c) => (
+            <li key={c.id}>
+              <button
+                type="button"
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  onSelect(c);
+                  setText("");
+                  setOpen(false);
+                }}
+                className="block w-full px-3 py-1.5 text-left text-[13px] text-fg hover:bg-inset"
+              >
+                <span className="font-medium">{c.name}</span>
+                {(c.city || c.state) && (
+                  <span className="ml-1.5 text-[11px] text-fg-subtle">
+                    {[c.city, c.state].filter(Boolean).join(", ")}
+                  </span>
+                )}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/** The small green confirmation under a CustomerPicker once it's filled a
+ * block — disappears once every field it filled has been hand-edited away
+ * (see untrack in the parent), so it never lies about what's still true. */
+function AutoFillNote({ autoFill, target }: { autoFill: AutoFill; target: string }) {
+  if (!autoFill) return null;
+  return (
+    <p className="text-[12px] font-medium text-ok">
+      ✓ {target} auto-filled from {autoFill.source} — every field stays editable.
+    </p>
+  );
+}
+
 function TextInput({
   label,
   value,
   onChange,
   type = "text",
+  highlight,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   type?: string;
+  /** True while this field still holds its untouched value from a customer
+   * auto-fill — swaps the border/ring to ok-green and tags the label. */
+  highlight?: boolean;
 }) {
+  const controlClass = highlight ? CONTROL.replace("border-fg-subtle", "border-ok") : CONTROL;
   return (
     <label className="flex w-full min-w-0 flex-col gap-1 bol-form-field">
-      <span className={LABEL}>{label}</span>
+      <span className={LABEL}>
+        {label}
+        {highlight && (
+          <span className="ml-1.5 text-[10px] font-semibold normal-case tracking-normal text-ok">
+            auto-filled
+          </span>
+        )}
+      </span>
       <input
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className={`h-9 w-full min-w-0 text-[13px] ${CONTROL}`}
+        className={`h-9 w-full min-w-0 text-[13px] ${highlight ? "ring-1 ring-ok/30" : ""} ${controlClass}`}
       />
     </label>
   );
