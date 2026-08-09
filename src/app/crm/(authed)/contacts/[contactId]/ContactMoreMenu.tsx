@@ -18,13 +18,15 @@ export function ContactMoreMenu({
   contactId,
   contactName,
   accountId,
-  contactOptions,
   canDelete,
 }: {
   contactId: string;
   contactName: string;
   accountId: string | null;
-  contactOptions: TaskContactOption[];
+  // Accepted for caller compatibility (the contact profile page, out of this
+  // task's scope) but no longer used — LogCallDialog now self-fetches
+  // everything it needs to cross-autofill.
+  contactOptions?: TaskContactOption[];
   canDelete: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -110,8 +112,7 @@ export function ContactMoreMenu({
       {accountId && (
         <LogCallDialog
           accountId={accountId}
-          contacts={contactOptions}
-          defaultContactId={contactId}
+          contactId={contactId}
           trigger={(openDialog) => {
             openLogCallRef.current = openDialog;
             return null;

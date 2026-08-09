@@ -22,11 +22,11 @@ import { FollowupFields } from "./FollowupFields";
 type FieldState = { text: string; id: string | null; autofilled: boolean };
 type PhoneState = { text: string; autofilled: boolean };
 
-type PendingConfirm =
+type ConfirmStep =
   | { kind: "duplicate"; field: "contact"; match: DirectoryContact }
   | { kind: "duplicate"; field: "company"; match: DirectoryAccount }
-  | { kind: "create"; lines: string[] }
-  | null;
+  | { kind: "create"; lines: string[] };
+type PendingConfirm = ConfirmStep | null;
 
 type PhoneHit = { number: string; label: string; contact?: DirectoryContact; account?: DirectoryAccount };
 
@@ -236,7 +236,7 @@ export function LogCallDialog({
     if (hit) applyPhoneHit(hit);
   }
 
-  function computeNextStep(): PendingConfirm | "ready" {
+  function computeNextStep(): ConfirmStep | "ready" {
     if (!directory) return "ready";
     const contactWillCreate = !contact.id && contact.text.trim().length > 0;
     const companyWillCreate = !company.id && company.text.trim().length > 0;

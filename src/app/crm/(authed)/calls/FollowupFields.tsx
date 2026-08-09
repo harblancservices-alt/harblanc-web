@@ -29,9 +29,9 @@ const TIME_OPTIONS: { value: string; label: string }[] = (() => {
 /**
  * The follow-up reminder's date + time controls — OPTIONAL and independent
  * of each other (a rep can flag follow-up required without pinning an exact
- * moment, set just a date, or just a time). Shared by LogCallDialog and
- * QuickLogCallDialog, both of which post `reminder_date`/`reminder_time` to
- * the same logCall action; it only forms a real reminder_at timestamp when
+ * moment, set just a date, or just a time). Used by LogCallDialog, which
+ * posts `reminder_date`/`reminder_time` to the logCall action; it only
+ * forms a real reminder_at timestamp when
  * BOTH are present (see calls/actions.ts). The time picker is a friendly
  * 12-hour AM/PM dropdown plus four quick-tap presets, not the native time
  * spinner reps found confusing.

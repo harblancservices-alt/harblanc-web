@@ -324,8 +324,7 @@ export function ContactsMasterDetail({
                 ) : null}
                 <LogCallDialog
                   accountId={accountId}
-                  contacts={contactOptions}
-                  defaultContactId={selected.id}
+                  contactId={selected.id}
                   trigger={(open) => (
                     <button type="button" onClick={open} className={`inline-flex h-10 items-center rounded-lg px-3 text-[12.5px] font-semibold transition-colors ${BTN_NEUTRAL}`}>
                       Log call

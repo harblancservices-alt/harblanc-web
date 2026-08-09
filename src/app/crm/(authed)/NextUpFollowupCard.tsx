@@ -82,8 +82,8 @@ export function NextUpFollowupCard({ contact }: { contact: CallListContact }) {
           {contact.account_id && (
             <LogCallDialog
               accountId={contact.account_id}
-              contacts={[{ id: contact.id, name: contact.name }]}
-              defaultContactId={contact.id}
+              contactId={contact.id}
+              phone={contact.phone}
               trigger={(open) => (
                 <button
                   type="button"

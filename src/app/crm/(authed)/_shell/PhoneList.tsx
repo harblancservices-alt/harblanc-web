@@ -8,15 +8,17 @@ import { formatPhone } from "@/lib/domain/phone";
 /**
  * Read-only display of a labeled phone-number list — tap-to-call (tel:) plus
  * a "Log call" action per row. Used for both the company's own numbers
- * (no contact attached) and a contact's numbers (defaultContactId set so the
- * log lands against that contact). A client component because it opens
- * LogCallDialog, which needs a render-prop trigger.
+ * (no contact attached) and a contact's numbers (contactId hint set so the
+ * log opens pre-linked to that contact, with that row's own number as the
+ * phone hint). A client component because it opens LogCallDialog, which
+ * needs a render-prop trigger. `contactName` is accepted for caller
+ * compatibility but no longer needed — LogCallDialog now resolves the
+ * contact's name itself from the id.
  */
 export function PhoneList({
   accountId,
   phones,
   contactId,
-  contactName,
   emptyText,
 }: {
   accountId: string;
@@ -28,8 +30,6 @@ export function PhoneList({
   if (!phones.length) {
     return emptyText ? <p className="text-[13px] text-fg-subtle">{emptyText}</p> : null;
   }
-
-  const callContacts = contactId && contactName ? [{ id: contactId, name: contactName }] : [];
 
   return (
     <ul className="flex flex-col gap-2">
@@ -53,8 +53,8 @@ export function PhoneList({
           </div>
           <LogCallDialog
             accountId={accountId}
-            contacts={callContacts}
-            defaultContactId={contactId ?? undefined}
+            contactId={contactId}
+            phone={p.number}
             trigger={(open) => (
               <button
                 type="button"

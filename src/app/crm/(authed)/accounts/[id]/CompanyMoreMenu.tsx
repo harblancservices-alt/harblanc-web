@@ -20,12 +20,14 @@ import type { TaskContactOption } from "../../tasks/TaskDialog";
 export function CompanyMoreMenu({
   accountId,
   accountName,
-  contacts,
   canDelete,
 }: {
   accountId: string;
   accountName: string;
-  contacts: TaskContactOption[];
+  // Accepted for caller compatibility (page.tsx, out of this task's scope,
+  // still passes the company's contact roster) but no longer used —
+  // LogCallDialog now self-fetches everything it needs to cross-autofill.
+  contacts?: TaskContactOption[];
   canDelete: boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -102,7 +104,6 @@ export function CompanyMoreMenu({
 
       <LogCallDialog
         accountId={accountId}
-        contacts={contacts}
         trigger={(openDialog) => {
           openLogCallRef.current = openDialog;
           return null;

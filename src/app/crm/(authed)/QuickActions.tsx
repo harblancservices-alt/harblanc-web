@@ -5,7 +5,7 @@ import { AddContactDialog } from "./contacts/AddContactDialog";
 import type { CompanyOption } from "./contacts/CompanyCombobox";
 import { TaskDialog, type TaskAccountOption, type TaskContactOption } from "./tasks/TaskDialog";
 import { CompanyDialog, type RepOption } from "./accounts/CompanyDialog";
-import { QuickLogCallDialog, type QuickCallContactOption } from "./calls/QuickLogCallDialog";
+import { LogCallDialog } from "./calls/LogCallDialog";
 import { BTN_PRIMARY } from "./_shell/ui";
 
 /**
@@ -72,17 +72,26 @@ export function HeaderAddCompanyButton({ reps }: { reps: RepOption[] }) {
   );
 }
 
+/** A company's id/name — {@link CompanyOption} shape, kept as its own name
+ * here for callers of this file's exported type. */
+export type QuickCallContactOption = { id: string; name: string; accountId?: string | null };
+
+/**
+ * The dashboard's "Log call" tile — no fixed company/contact context.
+ * `accounts`/`contacts` are accepted for caller compatibility (page.tsx
+ * still passes the org roster down) but no longer needed: LogCallDialog now
+ * self-fetches everything it needs for its own linked contact/company/phone
+ * comboboxes and cross-autofill.
+ */
 export function QuickLogCallButton({
-  accounts,
-  contacts,
+  accounts: _accounts,
+  contacts: _contacts,
 }: {
-  accounts: CompanyOption[];
-  contacts: QuickCallContactOption[];
+  accounts?: CompanyOption[];
+  contacts?: QuickCallContactOption[];
 }) {
   return (
-    <QuickLogCallDialog
-      accounts={accounts}
-      contacts={contacts}
+    <LogCallDialog
       trigger={(open) => (
         <button type="button" onClick={open} className={BUTTON_CLASS}>
           <IconPhone width={18} height={18} />

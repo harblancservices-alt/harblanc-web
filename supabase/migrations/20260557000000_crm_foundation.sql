@@ -346,6 +346,12 @@ create index if not exists crm_calls_reminder_idx on public.crm_calls (org_id, r
 -- crm_calls already exists.
 alter table public.crm_calls add column if not exists deleted_at timestamptz;
 
+-- Same drift-reconciliation pattern as deleted_at above: phone was added
+-- directly to prod (nullable text) for the rebuilt Log Call dialog's
+-- phone-only/unlinked-call path — a call with no resolvable contact/company
+-- still stores the raw dialed number here instead of being dropped.
+alter table public.crm_calls add column if not exists phone text;
+
 alter table public.crm_calls enable row level security;
 
 drop trigger if exists crm_calls_set_updated_at on public.crm_calls;
