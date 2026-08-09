@@ -2,11 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
+import { UPGRADE_STATUSES, type UpgradeStatus } from "./status";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
-
-export const UPGRADE_STATUSES = ["new", "in_review", "done"] as const;
-export type UpgradeStatus = (typeof UPGRADE_STATUSES)[number];
 
 /**
  * Post a new Upgrades request (crm_upgrade_requests). Any active CRM member
@@ -38,7 +36,11 @@ export async function createUpgradeRequest(input: {
     .single();
 
   if (error || !data) {
-    return { ok: false, error: "Could not post the request. Please try again." };
+    console.error("createUpgradeRequest failed:", error);
+    return {
+      ok: false,
+      error: error ? `Could not post the request: ${error.message}` : "Could not post the request.",
+    };
   }
 
   revalidatePath("/crm/upgrades");
@@ -76,7 +78,8 @@ export async function addUpgradeAttachment(
   });
 
   if (error) {
-    return { ok: false, error: "Could not attach the screenshot. Please try again." };
+    console.error("addUpgradeAttachment failed:", error);
+    return { ok: false, error: `Could not attach the screenshot: ${error.message}` };
   }
 
   revalidatePath("/crm/upgrades");
@@ -108,7 +111,8 @@ export async function updateUpgradeStatus(
     .eq("id", requestId);
 
   if (error) {
-    return { ok: false, error: "Could not update the status. Please try again." };
+    console.error("updateUpgradeStatus failed:", error);
+    return { ok: false, error: `Could not update the status: ${error.message}` };
   }
 
   revalidatePath("/crm/upgrades");

@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { formatDateTime } from "../_shell/format";
-import { updateUpgradeStatus, type UpgradeStatus } from "./actions";
+import { updateUpgradeStatus } from "./actions";
+import { type UpgradeStatus } from "./status";
 
 export type CrmUpgradeAttachment = {
   id: string;
