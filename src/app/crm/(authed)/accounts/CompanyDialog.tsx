@@ -38,10 +38,10 @@ export type CompanyDefaults = {
   assigned_user_id?: string | null;
 };
 
-/** Freight-fit classification — the header's second badge alongside industry.
- * A plain text column with no DB check constraint, same reasoning as
- * lifecycle's "quoted" stage (see lifecycle.ts). */
-export const COMPANY_TYPES = ["Shipper", "Carrier", "Prospect", "Vendor", "Partner", "Other"] as const;
+/** Freight-fit classification. A plain text column with no DB check
+ * constraint, same reasoning as lifecycle's "quoted" stage (see
+ * lifecycle.ts). No "Carrier" — Brent's correction, that's not a thing here. */
+export const COMPANY_TYPES = ["Shipper", "Customer", "Prospect", "Vendor", "Partner", "Other"] as const;
 
 export type RepOption = { id: string; label: string };
 

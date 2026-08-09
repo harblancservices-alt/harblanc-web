@@ -34,13 +34,11 @@ function Lanes({ lanes }: { lanes: LaneEntry[] }) {
 }
 
 /**
- * Details tab — "Freight profile" group. Commodities live in the profile's
- * Call angle section; volume/frequency and weight range moved to Company
- * scale (see CompanyScaleSection.tsx) — this covers what's still uncaptured
- * there: equipment, lanes, special requirements. Still fetches (and the edit
- * dialog still edits) volume_frequency/weight_range alongside these, so
- * there's exactly one place to save the whole freight profile at once; this
- * view just doesn't repeat the two facts Company scale already shows.
+ * "Freight profile" group — equipment, lanes, volume/frequency, weight
+ * range, special requirements. Commodities live on the main Company Details
+ * card instead (what they ship, alongside the firmographic facts); this
+ * covers the deeper freight fields the reference layout doesn't call out by
+ * name but which are real, editable data that must still display somewhere.
  * Self-contained fetch, same reasoning as CompanyProfileSection.
  */
 export async function FreightProfileSection({ accountId }: { accountId: string }) {
@@ -57,7 +55,8 @@ export async function FreightProfileSection({ accountId }: { accountId: string }
   const weightRange = (data?.weight_range as string | null) ?? null;
   const specialRequirements = ((data?.special_requirements as string[] | null) ?? []).filter(Boolean);
   const confirmed = (data?.ai_confirmed_fields as Record<string, unknown> | null) ?? {};
-  const isEmpty = !equipmentNeeded.length && !lanes.length && !specialRequirements.length;
+  const isEmpty =
+    !equipmentNeeded.length && !lanes.length && !volumeFrequency && !weightRange && !specialRequirements.length;
   const dialog = (
     <FreightProfileDialog
       accountId={accountId}
@@ -76,7 +75,7 @@ export async function FreightProfileSection({ accountId }: { accountId: string }
       <CardHead title="Freight profile" right={isEmpty ? undefined : dialog} />
       {isEmpty ? (
         <div className="flex items-center justify-between gap-3 px-5 py-5">
-          <p className="text-[13px] text-fg-muted">No freight profile on file yet — equipment, lanes, requirements.</p>
+          <p className="text-[13px] text-fg-muted">No freight profile on file yet — equipment, lanes, volume.</p>
           {dialog}
         </div>
       ) : (
@@ -87,6 +86,8 @@ export async function FreightProfileSection({ accountId }: { accountId: string }
             fromAi={!!confirmed.equipment_needed}
           />
           <DetailFact label="Typical lanes" value={<Lanes lanes={lanes} />} fromAi={!!confirmed.lanes} />
+          <DetailFact label="Volume & frequency" value={volumeFrequency} fromAi={!!confirmed.volume_frequency} />
+          <DetailFact label="Weight range" value={weightRange} fromAi={!!confirmed.weight_range} />
           <DetailFact
             label="Special requirements"
             value={<Chips values={specialRequirements} />}
