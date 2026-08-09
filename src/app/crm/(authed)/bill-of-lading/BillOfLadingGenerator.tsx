@@ -3,8 +3,16 @@
 import { useRef, useState, type ReactNode } from "react";
 import { CONTROL, LABEL } from "../_shell/form";
 import { BROKER_PROFILE } from "../_shell/brokerProfile";
-import { REPS, repFullName } from "../_shell/reps";
 import "./bill-of-lading.css";
+
+export type OrgUser = {
+  id: string;
+  name: string;
+  email: string;
+  /** Always "" today — crm_profiles has no phone column. Stays editable
+   * client-side either way (see BillOfLadingPage's fetch comment). */
+  phone: string;
+};
 
 type ChargeTerms = "prepaid" | "collect" | "third_party" | "";
 type SigParty = "shipper" | "driver" | "";
@@ -165,7 +173,7 @@ function numeric(value: string): number {
  * rate-confirmation.css — the left form and app shell never appear in the
  * printed/PDF output.
  */
-export function BillOfLadingGenerator() {
+export function BillOfLadingGenerator({ orgUsers }: { orgUsers: OrgUser[] }) {
   const idCounter = useRef(0);
 
   function nextId() {
@@ -182,11 +190,11 @@ export function BillOfLadingGenerator() {
   }
 
   function selectRep(repId: string) {
-    const rep = REPS.find((r) => r.id === repId);
+    const rep = orgUsers.find((u) => u.id === repId);
     setState((prev) => ({
       ...prev,
       repId,
-      brokerContact: rep ? repFullName(rep) : "",
+      brokerContact: rep ? rep.name : "",
       brokerPhone: rep ? rep.phone : "",
       brokerEmail: rep ? rep.email : "",
     }));
@@ -229,6 +237,7 @@ export function BillOfLadingGenerator() {
         <BolForm
           state={state}
           set={set}
+          orgUsers={orgUsers}
           selectRep={selectRep}
           updateLineItem={updateLineItem}
           addLineItem={addLineItem}
@@ -259,6 +268,7 @@ export function BillOfLadingGenerator() {
 function BolForm({
   state,
   set,
+  orgUsers,
   selectRep,
   updateLineItem,
   addLineItem,
@@ -266,6 +276,7 @@ function BolForm({
 }: {
   state: BolState;
   set: <K extends keyof BolState>(key: K, value: BolState[K]) => void;
+  orgUsers: OrgUser[];
   selectRep: (repId: string) => void;
   updateLineItem: (id: string, patch: Partial<LineItem>) => void;
   addLineItem: () => void;
@@ -280,17 +291,17 @@ function BolForm({
         </FormRow>
         <TextInput label="Load / Ref #" value={state.loadRef} onChange={(v) => set("loadRef", v)} />
         <SelectInput
-          label="Broker Rep"
+          label="Assign Broker Contact"
           value={state.repId}
           onChange={selectRep}
           options={[
             { value: "", label: "— Select —" },
-            ...REPS.map((r) => ({ value: r.id, label: repFullName(r) })),
+            ...orgUsers.map((u) => ({ value: u.id, label: u.name })),
           ]}
         />
         <FormRow>
           <TextInput
-            label="Broker Contact"
+            label="Broker Contact Name"
             value={state.brokerContact}
             onChange={(v) => set("brokerContact", v)}
           />
