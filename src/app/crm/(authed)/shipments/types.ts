@@ -503,3 +503,78 @@ export type BolLineItemInput = {
   hazmat: boolean;
   sortOrder?: number;
 };
+
+// ── Document lifecycle (PDF generation, versions, signatures) ──────────────
+
+/** Which document family a version/signature row belongs to — matches
+ * crm_document_versions.doc_type / crm_signatures.doc_type (text columns,
+ * doc_id points at crm_rate_confirmations.id or crm_bills_of_lading.id). */
+export type CrmDocType = "rate_confirmation" | "bill_of_lading";
+
+export type CrmDocumentVersionRow = {
+  id: string;
+  org_id: string;
+  doc_type: string;
+  doc_id: string;
+  version: number;
+  storage_path: string | null;
+  snapshot: Record<string, unknown> | null;
+  created_by: string | null;
+  created_at: string;
+};
+
+export type CrmDocumentVersion = {
+  id: string;
+  docType: CrmDocType;
+  docId: string;
+  version: number;
+  storagePath: string | null;
+  createdBy: string | null;
+  createdAt: string;
+};
+
+export type CrmSignatureRow = {
+  id: string;
+  org_id: string;
+  doc_type: string;
+  doc_id: string;
+  role: string;
+  signer_name: string | null;
+  image_path: string | null;
+  placement: Record<string, unknown> | null;
+  signed_at: string;
+  created_at: string;
+};
+
+/** Where + how big to stamp a captured signature onto the doc's current PDF
+ * — same coordinate contract as SignaturePlacement in lib/pdf/signDoc.ts
+ * (PDF user-space, bottom-left origin, caller has already converted from
+ * screen/viewport space). */
+export type SignaturePlacementInput = {
+  pageIndex: number;
+  cx: number;
+  cy: number;
+  rotationDeg: number;
+  widthPts: number;
+};
+
+/** One row in a shipment's document history — an RC or a BOL, whichever
+ * fields apply to that type left null (e.g. a BOL has no acceptedAt/
+ * carrierPay, an RC has no signedAt). */
+export type ShipmentDocumentSummary = {
+  id: string;
+  docType: CrmDocType;
+  number: string;
+  status: string;
+  version: number;
+  supersededBy: string | null;
+  carrierName: string | null;
+  totalCarrierPay: number | null;
+  pdfDocumentId: string | null;
+  pdfStoragePath: string | null;
+  sentAt: string | null;
+  acceptedAt: string | null;
+  signedAt: string | null;
+  completedAt: string | null;
+  createdAt: string;
+};

@@ -4,6 +4,11 @@ import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { logActivity, CRM_ACTIVITY } from "@/lib/crm/activity";
+import { formatDate } from "../_shell/format";
+import { getBrokerProfile } from "../_shell/brokerProfile";
+import { renderCrmRateConfirmationPdfBuffer } from "@/lib/pdf/renderCrmRateConfirmationPdf";
+import type { CrmRateConfirmationPdfData } from "@/lib/pdf/CrmRateConfirmationPDF";
+import { storeDocumentVersion } from "./document-lifecycle";
 import { mapRateConfirmationRow, mapRateConfirmationLineRow } from "./mappers";
 import type {
   CrmCarrierRow,
@@ -14,6 +19,14 @@ import type {
   RateConfirmationFields,
   RateConfirmationLineInput,
 } from "./types";
+
+/** "city, state zip" — blank pieces drop out cleanly, matching the
+ * cityStateZip() helper the fillable BOL/RC forms use. */
+function cityStateZip(city: string | null, state: string | null, zip: string | null): string | null {
+  const csz = [city, state].filter(Boolean).join(", ");
+  const full = [csz, zip].filter(Boolean).join(" ").trim();
+  return full || null;
+}
 
 /**
  * Rate Confirmation = a document GENERATED FROM a shipment, snapshotting the
@@ -387,4 +400,316 @@ export async function softDeleteRateConfirmation(id: string): Promise<ActionResu
 
   revalidateRc(id, prior.shipment_id as string, (shipment?.account_id as string | null) ?? null);
   return { ok: true };
+}
+
+// ── PDF generation & lifecycle ──────────────────────────────────────────────
+
+export type GenerateDocResult =
+  | { ok: true; pdfDocumentId: string; pdfStoragePath: string; version: number }
+  | { ok: false; error: string };
+
+/**
+ * Render this RC's current fields + lines into a PDF and store it as a new,
+ * immutable version — never overwrites a previously generated file. Builds
+ * the doc_snapshot fresh from the shipment + broker profile + RC + lines
+ * RIGHT NOW (not whatever was snapshotted at draft-creation time), so a
+ * generated PDF always reflects the RC as it stood the moment it was
+ * generated, even if the shipment or carrier changes later. The first
+ * generate call produces version 1 (the column's create-time default); every
+ * call after that increments it.
+ */
+export async function generateRateConfirmation(rcId: string): Promise<GenerateDocResult> {
+  const user = await requireCrmUser();
+  const supabase = await createCrmServerClient();
+
+  const detail = await loadDetail(supabase, rcId);
+  if (!detail) return { ok: false, error: "Rate confirmation not found." };
+
+  const { data: shipmentData } = await supabase
+    .from("crm_shipments")
+    .select("*")
+    .eq("id", detail.shipmentId)
+    .maybeSingle();
+  if (!shipmentData) return { ok: false, error: "Shipment not found." };
+  const shipmentRow = shipmentData as CrmShipmentRow;
+
+  const broker = await getBrokerProfile();
+
+  const pdfData: CrmRateConfirmationPdfData = {
+    rcNumber: detail.rcNumber,
+    issuedDate: formatDate(new Date().toISOString()),
+    broker,
+    shipment: {
+      shipmentNumber: shipmentRow.shipment_number,
+      equipment: shipmentRow.equipment,
+      commodity: shipmentRow.commodity,
+      weight: shipmentRow.weight,
+      pieces: shipmentRow.pieces,
+      poNumber: shipmentRow.po_number,
+      refNumbers: shipmentRow.ref_numbers,
+    },
+    pickup: {
+      name: shipmentRow.shipper_name,
+      address: shipmentRow.shipper_address,
+      cityStateZip: cityStateZip(shipmentRow.shipper_city, shipmentRow.shipper_state, shipmentRow.shipper_zip),
+      contact: shipmentRow.shipper_contact,
+      phone: shipmentRow.shipper_phone,
+      window: shipmentRow.pickup_window,
+      number: shipmentRow.pickup_number,
+      notes: shipmentRow.pickup_notes,
+    },
+    delivery: {
+      name: shipmentRow.consignee_name,
+      address: shipmentRow.consignee_address,
+      cityStateZip: cityStateZip(
+        shipmentRow.consignee_city,
+        shipmentRow.consignee_state,
+        shipmentRow.consignee_zip,
+      ),
+      contact: shipmentRow.consignee_contact,
+      phone: shipmentRow.consignee_phone,
+      window: shipmentRow.delivery_window,
+      number: shipmentRow.delivery_number,
+      notes: shipmentRow.delivery_notes,
+    },
+    carrier: {
+      name: detail.carrierName,
+      mc: detail.carrierMc,
+      dot: detail.carrierDot,
+      contact: detail.carrierContact,
+      phone: detail.carrierPhone,
+      email: detail.carrierEmail,
+    },
+    specialInstructions: shipmentRow.special_instructions,
+    lines: detail.lines.map((l) => ({ label: l.label, amount: l.amount })),
+    totalCarrierPay: detail.totalCarrierPay,
+    paymentTerms: detail.paymentTerms,
+    quickPay: detail.quickPay,
+    notes: detail.notes,
+  };
+
+  let buffer: Buffer;
+  try {
+    buffer = await renderCrmRateConfirmationPdfBuffer(pdfData);
+  } catch {
+    return { ok: false, error: "Could not generate the PDF. Please try again." };
+  }
+
+  const nextVersion = detail.pdfDocumentId ? detail.version + 1 : detail.version;
+  const fileName = `${detail.rcNumber} v${nextVersion}.pdf`;
+
+  const stored = await storeDocumentVersion(supabase, {
+    orgId: user.orgId,
+    userId: user.id,
+    docType: "rate_confirmation",
+    docId: rcId,
+    shipmentId: detail.shipmentId,
+    kind: "rate_con",
+    fileName,
+    storagePathPrefix: `${user.orgId}/rate-con/${detail.shipmentId}`,
+    bytes: buffer,
+    snapshot: { broker, shipment: shipmentRow, rc: pdfData },
+    version: nextVersion,
+    rateConfirmationId: rcId,
+  });
+  if (!stored.ok) return stored;
+
+  const { error: updateError } = await supabase
+    .from("crm_rate_confirmations")
+    .update({
+      pdf_document_id: stored.documentId,
+      pdf_storage_path: stored.storagePath,
+      version: nextVersion,
+      status: "generated",
+      doc_snapshot: { broker, shipment: shipmentRow, rc: pdfData },
+    })
+    .eq("id", rcId);
+  if (updateError) {
+    return { ok: false, error: "PDF generated, but could not update the rate confirmation record." };
+  }
+
+  if (shipmentRow.account_id) {
+    await logActivity(supabase, {
+      orgId: user.orgId,
+      userId: user.id,
+      accountId: shipmentRow.account_id,
+      kind: CRM_ACTIVITY.rateConfirmationGenerated,
+      summary: `Rate confirmation generated: ${detail.rcNumber} (v${nextVersion})`,
+    });
+  }
+
+  revalidateRc(rcId, detail.shipmentId, shipmentRow.account_id);
+  return { ok: true, pdfDocumentId: stored.documentId, pdfStoragePath: stored.storagePath, version: nextVersion };
+}
+
+async function loadRcForLifecycle(
+  supabase: SupabaseClient,
+  id: string,
+): Promise<{ rcNumber: string; shipmentId: string; status: string; accountId: string | null } | null> {
+  const { data: rc } = await supabase
+    .from("crm_rate_confirmations")
+    .select("rc_number, shipment_id, status")
+    .eq("id", id)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (!rc) return null;
+
+  const { data: shipment } = await supabase
+    .from("crm_shipments")
+    .select("account_id")
+    .eq("id", rc.shipment_id as string)
+    .maybeSingle();
+
+  return {
+    rcNumber: rc.rc_number as string,
+    shipmentId: rc.shipment_id as string,
+    status: rc.status as string,
+    accountId: (shipment?.account_id as string | null) ?? null,
+  };
+}
+
+/**
+ * Mark an RC as sent to the carrier. No real carrier-facing email exists in
+ * this codebase yet (the CRM has no outbound send pipeline — src/lib/email
+ * is entirely dispatch/admin-side) — this only records the state transition.
+ * TODO: wire an actual email/SMS send once the CRM gets one.
+ */
+export async function sendRateConfirmation(id: string): Promise<ActionResult> {
+  const user = await requireCrmUser();
+  const supabase = await createCrmServerClient();
+
+  const prior = await loadRcForLifecycle(supabase, id);
+  if (!prior) return { ok: false, error: "Rate confirmation not found." };
+
+  const { error } = await supabase
+    .from("crm_rate_confirmations")
+    .update({ status: "sent", sent_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) return { ok: false, error: "Could not mark the rate confirmation as sent." };
+
+  if (prior.accountId) {
+    await logActivity(supabase, {
+      orgId: user.orgId,
+      userId: user.id,
+      accountId: prior.accountId,
+      kind: CRM_ACTIVITY.rateConfirmationSent,
+      summary: `Rate confirmation sent: ${prior.rcNumber}`,
+    });
+  }
+
+  revalidateRc(id, prior.shipmentId, prior.accountId);
+  return { ok: true };
+}
+
+export async function markRateConfirmationAccepted(id: string): Promise<ActionResult> {
+  const user = await requireCrmUser();
+  const supabase = await createCrmServerClient();
+
+  const prior = await loadRcForLifecycle(supabase, id);
+  if (!prior) return { ok: false, error: "Rate confirmation not found." };
+
+  const { error } = await supabase
+    .from("crm_rate_confirmations")
+    .update({ status: "accepted", accepted_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) return { ok: false, error: "Could not mark the rate confirmation as accepted." };
+
+  if (prior.accountId) {
+    await logActivity(supabase, {
+      orgId: user.orgId,
+      userId: user.id,
+      accountId: prior.accountId,
+      kind: CRM_ACTIVITY.rateConfirmationAccepted,
+      summary: `Rate confirmation accepted: ${prior.rcNumber}`,
+    });
+  }
+
+  revalidateRc(id, prior.shipmentId, prior.accountId);
+  return { ok: true };
+}
+
+export async function markRateConfirmationCompleted(id: string): Promise<ActionResult> {
+  const user = await requireCrmUser();
+  const supabase = await createCrmServerClient();
+
+  const prior = await loadRcForLifecycle(supabase, id);
+  if (!prior) return { ok: false, error: "Rate confirmation not found." };
+
+  const { error } = await supabase
+    .from("crm_rate_confirmations")
+    .update({ status: "completed", completed_at: new Date().toISOString() })
+    .eq("id", id);
+  if (error) return { ok: false, error: "Could not mark the rate confirmation as completed." };
+
+  if (prior.accountId) {
+    await logActivity(supabase, {
+      orgId: user.orgId,
+      userId: user.id,
+      accountId: prior.accountId,
+      kind: CRM_ACTIVITY.rateConfirmationCompleted,
+      summary: `Rate confirmation completed: ${prior.rcNumber}`,
+    });
+  }
+
+  revalidateRc(id, prior.shipmentId, prior.accountId);
+  return { ok: true };
+}
+
+export async function cancelRateConfirmation(id: string): Promise<ActionResult> {
+  const user = await requireCrmUser();
+  const supabase = await createCrmServerClient();
+
+  const prior = await loadRcForLifecycle(supabase, id);
+  if (!prior) return { ok: false, error: "Rate confirmation not found." };
+
+  const { error } = await supabase.from("crm_rate_confirmations").update({ status: "cancelled" }).eq("id", id);
+  if (error) return { ok: false, error: "Could not cancel the rate confirmation." };
+
+  if (prior.accountId) {
+    await logActivity(supabase, {
+      orgId: user.orgId,
+      userId: user.id,
+      accountId: prior.accountId,
+      kind: CRM_ACTIVITY.rateConfirmationCancelled,
+      summary: `Rate confirmation cancelled: ${prior.rcNumber}`,
+    });
+  }
+
+  revalidateRc(id, prior.shipmentId, prior.accountId);
+  return { ok: true };
+}
+
+/**
+ * Create a fresh draft copy of an RC (new rc_number, version 1, status
+ * 'draft' — same mechanics as duplicateRateConfirmation) and mark the
+ * original as superseded by it. The original row, its PDF, and every past
+ * crm_document_versions row it produced are left completely intact — this
+ * is a forward pointer, not a delete or overwrite.
+ */
+export async function supersedeRateConfirmation(id: string): Promise<CreateRcResult> {
+  const user = await requireCrmUser();
+  const supabase = await createCrmServerClient();
+
+  const copy = await duplicateRateConfirmation(id);
+  if (!copy.ok) return copy;
+
+  const { error } = await supabase
+    .from("crm_rate_confirmations")
+    .update({ superseded_by: copy.id })
+    .eq("id", id);
+  if (error) return { ok: false, error: "New rate confirmation created, but could not link it as a replacement." };
+
+  const prior = await loadRcForLifecycle(supabase, id);
+  if (prior?.accountId) {
+    await logActivity(supabase, {
+      orgId: user.orgId,
+      userId: user.id,
+      accountId: prior.accountId,
+      kind: CRM_ACTIVITY.rateConfirmationSuperseded,
+      summary: `Rate confirmation superseded: ${prior.rcNumber} → ${copy.rateConfirmation.rcNumber}`,
+    });
+  }
+
+  revalidateRc(id, copy.rateConfirmation.shipmentId);
+  return copy;
 }

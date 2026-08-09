@@ -46,6 +46,18 @@ export const CRM_ACTIVITY = {
   rateConfirmationDeleted: "rate_confirmation_deleted",
   bolCreated: "bol_created",
   bolDeleted: "bol_deleted",
+  rateConfirmationGenerated: "rate_confirmation_generated",
+  rateConfirmationSent: "rate_confirmation_sent",
+  rateConfirmationAccepted: "rate_confirmation_accepted",
+  rateConfirmationCompleted: "rate_confirmation_completed",
+  rateConfirmationCancelled: "rate_confirmation_cancelled",
+  rateConfirmationSuperseded: "rate_confirmation_superseded",
+  bolGenerated: "bol_generated",
+  bolSent: "bol_sent",
+  bolSigned: "bol_signed",
+  bolCompleted: "bol_completed",
+  bolCancelled: "bol_cancelled",
+  bolSuperseded: "bol_superseded",
 } as const;
 
 export type CrmActivityKind =
