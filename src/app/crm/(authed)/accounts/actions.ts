@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { logActivity, CRM_ACTIVITY } from "@/lib/crm/activity";
 import { normalizeStage, stageLabel, DEFAULT_LIFECYCLE } from "./lifecycle";
-import { firstName, centralInputToIso, titleCaseWords, upperCaseState } from "../_shell/format";
+import { centralInputToIso, titleCaseWords, upperCaseState } from "../_shell/format";
 import { phonesFromFormValue, linksFromFormValue, parsePhones } from "../_shell/contactFields";
 
 /**
@@ -359,48 +359,6 @@ export async function deleteAccount(id: string): Promise<ActionResult> {
     accountId: id,
     kind: CRM_ACTIVITY.accountDeleted,
     summary: `Company deleted: ${prior.name as string}`,
-  });
-
-  revalidateAccount(id);
-  return { ok: true };
-}
-
-/** Assign / change the rep on a company. Empty string clears the assignment. */
-export async function assignRep(
-  id: string,
-  repId: string,
-): Promise<ActionResult> {
-  const user = await requireCrmUser();
-  const supabase = await createCrmServerClient();
-
-  const nextRep = repId.trim().length ? repId.trim() : null;
-
-  const { error } = await supabase
-    .from("crm_accounts")
-    .update({ assigned_user_id: nextRep })
-    .eq("id", id);
-
-  if (error) {
-    return { ok: false, error: "Could not reassign the company. Please try again." };
-  }
-
-  let repName: string | null = null;
-  if (nextRep) {
-    const { data: rep } = await supabase
-      .from("crm_profiles")
-      .select("full_name, email")
-      .eq("id", nextRep)
-      .maybeSingle();
-    repName = firstName(rep?.full_name as string | null, rep?.email as string | null) || null;
-  }
-
-  await logActivity(supabase, {
-    orgId: user.orgId,
-    userId: user.id,
-    accountId: id,
-    kind: CRM_ACTIVITY.repChanged,
-    summary: repName ? `Assigned to ${repName}` : "Rep assignment cleared",
-    meta: { rep_id: nextRep },
   });
 
   revalidateAccount(id);

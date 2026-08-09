@@ -7,10 +7,6 @@ import { IconAiAgent } from "../../_shell/icons";
 import type { LaneEntry } from "../../_shell/LanesEditor";
 import { FreightProfileDialog, type FreightProfileDefaults } from "./FreightProfileDialog";
 import { TagsCard, type CrmTagOption } from "./TagsCard";
-import { RepControl } from "./RepControl";
-import type { RepOption } from "../CompanyDialog";
-
-const ROLE_LABEL: Record<string, string> = { owner: "Admin", member: "Sales rep" };
 
 function SubHead({ title, right }: { title: string; right?: ReactNode }) {
   return (
@@ -81,14 +77,18 @@ export type CompanyFreightData = {
  * LEFT column — "Company Details": the single merged card the profile
  * rebuild (2026-08-09) consolidates the old About / Tags / Company owner
  * (left column) and the old standalone Company Details / Freight profile
- * cards into. Same column width as before, just taller — six subsections,
- * top to bottom: About, Location, Phones, Freight profile, Tags, Sales rep.
- * Rows without data are hidden outright, not shown as "—", matching the
- * pattern the pre-rebuild cards already used. "Company owner" is renamed
- * "Sales rep" here — it was always crm_accounts.assigned_user_id, never a
- * literal ownership concept. The Lifecycle-stage pill that used to live in
- * this card's old right-column incarnation is dropped — the StageTracker
- * directly above this grid is now the one place stage is displayed.
+ * cards into. Same column width as before, just taller — five subsections,
+ * top to bottom: About, Location, Phones, Freight profile, Tags. Rows
+ * without data are hidden outright, not shown as "—", matching the pattern
+ * the pre-rebuild cards already used. The Lifecycle-stage pill that used to
+ * live in this card's old right-column incarnation is dropped — the
+ * StageTracker directly above this grid is now the one place stage is
+ * displayed.
+ *
+ * 2026-08-09 follow-up: Sales rep (was "Company owner" — always
+ * crm_accounts.assigned_user_id, never a literal ownership concept) moved
+ * OUT of this card into a compact chip in the top header bar
+ * (CompanyHeader.tsx) — it's no longer a subsection here at all.
  */
 export function CompanyDetailsCard({
   accountId,
@@ -110,9 +110,6 @@ export function CompanyDetailsCard({
   freight,
   attachedTags,
   orgTags,
-  currentRepId,
-  currentRepRole,
-  reps,
 }: {
   accountId: string;
   name: string;
@@ -133,13 +130,9 @@ export function CompanyDetailsCard({
   freight: CompanyFreightData;
   attachedTags: CrmTagOption[];
   orgTags: CrmTagOption[];
-  currentRepId: string | null;
-  currentRepRole: string | null;
-  reps: RepOption[];
 }) {
   const mcDot = [dotNumber ? `DOT ${dotNumber}` : null, mcNumber ? `MC ${mcNumber}` : null].filter(Boolean).join(" · ");
   const phoneRows: PhoneEntry[] = phones.length ? phones : legacyPhone ? [{ label: "Main", number: legacyPhone }] : [];
-  const currentRepLabel = reps.find((r) => r.id === currentRepId)?.label ?? null;
 
   const freightDialogDefaults: FreightProfileDefaults = {
     equipment_needed: freight.equipmentNeeded,
@@ -266,18 +259,6 @@ export function CompanyDetailsCard({
         {/* Tags */}
         <div className="border-t border-line-strong pt-4">
           <TagsCard accountId={accountId} attached={attachedTags} orgTags={orgTags} />
-        </div>
-
-        {/* Sales rep */}
-        <div className="flex flex-col gap-3 border-t border-line-strong pt-4">
-          <SubHead title="Sales rep" />
-          {currentRepLabel && (
-            <div>
-              <p className="text-[14.5px] font-semibold text-fg">{currentRepLabel}</p>
-              {currentRepRole && <p className="text-[12.5px] text-fg-muted">{ROLE_LABEL[currentRepRole] ?? currentRepRole}</p>}
-            </div>
-          )}
-          <RepControl accountId={accountId} current={currentRepId} reps={reps} />
         </div>
       </div>
     </Card>

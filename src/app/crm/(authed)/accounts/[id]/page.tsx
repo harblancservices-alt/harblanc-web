@@ -404,7 +404,7 @@ export default async function AccountDetailPage({
 
   const currentUser = { id: user.id, label: firstName(user.fullName, user.email) || "You" };
   const currentRepId = account.assigned_user_id as string | null;
-  const currentRepRole = currentRepId ? profileById.get(currentRepId)?.role ?? null : null;
+  const currentRepLabel = reps.find((r) => r.id === currentRepId)?.label ?? null;
 
   return (
     <PageShell>
@@ -417,6 +417,7 @@ export default async function AccountDetailPage({
           contacts={contactOptions}
           editDefaults={editDefaults}
           reps={reps}
+          repLabel={currentRepLabel}
           canDelete={isOwner}
         />
 
@@ -452,9 +453,6 @@ export default async function AccountDetailPage({
             freight={freight}
             attachedTags={attachedTags}
             orgTags={orgTags}
-            currentRepId={currentRepId}
-            currentRepRole={currentRepRole}
-            reps={reps}
           />
 
           <div className="flex flex-col gap-4">
