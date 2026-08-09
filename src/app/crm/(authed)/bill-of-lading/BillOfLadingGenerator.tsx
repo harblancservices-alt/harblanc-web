@@ -7,6 +7,10 @@ import type { OrgUser } from "../_shell/orgUsers";
 import type { CustomerOption } from "../_shell/customerDirectory";
 import "./bill-of-lading.css";
 
+function brokerAddressLine(profile: BrokerProfile): string {
+  return [profile.address, profile.phone].filter(Boolean).join(" · ");
+}
+
 type ChargeTerms = "prepaid" | "collect" | "third_party" | "";
 type SigParty = "shipper" | "driver" | "";
 type FreightCountedBy = "shipper" | "driver" | "pallets" | "";
@@ -948,7 +952,9 @@ function BolDocument({
       <header className="bol-header">
         <div>
           <p className="bol-wordmark">{brokerProfile.name.toUpperCase()}</p>
-          {brokerProfile.address && <p className="bol-broker-line">{brokerProfile.address}</p>}
+          {brokerAddressLine(brokerProfile) && (
+            <p className="bol-broker-line">{brokerAddressLine(brokerProfile)}</p>
+          )}
           <p className="bol-broker-line">
             <Blank value={state.brokerContact} width={110} noLine /> &nbsp;·&nbsp;{" "}
             <Blank value={state.brokerPhone} width={100} noLine />

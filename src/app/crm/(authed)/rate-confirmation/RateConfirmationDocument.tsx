@@ -5,6 +5,10 @@ import type { BrokerProfile } from "../_shell/brokerProfile";
 import type { OrgUser } from "../_shell/orgUsers";
 import "./rate-confirmation.css";
 
+function brokerAddressLine(profile: BrokerProfile): string {
+  return [profile.address, profile.phone].filter(Boolean).join(" · ");
+}
+
 /**
  * Fillable, print-to-PDF Hello Hotshot carrier Rate Confirmation. Almost
  * every field is an uncontrolled <input>/<textarea> the user types into
@@ -64,7 +68,9 @@ export function RateConfirmationDocument({
           <header className="rc-header">
             <div>
               <p className="rc-wordmark">{brokerProfile.name.toUpperCase()}</p>
-              {brokerProfile.address && <p className="rc-broker-line">{brokerProfile.address}</p>}
+              {brokerAddressLine(brokerProfile) && (
+                <p className="rc-broker-line">{brokerAddressLine(brokerProfile)}</p>
+              )}
               <p className="rc-broker-line">{brokerContact || "[Broker Contact Name]"}</p>
               <p className="rc-broker-line">
                 {brokerPhone || "[Broker Phone]"} &nbsp;·&nbsp; {brokerEmail || "[Broker Email]"}

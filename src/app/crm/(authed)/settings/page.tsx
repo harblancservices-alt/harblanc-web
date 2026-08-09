@@ -108,6 +108,8 @@ export default async function SettingsPage() {
           <Row label="MC #" value={brokerProfile.mc || "—"} />
           <Row label="DOT #" value={brokerProfile.dot || "—"} />
           <Row label="Address" value={brokerProfile.address || "—"} />
+          <Row label="Phone" value={brokerProfile.phone || "—"} />
+          <Row label="Email" value={brokerProfile.email || "—"} />
         </dl>
       </Card>
 

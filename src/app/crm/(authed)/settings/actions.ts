@@ -69,6 +69,8 @@ export async function updateBrokerProfile(formData: FormData): Promise<ActionRes
   const mcNumber = str(formData, "mc_number");
   const dotNumber = str(formData, "dot_number");
   const address = str(formData, "address");
+  const phone = str(formData, "phone");
+  const email = str(formData, "email");
 
   const supabase = await createCrmServerClient();
   const { error } = await supabase.from("crm_broker_profile").upsert(
@@ -78,6 +80,8 @@ export async function updateBrokerProfile(formData: FormData): Promise<ActionRes
       mc_number: mcNumber || null,
       dot_number: dotNumber || null,
       address: address || null,
+      phone: phone || null,
+      email: email || null,
     },
     { onConflict: "org_id" },
   );

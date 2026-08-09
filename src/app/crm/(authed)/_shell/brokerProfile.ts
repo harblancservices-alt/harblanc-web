@@ -7,9 +7,11 @@ export type BrokerProfile = {
   /** Mailing address for the broker letterhead. Blank until Settings has one
    * on file — callers must render nothing (not a placeholder) when blank. */
   address: string;
+  phone: string;
+  email: string;
 };
 
-const EMPTY_PROFILE: BrokerProfile = { name: "", mc: "", dot: "", address: "" };
+const EMPTY_PROFILE: BrokerProfile = { name: "", mc: "", dot: "", address: "", phone: "", email: "" };
 
 /**
  * Hello Hotshot's broker letterhead info — permanent, org-wide identity that
@@ -26,7 +28,7 @@ export async function getBrokerProfile(): Promise<BrokerProfile> {
 
   const { data } = await supabase
     .from("crm_broker_profile")
-    .select("company_name, mc_number, dot_number, address")
+    .select("company_name, mc_number, dot_number, address, phone, email")
     .eq("org_id", user.orgId)
     .maybeSingle();
 
@@ -37,5 +39,7 @@ export async function getBrokerProfile(): Promise<BrokerProfile> {
     mc: data.mc_number || "",
     dot: data.dot_number || "",
     address: data.address || "",
+    phone: data.phone || "",
+    email: data.email || "",
   };
 }

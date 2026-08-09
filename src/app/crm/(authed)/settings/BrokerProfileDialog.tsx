@@ -68,6 +68,10 @@ export function BrokerProfileDialog({
             <Field label="DOT #" name="dot_number" defaultValue={profile.dot} />
           </div>
           <Field label="Address" name="address" defaultValue={profile.address} />
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Phone" name="phone" defaultValue={profile.phone} />
+            <Field label="Email" name="email" defaultValue={profile.email} />
+          </div>
 
           <SubmitButton pending={pending}>Save changes</SubmitButton>
         </form>
