@@ -39,6 +39,13 @@ export const CRM_ACTIVITY = {
   accountDeleted: "account_deleted",
   contactDeleted: "contact_deleted",
   dealDeleted: "deal_deleted",
+  shipmentCreated: "shipment_created",
+  shipmentStatusChanged: "shipment_status_changed",
+  shipmentDeleted: "shipment_deleted",
+  rateConfirmationCreated: "rate_confirmation_created",
+  rateConfirmationDeleted: "rate_confirmation_deleted",
+  bolCreated: "bol_created",
+  bolDeleted: "bol_deleted",
 } as const;
 
 export type CrmActivityKind =
