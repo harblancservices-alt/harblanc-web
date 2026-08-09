@@ -10,8 +10,8 @@ import { centralInputToIso } from "../_shell/format";
  * Task writes. Same contract as every CRM mutation: resolve the caller with
  * requireCrmUser(), run through the RLS-scoped client, stamp org_id from the
  * SESSION, and log an append-only activity for the events the timeline cares
- * about (a task created on a company, and a task completed). Every mutation
- * revalidates the dashboard and the global Tasks page so both stay live.
+ * about (a task created, completed, or reopened). Every mutation revalidates
+ * the dashboard and the global Tasks page so both stay live.
  */
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -149,9 +149,12 @@ export async function updateTask(
 
 /**
  * Mark a task complete: set status + completed_at and log a task_completed
- * activity. Reads the task first (RLS-scoped) so a completion works from
- * anywhere (the global list or a company profile) without the caller passing
- * the title or account back in.
+ * activity — linked to both the task's company AND its contact (whichever
+ * are set; a contact-only task with no account still gets logged, it just
+ * won't show on a company timeline that doesn't exist). Reads the task first
+ * (RLS-scoped) so a completion works from anywhere (the global list, the
+ * dashboard queue, or a company profile) without the caller passing the
+ * title/account/contact back in.
  */
 export async function completeTask(taskId: string): Promise<ActionResult> {
   const user = await requireCrmUser();
@@ -159,7 +162,7 @@ export async function completeTask(taskId: string): Promise<ActionResult> {
 
   const { data: task } = await supabase
     .from("crm_tasks")
-    .select("title, account_id, status")
+    .select("title, account_id, contact_id, status")
     .eq("id", taskId)
     .maybeSingle();
 
@@ -173,11 +176,13 @@ export async function completeTask(taskId: string): Promise<ActionResult> {
   }
 
   const accountId = (task?.account_id as string | null) ?? null;
-  if (accountId) {
+  const contactId = (task?.contact_id as string | null) ?? null;
+  if (accountId || contactId) {
     await logActivity(supabase, {
       orgId: user.orgId,
       userId: user.id,
       accountId,
+      contactId,
       kind: CRM_ACTIVITY.taskCompleted,
       summary: `Task completed: ${(task?.title as string) ?? "Task"}`,
     });
@@ -187,14 +192,18 @@ export async function completeTask(taskId: string): Promise<ActionResult> {
   return { ok: true };
 }
 
-/** Reopen a completed task (clears completed_at). No activity is logged. */
+/**
+ * Reopen a completed task (clears completed_at) and log a task_reopened
+ * activity — same company/contact linkage as completeTask, so the timeline
+ * reads symmetrically ("Task completed: X" then later "Task reopened: X").
+ */
 export async function reopenTask(taskId: string): Promise<ActionResult> {
-  await requireCrmUser();
+  const user = await requireCrmUser();
   const supabase = await createCrmServerClient();
 
   const { data: task } = await supabase
     .from("crm_tasks")
-    .select("account_id")
+    .select("title, account_id, contact_id")
     .eq("id", taskId)
     .maybeSingle();
 
@@ -205,7 +214,20 @@ export async function reopenTask(taskId: string): Promise<ActionResult> {
 
   if (error) return { ok: false, error: "Could not reopen the task." };
 
-  revalidate((task?.account_id as string | null) ?? null);
+  const accountId = (task?.account_id as string | null) ?? null;
+  const contactId = (task?.contact_id as string | null) ?? null;
+  if (accountId || contactId) {
+    await logActivity(supabase, {
+      orgId: user.orgId,
+      userId: user.id,
+      accountId,
+      contactId,
+      kind: CRM_ACTIVITY.taskReopened,
+      summary: `Task reopened: ${(task?.title as string) ?? "Task"}`,
+    });
+  }
+
+  revalidate(accountId);
   return { ok: true };
 }
 

@@ -22,6 +22,7 @@ export const CRM_ACTIVITY = {
   call: "call",
   taskCreated: "task_created",
   taskCompleted: "task_completed",
+  taskReopened: "task_reopened",
   dealCreated: "deal_created",
   dealStageChanged: "deal_stage_changed",
   aiLeadReleased: "ai_lead_released",
