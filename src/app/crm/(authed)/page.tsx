@@ -90,9 +90,9 @@ function centralHour(date: Date): number {
  * The CRM dashboard — rebuilt around Brent's approved mockup: NO KPI stat
  * cards. Order top to bottom: header (greeting + due count + search + Add),
  * a button cockpit (the primary quick actions, replacing the KPI row),
- * Needs attention (companies gone quiet), What's next (today's due tasks +
- * follow-ups, merged into one queue), Pipeline (clickable stage tiles,
- * filter-linked into the Companies list), and Recent activity (org-wide
+ * Pipeline (a compact clickable stage pill row, no card chrome), Needs
+ * attention (companies gone quiet), What's next (today's due tasks +
+ * follow-ups, merged into one queue), and Recent activity (org-wide
  * calls/notes/timeline events) at the very bottom. Everything RLS-scoped to
  * the caller's org; force-dynamic keeps it live.
  */
@@ -521,6 +521,9 @@ export default async function CrmDashboardPage() {
         <QuickAddContactButton companies={companyOptions} />
       </div>
 
+      {/* Pipeline — compact clickable stage pill row, no card chrome. */}
+      <PipelineSection counts={pipelineCounts} />
+
       {/* Needs attention — companies gone quiet. Collapsible, closed by
           default; rings/pulses on a slow cycle while collapsed and there's
           something waiting. */}
@@ -541,9 +544,6 @@ export default async function CrmDashboardPage() {
           </ul>
         )}
       </Card>
-
-      {/* Pipeline — company count per lifecycle stage. */}
-      <PipelineSection counts={pipelineCounts} />
 
       {/* Recent activity — latest calls/notes/timeline events, org-wide. */}
       <RecentActivityCard items={recentActivityItems} />
