@@ -1,26 +1,35 @@
-import Link from "next/link";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { PageShell, Card, CardHead, ZEBRA_ROWS } from "./_shell/ui";
-import { DueBell } from "./DueBell";
 import {
   formatDate,
   timestampMs,
   firstName as profileFirstName,
   centralDayRange,
   titleCaseWords,
-  upperCaseState,
 } from "./_shell/format";
 import { parsePhones } from "./_shell/contactFields";
 import { TaskRow, type CrmTaskItem } from "./tasks/TaskRow";
-import { ActivityTimeline, type CrmActivity } from "./accounts/[id]/ActivityTimeline";
 import type { RepOption } from "./accounts/CompanyDialog";
-import { QuickAddContactButton, QuickLogCallButton, QuickAddTaskButton } from "./QuickActions";
-import { CallListRow, type CallListContact } from "./CallListRow";
-import { NewLeadRow, type NewLead } from "./NewLeadRow";
+import {
+  QuickAddContactButton,
+  QuickAddCompanyButton,
+  QuickLogCallButton,
+  QuickAddTaskButton,
+  HeaderAddCompanyButton,
+} from "./QuickActions";
+import { DashboardSearch, type SearchContactOption } from "./DashboardSearch";
+import { NextUpFollowupCard, type CallListContact } from "./NextUpFollowupCard";
+import { RecentActivityCard, type RecentActivityItem } from "./RecentActivityCard";
+import { PipelineSection, type PipelineCounts } from "./PipelineSection";
+import { NeedsAttentionRow, type NeedsAttentionCompany } from "./NeedsAttentionRow";
+import { SELECTABLE_LIFECYCLE_STAGES, normalizeStage, type LifecycleStage } from "./accounts/lifecycle";
+import { CRM_ACTIVITY, CRM_CONTACT_ACTIVITY_KINDS } from "@/lib/crm/activity";
+import { callOutcomeLabel } from "./calls/outcomes";
 
 export const dynamic = "force-dynamic";
 
 const CENTRAL_TZ = "America/Chicago";
+const DAY_MS = 86_400_000;
 
 type TaskRowData = {
   id: string;
@@ -53,13 +62,13 @@ type FollowupContactRow = {
   phones: unknown;
 };
 
-type ActivityRow = {
+type AccountRow = {
   id: string;
-  kind: string;
-  summary: string | null;
-  body: string | null;
-  occurred_at: string;
-  user_id: string | null;
+  name: string;
+  phone: string | null;
+  phones: unknown;
+  lifecycle_status: string | null;
+  created_at: string;
 };
 
 /** Central-time hour (0-23) for a moment — drives the header's time-of-day
@@ -76,11 +85,13 @@ function centralHour(date: Date): number {
 }
 
 /**
- * The CRM dashboard — a salesman-first command center. Order: quick actions,
- * then the Call list (contacts due today/overdue — the top priority), Tasks
- * (every open task org-wide, overdue-first), New leads to claim (unclaimed
- * released AI leads), and — owner only — Recent activity. Everything
- * RLS-scoped to the caller's org; force-dynamic keeps it live.
+ * The CRM dashboard — rebuilt around Brent's approved mockup: NO KPI stat
+ * cards. Order top to bottom: header (greeting + due count + search + Add),
+ * a button cockpit (the primary quick actions, replacing the KPI row),
+ * What's next (today's due tasks + follow-ups, merged into one queue),
+ * Recent activity (org-wide calls/notes/timeline events), Pipeline (company
+ * count per lifecycle stage), and Needs attention (companies gone quiet).
+ * Everything RLS-scoped to the caller's org; force-dynamic keeps it live.
  */
 export default async function CrmDashboardPage() {
   const user = await requireCrmUser();
@@ -93,15 +104,15 @@ export default async function CrmDashboardPage() {
   const { startMs: todayStart, endMs: todayEnd } = centralDayRange(now);
   const endOfTodayISO = new Date(todayEnd).toISOString();
 
-  const isOwner = user.role === "owner";
-
   const [
     followupContactsRes,
     openTasksRes,
-    newAiLeadsRes,
     profilesRes,
     companyOptionsRes,
     orgContactsRes,
+    allAccountsRes,
+    recentCallsRes,
+    recentNotesRes,
     recentActivitiesRes,
   ] = await Promise.all([
     // Call list — contacts whose next_followup_at is due today or overdue.
@@ -125,63 +136,64 @@ export default async function CrmDashboardPage() {
       .is("deleted_at", null)
       .order("due_at", { ascending: true, nullsFirst: false })
       .limit(500),
-    // Unclaimed released AI leads — the alert. Once assigned_user_id is set
-    // (claimed) a lead drops out of this query, matching /crm/ai-agent.
-    supabase
-      .from("crm_accounts")
-      .select("id, name, city, state, commodities, created_at")
-      .in("source", ["ai_agent", "field_capture"])
-      .eq("ai_status", "released")
-      .is("assigned_user_id", null)
-      .is("deleted_at", null)
-      .order("created_at", { ascending: false })
-      .limit(200),
     // Assignee/author names for tasks + recent activity, and the rep roster
-    // for the quick-task dialog's "Assigned rep" picker.
+    // for the quick-action dialogs' "Assigned rep" picker.
     supabase.from("crm_profiles").select("id, full_name, email, is_active"),
-    // Company roster for the quick-action dialogs (Quick Add contact's
-    // company combobox, Quick Task's Company picker, Quick Log Call's
-    // company combobox).
+    // Company roster for the quick-action dialogs.
     supabase
       .from("crm_accounts")
       .select("id, name")
       .is("deleted_at", null)
       .order("name", { ascending: true })
       .limit(1000),
-    // Contact roster for Quick Task's contact picker and Quick Log Call's
-    // contact picker, filtered client-side to whichever company is selected.
+    // Contact roster for the quick-task/quick-call dialogs' contact pickers.
     supabase
       .from("crm_contacts")
       .select("id, name, account_id")
       .is("deleted_at", null)
       .order("name", { ascending: true })
       .limit(2000),
-    // Recent activity — owner-only, so skip the query entirely for reps
-    // rather than fetching data that never renders (RSC boundary rule).
-    isOwner
-      ? supabase
-          .from("crm_activities")
-          .select("id, kind, summary, body, occurred_at, user_id")
-          .order("occurred_at", { ascending: false })
-          .limit(5)
-      : Promise.resolve({ data: [] as ActivityRow[] }),
+    // Every non-deleted, released company — the shared source for BOTH the
+    // Pipeline stage counts and the Needs-attention staleness ranking, so
+    // that data is fetched exactly once.
+    supabase
+      .from("crm_accounts")
+      .select("id, name, phone, phones, lifecycle_status, created_at")
+      .is("deleted_at", null)
+      .or("ai_status.is.null,ai_status.neq.pending_review")
+      .limit(500),
+    // Recent activity feed — latest calls...
+    supabase
+      .from("crm_calls")
+      .select("id, account_id, contact_id, outcome, summary, occurred_at, user_id")
+      .is("deleted_at", null)
+      .order("occurred_at", { ascending: false })
+      .limit(8),
+    // ...latest human notes...
+    supabase
+      .from("crm_notes")
+      .select("id, account_id, contact_id, body, is_ai, created_at, user_id")
+      .is("deleted_at", null)
+      .eq("is_ai", false)
+      .order("created_at", { ascending: false })
+      .limit(8),
+    // ...and other timeline events (stage moves, contacts added, etc.) —
+    // calls/notes are excluded here since they're already covered above.
+    supabase
+      .from("crm_activities")
+      .select("id, account_id, contact_id, kind, summary, occurred_at, user_id")
+      .not("kind", "in", `(${CRM_ACTIVITY.call},${CRM_ACTIVITY.noteAdded})`)
+      .order("occurred_at", { ascending: false })
+      .limit(8),
   ]);
 
   const followupRows = (followupContactsRes.data ?? []) as FollowupContactRow[];
   const openTaskRows = (openTasksRes.data ?? []) as TaskRowData[];
-  // Title-cased/uppercased once here so pre-existing not-quite-capitalized
-  // data displays clean too (new writes are already clean via
-  // accounts/actions.ts).
-  const newAiLeads = ((newAiLeadsRes.data ?? []) as NewLead[]).map((l) => ({
-    ...l,
-    name: titleCaseWords(l.name),
-    city: titleCaseWords(l.city) || null,
-    state: upperCaseState(l.state) || null,
-  }));
   const profiles = (profilesRes.data ?? []) as ProfileRow[];
   const profileNameById = new Map(
     profiles.map((p) => [p.id, profileFirstName(p.full_name, p.email) || "Unnamed rep"]),
   );
+  const allAccounts = (allAccountsRes.data ?? []) as AccountRow[];
 
   // ── Quick-action data ──
   const companyOptions = ((companyOptionsRes.data ?? []) as { id: string; name: string }[]).map(
@@ -207,38 +219,52 @@ export default async function CrmDashboardPage() {
     .map((p) => ({ id: p.id, label: profileNameById.get(p.id) ?? "Unnamed rep" }))
     .sort((a, b) => a.label.localeCompare(b.label));
 
-  // Resolve company names for the tasks/call-list rows, which only carry an
-  // account_id (newAiLeads already carries its own name).
-  const nameIds = [
+  // Resolve company names — the "all accounts" roster already covers almost
+  // everything; a small fallback query fills in anything it doesn't (a
+  // pending-review AI lead with a task attached, for instance).
+  const nameById = new Map(allAccounts.map((a) => [a.id, titleCaseWords(a.name)]));
+  const companyPhoneById = new Map(
+    allAccounts.map((a) => [a.id, parsePhones(a.phones)[0]?.number || a.phone || null]),
+  );
+  const missingNameIds = [
     ...new Set(
       [
         ...openTaskRows.map((t) => t.account_id),
         ...followupRows.map((c) => c.account_id),
-      ].filter(Boolean) as string[],
+        ...((recentCallsRes.data ?? []) as { account_id: string | null }[]).map((r) => r.account_id),
+        ...((recentNotesRes.data ?? []) as { account_id: string | null }[]).map((r) => r.account_id),
+        ...((recentActivitiesRes.data ?? []) as { account_id: string | null }[]).map((r) => r.account_id),
+      ].filter((id): id is string => Boolean(id) && !nameById.has(id as string)),
     ),
   ];
-  const { data: nameRows } = nameIds.length
-    ? await supabase.from("crm_accounts").select("id, name, phone, phones").in("id", nameIds)
-    : { data: [] as { id: string; name: string; phone: string | null; phones: unknown }[] };
-  const nameRowsTyped = (nameRows ?? []) as {
-    id: string;
-    name: string;
-    phone: string | null;
-    phones: unknown;
-  }[];
-  const nameById = new Map(nameRowsTyped.map((a) => [a.id, titleCaseWords(a.name)]));
-  const companyPhoneById = new Map(
-    nameRowsTyped.map((a) => [a.id, parsePhones(a.phones)[0]?.number || a.phone || null]),
-  );
+  if (missingNameIds.length) {
+    const { data: extraRows } = await supabase
+      .from("crm_accounts")
+      .select("id, name, phone, phones")
+      .in("id", missingNameIds);
+    for (const a of (extraRows ?? []) as { id: string; name: string; phone: string | null; phones: unknown }[]) {
+      nameById.set(a.id, titleCaseWords(a.name));
+      companyPhoneById.set(a.id, parsePhones(a.phones)[0]?.number || a.phone || null);
+    }
+  }
 
-  // ── Call list — contacts due today/overdue ──
+  // Search-box rosters — same orgContacts roster as the quick-task picker,
+  // just carrying a resolved company name for display instead of a raw id.
+  const searchContacts: SearchContactOption[] = quickTaskContacts.map((c) => ({
+    id: c.id,
+    name: c.name,
+    companyName: c.accountId ? (nameById.get(c.accountId) ?? null) : null,
+  }));
+
+  // ── What's next — merge follow-up contacts + open tasks into one queue,
+  // sorted overdue-first, then due-today, then everything else. ──
   const callList: CallListContact[] = followupRows.map((c) => {
     const ms = timestampMs(c.next_followup_at);
     return {
       id: c.id,
       name: titleCaseWords(c.name),
       account_id: c.account_id,
-      companyName: c.account_id ? nameById.get(c.account_id) ?? null : null,
+      companyName: c.account_id ? (nameById.get(c.account_id) ?? null) : null,
       next_followup_at: c.next_followup_at,
       notes: c.notes,
       phone: parsePhones(c.phones)[0]?.number || c.phone || null,
@@ -246,61 +272,223 @@ export default async function CrmDashboardPage() {
     };
   });
 
-  // ── Tasks queue — EVERY open task, org-wide. Overdue first, then due
-  // today, then everything else (no due date or a future one); each bucket
-  // keeps its own ascending-by-due-date order from the query above. ──
   const allOpenTasks: CrmTaskItem[] = openTaskRows.map((t) => ({
     ...t,
-    companyName: t.account_id ? nameById.get(t.account_id) ?? null : null,
+    companyName: t.account_id ? (nameById.get(t.account_id) ?? null) : null,
     assigneeName: t.assigned_user_id ? (profileNameById.get(t.assigned_user_id) ?? null) : null,
-    companyPhone: t.account_id ? companyPhoneById.get(t.account_id) ?? null : null,
+    companyPhone: t.account_id ? (companyPhoneById.get(t.account_id) ?? null) : null,
   }));
-  const dueBucket = (t: CrmTaskItem) => {
+  const taskDueBucket = (t: CrmTaskItem) => {
     const ms = timestampMs(t.due_at);
     if (ms !== null && ms < todayStart) return 0; // overdue
     if (ms !== null && ms <= todayEnd) return 1; // due today
     return 2; // no due date, or a future one
   };
-  const combinedTasks: CrmTaskItem[] = [...allOpenTasks].sort((a, b) => dueBucket(a) - dueBucket(b));
-  const overdueTaskCount = allOpenTasks.filter((t) => dueBucket(t) === 0).length;
-  const dueTodayCount = allOpenTasks.filter((t) => dueBucket(t) === 1).length;
+  const dueTodayCount = allOpenTasks.filter((t) => taskDueBucket(t) === 1).length;
+  const overdueTaskCount = allOpenTasks.filter((t) => taskDueBucket(t) === 0).length;
+  const overdueFollowupCount = callList.filter((c) => c.overdue).length;
 
-  // ── Recent activity — owner only ──
-  const recentActivities: CrmActivity[] = isOwner
-    ? ((recentActivitiesRes.data ?? []) as ActivityRow[]).map((a) => ({
+  type NextItem = { bucket: number; ms: number; node: React.ReactNode };
+  const nextItems: NextItem[] = [
+    ...callList.map((c) => ({
+      bucket: c.overdue ? 0 : 1,
+      ms: timestampMs(c.next_followup_at) ?? Number.POSITIVE_INFINITY,
+      node: <NextUpFollowupCard key={`followup-${c.id}`} contact={c} />,
+    })),
+    ...allOpenTasks.map((t) => ({
+      bucket: taskDueBucket(t),
+      ms: timestampMs(t.due_at) ?? Number.POSITIVE_INFINITY,
+      node: (
+        <TaskRow
+          key={`task-${t.id}`}
+          task={t}
+          showCompany
+          linkTo={t.account_id ? `/crm/accounts/${t.account_id}` : "/crm/tasks"}
+          accounts={companyOptions}
+          contacts={quickTaskContacts}
+          reps={reps}
+          canAssignOthers={canAssignOthers}
+          currentUser={currentUser}
+        />
+      ),
+    })),
+  ].sort((a, b) => a.bucket - b.bucket || a.ms - b.ms);
+
+  // ── Recent activity — latest calls/notes/timeline events, org-wide. ──
+  type MergedActivity = {
+    id: string;
+    kind: RecentActivityItem["kind"];
+    accountId: string | null;
+    occurredAt: string;
+    userId: string | null;
+    detail: string;
+  };
+  const callActivity: MergedActivity[] = (
+    (recentCallsRes.data ?? []) as {
+      id: string;
+      account_id: string | null;
+      outcome: string | null;
+      summary: string | null;
+      occurred_at: string;
+      user_id: string | null;
+    }[]
+  ).map((c) => ({
+    id: c.id,
+    kind: "call",
+    accountId: c.account_id,
+    occurredAt: c.occurred_at,
+    userId: c.user_id,
+    detail: `${callOutcomeLabel(c.outcome)}${c.summary ? `: ${c.summary}` : ""}`,
+  }));
+  const noteActivity: MergedActivity[] = (
+    (recentNotesRes.data ?? []) as {
+      id: string;
+      account_id: string | null;
+      body: string;
+      created_at: string;
+      user_id: string | null;
+    }[]
+  ).map((n) => ({
+    id: n.id,
+    kind: "note",
+    accountId: n.account_id,
+    occurredAt: n.created_at,
+    userId: n.user_id,
+    detail: n.body.length > 140 ? `${n.body.slice(0, 140)}…` : n.body,
+  }));
+  const timelineActivity: MergedActivity[] = (
+    (recentActivitiesRes.data ?? []) as {
+      id: string;
+      account_id: string | null;
+      summary: string | null;
+      occurred_at: string;
+      user_id: string | null;
+    }[]
+  ).map((a) => ({
+    id: a.id,
+    kind: "activity",
+    accountId: a.account_id,
+    occurredAt: a.occurred_at,
+    userId: a.user_id,
+    detail: a.summary || "Activity",
+  }));
+  const recentActivityItems: RecentActivityItem[] = [...callActivity, ...noteActivity, ...timelineActivity]
+    .sort((a, b) => (timestampMs(b.occurredAt) ?? 0) - (timestampMs(a.occurredAt) ?? 0))
+    .slice(0, 8)
+    .map((m) => ({
+      id: m.id,
+      kind: m.kind,
+      accountId: m.accountId,
+      companyName: m.accountId ? (nameById.get(m.accountId) ?? null) : null,
+      detail: m.detail,
+      occurredAt: m.occurredAt,
+      author: m.userId ? (profileNameById.get(m.userId) ?? null) : null,
+    }));
+
+  // ── Pipeline — company count per lifecycle stage. ──
+  const pipelineCounts = Object.fromEntries(
+    SELECTABLE_LIFECYCLE_STAGES.map((s) => [s, 0]),
+  ) as PipelineCounts;
+  for (const a of allAccounts) {
+    const stage = normalizeStage(a.lifecycle_status);
+    if (stage in pipelineCounts) pipelineCounts[stage as LifecycleStage] += 1;
+  }
+
+  // ── Needs attention — companies gone quiet: the longest since a logged
+  // call or a genuine contact-kind activity (matching the Companies list'
+  // "last contact" computation), excluding terminal stages (already dead,
+  // nothing to chase) and brand-new leads that simply haven't been worked
+  // yet (created within the last 3 days with no contact logged). ──
+  const accountIds = allAccounts.map((a) => a.id);
+  const [lastCallsRes, lastActivitiesRes] = accountIds.length
+    ? await Promise.all([
+        supabase
+          .from("crm_calls")
+          .select("account_id, occurred_at")
+          .in("account_id", accountIds)
+          .is("deleted_at", null)
+          .order("occurred_at", { ascending: false })
+          .limit(3000),
+        supabase
+          .from("crm_activities")
+          .select("account_id, occurred_at")
+          .in("account_id", accountIds)
+          .in("kind", CRM_CONTACT_ACTIVITY_KINDS)
+          .order("occurred_at", { ascending: false })
+          .limit(3000),
+      ])
+    : [{ data: [] as { account_id: string; occurred_at: string }[] }, { data: [] as { account_id: string; occurred_at: string }[] }];
+
+  const lastContactMsByAccount = new Map<string, number>();
+  for (const row of [
+    ...((lastCallsRes.data ?? []) as { account_id: string; occurred_at: string }[]),
+    ...((lastActivitiesRes.data ?? []) as { account_id: string; occurred_at: string }[]),
+  ]) {
+    const ms = timestampMs(row.occurred_at);
+    if (ms === null) continue;
+    const current = lastContactMsByAccount.get(row.account_id);
+    if (current === undefined || ms > current) lastContactMsByAccount.set(row.account_id, ms);
+  }
+
+  const STALE_THRESHOLD_DAYS = 7;
+  const NEW_LEAD_GRACE_DAYS = 3;
+  const needsAttention: NeedsAttentionCompany[] = allAccounts
+    .filter((a) => {
+      const stage = normalizeStage(a.lifecycle_status);
+      if (stage === "lost" || stage === "inactive") return false;
+      const ms = lastContactMsByAccount.get(a.id);
+      if (ms === undefined) {
+        const createdMs = timestampMs(a.created_at);
+        return createdMs === null || now.getTime() - createdMs >= NEW_LEAD_GRACE_DAYS * DAY_MS;
+      }
+      return now.getTime() - ms >= STALE_THRESHOLD_DAYS * DAY_MS;
+    })
+    .sort((a, b) => (lastContactMsByAccount.get(a.id) ?? -Infinity) - (lastContactMsByAccount.get(b.id) ?? -Infinity))
+    .slice(0, 5)
+    .map((a) => {
+      const ms = lastContactMsByAccount.get(a.id);
+      return {
         id: a.id,
-        kind: a.kind,
-        summary: a.summary,
-        body: a.body,
-        occurred_at: a.occurred_at,
-        author: a.user_id ? (profileNameById.get(a.user_id) ?? null) : null,
-      }))
-    : [];
+        name: titleCaseWords(a.name),
+        phone: parsePhones(a.phones)[0]?.number || a.phone || null,
+        daysSinceContact: ms === undefined ? null : Math.floor((now.getTime() - ms) / DAY_MS),
+      };
+    });
 
   const hour = centralHour(now);
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const displayName = profileFirstName(user.fullName, user.email) || "there";
 
-  // Bell total — due work only (call list + tasks overdue/due-today + new
-  // leads to claim), not every open task, so it stays a "due now" cue rather
-  // than ballooning with tasks that aren't due yet.
-  const dueCount = callList.length + overdueTaskCount + dueTodayCount + newAiLeads.length;
-
   return (
     <PageShell>
-      {/* Header — greeting + today's date (CST) + the due-work bell, which
-          jumps straight to the Call list, the top-priority queue below. */}
+      {/* Header — greeting + date (CST) + due-today count + search + Add. */}
       <Card>
-        <CardHead
-          title={`${greeting}, ${displayName}`}
-          hint={formatDate(now.toISOString())}
-          right={<DueBell count={dueCount} targetId="call-list" />}
-        />
+        <div className="p-4 sm:p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h1 className="text-[19px] font-bold text-fg">
+                {greeting}, {displayName}
+              </h1>
+              <p className="mt-0.5 text-[13px] text-fg-muted">{formatDate(now.toISOString())}</p>
+            </div>
+            <p
+              className={`shrink-0 text-[13px] font-semibold ${dueTodayCount > 0 ? "text-warn" : "text-fg-muted"}`}
+            >
+              {dueTodayCount > 0
+                ? `${dueTodayCount} task${dueTodayCount === 1 ? "" : "s"} due today`
+                : "No tasks due today"}
+            </p>
+          </div>
+          <div className="mt-4 flex items-center gap-2">
+            <DashboardSearch companies={companyOptions} contacts={searchContacts} />
+            <HeaderAddCompanyButton reps={reps} />
+          </div>
+        </div>
       </Card>
 
-      {/* Quick actions */}
-      <div className="grid grid-cols-3 gap-3">
-        <QuickAddContactButton companies={companyOptions} />
+      {/* Button cockpit — the primary quick actions, top of page (replaces
+          the old KPI stat-tile row). */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <QuickLogCallButton accounts={companyOptions} contacts={quickTaskContacts} />
         <QuickAddTaskButton
           accounts={companyOptions}
@@ -309,91 +497,52 @@ export default async function CrmDashboardPage() {
           canAssignOthers={canAssignOthers}
           currentUser={currentUser}
         />
+        <QuickAddCompanyButton reps={reps} />
+        <QuickAddContactButton companies={companyOptions} />
       </div>
 
-      {/* Call list — top priority: contacts due today or overdue. */}
-      <Card id="call-list" className="scroll-mt-20">
+      {/* What's next — today's due follow-ups + tasks, merged, overdue first. */}
+      <Card id="next-up" className="scroll-mt-20">
         <CardHead
-          title="Call list · Today"
-          hint={callList.length ? `${callList.length} due today or overdue` : "Nothing due"}
-          right={<AlertCountBadge count={callList.length} />}
+          title="What's next · Today"
+          hint={nextItems.length ? `${nextItems.length} due` : "Nothing due"}
+          right={<LateBadge count={overdueTaskCount + overdueFollowupCount} />}
         />
-        {callList.length === 0 ? (
-          <Empty text="No follow-ups due. You're all caught up." />
+        {nextItems.length === 0 ? (
+          <Empty text="Nothing due today. You're all caught up." />
         ) : (
-          <ul className={`divide-y divide-line-strong ${ZEBRA_ROWS}`}>
-            {callList.map((c) => (
-              <CallListRow key={c.id} contact={c} />
-            ))}
-          </ul>
+          <ul className="flex flex-col gap-2.5 p-3">{nextItems.map((item) => item.node)}</ul>
         )}
-        <CardFooterLink href="/crm/contacts" label="View all follow-ups" />
       </Card>
 
-      {/* Tasks — every open task, org-wide, overdue first. */}
+      {/* Recent activity — latest calls/notes/timeline events, org-wide. */}
+      <RecentActivityCard items={recentActivityItems} />
+
+      {/* Pipeline — company count per lifecycle stage. */}
+      <PipelineSection counts={pipelineCounts} />
+
+      {/* Needs attention — companies gone quiet. */}
       <Card>
         <CardHead
-          title="Tasks"
-          hint={combinedTasks.length ? `${combinedTasks.length} open` : "No open tasks"}
-          right={<LateBadge count={overdueTaskCount} />}
+          title="Needs attention"
+          hint={needsAttention.length ? `${needsAttention.length} gone quiet` : undefined}
         />
-        {combinedTasks.length === 0 ? (
-          <Empty text="No open tasks." />
+        {needsAttention.length === 0 ? (
+          <Empty text="Nothing needs attention. Every account is being worked." />
         ) : (
-          <ul className="flex flex-col gap-2.5 p-3">
-            {combinedTasks.map((t) => (
-              <TaskRow
-                key={t.id}
-                task={t}
-                showCompany
-                linkTo={t.account_id ? `/crm/accounts/${t.account_id}` : "/crm/tasks"}
-                accounts={companyOptions}
-                contacts={quickTaskContacts}
-                reps={reps}
-                canAssignOthers={canAssignOthers}
-                currentUser={currentUser}
-              />
+          <ul className={`divide-y divide-line-strong ${ZEBRA_ROWS}`}>
+            {needsAttention.map((c) => (
+              <NeedsAttentionRow key={c.id} company={c} />
             ))}
           </ul>
         )}
-        <CardFooterLink href="/crm/tasks" label="All tasks" />
       </Card>
-
-      {/* New leads to claim — unclaimed released AI leads. */}
-      {newAiLeads.length > 0 && (
-        <Card>
-          <CardHead
-            title="New leads to claim"
-            hint={`${newAiLeads.length} released by the AI agent, unclaimed`}
-            right={<AlertCountBadge count={newAiLeads.length} />}
-          />
-          <ul className={`divide-y divide-line-strong ${ZEBRA_ROWS}`}>
-            {newAiLeads.map((l) => (
-              <NewLeadRow key={l.id} lead={l} />
-            ))}
-          </ul>
-        </Card>
-      )}
-
-      {/* Recent activity — owner only. */}
-      {isOwner && <ActivityTimeline activities={recentActivities} />}
     </PageShell>
   );
 }
 
-/** Red count badge for a CardHead's `right` slot. Renders nothing at zero
- *  since every caller already gates on count when it matters for tone. */
-function AlertCountBadge({ count }: { count: number }) {
-  if (count <= 0) return null;
-  return (
-    <span className="inline-flex h-6 min-w-[24px] shrink-0 items-center justify-center bg-bad px-2 text-[12px] font-bold tabular-nums text-white shadow-e1">
-      {count}
-    </span>
-  );
-}
-
-/** Red "N late" badge for the Tasks card header — only counts OVERDUE tasks
- *  (not due-today), so it reads as an alert rather than a generic total. */
+/** Red "N late" badge for the What's-next card header — only counts OVERDUE
+ *  items (not due-today), so it reads as an alert rather than a generic total. */
 function LateBadge({ count }: { count: number }) {
   if (count <= 0) return null;
   return (
@@ -405,19 +554,4 @@ function LateBadge({ count }: { count: number }) {
 
 function Empty({ text }: { text: string }) {
   return <p className="px-5 py-8 text-center text-[13px] text-fg-muted">{text}</p>;
-}
-
-/** "View all →" style footer link at the bottom of a queue card. */
-function CardFooterLink({ href, label }: { href: string; label: string }) {
-  return (
-    <div className="border-t border-line-strong px-5 py-3">
-      <Link
-        href={href}
-        prefetch={false}
-        className="text-[13px] font-semibold text-accent hover:underline"
-      >
-        {label} →
-      </Link>
-    </div>
-  );
 }
