@@ -254,3 +254,32 @@ export function IconBillOfLading(props: IconProps) {
     </svg>
   );
 }
+
+export function IconTruck(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M3 6h10v10H3z" />
+      <path d="M13 10h4l3 3v3h-7z" />
+      <circle cx="7" cy="18" r="1.75" />
+      <circle cx="17" cy="18" r="1.75" />
+    </svg>
+  );
+}
+
+export function IconSearch(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="11" cy="11" r="7" />
+      <path d="M20 20l-4.3-4.3" />
+    </svg>
+  );
+}
+
+export function IconTrash(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M4 7h16M9 7V4.5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1V7M18 7l-.8 12.2a1.5 1.5 0 0 1-1.5 1.3H8.3a1.5 1.5 0 0 1-1.5-1.3L6 7" />
+      <path d="M10 11v6M14 11v6" />
+    </svg>
+  );
+}

@@ -12,6 +12,7 @@ import {
   IconUpgrades,
   IconRateConfirmation,
   IconBillOfLading,
+  IconTruck,
 } from "./icons";
 
 export type CrmNavItem = {
@@ -88,6 +89,12 @@ export function buildCrmNav(
     },
     { href: "/crm/tasks", label: "Tasks", Icon: IconTasks },
     { href: "/crm/calendar", label: "Calendar", Icon: IconCalendar },
+    {
+      href: "/crm/shipments",
+      label: "Shipments",
+      Icon: IconTruck,
+      match: ["/crm/carriers"],
+    },
     {
       href: "/crm/rate-confirmation",
       label: "Rate Confirmation",
