@@ -938,11 +938,11 @@ function DraftComposer({
           role="dialog"
           aria-modal="true"
           aria-label="Edit shipment details"
-          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/55 p-3 sm:p-8"
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/55 p-3 sm:p-8 max-sm:p-0"
           onClick={() => setEditOpen(false)}
         >
           <div
-            className="my-2 w-full max-w-3xl overflow-hidden rounded-md border border-line-strong bg-card shadow-2xl sm:my-6"
+            className="my-2 w-full max-w-3xl overflow-hidden rounded-md border border-line-strong bg-card shadow-2xl sm:my-6 max-sm:my-0 max-sm:h-full max-sm:max-w-none max-sm:rounded-none max-sm:border-0"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between gap-3 bg-bar px-4 py-2.5">
@@ -959,7 +959,7 @@ function DraftComposer({
                 Done
               </Button>
             </div>
-            <div className="max-h-[78vh] overflow-y-auto pb-2">
+            <div className="max-h-[78vh] overflow-y-auto pb-2 max-sm:max-h-[calc(100dvh-49px)]">
 
       {/* ── Pickup ─────────────────────────────────────────────────── */}
       <SectionBanner title="Pickup" />

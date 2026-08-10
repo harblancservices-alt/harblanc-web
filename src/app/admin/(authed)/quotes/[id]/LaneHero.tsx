@@ -39,10 +39,13 @@ export function LaneHero({
   const pickupText = pickupCityState ?? "—";
   const deliveryText = deliveryCityState ?? "—";
   const milesText = miles != null ? miles.toLocaleString() + " mi" : "—";
+  const pickupZipText = pickupZip ?? " ";
+  const deliveryZipText = deliveryZip ?? " ";
 
   return (
     <section aria-label="Lane" className="bg-card">
-      <div className="flex flex-wrap items-stretch">
+      {/* Desktop / wide — unchanged flex row. */}
+      <div className="hidden lg:flex lg:flex-wrap lg:items-stretch">
         {/* Pickup */}
         <div className="min-w-[150px] flex-1 px-3.5 py-2.5">
           <p className="font-mono text-[9.5px] font-semibold uppercase tracking-[0.18em] text-amber-700">
@@ -100,6 +103,48 @@ export function LaneHero({
           <p className="mt-0.5 font-mono text-[13px] tabular-nums text-fg">
             {deliveryDateLabel ?? "—"}
           </p>
+        </div>
+      </div>
+
+      {/* Mobile/tablet — real 2-col stack instead of a flex-wrap row that
+          broke divider lines and crammed cells mid-wrap on a phone. */}
+      <div className="grid grid-cols-2 lg:hidden">
+        <div className="border-b border-r border-line px-3.5 py-2.5">
+          <p className="font-mono text-[9.5px] font-semibold uppercase tracking-[0.18em] text-amber-700">
+            Pickup
+          </p>
+          <p className="mt-0.5 truncate text-[17px] font-semibold leading-tight text-fg">{pickupText}</p>
+          <p className="font-mono text-[12px] font-medium tabular-nums text-blue-700">{pickupZipText}</p>
+        </div>
+        <div className="border-b border-line px-3.5 py-2.5">
+          <p className="font-mono text-[9.5px] font-semibold uppercase tracking-[0.18em] text-blue-700">
+            Delivery
+          </p>
+          <p className="mt-0.5 truncate text-[17px] font-semibold leading-tight text-fg">{deliveryText}</p>
+          <p className="font-mono text-[12px] font-medium tabular-nums text-blue-700">{deliveryZipText}</p>
+        </div>
+
+        <div className="col-span-2 flex items-center justify-center gap-2 border-b border-line px-3.5 py-2 text-fg-subtle">
+          <RightArrow size={16} />
+          <p className="whitespace-nowrap font-mono text-[12.5px] font-semibold tabular-nums text-fg">{milesText}</p>
+          {driveTime ? (
+            <p className="whitespace-nowrap font-mono text-[9px] uppercase tracking-[0.14em] text-fg-subtle">
+              {driveTime}
+            </p>
+          ) : null}
+        </div>
+
+        <div className="border-r border-line px-3.5 py-2.5">
+          <p className="font-mono text-[9.5px] font-semibold uppercase tracking-[0.18em] text-fg-subtle">
+            Pickup date
+          </p>
+          <p className="mt-0.5 font-mono text-[13px] tabular-nums text-fg">{pickupDateLabel ?? "—"}</p>
+        </div>
+        <div className="px-3.5 py-2.5">
+          <p className="font-mono text-[9.5px] font-semibold uppercase tracking-[0.18em] text-fg-subtle">
+            Delivery date
+          </p>
+          <p className="mt-0.5 font-mono text-[13px] tabular-nums text-fg">{deliveryDateLabel ?? "—"}</p>
         </div>
       </div>
     </section>
