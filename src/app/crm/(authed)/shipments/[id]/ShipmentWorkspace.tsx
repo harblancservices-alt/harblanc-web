@@ -13,6 +13,7 @@ import { CarrierFormDialog } from "../../carriers/CarrierFormDialog";
 import { updateShipment, searchCustomers, createAccountLocation, softDeleteShipment } from "../actions";
 import { listCarriers } from "../carriers-actions";
 import { SHIPMENT_STATUSES, SHIPMENT_STATUS_LABEL, shipmentStatusTone } from "../statusMeta";
+import { EQUIPMENT_TYPES } from "../equipmentType";
 import type {
   CrmAccountLocation,
   CrmCarrier,
@@ -359,6 +360,11 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
     commit({ status: v });
   }
 
+  function changeEquipment(v: string) {
+    set("equipment", v);
+    commit({ equipment: orNull(v) });
+  }
+
   function onDeleteShipment() {
     if (!window.confirm(`Delete shipment ${shipment.shipmentNumber}? This can't be undone from here.`)) return;
     setDeleteError(null);
@@ -495,13 +501,17 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
               onChange={(v) => set("commodity", v)}
               onBlur={() => commit({ commodity: orNull(state.commodity) })}
             />
-            <TextRow
-              label="Equipment"
-              value={state.equipment}
-              onChange={(v) => set("equipment", v)}
-              onBlur={() => commit({ equipment: orNull(state.equipment) })}
-              placeholder="e.g. Dry van, Reefer, Flatbed"
-            />
+            <SelectRow label="Equipment" value={state.equipment} onChange={changeEquipment}>
+              <option value="">Select equipment…</option>
+              {EQUIPMENT_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+              {state.equipment && !(EQUIPMENT_TYPES as readonly string[]).includes(state.equipment) && (
+                <option value={state.equipment}>{state.equipment} (legacy)</option>
+              )}
+            </SelectRow>
           </FormRow2>
           <TextAreaRow
             label="Description"
