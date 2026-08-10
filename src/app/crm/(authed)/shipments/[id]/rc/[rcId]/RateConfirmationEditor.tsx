@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { DocViewer } from "@/components/ui/DocViewer";
@@ -40,6 +40,78 @@ function moneyOrNull(v: string): number {
   if (!t) return 0;
   const n = Number(t.replace(/[^0-9.-]/g, ""));
   return Number.isFinite(n) ? n : 0;
+}
+
+/** FMCSA SAFER's public company-snapshot query — no API key, just a deep
+ * link. query_param picks which field query_string is matched against. */
+function saferSnapshotUrl(kind: "mc" | "dot", value: string): string {
+  const param = kind === "mc" ? "MC_MX" : "USDOT";
+  return `https://safer.fmcsa.dot.gov/query.asp?searchtype=ANY&query_type=queryCarrierSnapshot&query_param=${param}&original_query_param=NAME&query_string=${encodeURIComponent(value)}`;
+}
+
+/**
+ * Internal-only convenience for the broker — never touches the generated RC
+ * PDF or any server call, just builds a SAFER deep link from whatever MC/DOT
+ * the rep types (or the carrier's own MC/DOT, prefilled once). Sits in the
+ * leftover space under the Carrier card's Phone/Email row.
+ */
+function FmcsaLookupBox({ mc, dot }: { mc: string; dot: string }) {
+  const [kind, setKind] = useState<"mc" | "dot">(mc ? "mc" : "dot");
+  const [value, setValue] = useState(mc || dot || "");
+  const [touched, setTouched] = useState(false);
+
+  useEffect(() => {
+    if (touched) return;
+    if (mc) {
+      setKind("mc");
+      setValue(mc);
+    } else if (dot) {
+      setKind("dot");
+      setValue(dot);
+    }
+  }, [mc, dot, touched]);
+
+  const trimmed = value.trim();
+  const url = trimmed ? saferSnapshotUrl(kind, trimmed) : null;
+  const linkClass =
+    "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[5px] border border-accent bg-accent px-3 text-[12px] font-semibold text-white transition-colors hover:bg-accent-hover sm:h-[26px]";
+
+  return (
+    <div className="mt-1 rounded-lg border border-fg-subtle bg-inset p-2.5">
+      <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-fg">FMCSA / SAFER Lookup — internal only</p>
+      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+        <select
+          value={kind}
+          onChange={(e) => {
+            setTouched(true);
+            setKind(e.target.value as "mc" | "dot");
+          }}
+          className="h-8 shrink-0 rounded-[5px] border border-fg-subtle bg-card px-2 text-[12.5px] font-medium text-fg outline-none focus:ring-1 focus:ring-accent/50 sm:h-[26px] sm:text-[12px]"
+        >
+          <option value="mc">MC</option>
+          <option value="dot">DOT</option>
+        </select>
+        <input
+          type="text"
+          inputMode="numeric"
+          value={value}
+          onChange={(e) => {
+            setTouched(true);
+            setValue(e.target.value);
+          }}
+          placeholder={kind === "mc" ? "MC number" : "DOT number"}
+          className="h-8 min-w-0 flex-1 rounded-[5px] border border-fg-subtle bg-card px-2.5 text-[13px] font-medium text-fg outline-none focus:ring-1 focus:ring-accent/50 sm:h-[26px] sm:text-[12.5px]"
+        />
+        {url ? (
+          <a href={url} target="_blank" rel="noopener noreferrer" className={linkClass}>
+            Look up on SAFER
+          </a>
+        ) : (
+          <span className={`${linkClass} cursor-not-allowed opacity-50`}>Look up on SAFER</span>
+        )}
+      </div>
+    </div>
+  );
 }
 
 type CarrierFieldsState = {
@@ -569,6 +641,7 @@ export function RateConfirmationEditor({
                 highlight={carrierAutoFill?.has("carrierEmail")}
               />
             </FormRow2>
+            <FmcsaLookupBox mc={state.carrierMc} dot={state.carrierDot} />
           </div>
         </Card>
 
