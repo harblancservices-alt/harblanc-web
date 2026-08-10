@@ -3,11 +3,13 @@
 import { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { DocViewer } from "@/components/ui/DocViewer";
-import { Card, BTN_PRIMARY, BTN_EDIT, BTN_ACTION, BTN_DANGER, BTN_SUCCESS, ZEBRA_ROWS } from "../../../../_shell/ui";
+import { Card, BTN_PRIMARY, BTN_EDIT, BTN_ACTION, BTN_SUCCESS, ZEBRA_ROWS } from "../../../../_shell/ui";
 import { FormError } from "../../../../_shell/form";
 import { AsyncSearchPicker } from "../../../../_shell/AsyncSearchPicker";
 import { formatMoney, formatDateTime, titleCaseWords, formatPhone } from "../../../../_shell/format";
-import { TextRow, TextAreaRow, MoneyRow, NARROW, FormRow2, FormRow3, SectionDivider, SelectedEntityChip } from "../../fields";
+import { TextRow, TextAreaRow, MoneyRow, NARROW, FormRow2, FormRow3, SectionDivider, SelectedEntityChip, SelectRow } from "../../fields";
+import { RemoveRowButton } from "../../../../_shell/compactForm";
+import { StickyActionBar } from "../../../../_shell/StickyActionBar";
 import { docStatusLabel, docStatusTone } from "../../../docStatusMeta";
 import { getSignedPdfUrl, openStoredPdf } from "../../../pdfClient";
 import { listCarriers, getCarrier } from "../../../carriers-actions";
@@ -83,33 +85,38 @@ function FmcsaLookupBox({ mc, dot }: { mc: string; dot: string }) {
   const trimmed = value.trim();
   const url = trimmed ? saferSnapshotUrl(kind, trimmed) : null;
   const linkClass =
-    "inline-flex h-8 shrink-0 items-center gap-1.5 rounded-[5px] border border-accent bg-accent px-3 text-[12px] font-semibold text-white transition-colors hover:bg-accent-hover sm:h-[26px]";
+    "inline-flex h-10 shrink-0 items-center gap-1.5 rounded-[5px] border border-accent bg-accent px-3 text-[13px] font-semibold text-white transition-colors hover:bg-accent-hover sm:h-[26px] sm:text-[12px]";
 
   return (
     <div className="mt-1 rounded-lg border border-fg-subtle bg-inset p-2.5">
       <p className="text-[10px] font-bold uppercase tracking-[0.08em] text-fg">FMCSA / SAFER Lookup — internal only</p>
-      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-        <select
+      <div className="mt-1.5 flex flex-wrap items-end gap-1.5">
+        <SelectRow
+          label="Kind"
+          hideLabel
           value={kind}
-          onChange={(e) => {
+          onChange={(v) => {
             setTouched(true);
-            setKind(e.target.value as "mc" | "dot");
+            setKind(v as "mc" | "dot");
           }}
-          className="h-8 shrink-0 rounded-[5px] border border-fg-subtle bg-card px-2 text-[12.5px] font-medium text-fg outline-none focus:ring-1 focus:ring-accent/50 sm:h-[26px] sm:text-[12px]"
+          className="w-24 shrink-0"
         >
           <option value="mc">MC</option>
           <option value="dot">DOT</option>
-        </select>
-        <input
+        </SelectRow>
+        <TextRow
+          label={kind === "mc" ? "MC number" : "DOT number"}
+          hideLabel
           type="text"
           inputMode="numeric"
           value={value}
-          onChange={(e) => {
+          onChange={(v) => {
             setTouched(true);
-            setValue(e.target.value);
+            setValue(v);
           }}
+          onBlur={() => {}}
           placeholder={kind === "mc" ? "MC number" : "DOT number"}
-          className="h-8 min-w-0 flex-1 rounded-[5px] border border-fg-subtle bg-card px-2.5 text-[13px] font-medium text-fg outline-none focus:ring-1 focus:ring-accent/50 sm:h-[26px] sm:text-[12.5px]"
+          className="min-w-[140px] flex-1"
         />
         {url ? (
           <a href={url} target="_blank" rel="noopener noreferrer" className={linkClass}>
@@ -635,7 +642,7 @@ export function RateConfirmationEditor({
           </Card>
 
           {hasPdf && (
-            <div className="flex flex-col gap-2">
+            <div className="hidden flex-col gap-2 lg:flex">
               <button
                 type="button"
                 onClick={openPreview}
@@ -705,14 +712,11 @@ export function RateConfirmationEditor({
                     onBlur={() => commitLine(line.id, line.label, line.amount)}
                     className={`shrink-0 ${NARROW.money}`}
                   />
-                  <button
-                    type="button"
+                  <RemoveRowButton
                     onClick={() => removeLine(line.id)}
                     disabled={linePending}
-                    className={`shrink-0 rounded-[5px] px-2.5 py-1.5 text-[12px] font-semibold transition-colors disabled:opacity-60 ${BTN_DANGER}`}
-                  >
-                    Remove
-                  </button>
+                    label="Remove line item"
+                  />
                 </li>
               ))}
               <li className="flex flex-wrap items-center gap-2 bg-inset px-3 py-2">
@@ -753,7 +757,7 @@ export function RateConfirmationEditor({
           </Card>
 
           {!locked && (
-            <div className="flex flex-col gap-2">
+            <div className="hidden flex-col gap-2 lg:flex">
               <button
                 type="button"
                 onClick={onGenerate}
@@ -773,6 +777,57 @@ export function RateConfirmationEditor({
           )}
         </div>
       </div>
+
+      {/* Mobile/tablet — Generate/Save and View/Download were far apart in
+          the single-column stack (the whole Payment/Line-Items card sat
+          between them); below `lg` they're combined into one bar instead.
+          Desktop (`lg`+) keeps the two separate button groups above,
+          unchanged. */}
+      {(hasPdf || !locked) && (
+        <div className="lg:hidden">
+          <StickyActionBar>
+            <div className="grid w-full grid-cols-2 gap-2">
+              {!locked && (
+                <button
+                  type="button"
+                  onClick={onGenerate}
+                  disabled={busy}
+                  className={`inline-flex h-10 items-center justify-center gap-1.5 rounded-lg px-3.5 text-[13px] font-semibold transition-colors disabled:opacity-60 ${BTN_ACTION}`}
+                >
+                  {busyAction === "generate" ? "Generating…" : "Generate PDF"}
+                </button>
+              )}
+              {!locked && (
+                <button
+                  type="button"
+                  onClick={saveAllFields}
+                  className={`inline-flex h-10 items-center justify-center gap-1.5 rounded-lg px-3.5 text-[13px] font-semibold transition-colors ${BTN_EDIT}`}
+                >
+                  Save Draft
+                </button>
+              )}
+              {hasPdf && (
+                <button
+                  type="button"
+                  onClick={openPreview}
+                  className={`inline-flex h-10 items-center justify-center gap-1.5 rounded-lg px-3.5 text-[13px] font-semibold transition-colors ${BTN_SUCCESS}`}
+                >
+                  View PDF
+                </button>
+              )}
+              {hasPdf && (
+                <button
+                  type="button"
+                  onClick={download}
+                  className={`inline-flex h-10 items-center justify-center gap-1.5 rounded-lg px-3.5 text-[13px] font-semibold transition-colors ${BTN_EDIT}`}
+                >
+                  Download PDF
+                </button>
+              )}
+            </div>
+          </StickyActionBar>
+        </div>
+      )}
 
       {previewOpen && rc.pdfStoragePath && (
         <DocViewer

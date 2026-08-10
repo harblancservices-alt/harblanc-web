@@ -7,6 +7,7 @@ import { Card, BTN_PRIMARY, BTN_EDIT, BTN_ACTION, BTN_DANGER, BTN_SUCCESS, ZEBRA
 import { FormError } from "../../../../_shell/form";
 import { formatDateTime, titleCaseWords, formatPhone } from "../../../../_shell/format";
 import { TextRow, SelectRow, SectionDivider } from "../../fields";
+import { RemoveRowButton, TextRow as CompactTextRow } from "../../../../_shell/compactForm";
 import { docStatusLabel, docStatusTone } from "../../../docStatusMeta";
 import { getSignedPdfUrl, openStoredPdf } from "../../../pdfClient";
 import {
@@ -376,7 +377,8 @@ export function BolEditor({
           <Card>
             <SectionDivider label="Line items" />
             <FormError message={itemError} />
-            <div className="overflow-x-auto">
+            {/* Desktop / wide table — unchanged. */}
+            <div className="hidden overflow-x-auto lg:block">
               <table className="w-full min-w-[820px] text-[12.5px]">
                 <thead>
                   <tr className="border-b border-line text-[10.5px] font-bold uppercase tracking-[0.06em] text-fg-subtle">
@@ -519,6 +521,123 @@ export function BolEditor({
                   </tr>
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile — stacked cards, not a squeezed table. Same items
+                state/handlers as the desktop table above. */}
+            <div className="flex flex-col gap-3 p-3 lg:hidden">
+              {items.map((row) => (
+                <div key={row.id} className="rounded-md border border-line bg-card p-3">
+                  <div className="flex items-start gap-2">
+                    <div className="flex min-w-0 flex-1 flex-col gap-2">
+                      <CompactTextRow
+                        label="Description"
+                        value={row.description}
+                        onChange={(v) => setItemField(row.id, "description", v)}
+                        onBlur={() => commitItems(items)}
+                      />
+                      <div className="grid grid-cols-2 gap-2">
+                        <CompactTextRow
+                          label="Qty"
+                          value={row.qty}
+                          onChange={(v) => setItemField(row.id, "qty", v)}
+                          onBlur={() => commitItems(items)}
+                        />
+                        <CompactTextRow
+                          label="Unit"
+                          value={row.unitType}
+                          onChange={(v) => setItemField(row.id, "unitType", v)}
+                          onBlur={() => commitItems(items)}
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <CompactTextRow
+                          label="Weight"
+                          value={row.weight}
+                          onChange={(v) => setItemField(row.id, "weight", v)}
+                          onBlur={() => commitItems(items)}
+                        />
+                        <CompactTextRow
+                          label="NMFC"
+                          value={row.nmfc}
+                          onChange={(v) => setItemField(row.id, "nmfc", v)}
+                          onBlur={() => commitItems(items)}
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 items-end gap-2">
+                        <CompactTextRow
+                          label="Class"
+                          value={row.freightClass}
+                          onChange={(v) => setItemField(row.id, "freightClass", v)}
+                          onBlur={() => commitItems(items)}
+                        />
+                        <label className="flex h-10 items-center gap-2 text-[13px] font-medium text-fg">
+                          <input
+                            type="checkbox"
+                            checked={row.hazmat}
+                            onChange={(e) => {
+                              const next = items.map((r) =>
+                                r.id === row.id ? { ...r, hazmat: e.target.checked } : r,
+                              );
+                              setItems(next);
+                              commitItems(next);
+                            }}
+                            className="h-5 w-5 accent-[var(--accent)]"
+                          />
+                          Hazmat
+                        </label>
+                      </div>
+                    </div>
+                    <RemoveRowButton
+                      onClick={() => removeItem(row.id)}
+                      disabled={itemPending}
+                      label="Remove line item"
+                    />
+                  </div>
+                </div>
+              ))}
+
+              <div className="rounded-md border border-dashed border-fg-subtle bg-inset p-3">
+                <p className="mb-2 text-[10.5px] font-bold uppercase tracking-[0.06em] text-fg-subtle">
+                  New item
+                </p>
+                <div className="flex flex-col gap-2">
+                  <CompactTextRow
+                    label="Description"
+                    value={newItem.description}
+                    onChange={(v) => setNewItem((prev) => ({ ...prev, description: v }))}
+                    onBlur={() => {}}
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <CompactTextRow
+                      label="Qty"
+                      value={newItem.qty}
+                      onChange={(v) => setNewItem((prev) => ({ ...prev, qty: v }))}
+                      onBlur={() => {}}
+                    />
+                    <CompactTextRow
+                      label="Unit"
+                      value={newItem.unitType}
+                      onChange={(v) => setNewItem((prev) => ({ ...prev, unitType: v }))}
+                      onBlur={() => {}}
+                    />
+                  </div>
+                  <CompactTextRow
+                    label="Weight"
+                    value={newItem.weight}
+                    onChange={(v) => setNewItem((prev) => ({ ...prev, weight: v }))}
+                    onBlur={() => {}}
+                  />
+                  <button
+                    type="button"
+                    onClick={addItem}
+                    disabled={itemPending}
+                    className={`mt-1 inline-flex h-10 items-center justify-center gap-1.5 rounded-md px-3.5 text-[13px] font-semibold transition-colors disabled:opacity-60 ${BTN_PRIMARY}`}
+                  >
+                    Add item
+                  </button>
+                </div>
+              </div>
             </div>
           </Card>
         </div>

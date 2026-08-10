@@ -63,7 +63,7 @@ export function DocumentEditorModal({
   const title = rc?.rcNumber ?? bol?.bolNumber ?? (target.type === "rc" ? "Rate Confirmation" : "Bill of Lading");
 
   return (
-    <Modal open onClose={onClose} title={title} wide>
+    <Modal open onClose={onClose} title={title} wide fullScreen>
       {loading && <p className="py-10 text-center text-[13px] text-fg-subtle">Loading…</p>}
       {!loading && missing && <p className="py-10 text-center text-[13px] text-bad">Could not load this document.</p>}
       {!loading && rc && target.type === "rc" && (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, type ReactNode } from "react";
+import { useEffect, useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Card, BTN_PRIMARY, BTN_EDIT } from "../../_shell/ui";
 import { FormError } from "../../_shell/form";
@@ -147,6 +147,17 @@ function toLocal(shipment: CrmShipmentDetail): LocalState {
  * a small square blue Change (reopen the picker to swap) / Reset (detach the
  * id link AND blank whatever it filled) button, compact style 2026-08-09.
  */
+const SECTIONS = [
+  { id: "customer", title: "Customer" },
+  { id: "carrier", title: "Carrier" },
+  { id: "freight", title: "Freight" },
+  { id: "notes", title: "Notes" },
+  { id: "shipper", title: "Shipper" },
+  { id: "consignee", title: "Consignee" },
+  { id: "pickup", title: "Pickup" },
+  { id: "delivery", title: "Delivery" },
+] as const;
+
 export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail }) {
   const router = useRouter();
   const [state, setState] = useState<LocalState>(() => toLocal(shipment));
@@ -162,6 +173,36 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
 
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deletePending, startDeleteTransition] = useTransition();
+
+  // ── Section collapse state (mobile-only default) ──────────────────────
+  // Every section starts open — matching today's `<details open>` on every
+  // breakpoint, so SSR/first paint is unchanged everywhere, including
+  // desktop. Only after mount, and only below `lg`, do we collapse down to
+  // just the first section — desktop never runs this branch, so its
+  // "everything expanded" layout never changes.
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>(() =>
+    Object.fromEntries(SECTIONS.map((s) => [s.id, true])),
+  );
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!window.matchMedia("(max-width: 1023px)").matches) return;
+    setOpenSections(Object.fromEntries(SECTIONS.map((s, i) => [s.id, i === 0])));
+  }, []);
+
+  function jumpToSection(id: string) {
+    setOpenSections((prev) => ({ ...prev, [id]: true }));
+    requestAnimationFrame(() => {
+      document.getElementById(`section-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }
+
+  function sectionProps(id: string) {
+    return {
+      id,
+      open: openSections[id],
+      onToggle: (o: boolean) => setOpenSections((prev) => ({ ...prev, [id]: o })),
+    };
+  }
 
   function set<K extends keyof LocalState>(key: K, value: LocalState[K]) {
     setState((prev) => ({ ...prev, [key]: value }));
@@ -409,8 +450,23 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
         <FormError message={deleteError} />
       </Card>
 
+      {/* Mobile-only section jump nav — desktop shows every section expanded
+          already, so there's nothing to jump to there. */}
+      <div className="-mx-4 flex gap-1.5 overflow-x-auto px-4 pb-1 lg:hidden">
+        {SECTIONS.map((s) => (
+          <button
+            key={s.id}
+            type="button"
+            onClick={() => jumpToSection(s.id)}
+            className="shrink-0 whitespace-nowrap rounded-full border border-line bg-card px-3 py-1.5 text-[12px] font-semibold text-fg-muted transition-colors hover:border-accent/40 hover:text-fg"
+          >
+            {s.title}
+          </button>
+        ))}
+      </div>
+
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <SectionCard title="Customer">
+        <SectionCard title="Customer" {...sectionProps("customer")}>
           {(!state.accountId || customerPickerOpen) && (
             <AsyncSearchPicker<CustomerSearchResult>
               label="Search customers"
@@ -446,7 +502,7 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
           />
         </SectionCard>
 
-        <SectionCard title="Carrier" subtitle="Assign who's hauling this load">
+        <SectionCard title="Carrier" subtitle="Assign who's hauling this load" {...sectionProps("carrier")}>
           {(!carrier || carrierPickerOpen) && (
             <AsyncSearchPicker<CrmCarrier>
               label="Search carriers"
@@ -493,7 +549,7 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
           />
         </SectionCard>
 
-        <SectionCard title="Freight">
+        <SectionCard title="Freight" {...sectionProps("freight")}>
           <FormRow2>
             <TextRow
               label="Commodity"
@@ -557,7 +613,7 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
           />
         </SectionCard>
 
-        <SectionCard title="Notes" subtitle="Internal — not shown on any generated document">
+        <SectionCard title="Notes" subtitle="Internal — not shown on any generated document" {...sectionProps("notes")}>
           <TextAreaRow
             label="Notes"
             value={state.notes}
@@ -569,6 +625,7 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
 
         <SectionCard
           title="Shipper"
+          {...sectionProps("shipper")}
           right={
             state.accountId ? (
               <LocationPickerModal
@@ -669,6 +726,7 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
 
         <SectionCard
           title="Consignee"
+          {...sectionProps("consignee")}
           right={
             state.accountId ? (
               <LocationPickerModal
@@ -767,7 +825,7 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
           )}
         </SectionCard>
 
-        <SectionCard title="Pickup">
+        <SectionCard title="Pickup" {...sectionProps("pickup")}>
           <TextRow
             label="Pickup date/time"
             type="datetime-local"
@@ -796,7 +854,7 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
           />
         </SectionCard>
 
-        <SectionCard title="Delivery">
+        <SectionCard title="Delivery" {...sectionProps("delivery")}>
           <TextRow
             label="Delivery date/time"
             type="datetime-local"
@@ -840,19 +898,35 @@ function AutoFillNote({ autoFill }: { autoFill: AutoFill }) {
 }
 
 function SectionCard({
+  id,
   title,
   subtitle,
   right,
+  open,
+  onToggle,
   children,
 }: {
+  /** Anchor id for the mobile jump-nav (`section-${id}`) — omit to fall back
+   * to the old uncontrolled-always-open `<details open>` behavior. */
+  id?: string;
   title: string;
   subtitle?: string;
   right?: ReactNode;
+  /** Controlled open state. Omit to keep the old uncontrolled `open`
+   * attribute (always expanded, matches pre-mobile-work behavior). */
+  open?: boolean;
+  onToggle?: (open: boolean) => void;
   children: ReactNode;
 }) {
+  const controlled = open !== undefined;
   return (
-    <Card>
-      <details open className="group">
+    <Card id={id ? `section-${id}` : undefined}>
+      <details
+        {...(controlled
+          ? { open, onToggle: (e: React.SyntheticEvent<HTMLDetailsElement>) => onToggle?.(e.currentTarget.open) }
+          : { open: true })}
+        className="group"
+      >
         <summary className="flex cursor-pointer list-none items-center justify-between gap-3 border-b border-line px-4 pb-2 pt-3 [&::-webkit-details-marker]:hidden">
           <div className="min-w-0">
             <h2 className="truncate text-[11px] font-bold uppercase tracking-[0.08em] text-fg">{title}</h2>

@@ -103,6 +103,7 @@ export function TextRow({
   onChange,
   onBlur,
   type = "text",
+  inputMode,
   placeholder,
   highlight,
   hint,
@@ -115,6 +116,8 @@ export function TextRow({
   onChange: (v: string) => void;
   onBlur: () => void;
   type?: string;
+  /** Mobile keyboard hint (e.g. "numeric" for an MC/DOT number field). */
+  inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"];
   placeholder?: string;
   highlight?: boolean;
   /** Small helper line under the control — e.g. a live unit conversion.
@@ -145,6 +148,7 @@ export function TextRow({
       )}
       <input
         type={type}
+        inputMode={inputMode}
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
@@ -395,19 +399,23 @@ export function SelectRow({
   onChange,
   children,
   className,
+  hideLabel,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   children: ReactNode;
   className?: string;
+  /** See TextRow's hideLabel. */
+  hideLabel?: boolean;
 }) {
   return (
     <label className={`flex w-full min-w-0 flex-col gap-1 ${className ?? ""}`}>
-      <span className={LABEL}>{label}</span>
+      {!hideLabel && <span className={LABEL}>{label}</span>}
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
+        aria-label={hideLabel ? label : undefined}
         className={`w-full min-w-0 ${CONTROL_SIZE} ${CONTROL}`}
       >
         {children}
