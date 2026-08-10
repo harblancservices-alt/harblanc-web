@@ -28,7 +28,13 @@ const LABEL = "text-[9.5px] font-bold uppercase tracking-[0.07em] text-fg leadin
 const CONTROL =
   "rounded-[5px] border border-fg-subtle bg-card font-medium text-fg outline-none transition-shadow focus:border-accent focus:ring-1 focus:ring-accent/50";
 
-const CONTROL_SIZE = "h-10 px-2.5 text-[13.5px] sm:h-[26px] sm:px-2 sm:text-[12.5px]";
+// Explicit vertical padding + line-height (not a bare fixed h-* with zero
+// vertical padding) so short values ("PPE") and long values center
+// identically — a tight fixed height with no py left native centering to
+// browser/zoom rounding, which visibly offset short text. py+leading+border
+// sum to the same ~40px/~26px envelope as before, just symmetric.
+const CONTROL_SIZE =
+  "h-auto min-h-[40px] px-2.5 py-2 text-[13.5px] leading-tight sm:min-h-[26px] sm:px-2 sm:py-[5px] sm:text-[12.5px] sm:leading-[14px]";
 
 export function TextRow({
   label,
