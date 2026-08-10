@@ -48,7 +48,7 @@ function sanitize(q: string): string {
 export default async function ContactsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; dm?: string }>;
 }) {
   await requireCrmUser();
   const supabase = await createCrmServerClient();
@@ -56,6 +56,11 @@ export default async function ContactsPage({
   const sp = await searchParams;
   const q = (sp.q ?? "").trim();
   const safe = sanitize(q);
+  // Dashboard's "Decision Makers" counter tile deep-links here with dm=1 —
+  // the org-wide filtered view the recommendations audit called for
+  // (crm_contacts.is_decision_maker already exists and is already badged on
+  // every card below; this just adds a way to see ONLY those at once).
+  const decisionMakersOnly = sp.dm === "1";
 
   let query = supabase
     .from("crm_contacts")
@@ -63,6 +68,8 @@ export default async function ContactsPage({
       "id, name, title, email, phone, mobile, extension, is_decision_maker, next_followup_at, account_id, role_category, last_contacted_at",
     )
     .is("deleted_at", null);
+
+  if (decisionMakersOnly) query = query.eq("is_decision_maker", true);
 
   if (safe.length >= 1) {
     const like = `%${safe}%`;

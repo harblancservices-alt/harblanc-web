@@ -186,8 +186,8 @@ export default async function TasksPage() {
         </Card>
       ) : (
         <>
-          <Group title="Overdue" tasks={overdue} dialogProps={dialogProps} />
-          <Group title="Due today" tasks={dueToday} dialogProps={dialogProps} />
+          <Group id="overdue" title="Overdue" tasks={overdue} dialogProps={dialogProps} />
+          <Group id="due-today" title="Due today" tasks={dueToday} dialogProps={dialogProps} />
           <Group title="Upcoming" tasks={upcoming} dialogProps={dialogProps} />
 
           {doneTasks.length > 0 && (
@@ -221,17 +221,19 @@ type TaskDialogProps = {
 };
 
 function Group({
+  id,
   title,
   tasks,
   dialogProps,
 }: {
+  id?: string;
   title: string;
   tasks: CrmTaskItem[];
   dialogProps: TaskDialogProps;
 }) {
   if (tasks.length === 0) return null;
   return (
-    <Card>
+    <Card id={id} className={id ? "scroll-mt-20" : undefined}>
       <CardHead title={title} hint={`${tasks.length}`} />
       <ul className="grid grid-cols-1 items-start gap-2.5 p-3 sm:grid-cols-2 lg:grid-cols-3">
         {tasks.map((t) => (

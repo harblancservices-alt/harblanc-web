@@ -1,31 +1,28 @@
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
-import { PageShell, Card, CardHead } from "./_shell/ui";
+import { PageShell, Card } from "./_shell/ui";
 import {
   formatDate,
   timestampMs,
+  dueCountdown,
   firstName as profileFirstName,
   centralDayRange,
   titleCaseWords,
 } from "./_shell/format";
-import { parsePhones } from "./_shell/contactFields";
-import { TaskRow, type CrmTaskItem } from "./tasks/TaskRow";
+import { parsePhones, digitsForTel } from "./_shell/contactFields";
+import type { CrmTaskItem } from "./tasks/TaskRow";
 import type { RepOption } from "./accounts/CompanyDialog";
-import {
-  QuickAddContactButton,
-  QuickAddCompanyButton,
-  QuickLogCallButton,
-  QuickAddTaskButton,
-  HeaderAddCompanyButton,
-} from "./QuickActions";
+import { HeaderAddCompanyButton } from "./QuickActions";
+import { QuickActionsStrip } from "./QuickActionsStrip";
+import { CounterTiles, type CounterTileData } from "./CounterTiles";
 import { DashboardSearch, type SearchContactOption } from "./DashboardSearch";
-import { NextUpFollowupCard, type CallListContact } from "./NextUpFollowupCard";
-import { RecentActivityCard, type RecentActivityItem } from "./RecentActivityCard";
-import { PipelineSection, type PipelineCounts } from "./PipelineSection";
-import { NeedsAttentionSection } from "./NeedsAttentionSection";
-import type { NeedsAttentionCompany } from "./NeedsAttentionRow";
-import { SELECTABLE_LIFECYCLE_STAGES, normalizeStage, type LifecycleStage } from "./accounts/lifecycle";
-import { CRM_ACTIVITY, CRM_CONTACT_ACTIVITY_KINDS } from "@/lib/crm/activity";
-import { callOutcomeLabel } from "./calls/outcomes";
+import { NextBestActionSection, type NbaItem } from "./NextBestActionSection";
+import { NeedsResearchList, type ResearchGapCompany } from "./NeedsResearchList";
+import { NoContactsYetList, type NoContactCompany } from "./NoContactsYetList";
+import { FollowupsDueList, type FollowupDueItem } from "./FollowupsDueList";
+import { GoingStaleList } from "./GoingStaleList";
+import type { StaleReconnectCompany } from "./StaleReconnectRow";
+import { normalizeStage } from "./accounts/lifecycle";
+import { CRM_CONTACT_ACTIVITY_KINDS } from "@/lib/crm/activity";
 
 export const dynamic = "force-dynamic";
 
@@ -64,6 +61,10 @@ type FollowupContactRow = {
   phones: unknown;
 };
 
+/** crm_accounts columns the completeness score reads — Company/Commercial/
+ * Context field groups only (see buildProfileCompleteness below); the
+ * Freight-profile group is intentionally excluded, matching the prior
+ * research audit's hard exclusion of trucking-ops data from this dashboard. */
 type AccountRow = {
   id: string;
   name: string;
@@ -72,7 +73,55 @@ type AccountRow = {
   lifecycle_status: string | null;
   created_at: string;
   attention_dismissed_at: string | null;
+  primary_contact_id: string | null;
+  dba: string | null;
+  linkedin_url: string | null;
+  year_founded: number | null;
+  ownership_type: string | null;
+  industry: string | null;
+  company_size: string | null;
+  website: string | null;
+  fit_rating: number | null;
+  payment_terms: string | null;
+  current_carrier: string | null;
+  context_notes: string | null;
 };
+
+const COMPLETENESS_COLUMNS = [
+  "dba",
+  "linkedin_url",
+  "year_founded",
+  "ownership_type",
+  "industry",
+  "company_size",
+  "website",
+  "fit_rating",
+  "payment_terms",
+  "current_carrier",
+  "context_notes",
+] as const satisfies readonly (keyof AccountRow)[];
+
+function isFilled(value: unknown): boolean {
+  if (value === null || value === undefined) return false;
+  if (typeof value === "string") return value.trim().length > 0;
+  if (typeof value === "number") return Number.isFinite(value);
+  return Boolean(value);
+}
+
+/**
+ * Profile-completeness % (0-100) — the fraction of Company/Commercial/
+ * Context detail fields (see accounts/[id]/details-fields.ts's DETAILS_
+ * FIELDS registry) that have a stored value. Deliberately excludes the
+ * Freight-profile group (equipment, lanes, volume, weight, special
+ * requirements) — those are firmographic FACTS the AI research pipeline
+ * captures, but scoring them would blend "researched" with "freight-ops
+ * completeness," which the CRM's prospecting scope treats as out of bounds.
+ * Drives the red<40% / amber<65% / green≥65% bar in NeedsResearchList.
+ */
+function buildProfileCompleteness(a: AccountRow): number {
+  const filled = COMPLETENESS_COLUMNS.filter((k) => isFilled(a[k])).length;
+  return Math.round((filled / COMPLETENESS_COLUMNS.length) * 100);
+}
 
 /** Central-time hour (0-23) for a moment — drives the header's time-of-day
  * greeting. Some engines format midnight as "24" with hour12:false. */
@@ -87,15 +136,32 @@ function centralHour(date: Date): number {
   return h === 24 ? 0 : h;
 }
 
+/** Mirrors TaskRow's contextAction — the Call/Email pill a task row offers
+ * based on its task_type, kept as a standalone function here since this page
+ * renders its own Next-Best-Action row shape rather than a full TaskRow. */
+function taskContextAction(task: CrmTaskItem): NbaItem["action"] {
+  const type = (task.task_type ?? "").toLowerCase();
+  if (type.includes("email")) {
+    return task.contactEmail ? { label: "EMAIL", href: `mailto:${task.contactEmail}` } : null;
+  }
+  if (type.includes("call") || type.includes("voicemail")) {
+    const phone = task.contactPhone || task.companyPhone;
+    return phone ? { label: "CALL", href: `tel:${digitsForTel(phone)}` } : null;
+  }
+  return null;
+}
+
 /**
- * The CRM dashboard — rebuilt around Brent's approved mockup: NO KPI stat
- * cards. Order top to bottom: header (greeting + due count + search + Add),
- * a button cockpit (the primary quick actions, replacing the KPI row),
- * Pipeline (a compact clickable stage pill row, no card chrome), Needs
- * attention (companies gone quiet), What's next (today's due tasks +
- * follow-ups, merged into one queue), and Recent activity (org-wide
- * calls/notes/timeline events) at the very bottom. Everything RLS-scoped to
- * the caller's org; force-dynamic keeps it live.
+ * The CRM dashboard — Brent's approved "Command Center" mockup: 6 counter
+ * tiles, a quick-actions strip, then a 3-column body (Next Best Action /
+ * Needs Research + No Contacts Yet / Follow-ups Due + Going Stale). Replaces
+ * the previous button-cockpit + Pipeline + Needs-attention + What's-next +
+ * Recent-activity layout entirely — every widget below is either a straight
+ * reuse of an existing calculation (staleness, due-date buckets) or a small
+ * new org-wide gap-finder built from columns that already exist (research
+ * notes, contact counts, detail-field fill state) — see each section's
+ * comment for exactly which. RLS-scoped to the caller's org; force-dynamic
+ * keeps it live.
  */
 export default async function CrmDashboardPage() {
   const user = await requireCrmUser();
@@ -115,11 +181,11 @@ export default async function CrmDashboardPage() {
     companyOptionsRes,
     orgContactsRes,
     allAccountsRes,
-    recentCallsRes,
-    recentNotesRes,
-    recentActivitiesRes,
+    researchNotesRes,
   ] = await Promise.all([
-    // Call list — contacts whose next_followup_at is due today or overdue.
+    // Follow-ups due today or overdue — contacts whose next_followup_at has
+    // arrived. Everything this query returns is either overdue or due today
+    // (nothing further out), so `overdue` below is the only split needed.
     supabase
       .from("crm_contacts")
       .select("id, name, account_id, next_followup_at, notes, phone, phones")
@@ -128,9 +194,7 @@ export default async function CrmDashboardPage() {
       .lte("next_followup_at", endOfTodayISO)
       .order("next_followup_at", { ascending: true })
       .limit(100),
-    // Tasks queue — EVERY open task org-wide (not just the viewer's own
-    // assignments), regardless of due date. Sorted overdue-first client-side
-    // below since a plain due_at order would bury undated tasks awkwardly.
+    // Every open task, org-wide — not just the viewer's own assignments.
     supabase
       .from("crm_tasks")
       .select(
@@ -140,58 +204,38 @@ export default async function CrmDashboardPage() {
       .is("deleted_at", null)
       .order("due_at", { ascending: true, nullsFirst: false })
       .limit(500),
-    // Assignee/author names for tasks + recent activity, and the rep roster
-    // for the quick-action dialogs' "Assigned rep" picker.
     supabase.from("crm_profiles").select("id, full_name, email, is_active"),
-    // Company roster for the quick-action dialogs.
     supabase
       .from("crm_accounts")
       .select("id, name")
       .is("deleted_at", null)
       .order("name", { ascending: true })
       .limit(1000),
-    // Contact roster for the quick-task/quick-call dialogs' contact pickers
-    // — phone/phones, email, and title also ride along so the What's-next
-    // task cards can resolve their linked contact's phone/title without a
-    // second query.
+    // Org-wide contact roster — quick-action dialogs' pickers, the "No
+    // Contacts Yet" gap-finder (grouped by account_id below), and the
+    // Decision Makers counter (is_decision_maker).
     supabase
       .from("crm_contacts")
-      .select("id, name, account_id, phone, phones, email, title")
+      .select("id, name, account_id, phone, phones, email, title, is_decision_maker")
       .is("deleted_at", null)
       .order("name", { ascending: true })
       .limit(2000),
-    // Every non-deleted, released company — the shared source for BOTH the
-    // Pipeline stage counts and the Needs-attention staleness ranking, so
-    // that data is fetched exactly once.
+    // Every non-deleted, released company, carrying the completeness-score
+    // columns and primary_contact_id — the shared source for the Stale/
+    // Research/New-this-week counters AND the Needs-Research / Going-Stale
+    // widget lists, so that data is fetched exactly once.
     supabase
       .from("crm_accounts")
-      .select("id, name, phone, phones, lifecycle_status, created_at, attention_dismissed_at")
+      .select(
+        "id, name, phone, phones, lifecycle_status, created_at, attention_dismissed_at, primary_contact_id, dba, linkedin_url, year_founded, ownership_type, industry, company_size, website, fit_rating, payment_terms, current_carrier, context_notes",
+      )
       .is("deleted_at", null)
       .or("ai_status.is.null,ai_status.neq.pending_review")
       .limit(500),
-    // Recent activity feed — latest calls...
-    supabase
-      .from("crm_calls")
-      .select("id, account_id, contact_id, outcome, summary, occurred_at, user_id")
-      .is("deleted_at", null)
-      .order("occurred_at", { ascending: false })
-      .limit(8),
-    // ...latest human notes...
-    supabase
-      .from("crm_notes")
-      .select("id, account_id, contact_id, body, is_ai, created_at, user_id")
-      .is("deleted_at", null)
-      .eq("is_ai", false)
-      .order("created_at", { ascending: false })
-      .limit(8),
-    // ...and other timeline events (stage moves, contacts added, etc.) —
-    // calls/notes are excluded here since they're already covered above.
-    supabase
-      .from("crm_activities")
-      .select("id, account_id, contact_id, kind, summary, occurred_at, user_id")
-      .not("kind", "in", `(${CRM_ACTIVITY.call},${CRM_ACTIVITY.noteAdded})`)
-      .order("occurred_at", { ascending: false })
-      .limit(8),
+    // Which accounts already have an AI-research note on file — the org-wide
+    // "Needs Research" gap-finder over data AiResearchSection already logs
+    // per-company (crm_notes.is_ai=true).
+    supabase.from("crm_notes").select("account_id").eq("is_ai", true).is("deleted_at", null).limit(5000),
   ]);
 
   const followupRows = (followupContactsRes.data ?? []) as FollowupContactRow[];
@@ -202,7 +246,7 @@ export default async function CrmDashboardPage() {
   );
   const allAccounts = (allAccountsRes.data ?? []) as AccountRow[];
 
-  // ── Quick-action data ──
+  // ── Quick-action / search rosters ──
   const companyOptions = ((companyOptionsRes.data ?? []) as { id: string; name: string }[]).map(
     (a) => ({ id: a.id, name: titleCaseWords(a.name) }),
   );
@@ -214,6 +258,7 @@ export default async function CrmDashboardPage() {
     phones: unknown;
     email: string | null;
     title: string | null;
+    is_decision_maker: boolean;
   }[];
   const quickTaskContacts = orgContacts.map((c) => ({
     id: c.id,
@@ -236,22 +281,18 @@ export default async function CrmDashboardPage() {
     .map((p) => ({ id: p.id, label: profileNameById.get(p.id) ?? "Unnamed rep" }))
     .sort((a, b) => a.label.localeCompare(b.label));
 
-  // Resolve company names — the "all accounts" roster already covers almost
-  // everything; a small fallback query fills in anything it doesn't (a
-  // pending-review AI lead with a task attached, for instance).
+  // Resolve company names/phones — the "all accounts" roster covers almost
+  // everything; a small fallback fills anything it doesn't (e.g. a
+  // pending-review AI lead with a task attached).
   const nameById = new Map(allAccounts.map((a) => [a.id, titleCaseWords(a.name)]));
   const companyPhoneById = new Map(
     allAccounts.map((a) => [a.id, parsePhones(a.phones)[0]?.number || a.phone || null]),
   );
   const missingNameIds = [
     ...new Set(
-      [
-        ...openTaskRows.map((t) => t.account_id),
-        ...followupRows.map((c) => c.account_id),
-        ...((recentCallsRes.data ?? []) as { account_id: string | null }[]).map((r) => r.account_id),
-        ...((recentNotesRes.data ?? []) as { account_id: string | null }[]).map((r) => r.account_id),
-        ...((recentActivitiesRes.data ?? []) as { account_id: string | null }[]).map((r) => r.account_id),
-      ].filter((id): id is string => Boolean(id) && !nameById.has(id as string)),
+      [...openTaskRows.map((t) => t.account_id), ...followupRows.map((c) => c.account_id)].filter(
+        (id): id is string => Boolean(id) && !nameById.has(id as string),
+      ),
     ),
   ];
   if (missingNameIds.length) {
@@ -265,17 +306,15 @@ export default async function CrmDashboardPage() {
     }
   }
 
-  // Search-box rosters — same orgContacts roster as the quick-task picker,
-  // just carrying a resolved company name for display instead of a raw id.
   const searchContacts: SearchContactOption[] = quickTaskContacts.map((c) => ({
     id: c.id,
     name: c.name,
     companyName: c.accountId ? (nameById.get(c.accountId) ?? null) : null,
   }));
 
-  // ── What's next — merge follow-up contacts + open tasks into one queue,
-  // sorted overdue-first, then due-today, then everything else. ──
-  const callList: CallListContact[] = followupRows.map((c) => {
+  // ── Tasks + follow-ups, bucketed by due date (shared by the counters, the
+  // Follow-ups Due list, and Next Best Action's overdue tier). ──
+  const callList = followupRows.map((c) => {
     const ms = timestampMs(c.next_followup_at);
     return {
       id: c.id,
@@ -305,121 +344,20 @@ export default async function CrmDashboardPage() {
     if (ms !== null && ms <= todayEnd) return 1; // due today
     return 2; // no due date, or a future one
   };
-  const dueTodayCount = allOpenTasks.filter((t) => taskDueBucket(t) === 1).length;
-  const overdueTaskCount = allOpenTasks.filter((t) => taskDueBucket(t) === 0).length;
-  const overdueFollowupCount = callList.filter((c) => c.overdue).length;
+  const overdueTasks = allOpenTasks.filter((t) => taskDueBucket(t) === 0);
+  const dueTodayTasks = allOpenTasks.filter((t) => taskDueBucket(t) === 1);
+  const overdueFollowups = callList.filter((c) => c.overdue);
+  const dueTodayFollowups = callList.filter((c) => !c.overdue);
 
-  type NextItem = { bucket: number; ms: number; node: React.ReactNode };
-  const nextItems: NextItem[] = [
-    ...callList.map((c) => ({
-      bucket: c.overdue ? 0 : 1,
-      ms: timestampMs(c.next_followup_at) ?? Number.POSITIVE_INFINITY,
-      node: <NextUpFollowupCard key={`followup-${c.id}`} contact={c} />,
-    })),
-    ...allOpenTasks.map((t) => ({
-      bucket: taskDueBucket(t),
-      ms: timestampMs(t.due_at) ?? Number.POSITIVE_INFINITY,
-      node: (
-        <TaskRow
-          key={`task-${t.id}`}
-          task={t}
-          showCompany
-          linkTo={t.account_id ? `/crm/accounts/${t.account_id}` : "/crm/tasks"}
-          accounts={companyOptions}
-          contacts={quickTaskContacts}
-          reps={reps}
-          canAssignOthers={canAssignOthers}
-          currentUser={currentUser}
-        />
-      ),
-    })),
-  ].sort((a, b) => a.bucket - b.bucket || a.ms - b.ms);
+  const overdueCount = overdueTasks.length + overdueFollowups.length;
+  const dueTodayCount = dueTodayTasks.length + dueTodayFollowups.length;
 
-  // ── Recent activity — latest calls/notes/timeline events, org-wide. ──
-  type MergedActivity = {
-    id: string;
-    kind: RecentActivityItem["kind"];
-    accountId: string | null;
-    occurredAt: string;
-    userId: string | null;
-    detail: string;
-  };
-  const callActivity: MergedActivity[] = (
-    (recentCallsRes.data ?? []) as {
-      id: string;
-      account_id: string | null;
-      outcome: string | null;
-      summary: string | null;
-      occurred_at: string;
-      user_id: string | null;
-    }[]
-  ).map((c) => ({
-    id: c.id,
-    kind: "call",
-    accountId: c.account_id,
-    occurredAt: c.occurred_at,
-    userId: c.user_id,
-    detail: `${callOutcomeLabel(c.outcome)}${c.summary ? `: ${c.summary}` : ""}`,
-  }));
-  const noteActivity: MergedActivity[] = (
-    (recentNotesRes.data ?? []) as {
-      id: string;
-      account_id: string | null;
-      body: string;
-      created_at: string;
-      user_id: string | null;
-    }[]
-  ).map((n) => ({
-    id: n.id,
-    kind: "note",
-    accountId: n.account_id,
-    occurredAt: n.created_at,
-    userId: n.user_id,
-    detail: n.body.length > 140 ? `${n.body.slice(0, 140)}…` : n.body,
-  }));
-  const timelineActivity: MergedActivity[] = (
-    (recentActivitiesRes.data ?? []) as {
-      id: string;
-      account_id: string | null;
-      summary: string | null;
-      occurred_at: string;
-      user_id: string | null;
-    }[]
-  ).map((a) => ({
-    id: a.id,
-    kind: "activity",
-    accountId: a.account_id,
-    occurredAt: a.occurred_at,
-    userId: a.user_id,
-    detail: a.summary || "Activity",
-  }));
-  const recentActivityItems: RecentActivityItem[] = [...callActivity, ...noteActivity, ...timelineActivity]
-    .sort((a, b) => (timestampMs(b.occurredAt) ?? 0) - (timestampMs(a.occurredAt) ?? 0))
-    .slice(0, 8)
-    .map((m) => ({
-      id: m.id,
-      kind: m.kind,
-      accountId: m.accountId,
-      companyName: m.accountId ? (nameById.get(m.accountId) ?? null) : null,
-      detail: m.detail,
-      occurredAt: m.occurredAt,
-      author: m.userId ? (profileNameById.get(m.userId) ?? null) : null,
-    }));
-
-  // ── Pipeline — company count per lifecycle stage. ──
-  const pipelineCounts = Object.fromEntries(
-    SELECTABLE_LIFECYCLE_STAGES.map((s) => [s, 0]),
-  ) as PipelineCounts;
-  for (const a of allAccounts) {
-    const stage = normalizeStage(a.lifecycle_status);
-    if (stage in pipelineCounts) pipelineCounts[stage as LifecycleStage] += 1;
-  }
-
-  // ── Needs attention — companies gone quiet: the longest since a logged
-  // call or a genuine contact-kind activity (matching the Companies list'
-  // "last contact" computation), excluding terminal stages (already dead,
-  // nothing to chase) and brand-new leads that simply haven't been worked
-  // yet (created within the last 3 days with no contact logged). ──
+  // ── Going stale / Stale counter — companies gone quiet: the longest since
+  // a logged call or a genuine contact-kind activity (matching the Companies
+  // list's own "last contact" computation), excluding terminal stages and
+  // brand-new leads that simply haven't been worked yet. Identical rule to
+  // the dashboard's previous Needs-attention section — only the layout
+  // changed. ──
   const accountIds = allAccounts.map((a) => a.id);
   const [lastCallsRes, lastActivitiesRes] = accountIds.length
     ? await Promise.all([
@@ -454,10 +392,12 @@ export default async function CrmDashboardPage() {
   const STALE_THRESHOLD_DAYS = 7;
   const NEW_LEAD_GRACE_DAYS = 3;
   const DISMISS_WINDOW_DAYS = 5;
-  const needsAttention: NeedsAttentionCompany[] = allAccounts
+  const nonTerminalAccounts = allAccounts.filter((a) => {
+    const stage = normalizeStage(a.lifecycle_status);
+    return stage !== "lost" && stage !== "inactive";
+  });
+  const staleAccountsFull = nonTerminalAccounts
     .filter((a) => {
-      const stage = normalizeStage(a.lifecycle_status);
-      if (stage === "lost" || stage === "inactive") return false;
       const dismissedMs = timestampMs(a.attention_dismissed_at);
       if (dismissedMs !== null && now.getTime() - dismissedMs < DISMISS_WINDOW_DAYS * DAY_MS) return false;
       const ms = lastContactMsByAccount.get(a.id);
@@ -467,16 +407,142 @@ export default async function CrmDashboardPage() {
       }
       return now.getTime() - ms >= STALE_THRESHOLD_DAYS * DAY_MS;
     })
-    .sort((a, b) => (lastContactMsByAccount.get(a.id) ?? -Infinity) - (lastContactMsByAccount.get(b.id) ?? -Infinity))
-    .slice(0, 5)
-    .map((a) => {
-      const ms = lastContactMsByAccount.get(a.id);
-      return {
-        id: a.id,
-        name: titleCaseWords(a.name),
-        daysSinceContact: ms === undefined ? null : Math.floor((now.getTime() - ms) / DAY_MS),
-      };
-    });
+    .sort((a, b) => (lastContactMsByAccount.get(a.id) ?? -Infinity) - (lastContactMsByAccount.get(b.id) ?? -Infinity));
+
+  const staleAccounts: StaleReconnectCompany[] = staleAccountsFull.slice(0, 12).map((a) => {
+    const ms = lastContactMsByAccount.get(a.id);
+    return {
+      id: a.id,
+      name: titleCaseWords(a.name),
+      daysSinceContact: ms === undefined ? null : Math.floor((now.getTime() - ms) / DAY_MS),
+      primaryContactName: a.primary_contact_id ? (contactNameById.get(a.primary_contact_id) ?? null) : null,
+    };
+  });
+
+  // ── Needs Research — companies with no AI-research note on file yet,
+  // thinnest profile first. Excludes terminal stages, same as Stale. ──
+  const researchedAccountIds = new Set(
+    ((researchNotesRes.data ?? []) as { account_id: string | null }[])
+      .map((r) => r.account_id)
+      .filter((id): id is string => Boolean(id)),
+  );
+  const researchGapFull: ResearchGapCompany[] = nonTerminalAccounts
+    .filter((a) => !researchedAccountIds.has(a.id))
+    .map((a) => ({ id: a.id, name: titleCaseWords(a.name), completenessPct: buildProfileCompleteness(a) }))
+    .sort((a, b) => a.completenessPct - b.completenessPct);
+  const researchGapTop = researchGapFull.slice(0, 10);
+
+  // ── No Contacts Yet — companies with zero non-deleted crm_contacts rows,
+  // newest first (a fresh gap is more urgent to close than an old one). ──
+  const contactCountByAccount = new Map<string, number>();
+  for (const c of orgContacts) {
+    if (!c.account_id) continue;
+    contactCountByAccount.set(c.account_id, (contactCountByAccount.get(c.account_id) ?? 0) + 1);
+  }
+  const noContactAccounts: NoContactCompany[] = nonTerminalAccounts
+    .filter((a) => (contactCountByAccount.get(a.id) ?? 0) === 0)
+    .sort((a, b) => (timestampMs(b.created_at) ?? 0) - (timestampMs(a.created_at) ?? 0))
+    .slice(0, 10)
+    .map((a) => ({ id: a.id, name: titleCaseWords(a.name) }));
+
+  // ── Decision Makers / New This Week counters ──
+  const decisionMakerCount = orgContacts.filter((c) => c.is_decision_maker).length;
+  const newThisWeekCount = allAccounts.filter((a) => {
+    const ms = timestampMs(a.created_at);
+    return ms !== null && now.getTime() - ms <= 7 * DAY_MS;
+  }).length;
+
+  // ── Follow-ups Due (right column) — every follow-up due today or overdue,
+  // overdue first. ──
+  const followupsDue: FollowupDueItem[] = [...overdueFollowups, ...dueTodayFollowups].map((c) => ({
+    id: c.id,
+    contactName: c.name,
+    companyName: c.companyName,
+    accountId: c.account_id,
+    nextFollowupAt: c.next_followup_at,
+    overdue: c.overdue,
+  }));
+
+  // ── Next Best Action — merge overdue tasks, overdue follow-ups, going-
+  // stale accounts, and research gaps into one ranked queue. Tiered rather
+  // than blended into a single score (the earlier research audit flagged a
+  // fuzzy composite score as a real trust risk): overdue work always outranks
+  // staleness, staleness always outranks a research gap — each tier is then
+  // sorted by its own natural urgency (most overdue first / longest quiet
+  // first / thinnest profile first). ──
+  const overdueTaskItems: { item: NbaItem; sortMs: number }[] = overdueTasks.map((t) => {
+    const overdueText = dueCountdown(t.due_at).text;
+    return {
+      sortMs: timestampMs(t.due_at) ?? 0,
+      item: {
+        id: `task-${t.id}`,
+        href: t.account_id ? `/crm/accounts/${t.account_id}` : t.contact_id ? `/crm/contacts/${t.contact_id}` : "/crm/tasks",
+        avatarLabel: t.companyName || t.contactName || t.title,
+        companyName: t.companyName,
+        reason: t.contactName ? `${overdueText} · ${t.contactName}` : `${overdueText} · ${t.title}`,
+        tag: "OVERDUE",
+        action: taskContextAction(t),
+      },
+    };
+  });
+  const overdueFollowupItems: { item: NbaItem; sortMs: number }[] = overdueFollowups.map((c) => ({
+    sortMs: timestampMs(c.next_followup_at) ?? 0,
+    item: {
+      id: `followup-${c.id}`,
+      href: c.account_id ? `/crm/accounts/${c.account_id}` : `/crm/contacts/${c.id}`,
+      avatarLabel: c.companyName || c.name,
+      companyName: c.companyName,
+      reason: `${dueCountdown(c.next_followup_at).text} · ${c.name}`,
+      tag: "OVERDUE",
+      action: c.phone ? { label: "CALL", href: `tel:${digitsForTel(c.phone)}` } : null,
+    },
+  }));
+  const staleItems: NbaItem[] = staleAccountsFull.map((a) => {
+    const ms = lastContactMsByAccount.get(a.id);
+    const days = ms === undefined ? null : Math.floor((now.getTime() - ms) / DAY_MS);
+    return {
+      id: `stale-${a.id}`,
+      href: `/crm/accounts/${a.id}`,
+      avatarLabel: titleCaseWords(a.name),
+      companyName: titleCaseWords(a.name),
+      reason: days === null ? "Never contacted" : `Stale ${days}d`,
+      tag: "STALE",
+      action: { label: "FOLLOW UP", href: `/crm/accounts/${a.id}` },
+    };
+  });
+  const researchItems: NbaItem[] = researchGapFull.map((c) => ({
+    id: `research-${c.id}`,
+    href: `/crm/accounts/${c.id}`,
+    avatarLabel: c.name,
+    companyName: c.name,
+    reason: `${c.completenessPct}% profile complete`,
+    tag: null,
+    action: { label: "RESEARCH", href: `/crm/accounts/${c.id}` },
+  }));
+
+  const overdueItems = [...overdueTaskItems, ...overdueFollowupItems]
+    .sort((a, b) => a.sortMs - b.sortMs)
+    .map((x) => x.item);
+
+  const nbaItems: NbaItem[] = [...overdueItems, ...staleItems, ...researchItems].slice(0, 30);
+
+  // ── Counter tiles ──
+  const tiles: CounterTileData[] = [
+    { key: "due-today", label: "Due Today", value: dueTodayCount, href: "/crm/tasks#due-today", accent: "#2563eb" },
+    { key: "overdue", label: "Overdue", value: overdueCount, href: "/crm/tasks#overdue", accent: "#b91c1c" },
+    { key: "stale", label: "Stale", value: staleAccountsFull.length, href: "/crm/accounts?sort=stale", accent: "#b45309" },
+    { key: "to-research", label: "To Research", value: researchGapFull.length, href: "#needs-research", accent: "#7c3aed" },
+    { key: "decision-makers", label: "Decision Makers", value: decisionMakerCount, href: "/crm/contacts?dm=1", accent: "#15803d" },
+    { key: "new-this-week", label: "New This Week", value: newThisWeekCount, href: "/crm/accounts", accent: "#2563eb" },
+  ];
+
+  // ── Header summary line ──
+  const summaryParts: string[] = [];
+  if (overdueCount > 0) summaryParts.push(`${overdueCount} overdue`);
+  if (dueTodayCount > 0) summaryParts.push(`${dueTodayCount} due today`);
+  if (staleAccountsFull.length > 0) summaryParts.push(`${staleAccountsFull.length} going stale`);
+  const summaryLine = summaryParts.length ? summaryParts.join(" · ") : "All caught up. Nothing urgent right now.";
+  const summaryTone = overdueCount > 0 ? "text-bad" : dueTodayCount > 0 ? "text-warn" : "text-fg-muted";
 
   const hour = centralHour(now);
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
@@ -484,7 +550,7 @@ export default async function CrmDashboardPage() {
 
   return (
     <PageShell>
-      {/* Header — greeting + date (CST) + due-today count + search + Add. */}
+      {/* Header — greeting + date (CST) + one-line summary + search + Add. */}
       <Card>
         <div className="p-4 sm:p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -494,13 +560,7 @@ export default async function CrmDashboardPage() {
               </h1>
               <p className="mt-0.5 text-[13px] text-fg-muted">{formatDate(now.toISOString())}</p>
             </div>
-            <p
-              className={`shrink-0 text-[13px] font-semibold ${dueTodayCount > 0 ? "text-warn" : "text-fg-muted"}`}
-            >
-              {dueTodayCount > 0
-                ? `${dueTodayCount} task${dueTodayCount === 1 ? "" : "s"} due today`
-                : "No tasks due today"}
-            </p>
+            <p className={`shrink-0 text-[13px] font-semibold ${summaryTone}`}>{summaryLine}</p>
           </div>
           <div className="mt-4 flex items-center gap-2">
             <DashboardSearch companies={companyOptions} contacts={searchContacts} />
@@ -509,62 +569,43 @@ export default async function CrmDashboardPage() {
         </div>
       </Card>
 
-      {/* Button cockpit — the primary quick actions, top of page (replaces
-          the old KPI stat-tile row). */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <QuickLogCallButton accounts={companyOptions} contacts={quickTaskContacts} />
-        <QuickAddTaskButton
-          accounts={companyOptions}
-          contacts={quickTaskContacts}
-          reps={reps}
-          canAssignOthers={canAssignOthers}
-          currentUser={currentUser}
-        />
-        <QuickAddCompanyButton reps={reps} />
-        <QuickAddContactButton companies={companyOptions} />
+      {/* Counter tiles — 3x2 on mobile, 6-across from sm up. */}
+      <CounterTiles tiles={tiles} />
+
+      {/* Quick-actions strip — horizontally scrollable on narrow viewports. */}
+      <QuickActionsStrip
+        companies={companyOptions}
+        reps={reps}
+        taskAccounts={companyOptions}
+        taskContacts={quickTaskContacts}
+        canAssignOthers={canAssignOthers}
+        currentUser={currentUser}
+      />
+
+      {/* Body — 3-column on desktop (Next Best Action / Needs Research +
+          No Contacts Yet / Follow-ups Due + Going Stale); mobile reflows to
+          a single column via the `order-*` classes on each widget below,
+          matching the approved mockup's mobile order (NBA, Follow-ups Due,
+          Going Stale, then Needs Research + No Contacts Yet). */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-12 lg:items-start">
+        <div className="order-3 lg:order-none lg:col-start-1 lg:col-span-6 lg:row-start-1 lg:row-span-2">
+          <NextBestActionSection items={nbaItems} mobileVisibleCount={4} />
+        </div>
+
+        <div className="order-6 lg:order-none lg:col-start-7 lg:col-span-3 lg:row-start-1">
+          <NeedsResearchList companies={researchGapTop} />
+        </div>
+        <div className="order-7 lg:order-none lg:col-start-7 lg:col-span-3 lg:row-start-2 lg:mt-4">
+          <NoContactsYetList items={noContactAccounts} companies={companyOptions} />
+        </div>
+
+        <div className="order-4 lg:order-none lg:col-start-10 lg:col-span-3 lg:row-start-1">
+          <FollowupsDueList items={followupsDue} mobileVisibleCount={2} />
+        </div>
+        <div className="order-5 lg:order-none lg:col-start-10 lg:col-span-3 lg:row-start-2 lg:mt-4">
+          <GoingStaleList companies={staleAccounts} />
+        </div>
       </div>
-
-      {/* Pipeline — compact clickable stage pill row, no card chrome. */}
-      <PipelineSection counts={pipelineCounts} />
-
-      {/* Needs attention — companies gone quiet. Collapsible, closed by
-          default; rings/pulses on a slow cycle while collapsed and there's
-          something waiting. */}
-      <NeedsAttentionSection companies={needsAttention} />
-
-      {/* What's next — today's due follow-ups + tasks, merged, overdue first. */}
-      <Card id="next-up" className="scroll-mt-20">
-        <CardHead
-          title="What's next · Today"
-          hint={nextItems.length ? `${nextItems.length} due` : "Nothing due"}
-          right={<LateBadge count={overdueTaskCount + overdueFollowupCount} />}
-        />
-        {nextItems.length === 0 ? (
-          <Empty text="Nothing due today. You're all caught up." />
-        ) : (
-          <ul className="grid grid-cols-1 items-start gap-2.5 p-3 sm:grid-cols-2 lg:grid-cols-3">
-            {nextItems.map((item) => item.node)}
-          </ul>
-        )}
-      </Card>
-
-      {/* Recent activity — latest calls/notes/timeline events, org-wide. */}
-      <RecentActivityCard items={recentActivityItems} />
     </PageShell>
   );
-}
-
-/** Red "N late" badge for the What's-next card header — only counts OVERDUE
- *  items (not due-today), so it reads as an alert rather than a generic total. */
-function LateBadge({ count }: { count: number }) {
-  if (count <= 0) return null;
-  return (
-    <span className="inline-flex h-6 shrink-0 items-center justify-center bg-bad px-2.5 text-[12px] font-bold tabular-nums text-white shadow-e1">
-      {count} late
-    </span>
-  );
-}
-
-function Empty({ text }: { text: string }) {
-  return <p className="px-5 py-8 text-center text-[13px] text-fg-muted">{text}</p>;
 }

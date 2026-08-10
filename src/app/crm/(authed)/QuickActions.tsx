@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { IconPlus, IconTasks, IconPhone } from "./_shell/icons";
 import { AddContactDialog } from "./contacts/AddContactDialog";
 import type { CompanyOption } from "./contacts/CompanyCombobox";
@@ -9,18 +10,19 @@ import { LogCallDialog } from "./calls/LogCallDialog";
 import { BTN_PRIMARY } from "./_shell/ui";
 
 /**
- * The dashboard's button cockpit — the FIRST thing on the page (replacing
- * the old KPI stat-tile row, Brent's explicit call), four big thumb-friendly
- * buttons each wired to an existing dialog via its `trigger` render prop.
- * Split into small Client Components (rather than building the `trigger`
- * callbacks inline in page.tsx) because `trigger` is a function prop — a
- * Server Component can never hand a closure to a Client Component (same rule
- * buildCrmNav's docstring calls out for icon components). page.tsx only ever
- * passes these plain, serializable data.
+ * The dashboard's quick-actions strip — a row of solid pill buttons (Brent's
+ * approved Command Center mockup), each wired to an existing dialog via its
+ * `trigger` render prop. Split into small Client Components (rather than
+ * building the `trigger` callbacks inline in page.tsx) because `trigger` is
+ * a function prop — a Server Component can never hand a closure to a Client
+ * Component (same rule buildCrmNav's docstring calls out for icon
+ * components). page.tsx only ever passes these plain, serializable data.
+ * Rendered inside QuickActionsStrip.tsx, which supplies the horizontal-
+ * scroll row layout shared with the (Link-only) Research Queue pill.
  */
 
 const BUTTON_CLASS =
-  "flex min-h-[64px] flex-1 flex-col items-center justify-center gap-1.5 border border-[#2563eb] bg-[#2563eb] px-3 py-3 text-[13.5px] font-bold text-white shadow-e2 transition-all hover:-translate-y-0.5 hover:bg-[#1d4ed8] hover:shadow-e3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white";
+  "inline-flex h-11 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-[#2563eb] bg-[#2563eb] px-4 text-[13px] font-bold text-white shadow-e1 transition-colors hover:bg-[#1d4ed8] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white";
 
 export function QuickAddContactButton({ companies }: { companies: CompanyOption[] }) {
   return (
@@ -130,6 +132,38 @@ export function QuickAddTaskButton({
         </button>
       )}
     />
+  );
+}
+
+/** "Research Queue" pill — the strip's one non-dialog entry, a plain link
+ * down to the Needs Research widget rather than a create flow. Same pill
+ * shape/color as the dialog buttons above so the strip reads as one row of
+ * equally-weighted actions. */
+export function QuickResearchQueueButton() {
+  return (
+    <Link href="#needs-research" className={BUTTON_CLASS}>
+      <IconResearch width={18} height={18} />
+      Research Queue
+    </Link>
+  );
+}
+
+function IconResearch(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      width={18}
+      height={18}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <circle cx="10.5" cy="10.5" r="6.5" />
+      <path d="M20 20l-4.8-4.8" />
+    </svg>
   );
 }
 
