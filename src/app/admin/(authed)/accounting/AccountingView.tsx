@@ -101,7 +101,7 @@ export function AccountingView({ data }: { data: AccountingData }) {
         {data.receivables.length === 0 ? (
           <EmptyCard text="Nothing outstanding — every sent quote is paid in full." />
         ) : (
-          <div className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(360px,1fr))]">
+          <div className="grid grid-cols-1 gap-3 sm:[grid-template-columns:repeat(auto-fill,minmax(360px,1fr))]">
             {data.receivables.map((r) => (
               <ReceivableCard key={r.fqId} r={r} />
             ))}
