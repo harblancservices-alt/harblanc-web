@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
   fieldLabel: {
     fontSize: 7,
     fontWeight: 700,
-    color: "#555",
+    color: "#000",
     textTransform: "uppercase",
     letterSpacing: 0.4,
   },
@@ -161,8 +161,8 @@ const styles = StyleSheet.create({
   },
   sigLineLabel: {
     fontSize: 7,
-    fontWeight: 600,
-    color: "#555",
+    fontWeight: 700,
+    color: "#000",
     textTransform: "uppercase",
     letterSpacing: 0.4,
     marginTop: 2,

@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   fieldLine: { fontSize: 9, marginBottom: 1 },
-  fieldLabel: { fontSize: 7, fontWeight: 600, color: "#555", textTransform: "uppercase" },
+  fieldLabel: { fontSize: 7, fontWeight: 700, color: "#000", textTransform: "uppercase" },
   chargeRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -157,7 +157,7 @@ const styles = StyleSheet.create({
   tableHeaderCell: {
     fontSize: 7,
     fontWeight: 700,
-    color: "#444",
+    color: "#000",
     textTransform: "uppercase",
     padding: 4,
     borderRight: "1pt solid #000",
@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
   },
   sigCol: { flex: 1 },
   sigLine: { borderBottom: "1.2pt solid #000", minHeight: 20 },
-  sigLabel: { fontSize: 7, fontWeight: 600, color: "#555", textTransform: "uppercase", marginTop: 2 },
+  sigLabel: { fontSize: 7, fontWeight: 700, color: "#000", textTransform: "uppercase", marginTop: 2 },
   sigDate: { fontSize: 8.5, marginTop: 3 },
 });
 
