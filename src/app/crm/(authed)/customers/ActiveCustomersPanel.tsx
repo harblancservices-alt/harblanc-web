@@ -1,12 +1,13 @@
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { Card, CardHead, EmptyState } from "../_shell/ui";
 import { IconCustomers } from "../_shell/icons";
-import { timestampMs } from "../_shell/format";
+import { timestampMs, titleCaseWords } from "../_shell/format";
 import { parsePhones } from "../_shell/contactFields";
 import { CRM_CONTACT_ACTIVITY_KINDS } from "@/lib/crm/activity";
 import { CompanyListCard, type CompanyCardData } from "../accounts/CompanyListCard";
 import { CompanyTable } from "../accounts/CompanyTable";
 import type { CrmTag } from "../accounts/tags";
+import type { CompanyOption } from "../contacts/CompanyCombobox";
 
 type AccountRow = {
   id: string;
@@ -48,6 +49,20 @@ export async function ActiveCustomersPanel() {
 
   const accounts = ((data ?? []) as AccountRow[]).map((a) => ({ ...a, lifecycle_status: "active_customer" as const }));
   const accountIds = accounts.map((a) => a.id);
+
+  // Full org roster for CompanyRowActions' "Add contact" dialog combobox —
+  // independent of the customer-only `accounts` list above, same as the
+  // Companies page's companyOptions.
+  const { data: companyOptionsData } = await supabase
+    .from("crm_accounts")
+    .select("id, name")
+    .is("deleted_at", null)
+    .order("name", { ascending: true })
+    .limit(1000);
+  const companyOptions: CompanyOption[] = ((companyOptionsData ?? []) as CompanyOption[]).map((a) => ({
+    id: a.id,
+    name: titleCaseWords(a.name),
+  }));
 
   const [tagsRes, tagLinkRes, contactsRes, lastCallsRes, lastActivitiesRes] = await Promise.all([
     supabase.from("crm_tags").select("id, label, color").order("label"),
@@ -133,7 +148,7 @@ export async function ActiveCustomersPanel() {
     <>
       <div className="grid grid-cols-1 gap-3 [grid-auto-rows:1fr] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 md:hidden">
         {cards.map((c) => (
-          <CompanyListCard key={c.id} company={c} />
+          <CompanyListCard key={c.id} company={c} companyOptions={companyOptions} />
         ))}
       </div>
 
@@ -143,7 +158,7 @@ export async function ActiveCustomersPanel() {
           hint={`${cards.length} ${cards.length === 1 ? "customer" : "customers"}`}
         />
         <div className="overflow-x-auto">
-          <CompanyTable companies={cards} />
+          <CompanyTable companies={cards} companyOptions={companyOptions} />
         </div>
       </Card>
     </>

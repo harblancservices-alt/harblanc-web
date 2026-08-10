@@ -1,12 +1,10 @@
 "use client";
 
 import { ClickableListItem } from "../_shell/ClickableRow";
-import { BTN_ACTION } from "../_shell/ui";
-import { IconPhone } from "../_shell/icons";
 import { stageLabel, stageTone } from "./lifecycle";
 import { lastContactStatus, titleCaseWords, upperCaseState } from "../_shell/format";
-import { digitsForTel } from "../_shell/contactFields";
-import { formatPhone } from "@/lib/domain/phone";
+import { CompanyRowActions } from "./CompanyRowActions";
+import type { CompanyOption } from "../contacts/CompanyCombobox";
 import type { CrmTag } from "./tags";
 
 export type CompanyCardData = {
@@ -24,13 +22,16 @@ export type CompanyCardData = {
 /**
  * One company card in the Companies grid — Brent's spec: name, stage pill
  * (same LIFECYCLE_TONE system as the detail page), city/state, primary tag,
- * last-contact date, contact count, and a tap-to-call button. Every card is
- * the SAME structure regardless of how much data it has (the call button
- * slot always renders, muted when there's no phone) so the grid reads as
- * uniform rows — the parent grid's `auto-rows-fr` (see page.tsx) then
- * stretches every card in a row to match its tallest neighbor.
+ * last-contact date, contact count, and row actions. Every card is the SAME
+ * structure regardless of how much data it has so the grid reads as uniform
+ * rows — the parent grid's `auto-rows-fr` (see page.tsx) then stretches every
+ * card in a row to match its tallest neighbor.
+ *
+ * 2026-08-09: the tap-to-call button was replaced with CompanyRowActions
+ * (Notes / Add contact / Loads-if-active-customer) — see that file.
+ * `companyOptions` is the org roster its Add-contact dialog needs.
  */
-export function CompanyListCard({ company }: { company: CompanyCardData }) {
+export function CompanyListCard({ company, companyOptions }: { company: CompanyCardData; companyOptions: CompanyOption[] }) {
   const location = [titleCaseWords(company.city), upperCaseState(company.state)].filter(Boolean).join(", ");
   const lastContact = lastContactStatus(company.lastContactMs);
 
@@ -68,23 +69,7 @@ export function CompanyListCard({ company }: { company: CompanyCardData }) {
         </div>
       </div>
 
-      {company.phone ? (
-        <a
-          href={`tel:${digitsForTel(company.phone)}`}
-          className={`mt-3 inline-flex h-10 items-center justify-center gap-1.5 rounded-lg text-[12.5px] font-semibold transition-colors ${BTN_ACTION}`}
-        >
-          <IconPhone width={13} height={13} />
-          {formatPhone(company.phone)}
-        </a>
-      ) : (
-        <span
-          aria-disabled
-          className="mt-3 inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border border-fg-subtle bg-card text-[12.5px] font-semibold text-fg-subtle opacity-50"
-        >
-          <IconPhone width={13} height={13} />
-          No phone on file
-        </span>
-      )}
+      <CompanyRowActions company={company} companies={companyOptions} variant="card" />
     </ClickableListItem>
   );
 }

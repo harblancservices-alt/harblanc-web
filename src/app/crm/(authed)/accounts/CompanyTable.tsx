@@ -1,12 +1,11 @@
 "use client";
 
 import { ClickableRow } from "../_shell/ClickableRow";
-import { BTN_ACTION, LIST_HEAD_ROW, ZEBRA_ROWS, GRID_TABLE, GRID_HEAD_CELL, GRID_CELL } from "../_shell/ui";
-import { IconPhone } from "../_shell/icons";
+import { LIST_HEAD_ROW, ZEBRA_ROWS, GRID_TABLE, GRID_HEAD_CELL, GRID_CELL } from "../_shell/ui";
 import { stageLabel, stageTone } from "./lifecycle";
 import { lastContactStatus, titleCaseWords, upperCaseState } from "../_shell/format";
-import { digitsForTel } from "../_shell/contactFields";
-import { formatPhone } from "@/lib/domain/phone";
+import { CompanyRowActions } from "./CompanyRowActions";
+import type { CompanyOption } from "../contacts/CompanyCombobox";
 import type { CompanyCardData } from "./CompanyListCard";
 
 /**
@@ -19,18 +18,23 @@ import type { CompanyCardData } from "./CompanyListCard";
  * `hidden`/`md:hidden` wrapper classes at the call site (page.tsx). Reused
  * as-is by the Active Customers page (customers/page.tsx), which is
  * deliberately the same grid, just pre-filtered to lifecycle_status=customer.
+ *
+ * 2026-08-09: the Actions column's tap-to-call button was replaced with
+ * CompanyRowActions (Notes / Add contact / Loads-if-active-customer) — see
+ * that file. `companies` is the org roster CompanyRowActions' Add-contact
+ * dialog needs for its company combobox.
  */
-export function CompanyTable({ companies }: { companies: CompanyCardData[] }) {
+export function CompanyTable({ companies, companyOptions }: { companies: CompanyCardData[]; companyOptions: CompanyOption[] }) {
   return (
     <table className={GRID_TABLE}>
       <colgroup>
-        <col className="w-[22%]" />
-        <col className="w-[10%]" />
-        <col className="w-[15%]" />
-        <col className="w-[14%]" />
+        <col className="w-[20%]" />
         <col className="w-[9%]" />
         <col className="w-[13%]" />
-        <col className="w-[17%]" />
+        <col className="w-[12%]" />
+        <col className="w-[8%]" />
+        <col className="w-[12%]" />
+        <col className="w-[26%]" />
       </colgroup>
       <thead>
         <tr className={LIST_HEAD_ROW}>
@@ -45,14 +49,14 @@ export function CompanyTable({ companies }: { companies: CompanyCardData[] }) {
       </thead>
       <tbody className={ZEBRA_ROWS}>
         {companies.map((c) => (
-          <CompanyTableRow key={c.id} company={c} />
+          <CompanyTableRow key={c.id} company={c} companyOptions={companyOptions} />
         ))}
       </tbody>
     </table>
   );
 }
 
-function CompanyTableRow({ company }: { company: CompanyCardData }) {
+function CompanyTableRow({ company, companyOptions }: { company: CompanyCardData; companyOptions: CompanyOption[] }) {
   const location = [titleCaseWords(company.city), upperCaseState(company.state)].filter(Boolean).join(", ");
   const lastContact = lastContactStatus(company.lastContactMs);
 
@@ -84,18 +88,8 @@ function CompanyTableRow({ company }: { company: CompanyCardData }) {
       <td className={`${GRID_CELL} truncate text-fg-muted`}>
         {lastContact.freshness === "never" ? "Never" : lastContact.text}
       </td>
-      <td className={`${GRID_CELL} text-right`}>
-        {company.phone ? (
-          <a
-            href={`tel:${digitsForTel(company.phone)}`}
-            className={`inline-flex h-7 items-center justify-center gap-1.5 rounded-lg px-2.5 text-[12px] font-semibold transition-colors ${BTN_ACTION}`}
-          >
-            <IconPhone width={12} height={12} />
-            {formatPhone(company.phone)}
-          </a>
-        ) : (
-          <span className="text-[12px] text-fg-subtle">—</span>
-        )}
+      <td className={GRID_CELL}>
+        <CompanyRowActions company={company} companies={companyOptions} variant="table" />
       </td>
     </ClickableRow>
   );

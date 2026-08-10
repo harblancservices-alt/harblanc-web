@@ -509,7 +509,7 @@ export default async function AccountDetailPage({
               }
             />
 
-            <Card>
+            <Card id="notes">
               <CardHead title="Notes" hint={humanNotes.length ? `${humanNotes.length} on file` : undefined} />
               <NotesTab accountId={account.id as string} notes={humanNotes} />
             </Card>

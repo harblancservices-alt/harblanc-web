@@ -264,14 +264,14 @@ export default async function CompaniesPage({
         <>
           <div className="grid grid-cols-1 gap-3 [grid-auto-rows:1fr] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 md:hidden">
             {cards.map((c) => (
-              <CompanyListCard key={c.id} company={c} />
+              <CompanyListCard key={c.id} company={c} companyOptions={companyOptions} />
             ))}
           </div>
 
           <Card className="hidden md:block">
             <CardHead title="Companies" hint={`${cards.length} ${cards.length === 1 ? "company" : "companies"}`} />
             <div className="overflow-x-auto">
-              <CompanyTable companies={cards} />
+              <CompanyTable companies={cards} companyOptions={companyOptions} />
             </div>
           </Card>
         </>

@@ -23,6 +23,7 @@ import { createContactQuick } from "./actions";
 export function AddContactDialog({
   companies,
   trigger,
+  initialCompany,
 }: {
   companies: CompanyOption[];
   /** Optional custom opener — defaults to the built-in "Add contact" button
@@ -30,6 +31,11 @@ export function AddContactDialog({
    * passes its own StatButton trigger instead, reusing this dialog wholesale
    * rather than duplicating the contact form. */
   trigger?: (open: () => void) => ReactNode;
+  /** Pre-selects the company combobox when the dialog opens — the Companies
+   * list's per-row "Add contact" action passes that row's own company so the
+   * form opens already attached to it (still editable, same as any other
+   * selection). Omitted everywhere else, which keeps the field blank. */
+  initialCompany?: CompanySelection;
 }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +45,7 @@ export function AddContactDialog({
 
   function openDialog() {
     setError(null);
-    setCompany({ text: "", selectedId: null });
+    setCompany(initialCompany ?? { text: "", selectedId: null });
     setOpen(true);
   }
 
