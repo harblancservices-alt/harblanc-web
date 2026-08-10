@@ -234,20 +234,19 @@ export function MoneyRow({
   );
 }
 
-/** Round an "HH:MM" clock value to the nearest :00/:30 mark — the native
- * time input's own step/arrows mostly respect `step={1800}`, but a
+/** Round an "HH:MM" clock value to the nearest :00/:15/:30/:45 mark — the
+ * native time input's own step/arrows mostly respect `step={900}`, but a
  * hand-typed value can still land on any minute, so this is the actual
- * enforcement. 45–59 rolls forward to the next hour's :00. */
-function snapToHalfHour(hhmm: string): string {
+ * enforcement. Rounding past :52 rolls forward to the next hour's :00. */
+function snapToQuarterHour(hhmm: string): string {
   const m = /^(\d{2}):(\d{2})$/.exec(hhmm);
   if (!m) return hhmm;
   let hour = Number(m[1]);
   const minute = Number(m[2]);
-  let snapped = 0;
-  if (minute >= 45) {
+  let snapped = Math.round(minute / 15) * 15;
+  if (snapped === 60) {
+    snapped = 0;
     hour = (hour + 1) % 24;
-  } else if (minute >= 15) {
-    snapped = 30;
   }
   return `${String(hour).padStart(2, "0")}:${String(snapped).padStart(2, "0")}`;
 }
@@ -269,10 +268,10 @@ function parseWindow(value: string): { start: string; end: string } {
 }
 
 /** A pickup/delivery "window" (e.g. "08:00 - 10:00") as two real time
- * inputs instead of one freeform text box — each snapped to :00/:30 so the
- * window always reads clean. Combines back into a single "HH:MM - HH:MM"
- * string on change, going through the same onChange/onBlur autosave
- * contract as every other field here. */
+ * inputs instead of one freeform text box — each snapped to :00/:15/:30/:45
+ * so the window always reads clean. Combines back into a single
+ * "HH:MM - HH:MM" string on change, going through the same onChange/onBlur
+ * autosave contract as every other field here. */
 export function TimeWindowRow({
   label,
   value,
@@ -297,18 +296,18 @@ export function TimeWindowRow({
       <div className="flex items-center gap-2">
         <input
           type="time"
-          step={1800}
+          step={900}
           value={start}
-          onChange={(e) => setTimes(snapToHalfHour(e.target.value), end)}
+          onChange={(e) => setTimes(snapToQuarterHour(e.target.value), end)}
           onBlur={onBlur}
           className={`min-w-0 flex-1 ${CONTROL_SIZE} ${CONTROL}`}
         />
         <span className="text-[11px] font-semibold text-fg-muted">to</span>
         <input
           type="time"
-          step={1800}
+          step={900}
           value={end}
-          onChange={(e) => setTimes(start, snapToHalfHour(e.target.value))}
+          onChange={(e) => setTimes(start, snapToQuarterHour(e.target.value))}
           onBlur={onBlur}
           className={`min-w-0 flex-1 ${CONTROL_SIZE} ${CONTROL}`}
         />
