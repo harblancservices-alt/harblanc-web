@@ -212,13 +212,21 @@ export function SelectedEntityChip({
         <p className="truncate text-[12.5px] font-semibold text-fg">{title}</p>
         {detail && <p className="truncate text-[10.5px] text-fg-muted">{detail}</p>}
       </div>
-      <div className="flex shrink-0 items-center gap-2.5 text-[11px] font-semibold">
+      <div className="flex shrink-0 items-center gap-1.5">
         {onChange && (
-          <button type="button" onClick={onChange} className="text-accent underline underline-offset-2">
+          <button
+            type="button"
+            onClick={onChange}
+            className="rounded-[3px] bg-[#2563eb] px-2 py-1 text-[10.5px] font-bold uppercase tracking-wide text-white transition-colors hover:bg-[#1d4ed8]"
+          >
             Change
           </button>
         )}
-        <button type="button" onClick={onReset} className="text-bad underline underline-offset-2">
+        <button
+          type="button"
+          onClick={onReset}
+          className="rounded-[3px] bg-[#2563eb] px-2 py-1 text-[10.5px] font-bold uppercase tracking-wide text-white transition-colors hover:bg-[#1d4ed8]"
+        >
           Reset
         </button>
       </div>

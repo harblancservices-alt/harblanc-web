@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { ClickableRow } from "../_shell/ClickableRow";
 import { LIST_HEAD_ROW, ZEBRA_ROWS, GRID_TABLE, GRID_HEAD_CELL, GRID_CELL } from "../_shell/ui";
 import { stageLabel, stageTone } from "./lifecycle";
@@ -22,9 +23,18 @@ import type { CompanyCardData } from "./CompanyListCard";
  * 2026-08-09: the Actions column's tap-to-call button was replaced with
  * CompanyRowActions (Notes / Add contact / Loads-if-active-customer) — see
  * that file. `companies` is the org roster CompanyRowActions' Add-contact
- * dialog needs for its company combobox.
+ * dialog needs for its company combobox. `renderActions` overrides the
+ * Actions column entirely — see CompanyListCard's matching prop.
  */
-export function CompanyTable({ companies, companyOptions }: { companies: CompanyCardData[]; companyOptions: CompanyOption[] }) {
+export function CompanyTable({
+  companies,
+  companyOptions,
+  renderActions,
+}: {
+  companies: CompanyCardData[];
+  companyOptions: CompanyOption[];
+  renderActions?: (company: CompanyCardData, variant: "table" | "card") => ReactNode;
+}) {
   return (
     <table className={GRID_TABLE}>
       <colgroup>
@@ -49,14 +59,22 @@ export function CompanyTable({ companies, companyOptions }: { companies: Company
       </thead>
       <tbody className={ZEBRA_ROWS}>
         {companies.map((c) => (
-          <CompanyTableRow key={c.id} company={c} companyOptions={companyOptions} />
+          <CompanyTableRow key={c.id} company={c} companyOptions={companyOptions} renderActions={renderActions} />
         ))}
       </tbody>
     </table>
   );
 }
 
-function CompanyTableRow({ company, companyOptions }: { company: CompanyCardData; companyOptions: CompanyOption[] }) {
+function CompanyTableRow({
+  company,
+  companyOptions,
+  renderActions,
+}: {
+  company: CompanyCardData;
+  companyOptions: CompanyOption[];
+  renderActions?: (company: CompanyCardData, variant: "table" | "card") => ReactNode;
+}) {
   const location = [titleCaseWords(company.city), upperCaseState(company.state)].filter(Boolean).join(", ");
   const lastContact = lastContactStatus(company.lastContactMs);
 
@@ -89,7 +107,7 @@ function CompanyTableRow({ company, companyOptions }: { company: CompanyCardData
         {lastContact.freshness === "never" ? "Never" : lastContact.text}
       </td>
       <td className={GRID_CELL}>
-        <CompanyRowActions company={company} companies={companyOptions} variant="table" />
+        {renderActions ? renderActions(company, "table") : <CompanyRowActions company={company} companies={companyOptions} variant="table" />}
       </td>
     </ClickableRow>
   );

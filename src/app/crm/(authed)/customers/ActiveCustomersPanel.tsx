@@ -1,13 +1,16 @@
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { Card, CardHead, EmptyState } from "../_shell/ui";
 import { IconCustomers } from "../_shell/icons";
-import { timestampMs, titleCaseWords } from "../_shell/format";
+import { firstName, timestampMs, titleCaseWords } from "../_shell/format";
 import { parsePhones } from "../_shell/contactFields";
 import { CRM_CONTACT_ACTIVITY_KINDS } from "@/lib/crm/activity";
 import { CompanyListCard, type CompanyCardData } from "../accounts/CompanyListCard";
 import { CompanyTable } from "../accounts/CompanyTable";
+import { ActiveCustomerRowActions } from "./ActiveCustomerRowActions";
 import type { CrmTag } from "../accounts/tags";
 import type { CompanyOption } from "../contacts/CompanyCombobox";
+import type { RepOption } from "../accounts/CompanyDialog";
+import type { TaskContactOption } from "../tasks/TaskDialog";
 
 type AccountRow = {
   id: string;
@@ -36,7 +39,7 @@ type AccountRow = {
  * can render the exact same panel without duplicating the query logic.
  */
 export async function ActiveCustomersPanel() {
-  await requireCrmUser();
+  const user = await requireCrmUser();
   const supabase = await createCrmServerClient();
 
   const { data } = await supabase
@@ -64,14 +67,15 @@ export async function ActiveCustomersPanel() {
     name: titleCaseWords(a.name),
   }));
 
-  const [tagsRes, tagLinkRes, contactsRes, lastCallsRes, lastActivitiesRes] = await Promise.all([
+  const [profilesRes, tagsRes, tagLinkRes, contactsRes, lastCallsRes, lastActivitiesRes] = await Promise.all([
+    supabase.from("crm_profiles").select("id, full_name, email, is_active, role"),
     supabase.from("crm_tags").select("id, label, color").order("label"),
     accountIds.length
       ? supabase.from("crm_account_tags").select("account_id, tag_id").in("account_id", accountIds)
       : Promise.resolve({ data: [] as { account_id: string; tag_id: string }[] }),
     accountIds.length
-      ? supabase.from("crm_contacts").select("id, account_id").in("account_id", accountIds).is("deleted_at", null)
-      : Promise.resolve({ data: [] as { id: string; account_id: string }[] }),
+      ? supabase.from("crm_contacts").select("id, name, account_id").in("account_id", accountIds).is("deleted_at", null)
+      : Promise.resolve({ data: [] as { id: string; name: string; account_id: string }[] }),
     accountIds.length
       ? supabase
           .from("crm_calls")
@@ -103,10 +107,22 @@ export async function ActiveCustomersPanel() {
   }
   for (const list of tagsByAccount.values()) list.sort((a, b) => a.label.localeCompare(b.label));
 
+  const contactRows = (contactsRes.data ?? []) as { id: string; name: string; account_id: string }[];
   const contactCountByAccount = new Map<string, number>();
-  for (const c of (contactsRes.data ?? []) as { id: string; account_id: string }[]) {
+  const contactOptionsByAccount = new Map<string, TaskContactOption[]>();
+  for (const c of contactRows) {
     contactCountByAccount.set(c.account_id, (contactCountByAccount.get(c.account_id) ?? 0) + 1);
+    const list = contactOptionsByAccount.get(c.account_id) ?? [];
+    list.push({ id: c.id, name: titleCaseWords(c.name) });
+    contactOptionsByAccount.set(c.account_id, list);
   }
+
+  const reps: RepOption[] = ((profilesRes.data ?? []) as { id: string; full_name: string | null; email: string | null; is_active: boolean; role: string }[])
+    .filter((p) => p.is_active)
+    .map((p) => ({ id: p.id, label: firstName(p.full_name, p.email) || "Unnamed rep" }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+  const canAssignOthers = user.role === "owner";
+  const currentUser = { id: user.id, label: firstName(user.fullName, user.email) || "You" };
 
   const lastContactMsByAccount = new Map<string, number>();
   for (const row of [
@@ -148,7 +164,21 @@ export async function ActiveCustomersPanel() {
     <>
       <div className="grid grid-cols-1 gap-3 [grid-auto-rows:1fr] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 md:hidden">
         {cards.map((c) => (
-          <CompanyListCard key={c.id} company={c} companyOptions={companyOptions} />
+          <CompanyListCard
+            key={c.id}
+            company={c}
+            companyOptions={companyOptions}
+            renderActions={(company, variant) => (
+              <ActiveCustomerRowActions
+                company={company}
+                contacts={contactOptionsByAccount.get(company.id) ?? []}
+                reps={reps}
+                canAssignOthers={canAssignOthers}
+                currentUser={currentUser}
+                variant={variant}
+              />
+            )}
+          />
         ))}
       </div>
 
@@ -158,7 +188,20 @@ export async function ActiveCustomersPanel() {
           hint={`${cards.length} ${cards.length === 1 ? "customer" : "customers"}`}
         />
         <div className="overflow-x-auto">
-          <CompanyTable companies={cards} companyOptions={companyOptions} />
+          <CompanyTable
+            companies={cards}
+            companyOptions={companyOptions}
+            renderActions={(company, variant) => (
+              <ActiveCustomerRowActions
+                company={company}
+                contacts={contactOptionsByAccount.get(company.id) ?? []}
+                reps={reps}
+                canAssignOthers={canAssignOthers}
+                currentUser={currentUser}
+                variant={variant}
+              />
+            )}
+          />
         </div>
       </Card>
     </>

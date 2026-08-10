@@ -2,18 +2,16 @@
 
 import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Card, BTN_PRIMARY, BTN_EDIT, BTN_DANGER, BTN_ACTION } from "../../_shell/ui";
+import { Card, BTN_PRIMARY, BTN_EDIT } from "../../_shell/ui";
 import { FormError } from "../../_shell/form";
 import { AsyncSearchPicker } from "../../_shell/AsyncSearchPicker";
 import { toDatetimeLocal, centralInputToIso, titleCaseWords } from "../../_shell/format";
-import { IconChevronDown, IconRateConfirmation, IconBillOfLading } from "../../_shell/icons";
+import { IconChevronDown } from "../../_shell/icons";
 import { TextRow, TextAreaRow, MoneyRow, SelectRow, FormRow2, SelectedEntityChip } from "./fields";
 import { LocationPickerModal } from "./LocationPickerModal";
 import { CarrierFormDialog } from "../../carriers/CarrierFormDialog";
 import { updateShipment, searchCustomers, createAccountLocation, softDeleteShipment } from "../actions";
 import { listCarriers } from "../carriers-actions";
-import { createRateConfirmationFromShipment } from "../rate-confirmation-actions";
-import { createBolFromShipment } from "../bol-actions";
 import { SHIPMENT_STATUSES, SHIPMENT_STATUS_LABEL, shipmentStatusTone } from "../statusMeta";
 import type {
   CrmAccountLocation,
@@ -72,7 +70,6 @@ type LocalState = {
   poNumber: string;
   refNumbers: string;
   specialInstructions: string;
-  customerRate: string;
   carrierRate: string;
   notes: string;
   externalLoadRef: string;
@@ -132,7 +129,6 @@ function toLocal(shipment: CrmShipmentDetail): LocalState {
     poNumber: str(shipment.poNumber),
     refNumbers: str(shipment.refNumbers),
     specialInstructions: str(shipment.specialInstructions),
-    customerRate: shipment.customerRate != null ? String(shipment.customerRate) : "",
     carrierRate: shipment.carrierRate != null ? String(shipment.carrierRate) : "",
     notes: str(shipment.notes),
     externalLoadRef: str(shipment.externalLoadRef),
@@ -140,13 +136,17 @@ function toLocal(shipment: CrmShipmentDetail): LocalState {
 }
 
 /**
- * The shipment operational editor — Customer / Shipper / Consignee /
- * Freight / Pickup / Delivery / Rate / Carrier sections, each field
- * autosaved on blur (or immediately for pickers/selects) via updateShipment.
+ * The shipment operational editor — Customer / Carrier / Freight / Notes /
+ * Shipper / Consignee / Pickup / Delivery sections, alternating left/right
+ * on desktop, each field autosaved on blur (or immediately for pickers/
+ * selects) via updateShipment. No Customer Rate field here (2026-08-09,
+ * dropped from the workspace entirely) and no Create RC/BOL buttons — those
+ * live at the bottom of the Documents section now (DocumentsSection.tsx),
+ * which opens them as modals instead of navigating to a separate route.
  * Every picker (customer, shipper/consignee location, carrier) only ever
  * FILLS fields — nothing is ever locked, and every selected entity carries
- * a small Change (reopen the picker to swap) / Reset (detach the id link
- * AND blank whatever it filled) control, compact style 2026-08-09.
+ * a small square blue Change (reopen the picker to swap) / Reset (detach the
+ * id link AND blank whatever it filled) button, compact style 2026-08-09.
  */
 export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail }) {
   const router = useRouter();
@@ -160,9 +160,6 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
 
   const [saveError, setSaveError] = useState<string | null>(null);
   const [, startSaveTransition] = useTransition();
-
-  const [docError, setDocError] = useState<string | null>(null);
-  const [docPending, startDocTransition] = useTransition();
 
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [deletePending, startDeleteTransition] = useTransition();
@@ -364,26 +361,6 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
     commit({ status: v });
   }
 
-  // ── Documents ───────────────────────────────────────────────────────────
-
-  function onCreateRc() {
-    setDocError(null);
-    startDocTransition(async () => {
-      const result = await createRateConfirmationFromShipment(shipment.id);
-      if (result.ok) router.push(`/crm/shipments/${shipment.id}/rc/${result.id}`);
-      else setDocError(result.error);
-    });
-  }
-
-  function onCreateBol() {
-    setDocError(null);
-    startDocTransition(async () => {
-      const result = await createBolFromShipment(shipment.id);
-      if (result.ok) router.push(`/crm/shipments/${shipment.id}/bol/${result.id}`);
-      else setDocError(result.error);
-    });
-  }
-
   function onDeleteShipment() {
     if (!window.confirm(`Delete shipment ${shipment.shipmentNumber}? This can't be undone from here.`)) return;
     setDeleteError(null);
@@ -423,32 +400,13 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
         </div>
 
         <FormError message={saveError} />
-        <FormError message={docError} />
 
         <div className="mt-3 flex flex-wrap gap-2">
           <button
             type="button"
-            onClick={onCreateRc}
-            disabled={docPending}
-            className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors disabled:opacity-60 ${BTN_ACTION}`}
-          >
-            <IconRateConfirmation width={15} height={15} />
-            Create Rate Confirmation
-          </button>
-          <button
-            type="button"
-            onClick={onCreateBol}
-            disabled={docPending}
-            className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors disabled:opacity-60 ${BTN_ACTION}`}
-          >
-            <IconBillOfLading width={15} height={15} />
-            Create BOL
-          </button>
-          <button
-            type="button"
             onClick={onDeleteShipment}
             disabled={deletePending}
-            className={`ml-auto rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors disabled:opacity-60 ${BTN_DANGER}`}
+            className="ml-auto rounded-lg bg-[#dc2626] px-3.5 py-2 text-[13px] font-bold text-black transition-colors hover:bg-[#b91c1c] disabled:opacity-60"
           >
             {deletePending ? "Deleting…" : "Delete shipment"}
           </button>
@@ -537,6 +495,76 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
             value={state.carrierRate}
             onChange={(v) => set("carrierRate", v)}
             onBlur={() => commit({ carrierRate: moneyOrNull(state.carrierRate) })}
+          />
+        </SectionCard>
+
+        <SectionCard title="Freight">
+          <FormRow2>
+            <TextRow
+              label="Commodity"
+              value={state.commodity}
+              onChange={(v) => set("commodity", v)}
+              onBlur={() => commit({ commodity: orNull(state.commodity) })}
+            />
+            <TextRow
+              label="Equipment"
+              value={state.equipment}
+              onChange={(v) => set("equipment", v)}
+              onBlur={() => commit({ equipment: orNull(state.equipment) })}
+              placeholder="e.g. Dry van, Reefer, Flatbed"
+            />
+          </FormRow2>
+          <TextAreaRow
+            label="Description"
+            value={state.description}
+            onChange={(v) => set("description", v)}
+            onBlur={() => commit({ description: orNull(state.description) })}
+            rows={2}
+          />
+          <FormRow2>
+            <TextRow
+              label="Weight"
+              value={state.weight}
+              onChange={(v) => set("weight", v)}
+              onBlur={() => commit({ weight: orNull(state.weight) })}
+            />
+            <TextRow
+              label="Pieces"
+              value={state.pieces}
+              onChange={(v) => set("pieces", v)}
+              onBlur={() => commit({ pieces: orNull(state.pieces) })}
+            />
+          </FormRow2>
+          <FormRow2>
+            <TextRow
+              label="PO #"
+              value={state.poNumber}
+              onChange={(v) => set("poNumber", v)}
+              onBlur={() => commit({ poNumber: orNull(state.poNumber) })}
+            />
+            <TextRow
+              label="Ref #s"
+              value={state.refNumbers}
+              onChange={(v) => set("refNumbers", v)}
+              onBlur={() => commit({ refNumbers: orNull(state.refNumbers) })}
+            />
+          </FormRow2>
+          <TextAreaRow
+            label="Special instructions"
+            value={state.specialInstructions}
+            onChange={(v) => set("specialInstructions", v)}
+            onBlur={() => commit({ specialInstructions: orNull(state.specialInstructions) })}
+            rows={2}
+          />
+        </SectionCard>
+
+        <SectionCard title="Notes" subtitle="Internal — not shown on any generated document">
+          <TextAreaRow
+            label="Notes"
+            value={state.notes}
+            onChange={(v) => set("notes", v)}
+            onBlur={() => commit({ notes: orNull(state.notes) })}
+            rows={3}
           />
         </SectionCard>
 
@@ -757,107 +785,9 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
             rows={2}
           />
         </SectionCard>
-
-        <div className="lg:col-span-2">
-          <SectionCard title="Freight">
-            <FormRow2>
-              <TextRow
-                label="Commodity"
-                value={state.commodity}
-                onChange={(v) => set("commodity", v)}
-                onBlur={() => commit({ commodity: orNull(state.commodity) })}
-              />
-              <TextRow
-                label="Equipment"
-                value={state.equipment}
-                onChange={(v) => set("equipment", v)}
-                onBlur={() => commit({ equipment: orNull(state.equipment) })}
-                placeholder="e.g. Dry van, Reefer, Flatbed"
-              />
-            </FormRow2>
-            <TextAreaRow
-              label="Description"
-              value={state.description}
-              onChange={(v) => set("description", v)}
-              onBlur={() => commit({ description: orNull(state.description) })}
-              rows={2}
-            />
-            <FormRow2>
-              <TextRow
-                label="Weight"
-                value={state.weight}
-                onChange={(v) => set("weight", v)}
-                onBlur={() => commit({ weight: orNull(state.weight) })}
-              />
-              <TextRow
-                label="Pieces"
-                value={state.pieces}
-                onChange={(v) => set("pieces", v)}
-                onBlur={() => commit({ pieces: orNull(state.pieces) })}
-              />
-            </FormRow2>
-            <FormRow2>
-              <TextRow
-                label="PO #"
-                value={state.poNumber}
-                onChange={(v) => set("poNumber", v)}
-                onBlur={() => commit({ poNumber: orNull(state.poNumber) })}
-              />
-              <TextRow
-                label="Ref #s"
-                value={state.refNumbers}
-                onChange={(v) => set("refNumbers", v)}
-                onBlur={() => commit({ refNumbers: orNull(state.refNumbers) })}
-              />
-            </FormRow2>
-            <TextAreaRow
-              label="Special instructions"
-              value={state.specialInstructions}
-              onChange={(v) => set("specialInstructions", v)}
-              onBlur={() => commit({ specialInstructions: orNull(state.specialInstructions) })}
-              rows={2}
-            />
-          </SectionCard>
-        </div>
-
-        <SectionCard title="Rate">
-          <MoneyRow
-            label="Customer rate"
-            value={state.customerRate}
-            onChange={(v) => set("customerRate", v)}
-            onBlur={() => commit({ customerRate: moneyOrNull(state.customerRate) })}
-          />
-          {state.customerRate && state.carrierRate && (
-            <p className="text-[12px] text-fg-muted">
-              Margin: {moneyMarginLabel(state.customerRate, state.carrierRate)}
-            </p>
-          )}
-        </SectionCard>
-
-        <div className="lg:col-span-2">
-          <SectionCard title="Notes" subtitle="Internal — not shown on any generated document">
-            <TextAreaRow
-              label="Notes"
-              value={state.notes}
-              onChange={(v) => set("notes", v)}
-              onBlur={() => commit({ notes: orNull(state.notes) })}
-              rows={3}
-            />
-          </SectionCard>
-        </div>
       </div>
       {locationSaveError && <FormError message={locationSaveError} />}
     </div>
-  );
-}
-
-function moneyMarginLabel(customerRate: string, carrierRate: string): string {
-  const c = moneyOrNull(customerRate);
-  const r = moneyOrNull(carrierRate);
-  if (c === null || r === null) return "—";
-  const margin = c - r;
-  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(
-    margin,
   );
 }
 

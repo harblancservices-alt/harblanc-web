@@ -111,9 +111,19 @@ const SIGN_ROLES = ["shipper", "carrier", "consignee"] as const;
 export function BolEditor({
   shipment,
   initialBol,
+  onClose,
+  onNavigate,
 }: {
   shipment: CrmShipmentDetail;
   initialBol: CrmBillOfLadingDetail;
+  /** Present when rendered inside DocumentEditorModal (over the shipment
+   * workspace) instead of the standalone /bol/[bolId] route — swaps every
+   * "back to shipment" Link for a plain Close, and delete closes the modal
+   * instead of navigating. */
+  onClose?: () => void;
+  /** Present in modal mode — duplicate/supersede/the superseded-by banner
+   * switch the modal to the new/other doc instead of a full navigation. */
+  onNavigate?: (id: string) => void;
 }) {
   const router = useRouter();
   const [bol, setBol] = useState(initialBol);
@@ -235,7 +245,8 @@ export function BolEditor({
         setActionError(result.error);
         return;
       }
-      router.push(`/crm/shipments/${shipment.id}/bol/${result.id}`);
+      if (onNavigate) onNavigate(result.id);
+      else router.push(`/crm/shipments/${shipment.id}/bol/${result.id}`);
     });
   }
 
@@ -250,7 +261,8 @@ export function BolEditor({
         setActionError(result.error);
         return;
       }
-      router.push(`/crm/shipments/${shipment.id}/bol/${result.id}`);
+      if (onNavigate) onNavigate(result.id);
+      else router.push(`/crm/shipments/${shipment.id}/bol/${result.id}`);
     });
   }
 
@@ -265,7 +277,8 @@ export function BolEditor({
         setActionError(result.error);
         return;
       }
-      router.push(`/crm/shipments/${shipment.id}`);
+      if (onClose) onClose();
+      else router.push(`/crm/shipments/${shipment.id}`);
     });
   }
 
@@ -294,9 +307,13 @@ export function BolEditor({
             <p className="font-mono text-[22px] font-bold text-fg">{bol.bolNumber}</p>
             <p className="mt-1 text-[12.5px] text-fg-muted">
               From shipment{" "}
-              <Link href={`/crm/shipments/${shipment.id}`} className="font-semibold text-accent underline">
-                {shipment.shipmentNumber}
-              </Link>
+              {onClose ? (
+                <span className="font-semibold text-fg">{shipment.shipmentNumber}</span>
+              ) : (
+                <Link href={`/crm/shipments/${shipment.id}`} className="font-semibold text-accent underline">
+                  {shipment.shipmentNumber}
+                </Link>
+              )}
             </p>
           </div>
           <div className="flex flex-col items-end gap-1.5">
@@ -317,9 +334,15 @@ export function BolEditor({
         {bol.supersededBy && (
           <p className="mt-2 rounded-md border border-warn/30 bg-warn/10 px-2.5 py-1.5 text-[12.5px] text-warn">
             Superseded by{" "}
-            <Link href={`/crm/shipments/${shipment.id}/bol/${bol.supersededBy}`} className="font-semibold underline">
-              a newer bill of lading
-            </Link>
+            {onNavigate ? (
+              <button type="button" onClick={() => onNavigate(bol.supersededBy as string)} className="font-semibold underline">
+                a newer bill of lading
+              </button>
+            ) : (
+              <Link href={`/crm/shipments/${shipment.id}/bol/${bol.supersededBy}`} className="font-semibold underline">
+                a newer bill of lading
+              </Link>
+            )}
             .
           </p>
         )}
@@ -460,6 +483,7 @@ export function BolEditor({
           contact={shipment.shipperContact}
           phone={shipment.shipperPhone}
           editHref={`/crm/shipments/${shipment.id}`}
+          onEdit={onClose}
         />
         <ReadOnlyPartyCard
           title="Consignee"
@@ -471,15 +495,22 @@ export function BolEditor({
           contact={shipment.consigneeContact}
           phone={shipment.consigneePhone}
           editHref={`/crm/shipments/${shipment.id}`}
+          onEdit={onClose}
         />
         <Card>
           <SectionDivider
             label="Carrier"
             hint="Set on the shipment"
             right={
-              <Link href={`/crm/shipments/${shipment.id}`} className="text-[11px] font-semibold text-accent underline underline-offset-2">
-                Change
-              </Link>
+              onClose ? (
+                <button type="button" onClick={onClose} className="text-[11px] font-semibold text-accent underline underline-offset-2">
+                  Change
+                </button>
+              ) : (
+                <Link href={`/crm/shipments/${shipment.id}`} className="text-[11px] font-semibold text-accent underline underline-offset-2">
+                  Change
+                </Link>
+              )
             }
           />
           <div className="flex flex-col gap-1 p-3 text-[13px] text-fg">
@@ -718,6 +749,7 @@ function ReadOnlyPartyCard({
   contact,
   phone,
   editHref,
+  onEdit,
 }: {
   title: string;
   name: string | null;
@@ -728,6 +760,9 @@ function ReadOnlyPartyCard({
   contact: string | null;
   phone: string | null;
   editHref: string;
+  /** When set (modal mode), Change closes the modal instead of navigating —
+   * the shipment's own edit fields are right underneath. */
+  onEdit?: () => void;
 }) {
   const cityStateZip = [[city, state].filter(Boolean).join(", "), zip].filter(Boolean).join(" ");
   return (
@@ -736,9 +771,15 @@ function ReadOnlyPartyCard({
         label={title}
         hint="Read-only — sourced from the shipment"
         right={
-          <Link href={editHref} className="text-[11px] font-semibold text-accent underline underline-offset-2">
-            Change
-          </Link>
+          onEdit ? (
+            <button type="button" onClick={onEdit} className="text-[11px] font-semibold text-accent underline underline-offset-2">
+              Change
+            </button>
+          ) : (
+            <Link href={editHref} className="text-[11px] font-semibold text-accent underline underline-offset-2">
+              Change
+            </Link>
+          )
         }
       />
       <div className="flex flex-col gap-1 p-3 text-[13px] text-fg">

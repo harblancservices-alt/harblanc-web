@@ -16,7 +16,7 @@ export default async function ShipmentDetailPage({ params }: { params: Promise<{
   return (
     <PageShell back={<BackButton fallbackHref="/crm/shipments" label="Shipments" />}>
       <ShipmentWorkspace shipment={shipment} />
-      <DocumentsSection shipmentId={id} documents={documents} />
+      <DocumentsSection shipment={shipment} documents={documents} />
     </PageShell>
   );
 }

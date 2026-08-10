@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { ClickableListItem } from "../_shell/ClickableRow";
 import { stageLabel, stageTone } from "./lifecycle";
 import { lastContactStatus, titleCaseWords, upperCaseState } from "../_shell/format";
@@ -30,8 +31,21 @@ export type CompanyCardData = {
  * 2026-08-09: the tap-to-call button was replaced with CompanyRowActions
  * (Notes / Add contact / Loads-if-active-customer) — see that file.
  * `companyOptions` is the org roster its Add-contact dialog needs.
+ *
+ * `renderActions` overrides the row-actions block entirely — the Active
+ * Customers hub passes its own (Add notes/Add load/Add task, see
+ * customers/ActiveCustomerRowActions.tsx) instead of the Companies-list
+ * default (Notes/Add contact/Loads).
  */
-export function CompanyListCard({ company, companyOptions }: { company: CompanyCardData; companyOptions: CompanyOption[] }) {
+export function CompanyListCard({
+  company,
+  companyOptions,
+  renderActions,
+}: {
+  company: CompanyCardData;
+  companyOptions: CompanyOption[];
+  renderActions?: (company: CompanyCardData, variant: "table" | "card") => ReactNode;
+}) {
   const location = [titleCaseWords(company.city), upperCaseState(company.state)].filter(Boolean).join(", ");
   const lastContact = lastContactStatus(company.lastContactMs);
 
@@ -69,7 +83,7 @@ export function CompanyListCard({ company, companyOptions }: { company: CompanyC
         </div>
       </div>
 
-      <CompanyRowActions company={company} companies={companyOptions} variant="card" />
+      {renderActions ? renderActions(company, "card") : <CompanyRowActions company={company} companies={companyOptions} variant="card" />}
     </ClickableListItem>
   );
 }

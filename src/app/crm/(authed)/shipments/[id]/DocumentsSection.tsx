@@ -1,8 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { Card, CardHead, BTN_ACTION, BTN_EDIT, BTN_DANGER, ZEBRA_ROWS } from "../../_shell/ui";
 import { FormError } from "../../_shell/form";
 import { formatDateTime, formatMoney, titleCaseWords } from "../../_shell/format";
@@ -11,41 +9,59 @@ import { docStatusLabel, docStatusTone } from "../docStatusMeta";
 import { openStoredPdf } from "../pdfClient";
 import { createRateConfirmationFromShipment, softDeleteRateConfirmation } from "../rate-confirmation-actions";
 import { createBolFromShipment, softDeleteBol } from "../bol-actions";
-import type { ShipmentDocumentSummary } from "../types";
+import { listShipmentDocuments } from "../document-history-actions";
+import { DocumentEditorModal, type DocModalTarget } from "./DocumentEditorModal";
+import type { CrmShipmentDetail, ShipmentDocumentSummary } from "../types";
 
 /**
  * Every Rate Confirmation + Bill of Lading ever generated for this shipment
- * (via listShipmentDocuments), newest first — the shipment's document
- * history, distinct from the "Create Rate Confirmation"/"Create BOL" buttons
- * in the workspace header above (which start a brand new document; these
- * duplicate buttons do the same thing from the history list itself, per the
- * build brief). Each row opens its editor or reprints its stored PDF —
- * reprinting never regenerates, it just reopens whatever was last saved to
- * Storage (see pdfClient.ts::openStoredPdf).
+ * (via listShipmentDocuments), split into two columns — RC left, BOL right
+ * (2026-08-09 relayout; mobile stacks to one column) — each with its own
+ * "New RC"/"New BOL" button. Opening a doc (new or existing) renders its
+ * editor in DocumentEditorModal over this page instead of navigating to the
+ * old /rc/[rcId]//bol/[bolId] routes, so there's no more back-button trip
+ * through browser history. The doc list itself only refreshes when the
+ * modal closes (lifecycle actions taken inside the modal — generate/send/
+ * status changes — don't need to reflect here live while it's open).
  */
 export function DocumentsSection({
-  shipmentId,
+  shipment,
   documents,
 }: {
-  shipmentId: string;
+  shipment: CrmShipmentDetail;
   documents: ShipmentDocumentSummary[];
 }) {
-  const router = useRouter();
   const [docs, setDocs] = useState(documents);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [creating, setCreating] = useState<"rc" | "bol" | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [target, setTarget] = useState<DocModalTarget | null>(null);
+
+  const rcDocs = docs.filter((d) => d.docType === "rate_confirmation");
+  const bolDocs = docs.filter((d) => d.docType === "bill_of_lading");
+
+  async function refreshDocs() {
+    const fresh = await listShipmentDocuments(shipment.id);
+    setDocs(fresh);
+  }
+
+  function closeModal() {
+    setTarget(null);
+    void refreshDocs();
+  }
 
   function onCreateRc() {
     setError(null);
     setCreating("rc");
     startTransition(async () => {
-      const result = await createRateConfirmationFromShipment(shipmentId);
+      const result = await createRateConfirmationFromShipment(shipment.id);
       setCreating(null);
-      if (result.ok) router.push(`/crm/shipments/${shipmentId}/rc/${result.id}`);
-      else setError(result.error);
+      if (result.ok) {
+        setTarget({ type: "rc", id: result.id });
+        void refreshDocs();
+      } else setError(result.error);
     });
   }
 
@@ -53,10 +69,12 @@ export function DocumentsSection({
     setError(null);
     setCreating("bol");
     startTransition(async () => {
-      const result = await createBolFromShipment(shipmentId);
+      const result = await createBolFromShipment(shipment.id);
       setCreating(null);
-      if (result.ok) router.push(`/crm/shipments/${shipmentId}/bol/${result.id}`);
-      else setError(result.error);
+      if (result.ok) {
+        setTarget({ type: "bol", id: result.id });
+        void refreshDocs();
+      } else setError(result.error);
     });
   }
 
@@ -84,106 +102,151 @@ export function DocumentsSection({
   }
 
   return (
+    <>
+      {error && (
+        <Card className="p-0">
+          <div className="px-5 py-2.5">
+            <FormError message={error} />
+          </div>
+        </Card>
+      )}
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <DocColumn
+          title="Rate Confirmations"
+          icon={<IconRateConfirmation width={14} height={14} />}
+          docs={rcDocs}
+          newLabel={creating === "rc" ? "Creating…" : "New RC"}
+          onNew={onCreateRc}
+          newDisabled={pending}
+          onOpen={(doc) => setTarget({ type: "rc", id: doc.id })}
+          onDownload={download}
+          onRemove={remove}
+          downloadingId={downloadingId}
+          deletingId={deletingId}
+          emptyLabel="No rate confirmations yet."
+        />
+        <DocColumn
+          title="Bills of Lading"
+          icon={<IconBillOfLading width={14} height={14} />}
+          docs={bolDocs}
+          newLabel={creating === "bol" ? "Creating…" : "New BOL"}
+          onNew={onCreateBol}
+          newDisabled={pending}
+          onOpen={(doc) => setTarget({ type: "bol", id: doc.id })}
+          onDownload={download}
+          onRemove={remove}
+          downloadingId={downloadingId}
+          deletingId={deletingId}
+          emptyLabel="No bills of lading yet."
+        />
+      </div>
+
+      {target && (
+        <DocumentEditorModal shipment={shipment} target={target} onClose={closeModal} onNavigate={setTarget} />
+      )}
+    </>
+  );
+}
+
+function DocColumn({
+  title,
+  icon,
+  docs,
+  newLabel,
+  onNew,
+  newDisabled,
+  onOpen,
+  onDownload,
+  onRemove,
+  downloadingId,
+  deletingId,
+  emptyLabel,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  docs: ShipmentDocumentSummary[];
+  newLabel: string;
+  onNew: () => void;
+  newDisabled: boolean;
+  onOpen: (doc: ShipmentDocumentSummary) => void;
+  onDownload: (doc: ShipmentDocumentSummary) => void;
+  onRemove: (doc: ShipmentDocumentSummary) => void;
+  downloadingId: string | null;
+  deletingId: string | null;
+  emptyLabel: string;
+}) {
+  return (
     <Card>
       <CardHead
-        title="Documents"
+        title={title}
         hint={docs.length ? `${docs.length} on file` : undefined}
         right={
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onCreateRc}
-              disabled={pending}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors disabled:opacity-60 ${BTN_ACTION}`}
-            >
-              <IconRateConfirmation width={14} height={14} />
-              {creating === "rc" ? "Creating…" : "New RC"}
-            </button>
-            <button
-              type="button"
-              onClick={onCreateBol}
-              disabled={pending}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors disabled:opacity-60 ${BTN_ACTION}`}
-            >
-              <IconBillOfLading width={14} height={14} />
-              {creating === "bol" ? "Creating…" : "New BOL"}
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={onNew}
+            disabled={newDisabled}
+            className={`inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors disabled:opacity-60 ${BTN_ACTION}`}
+          >
+            {icon}
+            {newLabel}
+          </button>
         }
       />
 
-      {error && (
-        <div className="border-b border-line-strong px-5 py-2.5">
-          <FormError message={error} />
-        </div>
-      )}
-
       {docs.length === 0 ? (
-        <p className="px-5 py-10 text-center text-[13px] text-fg-muted">
-          No documents yet. Generate a Rate Confirmation or Bill of Lading above.
-        </p>
+        <p className="px-5 py-10 text-center text-[13px] text-fg-muted">{emptyLabel}</p>
       ) : (
         <ul className={`divide-y divide-line-strong ${ZEBRA_ROWS}`}>
-          {docs.map((doc) => {
-            const editorHref =
-              doc.docType === "rate_confirmation"
-                ? `/crm/shipments/${shipmentId}/rc/${doc.id}`
-                : `/crm/shipments/${shipmentId}/bol/${doc.id}`;
-            return (
-              <li key={`${doc.docType}-${doc.id}`} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5">
-                <div className="flex min-w-0 items-center gap-3">
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-accent/10 text-accent">
-                    {doc.docType === "rate_confirmation" ? (
-                      <IconRateConfirmation width={16} height={16} />
-                    ) : (
-                      <IconBillOfLading width={16} height={16} />
-                    )}
+          {docs.map((doc) => (
+            <li key={doc.id} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3.5">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="truncate text-[13.5px] font-semibold text-fg">{doc.number}</p>
+                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${docStatusTone(doc.status)}`}>
+                    {docStatusLabel(doc.status)}
                   </span>
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="truncate text-[13.5px] font-semibold text-fg">{doc.number}</p>
-                      <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${docStatusTone(doc.status)}`}>
-                        {docStatusLabel(doc.status)}
-                      </span>
-                      <span className="text-[11px] text-fg-subtle">v{doc.version}</span>
-                    </div>
-                    <p className="mt-0.5 truncate text-[12px] text-fg-subtle">
-                      {[
-                        doc.carrierName ? titleCaseWords(doc.carrierName) : null,
-                        doc.totalCarrierPay !== null ? formatMoney(doc.totalCarrierPay) : null,
-                        formatDateTime(doc.createdAt),
-                      ]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </p>
-                  </div>
+                  <span className="text-[11px] text-fg-subtle">v{doc.version}</span>
                 </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <Link href={editorHref} className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_EDIT}`}>
-                    Open
-                  </Link>
-                  {doc.pdfStoragePath && (
-                    <button
-                      type="button"
-                      onClick={() => download(doc)}
-                      disabled={downloadingId === doc.id}
-                      className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors disabled:opacity-60 ${BTN_EDIT}`}
-                    >
-                      {downloadingId === doc.id ? "…" : "Download"}
-                    </button>
-                  )}
+                <p className="mt-0.5 truncate text-[12px] text-fg-subtle">
+                  {[
+                    doc.carrierName ? titleCaseWords(doc.carrierName) : null,
+                    doc.totalCarrierPay !== null ? formatMoney(doc.totalCarrierPay) : null,
+                    formatDateTime(doc.createdAt),
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => onOpen(doc)}
+                  className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_EDIT}`}
+                >
+                  Open
+                </button>
+                {doc.pdfStoragePath && (
                   <button
                     type="button"
-                    onClick={() => remove(doc)}
-                    disabled={deletingId === doc.id}
-                    className={`min-h-[44px] rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors disabled:opacity-60 sm:min-h-0 ${BTN_DANGER}`}
+                    onClick={() => onDownload(doc)}
+                    disabled={downloadingId === doc.id}
+                    className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors disabled:opacity-60 ${BTN_EDIT}`}
                   >
-                    {deletingId === doc.id ? "…" : "Delete"}
+                    {downloadingId === doc.id ? "…" : "Download"}
                   </button>
-                </div>
-              </li>
-            );
-          })}
+                )}
+                <button
+                  type="button"
+                  onClick={() => onRemove(doc)}
+                  disabled={deletingId === doc.id}
+                  className={`min-h-[44px] rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors disabled:opacity-60 sm:min-h-0 ${BTN_DANGER}`}
+                >
+                  {deletingId === doc.id ? "…" : "Delete"}
+                </button>
+              </div>
+            </li>
+          ))}
         </ul>
       )}
     </Card>

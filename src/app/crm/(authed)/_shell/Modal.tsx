@@ -15,6 +15,7 @@ export function Modal({
   title,
   children,
   busy,
+  wide,
 }: {
   open: boolean;
   onClose: () => void;
@@ -22,6 +23,10 @@ export function Modal({
   children: React.ReactNode;
   /** When true, backdrop/escape/cancel won't dismiss (a save is in flight). */
   busy?: boolean;
+  /** Wider shell (max-w-6xl instead of max-w-lg) for content-heavy dialogs
+   * like the RC/BOL document editors — everything else about the shell
+   * (scrim, bottom-sheet-on-mobile, escape/scroll-lock) stays identical. */
+  wide?: boolean;
 }) {
   useEffect(() => {
     if (!open) return;
@@ -45,7 +50,7 @@ export function Modal({
       role="presentation"
     >
       <div
-        className="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-lg border border-line bg-card p-5 shadow-e3 sm:rounded-lg"
+        className={`max-h-[92vh] w-full overflow-y-auto rounded-t-lg border border-line bg-card p-5 shadow-e3 sm:rounded-lg ${wide ? "max-w-6xl" : "max-w-lg"}`}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"

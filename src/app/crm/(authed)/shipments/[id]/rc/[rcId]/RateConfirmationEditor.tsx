@@ -106,9 +106,19 @@ function toLineRows(rc: CrmRateConfirmationDetail): LineRow[] {
 export function RateConfirmationEditor({
   shipment,
   initialRc,
+  onClose,
+  onNavigate,
 }: {
   shipment: CrmShipmentDetail;
   initialRc: CrmRateConfirmationDetail;
+  /** Present when rendered inside DocumentEditorModal (over the shipment
+   * workspace) instead of the standalone /rc/[rcId] route — swaps the
+   * "back to shipment" Link for a plain Close, and delete closes the modal
+   * instead of navigating. */
+  onClose?: () => void;
+  /** Present in modal mode — duplicate/supersede/the superseded-by banner
+   * switch the modal to the new/other doc instead of a full navigation. */
+  onNavigate?: (id: string) => void;
 }) {
   const router = useRouter();
   const [rc, setRc] = useState(initialRc);
@@ -305,7 +315,8 @@ export function RateConfirmationEditor({
         setActionError(result.error);
         return;
       }
-      router.push(`/crm/shipments/${shipment.id}/rc/${result.id}`);
+      if (onNavigate) onNavigate(result.id);
+      else router.push(`/crm/shipments/${shipment.id}/rc/${result.id}`);
     });
   }
 
@@ -320,7 +331,8 @@ export function RateConfirmationEditor({
         setActionError(result.error);
         return;
       }
-      router.push(`/crm/shipments/${shipment.id}/rc/${result.id}`);
+      if (onNavigate) onNavigate(result.id);
+      else router.push(`/crm/shipments/${shipment.id}/rc/${result.id}`);
     });
   }
 
@@ -335,7 +347,8 @@ export function RateConfirmationEditor({
         setActionError(result.error);
         return;
       }
-      router.push(`/crm/shipments/${shipment.id}`);
+      if (onClose) onClose();
+      else router.push(`/crm/shipments/${shipment.id}`);
     });
   }
 
@@ -364,9 +377,13 @@ export function RateConfirmationEditor({
             <p className="font-mono text-[22px] font-bold text-fg">{rc.rcNumber}</p>
             <p className="mt-1 text-[12.5px] text-fg-muted">
               From shipment{" "}
-              <Link href={`/crm/shipments/${shipment.id}`} className="font-semibold text-accent underline">
-                {shipment.shipmentNumber}
-              </Link>
+              {onClose ? (
+                <span className="font-semibold text-fg">{shipment.shipmentNumber}</span>
+              ) : (
+                <Link href={`/crm/shipments/${shipment.id}`} className="font-semibold text-accent underline">
+                  {shipment.shipmentNumber}
+                </Link>
+              )}
             </p>
           </div>
           <div className="flex flex-col items-end gap-1.5">
@@ -380,9 +397,15 @@ export function RateConfirmationEditor({
         {rc.supersededBy && (
           <p className="mt-2 rounded-md border border-warn/30 bg-warn/10 px-3 py-2 text-[12.5px] text-warn">
             Superseded by{" "}
-            <Link href={`/crm/shipments/${shipment.id}/rc/${rc.supersededBy}`} className="font-semibold underline">
-              a newer rate confirmation
-            </Link>
+            {onNavigate ? (
+              <button type="button" onClick={() => onNavigate(rc.supersededBy as string)} className="font-semibold underline">
+                a newer rate confirmation
+              </button>
+            ) : (
+              <Link href={`/crm/shipments/${shipment.id}/rc/${rc.supersededBy}`} className="font-semibold underline">
+                a newer rate confirmation
+              </Link>
+            )}
             .
           </p>
         )}
