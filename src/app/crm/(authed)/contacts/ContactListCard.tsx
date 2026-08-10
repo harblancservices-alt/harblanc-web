@@ -1,5 +1,14 @@
 "use client";
 
+/**
+ * House style for a mobile list card (D.5 in the mobile audit) — icon/
+ * avatar, primary line, secondary meta line, 1-3 right-aligned actions.
+ * `CompanyListCard`, `CarrierCard`, and admin's `TripCardRow`/
+ * `ApplicationCardItem`/Expenses' `MobileCards` all already share this
+ * shape independently; point new mobile cards at this file as the
+ * reference rather than inventing another variant.
+ */
+
 import Link from "next/link";
 import { ClickableListItem } from "../_shell/ClickableRow";
 import { BTN_ACTION } from "../_shell/ui";

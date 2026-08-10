@@ -19,10 +19,16 @@ import Link from "next/link";
 export const PAGE_CONTAINER = "mx-auto w-full max-w-[1600px] px-4 py-4 sm:px-6 sm:py-6";
 
 export function PageShell({
+  title,
   back,
   actions,
   children,
 }: {
+  /** Mobile-only page heading (below `lg`) — most CRM list pages only show
+   * their title inside a desktop-only CardHead, leaving a phone with no
+   * on-screen confirmation of which list it's looking at. Omit to render
+   * nothing, exactly like before this prop existed. */
+  title?: string;
   /** An inline BackButton (or similar), rendered top-left. */
   back?: ReactNode;
   /** Per-page action controls (Add company, Add task, ...), rendered top-right. */
@@ -31,6 +37,11 @@ export function PageShell({
 }) {
   return (
     <div className={PAGE_CONTAINER}>
+      {title && (
+        <h1 className="mb-3 truncate text-[17px] font-semibold text-fg lg:hidden">
+          {title}
+        </h1>
+      )}
       {(back || actions) && (
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">{back}</div>

@@ -16,6 +16,7 @@ export function Modal({
   children,
   busy,
   wide,
+  fullScreen,
 }: {
   open: boolean;
   onClose: () => void;
@@ -27,6 +28,12 @@ export function Modal({
    * like the RC/BOL document editors — everything else about the shell
    * (scrim, bottom-sheet-on-mobile, escape/scroll-lock) stays identical. */
   wide?: boolean;
+  /** Mobile-only: below `sm` the sheet goes edge-to-edge (full viewport
+   * height, no rounding) instead of the capped 92vh bottom sheet — for
+   * content-heavy forms (BOL line items, shipment workspace sections) that
+   * need real room on a phone. Desktop (`sm:` and up) is completely
+   * unaffected — same capped, rounded, centered dialog as always. */
+  fullScreen?: boolean;
 }) {
   useEffect(() => {
     if (!open) return;
@@ -50,7 +57,7 @@ export function Modal({
       role="presentation"
     >
       <div
-        className={`max-h-[92vh] w-full overflow-y-auto rounded-t-lg border border-line bg-card p-4 shadow-e3 sm:rounded-lg ${wide ? "max-w-6xl" : "max-w-lg"}`}
+        className={`w-full overflow-y-auto border border-line bg-card p-4 shadow-e3 sm:max-h-[92vh] sm:rounded-lg ${fullScreen ? "h-[100dvh] max-h-[100dvh] rounded-none" : "max-h-[92vh] rounded-t-lg"} ${wide ? "max-w-6xl" : "max-w-lg"}`}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
