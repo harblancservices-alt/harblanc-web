@@ -179,6 +179,8 @@ export type CrmShipmentRow = {
   carrier_rate: number | null;
   notes: string | null;
   external_load_ref: string | null;
+  truck_number: string | null;
+  trailer_number: string | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -229,6 +231,8 @@ export type CrmShipment = {
   carrierRate: number | null;
   notes: string | null;
   externalLoadRef: string | null;
+  truckNumber: string | null;
+  trailerNumber: string | null;
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;
@@ -293,6 +297,8 @@ export type ShipmentFields = {
   carrierRate: number | null;
   notes: string | null;
   externalLoadRef: string | null;
+  truckNumber: string | null;
+  trailerNumber: string | null;
   status: string;
 };
 
@@ -581,8 +587,9 @@ export type ShipmentDocumentSummary = {
 
 /** One row in the org-wide RC/BOL library (listAllDocuments) — every Rate
  * Confirmation + Bill of Lading generated or drafted across every shipment,
- * carrying the parent shipment's number and customer name so the library can
- * be searched/rendered without a per-row shipment lookup. */
+ * carrying the parent shipment's number, customer name, and shipper/consignee
+ * lane (read off the parent crm_shipments row) so the library can be
+ * searched/rendered without a per-row shipment lookup. */
 export type AllDocumentSummary = {
   id: string;
   docType: CrmDocType;
@@ -594,6 +601,12 @@ export type AllDocumentSummary = {
   shipmentNumber: string | null;
   customerName: string | null;
   carrierName: string | null;
+  shipperName: string | null;
+  shipperCity: string | null;
+  shipperState: string | null;
+  consigneeName: string | null;
+  consigneeCity: string | null;
+  consigneeState: string | null;
   pdfDocumentId: string | null;
   pdfStoragePath: string | null;
 };

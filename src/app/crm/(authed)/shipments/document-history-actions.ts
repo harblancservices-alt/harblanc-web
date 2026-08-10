@@ -168,34 +168,56 @@ export async function listAllDocuments(): Promise<AllDocumentSummary[]> {
     ]),
   );
 
+  type AllDocShipmentRow = {
+    id: string;
+    shipment_number: string;
+    customer_name: string | null;
+    shipper_name: string | null;
+    shipper_city: string | null;
+    shipper_state: string | null;
+    consignee_name: string | null;
+    consignee_city: string | null;
+    consignee_state: string | null;
+  };
+
   const { data: shipmentRows } = shipmentIds.length
-    ? await supabase.from("crm_shipments").select("id, shipment_number, customer_name").in("id", shipmentIds)
-    : { data: [] as { id: string; shipment_number: string; customer_name: string | null }[] };
+    ? await supabase
+        .from("crm_shipments")
+        .select(
+          "id, shipment_number, customer_name, shipper_name, shipper_city, shipper_state, consignee_name, consignee_city, consignee_state",
+        )
+        .in("id", shipmentIds)
+    : { data: [] as AllDocShipmentRow[] };
 
-  const shipmentById = new Map(
-    ((shipmentRows ?? []) as { id: string; shipment_number: string; customer_name: string | null }[]).map((s) => [
-      s.id,
-      s,
-    ]),
-  );
+  const shipmentById = new Map(((shipmentRows ?? []) as AllDocShipmentRow[]).map((s) => [s.id, s]));
 
-  const rcDocs: AllDocumentSummary[] = ((rcRows ?? []) as AllRcRow[]).map((r) => ({
-    id: r.id,
-    docType: "rate_confirmation",
-    number: r.rc_number,
-    status: r.status,
-    version: r.version,
-    createdAt: r.created_at,
-    shipmentId: r.shipment_id,
-    shipmentNumber: shipmentById.get(r.shipment_id)?.shipment_number ?? null,
-    customerName: shipmentById.get(r.shipment_id)?.customer_name ?? null,
-    carrierName: r.carrier_name,
-    pdfDocumentId: r.pdf_document_id,
-    pdfStoragePath: r.pdf_storage_path,
-  }));
+  const rcDocs: AllDocumentSummary[] = ((rcRows ?? []) as AllRcRow[]).map((r) => {
+    const shipment = shipmentById.get(r.shipment_id);
+    return {
+      id: r.id,
+      docType: "rate_confirmation",
+      number: r.rc_number,
+      status: r.status,
+      version: r.version,
+      createdAt: r.created_at,
+      shipmentId: r.shipment_id,
+      shipmentNumber: shipment?.shipment_number ?? null,
+      customerName: shipment?.customer_name ?? null,
+      carrierName: r.carrier_name,
+      shipperName: shipment?.shipper_name ?? null,
+      shipperCity: shipment?.shipper_city ?? null,
+      shipperState: shipment?.shipper_state ?? null,
+      consigneeName: shipment?.consignee_name ?? null,
+      consigneeCity: shipment?.consignee_city ?? null,
+      consigneeState: shipment?.consignee_state ?? null,
+      pdfDocumentId: r.pdf_document_id,
+      pdfStoragePath: r.pdf_storage_path,
+    };
+  });
 
   const bolDocs: AllDocumentSummary[] = ((bolRows ?? []) as AllBolRow[]).map((r) => {
     const snapshotCarrier = r.doc_snapshot?.carrier as { name?: string | null } | null | undefined;
+    const shipment = shipmentById.get(r.shipment_id);
     return {
       id: r.id,
       docType: "bill_of_lading",
@@ -204,9 +226,15 @@ export async function listAllDocuments(): Promise<AllDocumentSummary[]> {
       version: r.version,
       createdAt: r.created_at,
       shipmentId: r.shipment_id,
-      shipmentNumber: shipmentById.get(r.shipment_id)?.shipment_number ?? null,
-      customerName: shipmentById.get(r.shipment_id)?.customer_name ?? null,
+      shipmentNumber: shipment?.shipment_number ?? null,
+      customerName: shipment?.customer_name ?? null,
       carrierName: snapshotCarrier?.name ?? null,
+      shipperName: shipment?.shipper_name ?? null,
+      shipperCity: shipment?.shipper_city ?? null,
+      shipperState: shipment?.shipper_state ?? null,
+      consigneeName: shipment?.consignee_name ?? null,
+      consigneeCity: shipment?.consignee_city ?? null,
+      consigneeState: shipment?.consignee_state ?? null,
       pdfDocumentId: r.pdf_document_id,
       pdfStoragePath: r.pdf_storage_path,
     };
