@@ -7,9 +7,9 @@ import {
   IconSettings,
   IconFlame,
   IconAiReview,
-  IconCustomers,
   IconCalendar,
-  IconUpgrades,
+  IconStarSolid,
+  IconFlagSolid,
 } from "./icons";
 
 export type CrmNavItem = {
@@ -23,7 +23,7 @@ export type CrmNavItem = {
   /** Badge color: "alert" (red, `bg-bad`) is reserved for genuinely urgent,
    * time-sensitive queues — currently just Prospects' unclaimed leads.
    * Everything else ("neutral", the default when omitted) renders as a
-   * plain gray count, e.g. Active Customers' size or AI Review's queue
+   * plain gray count, e.g. Active Clients' size or AI Review's queue
    * depth — informational, not something demanding action. */
   badgeTone?: "alert" | "neutral";
   /** True for items only ever pushed when role==='owner' (currently just AI
@@ -39,12 +39,11 @@ export type CrmNavItem = {
    * state, same mechanism as `ownerOnly`'s always-orange treatment but not
    * role-gated. An item is never expected to set both. */
   redAccent?: boolean;
-  /** True for the single "Active Customers" nav item (currently the only
-   * one) — renders with a solid gold (#e3b341) background and black text
-   * ONLY while active, everywhere it appears (desktop sidebar, mobile More
-   * sheet). Inactive state renders like a normal item; unlike ownerOnly/
-   * redAccent this doesn't tint the icon/label when not the current page. */
-  goldAccent?: boolean;
+  /** Forces the item's ICON (only — border/background/label stay the normal
+   * item treatment) to a fixed color regardless of active state. Currently
+   * just "Active Clients", which wants a solid gold star at all times. Unlike
+   * ownerOnly/redAccent this never tints the label or border. */
+  iconTint?: "gold";
 };
 
 /**
@@ -94,20 +93,20 @@ export function buildCrmNav(
     { href: "/crm/calendar", label: "Calendar", Icon: IconCalendar },
     {
       href: "/crm/active-customers",
-      label: "Active Customers",
-      Icon: IconCustomers,
+      label: "Active Clients",
+      Icon: IconStarSolid,
       match: ["/crm/shipments", "/crm/carriers", "/crm/customers"],
       badge: customerCount > 0 ? customerCount : undefined,
       badgeTone: "neutral",
-      goldAccent: true,
+      iconTint: "gold",
     },
     {
       href: "/crm/upgrades",
       label: "Upgrades",
-      Icon: IconUpgrades,
+      Icon: IconFlagSolid,
       redAccent: true,
       // Backlog count, not a time-sensitive queue (see badgeTone doc above)
-      // — same "neutral" bucket as Active Customers/AI Review, independent
+      // — same "neutral" bucket as Active Clients/AI Review, independent
       // of the item's always-on red accent.
       badge: outstandingUpgradeCount > 0 ? outstandingUpgradeCount : undefined,
       badgeTone: "neutral",

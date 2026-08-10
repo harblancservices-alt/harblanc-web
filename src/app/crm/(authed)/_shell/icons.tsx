@@ -283,3 +283,27 @@ export function IconTrash(props: IconProps) {
     </svg>
   );
 }
+
+/** Filled (not outline) 5-point star — used only by the "Active Clients" nav
+ * item, which wants a solid gold star regardless of active state. Same
+ * proportions as IconCustomers' outline star, rendered with a fill instead
+ * of a stroke. */
+export function IconStarSolid(props: IconProps) {
+  return (
+    <svg width={20} height={20} viewBox="0 0 24 24" fill="currentColor" {...props}>
+      <path d="M12 3l2.4 4.86 5.36.78-3.88 3.78.92 5.34L12 15.27l-4.8 2.49.92-5.34L4.24 8.64l5.36-.78L12 3z" />
+    </svg>
+  );
+}
+
+/** Filled (not outline) flag — used only by the "Upgrades" nav item, which
+ * wants a solid red flag regardless of active state. Same pole+pennant
+ * layout as IconUpgrades' outline version, rendered as solid shapes. */
+export function IconFlagSolid(props: IconProps) {
+  return (
+    <svg width={20} height={20} viewBox="0 0 24 24" fill="currentColor" {...props}>
+      <rect x="3.25" y="3.5" width="1.75" height="17" rx="0.85" />
+      <path d="M5 4.25h12.5a1 1 0 0 1 .78 1.62L15.7 9.5l2.58 3.13a1 1 0 0 1-.78 1.62H5V4.25Z" />
+    </svg>
+  );
+}

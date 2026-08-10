@@ -68,12 +68,12 @@ export function CrmShell({
   const settingsItem = navItems.find((item) => item.href === "/crm/settings");
   const sidebarNavItems = navItems.filter((item) => item.href !== "/crm/settings");
   // Everything the bottom bar's 4 fixed slots don't cover (Active
-  // Customers, Prospects, Settings, and — owner-only — AI Review) surfaces
+  // Clients, Prospects, Settings, and — owner-only — AI Review) surfaces
   // in the mobile "More" sheet instead, so no destination the desktop
   // sidebar lists is ever unreachable on mobile.
   const moreItems = moreNav(navItems);
   // Only "alert"-tone badges (currently Prospects' unclaimed count) bubble up
-  // as the red More-sheet dot — a neutral badge (Active Customers, AI
+  // as the red More-sheet dot — a neutral badge (Active Clients, AI
   // Review) hiding inside More shouldn't make the dot read as urgent.
   const moreAlertTotal = moreItems.reduce(
     (sum, item) => sum + (item.badgeTone === "alert" ? (item.badge ?? 0) : 0),
@@ -91,8 +91,8 @@ export function CrmShell({
         <aside className="sticky top-0 hidden h-screen w-[220px] shrink-0 flex-col border-r border-graphite-line bg-graphite lg:flex">
           <BrandMark dark />
 
-          <nav className="flex flex-1 flex-col gap-2 overflow-y-auto p-3">
-            {sidebarNavItems.map((item) => {
+          <nav className="flex flex-1 flex-col overflow-y-auto p-3">
+            {sidebarNavItems.map((item, index) => {
               const active = isActive(pathname, item);
               // Owner-only items (currently just AI Review) render in an
               // orange accent — the CRM's existing --warn/amber token —
@@ -100,65 +100,70 @@ export function CrmShell({
               // admin-only tabs apart from everyday ones at a glance.
               // Red-accent items (currently just Upgrades) render the same
               // way but in --bad/red, for every user, not just the owner.
-              // Gold-accent items (currently just Active Customers) only
-              // pick up their gold treatment WHILE active — a filled gold
-              // (#e3b341) bar with black text/icon, unlike ownerOnly/
-              // redAccent which tint even when inactive.
+              // iconTint (currently just Active Clients' gold star) only
+              // recolors the icon, unlike ownerOnly/redAccent — the border/
+              // background/label stay the normal item treatment.
               const ownerOnly = !!item.ownerOnly;
               const redAccent = !!item.redAccent;
-              const goldAccent = !!item.goldAccent;
+              const goldIcon = item.iconTint === "gold";
               return (
-                <Link
+                // The divider lives on this wrapper (border-b), never on the
+                // Link itself — the Link's own border-l-2/border-{color}
+                // utilities set the shorthand `border-color` on ALL sides,
+                // which would silently clobber a divider color set on the
+                // same element (verified: Tailwind's divide-y utility has
+                // exactly this collision and renders invisibly here).
+                <div
                   key={item.href}
-                  href={item.href}
-                  prefetch={false}
-                  className={[
-                    "flex items-center gap-3.5 border-l-2 px-3.5 py-3 text-[15px] font-medium transition-colors",
-                    active
-                      ? ownerOnly
-                        ? "border-warn bg-graphite-2 text-warn"
-                        : redAccent
-                          ? "border-bad bg-graphite-2 text-bad"
-                          : goldAccent
-                            ? "border-[#e3b341] bg-[#e3b341] text-black"
-                            : "border-accent bg-graphite-2 text-white"
-                      : ownerOnly
-                        ? "border-transparent text-warn/90 hover:bg-graphite-2/60 hover:text-warn"
-                        : redAccent
-                          ? "border-transparent text-bad/90 hover:bg-graphite-2/60 hover:text-bad"
-                          : "border-transparent text-on-dark-dim hover:bg-graphite-2/60 hover:text-white",
-                  ].join(" ")}
+                  className={index < sidebarNavItems.length - 1 ? "border-b border-graphite-line/70" : ""}
                 >
-                  <item.Icon
-                    width={22}
-                    height={22}
-                    className={
-                      ownerOnly
-                        ? "text-warn"
-                        : redAccent
-                          ? "text-bad"
-                          : active
-                            ? goldAccent
-                              ? "text-black"
-                              : "text-accent"
-                            : "text-on-dark-dim"
-                    }
-                  />
-                  <span className="flex-1">{item.label}</span>
-                  {!!item.badge && (
-                    <span
-                      className={`inline-flex h-[18px] min-w-[18px] items-center justify-center px-1 text-[10.5px] font-bold leading-none tabular-nums ${
-                        item.badgeTone === "alert"
-                          ? "bg-bad text-white"
-                          : active && goldAccent
-                            ? "bg-black/15 text-black"
+                  <Link
+                    href={item.href}
+                    prefetch={false}
+                    className={[
+                      "flex items-center gap-3.5 border-l-2 px-3.5 py-3 text-[15px] font-medium transition-colors",
+                      active
+                        ? ownerOnly
+                          ? "border-warn bg-graphite-2 text-warn"
+                          : redAccent
+                            ? "border-bad bg-graphite-2 text-bad"
+                            : "border-accent bg-graphite-2 text-white"
+                        : ownerOnly
+                          ? "border-transparent text-warn/90 hover:bg-graphite-2/60 hover:text-warn"
+                          : redAccent
+                            ? "border-transparent text-bad/90 hover:bg-graphite-2/60 hover:text-bad"
+                            : "border-transparent text-white hover:bg-graphite-2/60",
+                    ].join(" ")}
+                  >
+                    <item.Icon
+                      width={22}
+                      height={22}
+                      className={
+                        goldIcon
+                          ? "text-[#e3b341]"
+                          : ownerOnly
+                            ? "text-warn"
+                            : redAccent
+                              ? "text-bad"
+                              : active
+                                ? "text-accent"
+                                : "text-on-dark-dim"
+                      }
+                    />
+                    <span className="flex-1">{item.label}</span>
+                    {!!item.badge && (
+                      <span
+                        className={`inline-flex h-[18px] min-w-[18px] items-center justify-center px-1 text-[10.5px] font-bold leading-none tabular-nums ${
+                          item.badgeTone === "alert"
+                            ? "bg-bad text-white"
                             : "bg-graphite-2 text-on-dark-dim"
-                      }`}
-                    >
-                      {item.badge > 99 ? "99+" : item.badge}
-                    </span>
-                  )}
-                </Link>
+                        }`}
+                      >
+                        {item.badge > 99 ? "99+" : item.badge}
+                      </span>
+                    )}
+                  </Link>
+                </div>
               );
             })}
           </nav>

@@ -68,62 +68,65 @@ export function MobileMoreSheet({
         </div>
 
         <nav className="flex flex-col gap-0.5 px-3 pb-2">
-          {items.map((item) => {
+          {items.map((item, index) => {
             const active = isActive(pathname, item);
             const ownerOnly = !!item.ownerOnly;
             const redAccent = !!item.redAccent;
-            const goldAccent = !!item.goldAccent;
+            const goldIcon = item.iconTint === "gold";
             return (
-              <Link
+              // Divider lives on this wrapper, not the Link — see CrmShell's
+              // sidebar for why (the Link's own border-color utilities
+              // clobber a divider color set on the same element).
+              <div
                 key={item.href}
-                href={item.href}
-                prefetch={false}
-                onClick={onClose}
-                className={[
-                  "flex items-center gap-3 border-l-2 px-3 py-2.5 text-[14px] font-medium transition-colors",
-                  active
-                    ? ownerOnly
-                      ? "border-warn bg-graphite-2 text-warn"
-                      : redAccent
-                        ? "border-bad bg-graphite-2 text-bad"
-                        : goldAccent
-                          ? "border-[#e3b341] bg-[#e3b341] text-black"
-                          : "border-accent bg-graphite-2 text-white"
-                    : ownerOnly
-                      ? "border-transparent text-warn/90 hover:bg-graphite-2/60 hover:text-warn"
-                      : redAccent
-                        ? "border-transparent text-bad/90 hover:bg-graphite-2/60 hover:text-bad"
-                        : "border-transparent text-on-dark-dim hover:bg-graphite-2/60 hover:text-white",
-                ].join(" ")}
+                className={index < items.length - 1 ? "border-b border-graphite-line/70" : ""}
               >
-                <item.Icon
-                  className={
-                    ownerOnly
-                      ? "text-warn"
-                      : redAccent
-                        ? "text-bad"
-                        : active
-                          ? goldAccent
-                            ? "text-black"
-                            : "text-accent"
-                          : "text-on-dark-dim"
-                  }
-                />
-                <span className="flex-1">{item.label}</span>
-                {!!item.badge && (
-                  <span
-                    className={`inline-flex h-[18px] min-w-[18px] items-center justify-center px-1 text-[10.5px] font-bold leading-none tabular-nums ${
-                      item.badgeTone === "alert"
-                        ? "bg-bad text-white"
-                        : active && goldAccent
-                          ? "bg-black/15 text-black"
+                <Link
+                  href={item.href}
+                  prefetch={false}
+                  onClick={onClose}
+                  className={[
+                    "flex items-center gap-3 border-l-2 px-3 py-2.5 text-[14px] font-medium transition-colors",
+                    active
+                      ? ownerOnly
+                        ? "border-warn bg-graphite-2 text-warn"
+                        : redAccent
+                          ? "border-bad bg-graphite-2 text-bad"
+                          : "border-accent bg-graphite-2 text-white"
+                      : ownerOnly
+                        ? "border-transparent text-warn/90 hover:bg-graphite-2/60 hover:text-warn"
+                        : redAccent
+                          ? "border-transparent text-bad/90 hover:bg-graphite-2/60 hover:text-bad"
+                          : "border-transparent text-white hover:bg-graphite-2/60",
+                  ].join(" ")}
+                >
+                  <item.Icon
+                    className={
+                      goldIcon
+                        ? "text-[#e3b341]"
+                        : ownerOnly
+                          ? "text-warn"
+                          : redAccent
+                            ? "text-bad"
+                            : active
+                              ? "text-accent"
+                              : "text-on-dark-dim"
+                    }
+                  />
+                  <span className="flex-1">{item.label}</span>
+                  {!!item.badge && (
+                    <span
+                      className={`inline-flex h-[18px] min-w-[18px] items-center justify-center px-1 text-[10.5px] font-bold leading-none tabular-nums ${
+                        item.badgeTone === "alert"
+                          ? "bg-bad text-white"
                           : "bg-graphite-2 text-on-dark-dim"
-                    }`}
-                  >
-                    {item.badge > 99 ? "99+" : item.badge}
-                  </span>
-                )}
-              </Link>
+                      }`}
+                    >
+                      {item.badge > 99 ? "99+" : item.badge}
+                    </span>
+                  )}
+                </Link>
+              </div>
             );
           })}
         </nav>
