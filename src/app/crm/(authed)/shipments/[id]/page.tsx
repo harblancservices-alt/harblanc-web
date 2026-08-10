@@ -14,7 +14,7 @@ export default async function ShipmentDetailPage({ params }: { params: Promise<{
   if (!shipment) notFound();
 
   return (
-    <PageShell back={<BackButton fallbackHref="/crm/shipments" label="Shipments" />}>
+    <PageShell back={<BackButton fallbackHref="/crm/shipments" label="Shipments" exact />}>
       <ShipmentWorkspace shipment={shipment} />
       <DocumentsSection shipment={shipment} documents={documents} />
     </PageShell>

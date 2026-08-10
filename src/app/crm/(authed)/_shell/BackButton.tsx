@@ -20,21 +20,33 @@ import { BTN_EDIT } from "./ui";
  * it falls back to `fallbackHref`, a sensible parent (e.g. the company
  * profile falls back to the Companies list), never all the way to the
  * dashboard/root unless that parent genuinely IS the dashboard.
+ *
+ * `exact` opts a single call site out of the router.back() preference —
+ * always navigates straight to `fallbackHref` instead. Real browser history
+ * can land here from more than one list (e.g. a shipment reached from Active
+ * Customers instead of Shipments), and `router.back()` would then return to
+ * wherever the user actually came from — a real destination, just not the
+ * one the label promises. Off by default so every other call site keeps its
+ * current "return to the actual previous page" behavior unchanged.
  */
 export function BackButton({
   fallbackHref,
   label = "Back",
   className,
+  exact,
 }: {
-  /** Sensible parent route to use when there's no real history to return to. */
+  /** Sensible parent route to use when there's no real history to return to
+   * (or always, when `exact` is set). */
   fallbackHref: string;
   label?: string;
   className?: string;
+  /** Always navigate to `fallbackHref` instead of preferring router.back(). */
+  exact?: boolean;
 }) {
   const router = useRouter();
 
   function onClick() {
-    if (typeof window !== "undefined" && window.history.length > 1) {
+    if (!exact && typeof window !== "undefined" && window.history.length > 1) {
       router.back();
     } else {
       router.push(fallbackHref);
