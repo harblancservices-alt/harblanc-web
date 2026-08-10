@@ -1,10 +1,10 @@
 "use client";
 
-import type { ReactNode } from "react";
 import { ClickableListItem } from "../_shell/ClickableRow";
 import { stageLabel, stageTone } from "./lifecycle";
 import { lastContactStatus, titleCaseWords, upperCaseState } from "../_shell/format";
 import { CompanyRowActions } from "./CompanyRowActions";
+import { ActiveCustomerRowActions, type ActiveCustomerActionsData } from "../customers/ActiveCustomerRowActions";
 import type { CompanyOption } from "../contacts/CompanyCombobox";
 import type { CrmTag } from "./tags";
 
@@ -32,19 +32,22 @@ export type CompanyCardData = {
  * (Notes / Add contact / Loads-if-active-customer) — see that file.
  * `companyOptions` is the org roster its Add-contact dialog needs.
  *
- * `renderActions` overrides the row-actions block entirely — the Active
- * Customers hub passes its own (Add notes/Add load/Add task, see
+ * `activeCustomerActions` swaps the row-actions block entirely — the Active
+ * Customers hub passes its own data (Add notes/Add load/Add task, see
  * customers/ActiveCustomerRowActions.tsx) instead of the Companies-list
- * default (Notes/Add contact/Loads).
+ * default (Notes/Add contact/Loads). This takes plain data rather than a
+ * render callback because the caller (ActiveCustomersPanel) is a Server
+ * Component — passing a function prop across that boundary crashes at
+ * render with an opaque digest instead of failing the build.
  */
 export function CompanyListCard({
   company,
   companyOptions,
-  renderActions,
+  activeCustomerActions,
 }: {
   company: CompanyCardData;
   companyOptions: CompanyOption[];
-  renderActions?: (company: CompanyCardData, variant: "table" | "card") => ReactNode;
+  activeCustomerActions?: ActiveCustomerActionsData;
 }) {
   const location = [titleCaseWords(company.city), upperCaseState(company.state)].filter(Boolean).join(", ");
   const lastContact = lastContactStatus(company.lastContactMs);
@@ -83,7 +86,18 @@ export function CompanyListCard({
         </div>
       </div>
 
-      {renderActions ? renderActions(company, "card") : <CompanyRowActions company={company} companies={companyOptions} variant="card" />}
+      {activeCustomerActions ? (
+        <ActiveCustomerRowActions
+          company={company}
+          contacts={activeCustomerActions.contactsByAccount[company.id] ?? []}
+          reps={activeCustomerActions.reps}
+          canAssignOthers={activeCustomerActions.canAssignOthers}
+          currentUser={activeCustomerActions.currentUser}
+          variant="card"
+        />
+      ) : (
+        <CompanyRowActions company={company} companies={companyOptions} variant="card" />
+      )}
     </ClickableListItem>
   );
 }

@@ -1,11 +1,11 @@
 "use client";
 
-import type { ReactNode } from "react";
 import { ClickableRow } from "../_shell/ClickableRow";
 import { LIST_HEAD_ROW, ZEBRA_ROWS, GRID_TABLE, GRID_HEAD_CELL, GRID_CELL } from "../_shell/ui";
 import { stageLabel, stageTone } from "./lifecycle";
 import { lastContactStatus, titleCaseWords, upperCaseState } from "../_shell/format";
 import { CompanyRowActions } from "./CompanyRowActions";
+import { ActiveCustomerRowActions, type ActiveCustomerActionsData } from "../customers/ActiveCustomerRowActions";
 import type { CompanyOption } from "../contacts/CompanyCombobox";
 import type { CompanyCardData } from "./CompanyListCard";
 
@@ -23,17 +23,18 @@ import type { CompanyCardData } from "./CompanyListCard";
  * 2026-08-09: the Actions column's tap-to-call button was replaced with
  * CompanyRowActions (Notes / Add contact / Loads-if-active-customer) — see
  * that file. `companies` is the org roster CompanyRowActions' Add-contact
- * dialog needs for its company combobox. `renderActions` overrides the
- * Actions column entirely — see CompanyListCard's matching prop.
+ * dialog needs for its company combobox. `activeCustomerActions` swaps the
+ * Actions column entirely — see CompanyListCard's matching prop (data, not
+ * a render callback, since callers can be Server Components).
  */
 export function CompanyTable({
   companies,
   companyOptions,
-  renderActions,
+  activeCustomerActions,
 }: {
   companies: CompanyCardData[];
   companyOptions: CompanyOption[];
-  renderActions?: (company: CompanyCardData, variant: "table" | "card") => ReactNode;
+  activeCustomerActions?: ActiveCustomerActionsData;
 }) {
   return (
     <table className={GRID_TABLE}>
@@ -59,7 +60,7 @@ export function CompanyTable({
       </thead>
       <tbody className={ZEBRA_ROWS}>
         {companies.map((c) => (
-          <CompanyTableRow key={c.id} company={c} companyOptions={companyOptions} renderActions={renderActions} />
+          <CompanyTableRow key={c.id} company={c} companyOptions={companyOptions} activeCustomerActions={activeCustomerActions} />
         ))}
       </tbody>
     </table>
@@ -69,11 +70,11 @@ export function CompanyTable({
 function CompanyTableRow({
   company,
   companyOptions,
-  renderActions,
+  activeCustomerActions,
 }: {
   company: CompanyCardData;
   companyOptions: CompanyOption[];
-  renderActions?: (company: CompanyCardData, variant: "table" | "card") => ReactNode;
+  activeCustomerActions?: ActiveCustomerActionsData;
 }) {
   const location = [titleCaseWords(company.city), upperCaseState(company.state)].filter(Boolean).join(", ");
   const lastContact = lastContactStatus(company.lastContactMs);
@@ -107,7 +108,18 @@ function CompanyTableRow({
         {lastContact.freshness === "never" ? "Never" : lastContact.text}
       </td>
       <td className={GRID_CELL}>
-        {renderActions ? renderActions(company, "table") : <CompanyRowActions company={company} companies={companyOptions} variant="table" />}
+        {activeCustomerActions ? (
+          <ActiveCustomerRowActions
+            company={company}
+            contacts={activeCustomerActions.contactsByAccount[company.id] ?? []}
+            reps={activeCustomerActions.reps}
+            canAssignOthers={activeCustomerActions.canAssignOthers}
+            currentUser={activeCustomerActions.currentUser}
+            variant="table"
+          />
+        ) : (
+          <CompanyRowActions company={company} companies={companyOptions} variant="table" />
+        )}
       </td>
     </ClickableRow>
   );

@@ -12,6 +12,13 @@ import { TaskDialog, type TaskContactOption } from "../tasks/TaskDialog";
 import type { RepOption } from "../accounts/CompanyDialog";
 import type { CompanyCardData } from "../accounts/CompanyListCard";
 
+export type ActiveCustomerActionsData = {
+  contactsByAccount: Record<string, TaskContactOption[]>;
+  reps: RepOption[];
+  canAssignOthers: boolean;
+  currentUser: { id: string; label: string };
+};
+
 /**
  * Active Customers list row actions — a DIFFERENT set from the regular
  * Companies list (CompanyRowActions: Notes/Add contact/Loads). An active

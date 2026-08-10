@@ -6,7 +6,6 @@ import { parsePhones } from "../_shell/contactFields";
 import { CRM_CONTACT_ACTIVITY_KINDS } from "@/lib/crm/activity";
 import { CompanyListCard, type CompanyCardData } from "../accounts/CompanyListCard";
 import { CompanyTable } from "../accounts/CompanyTable";
-import { ActiveCustomerRowActions } from "./ActiveCustomerRowActions";
 import type { CrmTag } from "../accounts/tags";
 import type { CompanyOption } from "../contacts/CompanyCombobox";
 import type { RepOption } from "../accounts/CompanyDialog";
@@ -123,6 +122,12 @@ export async function ActiveCustomersPanel() {
     .sort((a, b) => a.label.localeCompare(b.label));
   const canAssignOthers = user.role === "owner";
   const currentUser = { id: user.id, label: firstName(user.fullName, user.email) || "You" };
+  const activeCustomerActions = {
+    contactsByAccount: Object.fromEntries(contactOptionsByAccount),
+    reps,
+    canAssignOthers,
+    currentUser,
+  };
 
   const lastContactMsByAccount = new Map<string, number>();
   for (const row of [
@@ -168,16 +173,7 @@ export async function ActiveCustomersPanel() {
             key={c.id}
             company={c}
             companyOptions={companyOptions}
-            renderActions={(company, variant) => (
-              <ActiveCustomerRowActions
-                company={company}
-                contacts={contactOptionsByAccount.get(company.id) ?? []}
-                reps={reps}
-                canAssignOthers={canAssignOthers}
-                currentUser={currentUser}
-                variant={variant}
-              />
-            )}
+            activeCustomerActions={activeCustomerActions}
           />
         ))}
       </div>
@@ -191,16 +187,7 @@ export async function ActiveCustomersPanel() {
           <CompanyTable
             companies={cards}
             companyOptions={companyOptions}
-            renderActions={(company, variant) => (
-              <ActiveCustomerRowActions
-                company={company}
-                contacts={contactOptionsByAccount.get(company.id) ?? []}
-                reps={reps}
-                canAssignOthers={canAssignOthers}
-                currentUser={currentUser}
-                variant={variant}
-              />
-            )}
+            activeCustomerActions={activeCustomerActions}
           />
         </div>
       </Card>
