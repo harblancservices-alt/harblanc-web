@@ -61,7 +61,7 @@ export function FreightProfileDialog({
       </button>
       <Modal open={open} onClose={() => setOpen(false)} busy={pending} title="Edit freight profile">
         <FormError message={error} />
-        <form onSubmit={onSubmit} className="flex flex-col gap-3">
+        <form onSubmit={onSubmit} className="flex flex-col gap-2">
           <MultiSelectChips
             name="equipment_needed"
             label="Equipment needed"
@@ -69,7 +69,7 @@ export function FreightProfileDialog({
             defaultValue={defaults.equipment_needed}
           />
           <LanesEditor defaultValue={defaults.lanes} />
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <Field
               label="Volume & frequency"
               name="volume_frequency"

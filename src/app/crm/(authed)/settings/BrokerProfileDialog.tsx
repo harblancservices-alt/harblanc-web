@@ -55,7 +55,7 @@ export function BrokerProfileDialog({
         title="Edit company / brokerage info"
       >
         <FormError message={error} />
-        <form onSubmit={onSubmit} className="flex flex-col gap-3">
+        <form onSubmit={onSubmit} className="flex flex-col gap-2">
           <Field
             label="Company name"
             name="company_name"
@@ -63,12 +63,12 @@ export function BrokerProfileDialog({
             autoFocus
             defaultValue={profile.name}
           />
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2">
             <Field label="MC #" name="mc_number" defaultValue={profile.mc} />
             <Field label="DOT #" name="dot_number" defaultValue={profile.dot} />
           </div>
           <Field label="Address" name="address" defaultValue={profile.address} />
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2">
             <Field label="Phone" name="phone" defaultValue={profile.phone} />
             <Field label="Email" name="email" defaultValue={profile.email} />
           </div>

@@ -61,7 +61,7 @@ export function QuickNoteDialog({
         title={`Note on ${contactName}`}
       >
         <FormError message={error} />
-        <form onSubmit={onSubmit} className="flex flex-col gap-3">
+        <form onSubmit={onSubmit} className="flex flex-col gap-2">
           <TextareaField
             label="Note"
             name="body"

@@ -64,7 +64,7 @@ export function MemberDialog({
         title="Edit team member"
       >
         <FormError message={error} />
-        <form onSubmit={onSubmit} className="flex flex-col gap-3">
+        <form onSubmit={onSubmit} className="flex flex-col gap-2">
           <Field
             label="Full name"
             name="full_name"
@@ -82,7 +82,7 @@ export function MemberDialog({
           {isSelf ? (
             <>
               <input type="hidden" name="is_active" value="on" />
-              <p className="rounded-md border border-line-strong bg-inset px-3 py-2.5 text-[12.5px] text-fg-subtle">
+              <p className="rounded-[5px] border border-line-strong bg-inset px-2.5 py-2 text-[12px] text-fg-subtle">
                 You can&rsquo;t deactivate your own account here.
               </p>
             </>

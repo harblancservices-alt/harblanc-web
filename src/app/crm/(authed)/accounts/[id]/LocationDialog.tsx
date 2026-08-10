@@ -66,7 +66,7 @@ export function LocationDialog({
         title={mode === "create" ? "Add location" : "Edit location"}
       >
         <FormError message={error} />
-        <form onSubmit={onSubmit} className="flex flex-col gap-3">
+        <form onSubmit={onSubmit} className="flex flex-col gap-2">
           <Field
             label="Label"
             name="label"
@@ -75,7 +75,7 @@ export function LocationDialog({
             autoFocus
           />
           <Field label="Address" name="address" defaultValue={d.address} />
-          <div className="grid grid-cols-6 gap-3">
+          <div className="grid grid-cols-6 gap-2">
             <div className="col-span-3">
               <Field label="City" name="city" defaultValue={d.city} />
             </div>

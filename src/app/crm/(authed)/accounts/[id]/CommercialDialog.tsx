@@ -56,7 +56,7 @@ export function CommercialDialog({
       </button>
       <Modal open={open} onClose={() => setOpen(false)} busy={pending} title="Edit commercial details">
         <FormError message={error} />
-        <form onSubmit={onSubmit} className="flex flex-col gap-3">
+        <form onSubmit={onSubmit} className="flex flex-col gap-2">
           <SelectField label="Priority / fit rating" name="fit_rating" defaultValue={String(defaults.fit_rating ?? "")}>
             <option value="">Unrated</option>
             <option value="1">1 — Low fit</option>

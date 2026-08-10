@@ -62,7 +62,7 @@ export function CompanyProfileDialog({
       </button>
       <Modal open={open} onClose={() => setOpen(false)} busy={pending} title="Edit company profile">
         <FormError message={error} />
-        <form onSubmit={onSubmit} className="flex flex-col gap-3">
+        <form onSubmit={onSubmit} className="flex flex-col gap-2">
           <Field label="DBA" name="dba" defaultValue={defaults.dba} autoFocus />
           <Field
             label="LinkedIn"
@@ -72,7 +72,7 @@ export function CompanyProfileDialog({
             placeholder="linkedin.com/company/…"
             defaultValue={defaults.linkedin_url}
           />
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2">
             <Field
               label="Year founded"
               name="year_founded"

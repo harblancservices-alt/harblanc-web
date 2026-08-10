@@ -50,7 +50,7 @@ export function ContextNotesDialog({
       </button>
       <Modal open={open} onClose={() => setOpen(false)} busy={pending} title="Edit notes">
         <FormError message={error} />
-        <form onSubmit={onSubmit} className="flex flex-col gap-3">
+        <form onSubmit={onSubmit} className="flex flex-col gap-2">
           <TextareaField
             label="Context notes"
             name="context_notes"
