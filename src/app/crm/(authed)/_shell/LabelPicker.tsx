@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { CONTROL } from "./form";
+import { CONTROL, CONTROL_SIZE } from "./compactForm";
 import { IconChevronDown } from "./icons";
 
 /**
@@ -56,7 +56,7 @@ export function LabelPicker({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder="Custom label"
-          className={`h-11 w-full ${CONTROL}`}
+          className={`w-full min-w-0 ${CONTROL_SIZE} ${CONTROL}`}
         />
         <button
           type="button"
@@ -64,7 +64,7 @@ export function LabelPicker({
             setCustomMode(false);
             onChange("");
           }}
-          className="shrink-0 text-[11px] font-semibold text-fg-subtle hover:text-fg"
+          className="shrink-0 text-[10.5px] font-semibold text-fg-subtle hover:text-fg"
         >
           Presets
         </button>
@@ -79,17 +79,17 @@ export function LabelPicker({
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        className={`flex h-11 w-full items-center justify-between gap-2 ${CONTROL}`}
+        className={`flex w-full min-w-0 items-center justify-between gap-2 ${CONTROL_SIZE} ${CONTROL}`}
       >
         <span className={`truncate ${value ? "text-fg" : "text-fg-subtle"}`}>
           {value || placeholder}
         </span>
-        <IconChevronDown width={14} height={14} className="shrink-0 text-fg-subtle" />
+        <IconChevronDown width={13} height={13} className="shrink-0 text-fg-subtle" />
       </button>
       {open && (
         <div
           role="listbox"
-          className="absolute left-0 top-[calc(100%+4px)] z-20 max-h-64 w-full min-w-[10rem] overflow-y-auto rounded-lg border border-line-strong bg-card py-1 shadow-e3"
+          className="absolute left-0 top-[calc(100%+4px)] z-20 max-h-64 w-full min-w-[10rem] overflow-y-auto rounded-[5px] border border-line-strong bg-card py-1 shadow-e3"
         >
           {presets.map((p) => (
             <button
@@ -101,7 +101,7 @@ export function LabelPicker({
                 onChange(p);
                 setOpen(false);
               }}
-              className={`block w-full px-3 py-2 text-left text-[13.5px] font-medium transition-colors hover:bg-inset ${
+              className={`block w-full px-2.5 py-1.5 text-left text-[12.5px] font-medium transition-colors hover:bg-inset ${
                 p === value ? "bg-inset text-accent" : "text-fg"
               }`}
             >
@@ -115,7 +115,7 @@ export function LabelPicker({
               onChange("");
               setOpen(false);
             }}
-            className="block w-full border-t border-line px-3 py-2 text-left text-[13.5px] font-medium text-fg-subtle transition-colors hover:bg-inset hover:text-fg"
+            className="block w-full border-t border-line px-2.5 py-1.5 text-left text-[12.5px] font-medium text-fg-subtle transition-colors hover:bg-inset hover:text-fg"
           >
             Other…
           </button>

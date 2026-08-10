@@ -1,11 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { LABEL, CONTROL } from "./form";
-import { IconPlus, IconX } from "./icons";
+import { CONTROL, CONTROL_SIZE, RemoveRowButton, RepeatingFieldList } from "./compactForm";
 import { LabelPicker } from "./LabelPicker";
 import { LINK_LABEL_PRESETS, type LinkEntry } from "./contactFields";
-import { BTN_DANGER, BTN_EDIT } from "./ui";
 
 /**
  * Editable list of labeled links (LinkedIn, Website, Load board…) — the
@@ -39,84 +37,57 @@ export function LinksEditor({
     setRows((prev) => (prev.length <= 1 ? prev : prev.filter((_, idx) => idx !== i)));
   }
 
-  const cleaned = rows.filter((r) => r.url.trim().length > 0);
-
   return (
-    <div className="flex flex-col gap-2">
-      <span className={LABEL}>{label}</span>
-      <div className="flex flex-col gap-2">
-        {rows.map((row, i) =>
-          compact ? (
-            <div
-              key={i}
-              className="flex flex-col gap-1.5 rounded-md border border-line-strong bg-inset p-2"
-            >
-              <div className="flex items-center gap-2">
-                <div className="min-w-0 flex-1">
-                  <LabelPicker
-                    value={row.label}
-                    onChange={(next) => update(i, { label: next })}
-                    presets={LINK_LABEL_PRESETS}
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => remove(i)}
-                  disabled={rows.length <= 1}
-                  aria-label="Remove link"
-                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full transition-colors ${BTN_DANGER}`}
-                >
-                  <IconX width={14} height={14} />
-                </button>
-              </div>
-              <input
-                type="text"
-                inputMode="url"
-                value={row.url}
-                onChange={(e) => update(i, { url: e.target.value })}
-                placeholder="https://…"
-                className={`h-11 w-full min-w-0 ${CONTROL}`}
-              />
-            </div>
-          ) : (
-            <div key={i} className="grid grid-cols-[1fr_1.6fr_auto] items-center gap-2">
-              <div className="min-w-0">
+    <RepeatingFieldList
+      label={label}
+      name={name}
+      rows={rows}
+      onAdd={add}
+      addLabel="Add link"
+      serialize={(rs) => JSON.stringify(rs.filter((r) => r.url.trim().length > 0))}
+      renderRow={(row, i) =>
+        compact ? (
+          <div className="flex flex-col gap-1.5 rounded-[5px] border border-line-strong bg-inset p-2">
+            <div className="flex items-center gap-2">
+              <div className="min-w-0 flex-1">
                 <LabelPicker
                   value={row.label}
                   onChange={(next) => update(i, { label: next })}
                   presets={LINK_LABEL_PRESETS}
                 />
               </div>
-              <input
-                type="text"
-                inputMode="url"
-                value={row.url}
-                onChange={(e) => update(i, { url: e.target.value })}
-                placeholder="https://…"
-                className={`h-11 w-full min-w-0 ${CONTROL}`}
-              />
-              <button
-                type="button"
-                onClick={() => remove(i)}
-                disabled={rows.length <= 1}
-                aria-label="Remove link"
-                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition-colors ${BTN_DANGER}`}
-              >
-                <IconX width={16} height={16} />
-              </button>
+              <RemoveRowButton onClick={() => remove(i)} disabled={rows.length <= 1} label="Remove link" />
             </div>
-          ),
-        )}
-      </div>
-      <button
-        type="button"
-        onClick={add}
-        className={`inline-flex w-fit items-center gap-1.5 rounded-lg border-dashed px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_EDIT}`}
-      >
-        <IconPlus width={13} height={13} />
-        Add link
-      </button>
-      <input type="hidden" name={name} value={JSON.stringify(cleaned)} />
-    </div>
+            <input
+              type="text"
+              inputMode="url"
+              value={row.url}
+              onChange={(e) => update(i, { url: e.target.value })}
+              placeholder="https://…"
+              className={`w-full min-w-0 ${CONTROL_SIZE} ${CONTROL}`}
+            />
+          </div>
+        ) : (
+          <div className="grid grid-cols-[1fr_1.6fr_auto] items-center gap-2">
+            <div className="min-w-0">
+              <LabelPicker
+                value={row.label}
+                onChange={(next) => update(i, { label: next })}
+                presets={LINK_LABEL_PRESETS}
+              />
+            </div>
+            <input
+              type="text"
+              inputMode="url"
+              value={row.url}
+              onChange={(e) => update(i, { url: e.target.value })}
+              placeholder="https://…"
+              className={`w-full min-w-0 ${CONTROL_SIZE} ${CONTROL}`}
+            />
+            <RemoveRowButton onClick={() => remove(i)} disabled={rows.length <= 1} label="Remove link" />
+          </div>
+        )
+      }
+    />
   );
 }

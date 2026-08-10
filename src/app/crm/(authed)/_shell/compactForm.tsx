@@ -1,6 +1,8 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { IconPlus, IconX } from "./icons";
+import { BTN_DANGER, BTN_EDIT } from "./ui";
 
 /**
  * CRM-wide compact form primitives — the visual language originally built
@@ -270,6 +272,82 @@ export function TimeWindowRow({
           className={`min-w-0 flex-1 ${CONTROL_SIZE} ${CONTROL}`}
         />
       </div>
+    </div>
+  );
+}
+
+/**
+ * Round remove button for a repeating-row editor (phones, links, lanes) —
+ * a comfortable 40px tap target on mobile, shrinking to a real desktop
+ * button size (28px) past `sm`, same responsive split as CONTROL_SIZE. This
+ * replaces the old flat 44px-everywhere circle, the single clearest "bubble"
+ * flagged in the field-compactness audit (C.2).
+ */
+export function RemoveRowButton({
+  onClick,
+  disabled,
+  label,
+}: {
+  onClick: () => void;
+  disabled?: boolean;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-colors sm:h-7 sm:w-7 ${BTN_DANGER}`}
+    >
+      <IconX width={14} height={14} className="sm:hidden" />
+      <IconX width={12} height={12} className="hidden sm:block" />
+    </button>
+  );
+}
+
+/**
+ * Shared chrome for a repeating-row field editor (PhonesEditor, LinksEditor,
+ * LanesEditor) — the label, row list, dashed "Add X" button, and hidden
+ * JSON-serialized input every one of them needs. Each row's own content
+ * (label picker + input, or two inputs) stays with the caller via
+ * `renderRow`, since phone/link/lane rows don't share a shape — only the
+ * surrounding list chrome is common.
+ */
+export function RepeatingFieldList<T>({
+  label,
+  name,
+  rows,
+  onAdd,
+  addLabel,
+  serialize,
+  renderRow,
+}: {
+  label: string;
+  name: string;
+  rows: T[];
+  onAdd: () => void;
+  addLabel: string;
+  serialize: (rows: T[]) => string;
+  renderRow: (row: T, index: number) => ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <span className={LABEL}>{label}</span>
+      <div className="flex flex-col gap-2">
+        {rows.map((row, i) => (
+          <div key={i}>{renderRow(row, i)}</div>
+        ))}
+      </div>
+      <button
+        type="button"
+        onClick={onAdd}
+        className={`inline-flex w-fit items-center gap-1.5 rounded-[5px] border-dashed px-2.5 py-1.5 text-[12px] font-semibold transition-colors ${BTN_EDIT}`}
+      >
+        <IconPlus width={12} height={12} />
+        {addLabel}
+      </button>
+      <input type="hidden" name={name} value={serialize(rows)} />
     </div>
   );
 }
