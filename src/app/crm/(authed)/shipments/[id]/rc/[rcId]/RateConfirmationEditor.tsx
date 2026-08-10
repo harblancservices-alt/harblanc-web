@@ -1,15 +1,13 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { DocViewer } from "@/components/ui/DocViewer";
-import { Card, BTN_PRIMARY, BTN_EDIT, BTN_ACTION, BTN_DANGER, BTN_NEUTRAL, BTN_SUCCESS, ZEBRA_ROWS } from "../../../../_shell/ui";
+import { Card, BTN_PRIMARY, BTN_EDIT, BTN_ACTION, BTN_DANGER, BTN_SUCCESS, ZEBRA_ROWS } from "../../../../_shell/ui";
 import { FormError } from "../../../../_shell/form";
 import { AsyncSearchPicker } from "../../../../_shell/AsyncSearchPicker";
 import { formatMoney, formatDateTime, titleCaseWords } from "../../../../_shell/format";
 import { TextRow, TextAreaRow, FormRow2, FormRow3, SectionDivider, SelectedEntityChip } from "../../fields";
-import { DocumentSigner } from "../../DocumentSigner";
 import { docStatusLabel, docStatusTone } from "../../../docStatusMeta";
 import { getSignedPdfUrl, openStoredPdf } from "../../../pdfClient";
 import { listCarriers, getCarrier } from "../../../carriers-actions";
@@ -20,11 +18,8 @@ import {
   updateRateConfirmationLine,
   removeRateConfirmationLine,
   generateRateConfirmation,
-  sendRateConfirmation,
   markRateConfirmationAccepted,
   markRateConfirmationCompleted,
-  duplicateRateConfirmation,
-  supersedeRateConfirmation,
 } from "../../../rate-confirmation-actions";
 import type { CrmCarrier, CrmRateConfirmationDetail, CrmShipmentDetail, RateConfirmationFields } from "../../../types";
 
@@ -158,8 +153,10 @@ function toLineRows(rc: CrmRateConfirmationDetail): LineRow[] {
 /**
  * The Rate Confirmation editor — carrier contact fields, payment terms/quick
  * pay/notes, and carrier-pay line items, all editable, plus the
- * generate/send/accept/complete/duplicate/supersede lifecycle already
- * backed by rate-confirmation-actions.ts. totalCarrierPay is NEVER summed
+ * accept/complete lifecycle already backed by rate-confirmation-actions.ts
+ * (send/duplicate/supersede/sign-to-accept buttons were removed from this
+ * editor 2026-08-10; the server actions still exist, just unused here).
+ * totalCarrierPay is NEVER summed
  * client-side — every line mutation calls refresh() to re-pull the server's
  * recomputed total (see recomputeTotal in that file), same contract the
  * server enforces.
@@ -185,11 +182,10 @@ export function RateConfirmationEditor({
    * workspace) instead of the standalone /rc/[rcId] route — swaps the
    * "back to shipment" Link for a plain Close. */
   onClose?: () => void;
-  /** Present in modal mode — duplicate/supersede/the superseded-by banner
-   * switch the modal to the new/other doc instead of a full navigation. */
+  /** Present in modal mode — the superseded-by banner switches the modal to
+   * the newer doc instead of a full navigation. */
   onNavigate?: (id: string) => void;
 }) {
-  const router = useRouter();
   const [rc, setRc] = useState(initialRc);
   const [state, setState] = useState<CarrierFieldsState>(() => toLocal(initialRc));
   const [carrierId, setCarrierId] = useState<string | null>(initialRc.carrierId);
@@ -208,7 +204,6 @@ export function RateConfirmationEditor({
 
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [signerRole, setSignerRole] = useState<string | null>(null);
 
   async function refresh() {
     const fresh = await getRateConfirmation(rc.id);
@@ -374,37 +369,6 @@ export function RateConfirmationEditor({
     });
   }
 
-  function onDuplicate() {
-    setActionError(null);
-    setBusyAction("duplicate");
-    startAction(async () => {
-      const result = await duplicateRateConfirmation(rc.id);
-      setBusyAction(null);
-      if (!result.ok) {
-        setActionError(result.error);
-        return;
-      }
-      if (onNavigate) onNavigate(result.id);
-      else router.push(`/crm/shipments/${shipment.id}/rc/${result.id}`);
-    });
-  }
-
-  function onSupersede() {
-    if (!window.confirm(`Create a new draft that supersedes ${rc.rcNumber}?`)) return;
-    setActionError(null);
-    setBusyAction("supersede");
-    startAction(async () => {
-      const result = await supersedeRateConfirmation(rc.id);
-      setBusyAction(null);
-      if (!result.ok) {
-        setActionError(result.error);
-        return;
-      }
-      if (onNavigate) onNavigate(result.id);
-      else router.push(`/crm/shipments/${shipment.id}/rc/${result.id}`);
-    });
-  }
-
   async function openPreview() {
     if (!rc.pdfStoragePath) return;
     setPreviewOpen(true);
@@ -476,43 +440,6 @@ export function RateConfirmationEditor({
         <FormError message={actionError} />
 
         <div className="mt-3 flex flex-wrap gap-2">
-          {hasPdf && (
-            <button
-              type="button"
-              onClick={openPreview}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors ${BTN_EDIT}`}
-            >
-              Preview PDF
-            </button>
-          )}
-          {hasPdf && (
-            <button
-              type="button"
-              onClick={download}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors ${BTN_EDIT}`}
-            >
-              Download PDF
-            </button>
-          )}
-          {rc.status === "generated" && (
-            <button
-              type="button"
-              onClick={() => runAction("send", () => sendRateConfirmation(rc.id))}
-              disabled={busy}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors disabled:opacity-60 ${BTN_ACTION}`}
-            >
-              {busyAction === "send" ? "Sending…" : "Send"}
-            </button>
-          )}
-          {hasPdf && (rc.status === "sent" || rc.status === "generated") && (
-            <button
-              type="button"
-              onClick={() => setSignerRole("carrier")}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors ${BTN_EDIT}`}
-            >
-              Sign to Accept
-            </button>
-          )}
           {rc.status === "sent" && (
             <button
               type="button"
@@ -533,29 +460,12 @@ export function RateConfirmationEditor({
               {busyAction === "complete" ? "Completing…" : "Complete"}
             </button>
           )}
-          <button
-            type="button"
-            onClick={onDuplicate}
-            disabled={busy}
-            className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors disabled:opacity-60 ${BTN_NEUTRAL}`}
-          >
-            {busyAction === "duplicate" ? "Duplicating…" : "Duplicate"}
-          </button>
-          {hasPdf && !rc.supersededBy && (
-            <button
-              type="button"
-              onClick={onSupersede}
-              disabled={busy}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors disabled:opacity-60 ${BTN_NEUTRAL}`}
-            >
-              {busyAction === "supersede" ? "Superseding…" : "Supersede"}
-            </button>
-          )}
         </div>
       </Card>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <Card>
+        <div className="flex flex-col gap-3">
+          <Card>
           <SectionDivider
             label="Carrier"
             hint="Independent of the shipment — edits here don't change the assigned carrier"
@@ -643,7 +553,27 @@ export function RateConfirmationEditor({
             </FormRow2>
             <FmcsaLookupBox mc={state.carrierMc} dot={state.carrierDot} />
           </div>
-        </Card>
+          </Card>
+
+          {hasPdf && (
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={openPreview}
+                className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors ${BTN_SUCCESS}`}
+              >
+                View PDF
+              </button>
+              <button
+                type="button"
+                onClick={download}
+                className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors ${BTN_EDIT}`}
+              >
+                Download PDF
+              </button>
+            </div>
+          )}
+        </div>
 
         <div className="flex flex-col gap-3">
           <Card>
@@ -775,21 +705,6 @@ export function RateConfirmationEditor({
           onClose={() => {
             setPreviewOpen(false);
             setPreviewUrl(null);
-          }}
-        />
-      )}
-
-      {signerRole && rc.pdfStoragePath && (
-        <DocumentSigner
-          docType="rate_confirmation"
-          docId={rc.id}
-          pdfStoragePath={rc.pdfStoragePath}
-          role={signerRole}
-          roleLabel={titleCaseWords(signerRole)}
-          defaultSignerName={state.carrierContact}
-          onClose={() => setSignerRole(null)}
-          onSigned={() => {
-            void refresh();
           }}
         />
       )}
