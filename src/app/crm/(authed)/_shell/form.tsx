@@ -1,25 +1,25 @@
 import type { ChangeEvent, ReactNode } from "react";
+import { CONTROL as BASE_CONTROL, CONTROL_SIZE, LABEL } from "./compactForm";
 
 /**
  * CRM form primitives — the labelled input/select/textarea/toggle used across
  * every CRM dialog and inline editor. Presentational only (no hooks), so they
- * drop into both server and client components. Styling matches the shell's
- * premium .crm-light chrome: uppercase micro-labels over an 11px-tracked
- * caption, 44px controls with the accent focus ring.
+ * drop into both server and client components. These are the *uncontrolled*
+ * (defaultValue, submit-once) counterpart to compactForm.tsx's controlled
+ * (value/onChange/onBlur autosave) Row components — both render through the
+ * same CONTROL/CONTROL_SIZE/LABEL tokens from compactForm.tsx so every CRM
+ * form reads as one compact system (promoted 2026-08-10; previously this
+ * file had its own, larger 44px tokens).
  */
 
-// Exported so controlled inputs outside this module (e.g. Field Capture's
-// live-editable review cards, which need value/onChange rather than the
-// uncontrolled defaultValue these primitives use) can match the same chrome.
-// High-contrast form standard: a border dark enough to read as a distinct
-// box on the white card (border-fg-subtle, not the barely-visible
-// border-line-strong), with near-black entered text.
-export const CONTROL =
-  "rounded-md border border-fg-subtle bg-card px-3 text-[14px] font-medium text-fg outline-none transition-shadow focus:ring-2 focus:ring-accent/40";
+export { LABEL, CONTROL_SIZE };
 
-// Near-black, not the faint fg-subtle gray — labels need to read clearly
-// against the white card, matching the CRM's high-contrast form standard.
-export const LABEL = "text-[12px] font-semibold uppercase tracking-[0.1em] text-fg";
+// Backward-compat bundled token for call sites that combine CONTROL with
+// their own one-off height class (list search bars, inline comboboxes)
+// instead of going through Field/SelectField. Same border/radius/focus as
+// the shared standard, with compact (non-responsive) padding/text baked in
+// since these callers don't opt into the mobile/desktop CONTROL_SIZE split.
+export const CONTROL = `${BASE_CONTROL} px-2.5 text-[13px]`;
 
 export function FieldLabel({
   children,
@@ -58,7 +58,7 @@ export function Field({
   step?: string;
 }) {
   return (
-    <label className="flex w-full min-w-0 flex-col gap-1.5">
+    <label className="flex w-full min-w-0 flex-col gap-1">
       <FieldLabel required={required}>{label}</FieldLabel>
       <input
         name={name}
@@ -69,7 +69,7 @@ export function Field({
         defaultValue={defaultValue ?? undefined}
         inputMode={inputMode}
         step={step}
-        className={`h-11 w-full min-w-0 ${CONTROL}`}
+        className={`w-full min-w-0 ${CONTROL_SIZE} ${BASE_CONTROL}`}
       />
     </label>
   );
@@ -93,7 +93,7 @@ export function TextareaField({
   autoFocus?: boolean;
 }) {
   return (
-    <label className="flex w-full min-w-0 flex-col gap-1.5">
+    <label className="flex w-full min-w-0 flex-col gap-1">
       <FieldLabel required={required}>{label}</FieldLabel>
       <textarea
         name={name}
@@ -102,7 +102,7 @@ export function TextareaField({
         defaultValue={defaultValue ?? undefined}
         rows={rows}
         autoFocus={autoFocus}
-        className={`w-full min-w-0 resize-y py-2.5 leading-relaxed ${CONTROL}`}
+        className={`w-full min-w-0 resize-y py-1.5 leading-snug sm:py-1 ${BASE_CONTROL} text-[13.5px] sm:text-[12.5px]`}
       />
     </label>
   );
@@ -129,7 +129,7 @@ export function SelectField({
   children: ReactNode;
 }) {
   return (
-    <label className="flex w-full min-w-0 flex-col gap-1.5">
+    <label className="flex w-full min-w-0 flex-col gap-1">
       <FieldLabel required={required}>{label}</FieldLabel>
       <select
         name={name}
@@ -137,7 +137,7 @@ export function SelectField({
         required={required}
         disabled={disabled}
         onChange={onChange}
-        className={`h-11 w-full min-w-0 disabled:opacity-60 ${CONTROL}`}
+        className={`w-full min-w-0 disabled:opacity-60 ${CONTROL_SIZE} ${BASE_CONTROL}`}
       >
         {children}
       </select>
@@ -157,7 +157,7 @@ export function CheckboxField({
   hint?: string;
 }) {
   return (
-    <label className="flex items-start gap-2.5 rounded-md border border-fg-subtle bg-card px-3 py-2.5">
+    <label className="flex items-start gap-2.5 rounded-[5px] border border-fg-subtle bg-card px-2.5 py-2">
       <input
         type="checkbox"
         name={name}
@@ -165,9 +165,9 @@ export function CheckboxField({
         className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--accent)]"
       />
       <span className="min-w-0">
-        <span className="block text-[13.5px] font-medium text-fg">{label}</span>
+        <span className="block text-[13px] font-medium text-fg">{label}</span>
         {hint && (
-          <span className="mt-0.5 block text-[12px] text-fg-subtle">{hint}</span>
+          <span className="mt-0.5 block text-[11.5px] text-fg-subtle">{hint}</span>
         )}
       </span>
     </label>
@@ -188,7 +188,7 @@ export function SubmitButton({
     <button
       type="submit"
       disabled={pending}
-      className="mt-1 inline-flex h-11 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg bg-accent px-5 text-[14px] font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-60"
+      className="mt-1 inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-md bg-accent px-4 text-[13px] font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-60"
     >
       {pending ? pendingLabel : children}
     </button>
@@ -201,7 +201,7 @@ export function FormError({ message }: { message: string | null }) {
   return (
     <div
       role="alert"
-      className="mb-3 rounded-md border border-bad/30 bg-bad-bg px-3 py-2 text-[13px] text-bad"
+      className="mb-3 rounded-[5px] border border-bad/30 bg-bad-bg px-3 py-2 text-[13px] text-bad"
     >
       {message}
     </div>

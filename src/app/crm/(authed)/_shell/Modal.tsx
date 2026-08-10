@@ -50,18 +50,18 @@ export function Modal({
       role="presentation"
     >
       <div
-        className={`max-h-[92vh] w-full overflow-y-auto rounded-t-lg border border-line bg-card p-5 shadow-e3 sm:rounded-lg ${wide ? "max-w-6xl" : "max-w-lg"}`}
+        className={`max-h-[92vh] w-full overflow-y-auto rounded-t-lg border border-line bg-card p-4 shadow-e3 sm:rounded-lg ${wide ? "max-w-6xl" : "max-w-lg"}`}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-label={title}
       >
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="text-[17px] font-semibold text-fg">{title}</h2>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="text-[16px] font-semibold text-fg">{title}</h2>
           <button
             type="button"
             onClick={() => !busy && onClose()}
-            className="rounded-md border border-fg-subtle px-2.5 py-1 text-[13px] font-medium text-fg-muted transition-colors hover:bg-inset hover:text-fg"
+            className="rounded-[5px] border border-fg-subtle px-2.5 py-1 text-[12.5px] font-medium text-fg-muted transition-colors hover:bg-inset hover:text-fg"
           >
             Cancel
           </button>
