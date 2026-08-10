@@ -88,7 +88,6 @@ export function NextBestActionSection({
               {item.action && (
                 <a
                   href={item.action.href}
-                  onClick={(e) => e.stopPropagation()}
                   className={`inline-flex h-8 shrink-0 items-center rounded-full px-3 text-[11.5px] font-bold transition-colors ${ACTION_PILL_TONE[item.action.label]}`}
                 >
                   {item.action.label}
