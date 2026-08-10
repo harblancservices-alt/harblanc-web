@@ -59,13 +59,18 @@ export function SectionDivider({
   label,
   hint,
   right,
+  bare,
 }: {
   label: string;
   hint?: string;
   right?: ReactNode;
+  /** Drop the built-in px-4 — use inside a container (e.g. a Modal form)
+   * that already supplies its own horizontal padding, so the section
+   * header lines up with the fields below it instead of over-indenting. */
+  bare?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-line px-4 pb-2 pt-3">
+    <div className={`flex items-center justify-between gap-3 border-b border-line pb-2 pt-3 ${bare ? "" : "px-4"}`}>
       <div className="min-w-0">
         <h2 className="truncate text-[11px] font-bold uppercase tracking-[0.08em] text-fg">{label}</h2>
         {hint && <p className="truncate text-[10.5px] text-fg-subtle">{hint}</p>}

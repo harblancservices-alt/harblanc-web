@@ -87,8 +87,8 @@ export function AddContactDialog({
 
       <Modal open={open} onClose={() => setOpen(false)} busy={pending} title="New contact">
         <FormError message={error} />
-        <form onSubmit={onSubmit} className="flex flex-col gap-3">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <form onSubmit={onSubmit} className="flex flex-col gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <Field label="Name" name="name" required autoFocus />
             <Field label="Title" name="title" />
           </div>

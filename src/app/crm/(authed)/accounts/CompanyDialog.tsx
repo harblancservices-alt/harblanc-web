@@ -11,6 +11,7 @@ import {
   SubmitButton,
   FormError,
 } from "../_shell/form";
+import { SectionDivider } from "../_shell/compactForm";
 import { PhonesEditor } from "../_shell/PhonesEditor";
 import { LinksEditor } from "../_shell/LinksEditor";
 import { phonesFromFormValue, type PhoneEntry, type LinkEntry } from "../_shell/contactFields";
@@ -169,109 +170,120 @@ export function CompanyDialog({
       >
         <FormError message={error} />
         <form onSubmit={onSubmit} className="flex flex-col gap-3">
-          <Field
-            label="Company name"
-            name="name"
-            required
-            autoFocus
-            defaultValue={d.name}
-          />
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <Field label="Industry" name="industry" defaultValue={d.industry} />
-            <SelectField label="Company type" name="company_type" defaultValue={d.company_type ?? ""}>
-              <option value="">Not set</option>
-              {COMPANY_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-            </SelectField>
-          </div>
-
-          <Field
-            label="Company email"
-            name="email"
-            type="email"
-            inputMode="email"
-            defaultValue={d.email}
-          />
-
-          <PhonesEditor defaultValue={d.phones} />
-          <LinksEditor defaultValue={d.links} />
-
-          <Field label="Address" name="address" defaultValue={d.address} />
-          <div className="grid grid-cols-6 gap-3">
-            <div className="col-span-3">
-              <Field label="City" name="city" defaultValue={d.city} />
-            </div>
-            <div className="col-span-1">
-              <Field label="State" name="state" defaultValue={d.state} />
-            </div>
-            <div className="col-span-2">
-              <Field label="ZIP" name="zip" defaultValue={d.zip} />
-            </div>
-          </div>
-
-          <Field
-            label="Commodities hauled"
-            name="commodities"
-            placeholder="e.g. Reefer, Dry van, Flatbed"
-            defaultValue={d.commodities}
-          />
-
-          <Field
-            label="Company size"
-            name="company_size"
-            placeholder="e.g. 11–50"
-            defaultValue={d.company_size}
-          />
-
-          <div className="grid grid-cols-2 gap-3">
+          <div className="flex flex-col gap-2">
+            <SectionDivider label="Identity" bare />
             <Field
-              label="Annual freight spend ($)"
-              name="annual_freight_spend"
-              inputMode="decimal"
-              defaultValue={d.annual_freight_spend ?? undefined}
+              label="Company name"
+              name="name"
+              required
+              autoFocus
+              defaultValue={d.name}
+            />
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <Field label="Industry" name="industry" defaultValue={d.industry} />
+              <SelectField label="Company type" name="company_type" defaultValue={d.company_type ?? ""}>
+                <option value="">Not set</option>
+                {COMPANY_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </SelectField>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <SectionDivider label="Contact" bare />
+            <Field
+              label="Company email"
+              name="email"
+              type="email"
+              inputMode="email"
+              defaultValue={d.email}
+            />
+            <PhonesEditor defaultValue={d.phones} />
+            <LinksEditor defaultValue={d.links} />
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <SectionDivider label="Location" bare />
+            <Field label="Address" name="address" defaultValue={d.address} />
+            <div className="grid grid-cols-6 gap-2">
+              <div className="col-span-3">
+                <Field label="City" name="city" defaultValue={d.city} />
+              </div>
+              <div className="col-span-1">
+                <Field label="State" name="state" defaultValue={d.state} />
+              </div>
+              <div className="col-span-2">
+                <Field label="ZIP" name="zip" defaultValue={d.zip} />
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <SectionDivider label="Commercial" bare />
+            <Field
+              label="Commodities hauled"
+              name="commodities"
+              placeholder="e.g. Reefer, Dry van, Flatbed"
+              defaultValue={d.commodities}
             />
             <Field
-              label="Revenue potential ($)"
-              name="revenue_potential"
-              inputMode="decimal"
-              defaultValue={d.revenue_potential ?? undefined}
+              label="Company size"
+              name="company_size"
+              placeholder="e.g. 11–50"
+              defaultValue={d.company_size}
+            />
+            <div className="grid grid-cols-2 gap-2">
+              <Field
+                label="Annual freight spend ($)"
+                name="annual_freight_spend"
+                inputMode="decimal"
+                defaultValue={d.annual_freight_spend ?? undefined}
+              />
+              <Field
+                label="Revenue potential ($)"
+                name="revenue_potential"
+                inputMode="decimal"
+                defaultValue={d.revenue_potential ?? undefined}
+              />
+            </div>
+            <Field
+              label="Source"
+              name="source"
+              placeholder="e.g. Referral, Cold call, Web"
+              defaultValue={d.source}
             />
           </div>
 
-          <Field
-            label="Source"
-            name="source"
-            placeholder="e.g. Referral, Cold call, Web"
-            defaultValue={d.source}
-          />
-
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <SelectField
-              label="Lifecycle"
-              name="lifecycle_status"
-              defaultValue={d.lifecycle_status ?? DEFAULT_LIFECYCLE}
-            >
-              {LIFECYCLE_STAGES.map((s) => (
-                <option key={s} value={s}>
-                  {LIFECYCLE_LABEL[s]}
-                </option>
-              ))}
-            </SelectField>
-            <SelectField
-              label="Assigned rep"
-              name="assigned_user_id"
-              defaultValue={d.assigned_user_id ?? ""}
-            >
-              <option value="">Unassigned</option>
-              {reps.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.label}
-                </option>
-              ))}
-            </SelectField>
+          <div className="flex flex-col gap-2">
+            <SectionDivider label="Assignment" bare />
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <SelectField
+                label="Lifecycle"
+                name="lifecycle_status"
+                defaultValue={d.lifecycle_status ?? DEFAULT_LIFECYCLE}
+              >
+                {LIFECYCLE_STAGES.map((s) => (
+                  <option key={s} value={s}>
+                    {LIFECYCLE_LABEL[s]}
+                  </option>
+                ))}
+              </SelectField>
+              <SelectField
+                label="Assigned rep"
+                name="assigned_user_id"
+                defaultValue={d.assigned_user_id ?? ""}
+              >
+                <option value="">Unassigned</option>
+                {reps.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.label}
+                  </option>
+                ))}
+              </SelectField>
+            </div>
           </div>
 
           {duplicates && duplicates.length > 0 && (

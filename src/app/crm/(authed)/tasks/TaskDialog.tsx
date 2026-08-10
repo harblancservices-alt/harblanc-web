@@ -133,7 +133,7 @@ export function TaskDialog({
         title={mode === "create" ? "New task" : "Edit task"}
       >
         <FormError message={error} />
-        <form onSubmit={onSubmit} className="flex flex-col gap-3">
+        <form onSubmit={onSubmit} className="flex flex-col gap-2">
           {fixedAccount && <input type="hidden" name="account_id" value={accountId} />}
 
           <Field
@@ -175,7 +175,7 @@ export function TaskDialog({
             ))}
           </SelectField>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <TaskTypeField defaultValue={d.task_type} />
             <SelectField
               label="Priority"
@@ -189,7 +189,8 @@ export function TaskDialog({
               ))}
             </SelectField>
           </div>
-          <div className={canAssignOthers ? "grid grid-cols-1 gap-3 sm:grid-cols-2" : ""}>
+
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <Field
               label="Due (CST)"
               name="due_at"
@@ -197,31 +198,31 @@ export function TaskDialog({
               autoFocus={initialFocus === "due_at"}
               defaultValue={toDatetimeLocal(d.due_at)}
             />
-            {canAssignOthers && (
-              <SelectField
-                label="Assigned rep"
-                name="assigned_user_id"
-                defaultValue={d.assigned_user_id ?? ""}
-              >
-                <option value="">Unassigned</option>
-                {reps.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.label}
-                  </option>
-                ))}
-              </SelectField>
-            )}
+            <Field
+              label="Reminder (CST)"
+              name="reminder_at"
+              type="datetime-local"
+              defaultValue={toDatetimeLocal(d.reminder_at)}
+            />
           </div>
+
+          {canAssignOthers && (
+            <SelectField
+              label="Assigned rep"
+              name="assigned_user_id"
+              defaultValue={d.assigned_user_id ?? ""}
+            >
+              <option value="">Unassigned</option>
+              {reps.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.label}
+                </option>
+              ))}
+            </SelectField>
+          )}
           {!canAssignOthers && mode === "create" && (
             <input type="hidden" name="assigned_user_id" value={currentUser.id} />
           )}
-
-          <Field
-            label="Reminder (CST)"
-            name="reminder_at"
-            type="datetime-local"
-            defaultValue={toDatetimeLocal(d.reminder_at)}
-          />
 
           <SubmitButton pending={pending}>
             {mode === "create" ? "Save task" : "Save changes"}

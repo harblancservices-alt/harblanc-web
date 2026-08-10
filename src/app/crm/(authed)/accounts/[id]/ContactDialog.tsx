@@ -85,8 +85,8 @@ export function ContactDialog({
         title={mode === "create" ? "New contact" : "Edit contact"}
       >
         <FormError message={error} />
-        <form onSubmit={onSubmit} className="flex flex-col gap-3">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <form onSubmit={onSubmit} className="flex flex-col gap-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <Field label="Name" name="name" required autoFocus defaultValue={d.name} />
             <Field label="Title" name="title" defaultValue={d.title} />
           </div>
