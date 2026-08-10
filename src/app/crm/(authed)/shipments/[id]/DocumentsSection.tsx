@@ -3,14 +3,14 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Card, CardHead, BTN_ACTION, BTN_EDIT, ZEBRA_ROWS } from "../../_shell/ui";
+import { Card, CardHead, BTN_ACTION, BTN_EDIT, BTN_DANGER, ZEBRA_ROWS } from "../../_shell/ui";
 import { FormError } from "../../_shell/form";
 import { formatDateTime, formatMoney, titleCaseWords } from "../../_shell/format";
 import { IconRateConfirmation, IconBillOfLading } from "../../_shell/icons";
 import { docStatusLabel, docStatusTone } from "../docStatusMeta";
 import { openStoredPdf } from "../pdfClient";
-import { createRateConfirmationFromShipment } from "../rate-confirmation-actions";
-import { createBolFromShipment } from "../bol-actions";
+import { createRateConfirmationFromShipment, softDeleteRateConfirmation } from "../rate-confirmation-actions";
+import { createBolFromShipment, softDeleteBol } from "../bol-actions";
 import type { ShipmentDocumentSummary } from "../types";
 
 /**
@@ -31,10 +31,12 @@ export function DocumentsSection({
   documents: ShipmentDocumentSummary[];
 }) {
   const router = useRouter();
+  const [docs, setDocs] = useState(documents);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const [creating, setCreating] = useState<"rc" | "bol" | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   function onCreateRc() {
     setError(null);
@@ -67,11 +69,25 @@ export function DocumentsSection({
     if (!ok) setError("Could not open this PDF. Please try again.");
   }
 
+  async function remove(doc: ShipmentDocumentSummary) {
+    const label = doc.docType === "rate_confirmation" ? "Rate Confirmation" : "Bill of Lading";
+    if (!window.confirm(`Delete this ${label}?`)) return;
+    setError(null);
+    setDeletingId(doc.id);
+    const result =
+      doc.docType === "rate_confirmation"
+        ? await softDeleteRateConfirmation(doc.id)
+        : await softDeleteBol(doc.id);
+    setDeletingId(null);
+    if (result.ok) setDocs((prev) => prev.filter((d) => d.id !== doc.id));
+    else setError(result.error);
+  }
+
   return (
     <Card>
       <CardHead
         title="Documents"
-        hint={documents.length ? `${documents.length} on file` : undefined}
+        hint={docs.length ? `${docs.length} on file` : undefined}
         right={
           <div className="flex items-center gap-2">
             <button
@@ -102,13 +118,13 @@ export function DocumentsSection({
         </div>
       )}
 
-      {documents.length === 0 ? (
+      {docs.length === 0 ? (
         <p className="px-5 py-10 text-center text-[13px] text-fg-muted">
           No documents yet. Generate a Rate Confirmation or Bill of Lading above.
         </p>
       ) : (
         <ul className={`divide-y divide-line-strong ${ZEBRA_ROWS}`}>
-          {documents.map((doc) => {
+          {docs.map((doc) => {
             const editorHref =
               doc.docType === "rate_confirmation"
                 ? `/crm/shipments/${shipmentId}/rc/${doc.id}`
@@ -156,6 +172,14 @@ export function DocumentsSection({
                       {downloadingId === doc.id ? "…" : "Download"}
                     </button>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => remove(doc)}
+                    disabled={deletingId === doc.id}
+                    className={`min-h-[44px] rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors disabled:opacity-60 sm:min-h-0 ${BTN_DANGER}`}
+                  >
+                    {deletingId === doc.id ? "…" : "Delete"}
+                  </button>
                 </div>
               </li>
             );

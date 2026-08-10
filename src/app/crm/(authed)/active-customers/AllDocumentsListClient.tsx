@@ -2,12 +2,14 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Card, CardHead, EmptyState, ZEBRA_ROWS, BTN_EDIT } from "../_shell/ui";
+import { Card, CardHead, EmptyState, ZEBRA_ROWS, BTN_EDIT, BTN_DANGER } from "../_shell/ui";
 import { CONTROL } from "../_shell/form";
 import { IconSearch, IconRateConfirmation, IconBillOfLading } from "../_shell/icons";
 import { formatDateTime, titleCaseWords } from "../_shell/format";
 import { docStatusLabel, docStatusTone } from "../shipments/docStatusMeta";
 import { openStoredPdf } from "../shipments/pdfClient";
+import { softDeleteRateConfirmation } from "../shipments/rate-confirmation-actions";
+import { softDeleteBol } from "../shipments/bol-actions";
 import type { AllDocumentSummary } from "../shipments/types";
 
 function matches(doc: AllDocumentSummary, q: string): boolean {
@@ -29,15 +31,17 @@ function matches(doc: AllDocumentSummary, q: string): boolean {
  * pattern DocumentsSection uses on the shipment workspace.
  */
 export function AllDocumentsListClient({ documents }: { documents: AllDocumentSummary[] }) {
+  const [docs, setDocs] = useState(documents);
   const [q, setQ] = useState("");
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const filtered = useMemo(() => {
     const trimmed = q.trim().toLowerCase();
-    if (!trimmed) return documents;
-    return documents.filter((d) => matches(d, trimmed));
-  }, [documents, q]);
+    if (!trimmed) return docs;
+    return docs.filter((d) => matches(d, trimmed));
+  }, [docs, q]);
 
   async function download(doc: AllDocumentSummary) {
     if (!doc.pdfStoragePath) return;
@@ -46,6 +50,20 @@ export function AllDocumentsListClient({ documents }: { documents: AllDocumentSu
     const ok = await openStoredPdf(doc.pdfStoragePath, `${doc.number} v${doc.version}.pdf`);
     setDownloadingId(null);
     if (!ok) setError("Could not open this PDF. Please try again.");
+  }
+
+  async function remove(doc: AllDocumentSummary) {
+    const label = doc.docType === "rate_confirmation" ? "Rate Confirmation" : "Bill of Lading";
+    if (!window.confirm(`Delete this ${label}?`)) return;
+    setError(null);
+    setDeletingId(doc.id);
+    const result =
+      doc.docType === "rate_confirmation"
+        ? await softDeleteRateConfirmation(doc.id)
+        : await softDeleteBol(doc.id);
+    setDeletingId(null);
+    if (result.ok) setDocs((prev) => prev.filter((d) => d.id !== doc.id));
+    else setError(result.error);
   }
 
   return (
@@ -71,9 +89,9 @@ export function AllDocumentsListClient({ documents }: { documents: AllDocumentSu
         <Card>
           <EmptyState
             icon={<IconRateConfirmation />}
-            title={documents.length === 0 ? "No documents yet" : "No documents match"}
+            title={docs.length === 0 ? "No documents yet" : "No documents match"}
             body={
-              documents.length === 0
+              docs.length === 0
                 ? "Rate confirmations and BOLs generated from any shipment will show up here."
                 : "Try a different search."
             }
@@ -141,6 +159,14 @@ export function AllDocumentsListClient({ documents }: { documents: AllDocumentSu
                         {downloadingId === doc.id ? "…" : "Download"}
                       </button>
                     )}
+                    <button
+                      type="button"
+                      onClick={() => remove(doc)}
+                      disabled={deletingId === doc.id}
+                      className={`min-h-[44px] rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors disabled:opacity-60 sm:min-h-0 ${BTN_DANGER}`}
+                    >
+                      {deletingId === doc.id ? "…" : "Delete"}
+                    </button>
                   </div>
                 </li>
               );
