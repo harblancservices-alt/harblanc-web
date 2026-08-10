@@ -43,6 +43,21 @@ export const NARROW = {
   money: "sm:max-w-[8rem]",
 } as const;
 
+/**
+ * Shared tappable-pill tokens for MultiSelectChips (Equipment needed,
+ * Special requirements) and TagsCard (account tags) — both already used the
+ * same tap-to-select-green/tap-again-to-deselect interaction by convention,
+ * just without a shared token, so the two pickers could silently drift.
+ * PILL_SIZE is responsive (40px mobile / 28px desktop) instead of the old
+ * flat 44px, matching CONTROL_SIZE's own split.
+ */
+export const PILL = "flex items-center whitespace-nowrap rounded-full px-3 text-[12.5px] font-semibold transition-colors";
+export const PILL_SIZE = "min-h-10 sm:min-h-7";
+export const PILL_ACTIVE = "border border-ok bg-ok text-white hover:bg-ok/90";
+export const PILL_INACTIVE = "border border-fg-subtle bg-card text-fg hover:bg-inset";
+export const PILL_DASHED =
+  "border border-dashed border-fg-subtle bg-card text-fg-muted hover:border-accent/50 hover:text-accent";
+
 export function FormRow2({ children }: { children: ReactNode }) {
   return <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{children}</div>;
 }

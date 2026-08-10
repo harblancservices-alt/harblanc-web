@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { IconPlus } from "../../_shell/icons";
+import { PILL, PILL_SIZE, PILL_ACTIVE, PILL_INACTIVE, PILL_DASHED } from "../../_shell/compactForm";
 import { attachTag, createTag, detachTag } from "../actions";
 
 export type CrmTagOption = { id: string; label: string; color: string | null };
@@ -105,9 +106,9 @@ export function TagsCard({
     });
   }
 
-  const pillBase = "flex min-h-11 items-center rounded-full px-3.5 text-[13px] font-semibold transition-colors disabled:opacity-60";
-  const selectedCls = "border border-ok bg-ok text-white hover:bg-ok/90";
-  const unselectedCls = "border border-fg-subtle bg-card text-fg hover:bg-inset";
+  const pillBase = `${PILL} ${PILL_SIZE} disabled:opacity-60`;
+  const selectedCls = PILL_ACTIVE;
+  const unselectedCls = PILL_INACTIVE;
 
   return (
     <div className="flex flex-col gap-3">
@@ -148,7 +149,7 @@ export function TagsCard({
         })}
 
         {adding ? (
-          <div className="flex min-h-11 items-center gap-1.5 rounded-full border border-fg-subtle bg-card pl-3.5 pr-1.5">
+          <div className={`flex items-center gap-1.5 rounded-full border border-fg-subtle bg-card pl-3 pr-1.5 ${PILL_SIZE}`}>
             <input
               type="text"
               value={customText}
@@ -164,13 +165,13 @@ export function TagsCard({
               }}
               autoFocus
               placeholder="Custom tag…"
-              className="h-8 w-32 min-w-0 border-0 bg-transparent p-0 text-[13px] font-medium text-fg outline-none"
+              className="h-full w-28 min-w-0 border-0 bg-transparent p-0 text-[12.5px] font-medium text-fg outline-none"
             />
             <button
               type="button"
               onClick={addCustom}
               disabled={!customText.trim()}
-              className="flex h-8 shrink-0 items-center rounded-full bg-accent px-3 text-[12.5px] font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
+              className="flex h-full shrink-0 items-center rounded-full bg-accent px-2.5 text-[11.5px] font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-50"
             >
               Add
             </button>
@@ -179,7 +180,7 @@ export function TagsCard({
           <button
             type="button"
             onClick={() => setAdding(true)}
-            className="flex min-h-11 items-center gap-1 rounded-full border border-dashed border-fg-subtle bg-card px-3.5 text-[13px] font-semibold text-fg-muted transition-colors hover:border-accent/50 hover:text-accent"
+            className={`${PILL} ${PILL_SIZE} gap-1 ${PILL_DASHED}`}
           >
             <IconPlus width={13} height={13} />
             Add
