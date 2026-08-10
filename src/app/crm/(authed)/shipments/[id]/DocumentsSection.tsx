@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Card, CardHead, BTN_ACTION, BTN_EDIT, BTN_DANGER, ZEBRA_ROWS } from "../../_shell/ui";
+import { Card, CardHead, BTN_ACTION, BTN_EDIT, BTN_SUCCESS, BTN_DANGER, ZEBRA_ROWS } from "../../_shell/ui";
 import { FormError } from "../../_shell/form";
 import { formatDateTime, formatMoney, titleCaseWords } from "../../_shell/format";
 import { IconRateConfirmation, IconBillOfLading } from "../../_shell/icons";
 import { docStatusLabel, docStatusTone } from "../docStatusMeta";
-import { openStoredPdf } from "../pdfClient";
+import { getSignedPdfUrl, openStoredPdf } from "../pdfClient";
 import { createRateConfirmationFromShipment, softDeleteRateConfirmation } from "../rate-confirmation-actions";
 import { createBolFromShipment, softDeleteBol } from "../bol-actions";
 import { listShipmentDocuments } from "../document-history-actions";
@@ -36,6 +36,7 @@ export function DocumentsSection({
   const [pending, startTransition] = useTransition();
   const [creating, setCreating] = useState<"rc" | "bol" | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [viewingId, setViewingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [target, setTarget] = useState<DocModalTarget | null>(null);
 
@@ -87,6 +88,19 @@ export function DocumentsSection({
     if (!ok) setError("Could not open this PDF. Please try again.");
   }
 
+  /** View is the same signed-URL mechanism as Download, minus the
+   * `download` filename — that's what makes the browser render it inline
+   * in a new tab instead of forcing Save As. */
+  async function view(doc: ShipmentDocumentSummary) {
+    if (!doc.pdfStoragePath) return;
+    setError(null);
+    setViewingId(doc.id);
+    const url = await getSignedPdfUrl(doc.pdfStoragePath);
+    setViewingId(null);
+    if (url) window.open(url, "_blank", "noopener,noreferrer");
+    else setError("Could not open this PDF. Please try again.");
+  }
+
   async function remove(doc: ShipmentDocumentSummary) {
     const label = doc.docType === "rate_confirmation" ? "Rate Confirmation" : "Bill of Lading";
     if (!window.confirm(`Delete this ${label}?`)) return;
@@ -120,8 +134,10 @@ export function DocumentsSection({
           onNew={onCreateRc}
           newDisabled={pending}
           onOpen={(doc) => setTarget({ type: "rc", id: doc.id })}
+          onView={view}
           onDownload={download}
           onRemove={remove}
+          viewingId={viewingId}
           downloadingId={downloadingId}
           deletingId={deletingId}
           emptyLabel="No rate confirmations yet."
@@ -134,8 +150,10 @@ export function DocumentsSection({
           onNew={onCreateBol}
           newDisabled={pending}
           onOpen={(doc) => setTarget({ type: "bol", id: doc.id })}
+          onView={view}
           onDownload={download}
           onRemove={remove}
+          viewingId={viewingId}
           downloadingId={downloadingId}
           deletingId={deletingId}
           emptyLabel="No bills of lading yet."
@@ -157,8 +175,10 @@ function DocColumn({
   onNew,
   newDisabled,
   onOpen,
+  onView,
   onDownload,
   onRemove,
+  viewingId,
   downloadingId,
   deletingId,
   emptyLabel,
@@ -170,8 +190,10 @@ function DocColumn({
   onNew: () => void;
   newDisabled: boolean;
   onOpen: (doc: ShipmentDocumentSummary) => void;
+  onView: (doc: ShipmentDocumentSummary) => void;
   onDownload: (doc: ShipmentDocumentSummary) => void;
   onRemove: (doc: ShipmentDocumentSummary) => void;
+  viewingId: string | null;
   downloadingId: string | null;
   deletingId: string | null;
   emptyLabel: string;
@@ -226,6 +248,16 @@ function DocColumn({
                 >
                   Open
                 </button>
+                {doc.pdfStoragePath && (
+                  <button
+                    type="button"
+                    onClick={() => onView(doc)}
+                    disabled={viewingId === doc.id}
+                    className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors disabled:opacity-60 ${BTN_SUCCESS}`}
+                  >
+                    {viewingId === doc.id ? "…" : "View"}
+                  </button>
+                )}
                 {doc.pdfStoragePath && (
                   <button
                     type="button"
