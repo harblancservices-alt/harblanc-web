@@ -1,5 +1,5 @@
 import { Document, Page, View, Text, Image, StyleSheet } from "@react-pdf/renderer";
-import { disablePdfHyphenation, splitAddress, properCaseAddressLine, formatPhone } from "./textFormat";
+import { disablePdfHyphenation, splitAddress, properCaseAddressLine, formatPhone, titleCaseName } from "./textFormat";
 import { getHelloHotshotLogoDataUri } from "./brandLogo";
 
 disablePdfHyphenation();
@@ -164,8 +164,8 @@ function StopBlock({ title, stop }: { title: string; stop: StopInfo }) {
         <Field label="Facility / Company" value={stop.name} />
         <Field label="Address" value={[stop.address, stop.cityStateZip].filter(Boolean).join(", ") || null} />
         <View style={styles.cols2}>
-          <Field label="Contact" value={stop.contact} />
-          <Field label="Phone" value={stop.phone} />
+          <Field label="Contact" value={titleCaseName(stop.contact)} />
+          <Field label="Phone" value={formatPhone(stop.phone)} />
         </View>
         <View style={styles.cols2}>
           <Field label="Window" value={stop.window} />
@@ -260,7 +260,7 @@ export function CrmRateConfirmationPDF({ data }: { data: CrmRateConfirmationPdfD
                   <Field label="MC #" value={data.carrier.mc} />
                 </View>
                 <View style={styles.gridCellHalf}>
-                  <Field label="Dispatcher / Contact" value={data.carrier.contact} />
+                  <Field label="Dispatcher / Contact" value={titleCaseName(data.carrier.contact)} />
                 </View>
                 <View style={styles.gridCellHalf}>
                   <Field label="DOT #" value={data.carrier.dot} />

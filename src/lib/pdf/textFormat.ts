@@ -53,3 +53,15 @@ export function formatPhone(value: string | null | undefined): string | null {
   }
   return value;
 }
+
+/** Title-case a person's name — "billy bob" / "BILLY BOB" -> "Billy Bob".
+ * Every word is lowercased first, then the letter after the start of the
+ * string or after a space/hyphen/apostrophe is capitalized (handles
+ * "Mary-Jane", "O'Brien"). Scoped to contact/dispatcher names only — never
+ * a company/facility name or free-text notes, which stay as typed. */
+export function titleCaseName(value: string | null | undefined): string | null {
+  if (!value) return null;
+  return value
+    .toLowerCase()
+    .replace(/(^|[\s\-'])([a-z])/g, (_m, sep: string, ch: string) => sep + ch.toUpperCase());
+}

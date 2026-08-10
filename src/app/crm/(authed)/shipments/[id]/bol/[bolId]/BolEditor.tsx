@@ -5,7 +5,7 @@ import Link from "next/link";
 import { DocViewer } from "@/components/ui/DocViewer";
 import { Card, BTN_PRIMARY, BTN_EDIT, BTN_ACTION, BTN_DANGER, BTN_SUCCESS, ZEBRA_ROWS } from "../../../../_shell/ui";
 import { FormError } from "../../../../_shell/form";
-import { formatDateTime, titleCaseWords } from "../../../../_shell/format";
+import { formatDateTime, titleCaseWords, formatPhone } from "../../../../_shell/format";
 import { TextRow, SelectRow, SectionDivider } from "../../fields";
 import { docStatusLabel, docStatusTone } from "../../../docStatusMeta";
 import { getSignedPdfUrl, openStoredPdf } from "../../../pdfClient";
@@ -330,7 +330,7 @@ export function BolEditor({
               <>
                 <p className="font-semibold">{titleCaseWords(shipment.carrier.name)}</p>
                 {shipment.carrier.mcNumber && <p className="text-fg-muted">MC {shipment.carrier.mcNumber}</p>}
-                {shipment.carrier.phone && <p className="text-fg-muted">{shipment.carrier.phone}</p>}
+                {shipment.carrier.phone && <p className="text-fg-muted">{formatPhone(shipment.carrier.phone)}</p>}
               </>
             ) : (
               <p className="text-fg-subtle">No carrier assigned yet.</p>
@@ -630,7 +630,11 @@ function ReadOnlyPartyCard({
         <p className="font-semibold">{name ? titleCaseWords(name) : "—"}</p>
         {address && <p className="text-fg-muted">{address}</p>}
         {cityStateZip && <p className="text-fg-muted">{cityStateZip}</p>}
-        {(contact || phone) && <p className="text-fg-muted">{[contact, phone].filter(Boolean).join(" · ")}</p>}
+        {(contact || phone) && (
+          <p className="text-fg-muted">
+            {[contact ? titleCaseWords(contact) : null, phone ? formatPhone(phone) : null].filter(Boolean).join(" · ")}
+          </p>
+        )}
       </div>
     </Card>
   );

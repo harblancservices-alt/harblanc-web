@@ -64,6 +64,8 @@ export function mapShipmentRow(row: CrmShipmentRow): CrmShipment {
     carrierRate: row.carrier_rate,
     notes: row.notes,
     externalLoadRef: row.external_load_ref,
+    truckNumber: row.truck_number,
+    trailerNumber: row.trailer_number,
     createdBy: row.created_by,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

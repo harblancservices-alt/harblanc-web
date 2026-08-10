@@ -6,11 +6,12 @@ import { DocViewer } from "@/components/ui/DocViewer";
 import { Card, BTN_PRIMARY, BTN_EDIT, BTN_ACTION, BTN_DANGER, BTN_SUCCESS, ZEBRA_ROWS } from "../../../../_shell/ui";
 import { FormError } from "../../../../_shell/form";
 import { AsyncSearchPicker } from "../../../../_shell/AsyncSearchPicker";
-import { formatMoney, formatDateTime, titleCaseWords } from "../../../../_shell/format";
+import { formatMoney, formatDateTime, titleCaseWords, formatPhone } from "../../../../_shell/format";
 import { TextRow, TextAreaRow, FormRow2, FormRow3, SectionDivider, SelectedEntityChip } from "../../fields";
 import { docStatusLabel, docStatusTone } from "../../../docStatusMeta";
 import { getSignedPdfUrl, openStoredPdf } from "../../../pdfClient";
 import { listCarriers, getCarrier } from "../../../carriers-actions";
+import { updateShipment } from "../../../actions";
 import {
   getRateConfirmation,
   saveRateConfirmationDraft,
@@ -204,6 +205,16 @@ export function RateConfirmationEditor({
 
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  const [truckNumber, setTruckNumber] = useState(str(shipment.truckNumber));
+  const [trailerNumber, setTrailerNumber] = useState(str(shipment.trailerNumber));
+  const [, startShipmentSave] = useTransition();
+
+  function commitShipmentField(field: "truckNumber" | "trailerNumber", value: string) {
+    startShipmentSave(async () => {
+      await updateShipment(shipment.id, { [field]: orNull(value) });
+    });
+  }
 
   async function refresh() {
     const fresh = await getRateConfirmation(rc.id);
@@ -531,7 +542,11 @@ export function RateConfirmationEditor({
                 label="Contact"
                 value={state.carrierContact}
                 onChange={(v) => setCarrierField("carrierContact", v)}
-                onBlur={() => commit({ carrierContact: orNull(state.carrierContact) })}
+                onBlur={() => {
+                  const formatted = titleCaseWords(state.carrierContact);
+                  setCarrierField("carrierContact", formatted);
+                  commit({ carrierContact: orNull(formatted) });
+                }}
                 highlight={carrierAutoFill?.has("carrierContact")}
               />
             </FormRow3>
@@ -540,7 +555,11 @@ export function RateConfirmationEditor({
                 label="Phone"
                 value={state.carrierPhone}
                 onChange={(v) => setCarrierField("carrierPhone", v)}
-                onBlur={() => commit({ carrierPhone: orNull(state.carrierPhone) })}
+                onBlur={() => {
+                  const formatted = formatPhone(state.carrierPhone);
+                  setCarrierField("carrierPhone", formatted);
+                  commit({ carrierPhone: orNull(formatted) });
+                }}
                 highlight={carrierAutoFill?.has("carrierPhone")}
               />
               <TextRow
@@ -549,6 +568,20 @@ export function RateConfirmationEditor({
                 onChange={(v) => setCarrierField("carrierEmail", v)}
                 onBlur={() => commit({ carrierEmail: orNull(state.carrierEmail) })}
                 highlight={carrierAutoFill?.has("carrierEmail")}
+              />
+            </FormRow2>
+            <FormRow2>
+              <TextRow
+                label="Truck #"
+                value={truckNumber}
+                onChange={setTruckNumber}
+                onBlur={() => commitShipmentField("truckNumber", truckNumber)}
+              />
+              <TextRow
+                label="Trailer #"
+                value={trailerNumber}
+                onChange={setTrailerNumber}
+                onBlur={() => commitShipmentField("trailerNumber", trailerNumber)}
               />
             </FormRow2>
             <FmcsaLookupBox mc={state.carrierMc} dot={state.carrierDot} />

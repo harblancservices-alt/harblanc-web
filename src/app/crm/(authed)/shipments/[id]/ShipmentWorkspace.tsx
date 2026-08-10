@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Card, BTN_PRIMARY, BTN_EDIT } from "../../_shell/ui";
 import { FormError } from "../../_shell/form";
 import { AsyncSearchPicker } from "../../_shell/AsyncSearchPicker";
-import { toDatetimeLocal, centralInputToIso, titleCaseWords } from "../../_shell/format";
+import { toDatetimeLocal, centralInputToIso, titleCaseWords, formatPhone } from "../../_shell/format";
 import { IconChevronDown } from "../../_shell/icons";
 import { TextRow, TextAreaRow, MoneyRow, SelectRow, FormRow2, SelectedEntityChip, TimeWindowRow } from "./fields";
 import { LocationPickerModal } from "./LocationPickerModal";
@@ -616,13 +616,21 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
               label="Contact"
               value={state.shipperContact}
               onChange={(v) => set("shipperContact", v)}
-              onBlur={() => commit({ shipperContact: orNull(state.shipperContact) })}
+              onBlur={() => {
+                const formatted = titleCaseWords(state.shipperContact);
+                set("shipperContact", formatted);
+                commit({ shipperContact: orNull(formatted) });
+              }}
             />
             <TextRow
               label="Phone"
               value={state.shipperPhone}
               onChange={(v) => set("shipperPhone", v)}
-              onBlur={() => commit({ shipperPhone: orNull(state.shipperPhone) })}
+              onBlur={() => {
+                const formatted = formatPhone(state.shipperPhone);
+                set("shipperPhone", formatted);
+                commit({ shipperPhone: orNull(formatted) });
+              }}
             />
           </FormRow2>
           {state.accountId && (
@@ -696,13 +704,21 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
               label="Contact"
               value={state.consigneeContact}
               onChange={(v) => set("consigneeContact", v)}
-              onBlur={() => commit({ consigneeContact: orNull(state.consigneeContact) })}
+              onBlur={() => {
+                const formatted = titleCaseWords(state.consigneeContact);
+                set("consigneeContact", formatted);
+                commit({ consigneeContact: orNull(formatted) });
+              }}
             />
             <TextRow
               label="Phone"
               value={state.consigneePhone}
               onChange={(v) => set("consigneePhone", v)}
-              onBlur={() => commit({ consigneePhone: orNull(state.consigneePhone) })}
+              onBlur={() => {
+                const formatted = formatPhone(state.consigneePhone);
+                set("consigneePhone", formatted);
+                commit({ consigneePhone: orNull(formatted) });
+              }}
             />
           </FormRow2>
           {state.accountId && (

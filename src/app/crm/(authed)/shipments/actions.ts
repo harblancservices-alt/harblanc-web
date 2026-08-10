@@ -96,6 +96,8 @@ function shipmentFieldsToRow(fields: Partial<ShipmentFields>): Record<string, un
   set("carrierRate", "carrier_rate");
   set("notes", "notes");
   set("externalLoadRef", "external_load_ref");
+  set("truckNumber", "truck_number");
+  set("trailerNumber", "trailer_number");
   set("status", "status");
   return row;
 }

@@ -387,3 +387,19 @@ export function upperCaseState(value: string | null | undefined): string {
   if (!value) return "";
   return value.toUpperCase();
 }
+
+/** US phone -> "972-922-2282". Leaves anything that isn't a clean 10/11-digit
+ * US number as-is rather than mangling an already-formatted or foreign value
+ * (matches src/lib/pdf/textFormat.ts's formatPhone — kept as a separate copy
+ * here since that module pulls in @react-pdf/renderer at import time and
+ * can't be imported from client components). */
+export function formatPhone(value: string | null | undefined): string {
+  if (!value) return "";
+  const digits = value.replace(/\D/g, "");
+  if (digits.length === 10) return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  if (digits.length === 11 && digits.startsWith("1")) {
+    const d = digits.slice(1);
+    return `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`;
+  }
+  return value;
+}

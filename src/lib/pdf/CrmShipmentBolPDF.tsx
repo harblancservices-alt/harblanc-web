@@ -1,5 +1,5 @@
 import { Document, Page, View, Text, Image, StyleSheet } from "@react-pdf/renderer";
-import { disablePdfHyphenation, splitAddress, properCaseAddressLine, formatPhone } from "./textFormat";
+import { disablePdfHyphenation, splitAddress, properCaseAddressLine, formatPhone, titleCaseName } from "./textFormat";
 import { getHelloHotshotLogoDataUri } from "./brandLogo";
 
 disablePdfHyphenation();
@@ -207,7 +207,7 @@ function PartyBox({
         </View>
         <View style={styles.cols2}>
           <Text style={[styles.fieldLine, { flex: 1 }]}>
-            {[party.contact, formatPhone(party.phone)].filter(Boolean).join(" · ") || "—"}
+            {[titleCaseName(party.contact), formatPhone(party.phone)].filter(Boolean).join(" · ") || "—"}
           </Text>
         </View>
       </View>
