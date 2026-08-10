@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { setContactRole } from "../actions";
 import { ROLE_CATEGORIES, ROLE_LABEL, normalizeRoleCategory, type CrmPersonRoleCategory } from "./roles";
+import { PILL, PILL_SIZE, PILL_ACTIVE, PILL_INACTIVE } from "../../_shell/compactForm";
 
 /**
  * The inline role-pill selector — every surface that shows a contact
@@ -70,11 +71,7 @@ export function RoleControl({
               aria-pressed={selected}
               disabled={pending}
               onClick={() => select(r)}
-              className={`flex min-h-11 items-center rounded-full px-3.5 text-[13px] font-semibold transition-colors disabled:opacity-60 ${
-                selected
-                  ? "border border-ok bg-ok text-white hover:bg-ok/90"
-                  : "border border-fg-subtle bg-card text-fg hover:bg-inset"
-              }`}
+              className={`${PILL} ${PILL_SIZE} disabled:opacity-60 ${selected ? PILL_ACTIVE : PILL_INACTIVE}`}
             >
               {busyRole === r ? "…" : ROLE_LABEL[r]}
             </button>

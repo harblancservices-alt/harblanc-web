@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { CONTROL, FieldLabel } from "../_shell/form";
+import { FieldLabel } from "../_shell/form";
+import { CONTROL, CONTROL_SIZE } from "../_shell/compactForm";
 import { TASK_TYPES, OTHER_TASK_TYPE } from "./taskType";
 
 /**
@@ -21,7 +22,7 @@ export function TaskTypeField({ defaultValue }: { defaultValue?: string | null }
 
   if (customMode) {
     return (
-      <label className="flex flex-col gap-1.5">
+      <label className="flex flex-col gap-1">
         <FieldLabel>Type</FieldLabel>
         <div className="flex items-center gap-1.5">
           <input
@@ -29,12 +30,12 @@ export function TaskTypeField({ defaultValue }: { defaultValue?: string | null }
             name="task_type"
             defaultValue={customSeed}
             placeholder="Custom type"
-            className={`h-11 w-full ${CONTROL}`}
+            className={`w-full min-w-0 ${CONTROL_SIZE} ${CONTROL}`}
           />
           <button
             type="button"
             onClick={() => setCustomMode(false)}
-            className="shrink-0 text-[11px] font-semibold text-fg-subtle hover:text-fg"
+            className="shrink-0 text-[10.5px] font-semibold text-fg-subtle hover:text-fg"
           >
             Presets
           </button>
@@ -44,7 +45,7 @@ export function TaskTypeField({ defaultValue }: { defaultValue?: string | null }
   }
 
   return (
-    <label className="flex flex-col gap-1.5">
+    <label className="flex flex-col gap-1">
       <FieldLabel>Type</FieldLabel>
       <select
         name="task_type"
@@ -55,7 +56,7 @@ export function TaskTypeField({ defaultValue }: { defaultValue?: string | null }
             setCustomMode(true);
           }
         }}
-        className={`h-11 ${CONTROL}`}
+        className={`w-full min-w-0 ${CONTROL_SIZE} ${CONTROL}`}
       >
         <option value="">No type</option>
         {TASK_TYPES.map((t) => (

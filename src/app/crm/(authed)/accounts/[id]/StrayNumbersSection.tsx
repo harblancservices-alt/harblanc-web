@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { BTN_EDIT, BTN_PRIMARY, Card, CardHead, ZEBRA_ROWS } from "../../_shell/ui";
-import { LABEL, CONTROL } from "../../_shell/form";
+import { LABEL, CONTROL, CONTROL_SIZE } from "../../_shell/compactForm";
 import { LabelPicker } from "../../_shell/LabelPicker";
 import { PHONE_LABEL_PRESETS, digitsForTel, type PhoneEntry } from "../../_shell/contactFields";
 import { assignCompanyPhoneToContact, createContactFromPhone } from "../actions";
@@ -152,7 +152,7 @@ function StrayNumberRow({
           <select
             value={targetContactId}
             onChange={(e) => setTargetContactId(e.target.value)}
-            className={`h-11 flex-1 ${CONTROL}`}
+            className={`flex-1 ${CONTROL_SIZE} ${CONTROL}`}
           >
             <option value="">Select a contact…</option>
             {contacts.map((c) => (
@@ -165,7 +165,7 @@ function StrayNumberRow({
             type="button"
             onClick={doAssign}
             disabled={pending || !targetContactId}
-            className={`h-11 shrink-0 rounded-lg px-3.5 text-[12.5px] font-semibold transition-colors ${BTN_PRIMARY}`}
+            className={`h-9 shrink-0 rounded-md px-3 text-[12.5px] font-semibold transition-colors ${BTN_PRIMARY}`}
           >
             {pending ? "…" : "Move number"}
           </button>
@@ -174,30 +174,30 @@ function StrayNumberRow({
 
       {mode === "new" && (
         <div className="flex flex-col gap-2 bg-inset p-3 sm:flex-row sm:items-end">
-          <label className="flex flex-1 flex-col gap-1.5">
+          <label className="flex flex-1 flex-col gap-1">
             <span className={LABEL}>Name</span>
             <input
               type="text"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               autoFocus
-              className={`h-11 ${CONTROL}`}
+              className={`${CONTROL_SIZE} ${CONTROL}`}
             />
           </label>
-          <label className="flex flex-1 flex-col gap-1.5">
+          <label className="flex flex-1 flex-col gap-1">
             <span className={LABEL}>Title</span>
             <input
               type="text"
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
-              className={`h-11 ${CONTROL}`}
+              className={`${CONTROL_SIZE} ${CONTROL}`}
             />
           </label>
           <button
             type="button"
             onClick={doCreate}
             disabled={pending}
-            className={`h-11 shrink-0 rounded-lg px-3.5 text-[12.5px] font-semibold transition-colors ${BTN_PRIMARY}`}
+            className={`h-9 shrink-0 rounded-md px-3 text-[12.5px] font-semibold transition-colors ${BTN_PRIMARY}`}
           >
             {pending ? "…" : "Create contact"}
           </button>

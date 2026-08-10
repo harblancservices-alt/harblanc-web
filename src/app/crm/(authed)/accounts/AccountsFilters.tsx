@@ -6,6 +6,7 @@ import { LIFECYCLE_STAGES, LIFECYCLE_LABEL } from "./lifecycle";
 import type { RepOption } from "./CompanyDialog";
 import type { CrmTag } from "./tags";
 import { BTN_NEUTRAL, BTN_PRIMARY } from "../_shell/ui";
+import { CONTROL, CONTROL_SIZE } from "../_shell/compactForm";
 
 const SORT_OPTIONS = [
   { value: "", label: "Newest first" },
@@ -67,11 +68,10 @@ export function AccountsFilters({
     startTransition(() => router.push(pathname));
   }
 
-  const selectClass =
-    "h-10 rounded-md border border-fg-subtle bg-card px-2.5 text-[13px] font-medium text-fg outline-none transition-shadow focus:ring-2 focus:ring-accent/40 disabled:opacity-60";
+  const selectClass = `min-w-0 disabled:opacity-60 ${CONTROL_SIZE} ${CONTROL}`;
 
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
       <form onSubmit={onSearchSubmit} className="flex min-w-0 flex-1 items-center gap-2 sm:max-w-xs">
         <input
           type="search"
@@ -79,12 +79,12 @@ export function AccountsFilters({
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search companies…"
           aria-label="Search companies"
-          className="h-10 min-w-0 flex-1 rounded-md border border-fg-subtle bg-card px-3 text-[13.5px] font-medium text-fg outline-none transition-shadow focus:ring-2 focus:ring-accent/40"
+          className={`min-w-0 flex-1 ${CONTROL_SIZE} ${CONTROL}`}
         />
         <button
           type="submit"
           disabled={pending}
-          className={`inline-flex h-10 shrink-0 items-center rounded-lg px-3.5 text-[13px] font-semibold transition-colors ${BTN_PRIMARY}`}
+          className={`inline-flex h-9 shrink-0 items-center rounded-md px-3 text-[12.5px] font-semibold transition-colors ${BTN_PRIMARY}`}
         >
           Search
         </button>
@@ -158,7 +158,7 @@ export function AccountsFilters({
             type="button"
             onClick={clearAll}
             disabled={pending}
-            className={`inline-flex h-10 items-center rounded-lg px-3 text-[13px] font-semibold transition-colors ${BTN_NEUTRAL}`}
+            className={`inline-flex h-9 items-center rounded-md px-2.5 text-[12.5px] font-semibold transition-colors ${BTN_NEUTRAL}`}
           >
             Clear
           </button>

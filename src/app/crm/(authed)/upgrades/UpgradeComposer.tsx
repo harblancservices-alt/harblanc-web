@@ -5,7 +5,7 @@ import type { ClipboardEvent, DragEvent } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { Card, CardHead, BTN_PRIMARY } from "../_shell/ui";
-import { LABEL, CONTROL } from "../_shell/form";
+import { LABEL, CONTROL, CONTROL_SIZE } from "../_shell/compactForm";
 import { IconX } from "../_shell/icons";
 import { createUpgradeRequest, addUpgradeAttachment } from "./actions";
 
@@ -140,12 +140,12 @@ export function UpgradeComposer({ orgId }: { orgId: string }) {
   return (
     <Card>
       <CardHead title="New request" hint="Visible to the whole team — Brent sees every request" />
-      <div className="flex flex-col gap-3 p-4">
+      <div className="flex flex-col gap-2 p-4">
         {error && (
-          <p className="rounded-md border border-bad/30 bg-bad-bg px-3 py-2 text-[13px] text-bad">{error}</p>
+          <p className="rounded-[5px] border border-bad/30 bg-bad-bg px-2.5 py-2 text-[12.5px] text-bad">{error}</p>
         )}
 
-        <label className="flex w-full flex-col gap-1.5">
+        <label className="flex w-full flex-col gap-1">
           <span className={LABEL}>
             What do you want changed or removed?<span className="ml-1 text-accent">*</span>
           </span>
@@ -153,22 +153,22 @@ export function UpgradeComposer({ orgId }: { orgId: string }) {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             placeholder="e.g. Remove the old Pipeline tab from Companies"
-            className={`h-11 w-full ${CONTROL}`}
+            className={`w-full min-w-0 ${CONTROL_SIZE} ${CONTROL}`}
           />
         </label>
 
-        <label className="flex w-full flex-col gap-1.5">
+        <label className="flex w-full flex-col gap-1">
           <span className={LABEL}>Details (optional)</span>
           <textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}
             rows={3}
             placeholder="Anything else Brent should know"
-            className={`w-full resize-y py-2.5 leading-relaxed ${CONTROL}`}
+            className={`w-full min-w-0 resize-y py-1.5 leading-snug sm:py-1 ${CONTROL} text-[13.5px] sm:text-[12.5px]`}
           />
         </label>
 
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1">
           <span className={LABEL}>Screenshots</span>
           <div
             tabIndex={0}

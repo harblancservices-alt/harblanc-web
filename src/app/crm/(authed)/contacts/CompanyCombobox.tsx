@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { LABEL, CONTROL } from "../_shell/form";
+import { LABEL, CONTROL, CONTROL_SIZE } from "../_shell/compactForm";
 
 export type CompanyOption = { id: string; name: string };
 
@@ -50,75 +50,77 @@ export function CompanyCombobox({
   const showDropdown = open && (matches.length > 0 || showCreate);
 
   return (
-    <div className="relative flex flex-col gap-1.5">
-      <label className="flex flex-col gap-1.5">
-        <span className={LABEL}>Company</span>
-        <input
-          type="text"
-          value={selection.text}
-          onChange={(e) => {
-            onChange({ text: e.target.value, selectedId: null });
-            setOpen(true);
-          }}
-          onFocus={() => setOpen(true)}
-          onBlur={() => setOpen(false)}
-          placeholder="Search or type a new company name…"
-          autoComplete="off"
-          className={`h-11 ${CONTROL}`}
-        />
-      </label>
+    <div className="flex flex-col gap-1">
+      <div className="relative">
+        <label className="flex flex-col gap-1">
+          <span className={LABEL}>Company</span>
+          <input
+            type="text"
+            value={selection.text}
+            onChange={(e) => {
+              onChange({ text: e.target.value, selectedId: null });
+              setOpen(true);
+            }}
+            onFocus={() => setOpen(true)}
+            onBlur={() => setOpen(false)}
+            placeholder="Search or type a new company name…"
+            autoComplete="off"
+            className={`w-full min-w-0 ${CONTROL_SIZE} ${CONTROL}`}
+          />
+        </label>
+
+        {showDropdown && (
+          <ul className="absolute left-0 top-[calc(100%+4px)] z-10 max-h-56 w-full overflow-y-auto rounded-[5px] border border-line-strong bg-card py-1 shadow-e3">
+            {matches.map((c) => (
+              <li key={c.id}>
+                <button
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    onChange({ text: c.name, selectedId: c.id });
+                    setOpen(false);
+                  }}
+                  className="block w-full px-2.5 py-1.5 text-left text-[12.5px] text-fg transition-colors hover:bg-inset"
+                >
+                  {c.name}
+                </button>
+              </li>
+            ))}
+            {showCreate && (
+              <li>
+                <button
+                  type="button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    onChange({ text: trimmed, selectedId: null });
+                    setOpen(false);
+                  }}
+                  className="block w-full px-2.5 py-1.5 text-left text-[12.5px] font-semibold text-accent transition-colors hover:bg-inset"
+                >
+                  + Create new company: &ldquo;{trimmed}&rdquo;
+                </button>
+              </li>
+            )}
+          </ul>
+        )}
+      </div>
 
       {selection.selectedId ? (
-        <p className="text-[12px] text-fg-subtle">Attaching to an existing company.</p>
+        <p className="text-[11.5px] text-fg-subtle">Attaching to an existing company.</p>
       ) : trimmed && allowCreate ? (
-        <p className="text-[12px] text-fg-subtle">
+        <p className="text-[11.5px] text-fg-subtle">
           No match selected — saving will create &ldquo;{trimmed}&rdquo; as a new company.
         </p>
       ) : trimmed ? (
-        <p className="text-[12px] text-fg-subtle">
+        <p className="text-[11.5px] text-fg-subtle">
           No matching company — pick one from the list below.
         </p>
       ) : (
-        <p className="text-[12px] text-fg-subtle">
+        <p className="text-[11.5px] text-fg-subtle">
           {allowCreate
             ? "Optional — leave blank to save with no company."
             : "Search for the company to log this call against."}
         </p>
-      )}
-
-      {showDropdown && (
-        <ul className="absolute left-0 top-[4.6rem] z-10 max-h-56 w-full overflow-y-auto rounded-lg border border-line-strong bg-card py-1 shadow-e3">
-          {matches.map((c) => (
-            <li key={c.id}>
-              <button
-                type="button"
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  onChange({ text: c.name, selectedId: c.id });
-                  setOpen(false);
-                }}
-                className="block w-full px-3 py-2 text-left text-[13.5px] text-fg transition-colors hover:bg-inset"
-              >
-                {c.name}
-              </button>
-            </li>
-          ))}
-          {showCreate && (
-            <li>
-              <button
-                type="button"
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  onChange({ text: trimmed, selectedId: null });
-                  setOpen(false);
-                }}
-                className="block w-full px-3 py-2 text-left text-[13.5px] font-semibold text-accent transition-colors hover:bg-inset"
-              >
-                + Create new company: &ldquo;{trimmed}&rdquo;
-              </button>
-            </li>
-          )}
-        </ul>
       )}
     </div>
   );

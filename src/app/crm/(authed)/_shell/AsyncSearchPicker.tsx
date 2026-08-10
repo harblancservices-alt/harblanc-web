@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition, type ReactNode } from "react";
-import { CONTROL, LABEL } from "./form";
+import { CONTROL, CONTROL_SIZE, LABEL } from "./compactForm";
 
 /**
  * Live search-as-you-type combobox over an async server lookup (a "use
@@ -79,15 +79,15 @@ export function AsyncSearchPicker<T>({
         onBlur={() => setOpen(false)}
         placeholder={placeholder}
         autoComplete="off"
-        className={`h-11 w-full min-w-0 disabled:opacity-60 ${CONTROL}`}
+        className={`w-full min-w-0 disabled:opacity-60 ${CONTROL_SIZE} ${CONTROL}`}
       />
       {open && (
-        <ul className="absolute left-0 top-[calc(100%+4px)] z-20 max-h-64 w-full overflow-y-auto rounded-md border border-fg-subtle bg-card py-1 shadow-e3">
+        <ul className="absolute left-0 top-[calc(100%+4px)] z-20 max-h-64 w-full overflow-y-auto rounded-[5px] border border-fg-subtle bg-card py-1 shadow-e3">
           {pending && results.length === 0 && (
-            <li className="px-3 py-2 text-[12px] text-fg-subtle">Searching…</li>
+            <li className="px-2.5 py-1.5 text-[11.5px] text-fg-subtle">Searching…</li>
           )}
           {!pending && results.length === 0 && (
-            <li className="px-3 py-2 text-[12px] text-fg-subtle">{emptyText}</li>
+            <li className="px-2.5 py-1.5 text-[11.5px] text-fg-subtle">{emptyText}</li>
           )}
           {results.map((item) => (
             <li key={getKey(item)}>
@@ -99,7 +99,7 @@ export function AsyncSearchPicker<T>({
                   setText("");
                   setOpen(false);
                 }}
-                className="block w-full px-3 py-1.5 text-left text-[13px] text-fg hover:bg-inset"
+                className="block w-full px-2.5 py-1.5 text-left text-[12.5px] text-fg hover:bg-inset"
               >
                 {renderOption(item)}
               </button>

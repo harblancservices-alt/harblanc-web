@@ -2,7 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { TextareaField, SubmitButton, FormError, CONTROL } from "../../_shell/form";
+import { TextareaField, SubmitButton, FormError } from "../../_shell/form";
+import { CONTROL } from "../../_shell/compactForm";
 import { formatDateTime } from "../../_shell/format";
 import { addNote, addContactNote, updateNote, deleteNote } from "../actions";
 
@@ -132,7 +133,7 @@ export function NotesTab({
           {notes.map((n) => {
             const isEditing = editingId === n.id;
             return (
-              <li key={n.id} className="rounded-md border border-line-strong bg-inset p-3">
+              <li key={n.id} className="rounded-[5px] border border-line-strong bg-inset p-3">
                 {isEditing ? (
                   <div className="flex flex-col items-start gap-2">
                     {error && <p className="text-[12px] text-bad">{error}</p>}
@@ -141,14 +142,14 @@ export function NotesTab({
                       onChange={(e) => setEditText(e.target.value)}
                       rows={3}
                       autoFocus
-                      className={`w-full min-w-0 resize-y py-2.5 leading-relaxed ${CONTROL}`}
+                      className={`w-full min-w-0 resize-y py-1.5 leading-snug sm:py-1 ${CONTROL} text-[13.5px] sm:text-[12.5px]`}
                     />
                     <div className="flex items-center gap-2">
                       <button
                         type="button"
                         onClick={() => saveEdit(n.id)}
                         disabled={pending || !editText.trim()}
-                        className="inline-flex h-9 items-center justify-center rounded-lg bg-accent px-3.5 text-[12.5px] font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-60"
+                        className="inline-flex h-9 items-center justify-center rounded-md bg-accent px-3 text-[12.5px] font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-60"
                       >
                         {busyId === n.id ? "Saving…" : "Save"}
                       </button>
@@ -156,7 +157,7 @@ export function NotesTab({
                         type="button"
                         onClick={cancelEdit}
                         disabled={pending}
-                        className="inline-flex h-9 items-center justify-center rounded-lg border border-fg-subtle bg-card px-3.5 text-[12.5px] font-semibold text-fg-muted transition-colors hover:bg-inset disabled:opacity-60"
+                        className="inline-flex h-9 items-center justify-center rounded-md border border-fg-subtle bg-card px-3 text-[12.5px] font-semibold text-fg-muted transition-colors hover:bg-inset disabled:opacity-60"
                       >
                         Cancel
                       </button>
