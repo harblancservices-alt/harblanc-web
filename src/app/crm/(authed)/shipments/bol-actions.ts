@@ -20,14 +20,6 @@ import type {
   CrmShipmentRow,
 } from "./types";
 
-/** "city, state zip" — blank pieces drop out cleanly, matching the
- * cityStateZip() helper the fillable BOL/RC forms use. */
-function cityStateZip(city: string | null, state: string | null, zip: string | null): string | null {
-  const csz = [city, state].filter(Boolean).join(", ");
-  const full = [csz, zip].filter(Boolean).join(" ").trim();
-  return full || null;
-}
-
 /**
  * Bill of Lading = a document GENERATED FROM a shipment, same shape/contract
  * as rate-confirmation-actions.ts (this is the sibling module — see that
@@ -402,21 +394,23 @@ export async function generateBol(bolId: string): Promise<GenerateDocResult> {
     shipper: {
       name: shipmentRow.shipper_name,
       address: shipmentRow.shipper_address,
-      cityStateZip: cityStateZip(shipmentRow.shipper_city, shipmentRow.shipper_state, shipmentRow.shipper_zip),
+      city: shipmentRow.shipper_city,
+      state: shipmentRow.shipper_state,
+      zip: shipmentRow.shipper_zip,
       contact: shipmentRow.shipper_contact,
       phone: shipmentRow.shipper_phone,
     },
     consignee: {
       name: shipmentRow.consignee_name,
       address: shipmentRow.consignee_address,
-      cityStateZip: cityStateZip(
-        shipmentRow.consignee_city,
-        shipmentRow.consignee_state,
-        shipmentRow.consignee_zip,
-      ),
+      city: shipmentRow.consignee_city,
+      state: shipmentRow.consignee_state,
+      zip: shipmentRow.consignee_zip,
       contact: shipmentRow.consignee_contact,
       phone: shipmentRow.consignee_phone,
     },
+    pickupDate: formatDate(shipmentRow.pickup_at),
+    deliveryDate: formatDate(shipmentRow.delivery_at),
     poNumber: shipmentRow.po_number,
     refNumbers: shipmentRow.ref_numbers,
     carrier: {
@@ -425,6 +419,11 @@ export async function generateBol(bolId: string): Promise<GenerateDocResult> {
       dot: carrierRow?.dot_number ?? null,
       truckNumber: shipmentRow.truck_number,
       trailerNumber: shipmentRow.trailer_number,
+    },
+    dimensions: {
+      lengthIn: shipmentRow.length_in,
+      widthIn: shipmentRow.width_in,
+      heightIn: shipmentRow.height_in,
     },
     billToName: null,
     billToAddress: null,

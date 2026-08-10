@@ -388,6 +388,25 @@ export function upperCaseState(value: string | null | undefined): string {
   return value.toUpperCase();
 }
 
+/** Strip commas the user may have typed directly into a city/state/zip
+ * field — the app inserts its own commas when composing "Dallas, Tx 75205",
+ * so a stray one in the source data would double up or read oddly. */
+export function stripCommas(value: string): string {
+  return value.replace(/,/g, "").trim();
+}
+
+/** Shipper/consignee state field, RC/BOL scope only — first letter upper,
+ * rest lower: "TX"/"tx" -> "Tx", "texas" -> "Texas". Brent's explicit call
+ * for these fields (not the trucking-standard all-caps abbreviation
+ * `upperCaseState` above, which stays as-is everywhere else in the CRM —
+ * this is deliberately a separate function, not a change to that one). */
+export function formatStateCase(value: string | null | undefined): string {
+  if (!value) return "";
+  const cleaned = stripCommas(value);
+  if (!cleaned) return "";
+  return cleaned[0].toUpperCase() + cleaned.slice(1).toLowerCase();
+}
+
 /** US phone -> "972-922-2282". Leaves anything that isn't a clean 10/11-digit
  * US number as-is rather than mangling an already-formatted or foreign value
  * (matches src/lib/pdf/textFormat.ts's formatPhone — kept as a separate copy

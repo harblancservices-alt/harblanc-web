@@ -181,6 +181,9 @@ export type CrmShipmentRow = {
   external_load_ref: string | null;
   truck_number: string | null;
   trailer_number: string | null;
+  length_in: number | null;
+  width_in: number | null;
+  height_in: number | null;
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -233,6 +236,9 @@ export type CrmShipment = {
   externalLoadRef: string | null;
   truckNumber: string | null;
   trailerNumber: string | null;
+  lengthIn: number | null;
+  widthIn: number | null;
+  heightIn: number | null;
   createdBy: string | null;
   createdAt: string;
   updatedAt: string;
@@ -299,6 +305,9 @@ export type ShipmentFields = {
   externalLoadRef: string | null;
   truckNumber: string | null;
   trailerNumber: string | null;
+  lengthIn: number | null;
+  widthIn: number | null;
+  heightIn: number | null;
   status: string;
 };
 

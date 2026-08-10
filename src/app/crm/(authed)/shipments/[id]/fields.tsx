@@ -38,6 +38,7 @@ export function TextRow({
   type = "text",
   placeholder,
   highlight,
+  hint,
 }: {
   label: string;
   value: string;
@@ -46,6 +47,9 @@ export function TextRow({
   type?: string;
   placeholder?: string;
   highlight?: boolean;
+  /** Small helper line under the control — e.g. a live unit conversion.
+   * Display-only, never sent anywhere. */
+  hint?: ReactNode;
 }) {
   return (
     <label className="flex w-full min-w-0 flex-col gap-1">
@@ -65,6 +69,7 @@ export function TextRow({
         onBlur={onBlur}
         className={`w-full min-w-0 ${CONTROL_SIZE} ${highlight ? "border-ok ring-1 ring-ok/30" : ""} ${CONTROL}`}
       />
+      {hint && <span className="text-[10.5px] font-medium text-fg-muted">{hint}</span>}
     </label>
   );
 }

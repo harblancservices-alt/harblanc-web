@@ -98,6 +98,9 @@ function shipmentFieldsToRow(fields: Partial<ShipmentFields>): Record<string, un
   set("externalLoadRef", "external_load_ref");
   set("truckNumber", "truck_number");
   set("trailerNumber", "trailer_number");
+  set("lengthIn", "length_in");
+  set("widthIn", "width_in");
+  set("heightIn", "height_in");
   set("status", "status");
   return row;
 }

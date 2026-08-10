@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Card, BTN_PRIMARY, BTN_EDIT } from "../../_shell/ui";
 import { FormError } from "../../_shell/form";
 import { AsyncSearchPicker } from "../../_shell/AsyncSearchPicker";
-import { toDatetimeLocal, centralInputToIso, titleCaseWords, formatPhone } from "../../_shell/format";
+import { toDatetimeLocal, centralInputToIso, titleCaseWords, formatPhone, formatStateCase, stripCommas } from "../../_shell/format";
 import { IconChevronDown } from "../../_shell/icons";
 import { TextRow, TextAreaRow, MoneyRow, SelectRow, FormRow2, SelectedEntityChip, TimeWindowRow } from "./fields";
 import { LocationPickerModal } from "./LocationPickerModal";
@@ -593,14 +593,22 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
               label="City"
               value={state.shipperCity}
               onChange={(v) => setShipperField("shipperCity", v)}
-              onBlur={() => commit({ shipperCity: orNull(state.shipperCity) })}
+              onBlur={() => {
+                const formatted = titleCaseWords(stripCommas(state.shipperCity));
+                setShipperField("shipperCity", formatted);
+                commit({ shipperCity: orNull(formatted) });
+              }}
               highlight={shipperAutoFill?.fields.has("shipperCity")}
             />
             <TextRow
               label="State"
               value={state.shipperState}
               onChange={(v) => setShipperField("shipperState", v)}
-              onBlur={() => commit({ shipperState: orNull(state.shipperState) })}
+              onBlur={() => {
+                const formatted = formatStateCase(state.shipperState);
+                setShipperField("shipperState", formatted);
+                commit({ shipperState: orNull(formatted) });
+              }}
               highlight={shipperAutoFill?.fields.has("shipperState")}
             />
           </FormRow2>
@@ -608,7 +616,11 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
             label="ZIP"
             value={state.shipperZip}
             onChange={(v) => setShipperField("shipperZip", v)}
-            onBlur={() => commit({ shipperZip: orNull(state.shipperZip) })}
+            onBlur={() => {
+              const formatted = stripCommas(state.shipperZip);
+              setShipperField("shipperZip", formatted);
+              commit({ shipperZip: orNull(formatted) });
+            }}
             highlight={shipperAutoFill?.fields.has("shipperZip")}
           />
           <FormRow2>
@@ -681,14 +693,22 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
               label="City"
               value={state.consigneeCity}
               onChange={(v) => setConsigneeField("consigneeCity", v)}
-              onBlur={() => commit({ consigneeCity: orNull(state.consigneeCity) })}
+              onBlur={() => {
+                const formatted = titleCaseWords(stripCommas(state.consigneeCity));
+                setConsigneeField("consigneeCity", formatted);
+                commit({ consigneeCity: orNull(formatted) });
+              }}
               highlight={consigneeAutoFill?.fields.has("consigneeCity")}
             />
             <TextRow
               label="State"
               value={state.consigneeState}
               onChange={(v) => setConsigneeField("consigneeState", v)}
-              onBlur={() => commit({ consigneeState: orNull(state.consigneeState) })}
+              onBlur={() => {
+                const formatted = formatStateCase(state.consigneeState);
+                setConsigneeField("consigneeState", formatted);
+                commit({ consigneeState: orNull(formatted) });
+              }}
               highlight={consigneeAutoFill?.fields.has("consigneeState")}
             />
           </FormRow2>
@@ -696,7 +716,11 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
             label="ZIP"
             value={state.consigneeZip}
             onChange={(v) => setConsigneeField("consigneeZip", v)}
-            onBlur={() => commit({ consigneeZip: orNull(state.consigneeZip) })}
+            onBlur={() => {
+              const formatted = stripCommas(state.consigneeZip);
+              setConsigneeField("consigneeZip", formatted);
+              commit({ consigneeZip: orNull(formatted) });
+            }}
             highlight={consigneeAutoFill?.fields.has("consigneeZip")}
           />
           <FormRow2>

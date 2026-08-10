@@ -37,6 +37,19 @@ function moneyOrNull(v: string): number {
   const n = Number(t.replace(/[^0-9.-]/g, ""));
   return Number.isFinite(n) ? n : 0;
 }
+function numStr(v: number | null | undefined): string {
+  return v === null || v === undefined ? "" : String(v);
+}
+
+/** Live "≈ X ft" helper under a Length/Width/Height (inches) input — the
+ * stored/entered value is always inches; this is a display-only hint so the
+ * agent can sanity-check what they typed without doing the math themselves. */
+function inchesToFeetHint(value: string): string | null {
+  const n = Number(value);
+  if (!value.trim() || !Number.isFinite(n) || n <= 0) return null;
+  const feet = Math.round((n / 12) * 10) / 10;
+  return `≈ ${Number.isInteger(feet) ? feet : feet.toFixed(1)} ft`;
+}
 
 /** FMCSA SAFER's public company-snapshot query — no API key, just a deep
  * link. query_param picks which field query_string is matched against. */
@@ -208,11 +221,21 @@ export function RateConfirmationEditor({
 
   const [truckNumber, setTruckNumber] = useState(str(shipment.truckNumber));
   const [trailerNumber, setTrailerNumber] = useState(str(shipment.trailerNumber));
+  const [lengthIn, setLengthIn] = useState(numStr(shipment.lengthIn));
+  const [widthIn, setWidthIn] = useState(numStr(shipment.widthIn));
+  const [heightIn, setHeightIn] = useState(numStr(shipment.heightIn));
   const [, startShipmentSave] = useTransition();
 
   function commitShipmentField(field: "truckNumber" | "trailerNumber", value: string) {
     startShipmentSave(async () => {
       await updateShipment(shipment.id, { [field]: orNull(value) });
+    });
+  }
+
+  function commitShipmentDimension(field: "lengthIn" | "widthIn" | "heightIn", value: string) {
+    const n = value.trim() ? Number(value) : null;
+    startShipmentSave(async () => {
+      await updateShipment(shipment.id, { [field]: n !== null && Number.isFinite(n) ? n : null });
     });
   }
 
@@ -584,6 +607,29 @@ export function RateConfirmationEditor({
                 onBlur={() => commitShipmentField("trailerNumber", trailerNumber)}
               />
             </FormRow2>
+            <FormRow3>
+              <TextRow
+                label="Length (in)"
+                value={lengthIn}
+                onChange={setLengthIn}
+                onBlur={() => commitShipmentDimension("lengthIn", lengthIn)}
+                hint={inchesToFeetHint(lengthIn)}
+              />
+              <TextRow
+                label="Width (in)"
+                value={widthIn}
+                onChange={setWidthIn}
+                onBlur={() => commitShipmentDimension("widthIn", widthIn)}
+                hint={inchesToFeetHint(widthIn)}
+              />
+              <TextRow
+                label="Height (in)"
+                value={heightIn}
+                onChange={setHeightIn}
+                onBlur={() => commitShipmentDimension("heightIn", heightIn)}
+                hint={inchesToFeetHint(heightIn)}
+              />
+            </FormRow3>
             <FmcsaLookupBox mc={state.carrierMc} dot={state.carrierDot} />
           </div>
           </Card>

@@ -1,5 +1,13 @@
 import { Document, Page, View, Text, Image, StyleSheet } from "@react-pdf/renderer";
-import { disablePdfHyphenation, splitAddress, properCaseAddressLine, formatPhone, titleCaseName } from "./textFormat";
+import {
+  disablePdfHyphenation,
+  splitAddress,
+  properCaseAddressLine,
+  formatPhone,
+  titleCaseName,
+  cityStateZip,
+  formatDimensionsIn,
+} from "./textFormat";
 import { getHelloHotshotLogoDataUri } from "./brandLogo";
 
 disablePdfHyphenation();
@@ -33,6 +41,9 @@ export type CrmRateConfirmationPdfData = {
     pieces: string | null;
     poNumber: string | null;
     refNumbers: string | null;
+    lengthIn: number | null;
+    widthIn: number | null;
+    heightIn: number | null;
   };
   pickup: StopInfo;
   delivery: StopInfo;
@@ -55,7 +66,9 @@ export type CrmRateConfirmationPdfData = {
 type StopInfo = {
   name: string | null;
   address: string | null;
-  cityStateZip: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
   contact: string | null;
   phone: string | null;
   window: string | null;
@@ -162,7 +175,10 @@ function StopBlock({ title, stop }: { title: string; stop: StopInfo }) {
       <Text style={[styles.heading, styles.stopLabel]}>{title}</Text>
       <View style={styles.box}>
         <Field label="Facility / Company" value={stop.name} />
-        <Field label="Address" value={[stop.address, stop.cityStateZip].filter(Boolean).join(", ") || null} />
+        <Field
+          label="Address"
+          value={[stop.address, cityStateZip(stop.city, stop.state, stop.zip)].filter(Boolean).join(", ") || null}
+        />
         <View style={styles.cols2}>
           <Field label="Contact" value={titleCaseName(stop.contact)} />
           <Field label="Phone" value={formatPhone(stop.phone)} />
@@ -244,6 +260,12 @@ export function CrmRateConfirmationPDF({ data }: { data: CrmRateConfirmationPdfD
                 </View>
                 <View style={styles.gridCellHalf}>
                   <Field label="Ref #s" value={data.shipment.refNumbers} />
+                </View>
+                <View style={styles.gridCellHalf}>
+                  <Field
+                    label="Dimensions"
+                    value={formatDimensionsIn(data.shipment.lengthIn, data.shipment.widthIn, data.shipment.heightIn)}
+                  />
                 </View>
               </View>
             </View>

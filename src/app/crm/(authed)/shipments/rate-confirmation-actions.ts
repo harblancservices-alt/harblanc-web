@@ -21,14 +21,6 @@ import type {
   RateConfirmationLineInput,
 } from "./types";
 
-/** "city, state zip" — blank pieces drop out cleanly, matching the
- * cityStateZip() helper the fillable BOL/RC forms use. */
-function cityStateZip(city: string | null, state: string | null, zip: string | null): string | null {
-  const csz = [city, state].filter(Boolean).join(", ");
-  const full = [csz, zip].filter(Boolean).join(" ").trim();
-  return full || null;
-}
-
 /** The carrier's primary dispatcher/contact — oldest crm_carrier_contacts
  * row (same "first added" convention getCarrier() uses to order a carrier's
  * contact list), since the table has no explicit is-primary flag. Used to
@@ -479,11 +471,16 @@ export async function generateRateConfirmation(rcId: string): Promise<GenerateDo
       pieces: shipmentRow.pieces,
       poNumber: shipmentRow.po_number,
       refNumbers: shipmentRow.ref_numbers,
+      lengthIn: shipmentRow.length_in,
+      widthIn: shipmentRow.width_in,
+      heightIn: shipmentRow.height_in,
     },
     pickup: {
       name: shipmentRow.shipper_name,
       address: shipmentRow.shipper_address,
-      cityStateZip: cityStateZip(shipmentRow.shipper_city, shipmentRow.shipper_state, shipmentRow.shipper_zip),
+      city: shipmentRow.shipper_city,
+      state: shipmentRow.shipper_state,
+      zip: shipmentRow.shipper_zip,
       contact: shipmentRow.shipper_contact,
       phone: shipmentRow.shipper_phone,
       window: shipmentRow.pickup_window,
@@ -493,11 +490,9 @@ export async function generateRateConfirmation(rcId: string): Promise<GenerateDo
     delivery: {
       name: shipmentRow.consignee_name,
       address: shipmentRow.consignee_address,
-      cityStateZip: cityStateZip(
-        shipmentRow.consignee_city,
-        shipmentRow.consignee_state,
-        shipmentRow.consignee_zip,
-      ),
+      city: shipmentRow.consignee_city,
+      state: shipmentRow.consignee_state,
+      zip: shipmentRow.consignee_zip,
       contact: shipmentRow.consignee_contact,
       phone: shipmentRow.consignee_phone,
       window: shipmentRow.delivery_window,

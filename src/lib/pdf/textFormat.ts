@@ -32,13 +32,69 @@ export function splitAddress(address: string): { street: string; cityStateZip: s
   return { street: parts.slice(0, -2).join(", "), cityStateZip: parts.slice(-2).join(", ") };
 }
 
-/** Title-case every word except a standalone 2-letter state code, which is
- * uppercased instead — so a free-typed "dallas, tx" always prints as
- * "Dallas, TX" regardless of how it was entered in Settings. */
+/** Title-case every word — "dallas, tx" / "DALLAS, TX" both print as
+ * "Dallas, Tx" — so a free-typed address always prints clean regardless of
+ * how it was entered in Settings. (First-letter-up/rest-down applies
+ * uniformly to state tokens too, per formatStateCase's rule below — there's
+ * no separate all-caps case for a 2-letter word anymore.) */
 export function properCaseAddressLine(value: string): string {
-  return value.replace(/[A-Za-z][A-Za-z'-]*/g, (word) =>
-    word.length === 2 ? word.toUpperCase() : word[0].toUpperCase() + word.slice(1).toLowerCase(),
-  );
+  return value.replace(/[A-Za-z][A-Za-z'-]*/g, (word) => word[0].toUpperCase() + word.slice(1).toLowerCase());
+}
+
+/** Strip commas the user may have typed directly into a city/state/zip
+ * field — the app inserts its own commas when composing "Dallas, Tx 75205",
+ * so a stray one in the source data would double up or read oddly. */
+export function stripCommas(value: string): string {
+  return value.replace(/,/g, "").trim();
+}
+
+/** Title-case a city name — "dallas" / "DALLAS" -> "Dallas". Strips any
+ * stray commas first. */
+export function titleCaseCity(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const cleaned = stripCommas(value);
+  if (!cleaned) return null;
+  return cleaned.replace(/[A-Za-z][A-Za-z'-]*/g, (word) => word[0].toUpperCase() + word.slice(1).toLowerCase());
+}
+
+/** State: first letter upper, rest lower — "TX"/"tx" -> "Tx", "texas" ->
+ * "Texas". Brent's explicit call, not the trucking-standard all-caps
+ * abbreviation. Strips any stray commas first. */
+export function formatStateCase(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const cleaned = stripCommas(value);
+  if (!cleaned) return null;
+  return cleaned[0].toUpperCase() + cleaned.slice(1).toLowerCase();
+}
+
+/** "City, State Zip" — blank pieces drop out cleanly. City/state are run
+ * through titleCaseCity/formatStateCase (and zip has any stray comma
+ * stripped too) so a composed address line reads clean no matter how the
+ * source fields were typed. Shared by the RC and BOL PDF generators
+ * instead of each keeping its own copy. */
+export function cityStateZip(
+  city: string | null | undefined,
+  state: string | null | undefined,
+  zip: string | null | undefined,
+): string | null {
+  const c = titleCaseCity(city);
+  const s = formatStateCase(state);
+  const z = zip ? stripCommas(zip) : null;
+  const csz = [c, s].filter(Boolean).join(", ");
+  const full = [csz, z].filter(Boolean).join(" ").trim();
+  return full || null;
+}
+
+/** "72 × 48 × 36 in" — only when all three dimensions are present; blank
+ * (not a partial string, not a placeholder) if any one is missing. */
+export function formatDimensionsIn(
+  length: number | null | undefined,
+  width: number | null | undefined,
+  height: number | null | undefined,
+): string | null {
+  if (length == null || width == null || height == null) return null;
+  const fmt = (n: number) => (Number.isInteger(n) ? String(n) : n.toFixed(1));
+  return `${fmt(length)} × ${fmt(width)} × ${fmt(height)} in`;
 }
 
 /** US phone -> "972-922-2282". Leaves anything that isn't a clean 10/11-digit

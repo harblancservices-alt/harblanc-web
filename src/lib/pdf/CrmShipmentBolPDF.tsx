@@ -1,5 +1,13 @@
 import { Document, Page, View, Text, Image, StyleSheet } from "@react-pdf/renderer";
-import { disablePdfHyphenation, splitAddress, properCaseAddressLine, formatPhone, titleCaseName } from "./textFormat";
+import {
+  disablePdfHyphenation,
+  splitAddress,
+  properCaseAddressLine,
+  formatPhone,
+  titleCaseName,
+  cityStateZip,
+  formatDimensionsIn,
+} from "./textFormat";
 import { getHelloHotshotLogoDataUri } from "./brandLogo";
 
 disablePdfHyphenation();
@@ -30,6 +38,8 @@ export type CrmShipmentBolPdfData = {
   };
   shipper: PartyInfo;
   consignee: PartyInfo;
+  pickupDate: string | null;
+  deliveryDate: string | null;
   poNumber: string | null;
   refNumbers: string | null;
   carrier: {
@@ -39,6 +49,12 @@ export type CrmShipmentBolPdfData = {
     truckNumber: string | null;
     trailerNumber: string | null;
   };
+  /** Shipment-wide dimensions (crm_shipments.length_in/width_in/height_in) —
+   * printed on every real Customer Order Information row's Dimensions
+   * column (blank unless all three are set); the 5 blank pre-made rows stay
+   * blank in every column, including this one, since they're for hand-
+   * written additional items the shipment's own dimensions don't describe. */
+  dimensions: { lengthIn: number | null; widthIn: number | null; heightIn: number | null };
   /** Third-party freight-charges bill-to — no UI/DB source yet on the
    * shipment-parented BOL (unlike the standalone /crm/bill-of-lading
    * generator's showBillTo/billToName/billToAddress), so this is always
@@ -63,7 +79,9 @@ export type CrmShipmentBolPdfData = {
 type PartyInfo = {
   name: string | null;
   address: string | null;
-  cityStateZip: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
   contact: string | null;
   phone: string | null;
 };
@@ -160,10 +178,10 @@ const styles = StyleSheet.create({
     borderRight: "1pt solid #000",
     borderTop: "2pt solid #000",
   },
-  colDesc: { width: "40%" },
+  colDesc: { width: "40%", textAlign: "center" },
   colQty: { width: "12%", textAlign: "center" },
   colWeight: { width: "12%", textAlign: "center" },
-  colClass: { width: "12%", textAlign: "center" },
+  colDimensions: { width: "12%", textAlign: "center" },
   colHazmat: { width: "12%", textAlign: "center" },
   colUnit: { width: "12%", textAlign: "center" },
   codLine: { fontSize: 8.5, marginBottom: 3 },
@@ -178,7 +196,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   sigCol: { flex: 1 },
-  sigLine: { borderBottom: "1pt solid #bdbdbd", minHeight: 20 },
+  sigLine: { borderBottom: "1.2pt solid #000", minHeight: 20 },
   sigLabel: { fontSize: 7, fontWeight: 600, color: "#555", textTransform: "uppercase", marginTop: 2 },
   sigDate: { fontSize: 8.5, marginTop: 3 },
 });
@@ -186,11 +204,13 @@ const styles = StyleSheet.create({
 function PartyBox({
   title,
   party,
+  date,
   poNumber,
   refNumbers,
 }: {
   title: string;
   party: PartyInfo;
+  date: string | null;
   poNumber: string | null;
   refNumbers: string | null;
 }) {
@@ -200,7 +220,8 @@ function PartyBox({
       <View style={styles.boxSolid}>
         <Text style={styles.fieldLine}>{party.name || "—"}</Text>
         <Text style={styles.fieldLine}>{party.address || "—"}</Text>
-        <Text style={styles.fieldLine}>{party.cityStateZip || "—"}</Text>
+        <Text style={styles.fieldLine}>{cityStateZip(party.city, party.state, party.zip) || "—"}</Text>
+        <Text style={styles.fieldLine}>Date: {date || "—"}</Text>
         <View style={styles.cols2}>
           <Text style={[styles.fieldLine, { flex: 1 }]}>PO Number: {poNumber || "—"}</Text>
           <Text style={[styles.fieldLine, { flex: 1 }]}>Reference Number: {refNumbers || "—"}</Text>
@@ -280,8 +301,20 @@ export function CrmShipmentBolPDF({ data }: { data: CrmShipmentBolPdfData }) {
         </View>
 
         <View style={[styles.section, styles.cols2]}>
-          <PartyBox title="Ship From" party={data.shipper} poNumber={data.poNumber} refNumbers={data.refNumbers} />
-          <PartyBox title="Ship To" party={data.consignee} poNumber={data.poNumber} refNumbers={data.refNumbers} />
+          <PartyBox
+            title="Ship From"
+            party={data.shipper}
+            date={data.pickupDate}
+            poNumber={data.poNumber}
+            refNumbers={data.refNumbers}
+          />
+          <PartyBox
+            title="Ship To"
+            party={data.consignee}
+            date={data.deliveryDate}
+            poNumber={data.poNumber}
+            refNumbers={data.refNumbers}
+          />
         </View>
 
         <View style={[styles.section, styles.cols2]}>
@@ -316,7 +349,7 @@ export function CrmShipmentBolPDF({ data }: { data: CrmShipmentBolPdfData }) {
               <Text style={[styles.tableHeaderCell, styles.colDesc]}>Description</Text>
               <Text style={[styles.tableHeaderCell, styles.colQty]}># Pkgs</Text>
               <Text style={[styles.tableHeaderCell, styles.colWeight]}>Weight</Text>
-              <Text style={[styles.tableHeaderCell, styles.colClass]}>Class</Text>
+              <Text style={[styles.tableHeaderCell, styles.colDimensions]}>Dimensions</Text>
               <Text style={[styles.tableHeaderCell, styles.colUnit, { borderRight: "none" }]}>Hazmat</Text>
             </View>
             {data.lineItems.map((li, i) => (
@@ -324,17 +357,28 @@ export function CrmShipmentBolPDF({ data }: { data: CrmShipmentBolPdfData }) {
                 <Text style={[styles.tableCell, styles.colDesc]}>{li.description || "—"}</Text>
                 <Text style={[styles.tableCell, styles.colQty]}>{li.qty || "—"}</Text>
                 <Text style={[styles.tableCell, styles.colWeight]}>{li.weight || "—"}</Text>
-                <Text style={[styles.tableCell, styles.colClass]}>{li.freightClass || "—"}</Text>
+                <Text style={[styles.tableCell, styles.colDimensions]}>
+                  {formatDimensionsIn(data.dimensions.lengthIn, data.dimensions.widthIn, data.dimensions.heightIn) || ""}
+                </Text>
                 <Text style={[styles.tableCell, styles.colUnit, { borderRight: "none" }]}>
                   {li.hazmat ? "Y" : "N"}
                 </Text>
+              </View>
+            ))}
+            {Array.from({ length: 5 }).map((_, i) => (
+              <View key={`blank-${i}`} style={styles.tableRow}>
+                <Text style={[styles.tableCell, styles.colDesc]}> </Text>
+                <Text style={[styles.tableCell, styles.colQty]}> </Text>
+                <Text style={[styles.tableCell, styles.colWeight]}> </Text>
+                <Text style={[styles.tableCell, styles.colDimensions]}> </Text>
+                <Text style={[styles.tableCell, styles.colUnit, { borderRight: "none" }]}> </Text>
               </View>
             ))}
             <View style={styles.totalRow}>
               <Text style={[styles.totalCell, styles.colDesc]}>GRAND TOTAL</Text>
               <Text style={[styles.totalCell, styles.colQty]}>{totalQty || ""}</Text>
               <Text style={[styles.totalCell, styles.colWeight]}>{totalWeight || ""}</Text>
-              <Text style={[styles.totalCell, styles.colClass]} />
+              <Text style={[styles.totalCell, styles.colDimensions]} />
               <Text style={[styles.totalCell, styles.colUnit, { borderRight: "none" }]} />
             </View>
           </View>
