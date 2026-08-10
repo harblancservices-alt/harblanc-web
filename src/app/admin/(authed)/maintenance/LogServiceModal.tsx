@@ -363,7 +363,7 @@ export function LogServiceModal({
                         type="button"
                         onClick={() => removePart(p.key)}
                         aria-label="Remove part"
-                        className="shrink-0 rounded-md border border-line-strong bg-card px-2 py-1 text-[15px] leading-none text-fg-muted hover:bg-inset hover:text-bad"
+                        className="shrink-0 rounded-md border border-line-strong bg-card px-2 py-1 text-[15px] leading-none text-fg-muted hover:bg-inset hover:text-bad max-sm:min-h-[40px] max-sm:px-3 max-sm:text-[18px]"
                       >
                         ×
                       </button>
@@ -381,7 +381,7 @@ export function LogServiceModal({
                         }
                       }}
                       aria-label="Category"
-                      className="min-w-0 flex-1 rounded-md border border-line-strong bg-inset px-2 py-1 text-[12px] font-semibold text-ink outline-none focus:border-accent"
+                      className="min-w-0 flex-1 rounded-md border border-line-strong bg-inset px-2 py-1 text-[12px] font-semibold text-ink outline-none focus:border-accent max-sm:min-h-[40px] max-sm:basis-full max-sm:py-2.5 max-sm:text-[13px]"
                     >
                       {CATEGORIES.map((c) => (
                         <option key={c} value={c}>
@@ -393,7 +393,7 @@ export function LogServiceModal({
                       value={p.position}
                       onChange={(e) => patchPart(p.key, { position: e.target.value })}
                       aria-label="Position"
-                      className="rounded-md border border-line-strong bg-inset px-2 py-1 text-[12px] text-ink outline-none focus:border-accent"
+                      className="rounded-md border border-line-strong bg-inset px-2 py-1 text-[12px] text-ink outline-none focus:border-accent max-sm:min-h-[40px] max-sm:flex-1 max-sm:py-2.5 max-sm:text-[13px]"
                     >
                       <option value="">No position</option>
                       {POSITIONS.map((pos) => (
@@ -413,7 +413,7 @@ export function LogServiceModal({
                       autoComplete="off"
                       placeholder="remind mi"
                       aria-label="Remind every miles"
-                      className="w-[92px] rounded-md border border-line-strong bg-inset px-2 py-1 text-[12px] tabular-nums text-ink outline-none placeholder:text-ink-3 focus:border-accent"
+                      className="w-[92px] rounded-md border border-line-strong bg-inset px-2 py-1 text-[12px] tabular-nums text-ink outline-none placeholder:text-ink-3 focus:border-accent max-sm:min-h-[40px] max-sm:w-[104px] max-sm:py-2.5 max-sm:text-[13px]"
                     />
                   </div>
                   {p.position || p.remind.trim() ? (
@@ -559,7 +559,7 @@ export function LogServiceModal({
           ) : null}
         </div>
 
-        <div className="flex items-center justify-end gap-2 border-t border-line bg-elevated px-4 py-3">
+        <div className="flex items-center justify-end gap-2 border-t border-line bg-elevated px-4 py-3 max-sm:sticky max-sm:bottom-0 max-sm:z-10 max-sm:pb-[calc(env(safe-area-inset-bottom)+0.75rem)]">
           {isEdit ? (
             <Button
               type="button"
@@ -612,13 +612,13 @@ function ModalShell({
       role="dialog"
       aria-modal="true"
       aria-label={title}
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 px-3 pb-6 pt-[max(env(safe-area-inset-top),0.75rem)] sm:px-6 sm:pb-6 sm:pt-6"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 px-3 pb-6 pt-[max(env(safe-area-inset-top),0.75rem)] sm:px-6 sm:pb-6 sm:pt-6 max-sm:px-0 max-sm:pb-0 max-sm:pt-0"
       onClick={() => {
         if (!pending) onClose();
       }}
     >
       <div
-        className="w-full max-w-md overflow-hidden rounded-xl border border-line-strong bg-card shadow-2xl"
+        className="w-full max-w-md overflow-hidden rounded-xl border border-line-strong bg-card shadow-2xl max-sm:min-h-[100dvh] max-sm:rounded-none max-sm:border-0"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between gap-3 rounded-t-xl bg-bar px-4 py-3">

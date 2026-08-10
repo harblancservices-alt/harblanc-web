@@ -117,6 +117,16 @@ export function BrokerDetail({ data }: { data: BrokerDetailData }) {
   const [lanesFor, setLanesFor] = useState<BrokerContact | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
 
+  // Compliance strip defaults open everywhere (matches today, every
+  // breakpoint) — a mount-only check collapses it below `md`, the same
+  // cutoff the strip's own grid already uses. `md`+ never runs this branch.
+  const [complianceOpen, setComplianceOpen] = useState(true);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (!window.matchMedia("(max-width: 767px)").matches) return;
+    setComplianceOpen(false);
+  }, []);
+
   const active = broker.status?.toLowerCase() === "active";
   const saferUrl = `https://safer.fmcsa.dot.gov/query.asp?searchtype=ANY&query_type=queryCarrierSnapshot&query_param=${
     broker.dot
@@ -267,20 +277,34 @@ export function BrokerDetail({ data }: { data: BrokerDetailData }) {
         />
       </div>
 
-      {/* Contact / compliance strip */}
-      <div className="mt-2 grid grid-cols-2 gap-px overflow-hidden rounded-md border border-line bg-line md:grid-cols-4 xl:grid-cols-8">
-        <Cell label="Phone" value={broker.phone ? formatPhone(broker.phone) : null} />
-        <Cell label="Email" value={broker.email} />
-        <Cell label="Office" value={broker.office} />
-        <Cell label="Timezone" value={broker.timezone} />
-        <Cell label="Authority" value={broker.authority} />
-        <Cell label="Insurance" value={broker.insurance} fallback="Not on file" />
-        <Cell label="W9" value={broker.w9} fallback="Not on file" />
-        <Cell label="1099" value={broker.ten99} fallback="Not on file" />
-      </div>
+      {/* Contact / compliance strip — desktop (`md`+) unchanged; below `md`
+          it's collapsed by default (a mount-only effect, gated to that same
+          `max-width: 767px` check so `md`+ never runs it) behind a
+          `<details>` disclosure, since 8 cells at 2-per-row was the
+          crampedest reading in the whole admin audit. */}
+      <details
+        open={complianceOpen}
+        onToggle={(e) => setComplianceOpen(e.currentTarget.open)}
+        className="mt-2 overflow-hidden rounded-md border border-line"
+      >
+        <summary className="flex cursor-pointer list-none items-center justify-between bg-inset px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.08em] text-fg-muted md:hidden [&::-webkit-details-marker]:hidden">
+          Contact &amp; compliance info
+          <span aria-hidden>{complianceOpen ? "▲" : "▼"}</span>
+        </summary>
+        <div className="grid grid-cols-2 gap-px bg-line md:grid-cols-4 xl:grid-cols-8">
+          <Cell label="Phone" value={broker.phone ? formatPhone(broker.phone) : null} />
+          <Cell label="Email" value={broker.email} />
+          <Cell label="Office" value={broker.office} />
+          <Cell label="Timezone" value={broker.timezone} />
+          <Cell label="Authority" value={broker.authority} />
+          <Cell label="Insurance" value={broker.insurance} fallback="Not on file" />
+          <Cell label="W9" value={broker.w9} fallback="Not on file" />
+          <Cell label="1099" value={broker.ten99} fallback="Not on file" />
+        </div>
+      </details>
 
       {/* Tabs */}
-      <div className="mt-4 flex items-center gap-1 border-b border-line">
+      <div className="mt-4 flex items-center gap-1 overflow-x-auto border-b border-line">
         <TabBtn id="overview" tab={tab} setTab={setTab} label="Overview" />
         <TabBtn id="contacts" tab={tab} setTab={setTab} label={`Contacts${contacts.length ? ` (${contacts.length})` : ""}`} />
         <TabBtn id="documents" tab={tab} setTab={setTab} label="Documents" />
@@ -955,7 +979,7 @@ function ContactModal({
             </legend>
             <div className="mt-1.5 space-y-2">
               {phones.map((p, i) => (
-                <div key={i} className="flex items-center gap-1.5">
+                <div key={i} className="flex items-center gap-1.5 max-sm:flex-wrap">
                   <input
                     name="phone_number"
                     value={p.number}
@@ -968,7 +992,7 @@ function ContactModal({
                     }
                     placeholder="Phone number"
                     autoComplete="off"
-                    className="min-w-0 flex-1 rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
+                    className="min-w-0 flex-1 rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none max-sm:min-h-[40px] max-sm:w-full max-sm:basis-full max-sm:py-2.5 max-sm:text-[13.5px]"
                   />
                   <input
                     name="phone_ext"
@@ -982,7 +1006,7 @@ function ContactModal({
                     }
                     placeholder="Ext"
                     autoComplete="off"
-                    className="w-16 rounded-md border border-line-strong bg-card px-2 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
+                    className="w-16 rounded-md border border-line-strong bg-card px-2 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none max-sm:min-h-[40px] max-sm:py-2.5 max-sm:text-[13.5px]"
                   />
                   <input
                     name="phone_label"
@@ -996,7 +1020,7 @@ function ContactModal({
                     }
                     placeholder="Label"
                     autoComplete="off"
-                    className="w-24 rounded-md border border-line-strong bg-card px-2 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
+                    className="w-24 rounded-md border border-line-strong bg-card px-2 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none max-sm:min-h-[40px] max-sm:flex-1 max-sm:py-2.5 max-sm:text-[13.5px]"
                   />
                   <RowRemove
                     onClick={() =>
@@ -1023,7 +1047,7 @@ function ContactModal({
             </legend>
             <div className="mt-1.5 space-y-2">
               {emails.map((e, i) => (
-                <div key={i} className="flex items-center gap-1.5">
+                <div key={i} className="flex items-center gap-1.5 max-sm:flex-wrap">
                   <input
                     name="email_address"
                     value={e.address}
@@ -1036,7 +1060,7 @@ function ContactModal({
                     }
                     placeholder="Email address"
                     autoComplete="off"
-                    className="min-w-0 flex-1 rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
+                    className="min-w-0 flex-1 rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none max-sm:min-h-[40px] max-sm:w-full max-sm:basis-full max-sm:py-2.5 max-sm:text-[13.5px]"
                   />
                   <input
                     name="email_label"
@@ -1050,7 +1074,7 @@ function ContactModal({
                     }
                     placeholder="Label"
                     autoComplete="off"
-                    className="w-24 rounded-md border border-line-strong bg-card px-2 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
+                    className="w-24 rounded-md border border-line-strong bg-card px-2 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none max-sm:min-h-[40px] max-sm:flex-1 max-sm:py-2.5 max-sm:text-[13.5px]"
                   />
                   <RowRemove
                     onClick={() =>
@@ -1110,7 +1134,7 @@ function RowRemove({ onClick }: { onClick: () => void }) {
       type="button"
       onClick={onClick}
       aria-label="Remove row"
-      className="shrink-0 px-1 text-[16px] leading-none text-fg-subtle transition-colors hover:text-bad"
+      className="shrink-0 px-1 text-[16px] leading-none text-fg-subtle transition-colors hover:text-bad max-sm:p-2.5 max-sm:text-[20px]"
     >
       ×
     </button>
