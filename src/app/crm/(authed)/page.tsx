@@ -71,6 +71,7 @@ type AccountRow = {
   phones: unknown;
   lifecycle_status: string | null;
   created_at: string;
+  attention_dismissed_at: string | null;
 };
 
 /** Central-time hour (0-23) for a moment — drives the header's time-of-day
@@ -164,7 +165,7 @@ export default async function CrmDashboardPage() {
     // that data is fetched exactly once.
     supabase
       .from("crm_accounts")
-      .select("id, name, phone, phones, lifecycle_status, created_at")
+      .select("id, name, phone, phones, lifecycle_status, created_at, attention_dismissed_at")
       .is("deleted_at", null)
       .or("ai_status.is.null,ai_status.neq.pending_review")
       .limit(500),
@@ -452,10 +453,13 @@ export default async function CrmDashboardPage() {
 
   const STALE_THRESHOLD_DAYS = 7;
   const NEW_LEAD_GRACE_DAYS = 3;
+  const DISMISS_WINDOW_DAYS = 5;
   const needsAttention: NeedsAttentionCompany[] = allAccounts
     .filter((a) => {
       const stage = normalizeStage(a.lifecycle_status);
       if (stage === "lost" || stage === "inactive") return false;
+      const dismissedMs = timestampMs(a.attention_dismissed_at);
+      if (dismissedMs !== null && now.getTime() - dismissedMs < DISMISS_WINDOW_DAYS * DAY_MS) return false;
       const ms = lastContactMsByAccount.get(a.id);
       if (ms === undefined) {
         const createdMs = timestampMs(a.created_at);
@@ -470,7 +474,6 @@ export default async function CrmDashboardPage() {
       return {
         id: a.id,
         name: titleCaseWords(a.name),
-        phone: parsePhones(a.phones)[0]?.number || a.phone || null,
         daysSinceContact: ms === undefined ? null : Math.floor((now.getTime() - ms) / DAY_MS),
       };
     });

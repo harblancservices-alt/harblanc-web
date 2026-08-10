@@ -1,28 +1,41 @@
+"use client";
+
+import { useTransition } from "react";
 import Link from "next/link";
 import { ClickableListItem } from "./_shell/ClickableRow";
-import { digitsForTel } from "./_shell/contactFields";
-import { IconPhone } from "./_shell/icons";
+import { IconX } from "./_shell/icons";
 import { BTN_ACTION } from "./_shell/ui";
+import { dismissAttention } from "./needs-attention-actions";
 
 export type NeedsAttentionCompany = {
   id: string;
   name: string;
-  phone: string | null;
   /** null = never contacted at all. */
   daysSinceContact: number | null;
 };
 
 /**
  * NEEDS ATTENTION — a company that's gone quiet, longest-since-contact
- * first. Plain server-renderable markup (no interactivity beyond the tel:
- * link and the row's own navigation), matching the CallListRow/TaskRow card
- * pattern used across the dashboard.
+ * first, matching the CallListRow/TaskRow card pattern used across the
+ * dashboard. Client component (not plain server markup) because Dismiss
+ * calls a server action directly — owning the handler here keeps the
+ * dashboard page itself a pure Server Component with no function props
+ * crossing the RSC boundary.
  */
 export function NeedsAttentionRow({ company }: { company: NeedsAttentionCompany }) {
+  const [pending, startTransition] = useTransition();
   const staleLabel =
     company.daysSinceContact === null
       ? "Never contacted"
       : `No contact in ${company.daysSinceContact}d`;
+
+  function onDismiss(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    startTransition(async () => {
+      await dismissAttention(company.id);
+    });
+  }
 
   return (
     <ClickableListItem
@@ -40,22 +53,15 @@ export function NeedsAttentionRow({ company }: { company: NeedsAttentionCompany 
         </Link>
         <p className="mt-0.5 text-[12.5px] font-medium text-bad">{staleLabel}</p>
       </div>
-      {company.phone ? (
-        <a
-          href={`tel:${digitsForTel(company.phone)}`}
-          className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 text-[12.5px] font-semibold transition-colors ${BTN_ACTION}`}
-        >
-          <IconPhone width={12} height={12} />
-          Call
-        </a>
-      ) : (
-        <span
-          aria-disabled
-          className="inline-flex h-9 shrink-0 items-center rounded-lg border border-fg-subtle bg-card px-3 text-[12px] font-medium text-fg-subtle opacity-50"
-        >
-          No phone
-        </span>
-      )}
+      <button
+        type="button"
+        onClick={onDismiss}
+        disabled={pending}
+        className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 text-[12.5px] font-semibold transition-colors ${BTN_ACTION}`}
+      >
+        <IconX width={12} height={12} />
+        {pending ? "Dismissing…" : "Dismiss"}
+      </button>
     </ClickableListItem>
   );
 }
