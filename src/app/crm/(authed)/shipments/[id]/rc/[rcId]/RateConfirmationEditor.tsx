@@ -23,10 +23,8 @@ import {
   sendRateConfirmation,
   markRateConfirmationAccepted,
   markRateConfirmationCompleted,
-  cancelRateConfirmation,
   duplicateRateConfirmation,
   supersedeRateConfirmation,
-  softDeleteRateConfirmation,
 } from "../../../rate-confirmation-actions";
 import type { CrmCarrier, CrmRateConfirmationDetail, CrmShipmentDetail, RateConfirmationFields } from "../../../types";
 
@@ -87,8 +85,8 @@ function toLineRows(rc: CrmRateConfirmationDetail): LineRow[] {
 
 /**
  * The Rate Confirmation editor — carrier contact fields, payment terms/quick
- * pay/notes, and carrier-pay line items, all editable, plus the full
- * generate/send/accept/complete/duplicate/supersede/delete lifecycle already
+ * pay/notes, and carrier-pay line items, all editable, plus the
+ * generate/send/accept/complete/duplicate/supersede lifecycle already
  * backed by rate-confirmation-actions.ts. totalCarrierPay is NEVER summed
  * client-side — every line mutation calls refresh() to re-pull the server's
  * recomputed total (see recomputeTotal in that file), same contract the
@@ -113,8 +111,7 @@ export function RateConfirmationEditor({
   initialRc: CrmRateConfirmationDetail;
   /** Present when rendered inside DocumentEditorModal (over the shipment
    * workspace) instead of the standalone /rc/[rcId] route — swaps the
-   * "back to shipment" Link for a plain Close, and delete closes the modal
-   * instead of navigating. */
+   * "back to shipment" Link for a plain Close. */
   onClose?: () => void;
   /** Present in modal mode — duplicate/supersede/the superseded-by banner
    * switch the modal to the new/other doc instead of a full navigation. */
@@ -336,22 +333,6 @@ export function RateConfirmationEditor({
     });
   }
 
-  function onDelete() {
-    if (!window.confirm(`Delete rate confirmation ${rc.rcNumber}? This can't be undone from here.`)) return;
-    setActionError(null);
-    setBusyAction("delete");
-    startAction(async () => {
-      const result = await softDeleteRateConfirmation(rc.id);
-      setBusyAction(null);
-      if (!result.ok) {
-        setActionError(result.error);
-        return;
-      }
-      if (onClose) onClose();
-      else router.push(`/crm/shipments/${shipment.id}`);
-    });
-  }
-
   async function openPreview() {
     if (!rc.pdfStoragePath) return;
     setPreviewOpen(true);
@@ -373,7 +354,7 @@ export function RateConfirmationEditor({
       <Card className="p-4">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-fg-subtle">Rate Confirmation</p>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-fg">Rate Confirmation</p>
             <p className="font-mono text-[22px] font-bold text-fg">{rc.rcNumber}</p>
             <p className="mt-1 text-[12.5px] text-fg-muted">
               From shipment{" "}
@@ -410,8 +391,10 @@ export function RateConfirmationEditor({
           </p>
         )}
 
-        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-fg-subtle">
-          <span>Created {formatDateTime(rc.createdAt)}</span>
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-fg-subtle">
+          <span className="inline-flex items-center rounded-full bg-ok-bg px-2.5 py-1 text-[11px] font-semibold text-ok">
+            Created {formatDateTime(rc.createdAt)}
+          </span>
           {rc.sentAt && <span>Sent {formatDateTime(rc.sentAt)}</span>}
           {rc.acceptedAt && <span>Accepted {formatDateTime(rc.acceptedAt)}</span>}
           {rc.completedAt && <span>Completed {formatDateTime(rc.completedAt)}</span>}
@@ -421,25 +404,6 @@ export function RateConfirmationEditor({
         <FormError message={actionError} />
 
         <div className="mt-3 flex flex-wrap gap-2">
-          {!locked && (
-            <button
-              type="button"
-              onClick={saveAllFields}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors ${BTN_EDIT}`}
-            >
-              Save Draft
-            </button>
-          )}
-          {!locked && (
-            <button
-              type="button"
-              onClick={onGenerate}
-              disabled={busy}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors disabled:opacity-60 ${BTN_ACTION}`}
-            >
-              {busyAction === "generate" ? "Generating…" : "Generate PDF"}
-            </button>
-          )}
           {hasPdf && (
             <button
               type="button"
@@ -515,24 +479,6 @@ export function RateConfirmationEditor({
               {busyAction === "supersede" ? "Superseding…" : "Supersede"}
             </button>
           )}
-          {!locked && (
-            <button
-              type="button"
-              onClick={() => runAction("cancel", () => cancelRateConfirmation(rc.id))}
-              disabled={busy}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors disabled:opacity-60 ${BTN_DANGER}`}
-            >
-              {busyAction === "cancel" ? "Cancelling…" : "Cancel"}
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={onDelete}
-            disabled={busy}
-            className={`ml-auto inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors disabled:opacity-60 ${BTN_DANGER}`}
-          >
-            {busyAction === "delete" ? "Deleting…" : "Delete"}
-          </button>
         </div>
       </Card>
 
@@ -626,37 +572,35 @@ export function RateConfirmationEditor({
           </div>
         </Card>
 
-        <Card>
-          <SectionDivider label="Payment" />
-          <div className="flex flex-col gap-2 p-3">
-            <FormRow2>
-              <TextRow
-                label="Payment terms"
-                value={state.paymentTerms}
-                onChange={(v) => set("paymentTerms", v)}
-                onBlur={() => commit({ paymentTerms: orNull(state.paymentTerms) })}
-                placeholder="e.g. Net 30"
-              />
-              <TextRow
-                label="Quick pay"
-                value={state.quickPay}
-                onChange={(v) => set("quickPay", v)}
-                onBlur={() => commit({ quickPay: orNull(state.quickPay) })}
-                placeholder="e.g. 2% for pay in 24hrs"
-              />
-            </FormRow2>
-            <TextAreaRow
-              label="Notes"
-              value={state.notes}
-              onChange={(v) => set("notes", v)}
-              onBlur={() => commit({ notes: orNull(state.notes) })}
-              rows={3}
-            />
-          </div>
-        </Card>
-
-        <div className="lg:col-span-2">
+        <div className="flex flex-col gap-3">
           <Card>
+            <SectionDivider label="Payment" />
+            <div className="flex flex-col gap-2 p-3">
+              <FormRow2>
+                <TextRow
+                  label="Payment terms"
+                  value={state.paymentTerms}
+                  onChange={(v) => set("paymentTerms", v)}
+                  onBlur={() => commit({ paymentTerms: orNull(state.paymentTerms) })}
+                  placeholder="e.g. Net 30"
+                />
+                <TextRow
+                  label="Quick pay"
+                  value={state.quickPay}
+                  onChange={(v) => set("quickPay", v)}
+                  onBlur={() => commit({ quickPay: orNull(state.quickPay) })}
+                  placeholder="e.g. 2% for pay in 24hrs"
+                />
+              </FormRow2>
+              <TextAreaRow
+                label="Notes"
+                value={state.notes}
+                onChange={(v) => set("notes", v)}
+                onBlur={() => commit({ notes: orNull(state.notes) })}
+                rows={3}
+              />
+            </div>
+
             <SectionDivider label="Carrier pay line items" hint="Total is computed server-side" />
             <FormError message={lineError} />
             <ul className={`divide-y divide-line ${ZEBRA_ROWS}`}>
@@ -729,6 +673,26 @@ export function RateConfirmationEditor({
               <span className="font-mono text-[16px] font-bold text-fg">{formatMoney(rc.totalCarrierPay)}</span>
             </div>
           </Card>
+
+          {!locked && (
+            <div className="flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={onGenerate}
+                disabled={busy}
+                className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors disabled:opacity-60 ${BTN_ACTION}`}
+              >
+                {busyAction === "generate" ? "Generating…" : "Generate PDF"}
+              </button>
+              <button
+                type="button"
+                onClick={saveAllFields}
+                className={`inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors ${BTN_EDIT}`}
+              >
+                Save Draft
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
