@@ -133,7 +133,7 @@ export function CommodityPhotoTiles({
               onClick={() => remove(p)}
               disabled={busyId === p.id}
               aria-label={`Delete ${p.fileName}`}
-              className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 disabled:opacity-60"
+              className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 disabled:opacity-60 max-lg:h-8 max-lg:w-8 max-lg:opacity-70"
             >
               {busyId === p.id ? "…" : <IconX width={12} height={12} />}
             </button>

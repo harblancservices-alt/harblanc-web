@@ -167,6 +167,21 @@ export function ContactsMasterDetail({
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(contacts[0]?.id ?? null);
   const [subTab, setSubTab] = useState<SubTab>("activity");
+  const detailRef = useRef<HTMLDivElement>(null);
+
+  /** Below `md` the roster and the selected-contact detail panel stack
+   * (roster on top, in its own capped scroller) instead of sitting side by
+   * side — tapping a roster row updated the state, but with nothing on
+   * screen to show it changed unless the user scrolled down past the
+   * roster themselves. Desktop (`md`+, where the two panels are already
+   * side by side) never runs this — the width check keeps it inert there. */
+  function selectContact(id: string) {
+    setSelectedId(id);
+    setSubTab("activity");
+    if (typeof window !== "undefined" && window.innerWidth < 768) {
+      requestAnimationFrame(() => detailRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    }
+  }
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -262,10 +277,7 @@ export function ContactsMasterDetail({
                       is invalid HTML and would break the tap targets. */}
                   <button
                     type="button"
-                    onClick={() => {
-                      setSelectedId(c.id);
-                      setSubTab("activity");
-                    }}
+                    onClick={() => selectContact(c.id)}
                     className="flex min-w-0 flex-1 items-center gap-2.5 px-4 py-3 text-left"
                   >
                     <ContactAvatar className="h-9 w-9" />
@@ -303,7 +315,7 @@ export function ContactsMasterDetail({
       </div>
 
       {/* Right — selected contact panel */}
-      <div className="min-w-0 p-5">
+      <div ref={detailRef} className="min-w-0 p-5">
         {!selected ? (
           <p className="py-10 text-center text-[13px] text-fg-muted">Select a contact.</p>
         ) : (

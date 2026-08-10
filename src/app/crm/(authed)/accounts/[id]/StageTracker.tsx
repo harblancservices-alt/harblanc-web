@@ -143,7 +143,7 @@ export function StageTracker({
               onClick={() => setStage(stage)}
               disabled={pending}
               aria-current={isCurrent ? "step" : undefined}
-              className={`flex h-8 min-w-[96px] flex-1 shrink-0 items-center justify-center gap-1 whitespace-nowrap px-3 text-[11px] font-semibold transition-colors disabled:opacity-70 ${fill}`}
+              className={`flex h-8 min-w-[96px] flex-1 shrink-0 items-center justify-center gap-1 whitespace-nowrap px-3 text-[11px] font-semibold transition-colors disabled:opacity-70 max-lg:h-11 max-lg:min-w-[112px] max-lg:text-[12px] ${fill}`}
               style={{
                 clipPath: clipPath(i === 0, i === SELECTABLE_LIFECYCLE_STAGES.length - 1),
                 marginLeft: i === 0 ? 0 : -NOTCH,
@@ -242,7 +242,7 @@ function ProspectLevelMeter({
         <p className="text-[10.5px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
           Prospect level {value ? `· ${value}/10` : ""}
         </p>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 max-lg:gap-1.5">
           {Array.from({ length: 10 }, (_, i) => i + 1).map((pip) => (
             <button
               key={pip}
@@ -251,7 +251,7 @@ function ProspectLevelMeter({
               disabled={pending}
               aria-label={`Set prospect level to ${pip}`}
               aria-pressed={value !== null && pip <= value}
-              className={`h-5 w-3 shrink-0 transition-colors disabled:opacity-60 ${
+              className={`h-5 w-3 shrink-0 transition-colors disabled:opacity-60 max-lg:h-8 max-lg:w-5 ${
                 value !== null && pip <= value
                   ? "bg-[#2563eb] hover:bg-[#1d4ed8]"
                   : "border border-line-strong bg-card hover:bg-line-strong"
