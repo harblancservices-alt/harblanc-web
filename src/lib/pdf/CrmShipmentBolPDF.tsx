@@ -38,6 +38,13 @@ export type CrmShipmentBolPdfData = {
     truckNumber: string | null;
     trailerNumber: string | null;
   };
+  /** Third-party freight-charges bill-to — no UI/DB source yet on the
+   * shipment-parented BOL (unlike the standalone /crm/bill-of-lading
+   * generator's showBillTo/billToName/billToAddress), so this is always
+   * null today and the box below prints "N/A". Typed and rendered now so
+   * wiring a real source later is a data-plumbing change only. */
+  billToName: string | null;
+  billToAddress: string | null;
   freightChargeTerms: string | null;
   specialInstructions: string | null;
   lineItems: {
@@ -205,6 +212,25 @@ function PartyBox({
   );
 }
 
+function BillToBox({ name, address }: { name: string | null; address: string | null }) {
+  const hasBillTo = !!(name || address);
+  return (
+    <View style={styles.col}>
+      <Text style={styles.heading}>Third Party Bill To</Text>
+      <View style={styles.boxSolid}>
+        {hasBillTo ? (
+          <>
+            <Text style={styles.fieldLine}>{name || "—"}</Text>
+            <Text style={styles.fieldLine}>{address || "—"}</Text>
+          </>
+        ) : (
+          <Text style={styles.fieldLine}>N/A</Text>
+        )}
+      </View>
+    </View>
+  );
+}
+
 function CheckOption({ label, checked }: { label: string; checked: boolean }) {
   return (
     <View style={styles.checkOption}>
@@ -252,21 +278,24 @@ export function CrmShipmentBolPDF({ data }: { data: CrmShipmentBolPdfData }) {
           <PartyBox title="Ship To" party={data.consignee} poNumber={data.poNumber} refNumbers={data.refNumbers} />
         </View>
 
-        <View style={styles.section}>
-          <Text style={styles.heading}>Carrier</Text>
-          <View style={styles.boxSolid}>
-            <Text style={styles.fieldLine}>{data.carrier.name || "—"}</Text>
-            <View style={styles.cols2}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.fieldLine}>Truck: {data.carrier.truckNumber || "—"}</Text>
-                <Text style={styles.fieldLine}>Trailer: {data.carrier.trailerNumber || "—"}</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.fieldLine}>MC #: {data.carrier.mc || "—"}</Text>
-                <Text style={styles.fieldLine}>DOT #: {data.carrier.dot || "—"}</Text>
+        <View style={[styles.section, styles.cols2]}>
+          <View style={styles.col}>
+            <Text style={styles.heading}>Carrier</Text>
+            <View style={styles.boxSolid}>
+              <Text style={styles.fieldLine}>{data.carrier.name || "—"}</Text>
+              <View style={styles.cols2}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.fieldLine}>Truck: {data.carrier.truckNumber || "—"}</Text>
+                  <Text style={styles.fieldLine}>Trailer: {data.carrier.trailerNumber || "—"}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.fieldLine}>MC #: {data.carrier.mc || "—"}</Text>
+                  <Text style={styles.fieldLine}>DOT #: {data.carrier.dot || "—"}</Text>
+                </View>
               </View>
             </View>
           </View>
+          <BillToBox name={data.billToName} address={data.billToAddress} />
         </View>
 
         <View style={styles.section}>

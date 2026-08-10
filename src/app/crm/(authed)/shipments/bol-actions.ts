@@ -426,6 +426,8 @@ export async function generateBol(bolId: string): Promise<GenerateDocResult> {
       truckNumber: null,
       trailerNumber: null,
     },
+    billToName: null,
+    billToAddress: null,
     freightChargeTerms: detail.freightChargeTerms,
     specialInstructions: shipmentRow.special_instructions,
     lineItems: detail.lineItems.map((li) => ({
