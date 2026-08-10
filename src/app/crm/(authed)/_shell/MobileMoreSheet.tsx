@@ -72,6 +72,7 @@ export function MobileMoreSheet({
             const active = isActive(pathname, item);
             const ownerOnly = !!item.ownerOnly;
             const redAccent = !!item.redAccent;
+            const goldAccent = !!item.goldAccent;
             return (
               <Link
                 key={item.href}
@@ -85,7 +86,9 @@ export function MobileMoreSheet({
                       ? "border-warn bg-graphite-2 text-warn"
                       : redAccent
                         ? "border-bad bg-graphite-2 text-bad"
-                        : "border-accent bg-graphite-2 text-white"
+                        : goldAccent
+                          ? "border-[#e3b341] bg-[#e3b341] text-black"
+                          : "border-accent bg-graphite-2 text-white"
                     : ownerOnly
                       ? "border-transparent text-warn/90 hover:bg-graphite-2/60 hover:text-warn"
                       : redAccent
@@ -100,7 +103,9 @@ export function MobileMoreSheet({
                       : redAccent
                         ? "text-bad"
                         : active
-                          ? "text-accent"
+                          ? goldAccent
+                            ? "text-black"
+                            : "text-accent"
                           : "text-on-dark-dim"
                   }
                 />
@@ -110,7 +115,9 @@ export function MobileMoreSheet({
                     className={`inline-flex h-[18px] min-w-[18px] items-center justify-center px-1 text-[10.5px] font-bold leading-none tabular-nums ${
                       item.badgeTone === "alert"
                         ? "bg-bad text-white"
-                        : "bg-graphite-2 text-on-dark-dim"
+                        : active && goldAccent
+                          ? "bg-black/15 text-black"
+                          : "bg-graphite-2 text-on-dark-dim"
                     }`}
                   >
                     {item.badge > 99 ? "99+" : item.badge}

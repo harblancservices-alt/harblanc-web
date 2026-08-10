@@ -13,6 +13,7 @@ const KNOWN_LABELS: Record<string, string> = {
   "/crm": "Dashboard",
   "/crm/accounts": "Companies",
   "/crm/customers": "Active Customers",
+  "/crm/active-customers": "Active Customers",
   "/crm/contacts": "Contacts",
   "/crm/tasks": "Tasks",
   "/crm/ai-agent": "AI Agent",

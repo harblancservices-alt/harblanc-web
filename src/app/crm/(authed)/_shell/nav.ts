@@ -10,7 +10,6 @@ import {
   IconCustomers,
   IconCalendar,
   IconUpgrades,
-  IconTruck,
 } from "./icons";
 
 export type CrmNavItem = {
@@ -40,6 +39,12 @@ export type CrmNavItem = {
    * state, same mechanism as `ownerOnly`'s always-orange treatment but not
    * role-gated. An item is never expected to set both. */
   redAccent?: boolean;
+  /** True for the single "Active Customers" nav item (currently the only
+   * one) — renders with a solid gold (#e3b341) background and black text
+   * ONLY while active, everywhere it appears (desktop sidebar, mobile More
+   * sheet). Inactive state renders like a normal item; unlike ownerOnly/
+   * redAccent this doesn't tint the icon/label when not the current page. */
+  goldAccent?: boolean;
 };
 
 /**
@@ -88,17 +93,13 @@ export function buildCrmNav(
     { href: "/crm/tasks", label: "Tasks", Icon: IconTasks },
     { href: "/crm/calendar", label: "Calendar", Icon: IconCalendar },
     {
-      href: "/crm/shipments",
-      label: "Shipments",
-      Icon: IconTruck,
-      match: ["/crm/carriers"],
-    },
-    {
-      href: "/crm/customers",
+      href: "/crm/active-customers",
       label: "Active Customers",
       Icon: IconCustomers,
+      match: ["/crm/shipments", "/crm/carriers", "/crm/customers"],
       badge: customerCount > 0 ? customerCount : undefined,
       badgeTone: "neutral",
+      goldAccent: true,
     },
     {
       href: "/crm/upgrades",

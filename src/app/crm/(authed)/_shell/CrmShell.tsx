@@ -100,8 +100,13 @@ export function CrmShell({
               // admin-only tabs apart from everyday ones at a glance.
               // Red-accent items (currently just Upgrades) render the same
               // way but in --bad/red, for every user, not just the owner.
+              // Gold-accent items (currently just Active Customers) only
+              // pick up their gold treatment WHILE active — a filled gold
+              // (#e3b341) bar with black text/icon, unlike ownerOnly/
+              // redAccent which tint even when inactive.
               const ownerOnly = !!item.ownerOnly;
               const redAccent = !!item.redAccent;
+              const goldAccent = !!item.goldAccent;
               return (
                 <Link
                   key={item.href}
@@ -114,7 +119,9 @@ export function CrmShell({
                         ? "border-warn bg-graphite-2 text-warn"
                         : redAccent
                           ? "border-bad bg-graphite-2 text-bad"
-                          : "border-accent bg-graphite-2 text-white"
+                          : goldAccent
+                            ? "border-[#e3b341] bg-[#e3b341] text-black"
+                            : "border-accent bg-graphite-2 text-white"
                       : ownerOnly
                         ? "border-transparent text-warn/90 hover:bg-graphite-2/60 hover:text-warn"
                         : redAccent
@@ -131,7 +138,9 @@ export function CrmShell({
                         : redAccent
                           ? "text-bad"
                           : active
-                            ? "text-accent"
+                            ? goldAccent
+                              ? "text-black"
+                              : "text-accent"
                             : "text-on-dark-dim"
                     }
                   />
@@ -141,7 +150,9 @@ export function CrmShell({
                       className={`inline-flex h-[18px] min-w-[18px] items-center justify-center px-1 text-[10.5px] font-bold leading-none tabular-nums ${
                         item.badgeTone === "alert"
                           ? "bg-bad text-white"
-                          : "bg-graphite-2 text-on-dark-dim"
+                          : active && goldAccent
+                            ? "bg-black/15 text-black"
+                            : "bg-graphite-2 text-on-dark-dim"
                       }`}
                     >
                       {item.badge > 99 ? "99+" : item.badge}

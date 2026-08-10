@@ -578,3 +578,22 @@ export type ShipmentDocumentSummary = {
   completedAt: string | null;
   createdAt: string;
 };
+
+/** One row in the org-wide RC/BOL library (listAllDocuments) — every Rate
+ * Confirmation + Bill of Lading generated or drafted across every shipment,
+ * carrying the parent shipment's number and customer name so the library can
+ * be searched/rendered without a per-row shipment lookup. */
+export type AllDocumentSummary = {
+  id: string;
+  docType: CrmDocType;
+  number: string;
+  status: string;
+  version: number;
+  createdAt: string;
+  shipmentId: string;
+  shipmentNumber: string | null;
+  customerName: string | null;
+  carrierName: string | null;
+  pdfDocumentId: string | null;
+  pdfStoragePath: string | null;
+};
