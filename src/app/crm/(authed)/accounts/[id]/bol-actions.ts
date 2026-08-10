@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
-import { renderCrmBolPdfBuffer } from "@/lib/pdf/renderCrmBolPdf";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -69,89 +68,6 @@ export async function deleteBolDocument(
 
   if (error) {
     return { ok: false, error: "Could not delete the file. Please try again." };
-  }
-
-  revalidatePath(`/crm/accounts/${accountId}`);
-  return { ok: true };
-}
-
-/**
- * Generate a quick Bill of Lading from what the CRM already knows about
- * this company (Shipper) plus a handful of fields the rep fills in on the
- * spot (Consignee, commodity, weight, pieces, special instructions) — see
- * CrmBolPDF.tsx for why this is a separate, simpler document from
- * BillOfLadingPDF.tsx rather than reusing it. Renders server-side, uploads
- * the resulting bytes to the same "crm-documents" bucket/path convention
- * every other BOL uses, then writes the same crm_documents row an upload
- * would — the generated file shows up in the list identically, no second
- * data model.
- */
-export async function generateBol(
-  accountId: string,
-  input: {
-    shipperName: string;
-    shipperAddress: string | null;
-    shipperPhone: string | null;
-    date: string;
-    reference: string | null;
-    consigneeName: string | null;
-    consigneeAddress: string | null;
-    commodity: string | null;
-    weight: string | null;
-    pieces: string | null;
-    specialInstructions: string | null;
-  },
-): Promise<ActionResult> {
-  const user = await requireCrmUser();
-  const supabase = await createCrmServerClient();
-
-  let buffer: Buffer;
-  try {
-    buffer = await renderCrmBolPdfBuffer({
-      date: input.date,
-      reference: input.reference,
-      shipper: {
-        name: input.shipperName,
-        address: input.shipperAddress,
-        phone: input.shipperPhone,
-      },
-      consignee: {
-        name: input.consigneeName,
-        address: input.consigneeAddress,
-      },
-      commodity: input.commodity,
-      weight: input.weight,
-      pieces: input.pieces,
-      specialInstructions: input.specialInstructions,
-    });
-  } catch {
-    return { ok: false, error: "Could not generate the PDF. Please try again." };
-  }
-
-  const fileName = `BOL - ${input.date}.pdf`;
-  const storagePath = `${user.orgId}/bol/${accountId}/${crypto.randomUUID()}-generated-bol.pdf`;
-
-  const { error: uploadError } = await supabase.storage
-    .from(STORAGE_BUCKET)
-    .upload(storagePath, buffer, { contentType: "application/pdf", upsert: false });
-
-  if (uploadError) {
-    return { ok: false, error: "Could not save the generated BOL. Please try again." };
-  }
-
-  const { error: insertError } = await supabase.from("crm_documents").insert({
-    org_id: user.orgId,
-    account_id: accountId,
-    user_id: user.id,
-    kind: "bol",
-    file_name: fileName,
-    storage_path: storagePath,
-    mime_type: "application/pdf",
-    size_bytes: buffer.byteLength,
-  });
-
-  if (insertError) {
-    return { ok: false, error: "Could not save the file record. Please try again." };
   }
 
   revalidatePath(`/crm/accounts/${accountId}`);

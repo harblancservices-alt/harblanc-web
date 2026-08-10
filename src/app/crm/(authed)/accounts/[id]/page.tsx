@@ -4,7 +4,6 @@ import { CRM_ACTIVITY } from "@/lib/crm/activity";
 import { PageShell, Card, CardHead } from "../../_shell/ui";
 import { firstName, titleCaseWords, upperCaseState } from "../../_shell/format";
 import { parsePhones, parseLinks, normalizeHref } from "../../_shell/contactFields";
-import { formatPhone } from "@/lib/domain/phone";
 import type { LaneEntry } from "../../_shell/LanesEditor";
 import type { RepOption } from "../CompanyDialog";
 import { normalizeStage } from "../lifecycle";
@@ -502,9 +501,6 @@ export default async function AccountDetailPage({
                   orgId={user.orgId}
                   documents={documents}
                   photos={commodityPhotos}
-                  shipperName={accountName}
-                  shipperAddress={fullAddress}
-                  shipperPhone={companyPhone ? formatPhone(companyPhone) : null}
                 />
               }
             />
