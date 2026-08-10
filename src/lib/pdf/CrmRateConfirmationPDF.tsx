@@ -1,4 +1,11 @@
-import { Document, Page, View, Text, StyleSheet } from "@react-pdf/renderer";
+import { Document, Page, View, Text, StyleSheet, Font } from "@react-pdf/renderer";
+
+// react-pdf's default hyphenation engine treats any long unbroken string —
+// an email address, not a real English word — as hyphenatable, and inserts a
+// visible "-" at an arbitrary break point when it has to wrap. Disabling it
+// means a long token wraps whole (or, failing that, simply doesn't split)
+// instead of getting cut off mid-word.
+Font.registerHyphenationCallback((word) => [word]);
 
 /**
  * Server-rendered twin of the fillable /crm/rate-confirmation print doc
@@ -61,7 +68,7 @@ type StopInfo = {
 
 const styles = StyleSheet.create({
   page: {
-    padding: 36,
+    padding: 30,
     fontSize: 9.5,
     fontFamily: "Helvetica",
     color: "#000",
@@ -71,28 +78,29 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "flex-start",
     borderBottom: "1pt solid #000",
-    paddingBottom: 10,
-    marginBottom: 12,
+    paddingBottom: 8,
+    marginBottom: 10,
   },
   wordmark: { fontSize: 15, fontWeight: 700 },
   brokerLine: { fontSize: 9, marginTop: 1 },
   headerRight: { alignItems: "flex-end" },
   docTitle: { fontSize: 14, fontWeight: 700, marginBottom: 4 },
   metaLine: { fontSize: 9, marginTop: 1 },
-  section: { marginTop: 12 },
+  section: { marginTop: 9 },
   headingRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "flex-end",
     borderBottom: "1pt solid #000",
-    paddingBottom: 3,
-    marginBottom: 6,
+    paddingBottom: 2,
+    marginBottom: 5,
   },
   heading: { fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 },
   headingTotal: { fontSize: 10.5, fontWeight: 700 },
   grid6: { flexDirection: "row", flexWrap: "wrap" },
   gridCell: { width: "33.33%", marginBottom: 6, paddingRight: 8 },
   gridCellHalf: { width: "50%", marginBottom: 6, paddingRight: 8 },
+  gridCellFull: { width: "100%", marginBottom: 6 },
   fieldLabel: {
     fontSize: 7,
     fontWeight: 700,
@@ -104,7 +112,7 @@ const styles = StyleSheet.create({
   cols2: { flexDirection: "row", gap: 20 },
   col: { flex: 1 },
   stopLabel: { marginBottom: 4 },
-  box: { border: "1pt solid #bdbdbd", padding: 8 },
+  box: { border: "1pt solid #bdbdbd", padding: 6 },
   rateTable: { marginTop: 4 },
   rateRow: {
     flexDirection: "row",
@@ -126,8 +134,8 @@ const styles = StyleSheet.create({
     fontSize: 8,
     fontStyle: "italic",
     color: "#333",
-    marginTop: 8,
-    lineHeight: 1.35,
+    marginTop: 6,
+    lineHeight: 1.25,
   },
   sigStatement: { fontSize: 8.5, marginBottom: 8 },
   sigRow: { flexDirection: "row", gap: 24, marginTop: 4 },
@@ -167,6 +175,44 @@ function StopBlock({ title, stop }: { title: string; stop: StopInfo }) {
   );
 }
 
+/** "4245 North Central Expressway STE 490, Dallas, TX 75205" -> two display
+ * lines. The broker profile stores address as one free-text field (no
+ * separate street/city/state/zip columns), so this is a display-only split —
+ * the last two comma-separated segments read as "city" and "state zip",
+ * everything before that is the street line. */
+function splitAddress(address: string): { street: string; cityStateZip: string } {
+  const parts = address
+    .split(",")
+    .map((p) => p.trim())
+    .filter(Boolean);
+  if (parts.length === 0) return { street: "", cityStateZip: "" };
+  if (parts.length === 1) return { street: parts[0], cityStateZip: "" };
+  if (parts.length === 2) return { street: parts[0], cityStateZip: parts[1] };
+  return { street: parts.slice(0, -2).join(", "), cityStateZip: parts.slice(-2).join(", ") };
+}
+
+/** Title-case every word except a standalone 2-letter state code, which is
+ * uppercased instead — so a free-typed "dallas, tx" always prints as
+ * "Dallas, TX" regardless of how it was entered in Settings. */
+function properCaseAddressLine(value: string): string {
+  return value.replace(/[A-Za-z][A-Za-z'-]*/g, (word) =>
+    word.length === 2 ? word.toUpperCase() : word[0].toUpperCase() + word.slice(1).toLowerCase(),
+  );
+}
+
+/** US phone -> "972-922-2282". Leaves anything that isn't a clean 10/11-digit
+ * US number as-is rather than mangling an already-formatted or foreign value. */
+function formatPhone(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const digits = value.replace(/\D/g, "");
+  if (digits.length === 10) return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
+  if (digits.length === 11 && digits.startsWith("1")) {
+    const d = digits.slice(1);
+    return `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`;
+  }
+  return value;
+}
+
 function Field({ label, value }: { label: string; value: string | null }) {
   return (
     <View style={{ marginTop: 4 }}>
@@ -177,17 +223,22 @@ function Field({ label, value }: { label: string; value: string | null }) {
 }
 
 export function CrmRateConfirmationPDF({ data }: { data: CrmRateConfirmationPdfData }) {
+  const brokerAddress = splitAddress(data.broker.address);
+  const brokerPhone = formatPhone(data.broker.phone);
+
   return (
     <Document>
       <Page size="LETTER" style={styles.page}>
         <View style={styles.header}>
           <View>
             <Text style={styles.wordmark}>{data.broker.name.toUpperCase() || "—"}</Text>
-            {(data.broker.address || data.broker.phone) && (
-              <Text style={styles.brokerLine}>
-                {[data.broker.address, data.broker.phone].filter(Boolean).join(" · ")}
-              </Text>
+            {brokerAddress.street && (
+              <Text style={styles.brokerLine}>{properCaseAddressLine(brokerAddress.street)}</Text>
             )}
+            {brokerAddress.cityStateZip && (
+              <Text style={styles.brokerLine}>{properCaseAddressLine(brokerAddress.cityStateZip)}</Text>
+            )}
+            {brokerPhone && <Text style={styles.brokerLine}>{brokerPhone}</Text>}
             {data.broker.email && <Text style={styles.brokerLine}>{data.broker.email}</Text>}
             <Text style={styles.brokerLine}>
               MC {data.broker.mc || "—"} &nbsp;·&nbsp; DOT {data.broker.dot || "—"}
@@ -241,15 +292,15 @@ export function CrmRateConfirmationPDF({ data }: { data: CrmRateConfirmationPdfD
                   <Field label="MC #" value={data.carrier.mc} />
                 </View>
                 <View style={styles.gridCellHalf}>
-                  <Field label="DOT #" value={data.carrier.dot} />
-                </View>
-                <View style={styles.gridCellHalf}>
                   <Field label="Dispatcher / Contact" value={data.carrier.contact} />
                 </View>
                 <View style={styles.gridCellHalf}>
-                  <Field label="Phone" value={data.carrier.phone} />
+                  <Field label="DOT #" value={data.carrier.dot} />
                 </View>
                 <View style={styles.gridCellHalf}>
+                  <Field label="Phone" value={formatPhone(data.carrier.phone)} />
+                </View>
+                <View style={styles.gridCellFull}>
                   <Field label="Email" value={data.carrier.email} />
                 </View>
               </View>
