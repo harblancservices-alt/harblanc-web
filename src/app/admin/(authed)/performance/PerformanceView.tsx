@@ -526,7 +526,7 @@ function PeriodControls({
           onClick={() => onMode("month")}
           aria-pressed={mode === "month"}
           className={
-            "rounded px-3 py-1.5 text-[12px] font-bold uppercase tracking-[0.04em] transition-colors " +
+            "rounded px-3 py-1.5 text-[12px] font-bold uppercase tracking-[0.04em] transition-colors max-sm:min-h-[40px] max-sm:px-3.5 " +
             (mode === "month" ? "bg-accent text-white shadow-e1" : "text-white/70 hover:text-white")
           }
         >
@@ -537,7 +537,7 @@ function PeriodControls({
           onClick={() => onMode("range")}
           aria-pressed={mode === "range"}
           className={
-            "rounded px-3 py-1.5 text-[12px] font-bold uppercase tracking-[0.04em] transition-colors " +
+            "rounded px-3 py-1.5 text-[12px] font-bold uppercase tracking-[0.04em] transition-colors max-sm:min-h-[40px] max-sm:px-3.5 " +
             (mode === "range" ? "bg-accent text-white shadow-e1" : "text-white/70 hover:text-white")
           }
         >
@@ -548,13 +548,13 @@ function PeriodControls({
       {mode === "month" ? (
         <MonthSelector months={months} selIndex={selIndex} onSelect={onSelectMonth} />
       ) : (
-        <div className="flex items-center gap-1.5">
+        <div className="flex flex-wrap items-center gap-1.5">
           <input
             type="date"
             value={range.from}
             onChange={(e) => onRange({ ...range, from: e.target.value })}
             aria-label="From date (Central time)"
-            className="h-9 w-[132px] appearance-none rounded-md border border-line-strong bg-card px-2 text-[13px] font-semibold text-ink outline-none [color-scheme:light] focus:border-accent focus:ring-2 focus:ring-accent/40 sm:appearance-auto"
+            className="h-9 w-[132px] appearance-none rounded-md border border-line-strong bg-card px-2 text-[13px] font-semibold text-ink outline-none [color-scheme:light] focus:border-accent focus:ring-2 focus:ring-accent/40 sm:appearance-auto max-sm:h-11 max-sm:min-w-0 max-sm:flex-1"
           />
           <span className="text-[12px] font-bold text-white/70">–</span>
           <input
@@ -562,7 +562,7 @@ function PeriodControls({
             value={range.to}
             onChange={(e) => onRange({ ...range, to: e.target.value })}
             aria-label="To date (Central time)"
-            className="h-9 w-[132px] appearance-none rounded-md border border-line-strong bg-card px-2 text-[13px] font-semibold text-ink outline-none [color-scheme:light] focus:border-accent focus:ring-2 focus:ring-accent/40 sm:appearance-auto"
+            className="h-9 w-[132px] appearance-none rounded-md border border-line-strong bg-card px-2 text-[13px] font-semibold text-ink outline-none [color-scheme:light] focus:border-accent focus:ring-2 focus:ring-accent/40 sm:appearance-auto max-sm:h-11 max-sm:min-w-0 max-sm:flex-1"
           />
           <span className="font-mono text-[9.5px] font-bold uppercase tracking-[0.08em] text-white/70">
             CST

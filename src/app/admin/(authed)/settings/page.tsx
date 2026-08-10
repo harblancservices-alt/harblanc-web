@@ -229,8 +229,8 @@ export default async function SettingsPage() {
               Used to cost diesel per load and trip. Fuel CSV imports will
               refine these later.
             </p>
-            <div className="mt-3 flex flex-wrap items-end gap-3 sm:gap-4">
-              <label className="block">
+            <div className="mt-3 flex flex-wrap items-end gap-3 sm:gap-4 max-sm:flex-col max-sm:items-stretch">
+              <label className="block max-sm:w-full">
                 <span className={field.label}>MPG</span>
                 <input
                   name="mpg"
@@ -238,10 +238,10 @@ export default async function SettingsPage() {
                   step="0.1"
                   min="1"
                   defaultValue={String(mpg)}
-                  className={field.input + " w-28 tabular-nums"}
+                  className={field.input + " w-28 tabular-nums max-sm:w-full"}
                 />
               </label>
-              <label className="block">
+              <label className="block max-sm:w-full">
                 <span className={field.label}>Diesel $/gal</span>
                 <input
                   name="diesel_price_per_gallon"
@@ -249,10 +249,10 @@ export default async function SettingsPage() {
                   step="0.01"
                   min="0"
                   defaultValue={String(ppg)}
-                  className={field.input + " w-28 tabular-nums"}
+                  className={field.input + " w-28 tabular-nums max-sm:w-full"}
                 />
               </label>
-              <label className="block">
+              <label className="block max-sm:w-full">
                 <span className={field.label}>Factoring %</span>
                 <input
                   name="factoring_pct"
@@ -260,10 +260,10 @@ export default async function SettingsPage() {
                   step="0.1"
                   min="0"
                   defaultValue={String(factoringPct)}
-                  className={field.input + " w-28 tabular-nums"}
+                  className={field.input + " w-28 tabular-nums max-sm:w-full"}
                 />
               </label>
-              <Button type="submit" variant="primary">
+              <Button type="submit" variant="primary" className="max-sm:w-full">
                 Save
               </Button>
             </div>
@@ -280,8 +280,8 @@ export default async function SettingsPage() {
               Targets for the Load Board goal bar — the monthly goal on a single
               month, the annual goal on “All months”.
             </p>
-            <div className="mt-3 flex flex-wrap items-end gap-3 sm:gap-4">
-              <label className="block">
+            <div className="mt-3 flex flex-wrap items-end gap-3 sm:gap-4 max-sm:flex-col max-sm:items-stretch">
+              <label className="block max-sm:w-full">
                 <span className={field.label}>Monthly $</span>
                 <input
                   name="monthly_net_goal"
@@ -289,10 +289,10 @@ export default async function SettingsPage() {
                   step="100"
                   min="0"
                   defaultValue={String(monthlyGoal)}
-                  className={field.input + " w-32 tabular-nums"}
+                  className={field.input + " w-32 tabular-nums max-sm:w-full"}
                 />
               </label>
-              <label className="block">
+              <label className="block max-sm:w-full">
                 <span className={field.label}>Annual $ (all months)</span>
                 <input
                   name="annual_net_goal"
@@ -300,10 +300,10 @@ export default async function SettingsPage() {
                   step="1000"
                   min="0"
                   defaultValue={String(annualGoal)}
-                  className={field.input + " w-32 tabular-nums"}
+                  className={field.input + " w-32 tabular-nums max-sm:w-full"}
                 />
               </label>
-              <Button type="submit" variant="primary">
+              <Button type="submit" variant="primary" className="max-sm:w-full">
                 Save
               </Button>
             </div>
