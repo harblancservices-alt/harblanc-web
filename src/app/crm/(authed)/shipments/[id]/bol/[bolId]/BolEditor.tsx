@@ -1,14 +1,12 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { DocViewer } from "@/components/ui/DocViewer";
-import { Card, BTN_PRIMARY, BTN_EDIT, BTN_ACTION, BTN_DANGER, BTN_NEUTRAL, BTN_SUCCESS, ZEBRA_ROWS } from "../../../../_shell/ui";
+import { Card, BTN_PRIMARY, BTN_EDIT, BTN_ACTION, BTN_DANGER, BTN_SUCCESS, ZEBRA_ROWS } from "../../../../_shell/ui";
 import { FormError } from "../../../../_shell/form";
 import { formatDateTime, titleCaseWords } from "../../../../_shell/format";
 import { TextRow, SelectRow, SectionDivider } from "../../fields";
-import { DocumentSigner } from "../../DocumentSigner";
 import { docStatusLabel, docStatusTone } from "../../../docStatusMeta";
 import { getSignedPdfUrl, openStoredPdf } from "../../../pdfClient";
 import {
@@ -18,12 +16,6 @@ import {
   removeBolLineItem,
   updateBol,
   generateBol,
-  sendBolDocument,
-  markBolCompleted,
-  cancelBolDocument,
-  duplicateBol,
-  supersedeBolDocument,
-  softDeleteBol,
 } from "../../../bol-actions";
 import type { BolFields, BolLineItemInput, CrmBillOfLadingDetail, CrmShipmentDetail } from "../../../types";
 
@@ -94,8 +86,6 @@ function toItemInputs(rows: ItemRow[]): BolLineItemInput[] {
   }));
 }
 
-const SIGN_ROLES = ["shipper", "carrier", "consignee"] as const;
-
 /**
  * The Bill of Lading editor — freight charge terms/COD/declared value and
  * line items are genuinely independent columns on crm_bills_of_lading, so
@@ -118,14 +108,12 @@ export function BolEditor({
   initialBol: CrmBillOfLadingDetail;
   /** Present when rendered inside DocumentEditorModal (over the shipment
    * workspace) instead of the standalone /bol/[bolId] route — swaps every
-   * "back to shipment" Link for a plain Close, and delete closes the modal
-   * instead of navigating. */
+   * "back to shipment" Link for a plain Close. */
   onClose?: () => void;
-  /** Present in modal mode — duplicate/supersede/the superseded-by banner
-   * switch the modal to the new/other doc instead of a full navigation. */
+  /** Present in modal mode — the superseded-by banner switches the modal to
+   * the newer doc instead of a full navigation. */
   onNavigate?: (id: string) => void;
 }) {
-  const router = useRouter();
   const [bol, setBol] = useState(initialBol);
   const [state, setState] = useState<FieldsState>(() => toLocal(initialBol));
   const [items, setItems] = useState<ItemRow[]>(() => toItemRows(initialBol));
@@ -141,7 +129,6 @@ export function BolEditor({
 
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [signerRole, setSignerRole] = useState<string | null>(null);
 
   async function refresh() {
     const fresh = await getBol(bol.id);
@@ -207,20 +194,6 @@ export function BolEditor({
 
   // ── Lifecycle actions ──────────────────────────────────────────────────
 
-  function runAction(name: string, fn: () => Promise<{ ok: true } | { ok: false; error: string }>) {
-    setActionError(null);
-    setBusyAction(name);
-    startAction(async () => {
-      const result = await fn();
-      setBusyAction(null);
-      if (!result.ok) {
-        setActionError(result.error);
-        return;
-      }
-      await refresh();
-    });
-  }
-
   function onGenerate() {
     setActionError(null);
     setBusyAction("generate");
@@ -232,53 +205,6 @@ export function BolEditor({
         return;
       }
       await refresh();
-    });
-  }
-
-  function onDuplicate() {
-    setActionError(null);
-    setBusyAction("duplicate");
-    startAction(async () => {
-      const result = await duplicateBol(bol.id);
-      setBusyAction(null);
-      if (!result.ok) {
-        setActionError(result.error);
-        return;
-      }
-      if (onNavigate) onNavigate(result.id);
-      else router.push(`/crm/shipments/${shipment.id}/bol/${result.id}`);
-    });
-  }
-
-  function onSupersede() {
-    if (!window.confirm(`Create a new draft that supersedes ${bol.bolNumber}?`)) return;
-    setActionError(null);
-    setBusyAction("supersede");
-    startAction(async () => {
-      const result = await supersedeBolDocument(bol.id);
-      setBusyAction(null);
-      if (!result.ok) {
-        setActionError(result.error);
-        return;
-      }
-      if (onNavigate) onNavigate(result.id);
-      else router.push(`/crm/shipments/${shipment.id}/bol/${result.id}`);
-    });
-  }
-
-  function onDelete() {
-    if (!window.confirm(`Delete bill of lading ${bol.bolNumber}? This can't be undone from here.`)) return;
-    setActionError(null);
-    setBusyAction("delete");
-    startAction(async () => {
-      const result = await softDeleteBol(bol.id);
-      setBusyAction(null);
-      if (!result.ok) {
-        setActionError(result.error);
-        return;
-      }
-      if (onClose) onClose();
-      else router.push(`/crm/shipments/${shipment.id}`);
     });
   }
 
@@ -356,120 +282,6 @@ export function BolEditor({
 
         <FormError message={saveError} />
         <FormError message={actionError} />
-
-        <div className="mt-3 flex flex-wrap gap-2">
-          {!locked && (
-            <button
-              type="button"
-              onClick={() =>
-                commit({
-                  freightChargeTerms: orNull(state.freightChargeTerms),
-                  codAmount: moneyOrNull(state.codAmount),
-                  declaredValue: orNull(state.declaredValue),
-                })
-              }
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors ${BTN_EDIT}`}
-            >
-              Save Draft
-            </button>
-          )}
-          {!locked && (
-            <button
-              type="button"
-              onClick={onGenerate}
-              disabled={busy}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors disabled:opacity-60 ${BTN_ACTION}`}
-            >
-              {busyAction === "generate" ? "Generating…" : "Generate PDF"}
-            </button>
-          )}
-          {hasPdf && (
-            <button
-              type="button"
-              onClick={openPreview}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors ${BTN_EDIT}`}
-            >
-              Preview PDF
-            </button>
-          )}
-          {hasPdf && (
-            <button
-              type="button"
-              onClick={download}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors ${BTN_EDIT}`}
-            >
-              Download PDF
-            </button>
-          )}
-          {bol.status === "generated" && (
-            <button
-              type="button"
-              onClick={() => runAction("send", () => sendBolDocument(bol.id))}
-              disabled={busy}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors disabled:opacity-60 ${BTN_ACTION}`}
-            >
-              {busyAction === "send" ? "Sending…" : "Send"}
-            </button>
-          )}
-          {hasPdf &&
-            !locked &&
-            SIGN_ROLES.map((role) => (
-              <button
-                key={role}
-                type="button"
-                onClick={() => setSignerRole(role)}
-                className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors ${BTN_EDIT}`}
-              >
-                Sign as {titleCaseWords(role)}
-              </button>
-            ))}
-          {(bol.status === "sent" || bol.status === "generated") && (
-            <button
-              type="button"
-              onClick={() => runAction("complete", () => markBolCompleted(bol.id))}
-              disabled={busy}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors disabled:opacity-60 ${BTN_SUCCESS}`}
-            >
-              {busyAction === "complete" ? "Completing…" : "Complete"}
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={onDuplicate}
-            disabled={busy}
-            className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors disabled:opacity-60 ${BTN_NEUTRAL}`}
-          >
-            {busyAction === "duplicate" ? "Duplicating…" : "Duplicate"}
-          </button>
-          {hasPdf && !bol.supersededBy && (
-            <button
-              type="button"
-              onClick={onSupersede}
-              disabled={busy}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors disabled:opacity-60 ${BTN_NEUTRAL}`}
-            >
-              {busyAction === "supersede" ? "Superseding…" : "Supersede"}
-            </button>
-          )}
-          {!locked && (
-            <button
-              type="button"
-              onClick={() => runAction("cancel", () => cancelBolDocument(bol.id))}
-              disabled={busy}
-              className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors disabled:opacity-60 ${BTN_DANGER}`}
-            >
-              {busyAction === "cancel" ? "Cancelling…" : "Cancel"}
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={onDelete}
-            disabled={busy}
-            className={`ml-auto inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors disabled:opacity-60 ${BTN_DANGER}`}
-          >
-            {busyAction === "delete" ? "Deleting…" : "Delete"}
-          </button>
-        </div>
       </Card>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -712,26 +524,58 @@ export function BolEditor({
         </div>
       </div>
 
+      <div className="flex flex-wrap gap-2">
+        {!locked && (
+          <button
+            type="button"
+            onClick={onGenerate}
+            disabled={busy}
+            className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors disabled:opacity-60 ${BTN_ACTION}`}
+          >
+            {busyAction === "generate" ? "Generating…" : "Generate PDF"}
+          </button>
+        )}
+        {!locked && (
+          <button
+            type="button"
+            onClick={() =>
+              commit({
+                freightChargeTerms: orNull(state.freightChargeTerms),
+                codAmount: moneyOrNull(state.codAmount),
+                declaredValue: orNull(state.declaredValue),
+              })
+            }
+            className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors ${BTN_EDIT}`}
+          >
+            Save Draft
+          </button>
+        )}
+        {hasPdf && (
+          <button
+            type="button"
+            onClick={openPreview}
+            className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors ${BTN_SUCCESS}`}
+          >
+            Preview PDF
+          </button>
+        )}
+        {hasPdf && (
+          <button
+            type="button"
+            onClick={download}
+            className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors ${BTN_EDIT}`}
+          >
+            Download PDF
+          </button>
+        )}
+      </div>
+
       {previewOpen && bol.pdfStoragePath && (
         <DocViewer
           doc={{ name: `${bol.bolNumber} v${bol.version}.pdf`, url: previewUrl, isImage: false }}
           onClose={() => {
             setPreviewOpen(false);
             setPreviewUrl(null);
-          }}
-        />
-      )}
-
-      {signerRole && bol.pdfStoragePath && (
-        <DocumentSigner
-          docType="bill_of_lading"
-          docId={bol.id}
-          pdfStoragePath={bol.pdfStoragePath}
-          role={signerRole}
-          roleLabel={titleCaseWords(signerRole)}
-          onClose={() => setSignerRole(null)}
-          onSigned={() => {
-            void refresh();
           }}
         />
       )}
