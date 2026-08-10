@@ -1,6 +1,7 @@
 "use client";
 
-import { FieldLabel, CONTROL } from "../_shell/form";
+import { FieldLabel } from "../_shell/form";
+import { CONTROL, CONTROL_SIZE } from "../_shell/compactForm";
 
 export const TIME_PRESETS = [
   { label: "8:00a", value: "08:00" },
@@ -48,25 +49,25 @@ export function FollowupFields({
   onTimeChange: (value: string) => void;
 }) {
   return (
-    <div className="flex flex-col gap-2.5 rounded-md border border-fg-subtle bg-inset px-3 py-3">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <label className="flex w-full min-w-0 flex-col gap-1.5">
+    <div className="flex flex-col gap-2 rounded-[5px] border border-fg-subtle bg-inset px-2.5 py-2.5">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+        <label className="flex w-full min-w-0 flex-col gap-1">
           <FieldLabel>Reminder date (CST)</FieldLabel>
           <input
             type="date"
             name="reminder_date"
             value={date}
             onChange={(e) => onDateChange(e.target.value)}
-            className={`h-11 w-full min-w-0 ${CONTROL}`}
+            className={`w-full min-w-0 ${CONTROL_SIZE} ${CONTROL}`}
           />
         </label>
-        <label className="flex w-full min-w-0 flex-col gap-1.5">
+        <label className="flex w-full min-w-0 flex-col gap-1">
           <FieldLabel>Reminder time (CST)</FieldLabel>
           <select
             name="reminder_time"
             value={time}
             onChange={(e) => onTimeChange(e.target.value)}
-            className={`h-11 w-full min-w-0 ${CONTROL}`}
+            className={`w-full min-w-0 ${CONTROL_SIZE} ${CONTROL}`}
           >
             <option value="">No specific time</option>
             {TIME_OPTIONS.map((t) => (
@@ -84,7 +85,7 @@ export function FollowupFields({
             key={p.value}
             type="button"
             onClick={() => onTimeChange(p.value)}
-            className={`rounded-lg border px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
+            className={`rounded-[5px] border px-2.5 py-1.5 text-[12px] font-semibold transition-colors ${
               time === p.value
                 ? "border-accent bg-accent text-white"
                 : "border-fg-subtle bg-card text-fg-muted hover:bg-card/60 hover:text-fg"
@@ -97,7 +98,7 @@ export function FollowupFields({
           <button
             type="button"
             onClick={() => onTimeChange("")}
-            className="rounded-lg border border-fg-subtle bg-card px-3 py-1.5 text-[12.5px] font-semibold text-fg-muted transition-colors hover:bg-card/60 hover:text-fg"
+            className="rounded-[5px] border border-fg-subtle bg-card px-2.5 py-1.5 text-[12px] font-semibold text-fg-muted transition-colors hover:bg-card/60 hover:text-fg"
           >
             Clear time
           </button>

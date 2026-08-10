@@ -4,7 +4,8 @@ import { useEffect, useState, useTransition } from "react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Modal } from "../_shell/Modal";
-import { Field, TextareaField, FormError, LABEL, CONTROL, FieldLabel } from "../_shell/form";
+import { Field, TextareaField, FormError, FieldLabel } from "../_shell/form";
+import { CONTROL, CONTROL_SIZE, LABEL } from "../_shell/compactForm";
 import { BTN_NEUTRAL } from "../_shell/ui";
 import {
   phoneDigits,
@@ -64,9 +65,13 @@ function findExactPhoneHit(dir: CallDirectory, raw: string): PhoneHit | null {
   return null;
 }
 
+// Positioned relative to the label+input wrapper immediately around it
+// (each usage wraps just that pair in its own `relative` div), not a
+// hardcoded offset tied to the whole field block's height — so it stays
+// correctly anchored regardless of control size or helper-text length.
 const DROPDOWN =
-  "absolute left-0 top-[4.6rem] z-20 max-h-56 w-full overflow-y-auto rounded-lg border border-line-strong bg-card py-1 shadow-e3";
-const DROPDOWN_ROW = "block w-full px-3 py-2 text-left text-[13px] text-fg transition-colors hover:bg-inset";
+  "absolute left-0 top-[calc(100%+4px)] z-20 max-h-56 w-full overflow-y-auto rounded-[5px] border border-line-strong bg-card py-1 shadow-e3";
+const DROPDOWN_ROW = "block w-full px-2.5 py-1.5 text-left text-[12.5px] text-fg transition-colors hover:bg-inset";
 
 /**
  * "Who did you talk to?" — logs a call against any combination of an existing
@@ -323,7 +328,7 @@ export function LogCallDialog({
 
       <Modal open={open} onClose={() => setOpen(false)} busy={pending} title="Who did you talk to?">
         <FormError message={error} />
-        <form onSubmit={onSubmit} className="flex flex-col gap-3">
+        <form onSubmit={onSubmit} className="flex flex-col gap-2">
           <input type="hidden" name="outcome" value={outcome} />
           <input type="hidden" name="contact_mode" value={contact.id ? "existing" : contact.text.trim() ? "new" : "none"} />
           <input type="hidden" name="contact_id" value={contact.id ?? ""} />
@@ -336,30 +341,44 @@ export function LogCallDialog({
           <input type="hidden" name="account_force" value={dismissedCompanyDup ? "on" : ""} />
 
           {/* Contact */}
-          <div className="relative flex flex-col gap-1.5">
-            <label className="flex flex-col gap-1.5">
-              <span className={LABEL}>Contact</span>
-              <input
-                type="text"
-                value={contact.text}
-                onChange={(e) => {
-                  setContact({ text: e.target.value, id: null, autofilled: false });
-                  setDismissedContactDup(false);
-                  setConfirmedCreate(false);
-                  setPendingConfirm(null);
-                  setContactOpen(true);
-                }}
-                onFocus={() => setContactOpen(true)}
-                onBlur={() => setContactOpen(false)}
-                placeholder="Search or type a new contact name…"
-                autoComplete="off"
-                className={`h-11 ${CONTROL}`}
-              />
-            </label>
+          <div className="flex flex-col gap-1">
+            <div className="relative">
+              <label className="flex flex-col gap-1">
+                <span className={LABEL}>Contact</span>
+                <input
+                  type="text"
+                  value={contact.text}
+                  onChange={(e) => {
+                    setContact({ text: e.target.value, id: null, autofilled: false });
+                    setDismissedContactDup(false);
+                    setConfirmedCreate(false);
+                    setPendingConfirm(null);
+                    setContactOpen(true);
+                  }}
+                  onFocus={() => setContactOpen(true)}
+                  onBlur={() => setContactOpen(false)}
+                  placeholder="Search or type a new contact name…"
+                  autoComplete="off"
+                  className={`w-full min-w-0 ${CONTROL_SIZE} ${CONTROL}`}
+                />
+              </label>
+              {contactOpen && contactMatches.length > 0 && (
+                <ul className={DROPDOWN}>
+                  {contactMatches.map((c) => (
+                    <li key={c.id}>
+                      <button type="button" onMouseDown={(e) => { e.preventDefault(); selectContact(c); }} className={DROPDOWN_ROW}>
+                        <span className="font-medium">{c.name}</span>
+                        {c.accountName && <span className="text-fg-subtle"> — {c.accountName}</span>}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
             {contact.autofilled ? (
-              <p className="text-[11.5px] font-semibold text-ok">Auto-filled — edit if needed.</p>
+              <p className="text-[11px] font-semibold text-ok">Auto-filled — edit if needed.</p>
             ) : (
-              <p className="text-[12px] text-fg-subtle">
+              <p className="text-[11.5px] text-fg-subtle">
                 {company.id && !contact.text.trim()
                   ? "Showing this company's contacts."
                   : contact.id
@@ -369,45 +388,46 @@ export function LogCallDialog({
                       : "Optional — leave blank for an unlinked call."}
               </p>
             )}
-            {contactOpen && contactMatches.length > 0 && (
-              <ul className={DROPDOWN}>
-                {contactMatches.map((c) => (
-                  <li key={c.id}>
-                    <button type="button" onMouseDown={(e) => { e.preventDefault(); selectContact(c); }} className={DROPDOWN_ROW}>
-                      <span className="font-medium">{c.name}</span>
-                      {c.accountName && <span className="text-fg-subtle"> — {c.accountName}</span>}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
           </div>
 
           {/* Company */}
-          <div className="relative flex flex-col gap-1.5">
-            <label className="flex flex-col gap-1.5">
-              <span className={LABEL}>Company</span>
-              <input
-                type="text"
-                value={company.text}
-                onChange={(e) => {
-                  setCompany({ text: e.target.value, id: null, autofilled: false });
-                  setDismissedCompanyDup(false);
-                  setConfirmedCreate(false);
-                  setPendingConfirm(null);
-                  setCompanyOpen(true);
-                }}
-                onFocus={() => setCompanyOpen(true)}
-                onBlur={() => setCompanyOpen(false)}
-                placeholder="Search or type a new company name…"
-                autoComplete="off"
-                className={`h-11 ${CONTROL}`}
-              />
-            </label>
+          <div className="flex flex-col gap-1">
+            <div className="relative">
+              <label className="flex flex-col gap-1">
+                <span className={LABEL}>Company</span>
+                <input
+                  type="text"
+                  value={company.text}
+                  onChange={(e) => {
+                    setCompany({ text: e.target.value, id: null, autofilled: false });
+                    setDismissedCompanyDup(false);
+                    setConfirmedCreate(false);
+                    setPendingConfirm(null);
+                    setCompanyOpen(true);
+                  }}
+                  onFocus={() => setCompanyOpen(true)}
+                  onBlur={() => setCompanyOpen(false)}
+                  placeholder="Search or type a new company name…"
+                  autoComplete="off"
+                  className={`w-full min-w-0 ${CONTROL_SIZE} ${CONTROL}`}
+                />
+              </label>
+              {companyOpen && companyMatches.length > 0 && (
+                <ul className={DROPDOWN}>
+                  {companyMatches.map((a) => (
+                    <li key={a.id}>
+                      <button type="button" onMouseDown={(e) => { e.preventDefault(); selectCompany(a); }} className={DROPDOWN_ROW}>
+                        {a.name}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
             {company.autofilled ? (
-              <p className="text-[11.5px] font-semibold text-ok">Auto-filled — edit if needed.</p>
+              <p className="text-[11px] font-semibold text-ok">Auto-filled — edit if needed.</p>
             ) : (
-              <p className="text-[12px] text-fg-subtle">
+              <p className="text-[11.5px] text-fg-subtle">
                 {company.id
                   ? "Existing company."
                   : company.text.trim()
@@ -415,62 +435,53 @@ export function LogCallDialog({
                     : "Optional — leave blank for an unlinked call."}
               </p>
             )}
-            {companyOpen && companyMatches.length > 0 && (
-              <ul className={DROPDOWN}>
-                {companyMatches.map((a) => (
-                  <li key={a.id}>
-                    <button type="button" onMouseDown={(e) => { e.preventDefault(); selectCompany(a); }} className={DROPDOWN_ROW}>
-                      {a.name}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
           </div>
 
           {/* Phone */}
-          <div className="relative flex flex-col gap-1.5">
-            <label className="flex flex-col gap-1.5">
-              <span className={LABEL}>Phone</span>
-              <input
-                type="tel"
-                value={phone.text}
-                onChange={(e) => {
-                  setPhone({ text: e.target.value, autofilled: false });
-                  setPhoneOpen(true);
-                }}
-                onFocus={() => setPhoneOpen(true)}
-                onBlur={handlePhoneBlur}
-                placeholder="Number dialed…"
-                autoComplete="off"
-                className={`h-11 ${CONTROL}`}
-              />
-            </label>
+          <div className="flex flex-col gap-1">
+            <div className="relative">
+              <label className="flex flex-col gap-1">
+                <span className={LABEL}>Phone</span>
+                <input
+                  type="tel"
+                  value={phone.text}
+                  onChange={(e) => {
+                    setPhone({ text: e.target.value, autofilled: false });
+                    setPhoneOpen(true);
+                  }}
+                  onFocus={() => setPhoneOpen(true)}
+                  onBlur={handlePhoneBlur}
+                  placeholder="Number dialed…"
+                  autoComplete="off"
+                  className={`w-full min-w-0 ${CONTROL_SIZE} ${CONTROL}`}
+                />
+              </label>
+              {phoneOpen && phoneMatches.length > 0 && (
+                <ul className={DROPDOWN}>
+                  {phoneMatches.map((hit, i) => (
+                    <li key={`${hit.number}-${i}`}>
+                      <button type="button" onMouseDown={(e) => { e.preventDefault(); applyPhoneHit(hit); }} className={DROPDOWN_ROW}>
+                        <span className="font-mono">{displayPhone(hit.number)}</span>
+                        <span className="text-fg-subtle"> — {hit.label}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
             {phone.autofilled ? (
-              <p className="text-[11.5px] font-semibold text-ok">Auto-filled — edit if needed.</p>
+              <p className="text-[11px] font-semibold text-ok">Auto-filled — edit if needed.</p>
             ) : (
-              <p className="text-[12px] text-fg-subtle">
+              <p className="text-[11.5px] text-fg-subtle">
                 {phone.text.trim() && !contact.id && !company.id
                   ? "No contact/company matched — this call will be saved as an unlinked number."
                   : "Optional."}
               </p>
             )}
-            {phoneOpen && phoneMatches.length > 0 && (
-              <ul className={DROPDOWN}>
-                {phoneMatches.map((hit, i) => (
-                  <li key={`${hit.number}-${i}`}>
-                    <button type="button" onMouseDown={(e) => { e.preventDefault(); applyPhoneHit(hit); }} className={DROPDOWN_ROW}>
-                      <span className="font-mono">{displayPhone(hit.number)}</span>
-                      <span className="text-fg-subtle"> — {hit.label}</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
           </div>
 
           {/* Outcome */}
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1">
             <FieldLabel required>Outcome</FieldLabel>
             <div className="flex flex-wrap gap-1.5">
               {CALL_OUTCOMES.map((o) => (
@@ -478,7 +489,7 @@ export function LogCallDialog({
                   key={o.value}
                   type="button"
                   onClick={() => setOutcome(o.value)}
-                  className={`rounded-lg border px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
+                  className={`rounded-[5px] border px-2.5 py-1.5 text-[12px] font-semibold transition-colors ${
                     outcome === o.value
                       ? "border-ok bg-ok text-white"
                       : "border-fg-subtle bg-card text-fg-muted hover:bg-inset hover:text-fg"
@@ -490,14 +501,14 @@ export function LogCallDialog({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-2">
             <Field label="Duration (min)" name="duration_minutes" inputMode="numeric" placeholder="e.g. 5" />
             <Field label="Summary" name="summary" placeholder="One-line recap" />
           </div>
 
           <TextareaField label="Notes" name="notes" placeholder="What was said, next steps…" />
 
-          <label className="flex items-start gap-2.5 rounded-md border border-fg-subtle bg-card px-3 py-2.5">
+          <label className="flex items-start gap-2.5 rounded-[5px] border border-fg-subtle bg-card px-2.5 py-2">
             <input
               type="checkbox"
               name="followup_required"
@@ -506,8 +517,8 @@ export function LogCallDialog({
               className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--accent)]"
             />
             <span className="min-w-0">
-              <span className="block text-[13.5px] font-medium text-fg">Follow-up required</span>
-              <span className="mt-0.5 block text-[12px] text-fg-subtle">
+              <span className="block text-[13px] font-medium text-fg">Follow-up required</span>
+              <span className="mt-0.5 block text-[11.5px] text-fg-subtle">
                 Sets a reminder that surfaces on your dashboard. Date and time are both optional.
               </span>
             </span>
@@ -523,7 +534,7 @@ export function LogCallDialog({
           )}
 
           {pendingConfirm?.kind === "duplicate" && (
-            <div className="rounded-md border border-warn/40 bg-warn-bg px-3 py-2.5 text-[13px]">
+            <div className="rounded-[5px] border border-warn/40 bg-warn-bg px-2.5 py-2 text-[12.5px]">
               <p className="font-semibold text-warn">
                 {pendingConfirm.field === "contact" ? "Contact" : "Company"} already exists
               </p>
@@ -538,7 +549,7 @@ export function LogCallDialog({
                     if (pendingConfirm.field === "contact") selectContact(pendingConfirm.match as DirectoryContact);
                     else selectCompany(pendingConfirm.match as DirectoryAccount);
                   }}
-                  className="rounded-lg border border-ok bg-ok px-3 py-1.5 text-[12.5px] font-semibold text-white transition-colors hover:bg-ok/90"
+                  className="rounded-[5px] border border-ok bg-ok px-2.5 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-ok/90"
                 >
                   Use existing
                 </button>
@@ -549,7 +560,7 @@ export function LogCallDialog({
                     else setDismissedCompanyDup(true);
                     setPendingConfirm(null);
                   }}
-                  className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_NEUTRAL}`}
+                  className={`rounded-[5px] px-2.5 py-1.5 text-[12px] font-semibold transition-colors ${BTN_NEUTRAL}`}
                 >
                   Create new anyway
                 </button>
@@ -558,7 +569,7 @@ export function LogCallDialog({
           )}
 
           {pendingConfirm?.kind === "create" && (
-            <div className="rounded-md border border-ok/40 bg-ok-bg px-3 py-2.5 text-[13px]">
+            <div className="rounded-[5px] border border-ok/40 bg-ok-bg px-2.5 py-2 text-[12.5px]">
               <p className="font-semibold text-ok">Saving will also create:</p>
               <ul className="mt-1 list-disc pl-4 text-fg-muted">
                 {pendingConfirm.lines.map((line, i) => (
@@ -571,7 +582,7 @@ export function LogCallDialog({
           <button
             type="submit"
             disabled={pending || loadingDirectory}
-            className={`mt-1 inline-flex h-11 items-center justify-center gap-1.5 rounded-lg text-[14px] font-semibold text-white transition-colors disabled:opacity-60 ${
+            className={`mt-1 inline-flex h-9 items-center justify-center gap-1.5 rounded-md text-[13px] font-semibold text-white transition-colors disabled:opacity-60 ${
               saveGreen ? "bg-ok hover:bg-ok/90" : "bg-accent hover:bg-accent-hover"
             }`}
           >
