@@ -7,7 +7,7 @@ import { Card, BTN_PRIMARY, BTN_EDIT, BTN_ACTION, BTN_DANGER, BTN_SUCCESS, ZEBRA
 import { FormError } from "../../../../_shell/form";
 import { AsyncSearchPicker } from "../../../../_shell/AsyncSearchPicker";
 import { formatMoney, formatDateTime, titleCaseWords, formatPhone } from "../../../../_shell/format";
-import { TextRow, TextAreaRow, FormRow2, FormRow3, SectionDivider, SelectedEntityChip } from "../../fields";
+import { TextRow, TextAreaRow, MoneyRow, NARROW, FormRow2, FormRow3, SectionDivider, SelectedEntityChip } from "../../fields";
 import { docStatusLabel, docStatusTone } from "../../../docStatusMeta";
 import { getSignedPdfUrl, openStoredPdf } from "../../../pdfClient";
 import { listCarriers, getCarrier } from "../../../carriers-actions";
@@ -688,63 +688,59 @@ export function RateConfirmationEditor({
             <ul className={`divide-y divide-line ${ZEBRA_ROWS}`}>
               {lines.map((line) => (
                 <li key={line.id} className="flex flex-wrap items-center gap-2 px-3 py-2">
-                  <input
-                    type="text"
+                  <TextRow
+                    label="Line label"
+                    hideLabel
                     value={line.label}
-                    onChange={(e) => setLineField(line.id, "label", e.target.value)}
+                    onChange={(v) => setLineField(line.id, "label", v)}
                     onBlur={() => commitLine(line.id, line.label, line.amount)}
-                    className="h-8 min-w-0 flex-1 rounded-[5px] border border-fg-subtle bg-card px-2.5 text-[13px] font-medium text-fg outline-none focus:ring-1 focus:ring-accent/50 sm:h-[26px] sm:text-[12.5px]"
                     placeholder="Line label"
+                    className="min-w-0 flex-1"
                   />
-                  <div className="relative w-32 shrink-0">
-                    <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[12px] text-fg-subtle">
-                      $
-                    </span>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      value={line.amount}
-                      onChange={(e) => setLineField(line.id, "amount", e.target.value)}
-                      onBlur={() => commitLine(line.id, line.label, line.amount)}
-                      className="h-8 w-full rounded-[5px] border border-fg-subtle bg-card pl-5 pr-2 text-[13px] font-medium text-fg outline-none focus:ring-1 focus:ring-accent/50 sm:h-[26px] sm:text-[12.5px]"
-                    />
-                  </div>
+                  <MoneyRow
+                    label="Amount"
+                    hideLabel
+                    value={line.amount}
+                    onChange={(v) => setLineField(line.id, "amount", v)}
+                    onBlur={() => commitLine(line.id, line.label, line.amount)}
+                    className={`shrink-0 ${NARROW.money}`}
+                  />
                   <button
                     type="button"
                     onClick={() => removeLine(line.id)}
                     disabled={linePending}
-                    className={`shrink-0 rounded-md px-2.5 py-1.5 text-[12px] font-semibold transition-colors disabled:opacity-60 ${BTN_DANGER}`}
+                    className={`shrink-0 rounded-[5px] px-2.5 py-1.5 text-[12px] font-semibold transition-colors disabled:opacity-60 ${BTN_DANGER}`}
                   >
                     Remove
                   </button>
                 </li>
               ))}
               <li className="flex flex-wrap items-center gap-2 bg-inset px-3 py-2">
-                <input
-                  type="text"
+                <TextRow
+                  label="New line label"
+                  hideLabel
+                  dashed
                   value={newLine.label}
-                  onChange={(e) => setNewLine((prev) => ({ ...prev, label: e.target.value }))}
+                  onChange={(v) => setNewLine((prev) => ({ ...prev, label: v }))}
+                  onBlur={() => {}}
                   placeholder="New line label"
-                  className="h-8 min-w-0 flex-1 rounded-[5px] border border-dashed border-fg-subtle bg-card px-2.5 text-[13px] font-medium text-fg outline-none focus:ring-1 focus:ring-accent/50 sm:h-[26px] sm:text-[12.5px]"
+                  className="min-w-0 flex-1"
                 />
-                <div className="relative w-32 shrink-0">
-                  <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[12px] text-fg-subtle">
-                    $
-                  </span>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={newLine.amount}
-                    onChange={(e) => setNewLine((prev) => ({ ...prev, amount: e.target.value }))}
-                    placeholder="0.00"
-                    className="h-8 w-full rounded-[5px] border border-dashed border-fg-subtle bg-card pl-5 pr-2 text-[13px] font-medium text-fg outline-none focus:ring-1 focus:ring-accent/50 sm:h-[26px] sm:text-[12.5px]"
-                  />
-                </div>
+                <MoneyRow
+                  label="New line amount"
+                  hideLabel
+                  dashed
+                  value={newLine.amount}
+                  onChange={(v) => setNewLine((prev) => ({ ...prev, amount: v }))}
+                  onBlur={() => {}}
+                  placeholder="0.00"
+                  className={`shrink-0 ${NARROW.money}`}
+                />
                 <button
                   type="button"
                   onClick={addLine}
                   disabled={linePending || !newLine.label.trim()}
-                  className={`shrink-0 rounded-md px-3 py-1.5 text-[12px] font-semibold transition-colors disabled:opacity-60 ${BTN_PRIMARY}`}
+                  className={`shrink-0 rounded-[5px] px-3 py-1.5 text-[12px] font-semibold transition-colors disabled:opacity-60 ${BTN_PRIMARY}`}
                 >
                   Add line
                 </button>

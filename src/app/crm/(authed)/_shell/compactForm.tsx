@@ -107,6 +107,8 @@ export function TextRow({
   highlight,
   hint,
   className,
+  hideLabel,
+  dashed,
 }: {
   label: string;
   value: string;
@@ -121,24 +123,34 @@ export function TextRow({
   /** Extra classes on the wrapper — e.g. NARROW.state to cap width on
    * desktop for short-value fields. */
   className?: string;
+  /** Skip the visible label (still applied as aria-label) — for a field
+   * inside a repeating row where the column is identified by position/
+   * placeholder instead, and a per-row label would just add dead space. */
+  hideLabel?: boolean;
+  /** Dashed border — the "not yet created" affordance for a placeholder
+   * row in a repeating list (e.g. the RC editor's "add new line" row). */
+  dashed?: boolean;
 }) {
   return (
     <label className={`flex w-full min-w-0 flex-col gap-1 ${className ?? ""}`}>
-      <span className={LABEL}>
-        {label}
-        {highlight && (
-          <span className="ml-1.5 text-[8.5px] font-semibold normal-case tracking-normal text-ok">
-            auto-filled
-          </span>
-        )}
-      </span>
+      {!hideLabel && (
+        <span className={LABEL}>
+          {label}
+          {highlight && (
+            <span className="ml-1.5 text-[8.5px] font-semibold normal-case tracking-normal text-ok">
+              auto-filled
+            </span>
+          )}
+        </span>
+      )}
       <input
         type={type}
         value={value}
         placeholder={placeholder}
         onChange={(e) => onChange(e.target.value)}
         onBlur={onBlur}
-        className={`w-full min-w-0 ${CONTROL_SIZE} ${highlight ? "border-ok ring-1 ring-ok/30" : ""} ${CONTROL}`}
+        aria-label={hideLabel ? label : undefined}
+        className={`w-full min-w-0 ${CONTROL_SIZE} ${highlight ? "border-ok ring-1 ring-ok/30" : ""} ${dashed ? "border-dashed" : ""} ${CONTROL}`}
       />
       {hint && <span className="text-[10.5px] font-medium text-fg-muted">{hint}</span>}
     </label>
@@ -181,16 +193,24 @@ export function MoneyRow({
   onChange,
   onBlur,
   className,
+  hideLabel,
+  dashed,
+  placeholder,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   onBlur: () => void;
   className?: string;
+  /** See TextRow's hideLabel. */
+  hideLabel?: boolean;
+  /** See TextRow's dashed. */
+  dashed?: boolean;
+  placeholder?: string;
 }) {
   return (
     <label className={`flex w-full min-w-0 flex-col gap-1 ${className ?? ""}`}>
-      <span className={LABEL}>{label}</span>
+      {!hideLabel && <span className={LABEL}>{label}</span>}
       <div className="relative">
         <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[13px] text-fg-subtle sm:left-2 sm:text-[12px]">
           $
@@ -199,9 +219,11 @@ export function MoneyRow({
           type="text"
           inputMode="decimal"
           value={value}
+          placeholder={placeholder}
           onChange={(e) => onChange(e.target.value)}
           onBlur={onBlur}
-          className={`w-full min-w-0 pl-6 sm:pl-5 ${CONTROL_SIZE} ${CONTROL}`}
+          aria-label={hideLabel ? label : undefined}
+          className={`w-full min-w-0 pl-6 sm:pl-5 ${CONTROL_SIZE} ${dashed ? "border-dashed" : ""} ${CONTROL}`}
         />
       </div>
     </label>
