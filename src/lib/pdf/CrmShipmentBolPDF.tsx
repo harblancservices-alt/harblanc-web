@@ -104,10 +104,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
     marginBottom: 4,
   },
-  /** Invisible stand-in for `heading`'s height, so a column with no heading
-   * of its own (the MC#/DOT# block beside the Carrier box) still lines up
-   * with a neighboring column that has one. */
-  headingSpacer: { height: 17 },
   fieldLine: { fontSize: 9, marginBottom: 1 },
   fieldLabel: { fontSize: 7, fontWeight: 600, color: "#555", textTransform: "uppercase" },
   chargeRow: {
@@ -256,29 +252,21 @@ export function CrmShipmentBolPDF({ data }: { data: CrmShipmentBolPdfData }) {
           <PartyBox title="Ship To" party={data.consignee} poNumber={data.poNumber} refNumbers={data.refNumbers} />
         </View>
 
-        <View style={[styles.section, styles.cols2]}>
-          <View style={styles.col}>
-            <Text style={styles.heading}>Carrier</Text>
-            <View style={styles.boxSolid}>
-              <Text style={styles.fieldLine}>{data.carrier.name || "—"}</Text>
-              <Text style={styles.fieldLine}>Truck: {data.carrier.truckNumber || "—"}</Text>
-              <Text style={styles.fieldLine}>Trailer: {data.carrier.trailerNumber || "—"}</Text>
+        <View style={styles.section}>
+          <Text style={styles.heading}>Carrier</Text>
+          <View style={styles.boxSolid}>
+            <Text style={styles.fieldLine}>{data.carrier.name || "—"}</Text>
+            <View style={styles.cols2}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.fieldLine}>Truck: {data.carrier.truckNumber || "—"}</Text>
+                <Text style={styles.fieldLine}>Trailer: {data.carrier.trailerNumber || "—"}</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.fieldLine}>MC #: {data.carrier.mc || "—"}</Text>
+                <Text style={styles.fieldLine}>DOT #: {data.carrier.dot || "—"}</Text>
+              </View>
             </View>
           </View>
-          <View style={styles.col}>
-            <View style={styles.headingSpacer} />
-            <View style={styles.boxSolid}>
-              <Text style={styles.fieldLine}>MC #: {data.carrier.mc || "—"}</Text>
-              <Text style={styles.fieldLine}>DOT #: {data.carrier.dot || "—"}</Text>
-            </View>
-          </View>
-        </View>
-
-        <View style={[styles.section, styles.chargeRow]}>
-          <Text style={styles.chargeLabel}>Freight Charge Terms:</Text>
-          <CheckOption label="Prepaid" checked={data.freightChargeTerms === "prepaid"} />
-          <CheckOption label="Collect" checked={data.freightChargeTerms === "collect"} />
-          <CheckOption label="3rd Party" checked={data.freightChargeTerms === "third_party"} />
         </View>
 
         <View style={styles.section}>
@@ -328,6 +316,13 @@ export function CrmShipmentBolPDF({ data }: { data: CrmShipmentBolPdfData }) {
             Liability limitation for loss or damage on this shipment may be applicable. See 49
             U.S.C. 14706(c)(1)(A) and (B).
           </Text>
+        </View>
+
+        <View style={[styles.section, styles.chargeRow]}>
+          <Text style={styles.chargeLabel}>Freight Charge Terms:</Text>
+          <CheckOption label="Prepaid" checked={data.freightChargeTerms === "prepaid"} />
+          <CheckOption label="Collect" checked={data.freightChargeTerms === "collect"} />
+          <CheckOption label="3rd Party" checked={data.freightChargeTerms === "third_party"} />
         </View>
 
         <View style={styles.cert}>
