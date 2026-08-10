@@ -1,11 +1,7 @@
-import { Document, Page, View, Text, StyleSheet, Font } from "@react-pdf/renderer";
+import { Document, Page, View, Text, StyleSheet } from "@react-pdf/renderer";
+import { disablePdfHyphenation, splitAddress, properCaseAddressLine, formatPhone } from "./textFormat";
 
-// react-pdf's default hyphenation engine treats any long unbroken string —
-// an email address, not a real English word — as hyphenatable, and inserts a
-// visible "-" at an arbitrary break point when it has to wrap. Disabling it
-// means a long token wraps whole (or, failing that, simply doesn't split)
-// instead of getting cut off mid-word.
-Font.registerHyphenationCallback((word) => [word]);
+disablePdfHyphenation();
 
 /**
  * Server-rendered twin of the fillable /crm/rate-confirmation print doc
@@ -173,44 +169,6 @@ function StopBlock({ title, stop }: { title: string; stop: StopInfo }) {
       </View>
     </View>
   );
-}
-
-/** "4245 North Central Expressway STE 490, Dallas, TX 75205" -> two display
- * lines. The broker profile stores address as one free-text field (no
- * separate street/city/state/zip columns), so this is a display-only split —
- * the last two comma-separated segments read as "city" and "state zip",
- * everything before that is the street line. */
-function splitAddress(address: string): { street: string; cityStateZip: string } {
-  const parts = address
-    .split(",")
-    .map((p) => p.trim())
-    .filter(Boolean);
-  if (parts.length === 0) return { street: "", cityStateZip: "" };
-  if (parts.length === 1) return { street: parts[0], cityStateZip: "" };
-  if (parts.length === 2) return { street: parts[0], cityStateZip: parts[1] };
-  return { street: parts.slice(0, -2).join(", "), cityStateZip: parts.slice(-2).join(", ") };
-}
-
-/** Title-case every word except a standalone 2-letter state code, which is
- * uppercased instead — so a free-typed "dallas, tx" always prints as
- * "Dallas, TX" regardless of how it was entered in Settings. */
-function properCaseAddressLine(value: string): string {
-  return value.replace(/[A-Za-z][A-Za-z'-]*/g, (word) =>
-    word.length === 2 ? word.toUpperCase() : word[0].toUpperCase() + word.slice(1).toLowerCase(),
-  );
-}
-
-/** US phone -> "972-922-2282". Leaves anything that isn't a clean 10/11-digit
- * US number as-is rather than mangling an already-formatted or foreign value. */
-function formatPhone(value: string | null | undefined): string | null {
-  if (!value) return null;
-  const digits = value.replace(/\D/g, "");
-  if (digits.length === 10) return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
-  if (digits.length === 11 && digits.startsWith("1")) {
-    const d = digits.slice(1);
-    return `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`;
-  }
-  return value;
 }
 
 function Field({ label, value }: { label: string; value: string | null }) {

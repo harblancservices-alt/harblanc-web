@@ -72,7 +72,6 @@ type LocalState = {
   specialInstructions: string;
   carrierRate: string;
   notes: string;
-  externalLoadRef: string;
 };
 
 const SHIPPER_AUTOFILL_KEYS = [
@@ -131,7 +130,6 @@ function toLocal(shipment: CrmShipmentDetail): LocalState {
     specialInstructions: str(shipment.specialInstructions),
     carrierRate: shipment.carrierRate != null ? String(shipment.carrierRate) : "",
     notes: str(shipment.notes),
-    externalLoadRef: str(shipment.externalLoadRef),
   };
 }
 
@@ -388,15 +386,6 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
               ))}
             </SelectRow>
           </div>
-        </div>
-
-        <div className="mt-3 max-w-sm">
-          <TextRow
-            label="External load ref"
-            value={state.externalLoadRef}
-            onChange={(v) => set("externalLoadRef", v)}
-            onBlur={() => commit({ externalLoadRef: orNull(state.externalLoadRef) })}
-          />
         </div>
 
         <FormError message={saveError} />

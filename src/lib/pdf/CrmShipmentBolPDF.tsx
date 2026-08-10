@@ -1,4 +1,7 @@
 import { Document, Page, View, Text, StyleSheet } from "@react-pdf/renderer";
+import { disablePdfHyphenation, splitAddress, properCaseAddressLine, formatPhone } from "./textFormat";
+
+disablePdfHyphenation();
 
 /**
  * Server-rendered twin of the fillable /crm/bill-of-lading print doc
@@ -26,12 +29,14 @@ export type CrmShipmentBolPdfData = {
   };
   shipper: PartyInfo;
   consignee: PartyInfo;
+  poNumber: string | null;
+  refNumbers: string | null;
   carrier: {
     name: string | null;
+    mc: string | null;
+    dot: string | null;
+    truckNumber: string | null;
     trailerNumber: string | null;
-    sealNumber: string | null;
-    scac: string | null;
-    proNumber: string | null;
   };
   freightChargeTerms: string | null;
   specialInstructions: string | null;
@@ -51,7 +56,6 @@ type PartyInfo = {
   name: string | null;
   address: string | null;
   cityStateZip: string | null;
-  refNumber: string | null;
   contact: string | null;
   phone: string | null;
 };
@@ -90,6 +94,20 @@ const styles = StyleSheet.create({
     paddingBottom: 2,
     marginBottom: 4,
   },
+  /** Same as `heading` but without the underline — used above the Ship
+   * From/Ship To boxes, where the border read as a stray line sitting right
+   * on top of the box. */
+  headingNoBorder: {
+    fontSize: 8.5,
+    fontWeight: 700,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+    marginBottom: 4,
+  },
+  /** Invisible stand-in for `heading`'s height, so a column with no heading
+   * of its own (the MC#/DOT# block beside the Carrier box) still lines up
+   * with a neighboring column that has one. */
+  headingSpacer: { height: 17 },
   fieldLine: { fontSize: 9, marginBottom: 1 },
   fieldLabel: { fontSize: 7, fontWeight: 600, color: "#555", textTransform: "uppercase" },
   chargeRow: {
@@ -159,20 +177,31 @@ const styles = StyleSheet.create({
   sigDate: { fontSize: 8.5, marginTop: 3 },
 });
 
-function PartyBox({ title, refLabel, party }: { title: string; refLabel: string; party: PartyInfo }) {
+function PartyBox({
+  title,
+  party,
+  poNumber,
+  refNumbers,
+}: {
+  title: string;
+  party: PartyInfo;
+  poNumber: string | null;
+  refNumbers: string | null;
+}) {
   return (
     <View style={styles.col}>
-      <Text style={styles.heading}>{title}</Text>
+      <Text style={styles.headingNoBorder}>{title}</Text>
       <View style={styles.boxSolid}>
         <Text style={styles.fieldLine}>{party.name || "—"}</Text>
         <Text style={styles.fieldLine}>{party.address || "—"}</Text>
         <Text style={styles.fieldLine}>{party.cityStateZip || "—"}</Text>
         <View style={styles.cols2}>
+          <Text style={[styles.fieldLine, { flex: 1 }]}>PO Number: {poNumber || "—"}</Text>
+          <Text style={[styles.fieldLine, { flex: 1 }]}>Reference Number: {refNumbers || "—"}</Text>
+        </View>
+        <View style={styles.cols2}>
           <Text style={[styles.fieldLine, { flex: 1 }]}>
-            {refLabel}: {party.refNumber || "—"}
-          </Text>
-          <Text style={[styles.fieldLine, { flex: 1 }]}>
-            {[party.contact, party.phone].filter(Boolean).join(" · ") || "—"}
+            {[party.contact, formatPhone(party.phone)].filter(Boolean).join(" · ") || "—"}
           </Text>
         </View>
       </View>
@@ -192,6 +221,8 @@ function CheckOption({ label, checked }: { label: string; checked: boolean }) {
 export function CrmShipmentBolPDF({ data }: { data: CrmShipmentBolPdfData }) {
   const totalQty = data.lineItems.reduce((sum, li) => sum + (Number(li.qty) || 0), 0);
   const totalWeight = data.lineItems.reduce((sum, li) => sum + (Number(li.weight) || 0), 0);
+  const brokerAddress = splitAddress(data.broker.address);
+  const brokerPhone = formatPhone(data.broker.phone);
 
   return (
     <Document>
@@ -199,11 +230,13 @@ export function CrmShipmentBolPDF({ data }: { data: CrmShipmentBolPdfData }) {
         <View style={styles.header}>
           <View>
             <Text style={styles.wordmark}>{data.broker.name.toUpperCase() || "—"}</Text>
-            {(data.broker.address || data.broker.phone) && (
-              <Text style={styles.brokerLine}>
-                {[data.broker.address, data.broker.phone].filter(Boolean).join(" · ")}
-              </Text>
+            {brokerAddress.street && (
+              <Text style={styles.brokerLine}>{properCaseAddressLine(brokerAddress.street)}</Text>
             )}
+            {brokerAddress.cityStateZip && (
+              <Text style={styles.brokerLine}>{properCaseAddressLine(brokerAddress.cityStateZip)}</Text>
+            )}
+            {brokerPhone && <Text style={styles.brokerLine}>{brokerPhone}</Text>}
             {data.broker.email && <Text style={styles.brokerLine}>{data.broker.email}</Text>}
             <Text style={styles.brokerLine}>
               MC {data.broker.mc || "—"} &nbsp;·&nbsp; DOT {data.broker.dot || "—"}
@@ -219,8 +252,8 @@ export function CrmShipmentBolPDF({ data }: { data: CrmShipmentBolPdfData }) {
         </View>
 
         <View style={[styles.section, styles.cols2]}>
-          <PartyBox title="Ship From" refLabel="SID #" party={data.shipper} />
-          <PartyBox title="Ship To" refLabel="CID #" party={data.consignee} />
+          <PartyBox title="Ship From" party={data.shipper} poNumber={data.poNumber} refNumbers={data.refNumbers} />
+          <PartyBox title="Ship To" party={data.consignee} poNumber={data.poNumber} refNumbers={data.refNumbers} />
         </View>
 
         <View style={[styles.section, styles.cols2]}>
@@ -228,19 +261,17 @@ export function CrmShipmentBolPDF({ data }: { data: CrmShipmentBolPdfData }) {
             <Text style={styles.heading}>Carrier</Text>
             <View style={styles.boxSolid}>
               <Text style={styles.fieldLine}>{data.carrier.name || "—"}</Text>
-              <View style={styles.cols2}>
-                <Text style={[styles.fieldLine, { flex: 1 }]}>
-                  Trailer/Unit: {data.carrier.trailerNumber || "—"}
-                </Text>
-                <Text style={[styles.fieldLine, { flex: 1 }]}>Seal: {data.carrier.sealNumber || "—"}</Text>
-              </View>
-              <View style={styles.cols2}>
-                <Text style={[styles.fieldLine, { flex: 1 }]}>SCAC: {data.carrier.scac || "—"}</Text>
-                <Text style={[styles.fieldLine, { flex: 1 }]}>Pro #: {data.carrier.proNumber || "—"}</Text>
-              </View>
+              <Text style={styles.fieldLine}>Truck: {data.carrier.truckNumber || "—"}</Text>
+              <Text style={styles.fieldLine}>Trailer: {data.carrier.trailerNumber || "—"}</Text>
             </View>
           </View>
-          <View style={styles.col} />
+          <View style={styles.col}>
+            <View style={styles.headingSpacer} />
+            <View style={styles.boxSolid}>
+              <Text style={styles.fieldLine}>MC #: {data.carrier.mc || "—"}</Text>
+              <Text style={styles.fieldLine}>DOT #: {data.carrier.dot || "—"}</Text>
+            </View>
+          </View>
         </View>
 
         <View style={[styles.section, styles.chargeRow]}>
