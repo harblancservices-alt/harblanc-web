@@ -220,7 +220,7 @@ export function UpgradeComposer({ orgId }: { orgId: string }) {
                     type="button"
                     onClick={() => removePending(p.key)}
                     aria-label={`Remove ${p.file.name}`}
-                    className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+                    className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 max-lg:h-8 max-lg:w-8 max-lg:opacity-70"
                   >
                     <IconX width={12} height={12} />
                   </button>

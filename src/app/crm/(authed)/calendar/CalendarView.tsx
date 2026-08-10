@@ -266,12 +266,12 @@ function DayDetailModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 max-sm:items-end max-sm:p-0"
       onClick={onClose}
       role="presentation"
     >
       <div
-        className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-line-strong bg-card shadow-e3"
+        className="flex max-h-[85vh] w-full max-w-lg flex-col overflow-hidden rounded-lg border border-line-strong bg-card shadow-e3 max-sm:max-h-[90dvh] max-sm:rounded-b-none"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"

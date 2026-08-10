@@ -58,7 +58,7 @@ export function ExpenseRowMenu({
           e.stopPropagation();
           setOpen((v) => !v);
         }}
-        className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-line-strong bg-card text-fg transition-colors hover:border-accent hover:bg-elevated hover:text-accent"
+        className="inline-flex h-7 w-7 items-center justify-center rounded-md border border-line-strong bg-card text-fg transition-colors hover:border-accent hover:bg-elevated hover:text-accent max-sm:h-10 max-sm:w-10"
       >
         <IconDots className="h-4 w-4" />
       </button>

@@ -74,7 +74,7 @@ export function LeadCard({ lead }: { lead: AiAgentLead }) {
           type="button"
           onClick={claim}
           disabled={pending}
-          className="pointer-events-auto inline-flex h-8 items-center rounded-lg bg-accent px-3 text-[12.5px] font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-60"
+          className="pointer-events-auto inline-flex h-8 items-center rounded-lg bg-accent px-3 text-[12.5px] font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-60 max-lg:h-10 max-lg:px-3.5"
         >
           {pending ? "Claiming…" : "Claim / I'll work this"}
         </button>
