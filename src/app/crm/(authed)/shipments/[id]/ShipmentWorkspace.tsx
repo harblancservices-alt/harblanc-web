@@ -7,7 +7,7 @@ import { FormError } from "../../_shell/form";
 import { AsyncSearchPicker } from "../../_shell/AsyncSearchPicker";
 import { toDatetimeLocal, centralInputToIso, titleCaseWords } from "../../_shell/format";
 import { IconChevronDown } from "../../_shell/icons";
-import { TextRow, TextAreaRow, MoneyRow, SelectRow, FormRow2, SelectedEntityChip } from "./fields";
+import { TextRow, TextAreaRow, MoneyRow, SelectRow, FormRow2, SelectedEntityChip, TimeWindowRow } from "./fields";
 import { LocationPickerModal } from "./LocationPickerModal";
 import { CarrierFormDialog } from "../../carriers/CarrierFormDialog";
 import { updateShipment, searchCustomers, createAccountLocation, softDeleteShipment } from "../actions";
@@ -725,7 +725,7 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
             onChange={(v) => set("pickupAt", v)}
             onBlur={() => commit({ pickupAt: centralInputToIso(state.pickupAt) })}
           />
-          <TextRow
+          <TimeWindowRow
             label="Pickup window"
             value={state.pickupWindow}
             onChange={(v) => set("pickupWindow", v)}
@@ -754,7 +754,7 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
             onChange={(v) => set("deliveryAt", v)}
             onBlur={() => commit({ deliveryAt: centralInputToIso(state.deliveryAt) })}
           />
-          <TextRow
+          <TimeWindowRow
             label="Delivery window"
             value={state.deliveryWindow}
             onChange={(v) => set("deliveryWindow", v)}

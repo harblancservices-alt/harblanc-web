@@ -92,7 +92,6 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
   heading: { fontSize: 9.5, fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 },
-  headingTotal: { fontSize: 10.5, fontWeight: 700 },
   grid6: { flexDirection: "row", flexWrap: "wrap" },
   gridCell: { width: "33.33%", marginBottom: 6, paddingRight: 8 },
   gridCellHalf: { width: "50%", marginBottom: 6, paddingRight: 8 },
@@ -108,18 +107,22 @@ const styles = StyleSheet.create({
   cols2: { flexDirection: "row", gap: 20 },
   col: { flex: 1 },
   stopLabel: { marginBottom: 4 },
-  box: { border: "1pt solid #bdbdbd", padding: 6 },
+  box: { border: "1.2pt solid #000", padding: 6 },
   rateTable: { marginTop: 4 },
   rateRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "flex-end",
+    alignItems: "baseline",
+    gap: 8,
     paddingVertical: 2.5,
   },
   rateLabel: { fontSize: 9.5 },
   rateAmount: { fontSize: 9.5 },
   totalRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "flex-end",
+    alignItems: "baseline",
+    gap: 8,
     borderTop: "1.5pt solid #000",
     paddingTop: 5,
     marginTop: 3,
@@ -137,7 +140,7 @@ const styles = StyleSheet.create({
   sigRow: { flexDirection: "row", gap: 24, marginTop: 4 },
   sigBlock: { flex: 1 },
   sigLine: {
-    borderBottom: "1pt solid #bdbdbd",
+    borderBottom: "1.2pt solid #000",
     minHeight: 22,
   },
   sigLineLabel: {
@@ -281,9 +284,6 @@ export function CrmRateConfirmationPDF({ data }: { data: CrmRateConfirmationPdfD
         <View style={styles.section} wrap={false}>
           <View style={styles.headingRow}>
             <Text style={styles.heading}>Rate &amp; Payment</Text>
-            <Text style={styles.headingTotal}>
-              TOTAL CARRIER PAY: ${data.totalCarrierPay.toFixed(2)}
-            </Text>
           </View>
           <View style={styles.rateTable}>
             {data.lines.map((line, i) => (

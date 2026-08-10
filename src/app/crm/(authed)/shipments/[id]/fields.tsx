@@ -130,6 +130,89 @@ export function MoneyRow({
   );
 }
 
+/** Round an "HH:MM" clock value to the nearest :00/:30 mark — the native
+ * time input's own step/arrows mostly respect `step={1800}`, but a
+ * hand-typed value can still land on any minute, so this is the actual
+ * enforcement. 45–59 rolls forward to the next hour's :00. */
+function snapToHalfHour(hhmm: string): string {
+  const m = /^(\d{2}):(\d{2})$/.exec(hhmm);
+  if (!m) return hhmm;
+  let hour = Number(m[1]);
+  const minute = Number(m[2]);
+  let snapped = 0;
+  if (minute >= 45) {
+    hour = (hour + 1) % 24;
+  } else if (minute >= 15) {
+    snapped = 30;
+  }
+  return `${String(hour).padStart(2, "0")}:${String(snapped).padStart(2, "0")}`;
+}
+
+/** Pulls up to two "HH:MM" tokens out of whatever free text a window field
+ * already holds (old data may read like "8am-10am" with no colon — that
+ * doesn't match, and both pickers just start blank; the stored string is
+ * left alone until the rep sets it again through the pickers). */
+function parseWindow(value: string): { start: string; end: string } {
+  const matches = value.match(/\d{1,2}:\d{2}/g) ?? [];
+  const normalize = (s: string) => {
+    const [h, min] = s.split(":");
+    return `${h.padStart(2, "0")}:${min}`;
+  };
+  return {
+    start: matches[0] ? normalize(matches[0]) : "",
+    end: matches[1] ? normalize(matches[1]) : "",
+  };
+}
+
+/** A pickup/delivery "window" (e.g. "08:00 - 10:00") as two real time
+ * inputs instead of one freeform text box — each snapped to :00/:30 so the
+ * window always reads clean. Combines back into a single "HH:MM - HH:MM"
+ * string on change, going through the same onChange/onBlur autosave
+ * contract as every other field here. */
+export function TimeWindowRow({
+  label,
+  value,
+  onChange,
+  onBlur,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  onBlur: () => void;
+}) {
+  const { start, end } = parseWindow(value);
+
+  function setTimes(nextStart: string, nextEnd: string) {
+    const parts = [nextStart, nextEnd].filter(Boolean);
+    onChange(parts.length === 2 ? `${nextStart} - ${nextEnd}` : parts[0] || "");
+  }
+
+  return (
+    <div className="flex w-full min-w-0 flex-col gap-1">
+      <span className={LABEL}>{label}</span>
+      <div className="flex items-center gap-2">
+        <input
+          type="time"
+          step={1800}
+          value={start}
+          onChange={(e) => setTimes(snapToHalfHour(e.target.value), end)}
+          onBlur={onBlur}
+          className={`min-w-0 flex-1 ${CONTROL_SIZE} ${CONTROL}`}
+        />
+        <span className="text-[11px] font-semibold text-fg-muted">to</span>
+        <input
+          type="time"
+          step={1800}
+          value={end}
+          onChange={(e) => setTimes(start, snapToHalfHour(e.target.value))}
+          onBlur={onBlur}
+          className={`min-w-0 flex-1 ${CONTROL_SIZE} ${CONTROL}`}
+        />
+      </div>
+    </div>
+  );
+}
+
 export function SelectRow({
   label,
   value,
