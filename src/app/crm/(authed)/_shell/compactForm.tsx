@@ -1,0 +1,297 @@
+"use client";
+
+import type { ReactNode } from "react";
+
+/**
+ * CRM-wide compact form primitives — the visual language originally built
+ * for the shipment/RC/BOL editors (2026-08-09, Brent's call) and promoted
+ * sitewide (2026-08-10). Dense on desktop — tiny uppercase labels, thin 1px
+ * borders, ~26px controls, tight vertical gaps — but every control stays a
+ * comfortable tap target below the `sm` breakpoint.
+ *
+ * Two APIs consume the same CONTROL/LABEL/CONTROL_SIZE tokens so the whole
+ * CRM reads as one system:
+ *   - controlled (value/onChange/onBlur autosave) — the Row components
+ *     below, used by the shipment workspace and RC/BOL editors.
+ *   - uncontrolled (defaultValue, submit-once) — _shell/form.tsx's
+ *     Field/SelectField/TextareaField, used by every create/edit dialog.
+ * Only the value-binding contract differs; the rendered chrome is identical.
+ */
+
+export const LABEL = "text-[9.5px] font-bold uppercase tracking-[0.07em] text-fg leading-none";
+
+export const CONTROL =
+  "rounded-[5px] border border-fg-subtle bg-card font-medium text-fg outline-none transition-shadow focus:border-accent focus:ring-1 focus:ring-accent/50";
+
+// Explicit vertical padding + line-height (not a bare fixed h-* with zero
+// vertical padding) so short values ("PPE") and long values center
+// identically — a tight fixed height with no py left native centering to
+// browser/zoom rounding, which visibly offset short text. See
+// crm-field-compactness-audit.md section E.
+export const CONTROL_SIZE =
+  "h-auto min-h-[40px] px-2.5 py-2 text-[13.5px] leading-tight sm:min-h-[26px] sm:px-2 sm:py-[5px] sm:text-[12.5px] sm:leading-[14px]";
+
+/** Common narrow field widths for data that's never long (state, ZIP,
+ * MC#/DOT#, a money column). Desktop-only — below `sm` these fields still
+ * take the full row width, matching the mobile-untouched rule everywhere
+ * else in this pass. Apply via a Row's `className` prop. */
+export const NARROW = {
+  state: "sm:max-w-[4.5rem]",
+  short: "sm:max-w-[6.5rem]", // ZIP, MC#, DOT#, duration
+  money: "sm:max-w-[8rem]",
+} as const;
+
+export function FormRow2({ children }: { children: ReactNode }) {
+  return <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">{children}</div>;
+}
+
+export function FormRow3({ children }: { children: ReactNode }) {
+  return <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">{children}</div>;
+}
+
+/**
+ * A small bold label + thin light-gray hairline — the quiet replacement for
+ * CardHead's heavy `bg-bar` band inside compact editors/dialogs. CardHead's
+ * dark band stays the standard for page-level sections (lists, dashboard
+ * cards); use this only for grouping fields inside a form.
+ */
+export function SectionDivider({
+  label,
+  hint,
+  right,
+}: {
+  label: string;
+  hint?: string;
+  right?: ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 border-b border-line px-4 pb-2 pt-3">
+      <div className="min-w-0">
+        <h2 className="truncate text-[11px] font-bold uppercase tracking-[0.08em] text-fg">{label}</h2>
+        {hint && <p className="truncate text-[10.5px] text-fg-subtle">{hint}</p>}
+      </div>
+      {right && <div className="shrink-0">{right}</div>}
+    </div>
+  );
+}
+
+export function TextRow({
+  label,
+  value,
+  onChange,
+  onBlur,
+  type = "text",
+  placeholder,
+  highlight,
+  hint,
+  className,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  onBlur: () => void;
+  type?: string;
+  placeholder?: string;
+  highlight?: boolean;
+  /** Small helper line under the control — e.g. a live unit conversion.
+   * Display-only, never sent anywhere. */
+  hint?: ReactNode;
+  /** Extra classes on the wrapper — e.g. NARROW.state to cap width on
+   * desktop for short-value fields. */
+  className?: string;
+}) {
+  return (
+    <label className={`flex w-full min-w-0 flex-col gap-1 ${className ?? ""}`}>
+      <span className={LABEL}>
+        {label}
+        {highlight && (
+          <span className="ml-1.5 text-[8.5px] font-semibold normal-case tracking-normal text-ok">
+            auto-filled
+          </span>
+        )}
+      </span>
+      <input
+        type={type}
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur}
+        className={`w-full min-w-0 ${CONTROL_SIZE} ${highlight ? "border-ok ring-1 ring-ok/30" : ""} ${CONTROL}`}
+      />
+      {hint && <span className="text-[10.5px] font-medium text-fg-muted">{hint}</span>}
+    </label>
+  );
+}
+
+export function TextAreaRow({
+  label,
+  value,
+  onChange,
+  onBlur,
+  rows = 3,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  onBlur: () => void;
+  rows?: number;
+  placeholder?: string;
+}) {
+  return (
+    <label className="flex w-full min-w-0 flex-col gap-1">
+      <span className={LABEL}>{label}</span>
+      <textarea
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        onBlur={onBlur}
+        rows={rows}
+        className={`w-full min-w-0 resize-y py-1.5 leading-snug sm:py-1 ${CONTROL} text-[13.5px] sm:text-[12.5px]`}
+      />
+    </label>
+  );
+}
+
+export function MoneyRow({
+  label,
+  value,
+  onChange,
+  onBlur,
+  className,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  onBlur: () => void;
+  className?: string;
+}) {
+  return (
+    <label className={`flex w-full min-w-0 flex-col gap-1 ${className ?? ""}`}>
+      <span className={LABEL}>{label}</span>
+      <div className="relative">
+        <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[13px] text-fg-subtle sm:left-2 sm:text-[12px]">
+          $
+        </span>
+        <input
+          type="text"
+          inputMode="decimal"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          onBlur={onBlur}
+          className={`w-full min-w-0 pl-6 sm:pl-5 ${CONTROL_SIZE} ${CONTROL}`}
+        />
+      </div>
+    </label>
+  );
+}
+
+/** Round an "HH:MM" clock value to the nearest :00/:30 mark — the native
+ * time input's own step/arrows mostly respect `step={1800}`, but a
+ * hand-typed value can still land on any minute, so this is the actual
+ * enforcement. 45–59 rolls forward to the next hour's :00. */
+function snapToHalfHour(hhmm: string): string {
+  const m = /^(\d{2}):(\d{2})$/.exec(hhmm);
+  if (!m) return hhmm;
+  let hour = Number(m[1]);
+  const minute = Number(m[2]);
+  let snapped = 0;
+  if (minute >= 45) {
+    hour = (hour + 1) % 24;
+  } else if (minute >= 15) {
+    snapped = 30;
+  }
+  return `${String(hour).padStart(2, "0")}:${String(snapped).padStart(2, "0")}`;
+}
+
+/** Pulls up to two "HH:MM" tokens out of whatever free text a window field
+ * already holds (old data may read like "8am-10am" with no colon — that
+ * doesn't match, and both pickers just start blank; the stored string is
+ * left alone until the rep sets it again through the pickers). */
+function parseWindow(value: string): { start: string; end: string } {
+  const matches = value.match(/\d{1,2}:\d{2}/g) ?? [];
+  const normalize = (s: string) => {
+    const [h, min] = s.split(":");
+    return `${h.padStart(2, "0")}:${min}`;
+  };
+  return {
+    start: matches[0] ? normalize(matches[0]) : "",
+    end: matches[1] ? normalize(matches[1]) : "",
+  };
+}
+
+/** A pickup/delivery "window" (e.g. "08:00 - 10:00") as two real time
+ * inputs instead of one freeform text box — each snapped to :00/:30 so the
+ * window always reads clean. Combines back into a single "HH:MM - HH:MM"
+ * string on change, going through the same onChange/onBlur autosave
+ * contract as every other field here. */
+export function TimeWindowRow({
+  label,
+  value,
+  onChange,
+  onBlur,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  onBlur: () => void;
+}) {
+  const { start, end } = parseWindow(value);
+
+  function setTimes(nextStart: string, nextEnd: string) {
+    const parts = [nextStart, nextEnd].filter(Boolean);
+    onChange(parts.length === 2 ? `${nextStart} - ${nextEnd}` : parts[0] || "");
+  }
+
+  return (
+    <div className="flex w-full min-w-0 flex-col gap-1">
+      <span className={LABEL}>{label}</span>
+      <div className="flex items-center gap-2">
+        <input
+          type="time"
+          step={1800}
+          value={start}
+          onChange={(e) => setTimes(snapToHalfHour(e.target.value), end)}
+          onBlur={onBlur}
+          className={`min-w-0 flex-1 ${CONTROL_SIZE} ${CONTROL}`}
+        />
+        <span className="text-[11px] font-semibold text-fg-muted">to</span>
+        <input
+          type="time"
+          step={1800}
+          value={end}
+          onChange={(e) => setTimes(start, snapToHalfHour(e.target.value))}
+          onBlur={onBlur}
+          className={`min-w-0 flex-1 ${CONTROL_SIZE} ${CONTROL}`}
+        />
+      </div>
+    </div>
+  );
+}
+
+export function SelectRow({
+  label,
+  value,
+  onChange,
+  children,
+  className,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <label className={`flex w-full min-w-0 flex-col gap-1 ${className ?? ""}`}>
+      <span className={LABEL}>{label}</span>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={`w-full min-w-0 ${CONTROL_SIZE} ${CONTROL}`}
+      >
+        {children}
+      </select>
+    </label>
+  );
+}
