@@ -143,7 +143,7 @@ const PILL = "inline-flex items-center rounded-full px-2.5 py-0.5 text-[10.5px] 
  * own inline delete control render the exact same pill shape as Done/
  * Reschedule/Edit rather than drifting to a plain rounded-rect. */
 export const TASK_ACTION_BTN =
-  "inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors disabled:opacity-60";
+  "inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-[12px] font-semibold transition-colors disabled:opacity-60 max-lg:min-h-[40px] max-lg:px-3.5 max-lg:text-[12.5px]";
 const ACTION_BTN = TASK_ACTION_BTN;
 
 /** Light-blue action tone (Reschedule, and the Call/Email context action) —
@@ -314,7 +314,7 @@ export function TaskRow({
           </div>
         </div>
 
-        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+        <div className="mt-2 flex flex-wrap items-center gap-1.5 max-lg:gap-2">
           <button
             type="button"
             onClick={(e) => {

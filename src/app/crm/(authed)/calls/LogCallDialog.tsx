@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Modal } from "../_shell/Modal";
 import { Field, TextareaField, FormError, FieldLabel } from "../_shell/form";
 import { CONTROL, CONTROL_SIZE, LABEL } from "../_shell/compactForm";
+import { StickyActionBar } from "../_shell/StickyActionBar";
 import { BTN_NEUTRAL } from "../_shell/ui";
 import {
   phoneDigits,
@@ -326,7 +327,7 @@ export function LogCallDialog({
         setOpen(true);
       })}
 
-      <Modal open={open} onClose={() => setOpen(false)} busy={pending} title="Who did you talk to?">
+      <Modal open={open} onClose={() => setOpen(false)} busy={pending} title="Who did you talk to?" fullScreen>
         <FormError message={error} />
         <form onSubmit={onSubmit} className="flex flex-col gap-2">
           <input type="hidden" name="outcome" value={outcome} />
@@ -582,12 +583,30 @@ export function LogCallDialog({
           <button
             type="submit"
             disabled={pending || loadingDirectory}
-            className={`mt-1 inline-flex h-9 items-center justify-center gap-1.5 rounded-md text-[13px] font-semibold text-white transition-colors disabled:opacity-60 ${
+            className={`mt-1 hidden h-9 items-center justify-center gap-1.5 rounded-md text-[13px] font-semibold text-white transition-colors disabled:opacity-60 lg:inline-flex ${
               saveGreen ? "bg-ok hover:bg-ok/90" : "bg-accent hover:bg-accent-hover"
             }`}
           >
             {saveLabel}
           </button>
+
+          {/* Mobile/tablet — the Save button is pinned to the bottom of the
+              full-screen sheet instead of scrolling away at the end of the
+              CRM's longest form. Desktop (`lg`+) keeps the plain inline
+              button above, unchanged. */}
+          <div className="lg:hidden">
+            <StickyActionBar>
+              <button
+                type="submit"
+                disabled={pending || loadingDirectory}
+                className={`inline-flex h-11 w-full items-center justify-center gap-1.5 rounded-md text-[14px] font-semibold text-white transition-colors disabled:opacity-60 ${
+                  saveGreen ? "bg-ok hover:bg-ok/90" : "bg-accent hover:bg-accent-hover"
+                }`}
+              >
+                {saveLabel}
+              </button>
+            </StickyActionBar>
+          </div>
         </form>
       </Modal>
     </>

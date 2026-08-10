@@ -188,7 +188,7 @@ export function SubmitButton({
     <button
       type="submit"
       disabled={pending}
-      className="mt-1 inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-md bg-accent px-4 text-[13px] font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-60"
+      className="mt-1 inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-md bg-accent px-4 text-[13px] font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-60 max-lg:h-11 max-lg:text-[14px]"
     >
       {pending ? pendingLabel : children}
     </button>
