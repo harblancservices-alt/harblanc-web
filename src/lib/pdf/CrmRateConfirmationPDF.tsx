@@ -1,5 +1,6 @@
-import { Document, Page, View, Text, StyleSheet } from "@react-pdf/renderer";
+import { Document, Page, View, Text, Image, StyleSheet } from "@react-pdf/renderer";
 import { disablePdfHyphenation, splitAddress, properCaseAddressLine, formatPhone } from "./textFormat";
+import { getHelloHotshotLogoDataUri } from "./brandLogo";
 
 disablePdfHyphenation();
 
@@ -72,11 +73,13 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
+    alignItems: "center",
     borderBottom: "1pt solid #000",
     paddingBottom: 8,
     marginBottom: 10,
   },
+  brokerBlock: { flexDirection: "row", alignItems: "center", gap: 10 },
+  logo: { width: 74, height: 74 },
   wordmark: { fontSize: 15, fontWeight: 700 },
   brokerLine: { fontSize: 9, marginTop: 1 },
   headerRight: { alignItems: "flex-end" },
@@ -186,24 +189,28 @@ function Field({ label, value }: { label: string; value: string | null }) {
 export function CrmRateConfirmationPDF({ data }: { data: CrmRateConfirmationPdfData }) {
   const brokerAddress = splitAddress(data.broker.address);
   const brokerPhone = formatPhone(data.broker.phone);
+  const logoSrc = getHelloHotshotLogoDataUri();
 
   return (
     <Document>
       <Page size="LETTER" style={styles.page}>
         <View style={styles.header}>
-          <View>
-            <Text style={styles.wordmark}>{data.broker.name.toUpperCase() || "—"}</Text>
-            {brokerAddress.street && (
-              <Text style={styles.brokerLine}>{properCaseAddressLine(brokerAddress.street)}</Text>
-            )}
-            {brokerAddress.cityStateZip && (
-              <Text style={styles.brokerLine}>{properCaseAddressLine(brokerAddress.cityStateZip)}</Text>
-            )}
-            {brokerPhone && <Text style={styles.brokerLine}>{brokerPhone}</Text>}
-            {data.broker.email && <Text style={styles.brokerLine}>{data.broker.email}</Text>}
-            <Text style={styles.brokerLine}>
-              MC {data.broker.mc || "—"} &nbsp;·&nbsp; DOT {data.broker.dot || "—"}
-            </Text>
+          <View style={styles.brokerBlock}>
+            <Image src={logoSrc} style={styles.logo} />
+            <View>
+              <Text style={styles.wordmark}>{data.broker.name.toUpperCase() || "—"}</Text>
+              {brokerAddress.street && (
+                <Text style={styles.brokerLine}>{properCaseAddressLine(brokerAddress.street)}</Text>
+              )}
+              {brokerAddress.cityStateZip && (
+                <Text style={styles.brokerLine}>{properCaseAddressLine(brokerAddress.cityStateZip)}</Text>
+              )}
+              {brokerPhone && <Text style={styles.brokerLine}>{brokerPhone}</Text>}
+              {data.broker.email && <Text style={styles.brokerLine}>{data.broker.email}</Text>}
+              <Text style={styles.brokerLine}>
+                MC {data.broker.mc || "—"} &nbsp;·&nbsp; DOT {data.broker.dot || "—"}
+              </Text>
+            </View>
           </View>
           <View style={styles.headerRight}>
             <Text style={styles.docTitle}>RATE CONFIRMATION</Text>
