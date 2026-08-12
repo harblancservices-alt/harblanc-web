@@ -5,7 +5,7 @@ import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { logActivity, CRM_ACTIVITY } from "@/lib/crm/activity";
 import { normalizeStage, stageLabel, DEFAULT_LIFECYCLE } from "./lifecycle";
 import { centralInputToIso, titleCaseWords, upperCaseState } from "../_shell/format";
-import { phonesFromFormValue, linksFromFormValue, parsePhones } from "../_shell/contactFields";
+import { phonesFromFormValue, linksFromFormValue, parsePhones, looksLikePhone } from "../_shell/contactFields";
 
 /**
  * Every write in the Hello Hotshot CRM lives here. All actions share the same
@@ -92,6 +92,19 @@ function accountFieldsFromForm(fd: FormData): Record<string, unknown> {
   return fields;
 }
 
+/**
+ * The simplified CREATE form's single "Website or phone" field — mostly-digit
+ * input becomes a phone entry, anything else a website link. EDIT mode still
+ * uses the full PhonesEditor/LinksEditor pair, so this only ever runs from
+ * createAccount.
+ */
+function contactValueFields(raw: string): Record<string, unknown> {
+  if (looksLikePhone(raw)) {
+    return { phones: [{ label: "Main", number: raw }], phone: raw };
+  }
+  return { links: [{ label: "Website", url: raw }], website: raw };
+}
+
 function revalidateAccount(id?: string) {
   revalidatePath("/crm/accounts");
   revalidatePath("/crm/contacts");
@@ -156,6 +169,11 @@ export async function createAccount(
 
   const fields = accountFieldsFromForm(formData);
   if (!fields.name) return { ok: false, error: "Company name is required." };
+
+  // Simplified CREATE form's single "Website or phone" field — the full
+  // PhonesEditor/LinksEditor pair isn't rendered in create mode.
+  const contactValue = optStr(formData, "contact_value");
+  if (contactValue) Object.assign(fields, contactValueFields(contactValue));
 
   const lifecycle = normalizeStage(
     str(formData, "lifecycle_status") || DEFAULT_LIFECYCLE,

@@ -90,6 +90,16 @@ export function digitsForTel(number: string): string {
   return number.replace(/[^0-9+]/g, "");
 }
 
+/** True when a free-typed value looks like a phone number (mostly digits) —
+ * used by the simplified company-create form's single "Website or phone"
+ * field to decide whether it's stored as a phone entry or a website link.
+ * Shared by the client dialog (dup-check) and createAccount (actual save) so
+ * the two can't drift. */
+export function looksLikePhone(raw: string): boolean {
+  const stripped = raw.replace(/[\s().-]/g, "");
+  return /^\+?\d{7,15}$/.test(stripped);
+}
+
 // ── Call-log directory + dedupe matching ────────────────────────────────────
 // Shared by calls/actions.ts (server-side directory fetch + dedupe re-check)
 // and LogCallDialog.tsx (client-side autocomplete + the same dedupe check

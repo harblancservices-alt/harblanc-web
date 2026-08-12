@@ -11,10 +11,19 @@ import {
   SubmitButton,
   FormError,
 } from "../_shell/form";
-import { SectionDivider } from "../_shell/compactForm";
+import {
+  SectionDivider,
+  LABEL,
+  CONTROL,
+  CONTROL_SIZE,
+  PILL,
+  PILL_SIZE,
+  PILL_ACTIVE,
+  PILL_INACTIVE,
+} from "../_shell/compactForm";
 import { PhonesEditor } from "../_shell/PhonesEditor";
 import { LinksEditor } from "../_shell/LinksEditor";
-import { phonesFromFormValue, type PhoneEntry, type LinkEntry } from "../_shell/contactFields";
+import { looksLikePhone, type PhoneEntry, type LinkEntry } from "../_shell/contactFields";
 import { createAccount, updateAccount, deleteAccount, findPossibleDuplicates, type DuplicateMatch } from "./actions";
 import { LIFECYCLE_STAGES, LIFECYCLE_LABEL, DEFAULT_LIFECYCLE } from "./lifecycle";
 import { BTN_DANGER, BTN_NEUTRAL } from "../_shell/ui";
@@ -45,7 +54,62 @@ export type CompanyDefaults = {
  * lifecycle.ts). No "Carrier" — Brent's correction, that's not a thing here. */
 export const COMPANY_TYPES = ["Shipper", "Customer", "Prospect", "Vendor", "Partner", "Other"] as const;
 
+/** Preset options for the simplified CREATE form's Industry tap-pill picker
+ * (see IndustryPicker below). Plain text column, no DB check constraint —
+ * same reasoning as COMPANY_TYPES. */
+export const INDUSTRY_PRESETS = [
+  "Manufacturing",
+  "Metal / Steel",
+  "Agriculture",
+  "Construction",
+  "Warehousing / 3PL",
+  "Food & Bev",
+  "Retail",
+  "Other",
+] as const;
+
 export type RepOption = { id: string; label: string };
+
+/**
+ * Single-select tap-pill industry picker, used only by the simplified CREATE
+ * form — same PILL/PILL_ACTIVE tap-to-select chrome as MultiSelectChips/
+ * RoleControl, just single-value instead of multi. The free-text input below
+ * shares state with the pills: tapping a preset fills it, typing overrides
+ * whatever preset was tapped (tapping the active preset again clears it).
+ */
+function IndustryPicker({ name, defaultValue }: { name: string; defaultValue?: string | null }) {
+  const [value, setValue] = useState(defaultValue ?? "");
+
+  return (
+    <div className="flex flex-col gap-2">
+      <span className={LABEL}>Industry</span>
+      <div className="flex flex-wrap gap-2">
+        {INDUSTRY_PRESETS.map((opt) => {
+          const active = value === opt;
+          return (
+            <button
+              key={opt}
+              type="button"
+              aria-pressed={active}
+              onClick={() => setValue(active ? "" : opt)}
+              className={`${PILL} ${PILL_SIZE} ${active ? PILL_ACTIVE : PILL_INACTIVE}`}
+            >
+              {opt}
+            </button>
+          );
+        })}
+      </div>
+      <input
+        type="text"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="…or type your own"
+        className={`w-full min-w-0 ${CONTROL_SIZE} ${CONTROL}`}
+      />
+      <input type="hidden" name={name} value={value} />
+    </div>
+  );
+}
 
 /**
  * The company create/edit dialog — ONE full-field form reused for both. In
@@ -108,16 +172,17 @@ export function CompanyDialog({
       return;
     }
 
-    // Basic duplicate check on NEW companies only — name/phone/email-domain
-    // against existing accounts (see findPossibleDuplicates). A warning, not
-    // a block: the rep can always proceed via "Create anyway" below.
+    // Basic duplicate check on NEW companies only — name + phone (the
+    // simplified create form has no separate email field) against existing
+    // accounts (see findPossibleDuplicates). A warning, not a block: the rep
+    // can always proceed via "Create anyway" below.
     pendingFormData.current = formData;
     startTransition(async () => {
       setCheckingDup(true);
       const name = String(formData.get("name") ?? "").trim();
-      const phones = phonesFromFormValue(formData.get("phones"));
-      const email = String(formData.get("email") ?? "").trim();
-      const found = await findPossibleDuplicates(name, phones[0]?.number ?? null, email || null);
+      const contactValue = String(formData.get("contact_value") ?? "").trim();
+      const phone = contactValue && looksLikePhone(contactValue) ? contactValue : null;
+      const found = await findPossibleDuplicates(name, phone, null);
       setCheckingDup(false);
       if (found.length > 0) {
         setDuplicates(found);
@@ -170,121 +235,141 @@ export function CompanyDialog({
       >
         <FormError message={error} />
         <form onSubmit={onSubmit} className="flex flex-col gap-3">
-          <div className="flex flex-col gap-2">
-            <SectionDivider label="Identity" bare />
-            <Field
-              label="Company name"
-              name="name"
-              required
-              autoFocus
-              defaultValue={d.name}
-            />
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              <Field label="Industry" name="industry" defaultValue={d.industry} />
-              <SelectField label="Company type" name="company_type" defaultValue={d.company_type ?? ""}>
-                <option value="">Not set</option>
-                {COMPANY_TYPES.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </SelectField>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <SectionDivider label="Contact" bare />
-            <Field
-              label="Company email"
-              name="email"
-              type="email"
-              inputMode="email"
-              defaultValue={d.email}
-            />
-            <PhonesEditor defaultValue={d.phones} />
-            <LinksEditor defaultValue={d.links} />
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <SectionDivider label="Location" bare />
-            <Field label="Address" name="address" defaultValue={d.address} />
-            <div className="grid grid-cols-6 gap-2">
-              <div className="col-span-3">
-                <Field label="City" name="city" defaultValue={d.city} />
-              </div>
-              <div className="col-span-1">
-                <Field label="State" name="state" defaultValue={d.state} />
-              </div>
-              <div className="col-span-2">
-                <Field label="ZIP" name="zip" defaultValue={d.zip} />
-              </div>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <SectionDivider label="Commercial" bare />
-            <Field
-              label="Commodities hauled"
-              name="commodities"
-              placeholder="e.g. Reefer, Dry van, Flatbed"
-              defaultValue={d.commodities}
-            />
-            <Field
-              label="Company size"
-              name="company_size"
-              placeholder="e.g. 11–50"
-              defaultValue={d.company_size}
-            />
-            <div className="grid grid-cols-2 gap-2">
+          {mode === "create" ? (
+            <div className="flex flex-col gap-3">
               <Field
-                label="Annual freight spend ($)"
-                name="annual_freight_spend"
-                inputMode="decimal"
-                defaultValue={d.annual_freight_spend ?? undefined}
+                label="Company name"
+                name="name"
+                required
+                autoFocus
+                defaultValue={d.name}
               />
+              <IndustryPicker name="industry" defaultValue={d.industry} />
               <Field
-                label="Revenue potential ($)"
-                name="revenue_potential"
-                inputMode="decimal"
-                defaultValue={d.revenue_potential ?? undefined}
+                label="Website or phone"
+                name="contact_value"
+                placeholder="e.g. acmesteel.com or (555) 123-4567"
               />
             </div>
-            <Field
-              label="Source"
-              name="source"
-              placeholder="e.g. Referral, Cold call, Web"
-              defaultValue={d.source}
-            />
-          </div>
+          ) : (
+            <>
+              <div className="flex flex-col gap-2">
+                <SectionDivider label="Identity" bare />
+                <Field
+                  label="Company name"
+                  name="name"
+                  required
+                  autoFocus
+                  defaultValue={d.name}
+                />
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <Field label="Industry" name="industry" defaultValue={d.industry} />
+                  <SelectField label="Company type" name="company_type" defaultValue={d.company_type ?? ""}>
+                    <option value="">Not set</option>
+                    {COMPANY_TYPES.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </SelectField>
+                </div>
+              </div>
 
-          <div className="flex flex-col gap-2">
-            <SectionDivider label="Assignment" bare />
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              <SelectField
-                label="Lifecycle"
-                name="lifecycle_status"
-                defaultValue={d.lifecycle_status ?? DEFAULT_LIFECYCLE}
-              >
-                {LIFECYCLE_STAGES.map((s) => (
-                  <option key={s} value={s}>
-                    {LIFECYCLE_LABEL[s]}
-                  </option>
-                ))}
-              </SelectField>
-              <SelectField
-                label="Assigned rep"
-                name="assigned_user_id"
-                defaultValue={d.assigned_user_id ?? ""}
-              >
-                <option value="">Unassigned</option>
-                {reps.map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.label}
-                  </option>
-                ))}
-              </SelectField>
-            </div>
-          </div>
+              <div className="flex flex-col gap-2">
+                <SectionDivider label="Contact" bare />
+                <Field
+                  label="Company email"
+                  name="email"
+                  type="email"
+                  inputMode="email"
+                  defaultValue={d.email}
+                />
+                <PhonesEditor defaultValue={d.phones} />
+                <LinksEditor defaultValue={d.links} />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <SectionDivider label="Location" bare />
+                <Field label="Address" name="address" defaultValue={d.address} />
+                <div className="grid grid-cols-6 gap-2">
+                  <div className="col-span-3">
+                    <Field label="City" name="city" defaultValue={d.city} />
+                  </div>
+                  <div className="col-span-1">
+                    <Field label="State" name="state" defaultValue={d.state} />
+                  </div>
+                  <div className="col-span-2">
+                    <Field label="ZIP" name="zip" defaultValue={d.zip} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <SectionDivider label="Commercial" bare />
+                <Field
+                  label="Commodities hauled"
+                  name="commodities"
+                  placeholder="e.g. Reefer, Dry van, Flatbed"
+                  defaultValue={d.commodities}
+                />
+                <Field
+                  label="Company size"
+                  name="company_size"
+                  placeholder="e.g. 11–50"
+                  defaultValue={d.company_size}
+                />
+                <div className="grid grid-cols-2 gap-2">
+                  <Field
+                    label="Annual freight spend ($)"
+                    name="annual_freight_spend"
+                    inputMode="decimal"
+                    defaultValue={d.annual_freight_spend ?? undefined}
+                  />
+                  <Field
+                    label="Revenue potential ($)"
+                    name="revenue_potential"
+                    inputMode="decimal"
+                    defaultValue={d.revenue_potential ?? undefined}
+                  />
+                </div>
+                <Field
+                  label="Source"
+                  name="source"
+                  placeholder="e.g. Referral, Cold call, Web"
+                  defaultValue={d.source}
+                />
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <SectionDivider label="Assignment" bare />
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  <SelectField
+                    label="Lifecycle"
+                    name="lifecycle_status"
+                    defaultValue={d.lifecycle_status ?? DEFAULT_LIFECYCLE}
+                  >
+                    {LIFECYCLE_STAGES.map((s) => (
+                      <option key={s} value={s}>
+                        {LIFECYCLE_LABEL[s]}
+                      </option>
+                    ))}
+                  </SelectField>
+                  <SelectField
+                    label="Assigned rep"
+                    name="assigned_user_id"
+                    defaultValue={d.assigned_user_id ?? ""}
+                  >
+                    <option value="">Unassigned</option>
+                    {reps.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.label}
+                      </option>
+                    ))}
+                  </SelectField>
+                </div>
+              </div>
+            </>
+          )}
 
           {duplicates && duplicates.length > 0 && (
             <div className="flex flex-col gap-2 rounded-md border border-warn/40 bg-warn-bg px-3.5 py-3">
