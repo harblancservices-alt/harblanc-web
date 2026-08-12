@@ -381,3 +381,23 @@ export function IconInstagram(props: IconProps) {
     </svg>
   );
 }
+
+/** Inline India flag — replaces the 🇮🇳 regional-indicator emoji, which
+ * renders as literal "IN" letters on Windows/Chrome. Fixed colours (not
+ * currentColor): saffron/white/green bands + navy Ashoka Chakra ring. */
+export function IndiaFlag(props: SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      width={16}
+      height={12}
+      viewBox="0 0 16 12"
+      aria-hidden="true"
+      {...props}
+    >
+      <rect x="0.5" y="0.5" width="15" height="11" rx="1.5" fill="#FFFFFF" stroke="#D9D9D9" />
+      <path d="M2 0.5h12a1.5 1.5 0 0 1 1.5 1.5v2H0.5V2A1.5 1.5 0 0 1 2 0.5Z" fill="#FF9933" />
+      <path d="M0.5 8h15v2A1.5 1.5 0 0 1 14 11.5H2A1.5 1.5 0 0 1 0.5 10V8Z" fill="#138808" />
+      <circle cx="8" cy="6" r="1.5" fill="none" stroke="#000080" strokeWidth="0.4" />
+    </svg>
+  );
+}

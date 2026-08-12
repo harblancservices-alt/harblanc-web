@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { FormError, SubmitButton } from "../../_shell/form";
 import { CONTROL, CONTROL_SIZE } from "../../_shell/compactForm";
 import { CompanyAvatar } from "../../_shell/InitialAvatar";
-import { IconPin } from "../../_shell/icons";
+import { IconPin, IndiaFlag } from "../../_shell/icons";
 import { formatDateTime, formatRelativeTime } from "../../_shell/format";
 import { addNote, addContactNote, updateNote, deleteNote, setNotePinned } from "../actions";
 import type { TaskContactOption } from "../../tasks/TaskDialog";
@@ -215,7 +215,7 @@ export function NotesTab({
                 <div className="flex min-w-0 items-baseline gap-1.5">
                   <span className="truncate text-[12.5px] font-bold text-fg">
                     {n.author ?? "Unknown"}
-                    {isKartik(n.author) && <span className="ml-1 text-[11px]" aria-hidden="true">🇮🇳</span>}
+                    {isKartik(n.author) && <IndiaFlag className="ml-1 inline-block align-middle" />}
                   </span>
                   <span className="shrink-0 text-[11px] text-fg-subtle">{formatRelativeTime(n.createdAt)}</span>
                 </div>
