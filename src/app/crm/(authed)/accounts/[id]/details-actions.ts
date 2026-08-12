@@ -6,7 +6,7 @@ import { logActivity, CRM_ACTIVITY } from "@/lib/crm/activity";
 
 /**
  * Writes for the Details tab's expanded field groups (Company profile,
- * Freight profile, Commercial, Context notes) — everything CompanyDialog's
+ * Freight profile, Context notes) — everything CompanyDialog's
  * core form doesn't already cover. Same contract as accounts/actions.ts:
  * requireCrmUser(), org-scoped RLS client, org_id/user_id only ever from the
  * session. Kept in its own file (new, not an addition to accounts/actions.ts)
@@ -94,15 +94,6 @@ export async function updateFreightProfile(accountId: string, formData: FormData
     volume_frequency: optStr(formData, "volume_frequency"),
     weight_range: optStr(formData, "weight_range"),
     special_requirements: textArray(formData, "special_requirements"),
-  });
-}
-
-export async function updateCommercialDetails(accountId: string, formData: FormData): Promise<ActionResult> {
-  const rating = optInt(formData, "fit_rating");
-  return applyUpdate(accountId, {
-    fit_rating: rating === null ? null : Math.min(5, Math.max(1, rating)),
-    payment_terms: optStr(formData, "payment_terms"),
-    current_carrier: optStr(formData, "current_carrier"),
   });
 }
 

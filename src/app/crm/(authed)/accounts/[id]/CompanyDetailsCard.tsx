@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Card } from "../../_shell/ui";
 import { digitsForTel, normalizeHref, type PhoneEntry, type LinkEntry } from "../../_shell/contactFields";
 import { formatPhone } from "@/lib/domain/phone";
-import { IconAiAgent } from "../../_shell/icons";
+import { IconAiAgent, IconFacebook, IconGlobe, IconInstagram, IconLink, IconLinkedIn, IconMail, IconTruck } from "../../_shell/icons";
 import type { LaneEntry } from "../../_shell/LanesEditor";
 import { FreightProfileDialog, type FreightProfileDefaults } from "./FreightProfileDialog";
 import { TagsCard, type CrmTagOption } from "./TagsCard";
@@ -10,14 +10,25 @@ import { EditCompany } from "./EditCompany";
 import type { CompanyDefaults, RepOption } from "../CompanyDialog";
 
 /** Bold, dark field-title style — the CRM's high-contrast form standard
- * (near-black, not the faint fg-subtle grey) applied to this card's section
- * labels per the 2026-08-10 "A" design, which explicitly called out the old
- * faint uppercase-tracked grey titles as wrong. */
+ * (near-black, not the faint fg-subtle grey). */
 const FIELD_TITLE = "text-[11.5px] font-bold uppercase tracking-[0.08em] text-fg";
 
-/** Every clickable value in this card is permanently underlined (not just on
- * hover) so it reads as tappable at rest, per the same design note. */
-const LINK_CLASS = "text-accent underline decoration-1 underline-offset-2 hover:text-accent-hover";
+/** Contact values (email/phone/address) render as bold dark text rather
+ * than the old permanently-underlined accent-blue — calmer and more
+ * scannable, per the 2026-08-12 relayout. Still a real link (mailto:/tel:/
+ * maps), just styled as data first, link second. */
+const VALUE_LINK = "text-[14px] font-bold text-fg transition-colors hover:text-accent";
+
+/** Header band styling — navy (bg-accent, which resolves to the CRM's own
+ * steel-blue brand color) per Brent's 2026-08-12 call, for depth against the
+ * plain-white body below. Kept as its own small block of tokens so a later
+ * "make it a light header instead" request is a one-line swap: change
+ * HEADER_BAND to something like "bg-card border-b border-line-strong" and
+ * HEADER_TEXT/HEADER_SUB/HEADER_MONO to dark-on-light equivalents. */
+const HEADER_BAND = "bg-accent";
+const HEADER_TEXT = "text-white";
+const HEADER_SUB = "text-white/70";
+const HEADER_MONO = "border border-white/25 bg-white/15 text-white";
 
 function Field({ label, right, children }: { label: string; right?: ReactNode; children: ReactNode }) {
   return (
@@ -31,11 +42,29 @@ function Field({ label, right, children }: { label: string; right?: ReactNode; c
   );
 }
 
-function LabeledLink({ label, href, text }: { label: string; href: string; text: string }) {
+/** A small labeled section header — bold dark label + a little colored icon
+ * chip — separating Contact / Links / Freight Profile / Tags so the card
+ * reads as distinct groups instead of one long list. */
+function SectionHeading({ icon, tint, label, right }: { icon: ReactNode; tint: string; label: string; right?: ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center gap-2">
+        <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${tint}`}>{icon}</span>
+        <h3 className="text-[11px] font-bold uppercase tracking-[0.1em] text-fg">{label}</h3>
+      </div>
+      {right}
+    </div>
+  );
+}
+
+/** Phone row — label as a small pill (not plain muted text) + bold dark
+ * tap-to-call value, per the 2026-08-12 "bold dark text, not underlined
+ * blue" spec while keeping the label legible as a pill. */
+function PhoneRow({ label, href, text }: { label: string; href: string; text: string }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <span className="shrink-0 text-[12px] font-medium text-fg-muted">{label}</span>
-      <a href={href} target="_blank" rel="noopener noreferrer" className={`truncate ${LINK_CLASS}`}>
+      <span className="shrink-0 rounded-full bg-inset px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-fg-muted">{label}</span>
+      <a href={href} className={`truncate ${VALUE_LINK}`}>
         {text}
       </a>
     </div>
@@ -81,6 +110,47 @@ function Lanes({ lanes }: { lanes: LaneEntry[] }) {
   );
 }
 
+/** Solid green "Active" badge — the header band's compact companion to the
+ * page title bar's full "Active Customer" pill (CompanyHeader.tsx). Same
+ * #15803d per Brent's spec, just shorter text to fit the tighter band. */
+function ActiveBadge() {
+  return (
+    <span className="inline-flex shrink-0 items-center rounded-full bg-[#15803d] px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+      Active
+    </span>
+  );
+}
+
+/** Icon + brand-ish tint for a Links bubble button, keyed off the link's
+ * label. Falls back to a neutral chain-link glyph for anything not on the
+ * short preset list (e.g. "Load board" or a custom label). */
+function bubbleTone(label: string): { icon: ReactNode; bg: string } {
+  const key = label.trim().toLowerCase();
+  if (key === "website") return { icon: <IconGlobe width={11} height={11} className="text-white" />, bg: "bg-accent" };
+  if (key === "linkedin") return { icon: <IconLinkedIn width={11} height={11} className="text-white" />, bg: "bg-[#0a66c2]" };
+  if (key === "facebook") return { icon: <IconFacebook width={11} height={11} className="text-white" />, bg: "bg-[#1877f2]" };
+  if (key === "instagram") return { icon: <IconInstagram width={11} height={11} className="text-white" />, bg: "bg-[#d62976]" };
+  return { icon: <IconLink width={11} height={11} className="text-white" />, bg: "bg-fg-subtle" };
+}
+
+/** A tappable pill for Website/LinkedIn/any other social link — a compact
+ * colored icon chip + label, replacing the old label-left/truncated-url-
+ * right row so several fit per line and the card stays scannable. */
+function LinkBubble({ label, href }: { label: string; href: string }) {
+  const tone = bubbleTone(label);
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="inline-flex items-center gap-1.5 rounded-full border border-line-strong bg-card py-1 pl-1 pr-3 text-[12px] font-semibold text-fg shadow-e1 transition-colors hover:border-accent/40 hover:bg-inset"
+    >
+      <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${tone.bg}`}>{tone.icon}</span>
+      {label}
+    </a>
+  );
+}
+
 export type CompanyFreightData = {
   commodities: string | null;
   equipmentNeeded: string[];
@@ -92,23 +162,24 @@ export type CompanyFreightData = {
 };
 
 /**
- * LEFT column — "Company Details" — rebuilt to the approved "A" design
- * (2026-08-10). No dark CardHead bar anymore: a plain white card, company
- * name large/bold at the top with industry as a small subtitle underneath
- * and a plain-text "Edit" link top-right (opens the same CompanyDialog the
- * profile header's Edit button does — EditCompany's `variant="link"`).
- * No "About" heading, no duplicate Active Customer pill (that lives in the
- * page's title bar now, next to the name) — just name + industry here.
- *
- * Below that: Email / Website / Phone / Location / Socials, each a bold
- * dark field title (no faint grey) over an underlined clickable value, then
- * Freight profile (commodities as pills + equipment/lanes/volume/weight/
- * special requirements, hidden when empty, own Edit trigger unchanged) and
- * Tags. Rows without data are hidden outright, matching the pattern this
- * card has used since the 2026-08-09 rebuild.
+ * LEFT column — "Company Details" — relaid out 2026-08-12 to a header-band +
+ * sectioned design. A navy header band (HEADER_BAND, above) carries the
+ * company monogram, name, industry subtitle, an "Active" badge for active
+ * customers, and the Edit trigger; the plain-white body below is split into
+ * four clearly separated groups (each its own small icon-chip header + a
+ * divider): Contact (email/phone/location, bold dark values instead of
+ * underlined blue), Links (Website/LinkedIn/any other social as tappable
+ * bubble buttons instead of label-left/url-right rows), Freight Profile
+ * (commodities now shown as chips + their own "+ Add commodity" trigger,
+ * since commodities have no dedicated inline picker and are only ever
+ * edited through the main CompanyDialog — see EditCompany's "pill" variant;
+ * equipment/lanes/volume/weight/special still go through FreightProfileDialog
+ * unchanged), and Tags (TagsCard — attached-only by default, full picker
+ * collapsed behind "+ Add tag"). Rows/sections without data stay hidden,
+ * matching this card's behavior since the 2026-08-09 rebuild.
  *
  * Company type/Employees/Annual revenue/Source/MC-DOT/Description — real
- * fields the "A" design doesn't name for this card — moved to the
+ * fields this design doesn't name for this card — still live in the
  * "Company profile" card below the grid (CompanyProfileSection.tsx) rather
  * than disappearing from the UI; still edited via the same top-bar Edit
  * dialog either way.
@@ -130,6 +201,7 @@ export function CompanyDetailsCard({
   orgTags,
   editDefaults,
   reps,
+  isActiveCustomer,
 }: {
   accountId: string;
   name: string;
@@ -147,16 +219,18 @@ export function CompanyDetailsCard({
   orgTags: CrmTagOption[];
   editDefaults: CompanyDefaults & { id: string };
   reps: RepOption[];
+  isActiveCustomer: boolean;
 }) {
   const phoneRows: PhoneEntry[] = phones.length ? phones : legacyPhone ? [{ label: "Main", number: legacyPhone }] : [];
+  const hasContact = !!email || phoneRows.length > 0 || !!fullAddress;
 
-  // Socials — linkedin_url (its own column) plus every `links` entry that
-  // isn't the one already shown as "Website" above, so Facebook/Instagram/
-  // a second LinkedIn/whatever else someone added all show up here without
-  // a new column (see LINK_LABEL_PRESETS in _shell/contactFields.ts).
-  const socialLinks: { label: string; url: string }[] = [
-    ...(linkedinUrl ? [{ label: "LinkedIn", url: linkedinUrl }] : []),
-    ...links.filter((l) => l.url && l.label?.toLowerCase() !== "website").map((l) => ({ label: l.label || "Link", url: l.url })),
+  // Links — Website + linkedin_url (its own column) + every `links` entry
+  // that isn't the one already carrying the "Website" label, all rendered as
+  // bubble buttons (see LINK_LABEL_PRESETS in _shell/contactFields.ts).
+  const linkBubbles: { label: string; href: string }[] = [
+    ...(websiteHref ? [{ label: "Website", href: websiteHref }] : []),
+    ...(linkedinUrl ? [{ label: "LinkedIn", href: normalizeHref(linkedinUrl) }] : []),
+    ...links.filter((l) => l.url && l.label?.toLowerCase() !== "website").map((l) => ({ label: l.label || "Link", href: normalizeHref(l.url) })),
   ];
 
   const commodityChips = (freight.commodities ?? "")
@@ -171,97 +245,114 @@ export function CompanyDetailsCard({
     weight_range: freight.weightRange,
     special_requirements: freight.specialRequirements,
   };
-  const freightIsEmpty =
-    !freight.commodities &&
-    !freight.equipmentNeeded.length &&
-    !freight.lanes.length &&
-    !freight.volumeFrequency &&
-    !freight.weightRange &&
-    !freight.specialRequirements.length;
+  // Commodities have their own always-visible subsection/trigger below, so
+  // "empty" here only covers the fields FreightProfileDialog actually edits.
+  const otherFreightEmpty =
+    !freight.equipmentNeeded.length && !freight.lanes.length && !freight.volumeFrequency && !freight.weightRange && !freight.specialRequirements.length;
+
+  const monogram = (name || "?").trim().charAt(0).toUpperCase() || "?";
 
   return (
     <Card>
-      <div className="flex flex-col gap-5 p-5">
-        {/* Name + industry subtitle + Edit link — no "About" label, no
-            dark header, no Active Customer pill (that's in the page's
-            title bar now). */}
-        <div className="flex items-start justify-between gap-3">
+      {/* Header band */}
+      <div className={`flex items-start justify-between gap-3 px-5 py-4 ${HEADER_BAND}`}>
+        <div className="flex min-w-0 items-center gap-3">
+          <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-[16px] font-black ${HEADER_MONO}`}>
+            {monogram}
+          </span>
           <div className="min-w-0">
-            <h2 className="truncate text-[22px] font-bold leading-tight tracking-tight text-fg">{name}</h2>
-            {industry && <p className="mt-1 truncate text-[13.5px] font-medium text-fg-muted">{industry}</p>}
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className={`truncate text-[17px] font-bold leading-tight ${HEADER_TEXT}`}>{name}</h2>
+              {isActiveCustomer && <ActiveBadge />}
+            </div>
+            {industry && <p className={`mt-0.5 truncate text-[12px] font-medium ${HEADER_SUB}`}>{industry}</p>}
           </div>
-          <EditCompany defaults={editDefaults} reps={reps} variant="link" />
         </div>
+        <EditCompany defaults={editDefaults} reps={reps} variant="onDark" />
+      </div>
 
-        <div className="flex flex-col gap-4 border-t border-line-strong pt-4">
-          {email && (
-            <Field label="Email">
-              <a href={`mailto:${email}`} className={`text-[14px] font-medium ${LINK_CLASS}`}>
-                {email}
-              </a>
-            </Field>
-          )}
+      <div className="flex flex-col gap-5 p-5">
+        {/* Contact */}
+        {hasContact && (
+          <div className="flex flex-col gap-3">
+            <SectionHeading icon={<IconMail width={12} height={12} />} tint="bg-accent/10 text-accent" label="Contact" />
+            <div className="flex flex-col gap-4">
+              {email && (
+                <Field label="Email">
+                  <a href={`mailto:${email}`} className={VALUE_LINK}>
+                    {email}
+                  </a>
+                </Field>
+              )}
 
-          {websiteHref && (
-            <Field label="Website">
-              <a href={websiteHref} target="_blank" rel="noopener noreferrer" className={`text-[14px] font-medium ${LINK_CLASS}`}>
-                {website}
-              </a>
-            </Field>
-          )}
+              {phoneRows.length > 0 && (
+                <Field label="Phone">
+                  <div className="flex flex-col gap-1.5">
+                    {phoneRows.map((p, i) => (
+                      <PhoneRow
+                        key={`${p.label}:${p.number}:${i}`}
+                        label={p.label || "Phone"}
+                        href={`tel:${digitsForTel(p.number)}`}
+                        text={formatPhone(p.number)}
+                      />
+                    ))}
+                  </div>
+                </Field>
+              )}
 
-          {phoneRows.length > 0 && (
-            <Field label="Phone">
-              <div className="flex flex-col gap-1.5">
-                {phoneRows.map((p, i) => (
-                  <LabeledLink
-                    key={`${p.label}:${p.number}:${i}`}
-                    label={p.label || "Phone"}
-                    href={`tel:${digitsForTel(p.number)}`}
-                    text={formatPhone(p.number)}
-                  />
-                ))}
-              </div>
-            </Field>
-          )}
+              {fullAddress && (
+                <Field label="Location">
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddress)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={VALUE_LINK}
+                  >
+                    {fullAddress}
+                  </a>
+                </Field>
+              )}
+            </div>
+          </div>
+        )}
 
-          {fullAddress && (
-            <Field label="Location">
-              <a
-                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddress)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`text-[14px] font-medium ${LINK_CLASS}`}
-              >
-                {fullAddress}
-              </a>
-            </Field>
-          )}
-
-          {socialLinks.length > 0 && (
-            <Field label="Socials">
-              <div className="flex flex-col gap-1.5">
-                {socialLinks.map((s, i) => (
-                  <LabeledLink key={`${s.label}:${i}`} label={s.label} href={normalizeHref(s.url)} text={s.url} />
-                ))}
-              </div>
-            </Field>
-          )}
-        </div>
+        {/* Links */}
+        {linkBubbles.length > 0 && (
+          <div className={`flex flex-col gap-3 ${hasContact ? "border-t border-line-strong pt-4" : ""}`}>
+            <SectionHeading icon={<IconLink width={12} height={12} />} tint="bg-[#7c3aed]/10 text-[#7c3aed]" label="Links" />
+            <div className="flex flex-wrap gap-2">
+              {linkBubbles.map((b, i) => (
+                <LinkBubble key={`${b.label}:${i}`} label={b.label} href={b.href} />
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Freight profile */}
-        <div className="border-t border-line-strong pt-4">
-          <Field label="Freight Profile" right={<FreightProfileDialog accountId={accountId} defaults={freightDialogDefaults} />}>
-            {freightIsEmpty ? (
-              <p className="text-[13px] text-fg-muted">No freight profile on file yet — commodities, equipment, lanes.</p>
+        <div className={`flex flex-col gap-3 ${hasContact || linkBubbles.length > 0 ? "border-t border-line-strong pt-4" : ""}`}>
+          <SectionHeading
+            icon={<IconTruck width={13} height={13} />}
+            tint="bg-ok/10 text-ok"
+            label="Freight Profile"
+            right={<FreightProfileDialog accountId={accountId} defaults={freightDialogDefaults} />}
+          />
+          <div className="flex flex-col gap-4">
+            <div>
+              <div className="mb-1.5 flex items-center justify-between gap-2">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-fg-muted">Commodities</p>
+                <EditCompany defaults={editDefaults} reps={reps} variant="pill" label="Add commodity" />
+              </div>
+              {commodityChips.length > 0 ? (
+                <Chips values={commodityChips} fromAi={!!freight.confirmed.commodities} />
+              ) : (
+                <p className="text-[12.5px] text-fg-muted">No commodities on file yet.</p>
+              )}
+            </div>
+
+            {otherFreightEmpty ? (
+              <p className="text-[13px] text-fg-muted">No equipment, lanes, or other freight details on file yet.</p>
             ) : (
-              <div className="flex flex-col gap-4">
-                {commodityChips.length > 0 && (
-                  <div>
-                    <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-fg-muted">Commodities</p>
-                    <Chips values={commodityChips} fromAi={!!freight.confirmed.commodities} />
-                  </div>
-                )}
+              <>
                 {freight.equipmentNeeded.length > 0 && (
                   <div>
                     <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-fg-muted">Equipment needed</p>
@@ -292,9 +383,9 @@ export function CompanyDetailsCard({
                     <Chips values={freight.specialRequirements} fromAi={!!freight.confirmed.special_requirements} />
                   </div>
                 )}
-              </div>
+              </>
             )}
-          </Field>
+          </div>
         </div>
 
         {/* Tags */}

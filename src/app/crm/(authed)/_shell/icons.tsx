@@ -307,3 +307,67 @@ export function IconFlagSolid(props: IconProps) {
     </svg>
   );
 }
+
+/** Price-tag glyph — the Company Details card's "Tags" section header. */
+export function IconTag(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M11.5 3.5H5a1.5 1.5 0 0 0-1.5 1.5v6.5a1.5 1.5 0 0 0 .44 1.06l8 8a1.5 1.5 0 0 0 2.12 0l6.5-6.5a1.5 1.5 0 0 0 0-2.12l-8-8a1.5 1.5 0 0 0-1.06-.44Z" />
+      <circle cx="8" cy="8" r="1.15" />
+    </svg>
+  );
+}
+
+/** Generic globe glyph — the "Website" link bubble. */
+export function IconGlobe(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M3 12h18" />
+      <path d="M12 3c2.5 2.5 3.8 5.7 3.8 9s-1.3 6.5-3.8 9c-2.5-2.5-3.8-5.7-3.8-9S9.5 5.5 12 3Z" />
+    </svg>
+  );
+}
+
+/** Generic chain-link glyph — the fallback for any social/link bubble that
+ * isn't Website/LinkedIn/Facebook/Instagram (e.g. "Load board" or a custom
+ * label). Two overlapping rotated rounded rects. */
+export function IconLink(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3" y="9" width="10" height="6" rx="3" transform="rotate(-45 8 12)" />
+      <rect x="11" y="9" width="10" height="6" rx="3" transform="rotate(-45 16 12)" />
+    </svg>
+  );
+}
+
+/** Simplified filled LinkedIn "in" mark — the LinkedIn link bubble. */
+export function IconLinkedIn(props: IconProps) {
+  return (
+    <svg width={20} height={20} viewBox="0 0 24 24" fill="currentColor" {...props}>
+      <circle cx="6.5" cy="7" r="1.9" />
+      <rect x="4.7" y="10.2" width="3.6" height="9.8" />
+      <path d="M11 10.2h3.4v1.7c.6-1.1 1.8-2 3.6-2 3.2 0 4.3 2.1 4.3 5.3V20h-3.6v-4.6c0-1.4-.5-2.4-1.8-2.4-1 0-1.6.7-1.9 1.3-.1.3-.2.7-.2 1.1V20H11V10.2Z" />
+    </svg>
+  );
+}
+
+/** Simplified filled Facebook "f" mark — the Facebook link bubble. */
+export function IconFacebook(props: IconProps) {
+  return (
+    <svg width={20} height={20} viewBox="0 0 24 24" fill="currentColor" {...props}>
+      <path d="M14.5 21v-7.8h2.6l.4-3h-3V8.2c0-.9.2-1.5 1.5-1.5h1.6V4.1C17.3 4 16.3 4 15.2 4c-2.4 0-4 1.5-4 4.1v2.1H8.5v3h2.7V21h3.3Z" />
+    </svg>
+  );
+}
+
+/** Rounded-square camera glyph — the Instagram link bubble. */
+export function IconInstagram(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3.5" y="3.5" width="17" height="17" rx="5" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="17" cy="7" r="0.9" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}

@@ -24,7 +24,6 @@ import { callOutcomeLabel } from "../../calls/outcomes";
 import type { TaskContactOption } from "../../tasks/TaskDialog";
 import { type CrmBolDocument } from "./BolSection";
 import { CompanyProfileSection } from "./CompanyProfileSection";
-import { CommercialSection } from "./CommercialSection";
 import { StrayNumbersSection } from "./StrayNumbersSection";
 import { LocationsSection } from "./LocationsSection";
 import type { CrmTaskItem } from "../../tasks/TaskRow";
@@ -463,6 +462,7 @@ export default async function AccountDetailPage({
             orgTags={orgTags}
             editDefaults={editDefaults}
             reps={reps}
+            isActiveCustomer={normalizeStage(stage) === "active_customer"}
           />
 
           <div className="flex flex-col gap-4">
@@ -515,7 +515,6 @@ export default async function AccountDetailPage({
         {phones.length > 0 && <StrayNumbersSection accountId={account.id as string} phones={phones} contacts={contactOptions} />}
         <LocationsSection accountId={account.id as string} />
         <CompanyProfileSection accountId={account.id as string} />
-        <CommercialSection accountId={account.id as string} />
         <CustomFieldsCard custom={account.custom as Record<string, unknown> | null} />
       </div>
     </PageShell>
