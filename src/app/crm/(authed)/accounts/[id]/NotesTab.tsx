@@ -20,6 +20,12 @@ export type CrmNoteItem = {
   isPinned: boolean;
 };
 
+function isKartik(author: string | null): boolean {
+  if (!author) return false;
+  const lower = author.trim().toLowerCase();
+  return lower === "kartik" || lower.startsWith("kartik ");
+}
+
 /**
  * "Notes" — a pinned/recent feed, the company-wide Notes card AND (reused,
  * scoped) the selected contact's Notes sub-tab in ContactsMasterDetail.
@@ -207,7 +213,10 @@ export function NotesTab({
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
                 <div className="flex min-w-0 items-baseline gap-1.5">
-                  <span className="truncate text-[12.5px] font-bold text-fg">{n.author ?? "Unknown"}</span>
+                  <span className="truncate text-[12.5px] font-bold text-fg">
+                    {n.author ?? "Unknown"}
+                    {isKartik(n.author) && <span className="ml-1 text-[11px]" aria-hidden="true">🇮🇳</span>}
+                  </span>
                   <span className="shrink-0 text-[11px] text-fg-subtle">{formatRelativeTime(n.createdAt)}</span>
                 </div>
                 <span className="shrink-0 text-[10.5px] text-fg-subtle" title={formatDateTime(n.createdAt)}>
