@@ -318,6 +318,16 @@ export function IconTag(props: IconProps) {
   );
 }
 
+/** Thumbtack glyph — the Notes feed's Pin toggle/action. */
+export function IconPin(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M14.5 3.5l6 6-3.1 3.1a2.5 2.5 0 0 0-.55 2.7l.85 2.1-9.6-9.6 2.1.85a2.5 2.5 0 0 0 2.7-.55L14.5 3.5Z" />
+      <path d="M9.5 14.5L4 20" />
+    </svg>
+  );
+}
+
 /** Generic globe glyph — the "Website" link bubble. */
 export function IconGlobe(props: IconProps) {
   return (

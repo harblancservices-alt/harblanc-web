@@ -824,6 +824,7 @@ export async function addContactNote(
   contactId: string,
   accountId: string | null,
   body: string,
+  pinned: boolean = false,
 ): Promise<ActionResult> {
   const user = await requireCrmUser();
   const trimmed = body.trim();
@@ -836,7 +837,7 @@ export async function addContactNote(
     contact_id: contactId,
     user_id: user.id,
     body: trimmed,
-    is_pinned: false,
+    is_pinned: pinned,
     is_ai: false,
   });
 
@@ -870,6 +871,26 @@ export async function updateNote(
   const { error } = await supabase
     .from("crm_notes")
     .update({ body: trimmed })
+    .eq("id", noteId);
+
+  if (error) return { ok: false, error: "Could not update the note." };
+  revalidateAccount(accountId ?? undefined);
+  return { ok: true };
+}
+
+/** Pin (or unpin) a note — same no-role-gate reasoning as updateNote/
+ * deleteNote. Pinned notes surface at the top of the Notes feed. */
+export async function setNotePinned(
+  noteId: string,
+  accountId: string | null,
+  pinned: boolean,
+): Promise<ActionResult> {
+  await requireCrmUser();
+  const supabase = await createCrmServerClient();
+
+  const { error } = await supabase
+    .from("crm_notes")
+    .update({ is_pinned: pinned })
     .eq("id", noteId);
 
   if (error) return { ok: false, error: "Could not update the note." };

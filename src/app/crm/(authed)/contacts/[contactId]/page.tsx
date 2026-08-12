@@ -63,7 +63,7 @@ export default async function ContactProfilePage({
     supabase.from("crm_profiles").select("id, full_name, email, is_active"),
     supabase
       .from("crm_notes")
-      .select("id, body, is_ai, created_at, user_id")
+      .select("id, body, is_ai, is_pinned, created_at, user_id")
       .eq("contact_id", contactId)
       .is("deleted_at", null)
       .order("created_at", { ascending: false }),
@@ -106,6 +106,7 @@ export default async function ContactProfilePage({
     id: string;
     body: string;
     is_ai: boolean | null;
+    is_pinned: boolean | null;
     created_at: string;
     user_id: string | null;
   }[];
@@ -118,6 +119,7 @@ export default async function ContactProfilePage({
       author: n.user_id ? profileName(profileById.get(n.user_id)) : null,
       contactId,
       contactName: null,
+      isPinned: n.is_pinned ?? false,
     }));
 
   const callRows = (callsRes.data ?? []) as {
@@ -299,7 +301,13 @@ export default async function ContactProfilePage({
 
         <Card>
           <CardHead title="Notes" hint={humanNotes.length ? `${humanNotes.length} on file` : undefined} />
-          <NotesTab accountId={accountId} contactId={contact.id as string} contactName={contactName} notes={humanNotes} />
+          <NotesTab
+            accountId={accountId}
+            contactId={contact.id as string}
+            contactName={contactName}
+            notes={humanNotes}
+            currentUser={currentUser}
+          />
         </Card>
       </div>
     </PageShell>

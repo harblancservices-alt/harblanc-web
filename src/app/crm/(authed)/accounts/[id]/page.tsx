@@ -119,7 +119,7 @@ export default async function AccountDetailPage({
       .order("created_at", { ascending: true }),
     supabase
       .from("crm_notes")
-      .select("id, body, is_ai, created_at, user_id, contact_id")
+      .select("id, body, is_ai, is_pinned, created_at, user_id, contact_id")
       .eq("account_id", id)
       .is("deleted_at", null)
       .order("created_at", { ascending: false }),
@@ -210,6 +210,7 @@ export default async function AccountDetailPage({
     id: string;
     body: string;
     is_ai: boolean | null;
+    is_pinned: boolean | null;
     created_at: string;
     user_id: string | null;
     contact_id: string | null;
@@ -223,6 +224,7 @@ export default async function AccountDetailPage({
       author: n.user_id ? profileName(profileById.get(n.user_id)) : null,
       contactId: n.contact_id,
       contactName: n.contact_id ? contactNameById.get(n.contact_id) ?? null : null,
+      isPinned: n.is_pinned ?? false,
     }));
 
   const tasks: CrmTaskItem[] = ((tasksRes.data ?? []) as {
@@ -507,7 +509,13 @@ export default async function AccountDetailPage({
 
             <Card id="notes">
               <CardHead title="Notes" hint={humanNotes.length ? `${humanNotes.length} on file` : undefined} />
-              <NotesTab accountId={account.id as string} notes={humanNotes} />
+              <NotesTab
+                accountId={account.id as string}
+                accountName={accountName}
+                notes={humanNotes}
+                contactOptions={contactOptions}
+                currentUser={currentUser}
+              />
             </Card>
           </div>
         </div>

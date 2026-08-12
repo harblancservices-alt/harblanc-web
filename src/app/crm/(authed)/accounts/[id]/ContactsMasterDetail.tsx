@@ -432,7 +432,15 @@ export function ContactsMasterDetail({
                     )}
                   </ul>
                 )}
-                {subTab === "notes" && <NotesTab accountId={accountId} contactId={selected.id} contactName={selected.name} notes={contactNotes} />}
+                {subTab === "notes" && (
+                  <NotesTab
+                    accountId={accountId}
+                    contactId={selected.id}
+                    contactName={selected.name}
+                    notes={contactNotes}
+                    currentUser={currentUser}
+                  />
+                )}
               </div>
               <Link href={`/crm/contacts/${selected.id}`} prefetch={false} className="mt-2 inline-block text-[12.5px] font-semibold text-accent hover:underline">
                 View all activity →

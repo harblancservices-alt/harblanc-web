@@ -388,6 +388,32 @@ export function upperCaseState(value: string | null | undefined): string {
   return value.toUpperCase();
 }
 
+/**
+ * Short relative-time readout ("2h ago", "3d ago") for a stored server
+ * timestamp — the Notes feed's compact author-line stamp. Falls back to
+ * formatDate for anything a month or older (a bare "2mo ago" reads worse
+ * than a real date once it's that stale), and never reads as negative for a
+ * timestamp that lands slightly in the future (clock skew) — those still
+ * read "Just now" rather than a nonsensical "-1m ago".
+ */
+export function formatRelativeTime(iso: string | null | undefined, now: Date = new Date()): string {
+  const ms = timestampMs(iso);
+  if (ms === null) return "—";
+
+  const diff = Math.max(0, now.getTime() - ms);
+  const MIN = 60_000;
+  const HOUR = 3_600_000;
+  const DAY = 86_400_000;
+
+  if (diff < MIN) return "Just now";
+  if (diff < HOUR) return `${Math.floor(diff / MIN)}m ago`;
+  if (diff < DAY) return `${Math.floor(diff / HOUR)}h ago`;
+  const days = Math.floor(diff / DAY);
+  if (days < 7) return `${days}d ago`;
+  if (days < 30) return `${Math.round(days / 7)}w ago`;
+  return formatDate(iso);
+}
+
 /** Strip commas the user may have typed directly into a city/state/zip
  * field — the app inserts its own commas when composing "Dallas, Tx 75205",
  * so a stray one in the source data would double up or read oddly. */
