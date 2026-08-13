@@ -7,6 +7,7 @@ import { formatDateTime, formatMoney, titleCaseWords } from "../../_shell/format
 import { IconRateConfirmation, IconBillOfLading } from "../../_shell/icons";
 import { docStatusLabel, docStatusTone } from "../docStatusMeta";
 import { getSignedPdfUrl, openStoredPdf } from "../pdfClient";
+import { DocViewer } from "@/components/ui/DocViewer";
 import { createRateConfirmationFromShipment, softDeleteRateConfirmation } from "../rate-confirmation-actions";
 import { createBolFromShipment, softDeleteBol } from "../bol-actions";
 import { listShipmentDocuments } from "../document-history-actions";
@@ -36,7 +37,8 @@ export function DocumentsSection({
   const [pending, startTransition] = useTransition();
   const [creating, setCreating] = useState<"rc" | "bol" | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
-  const [viewingId, setViewingId] = useState<string | null>(null);
+  const [previewDoc, setPreviewDoc] = useState<ShipmentDocumentSummary | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [target, setTarget] = useState<DocModalTarget | null>(null);
 
@@ -88,17 +90,18 @@ export function DocumentsSection({
     if (!ok) setError("Could not open this PDF. Please try again.");
   }
 
-  /** View is the same signed-URL mechanism as Download, minus the
-   * `download` filename — that's what makes the browser render it inline
-   * in a new tab instead of forcing Save As. */
+  /** Opens the same full-screen DocViewer the RC/BOL editors use, instead of
+   * `window.open()`-ing a signed URL after an await — browsers (Safari in
+   * particular) silently block a popup opened asynchronously like that, so
+   * the button just did nothing with no error surfaced. */
   async function view(doc: ShipmentDocumentSummary) {
     if (!doc.pdfStoragePath) return;
     setError(null);
-    setViewingId(doc.id);
+    setPreviewDoc(doc);
+    setPreviewUrl(null);
     const url = await getSignedPdfUrl(doc.pdfStoragePath);
-    setViewingId(null);
-    if (url) window.open(url, "_blank", "noopener,noreferrer");
-    else setError("Could not open this PDF. Please try again.");
+    setPreviewUrl(url);
+    if (!url) setError("Could not open this PDF. Please try again.");
   }
 
   async function remove(doc: ShipmentDocumentSummary) {
@@ -137,7 +140,7 @@ export function DocumentsSection({
           onView={view}
           onDownload={download}
           onRemove={remove}
-          viewingId={viewingId}
+          previewingId={previewDoc && !previewUrl ? previewDoc.id : null}
           downloadingId={downloadingId}
           deletingId={deletingId}
           emptyLabel="No rate confirmations yet."
@@ -153,7 +156,7 @@ export function DocumentsSection({
           onView={view}
           onDownload={download}
           onRemove={remove}
-          viewingId={viewingId}
+          previewingId={previewDoc && !previewUrl ? previewDoc.id : null}
           downloadingId={downloadingId}
           deletingId={deletingId}
           emptyLabel="No bills of lading yet."
@@ -162,6 +165,16 @@ export function DocumentsSection({
 
       {target && (
         <DocumentEditorModal shipment={shipment} target={target} onClose={closeModal} onNavigate={setTarget} />
+      )}
+
+      {previewDoc && (
+        <DocViewer
+          doc={{ name: `${previewDoc.number} v${previewDoc.version}.pdf`, url: previewUrl, isImage: false }}
+          onClose={() => {
+            setPreviewDoc(null);
+            setPreviewUrl(null);
+          }}
+        />
       )}
     </>
   );
@@ -178,7 +191,7 @@ function DocColumn({
   onView,
   onDownload,
   onRemove,
-  viewingId,
+  previewingId,
   downloadingId,
   deletingId,
   emptyLabel,
@@ -193,7 +206,7 @@ function DocColumn({
   onView: (doc: ShipmentDocumentSummary) => void;
   onDownload: (doc: ShipmentDocumentSummary) => void;
   onRemove: (doc: ShipmentDocumentSummary) => void;
-  viewingId: string | null;
+  previewingId: string | null;
   downloadingId: string | null;
   deletingId: string | null;
   emptyLabel: string;
@@ -252,10 +265,10 @@ function DocColumn({
                   <button
                     type="button"
                     onClick={() => onView(doc)}
-                    disabled={viewingId === doc.id}
+                    disabled={previewingId === doc.id}
                     className={`rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors disabled:opacity-60 ${BTN_SUCCESS}`}
                   >
-                    {viewingId === doc.id ? "…" : "View"}
+                    {previewingId === doc.id ? "…" : "View"}
                   </button>
                 )}
                 {doc.pdfStoragePath && (
