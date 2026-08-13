@@ -42,8 +42,6 @@ import type { MutationResult } from "@/lib/demo/mutation";
  * targets alongside V1's.
  */
 
-export type { EmailPreview, FinalizedQuoteEmailPreview, BolEmailPreview };
-
 function revalidatePipelinePaths(quoteRequestId?: string) {
   revalidatePath("/tms-v2/operations");
   if (quoteRequestId) revalidatePath(`/tms-v2/operations/${quoteRequestId}`);

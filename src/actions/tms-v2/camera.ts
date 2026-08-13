@@ -23,8 +23,6 @@ import {
  * revalidatePath targets on top of V1's.
  */
 
-export type { CreateBatchResult, UploadUrlResult, RecordPhotoResult, SimpleResult };
-
 function revalidateCameraPaths(batchId?: string) {
   revalidatePath("/tms-v2/camera");
   if (batchId) revalidatePath(`/tms-v2/camera/${batchId}`);

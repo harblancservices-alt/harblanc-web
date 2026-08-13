@@ -26,8 +26,6 @@ import type { MutationResult } from "@/lib/demo/mutation";
  * re-export, needed so tms-v2's UI never has to handle a rejected promise.
  */
 
-export type { CreateUploadUrlResult };
-
 function revalidateMaintenancePaths(id?: string) {
   revalidatePath("/tms-v2/maintenance");
   if (id) revalidatePath(`/tms-v2/maintenance/${id}`);

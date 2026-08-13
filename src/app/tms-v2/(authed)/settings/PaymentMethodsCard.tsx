@@ -4,7 +4,8 @@ import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/tms-v2/ui/Button";
 import { Modal } from "@/components/tms-v2/ui/Modal";
-import { createExpenseAccount, updateExpenseAccount, deleteExpenseAccount, type PaymentMethodResult } from "@/actions/tms-v2/expense-accounts";
+import { createExpenseAccount, updateExpenseAccount, deleteExpenseAccount } from "@/actions/tms-v2/expense-accounts";
+import type { PaymentMethodResult } from "@/app/admin/(authed)/expenses/actions";
 import type { ExpenseAccountRow } from "@/lib/data/recurring-expenses";
 
 type SaveState = { ok: boolean; error: string | null };

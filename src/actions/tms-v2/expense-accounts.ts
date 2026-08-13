@@ -20,8 +20,6 @@ import type { MutationResult } from "@/lib/demo/mutation";
  * same as any other exception boundary.
  */
 
-export type { PaymentMethodResult };
-
 function revalidateAccountPaths() {
   revalidatePath("/tms-v2/settings");
   revalidatePath("/tms-v2/expenses");

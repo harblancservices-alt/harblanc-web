@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { jsPDF as JsPdfDoc } from "jspdf";
 import { Button } from "@/components/tms-v2/ui/Button";
-import { createLoadDocUploadUrl, recordLoadDocuments, type RecordDoc } from "@/actions/tms-v2/documents";
+import { createLoadDocUploadUrl, recordLoadDocuments } from "@/actions/tms-v2/documents";
+import type { RecordDoc } from "@/app/admin/(authed)/dispatch/loads/actions";
 import { uploadFileToSignedUrl } from "@/lib/storage/client-upload";
 import { dewarp, cleanup, type Quad, type Pt, type Mode } from "@/lib/dispatch/scan";
 

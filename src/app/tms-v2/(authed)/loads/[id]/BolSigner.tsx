@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { PDFPageProxy } from "pdfjs-dist";
 import { Button } from "@/components/tms-v2/ui/Button";
-import { signBolRole, type SignBolRolePayload } from "@/actions/tms-v2/documents";
+import { signBolRole } from "@/actions/tms-v2/documents";
+import type { SignBolRolePayload } from "@/app/admin/(authed)/dispatch/loads/actions";
 import { loadPdfjs } from "@/lib/pdf/pdfjs";
 import type { LoadDocumentItem } from "@/lib/data/loads";
 

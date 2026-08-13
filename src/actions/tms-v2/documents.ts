@@ -29,8 +29,6 @@ import {
  * nothing.
  */
 
-export type { CreateUploadUrlResult, DocUploadResult, RecordDoc, SignBolRolePayload, BolPlacement };
-
 function revalidateLoadDocPaths(loadId: string) {
   revalidatePath(`/tms-v2/loads/${loadId}`);
   revalidatePath("/tms-v2/loads");

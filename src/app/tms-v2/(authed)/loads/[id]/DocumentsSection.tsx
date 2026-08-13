@@ -6,8 +6,8 @@ import {
   createLoadDocUploadUrl,
   recordLoadDocuments,
   deleteLoadDocument,
-  type RecordDoc,
 } from "@/actions/tms-v2/documents";
+import type { RecordDoc } from "@/app/admin/(authed)/dispatch/loads/actions";
 import { uploadFileToSignedUrl } from "@/lib/storage/client-upload";
 import type { LoadDocumentItem } from "@/lib/data/loads";
 import { BolSigner, type BolRole } from "./BolSigner";
