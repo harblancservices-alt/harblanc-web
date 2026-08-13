@@ -19,6 +19,7 @@
 import {
   loadDiesel,
   loadNet as computeRawLoadNet,
+  factoringFee,
   type FuelSettings,
 } from "@/lib/dispatch/fuel";
 import {
@@ -83,9 +84,10 @@ export type LoadMoneyInput = {
 };
 
 export type LoadFinancials = {
-  /** True when this load is TONU'd — gross/net collapse to tonu_amount and
-   * no diesel/factoring/expenses are deducted, matching the one TONU rule
-   * every screen must agree on. */
+  /** True when this load is TONU'd — gross collapses to tonu_amount, net
+   * deducts ONLY the org's factoring % (no diesel/other expenses), matching
+   * the one TONU rule every screen must agree on: "taxed for factoring and
+   * that's it." */
   isTonu: boolean;
   gross: number;
   diesel: number;
@@ -99,12 +101,15 @@ export type LoadFinancials = {
 /**
  * A load's full P&L: rate minus diesel, factoring (only when the broker
  * factors), and manually-entered expenses — or, for a TONU'd load, the flat
- * tonu_amount with nothing deducted. The single source of truth for "true
- * net" across Today, the Load Board, Load Detail, Trips, Calendar, and
- * Performance.
+ * tonu_amount minus ONLY the org's factoring % (Brent: "it should be taxed
+ * 3% for factoring and that's it" — no diesel, no other expenses, applied
+ * regardless of the load's broker's own `factoring` flag since a TONU'd
+ * load never shipped). The single source of truth for "true net" across
+ * Today, the Load Board, Load Detail, Trips, Calendar, and Performance.
  *
  * `brokerFactoring` MUST reflect the load's broker's `factoring` flag —
  * pass false for any non-factoring broker so no factoring fee is deducted.
+ * (Ignored for TONU loads — see above.)
  */
 export function computeLoadNet(
   load: LoadMoneyInput,
@@ -143,13 +148,16 @@ export function computeLoadNet(
 
   if (isTonu) {
     const gross = num(load.tonuAmount);
+    // Always factored, regardless of brokerFactoring — a TONU'd load's only
+    // deduction is the org's factoring %.
+    const factoring = factoringFee(gross, settings, true);
     return {
       isTonu: true,
       gross,
       diesel: 0,
-      factoring: 0,
+      factoring,
       expenses: 0,
-      net: gross,
+      net: gross - factoring,
       loadedMiles: miles.loaded ?? 0,
       deadheadMiles: miles.deadhead ?? 0,
     };

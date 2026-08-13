@@ -93,6 +93,11 @@ export function FinancialsSection({
               <ExpensesSection loadId={loadId} items={items} adding={adding} onAddingChange={setAdding} editing={editing} />
             </div>
           </>
+        ) : factoring > 0 ? (
+          <div className="flex flex-col">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-fg-muted">Deductions</div>
+            <MoneyLine label={`Factoring ${factoringPct}%`} value={-factoring} tone="negative" />
+          </div>
         ) : null}
 
         <div className="-mx-4 -mb-4 mt-1 flex items-center justify-between rounded-b-xl bg-elevated px-4 py-3">

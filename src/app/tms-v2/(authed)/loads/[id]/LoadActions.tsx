@@ -357,7 +357,7 @@ function MarkTonuModal({
     <Modal open={open} onClose={onClose} title="Mark TONU">
       <form action={formAction} className="flex flex-col gap-3">
         <p className="text-[13px] text-fg-muted">
-          Truck ordered, not used — replaces the rate with a flat fee. No fuel, factoring, or expenses are deducted.
+          Truck ordered, not used — replaces the rate with a flat fee. Only factoring is deducted; no fuel or other expenses.
         </p>
         <Field label="TONU amount ($)" name="tonu_amount" type="number" step="any" min="0" defaultValue="150" required />
         <FormError message={state.error} />

@@ -72,19 +72,26 @@ describe("computeLoadNet", () => {
     expect(result.diesel).toBeGreaterThan(0);
   });
 
-  it("TONU: net is the flat tonu_amount, with no diesel/factoring/expenses deducted — the one TONU rule every screen agrees on", () => {
+  it("TONU: net is the flat tonu_amount minus ONLY the org's factoring % — no diesel/other expenses deducted — the one TONU rule every screen agrees on", () => {
     const result = computeLoadNet(
       load({ status: "tonu", rate: 1000, tonuAmount: 150 }),
       75, // expenses on a TONU load are ignored by design, not silently dropped
       SETTINGS,
       true,
     );
+    const expectedFactoring = 150 * 0.03;
     expect(result.isTonu).toBe(true);
     expect(result.gross).toBe(150);
     expect(result.diesel).toBe(0);
-    expect(result.factoring).toBe(0);
+    expect(result.factoring).toBeCloseTo(expectedFactoring, 5);
     expect(result.expenses).toBe(0);
-    expect(result.net).toBe(150);
+    expect(result.net).toBeCloseTo(150 - expectedFactoring, 5);
+  });
+
+  it("TONU is factored even when brokerFactoring is false — Brent's rule is unconditional: 'taxed for factoring and that's it'", () => {
+    const result = computeLoadNet(load({ status: "tonu", tonuAmount: 150 }), 0, SETTINGS, false);
+    expect(result.factoring).toBeCloseTo(150 * 0.03, 5);
+    expect(result.net).toBeCloseTo(150 - 150 * 0.03, 5);
   });
 
   it("TONU net matches across every consumer of computeLoadNet (Board/Detail/Trip/Calendar/Performance) since they all call the same function", () => {
@@ -92,12 +99,13 @@ describe("computeLoadNet", () => {
     // different ways. Every call site below is the same call — by
     // construction, they can't diverge.
     const tonuLoad = load({ status: "tonu", rate: 900, tonuAmount: 150 });
+    const expectedNet = 150 - 150 * 0.03;
     const board = computeLoadNet(tonuLoad, 0, SETTINGS, true);
     const detail = computeLoadNet(tonuLoad, 0, SETTINGS, true);
     const calendar = computeLoadNet(tonuLoad, 0, SETTINGS, false); // factoring flag differs per broker, net must not
-    expect(board.net).toBe(150);
-    expect(detail.net).toBe(150);
-    expect(calendar.net).toBe(150);
+    expect(board.net).toBeCloseTo(expectedNet, 5);
+    expect(detail.net).toBeCloseTo(expectedNet, 5);
+    expect(calendar.net).toBeCloseTo(expectedNet, 5);
   });
 
   it("handles a missing/null rate without throwing", () => {

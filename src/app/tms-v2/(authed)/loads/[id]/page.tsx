@@ -157,7 +157,7 @@ export default async function LoadDetailPage({
                 <StatusPill status={load.status} domain="load" />
                 {financials.isTonu ? (
                   <span className="w-fit rounded-full bg-bad-bg px-2.5 py-0.5 text-[12px] font-medium text-bad">
-                    TONU — flat fee, no deductions
+                    TONU — flat fee, factoring only
                   </span>
                 ) : null}
               </div>
