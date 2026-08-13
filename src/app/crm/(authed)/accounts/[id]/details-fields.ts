@@ -51,6 +51,38 @@ export const EQUIPMENT_OPTIONS = [
   "Double Drop",
 ] as const;
 
+/** Flatbed/hotshot commodity presets for the profile's inline "+ Add
+ * commodity" picker (CommoditiesCard.tsx) — common loads first, everything
+ * else not listed here still goes through the picker's "…or type your own"
+ * input. Deliberately separate from EQUIPMENT_OPTIONS (that's what hauls it,
+ * not what it is). */
+export const COMMODITY_PRESETS = [
+  "Steel",
+  "Pipe",
+  "Rebar",
+  "Beams / I-beams",
+  "Steel coils",
+  "Sheet metal",
+  "Lumber / Wood",
+  "Plywood",
+  "Generators",
+  "Transformers",
+  "Valves",
+  "Fittings",
+  "Machinery",
+  "Equipment / Attachments",
+  "Tractors",
+  "Pallets",
+  "Crates",
+  "Building materials",
+  "HVAC units",
+  "Tanks",
+  "Concrete barriers",
+  "Bricks / Block",
+  "Roofing materials",
+  "Cable / Wire spools",
+] as const;
+
 export const SPECIAL_REQUIREMENT_OPTIONS = [
   "Tarps",
   "Straps",

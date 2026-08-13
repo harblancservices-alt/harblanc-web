@@ -102,3 +102,14 @@ export async function updateContextNotes(accountId: string, formData: FormData):
     context_notes: optStr(formData, "context_notes"),
   });
 }
+
+/** Set the full commodities list (crm_accounts.commodities, stored as a
+ * comma-separated string) — the profile's inline "+ Add commodity" picker
+ * and each chip's × both call this with the complete next list rather than
+ * a single add/remove op, since the column has no dedicated join table. */
+export async function setCommodities(accountId: string, commodities: string[]): Promise<ActionResult> {
+  const cleaned = commodities.map((c) => c.trim()).filter(Boolean);
+  return applyUpdate(accountId, {
+    commodities: cleaned.length ? cleaned.join(", ") : null,
+  });
+}

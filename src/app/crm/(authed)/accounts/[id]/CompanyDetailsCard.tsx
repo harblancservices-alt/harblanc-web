@@ -2,9 +2,9 @@ import type { ReactNode } from "react";
 import { Card } from "../../_shell/ui";
 import { digitsForTel, normalizeHref, type PhoneEntry, type LinkEntry } from "../../_shell/contactFields";
 import { formatPhone } from "@/lib/domain/phone";
-import { IconAiAgent, IconFacebook, IconGlobe, IconInstagram, IconLink, IconLinkedIn, IconMail, IconTruck } from "../../_shell/icons";
+import { IconFacebook, IconGlobe, IconInstagram, IconLink, IconLinkedIn, IconMail } from "../../_shell/icons";
 import type { LaneEntry } from "../../_shell/LanesEditor";
-import { FreightProfileDialog, type FreightProfileDefaults } from "./FreightProfileDialog";
+import { CommoditiesCard } from "./CommoditiesCard";
 import { TagsCard, type CrmTagOption } from "./TagsCard";
 import { EditCompany } from "./EditCompany";
 import type { CompanyDefaults, RepOption } from "../CompanyDialog";
@@ -71,45 +71,6 @@ function PhoneRow({ label, href, text }: { label: string; href: string; text: st
   );
 }
 
-function Chips({ values, fromAi }: { values: string[]; fromAi?: boolean }) {
-  if (!values.length) return null;
-  return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      {values.map((v) => (
-        <span key={v} className="rounded-md border border-line-strong bg-inset px-2 py-0.5 text-[11.5px] font-medium text-fg">
-          {v}
-        </span>
-      ))}
-      {fromAi && <AiBadge />}
-    </div>
-  );
-}
-
-function AiBadge() {
-  return (
-    <span
-      title="Confirmed from AI research"
-      className="inline-flex items-center gap-0.5 bg-warn-bg px-1 py-0.5 text-[9px] font-bold uppercase tracking-wide text-warn"
-    >
-      <IconAiAgent width={9} height={9} />
-      AI
-    </span>
-  );
-}
-
-function Lanes({ lanes }: { lanes: LaneEntry[] }) {
-  if (!lanes.length) return null;
-  return (
-    <ul className="flex flex-col gap-1">
-      {lanes.map((l, i) => (
-        <li key={i} className="text-[13.5px] text-fg">
-          {l.origin || "?"} <span className="text-fg-subtle">→</span> {l.destination || "?"}
-        </li>
-      ))}
-    </ul>
-  );
-}
-
 /** Solid green "Active" badge — the header band's compact companion to the
  * page title bar's full "Active Customer" pill (CompanyHeader.tsx). Same
  * #15803d per Brent's spec, just shorter text to fit the tighter band. */
@@ -169,14 +130,15 @@ export type CompanyFreightData = {
  * four clearly separated groups (each its own small icon-chip header + a
  * divider): Contact (email/phone/location, bold dark values instead of
  * underlined blue), Links (Website/LinkedIn/any other social as tappable
- * bubble buttons instead of label-left/url-right rows), Freight Profile
- * (commodities now shown as chips + their own "+ Add commodity" trigger,
- * since commodities have no dedicated inline picker and are only ever
- * edited through the main CompanyDialog — see EditCompany's "pill" variant;
- * equipment/lanes/volume/weight/special still go through FreightProfileDialog
- * unchanged), and Tags (TagsCard — attached-only by default, full picker
- * collapsed behind "+ Add tag"). Rows/sections without data stay hidden,
- * matching this card's behavior since the 2026-08-09 rebuild.
+ * bubble buttons instead of label-left/url-right rows), Commodities
+ * (CommoditiesCard — attached-only chips by default, its own inline tap-pill
+ * picker collapsed behind "+ Add commodity"; NOT the old "Freight Profile"
+ * section — equipment/lanes/volume/weight/special were dropped from the
+ * profile entirely per Brent's 2026-08-12 call ("just commodities and
+ * tags"); those columns/FreightProfileDialog still exist, just unused here),
+ * and Tags (TagsCard — attached-only by default, full picker collapsed
+ * behind "+ Add tag"). Rows/sections without data stay hidden, matching this
+ * card's behavior since the 2026-08-09 rebuild.
  *
  * Company type/Employees/Annual revenue/Source/MC-DOT/Description — real
  * fields this design doesn't name for this card — still live in the
@@ -237,18 +199,6 @@ export function CompanyDetailsCard({
     .split(",")
     .map((c) => c.trim())
     .filter(Boolean);
-
-  const freightDialogDefaults: FreightProfileDefaults = {
-    equipment_needed: freight.equipmentNeeded,
-    lanes: freight.lanes,
-    volume_frequency: freight.volumeFrequency,
-    weight_range: freight.weightRange,
-    special_requirements: freight.specialRequirements,
-  };
-  // Commodities have their own always-visible subsection/trigger below, so
-  // "empty" here only covers the fields FreightProfileDialog actually edits.
-  const otherFreightEmpty =
-    !freight.equipmentNeeded.length && !freight.lanes.length && !freight.volumeFrequency && !freight.weightRange && !freight.specialRequirements.length;
 
   const monogram = (name || "?").trim().charAt(0).toUpperCase() || "?";
 
@@ -328,64 +278,9 @@ export function CompanyDetailsCard({
           </div>
         )}
 
-        {/* Freight profile */}
+        {/* Commodities */}
         <div className={`flex flex-col gap-3 ${hasContact || linkBubbles.length > 0 ? "border-t border-line-strong pt-4" : ""}`}>
-          <SectionHeading
-            icon={<IconTruck width={13} height={13} />}
-            tint="bg-ok/10 text-ok"
-            label="Freight Profile"
-            right={<FreightProfileDialog accountId={accountId} defaults={freightDialogDefaults} />}
-          />
-          <div className="flex flex-col gap-4">
-            <div>
-              <div className="mb-1.5 flex items-center justify-between gap-2">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-fg-muted">Commodities</p>
-                <EditCompany defaults={editDefaults} reps={reps} variant="pill" label="Add commodity" />
-              </div>
-              {commodityChips.length > 0 ? (
-                <Chips values={commodityChips} fromAi={!!freight.confirmed.commodities} />
-              ) : (
-                <p className="text-[12.5px] text-fg-muted">No commodities on file yet.</p>
-              )}
-            </div>
-
-            {otherFreightEmpty ? (
-              <p className="text-[13px] text-fg-muted">No equipment, lanes, or other freight details on file yet.</p>
-            ) : (
-              <>
-                {freight.equipmentNeeded.length > 0 && (
-                  <div>
-                    <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-fg-muted">Equipment needed</p>
-                    <Chips values={freight.equipmentNeeded} fromAi={!!freight.confirmed.equipment_needed} />
-                  </div>
-                )}
-                {freight.lanes.length > 0 && (
-                  <div>
-                    <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-fg-muted">Typical lanes</p>
-                    <Lanes lanes={freight.lanes} />
-                  </div>
-                )}
-                {freight.volumeFrequency && (
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-fg-muted">Volume & frequency</p>
-                    <p className="mt-1 text-[13.5px] text-fg">{freight.volumeFrequency}</p>
-                  </div>
-                )}
-                {freight.weightRange && (
-                  <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-fg-muted">Weight range</p>
-                    <p className="mt-1 text-[13.5px] text-fg">{freight.weightRange}</p>
-                  </div>
-                )}
-                {freight.specialRequirements.length > 0 && (
-                  <div>
-                    <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-[0.08em] text-fg-muted">Special requirements</p>
-                    <Chips values={freight.specialRequirements} fromAi={!!freight.confirmed.special_requirements} />
-                  </div>
-                )}
-              </>
-            )}
-          </div>
+          <CommoditiesCard accountId={accountId} commodities={commodityChips} fromAi={!!freight.confirmed.commodities} />
         </div>
 
         {/* Tags */}
