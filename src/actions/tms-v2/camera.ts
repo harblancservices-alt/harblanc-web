@@ -2,11 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import {
-  createCameraBatch as legacyCreateCameraBatch,
-  createCameraUploadUrl as legacyCreateCameraUploadUrl,
-  recordCameraPhoto as legacyRecordCameraPhoto,
-  deleteCameraPhoto as legacyDeleteCameraPhoto,
-  deleteCameraBatch as legacyDeleteCameraBatch,
+  createCameraBatchLive as legacyCreateCameraBatch,
+  createCameraUploadUrlLive as legacyCreateCameraUploadUrl,
+  recordCameraPhotoLive as legacyRecordCameraPhoto,
+  deleteCameraPhotoLive as legacyDeleteCameraPhoto,
+  deleteCameraBatchLive as legacyDeleteCameraBatch,
   type CreateBatchResult,
   type UploadUrlResult,
   type RecordPhotoResult,
@@ -16,9 +16,10 @@ import {
 /**
  * Camera capture writes for /tms-v2 — thin wrappers around V1's signed-
  * upload-URL + batch/photo action layer (src/app/admin/(authed)/camera/
- * actions.ts), same pattern as src/actions/tms-v2/documents.ts. The legacy
- * functions already carry their own blockedByDemo() gate and return
- * non-throwing result unions, so these wrappers only add /tms-v2's own
+ * actions.ts), same pattern as src/actions/tms-v2/documents.ts. Calls the
+ * `*Live` variants (ungated core, no `blockedByDemo()` check) — /tms-v2 has
+ * no demo mode of its own, so its writes must never be silently no-op'd by
+ * admin's demo cookie. These wrappers only add /tms-v2's own
  * revalidatePath targets on top of V1's.
  */
 

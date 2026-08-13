@@ -617,16 +617,16 @@ export type RecordDoc = {
  * client then uploads the bytes straight to storage (bypassing the server
  * action / Vercel body limits). No file bytes pass through this action.
  */
-export async function createLoadDocUploadUrl(
+/** Ungated core — tms-v2 has no demo mode of its own (src/actions/tms-v2/
+ * documents.ts calls this directly), so its writes can never be silently
+ * no-op'd by /admin's demo cookie. Admin's own `createLoadDocUploadUrl`
+ * below keeps its gate, unchanged. */
+export async function createLoadDocUploadUrlLive(
   loadId: string,
   fileName: string,
   mimeType: string,
   sizeBytes: number,
 ): Promise<CreateUploadUrlResult> {
-  // DEMO: never mint a storage upload token — documents are read-only in demo.
-  if (await blockedByDemo()) {
-    return { ok: false, reason: "Demo mode — document uploads are disabled." };
-  }
   try {
     if (!DOC_MIME.has(mimeType)) {
       return {
@@ -663,20 +663,31 @@ export async function createLoadDocUploadUrl(
   }
 }
 
+/** Admin's own gated entry point — unchanged behavior. */
+export async function createLoadDocUploadUrl(
+  loadId: string,
+  fileName: string,
+  mimeType: string,
+  sizeBytes: number,
+): Promise<CreateUploadUrlResult> {
+  // DEMO: never mint a storage upload token — documents are read-only in demo.
+  if (await blockedByDemo()) {
+    return { ok: false, reason: "Demo mode — document uploads are disabled." };
+  }
+  return createLoadDocUploadUrlLive(loadId, fileName, mimeType, sizeBytes);
+}
+
 /**
  * Step 2 of a direct-to-storage upload: insert the load_documents row(s) for
  * files the client already uploaded to storage. Tiny JSON payload — no bytes.
  * thumb_path is null (thumbnails are no longer generated in the request path).
  */
-export async function recordLoadDocuments(
+/** Ungated core — see createLoadDocUploadUrlLive's header for why. */
+export async function recordLoadDocumentsLive(
   loadId: string,
   kindRaw: string,
   docs: RecordDoc[],
 ): Promise<DocUploadResult> {
-  // DEMO: never insert document rows — documents are read-only in demo.
-  if (await blockedByDemo()) {
-    return { ok: false, reason: "Demo mode — document uploads are disabled." };
-  }
   try {
     if (!Array.isArray(docs) || docs.length === 0) {
       return { ok: false, reason: "No documents to save." };
@@ -755,13 +766,24 @@ export async function recordLoadDocuments(
   }
 }
 
-export async function deleteLoadDocument(
+/** Admin's own gated entry point — unchanged behavior. */
+export async function recordLoadDocuments(
+  loadId: string,
+  kindRaw: string,
+  docs: RecordDoc[],
+): Promise<DocUploadResult> {
+  // DEMO: never insert document rows — documents are read-only in demo.
+  if (await blockedByDemo()) {
+    return { ok: false, reason: "Demo mode — document uploads are disabled." };
+  }
+  return recordLoadDocumentsLive(loadId, kindRaw, docs);
+}
+
+/** Ungated core — see createLoadDocUploadUrlLive's header for why. */
+export async function deleteLoadDocumentLive(
   docId: string,
   loadId: string,
 ): Promise<DocUploadResult> {
-  if (await blockedByDemo()) {
-    return { ok: false, reason: "Demo mode — document deletion is disabled." };
-  }
   try {
     const sb = createServiceRoleClient();
     const { data: row } = await sb
@@ -785,6 +807,17 @@ export async function deleteLoadDocument(
       reason: `Could not delete document: ${e instanceof Error ? e.message : "unexpected error"}`,
     };
   }
+}
+
+/** Admin's own gated entry point — unchanged behavior. */
+export async function deleteLoadDocument(
+  docId: string,
+  loadId: string,
+): Promise<DocUploadResult> {
+  if (await blockedByDemo()) {
+    return { ok: false, reason: "Demo mode — document deletion is disabled." };
+  }
+  return deleteLoadDocumentLive(docId, loadId);
 }
 
 // ── BOL signatures (Receiver + Carrier) ────────────────────────────────────
@@ -891,16 +924,13 @@ async function regenerateSignedBol(
  * Save (or replace) one role's signature on a BOL and regenerate the signed
  * PDF from the original + all current role signatures. Keeps the original.
  */
-export async function signBolRole(
+/** Ungated core — see createLoadDocUploadUrlLive's header for why. */
+export async function signBolRoleLive(
   loadId: string,
   originalDocId: string,
   role: string,
   payload: SignBolRolePayload,
 ): Promise<DocUploadResult> {
-  // DEMO: never regenerate or write a signed BOL — documents are read-only.
-  if (await blockedByDemo()) {
-    return { ok: false, reason: "Demo mode — signing is disabled." };
-  }
   try {
     if (!BOL_ROLES.has(role)) {
       return { ok: false, reason: "Unknown signer role." };
@@ -1027,6 +1057,20 @@ export async function signBolRole(
       reason: `Could not sign BOL: ${e instanceof Error ? e.message : "unexpected error"}`,
     };
   }
+}
+
+/** Admin's own gated entry point — unchanged behavior. */
+export async function signBolRole(
+  loadId: string,
+  originalDocId: string,
+  role: string,
+  payload: SignBolRolePayload,
+): Promise<DocUploadResult> {
+  // DEMO: never regenerate or write a signed BOL — documents are read-only.
+  if (await blockedByDemo()) {
+    return { ok: false, reason: "Demo mode — signing is disabled." };
+  }
+  return signBolRoleLive(loadId, originalDocId, role, payload);
 }
 
 /** Bulk soft-delete loads selected on the Load Board (multi-select). */

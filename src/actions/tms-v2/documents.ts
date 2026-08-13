@@ -2,10 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import {
-  createLoadDocUploadUrl as legacyCreateLoadDocUploadUrl,
-  recordLoadDocuments as legacyRecordLoadDocuments,
-  deleteLoadDocument as legacyDeleteLoadDocument,
-  signBolRole as legacySignBolRole,
+  createLoadDocUploadUrlLive as legacyCreateLoadDocUploadUrl,
+  recordLoadDocumentsLive as legacyRecordLoadDocuments,
+  deleteLoadDocumentLive as legacyDeleteLoadDocument,
+  signBolRoleLive as legacySignBolRole,
   type CreateUploadUrlResult,
   type DocUploadResult,
   type RecordDoc,
@@ -21,10 +21,12 @@ import {
  * don't reinvent or duplicate it." The upload/compositing pipeline (sharp,
  * pdf-lib, signed storage URLs) is genuinely complex and already correct —
  * these wrappers only add /tms-v2's own revalidatePath targets on top of
- * V1's. Not run through mutation() (src/lib/demo/mutation.ts): the legacy
- * functions already carry their own blockedByDemo() gate and return
- * non-throwing result unions, so wrapping again would just re-check demo
- * mode for no behavioral difference.
+ * V1's. Calls the `*Live` variants (ungated core, no `blockedByDemo()`
+ * check) rather than admin's own exports — /tms-v2 has no demo mode of its
+ * own, so its writes must never be silently no-op'd by admin's demo
+ * cookie. Not run through mutation() (src/lib/demo/mutation.ts): these
+ * already return non-throwing result unions, so wrapping again would add
+ * nothing.
  */
 
 export type { CreateUploadUrlResult, DocUploadResult, RecordDoc, SignBolRolePayload, BolPlacement };

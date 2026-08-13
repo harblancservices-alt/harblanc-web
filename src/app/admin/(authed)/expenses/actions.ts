@@ -407,10 +407,11 @@ function last4OrNull(raw: string | null): string | null {
   return digits.length > 0 ? digits.slice(-4) : null;
 }
 
-export async function createExpenseAccount(formData: FormData): Promise<PaymentMethodResult> {
-  if (await blockedByDemo()) {
-    return { ok: false, reason: "Demo mode — payment method changes are disabled." };
-  }
+/** Ungated core — tms-v2 has no demo mode of its own (src/actions/tms-v2/
+ * expense-accounts.ts calls this directly), so its writes can never be
+ * silently no-op'd by /admin's demo cookie. Admin's own gated export below
+ * is unchanged. */
+export async function createExpenseAccountLive(formData: FormData): Promise<PaymentMethodResult> {
   const name = str(formData, "name");
   if (!name) return { ok: false, reason: "Nickname is required." };
   const type = str(formData, "type");
@@ -432,13 +433,19 @@ export async function createExpenseAccount(formData: FormData): Promise<PaymentM
   return { ok: true, id: data.id };
 }
 
-export async function updateExpenseAccount(
-  id: string,
-  formData: FormData,
-): Promise<PaymentMethodResult> {
+/** Admin's own gated entry point — unchanged behavior. */
+export async function createExpenseAccount(formData: FormData): Promise<PaymentMethodResult> {
   if (await blockedByDemo()) {
     return { ok: false, reason: "Demo mode — payment method changes are disabled." };
   }
+  return createExpenseAccountLive(formData);
+}
+
+/** Ungated core — see createExpenseAccountLive's header for why. */
+export async function updateExpenseAccountLive(
+  id: string,
+  formData: FormData,
+): Promise<PaymentMethodResult> {
   if (!id) return { ok: false, reason: "Missing payment method." };
   const name = str(formData, "name");
   if (!name) return { ok: false, reason: "Nickname is required." };
@@ -458,8 +465,19 @@ export async function updateExpenseAccount(
   return { ok: true, id };
 }
 
-export async function deleteExpenseAccount(id: string): Promise<void> {
-  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
+/** Admin's own gated entry point — unchanged behavior. */
+export async function updateExpenseAccount(
+  id: string,
+  formData: FormData,
+): Promise<PaymentMethodResult> {
+  if (await blockedByDemo()) {
+    return { ok: false, reason: "Demo mode — payment method changes are disabled." };
+  }
+  return updateExpenseAccountLive(id, formData);
+}
+
+/** Ungated core — see createExpenseAccountLive's header for why. */
+export async function deleteExpenseAccountLive(id: string): Promise<void> {
   if (!id) throw new Error("Missing payment method.");
   const sb = createServiceRoleClient();
   const { error } = await sb
@@ -468,4 +486,10 @@ export async function deleteExpenseAccount(id: string): Promise<void> {
     .eq("id", id);
   if (error) throw new Error(`Could not remove payment method: ${error.message}`);
   revalidatePath(PATH);
+}
+
+/** Admin's own gated entry point — unchanged behavior. */
+export async function deleteExpenseAccount(id: string): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
+  return deleteExpenseAccountLive(id);
 }

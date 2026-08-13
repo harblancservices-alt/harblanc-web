@@ -2,9 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 import {
-  createExpenseAccount as legacyCreateExpenseAccount,
-  updateExpenseAccount as legacyUpdateExpenseAccount,
-  deleteExpenseAccount as legacyDeleteExpenseAccount,
+  createExpenseAccountLive as legacyCreateExpenseAccount,
+  updateExpenseAccountLive as legacyUpdateExpenseAccount,
+  deleteExpenseAccountLive as legacyDeleteExpenseAccount,
   type PaymentMethodResult,
 } from "@/app/admin/(authed)/expenses/actions";
 import type { MutationResult } from "@/lib/demo/mutation";
@@ -12,11 +12,12 @@ import type { MutationResult } from "@/lib/demo/mutation";
 /**
  * Expense payment-method (expense_accounts) writes for /tms-v2 — thin
  * wrappers around V1's create/update/delete actions (documents.ts/
- * camera.ts's reuse pattern: the legacy functions already carry their own
- * blockedByDemo() gate and mostly return non-throwing result unions, so no
- * mutation() wrapper is needed). deleteExpenseAccount is the one legacy
- * exception (throws instead of returning a result) — converted to
- * MutationResult here via try/catch, same as any other exception boundary.
+ * camera.ts's reuse pattern). Calls the `*Live` variants (ungated core, no
+ * `blockedByDemo()` check) — /tms-v2 has no demo mode of its own, so its
+ * writes must never be silently no-op'd by admin's demo cookie.
+ * deleteExpenseAccount is the one legacy exception (throws instead of
+ * returning a result) — converted to MutationResult here via try/catch,
+ * same as any other exception boundary.
  */
 
 export type { PaymentMethodResult };

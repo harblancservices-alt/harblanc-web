@@ -46,13 +46,13 @@ function todayLabel(): string {
   }
 }
 
-/** Create a new (empty) batch. Name defaults to "BOL scan · <today>". */
-export async function createCameraBatch(
+/** Ungated core — tms-v2 has no demo mode of its own (src/actions/tms-v2/
+ * camera.ts calls this directly), so its writes can never be silently
+ * no-op'd by /admin's demo cookie. Admin's own gated export below is
+ * unchanged. */
+export async function createCameraBatchLive(
   nameRaw?: string,
 ): Promise<CreateBatchResult> {
-  if (await blockedByDemo()) {
-    return { ok: false, reason: "Demo mode — the camera is disabled." };
-  }
   try {
     const name = (nameRaw ?? "").trim() || `BOL scan · ${todayLabel()}`;
     const sb = createServiceRoleClient();
@@ -76,6 +76,16 @@ export async function createCameraBatch(
     console.error("[createCameraBatch] failed:", e);
     return { ok: false, reason: e instanceof Error ? e.message : "Unexpected error." };
   }
+}
+
+/** Admin's own gated entry point — unchanged behavior. */
+export async function createCameraBatch(
+  nameRaw?: string,
+): Promise<CreateBatchResult> {
+  if (await blockedByDemo()) {
+    return { ok: false, reason: "Demo mode — the camera is disabled." };
+  }
+  return createCameraBatchLive(nameRaw);
 }
 
 /** Rename a batch. */
@@ -108,12 +118,10 @@ export async function renameCameraBatch(
  * camera namespace of the load-documents bucket. The browser then uploads the
  * compressed bytes straight to storage. No bytes pass through this action.
  */
-export async function createCameraUploadUrl(
+/** Ungated core — see createCameraBatchLive's header for why. */
+export async function createCameraUploadUrlLive(
   batchId: string,
 ): Promise<UploadUrlResult> {
-  if (await blockedByDemo()) {
-    return { ok: false, reason: "Demo mode — the camera is disabled." };
-  }
   try {
     if (!batchId) return { ok: false, reason: "Missing batch." };
     const uuid = crypto.randomUUID();
@@ -132,19 +140,27 @@ export async function createCameraUploadUrl(
   }
 }
 
+/** Admin's own gated entry point — unchanged behavior. */
+export async function createCameraUploadUrl(
+  batchId: string,
+): Promise<UploadUrlResult> {
+  if (await blockedByDemo()) {
+    return { ok: false, reason: "Demo mode — the camera is disabled." };
+  }
+  return createCameraUploadUrlLive(batchId);
+}
+
 /**
  * Step 2 of a capture: record the metadata row for a photo already uploaded to
  * storage, assigning the next `seq` in the batch. Returns a signed URL so the
  * client can show the new thumbnail immediately.
  */
-export async function recordCameraPhoto(
+/** Ungated core — see createCameraBatchLive's header for why. */
+export async function recordCameraPhotoLive(
   batchId: string,
   storagePath: string,
   sizeBytes: number,
 ): Promise<RecordPhotoResult> {
-  if (await blockedByDemo()) {
-    return { ok: false, reason: "Demo mode — the camera is disabled." };
-  }
   try {
     if (!batchId || !storagePath) {
       return { ok: false, reason: "Missing photo details." };
@@ -200,14 +216,24 @@ export async function recordCameraPhoto(
   }
 }
 
-/** Delete one photo (storage object + row). Numbering renumbers on reload. */
-export async function deleteCameraPhoto(
+/** Admin's own gated entry point — unchanged behavior. */
+export async function recordCameraPhoto(
   batchId: string,
-  photoId: string,
-): Promise<SimpleResult> {
+  storagePath: string,
+  sizeBytes: number,
+): Promise<RecordPhotoResult> {
   if (await blockedByDemo()) {
     return { ok: false, reason: "Demo mode — the camera is disabled." };
   }
+  return recordCameraPhotoLive(batchId, storagePath, sizeBytes);
+}
+
+/** Delete one photo (storage object + row). Numbering renumbers on reload. */
+/** Ungated core — see createCameraBatchLive's header for why. */
+export async function deleteCameraPhotoLive(
+  batchId: string,
+  photoId: string,
+): Promise<SimpleResult> {
   try {
     const sb = createServiceRoleClient();
     const { data: row } = await sb
@@ -227,12 +253,21 @@ export async function deleteCameraPhoto(
   }
 }
 
-/** Delete a whole batch: remove every storage object, then the batch row
- * (photo rows cascade). */
-export async function deleteCameraBatch(batchId: string): Promise<SimpleResult> {
+/** Admin's own gated entry point — unchanged behavior. */
+export async function deleteCameraPhoto(
+  batchId: string,
+  photoId: string,
+): Promise<SimpleResult> {
   if (await blockedByDemo()) {
     return { ok: false, reason: "Demo mode — the camera is disabled." };
   }
+  return deleteCameraPhotoLive(batchId, photoId);
+}
+
+/** Delete a whole batch: remove every storage object, then the batch row
+ * (photo rows cascade). Ungated core — see createCameraBatchLive's header
+ * for why. */
+export async function deleteCameraBatchLive(batchId: string): Promise<SimpleResult> {
   try {
     const sb = createServiceRoleClient();
     const { data: rows } = await sb
@@ -251,4 +286,12 @@ export async function deleteCameraBatch(batchId: string): Promise<SimpleResult> 
   } catch (e) {
     return { ok: false, reason: e instanceof Error ? e.message : "Unexpected error." };
   }
+}
+
+/** Admin's own gated entry point — unchanged behavior. */
+export async function deleteCameraBatch(batchId: string): Promise<SimpleResult> {
+  if (await blockedByDemo()) {
+    return { ok: false, reason: "Demo mode — the camera is disabled." };
+  }
+  return deleteCameraBatchLive(batchId);
 }
