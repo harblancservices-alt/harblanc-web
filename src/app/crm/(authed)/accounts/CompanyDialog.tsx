@@ -250,6 +250,7 @@ export function CompanyDialog({
                 name="contact_value"
                 placeholder="e.g. acmesteel.com or (555) 123-4567"
               />
+              <Field label="Address" name="address" />
             </div>
           ) : (
             <>
