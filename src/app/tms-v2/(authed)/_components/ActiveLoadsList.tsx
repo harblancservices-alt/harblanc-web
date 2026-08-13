@@ -3,18 +3,22 @@ import { Money } from "@/components/tms-v2/ui/Money";
 import { StatusPill } from "@/components/tms-v2/ui/StatusPill";
 import { ActiveLoadRowAction } from "./ActiveLoadRowAction";
 import { AddLoadButton } from "../loads/AddLoadButton";
+import { withReturnTo } from "@/lib/nav/return-to";
 import type { LoadWithFinancials } from "@/lib/data/loads";
 
 /** Dashboard's primary working list — rich stretched-link cards (status,
  * broker/lane, rate, inline odometer quick-action), mirroring legacy
  * admin's dashboard active-loads cards (src/app/admin/(authed)/
  * DashboardView.tsx) rather than a cramped table. The whole card opens
- * the Load Board's context drawer for this load; the odometer action sits
- * above the stretched link (relative z-10) so it acts as its own control
- * and never navigates — same layering trick legacy's cards use. The empty
- * state hosts the red "+ Add Load" button, matching legacy exactly: Add
- * Load only appears here, when the truck is empty — once a load exists,
- * new ones are added from the Load Board's own action row. */
+ * this load's own Load Detail page (the site's one convention for "go to
+ * this load", per lib/nav/return-to.ts — not the Load Board list, which
+ * has no drawer/`id` handling and would just land the user on the
+ * unfiltered board); the odometer action sits above the stretched link
+ * (relative z-10) so it acts as its own control and never navigates —
+ * same layering trick legacy's cards use. The empty state hosts the red
+ * "+ Add Load" button, matching legacy exactly: Add Load only appears
+ * here, when the truck is empty — once a load exists, new ones are added
+ * from the Load Board's own action row. */
 export function ActiveLoadsList({
   loads,
   brokerNames,
@@ -41,7 +45,7 @@ export function ActiveLoadsList({
           className={`relative px-3.5 py-3 transition-colors hover:bg-elevated ${i === loads.length - 1 ? "" : "border-b border-line"}`}
         >
           <Link
-            href={`/tms-v2/loads?id=${l.id}`}
+            href={withReturnTo(`/tms-v2/loads/${l.id}`, "/tms-v2")}
             aria-label={`Open load ${l.loadNumber ?? l.id.slice(0, 8)}`}
             className="absolute inset-0 z-0"
           />
