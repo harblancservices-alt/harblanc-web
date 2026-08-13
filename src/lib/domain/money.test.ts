@@ -55,6 +55,23 @@ describe("computeLoadNet", () => {
     expect(result.loadedMiles).toBe(400);
   });
 
+  it("does NOT deduct diesel from net using the ZIP-route estimate when odometer readings aren't entered — the estimate may drive the displayed loadedMiles KPI, but must never silently reduce profit", () => {
+    const result = computeLoadNet(
+      load({ odoAssigned: null, odoLoaded: null, odoDelivered: null, loadedMilesEstimate: 258, rate: 250 }),
+      0,
+      SETTINGS,
+      false,
+    );
+    expect(result.loadedMiles).toBe(258); // display KPI still shows the estimate
+    expect(result.diesel).toBe(0); // but nothing is deducted from profit for it
+    expect(result.net).toBe(250);
+  });
+
+  it("still deducts real diesel once actual odometer readings are entered", () => {
+    const result = computeLoadNet(load(), 0, SETTINGS, false); // odoAssigned/Loaded/Delivered all set in the load() factory
+    expect(result.diesel).toBeGreaterThan(0);
+  });
+
   it("TONU: net is the flat tonu_amount, with no diesel/factoring/expenses deducted — the one TONU rule every screen agrees on", () => {
     const result = computeLoadNet(
       load({ status: "tonu", rate: 1000, tonuAmount: 150 }),

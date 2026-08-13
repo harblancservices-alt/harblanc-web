@@ -108,6 +108,9 @@ export function computeTripFinancials(
 
   for (const l of live) {
     const rate = num(l.rate);
+    // Miles for DISPLAY (trip's Total mi / Deadhead mi sums) — may fall back
+    // to each load's stored ZIP-route estimate before odometer readings are
+    // in, same as computeLoadNet's display miles.
     const d = loadDiesel(
       {
         odoAssigned: l.odo_assigned,
@@ -117,11 +120,24 @@ export function computeTripFinancials(
       },
       fuel,
     );
+    // Miles that actually deduct diesel from trip net — odometer-only, no
+    // estimate fallback. Keeps this trip-level net consistent with
+    // computeLoadNet's per-load net (never let a ZIP estimate silently
+    // reduce the profit shown for a load).
+    const dReal = loadDiesel(
+      {
+        odoAssigned: l.odo_assigned,
+        odoLoaded: l.odo_loaded,
+        odoDelivered: l.odo_delivered,
+        estimate: null,
+      },
+      fuel,
+    );
     const brokerFactoring =
       l.broker_id != null && factoringIds.has(l.broker_id);
     const expenses = expByLoad.get(l.id) ?? 0;
     const { factoring, net: loadNetValue } = loadNet(
-      { rate, diesel: d.diesel, expensesTotal: expenses },
+      { rate, diesel: dReal.diesel, expensesTotal: expenses },
       fuel,
       brokerFactoring,
     );
@@ -130,7 +146,7 @@ export function computeTripFinancials(
     loadNetSum += loadNetValue;
     loadedMiles += d.loaded ?? 0;
     deadheadMiles += d.deadhead ?? 0;
-    loadDieselTotal += d.diesel;
+    loadDieselTotal += dReal.diesel;
     factoringTotal += factoring;
     expensesTotal += expenses;
   }
