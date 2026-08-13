@@ -166,13 +166,13 @@ export default async function LoadDetailPage({
               />
               <CommandStat
                 label="Total mi"
-                value={totalMiles.toLocaleString("en-US")}
+                value={totalMiles > 0 ? totalMiles.toLocaleString("en-US") : "—"}
                 sub={totalMiles > 0 ? `${formatMoney(financials.diesel)} fuel` : undefined}
                 className="border-r-2 border-r-bad"
               />
               <CommandStat
                 label="Deadhead mi"
-                value={financials.deadheadMiles.toLocaleString("en-US")}
+                value={financials.deadheadMiles > 0 ? financials.deadheadMiles.toLocaleString("en-US") : "—"}
                 sub={financials.deadheadMiles > 0 ? `${formatMoney(deadheadFuel)} fuel` : undefined}
                 tone="warn"
               />

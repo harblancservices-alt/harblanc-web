@@ -27,7 +27,7 @@ export function LoadPerformanceTable({ rows, sort, fromPath }: { rows: LoadTable
       align: "right",
       sortable: true,
       hideOnMobile: true,
-      render: (r) => Math.round(r.loadedMiles).toLocaleString("en-US"),
+      render: (r) => (r.loadedMiles > 0 ? Math.round(r.loadedMiles).toLocaleString("en-US") : "—"),
     },
     {
       key: "deadheadMiles",
@@ -35,7 +35,7 @@ export function LoadPerformanceTable({ rows, sort, fromPath }: { rows: LoadTable
       align: "right",
       sortable: true,
       hideOnMobile: true,
-      render: (r) => Math.round(r.deadheadMiles).toLocaleString("en-US"),
+      render: (r) => (r.deadheadMiles > 0 ? Math.round(r.deadheadMiles).toLocaleString("en-US") : "—"),
     },
     {
       key: "totalMiles",
@@ -43,7 +43,7 @@ export function LoadPerformanceTable({ rows, sort, fromPath }: { rows: LoadTable
       align: "right",
       sortable: true,
       hideOnMobile: true,
-      render: (r) => Math.round(r.totalMiles).toLocaleString("en-US"),
+      render: (r) => (r.totalMiles > 0 ? Math.round(r.totalMiles).toLocaleString("en-US") : "—"),
     },
     { key: "grossRpm", header: "Gross/loaded-mi", align: "right", sortable: true, hideOnMobile: true, render: (r) => rpm(r.grossRpm) },
     { key: "netRpm", header: "Net/loaded-mi", align: "right", sortable: true, render: (r) => rpm(r.netRpm) },

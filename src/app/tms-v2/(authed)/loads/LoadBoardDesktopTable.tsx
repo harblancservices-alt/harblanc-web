@@ -45,7 +45,11 @@ export function LoadBoardDesktopTable({
       header: "Miles (Ld / DH)",
       align: "right",
       sortable: true,
-      render: (l) => `${Math.round(l.financials.loadedMiles).toLocaleString()} / ${Math.round(l.financials.deadheadMiles).toLocaleString()}`,
+      render: (l) => {
+        const ld = l.financials.loadedMiles > 0 ? Math.round(l.financials.loadedMiles).toLocaleString() : "—";
+        const dh = l.financials.deadheadMiles > 0 ? Math.round(l.financials.deadheadMiles).toLocaleString() : "—";
+        return `${ld} / ${dh}`;
+      },
     },
     { key: "gross", header: "Gross", align: "right", sortable: true, render: (l) => <Money value={l.financials.gross} tone="none" className="tabular-nums" /> },
     { key: "net", header: "Net", align: "right", sortable: true, render: (l) => <Money value={l.financials.net} className="tabular-nums" /> },
