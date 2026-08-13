@@ -27,7 +27,6 @@
  */
 
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { isDemoMode } from "@/lib/admin/demo";
 import { centralDateKey } from "@/lib/domain/dates";
 import {
   computeFreshness,
@@ -308,8 +307,6 @@ async function fetchDismissedReminders(sb: SB): Promise<DismissedReminder[]> {
 }
 
 export async function getMaintenanceOverview(): Promise<MaintenanceOverview> {
-  if (await isDemoMode()) return demoOverview();
-
   const sb = createServiceRoleClient();
   const todayStr = centralDateKey();
   const currentOdo = await fetchCurrentOdo(sb);
@@ -465,8 +462,6 @@ function cardSort(a: ServiceTypeCard, b: ServiceTypeCard): number {
 }
 
 export async function getServiceTypesOverview(): Promise<{ currentOdo: number; types: ServiceTypeCard[] }> {
-  if (await isDemoMode()) return demoServiceTypesOverview();
-
   const sb = createServiceRoleClient();
   const currentOdo = await fetchCurrentOdo(sb);
   const [{ data: reminderRows }, groupStats] = await Promise.all([
@@ -513,8 +508,6 @@ export type ServiceTypeDetail = {
 };
 
 export async function getServiceTypeDetail(slug: string): Promise<ServiceTypeDetail | null> {
-  if (await isDemoMode()) return demoServiceTypeDetail(slug);
-
   const sb = createServiceRoleClient();
   const currentOdo = await fetchCurrentOdo(sb);
   const [{ data: reminderRows }, groupStats] = await Promise.all([
@@ -607,7 +600,6 @@ export type MaintenanceServiceFull = {
  * the SERVICE itself, so a type-profile's history row can open the same
  * edit modal regardless of which of the visit's parts matched this type. */
 export async function getServiceFull(serviceId: string): Promise<MaintenanceServiceFull | null> {
-  if (await isDemoMode()) return demoServiceFull(serviceId);
   if (!serviceId) return null;
   const sb = createServiceRoleClient();
 
@@ -772,7 +764,6 @@ async function fetchReceipts(sb: SB, serviceId: string): Promise<ReceiptView[]> 
 }
 
 export async function getRepairEntryDetail(id: string): Promise<RepairEntryDetail | null> {
-  if (await isDemoMode()) return demoEntryDetail(id);
   if (!id) return null;
 
   const sb = createServiceRoleClient();
@@ -908,438 +899,6 @@ export async function getRepairEntryDetail(id: string): Promise<RepairEntryDetai
       subCategory: p.sub_category ?? null,
       partGroup: p.part_group,
     })),
-    relatedParts,
-  };
-}
-
-// ---------------------------------------------------------------------------
-// DEMO — a small, self-contained curated set (unrelated to the shared
-// loads/trips/brokers demo dataset in demo-dataset.ts, so it stays local
-// rather than growing that shared file mid-phase — same call
-// `recurring-expenses.ts` already made). Generated relative to "now" so it
-// stays evergreen; covers all four reminder statuses (overdue/soon/ok/
-// baseline) and demonstrates same-visit auto-linked related parts.
-
-type DemoFixture = {
-  id: string;
-  description: string;
-  category: Category;
-  partGroup: string | null;
-  serviceId: string;
-  daysAgo: number;
-  milesAgo: number;
-  shop: string | null;
-  serviceTotalCost: number | null;
-  notes: string | null;
-  hasReceipt: boolean;
-  receiptIsImage: boolean;
-  reminderIntervalMiles: number | null;
-};
-
-function demoNow(): Date {
-  return new Date();
-}
-
-/** ~45mi/day average since a fixed anchor — evergreen, no real DB read. */
-function demoCurrentOdo(now: Date): number {
-  const anchor = Date.UTC(2026, 0, 1);
-  const days = Math.max(0, Math.floor((now.getTime() - anchor) / 86_400_000));
-  return 78_000 + days * 45;
-}
-
-function demoFixtures(): DemoFixture[] {
-  return [
-    {
-      id: "demo-repair-oil-filter",
-      description: "Engine oil & filter",
-      category: "Engine Bay",
-      partGroup: "Engine oil & filter",
-      serviceId: "demo-svc-oil",
-      daysAgo: 95,
-      milesAgo: 9_200,
-      shop: "Quick Lube Express",
-      serviceTotalCost: 210,
-      notes: "Full synthetic 15w-40, both filters replaced.",
-      hasReceipt: true,
-      receiptIsImage: true,
-      reminderIntervalMiles: 10_000,
-    },
-    {
-      id: "demo-repair-fuel-filter",
-      description: "Fuel filters (primary + secondary)",
-      category: "Engine Bay",
-      partGroup: "Fuel filters",
-      serviceId: "demo-svc-oil",
-      daysAgo: 95,
-      milesAgo: 9_200,
-      shop: "Quick Lube Express",
-      serviceTotalCost: 210,
-      notes: "Full synthetic 15w-40, both filters replaced.",
-      hasReceipt: true,
-      receiptIsImage: true,
-      reminderIntervalMiles: 15_000,
-    },
-    {
-      id: "demo-repair-brake-pads",
-      description: "Front brake pads + rotors",
-      category: "Brakes",
-      partGroup: "Front brake pads",
-      serviceId: "demo-svc-brakes",
-      daysAgo: 260,
-      milesAgo: 24_000,
-      shop: "Rush Truck Centers",
-      serviceTotalCost: 380,
-      notes: "Pads replaced, rotors resurfaced.",
-      hasReceipt: true,
-      receiptIsImage: false,
-      reminderIntervalMiles: 20_000,
-    },
-    {
-      id: "demo-repair-grease",
-      description: "Grease all chassis fittings",
-      category: "Steering & Suspension",
-      partGroup: "Chassis grease",
-      serviceId: "demo-svc-grease",
-      daysAgo: 40,
-      milesAgo: 3_600,
-      shop: null,
-      serviceTotalCost: null,
-      notes: "Chassis lube at fuel stop.",
-      hasReceipt: false,
-      receiptIsImage: false,
-      reminderIntervalMiles: 5_000,
-    },
-    {
-      id: "demo-repair-ujoint",
-      description: "U-joint replacement",
-      category: "Drivetrain",
-      partGroup: null,
-      serviceId: "demo-svc-drivetrain",
-      daysAgo: 600,
-      milesAgo: 58_000,
-      shop: "Rush Truck Centers",
-      serviceTotalCost: 240,
-      notes: null,
-      hasReceipt: false,
-      receiptIsImage: false,
-      reminderIntervalMiles: null,
-    },
-    {
-      id: "demo-repair-carrier-bearing",
-      description: "Driveshaft carrier bearing",
-      category: "Drivetrain",
-      partGroup: null,
-      serviceId: "demo-svc-drivetrain",
-      daysAgo: 600,
-      milesAgo: 58_000,
-      shop: "Rush Truck Centers",
-      serviceTotalCost: 240,
-      notes: null,
-      hasReceipt: false,
-      receiptIsImage: false,
-      reminderIntervalMiles: null,
-    },
-  ];
-}
-
-/** DEF filter — an active reminder with nothing ever logged against it, the
- * "no baseline" (never serviced) case. */
-const DEMO_BASELINE_REMINDER = {
-  id: "demo-reminder-def-filter",
-  label: "DEF filter",
-  partGroup: "DEF filter",
-  category: "Engine Bay" as Category,
-  intervalMiles: 30_000,
-};
-
-function toIsoDate(d: Date): string {
-  return d.toISOString().slice(0, 10);
-}
-
-function demoOverview(): MaintenanceOverview {
-  const now = demoNow();
-  const currentOdo = demoCurrentOdo(now);
-  const todayStr = centralDateKey(now);
-  const fixtures = demoFixtures();
-
-  const reminderFixtures = fixtures.filter((f) => f.reminderIntervalMiles != null && f.partGroup);
-  const byPartGroup = new Map<string, DemoFixture>();
-  for (const f of reminderFixtures) {
-    const key = groupKey(f.partGroup);
-    if (!key) continue;
-    // Latest (smallest milesAgo) fixture per part group.
-    const existing = byPartGroup.get(key);
-    if (!existing || f.milesAgo < existing.milesAgo) byPartGroup.set(key, f);
-  }
-
-  const reminders: MaintenanceReminder[] = [...byPartGroup.values()]
-    .map((f): MaintenanceReminder => {
-      const lastOdo = currentOdo - f.milesAgo;
-      const m = computeMaintenance(f.reminderIntervalMiles as number, lastOdo, currentOdo);
-      return {
-        id: `demo-reminder-${groupKey(f.partGroup)}`,
-        label: f.description,
-        partGroup: f.partGroup as string,
-        category: f.category,
-        intervalMiles: f.reminderIntervalMiles as number,
-        status: m.status,
-        milesRemaining: m.milesRemaining,
-        nextDue: m.nextDue,
-        lastOdo,
-        lastDate: toIsoDate(new Date(now.getTime() - f.daysAgo * 86_400_000)),
-        neverServiced: false,
-        pct: m.pct,
-      };
-    })
-    .concat([
-      (() => {
-        const m = computeMaintenance(DEMO_BASELINE_REMINDER.intervalMiles, null, currentOdo);
-        return {
-          id: DEMO_BASELINE_REMINDER.id,
-          label: DEMO_BASELINE_REMINDER.label,
-          partGroup: DEMO_BASELINE_REMINDER.partGroup,
-          category: DEMO_BASELINE_REMINDER.category,
-          intervalMiles: DEMO_BASELINE_REMINDER.intervalMiles,
-          status: m.status,
-          milesRemaining: m.milesRemaining,
-          nextDue: m.nextDue,
-          lastOdo: null,
-          lastDate: null,
-          neverServiced: true,
-          pct: m.pct,
-        };
-      })(),
-    ])
-    .sort((a, b) => {
-      const d = STATUS_RANK[a.status] - STATUS_RANK[b.status];
-      if (d !== 0) return d;
-      return (a.milesRemaining ?? Number.POSITIVE_INFINITY) - (b.milesRemaining ?? Number.POSITIVE_INFINITY);
-    });
-
-  const receiptCountByService = new Map<string, number>();
-  for (const f of fixtures) {
-    if (f.hasReceipt) receiptCountByService.set(f.serviceId, (receiptCountByService.get(f.serviceId) ?? 0) + 1);
-  }
-
-  const recentEntries: RecentRepairEntry[] = fixtures
-    .slice()
-    .sort((a, b) => a.daysAgo - b.daysAgo)
-    .map((f) => {
-      const odometer = currentOdo - f.milesAgo;
-      const date = toIsoDate(new Date(now.getTime() - f.daysAgo * 86_400_000));
-      return {
-        id: f.id,
-        description: f.description,
-        category: f.category,
-        position: null,
-        partGroup: f.partGroup,
-        date,
-        odometer,
-        freshness: computeFreshness(odometer, currentOdo, date, todayStr),
-        receiptCount: receiptCountByService.get(f.serviceId) ?? 0,
-      };
-    });
-
-  // Demo mode never dismisses anything (no write path is exercised in
-  // demo), so there's nothing to show here — a deliberate empty list, not
-  // an oversight.
-  return { currentOdo, reminders, recentEntries, dismissedReminders: [] };
-}
-
-function demoGroupStats(): Map<string, GroupStats> {
-  const now = demoNow();
-  const currentOdo = demoCurrentOdo(now);
-  const stats = new Map<string, GroupStats>();
-  for (const f of demoFixtures()) {
-    if (!f.partGroup) continue;
-    const key = groupKey(f.partGroup);
-    if (!key) continue;
-    const odometer = currentOdo - f.milesAgo;
-    const date = toIsoDate(new Date(now.getTime() - f.daysAgo * 86_400_000));
-    const existing = stats.get(key) ?? { originalLabel: f.partGroup, category: f.category, lastOdo: null, lastDate: null };
-    existing.lastOdo = existing.lastOdo == null ? odometer : Math.max(existing.lastOdo, odometer);
-    if (existing.lastDate == null || existing.lastDate < date) existing.lastDate = date;
-    stats.set(key, existing);
-  }
-  return stats;
-}
-
-function demoReminderRows(): ReminderRow[] {
-  const fixtures = demoFixtures().filter((f) => f.reminderIntervalMiles != null && f.partGroup);
-  const byKey = new Map<string, DemoFixture>();
-  for (const f of fixtures) {
-    const key = groupKey(f.partGroup);
-    if (!key) continue;
-    const existing = byKey.get(key);
-    if (!existing || f.milesAgo < existing.milesAgo) byKey.set(key, f);
-  }
-  const rows: ReminderRow[] = [...byKey.values()].map((f) => ({
-    id: `demo-reminder-${groupKey(f.partGroup)}`,
-    label: f.description,
-    part_group: f.partGroup as string,
-    category: f.category,
-    interval_miles: f.reminderIntervalMiles as number,
-    anchor_odo: null,
-    anchor_date: null,
-  }));
-  rows.push({
-    id: DEMO_BASELINE_REMINDER.id,
-    label: DEMO_BASELINE_REMINDER.label,
-    part_group: DEMO_BASELINE_REMINDER.partGroup,
-    category: DEMO_BASELINE_REMINDER.category,
-    interval_miles: DEMO_BASELINE_REMINDER.intervalMiles,
-    anchor_odo: null,
-    anchor_date: null,
-  });
-  return rows;
-}
-
-function demoServiceTypesOverview(): { currentOdo: number; types: ServiceTypeCard[] } {
-  const currentOdo = demoCurrentOdo(demoNow());
-  const types = mergeServiceTypes(demoReminderRows(), demoGroupStats())
-    .map((t) => toServiceTypeCard(t, currentOdo))
-    .sort(cardSort);
-  return { currentOdo, types };
-}
-
-function demoServiceTypeDetail(slug: string): ServiceTypeDetail | null {
-  const now = demoNow();
-  const currentOdo = demoCurrentOdo(now);
-  const groupStats = demoGroupStats();
-  const type = mergeServiceTypes(demoReminderRows(), groupStats).find((t) => t.slug === slug);
-  if (!type) return null;
-
-  const fixtures = demoFixtures().filter((f) => f.partGroup && groupKey(f.partGroup) === type.key);
-  const bySvc = new Map<string, DemoFixture[]>();
-  for (const f of fixtures) {
-    const arr = bySvc.get(f.serviceId) ?? [];
-    arr.push(f);
-    bySvc.set(f.serviceId, arr);
-  }
-  const history: ServiceTypeHistoryItem[] = [...bySvc.entries()]
-    .map(([serviceId, fx]) => {
-      const first = fx[0];
-      return {
-        serviceId,
-        date: toIsoDate(new Date(now.getTime() - first.daysAgo * 86_400_000)),
-        odometer: currentOdo - first.milesAgo,
-        partsSummary: fx.map((f) => f.description).join(", "),
-        shop: first.shop,
-        receiptCount: fx.filter((f) => f.hasReceipt).length,
-        cost: first.serviceTotalCost,
-      };
-    })
-    .sort((a, b) => (b.date ?? "").localeCompare(a.date ?? ""));
-
-  const m = type.intervalMiles != null ? computeMaintenance(type.intervalMiles, type.lastOdo, currentOdo) : null;
-  const partGroupText = groupStats.get(type.key)?.originalLabel ?? type.label;
-
-  return {
-    slug: type.slug,
-    label: type.label,
-    category: type.category,
-    intervalMiles: type.intervalMiles,
-    lastOdo: type.lastOdo,
-    lastDate: type.lastDate,
-    status: m?.status ?? null,
-    nextDue: m?.nextDue ?? null,
-    milesRemaining: m?.milesRemaining ?? null,
-    currentOdo,
-    partGroup: partGroupText,
-    history,
-  };
-}
-
-function demoServiceFull(serviceId: string): MaintenanceServiceFull | null {
-  const now = demoNow();
-  const currentOdo = demoCurrentOdo(now);
-  const fixtures = demoFixtures().filter((f) => f.serviceId === serviceId);
-  if (fixtures.length === 0) return null;
-  const first = fixtures[0];
-
-  const receipts: ReceiptView[] = fixtures
-    .filter((f) => f.hasReceipt)
-    .map((f) => ({ id: `${f.id}-receipt`, name: f.receiptIsImage ? "receipt.jpg" : "receipt.pdf", url: null, isImage: f.receiptIsImage }));
-
-  return {
-    id: serviceId,
-    date: toIsoDate(new Date(now.getTime() - first.daysAgo * 86_400_000)),
-    odometer: currentOdo - first.milesAgo,
-    totalCost: first.serviceTotalCost,
-    notes: first.notes,
-    receipts,
-    parts: fixtures.map((f) => ({
-      id: f.id,
-      description: f.description,
-      category: f.category,
-      subCategory: null,
-      partGroup: f.partGroup,
-      reminderInterval: f.reminderIntervalMiles,
-    })),
-  };
-}
-
-function demoEntryDetail(id: string): RepairEntryDetail | null {
-  const now = demoNow();
-  const currentOdo = demoCurrentOdo(now);
-  const todayStr = centralDateKey(now);
-  const fixtures = demoFixtures();
-  const focused = fixtures.find((f) => f.id === id);
-  if (!focused) return null;
-
-  const odometer = currentOdo - focused.milesAgo;
-  const date = toIsoDate(new Date(now.getTime() - focused.daysAgo * 86_400_000));
-
-  const siblings = fixtures.filter((f) => f.serviceId === focused.serviceId && f.id !== focused.id);
-  const otherParts = siblings.map((f) => ({
-    id: f.id,
-    description: f.description,
-    category: f.category,
-    position: null,
-    subCategory: null,
-    partGroup: f.partGroup,
-  }));
-  // Same-visit parts are auto-linked as related, matching the real
-  // autoLinkServiceParts() business rule.
-  const relatedParts = siblings.map((f) => ({
-    id: f.id,
-    description: f.description,
-    date,
-    odometer,
-    freshness: computeFreshness(odometer, currentOdo, date, todayStr),
-  }));
-
-  const receipts: ReceiptView[] = focused.hasReceipt
-    ? [
-        {
-          id: `${focused.id}-receipt`,
-          name: focused.receiptIsImage ? "receipt.jpg" : "receipt.pdf",
-          url: null,
-          isImage: focused.receiptIsImage,
-        },
-      ]
-    : [];
-
-  return {
-    id: focused.id,
-    description: focused.description,
-    category: focused.category,
-    position: null,
-    subCategory: null,
-    partGroup: focused.partGroup,
-    reminderIntervalMiles: focused.reminderIntervalMiles,
-    freshness: computeFreshness(odometer, currentOdo, date, todayStr),
-    currentOdo,
-    service: {
-      id: focused.serviceId,
-      date,
-      odometer,
-      shop: focused.shop,
-      totalCost: focused.serviceTotalCost,
-      notes: focused.notes,
-      receipts,
-    },
-    otherParts,
     relatedParts,
   };
 }

@@ -2,10 +2,7 @@
  * Global search (⌘K) — bounded ilike lookup across loads, brokers, and
  * files. Deliberately narrow scope (not a full-text index across every
  * table) — same "bounded, not unbounded" discipline as
- * lib/data/attention.ts's LOADS_SCAN_CAP. Demo-mode branches over the
- * in-memory dataset rather than reaching Supabase, matching every other
- * /tms-v2 data module (Files has no demo dataset, matching the Files page's
- * own listFiles() behavior in demo mode — empty, not fabricated).
+ * lib/data/attention.ts's LOADS_SCAN_CAP.
  *
  * Phase 6 item 9 widened this from single-field (load_number only, name
  * only) to multi-field per entity, and added the Files group reusing
@@ -14,9 +11,7 @@
  * implementation of "what counts as a file."
  */
 
-import { isDemoMode } from "@/lib/admin/demo";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { buildDemoData, DEMO_BROKERS } from "@/lib/demo/demo-dataset";
 import { loadAllFiles } from "@/lib/admin/files";
 
 export type SearchHit = { id: string; label: string; sublabel: string; href: string };
@@ -28,31 +23,6 @@ const EMPTY: SearchResults = { loads: [], brokers: [], files: [] };
 export async function searchWorkspace(query: string): Promise<SearchResults> {
   const q = query.trim();
   if (q.length < 2) return EMPTY;
-
-  if (await isDemoMode()) {
-    const needle = q.toLowerCase();
-    const { loads } = buildDemoData();
-    const brokerNameById = new Map(DEMO_BROKERS.map((b) => [b.id, b.name]));
-    const loadHits = loads
-      .filter(
-        (l) =>
-          l.loadNumber.toLowerCase().includes(needle) ||
-          (brokerNameById.get(l.brokerId) ?? "").toLowerCase().includes(needle) ||
-          l.origin.toLowerCase().includes(needle) ||
-          l.destination.toLowerCase().includes(needle),
-      )
-      .slice(0, RESULT_LIMIT)
-      .map((l) => ({
-        id: l.id,
-        label: `#${l.loadNumber}`,
-        sublabel: `${brokerNameById.get(l.brokerId) ?? "—"} · ${l.origin} → ${l.destination}`,
-        href: `/tms-v2/loads/${l.id}`,
-      }));
-    const brokerHits = DEMO_BROKERS.filter((b) => b.name.toLowerCase().includes(needle))
-      .slice(0, RESULT_LIMIT)
-      .map((b) => ({ id: b.id, label: b.name, sublabel: "Broker", href: `/tms-v2/brokers/${b.id}` }));
-    return { loads: loadHits, brokers: brokerHits, files: [] };
-  }
 
   const sb = createServiceRoleClient();
   // PostgREST's .or() filter syntax uses "," and "()" as its own delimiters

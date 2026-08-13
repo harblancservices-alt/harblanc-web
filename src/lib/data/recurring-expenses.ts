@@ -19,7 +19,6 @@
  */
 
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { isDemoMode } from "@/lib/admin/demo";
 import { DEFAULT_PAGE_SIZE, pageRange, toPaginated, type Paginated } from "./pagination";
 import { RECURRING_FREQUENCIES, RECURRING_FREQUENCY_LABEL, EXPENSE_CATEGORIES, isFrequency, type RecurringFrequency } from "@/lib/domain/expenses";
 
@@ -252,24 +251,6 @@ type ExpenseDbRow = {
 
 type AccountDbRow = { id: string; name: string; type: string | null; last4: string | null };
 
-/** DEMO: a small, self-contained curated set — recurring expenses have no
- * relationship to the loads/trips/brokers demo dataset in demo-dataset.ts,
- * so this stays local rather than growing that shared file mid-phase. */
-function demoRows(now: Date): RecurringExpenseRow[] {
-  const raw: Array<Omit<ExpenseDbRow, "id"> & { id: string }> = [
-    { id: "demo-exp-insurance", name: "Progressive Insurance", category: "Insurance", vendor: "Progressive", amount: 410, frequency: "monthly", day_of_month: 15, day_of_week: null, start_date: null, end_date: null, card: "Chase Ink (Demo)", expense_account_id: "demo-acct-chase", autopay: true, archived: false, skip_next_date: null, notes: null },
-    { id: "demo-exp-truckpmt", name: "Ryder Lease", category: "Equipment", vendor: "Ryder", amount: 1280, frequency: "monthly", day_of_month: 1, day_of_week: null, start_date: null, end_date: "2028-06-01", card: "Business Checking (Demo)", expense_account_id: "demo-acct-checking", autopay: true, archived: false, skip_next_date: null, notes: "5-year lease, payoff 2028-06" },
-    { id: "demo-exp-samsara", name: "Samsara ELD", category: "Software", vendor: "Samsara", amount: 450, frequency: "annual", day_of_month: 1, day_of_week: null, start_date: "2026-03-01", end_date: null, card: "Chase Ink (Demo)", expense_account_id: "demo-acct-chase", autopay: true, archived: false, skip_next_date: null, notes: null },
-    { id: "demo-exp-phone", name: "Verizon", category: "Utilities", vendor: "Verizon", amount: 95, frequency: "monthly", day_of_month: 20, day_of_week: null, start_date: null, end_date: null, card: "Chase Ink (Demo)", expense_account_id: "demo-acct-chase", autopay: true, archived: false, skip_next_date: null, notes: null },
-  ];
-  const accountsById = new Map([
-    ["demo-acct-chase", { name: "Chase Ink (Demo)", type: "Credit card", last4: "4242" }],
-    ["demo-acct-checking", { name: "Business Checking (Demo)", type: "Bank account", last4: "1122" }],
-  ]);
-  const accountsByName = new Map([["Chase Ink (Demo)", { id: "demo-acct-chase", type: "Credit card", last4: "4242" }], ["Business Checking (Demo)", { id: "demo-acct-checking", type: "Bank account", last4: "1122" }]]);
-  return raw.map((r) => mapRow(r as ExpenseDbRow, accountsById, accountsByName, now));
-}
-
 function mapRow(
   r: ExpenseDbRow,
   accountsById: Map<string, { name: string; type: string | null; last4: string | null }>,
@@ -336,8 +317,6 @@ const EXPENSE_COLUMNS_FULL = `${EXPENSE_COLUMNS_BASE}, end_date, expense_account
  * /admin's existing ledger page). Filtering/pagination/KPIs are computed
  * from this one fetch rather than five separate round trips. */
 async function fetchAll(now: Date): Promise<RecurringExpenseRow[]> {
-  if (await isDemoMode()) return demoRows(now);
-
   const sb = createServiceRoleClient();
   const [expenseResult, { data: accountRows }] = await Promise.all([
     sb.from("recurring_expenses").select(EXPENSE_COLUMNS_FULL).is("deleted_at", null).limit(1000).returns<ExpenseDbRow[]>(),
@@ -431,12 +410,6 @@ export async function getRecurringExpenseById(id: string): Promise<RecurringExpe
 export type ExpenseAccountRow = { id: string; name: string; type: string | null; last4: string | null; isDefault: boolean };
 
 export async function listExpenseAccounts(): Promise<ExpenseAccountRow[]> {
-  if (await isDemoMode()) {
-    return [
-      { id: "demo-acct-chase", name: "Chase Ink (Demo)", type: "Credit card", last4: "4242", isDefault: true },
-      { id: "demo-acct-checking", name: "Business Checking (Demo)", type: "Bank account", last4: "1122", isDefault: false },
-    ];
-  }
   const sb = createServiceRoleClient();
   const { data } = await sb
     .from("expense_accounts")
@@ -453,7 +426,7 @@ export type ExpenseActivityRow = { id: string; action: string; detail: string | 
  * (`getExpenseActivity`), same `expense_activity` table, not a second
  * system. Writes happen in src/actions/tms-v2/expenses.ts's logActivity(). */
 export async function getExpenseActivity(id: string): Promise<ExpenseActivityRow[]> {
-  if (!id || (await isDemoMode())) return [];
+  if (!id) return [];
   const sb = createServiceRoleClient();
   const { data } = await sb
     .from("expense_activity")

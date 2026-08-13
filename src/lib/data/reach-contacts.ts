@@ -10,7 +10,6 @@
  */
 
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { isDemoMode } from "@/lib/admin/demo";
 
 export type ReachContactRow = {
   id: string;
@@ -36,8 +35,6 @@ type ContactRow = {
 };
 
 export async function listReachContacts(): Promise<ReachContactRow[]> {
-  if (await isDemoMode()) return [];
-
   const sb = createServiceRoleClient();
   const [{ data: contactRows }, { data: brokerRows }] = await Promise.all([
     sb

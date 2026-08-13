@@ -1,5 +1,4 @@
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { isDemoMode } from "@/lib/admin/demo";
 import { loadAllFiles, type FileCategory, type FileItem } from "@/lib/admin/files";
 
 export type { FileItem, FileSource, FileCategory } from "@/lib/admin/files";
@@ -43,10 +42,6 @@ export type FilesPage = { rows: FileRow[]; totalCount: number; counts: FileCateg
  * interface is out of this phase's scope.
  */
 export async function listFiles(opts: ListFilesOptions): Promise<FilesPage> {
-  if (await isDemoMode()) {
-    return { rows: [], totalCount: 0, counts: {} };
-  }
-
   const all = await loadAllFiles();
 
   const q = opts.q?.trim().toLowerCase();

@@ -6,9 +6,7 @@
  */
 
 import { resolveDataSource } from "@/lib/demo/resolve";
-import { isDemoMode } from "@/lib/admin/demo";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { DEMO_SETTINGS_ROW } from "@/lib/demo/demoData";
 import type { FuelSettings } from "@/lib/domain/money";
 
 export async function getFuelSettings(): Promise<FuelSettings> {
@@ -41,22 +39,7 @@ function num(v: number | string | null | undefined, fallback: number): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
-/** In demo mode this deliberately returns the fake `DEMO_SETTINGS_ROW`
- * values, never the real DB row — matching /admin's Settings page (audit
- * §24) so the config panel agrees with the demo money math shown
- * everywhere else, and never leaks a real number while presenting. */
 export async function getDispatchSettingsSummary(): Promise<DispatchSettingsSummary> {
-  if (await isDemoMode()) {
-    return {
-      mpg: DEMO_SETTINGS_ROW.mpg,
-      dieselPricePerGallon: DEMO_SETTINGS_ROW.diesel_price_per_gallon,
-      factoringPct: DEMO_SETTINGS_ROW.factoring_pct,
-      monthlyNetGoal: DEMO_SETTINGS_ROW.monthly_net_goal,
-      annualNetGoal: DEMO_SETTINGS_ROW.annual_net_goal,
-      currentCash: DEMO_SETTINGS_ROW.current_cash,
-    };
-  }
-
   const sb = createServiceRoleClient();
   const { data } = await sb
     .from("dispatch_settings")

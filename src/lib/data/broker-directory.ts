@@ -13,10 +13,8 @@
  */
 
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { isDemoMode } from "@/lib/admin/demo";
 import { computeCarrierAR } from "@/lib/domain/money";
 import { DEFAULT_PAGE_SIZE, pageRange, toPaginated, type Paginated } from "./pagination";
-import { buildDemoData, DEMO_BROKERS } from "@/lib/demo/demo-dataset";
 
 function num(v: number | string | null | undefined): number {
   if (v == null) return 0;
@@ -121,31 +119,6 @@ export async function listBrokerDirectory(opts: ListBrokerDirectoryOptions = {})
     return sorted;
   }
 
-  if (await isDemoMode()) {
-    const { loads } = buildDemoData();
-    let brokers = DEMO_BROKERS;
-    if (opts.search) {
-      const q = opts.search.toLowerCase();
-      brokers = brokers.filter((b) => b.name.toLowerCase().includes(q) || (b.mcNumber ?? "").toLowerCase().includes(q) || (b.dotNumber ?? "").toLowerCase().includes(q));
-    }
-    const rows: BrokerDirectoryRow[] = sortRows(
-      brokers.map((b) => {
-        const brokerLoads = loads.filter((l) => l.brokerId === b.id);
-        const live = brokerLoads.filter((l) => l.status !== "tonu");
-        const gross = live.reduce((s, l) => s + num(l.rate), 0);
-        const unpaidClosed = brokerLoads.filter(
-          (l) => (l.status === "delivered" || l.status === "tonu") && l.paymentStatus !== "paid",
-        );
-        const ar = computeCarrierAR(
-          unpaidClosed.map((l) => ({ id: l.id, status: l.status, paymentStatus: l.paymentStatus, deliveryDate: l.deliveryDate, rate: l.rate, tonuAmount: l.tonuAmount })),
-        );
-        return { id: b.id, name: b.name, status: b.status, mcNumber: b.mcNumber, dotNumber: b.dotNumber, factoring: b.factoring, loadsCount: brokerLoads.length, gross, arOutstanding: ar.totalOutstanding };
-      }),
-    );
-    const { from, to } = pageRange(page, pageSize);
-    return toPaginated(rows.slice(from, to + 1), rows.length, page, pageSize);
-  }
-
   const sb = createServiceRoleClient();
   let query = sb.from("brokers").select("id, name, status, mc_number, dot_number, factoring", { count: "exact" }).is("deleted_at", null);
   if (opts.search) {
@@ -179,9 +152,8 @@ export type ArchivedBrokerRow = { id: string; name: string; deletedAt: string | 
 
 /** Archived (soft-deleted) brokers — bounded to 50, the "restore" surface
  * for archiveBroker/restoreBroker (audit trap #7: no restore path existed
- * anywhere for any entity). Not shown in demo mode — nothing to restore. */
+ * anywhere for any entity). */
 export async function listArchivedBrokers(): Promise<ArchivedBrokerRow[]> {
-  if (await isDemoMode()) return [];
   const sb = createServiceRoleClient();
   const { data } = await sb
     .from("brokers")

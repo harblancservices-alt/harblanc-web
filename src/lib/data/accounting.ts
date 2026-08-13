@@ -15,13 +15,12 @@
  * month, not by a row count.
  *
  * This phase's file-scope (accounting-only, per the concurrency note in the
- * phase brief) queries Supabase directly with an `isDemoMode()` branch, the
- * same pattern `lib/data/loads.ts`'s `getLoadDetail()` already uses for
- * fields the shared `DataSource` interface doesn't expose yet.
+ * phase brief) queries Supabase directly, the same pattern
+ * `lib/data/loads.ts`'s `getLoadDetail()` already uses for fields the
+ * shared `DataSource` interface doesn't expose yet.
  */
 
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { isDemoMode } from "@/lib/admin/demo";
 import { currentPeriod, periodRange, periodLabel, type Period } from "@/lib/domain/attribution";
 import { DEFAULT_PAGE_SIZE, toPaginated, type Paginated } from "./pagination";
 
@@ -124,50 +123,6 @@ function isActiveLead(leadById: Map<string, LeadRow>, id: string | null): boolea
 }
 
 // ---------------------------------------------------------------------------
-// Demo mode — a small, self-contained fake dataset (evergreen, relative to
-// "now"), scoped to this module only per the phase brief's concurrency
-// note. Not derived from lib/demo/demo-dataset.ts (that dataset has no
-// customer-brokerage shape) so this stays a single-file, non-shared change.
-// ---------------------------------------------------------------------------
-
-function demoAccountingRows(now: Date): { payments: CustomerPaymentRow[]; outstanding: CustomerOutstandingRow[] } {
-  const iso = (daysAgo: number) => new Date(now.getTime() - daysAgo * 86_400_000).toISOString();
-  return {
-    payments: [
-      { id: "demo-pay-1", date: iso(1), customerName: "J. Rivera (Demo)", amount: 1650, method: "card", status: "completed", isStripe: true },
-      { id: "demo-pay-2", date: iso(6), customerName: "S. Cho (Demo)", amount: 940, method: "ach", status: "completed", isStripe: true },
-      { id: "demo-pay-3", date: iso(14), customerName: "T. Nguyen (Demo)", amount: 2100, method: "card", status: "completed", isStripe: true },
-    ],
-    outstanding: [
-      {
-        finalizedQuoteId: "demo-fq-1",
-        leadId: "demo-lead-1",
-        quoteNumber: 1042,
-        customerName: "M. Alvarez (Demo)",
-        lane: "75201 → 38103",
-        total: 1650,
-        paid: 0,
-        outstanding: 1650,
-        status: "overdue",
-        daysOverdue: 12,
-      },
-      {
-        finalizedQuoteId: "demo-fq-2",
-        leadId: "demo-lead-2",
-        quoteNumber: 1044,
-        customerName: "K. Park (Demo)",
-        lane: "37201 → 30303",
-        total: 980,
-        paid: 400,
-        outstanding: 580,
-        status: "deposit",
-        daysOverdue: null,
-      },
-    ],
-  };
-}
-
-// ---------------------------------------------------------------------------
 // Live queries
 // ---------------------------------------------------------------------------
 
@@ -253,18 +208,6 @@ async function computeOutstanding(): Promise<{ rows: CustomerOutstandingRow[]; t
 export async function getAccountingSummary(now: Date = new Date()): Promise<AccountingSummary> {
   const period = currentPeriod(now);
 
-  if (await isDemoMode()) {
-    const { payments } = demoAccountingRows(now);
-    const { outstanding } = demoAccountingRows(now);
-    return {
-      period,
-      periodLabel: periodLabel(period),
-      collectedPeriod: payments.reduce((s, p) => s + p.amount, 0),
-      outstandingTotal: outstanding.reduce((s, r) => s + r.outstanding, 0),
-      outstandingCount: outstanding.length,
-    };
-  }
-
   const periodPayments = await fetchPeriodPayments(period);
   const leadById = await fetchLeadsFor(periodPayments.map((p) => p.quote_request_id));
   const collectedPeriod = periodPayments.reduce((sum, p) => {
@@ -292,12 +235,6 @@ export async function listCustomerOutstanding(opts: { page?: number; pageSize?: 
   const page = opts.page ?? 1;
   const pageSize = opts.pageSize ?? DEFAULT_PAGE_SIZE;
 
-  if (await isDemoMode()) {
-    const { outstanding } = demoAccountingRows(new Date());
-    const start = (page - 1) * pageSize;
-    return toPaginated(outstanding.slice(start, start + pageSize), outstanding.length, page, pageSize);
-  }
-
   const { rows } = await computeOutstanding();
   const sorted = rows.slice().sort((a, b) => {
     const ao = a.status === "overdue" ? 1 : 0;
@@ -313,12 +250,6 @@ export async function listCustomerOutstanding(opts: { page?: number; pageSize?: 
 export async function listCustomerPayments(opts: { page?: number; pageSize?: number } = {}): Promise<Paginated<CustomerPaymentRow>> {
   const page = opts.page ?? 1;
   const pageSize = opts.pageSize ?? DEFAULT_PAGE_SIZE;
-
-  if (await isDemoMode()) {
-    const { payments } = demoAccountingRows(new Date());
-    const start = (page - 1) * pageSize;
-    return toPaginated(payments.slice(start, start + pageSize), payments.length, page, pageSize);
-  }
 
   const sb = createServiceRoleClient();
   const from = (page - 1) * pageSize;

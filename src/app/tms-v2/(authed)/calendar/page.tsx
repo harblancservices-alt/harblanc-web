@@ -7,7 +7,6 @@ import { currentPeriod, periodLabel, type Period } from "@/lib/domain/attributio
 import { centralDateKey } from "@/lib/domain/dates";
 import { addDays, dateOnly, assignLanes, federalHolidays, monthMatrix, parseDateStr, weekdayOf, type Holiday } from "@/lib/dispatch/calendar";
 import { formatMoney } from "@/lib/domain/money";
-import { isDemoMode } from "@/lib/admin/demo";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { CalendarMonthGrid, WrenchGlyph, FlagGlyph, type LoadBar, type WeekNet, type RepairChip } from "./_components/CalendarMonthGrid";
 
@@ -68,13 +67,9 @@ type ServiceRow = { id: string; service_date: string | null; created_at: string 
  * (src/app/admin/(authed)/calendar/page.tsx), one chip per SERVICE (visit),
  * not per part: groups repair_entries by their service_id, earliest-created
  * part leads the chip's label + is the link target (maintenance's per-part
- * detail route is keyed on a part id, same as admin's). Demo mode shows no
- * repair chips — the maintenance demo fixtures are local to lib/data/
- * maintenance.ts and unrelated to this shared loads/calendar view; the
- * calendar's demo mode still shows every load bar, just no repair markers.
+ * detail route is keyed on a part id, same as admin's).
  */
 async function fetchRepairChips(): Promise<RepairChip[]> {
-  if (await isDemoMode()) return [];
   const sb = createServiceRoleClient();
   const [{ data: partRows }, { data: serviceRows }] = await Promise.all([
     sb.from("repair_entries").select("id, description, service_id, created_at").is("deleted_at", null).returns<PartRow[]>(),

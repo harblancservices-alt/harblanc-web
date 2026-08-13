@@ -5,8 +5,7 @@
  * `dispatch_events`, `shipment_intake`, and `applications` directly rather
  * than through the shared `DataSource` — those tables sit outside the
  * Phase-2 DataSource's entity set, same reasoning as `broker-profile.ts`
- * and `loads.ts`'s `getLoadDetail()`: branch on `isDemoMode()` locally
- * (matching `src/lib/dispatch/pipeline.ts`'s existing pattern) rather than
+ * and `loads.ts`'s `getLoadDetail()`: query Supabase directly rather than
  * extend a shared interface mid-phase while other module sessions are
  * running concurrently.
  *
@@ -19,7 +18,6 @@
  */
 
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { isDemoMode } from "@/lib/admin/demo";
 import { computeUrgency, topUrgency, type UrgencyChip } from "@/lib/dispatch/urgency";
 import { type LeadStatus, isLeadStatus } from "@/lib/dispatch/status";
 import { computePaymentSummary, type PaymentSummary } from "@/lib/dispatch/payment";
@@ -95,54 +93,6 @@ type LeadDbRow = {
   delivery_zip: string | null;
 };
 
-const DEMO_LEADS: LeadDbRow[] = [
-  {
-    id: "demo-lead-1",
-    created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-    name: "J. Rivera (Demo)",
-    lead_status: "estimate_sent",
-    lead_status_updated_at: new Date(Date.now() - 30 * 60 * 60 * 1000).toISOString(),
-    commodity: "Machinery",
-    weight: "18000",
-    pickup_city: "Dallas",
-    pickup_state: "TX",
-    pickup_zip: "75201",
-    delivery_city: "Memphis",
-    delivery_state: "TN",
-    delivery_zip: "38103",
-  },
-  {
-    id: "demo-lead-2",
-    created_at: new Date(Date.now() - 20 * 60 * 60 * 1000).toISOString(),
-    name: "M. Alvarez (Demo)",
-    lead_status: "awaiting_payment",
-    lead_status_updated_at: new Date(Date.now() - 30 * 60 * 60 * 1000).toISOString(),
-    commodity: "Steel coil",
-    weight: "24000",
-    pickup_city: "Memphis",
-    pickup_state: "TN",
-    pickup_zip: "38103",
-    delivery_city: "Nashville",
-    delivery_state: "TN",
-    delivery_zip: "37201",
-  },
-  {
-    id: "demo-lead-3",
-    created_at: new Date(Date.now() - 4 * 60 * 60 * 1000).toISOString(),
-    name: "T. Nguyen (Demo)",
-    lead_status: "new",
-    lead_status_updated_at: null,
-    commodity: "Skid-steer",
-    weight: "9000",
-    pickup_city: "Tulsa",
-    pickup_state: "OK",
-    pickup_zip: "74103",
-    delivery_city: "Dallas",
-    delivery_state: "TX",
-    delivery_zip: "75201",
-  },
-];
-
 function enrichLead(row: LeadDbRow, urgency: { latestEstimateSentAt: string | null; intakeStartedAt: string | null; intakeSubmittedAt: string | null; latestFinalizedSentAt: string | null; latestBolSentAt: string | null }, now: Date): LeadListRow {
   const leadStatus = row.lead_status;
   const chips = isLeadStatus(leadStatus)
@@ -172,26 +122,12 @@ function enrichLead(row: LeadDbRow, urgency: { latestEstimateSentAt: string | nu
   };
 }
 
-function demoListLeads(opts: ListLeadsOptions): Paginated<LeadListRow> {
-  const page = opts.page ?? 1;
-  const pageSize = opts.pageSize ?? 25;
-  const now = new Date();
-  const filtered = opts.status ? DEMO_LEADS.filter((l) => l.lead_status === opts.status) : DEMO_LEADS;
-  const rows = filtered.map((row) =>
-    enrichLead(row, { latestEstimateSentAt: null, intakeStartedAt: null, intakeSubmittedAt: null, latestFinalizedSentAt: null, latestBolSentAt: null }, now),
-  );
-  const { from, to } = pageRange(page, pageSize);
-  return toPaginated(rows.slice(from, to + 1), rows.length, page, pageSize);
-}
-
 /** Paginated, status-scoped lead list — the Operations hub's Quote
  * requests tab. Urgency enrichment (v2-design.md §13) is computed for
  * exactly the current page's leads, not the whole active set, so a
  * later page of an old/large pipeline doesn't force extra artifact
  * queries for rows that aren't even being displayed. */
 export async function listLeads(opts: ListLeadsOptions = {}): Promise<Paginated<LeadListRow>> {
-  if (await isDemoMode()) return demoListLeads(opts);
-
   const sb = createServiceRoleClient();
   const page = opts.page ?? 1;
   const pageSize = opts.pageSize ?? 25;
@@ -294,8 +230,6 @@ export type ArchivedLeadRow = { id: string; name: string; deletedAt: string; del
 /** Trashed leads — Quotes tab's collapsible trash section (Phase 6 item 3),
  * mirrors listArchivedApplications/listArchivedBrokers. */
 export async function listArchivedLeads(): Promise<ArchivedLeadRow[]> {
-  if (await isDemoMode()) return [];
-
   const sb = createServiceRoleClient();
   const { data } = await sb
     .from("quote_requests")
@@ -326,30 +260,11 @@ export type ApplicationRow = {
   homeBase: string | null;
 };
 
-const DEMO_APPLICATIONS: ApplicationRow[] = [
-  {
-    id: "demo-app-1",
-    createdAt: new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString(),
-    name: "D. Alvarez (Demo)",
-    phone: "(555) 010-0142",
-    email: "d.alvarez@example.com",
-    equipmentType: "2019 Volvo",
-    cdlStatus: "Class A",
-    yearsExperience: "6",
-    homeBase: "Fort Worth, TX",
-  },
-];
-
 export type ListApplicationsOptions = { page?: number; pageSize?: number };
 
 export async function listApplications(opts: ListApplicationsOptions = {}): Promise<Paginated<ApplicationRow>> {
   const page = opts.page ?? 1;
   const pageSize = opts.pageSize ?? 25;
-
-  if (await isDemoMode()) {
-    const { from, to } = pageRange(page, pageSize);
-    return toPaginated(DEMO_APPLICATIONS.slice(from, to + 1), DEMO_APPLICATIONS.length, page, pageSize);
-  }
 
   const sb = createServiceRoleClient();
   const { from, to } = pageRange(page, pageSize);
@@ -405,12 +320,6 @@ export type ApplicationDetail = ApplicationRow & {
 };
 
 export async function getApplicationDetail(id: string): Promise<ApplicationDetail | null> {
-  if (await isDemoMode()) {
-    const demo = DEMO_APPLICATIONS.find((a) => a.id === id);
-    if (!demo) return null;
-    return { ...demo, message: "Demo application — no changes are saved.", userAgent: null, ip: null, deletedAt: null, deleteAfter: null };
-  }
-
   const sb = createServiceRoleClient();
   const { data } = await sb
     .from("applications")
@@ -461,8 +370,6 @@ export type ArchivedApplicationRow = ApplicationRow & { deletedAt: string; delet
  * (mirrors listArchivedBrokers in broker-directory.ts). 30-day retention is
  * enforced by legacy's own cron/cleanup path, not re-derived here. */
 export async function listArchivedApplications(): Promise<ArchivedApplicationRow[]> {
-  if (await isDemoMode()) return [];
-
   const sb = createServiceRoleClient();
   const { data } = await sb
     .from("applications")
@@ -594,69 +501,7 @@ function addressLine(company: string | null, line1: string | null, city: string 
   return parts.length > 0 ? parts.join(" · ") : null;
 }
 
-function demoPipelineDetail(id: string): PipelineDetail | null {
-  const lead = DEMO_LEADS.find((l) => l.id === id);
-  if (!lead) return null;
-  const now = new Date();
-  return {
-    identity: {
-      id: lead.id,
-      name: lead.name ?? "Unnamed request",
-      email: "demo@example.com",
-      phone: "(555) 010-0100",
-      commodity: lead.commodity?.trim() || "—",
-      weight: formatWeight(lead.weight),
-      notes: "Demo lead — no changes are saved.",
-      leadStatus: lead.lead_status,
-      leadStatusUpdatedAt: lead.lead_status_updated_at,
-      createdAt: lead.created_at,
-      originLabel: placeLabel(lead.pickup_city, lead.pickup_state, lead.pickup_zip),
-      destLabel: placeLabel(lead.delivery_city, lead.delivery_state, lead.delivery_zip),
-      pickupDate: null,
-      miles: 420,
-    },
-    shipment: null,
-    estimates:
-      lead.lead_status === "new"
-        ? []
-        : [
-            {
-              id: "demo-estimate-1",
-              sentAt: new Date(now.getTime() - 30 * 60 * 60 * 1000).toISOString(),
-              linehaulLow: 1400,
-              linehaulHigh: 1650,
-              expirationAt: null,
-              acceptedAt: null,
-              declinedAt: null,
-            },
-          ],
-    finalizedQuotes:
-      lead.lead_status === "awaiting_payment"
-        ? [
-            {
-              id: "demo-fq-1",
-              number: "RC-2026-0001",
-              sentAt: new Date(now.getTime() - 20 * 60 * 60 * 1000).toISOString(),
-              totalAmount: 1650,
-              confirmedAt: null,
-              paymentDueAt: null,
-            },
-          ]
-        : [],
-    bols: [],
-    payment: {
-      summary: computePaymentSummary(lead.lead_status === "awaiting_payment" ? 1650 : null, []),
-      entries: [],
-    },
-    events: [
-      { id: "demo-event-1", kind: "lead_received", payload: { source: "quick_quote_form" }, createdAt: lead.created_at },
-    ],
-  };
-}
-
 export async function getPipelineDetail(id: string): Promise<PipelineDetail | null> {
-  if (await isDemoMode()) return demoPipelineDetail(id);
-
   const sb = createServiceRoleClient();
 
   const { data: lead } = await sb

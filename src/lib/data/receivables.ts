@@ -12,16 +12,14 @@
  * non-negotiable #3).
  *
  * This phase's file-scope (receivables-only, per the concurrency note in
- * the phase brief) queries Supabase directly with an `isDemoMode()` branch,
- * the same pattern `lib/data/loads.ts`'s `getLoadDetail()` already uses for
- * fields the shared `DataSource` interface doesn't expose yet — folding
- * this into that interface properly is a follow-up once it isn't locked by
+ * the phase brief) queries Supabase directly, the same pattern
+ * `lib/data/loads.ts`'s `getLoadDetail()` already uses for fields the
+ * shared `DataSource` interface doesn't expose yet — folding this into
+ * that interface properly is a follow-up once it isn't locked by
  * concurrent work.
  */
 
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { isDemoMode } from "@/lib/admin/demo";
-import { buildDemoData } from "@/lib/demo/demo-dataset";
 import { computeCarrierAR, RECEIVABLE_OVERDUE_DAYS, type CarrierARInput } from "@/lib/domain/money";
 import { DEFAULT_PAGE_SIZE, toPaginated, type Paginated } from "./pagination";
 
@@ -130,27 +128,6 @@ function toRows(raw: RawReceivable[], now: Date): CarrierReceivableRow[] {
 }
 
 async function fetchAllOutstanding(now: Date): Promise<CarrierReceivableRow[]> {
-  if (await isDemoMode()) {
-    const { loads, brokers } = buildDemoData();
-    const brokerNameById = new Map(brokers.map((b) => [b.id, b.name]));
-    const raw: RawReceivable[] = loads
-      .filter((l) => (l.status === "delivered" || l.status === "tonu") && l.paymentStatus === "unpaid")
-      .map((l) => ({
-        id: l.id,
-        status: l.status,
-        paymentStatus: l.paymentStatus,
-        deliveryDate: l.deliveryDate,
-        rate: l.rate,
-        tonuAmount: l.tonuAmount,
-        loadNumber: l.loadNumber,
-        brokerId: l.brokerId,
-        brokerName: brokerNameById.get(l.brokerId) ?? null,
-        origin: l.origin,
-        destination: l.destination,
-      }));
-    return toRows(raw, now);
-  }
-
   const sb = createServiceRoleClient();
   const { data } = await sb
     .from("loads")

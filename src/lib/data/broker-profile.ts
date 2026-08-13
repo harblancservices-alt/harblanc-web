@@ -12,7 +12,6 @@
  */
 
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { isDemoMode } from "@/lib/admin/demo";
 import {
   computeLoadNet,
   computeCarrierAR,
@@ -20,7 +19,6 @@ import {
   type FuelSettings,
   type LoadFinancials,
 } from "@/lib/domain/money";
-import { buildDemoData, DEMO_BROKERS } from "@/lib/demo/demo-dataset";
 
 function num(v: number | string | null | undefined): number {
   if (v == null) return 0;
@@ -291,69 +289,7 @@ function buildAging(unpaidClosed: { deliveryDate: string | null; rate: number | 
   return aging;
 }
 
-function demoProfile(id: string): BrokerProfile | null {
-  const demo = DEMO_BROKERS.find((b) => b.id === id);
-  if (!demo) return null;
-  const { loads } = buildDemoData();
-  const brokerLoads = loads.filter((l) => l.brokerId === id);
-  const fuel = FUEL_DEFAULTS;
-
-  const loadHistory: BrokerLoadHistoryRow[] = brokerLoads.map((l) => ({
-    id: l.id,
-    loadNumber: l.loadNumber,
-    origin: l.origin,
-    destination: l.destination,
-    equipment: null,
-    pickupDate: l.pickupDate,
-    deliveryDate: l.deliveryDate,
-    status: l.status,
-    paymentStatus: l.paymentStatus,
-    financials: computeLoadNet(
-      { status: l.status, rate: l.rate, tonuAmount: l.tonuAmount, odoAssigned: l.odoAssigned, odoLoaded: l.odoLoaded, odoDelivered: l.odoDelivered, loadedMilesEstimate: l.loadedMilesEstimate },
-      0,
-      fuel,
-      demo.factoring,
-    ),
-    // Demo mode ships no fake documents (matches getLoadDetail()'s own
-    // demo-mode convention, lib/data/loads.ts).
-    documents: [],
-  }));
-
-  const gross = loadHistory.filter((l) => l.status !== "tonu").reduce((s, l) => s + l.financials.gross, 0);
-  const net = loadHistory.reduce((s, l) => s + l.financials.net, 0);
-  const unpaidClosed = brokerLoads.filter((l) => (l.status === "delivered" || l.status === "tonu") && l.paymentStatus !== "paid");
-  const ar = computeCarrierAR(unpaidClosed.map((l) => ({ id: l.id, status: l.status, paymentStatus: l.paymentStatus, deliveryDate: l.deliveryDate, rate: l.rate, tonuAmount: l.tonuAmount })));
-
-  return {
-    identity: {
-      id: demo.id,
-      name: demo.name,
-      status: demo.status,
-      mcNumber: demo.mcNumber,
-      dotNumber: demo.dotNumber,
-      brokerType: null,
-      phone: demo.phone,
-      email: demo.email,
-      office: null,
-      timezone: null,
-      authority: null,
-      insurance: null,
-      w9: null,
-      ten99: null,
-      factoring: demo.factoring,
-      notes: null,
-    },
-    kpis: { loadsCount: brokerLoads.length, gross, net, arOutstanding: ar.totalOutstanding },
-    aging: buildAging(unpaidClosed.map((l) => ({ deliveryDate: l.deliveryDate, rate: l.rate, tonuAmount: l.tonuAmount, status: l.status })), new Date()),
-    contacts: [{ id: "demo-contact-1", name: "Dispatch (Demo)", title: "Dispatcher", phone: demo.phone, email: demo.email, isBackhaul: true }],
-    lanes: buildLanes(brokerLoads.map((l) => ({ origin: l.origin, destination: l.destination, rate: l.rate, loadedMiles: l.loadedMilesEstimate, deliveryDate: l.deliveryDate, status: l.status }))),
-    loadHistory: loadHistory.sort((a, b) => (b.deliveryDate ?? "").localeCompare(a.deliveryDate ?? "")),
-  };
-}
-
 export async function getBrokerProfile(id: string): Promise<BrokerProfile | null> {
-  if (await isDemoMode()) return demoProfile(id);
-
   const sb = createServiceRoleClient();
   const [{ data: broker }, { data: contactRows }, { data: loadRows }] = await Promise.all([
     sb

@@ -9,9 +9,7 @@
  * queries Supabase directly (mirroring live-data-source.ts's own pattern)
  * instead of routing through `DataSource`.
  *
- * It still respects demo-mode isolation (checks `isDemoMode()` itself and
- * reads the same in-memory demo dataset when on — never touches Supabase in
- * that case) and reuses, rather than re-derives, the same domain engine
+ * It reuses, rather than re-derives, the same domain engine
  * (`lib/domain/money.ts`, `lib/domain/attribution.ts`) and the same pure,
  * already-audited-correct aggregation functions Performance needs
  * (`lib/dispatch/performance.ts`) — Calendar and Performance both read
@@ -21,8 +19,6 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { isDemoMode } from "@/lib/admin/demo";
-import { buildDemoData } from "@/lib/demo/demo-dataset";
 import { computeLoadNet, computeTripNet, FUEL_DEFAULTS, type FuelSettings, type TripFinancials, type TripRollupLoad } from "@/lib/domain/money";
 import { attributionDate, periodOf, loadsPeriodFilter } from "@/lib/domain/attribution";
 import type { PerfLoad } from "@/lib/dispatch/performance";
@@ -59,7 +55,6 @@ const DEFAULT_ANNUAL_GOAL = 120000;
  * consumer feeds these into the one shared lib/domain/goal-pace.ts's
  * computeGoalPace(), never a page-local goal number). */
 export async function getNetGoals(): Promise<{ monthly: number; annual: number }> {
-  if (await isDemoMode()) return { monthly: DEFAULT_MONTHLY_GOAL, annual: DEFAULT_ANNUAL_GOAL };
   const sb = createServiceRoleClient();
   const { data } = await sb
     .from("dispatch_settings")
@@ -240,8 +235,6 @@ async function fetchTripNames(sb: SupabaseClient, tripIds: string[]): Promise<Ma
  * they cannot disagree about what a given day's loads or net are worth.
  */
 export async function getAnalyticsLoads(range: DateRange): Promise<AnalyticsLoad[]> {
-  if (await isDemoMode()) return getDemoAnalyticsLoads(range);
-
   const sb = createServiceRoleClient();
   const { data } = await sb
     .from("loads")
@@ -295,46 +288,6 @@ export async function getAnalyticsLoads(range: DateRange): Promise<AnalyticsLoad
   );
 }
 
-function getDemoAnalyticsLoads(range: DateRange): AnalyticsLoad[] {
-  const { loads, brokers, trips, expenses } = buildDemoData();
-  const brokersById = new Map(brokers.map((b) => [b.id, b]));
-  const tripsById = new Map(trips.map((t) => [t.id, t]));
-  const expensesByLoad = new Map<string, number>();
-  for (const e of expenses) expensesByLoad.set(e.loadId, (expensesByLoad.get(e.loadId) ?? 0) + e.amount);
-
-  return loads
-    .filter((l) => l.pickupDate >= range.start && l.pickupDate < range.end)
-    .map((l) => {
-      const broker = brokersById.get(l.brokerId);
-      return toAnalyticsLoad(
-        {
-          id: l.id,
-          loadNumber: l.loadNumber,
-          brokerId: l.brokerId,
-          brokerName: broker?.name ?? null,
-          origin: l.origin,
-          destination: l.destination,
-          pickupDate: l.pickupDate,
-          deliveryDate: l.deliveryDate,
-          rate: l.rate,
-          tonuAmount: l.tonuAmount,
-          loadedMilesEstimate: l.loadedMilesEstimate,
-          odoAssigned: l.odoAssigned,
-          odoLoaded: l.odoLoaded,
-          odoDelivered: l.odoDelivered,
-          status: l.status,
-          paidAt: l.paidAt,
-          createdAt: l.createdAt,
-          tripId: l.tripId,
-        },
-        expensesByLoad.get(l.id) ?? 0,
-        FUEL_DEFAULTS,
-        broker?.factoring ?? false,
-        l.tripId ? (tripsById.get(l.tripId)?.name ?? null) : null,
-      );
-    });
-}
-
 // ------------------------------------------------------------- Trip Analysis
 
 export type AnalyticsTrip = {
@@ -374,8 +327,6 @@ type TripAnalyticsRow = {
 export async function getAnalyticsTrips(loads: AnalyticsLoad[]): Promise<AnalyticsTrip[]> {
   const tripIds = [...new Set(loads.map((l) => l.tripId).filter((id): id is string => !!id))];
   if (tripIds.length === 0) return [];
-
-  if (await isDemoMode()) return getDemoAnalyticsTrips(tripIds);
 
   const sb = createServiceRoleClient();
   const { data: tripRows } = await sb
@@ -419,41 +370,4 @@ export async function getAnalyticsTrips(loads: AnalyticsLoad[]): Promise<Analyti
       };
     })
     .sort((a, b) => (b.startedAt ?? "").localeCompare(a.startedAt ?? ""));
-}
-
-function getDemoAnalyticsTrips(tripIds: string[]): AnalyticsTrip[] {
-  const { trips, loads, brokers, expenses } = buildDemoData();
-  const expensesByLoad = new Map<string, number>();
-  for (const e of expenses) expensesByLoad.set(e.loadId, (expensesByLoad.get(e.loadId) ?? 0) + e.amount);
-  const factoringIds = new Set(brokers.filter((b) => b.factoring).map((b) => b.id));
-
-  return trips
-    .filter((t) => tripIds.includes(t.id))
-    .map((trip) => {
-      const rows: TripRollupLoad[] = loads
-        .filter((l) => l.tripId === trip.id)
-        .map((l) => ({
-          id: l.id,
-          rate: l.rate,
-          loaded_miles: l.loadedMilesEstimate,
-          odo_assigned: l.odoAssigned,
-          odo_loaded: l.odoLoaded,
-          odo_delivered: l.odoDelivered,
-          broker_id: l.brokerId,
-          status: l.status,
-        }));
-      const financials = computeTripNet(rows, FUEL_DEFAULTS, factoringIds, expensesByLoad, {
-        start: trip.startOdometer,
-        end: trip.endOdometer,
-      });
-      return {
-        id: trip.id,
-        name: trip.name,
-        status: trip.status,
-        startedAt: trip.startedAt,
-        endedAt: trip.endedAt,
-        closedAt: trip.closedAt,
-        financials,
-      };
-    });
 }

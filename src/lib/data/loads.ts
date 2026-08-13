@@ -2,19 +2,15 @@
  * Typed, paginated, scoped query module for `loads` (v2-architecture.md
  * §3c). This is the ONLY file a /tms-v2 screen imports to read load data —
  * it never constructs a Supabase client itself; every function resolves
- * the current `DataSource` (§10, real DB or demo dataset) and delegates.
- * That indirection is what makes demo-mode isolation and query-shape
- * scoping structural rather than a convention a future caller could skip.
+ * the current `DataSource` (§10) and delegates.
  */
 
 import { resolveDataSource } from "@/lib/demo/resolve";
 import type { Paginated } from "./pagination";
 import { computeCarrierAR, type LoadFinancials } from "@/lib/domain/money";
 import { periodLabel, type Period } from "@/lib/domain/attribution";
-import { isDemoMode } from "@/lib/admin/demo";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { loadDocName, normalizeLoadDocKind } from "@/lib/admin/doc-name";
-import { buildDemoData } from "@/lib/demo/demo-dataset";
 import { getBrokerById } from "./brokers";
 import { listExpenses } from "./expenses";
 
@@ -99,8 +95,6 @@ export type ArchivedLoadRow = { id: string; loadNumber: string | null; brokerNam
 /** Soft-deleted loads — the Load Board's trash section (Phase 6 item 4), a
  * genuinely new capability neither /admin nor tms-v2 had before this. */
 export async function listArchivedLoads(): Promise<ArchivedLoadRow[]> {
-  if (await isDemoMode()) return [];
-
   const sb = createServiceRoleClient();
   const { data } = await sb
     .from("loads")
@@ -179,15 +173,13 @@ export async function getLoadBoardSummary(period: Period): Promise<LoadBoardSumm
 
 // ---------------------------------------------------------------------------
 // Load Detail (v2-design.md §5) — the base DataSource-backed financials
-// (works in both live and demo mode, via getLoadById above) plus a handful
-// of detail-only fields the shared DataSource interface doesn't expose yet:
-// equipment, ZIPs, odometer readings, broker contact info, itemized
-// expenses, and documents. v2-architecture.md §10 expects the interface to
-// grow with the first caller that needs a method; this phase's single-file
-// scope (loads.ts only — see the phase brief's concurrency note) fetches
-// them directly instead, bounded to one load at a time and branching on
-// `isDemoMode()` the same way src/lib/dispatch/pipeline.ts already does, so
-// demo mode still never reaches Supabase. Folding this into the DataSource
+// (via getLoadById above) plus a handful of detail-only fields the shared
+// DataSource interface doesn't expose yet: equipment, ZIPs, odometer
+// readings, broker contact info, itemized expenses, and documents. v2-
+// architecture.md §10 expects the interface to grow with the first caller
+// that needs a method; this phase's single-file scope (loads.ts only —
+// see the phase brief's concurrency note) fetches them directly instead,
+// bounded to one load at a time. Folding this into the DataSource
 // interface properly is a follow-up once that shared file isn't locked by
 // concurrent work.
 // ---------------------------------------------------------------------------
@@ -252,26 +244,6 @@ export async function getLoadDetail(id: string): Promise<LoadDetail | null> {
   const brokerDotNumber = broker?.dotNumber ?? null;
   const brokerPhone = broker?.phone ?? null;
   const brokerEmail = broker?.email ?? null;
-
-  if (await isDemoMode()) {
-    const { loads } = buildDemoData();
-    const demoLoad = loads.find((l) => l.id === id);
-    return {
-      ...base,
-      equipment: null,
-      originZip: null,
-      destZip: null,
-      odoAssigned: demoLoad?.odoAssigned ?? null,
-      odoLoaded: demoLoad?.odoLoaded ?? null,
-      odoDelivered: demoLoad?.odoDelivered ?? null,
-      brokerMcNumber,
-      brokerDotNumber,
-      brokerPhone,
-      brokerEmail,
-      expenseItems,
-      documents: [], // demo dataset ships no fake documents (v2-design.md's demo mode section)
-    };
-  }
 
   const sb = createServiceRoleClient();
   const [{ data: extraRow }, { data: docRows }, { data: sigRows }] = await Promise.all([

@@ -4,20 +4,14 @@
  * Action, or `lib/data/*` function ever imports a Supabase client
  * directly; every `lib/data/*` module-level function resolves the current
  * DataSource (via `resolve.ts`, cached per request) and delegates to it.
- *
- * This is what makes demo-mode isolation structural rather than
- * conventional: a new query has NO OTHER WAY to reach `loads`/`trips`/etc.
- * except through a method on this interface, and the only two
- * implementations are `live-data-source.ts` (wraps
- * `createServiceRoleClient()`, real reads) and `demo-data-source.ts`
- * (reads the static in-memory demo dataset, never touches Supabase). There
- * is no `createServiceRoleClient()` import available to reach for by
- * mistake outside `live-data-source.ts`.
+ * The only implementation is `live-data-source.ts` (wraps
+ * `createServiceRoleClient()`) — there is no `createServiceRoleClient()`
+ * import available to reach for by mistake outside that one file.
  *
  * Read-only for now — Phase 2 ships no mutations. When the first Server
- * Action lands (a later phase), its method is added here first and both
- * implementations grow it together, keeping the interface the literal
- * contract instead of an aspiration one implementation might skip.
+ * Action lands (a later phase), its method is added here first and the
+ * implementation grows with it, keeping the interface the literal contract
+ * instead of an aspiration one implementation might skip.
  */
 
 import type { Paginated } from "@/lib/data/pagination";

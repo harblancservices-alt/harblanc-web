@@ -1,14 +1,13 @@
 /**
  * Countdown goals — the editable financial targets shown on the Dashboard's
- * bottom panel (v2-architecture.md §3c pattern: DB-direct, isDemoMode()-
- * branched, matching recurring-expenses.ts/broker-profile.ts's precedent).
- * Row shape and pace math (lib/dispatch/countdown.ts's CountdownGoal) are
- * reused as-is from legacy rather than re-derived — same table
- * (countdown_goals), same fields.
+ * bottom panel (v2-architecture.md §3c pattern: DB-direct, matching
+ * recurring-expenses.ts/broker-profile.ts's precedent). Row shape and pace
+ * math (lib/dispatch/countdown.ts's CountdownGoal) are reused as-is from
+ * legacy rather than re-derived — same table (countdown_goals), same
+ * fields.
  */
 
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { isDemoMode } from "@/lib/admin/demo";
 import type { CountdownGoal } from "@/lib/dispatch/countdown";
 
 function num(v: number | string | null | undefined): number {
@@ -27,8 +26,6 @@ type CountdownGoalRow = {
 };
 
 export async function listCountdownGoals(): Promise<CountdownGoal[]> {
-  if (await isDemoMode()) return [];
-
   const sb = createServiceRoleClient();
   const { data } = await sb
     .from("countdown_goals")

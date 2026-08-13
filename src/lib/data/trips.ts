@@ -6,7 +6,6 @@
 import { resolveDataSource } from "@/lib/demo/resolve";
 import type { Paginated } from "./pagination";
 import type { TripFinancials } from "@/lib/domain/money";
-import { isDemoMode } from "@/lib/admin/demo";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 
 export type TripStatus = "active" | "closed";
@@ -48,8 +47,6 @@ export type ArchivedTripRow = { id: string; name: string | null; deletedAt: stri
  * same new-capability gap as loads (neither /admin nor tms-v2 had a
  * restore path for either entity before this). */
 export async function listArchivedTrips(): Promise<ArchivedTripRow[]> {
-  if (await isDemoMode()) return [];
-
   const sb = createServiceRoleClient();
   const { data } = await sb
     .from("trips")

@@ -42,18 +42,14 @@
  */
 
 import { adminFromMiddleware } from "@/lib/auth/session";
-import { isDemoMode } from "@/lib/admin/demo";
 
 export type MutationResult<T = void> = { ok: true; data?: T } | { ok: false; reason: string };
 
-const DEMO_BLOCKED_REASON =
-  "Demo mode is on — nothing was saved. Turn it off in Settings to make real changes.";
-
 /**
- * Wrap a Server Action body with the auth + demo-mode gate. Re-verifies the
- * admin session even though the (authed) layout already checked it, per
- * Next's own guidance (a Server Action can be invoked directly, bypassing
- * whatever a parent layout would have gated) — same session, same
+ * Wrap a Server Action body with the auth gate. Re-verifies the admin
+ * session even though the (authed) layout already checked it, per Next's
+ * own guidance (a Server Action can be invoked directly, bypassing whatever
+ * a parent layout would have gated) — same session, same
  * adminFromMiddleware() the layout uses, not a second auth system.
  */
 export function mutation<Args extends unknown[], T>(
@@ -61,7 +57,6 @@ export function mutation<Args extends unknown[], T>(
 ): (...args: Args) => Promise<MutationResult<T>> {
   return async (...args: Args): Promise<MutationResult<T>> => {
     await adminFromMiddleware();
-    if (await isDemoMode()) return { ok: false, reason: DEMO_BLOCKED_REASON };
     try {
       return await fn(...args);
     } catch (e) {

@@ -16,13 +16,10 @@
  *                  (`getMaintenanceOverview()`, lib/data/maintenance.ts).
  *   - trips      — active trips with no end date yet, longest-open first.
  *
- * Scope note: this module talks to Supabase directly (isDemoMode()-branched)
- * rather than growing the shared `DataSource` interface, matching the
- * precedent `lib/data/receivables.ts`/`maintenance.ts`/
- * `recurring-expenses.ts` already set — multiple other /tms-v2 screens are
- * being built concurrently against the shared `lib/demo/*` files and
- * `nav.config` in this same phase; touching those here would risk stepping
- * on that work mid-flight. Where a read-only helper already exists
+ * Scope note: this module talks to Supabase directly rather than growing
+ * the shared `DataSource` interface, matching the precedent
+ * `lib/data/receivables.ts`/`maintenance.ts`/`recurring-expenses.ts`
+ * already set. Where a read-only helper already exists
  * (`listCarrierReceivables`, `getMaintenanceOverview`, `listTrips`), it's
  * reused as-is instead of re-querying the same tables a second time.
  *
@@ -36,9 +33,7 @@
  * a broken page.
  */
 
-import { isDemoMode } from "@/lib/admin/demo";
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { buildDemoData, DEMO_BROKERS } from "@/lib/demo/demo-dataset";
 import {
   incompleteGaps,
   expenseGaps,
@@ -106,29 +101,6 @@ type DocGapRaw = {
 };
 
 async function fetchDocGapRaw(): Promise<DocGapRaw[]> {
-  if (await isDemoMode()) {
-    const { loads } = buildDemoData();
-    const brokerNameById = new Map(DEMO_BROKERS.map((b) => [b.id, b.name]));
-    // The demo dataset ships no fake documents at all (same convention
-    // getLoadDetail()'s demo branch uses), so every delivered demo load
-    // reads as missing both rate con and BOL — a real, if simplified,
-    // showcase of the signal rather than a fabricated one.
-    return loads
-      .filter((l) => l.status === "delivered")
-      .map((l) => ({
-        id: l.id,
-        loadNumber: l.loadNumber,
-        brokerName: brokerNameById.get(l.brokerId) ?? null,
-        origin: l.origin,
-        destination: l.destination,
-        odoAssigned: l.odoAssigned,
-        odoLoaded: l.odoLoaded,
-        odoDelivered: l.odoDelivered,
-        hasRateCon: false,
-        hasBol: false,
-      }));
-  }
-
   const sb = createServiceRoleClient();
   const { data: loadRows } = await sb
     .from("loads")
@@ -237,26 +209,7 @@ async function getReceivableItems(): Promise<AttentionItem[]> {
 // or when they charge (expenseGaps(), lib/dispatch/alerts.ts).
 // ---------------------------------------------------------------------------
 
-// Self-contained demo fixture, unrelated to recurring-expenses.ts's own demo
-// rows (same "stays local rather than growing a shared file mid-phase"
-// precedent that module documents) — one incomplete expense so the signal
-// has something real to show in demo mode.
-function demoExpenseGapItems(): AttentionItem[] {
-  return [
-    {
-      id: "expense:demo-exp-incomplete",
-      category: "expenses",
-      severity: "amber",
-      title: "New subscription (Demo)",
-      reason: "No amount, No date, No account, No category",
-      href: "/tms-v2/expenses",
-    },
-  ];
-}
-
 async function getExpenseGapItems(): Promise<AttentionItem[]> {
-  if (await isDemoMode()) return demoExpenseGapItems();
-
   const sb = createServiceRoleClient();
   const [{ data: expenseRows }, { data: accountRows }] = await Promise.all([
     sb
@@ -398,8 +351,6 @@ async function getOngoingTripItems(): Promise<AttentionItem[]> {
 const NEW_APPLICATION_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 async function getNewApplicationItems(): Promise<AttentionItem[]> {
-  if (await isDemoMode()) return [];
-
   const sb = createServiceRoleClient();
   const cutoff = new Date(Date.now() - NEW_APPLICATION_WINDOW_MS).toISOString();
   const { data } = await sb
@@ -421,8 +372,6 @@ async function getNewApplicationItems(): Promise<AttentionItem[]> {
 }
 
 async function getNewQuoteItems(): Promise<AttentionItem[]> {
-  if (await isDemoMode()) return [];
-
   const sb = createServiceRoleClient();
   const { data } = await sb
     .from("quote_requests")
@@ -471,7 +420,6 @@ async function getOpportunityItems(): Promise<AttentionItem[]> {
 // ---------------------------------------------------------------------------
 
 async function fetchDismissedKeys(): Promise<Set<string>> {
-  if (await isDemoMode()) return new Set();
   try {
     const sb = createServiceRoleClient();
     const { data, error } = await sb.from("dismissed_alerts").select("alert_key").returns<{ alert_key: string }[]>();
