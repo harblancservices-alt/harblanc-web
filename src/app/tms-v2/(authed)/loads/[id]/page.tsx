@@ -200,7 +200,6 @@ export default async function LoadDetailPage({
             <div className="flex flex-col gap-4">
               <DarkBarCard
                 title="Load details"
-                defaultOpen
                 headerAction={
                   <div className="flex flex-wrap items-center gap-1.5">
                     {load.tripId ? (
