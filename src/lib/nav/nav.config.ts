@@ -5,6 +5,7 @@ import {
   IconLoadBoard,
   IconTrips,
   IconBrokers,
+  IconReach,
   IconInquiry,
   IconPipeline,
   IconReceivables,
@@ -86,6 +87,7 @@ export const TMS_V2_NAV: NavItem[] = [
   { id: "performance", label: "Performance", href: "/tms-v2/performance", Icon: IconPerformance, group: "money" },
 
   { id: "brokers", label: "Brokers", href: "/tms-v2/brokers", Icon: IconBrokers, group: "partners-truck", mobilePrimary: true },
+  { id: "reach", label: "Reach", href: "/tms-v2/reach", Icon: IconReach, group: "partners-truck" },
   { id: "load-inquiry", label: "Load Inquiry", href: "/tms-v2/load-inquiry", Icon: IconInquiry, group: "partners-truck" },
   { id: "maintenance", label: "Maintenance", href: "/tms-v2/maintenance", Icon: IconMaintenance, group: "partners-truck" },
 
