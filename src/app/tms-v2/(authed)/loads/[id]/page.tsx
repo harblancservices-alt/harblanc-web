@@ -80,6 +80,21 @@ export default async function LoadDetailPage({
   // (factoring = gross × pct/100), so both splits are exact decompositions
   // of the already-computed canonical totals — not a second money
   // calculation, just reading the known-linear formulas backward.
+  // The Odometer & status card's "+ Miles" column must show ONLY a real
+  // odometer-to-odometer delta, never the money engine's ZIP-route estimate
+  // fallback (financials.loadedMiles/deadheadMiles legitimately falls back to
+  // that estimate pre-delivery for diesel/KPI math — see loadDiesel() in
+  // lib/dispatch/fuel.ts). Computed separately here so the estimate can never
+  // leak into this column.
+  const odoDeadheadDelta =
+    load.odoAssigned != null && load.odoLoaded != null && load.odoLoaded - load.odoAssigned >= 0
+      ? load.odoLoaded - load.odoAssigned
+      : null;
+  const odoLoadedDelta =
+    load.odoLoaded != null && load.odoDelivered != null && load.odoDelivered - load.odoLoaded >= 0
+      ? load.odoDelivered - load.odoLoaded
+      : null;
+
   const revenuePerMile = financials.loadedMiles > 0 ? financials.gross / financials.loadedMiles : null;
   const netPerMile = financials.loadedMiles > 0 ? financials.net / financials.loadedMiles : null;
   const dieselPerMile = totalMiles > 0 ? financials.diesel / totalMiles : 0;
@@ -245,14 +260,14 @@ export default async function LoadDetailPage({
                           <td className="px-3 py-2 text-fg">Loaded</td>
                           <td className="px-3 py-2 text-right tabular-nums text-fg">{load.odoLoaded != null ? load.odoLoaded.toLocaleString("en-US") : "—"}</td>
                           <td className="px-3 py-2 text-right tabular-nums font-medium text-warn">
-                            {financials.deadheadMiles > 0 ? `+${financials.deadheadMiles.toLocaleString("en-US")}` : "—"}
+                            {odoDeadheadDelta != null && odoDeadheadDelta > 0 ? `+${odoDeadheadDelta.toLocaleString("en-US")}` : "—"}
                           </td>
                         </tr>
                         <tr>
                           <td className="px-3 py-2 text-fg">Delivered</td>
                           <td className="px-3 py-2 text-right tabular-nums text-fg">{load.odoDelivered != null ? load.odoDelivered.toLocaleString("en-US") : "—"}</td>
                           <td className="px-3 py-2 text-right tabular-nums font-medium text-ok">
-                            {financials.loadedMiles > 0 ? `+${financials.loadedMiles.toLocaleString("en-US")}` : "—"}
+                            {odoLoadedDelta != null && odoLoadedDelta > 0 ? `+${odoLoadedDelta.toLocaleString("en-US")}` : "—"}
                           </td>
                         </tr>
                       </tbody>
