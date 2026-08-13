@@ -29,19 +29,16 @@ const SUB_TABS = ["activity", "tasks", "notes"] as const;
 type SubTab = (typeof SUB_TABS)[number];
 const SUB_TAB_LABEL: Record<SubTab, string> = { activity: "Activity", tasks: "Tasks", notes: "Notes" };
 
-/** Small "More" popover — Edit / Delete for the selected contact. Same
+/** Small "More" popover — Delete for the selected contact. Same
  * outside-click/Escape pattern as CompanyMoreMenu.tsx.
  *
- * 2026-08-10 bugfix: the popover's Edit item used to live inside
- * `{open && (...)}` — a conditional MOUNT, not just a visibility toggle. The
- * Edit button's onClick set `open` to false (closing the popover) and called
- * ContactDialog's `openDialog()` (to open its Modal) in the same handler;
- * both state updates land in the same React commit, but the popover closing
- * unmounts ContactDialog itself, destroying the "please open" state before
- * the Modal ever renders. Net effect: Edit visibly did nothing. Fix: the
- * popover panel now always stays mounted (toggled with the `hidden` class
- * instead of being removed from the tree), so ContactDialog — and its
- * Modal — survive the popover closing. */
+ * Edit used to live in here as a `ContactDialog` trigger, but its Modal is a
+ * plain `fixed` div, not a portal — it's still a DOM descendant of this
+ * popover panel. Toggling the panel's visibility with the `hidden` class
+ * (display:none) hides that whole subtree, Modal included, no matter how the
+ * Modal itself is positioned. So Edit visibly did nothing. Fix: Edit is now
+ * a real button in the action row, wired to a ContactDialog rendered at the
+ * top level of the detail panel, outside this popover entirely. */
 function ContactMoreMenu({
   contact,
   accountId,
@@ -93,38 +90,22 @@ function ContactMoreMenu({
       >
         <IconMore width={16} height={16} />
       </button>
-      {/* Always mounted (visibility toggled via `hidden`, not a conditional
-          render) — see the bugfix note above; ContactDialog must stay in the
-          tree across popover open/close for its own Modal state to survive. */}
-      <div className={`absolute right-0 top-full z-20 mt-1 w-44 overflow-hidden rounded-lg border border-line-strong bg-card shadow-e3 ${open ? "" : "hidden"}`}>
-        <ContactDialog
-          accountId={accountId}
-          mode="edit"
-          defaults={contact}
-          trigger={(openDialog) => (
+      {open && (
+        <div className="absolute right-0 top-full z-20 mt-1 w-44 overflow-hidden rounded-lg border border-line-strong bg-card shadow-e3">
+          {canDelete ? (
             <button
               type="button"
-              onClick={() => {
-                setOpen(false);
-                openDialog();
-              }}
-              className="block w-full px-4 py-3 text-left text-[13px] font-semibold text-fg hover:bg-inset"
+              onClick={remove}
+              disabled={pending}
+              className="block w-full px-4 py-3 text-left text-[13px] font-semibold text-bad hover:bg-bad-bg disabled:opacity-60"
             >
-              Edit
+              {pending ? "…" : "Delete"}
             </button>
+          ) : (
+            <p className="px-4 py-3 text-[12.5px] text-fg-muted">No actions available.</p>
           )}
-        />
-        {canDelete && (
-          <button
-            type="button"
-            onClick={remove}
-            disabled={pending}
-            className="block w-full border-t border-line-strong px-4 py-3 text-left text-[13px] font-semibold text-bad hover:bg-bad-bg disabled:opacity-60"
-          >
-            {pending ? "…" : "Delete"}
-          </button>
-        )}
-      </div>
+        </div>
+      )}
       {error && <p className="absolute right-0 top-full mt-1 w-44 text-[11.5px] text-bad">{error}</p>}
     </div>
   );
@@ -361,6 +342,16 @@ export function ContactsMasterDetail({
                   trigger={(open) => (
                     <button type="button" onClick={open} className={`inline-flex h-10 items-center rounded-lg px-3 text-[12.5px] font-semibold transition-colors ${BTN_NEUTRAL}`}>
                       Add task
+                    </button>
+                  )}
+                />
+                <ContactDialog
+                  accountId={accountId}
+                  mode="edit"
+                  defaults={selected}
+                  trigger={(open) => (
+                    <button type="button" onClick={open} className={`inline-flex h-10 items-center rounded-lg px-3 text-[12.5px] font-semibold transition-colors ${BTN_NEUTRAL}`}>
+                      Edit
                     </button>
                   )}
                 />
