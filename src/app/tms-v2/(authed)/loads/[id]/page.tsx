@@ -272,9 +272,6 @@ export default async function LoadDetailPage({
                       </tbody>
                     </table>
                   </div>
-                  <p className="text-[12px] text-fg-muted">
-                    Status is derived from these readings — use &quot;Edit&quot; or &quot;Mark delivered&quot; above, never a separate status field.
-                  </p>
                 </div>
               </DarkBarCard>
             </div>
