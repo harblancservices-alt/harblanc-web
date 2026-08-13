@@ -85,7 +85,7 @@ export default async function ExpensesPage({
       {/* DESKTOP — new, per Brent's approved mockup. */}
       <div className="hidden flex-col gap-4 lg:flex">
         <ExpensesDesktopHeaderBand rows={bills} />
-        <ExpensesDesktopTable rows={bills} accounts={accounts} rowHref={rowHref} />
+        <ExpensesDesktopTable rows={bills} accounts={accounts} />
       </div>
     </PageScroll>
     </div>

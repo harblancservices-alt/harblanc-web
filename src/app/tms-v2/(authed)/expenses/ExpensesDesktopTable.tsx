@@ -71,14 +71,23 @@ function NextPill({ row, justPaid }: { row: RecurringExpenseRow; justPaid: boole
  * <Link> into the edit context drawer, matching mobile's AllBillsCard row-
  * as-link pattern column-scoped instead of row-scoped.
  */
+// Same `?id=` context-drawer link page.tsx's own buildHref() produces —
+// duplicated here (not passed down as a prop) because this is a Client
+// Component: a Server Component can't hand a plain function across the
+// server/client boundary (only data and Server Actions survive
+// serialization), so page.tsx's `rowHref` closure can never reach this file
+// as-is. It's cheap enough to re-derive locally rather than route it through
+// a Server Action just to keep one call site.
+function expenseHref(id: string): string {
+  return `/tms-v2/expenses?id=${id}`;
+}
+
 export function ExpensesDesktopTable({
   rows,
   accounts,
-  rowHref,
 }: {
   rows: RecurringExpenseRow[];
   accounts: { id: string; name: string }[];
-  rowHref: (id: string) => string;
 }) {
   const router = useRouter();
   // Presence in this map = "just marked paid this session"; the value is
@@ -128,7 +137,7 @@ export function ExpensesDesktopTable({
       key: "name",
       header: "Bill",
       render: (r) => (
-        <Link href={rowHref(r.id)} className="font-medium text-fg hover:text-accent">
+        <Link href={expenseHref(r.id)} className="font-medium text-fg hover:text-accent">
           {r.name}
         </Link>
       ),
@@ -179,7 +188,7 @@ export function ExpensesDesktopTable({
             </Button>
           )}
           <Link
-            href={rowHref(r.id)}
+            href={expenseHref(r.id)}
             className="inline-flex h-8 items-center justify-center rounded-md border border-line-strong bg-card px-3 text-[13px] font-medium text-fg shadow-e1 transition-colors hover:bg-elevated"
           >
             Edit
