@@ -167,7 +167,7 @@ export default async function LoadDetailPage({
             <div className="grid grid-cols-2">
               <CommandStat
                 label="Revenue"
-                value={<Money value={financials.gross} tone="none" />}
+                value={<Money value={financials.gross} tone="positive" />}
                 sub={revenuePerMile != null ? `${rpm(revenuePerMile)}/mi` : undefined}
                 tone="ok"
                 className="border-b border-r-2 border-b-bar-fg/10 border-r-bad"
