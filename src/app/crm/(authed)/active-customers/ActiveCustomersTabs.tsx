@@ -20,9 +20,9 @@ type TabKey = (typeof TABS)[number]["key"];
  * row above the panel, only for the tab that owns it — Active Customers and
  * BOL/RC are read-only views with nothing to create.
  *
- * The tab strip's own `overflow-x-auto` doubles as the mobile layout: on a
- * narrow viewport it reads as a horizontally-scrollable segmented control
- * rather than wrapping, with generous mobile-first padding for tap targets.
+ * On mobile the strip is a 4-column grid so all tabs fit on screen with no
+ * horizontal scroll (labels wrap to two lines if needed); at `sm:` it
+ * reverts to the original horizontally-scrollable segmented control.
  */
 export function ActiveCustomersTabs({
   activeCustomers,
@@ -52,7 +52,7 @@ export function ActiveCustomersTabs({
       <div
         role="tablist"
         aria-label="Active Customers hub"
-        className="flex gap-1 overflow-x-auto rounded-lg border border-line-strong bg-inset p-1.5 shadow-e2"
+        className="grid grid-cols-4 gap-1 rounded-lg border border-line-strong bg-inset p-1.5 shadow-e2 sm:flex sm:overflow-x-auto"
       >
         {TABS.map((t) => (
           <button
@@ -61,7 +61,7 @@ export function ActiveCustomersTabs({
             role="tab"
             aria-selected={tab === t.key}
             onClick={() => setTab(t.key)}
-            className={`shrink-0 rounded-md px-4 py-3 text-[13.5px] font-bold transition-all sm:py-2.5 ${
+            className={`rounded-md px-1 py-2 text-[11px] leading-tight font-bold transition-all sm:shrink-0 sm:px-4 sm:py-2.5 sm:text-[13.5px] sm:leading-normal ${
               tab === t.key
                 ? "bg-card text-accent shadow-e2 ring-1 ring-line-strong"
                 : "text-fg-muted hover:bg-card/60 hover:text-fg"
