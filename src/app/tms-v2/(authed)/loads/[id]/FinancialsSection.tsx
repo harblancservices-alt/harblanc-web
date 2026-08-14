@@ -6,7 +6,6 @@ import { Button } from "@/components/tms-v2/ui/Button";
 import { MoneyLine } from "./_parts";
 import { DarkBarCard } from "./DarkBarCard";
 import { ExpensesSection } from "./ExpensesSection";
-import { FinancialsPayAction } from "./LoadActions";
 import type { LoadExpenseItem } from "@/lib/data/loads";
 
 /**
@@ -19,9 +18,7 @@ import type { LoadExpenseItem } from "@/lib/data/loads";
  * is costs-and-net only, same as admin's.
  *
  * "Edit" toggles per-expense Delete visibility (admin's own behavior —
- * Delete isn't always showing); "Mark paid" (tms-v2-only, admin's Load
- * Detail has no payment-status control at all) lives in this same header
- * since payment status is a financial fact.
+ * Delete isn't always showing).
  */
 export function FinancialsSection({
   loadId,
@@ -55,7 +52,6 @@ export function FinancialsSection({
       title="Financials"
       headerAction={
         <div className="flex flex-wrap items-center gap-1.5">
-          <FinancialsPayAction />
           <Button type="button" variant="info" size="sm" onClick={() => setEditing((v) => !v)}>
             ✎ Edit
           </Button>
