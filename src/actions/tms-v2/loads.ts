@@ -186,6 +186,9 @@ async function loadFieldsFromForm(
   sb: Sb,
   formData: FormData,
 ): Promise<{ ok: true; fields: Record<string, string | number | null> } | { ok: false; reason: string }> {
+  const loadNumber = str(formData, "load_number");
+  if (!loadNumber) return { ok: false, reason: "Load # is required." };
+
   const brokerName = str(formData, "broker_name");
   if (!brokerName) return { ok: false, reason: "Broker is required." };
 
@@ -226,7 +229,7 @@ async function loadFieldsFromForm(
   return {
     ok: true,
     fields: {
-      load_number: str(formData, "load_number"),
+      load_number: loadNumber,
       broker_name: brokerName,
       broker_id: brokerId,
       // HARBLANC runs hotshot only — equipment is fixed (matches V1).

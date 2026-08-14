@@ -242,7 +242,7 @@ export function LoadFormModal({ open, onClose, brokerNames, activeTripNames, loa
         {/* Broker */}
         <section className={SECTION}>
           <p className={SECTION_TITLE}>Broker</p>
-          <Field label="Load #" name="load_number" defaultValue={load?.loadNumber ?? ""} />
+          <Field label="Load #" name="load_number" required defaultValue={load?.loadNumber ?? ""} />
 
           <div>
             <Field
