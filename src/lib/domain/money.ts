@@ -118,30 +118,19 @@ export function computeLoadNet(
   brokerFactoring: boolean,
 ): LoadFinancials {
   const isTonu = load.status === "tonu";
-  // Miles for DISPLAY (Total mi / Deadhead mi KPIs, $/mi ratios) — these may
-  // legitimately fall back to the load's stored ZIP-route estimate before
-  // odometer readings are in.
+  // Miles/diesel — progressive model (Brent-confirmed): stage 1 (no odometer
+  // readings) prices the full ZIP-route estimate, stage 2 (picked up, not
+  // delivered) blends real deadhead + estimated loaded leg, stage 3
+  // (delivered) is fully real once loadedMiles() has both readings and
+  // ignores the estimate on its own. DISPLAY (Total mi/$-per-mi KPIs) and the
+  // PROFIT deduction must share this exact same basis at every stage, or the
+  // shown miles and shown fuel $ disagree (the $6-fuel-on-270-mi bug).
   const miles = loadDiesel(
     {
       odoAssigned: load.odoAssigned,
       odoLoaded: load.odoLoaded,
       odoDelivered: load.odoDelivered,
       estimate: load.loadedMilesEstimate,
-    },
-    settings,
-  );
-  // Miles that actually DEDUCT diesel from gross/net — odometer-only, no
-  // estimate fallback (estimate: null short-circuits loadedMiles() to the
-  // real odo_delivered-odo_loaded delta or nothing). The ZIP-route estimate
-  // is a provisional mileage number, not a real fuel expense; it must never
-  // silently reduce a load's shown profit before odometer readings are
-  // actually entered.
-  const realMiles = loadDiesel(
-    {
-      odoAssigned: load.odoAssigned,
-      odoLoaded: load.odoLoaded,
-      odoDelivered: load.odoDelivered,
-      estimate: null,
     },
     settings,
   );
@@ -165,14 +154,14 @@ export function computeLoadNet(
 
   const gross = num(load.rate);
   const { factoring, net } = computeRawLoadNet(
-    { rate: gross, diesel: realMiles.diesel, expensesTotal },
+    { rate: gross, diesel: miles.diesel, expensesTotal },
     settings,
     brokerFactoring,
   );
   return {
     isTonu: false,
     gross,
-    diesel: realMiles.diesel,
+    diesel: miles.diesel,
     factoring,
     expenses: expensesTotal,
     net,

@@ -55,16 +55,66 @@ describe("computeLoadNet", () => {
     expect(result.loadedMiles).toBe(400);
   });
 
-  it("does NOT deduct diesel from net using the ZIP-route estimate when odometer readings aren't entered — the estimate may drive the displayed loadedMiles KPI, but must never silently reduce profit", () => {
+  // Progressive fuel model (Brent-confirmed, replacing e4712d2's estimate
+  // stripping): DISPLAY miles and the PROFIT diesel deduction must always
+  // share the same basis, so a load's shown fuel $ and shown miles never
+  // disagree. Concrete case: a load with ~279 total miles at defaults
+  // (mpg=13, ppg=4.70) prices to ~$101, never the ~$6 the old estimate-free
+  // profit path produced.
+
+  it("stage 1 — no odometer readings at all: fuel is the full ZIP-route estimate, NOT $0", () => {
     const result = computeLoadNet(
       load({ odoAssigned: null, odoLoaded: null, odoDelivered: null, loadedMilesEstimate: 258, rate: 250 }),
       0,
       SETTINGS,
       false,
     );
-    expect(result.loadedMiles).toBe(258); // display KPI still shows the estimate
-    expect(result.diesel).toBe(0); // but nothing is deducted from profit for it
-    expect(result.net).toBe(250);
+    const expectedDiesel = (258 / 13) * 4.7; // ≈ $93.28
+    expect(result.loadedMiles).toBe(258);
+    expect(result.deadheadMiles).toBe(0);
+    expect(result.diesel).toBeCloseTo(expectedDiesel, 5);
+    expect(result.diesel).not.toBe(0);
+    expect(result.net).toBeCloseTo(250 - expectedDiesel, 5);
+  });
+
+  it("stage 2 — picked up (odoAssigned+odoLoaded set), not yet delivered: fuel = real deadhead + estimated loaded leg", () => {
+    const result = computeLoadNet(
+      load({
+        odoAssigned: 100_000,
+        odoLoaded: 100_012, // 12 real deadhead miles
+        odoDelivered: null,
+        loadedMilesEstimate: 258, // estimated loaded leg, since delivery hasn't happened
+        rate: 250,
+      }),
+      0,
+      SETTINGS,
+      false,
+    );
+    expect(result.deadheadMiles).toBe(12); // real
+    expect(result.loadedMiles).toBe(258); // still the estimate
+    const expectedDiesel = (270 / 13) * 4.7; // deadhead(12) + loaded estimate(258) ≈ $97.62
+    expect(result.diesel).toBeCloseTo(expectedDiesel, 5);
+    expect(result.net).toBeCloseTo(250 - expectedDiesel, 5);
+  });
+
+  it("stage 3 — delivered: fuel = fully real odometer miles, ignoring a stale/mismatched estimate", () => {
+    const result = computeLoadNet(
+      load({
+        odoAssigned: 100_000,
+        odoLoaded: 100_012,
+        odoDelivered: 100_270, // 258 real loaded miles, matches deadhead(12)+loaded(258)=270 above
+        loadedMilesEstimate: 999, // deliberately wrong — must be ignored once real readings exist
+        rate: 250,
+      }),
+      0,
+      SETTINGS,
+      false,
+    );
+    expect(result.deadheadMiles).toBe(12);
+    expect(result.loadedMiles).toBe(258); // real delta, not the bogus 999 estimate
+    const expectedDiesel = (270 / 13) * 4.7;
+    expect(result.diesel).toBeCloseTo(expectedDiesel, 5);
+    expect(result.diesel).toBeGreaterThan(0);
   });
 
   it("still deducts real diesel once actual odometer readings are entered", () => {

@@ -121,6 +121,53 @@ describe("computeTripFinancials — divide-by-zero / empty", () => {
   });
 });
 
+// ── Progressive fuel model (Brent-confirmed) ──────────────────────────────────
+// A trip's loadDieselTotal/loadedMiles/deadheadMiles must track the same
+// 3-stage basis as computeLoadNet: no-odometer → full ZIP estimate; picked up
+// → real deadhead + estimated loaded leg; delivered → fully real.
+describe("computeTripFinancials — progressive fuel model", () => {
+  it("stage 1 load (no odometer readings) contributes its full ZIP-route estimate to diesel, not $0", () => {
+    const loads: TripRollupLoad[] = [
+      {
+        id: "P1",
+        rate: 250,
+        loaded_miles: 258,
+        odo_assigned: null,
+        odo_loaded: null,
+        odo_delivered: null,
+        broker_id: null,
+        status: "assigned",
+      },
+    ];
+    const fin = computeTripFinancials(loads, FUEL, factoringIds, new Map());
+    const expectedDiesel = (258 / 13) * 4.7;
+    expect(fin.loadedMiles).toBe(258);
+    expect(fin.deadheadMiles).toBe(0);
+    expect(fin.loadDieselTotal).toBeCloseTo(expectedDiesel, 5);
+    expect(fin.loadDieselTotal).not.toBe(0);
+  });
+
+  it("stage 2 load (picked up, not delivered) blends real deadhead with the estimated loaded leg", () => {
+    const loads: TripRollupLoad[] = [
+      {
+        id: "P2",
+        rate: 250,
+        loaded_miles: 258,
+        odo_assigned: 100_000,
+        odo_loaded: 100_012, // 12 real deadhead miles
+        odo_delivered: null,
+        broker_id: null,
+        status: "loaded",
+      },
+    ];
+    const fin = computeTripFinancials(loads, FUEL, factoringIds, new Map());
+    const expectedDiesel = (270 / 13) * 4.7; // 12 real + 258 estimate
+    expect(fin.deadheadMiles).toBe(12);
+    expect(fin.loadedMiles).toBe(258);
+    expect(fin.loadDieselTotal).toBeCloseTo(expectedDiesel, 5);
+  });
+});
+
 // ── GOLDEN CANARY ─────────────────────────────────────────────────────────────
 // The single invariant that catches future drift between per-load net (used on
 // the load card/board) and trip net (which folds in PC diesel):
