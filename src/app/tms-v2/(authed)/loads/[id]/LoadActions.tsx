@@ -160,19 +160,13 @@ export function TopBarActions() {
   );
 }
 
-/** Odometer & status card header: Mark delivered (when applicable) + Edit
- * odometer (blue) — admin doesn't have "Mark delivered" as its own button
- * (status is purely odometer-derived there), but tms-v2 keeps the shortcut,
- * placed here since it's the same odometer-driving concern. */
+/** Odometer & status card header: Edit odometer (blue) — status is derived
+ * from the odometer readings entered via Edit, so there's no separate
+ * "Mark delivered" shortcut here. */
 export function OdometerActions() {
-  const { setOpenModal, canMarkDelivered } = useLoadActions();
+  const { setOpenModal } = useLoadActions();
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {canMarkDelivered ? (
-        <Button type="button" variant="secondary" size="sm" onClick={() => setOpenModal("delivered")}>
-          Mark delivered
-        </Button>
-      ) : null}
       <Button type="button" variant="info" size="sm" onClick={() => setOpenModal("odometer")}>
         ✎ Edit
       </Button>
