@@ -131,6 +131,9 @@ function toAnalyticsLoad(
     status: row.status,
     rate: financials.gross,
     net: financials.net,
+    diesel: financials.diesel,
+    factoring: financials.factoring,
+    expenses: financials.expenses,
     loadedMiles: financials.loadedMiles,
     deadheadMiles: financials.deadheadMiles,
     year: p?.year ?? 0,
@@ -169,6 +172,13 @@ type LoadRow = {
   created_at: string | null;
   trip_id: string | null;
 };
+
+/** Public wrapper over `fetchFuelSettings` for callers that don't already
+ * hold a client — Performance's P&L card needs `factoringPct` to label its
+ * "Factoring (X%)" row without a second, page-local settings query shape. */
+export async function getFuelSettings(): Promise<FuelSettings> {
+  return fetchFuelSettings(createServiceRoleClient());
+}
 
 async function fetchFuelSettings(sb: SupabaseClient): Promise<FuelSettings> {
   const { data } = await sb

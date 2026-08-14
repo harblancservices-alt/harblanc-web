@@ -35,6 +35,16 @@ export type PerfLoad = {
   net: number;
   loadedMiles: number;
   deadheadMiles: number;
+  /**
+   * P&L breakdown behind `net` (rate − diesel − factoring − expenses, or
+   * rate − factoring for a TONU'd load) — optional because not every
+   * `PerfLoad` producer costs these out (legacy /admin's own builder keeps
+   * only the final `net`). Undefined fields sum to 0 in `summarize()`,
+   * never NaN.
+   */
+  diesel?: number;
+  factoring?: number;
+  expenses?: number;
   /** Calendar year the load's attribution date falls in. */
   year: number;
   /** Calendar month 0–11 the load attributes to (matches Date.getMonth). */
@@ -465,12 +475,21 @@ export type PeriodSummary = {
   /** gross ÷ loads — what an average load billed before costs. */
   grossPerLoad: number | null;
   deadheadPct: number | null;
+  /** P&L breakdown totals — sum of each load's optional `diesel` /
+   * `factoring` / `expenses` fields (0 when a producer didn't supply them).
+   * `gross - diesel - factoringFee - otherExpenses === net`. */
+  diesel: number;
+  factoringFee: number;
+  otherExpenses: number;
 };
 
 /** The headline roll-up for an arbitrary slice (this month, all time, …). */
 export function summarize(loads: PerfLoad[]): PeriodSummary {
   const gross = loads.reduce((s, l) => s + l.rate, 0);
   const net = loads.reduce((s, l) => s + l.net, 0);
+  const diesel = loads.reduce((s, l) => s + (l.diesel ?? 0), 0);
+  const factoringFee = loads.reduce((s, l) => s + (l.factoring ?? 0), 0);
+  const otherExpenses = loads.reduce((s, l) => s + (l.expenses ?? 0), 0);
   const dh = deadheadSplit(loads);
   return {
     loads: loads.length,
@@ -484,6 +503,9 @@ export function summarize(loads: PerfLoad[]): PeriodSummary {
     netPerLoad: loads.length > 0 ? net / loads.length : null,
     grossPerLoad: loads.length > 0 ? gross / loads.length : null,
     deadheadPct: dh.pct,
+    diesel,
+    factoringFee,
+    otherExpenses,
   };
 }
 
@@ -513,6 +535,7 @@ export type MonthDeltas = {
   net: Delta | null;
   gross: Delta | null;
   netRpm: Delta | null;
+  grossRpm: Delta | null;
   margin: Delta | null;
   deadhead: Delta | null;
 };
@@ -521,6 +544,7 @@ const NO_DELTAS: MonthDeltas = {
   net: null,
   gross: null,
   netRpm: null,
+  grossRpm: null,
   margin: null,
   deadhead: null,
 };
@@ -598,6 +622,7 @@ export function deltasBetween(cur: DeltaInputs, prev: DeltaInputs): MonthDeltas 
     net: totalDelta(cur.net, prev.net),
     gross: totalDelta(cur.gross, prev.gross),
     netRpm: pointDelta(cur.netRpm, prev.netRpm, "rpm", true),
+    grossRpm: pointDelta(cur.grossRpm, prev.grossRpm, "rpm", true),
     margin: pointDelta(cur.marginPct, prev.marginPct, "pts", true),
     // Less empty running is the win, so a NEGATIVE move is the good one.
     deadhead: pointDelta(cur.deadheadPct, prev.deadheadPct, "pts", false),

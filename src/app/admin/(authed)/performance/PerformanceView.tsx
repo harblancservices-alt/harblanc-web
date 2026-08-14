@@ -87,6 +87,7 @@ const NO_DELTAS: MonthDeltas = {
   net: null,
   gross: null,
   netRpm: null,
+  grossRpm: null,
   margin: null,
   deadhead: null,
 };
