@@ -9,7 +9,7 @@ import type { Takeaway, TakeawayTone } from "@/lib/dispatch/performance";
  * component already proved out, ported to tms-v2's Card primitive.
  */
 
-function dotClass(tone: TakeawayTone): string {
+export function dotClass(tone: TakeawayTone): string {
   switch (tone) {
     case "good":
       return "bg-ok";

@@ -16,7 +16,7 @@ const TICKS = 4; // top, 2 mid, bottom
  * for a profitable bucket, below it for a losing one, so a loss week is
  * visually distinct rather than just "a shorter green bar".
  */
-export function NetProfitTrendChart({ points }: { points: NetTrendPoint[] }) {
+export function NetProfitTrendChart({ points, height = CHART_H }: { points: NetTrendPoint[]; height?: number }) {
   if (points.length === 0) {
     return <p className="py-8 text-center text-[13px] text-fg-muted">No data in this period yet.</p>;
   }
@@ -32,7 +32,7 @@ export function NetProfitTrendChart({ points }: { points: NetTrendPoint[] }) {
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex gap-2">
-        <div className="flex w-14 shrink-0 flex-col justify-between py-0.5 text-right" style={{ height: CHART_H }}>
+        <div className="flex w-14 shrink-0 flex-col justify-between py-0.5 text-right" style={{ height }}>
           {tickValues.map((t, i) => (
             <span key={i} className="text-[10px] leading-none text-fg-subtle">
               {usdCompact(t)}
@@ -40,7 +40,7 @@ export function NetProfitTrendChart({ points }: { points: NetTrendPoint[] }) {
           ))}
         </div>
 
-        <div className="relative min-w-0 flex-1" style={{ height: CHART_H }}>
+        <div className="relative min-w-0 flex-1" style={{ height }}>
           {tickValues.map((t, i) => (
             <div key={i} className="absolute left-0 right-0 border-t border-line" style={{ top: `${(i / (TICKS - 1)) * 100}%` }} />
           ))}

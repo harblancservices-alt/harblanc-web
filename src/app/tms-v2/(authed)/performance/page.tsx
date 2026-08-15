@@ -31,6 +31,7 @@ import { PnlCard } from "./_components/PnlCard";
 import { EfficiencyGrid, type EfficiencyRow } from "./_components/EfficiencyGrid";
 import { MilesGrid } from "./_components/MilesGrid";
 import { NetProfitTrendChart } from "./_components/NetProfitTrendChart";
+import { DesktopPerformanceDashboard } from "./_components/DesktopPerformanceDashboard";
 
 const LOAD_PAGE_SIZE = 50;
 
@@ -225,32 +226,62 @@ export default async function PerformancePage({ searchParams }: PageProps) {
             />
           </div>
 
-          <KpiTile label="Net profit" value={formatMoney(summary.net)} delta={<DeltaChip delta={deltas.net} />} emphasis="dark" />
+          {/* Desktop's 5-tile DesktopKpiStrip below covers Net profit as its
+              own dark hero tile — this pinned mobile hero stays lg:hidden so
+              the figure isn't shown twice at desktop widths. */}
+          <div className="lg:hidden">
+            <KpiTile label="Net profit" value={formatMoney(summary.net)} delta={<DeltaChip delta={deltas.net} />} emphasis="dark" />
+          </div>
         </>
       }
     >
       <div className="flex flex-col gap-4">
-        <PnlCard summary={summary} netDelta={deltas.net} factoringPct={fuel.factoringPct} vsLabel={vsLabel} />
+        {/* < lg: the original tight single-column review, byte-for-byte
+            unchanged, just newly wrapped in lg:hidden so it steps aside for
+            the desktop dashboard below at the lg breakpoint. */}
+        <div className="flex flex-col gap-4 lg:hidden">
+          <PnlCard summary={summary} netDelta={deltas.net} factoringPct={fuel.factoringPct} vsLabel={vsLabel} />
 
-        <EfficiencyGrid rows={efficiencyRows} />
+          <EfficiencyGrid rows={efficiencyRows} />
 
-        <MilesGrid total={dh.total} loaded={dh.loaded} deadhead={dh.deadhead} personal={personalMiles} />
+          <MilesGrid total={dh.total} loaded={dh.loaded} deadhead={dh.deadhead} personal={personalMiles} />
 
-        <Card>
-          <p className="mb-2 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Net profit · {trendLabel}</p>
-          <NetProfitTrendChart points={trendBuckets.map((b) => ({ label: b.label, net: b.net }))} />
-        </Card>
-
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <Card>
-            <PartyBarChart title="Top brokers by net" rows={brokers} metric="net" />
+            <p className="mb-2 font-mono text-[11px] font-bold uppercase tracking-[0.12em] text-fg-muted">Net profit · {trendLabel}</p>
+            <NetProfitTrendChart points={trendBuckets.map((b) => ({ label: b.label, net: b.net }))} />
           </Card>
-          <Card>
-            <PartyBarChart title="Best lanes by $/mi" rows={lanes} metric="rpm" />
-          </Card>
+
+          <div className="grid grid-cols-1 gap-4">
+            <Card>
+              <PartyBarChart title="Top brokers by net" rows={brokers} metric="net" />
+            </Card>
+            <Card>
+              <PartyBarChart title="Best lanes by $/mi" rows={lanes} metric="rpm" />
+            </Card>
+          </div>
+
+          <InsightsStrip items={insights} />
         </div>
 
-        <InsightsStrip items={insights} />
+        {/* lg and up: contained multi-column dashboard — KPI strip, axis
+            trend chart + P&L, gross-vs-net + miles/efficiency, broker/lane
+            tables, insights. See DesktopPerformanceDashboard's own header
+            comment for the full section-by-section rationale. */}
+        <div className="hidden lg:block">
+          <DesktopPerformanceDashboard
+            summary={summary}
+            deltas={deltas}
+            factoringPct={fuel.factoringPct}
+            vsLabel={vsLabel}
+            trendBuckets={trendBuckets}
+            trendLabel={trendLabel}
+            efficiencyRows={efficiencyRows}
+            miles={{ total: dh.total, loaded: dh.loaded, deadhead: dh.deadhead, personal: personalMiles }}
+            brokers={brokers}
+            lanes={lanes}
+            insights={insights}
+          />
+        </div>
 
         {/* Demoted, not deleted — Brent's full analytical Load Board and
             Trip Analysis stay reachable behind a closed-by-default
