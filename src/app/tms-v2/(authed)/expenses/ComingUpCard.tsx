@@ -1,7 +1,9 @@
 import type { RecurringExpenseRow } from "@/lib/data/recurring-expenses";
 import { ComingUpRow } from "./ComingUpRow";
 
-function dateBadge(iso: string): { mon: string; day: string } {
+/** Exported for the desktop dashboard's own "Coming up" panel — same
+ * month/day badge formatting, not a second derivation. */
+export function dateBadge(iso: string): { mon: string; day: string } {
   const d = new Date(`${iso}T00:00:00`);
   return { mon: d.toLocaleDateString("en-US", { month: "short" }).toUpperCase(), day: String(d.getDate()) };
 }

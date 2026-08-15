@@ -16,6 +16,11 @@ export type FixedMonthlySummary = {
   activeCount: number;
   pausedCount: number;
   topCategories: [string, number][];
+  /** Every category's monthly-equivalent total, sorted desc — the full list
+   * `topCategories` is sliced from, exposed for the desktop dashboard's
+   * "Monthly cost by category" bar list (which shows every category, not
+   * just the header band's top 2). */
+  categoryBreakdown: [string, number][];
 };
 
 /** Shared by FixedMonthlyHeaderCard (mobile) and ExpensesDesktopHeaderBand
@@ -33,12 +38,13 @@ export function computeFixedMonthlySummary(rows: RecurringExpenseRow[]): FixedMo
     const key = r.category ?? "Uncategorized";
     byCategory.set(key, (byCategory.get(key) ?? 0) + r.monthlyAmount);
   }
+  const categoryBreakdown = [...byCategory.entries()].sort((a, b) => b[1] - a[1]);
   // Top 2 (not 3, per Brent's follow-up 2026-08-08 — a 3rd tile crowded
   // the row; two cells reads cleaner and the flex-1 layout below already
   // expands to fill whatever width is left with no other change needed).
-  const topCategories = [...byCategory.entries()].sort((a, b) => b[1] - a[1]).slice(0, 2);
+  const topCategories = categoryBreakdown.slice(0, 2);
 
-  return { monthlyTotal, annualTotal, activeCount, pausedCount, topCategories };
+  return { monthlyTotal, annualTotal, activeCount, pausedCount, topCategories, categoryBreakdown };
 }
 
 /**
