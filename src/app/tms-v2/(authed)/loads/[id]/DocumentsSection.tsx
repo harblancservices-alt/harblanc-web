@@ -10,6 +10,7 @@ import {
 import type { RecordDoc } from "@/app/admin/(authed)/dispatch/loads/actions";
 import { uploadFileToSignedUrl } from "@/lib/storage/client-upload";
 import type { LoadDocumentItem } from "@/lib/data/loads";
+import { IconTrash } from "@/lib/nav/icons";
 import { BolSigner, type BolRole } from "./BolSigner";
 import { BolScanner } from "./BolScanner";
 
@@ -67,9 +68,9 @@ function isImageDoc(d: LoadDocumentItem): boolean {
   return (d.mime ?? "").startsWith("image/");
 }
 
-const BOL_ROLES: { key: BolRole; label: string }[] = [
-  { key: "receiver", label: "Receiver" },
-  { key: "carrier", label: "Carrier" },
+const BOL_ROLES: { key: BolRole; label: string; short: string }[] = [
+  { key: "receiver", label: "Receiver", short: "Rcv" },
+  { key: "carrier", label: "Carrier", short: "Car" },
 ];
 
 function DocKindBlock({
@@ -162,7 +163,7 @@ function DocKindBlock({
               type="button"
               onClick={() => inputRef.current?.click()}
               disabled={busy}
-              className="h-7 rounded-md bg-info px-2.5 text-[12px] font-medium text-white hover:bg-info-hover disabled:opacity-50"
+              className="h-7 rounded-md border border-accent bg-accent px-2.5 text-[12px] font-medium text-white hover:bg-accent-hover disabled:opacity-50"
             >
               + Add file
             </button>
@@ -224,43 +225,51 @@ function DocKindBlock({
       {docs.length > 0 ? (
         <div className="mt-2 flex flex-col gap-1.5">
           {docs.map((d) => (
-            <div key={d.id} className="flex flex-wrap items-center gap-2 rounded-md bg-elevated px-2.5 py-1.5">
-              <span className="shrink-0 rounded-sm bg-card px-1.5 py-[1px] text-[9px] font-bold uppercase tracking-wide text-fg-muted">
-                {isImageDoc(d) ? "IMG" : "PDF"}
-              </span>
-              <span className="min-w-0 flex-1 truncate text-[12.5px] text-fg">{d.name}</span>
-              {d.signedRoles.length > 0 ? (
-                <span className="shrink-0 rounded-full bg-ok-bg px-2 py-[1px] text-[10px] font-medium text-ok">
-                  Signed: {d.signedRoles.join(" + ")}
+            <div key={d.id} className="rounded-md bg-elevated px-2.5 py-1.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="shrink-0 rounded-sm bg-card px-1.5 py-[1px] text-[9px] font-bold uppercase tracking-wide text-fg-muted">
+                  {isImageDoc(d) ? "IMG" : "PDF"}
                 </span>
-              ) : null}
-              {d.url ? (
-                <a href={d.url} target="_blank" rel="noreferrer" className="shrink-0 text-[12px] font-medium text-accent hover:underline">
-                  View
-                </a>
-              ) : null}
-              {kind === "bol"
-                ? BOL_ROLES.map((r) => (
-                    <button
-                      key={r.key}
-                      type="button"
-                      onClick={() => onSign(d, r.key)}
-                      className="shrink-0 text-[12px] font-medium text-accent hover:underline"
-                    >
-                      {d.signedRoles.includes(r.key) ? `Re-sign ${r.label}` : `Sign ${r.label}`}
-                    </button>
-                  ))
-                : null}
-              <button
-                type="button"
-                onClick={() => onDelete(d)}
-                className="shrink-0 text-[12px] font-medium text-bad hover:underline"
-              >
-                Delete
-              </button>
-              <span className="shrink-0 text-fg-subtle" aria-hidden>
-                ›
-              </span>
+                <span className="min-w-0 flex-1 truncate text-[12.5px] text-fg">{d.name}</span>
+                {d.signedRoles.length > 0 ? (
+                  <span className="shrink-0 rounded-full bg-ok-bg px-2 py-[1px] text-[10px] font-medium text-ok">
+                    Signed: {d.signedRoles.join(" + ")}
+                  </span>
+                ) : null}
+              </div>
+              <div className="mt-1 flex items-center justify-end gap-1.5">
+                {d.url ? (
+                  <a
+                    href={d.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex h-6 shrink-0 items-center rounded-md bg-info px-2 text-[11px] font-medium text-white hover:bg-info-hover"
+                  >
+                    View
+                  </a>
+                ) : null}
+                {kind === "bol"
+                  ? BOL_ROLES.map((r) => (
+                      <button
+                        key={r.key}
+                        type="button"
+                        onClick={() => onSign(d, r.key)}
+                        className="h-6 shrink-0 rounded-md bg-info px-2 text-[11px] font-medium text-white hover:bg-info-hover"
+                      >
+                        {d.signedRoles.includes(r.key) ? `Re-sign ${r.short}` : `Sign ${r.short}`}
+                      </button>
+                    ))
+                  : null}
+                <button
+                  type="button"
+                  onClick={() => onDelete(d)}
+                  aria-label="Delete"
+                  title="Delete"
+                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-bad text-white hover:opacity-90"
+                >
+                  <IconTrash className="h-3.5 w-3.5" />
+                </button>
+              </div>
             </div>
           ))}
         </div>
