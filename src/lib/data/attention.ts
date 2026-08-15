@@ -46,6 +46,7 @@ import { listCarrierReceivables, RECEIVABLE_OVERDUE_DAYS } from "./receivables";
 import { getMaintenanceOverview } from "./maintenance";
 import { listTrips } from "./trips";
 import { listActiveLoads } from "./loads";
+import { slugify } from "@/lib/dispatch/service-types";
 
 export type AttentionCategory = "documents" | "receivables" | "expenses" | "maintenance" | "trips" | "applications" | "quotes" | "opportunity";
 /** "info" is a calm, non-urgent nudge (e.g. the empty-truck opportunity
@@ -260,7 +261,10 @@ async function getExpenseGapItems(): Promise<AttentionItem[]> {
       severity: "amber" as const,
       title: e.name?.trim() || e.vendor?.trim() || "Unnamed expense",
       reason: gaps.map((g) => EXPENSE_GAP_LABEL[g]).join(", "),
-      href: "/tms-v2/expenses",
+      // `id` query param opens this exact expense's edit drawer (see
+      // expenses/page.tsx's selectedId), same mechanism the expenses list's
+      // own rows use — not just the generic list.
+      href: `/tms-v2/expenses?id=${e.id}`,
     }));
 }
 
@@ -291,7 +295,10 @@ async function getMaintenanceItems(): Promise<AttentionItem[]> {
         severity: overdue ? ("red" as const) : ("amber" as const),
         title: r.label,
         reason,
-        href: "/tms-v2/maintenance",
+        // Same per-type profile page a Maintenance-home card taps into
+        // (maintenance/type/[slug]/page.tsx) — the specific service type
+        // this reminder is for, not just the generic Maintenance home.
+        href: `/tms-v2/maintenance/type/${slugify(r.partGroup)}`,
       };
     });
 }
