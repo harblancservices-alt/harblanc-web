@@ -8,10 +8,13 @@ import { Fab } from "@/components/tms-v2/ui/Fab";
 import { addExpense } from "@/actions/tms-v2/expenses";
 import type { MutationResult } from "@/lib/demo/mutation";
 import { EXPENSE_CATEGORIES, RECURRING_FREQUENCIES, RECURRING_FREQUENCY_LABEL, type RecurringFrequency } from "@/lib/domain/expenses";
-import { Field, SelectField, TextareaField, FormError, FormActions } from "./_form";
+import { Field, SelectField, TextareaField, FormError, FormActions, SavedNote } from "./_form";
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const FORM_ID = "tms-v2-add-bill-form";
+// Matches the established "Saved ✓" pause (_components/FarmBrokerContactCard.tsx)
+// before the modal closes.
+const SAVED_PAUSE_MS = 1100;
 
 type SaveState = { ok: boolean; error: string | null };
 const INITIAL: SaveState = { ok: false, error: null };
@@ -62,19 +65,29 @@ export function ExpenseComposerPanel({ accounts }: { accounts: { id: string; nam
   const { open, setOpen } = useComposer();
   const router = useRouter();
   const [frequency, setFrequency] = useState<RecurringFrequency>("monthly");
+  const [saved, setSaved] = useState(false);
 
+  // Reset the confirmation flag whenever the modal is (re)opened, since the
+  // component stays mounted across open/close cycles (Modal just returns
+  // null while closed) — otherwise a second "Add bill" would render a stale
+  // Saved state before the user has submitted anything.
+  useEffect(() => {
+    if (open) setSaved(false);
+  }, [open]);
+
+  // Side effects live inside the action itself, not a `useEffect` keyed on
+  // `state.ok` — that boolean stays `true` after the first successful save,
+  // so adding a second bill in the same mount wouldn't change the
+  // dependency's value and the effect would silently stop firing.
   const [state, formAction, pending] = useActionState<SaveState, FormData>(async (_prev, formData) => {
     const result: MutationResult<unknown> = await addExpense(formData);
     if (!result.ok) return { ok: false, error: result.reason };
+    setSaved(true);
+    router.refresh();
+    await new Promise((resolve) => setTimeout(resolve, SAVED_PAUSE_MS));
+    setOpen(false);
     return { ok: true, error: null };
   }, INITIAL);
-
-  useEffect(() => {
-    if (state.ok) {
-      setOpen(false);
-      router.refresh();
-    }
-  }, [state.ok, setOpen, router]);
 
   return (
     <Modal
@@ -84,12 +97,13 @@ export function ExpenseComposerPanel({ accounts }: { accounts: { id: string; nam
       footer={
         <div className="flex flex-col gap-2">
           <FormError message={state.error} />
+          <SavedNote message={saved ? "Saved" : null} />
           <FormActions>
             <Button type="button" variant="secondary" onClick={() => setOpen(false)} disabled={pending}>
               Cancel
             </Button>
             <Button type="submit" form={FORM_ID} disabled={pending} aria-busy={pending}>
-              {pending ? "Saving…" : "Add bill"}
+              {saved ? "Saved ✓" : pending ? "Saving…" : "Add bill"}
             </Button>
           </FormActions>
         </div>
