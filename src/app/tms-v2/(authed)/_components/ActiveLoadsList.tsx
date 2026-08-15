@@ -2,9 +2,10 @@ import Link from "next/link";
 import { Money } from "@/components/tms-v2/ui/Money";
 import { StatusPill } from "@/components/tms-v2/ui/StatusPill";
 import { ActiveLoadRowAction } from "./ActiveLoadRowAction";
+import { ActiveLoadRateConButton } from "./ActiveLoadRateConButton";
 import { AddLoadButton } from "../loads/AddLoadButton";
 import { withReturnTo } from "@/lib/nav/return-to";
-import type { LoadWithFinancials } from "@/lib/data/loads";
+import type { LoadWithFinancials, LoadRateConDoc } from "@/lib/data/loads";
 
 /** Dashboard's primary working list — rich stretched-link cards (status,
  * broker/lane, rate, inline odometer quick-action), mirroring legacy
@@ -23,10 +24,15 @@ export function ActiveLoadsList({
   loads,
   brokerNames,
   activeTripNames,
+  activeLoadRateCon,
 }: {
   loads: LoadWithFinancials[];
   brokerNames: string[];
   activeTripNames: string[];
+  /** Rate Con doc for `loads[0]` only — the dashboard's one "current" active
+   * load (pickup-date-ascending, so index 0 is what's up next/in progress).
+   * Null when that load has none, in which case no control renders at all. */
+  activeLoadRateCon?: LoadRateConDoc | null;
 }) {
   if (loads.length === 0) {
     return (
@@ -63,12 +69,15 @@ export function ActiveLoadsList({
             <Money value={l.financials.gross} tone="none" className="shrink-0 text-[14px] font-semibold" />
           </div>
 
-          <div className="relative z-10 mt-2.5 flex items-center justify-between gap-2">
+          <div className="relative z-10 mt-2.5 flex flex-wrap items-center justify-between gap-2">
             <span className="text-[12px] text-fg-muted">
               #{l.loadNumber ?? l.id.slice(0, 8)}
               {l.tripName ? <span> · {l.tripName}</span> : null}
             </span>
-            <ActiveLoadRowAction load={l} />
+            <span className="flex shrink-0 items-center gap-1.5">
+              {i === 0 && activeLoadRateCon ? <ActiveLoadRateConButton doc={activeLoadRateCon} /> : null}
+              <ActiveLoadRowAction load={l} />
+            </span>
           </div>
         </div>
       ))}

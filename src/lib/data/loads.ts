@@ -352,3 +352,27 @@ export async function getLoadDetail(id: string): Promise<LoadDetail | null> {
     documents,
   };
 }
+
+export type LoadRateConDoc = { name: string; url: string | null; mime: string | null };
+
+/** The single most-recent Rate Confirmation on one load — for the
+ * Dashboard's "View rate con" quick action on the active load (Brent,
+ * 2026-08-15). Same `load_documents`/"load-documents" bucket getLoadDetail()
+ * above reads, just scoped to one load + one kind instead of the full
+ * per-load document list, so the Dashboard isn't paying for BOL/POD rows it
+ * never shows. */
+export async function getLoadRateCon(loadId: string): Promise<LoadRateConDoc | null> {
+  const sb = createServiceRoleClient();
+  const { data } = await sb
+    .from("load_documents")
+    .select("original_filename, storage_path, mime_type")
+    .eq("load_id", loadId)
+    .eq("kind", "rate_con")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .returns<{ original_filename: string; storage_path: string; mime_type: string | null }[]>();
+  const doc = data?.[0];
+  if (!doc) return null;
+  const { data: signed } = await sb.storage.from("load-documents").createSignedUrl(doc.storage_path, 3600);
+  return { name: doc.original_filename, url: signed?.signedUrl ?? null, mime: doc.mime_type };
+}

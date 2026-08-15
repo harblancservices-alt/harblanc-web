@@ -4,6 +4,7 @@ import { NeedsAttentionBar } from "./_components/NeedsAttentionBar";
 import { ActiveLoadsList } from "./_components/ActiveLoadsList";
 import { CountdownPanel } from "./_components/CountdownPanel";
 import { getTodaySummary } from "@/lib/data/dashboard";
+import { getLoadRateCon } from "@/lib/data/loads";
 import { getNeedsAttention } from "@/lib/data/attention";
 import { listBrokers } from "@/lib/data/brokers";
 import { listTrips } from "@/lib/data/trips";
@@ -58,6 +59,14 @@ export default async function TmsV2DashboardPage() {
   const activeTripNames = activeTripsPage.rows.map((t) => t.name).filter((n): n is string => !!n);
   const today = new Date().toISOString().slice(0, 10);
 
+  // The dashboard's one "View rate con" quick action (Brent, 2026-08-15) —
+  // scoped to the single current active load (activeLoads[0], soonest
+  // pickup-date-first per listActiveLoads' own ordering), not a new list or
+  // section. Needs activeLoads to have resolved first, so it's a follow-up
+  // read rather than folded into the Promise.all above.
+  const activeLoad = summary.activeLoads[0] ?? null;
+  const activeLoadRateCon = activeLoad ? await getLoadRateCon(activeLoad.id) : null;
+
   // Restores the monthly net-goal widget the dashboard lost when this page
   // was rebuilt around countdown_goals (see this file's own header) — same
   // shared pace module Performance's goal card consumes (lib/domain/
@@ -85,7 +94,12 @@ export default async function TmsV2DashboardPage() {
           <h2 className="text-[13px] font-semibold uppercase tracking-wide text-fg-muted">
             Active loads · {summary.activeLoads.length}
           </h2>
-          <ActiveLoadsList loads={summary.activeLoads} brokerNames={brokerNames} activeTripNames={activeTripNames} />
+          <ActiveLoadsList
+            loads={summary.activeLoads}
+            brokerNames={brokerNames}
+            activeTripNames={activeTripNames}
+            activeLoadRateCon={activeLoadRateCon}
+          />
         </section>
 
         <CountdownPanel goals={goals} currentCash={settings.currentCash} today={today} />
