@@ -25,7 +25,7 @@ export function ActiveLoadRowAction({ load }: { load: LoadWithFinancials }) {
       <button
         type="button"
         onClick={onClick}
-        className="h-7 shrink-0 rounded-md border border-line-strong bg-card px-2.5 text-[12px] font-medium text-fg hover:bg-elevated"
+        className="h-7 shrink-0 rounded-md bg-info px-2.5 text-[12px] font-medium text-white hover:bg-info-hover"
       >
         Odometer
       </button>

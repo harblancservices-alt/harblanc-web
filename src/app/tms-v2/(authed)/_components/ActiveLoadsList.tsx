@@ -70,13 +70,13 @@ export function ActiveLoadsList({
           </div>
 
           <div className="relative z-10 mt-2.5 flex flex-wrap items-center justify-between gap-2">
-            <span className="text-[12px] text-fg-muted">
-              #{l.loadNumber ?? l.id.slice(0, 8)}
-              {l.tripName ? <span> · {l.tripName}</span> : null}
-            </span>
             <span className="flex shrink-0 items-center gap-1.5">
               {i === 0 && activeLoadRateCon ? <ActiveLoadRateConButton doc={activeLoadRateCon} /> : null}
               <ActiveLoadRowAction load={l} />
+            </span>
+            <span className="text-[12px] text-fg-muted">
+              #{l.loadNumber ?? l.id.slice(0, 8)}
+              {l.tripName ? <span> · {l.tripName}</span> : null}
             </span>
           </div>
         </div>
