@@ -1,10 +1,11 @@
 "use client";
 
-import { useActionState, useEffect, useState, useTransition } from "react";
+import { useActionState, useEffect, useId, useState, useTransition } from "react";
 import { createReceiptUploadUrl, deleteService, logService, updateService } from "@/actions/tms-v2/maintenance";
 import { uploadFileToSignedUrl } from "@/lib/storage/client-upload";
 import { Modal } from "@/components/tms-v2/ui/Modal";
 import { Button } from "@/components/tms-v2/ui/Button";
+import { IconBell, IconPaperclip } from "@/lib/nav/icons";
 import { CATEGORIES, SUB_CATEGORIES, categoryForText, isCategory, type Category } from "@/lib/dispatch/repair-log";
 import type { MutationResult } from "@/lib/demo/mutation";
 
@@ -125,6 +126,7 @@ export function LogServiceModal({
 }) {
   const isEdit = !!editService;
   const today = new Date().toISOString().slice(0, 10);
+  const formId = useId();
 
   const [serviceDate, setServiceDate] = useState(editService?.date ?? today);
   const [odo, setOdo] = useState(() => {
@@ -264,10 +266,47 @@ export function LogServiceModal({
   const FIELD =
     "mt-1 w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg outline-none placeholder:text-fg-subtle focus:border-fg";
   const LABEL = "block text-[11px] font-semibold uppercase tracking-wide text-fg-muted";
+  const TAG_SELECT =
+    "shrink-0 rounded-full border-none bg-card px-2 py-0.5 text-[11px] font-medium text-fg-muted outline-none focus:ring-1 focus:ring-fg";
+  // The service being logged, shown as the modal's subtitle — the preset's
+  // fixed type name, or whatever part names are typed so far in the global
+  // logger (blank until the user names the first part).
+  const subtitle = parts.map((p) => p.name.trim()).filter(Boolean).join(" + ") || null;
 
   return (
-    <Modal open={open} onClose={onClose} title={isEdit ? "Edit service" : "Log a service"}>
-      <form onSubmit={onSubmit} className="flex flex-col gap-3">
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={isEdit ? "Edit service" : "Log a service"}
+      subtitle={subtitle}
+      footer={
+        <div className="flex flex-col gap-2">
+          {errorMsg ? (
+            <p role="alert" className="text-[12px] font-semibold text-bad">
+              {errorMsg}
+            </p>
+          ) : null}
+          <div className="flex items-center justify-between gap-2">
+            {isEdit ? (
+              <Button type="button" onClick={onDelete} disabled={busy} variant="destructive" size="sm">
+                {deleting ? "Deleting…" : "Delete"}
+              </Button>
+            ) : (
+              <span />
+            )}
+            <div className="flex items-center gap-2">
+              <Button type="button" onClick={onClose} disabled={busy} variant="secondary">
+                Cancel
+              </Button>
+              <Button type="submit" form={formId} disabled={busy} aria-busy={busy}>
+                {busy ? "Saving…" : isEdit ? "Save changes" : "Log service"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      }
+    >
+      <form id={formId} onSubmit={onSubmit} className="flex flex-col gap-3">
         <div className="grid grid-cols-2 gap-2">
           <div>
             <label className={LABEL}>Date</label>
@@ -281,10 +320,10 @@ export function LogServiceModal({
 
         <div>
           <div className="flex items-center justify-between">
-            <label className={LABEL}>Parts replaced</label>
-            <Button type="button" onClick={addPart} variant="secondary" size="sm">
-              + Add another part
-            </Button>
+            <label className={LABEL}>Work done</label>
+            <button type="button" onClick={addPart} className="text-[12.5px] font-semibold text-info hover:underline">
+              + Add part
+            </button>
           </div>
           <div className="mt-1.5 space-y-2">
             {parts.map((p) =>
@@ -292,24 +331,27 @@ export function LogServiceModal({
                 // Service-type profile's preset row: type pre-filled, not
                 // chosen — a fixed chip instead of the name/category/sub-
                 // category controls below, so it can't drift off the type
-                // this button was opened for. "remind mi" stays editable:
-                // it's how this type's interval gets set/updated (upsertReminder,
-                // src/app/admin/(authed)/maintenance/actions.ts).
+                // this button was opened for. The reminder interval stays
+                // editable: it's how this type's interval gets set/updated
+                // (upsertReminder, src/app/admin/(authed)/maintenance/actions.ts).
                 <div key={p.key} className="rounded-md border border-line bg-elevated p-2.5">
-                  <div className="flex items-center gap-2 rounded-md border border-line-strong bg-card px-2.5 py-1.5">
+                  <div className="flex items-center gap-2">
                     <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-fg">{p.name}</span>
-                    <span className="shrink-0 rounded-full bg-elevated px-2 py-0.5 text-[11px] font-medium text-fg-muted">{p.category}</span>
+                    <span className="shrink-0 rounded-full bg-card px-2 py-0.5 text-[11px] font-medium text-fg-muted">{p.category}</span>
                   </div>
-                  <div className="mt-2 flex items-center gap-1.5">
+                  <div className="my-2 border-t border-line" />
+                  <div className="flex items-center gap-1.5 text-[12.5px]">
+                    <IconBell className="h-3.5 w-3.5 shrink-0 text-fg-muted" />
+                    <span className="text-fg-muted">Remind me in</span>
                     <input
                       value={p.remind}
                       onChange={(e) => patchPart(p.key, { remind: e.target.value.replace(/[^\d]/g, "") })}
                       inputMode="numeric"
-                      placeholder="remind mi"
+                      placeholder="0"
                       aria-label="Remind every miles"
-                      className="w-[92px] rounded-md border border-line-strong bg-card px-2 py-1 text-[12px] tabular-nums text-fg outline-none placeholder:text-fg-subtle focus:border-fg"
+                      className="w-14 rounded-md border border-line-strong bg-card px-1.5 py-1 text-center text-[12px] tabular-nums text-fg outline-none placeholder:text-fg-subtle focus:border-fg"
                     />
-                    <span className="text-[11.5px] text-fg-muted">Interval for this type — leave as-is or update it.</span>
+                    <span className="text-fg-muted">mi</span>
                   </div>
                 </div>
               ) : (
@@ -320,8 +362,26 @@ export function LogServiceModal({
                       onChange={(e) => onPartName(p.key, e.target.value)}
                       placeholder="Part (e.g. Front-left wheel bearing)"
                       aria-label="Part name"
-                      className="block w-full rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
+                      className="min-w-0 flex-1 rounded-md border border-line-strong bg-card px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-subtle focus:border-fg focus:outline-none"
                     />
+                    <select
+                      value={p.category}
+                      onChange={(e) => {
+                        if (isCategory(e.target.value)) {
+                          // Sub-category options are category-scoped — a stale
+                          // pick from the old category would be invalid here.
+                          patchPart(p.key, { category: e.target.value, categoryTouched: true, subCategory: "" });
+                        }
+                      }}
+                      aria-label="Category"
+                      className={TAG_SELECT}
+                    >
+                      {CATEGORIES.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
                     {parts.length > 1 ? (
                       <button
                         type="button"
@@ -333,30 +393,12 @@ export function LogServiceModal({
                       </button>
                     ) : null}
                   </div>
-                  <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                    <select
-                      value={p.category}
-                      onChange={(e) => {
-                        if (isCategory(e.target.value)) {
-                          // Sub-category options are category-scoped — a stale
-                          // pick from the old category would be invalid here.
-                          patchPart(p.key, { category: e.target.value, categoryTouched: true, subCategory: "" });
-                        }
-                      }}
-                      aria-label="Category"
-                      className="min-w-0 flex-1 rounded-md border border-line-strong bg-card px-2 py-1 text-[12px] font-medium text-fg outline-none focus:border-fg"
-                    >
-                      {CATEGORIES.map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
-                      ))}
-                    </select>
+                  <div className="mt-1.5 flex items-center justify-end">
                     <select
                       value={p.subCategory}
                       onChange={(e) => patchPart(p.key, { subCategory: e.target.value })}
                       aria-label="Sub-category"
-                      className="min-w-0 flex-1 rounded-md border border-line-strong bg-card px-2 py-1 text-[12px] text-fg outline-none focus:border-fg"
+                      className={TAG_SELECT}
                     >
                       <option value="">No sub-category</option>
                       {SUB_CATEGORIES[p.category].map((sub) => (
@@ -365,14 +407,20 @@ export function LogServiceModal({
                         </option>
                       ))}
                     </select>
+                  </div>
+                  <div className="my-2 border-t border-line" />
+                  <div className="flex items-center gap-1.5 text-[12.5px]">
+                    <IconBell className="h-3.5 w-3.5 shrink-0 text-fg-muted" />
+                    <span className="text-fg-muted">Remind me in</span>
                     <input
                       value={p.remind}
                       onChange={(e) => patchPart(p.key, { remind: e.target.value.replace(/[^\d]/g, "") })}
                       inputMode="numeric"
-                      placeholder="remind mi"
+                      placeholder="0"
                       aria-label="Remind every miles"
-                      className="w-[92px] rounded-md border border-line-strong bg-card px-2 py-1 text-[12px] tabular-nums text-fg outline-none placeholder:text-fg-subtle focus:border-fg"
+                      className="w-14 rounded-md border border-line-strong bg-card px-1.5 py-1 text-center text-[12px] tabular-nums text-fg outline-none placeholder:text-fg-subtle focus:border-fg"
                     />
+                    <span className="text-fg-muted">mi</span>
                   </div>
                   {p.remind.trim() ? (
                     <input
@@ -395,11 +443,26 @@ export function LogServiceModal({
           </datalist>
         </div>
 
-        <div>
-          <div className="flex items-center justify-between">
-            <label className={LABEL}>Receipt (optional)</label>
-            <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-line-strong bg-card px-2.5 py-1 text-[11px] font-semibold text-fg hover:bg-elevated">
-              + Receipt
+        <div className="grid grid-cols-2 gap-2">
+          <div>
+            <label className={LABEL}>Total</label>
+            <div className="relative mt-1">
+              <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[13px] text-fg-subtle">$</span>
+              <input
+                name="total_cost"
+                value={total}
+                onChange={(e) => setTotal(e.target.value)}
+                inputMode="decimal"
+                placeholder="0.00"
+                className="w-full rounded-md border border-line-strong bg-card py-1.5 pl-6 pr-2.5 text-[13px] tabular-nums text-fg outline-none placeholder:text-fg-subtle focus:border-fg"
+              />
+            </div>
+          </div>
+          <div>
+            <label className={LABEL}>Receipt</label>
+            <label className="mt-1 flex h-[33px] cursor-pointer items-center justify-center gap-1.5 rounded-md border border-line-strong bg-card text-[13px] font-semibold text-fg hover:bg-elevated">
+              <IconPaperclip className="h-4 w-4" />
+              Attach
               <input
                 type="file"
                 multiple
@@ -412,72 +475,38 @@ export function LogServiceModal({
               />
             </label>
           </div>
-          {existing.length > 0 || files.length > 0 ? (
-            <div className="mt-1.5 space-y-1">
-              {existing.map((a) => (
-                <div key={a.id} className="flex items-center gap-2 rounded-md border border-line bg-elevated px-2 py-1">
-                  <span className="shrink-0 rounded-sm bg-card px-1.5 py-[1px] text-[9px] font-bold uppercase text-fg-muted">{a.isImage ? "IMG" : "PDF"}</span>
-                  <span className="min-w-0 flex-1 truncate text-[11.5px] text-fg">{a.name}</span>
-                  {a.url ? (
-                    <a href={a.url} target="_blank" rel="noreferrer" className="shrink-0 text-[12px] font-medium text-accent hover:underline">
-                      View
-                    </a>
-                  ) : null}
-                  <button type="button" onClick={() => removeExisting(a.id)} className="shrink-0 text-[12px] font-medium text-bad hover:underline">
-                    Remove
-                  </button>
-                </div>
-              ))}
-              {files.map((f) => (
-                <div key={f.id} className="flex items-center gap-2 rounded-md border border-line-strong bg-elevated px-2 py-1">
-                  <span className="shrink-0 rounded-sm bg-card px-1.5 py-[1px] text-[9px] font-bold uppercase text-accent">New</span>
-                  <span className="min-w-0 flex-1 truncate text-[10.5px] text-fg-muted">{f.file.name}</span>
-                  <button type="button" onClick={() => setFiles((prev) => prev.filter((x) => x.id !== f.id))} className="shrink-0 text-[12px] font-medium text-bad hover:underline">
-                    Remove
-                  </button>
-                </div>
-              ))}
-            </div>
-          ) : null}
         </div>
-
-        <div>
-          <label className={LABEL}>Total (optional)</label>
-          <div className="relative mt-1">
-            <span className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[13px] text-fg-subtle">$</span>
-            <input
-              name="total_cost"
-              value={total}
-              onChange={(e) => setTotal(e.target.value)}
-              inputMode="decimal"
-              placeholder="0.00"
-              className="w-full rounded-md border border-line-strong bg-card py-1.5 pl-6 pr-2.5 text-[13px] tabular-nums text-fg outline-none placeholder:text-fg-subtle focus:border-fg"
-            />
+        {existing.length > 0 || files.length > 0 ? (
+          <div className="-mt-1.5 space-y-1">
+            {existing.map((a) => (
+              <div key={a.id} className="flex items-center gap-2 rounded-md border border-line bg-elevated px-2 py-1">
+                <span className="shrink-0 rounded-sm bg-card px-1.5 py-[1px] text-[9px] font-bold uppercase text-fg-muted">{a.isImage ? "IMG" : "PDF"}</span>
+                <span className="min-w-0 flex-1 truncate text-[11.5px] text-fg">{a.name}</span>
+                {a.url ? (
+                  <a href={a.url} target="_blank" rel="noreferrer" className="shrink-0 text-[12px] font-medium text-accent hover:underline">
+                    View
+                  </a>
+                ) : null}
+                <button type="button" onClick={() => removeExisting(a.id)} className="shrink-0 text-[12px] font-medium text-bad hover:underline">
+                  Remove
+                </button>
+              </div>
+            ))}
+            {files.map((f) => (
+              <div key={f.id} className="flex items-center gap-2 rounded-md border border-line-strong bg-elevated px-2 py-1">
+                <span className="shrink-0 rounded-sm bg-card px-1.5 py-[1px] text-[9px] font-bold uppercase text-accent">New</span>
+                <span className="min-w-0 flex-1 truncate text-[10.5px] text-fg-muted">{f.file.name}</span>
+                <button type="button" onClick={() => setFiles((prev) => prev.filter((x) => x.id !== f.id))} className="shrink-0 text-[12px] font-medium text-bad hover:underline">
+                  Remove
+                </button>
+              </div>
+            ))}
           </div>
-        </div>
+        ) : null}
+
         <div>
           <label className={LABEL}>Notes (optional)</label>
           <textarea name="notes" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} className={`${FIELD} resize-none`} />
-        </div>
-
-        {errorMsg ? (
-          <p role="alert" className="text-[12px] font-semibold text-bad">
-            {errorMsg}
-          </p>
-        ) : null}
-
-        <div className="mt-1 flex items-center justify-end gap-2 border-t border-line pt-3">
-          {isEdit ? (
-            <Button type="button" onClick={onDelete} disabled={busy} variant="destructive" className="mr-auto">
-              {deleting ? "Deleting…" : "Delete"}
-            </Button>
-          ) : null}
-          <Button type="button" onClick={onClose} disabled={busy} variant="secondary">
-            Cancel
-          </Button>
-          <Button type="submit" disabled={busy} aria-busy={busy}>
-            {busy ? "Saving…" : isEdit ? "Save changes" : "Log service"}
-          </Button>
         </div>
       </form>
     </Modal>

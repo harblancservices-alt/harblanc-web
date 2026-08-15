@@ -8,6 +8,10 @@ type ModalProps = {
   open: boolean;
   onClose: () => void;
   title?: string;
+  /** Optional line under the title — e.g. naming the specific record a
+   * form is acting on ("Grease/Lube" under "Log a service"). Only renders
+   * when `title` is also set. */
+  subtitle?: string | null;
   children: ReactNode;
   /** Override the dialog's max-width class — defaults to `max-w-lg`
    * (every existing caller). Add Load's richer, multi-section form needed
@@ -35,7 +39,7 @@ type ModalProps = {
  * off-screen — only the FIELDS scroll. Audit trail: LoadFormModal's Add
  * Load form (the richest one in the app) was getting clipped top and
  * bottom on both mobile and desktop before this. */
-export function Modal({ open, onClose, title, children, maxWidthClassName = "max-w-lg", footer }: ModalProps) {
+export function Modal({ open, onClose, title, subtitle, children, maxWidthClassName = "max-w-lg", footer }: ModalProps) {
   useEffect(() => {
     if (!open) return;
     function onKey(e: KeyboardEvent) {
@@ -73,12 +77,15 @@ export function Modal({ open, onClose, title, children, maxWidthClassName = "max
       >
         {title ? (
           <div className="flex shrink-0 items-center justify-between border-b border-line px-5 py-4">
-            <h2 className="text-[17px] font-semibold text-fg">{title}</h2>
+            <div className="min-w-0">
+              <h2 className="text-[17px] font-semibold text-fg">{title}</h2>
+              {subtitle ? <p className="mt-0.5 truncate text-[12.5px] font-medium text-fg-muted">{subtitle}</p> : null}
+            </div>
             <button
               type="button"
               onClick={onClose}
               aria-label="Close"
-              className="text-fg-muted hover:text-fg"
+              className="ml-3 shrink-0 text-fg-muted hover:text-fg"
             >
               <IconX className="h-5 w-5" />
             </button>
