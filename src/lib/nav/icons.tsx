@@ -176,6 +176,14 @@ export function IconPagePreview({ className }: IconProps) {
   );
 }
 
+export function IconChevronRight({ className }: IconProps) {
+  return (
+    <svg {...base} className={className}>
+      <path d="m9 6 6 6-6 6" />
+    </svg>
+  );
+}
+
 export function IconMenu({ className }: IconProps) {
   return (
     <svg {...base} className={className}>

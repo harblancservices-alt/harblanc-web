@@ -134,6 +134,48 @@ export function moreNav(): NavItem[] {
   return [...TMS_V2_NAV.filter((item) => !item.mobilePrimary), TMS_V2_SETTINGS];
 }
 
+/**
+ * Mobile "More" sheet only — a 3-section regroup (approved design, option
+ * B) distinct from the 5-group desktop sidebar taxonomy above. Purely
+ * presentational: every item keeps the `href`/behavior it already had via
+ * `moreNav()`, this only decides which colored section a row renders
+ * under. Any future nav item lands in "records" by default until it's
+ * explicitly placed here.
+ */
+export type MoreSectionId = "money" | "operate" | "records";
+
+export const MORE_SECTION_LABEL: Record<MoreSectionId, string> = {
+  money: "Money",
+  operate: "Operate",
+  records: "Records",
+};
+
+const MORE_SECTION_BY_ITEM_ID: Record<string, MoreSectionId> = {
+  receivables: "money",
+  expenses: "money",
+  performance: "money",
+  trips: "operate",
+  "load-inquiry": "operate",
+  reach: "operate",
+  operations: "operate",
+  calendar: "records",
+  maintenance: "records",
+  files: "records",
+  camera: "records",
+};
+
+export function moreNavSections(): { id: MoreSectionId; label: string; items: NavItem[] }[] {
+  const order: MoreSectionId[] = ["money", "operate", "records"];
+  const items = moreNav();
+  return order
+    .map((id) => ({
+      id,
+      label: MORE_SECTION_LABEL[id],
+      items: items.filter((item) => (MORE_SECTION_BY_ITEM_ID[item.id] ?? "records") === id),
+    }))
+    .filter((section) => section.items.length > 0);
+}
+
 export function isNavItemActive(pathname: string, href: string): boolean {
   if (href === "/tms-v2") return pathname === "/tms-v2";
   return pathname === href || pathname.startsWith(href + "/");
