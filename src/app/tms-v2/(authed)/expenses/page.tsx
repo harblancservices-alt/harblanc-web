@@ -94,7 +94,7 @@ export default async function ExpensesPage({
 
     {selectedExpense ? (
       <ContextDrawer title={selectedExpense.vendor || selectedExpense.name} closeHref={closeHref}>
-        <ExpenseDrawerContent expense={selectedExpense} accounts={accounts} activity={activity} />
+        <ExpenseDrawerContent expense={selectedExpense} accounts={accounts} activity={activity} closeHref={closeHref} />
       </ContextDrawer>
     ) : null}
     </div>

@@ -87,6 +87,26 @@ export function FormError({ message }: { message: string | null }) {
   );
 }
 
-export function FormActions({ children }: { children: ReactNode }) {
-  return <div className="mt-2 flex items-center justify-end gap-2">{children}</div>;
+/** Same treatment as FormError, for the brief post-save confirmation
+ * (established by _components/FarmBrokerContactCard.tsx's "Saved ✓"
+ * pattern) — role="status" rather than "alert" since it's not an error. */
+export function SavedNote({ message }: { message: string | null }) {
+  if (!message) return null;
+  return (
+    <p role="status" className="text-[13px] font-medium text-ok">
+      ✓ {message}
+    </p>
+  );
+}
+
+/** `left` renders a second cluster pinned to the opposite edge (e.g. a
+ * destructive Delete action opposite Save) — footer stays a single
+ * anchored row instead of Delete floating loose elsewhere in the form. */
+export function FormActions({ children, left }: { children: ReactNode; left?: ReactNode }) {
+  return (
+    <div className={`mt-2 flex items-center gap-2 ${left ? "justify-between" : "justify-end"}`}>
+      {left ? <div className="flex items-center gap-2">{left}</div> : null}
+      <div className="flex items-center gap-2">{children}</div>
+    </div>
+  );
 }
