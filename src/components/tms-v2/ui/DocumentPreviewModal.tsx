@@ -116,8 +116,16 @@ function midpoint(a: Point, b: Point): Point {
 function clampNum(v: number, min: number, max: number) {
   return Math.min(max, Math.max(min, v));
 }
-function axisClamp(v: number, disp: number, box: number) {
-  if (disp <= box) return (box - disp) / 2;
+// forceCenter is only for the pre-interaction initial-layout snap (fit +
+// center on first paint / doc swap). Every interactive clamp call (zoom,
+// pan, post-interaction resize) must NOT force-center — it should just keep
+// the content from being dragged fully off-screen, otherwise it fights the
+// focal-point math and snaps the view back to center on every zoom step.
+function axisClamp(v: number, disp: number, box: number, forceCenter: boolean) {
+  if (disp <= box) {
+    if (forceCenter) return (box - disp) / 2;
+    return clampNum(v, 0, box - disp);
+  }
   return clampNum(v, box - disp, 0);
 }
 
@@ -137,7 +145,7 @@ function PinchZoomStage({ children }: { children: React.ReactNode }) {
   transformRef.current = transform;
   const userInteracted = useRef(false);
 
-  const clamp = useCallback((next: Transform): Transform => {
+  const clamp = useCallback((next: Transform, forceCenter = false): Transform => {
     const scale = clampNum(next.scale, ZOOM_MIN, ZOOM_MAX);
     const container = containerRef.current;
     const content = contentRef.current;
@@ -146,7 +154,7 @@ function PinchZoomStage({ children }: { children: React.ReactNode }) {
     const ch = container.clientHeight;
     const dispW = content.offsetWidth * scale;
     const dispH = content.offsetHeight * scale;
-    return { scale, x: axisClamp(next.x, dispW, cw), y: axisClamp(next.y, dispH, ch) };
+    return { scale, x: axisClamp(next.x, dispW, cw, forceCenter), y: axisClamp(next.y, dispH, ch, forceCenter) };
   }, []);
 
   // Recenters to fit whenever the content's rendered size changes (image
@@ -157,7 +165,7 @@ function PinchZoomStage({ children }: { children: React.ReactNode }) {
     const container = containerRef.current;
     if (!content || !container) return;
     const recompute = () => {
-      setTransform((prev) => (userInteracted.current ? clamp(prev) : clamp({ scale: 1, x: 0, y: 0 })));
+      setTransform((prev) => (userInteracted.current ? clamp(prev) : clamp({ scale: 1, x: 0, y: 0 }, true)));
     };
     const ro = new ResizeObserver(recompute);
     ro.observe(content);
