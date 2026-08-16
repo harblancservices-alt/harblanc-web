@@ -6,8 +6,29 @@ import { LocalTime } from "../_shell/LocalTime";
 import { MemberEditButton } from "./MemberEditButton";
 import { BrokerProfileEditButton } from "./BrokerProfileEditButton";
 import { getBrokerProfile } from "../_shell/brokerProfile";
+import { OrgDocumentsSection, type OrgDocumentCard } from "./OrgDocumentsSection";
 
 export const dynamic = "force-dynamic";
+
+const STORAGE_BUCKET = "crm-documents";
+const SIGNED_URL_TTL_SECONDS = 300;
+/** Same prefix as documents-actions.ts::ORG_DOC_KIND_PREFIX — duplicated
+ * because a "use server" file may only export async functions. */
+const ORG_DOC_KIND_PREFIX = "org_doc:";
+/** Always rendered, in this order, even with no file uploaded yet — Brent's
+ * four starting document types. Any other org_doc kind found in the data
+ * (added later via "+ Add document") is appended after these, alphabetically. */
+const SEED_DOC_LABELS = ["Bill of Lading", "Rate Confirmation", "Carrier Agreement", "Shipper Agreement"];
+
+type OrgDocumentRow = {
+  id: string;
+  kind: string;
+  file_name: string;
+  storage_path: string;
+  mime_type: string | null;
+  size_bytes: number | null;
+  created_at: string;
+};
 
 type MemberRow = {
   id: string;
@@ -42,18 +63,70 @@ export default async function SettingsPage() {
   const user = await requireCrmUser();
   const supabase = await createCrmServerClient();
 
-  const [{ data }, brokerProfile] = await Promise.all([
+  const [{ data }, brokerProfile, { data: orgDocData }] = await Promise.all([
     supabase
       .from("crm_profiles")
       .select("id, full_name, email, title, role, is_active")
       .order("full_name", { ascending: true }),
     getBrokerProfile(),
+    supabase
+      .from("crm_documents")
+      .select("id, kind, file_name, storage_path, mime_type, size_bytes, created_at")
+      .is("account_id", null)
+      .is("deal_id", null)
+      .is("deleted_at", null)
+      .like("kind", `${ORG_DOC_KIND_PREFIX}%`)
+      .order("created_at", { ascending: false }),
   ]);
 
   const members = ((data ?? []) as MemberRow[]).slice().sort((a, b) => {
     if (a.role === "owner" && b.role !== "owner") return -1;
     if (b.role === "owner" && a.role !== "owner") return 1;
     return (a.full_name || a.email || "").localeCompare(b.full_name || b.email || "");
+  });
+
+  // One card per document type — the latest (first, since ordered desc)
+  // row per kind wins. Seed labels always render (even with no upload yet);
+  // any custom kind Brent has added is appended after, alphabetically.
+  const latestByLabel = new Map<string, OrgDocumentRow>();
+  for (const row of (orgDocData ?? []) as OrgDocumentRow[]) {
+    const label = row.kind.slice(ORG_DOC_KIND_PREFIX.length);
+    if (!latestByLabel.has(label)) latestByLabel.set(label, row);
+  }
+  const customLabels = [...latestByLabel.keys()]
+    .filter((label) => !SEED_DOC_LABELS.includes(label))
+    .sort((a, b) => a.localeCompare(b));
+  const allLabels = [...SEED_DOC_LABELS, ...customLabels];
+
+  const imagePaths = [...latestByLabel.values()]
+    .filter((row) => row.mime_type?.startsWith("image/"))
+    .map((row) => row.storage_path);
+  const thumbUrlByPath = new Map<string, string>();
+  if (imagePaths.length) {
+    const { data: signedRows } = await supabase.storage
+      .from(STORAGE_BUCKET)
+      .createSignedUrls(imagePaths, SIGNED_URL_TTL_SECONDS);
+    for (const row of signedRows ?? []) {
+      if (row.signedUrl && row.path) thumbUrlByPath.set(row.path, row.signedUrl);
+    }
+  }
+
+  const documentCards: OrgDocumentCard[] = allLabels.map((label) => {
+    const row = latestByLabel.get(label);
+    return {
+      label,
+      doc: row
+        ? {
+            id: row.id,
+            fileName: row.file_name,
+            storagePath: row.storage_path,
+            mimeType: row.mime_type,
+            sizeBytes: row.size_bytes,
+            createdAt: row.created_at,
+            thumbUrl: thumbUrlByPath.get(row.storage_path) ?? null,
+          }
+        : null,
+    };
   });
 
   const isAdmin = user.role === "owner";
@@ -191,15 +264,7 @@ export default async function SettingsPage() {
         )}
       </Card>
 
-      <Card>
-        <CardHead
-          title="Workspace"
-          hint="Pipelines, tags, and custom fields — coming next."
-        />
-        <div className="px-5 py-8 text-center text-[13px] text-fg-muted">
-          Workspace configuration arrives in a later step.
-        </div>
-      </Card>
+      <OrgDocumentsSection orgId={user.orgId} isAdmin={isAdmin} cards={documentCards} />
     </PageShell>
   );
 }

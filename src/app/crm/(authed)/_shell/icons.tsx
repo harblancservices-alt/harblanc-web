@@ -255,6 +255,20 @@ export function IconBillOfLading(props: IconProps) {
   );
 }
 
+/** Generic contract/agreement glyph — a document with a signature line, used
+ * for document types that aren't the RC/BOL pair (Carrier Agreement,
+ * Shipper Agreement, and any custom document type added later). */
+export function IconFileSignature(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M6 3.5h9l4 4V19a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1Z" />
+      <path d="M14.5 3.5V8h4.5" />
+      <path d="M8 12.5l2.5 2.5L15.5 10" />
+      <path d="M8 17.5h6" />
+    </svg>
+  );
+}
+
 export function IconTruck(props: IconProps) {
   return (
     <svg {...base(props)}>
