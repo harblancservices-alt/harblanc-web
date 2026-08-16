@@ -1,8 +1,10 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
+import { loadPdfjs } from "@/lib/pdf/pdfjs";
 import { Card, CardHead, BTN_EDIT, BTN_DANGER, BTN_PRIMARY, BTN_NEUTRAL } from "../_shell/ui";
 import { Modal } from "../_shell/Modal";
 import { formatDateTime } from "../_shell/format";
@@ -65,6 +67,71 @@ function CardIcon({ label, width, height }: { label: string; width: number; heig
   if (label === "Bill of Lading") return <IconBillOfLading width={width} height={height} />;
   if (label === "Rate Confirmation") return <IconRateConfirmation width={width} height={height} />;
   return <IconFileSignature width={width} height={height} />;
+}
+
+/**
+ * A real thumbnail of a PDF's first page — rasterized client-side with
+ * pdf.js, same fetch-signed-url → getDocument → getPage → canvas.render
+ * pattern DocumentSigner.tsx already uses to preview a doc before signing.
+ * Image-type docs get their thumbnail server-side (page.tsx's signed
+ * createSignedUrls batch) since a browser can just <img> those directly;
+ * PDFs can't, so this renders one on mount instead of falling back to a
+ * generic file-type icon — the card should show what's actually IN the
+ * document, not just its category glyph. Falls back to `fallback` (the
+ * category icon) while loading or if rendering fails for any reason.
+ */
+function PdfThumbnail({
+  storagePath,
+  fileName,
+  fallback,
+}: {
+  storagePath: string;
+  fileName: string;
+  fallback: ReactNode;
+}) {
+  const [dataUrl, setDataUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const supabase = createSupabaseBrowserClient();
+        const { data, error } = await supabase.storage
+          .from(STORAGE_BUCKET)
+          .createSignedUrl(storagePath, SIGNED_URL_TTL_SECONDS);
+        if (error || !data?.signedUrl) throw new Error("no signed url");
+
+        const resp = await fetch(data.signedUrl);
+        if (!resp.ok) throw new Error("fetch failed");
+        const bytes = new Uint8Array(await resp.arrayBuffer());
+
+        const pdfjs = await loadPdfjs();
+        const pdfDoc = await pdfjs.getDocument({ data: bytes }).promise;
+        const page = await pdfDoc.getPage(1);
+        const base = page.getViewport({ scale: 1 });
+        const scale = 500 / base.width;
+        const viewport = page.getViewport({ scale });
+
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.ceil(viewport.width);
+        canvas.height = Math.ceil(viewport.height);
+        const ctx = canvas.getContext("2d");
+        if (!ctx) throw new Error("no canvas context");
+        await page.render({ canvas, canvasContext: ctx, viewport }).promise;
+
+        if (!cancelled) setDataUrl(canvas.toDataURL("image/png"));
+      } catch {
+        // Fallback icon stays put — a broken preview shouldn't block View/Upload.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [storagePath]);
+
+  if (!dataUrl) return <>{fallback}</>;
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={dataUrl} alt={fileName} className="h-full w-full object-cover object-top" />;
 }
 
 /**
@@ -233,10 +300,20 @@ function DocumentTypeCard({
 
   return (
     <div className="flex flex-col overflow-hidden rounded-lg border border-line-strong bg-card shadow-e1">
-      <div className="flex aspect-[4/3] items-center justify-center bg-inset">
+      <div className="flex aspect-[4/3] items-center justify-center overflow-hidden bg-inset">
         {doc?.thumbUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={doc.thumbUrl} alt={doc.fileName} className="h-full w-full object-cover" />
+        ) : doc?.mimeType === "application/pdf" ? (
+          <PdfThumbnail
+            storagePath={doc.storagePath}
+            fileName={doc.fileName}
+            fallback={
+              <span className="flex flex-col items-center gap-1.5 text-fg-subtle">
+                <CardIcon label={card.label} width={32} height={32} />
+              </span>
+            }
+          />
         ) : (
           <span className="flex flex-col items-center gap-1.5 text-fg-subtle">
             <CardIcon label={card.label} width={32} height={32} />
@@ -254,53 +331,53 @@ function DocumentTypeCard({
             </p>
           </>
         ) : (
-          <p className="text-[12px] text-fg-subtle">
-            {isGenerated ? "No template generated yet." : "No file uploaded yet."}
-          </p>
+          <p className="text-[12px] text-fg-subtle">No file uploaded yet.</p>
         )}
       </div>
 
-      <div className="flex items-center gap-2 border-t border-line-strong p-2.5">
-        {doc && (
-          <button
-            type="button"
-            onClick={view}
-            className={`flex-1 rounded-md py-1.5 text-[12px] font-semibold transition-colors ${BTN_EDIT}`}
-          >
-            View doc
-          </button>
-        )}
+      <div className="flex flex-col gap-1.5 border-t border-line-strong p-2.5">
+        <div className="flex items-center gap-2">
+          {doc && (
+            <button
+              type="button"
+              onClick={view}
+              className={`flex-1 rounded-md py-1.5 text-[12px] font-semibold transition-colors ${BTN_EDIT}`}
+            >
+              View doc
+            </button>
+          )}
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              disabled={busy}
+              className={`flex-1 rounded-md py-1.5 text-[12px] font-semibold transition-colors disabled:opacity-60 ${doc ? BTN_NEUTRAL : BTN_PRIMARY}`}
+            >
+              {busy ? "…" : doc ? "Replace" : "Upload"}
+            </button>
+          )}
+          {isAdmin && doc && (
+            <button
+              type="button"
+              onClick={remove}
+              disabled={busy}
+              className={`rounded-md px-2.5 py-1.5 text-[12px] font-semibold transition-colors disabled:opacity-60 ${BTN_DANGER}`}
+            >
+              {busy ? "…" : "Delete"}
+            </button>
+          )}
+        </div>
         {isAdmin && isGenerated && (
           <button
             type="button"
             onClick={generateTemplate}
             disabled={busy}
-            className={`flex-1 rounded-md py-1.5 text-[12px] font-semibold transition-colors disabled:opacity-60 ${doc ? BTN_NEUTRAL : BTN_PRIMARY}`}
+            className="self-start text-[11px] font-semibold text-accent transition-colors hover:text-accent-hover hover:underline disabled:opacity-60"
           >
-            {busy ? "…" : doc ? "Regenerate" : "Generate template"}
+            {busy ? "Working…" : doc ? "Regenerate blank template" : "Generate blank template"}
           </button>
         )}
-        {isAdmin && !isGenerated && (
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            disabled={busy}
-            className={`flex-1 rounded-md py-1.5 text-[12px] font-semibold transition-colors disabled:opacity-60 ${doc ? BTN_NEUTRAL : BTN_PRIMARY}`}
-          >
-            {busy ? "…" : doc ? "Replace" : "Upload"}
-          </button>
-        )}
-        {isAdmin && doc && (
-          <button
-            type="button"
-            onClick={remove}
-            disabled={busy}
-            className={`rounded-md px-2.5 py-1.5 text-[12px] font-semibold transition-colors disabled:opacity-60 ${BTN_DANGER}`}
-          >
-            {busy ? "…" : "Delete"}
-          </button>
-        )}
-        {isAdmin && !isGenerated && (
+        {isAdmin && (
           <input
             ref={inputRef}
             type="file"
