@@ -48,16 +48,24 @@ const nextConfig: NextConfig = {
   // require() inside an optional-dependency subpackage (how napi-rs resolves
   // its platform binary) or a runtime-computed relative path (pdfjs-dist's
   // fake-worker setup). Explicit include as a safety net either way.
+  // Key is "/**", not "/crm/settings" — verified locally (via the actual
+  // .next/server/app/crm/(authed)/settings/page.js.nft.json trace manifest,
+  // not just build success) that neither "/crm/settings" nor even the more
+  // specific "/crm/settings/**" ever added a single standard_fonts file to
+  // the trace; only the bare "/**" wildcard did. The Vercel deploy proved
+  // this the hard way first — the pdf.worker.mjs entry in this same array
+  // "worked" in an earlier round only because pdfPageThumbnail.ts also has
+  // a literal `import("pdfjs-dist/legacy/build/pdf.worker.mjs")`, which
+  // Next's tracer follows regardless of this config; outputFileTracingIncludes
+  // itself was never actually taking effect for the page-scoped key. "/**"
+  // does cost every route's function a few extra MB of unused font/canvas
+  // files, not just /crm/settings's — an acceptable trade to actually ship
+  // working thumbnails; can be revisited if bundle size becomes a problem.
   outputFileTracingIncludes: {
-    "/crm/settings": [
+    "/**": [
       "./node_modules/@napi-rs/canvas/**/*",
       "./node_modules/@napi-rs/canvas-*/**/*",
       "./node_modules/pdfjs-dist/legacy/**/*",
-      // Glyph data for the 14 standard PDF fonts (Helvetica, etc.) — without
-      // this, text draws nothing on Vercel (no system fonts to fall back to
-      // there, unlike a local desktop) even though the layout/logo render
-      // fine. See pdfPageThumbnail.ts's standardFontDataUrl for the runtime
-      // path resolution this include has to match.
       "./node_modules/pdfjs-dist/standard_fonts/**/*",
     ],
   },
