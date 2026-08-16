@@ -5,6 +5,7 @@ import { renderCrmRateConfirmationPdfBuffer } from "@/lib/pdf/renderCrmRateConfi
 import type { CrmRateConfirmationPdfData } from "@/lib/pdf/CrmRateConfirmationPDF";
 import { renderCrmShipmentBolPdfBuffer } from "@/lib/pdf/renderCrmShipmentBolPdf";
 import type { CrmShipmentBolPdfData } from "@/lib/pdf/CrmShipmentBolPDF";
+import { renderPdfFirstPageToPng } from "@/lib/pdf/pdfPageThumbnail";
 import type { GeneratedTemplateLabel } from "./templateLabels";
 
 /**
@@ -159,6 +160,17 @@ export async function createBlankTemplateDocument(
     .upload(storagePath, buffer, { contentType: "application/pdf", upsert: false });
   if (uploadError) {
     return { ok: false, error: "Could not save the generated template. Please try again." };
+  }
+
+  // Card thumbnail — best-effort, at `<storagePath>.thumb.png` (a sibling
+  // object, same org folder, no schema change needed). A failure here never
+  // fails the template itself; the card just falls back to its category
+  // icon (see page.tsx's thumbUrlByPath lookup / OrgDocumentsSection.tsx).
+  const thumbResult = await renderPdfFirstPageToPng(buffer);
+  if (thumbResult.ok) {
+    await supabase.storage
+      .from("crm-documents")
+      .upload(`${storagePath}.thumb.png`, thumbResult.png, { contentType: "image/png", upsert: false });
   }
 
   const { data, error } = await supabase

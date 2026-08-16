@@ -16,6 +16,14 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: workspaceRoot,
   },
+  // @napi-rs/canvas ships a native .node binary (js-binding.js requires it
+  // directly) — Turbopack can't bundle that as an ESM chunk asset ("asset
+  // is not placeable in ESM chunks") even though it's only ever dynamically
+  // imported inside one function (src/lib/pdf/pdfPageThumbnail.ts). Marking
+  // it external tells Next to leave it as a plain runtime `require()`
+  // instead of trying to bundle it, which is how native addons are meant to
+  // be loaded in a Node server runtime.
+  serverExternalPackages: ["@napi-rs/canvas"],
   experimental: {
     serverActions: {
       // Quick Quote + customer intake forms allow file uploads up to

@@ -9,6 +9,7 @@ import { getBrokerProfile } from "../_shell/brokerProfile";
 import { OrgDocumentsSection, type OrgDocumentCard } from "./OrgDocumentsSection";
 import { createBlankTemplateDocument } from "./blankTemplates";
 import { GENERATED_TEMPLATE_LABELS } from "./templateLabels";
+import { renderPdfFirstPageToPng } from "@/lib/pdf/pdfPageThumbnail";
 
 export const dynamic = "force-dynamic";
 
@@ -101,16 +102,32 @@ export default async function SettingsPage() {
     .sort((a, b) => a.localeCompare(b));
   const allLabels = [...SEED_DOC_LABELS, ...customLabels];
 
+  // thumbUrlByPath is always keyed by the DOC's OWN storage_path, even
+  // though a PDF's actual signed URL points at a sibling `<path>.thumb.png`
+  // object (rendered at generate/upload time — see blankTemplates.ts /
+  // documents-actions.ts::createOrgDocument) rather than the PDF itself.
   const imagePaths = [...latestByLabel.values()]
     .filter((row) => row.mime_type?.startsWith("image/"))
     .map((row) => row.storage_path);
+  const pdfRows = [...latestByLabel.values()].filter((row) => row.mime_type === "application/pdf");
+  const signPaths = [...imagePaths, ...pdfRows.map((row) => `${row.storage_path}.thumb.png`)];
+
   const thumbUrlByPath = new Map<string, string>();
-  if (imagePaths.length) {
+  if (signPaths.length) {
     const { data: signedRows } = await supabase.storage
       .from(STORAGE_BUCKET)
-      .createSignedUrls(imagePaths, SIGNED_URL_TTL_SECONDS);
+      .createSignedUrls(signPaths, SIGNED_URL_TTL_SECONDS);
+    const signedUrlByRequestedPath = new Map<string, string>();
     for (const row of signedRows ?? []) {
-      if (row.signedUrl && row.path) thumbUrlByPath.set(row.path, row.signedUrl);
+      if (row.signedUrl && row.path) signedUrlByRequestedPath.set(row.path, row.signedUrl);
+    }
+    for (const path of imagePaths) {
+      const url = signedUrlByRequestedPath.get(path);
+      if (url) thumbUrlByPath.set(path, url);
+    }
+    for (const row of pdfRows) {
+      const url = signedUrlByRequestedPath.get(`${row.storage_path}.thumb.png`);
+      if (url) thumbUrlByPath.set(row.storage_path, url);
     }
   }
 
@@ -132,6 +149,35 @@ export default async function SettingsPage() {
     };
   });
 
+  // Backfill a missing thumbnail on any EXISTING PDF doc (the two blank
+  // templates from before this backfill shipped, or any admin-uploaded PDF
+  // predating it) — same best-effort render + upload as
+  // createBlankTemplateDocument/createOrgDocument, just triggered lazily on
+  // read instead of at creation time. Self-limiting: once a `.thumb.png`
+  // sibling exists, this is a no-op for that doc on every later visit.
+  if (isAdmin) {
+    for (const card of documentCards) {
+      const doc = card.doc;
+      if (!doc || doc.mimeType !== "application/pdf" || doc.thumbUrl) continue;
+
+      const { data: pdfBlob } = await supabase.storage.from(STORAGE_BUCKET).download(doc.storagePath);
+      if (!pdfBlob) continue;
+      const thumbResult = await renderPdfFirstPageToPng(new Uint8Array(await pdfBlob.arrayBuffer()));
+      if (!thumbResult.ok) continue;
+
+      const thumbPath = `${doc.storagePath}.thumb.png`;
+      const { error: thumbUploadError } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .upload(thumbPath, thumbResult.png, { contentType: "image/png", upsert: false });
+      if (thumbUploadError) continue;
+
+      const { data: thumbSigned } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .createSignedUrl(thumbPath, SIGNED_URL_TTL_SECONDS);
+      if (thumbSigned?.signedUrl) doc.thumbUrl = thumbSigned.signedUrl;
+    }
+  }
+
   // Self-seed the two generated-template cards (Bill of Lading, Rate
   // Confirmation) the first time an admin loads Settings after they're
   // introduced — renders a blank copy of the real PDF generator's output
@@ -148,6 +194,12 @@ export default async function SettingsPage() {
 
       const result = await createBlankTemplateDocument(supabase, user, label, brokerProfile);
       if (result.ok) {
+        // The thumbnail PNG was just uploaded alongside the PDF inside
+        // createBlankTemplateDocument — sign it now so the card shows the
+        // real preview on this very page load, not just after a refresh.
+        const { data: thumbSigned } = await supabase.storage
+          .from(STORAGE_BUCKET)
+          .createSignedUrl(`${result.row.storagePath}.thumb.png`, SIGNED_URL_TTL_SECONDS);
         documentCards[idx] = {
           label,
           doc: {
@@ -157,7 +209,7 @@ export default async function SettingsPage() {
             mimeType: result.row.mimeType,
             sizeBytes: result.row.sizeBytes,
             createdAt: result.row.createdAt,
-            thumbUrl: null,
+            thumbUrl: thumbSigned?.signedUrl ?? null,
           },
         };
       }

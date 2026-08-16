@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { getBrokerProfile } from "../_shell/brokerProfile";
 import { createBlankTemplateDocument } from "./blankTemplates";
+import { renderPdfFirstPageToPng } from "@/lib/pdf/pdfPageThumbnail";
 import type { GeneratedTemplateLabel } from "./templateLabels";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
@@ -60,6 +61,22 @@ export async function createOrgDocument(
 
   if (error) {
     return { ok: false, error: "Could not save the document. Please try again." };
+  }
+
+  // Card thumbnail — best-effort, same convention as blankTemplates.ts:
+  // `<storagePath>.thumb.png`. The file's already in Storage (uploaded
+  // browser-side before this action ran), so it has to be downloaded back
+  // to rasterize it; a failure here never fails the upload itself.
+  if (input.mimeType === "application/pdf") {
+    const { data: pdfBlob } = await supabase.storage.from("crm-documents").download(input.storagePath);
+    if (pdfBlob) {
+      const thumbResult = await renderPdfFirstPageToPng(new Uint8Array(await pdfBlob.arrayBuffer()));
+      if (thumbResult.ok) {
+        await supabase.storage
+          .from("crm-documents")
+          .upload(`${input.storagePath}.thumb.png`, thumbResult.png, { contentType: "image/png", upsert: false });
+      }
+    }
   }
 
   revalidatePath("/crm/settings");
