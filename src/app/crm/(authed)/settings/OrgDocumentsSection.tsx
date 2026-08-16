@@ -5,12 +5,7 @@ import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { Card, CardHead, BTN_EDIT, BTN_PRIMARY, BTN_NEUTRAL } from "../_shell/ui";
 import { Modal } from "../_shell/Modal";
-import {
-  IconBillOfLading,
-  IconRateConfirmation,
-  IconFileSignature,
-  IconPlus,
-} from "../_shell/icons";
+import { IconPlus } from "../_shell/icons";
 import { createOrgDocument } from "./documents-actions";
 
 const STORAGE_BUCKET = "crm-documents";
@@ -29,7 +24,9 @@ export type OrgDocumentCardDoc = {
    * the file itself; for PDFs it signs a `<path>.thumb.png` sibling
    * rendered at upload/generate time (see blankTemplates.ts /
    * documents-actions.ts::createOrgDocument). Null if that render/upload
-   * failed or hasn't happened yet — the card falls back to a category icon. */
+   * failed or hasn't happened yet — there is deliberately NO icon or other
+   * placeholder fallback (Brent's explicit call): the preview slot is
+   * either the real page-1 image or empty, never a stand-in glyph. */
   thumbUrl: string | null;
 };
 
@@ -48,17 +45,6 @@ function sanitizeFileName(name: string): string {
 function slugify(label: string): string {
   const cleaned = label.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
   return cleaned || "document";
-}
-
-/** Renders the right glyph for a card's label as a direct JSX conditional
- * (never a component reference stashed in a variable) — eslint's
- * react-hooks/static-components rule flags "const Icon = ...; <Icon />" as a
- * component created during render, even though iconForLabel only ever
- * selects among three already-declared, stable components. */
-function CardIcon({ label, width, height }: { label: string; width: number; height: number }) {
-  if (label === "Bill of Lading") return <IconBillOfLading width={width} height={height} />;
-  if (label === "Rate Confirmation") return <IconRateConfirmation width={width} height={height} />;
-  return <IconFileSignature width={width} height={height} />;
 }
 
 /**
@@ -201,14 +187,12 @@ function DocumentTypeCard({
 
   return (
     <div className="flex flex-col overflow-hidden rounded-lg border border-line-strong bg-card shadow-e1">
+      {/* No icon/placeholder fallback here, ever — either the real page-1
+          image or an empty bg-inset box. */}
       <div className="flex aspect-[4/3] items-center justify-center overflow-hidden bg-inset">
-        {doc?.thumbUrl ? (
+        {doc?.thumbUrl && (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={doc.thumbUrl} alt={doc.fileName} className="h-full w-full object-cover object-top" />
-        ) : (
-          <span className="flex flex-col items-center gap-1.5 text-fg-subtle">
-            <CardIcon label={card.label} width={32} height={32} />
-          </span>
         )}
       </div>
 

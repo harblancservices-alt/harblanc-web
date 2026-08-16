@@ -24,6 +24,21 @@ const nextConfig: NextConfig = {
   // instead of trying to bundle it, which is how native addons are meant to
   // be loaded in a Node server runtime.
   serverExternalPackages: ["@napi-rs/canvas"],
+  // serverExternalPackages only stops Next from BUNDLING the package — the
+  // native .node binary (and pdfjs-dist's legacy-build data files) still
+  // have to be physically copied into the deployed serverless function.
+  // Vercel's automatic output-file-tracing can miss files that are only
+  // ever reached via `require()` inside an optional-dependency subpackage
+  // (@napi-rs/canvas-<platform>-<abi>), which is exactly how napi-rs
+  // resolves its platform binary — this makes the include explicit instead
+  // of relying on the tracer to find it.
+  outputFileTracingIncludes: {
+    "/crm/settings": [
+      "./node_modules/@napi-rs/canvas/**/*",
+      "./node_modules/@napi-rs/canvas-*/**/*",
+      "./node_modules/pdfjs-dist/legacy/**/*",
+    ],
+  },
   experimental: {
     serverActions: {
       // Quick Quote + customer intake forms allow file uploads up to

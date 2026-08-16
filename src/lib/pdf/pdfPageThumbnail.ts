@@ -65,7 +65,11 @@ export async function renderPdfFirstPageToPng(
     }).promise;
 
     return { ok: true, png: canvas.toBuffer("image/png") };
-  } catch {
+  } catch (e) {
+    // Never silent — a thumbnail failure isn't fatal to the caller, but a
+    // SILENT one is undebuggable in a serverless environment nobody can
+    // attach a debugger to. `vercel logs` surfaces this.
+    console.error("renderPdfFirstPageToPng failed:", e instanceof Error ? e.stack ?? e.message : e);
     return { ok: false, error: "Could not render a preview for this PDF." };
   }
 }
