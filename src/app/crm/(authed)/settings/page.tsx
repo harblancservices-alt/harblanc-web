@@ -184,9 +184,10 @@ export default async function SettingsPage() {
   // (see blankTemplates.ts) and splices it straight into this render's
   // documentCards, no revalidatePath (that throws Next 16's E7 mid-render —
   // this render already reflects the new row, no cache bust needed). A
-  // later admin visit is a no-op once each card has a doc; the "Regenerate"
-  // button on the card (documents-actions.ts::generateBlankTemplate) covers
-  // updating it after that (e.g. the broker letterhead changes).
+  // later admin visit is a no-op once each card has a doc — there's no
+  // regenerate control on the card anymore (Brent's call: a filled card is
+  // just preview + View doc), so this is the only path that ever creates
+  // these two docs.
   if (isAdmin) {
     for (const label of GENERATED_TEMPLATE_LABELS) {
       const idx = documentCards.findIndex((c) => c.label === label);

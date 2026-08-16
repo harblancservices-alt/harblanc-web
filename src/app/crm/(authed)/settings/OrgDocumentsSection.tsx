@@ -3,17 +3,15 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
-import { Card, CardHead, BTN_EDIT, BTN_DANGER, BTN_PRIMARY, BTN_NEUTRAL } from "../_shell/ui";
+import { Card, CardHead, BTN_EDIT, BTN_PRIMARY, BTN_NEUTRAL } from "../_shell/ui";
 import { Modal } from "../_shell/Modal";
-import { formatDateTime } from "../_shell/format";
 import {
   IconBillOfLading,
   IconRateConfirmation,
   IconFileSignature,
   IconPlus,
 } from "../_shell/icons";
-import { createOrgDocument, deleteOrgDocument, generateBlankTemplate } from "./documents-actions";
-import { isGeneratedTemplateLabel, type GeneratedTemplateLabel } from "./templateLabels";
+import { createOrgDocument } from "./documents-actions";
 
 const STORAGE_BUCKET = "crm-documents";
 const ACCEPT = "application/pdf,image/*";
@@ -52,13 +50,6 @@ function slugify(label: string): string {
   return cleaned || "document";
 }
 
-function formatBytes(bytes: number | null): string {
-  if (bytes === null || !Number.isFinite(bytes)) return "";
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
 /** Renders the right glyph for a card's label as a direct JSX conditional
  * (never a component reference stashed in a variable) — eslint's
  * react-hooks/static-components rule flags "const Icon = ...; <Icon />" as a
@@ -76,9 +67,10 @@ function CardIcon({ label, width, height }: { label: string; width: number; heig
  * fixed cards (Bill of Lading, Rate Confirmation, Carrier Agreement, Shipper
  * Agreement) via the `cards` prop built in page.tsx, plus any custom types
  * Brent has added — "+ Add document" lets him create more without a code
- * change. Each card shows the latest upload for that type (image preview or
- * a file-type icon) with View/Replace/Delete actions; mutating actions are
- * admin-only, matching every other edit control on this page.
+ * change. Deliberately minimal per Brent's call: a filled card is just its
+ * preview thumbnail + "View doc", nothing else — no delete, replace,
+ * regenerate, or timestamp. An empty card keeps an admin-only "Upload" so
+ * new types can still get their first file attached.
  */
 export function OrgDocumentsSection({
   orgId,
@@ -155,7 +147,6 @@ function DocumentTypeCard({
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
   const { doc } = card;
-  const isGenerated = isGeneratedTemplateLabel(card.label);
 
   async function upload(file: File) {
     if (file.type !== "application/pdf" && !file.type.startsWith("image/")) {
@@ -193,20 +184,6 @@ function DocumentTypeCard({
     router.refresh();
   }
 
-  /** Re-render this card's PDF through the real generator with every field
-   * blank — see blankTemplates.ts. Only offered on the two generated cards. */
-  async function generateTemplate() {
-    onError(null);
-    setBusy(true);
-    const res = await generateBlankTemplate(card.label as GeneratedTemplateLabel);
-    setBusy(false);
-    if (!res.ok) {
-      onError(res.error);
-      return;
-    }
-    router.refresh();
-  }
-
   async function view() {
     if (!doc) return;
     onError(null);
@@ -220,18 +197,6 @@ function DocumentTypeCard({
       return;
     }
     window.open(data.signedUrl, "_blank", "noopener,noreferrer");
-  }
-
-  function remove() {
-    if (!doc) return;
-    if (!window.confirm(`Delete "${doc.fileName}"? This can't be undone from here.`)) return;
-    onError(null);
-    setBusy(true);
-    void deleteOrgDocument(doc.id).then((res) => {
-      setBusy(false);
-      if (res.ok) router.refresh();
-      else onError(res.error);
-    });
   }
 
   return (
@@ -250,71 +215,45 @@ function DocumentTypeCard({
       <div className="flex flex-1 flex-col gap-1 p-3">
         <p className="text-[13.5px] font-bold text-fg">{card.label}</p>
         {doc ? (
-          <>
-            <p className="truncate text-[12px] text-fg-muted">{doc.fileName}</p>
-            <p className="text-[11px] text-fg-subtle">
-              {[formatBytes(doc.sizeBytes), formatDateTime(doc.createdAt)].filter(Boolean).join(" · ")}
-            </p>
-          </>
+          <p className="truncate text-[12px] text-fg-muted">{doc.fileName}</p>
         ) : (
           <p className="text-[12px] text-fg-subtle">No file uploaded yet.</p>
         )}
       </div>
 
-      <div className="flex flex-col gap-1.5 border-t border-line-strong p-2.5">
-        <div className="flex items-center gap-2">
-          {doc && (
-            <button
-              type="button"
-              onClick={view}
-              className={`flex-1 rounded-md py-1.5 text-[12px] font-semibold transition-colors ${BTN_EDIT}`}
-            >
-              View doc
-            </button>
-          )}
-          {isAdmin && (
-            <button
-              type="button"
-              onClick={() => inputRef.current?.click()}
-              disabled={busy}
-              className={`flex-1 rounded-md py-1.5 text-[12px] font-semibold transition-colors disabled:opacity-60 ${doc ? BTN_NEUTRAL : BTN_PRIMARY}`}
-            >
-              {busy ? "…" : doc ? "Replace" : "Upload"}
-            </button>
-          )}
-          {isAdmin && doc && (
-            <button
-              type="button"
-              onClick={remove}
-              disabled={busy}
-              className={`rounded-md px-2.5 py-1.5 text-[12px] font-semibold transition-colors disabled:opacity-60 ${BTN_DANGER}`}
-            >
-              {busy ? "…" : "Delete"}
-            </button>
-          )}
-        </div>
-        {isAdmin && isGenerated && (
+      <div className="border-t border-line-strong p-2.5">
+        {doc ? (
           <button
             type="button"
-            onClick={generateTemplate}
-            disabled={busy}
-            className="self-start text-[11px] font-semibold text-accent transition-colors hover:text-accent-hover hover:underline disabled:opacity-60"
+            onClick={view}
+            className={`w-full rounded-md py-1.5 text-[12px] font-semibold transition-colors ${BTN_EDIT}`}
           >
-            {busy ? "Working…" : doc ? "Regenerate blank template" : "Generate blank template"}
+            View doc
           </button>
-        )}
-        {isAdmin && (
-          <input
-            ref={inputRef}
-            type="file"
-            accept={ACCEPT}
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              e.target.value = "";
-              if (file) void upload(file);
-            }}
-          />
+        ) : (
+          isAdmin && (
+            <>
+              <button
+                type="button"
+                onClick={() => inputRef.current?.click()}
+                disabled={busy}
+                className={`w-full rounded-md py-1.5 text-[12px] font-semibold transition-colors disabled:opacity-60 ${BTN_PRIMARY}`}
+              >
+                {busy ? "…" : "Upload"}
+              </button>
+              <input
+                ref={inputRef}
+                type="file"
+                accept={ACCEPT}
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  e.target.value = "";
+                  if (file) void upload(file);
+                }}
+              />
+            </>
+          )
         )}
       </div>
     </div>

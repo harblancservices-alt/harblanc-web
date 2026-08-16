@@ -2,10 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
-import { getBrokerProfile } from "../_shell/brokerProfile";
-import { createBlankTemplateDocument } from "./blankTemplates";
 import { renderPdfFirstPageToPng } from "@/lib/pdf/pdfPageThumbnail";
-import type { GeneratedTemplateLabel } from "./templateLabels";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -78,51 +75,6 @@ export async function createOrgDocument(
       }
     }
   }
-
-  revalidatePath("/crm/settings");
-  return { ok: true };
-}
-
-/** Soft-delete an org-level reference document. Admin-only, same gate as
- * createOrgDocument. Leaves the storage object in place (recoverable). */
-export async function deleteOrgDocument(documentId: string): Promise<ActionResult> {
-  const user = await requireCrmUser();
-  if (user.role !== "owner") {
-    return { ok: false, error: "Only an admin can manage documents." };
-  }
-
-  const supabase = await createCrmServerClient();
-  const { error } = await supabase
-    .from("crm_documents")
-    .update({ deleted_at: new Date().toISOString() })
-    .eq("id", documentId);
-
-  if (error) {
-    return { ok: false, error: "Could not delete the document. Please try again." };
-  }
-
-  revalidatePath("/crm/settings");
-  return { ok: true };
-}
-
-/**
- * (Re)generate a blank RC/BOL template — the Bill of Lading and Rate
- * Confirmation cards' "Generate template"/"Regenerate" button. Renders
- * through the exact same PDF components the real shipment-based generator
- * uses (see blankTemplates.ts), with every field left blank, and stores it
- * as a new version of that card's document. Admin-only, same gate as every
- * other Documents-tab mutation.
- */
-export async function generateBlankTemplate(label: GeneratedTemplateLabel): Promise<ActionResult> {
-  const user = await requireCrmUser();
-  if (user.role !== "owner") {
-    return { ok: false, error: "Only an admin can manage documents." };
-  }
-
-  const supabase = await createCrmServerClient();
-  const broker = await getBrokerProfile();
-  const result = await createBlankTemplateDocument(supabase, user, label, broker);
-  if (!result.ok) return result;
 
   revalidatePath("/crm/settings");
   return { ok: true };

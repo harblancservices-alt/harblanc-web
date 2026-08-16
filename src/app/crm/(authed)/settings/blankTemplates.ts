@@ -17,11 +17,12 @@ import type { GeneratedTemplateLabel } from "./templateLabels";
  * shipments/rate-confirmation-actions.ts / bol-actions.ts uses, just with
  * every shipment/carrier/line field left blank instead of real transaction
  * data. Not a "use server" file — see document-lifecycle.ts for why this
- * plain-helper split exists: it's called both from documents-actions.ts's
- * button-triggered generateBlankTemplate() (which revalidatePaths after) and
- * directly from settings/page.tsx's render (auto-seeding a missing template
- * on first admin visit), where calling revalidatePath during render throws
- * Next 16's E7 — see crm-shipments-new-create-on-render-crash-fix memory.
+ * plain-helper split exists: it's called directly from settings/page.tsx's
+ * render (auto-seeding a missing template on first admin visit), where
+ * calling revalidatePath during render throws Next 16's E7 — see
+ * crm-shipments-new-create-on-render-crash-fix memory. There's no admin
+ * button that calls this — Brent's call was a filled Documents-tab card is
+ * just preview + View doc, nothing to regenerate from.
  *
  * SERVER-ONLY — pulls in @react-pdf/renderer's Node-only PDF components
  * (brandLogo.ts reads the logo file off disk via `fs`). Never import this
