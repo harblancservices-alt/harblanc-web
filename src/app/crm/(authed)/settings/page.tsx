@@ -15,6 +15,19 @@ export const dynamic = "force-dynamic";
 
 const STORAGE_BUCKET = "crm-documents";
 const SIGNED_URL_TTL_SECONDS = 300;
+/** Same suffix as blankTemplates.ts/documents-actions.ts::createOrgDocument
+ * — duplicated because a "use server" file may only export async functions.
+ * Bumped from ".thumb.png" to ".thumb.v2.png" once (2026-08-16): PDFs
+ * generated/uploaded before the standardFontDataUrl fix have a stored
+ * thumbnail with the layout but NO TEXT (Vercel has no system fonts to
+ * silently fall back to, unlike local dev — see pdfPageThumbnail.ts). The
+ * old kind is orphaned, not deleted; a new suffix means every doc's
+ * "does a thumbnail exist" check comes back false again, so the backfill
+ * loop below regenerates every stored thumbnail once through the fixed
+ * renderer, rather than leaving the stale wordless PNGs in place forever
+ * (a plain "!thumbUrl" check can never tell a thumbnail apart from a BAD
+ * thumbnail with the same name). */
+const THUMB_SUFFIX = ".thumb.v2.png";
 /** Same prefix as documents-actions.ts::ORG_DOC_KIND_PREFIX — duplicated
  * because a "use server" file may only export async functions. */
 const ORG_DOC_KIND_PREFIX = "org_doc:";
@@ -103,14 +116,14 @@ export default async function SettingsPage() {
   const allLabels = [...SEED_DOC_LABELS, ...customLabels];
 
   // thumbUrlByPath is always keyed by the DOC's OWN storage_path, even
-  // though a PDF's actual signed URL points at a sibling `<path>.thumb.png`
+  // though a PDF's actual signed URL points at a sibling `<path>${THUMB_SUFFIX}`
   // object (rendered at generate/upload time — see blankTemplates.ts /
   // documents-actions.ts::createOrgDocument) rather than the PDF itself.
   const imagePaths = [...latestByLabel.values()]
     .filter((row) => row.mime_type?.startsWith("image/"))
     .map((row) => row.storage_path);
   const pdfRows = [...latestByLabel.values()].filter((row) => row.mime_type === "application/pdf");
-  const signPaths = [...imagePaths, ...pdfRows.map((row) => `${row.storage_path}.thumb.png`)];
+  const signPaths = [...imagePaths, ...pdfRows.map((row) => `${row.storage_path}${THUMB_SUFFIX}`)];
 
   const thumbUrlByPath = new Map<string, string>();
   if (signPaths.length) {
@@ -126,7 +139,7 @@ export default async function SettingsPage() {
       if (url) thumbUrlByPath.set(path, url);
     }
     for (const row of pdfRows) {
-      const url = signedUrlByRequestedPath.get(`${row.storage_path}.thumb.png`);
+      const url = signedUrlByRequestedPath.get(`${row.storage_path}${THUMB_SUFFIX}`);
       if (url) thumbUrlByPath.set(row.storage_path, url);
     }
   }
@@ -153,8 +166,10 @@ export default async function SettingsPage() {
   // templates from before this backfill shipped, or any admin-uploaded PDF
   // predating it) — same best-effort render + upload as
   // createBlankTemplateDocument/createOrgDocument, just triggered lazily on
-  // read instead of at creation time. Self-limiting: once a `.thumb.png`
-  // sibling exists, this is a no-op for that doc on every later visit.
+  // read instead of at creation time. Self-limiting: once a THUMB_SUFFIX
+  // sibling exists, this is a no-op for that doc on every later visit — see
+  // THUMB_SUFFIX's own comment for why it was bumped once, forcing every
+  // doc through this regeneration path a single time.
   if (isAdmin) {
     for (const card of documentCards) {
       const doc = card.doc;
@@ -165,7 +180,7 @@ export default async function SettingsPage() {
       const thumbResult = await renderPdfFirstPageToPng(new Uint8Array(await pdfBlob.arrayBuffer()));
       if (!thumbResult.ok) continue;
 
-      const thumbPath = `${doc.storagePath}.thumb.png`;
+      const thumbPath = `${doc.storagePath}${THUMB_SUFFIX}`;
       const { error: thumbUploadError } = await supabase.storage
         .from(STORAGE_BUCKET)
         .upload(thumbPath, thumbResult.png, { contentType: "image/png", upsert: false });
@@ -200,7 +215,7 @@ export default async function SettingsPage() {
         // real preview on this very page load, not just after a refresh.
         const { data: thumbSigned } = await supabase.storage
           .from(STORAGE_BUCKET)
-          .createSignedUrl(`${result.row.storagePath}.thumb.png`, SIGNED_URL_TTL_SECONDS);
+          .createSignedUrl(`${result.row.storagePath}${THUMB_SUFFIX}`, SIGNED_URL_TTL_SECONDS);
         documentCards[idx] = {
           label,
           doc: {

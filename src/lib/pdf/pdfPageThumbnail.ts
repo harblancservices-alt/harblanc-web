@@ -25,12 +25,22 @@
  * action it's attached to, so every failure here is caught and reported as
  * `ok: false` rather than thrown.
  *
- * Deliberately does NOT set `standardFontDataUrl` — pointing it at
- * node_modules/pdfjs-dist/standard_fonts (a file read by path string, not a
- * JS import) risks that directory being tree-shaken out of the Vercel
- * function bundle, turning a cosmetic font-substitution warning into a hard
- * failure. Text still renders (via a fallback substitute), just not with
- * pdf.js's own bundled metrics — an acceptable trade for a card thumbnail.
+ * `standardFontDataUrl` IS required, not cosmetic — Vercel's serverless
+ * containers have no system fonts installed at all. Locally on a real OS
+ * (Windows/Mac/Linux desktop), pdf.js's "Ensure that standardFontDataUrl is
+ * provided" warning is genuinely harmless because @napi-rs/canvas silently
+ * falls back to an installed system font for the PDF's non-embedded
+ * standard font (Helvetica, per @react-pdf/renderer's default) and text
+ * still draws — masking the gap in local testing. On Vercel there is no
+ * such fallback: the layout/logo/boxes render fine (vector paths, not
+ * glyphs) but every word is silently skipped. Root-caused from a live
+ * production screenshot (Brent's report: "no words"), not the warning text
+ * alone — a warning at this log level looks routinely dismissable, and was
+ * wrongly dismissed once already. standardFontDataUrl is resolved at
+ * runtime via Node's own module resolution (createRequire, same mechanism
+ * pdf.js's own isNodeJS branch uses to load @napi-rs/canvas above) rather
+ * than a hardcoded relative path, so it's correct regardless of exactly
+ * where Vercel lays out node_modules inside the deployed function.
  *
  * Also explicitly wires up pdf.js's "fake worker" (used whenever no real
  * Worker thread exists, i.e. every Node/serverless call) instead of letting
@@ -55,23 +65,33 @@ export async function renderPdfFirstPageToPng(
   bytes: Uint8Array | Buffer,
 ): Promise<RenderPdfThumbnailResult> {
   try {
-    const [{ createCanvas }, pdfjsLib, pdfjsWorker] = await Promise.all([
+    const [{ createCanvas }, pdfjsLib, pdfjsWorker, { createRequire }, { dirname, join }] = await Promise.all([
       import("@napi-rs/canvas"),
       import("pdfjs-dist/legacy/build/pdf.mjs"),
       // @ts-expect-error — pdfjs-dist ships no .d.ts for this worker entry
       // point (it's never meant to be imported for its exports directly,
       // only for the side effect of registering WorkerMessageHandler).
       import("pdfjs-dist/legacy/build/pdf.worker.mjs"),
+      import("node:module"),
+      import("node:path"),
     ]);
     // See the file header — this is what makes pdf.js's fake-worker setup
     // skip its own broken dynamic import of "./pdf.worker.mjs".
     (globalThis as unknown as { pdfjsWorker?: unknown }).pdfjsWorker = pdfjsWorker;
 
+    // Resolve pdfjs-dist's real on-disk package root (wherever Node module
+    // resolution actually finds it at runtime) rather than assuming a fixed
+    // relative path — see file header for why this is required, not
+    // optional, on Vercel.
+    const require = createRequire(import.meta.url);
+    const pkgJsonPath = require.resolve("pdfjs-dist/package.json");
+    const standardFontDataUrl = `${join(dirname(pkgJsonPath), "standard_fonts")}/`;
+
     // pdf.js explicitly rejects a Node Buffer even though Buffer extends
     // Uint8Array (its own strict-constructor check, not just an instanceof)
     // — always copy into a plain Uint8Array regardless of what was passed in.
     const data = new Uint8Array(bytes);
-    const pdfDoc = await pdfjsLib.getDocument({ data }).promise;
+    const pdfDoc = await pdfjsLib.getDocument({ data, standardFontDataUrl }).promise;
     const page = await pdfDoc.getPage(1);
     const baseViewport = page.getViewport({ scale: 1 });
     const viewport = page.getViewport({ scale: TARGET_WIDTH_PX / baseViewport.width });

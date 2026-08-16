@@ -163,15 +163,25 @@ export async function createBlankTemplateDocument(
     return { ok: false, error: "Could not save the generated template. Please try again." };
   }
 
-  // Card thumbnail — best-effort, at `<storagePath>.thumb.png` (a sibling
-  // object, same org folder, no schema change needed). A failure here never
-  // fails the template itself; the card just falls back to its category
-  // icon (see page.tsx's thumbUrlByPath lookup / OrgDocumentsSection.tsx).
+  // Card thumbnail — best-effort, at `<storagePath>${THUMB_SUFFIX}` (a
+  // sibling object, same org folder, no schema change needed). A failure
+  // here never fails the template itself; the card just renders an empty
+  // preview box (see page.tsx's thumbUrlByPath lookup / OrgDocumentsSection.tsx
+  // — no icon/placeholder fallback, Brent's explicit call).
+  //
+  // Suffix is ".thumb.v2.png", not ".thumb.png" — same literal as
+  // page.tsx's THUMB_SUFFIX (duplicated, not imported, for the same reason
+  // ORG_DOC_KIND_PREFIX is duplicated across settings files: this file is
+  // shared by a "use server" action). Bumped once (2026-08-16) specifically
+  // so every already-stored ".thumb.png" (rendered before the
+  // standardFontDataUrl fix, and missing all text as a result) reads as
+  // "no thumbnail yet" and gets regenerated — see page.tsx's THUMB_SUFFIX
+  // comment for the full story.
   const thumbResult = await renderPdfFirstPageToPng(buffer);
   if (thumbResult.ok) {
     await supabase.storage
       .from("crm-documents")
-      .upload(`${storagePath}.thumb.png`, thumbResult.png, { contentType: "image/png", upsert: false });
+      .upload(`${storagePath}.thumb.v2.png`, thumbResult.png, { contentType: "image/png", upsert: false });
   }
 
   const { data, error } = await supabase

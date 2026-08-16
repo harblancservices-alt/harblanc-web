@@ -21,7 +21,7 @@ export type OrgDocumentCardDoc = {
   sizeBytes: number | null;
   createdAt: string;
   /** Resolved server-side (the bucket is private) — for images this signs
-   * the file itself; for PDFs it signs a `<path>.thumb.png` sibling
+   * the file itself; for PDFs it signs a `<path>.thumb.v2.png` sibling
    * rendered at upload/generate time (see blankTemplates.ts /
    * documents-actions.ts::createOrgDocument). Null if that render/upload
    * failed or hasn't happened yet — there is deliberately NO icon or other

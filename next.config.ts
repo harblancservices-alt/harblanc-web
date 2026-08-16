@@ -53,6 +53,12 @@ const nextConfig: NextConfig = {
       "./node_modules/@napi-rs/canvas/**/*",
       "./node_modules/@napi-rs/canvas-*/**/*",
       "./node_modules/pdfjs-dist/legacy/**/*",
+      // Glyph data for the 14 standard PDF fonts (Helvetica, etc.) — without
+      // this, text draws nothing on Vercel (no system fonts to fall back to
+      // there, unlike a local desktop) even though the layout/logo render
+      // fine. See pdfPageThumbnail.ts's standardFontDataUrl for the runtime
+      // path resolution this include has to match.
+      "./node_modules/pdfjs-dist/standard_fonts/**/*",
     ],
   },
   experimental: {
