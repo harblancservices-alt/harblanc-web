@@ -12,7 +12,8 @@ import {
   IconFileSignature,
   IconPlus,
 } from "../_shell/icons";
-import { createOrgDocument, deleteOrgDocument } from "./documents-actions";
+import { createOrgDocument, deleteOrgDocument, generateBlankTemplate } from "./documents-actions";
+import { isGeneratedTemplateLabel, type GeneratedTemplateLabel } from "./templateLabels";
 
 const STORAGE_BUCKET = "crm-documents";
 const ACCEPT = "application/pdf,image/*";
@@ -55,10 +56,15 @@ function formatBytes(bytes: number | null): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function iconForLabel(label: string): typeof IconBillOfLading {
-  if (label === "Bill of Lading") return IconBillOfLading;
-  if (label === "Rate Confirmation") return IconRateConfirmation;
-  return IconFileSignature;
+/** Renders the right glyph for a card's label as a direct JSX conditional
+ * (never a component reference stashed in a variable) — eslint's
+ * react-hooks/static-components rule flags "const Icon = ...; <Icon />" as a
+ * component created during render, even though iconForLabel only ever
+ * selects among three already-declared, stable components. */
+function CardIcon({ label, width, height }: { label: string; width: number; height: number }) {
+  if (label === "Bill of Lading") return <IconBillOfLading width={width} height={height} />;
+  if (label === "Rate Confirmation") return <IconRateConfirmation width={width} height={height} />;
+  return <IconFileSignature width={width} height={height} />;
 }
 
 /**
@@ -145,8 +151,8 @@ function DocumentTypeCard({
   const [busy, setBusy] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
-  const Icon = iconForLabel(card.label);
   const { doc } = card;
+  const isGenerated = isGeneratedTemplateLabel(card.label);
 
   async function upload(file: File) {
     if (file.type !== "application/pdf" && !file.type.startsWith("image/")) {
@@ -176,6 +182,20 @@ function DocumentTypeCard({
       sizeBytes: file.size,
     });
 
+    setBusy(false);
+    if (!res.ok) {
+      onError(res.error);
+      return;
+    }
+    router.refresh();
+  }
+
+  /** Re-render this card's PDF through the real generator with every field
+   * blank — see blankTemplates.ts. Only offered on the two generated cards. */
+  async function generateTemplate() {
+    onError(null);
+    setBusy(true);
+    const res = await generateBlankTemplate(card.label as GeneratedTemplateLabel);
     setBusy(false);
     if (!res.ok) {
       onError(res.error);
@@ -219,7 +239,7 @@ function DocumentTypeCard({
           <img src={doc.thumbUrl} alt={doc.fileName} className="h-full w-full object-cover" />
         ) : (
           <span className="flex flex-col items-center gap-1.5 text-fg-subtle">
-            <Icon width={32} height={32} />
+            <CardIcon label={card.label} width={32} height={32} />
           </span>
         )}
       </div>
@@ -234,7 +254,9 @@ function DocumentTypeCard({
             </p>
           </>
         ) : (
-          <p className="text-[12px] text-fg-subtle">No file uploaded yet.</p>
+          <p className="text-[12px] text-fg-subtle">
+            {isGenerated ? "No template generated yet." : "No file uploaded yet."}
+          </p>
         )}
       </div>
 
@@ -248,7 +270,17 @@ function DocumentTypeCard({
             View doc
           </button>
         )}
-        {isAdmin && (
+        {isAdmin && isGenerated && (
+          <button
+            type="button"
+            onClick={generateTemplate}
+            disabled={busy}
+            className={`flex-1 rounded-md py-1.5 text-[12px] font-semibold transition-colors disabled:opacity-60 ${doc ? BTN_NEUTRAL : BTN_PRIMARY}`}
+          >
+            {busy ? "…" : doc ? "Regenerate" : "Generate template"}
+          </button>
+        )}
+        {isAdmin && !isGenerated && (
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
@@ -268,7 +300,7 @@ function DocumentTypeCard({
             {busy ? "…" : "Delete"}
           </button>
         )}
-        {isAdmin && (
+        {isAdmin && !isGenerated && (
           <input
             ref={inputRef}
             type="file"

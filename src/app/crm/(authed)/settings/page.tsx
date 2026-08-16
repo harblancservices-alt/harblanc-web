@@ -7,6 +7,8 @@ import { MemberEditButton } from "./MemberEditButton";
 import { BrokerProfileEditButton } from "./BrokerProfileEditButton";
 import { getBrokerProfile } from "../_shell/brokerProfile";
 import { OrgDocumentsSection, type OrgDocumentCard } from "./OrgDocumentsSection";
+import { createBlankTemplateDocument } from "./blankTemplates";
+import { GENERATED_TEMPLATE_LABELS } from "./templateLabels";
 
 export const dynamic = "force-dynamic";
 
@@ -61,6 +63,7 @@ function roleLabel(role: string): string {
  */
 export default async function SettingsPage() {
   const user = await requireCrmUser();
+  const isAdmin = user.role === "owner";
   const supabase = await createCrmServerClient();
 
   const [{ data }, brokerProfile, { data: orgDocData }] = await Promise.all([
@@ -129,7 +132,38 @@ export default async function SettingsPage() {
     };
   });
 
-  const isAdmin = user.role === "owner";
+  // Self-seed the two generated-template cards (Bill of Lading, Rate
+  // Confirmation) the first time an admin loads Settings after they're
+  // introduced — renders a blank copy of the real PDF generator's output
+  // (see blankTemplates.ts) and splices it straight into this render's
+  // documentCards, no revalidatePath (that throws Next 16's E7 mid-render —
+  // this render already reflects the new row, no cache bust needed). A
+  // later admin visit is a no-op once each card has a doc; the "Regenerate"
+  // button on the card (documents-actions.ts::generateBlankTemplate) covers
+  // updating it after that (e.g. the broker letterhead changes).
+  if (isAdmin) {
+    for (const label of GENERATED_TEMPLATE_LABELS) {
+      const idx = documentCards.findIndex((c) => c.label === label);
+      if (idx === -1 || documentCards[idx].doc) continue;
+
+      const result = await createBlankTemplateDocument(supabase, user, label, brokerProfile);
+      if (result.ok) {
+        documentCards[idx] = {
+          label,
+          doc: {
+            id: result.row.id,
+            fileName: result.row.fileName,
+            storagePath: result.row.storagePath,
+            mimeType: result.row.mimeType,
+            sizeBytes: result.row.sizeBytes,
+            createdAt: result.row.createdAt,
+            thumbUrl: null,
+          },
+        };
+      }
+    }
+  }
+
   const me = members.find((m) => m.id === user.id);
 
   // "Last seen" per member — owner-only, so this extra query never runs for
