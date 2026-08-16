@@ -23,15 +23,31 @@ const nextConfig: NextConfig = {
   // it external tells Next to leave it as a plain runtime `require()`
   // instead of trying to bundle it, which is how native addons are meant to
   // be loaded in a Node server runtime.
-  serverExternalPackages: ["@napi-rs/canvas"],
-  // serverExternalPackages only stops Next from BUNDLING the package — the
-  // native .node binary (and pdfjs-dist's legacy-build data files) still
-  // have to be physically copied into the deployed serverless function.
-  // Vercel's automatic output-file-tracing can miss files that are only
-  // ever reached via `require()` inside an optional-dependency subpackage
-  // (@napi-rs/canvas-<platform>-<abi>), which is exactly how napi-rs
-  // resolves its platform binary — this makes the include explicit instead
-  // of relying on the tracer to find it.
+  //
+  // pdfjs-dist is ALSO external, for a related but distinct reason, root-
+  // caused from a live production stack trace (not guessed): with pdfjs-dist
+  // left to Turbopack's normal bundling, its Node ("legacy") build got
+  // transformed into a single synthetic chunk file
+  // (.next/server/chunks/ssr/node_modules_pdfjs-dist_legacy_build_pdf_mjs_*),
+  // and pdfjs-dist's own "fake worker" setup (used when no real Worker
+  // thread is available, i.e. every Node/serverless call) does a RELATIVE
+  // dynamic import of "./pdf.worker.mjs" from its own module's location —
+  // which after bundling resolves to that same synthetic chunks/ssr/
+  // directory, where pdf.worker.mjs was never copied. Every call failed with
+  // `Cannot find module '/var/task/.next/server/chunks/ssr/pdf.worker.mjs'`.
+  // Externalizing it stops Turbopack from rewriting its location at all —
+  // it runs from its real node_modules/pdfjs-dist/legacy/build/ path, where
+  // the relative worker import already resolves correctly. Only affects the
+  // SERVER build; DocumentSigner.tsx/BolScanner.tsx's client-side pdfjs-dist
+  // usage goes through a completely separate (client) bundle, untouched.
+  serverExternalPackages: ["@napi-rs/canvas", "pdfjs-dist"],
+  // serverExternalPackages stops Next from BUNDLING these packages, but the
+  // native .node binary and pdfjs-dist's legacy-build files still have to be
+  // physically copied into the deployed serverless function — Vercel's
+  // automatic output-file-tracing can miss files only ever reached via
+  // require() inside an optional-dependency subpackage (how napi-rs resolves
+  // its platform binary) or a runtime-computed relative path (pdfjs-dist's
+  // fake-worker setup). Explicit include as a safety net either way.
   outputFileTracingIncludes: {
     "/crm/settings": [
       "./node_modules/@napi-rs/canvas/**/*",
