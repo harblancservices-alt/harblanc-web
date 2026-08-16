@@ -31,6 +31,19 @@
  * function bundle, turning a cosmetic font-substitution warning into a hard
  * failure. Text still renders (via a fallback substitute), just not with
  * pdf.js's own bundled metrics — an acceptable trade for a card thumbnail.
+ *
+ * Also explicitly wires up pdf.js's "fake worker" (used whenever no real
+ * Worker thread exists, i.e. every Node/serverless call) instead of letting
+ * it set itself up. Root-caused from a live production stack trace: pdf.mjs's
+ * own fake-worker setup does `await import(this.workerSrc)` where workerSrc
+ * defaults to the RELATIVE string "./pdf.worker.mjs" — a specifier computed
+ * at runtime from a variable, which Vercel's build-time file tracer can't
+ * follow, so pdf.worker.mjs never made it into the deployed function even
+ * after externalizing pdfjs-dist (see next.config.ts). pdf.mjs's own source
+ * checks `globalThis.pdfjsWorker?.WorkerMessageHandler` FIRST and skips its
+ * broken dynamic import entirely if that's already set — so this imports the
+ * worker module directly, with a literal (traceable) specifier the file
+ * tracer DOES follow, and sets that global before calling getDocument().
  */
 export type RenderPdfThumbnailResult =
   | { ok: true; png: Buffer }
@@ -42,10 +55,17 @@ export async function renderPdfFirstPageToPng(
   bytes: Uint8Array | Buffer,
 ): Promise<RenderPdfThumbnailResult> {
   try {
-    const [{ createCanvas }, pdfjsLib] = await Promise.all([
+    const [{ createCanvas }, pdfjsLib, pdfjsWorker] = await Promise.all([
       import("@napi-rs/canvas"),
       import("pdfjs-dist/legacy/build/pdf.mjs"),
+      // @ts-expect-error — pdfjs-dist ships no .d.ts for this worker entry
+      // point (it's never meant to be imported for its exports directly,
+      // only for the side effect of registering WorkerMessageHandler).
+      import("pdfjs-dist/legacy/build/pdf.worker.mjs"),
     ]);
+    // See the file header — this is what makes pdf.js's fake-worker setup
+    // skip its own broken dynamic import of "./pdf.worker.mjs".
+    (globalThis as unknown as { pdfjsWorker?: unknown }).pdfjsWorker = pdfjsWorker;
 
     // pdf.js explicitly rejects a Node Buffer even though Buffer extends
     // Uint8Array (its own strict-constructor check, not just an instanceof)
