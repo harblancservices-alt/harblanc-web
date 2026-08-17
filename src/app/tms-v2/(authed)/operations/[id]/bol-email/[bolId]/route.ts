@@ -1,21 +1,18 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/admin/auth";
+import { adminFromMiddleware } from "@/lib/auth/session";
 import { renderBolEmailView } from "@/lib/domain/revenue-bol";
 
 /**
- * Email-form view of a sent Bill of Lading.
- *
- *   GET /admin/quotes/<quoteRequestId>/bol-email/<bolId>
- *
- * Core logic lives in @/lib/domain/revenue-bol.ts, shared with
- * /tms-v2's equivalent route (retirement-readiness Objective 1C). This
- * route only adds admin's auth check.
+ * Email-form view of a sent Bill of Lading — /tms-v2's copy of admin's
+ * bol-email route (retirement-readiness Objective 1C). Same shared core
+ * (@/lib/domain/revenue-bol.ts), same output; only the auth check
+ * differs (adminFromMiddleware() instead of requireAdmin()).
  */
 export async function GET(
   _request: Request,
   context: { params: Promise<{ id: string; bolId: string }> },
 ): Promise<Response> {
-  await requireAdmin();
+  await adminFromMiddleware();
 
   const { id: quoteRequestId, bolId } = await context.params;
   const result = await renderBolEmailView(quoteRequestId, bolId);

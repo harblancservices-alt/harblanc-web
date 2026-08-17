@@ -1,13 +1,16 @@
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { logDispatchEvent } from "@/lib/dispatch/events";
 import { isLeadStatus, type LeadStatus } from "@/lib/dispatch/status";
-import { computeRpm } from "@/lib/dispatch/distance";
+import { computeRpm, lookupZip } from "@/lib/dispatch/distance";
 import { sendDispatchEstimateBytes } from "@/lib/email/estimate";
 import { findTemplate } from "@/lib/dispatch/templates";
 import {
   renderEstimateEmail,
   type EstimatePayload as EstimateRenderPayload,
 } from "@/lib/email/render";
+import { renderPreviewEmailWrapper } from "@/lib/email/preview-wrapper";
+import { renderRangeProposalPdfBuffer } from "@/lib/pdf/renderRangeProposalPdf";
+import type { RangeProposalPdfData } from "@/lib/pdf/RangeProposalPDF";
 
 /**
  * Estimate (range proposal) — the first stage of the revenue pipeline
@@ -609,4 +612,220 @@ export async function buildEstimatePreview(
   // navigation or on Send. Callers do their own revalidatePath.
 
   return rendered;
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+//  Read-only viewer routes — "View email" / "View PDF" on a sent estimate.
+//  Shared by /admin's and /tms-v2's estimate-email/estimate-pdf route
+//  handlers (retirement-readiness Objective 1C). Both wrappers do their
+//  own auth check (requireAdmin() / adminFromMiddleware()) before calling
+//  these — no auth here, matching the rest of this module.
+// ─────────────────────────────────────────────────────────────────────────
+
+export type ViewerError = { ok: false; status: number; error: string };
+
+type EstimateEmailViewRow = {
+  id: string;
+  quote_request_id: string;
+  preview_html: string | null;
+  preview_subject: string | null;
+  preview_to: string | null;
+  preview_from: string | null;
+  preview_reply_to: string | null;
+  sent_at: string | null;
+};
+
+/** "View email" — the persisted preview_html wrapped in a meta header. */
+export async function renderEstimateEmailView(
+  quoteRequestId: string,
+  estimateId: string,
+): Promise<{ ok: true; html: string } | ViewerError> {
+  if (!quoteRequestId || !estimateId) {
+    return { ok: false, status: 400, error: "Missing identifiers." };
+  }
+
+  const sb = createServiceRoleClient();
+  const { data: row, error } = await sb
+    .from("dispatch_estimates")
+    .select(
+      "id, quote_request_id, preview_html, preview_subject, preview_to, preview_from, preview_reply_to, sent_at",
+    )
+    .eq("id", estimateId)
+    .eq("quote_request_id", quoteRequestId)
+    .maybeSingle<EstimateEmailViewRow>();
+  if (error) {
+    return { ok: false, status: 500, error: `Estimate lookup failed: ${error.message}` };
+  }
+  if (!row || !row.preview_html) {
+    return { ok: false, status: 404, error: "No email preview stored for this proposal." };
+  }
+
+  const html = renderPreviewEmailWrapper({
+    title: "Range proposal email",
+    subject: row.preview_subject,
+    to: row.preview_to,
+    from: row.preview_from,
+    replyTo: row.preview_reply_to,
+    sentAt: row.sent_at,
+    html: row.preview_html,
+  });
+  return { ok: true, html };
+}
+
+type EstimatePdfViewRow = {
+  id: string;
+  quote_request_id: string;
+  linehaul_low: string | number | null;
+  linehaul_high: string | number | null;
+  miles_estimate: number | null;
+  pickup_timing_notes: string | null;
+  equipment_notes: string | null;
+  dispatch_notes: string | null;
+  expiration_at: string | null;
+  closing_line: string | null;
+  fuel_surcharge: string | number | null;
+  accessorials: unknown;
+  preview_built_at: string | null;
+  preview_to: string | null;
+  sent_at: string | null;
+};
+
+type PdfLeadRow = {
+  id: string;
+  name: string;
+  email: string | null;
+  pickup_zip: string | null;
+  delivery_zip: string | null;
+  commodity: string | null;
+  weight: string | null;
+  pickup_date: string | null;
+};
+
+function pdfNum(v: string | number | null): number | null {
+  if (v == null) return null;
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function pdfShortRef(uuid: string): string {
+  const hex = uuid.replace(/-/g, "");
+  if (hex.length < 8) return uuid.toUpperCase();
+  const tail = hex.slice(-8).toUpperCase();
+  return `${tail.slice(0, 4)}-${tail.slice(4)}`;
+}
+
+function pdfParseAccessorials(v: unknown): Array<{ label: string; amount: number }> {
+  if (!Array.isArray(v)) return [];
+  const out: Array<{ label: string; amount: number }> = [];
+  for (const entry of v) {
+    if (entry && typeof entry === "object") {
+      const e = entry as Record<string, unknown>;
+      const label = typeof e.label === "string" ? e.label : null;
+      const amount =
+        typeof e.amount === "number" ? e.amount : typeof e.amount === "string" ? Number(e.amount) : NaN;
+      if (label !== null && Number.isFinite(amount)) {
+        out.push({ label, amount });
+      }
+    }
+  }
+  return out;
+}
+
+function pdfZipToCityState(zip: string | null): { city: string | null; state: string | null; zip: string | null } {
+  if (!zip) return { city: null, state: null, zip: null };
+  const hit = lookupZip(zip);
+  return { city: hit?.city ?? null, state: hit?.state ?? null, zip };
+}
+
+/** "View PDF" — a fresh render from current row state (not stored). */
+export async function renderEstimatePdf(
+  quoteRequestId: string,
+  estimateId: string,
+): Promise<{ ok: true; buffer: Buffer; filename: string } | ViewerError> {
+  if (!quoteRequestId || !estimateId) {
+    return { ok: false, status: 400, error: "Missing identifiers." };
+  }
+
+  const sb = createServiceRoleClient();
+  const { data: estimate, error: estErr } = await sb
+    .from("dispatch_estimates")
+    .select(
+      "id, quote_request_id, linehaul_low, linehaul_high, miles_estimate, pickup_timing_notes, equipment_notes, dispatch_notes, expiration_at, closing_line, fuel_surcharge, accessorials, preview_built_at, preview_to, sent_at",
+    )
+    .eq("id", estimateId)
+    .eq("quote_request_id", quoteRequestId)
+    .maybeSingle<EstimatePdfViewRow>();
+  if (estErr) {
+    return { ok: false, status: 500, error: `Estimate lookup failed: ${estErr.message}` };
+  }
+  if (!estimate) {
+    return { ok: false, status: 404, error: "Range proposal not found." };
+  }
+
+  const linehaulLow = pdfNum(estimate.linehaul_low);
+  if (linehaulLow === null || linehaulLow <= 0) {
+    return {
+      ok: false,
+      status: 422,
+      error: "This range proposal has no linehaul value; nothing to render. Build a preview in the Pricing tab first.",
+    };
+  }
+
+  const { data: lead } = await sb
+    .from("quote_requests")
+    .select("id, name, email, pickup_zip, delivery_zip, commodity, weight, pickup_date")
+    .eq("id", estimate.quote_request_id)
+    .maybeSingle<PdfLeadRow>();
+  if (!lead) {
+    return { ok: false, status: 404, error: "Lead not found." };
+  }
+
+  const pickup = pdfZipToCityState(lead.pickup_zip);
+  const delivery = pdfZipToCityState(lead.delivery_zip);
+  const issuedSource = estimate.sent_at ?? estimate.preview_built_at ?? new Date().toISOString();
+
+  const data: RangeProposalPdfData = {
+    reference: `RG-${pdfShortRef(estimate.id)}`,
+    dispatchReference: `HS-${pdfShortRef(lead.id)}`,
+    issuedAt: issuedSource.slice(0, 10),
+    expirationAt: estimate.expiration_at,
+
+    customerName: lead.name,
+    customerEmail: lead.email ?? estimate.preview_to,
+
+    pickup,
+    delivery,
+    miles: estimate.miles_estimate,
+
+    freight: {
+      commodity: lead.commodity,
+      weight: lead.weight,
+      pickupWindow: lead.pickup_date,
+    },
+
+    rate: {
+      linehaulLow,
+      linehaulHigh: pdfNum(estimate.linehaul_high),
+      fuelSurcharge: pdfNum(estimate.fuel_surcharge),
+      accessorials: pdfParseAccessorials(estimate.accessorials),
+    },
+
+    pickupTimingNotes: estimate.pickup_timing_notes,
+    equipmentNotes: estimate.equipment_notes,
+    dispatchNotes: estimate.dispatch_notes,
+    closingLine: estimate.closing_line,
+
+    preparedBy: null,
+  };
+
+  try {
+    const buffer = await renderRangeProposalPdfBuffer(data);
+    return { ok: true, buffer, filename: `range-proposal-${pdfShortRef(estimate.id)}.pdf` };
+  } catch (e) {
+    console.error("[renderEstimatePdf] render failed", {
+      estimateId: estimate.id,
+      message: e instanceof Error ? e.message : "unknown",
+    });
+    return { ok: false, status: 500, error: "Could not render the range proposal PDF." };
+  }
 }

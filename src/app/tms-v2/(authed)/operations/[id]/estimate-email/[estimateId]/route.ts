@@ -1,21 +1,18 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/admin/auth";
+import { adminFromMiddleware } from "@/lib/auth/session";
 import { renderEstimateEmailView } from "@/lib/domain/revenue-estimate";
 
 /**
- * Email-form view of a sent Range proposal.
- *
- *   GET /admin/quotes/<quoteRequestId>/estimate-email/<estimateId>
- *
- * Core logic lives in @/lib/domain/revenue-estimate.ts, shared with
- * /tms-v2's equivalent route (retirement-readiness Objective 1C). This
- * route only adds admin's auth check.
+ * Email-form view of a sent Range proposal — /tms-v2's copy of admin's
+ * estimate-email route (retirement-readiness Objective 1C). Same shared
+ * core (@/lib/domain/revenue-estimate.ts), same output; only the auth
+ * check differs (adminFromMiddleware() instead of requireAdmin()).
  */
 export async function GET(
   _request: Request,
   context: { params: Promise<{ id: string; estimateId: string }> },
 ): Promise<Response> {
-  await requireAdmin();
+  await adminFromMiddleware();
 
   const { id: quoteRequestId, estimateId } = await context.params;
   const result = await renderEstimateEmailView(quoteRequestId, estimateId);

@@ -163,10 +163,10 @@ export default async function PipelineDetailPage({ params }: { params: Promise<{
                   </div>
                   {e.sentAt ? (
                     <div className="flex gap-3 text-[13px]">
-                      <a className="underline" href={`/admin/quotes/${id}/estimate-email/${e.id}`} target="_blank" rel="noreferrer">
+                      <a className="underline" href={`/tms-v2/operations/${id}/estimate-email/${e.id}`} target="_blank" rel="noreferrer">
                         View email
                       </a>
-                      <a className="underline" href={`/admin/quotes/${id}/estimate-pdf/${e.id}`} target="_blank" rel="noreferrer">
+                      <a className="underline" href={`/tms-v2/operations/${id}/estimate-pdf/${e.id}`} target="_blank" rel="noreferrer">
                         View PDF
                       </a>
                     </div>
@@ -185,10 +185,10 @@ export default async function PipelineDetailPage({ params }: { params: Promise<{
                   </div>
                   {f.sentAt ? (
                     <div className="flex gap-3 text-[13px]">
-                      <a className="underline" href={`/admin/quotes/${id}/finalized-quote-email/${f.id}`} target="_blank" rel="noreferrer">
+                      <a className="underline" href={`/tms-v2/operations/${id}/finalized-quote-email/${f.id}`} target="_blank" rel="noreferrer">
                         View email
                       </a>
-                      <a className="underline" href={`/admin/quotes/${id}/finalized-quote-pdf/${f.id}`} target="_blank" rel="noreferrer">
+                      <a className="underline" href={`/tms-v2/operations/${id}/finalized-quote-pdf/${f.id}`} target="_blank" rel="noreferrer">
                         View PDF
                       </a>
                     </div>
@@ -203,10 +203,10 @@ export default async function PipelineDetailPage({ params }: { params: Promise<{
                   </div>
                   {b.sentAt ? (
                     <div className="flex gap-3 text-[13px]">
-                      <a className="underline" href={`/admin/quotes/${id}/bol-email/${b.id}`} target="_blank" rel="noreferrer">
+                      <a className="underline" href={`/tms-v2/operations/${id}/bol-email/${b.id}`} target="_blank" rel="noreferrer">
                         View email
                       </a>
-                      <a className="underline" href={`/admin/quotes/${id}/bol-pdf/${b.id}`} target="_blank" rel="noreferrer">
+                      <a className="underline" href={`/tms-v2/operations/${id}/bol-pdf/${b.id}`} target="_blank" rel="noreferrer">
                         View PDF
                       </a>
                     </div>

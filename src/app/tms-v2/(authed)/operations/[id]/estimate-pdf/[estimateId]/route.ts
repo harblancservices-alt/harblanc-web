@@ -1,22 +1,18 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/admin/auth";
+import { adminFromMiddleware } from "@/lib/auth/session";
 import { renderEstimatePdf } from "@/lib/domain/revenue-estimate";
 
 /**
- * On-demand Range Proposal PDF download — admin only.
- *
- *   GET /admin/quotes/<quoteRequestId>/estimate-pdf/<estimateId>
- *
- * Core logic lives in @/lib/domain/revenue-estimate.ts, shared with
- * /tms-v2's equivalent route (retirement-readiness Objective 1C). This
- * route only adds admin's auth check. Idempotent — every GET re-renders
- * from current row state.
+ * On-demand Range Proposal PDF download — /tms-v2's copy of admin's
+ * estimate-pdf route (retirement-readiness Objective 1C). Same shared
+ * core (@/lib/domain/revenue-estimate.ts), same output; only the auth
+ * check differs (adminFromMiddleware() instead of requireAdmin()).
  */
 export async function GET(
   _request: Request,
   context: { params: Promise<{ id: string; estimateId: string }> },
 ): Promise<Response> {
-  await requireAdmin();
+  await adminFromMiddleware();
 
   const { id: quoteRequestId, estimateId } = await context.params;
   const result = await renderEstimatePdf(quoteRequestId, estimateId);

@@ -1,22 +1,19 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/admin/auth";
+import { adminFromMiddleware } from "@/lib/auth/session";
 import { renderFinalizedQuotePdf } from "@/lib/domain/revenue-finalized-quote";
 
 /**
- * On-demand Finalized Quote PDF download — admin only.
- *
- *   GET /admin/quotes/<quoteRequestId>/finalized-quote-pdf/<finalizedQuoteId>
- *
- * Core logic lives in @/lib/domain/revenue-finalized-quote.ts, shared
- * with /tms-v2's equivalent route (retirement-readiness Objective 1C).
- * This route only adds admin's auth check. Idempotent — every GET
- * re-renders from current row state.
+ * On-demand Finalized Quote PDF download — /tms-v2's copy of admin's
+ * finalized-quote-pdf route (retirement-readiness Objective 1C). Same
+ * shared core (@/lib/domain/revenue-finalized-quote.ts), same output;
+ * only the auth check differs (adminFromMiddleware() instead of
+ * requireAdmin()).
  */
 export async function GET(
   _request: Request,
   context: { params: Promise<{ id: string; finalizedQuoteId: string }> },
 ): Promise<Response> {
-  await requireAdmin();
+  await adminFromMiddleware();
 
   const { id: quoteRequestId, finalizedQuoteId } = await context.params;
   const result = await renderFinalizedQuotePdf(quoteRequestId, finalizedQuoteId);

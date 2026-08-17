@@ -5,6 +5,10 @@ import {
   sendBolBytes,
   type BolPayload,
 } from "@/lib/email/bill-of-lading";
+import { renderPreviewEmailWrapper } from "@/lib/email/preview-wrapper";
+import { renderBolPdfBuffer } from "@/lib/pdf/renderBolPdf";
+import type { BillOfLadingPdfData } from "@/lib/pdf/BillOfLadingPDF";
+import type { ViewerError } from "@/lib/domain/revenue-estimate";
 
 /**
  * Bill of Lading (BOL) execution paperwork — the third stage of the
@@ -716,4 +720,227 @@ export async function sendBol(
   });
 
   return { quoteRequestId: draft.quote_request_id };
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+//  Read-only viewer routes — "View email" / "View PDF" on a sent BOL.
+//  Shared by /admin's and /tms-v2's bol-email/bol-pdf route handlers
+//  (retirement-readiness Objective 1C). No auth here — each wrapper does
+//  its own auth check before calling.
+// ─────────────────────────────────────────────────────────────────────────
+
+type BolEmailViewRow = {
+  id: string;
+  quote_request_id: string;
+  preview_html: string | null;
+  preview_subject: string | null;
+  preview_to: string | null;
+  preview_from: string | null;
+  preview_reply_to: string | null;
+  sent_at: string | null;
+};
+
+/** "View email" — the persisted preview_html wrapped in a meta header. */
+export async function renderBolEmailView(
+  quoteRequestId: string,
+  bolId: string,
+): Promise<{ ok: true; html: string } | ViewerError> {
+  if (!quoteRequestId || !bolId) {
+    return { ok: false, status: 400, error: "Missing identifiers." };
+  }
+
+  const sb = createServiceRoleClient();
+  const { data: row, error } = await sb
+    .from("bills_of_lading")
+    .select(
+      "id, quote_request_id, preview_html, preview_subject, preview_to, preview_from, preview_reply_to, sent_at",
+    )
+    .eq("id", bolId)
+    .eq("quote_request_id", quoteRequestId)
+    .maybeSingle<BolEmailViewRow>();
+  if (error) {
+    return { ok: false, status: 500, error: `BOL lookup failed: ${error.message}` };
+  }
+  if (!row || !row.preview_html) {
+    return { ok: false, status: 404, error: "No email preview stored for this BOL." };
+  }
+
+  const html = renderPreviewEmailWrapper({
+    title: "BOL email",
+    subject: row.preview_subject,
+    to: row.preview_to,
+    from: row.preview_from,
+    replyTo: row.preview_reply_to,
+    sentAt: row.sent_at,
+    html: row.preview_html,
+  });
+  return { ok: true, html };
+}
+
+type BolPdfViewRow = {
+  id: string;
+  bol_number: string;
+  quote_request_id: string;
+  finalized_quote_id: string;
+  dispatch_reference: string | null;
+  issue_date: string | null;
+
+  shipper_company: string | null;
+  shipper_contact_name: string | null;
+  shipper_contact_phone: string | null;
+  shipper_contact_email: string | null;
+  shipper_address_line1: string | null;
+  shipper_address_line2: string | null;
+  shipper_city: string | null;
+  shipper_state: string | null;
+  shipper_zip: string | null;
+  pickup_window: string | null;
+  pickup_instructions: string | null;
+
+  consignee_company: string | null;
+  consignee_contact_name: string | null;
+  consignee_contact_phone: string | null;
+  consignee_contact_email: string | null;
+  consignee_address_line1: string | null;
+  consignee_address_line2: string | null;
+  consignee_city: string | null;
+  consignee_state: string | null;
+  consignee_zip: string | null;
+  delivery_window: string | null;
+  delivery_instructions: string | null;
+
+  commodity: string | null;
+  quantity: number | null;
+  handling_units_type: string | null;
+  length_in: string | number | null;
+  width_in: string | number | null;
+  height_in: string | number | null;
+  weight_lbs: string | number | null;
+  nmfc_code: string | null;
+  freight_class: string | null;
+  hazmat: boolean;
+  special_handling: string | null;
+
+  driver_assist_required: boolean;
+  tarp_required: boolean;
+  permits_required: boolean;
+  escort_required: boolean;
+  rigging_required: boolean;
+  appointment_required: boolean;
+  special_instructions: string | null;
+
+  dispatch_notes: string | null;
+  prepared_by: string | null;
+};
+
+function pdfNum(v: string | number | null): number | null {
+  if (v == null) return null;
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** "View PDF" — a fresh render from current row state (not stored). */
+export async function renderBolPdf(
+  quoteRequestId: string,
+  bolId: string,
+): Promise<{ ok: true; buffer: Buffer; filename: string } | ViewerError> {
+  if (!quoteRequestId || !bolId) {
+    return { ok: false, status: 400, error: "Missing identifiers." };
+  }
+
+  const sb = createServiceRoleClient();
+  const { data: bol, error: bolErr } = await sb
+    .from("bills_of_lading")
+    .select(
+      "id, bol_number, quote_request_id, finalized_quote_id, dispatch_reference, issue_date, shipper_company, shipper_contact_name, shipper_contact_phone, shipper_contact_email, shipper_address_line1, shipper_address_line2, shipper_city, shipper_state, shipper_zip, pickup_window, pickup_instructions, consignee_company, consignee_contact_name, consignee_contact_phone, consignee_contact_email, consignee_address_line1, consignee_address_line2, consignee_city, consignee_state, consignee_zip, delivery_window, delivery_instructions, commodity, quantity, handling_units_type, length_in, width_in, height_in, weight_lbs, nmfc_code, freight_class, hazmat, special_handling, driver_assist_required, tarp_required, permits_required, escort_required, rigging_required, appointment_required, special_instructions, dispatch_notes, prepared_by",
+    )
+    .eq("id", bolId)
+    .eq("quote_request_id", quoteRequestId)
+    .maybeSingle<BolPdfViewRow>();
+
+  if (bolErr) {
+    return { ok: false, status: 500, error: `BOL lookup failed: ${bolErr.message}` };
+  }
+  if (!bol) {
+    return { ok: false, status: 404, error: "BOL not found." };
+  }
+
+  let finalizedQuoteNumber: string | null = null;
+  if (bol.finalized_quote_id) {
+    const { data: fq } = await sb
+      .from("finalized_quotes")
+      .select("finalized_quote_number")
+      .eq("id", bol.finalized_quote_id)
+      .maybeSingle<{ finalized_quote_number: string }>();
+    finalizedQuoteNumber = fq?.finalized_quote_number ?? null;
+  }
+
+  const data: BillOfLadingPdfData = {
+    bolNumber: bol.bol_number,
+    dispatchReference: bol.dispatch_reference,
+    finalizedQuoteNumber,
+    issueDate: bol.issue_date ?? new Date().toISOString().slice(0, 10),
+
+    shipper: {
+      company: bol.shipper_company,
+      contactName: bol.shipper_contact_name,
+      contactPhone: bol.shipper_contact_phone,
+      contactEmail: bol.shipper_contact_email,
+      addressLine1: bol.shipper_address_line1,
+      addressLine2: bol.shipper_address_line2,
+      city: bol.shipper_city,
+      state: bol.shipper_state,
+      zip: bol.shipper_zip,
+      pickupWindow: bol.pickup_window,
+      pickupInstructions: bol.pickup_instructions,
+    },
+    consignee: {
+      company: bol.consignee_company,
+      contactName: bol.consignee_contact_name,
+      contactPhone: bol.consignee_contact_phone,
+      contactEmail: bol.consignee_contact_email,
+      addressLine1: bol.consignee_address_line1,
+      addressLine2: bol.consignee_address_line2,
+      city: bol.consignee_city,
+      state: bol.consignee_state,
+      zip: bol.consignee_zip,
+      deliveryWindow: bol.delivery_window,
+      deliveryInstructions: bol.delivery_instructions,
+    },
+    freight: {
+      commodity: bol.commodity,
+      quantity: bol.quantity,
+      handlingUnitsType: bol.handling_units_type,
+      lengthIn: pdfNum(bol.length_in),
+      widthIn: pdfNum(bol.width_in),
+      heightIn: pdfNum(bol.height_in),
+      weightLbs: pdfNum(bol.weight_lbs),
+      nmfcCode: bol.nmfc_code,
+      freightClass: bol.freight_class,
+      hazmat: bol.hazmat,
+      specialHandling: bol.special_handling,
+    },
+    ops: {
+      driverAssistRequired: bol.driver_assist_required,
+      tarpRequired: bol.tarp_required,
+      permitsRequired: bol.permits_required,
+      escortRequired: bol.escort_required,
+      riggingRequired: bol.rigging_required,
+      appointmentRequired: bol.appointment_required,
+      specialInstructions: bol.special_instructions,
+    },
+    dispatchNotes: bol.dispatch_notes,
+    preparedBy: bol.prepared_by,
+  };
+
+  try {
+    const buffer = await renderBolPdfBuffer(data);
+    return { ok: true, buffer, filename: `${bol.bol_number}.pdf` };
+  } catch (e) {
+    console.error("[renderBolPdf] render failed", {
+      bolId: bol.id,
+      message: e instanceof Error ? e.message : "unknown",
+    });
+    return { ok: false, status: 500, error: "Could not render the BOL PDF." };
+  }
 }

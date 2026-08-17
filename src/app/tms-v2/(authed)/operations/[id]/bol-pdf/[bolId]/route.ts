@@ -1,21 +1,18 @@
 import { NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/admin/auth";
+import { adminFromMiddleware } from "@/lib/auth/session";
 import { renderBolPdf } from "@/lib/domain/revenue-bol";
 
 /**
- * On-demand Bill of Lading PDF download — admin only.
- *
- *   GET /admin/quotes/<quoteRequestId>/bol-pdf/<bolId>
- *
- * Core logic lives in @/lib/domain/revenue-bol.ts, shared with
- * /tms-v2's equivalent route (retirement-readiness Objective 1C). This
- * route only adds admin's auth check.
+ * On-demand Bill of Lading PDF download — /tms-v2's copy of admin's
+ * bol-pdf route (retirement-readiness Objective 1C). Same shared core
+ * (@/lib/domain/revenue-bol.ts), same output; only the auth check
+ * differs (adminFromMiddleware() instead of requireAdmin()).
  */
 export async function GET(
   _request: Request,
   context: { params: Promise<{ id: string; bolId: string }> },
 ): Promise<Response> {
-  await requireAdmin();
+  await adminFromMiddleware();
 
   const { id: quoteRequestId, bolId } = await context.params;
   const result = await renderBolPdf(quoteRequestId, bolId);
