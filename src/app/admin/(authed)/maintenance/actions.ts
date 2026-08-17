@@ -469,9 +469,22 @@ async function removeReceipts(
 // ---------------------------------------------------------------------------
 // Service CRUD.
 
-/** Log a new service (visit) with all of its parts at once. */
-export async function logService(formData: FormData): Promise<void> {
-  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
+/**
+ * Ungated core — tms-v2 has no demo mode of its own (src/actions/tms-v2/
+ * maintenance.ts calls this directly), so its writes can never be silently
+ * no-op'd by /admin's demo cookie. Admin's own gated `logService` below
+ * keeps its gate, unchanged.
+ *
+ * Bug this fixes: before this split, tms-v2's wrapper called this same
+ * function (then gated) directly. When admin's hb-demo cookie was set,
+ * `if (await blockedByDemo()) return;` resolved the promise WITHOUT
+ * throwing -- so tms-v2's try/catch wrapper saw a successful `await` and
+ * returned `{ ok: true }` even though zero rows were ever written. Splitting
+ * the gate out (matching the pattern already used for Camera/Documents/
+ * Expense-accounts) makes that silent divergence structurally impossible:
+ * tms-v2 now calls a function that never checks the cookie at all.
+ */
+export async function logServiceLive(formData: FormData): Promise<void> {
   const sb = createServiceRoleClient();
   const f = parseServiceFields(formData);
   const parts = parseParts(formData);
@@ -508,15 +521,21 @@ export async function logService(formData: FormData): Promise<void> {
   revalidatePath("/admin");
 }
 
+/** Admin's own gated entry point — unchanged behavior. */
+export async function logService(formData: FormData): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
+  return logServiceLive(formData);
+}
+
 /**
  * Edit a service: update its fields, reconcile its parts (add / update /
  * remove), and add/remove receipts.
  */
-export async function updateService(
+/** Ungated core — see logServiceLive's header for why. */
+export async function updateServiceLive(
   serviceId: string,
   formData: FormData,
 ): Promise<void> {
-  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   if (!serviceId) throw new Error("Missing service.");
   const sb = createServiceRoleClient();
   const f = parseServiceFields(formData);
@@ -599,17 +618,26 @@ export async function updateService(
   revalidatePath("/admin");
 }
 
+/** Admin's own gated entry point — unchanged behavior. */
+export async function updateService(
+  serviceId: string,
+  formData: FormData,
+): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
+  return updateServiceLive(serviceId, formData);
+}
+
 /**
  * Delete ONE receipt off a service — what the doc viewer's Delete calls.
  * Until now the only granular delete was the private `removeReceipts` helper
  * reachable through the LogService form; the viewer needs a direct action.
  * The service itself is untouched: a visit with no receipt is still a visit.
  */
-export async function deleteReceipt(
+/** Ungated core — see logServiceLive's header for why. */
+export async function deleteReceiptLive(
   serviceId: string,
   attachmentId: string,
 ): Promise<void> {
-  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   if (!serviceId || !attachmentId) throw new Error("Missing receipt.");
   const sb = createServiceRoleClient();
   await removeReceipts(sb, serviceId, [attachmentId]);
@@ -617,12 +645,21 @@ export async function deleteReceipt(
   revalidatePath("/admin");
 }
 
+/** Admin's own gated entry point — unchanged behavior. */
+export async function deleteReceipt(
+  serviceId: string,
+  attachmentId: string,
+): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
+  return deleteReceiptLive(serviceId, attachmentId);
+}
+
 /**
  * Delete a whole service (visit): its parts, their related links, and its
  * receipts all cascade; the receipt storage objects are removed first.
  */
-export async function deleteService(serviceId: string): Promise<void> {
-  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
+/** Ungated core — see logServiceLive's header for why. */
+export async function deleteServiceLive(serviceId: string): Promise<void> {
   if (!serviceId) throw new Error("Missing service.");
   const sb = createServiceRoleClient();
   await removeServiceStorage(sb, serviceId);
@@ -632,12 +669,18 @@ export async function deleteService(serviceId: string): Promise<void> {
   revalidatePath("/admin");
 }
 
+/** Admin's own gated entry point — unchanged behavior. */
+export async function deleteService(serviceId: string): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
+  return deleteServiceLive(serviceId);
+}
+
 /**
  * Delete a single PART. If it was the last part of its service, the now-empty
  * service (and its receipts) is removed too.
  */
-export async function deletePart(entryId: string): Promise<void> {
-  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
+/** Ungated core — see logServiceLive's header for why. */
+export async function deletePartLive(entryId: string): Promise<void> {
   if (!entryId) throw new Error("Missing part.");
   const sb = createServiceRoleClient();
 
@@ -665,6 +708,12 @@ export async function deletePart(entryId: string): Promise<void> {
 
   revalidatePath("/admin/maintenance");
   revalidatePath("/admin");
+}
+
+/** Admin's own gated entry point — unchanged behavior. */
+export async function deletePart(entryId: string): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
+  return deletePartLive(entryId);
 }
 
 /** Best-effort delete of a service's receipt storage objects. */
@@ -724,11 +773,11 @@ export async function detachRelated(
 // ---------------------------------------------------------------------------
 // Reminders.
 
-export async function setReminderDismissed(
+/** Ungated core — see logServiceLive's header for why. */
+export async function setReminderDismissedLive(
   reminderId: string,
   dismissed: boolean,
 ): Promise<void> {
-  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
   if (!reminderId) throw new Error("Missing reminder.");
   const sb = createServiceRoleClient();
   const { error } = await sb
@@ -741,4 +790,13 @@ export async function setReminderDismissed(
   if (error) throw new Error(`Could not update reminder: ${error.message}`);
   revalidatePath("/admin/maintenance");
   revalidatePath("/admin");
+}
+
+/** Admin's own gated entry point — unchanged behavior. */
+export async function setReminderDismissed(
+  reminderId: string,
+  dismissed: boolean,
+): Promise<void> {
+  if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
+  return setReminderDismissedLive(reminderId, dismissed);
 }

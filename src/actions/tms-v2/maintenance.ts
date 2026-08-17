@@ -3,12 +3,12 @@
 import { revalidatePath } from "next/cache";
 import {
   createReceiptUploadUrl as legacyCreateReceiptUploadUrl,
-  logService as legacyLogService,
-  updateService as legacyUpdateService,
-  deleteService as legacyDeleteService,
-  deletePart as legacyDeletePart,
-  deleteReceipt as legacyDeleteReceipt,
-  setReminderDismissed as legacySetReminderDismissed,
+  logServiceLive as legacyLogService,
+  updateServiceLive as legacyUpdateService,
+  deleteServiceLive as legacyDeleteService,
+  deletePartLive as legacyDeletePart,
+  deleteReceiptLive as legacyDeleteReceipt,
+  setReminderDismissedLive as legacySetReminderDismissed,
   type CreateUploadUrlResult,
 } from "@/app/admin/(authed)/maintenance/actions";
 import { getServiceFull, type MaintenanceServiceFull } from "@/lib/data/maintenance";
@@ -24,6 +24,18 @@ import type { MutationResult } from "@/lib/demo/mutation";
  * functions throw instead of returning MutationResult, so each wrapper adds
  * a try/catch to convert — the one behavioral difference from a straight
  * re-export, needed so tms-v2's UI never has to handle a rejected promise.
+ *
+ * Calls the `*Live` variants (ungated core, no `blockedByDemo()` check) —
+ * /tms-v2 has no demo mode of its own, so its writes must never be silently
+ * no-op'd by admin's demo cookie. Previously called the GATED versions
+ * directly, which meant a service log/edit/delete or reminder dismiss from
+ * tms-v2 would silently no-op (resolving without throwing, so this file's
+ * try/catch reported `{ ok: true }`) whenever admin's hb-demo cookie was
+ * set — the exact same bug class already fixed for Camera/Documents/
+ * Expense-accounts, applied here too. createReceiptUploadUrl is unaffected
+ * by this fix (it already returns a visible `{ ok: false, reason }` when
+ * demo-blocked, not a silent void return) and is left calling the gated
+ * export unchanged.
  */
 
 function revalidateMaintenancePaths(id?: string) {
