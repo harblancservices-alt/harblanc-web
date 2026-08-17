@@ -3,13 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/tms-v2/ui/Button";
 import { parseLoadLine, subjectFor, bodyLines } from "@/lib/domain/load-inquiry";
-// sendBrokerEmail/sendBrokerEmailTest still import from /admin -- a
-// deliberate, reported remaining dependency (see src/lib/domain/
-// load-inquiry.ts's header comment): the send functions resolve the "From"
-// display name and branded signature via Reach's own settings/signature
-// modules, which are out of scope for this extraction until Reach itself
-// is decoupled.
-import { sendBrokerEmail, sendBrokerEmailTest } from "@/app/admin/(authed)/dispatch/email-broker/send-actions";
+import { sendBrokerEmail, sendBrokerEmailTest } from "@/actions/tms-v2/load-inquiry";
 
 type SentEntry = { lane: string; to: string; at: string };
 

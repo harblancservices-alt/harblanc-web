@@ -5,11 +5,8 @@ import { Button } from "@/components/ui/Button";
 import { quickAddBrokerLane } from "../brokers/quick-add/actions";
 import { bodyLines, laneLabel, subjectFor, parseLoadLine } from "@/lib/domain/load-inquiry";
 import { PopoutButton } from "./PopoutButton";
-import {
-  sendBrokerEmail,
-  sendBrokerEmailTest,
-  type BrokerSendResult,
-} from "./send-actions";
+import { sendBrokerEmail, sendBrokerEmailTest } from "./send-actions";
+import { type BrokerSendResult } from "@/lib/domain/load-inquiry-send";
 
 /**
  * Email-a-Broker — compose UI. Two paste inputs (broker email + a load line off

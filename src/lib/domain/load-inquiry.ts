@@ -6,20 +6,14 @@ import { company } from "@/lib/company";
  * client-and-server safe: no DB, no "use server", so this module can be
  * imported directly from a "use client" component (as /tms-v2's
  * LoadInquiryComposer.tsx does) as well as from server-side send actions.
- * Shared by both /admin (dispatch/email-broker/EmailBrokerView.tsx,
- * send-actions.ts) and /tms-v2 (load-inquiry/LoadInquiryComposer.tsx).
+ * Shared by both /admin (dispatch/email-broker/EmailBrokerView.tsx) and
+ * /tms-v2 (load-inquiry/LoadInquiryComposer.tsx).
  *
- * NOT included here: sendBrokerEmail/sendBrokerEmailTest
- * (src/app/admin/(authed)/dispatch/email-broker/send-actions.ts). Those
- * functions resolve the "From" display name and branded signature footer
- * via Reach's own settings/signature modules
- * (dispatch/reach/{queries,signature}.ts) — genuine Reach business logic,
- * out of scope for this extraction (Reach itself has not been decoupled
- * yet). Moving the send functions here would require this module to import
- * from src/app/admin/**, which is exactly what this module exists to
- * avoid. /tms-v2's LoadInquiryComposer.tsx therefore still imports
- * sendBrokerEmail/sendBrokerEmailTest directly from admin's send-actions.ts
- * — a deliberate, reported remaining dependency, not an oversight.
+ * NOT included here: sendBrokerEmail/sendBrokerEmailTest — those live in
+ * the sibling module @/lib/domain/load-inquiry-send.ts (a separate module
+ * because they call the Resend API and resolve Reach's settings/signature,
+ * which this module deliberately stays free of so it can be imported from
+ * client components).
  */
 
 // MC/DOT/phone previously lived here as local hardcoded constants
