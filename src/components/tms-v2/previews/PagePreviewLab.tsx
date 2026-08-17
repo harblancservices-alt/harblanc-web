@@ -10,10 +10,12 @@ import { PreviewsTabs } from "@/components/tms-v2/previews/PreviewsTabs";
  * emails have their own tab here (Email Previews). Each tile opens a
  * full-screen modal with the live route rendered same-origin in an
  * iframe, side-by-side mobile (402px) + desktop (1920px) viewports so
- * both breakpoints are visible without switching windows. The routes
- * themselves still live at /admin/previews/... (never duplicated here) —
- * this tool is a same-origin viewer over them, same auth session as the
- * rest of /tms-v2 and /admin share.
+ * both breakpoints are visible without switching windows. The `route`
+ * a caller passes in can point at either app's own preview routes —
+ * this component is just a same-origin iframe viewer, agnostic to which
+ * app's routes it's pointed at (tms-v2's own previews/pages/page.tsx
+ * points it at tms-v2's routes, not admin's — retirement-readiness
+ * Objective 1D).
  */
 
 export type PageClassification = "customer_form" | "customer_view";

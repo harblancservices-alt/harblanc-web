@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 };
 
 export default function Page() {
-  return <DeclinePreviewPage confirmShipmentHref="/admin/previews/confirm-shipment" />;
+  return <DeclinePreviewPage confirmShipmentHref="/tms-v2/previews/pages/confirm-shipment" />;
 }

@@ -19,7 +19,9 @@ const stripePromise = (() => {
  * Demo Stripe Elements (PaymentElement) wrapped in HARBLANC dark
  * theme. Identical visual treatment to the customer-facing
  * /quote/confirm/[token] PayButton, but no token gating and no
- * payments-table write -- this is preview-only.
+ * payments-table write -- this is preview-only. Shared by
+ * PaymentPreview.tsx, used by both /admin/previews/payment and
+ * /tms-v2/previews/pages/payment (retirement-readiness Objective 1D).
  */
 export function DemoEmbeddedCheckout({
   clientSecret,
@@ -62,11 +64,15 @@ function DemoPaymentForm() {
       const { error } = await stripe.confirmPayment({
         elements,
         confirmParams: {
+          // Return to the current preview page (works for both
+          // /admin/previews/payment and /tms-v2/previews/pages/payment —
+          // was hardcoded to the admin path before this component was
+          // shared with /tms-v2).
           return_url:
-            (typeof window !== "undefined"
-              ? window.location.origin
-              : "") +
-            "/admin/previews/payment?demo=complete",
+            (typeof window !== "undefined" ? window.location.href : "") +
+            (typeof window !== "undefined" && window.location.search
+              ? "&demo=complete"
+              : "?demo=complete"),
         },
       });
       if (error) {
