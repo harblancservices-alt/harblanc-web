@@ -9,11 +9,8 @@ import {
   PreviewModal,
   type PreviewModalState,
 } from "./PreviewModal";
-import {
-  buildEstimatePreview,
-  sendEstimate,
-  type EmailPreview,
-} from "../actions";
+import { buildEstimatePreview, sendEstimate } from "../actions";
+import { type EmailPreview } from "@/lib/domain/revenue-estimate";
 
 /**
  * Phase REBUILD-2 P2-preview — Quote Range Workspace.

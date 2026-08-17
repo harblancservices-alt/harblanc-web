@@ -11,7 +11,7 @@ import {
   sendEstimate as legacySendEstimate,
   updateLeadStatus as legacyUpdateLeadStatus,
   type EmailPreview,
-} from "@/app/admin/(authed)/quotes/actions";
+} from "@/lib/domain/revenue-estimate";
 import {
   generateFinalizedQuoteDraft as legacyGenerateFinalizedQuoteDraft,
   saveFinalizedQuoteDraft as legacySaveFinalizedQuoteDraft,
