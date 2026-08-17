@@ -14,8 +14,8 @@ import {
   buildFinalizedQuotePreview,
   generateFinalizedQuoteDraft,
   sendFinalizedQuote,
-  type FinalizedQuoteEmailPreview,
 } from "../finalized-quote-actions";
+import { type FinalizedQuoteEmailPreview } from "@/lib/domain/revenue-finalized-quote";
 
 /**
  * Phase REBUILD-3 — Finalized Quote Workspace.

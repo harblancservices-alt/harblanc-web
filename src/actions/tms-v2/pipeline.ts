@@ -18,7 +18,7 @@ import {
   buildFinalizedQuotePreview as legacyBuildFinalizedQuotePreview,
   sendFinalizedQuote as legacySendFinalizedQuote,
   type FinalizedQuoteEmailPreview,
-} from "@/app/admin/(authed)/quotes/finalized-quote-actions";
+} from "@/lib/domain/revenue-finalized-quote";
 import {
   generateBolDraft as legacyGenerateBolDraft,
   saveBolDraft as legacySaveBolDraft,
