@@ -1,5 +1,6 @@
 import React from "react";
 import type { CrmShipmentBolPdfData } from "./CrmShipmentBolPDF";
+import { registerCrmSansFont } from "./embeddedFont";
 
 /**
  * Server-only PDF rendering for the shipment-based Bill of Lading. Same
@@ -11,6 +12,7 @@ export async function renderCrmShipmentBolPdfBuffer(
   data: CrmShipmentBolPdfData,
 ): Promise<Buffer> {
   const { renderToBuffer } = await import("@react-pdf/renderer");
+  await registerCrmSansFont();
   const { CrmShipmentBolPDF } = await import("./CrmShipmentBolPDF");
   const element = React.createElement(CrmShipmentBolPDF, { data }) as Parameters<
     typeof renderToBuffer

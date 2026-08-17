@@ -169,19 +169,16 @@ export async function createBlankTemplateDocument(
   // preview box (see page.tsx's thumbUrlByPath lookup / OrgDocumentsSection.tsx
   // — no icon/placeholder fallback, Brent's explicit call).
   //
-  // Suffix is ".thumb.v2.png", not ".thumb.png" — same literal as
-  // page.tsx's THUMB_SUFFIX (duplicated, not imported, for the same reason
-  // ORG_DOC_KIND_PREFIX is duplicated across settings files: this file is
-  // shared by a "use server" action). Bumped once (2026-08-16) specifically
-  // so every already-stored ".thumb.png" (rendered before the
-  // standardFontDataUrl fix, and missing all text as a result) reads as
-  // "no thumbnail yet" and gets regenerated — see page.tsx's THUMB_SUFFIX
-  // comment for the full story.
+  // Suffix is ".thumb.v3.png" — same literal as page.tsx's THUMB_SUFFIX
+  // (duplicated, not imported, for the same reason ORG_DOC_KIND_PREFIX is
+  // duplicated across settings files: this file is shared by a "use
+  // server" action). See page.tsx's THUMB_SUFFIX comment for the full
+  // version-bump history.
   const thumbResult = await renderPdfFirstPageToPng(buffer);
   if (thumbResult.ok) {
     await supabase.storage
       .from("crm-documents")
-      .upload(`${storagePath}.thumb.v2.png`, thumbResult.png, { contentType: "image/png", upsert: false });
+      .upload(`${storagePath}.thumb.v3.png`, thumbResult.png, { contentType: "image/png", upsert: false });
   }
 
   const { data, error } = await supabase

@@ -17,17 +17,19 @@ const STORAGE_BUCKET = "crm-documents";
 const SIGNED_URL_TTL_SECONDS = 300;
 /** Same suffix as blankTemplates.ts/documents-actions.ts::createOrgDocument
  * — duplicated because a "use server" file may only export async functions.
- * Bumped from ".thumb.png" to ".thumb.v2.png" once (2026-08-16): PDFs
- * generated/uploaded before the standardFontDataUrl fix have a stored
- * thumbnail with the layout but NO TEXT (Vercel has no system fonts to
- * silently fall back to, unlike local dev — see pdfPageThumbnail.ts). The
- * old kind is orphaned, not deleted; a new suffix means every doc's
- * "does a thumbnail exist" check comes back false again, so the backfill
- * loop below regenerates every stored thumbnail once through the fixed
- * renderer, rather than leaving the stale wordless PNGs in place forever
- * (a plain "!thumbUrl" check can never tell a thumbnail apart from a BAD
- * thumbnail with the same name). */
-const THUMB_SUFFIX = ".thumb.v2.png";
+ * Bumped twice now (2026-08-16): ".thumb.png" -> ".thumb.v2.png" for the
+ * standardFontDataUrl attempt (which turned out not to reliably land in
+ * Vercel's deployed function — confirmed by downloading the actual stored
+ * bytes, not just clean logs), and now -> ".thumb.v3.png" for the real fix
+ * (embeddedFont.ts: the font is embedded IN the generated PDF itself, so
+ * pdf.js's rasterizer needs no external font data at all — see that file's
+ * header for the full story). Each old kind is orphaned, not deleted; a new
+ * suffix means every doc's "does a thumbnail exist" check comes back false
+ * again, so the backfill loop below regenerates every stored thumbnail once
+ * through the fixed renderer, rather than leaving stale (possibly wordless)
+ * PNGs in place forever (a plain "!thumbUrl" check can never tell a good
+ * thumbnail apart from a bad one with the same name). */
+const THUMB_SUFFIX = ".thumb.v3.png";
 /** Same prefix as documents-actions.ts::ORG_DOC_KIND_PREFIX — duplicated
  * because a "use server" file may only export async functions. */
 const ORG_DOC_KIND_PREFIX = "org_doc:";

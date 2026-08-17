@@ -90,7 +90,10 @@ const styles = StyleSheet.create({
   page: {
     padding: 36,
     fontSize: 9.5,
-    fontFamily: "Helvetica",
+    // "CrmSans" (LiberationSans), embedded via embeddedFont.ts's
+    // registerCrmSansFont() — see CrmRateConfirmationPDF.tsx's matching
+    // comment for why this replaced the PDF standard "Helvetica".
+    fontFamily: "CrmSans",
     color: "#000",
   },
   header: {

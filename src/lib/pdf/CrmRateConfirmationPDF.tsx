@@ -80,7 +80,14 @@ const styles = StyleSheet.create({
   page: {
     padding: 30,
     fontSize: 9.5,
-    fontFamily: "Helvetica",
+    // "CrmSans" (LiberationSans), embedded via embeddedFont.ts's
+    // registerCrmSansFont() — not the PDF standard "Helvetica", which is
+    // referenced by name only (no glyph data inside the PDF itself) and
+    // left pdf.js's rasterizer (used for this doc's Documents-tab card
+    // thumbnail) dependent on finding substitute glyph data in the
+    // deployed Vercel function, which repeatedly failed silently. See
+    // that file's header for the full story.
+    fontFamily: "CrmSans",
     color: "#000",
   },
   header: {

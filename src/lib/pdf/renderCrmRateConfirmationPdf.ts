@@ -1,5 +1,6 @@
 import React from "react";
 import type { CrmRateConfirmationPdfData } from "./CrmRateConfirmationPDF";
+import { registerCrmSansFont } from "./embeddedFont";
 
 /**
  * Server-only PDF rendering for the shipment-based Rate Confirmation. Same
@@ -11,6 +12,7 @@ export async function renderCrmRateConfirmationPdfBuffer(
   data: CrmRateConfirmationPdfData,
 ): Promise<Buffer> {
   const { renderToBuffer } = await import("@react-pdf/renderer");
+  await registerCrmSansFont();
   const { CrmRateConfirmationPDF } = await import("./CrmRateConfirmationPDF");
   const element = React.createElement(CrmRateConfirmationPDF, { data }) as Parameters<
     typeof renderToBuffer

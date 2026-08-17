@@ -61,10 +61,10 @@ export async function createOrgDocument(
   }
 
   // Card thumbnail — best-effort, same convention as blankTemplates.ts:
-  // `<storagePath>.thumb.v2.png` (see that file's comment for why "v2").
-  // The file's already in Storage (uploaded browser-side before this
-  // action ran), so it has to be downloaded back to rasterize it; a
-  // failure here never fails the upload itself.
+  // `<storagePath>.thumb.v3.png` (see page.tsx's THUMB_SUFFIX comment for
+  // the version-bump history). The file's already in Storage (uploaded
+  // browser-side before this action ran), so it has to be downloaded back
+  // to rasterize it; a failure here never fails the upload itself.
   if (input.mimeType === "application/pdf") {
     const { data: pdfBlob } = await supabase.storage.from("crm-documents").download(input.storagePath);
     if (pdfBlob) {
@@ -72,7 +72,7 @@ export async function createOrgDocument(
       if (thumbResult.ok) {
         await supabase.storage
           .from("crm-documents")
-          .upload(`${input.storagePath}.thumb.v2.png`, thumbResult.png, { contentType: "image/png", upsert: false });
+          .upload(`${input.storagePath}.thumb.v3.png`, thumbResult.png, { contentType: "image/png", upsert: false });
       }
     }
   }
