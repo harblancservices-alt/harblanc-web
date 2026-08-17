@@ -3,8 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { quickAddBrokerLane } from "../brokers/quick-add/actions";
-import { bodyLines, laneLabel, subjectFor } from "./content";
-import { parseLoadLine } from "./parse";
+import { bodyLines, laneLabel, subjectFor, parseLoadLine } from "@/lib/domain/load-inquiry";
 import { PopoutButton } from "./PopoutButton";
 import {
   sendBrokerEmail,

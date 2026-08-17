@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseLoadLine } from "./parse";
+import { parseLoadLine } from "./load-inquiry";
 
 describe("parseLoadLine", () => {
   it("reads the canonical 'Origin  <deadhead>  Destination' line", () => {
