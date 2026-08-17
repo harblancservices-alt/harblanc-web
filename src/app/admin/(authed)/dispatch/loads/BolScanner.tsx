@@ -7,8 +7,8 @@ import { Button } from "@/components/ui/Button";
 import {
   createLoadDocUploadUrl,
   recordLoadDocuments,
-  type RecordDoc,
 } from "./actions";
+import type { RecordDoc } from "@/lib/domain/load-documents";
 import { uploadFileToSignedUrl } from "@/lib/storage/client-upload";
 import { dewarp, cleanup, type Quad, type Pt, type Mode } from "@/lib/dispatch/scan";
 

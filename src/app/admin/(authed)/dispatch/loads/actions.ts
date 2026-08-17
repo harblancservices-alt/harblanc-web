@@ -5,11 +5,17 @@ import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { blockedByDemo } from "@/lib/admin/demo";
 import { lookupZip, estimateLaneMiles } from "@/lib/dispatch/distance";
+import { loadDocName, withExt } from "@/lib/admin/doc-name";
 import {
-  loadDocName,
-  normalizeLoadDocKind,
-  withExt,
-} from "@/lib/admin/doc-name";
+  DOC_BUCKET,
+  sanitizeFilename,
+  createLoadDocUploadUrl as createLoadDocUploadUrlShared,
+  recordLoadDocuments as recordLoadDocumentsShared,
+  deleteLoadDocument as deleteLoadDocumentShared,
+  type DocUploadResult,
+  type CreateUploadUrlResult,
+  type RecordDoc,
+} from "@/lib/domain/load-documents";
 // Type-only: erased at compile, so it never pulls pdf-lib into this
 // "use server" module's runtime graph. The functions themselves are loaded
 // LAZILY inside regenerateSignedBol (see the note there) so a pdf-lib eval
@@ -577,93 +583,15 @@ export async function cancelLoad(
 }
 
 // ── Load documents (rate con / BOL / POD / other) ──────────────────────────
+//
+// The actual upload-URL minting, canonical-named row insert, and delete
+// logic now lives in the neutral src/lib/domain/load-documents.ts module,
+// shared with /tms-v2's own wrapper (src/actions/tms-v2/documents.ts) —
+// this file only adds what's specific to /admin: the demo-mode gate and
+// revalidating /admin's own paths. DOC_BUCKET/sanitizeFilename/
+// DocUploadResult are imported from the same shared module (see the import
+// block above) since signBolRole below also needs them.
 
-const DOC_BUCKET = "load-documents";
-const DOC_MIME = new Set([
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "application/pdf",
-]);
-const DOC_MAX_BYTES = 15 * 1024 * 1024;
-const DOC_KINDS = new Set(["rate_con", "bol", "pod", "other"]);
-
-function sanitizeFilename(name: string): string {
-  const trimmed = name.trim().slice(0, 80);
-  return (
-    trimmed
-      .replace(/[^A-Za-z0-9._-]+/g, "-")
-      .replace(/-+/g, "-")
-      .replace(/^-+|-+$/g, "") || "upload"
-  );
-}
-
-export type DocUploadResult = { ok: true } | { ok: false; reason: string };
-
-export type CreateUploadUrlResult =
-  | { ok: true; bucket: string; path: string; token: string }
-  | { ok: false; reason: string };
-
-export type RecordDoc = {
-  storagePath: string;
-  originalFilename: string;
-  mimeType: string;
-  sizeBytes: number;
-};
-
-/**
- * Step 1 of a direct-to-storage upload: validate the file's type/size and mint
- * a signed upload URL token for a fresh path in the load-documents bucket. The
- * client then uploads the bytes straight to storage (bypassing the server
- * action / Vercel body limits). No file bytes pass through this action.
- */
-/** Ungated core — tms-v2 has no demo mode of its own (src/actions/tms-v2/
- * documents.ts calls this directly), so its writes can never be silently
- * no-op'd by /admin's demo cookie. Admin's own `createLoadDocUploadUrl`
- * below keeps its gate, unchanged. */
-export async function createLoadDocUploadUrlLive(
-  loadId: string,
-  fileName: string,
-  mimeType: string,
-  sizeBytes: number,
-): Promise<CreateUploadUrlResult> {
-  try {
-    if (!DOC_MIME.has(mimeType)) {
-      return {
-        ok: false,
-        reason: `Unsupported type ${mimeType || "unknown"} ("${fileName}"). Use JPG, PNG, WEBP, or PDF.`,
-      };
-    }
-    if (sizeBytes > DOC_MAX_BYTES) {
-      return {
-        ok: false,
-        reason: `"${fileName}" is too large (${Math.round(sizeBytes / 1024 / 1024)} MB). Max 15 MB.`,
-      };
-    }
-    const safe = sanitizeFilename(fileName);
-    const prefix = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
-    const path = `${loadId}/${prefix}-${safe}`;
-    const sb = createServiceRoleClient();
-    const { data, error } = await sb.storage
-      .from(DOC_BUCKET)
-      .createSignedUploadUrl(path);
-    if (error || !data) {
-      return {
-        ok: false,
-        reason: `Could not start upload: ${error?.message ?? "unknown error"}`,
-      };
-    }
-    return { ok: true, bucket: DOC_BUCKET, path: data.path, token: data.token };
-  } catch (e) {
-    console.error("[createLoadDocUploadUrl] failed:", e);
-    return {
-      ok: false,
-      reason: `Could not start upload: ${e instanceof Error ? e.message : "unexpected error"}`,
-    };
-  }
-}
-
-/** Admin's own gated entry point — unchanged behavior. */
 export async function createLoadDocUploadUrl(
   loadId: string,
   fileName: string,
@@ -674,99 +602,9 @@ export async function createLoadDocUploadUrl(
   if (await blockedByDemo()) {
     return { ok: false, reason: "Demo mode — document uploads are disabled." };
   }
-  return createLoadDocUploadUrlLive(loadId, fileName, mimeType, sizeBytes);
+  return createLoadDocUploadUrlShared(loadId, fileName, mimeType, sizeBytes);
 }
 
-/**
- * Step 2 of a direct-to-storage upload: insert the load_documents row(s) for
- * files the client already uploaded to storage. Tiny JSON payload — no bytes.
- * thumb_path is null (thumbnails are no longer generated in the request path).
- */
-/** Ungated core — see createLoadDocUploadUrlLive's header for why. */
-export async function recordLoadDocumentsLive(
-  loadId: string,
-  kindRaw: string,
-  docs: RecordDoc[],
-): Promise<DocUploadResult> {
-  try {
-    if (!Array.isArray(docs) || docs.length === 0) {
-      return { ok: false, reason: "No documents to save." };
-    }
-    const kind = DOC_KINDS.has(kindRaw) ? kindRaw : "other";
-    for (const d of docs) {
-      if (!DOC_MIME.has(d.mimeType)) {
-        return {
-          ok: false,
-          reason: `Unsupported type ${d.mimeType || "unknown"} ("${d.originalFilename}").`,
-        };
-      }
-      if (d.sizeBytes > DOC_MAX_BYTES) {
-        return {
-          ok: false,
-          reason: `"${d.originalFilename}" is too large. Max 15 MB.`,
-        };
-      }
-    }
-    const sb = createServiceRoleClient();
-
-    // Canonical stored file_name: "RC / BOL / POD - <load#> - <broker>", with a
-    // 1-based upload-order number when siblings exist. Look up the load's number
-    // + broker, and how many same-type (non-signed) docs already exist, so the
-    // batch continues the numbering. (Display recomputes authoritatively.)
-    const { data: loadRow } = await sb
-      .from("loads")
-      .select("load_number, broker_name")
-      .eq("id", loadId)
-      .maybeSingle<{ load_number: string | null; broker_name: string | null }>();
-    const { data: existingRows } = await sb
-      .from("load_documents")
-      .select("id")
-      .eq("load_id", loadId)
-      .eq("kind", kind)
-      .is("signed_from_doc_id", null)
-      .returns<{ id: string }[]>();
-    const existing = existingRows?.length ?? 0;
-    const total = existing + docs.length;
-    const docKind = normalizeLoadDocKind(kind);
-
-    const rows = docs.map((d, i) => ({
-      load_id: loadId,
-      kind,
-      storage_path: d.storagePath,
-      thumb_path: null,
-      original_filename: withExt(
-        loadDocName({
-          kind: docKind,
-          loadNumber: loadRow?.load_number,
-          broker: loadRow?.broker_name,
-          index: existing + i + 1,
-          total,
-        }),
-        d.originalFilename,
-      ),
-      mime_type: d.mimeType,
-      size_bytes: d.sizeBytes,
-    }));
-    const { error } = await sb.from("load_documents").insert(rows);
-    if (error) {
-      // Remove the just-uploaded orphans so a failed insert leaves no junk.
-      await sb.storage.from(DOC_BUCKET).remove(docs.map((d) => d.storagePath));
-      return { ok: false, reason: `Save failed: ${error.message}` };
-    }
-    revalidatePath(`/admin/dispatch/loads/${loadId}`);
-    // POD can be added from the dashboard's active-loads list — keep it fresh.
-    revalidatePath("/admin");
-    return { ok: true };
-  } catch (e) {
-    console.error("[recordLoadDocuments] failed:", e);
-    return {
-      ok: false,
-      reason: `Could not save document: ${e instanceof Error ? e.message : "unexpected error"}`,
-    };
-  }
-}
-
-/** Admin's own gated entry point — unchanged behavior. */
 export async function recordLoadDocuments(
   loadId: string,
   kindRaw: string,
@@ -776,40 +614,15 @@ export async function recordLoadDocuments(
   if (await blockedByDemo()) {
     return { ok: false, reason: "Demo mode — document uploads are disabled." };
   }
-  return recordLoadDocumentsLive(loadId, kindRaw, docs);
-}
-
-/** Ungated core — see createLoadDocUploadUrlLive's header for why. */
-export async function deleteLoadDocumentLive(
-  docId: string,
-  loadId: string,
-): Promise<DocUploadResult> {
-  try {
-    const sb = createServiceRoleClient();
-    const { data: row } = await sb
-      .from("load_documents")
-      .select("id, storage_path")
-      .eq("id", docId)
-      .eq("load_id", loadId)
-      .maybeSingle<{ id: string; storage_path: string }>();
-    if (!row) return { ok: false, reason: "Document not found." };
-    const { error: storageError } = await sb.storage.from(DOC_BUCKET).remove([row.storage_path]);
-    if (storageError) return { ok: false, reason: `Could not delete file: ${storageError.message}` };
-    const { error: dbError } = await sb.from("load_documents").delete().eq("id", row.id);
-    if (dbError) return { ok: false, reason: `Could not delete document: ${dbError.message}` };
+  const result = await recordLoadDocumentsShared(loadId, kindRaw, docs);
+  if (result.ok) {
     revalidatePath(`/admin/dispatch/loads/${loadId}`);
+    // POD can be added from the dashboard's active-loads list — keep it fresh.
     revalidatePath("/admin");
-    return { ok: true };
-  } catch (e) {
-    console.error("[deleteLoadDocument] failed:", e);
-    return {
-      ok: false,
-      reason: `Could not delete document: ${e instanceof Error ? e.message : "unexpected error"}`,
-    };
   }
+  return result;
 }
 
-/** Admin's own gated entry point — unchanged behavior. */
 export async function deleteLoadDocument(
   docId: string,
   loadId: string,
@@ -817,7 +630,12 @@ export async function deleteLoadDocument(
   if (await blockedByDemo()) {
     return { ok: false, reason: "Demo mode — document deletion is disabled." };
   }
-  return deleteLoadDocumentLive(docId, loadId);
+  const result = await deleteLoadDocumentShared(docId, loadId);
+  if (result.ok) {
+    revalidatePath(`/admin/dispatch/loads/${loadId}`);
+    revalidatePath("/admin");
+  }
+  return result;
 }
 
 // ── BOL signatures (Receiver + Carrier) ────────────────────────────────────

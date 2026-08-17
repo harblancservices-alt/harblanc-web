@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import {
   createLoadDocUploadUrl,
   recordLoadDocuments,
-  type RecordDoc,
 } from "./dispatch/loads/actions";
+import type { RecordDoc } from "@/lib/domain/load-documents";
 import { uploadFileToSignedUrl } from "@/lib/storage/client-upload";
 import { Button } from "@/components/ui/Button";
 import { BolScanner } from "./dispatch/loads/BolScanner";

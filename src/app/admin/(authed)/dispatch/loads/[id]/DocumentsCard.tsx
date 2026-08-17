@@ -6,8 +6,8 @@ import {
   createLoadDocUploadUrl,
   recordLoadDocuments,
   deleteLoadDocument,
-  type RecordDoc,
 } from "../actions";
+import type { RecordDoc } from "@/lib/domain/load-documents";
 import { uploadFileToSignedUrl } from "@/lib/storage/client-upload";
 import { Button } from "@/components/ui/Button";
 import { DocViewer } from "@/components/ui/DocViewer";

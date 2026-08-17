@@ -7,7 +7,7 @@ import {
   recordLoadDocuments,
   deleteLoadDocument,
 } from "@/actions/tms-v2/documents";
-import type { RecordDoc } from "@/app/admin/(authed)/dispatch/loads/actions";
+import type { RecordDoc } from "@/lib/domain/load-documents";
 import { uploadFileToSignedUrl } from "@/lib/storage/client-upload";
 import type { LoadDocumentItem } from "@/lib/data/loads";
 import { IconTrash } from "@/lib/nav/icons";
