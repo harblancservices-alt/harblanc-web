@@ -2,17 +2,29 @@
 
 /**
  * Backhaul Reach — server actions for settings and templates. Markets are
- * BUILT-IN (see ./markets), so there is no market CRUD — Brent never creates or
- * edits markets. Single-operator app → one shared set, no per-user scoping;
- * everything goes through the service-role client (reach_* RLS is deny-all).
- * Each mutation returns a tagged result the client surfaces inline.
+ * BUILT-IN (see @/lib/domain/reach/markets), so there is no market CRUD —
+ * Brent never creates or edits markets. Single-operator app → one shared
+ * set, no per-user scoping; everything goes through the service-role client
+ * (reach_* RLS is deny-all).
+ *
+ * The settings/template mutations are shared with /tms-v2 via
+ * @/lib/domain/reach/settings (see that file's header) — this file only
+ * adds what's specific to /admin: the demo-mode gate and revalidating
+ * /admin's own paths. resolveLocation and setContactInclude are NOT part of
+ * that extraction and stay here unchanged; /tms-v2 doesn't call them.
  */
 
 import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { blockedByDemo } from "@/lib/admin/demo";
 import { lookupCoords } from "@/lib/dispatch/distance";
-import { isLeverage, isPosture, type Leverage } from "./types";
+import {
+  updateReachSettings as updateReachSettingsShared,
+  updateReachTemplate as updateReachTemplateShared,
+  ensureReachTemplate as ensureReachTemplateShared,
+  saveReachStyleEmail as saveReachStyleEmailShared,
+  type SettingsInput,
+} from "@/lib/domain/reach/settings";
 
 const REACH_PATH = "/admin/dispatch/reach";
 
@@ -54,68 +66,13 @@ export async function resolveLocation(
 
 // ── Settings ─────────────────────────────────────────────────────────────────
 
-export type SettingsInput = {
-  truckLine: string;
-  replyToName: string;
-  showExactTown: boolean;
-  defaultLeverage: Leverage;
-  /** Reply-to inbox for every send. */
-  replyToEmail: string;
-  /** Optional legacy signature tokens — only written when provided. */
-  mc?: string;
-  phone?: string;
-};
-
 export async function updateReachSettings(
   input: SettingsInput,
 ): Promise<{ ok: true } | { ok: false; reason: string }> {
   if (await blockedByDemo()) return { ok: true }; // DEMO: no-op, benign success.
-  const leverage: Leverage = isLeverage(input.defaultLeverage)
-    ? input.defaultLeverage
-    : "confident";
-  try {
-    const sb = createServiceRoleClient();
-    // Upsert the singleton row (id=true) so it works even if the seed insert
-    // never ran.
-    const { error } = await sb.from("reach_settings").upsert(
-      {
-        id: true,
-        truck_line: input.truckLine.trim(),
-        reply_to_name: input.replyToName.trim() || "HARBLANC",
-        show_exact_town: input.showExactTown,
-        default_leverage: leverage,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "id" },
-    );
-    if (error) return { ok: false, reason: error.message };
-    // reply_to_email (and the legacy mc/phone) live in columns added by later
-    // migrations; write them best-effort so saving the rest still works before
-    // those land. Each in its own statement so a missing column can't block the
-    // others.
-    try {
-      await sb
-        .from("reach_settings")
-        .update({ reply_to_email: input.replyToEmail.trim() })
-        .eq("id", true);
-    } catch {
-      // column not present yet — the other settings still saved
-    }
-    if (input.mc !== undefined || input.phone !== undefined) {
-      try {
-        await sb
-          .from("reach_settings")
-          .update({ mc: (input.mc ?? "").trim(), phone: (input.phone ?? "").trim() })
-          .eq("id", true);
-      } catch {
-        // columns not present yet
-      }
-    }
-    revalidatePath(REACH_PATH);
-    return { ok: true };
-  } catch (e) {
-    return { ok: false, reason: msg(e, "Settings storage unavailable.") };
-  }
+  const result = await updateReachSettingsShared(input);
+  if (result.ok) revalidatePath(REACH_PATH);
+  return result;
 }
 
 // ── Templates ────────────────────────────────────────────────────────────────
@@ -125,31 +82,11 @@ export async function updateReachTemplate(
   input: { subject: string; body: string },
 ): Promise<{ ok: true } | { ok: false; reason: string }> {
   if (await blockedByDemo()) return { ok: true }; // DEMO: no-op, benign success.
-  if (!id) return { ok: false, reason: "Missing template id." };
-  try {
-    const sb = createServiceRoleClient();
-    const { error } = await sb
-      .from("reach_templates")
-      .update({
-        subject: input.subject,
-        body: input.body,
-        updated_at: new Date().toISOString(),
-      })
-      .eq("id", id);
-    if (error) return { ok: false, reason: error.message };
-    revalidatePath(REACH_PATH);
-    return { ok: true };
-  } catch (e) {
-    return { ok: false, reason: msg(e, "Template storage unavailable.") };
-  }
+  const result = await updateReachTemplateShared(id, input);
+  if (result.ok) revalidatePath(REACH_PATH);
+  return result;
 }
 
-/**
- * Ensure a posture×leverage template row exists, returning its id. Used by the
- * template editor when the seed didn't create a given combination (e.g. the
- * migration seeded a subset, or a combo was deleted). Idempotent via the
- * unique(posture, leverage) index.
- */
 export async function ensureReachTemplate(
   posture: string,
   leverage: string,
@@ -157,30 +94,7 @@ export async function ensureReachTemplate(
   if (await blockedByDemo()) {
     return { ok: false, reason: "Demo mode — changes aren't saved." };
   }
-  if (!isPosture(posture) || !isLeverage(leverage)) {
-    return { ok: false, reason: "Invalid posture/leverage." };
-  }
-  try {
-    const sb = createServiceRoleClient();
-    const { data: existing } = await sb
-      .from("reach_templates")
-      .select("id")
-      .eq("posture", posture)
-      .eq("leverage", leverage)
-      .maybeSingle<{ id: string }>();
-    if (existing) return { ok: true, id: existing.id };
-    const { data, error } = await sb
-      .from("reach_templates")
-      .insert({ posture, leverage, subject: "", body: "" })
-      .select("id")
-      .single<{ id: string }>();
-    if (error || !data) {
-      return { ok: false, reason: error?.message ?? "Could not create template." };
-    }
-    return { ok: true, id: data.id };
-  } catch (e) {
-    return { ok: false, reason: msg(e, "Template storage unavailable.") };
-  }
+  return ensureReachTemplateShared(posture, leverage);
 }
 
 /**
@@ -194,9 +108,9 @@ export async function saveReachStyleEmail(
   input: { subject: string; body: string },
 ): Promise<{ ok: true } | { ok: false; reason: string }> {
   if (await blockedByDemo()) return { ok: true }; // DEMO: no-op, benign success.
-  const ens = await ensureReachTemplate(posture, leverage);
-  if (!ens.ok) return { ok: false, reason: ens.reason };
-  return updateReachTemplate(ens.id, input);
+  const result = await saveReachStyleEmailShared(posture, leverage, input);
+  if (result.ok) revalidatePath(REACH_PATH);
+  return result;
 }
 
 // ── Contacts (Include toggle) ────────────────────────────────────────────────

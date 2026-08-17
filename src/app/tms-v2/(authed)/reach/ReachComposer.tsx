@@ -3,8 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/tms-v2/ui/Button";
-import { sendReach, sendReachTest } from "@/app/admin/(authed)/dispatch/reach/send-actions";
-import { saveReachStyleEmail } from "@/app/admin/(authed)/dispatch/reach/actions";
+import { sendReach, sendReachTest, saveReachStyleEmail } from "@/actions/tms-v2/reach";
 import {
   POSTURES,
   LEVERAGES,
@@ -18,14 +17,16 @@ import {
   type ReachSettings,
   type ReachTemplate,
   type ReachRecipient,
-} from "@/app/admin/(authed)/dispatch/reach/types";
+} from "@/lib/domain/reach/types";
 
 /**
  * Reach composer — auto-detected posture/market/recipients, a style
  * (leverage) toggle, an editable live preview, and Send/Send-test. Reuses
- * V1's send-actions.ts and actions.ts unchanged (per the phase brief: Reach
- * is "a mature existing design... port rather than redesign"); this is a
- * new, simpler tms-v2 shell around the same logic (no tabs, one continuous
+ * the neutral @/lib/domain/reach/{settings,send}.ts core via
+ * @/actions/tms-v2/reach.ts, shared with admin's own wrapper (per the phase
+ * brief: Reach is "a mature existing design... port rather than
+ * redesign"); this is a new, simpler tms-v2 shell around the same logic
+ * (no tabs, one continuous
  * flow) rather than a port of ReachView.tsx's 1300-line tabbed UI.
  */
 export function ReachComposer({

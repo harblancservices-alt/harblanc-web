@@ -18,12 +18,13 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
-import { sendReach, sendReachTest, type ReachSendResult } from "./send-actions";
+import { sendReach, sendReachTest } from "./send-actions";
+import type { ReachSendResult } from "@/lib/domain/reach/send";
 import { saveReachStyleEmail, resolveLocation } from "./actions";
-import { reachSignatureHtml, REACH_PREVIEW_LOGO_URL } from "./signature";
+import { reachSignatureHtml, REACH_PREVIEW_LOGO_URL } from "@/lib/domain/reach/signature";
 import { SetupModal } from "./SetupModal";
 import { ContactsTab } from "./ContactsTab";
-import type { ReachContact } from "./queries";
+import type { ReachContact } from "@/lib/domain/reach/queries";
 import {
   LEVERAGES,
   STYLE_BLURB,
@@ -36,7 +37,7 @@ import {
   type ReachRecipient,
   type ReachSettings,
   type ReachTemplate,
-} from "./types";
+} from "@/lib/domain/reach/types";
 
 /** A city typeahead hit from /api/admin/dispatch/cities. */
 type CityHit = { city: string; state: string; zip: string; lat: number; lon: number };

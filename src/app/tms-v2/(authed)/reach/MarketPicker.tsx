@@ -1,8 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import type { ReachMarket } from "@/app/admin/(authed)/dispatch/reach/types";
-import type { ReachAnchor } from "@/app/admin/(authed)/dispatch/reach/logic";
+import type { ReachMarket } from "@/lib/domain/reach/types";
+import type { ReachAnchor } from "@/lib/domain/reach/logic";
 
 /** Market override — the auto-detected market (from the truck's current/last
  * load) is the default; this lets the operator pick a different one. Plain

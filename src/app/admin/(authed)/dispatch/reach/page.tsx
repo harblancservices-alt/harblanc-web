@@ -6,14 +6,14 @@ import {
   loadReachMarkets,
   loadReachSettings,
   loadReachTemplates,
-} from "./queries";
+} from "@/lib/domain/reach/queries";
 import {
   buildRecipients,
   buildTownParen,
   detectPosture,
   matchMarket,
   type ReachAnchor,
-} from "./logic";
+} from "@/lib/domain/reach/logic";
 import { ReachView } from "./ReachView";
 
 export const metadata: Metadata = {

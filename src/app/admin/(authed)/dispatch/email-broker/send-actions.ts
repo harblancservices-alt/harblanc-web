@@ -15,8 +15,8 @@
 
 import { Resend } from "resend";
 import { blockedByDemo } from "@/lib/admin/demo";
-import { reachSignatureHtml, REACH_TEXT_SIGNATURE } from "../reach/signature";
-import { loadReachSettings } from "../reach/queries";
+import { reachSignatureHtml, REACH_TEXT_SIGNATURE } from "@/lib/domain/reach/signature";
+import { loadReachSettings } from "@/lib/domain/reach/queries";
 import { bodyLines, subjectFor } from "@/lib/domain/load-inquiry";
 
 /** Absolute origin for the inline signature logo (emails need absolute URLs). */

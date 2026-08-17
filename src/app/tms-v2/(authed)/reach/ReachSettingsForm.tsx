@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/tms-v2/ui/Button";
-import { updateReachSettings } from "@/app/admin/(authed)/dispatch/reach/actions";
-import { LEVERAGES, STYLE_LABEL, type ReachSettings, type Leverage } from "@/app/admin/(authed)/dispatch/reach/types";
+import { updateReachSettings } from "@/actions/tms-v2/reach";
+import { LEVERAGES, STYLE_LABEL, type ReachSettings, type Leverage } from "@/lib/domain/reach/types";
 import { formatPhone, formatPhoneInput } from "@/lib/domain/phone";
 
 /** Reach's own settings — truck line, reply-to identity, default style, and

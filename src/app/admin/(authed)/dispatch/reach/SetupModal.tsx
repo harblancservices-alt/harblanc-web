@@ -17,7 +17,7 @@ import {
   STYLE_LABEL,
   type Leverage,
   type ReachSettings,
-} from "./types";
+} from "@/lib/domain/reach/types";
 
 export function SetupModal({
   settings,

@@ -11,7 +11,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { FarmContactButton } from "../../FarmBrokerContactCard";
 import { setContactInclude } from "./actions";
-import type { ReachContact } from "./queries";
+import type { ReachContact } from "@/lib/domain/reach/queries";
 
 /** Human "last reached" (last time we emailed this broker through Reach). */
 function lastReachedLabel(days: number | null): string {

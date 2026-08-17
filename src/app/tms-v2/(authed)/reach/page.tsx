@@ -1,7 +1,7 @@
 import { PageHeader } from "@/components/tms-v2/ui/PageHeader";
 import { PageScroll } from "@/components/tms-v2/ui/PageScroll";
-import { loadReachMarkets, loadReachSettings, loadReachTemplates } from "@/app/admin/(authed)/dispatch/reach/queries";
-import { detectPosture, buildRecipients, buildTownParen } from "@/app/admin/(authed)/dispatch/reach/logic";
+import { loadReachMarkets, loadReachSettings, loadReachTemplates } from "@/lib/domain/reach/queries";
+import { detectPosture, buildRecipients, buildTownParen } from "@/lib/domain/reach/logic";
 import { listReachContacts } from "@/lib/data/reach-contacts";
 import { listBrokerDirectory } from "@/lib/data/broker-directory";
 import { MarketPicker } from "./MarketPicker";
@@ -19,10 +19,10 @@ export const dynamic = "force-dynamic";
  * build with held-back suppression, a posture×leverage template system) per
  * the phase brief: "Reach's entire design... should be ported close to
  * as-is — it's a mature, well-thought-out tool, not a candidate for
- * redesign-from-scratch." The logic is reused unchanged (queries.ts,
- * logic.ts, actions.ts, send-actions.ts); only the UI shell is new — one
- * continuous flow instead of V1's tabbed ReachView, matching tms-v2's own
- * house style.
+ * redesign-from-scratch." The logic is reused unchanged, from the neutral
+ * @/lib/domain/reach/* modules shared with /admin's own wrapper (decoupling
+ * plan Phase 7); only the UI shell is new — one continuous flow instead of
+ * V1's tabbed ReachView, matching tms-v2's own house style.
  */
 export default async function ReachPage({
   searchParams,
