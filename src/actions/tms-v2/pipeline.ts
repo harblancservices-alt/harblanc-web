@@ -1,10 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { adminFromMiddleware } from "@/lib/auth/session";
 import {
   recordPayment as legacyRecordPayment,
   softDeletePayment as legacySoftDeletePayment,
-} from "@/app/admin/(authed)/quotes/payment-actions";
+} from "@/lib/domain/revenue-payment";
 import {
   saveDraftEstimate as legacySaveDraftEstimate,
   buildEstimatePreview as legacyBuildEstimatePreview,
@@ -29,17 +30,21 @@ import {
 import type { MutationResult } from "@/lib/demo/mutation";
 
 /**
- * Revenue-workflow writes for /tms-v2 — thin wrappers around V1's
- * lead-to-cash action layer (quotes/{payment,finalized-quote,bol}-actions.ts
- * + actions.ts's estimate functions), per Phase 5B's brief: reuse, don't
- * redesign. These are the most business-critical, most audited functions in
- * the whole app (rate math, PDF/email rendering via Resend, the
- * preview-bytes-== -sent-bytes invariant, the awaiting_payment →
- * ready_to_dispatch auto-advance) — duplicating any of it here would be
- * exactly the kind of drift risk the phase brief warns against. Each
- * wrapper only adds: (a) a try/catch converting V1's throw-on-error
- * functions into MutationResult, and (b) /tms-v2's own revalidatePath
- * targets alongside V1's.
+ * Revenue-workflow writes for /tms-v2 — thin wrappers around the shared
+ * lead-to-cash core (src/lib/domain/revenue-{estimate,finalized-quote,
+ * bol,payment}.ts), extracted from admin's quotes/{actions,
+ * finalized-quote-actions,bol-actions,payment-actions}.ts in the
+ * decoupling plan's Phase 8. admin's own action files import the exact
+ * same shared core and add only their demo-mode gate + admin auth +
+ * admin's revalidatePath targets — see each shared module's header.
+ * These are the most business-critical, most audited functions in the
+ * whole app (rate math, PDF/email rendering via Resend, the
+ * preview-bytes-==-sent-bytes invariant, the awaiting_payment →
+ * ready_to_dispatch auto-advance) — duplicating any of it would be
+ * exactly the kind of drift risk this extraction exists to prevent.
+ * Each wrapper only adds: (a) a try/catch converting the shared core's
+ * throw-on-error functions into MutationResult, and (b) /tms-v2's own
+ * revalidatePath targets.
  */
 
 function revalidatePipelinePaths(quoteRequestId?: string) {
@@ -57,7 +62,8 @@ function toResult(e: unknown): MutationResult {
 
 export async function recordPayment(quoteRequestId: string, formData: FormData): Promise<MutationResult> {
   try {
-    await legacyRecordPayment(formData);
+    const user = await adminFromMiddleware();
+    await legacyRecordPayment(formData, user.id);
     revalidatePipelinePaths(quoteRequestId);
     return { ok: true };
   } catch (e) {
