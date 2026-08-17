@@ -101,7 +101,7 @@ export function Sidebar({ email }: { email: string | null }) {
 
         <div className="mt-3 flex flex-col gap-1.5 px-2.5">
           {email ? <span className="truncate text-[12px] text-bar-fg/60">{email}</span> : null}
-          <form action="/admin/logout" method="post">
+          <form action="/tms-v2/logout" method="post">
             <button type="submit" className="text-[13px] font-medium text-bar-fg/80 hover:text-bar-fg">
               Sign out
             </button>

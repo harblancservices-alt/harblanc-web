@@ -206,9 +206,9 @@ export function CameraCapture({ batch }: { batch: BatchDetail }) {
   function triggerExport(kind: "pdf" | "zip") {
     if (photos.length === 0) return;
     setExporting(kind);
-    // Reuses the legacy export route handler as-is (v2-architecture.md §7 —
-    // same session/auth, no new assembly code needed for this phase).
-    window.location.href = `/admin/camera/${batch.id}/export/${kind}`;
+    // tms-v2's own copy of the export route handler (retirement-readiness
+    // Objective 2 — this used to navigate to admin's route directly).
+    window.location.href = `/tms-v2/camera/${batch.id}/export/${kind}`;
     setTimeout(() => setExporting(null), 4000);
   }
 

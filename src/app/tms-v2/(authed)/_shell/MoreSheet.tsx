@@ -98,7 +98,7 @@ export function MoreSheet({ open, onClose, email }: { open: boolean; onClose: ()
 
         <div className="shrink-0 border-t border-line px-4 py-3">
           {email ? <p className="mb-2 truncate text-[13px] text-fg-muted">{email}</p> : null}
-          <form action="/admin/logout" method="post">
+          <form action="/tms-v2/logout" method="post">
             <button type="submit" className="text-[13px] font-semibold text-bad">
               Sign out
             </button>
