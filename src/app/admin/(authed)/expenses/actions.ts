@@ -396,76 +396,29 @@ export async function importExpenses(rows: ImportExpenseRow[]): Promise<ImportRe
 // Payment methods (expense_accounts) — nickname + light card metadata used
 // to populate the expense form's "Payment Method" dropdown. No card numbers
 // stored, ever — last4 only.
+//
+// The actual create/update/delete logic now lives in the neutral
+// src/lib/domain/expense-accounts.ts module, shared with /tms-v2's own
+// wrapper (src/actions/tms-v2/expense-accounts.ts) — this file only adds
+// what's specific to /admin: the demo-mode gate and revalidating /admin's
+// own paths.
 
-export type PaymentMethodResult =
-  | { ok: true; id: string }
-  | { ok: false; reason: string };
+import {
+  createExpenseAccount as createExpenseAccountShared,
+  updateExpenseAccount as updateExpenseAccountShared,
+  deleteExpenseAccount as deleteExpenseAccountShared,
+  type PaymentMethodResult,
+} from "@/lib/domain/expense-accounts";
 
-function last4OrNull(raw: string | null): string | null {
-  if (!raw) return null;
-  const digits = raw.replace(/\D/g, "");
-  return digits.length > 0 ? digits.slice(-4) : null;
-}
-
-/** Ungated core — tms-v2 has no demo mode of its own (src/actions/tms-v2/
- * expense-accounts.ts calls this directly), so its writes can never be
- * silently no-op'd by /admin's demo cookie. Admin's own gated export below
- * is unchanged. */
-export async function createExpenseAccountLive(formData: FormData): Promise<PaymentMethodResult> {
-  const name = str(formData, "name");
-  if (!name) return { ok: false, reason: "Nickname is required." };
-  const type = str(formData, "type");
-  const last4 = last4OrNull(str(formData, "last4"));
-  const isDefault = bool(formData, "is_default");
-  const sb = createServiceRoleClient();
-  if (isDefault) {
-    await sb.from("expense_accounts").update({ is_default: false }).is("deleted_at", null);
-  }
-  const { data, error } = await sb
-    .from("expense_accounts")
-    .insert({ name, type, last4, is_default: isDefault })
-    .select("id")
-    .single<{ id: string }>();
-  if (error || !data) {
-    return { ok: false, reason: `Could not add payment method: ${error?.message ?? "unknown error"}` };
-  }
-  revalidatePath(PATH);
-  return { ok: true, id: data.id };
-}
-
-/** Admin's own gated entry point — unchanged behavior. */
 export async function createExpenseAccount(formData: FormData): Promise<PaymentMethodResult> {
   if (await blockedByDemo()) {
     return { ok: false, reason: "Demo mode — payment method changes are disabled." };
   }
-  return createExpenseAccountLive(formData);
+  const result = await createExpenseAccountShared(formData);
+  if (result.ok) revalidatePath(PATH);
+  return result;
 }
 
-/** Ungated core — see createExpenseAccountLive's header for why. */
-export async function updateExpenseAccountLive(
-  id: string,
-  formData: FormData,
-): Promise<PaymentMethodResult> {
-  if (!id) return { ok: false, reason: "Missing payment method." };
-  const name = str(formData, "name");
-  if (!name) return { ok: false, reason: "Nickname is required." };
-  const type = str(formData, "type");
-  const last4 = last4OrNull(str(formData, "last4"));
-  const isDefault = bool(formData, "is_default");
-  const sb = createServiceRoleClient();
-  if (isDefault) {
-    await sb.from("expense_accounts").update({ is_default: false }).is("deleted_at", null);
-  }
-  const { error } = await sb
-    .from("expense_accounts")
-    .update({ name, type, last4, is_default: isDefault })
-    .eq("id", id);
-  if (error) return { ok: false, reason: `Could not update payment method: ${error.message}` };
-  revalidatePath(PATH);
-  return { ok: true, id };
-}
-
-/** Admin's own gated entry point — unchanged behavior. */
 export async function updateExpenseAccount(
   id: string,
   formData: FormData,
@@ -473,23 +426,13 @@ export async function updateExpenseAccount(
   if (await blockedByDemo()) {
     return { ok: false, reason: "Demo mode — payment method changes are disabled." };
   }
-  return updateExpenseAccountLive(id, formData);
+  const result = await updateExpenseAccountShared(id, formData);
+  if (result.ok) revalidatePath(PATH);
+  return result;
 }
 
-/** Ungated core — see createExpenseAccountLive's header for why. */
-export async function deleteExpenseAccountLive(id: string): Promise<void> {
-  if (!id) throw new Error("Missing payment method.");
-  const sb = createServiceRoleClient();
-  const { error } = await sb
-    .from("expense_accounts")
-    .update({ deleted_at: new Date().toISOString() })
-    .eq("id", id);
-  if (error) throw new Error(`Could not remove payment method: ${error.message}`);
-  revalidatePath(PATH);
-}
-
-/** Admin's own gated entry point — unchanged behavior. */
 export async function deleteExpenseAccount(id: string): Promise<void> {
   if (await blockedByDemo()) return; // DEMO: no-op before any DB write.
-  return deleteExpenseAccountLive(id);
+  await deleteExpenseAccountShared(id);
+  revalidatePath(PATH);
 }
