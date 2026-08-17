@@ -25,7 +25,7 @@ import {
   buildBolPreview as legacyBuildBolPreview,
   sendBol as legacySendBol,
   type BolEmailPreview,
-} from "@/app/admin/(authed)/quotes/bol-actions";
+} from "@/lib/domain/revenue-bol";
 import type { MutationResult } from "@/lib/demo/mutation";
 
 /**
@@ -186,7 +186,8 @@ export type BolPreviewResult = { ok: true; preview: BolEmailPreview } | { ok: fa
 
 export async function buildBolPreview(formData: FormData): Promise<BolPreviewResult> {
   try {
-    const preview = await legacyBuildBolPreview(formData);
+    const { quoteRequestId, ...preview } = await legacyBuildBolPreview(formData);
+    revalidatePipelinePaths(quoteRequestId);
     return { ok: true, preview };
   } catch (e) {
     const r = toResult(e);

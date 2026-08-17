@@ -9,12 +9,8 @@ import {
   PreviewModal,
   type PreviewModalState,
 } from "./PreviewModal";
-import {
-  buildBolPreview,
-  generateBolDraft,
-  sendBol,
-  type BolEmailPreview,
-} from "../bol-actions";
+import { buildBolPreview, generateBolDraft, sendBol } from "../bol-actions";
+import { type BolEmailPreview } from "@/lib/domain/revenue-bol";
 
 /**
  * Phase REBUILD-3 — Bill of Lading workspace.
