@@ -8,11 +8,9 @@ import {
   deletePart as legacyDeletePart,
   deleteReceipt as legacyDeleteReceipt,
   setReminderDismissed as legacySetReminderDismissed,
-} from "@/lib/domain/maintenance";
-import {
   createReceiptUploadUrl as legacyCreateReceiptUploadUrl,
   type CreateUploadUrlResult,
-} from "@/app/admin/(authed)/maintenance/actions";
+} from "@/lib/domain/maintenance";
 import { getServiceFull, type MaintenanceServiceFull } from "@/lib/data/maintenance";
 import { adminFromMiddleware } from "@/lib/auth/session";
 import type { MutationResult } from "@/lib/demo/mutation";
@@ -29,11 +27,10 @@ import type { MutationResult } from "@/lib/demo/mutation";
  * tms-v2's UI never has to handle a rejected promise.
  *
  * /tms-v2 has no demo mode of its own, so unlike admin's wrapper these call
- * the shared core directly with no demo gate. createReceiptUploadUrl is NOT
- * part of this extraction (still imports admin's gated export directly,
- * deliberately, unchanged) — it already returns a visible
- * `{ ok: false, reason }` when demo-blocked, not a silent void return, so
- * it was never subject to the silent-no-op bug this split otherwise fixes.
+ * the shared core directly with no demo gate. createReceiptUploadUrl now
+ * lives in the shared module too (retirement-readiness Objective 1B) —
+ * previously this file imported admin's gated export directly; that direct
+ * cross-app import is now gone.
  */
 
 function revalidateMaintenancePaths(id?: string) {

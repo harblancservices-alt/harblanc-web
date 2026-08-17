@@ -18,15 +18,15 @@ import {
  * wrapper files: src/app/admin/(authed)/maintenance/actions.ts and
  * src/actions/tms-v2/maintenance.ts.
  *
- * Deliberately EXCLUDES createReceiptUploadUrl, attachRelated, and
- * detachRelated (part ↔ part related-links) — those stay in admin's
- * maintenance/actions.ts unchanged; /tms-v2 doesn't call them.
- * RECEIPT_BUCKET/RECEIPT_MIME/RECEIPT_MAX_BYTES are exported from here
- * because admin's createReceiptUploadUrl also needs the identical bucket
- * name and validation limits for the signed-upload token it mints —
- * importing them from here (a plain, safe import) keeps that one bucket
- * name and one set of limits truly singular rather than reintroducing a
- * second copy in admin's file.
+ * createReceiptUploadUrl now lives here too (retirement-readiness
+ * Objective 1B) — it was previously admin-only with tms-v2 importing the
+ * gated export directly; that direct cross-app import is now gone.
+ * RECEIPT_BUCKET/RECEIPT_MIME/RECEIPT_MAX_BYTES stay exported since both
+ * apps' wrappers need the identical bucket name and validation limits.
+ *
+ * Deliberately still EXCLUDES attachRelated/detachRelated (part ↔ part
+ * related-links) — those stay in admin's maintenance/actions.ts
+ * unchanged; /tms-v2 doesn't call them.
  *
  * No company/user scoping or per-caller authorization here by design —
  * this is a single-tenant domain (no org column on these tables), and
@@ -81,6 +81,66 @@ export const RECEIPT_MIME = new Set([
   "application/pdf",
 ]);
 export const RECEIPT_MAX_BYTES = 20 * 1024 * 1024;
+
+function sanitizeFilename(name: string): string {
+  const trimmed = name.trim().slice(0, 80);
+  return (
+    trimmed
+      .replace(/[^A-Za-z0-9._-]+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-+|-+$/g, "") || "upload"
+  );
+}
+
+export type CreateUploadUrlResult =
+  | { ok: true; bucket: string; path: string; token: string }
+  | { ok: false; reason: string };
+
+/**
+ * Mint a signed upload URL so the CLIENT uploads a receipt's bytes directly
+ * to the private maintenance-receipts bucket (bypassing the Server Action
+ * body limit).
+ */
+export async function createReceiptUploadUrl(
+  fileName: string,
+  mimeType: string,
+  sizeBytes: number,
+): Promise<CreateUploadUrlResult> {
+  try {
+    if (!RECEIPT_MIME.has(mimeType)) {
+      return {
+        ok: false,
+        reason: `Unsupported file "${fileName}" (${mimeType || "unknown"}). Use JPG, PNG, HEIC, WEBP, or PDF.`,
+      };
+    }
+    if (sizeBytes > RECEIPT_MAX_BYTES) {
+      return {
+        ok: false,
+        reason: `"${fileName}" is too large (${Math.round(sizeBytes / 1024 / 1024)} MB). Max 20 MB.`,
+      };
+    }
+    const group = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+    const prefix = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+    const path = `maintenance/uploads/${group}/${prefix}-${sanitizeFilename(fileName)}`;
+    const sb = createServiceRoleClient();
+    const { data, error } = await sb.storage
+      .from(RECEIPT_BUCKET)
+      .createSignedUploadUrl(path);
+    if (error || !data) {
+      return {
+        ok: false,
+        reason: `Could not start upload: ${error?.message ?? "unknown error"}`,
+      };
+    }
+    return { ok: true, bucket: RECEIPT_BUCKET, path: data.path, token: data.token };
+  } catch (e) {
+    console.error("[createReceiptUploadUrl] failed:", e);
+    return {
+      ok: false,
+      reason: `Could not start upload: ${e instanceof Error ? e.message : "unexpected error"}`,
+    };
+  }
+}
 
 type ReceiptMeta = {
   storagePath: string;

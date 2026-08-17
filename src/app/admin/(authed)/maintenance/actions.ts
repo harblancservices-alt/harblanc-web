@@ -4,9 +4,8 @@ import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { blockedByDemo } from "@/lib/admin/demo";
 import {
-  RECEIPT_BUCKET,
-  RECEIPT_MIME,
-  RECEIPT_MAX_BYTES,
+  createReceiptUploadUrl as createReceiptUploadUrlShared,
+  type CreateUploadUrlResult,
   logService as logServiceShared,
   updateService as updateServiceShared,
   deleteReceipt as deleteReceiptShared,
@@ -21,38 +20,23 @@ import {
  * optional total, and receipts live on the service; each part carries just its
  * identity (description, category, position, sub_category, part_group).
  *
- * The parsing/persistence/reminder logic is shared with /tms-v2 via
- * @/lib/domain/maintenance (see that file's header) — this file only adds
- * what's specific to /admin: the demo-mode gate and revalidating /admin's
- * own paths. createReceiptUploadUrl, attachRelated, and detachRelated are
- * NOT part of that extraction and stay here unchanged; /tms-v2 doesn't call
- * them. RECEIPT_BUCKET/RECEIPT_MIME/RECEIPT_MAX_BYTES are imported from the
- * shared module since createReceiptUploadUrl below also needs the identical
- * bucket name and validation limits.
+ * The parsing/persistence/reminder logic — including createReceiptUploadUrl
+ * — is shared with /tms-v2 via @/lib/domain/maintenance (see that file's
+ * header) — this file only adds what's specific to /admin: the demo-mode
+ * gate and revalidating /admin's own paths. attachRelated and detachRelated
+ * are NOT part of that extraction and stay here unchanged; /tms-v2 doesn't
+ * call them.
  *
  * Service-role client (admin-only, behind the authed shell). Actions throw on
  * failure so the modal surfaces the error inline. Receipts follow the SAME
  * signed-upload flow as before (private `maintenance-receipts` bucket).
  */
 
-function sanitizeFilename(name: string): string {
-  const trimmed = name.trim().slice(0, 80);
-  return (
-    trimmed
-      .replace(/[^A-Za-z0-9._-]+/g, "-")
-      .replace(/-+/g, "-")
-      .replace(/^-+|-+$/g, "") || "upload"
-  );
-}
-
-export type CreateUploadUrlResult =
-  | { ok: true; bucket: string; path: string; token: string }
-  | { ok: false; reason: string };
-
 /**
  * Mint a signed upload URL so the CLIENT uploads a receipt's bytes directly to
  * the private maintenance-receipts bucket (bypassing the Server Action body
- * limit). Unchanged from the previous flow.
+ * limit). Core logic lives in @/lib/domain/maintenance.ts, shared with
+ * /tms-v2's wrapper (src/actions/tms-v2/maintenance.ts).
  */
 export async function createReceiptUploadUrl(
   fileName: string,
@@ -63,40 +47,7 @@ export async function createReceiptUploadUrl(
   if (await blockedByDemo()) {
     return { ok: false, reason: "Demo mode — receipt uploads are disabled." };
   }
-  try {
-    if (!RECEIPT_MIME.has(mimeType)) {
-      return {
-        ok: false,
-        reason: `Unsupported file "${fileName}" (${mimeType || "unknown"}). Use JPG, PNG, HEIC, WEBP, or PDF.`,
-      };
-    }
-    if (sizeBytes > RECEIPT_MAX_BYTES) {
-      return {
-        ok: false,
-        reason: `"${fileName}" is too large (${Math.round(sizeBytes / 1024 / 1024)} MB). Max 20 MB.`,
-      };
-    }
-    const group = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
-    const prefix = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
-    const path = `maintenance/uploads/${group}/${prefix}-${sanitizeFilename(fileName)}`;
-    const sb = createServiceRoleClient();
-    const { data, error } = await sb.storage
-      .from(RECEIPT_BUCKET)
-      .createSignedUploadUrl(path);
-    if (error || !data) {
-      return {
-        ok: false,
-        reason: `Could not start upload: ${error?.message ?? "unknown error"}`,
-      };
-    }
-    return { ok: true, bucket: RECEIPT_BUCKET, path: data.path, token: data.token };
-  } catch (e) {
-    console.error("[createReceiptUploadUrl] failed:", e);
-    return {
-      ok: false,
-      reason: `Could not start upload: ${e instanceof Error ? e.message : "unexpected error"}`,
-    };
-  }
+  return createReceiptUploadUrlShared(fileName, mimeType, sizeBytes);
 }
 
 // ---------------------------------------------------------------------------
