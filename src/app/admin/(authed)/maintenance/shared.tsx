@@ -12,7 +12,7 @@ import {
   type Freshness,
   type MaintStatus,
 } from "@/lib/dispatch/repair-log";
-import type { RepairEntry, ReminderView } from "./types";
+import type { RepairEntry, ReminderView } from "@/lib/dispatch/maintenance-view-types";
 
 /**
  * Shared, presentational building blocks for the maintenance surfaces (home,

@@ -195,8 +195,17 @@ async function adminSessionGate(request: NextRequest, pathname: string) {
   } = await supabase.auth.getUser();
 
   if (!user || !user.email) {
+    // Preserve where the visitor was headed so LoginForm.tsx can send them
+    // back there after a successful sign-in, instead of always landing on
+    // /admin regardless of whether this was an /admin or /tms-v2 visitor —
+    // there is no other way to tell which app a given login belongs to,
+    // since both share the one login screen.
     const redirectUrl = request.nextUrl.clone();
     redirectUrl.pathname = "/login";
+    redirectUrl.search = "";
+    if (pathname && pathname !== "/login") {
+      redirectUrl.searchParams.set("next", pathname);
+    }
     return NextResponse.redirect(redirectUrl);
   }
 

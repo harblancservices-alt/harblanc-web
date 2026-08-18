@@ -4,15 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BROKER_AVATAR, brokerInitial, usd } from "./_util";
-
-export type BrokerListItem = {
-  id: string;
-  name: string;
-  status: string;
-  mc: string | null;
-  loads: number;
-  gross: number;
-};
+import type { BrokerListItem } from "@/lib/dispatch/view-types";
 
 type SortKey = "name" | "gross" | "loads";
 

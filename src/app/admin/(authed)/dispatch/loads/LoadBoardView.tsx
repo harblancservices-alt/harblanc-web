@@ -10,6 +10,7 @@ import { OverviewSection } from "./board/OverviewSection";
 import { LoadCard } from "./board/LoadCard";
 import { BADGE, badgeOf, marginPct, ratePerMile } from "./board/shared";
 import { SearchIcon, TruckIcon } from "./board/icons";
+import type { LoadBoardData } from "@/lib/dispatch/view-types";
 
 /**
  * Dispatch → Load Board.
@@ -25,59 +26,6 @@ import { SearchIcon, TruckIcon } from "./board/icons";
  * stateful: the month slice, the search text, the status filter, delete mode,
  * and the CSV export of what's currently on screen.
  */
-
-export type LoadRow = {
-  id: string;
-  loadNumber: string;
-  broker: string;
-  /** Broker profile id, when the load is linked to one — drives Call Broker. */
-  brokerId: string | null;
-  equipment: string;
-  origin: string;
-  destination: string;
-  pickup: string;
-  delivery: string;
-  trip: string;
-  rate: number;
-  net: number;
-  loadedMiles: number | null;
-  dhMiles: number;
-  /**
-   * Calendar month 0–11 the load is attributed to, by pickup date (falling
-   * back to delivery_date then created_at) — no shift, matching the Calendar
-   * and Performance page exactly. Drives the month dropdown.
-   */
-  month: number;
-  status: string;
-  paymentStatus: string;
-};
-
-export type LoadBoardData = {
-  rows: ReadonlyArray<LoadRow>;
-  brokerNames: ReadonlyArray<string>;
-  activeTrips: ReadonlyArray<string>;
-  /**
-   * Current calendar month (0–11) in the business timezone (America/Chicago) —
-   * the month the dropdown defaults to when the board opens.
-   */
-  currentMonth: number;
-  /**
-   * ALL-TIME accounts receivable: the total RATE owed across every
-   * delivered-but-unpaid load, regardless of month. Deliberately NOT
-   * month-scoped — the A/R card shows the same number on every month view.
-   */
-  arTotal: number;
-  /** Editable goal-bar targets (Settings → Net profit goals). */
-  monthlyGoal: number;
-  annualGoal: number;
-  /**
-   * Calendar context for the performance card's pace figures, resolved on the
-   * server in America/Chicago so the client can't compute a different "today"
-   * during hydration. `daysLeftInMonth` includes today.
-   */
-  daysLeftInMonth: number;
-  daysInMonth: number;
-};
 
 const MONTHS = [
   "January",

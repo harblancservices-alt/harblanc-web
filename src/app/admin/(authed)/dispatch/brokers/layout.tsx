@@ -2,7 +2,8 @@ import { createServiceRoleClient } from "@/lib/supabase/server";
 import { isDemoMode } from "@/lib/admin/demo";
 import { demoBrokerList } from "@/lib/demo/demoData";
 import { Button } from "@/components/ui/Button";
-import { BrokerListSidebar, type BrokerListItem } from "./BrokerListSidebar";
+import { BrokerListSidebar } from "./BrokerListSidebar";
+import type { BrokerListItem } from "@/lib/dispatch/view-types";
 
 /**
  * Dispatch → Brokers master-detail shell.

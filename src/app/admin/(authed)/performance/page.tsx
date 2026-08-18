@@ -14,7 +14,8 @@ import {
   currentBusinessDate,
 } from "@/lib/dispatch/goal-month";
 import type { PerfLoad } from "@/lib/dispatch/performance";
-import { PerformanceView, type PerformanceData } from "./PerformanceView";
+import { PerformanceView } from "./PerformanceView";
+import type { PerformanceData } from "@/lib/dispatch/view-types";
 
 export const metadata: Metadata = {
   title: "Performance",

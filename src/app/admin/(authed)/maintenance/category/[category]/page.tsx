@@ -15,7 +15,7 @@ import {
   type Position,
 } from "@/lib/dispatch/repair-log";
 import { CategoryView } from "./CategoryView";
-import type { CategorySet, RepairEntry, ReminderView, SetSlot } from "../../types";
+import type { CategorySet, RepairEntry, ReminderView, SetSlot } from "@/lib/dispatch/maintenance-view-types";
 
 export const metadata: Metadata = {
   title: "Category",

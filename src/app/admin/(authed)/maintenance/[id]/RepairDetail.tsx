@@ -21,7 +21,7 @@ import type {
   RelatedView,
   RepairEntryFull,
   ServiceFull,
-} from "../types";
+} from "@/lib/dispatch/maintenance-view-types";
 
 export function RepairDetail({
   entry,

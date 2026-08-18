@@ -14,7 +14,7 @@ import {
   type Position,
 } from "@/lib/dispatch/repair-log";
 import { SetView } from "./SetView";
-import type { SetSlot } from "../../types";
+import type { SetSlot } from "@/lib/dispatch/maintenance-view-types";
 
 export const metadata: Metadata = {
   title: "Set",

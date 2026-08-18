@@ -21,7 +21,7 @@ import type {
   PreventativeSummary,
   RepairEntry,
   ReminderView,
-} from "./types";
+} from "@/lib/dispatch/maintenance-view-types";
 
 export function MaintenanceHome({
   currentOdo,

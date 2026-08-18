@@ -9,7 +9,8 @@ import {
   FUEL_DEFAULTS,
   type FuelSettings,
 } from "@/lib/dispatch/fuel";
-import { BrokerDetail, type BrokerDetailData } from "./BrokerDetail";
+import { BrokerDetail } from "./BrokerDetail";
+import type { BrokerDetailData } from "@/lib/dispatch/view-types";
 
 export const metadata: Metadata = {
   title: "Broker",

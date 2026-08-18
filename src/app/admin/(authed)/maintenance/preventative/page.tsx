@@ -15,7 +15,7 @@ import type {
   PreventativeGroup,
   RepairEntry,
   ReminderView,
-} from "../types";
+} from "@/lib/dispatch/maintenance-view-types";
 
 export const metadata: Metadata = {
   title: "Preventative",

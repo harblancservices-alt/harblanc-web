@@ -12,7 +12,7 @@ import {
   SectionLabel,
 } from "../../shared";
 import { formatDate, type Category } from "@/lib/dispatch/repair-log";
-import type { CategorySet, RepairEntry, ReminderView, SetSlot } from "../../types";
+import type { CategorySet, RepairEntry, ReminderView, SetSlot } from "@/lib/dispatch/maintenance-view-types";
 
 export function CategoryView({
   category,

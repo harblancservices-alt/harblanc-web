@@ -17,7 +17,7 @@ import {
   isCategory,
   type Category,
 } from "@/lib/dispatch/repair-log";
-import type { ReceiptView, ServiceFull } from "./types";
+import type { ReceiptView, ServiceFull } from "@/lib/dispatch/maintenance-view-types";
 
 /** Pre-fill for a fresh service opened from a reminder / category / set. */
 export type ServicePreset = {

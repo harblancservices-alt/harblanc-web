@@ -5,9 +5,8 @@ import { demoReceivables } from "@/lib/demo/demoData";
 import { daysOutstanding } from "@/lib/dispatch/alerts";
 import {
   ReceivablesView,
-  type PaidItem,
-  type ReceivableItem,
 } from "./ReceivablesView";
+import type { PaidItem, ReceivableItem } from "@/lib/dispatch/view-types";
 
 export const metadata: Metadata = {
   title: "Accounts Receivable",

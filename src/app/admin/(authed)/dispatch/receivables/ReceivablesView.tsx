@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/Button";
 import { markLoadPaid, markLoadUnpaid } from "../loads/actions";
+import type { ReceivableItem, PaidItem } from "@/lib/dispatch/view-types";
 
 /**
  * Accounts Receivable — the presentation layer.
@@ -32,29 +33,6 @@ import { markLoadPaid, markLoadUnpaid } from "../loads/actions";
  * ok/warn for green/orange.
  */
 
-export type ReceivableItem = {
-  id: string;
-  loadNumber: string | null;
-  brokerId: string | null;
-  brokerName: string | null;
-  origin: string | null;
-  destination: string | null;
-  /** Preformatted on the server so the list can't drift by timezone. */
-  deliveredLabel: string;
-  /** The load's rate — what was invoiced, and (no partial payments exist in
-      the schema) equally what is still owed. */
-  rate: number;
-  /** Whole days from delivery to today, computed server-side against one
-      `now` so every card agrees and nothing rehydrates differently. */
-  days: number | null;
-};
-
-export type PaidItem = {
-  id: string;
-  loadNumber: string | null;
-  brokerName: string | null;
-  rate: number;
-};
 
 /* ── Aging bands ──────────────────────────────────────────────────────────
    Four buckets, per the A/R convention: 0–30 is money in flight, 31–60 needs a

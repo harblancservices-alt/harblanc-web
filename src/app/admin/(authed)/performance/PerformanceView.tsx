@@ -9,8 +9,8 @@ import type {
   MonthDeltas,
   Takeaway,
   TakeawayTone,
-  PerfLoad,
 } from "@/lib/dispatch/performance";
+import type { PerformanceData } from "@/lib/dispatch/view-types";
 import {
   monthlyBuckets,
   brokerStats,
@@ -70,16 +70,6 @@ import { BrokerTable, LaneTable, LedgerTable } from "./Tables";
  * its TONU fee instead of a rate. See performance/page.tsx for the exact
  * per-status costing.
  */
-
-export type PerformanceData = {
-  /** Every non-deleted load, pre-costed and pre-attributed by the server. */
-  loads: PerfLoad[];
-  monthlyGoal: number;
-  /** Owed on delivered-but-unpaid loads (rate) and unpaid TONU loads (fee), all-time. */
-  arTotal: number;
-  /** "YYYY-MM-DD", business timezone (America/Chicago) — the server's "now". */
-  today: string;
-};
 
 const MONTH_WINDOW = 12;
 

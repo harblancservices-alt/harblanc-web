@@ -54,14 +54,38 @@ function friendlyAuthError(err: {
   return err.message || "Could not sign in. Try again.";
 }
 
+/**
+ * Sanitise the `next` redirect target the same way /auth/callback does:
+ * only a same-origin path starting with `/` (never `//`, which browsers
+ * treat as protocol-relative) is trusted. Anything else falls back to the
+ * default landing page, so a crafted `?next=` query can never send a
+ * successful login somewhere off-site.
+ */
+function sanitizeNext(next: string | null | undefined): string | null {
+  if (!next) return null;
+  return next.startsWith("/") && !next.startsWith("//") ? next : null;
+}
+
 export function LoginForm({
   initialError,
   initialNotice,
+  next,
 }: {
   initialError: string | null;
   initialNotice?: string | null;
+  /**
+   * Where to land after a successful sign-in — set by middleware.ts when
+   * it bounces an unauthenticated visitor here from a protected route
+   * (e.g. /tms-v2/loads), so a tms-v2 visitor lands back in tms-v2 and an
+   * admin visitor lands back in admin, without this form having to guess
+   * which app a given login belongs to. Falls back to /admin (today's
+   * existing default landing page) when absent — e.g. someone navigating
+   * to /login directly rather than being redirected here.
+   */
+  next?: string | null;
 }) {
   const router = useRouter();
+  const destination = sanitizeNext(next) ?? "/admin";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -185,9 +209,9 @@ export function LoginForm({
     clearFailures();
     applySessionPersistence(remember);
 
-    // Push to /admin and force a server-side re-fetch so middleware sees
-    // the freshly-written cookie.
-    router.replace("/admin");
+    // Push to the intended destination and force a server-side re-fetch so
+    // middleware sees the freshly-written cookie.
+    router.replace(destination);
     router.refresh();
   }
 

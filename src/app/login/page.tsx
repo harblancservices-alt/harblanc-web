@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; notice?: string }>;
+  searchParams: Promise<{ error?: string; notice?: string; next?: string }>;
 }) {
   const params = await searchParams;
   return (
@@ -31,6 +31,7 @@ export default async function LoginPage({
         <LoginForm
           initialError={params.error ?? null}
           initialNotice={params.notice ?? null}
+          next={params.next ?? null}
         />
       </div>
     </div>

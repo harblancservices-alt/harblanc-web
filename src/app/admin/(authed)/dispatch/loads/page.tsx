@@ -3,7 +3,8 @@ import { createServiceRoleClient } from "@/lib/supabase/server";
 import { isDemoMode } from "@/lib/admin/demo";
 import { demoLoadBoard } from "@/lib/demo/demoData";
 import { fetchOpenTripNames } from "@/lib/dispatch/active-trips";
-import { LoadBoardView, type LoadBoardData } from "./LoadBoardView";
+import { LoadBoardView } from "./LoadBoardView";
+import type { LoadBoardData } from "@/lib/dispatch/view-types";
 import {
   loadDiesel,
   loadNet,

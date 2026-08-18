@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { LoadRow } from "../LoadBoardView";
+import type { LoadRow } from "@/lib/dispatch/view-types";
 import { BADGE, STAGES, badgeOf, initials, stageOf } from "./shared";
 import {
   BoxIcon,

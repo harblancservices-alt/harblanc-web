@@ -5,14 +5,15 @@ import { AddLoadButton } from "./dispatch/loads/AddLoadButton";
 import { FarmBrokerContactCard } from "./FarmBrokerContactCard";
 import { ActiveLoadDocButton } from "./ActiveLoadDocActions";
 import { OdometerStatusCard } from "./dispatch/loads/[id]/OdometerStatusCard";
-import type { PipelineCard } from "@/lib/dispatch/pipeline";
 import type { MaintStatus } from "@/lib/dispatch/maintenance";
-import type { CountdownGoal, NetPace } from "@/lib/dispatch/countdown";
 import { IntervalBar } from "./maintenance/IntervalBar";
 import { CountdownCards } from "./CountdownCards";
 import { AlertsPanel } from "./AlertsPanel";
 import { DashboardSearchBar } from "./_shell/GlobalSearch";
-import type { AlertGroup } from "@/lib/dispatch/alerts";
+import type {
+  MaintWidgetItem,
+  DashboardData,
+} from "@/lib/dispatch/view-types";
 
 /**
  * Owner Dashboard — opportunity inbox (render layer).
@@ -24,28 +25,6 @@ import type { AlertGroup } from "@/lib/dispatch/alerts";
  * Under it, in place of a page title, the global-search bar. Below that:
  * active loads, the truck-maintenance widget, and the expired-quotes table.
  */
-
-export type MaintWidgetItem = {
-  id: string;
-  name: string;
-  status: MaintStatus;
-  milesRemaining: number | null;
-  pct: number;
-  neverServiced: boolean;
-};
-
-export type DashboardData = {
-  expiredQuotes: ReadonlyArray<PipelineCard>;
-  activeLoads: ReadonlyArray<ActiveLoadItem>;
-  maintenance: ReadonlyArray<MaintWidgetItem>;
-  brokerNames: ReadonlyArray<string>;
-  activeTrips: ReadonlyArray<string>;
-  countdownGoals: ReadonlyArray<CountdownGoal>;
-  netPace: NetPace;
-  /** Grouped "Needs attention" alerts. Empty groups are filtered by the panel. */
-  alertGroups: ReadonlyArray<AlertGroup>;
-  currentCash: number;
-};
 
 const MAINT_TONE: Record<MaintStatus, StatusTone> = {
   overdue: "red",
@@ -75,20 +54,6 @@ function maintRemaining(m: MaintWidgetItem): { text: string; color: string } {
     color: m.status === "soon" ? "text-warn" : "text-ok",
   };
 }
-
-export type ActiveLoadItem = {
-  id: string;
-  broker: string;
-  lane: string;
-  status: string;
-  rateDisplay: string;
-  rateConCount: number;
-  bolCount: number;
-  podCount: number;
-  odoAssigned: number | null;
-  odoLoaded: number | null;
-  odoDelivered: number | null;
-};
 
 const LOAD_STATUS_TONE: Record<string, StatusTone> = {
   pending: "amber",

@@ -1,4 +1,4 @@
-import type { LoadRow } from "../LoadBoardView";
+import type { LoadRow } from "@/lib/dispatch/view-types";
 
 /**
  * Shared derivations and formatting for the Load Board's presentation layer.

@@ -12,7 +12,7 @@ import {
   isPosition,
   type Category,
 } from "@/lib/dispatch/repair-log";
-import type { SetSlot } from "../../types";
+import type { SetSlot } from "@/lib/dispatch/maintenance-view-types";
 
 export function SetView({
   label,

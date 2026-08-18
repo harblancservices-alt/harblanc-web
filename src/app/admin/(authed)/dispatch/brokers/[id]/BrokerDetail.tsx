@@ -13,6 +13,7 @@ import {
   deleteBrokerContact,
 } from "../actions";
 import { markLoadPaid } from "../../loads/actions";
+import type { BrokerContact, BrokerDetailData, Lane } from "@/lib/dispatch/view-types";
 
 // Status pill styling for the broker's load-history cards, matching the
 // dashboard's Active loads pills.
@@ -29,79 +30,6 @@ const HISTORY_STATUS_LABEL: Record<string, string> = {
   loaded: "Loaded",
   delivered: "Delivered",
   tonu: "Cancelled / TONU",
-};
-
-type Phone = { number: string; ext: string | null; label: string | null };
-type Email = { address: string; label: string | null };
-export type BrokerContact = {
-  id: string;
-  name: string | null;
-  title: string | null;
-  phones: Phone[];
-  emails: Email[];
-  is_backhaul: boolean;
-};
-
-export type Lane = {
-  lane: string;
-  origin: string;
-  destination: string;
-  count: number;
-  gross: number;
-  avgRate: number;
-  miles: number;
-  avgRpm: number;
-  lastDate: string;
-};
-
-export type BrokerDetailData = {
-  broker: {
-    id: string;
-    name: string;
-    status: string;
-    mc: string | null;
-    dot: string | null;
-    type: string | null;
-    phone: string | null;
-    email: string | null;
-    office: string | null;
-    timezone: string | null;
-    authority: string | null;
-    insurance: string | null;
-    w9: string | null;
-    ten99: string | null;
-    notes: string | null;
-    factoring: boolean;
-  };
-  kpis: { loads: number; gross: number; net: number; ar: number };
-  summary: {
-    totalLoads: number;
-    delivered: number;
-    active: number;
-    cancelled: number;
-    gross: number;
-    avgRate: number;
-    avgMiles: number;
-  };
-  receivables: { gross: number; collected: number; ar: number; net: number };
-  aging: {
-    b1: number; c1: number; b2: number; c2: number;
-    b3: number; c3: number; b4: number; c4: number;
-  };
-  contacts: BrokerContact[];
-  loads: {
-    id: string;
-    lane: string;
-    equipment: string;
-    date: string;
-    rate: number;
-    net: number;
-    status: string;
-    paymentStatus: string;
-    ageDays: number | null;
-    unpaid: boolean;
-  }[];
-  lanes: Lane[];
 };
 
 type Tab = "overview" | "contacts" | "documents" | "history";

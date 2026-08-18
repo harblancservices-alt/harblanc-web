@@ -47,26 +47,20 @@ import type {
   DashboardData,
   ActiveLoadItem,
   MaintWidgetItem,
-} from "@/app/admin/(authed)/DashboardView";
-import type {
   LoadBoardData,
   LoadRow,
-} from "@/app/admin/(authed)/dispatch/loads/LoadBoardView";
-import type { PerformanceData } from "@/app/admin/(authed)/performance/PerformanceView";
-import type {
+  PerformanceData,
   ReceivableItem,
   PaidItem,
-} from "@/app/admin/(authed)/dispatch/receivables/ReceivablesView";
-import type {
   BrokerDetailData,
-} from "@/app/admin/(authed)/dispatch/brokers/[id]/BrokerDetail";
-import type { BrokerListItem } from "@/app/admin/(authed)/dispatch/brokers/BrokerListSidebar";
+  BrokerListItem,
+} from "@/lib/dispatch/view-types";
 import type {
   CategoryCard,
   PreventativeSummary,
   ReminderView,
   RepairEntry,
-} from "@/app/admin/(authed)/maintenance/types";
+} from "@/lib/dispatch/maintenance-view-types";
 
 // ---------------------------------------------------------------------------
 // Fuel / business settings the demo runs its money math on.

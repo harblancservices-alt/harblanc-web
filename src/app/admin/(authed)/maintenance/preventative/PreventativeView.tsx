@@ -10,7 +10,7 @@ import {
   ReminderCard,
   RepairRow,
 } from "../shared";
-import type { PreventativeGroup } from "../types";
+import type { PreventativeGroup } from "@/lib/dispatch/maintenance-view-types";
 
 /**
  * Preventative lens — the green "stay-ahead" view. Every preventative item

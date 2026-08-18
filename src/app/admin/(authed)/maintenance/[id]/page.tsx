@@ -15,7 +15,7 @@ import type {
   RepairEntryFull,
   ServiceFull,
   ServiceFormPart,
-} from "../types";
+} from "@/lib/dispatch/maintenance-view-types";
 
 export const metadata: Metadata = {
   title: "Repair",

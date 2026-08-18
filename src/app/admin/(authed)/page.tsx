@@ -31,7 +31,8 @@ import {
   type IncompleteGap,
 } from "@/lib/dispatch/alerts";
 import { isFrequency, FREQUENCY_LABEL } from "./expenses/types";
-import { DashboardView, type DashboardData } from "./DashboardView";
+import { DashboardView } from "./DashboardView";
+import type { DashboardData } from "@/lib/dispatch/view-types";
 
 // The two reminders surfaced on the dashboard's quick maintenance WIDGET
 // (matched by their repair_reminders label, carried over from the old item
