@@ -158,6 +158,7 @@ export async function uploadIntakeDocument(
 
   revalidatePath(`/quote/accept/${token}`);
   revalidatePath(`/admin/quotes/${lead.id}`);
+  revalidatePath(`/tms-v2/operations/${lead.id}`);
 
   return { ok: true, uploadId: inserted.id };
 }
@@ -221,5 +222,6 @@ export async function deleteIntakeUpload(
 
   revalidatePath(`/quote/accept/${token}`);
   revalidatePath(`/admin/quotes/${lead.id}`);
+  revalidatePath(`/tms-v2/operations/${lead.id}`);
   return { ok: true };
 }

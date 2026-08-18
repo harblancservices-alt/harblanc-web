@@ -149,6 +149,7 @@ export async function uploadQuickQuoteDocument(
   });
 
   revalidatePath(`/admin/quotes/${lead.id}`);
+  revalidatePath(`/tms-v2/operations/${lead.id}`);
 
   return { ok: true, uploadId: inserted.id };
 }

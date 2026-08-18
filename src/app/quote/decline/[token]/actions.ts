@@ -55,6 +55,8 @@ export async function declineEstimate(
 
   revalidatePath(`/admin/quotes/${lead.id}`);
   revalidatePath("/admin/quotes");
+  revalidatePath(`/tms-v2/operations/${lead.id}`);
+  revalidatePath("/tms-v2/operations");
   revalidatePath(`/quote/decline/${token}`);
   return { ok: true };
 }

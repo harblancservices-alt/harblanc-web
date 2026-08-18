@@ -15,7 +15,9 @@ export const runtime = "nodejs";
  *      cookies). The same exchange works in dev (localhost) and prod
  *      because it's keyed off the request origin.
  *   3. Redirect the user to `next` (sanitised so it must start with `/`
- *      and can't be a protocol-relative URL).
+ *      and can't be a protocol-relative URL); absent a `next`, land on
+ *      tms-v2's dashboard rather than admin's, since this route has no way
+ *      to tell which app triggered the auth flow.
  *
  * If anything fails, bounce to /login with an error param.
  *
@@ -27,11 +29,11 @@ export const runtime = "nodejs";
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
-  const rawNext = url.searchParams.get("next") ?? "/admin";
+  const rawNext = url.searchParams.get("next") ?? "/tms-v2";
 
   // Sanitise next: must be a same-origin path, not //evil.com
   const next =
-    rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/admin";
+    rawNext.startsWith("/") && !rawNext.startsWith("//") ? rawNext : "/tms-v2";
 
   if (code) {
     const supabase = await createServerComponentClient();

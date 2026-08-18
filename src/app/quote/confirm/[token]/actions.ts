@@ -79,12 +79,16 @@ export async function confirmFinalizedQuote(
     },
   );
 
-  // Revalidate admin paths so the workspace sent-history view picks up
-  // the new confirmed state on the operator's next nav. The customer
-  // route revalidates so the same token URL renders the success state.
+  // Revalidate both admin's and tms-v2's workspace views so either
+  // operator picks up the new confirmed state on their next nav. The
+  // customer route revalidates so the same token URL renders the success
+  // state.
   revalidatePath(`/admin/quotes/${lead.id}`);
   revalidatePath("/admin/quotes");
   revalidatePath("/admin");
+  revalidatePath(`/tms-v2/operations/${lead.id}`);
+  revalidatePath("/tms-v2/operations");
+  revalidatePath("/tms-v2");
   revalidatePath(`/quote/confirm/${token}`);
 
   return { ok: true, alreadyConfirmed: false };

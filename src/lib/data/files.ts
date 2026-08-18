@@ -1,5 +1,5 @@
 import { createServiceRoleClient } from "@/lib/supabase/server";
-import { loadAllFiles, type FileCategory, type FileItem } from "@/lib/admin/files";
+import { loadAllFiles, type FileCategory, type FileItem, type FileSource } from "@/lib/admin/files";
 
 export type { FileItem, FileSource, FileCategory } from "@/lib/admin/files";
 
@@ -23,6 +23,27 @@ export type ListFilesOptions = {
 export type FileCategoryCounts = Partial<Record<FileCategory, number>>;
 
 export type FilesPage = { rows: FileRow[]; totalCount: number; counts: FileCategoryCounts };
+
+/**
+ * `FileItem.parentHref` is admin's own canonical "open record" link
+ * (`/admin/dispatch/loads/…`, `/admin/maintenance/…`, `/admin/quotes/…`) —
+ * correct for admin's Files page, but tms-v2 has its own routes for the
+ * same records. Rewrite by source rather than admin-deleting the field, so
+ * tms-v2's Files page / search / command palette never send a user into
+ * /admin.
+ */
+const WORKSPACE_PARENT_PREFIX: Record<FileSource, [admin: string, tmsV2: string]> = {
+  load: ["/admin/dispatch/loads/", "/tms-v2/loads/"],
+  receipt: ["/admin/maintenance", "/tms-v2/maintenance"],
+  intake: ["/admin/quotes/", "/tms-v2/operations/"],
+};
+
+export function toWorkspaceHref(item: Pick<FileItem, "source" | "parentHref">): string {
+  const [adminPrefix, tmsV2Prefix] = WORKSPACE_PARENT_PREFIX[item.source];
+  return item.parentHref.startsWith(adminPrefix)
+    ? tmsV2Prefix + item.parentHref.slice(adminPrefix.length)
+    : item.parentHref;
+}
 
 /**
  * Searchable view over /admin's existing canonical file aggregation
@@ -84,6 +105,7 @@ async function signAll(items: FileItem[]): Promise<FileRow[]> {
 
   return items.map((item) => ({
     ...item,
+    parentHref: toWorkspaceHref(item),
     url: urlByKey.get(`${item.bucket}:${item.storagePath}`) ?? null,
     thumbUrl: item.thumbPath
       ? (urlByKey.get(`${item.bucket}:${item.thumbPath}`) ?? null)

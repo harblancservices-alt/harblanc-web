@@ -269,6 +269,9 @@ async function persistIntake(
   revalidatePath(`/admin/quotes/${lead.id}`);
   revalidatePath("/admin/quotes");
   revalidatePath("/admin");
+  revalidatePath(`/tms-v2/operations/${lead.id}`);
+  revalidatePath("/tms-v2/operations");
+  revalidatePath("/tms-v2");
   revalidatePath(`/quote/accept/${token}`);
   return { ok: true, status };
 }

@@ -13,6 +13,7 @@
 
 import { createServiceRoleClient } from "@/lib/supabase/server";
 import { loadAllFiles } from "@/lib/admin/files";
+import { toWorkspaceHref } from "@/lib/data/files";
 
 export type SearchHit = { id: string; label: string; sublabel: string; href: string };
 export type SearchResults = { loads: SearchHit[]; brokers: SearchHit[]; files: SearchHit[] };
@@ -60,7 +61,7 @@ export async function searchWorkspace(query: string): Promise<SearchResults> {
   const fileHits = allFiles
     .filter((f) => f.searchText.includes(needle))
     .slice(0, RESULT_LIMIT)
-    .map((f) => ({ id: f.id, label: f.name, sublabel: `${f.typeLabel} · ${f.subtitle}`, href: f.parentHref }));
+    .map((f) => ({ id: f.id, label: f.name, sublabel: `${f.typeLabel} · ${f.subtitle}`, href: toWorkspaceHref(f) }));
 
   return {
     loads: (loadRows ?? []).map((l) => ({
