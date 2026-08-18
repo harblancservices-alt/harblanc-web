@@ -25,7 +25,8 @@ import { field } from "@/components/ui/styles";
  *   4. Business defaults   — fuel costing + net profit goals.
  *   5. Email               — the signed-in dispatch account.
  *   6. Advanced            — env diagnostics, collapsed by default.
- *   7. Sign out            — POST to /admin/logout (unchanged route).
+ *   7. Sign out            — POST to /logout (neutral shared route, moved
+ *                            out of /admin in the auth carve-out).
  */
 export const metadata: Metadata = {
   title: "Settings",
@@ -322,7 +323,7 @@ export default async function SettingsPage() {
       </div>
 
       {/* 7 — Sign out */}
-      <form action="/admin/logout" method="post" className="mt-6">
+      <form action="/logout" method="post" className="mt-6">
         <Button
           type="submit"
           variant="navigate"

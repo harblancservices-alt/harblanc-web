@@ -9,9 +9,11 @@ export type AdminUser = {
 
 /**
  * Server-side gate for admin routes. Call at the top of any server component
- * or route handler under /admin/** (except /admin/login). Returns the
- * authenticated admin user OR throws a redirect to the login screen — the
- * caller never needs to branch on the result.
+ * or route handler under /admin/**. Returns the authenticated admin user OR
+ * throws a redirect to the login screen — the caller never needs to branch
+ * on the result. The login screen itself lives at the neutral /login route
+ * (src/app/login/**, outside src/app/admin/** — shared-authentication
+ * carve-out), not under /admin.
  *
  * Two-layer auth:
  *   1. Supabase Auth session must exist (cookies must be valid).
@@ -27,13 +29,13 @@ export async function requireAdmin(): Promise<AdminUser> {
   } = await supabase.auth.getUser();
 
   if (!user || !user.email) {
-    redirect("/admin/login");
+    redirect("/login");
   }
 
   const adminEmail = process.env.ADMIN_EMAIL;
   if (!adminEmail || user.email !== adminEmail) {
     await supabase.auth.signOut();
-    redirect("/admin/login?error=not_authorized");
+    redirect("/login?error=not_authorized");
   }
 
   return { id: user.id, email: user.email };
@@ -56,7 +58,7 @@ export async function adminFromMiddleware(): Promise<AdminUser> {
   const id = h.get("x-admin-user-id");
   const email = h.get("x-admin-user-email");
   if (!id || !email) {
-    redirect("/admin/login");
+    redirect("/login");
   }
   return { id, email };
 }

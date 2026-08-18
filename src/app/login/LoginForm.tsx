@@ -224,7 +224,7 @@ export function LoginForm({
               Password
             </label>
             <Link
-              href="/admin/reset-password"
+              href="/reset-password"
               className="text-[11.5px] text-[#8790A0] transition-colors hover:text-[#EDEFF2]"
             >
               Forgot?

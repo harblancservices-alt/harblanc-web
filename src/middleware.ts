@@ -2,21 +2,38 @@ import { type NextRequest, NextResponse } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 
 /**
- * Auth middleware for /admin/** routes.
+ * Auth middleware for /admin/**, /tms-v2/**, and the shared neutral auth
+ * routes.
  *
- *   /admin/login                  → publicly reachable (sign-in screen)
- *   /admin/reset-password         → publicly reachable (request reset email)
- *   /admin/**  (everything else)  → requires a Supabase Auth session whose
- *                                   email matches ADMIN_EMAIL
+ *   /login             → publicly reachable (sign-in screen)
+ *   /reset-password    → publicly reachable (request reset email)
+ *   /logout            → requires a session (same as before the carve-out)
+ *   /update-password   → requires a session (the Supabase recovery session
+ *                        created by /auth/callback after a reset-link click)
+ *   /admin/**, /tms-v2/** (everything else) → requires a Supabase Auth
+ *                        session whose email matches ADMIN_EMAIL
  *
- *   /auth/callback                → handled OUTSIDE this middleware via the
- *                                   matcher below. Listed in PUBLIC_PATH_PREFIXES
- *                                   as defense-in-depth: if the matcher is ever
- *                                   widened, the explicit bypass prevents the
- *                                   PKCE code exchange from being intercepted by
- *                                   the auth gate (which would cause a redirect
- *                                   loop because the callback IS the thing that
- *                                   sets the session in the first place).
+ *   /auth/callback      → handled OUTSIDE this middleware via the matcher
+ *                        below. Listed in PUBLIC_PATH_PREFIXES as
+ *                        defense-in-depth: if the matcher is ever widened,
+ *                        the explicit bypass prevents the PKCE code exchange
+ *                        from being intercepted by the auth gate (which
+ *                        would cause a redirect loop because the callback IS
+ *                        the thing that sets the session in the first
+ *                        place).
+ *
+ * Retirement-readiness — shared authentication carve-out: /login, /logout,
+ * /reset-password, and /update-password used to live under
+ * src/app/admin/**, which was the last piece of REQUIRED auth
+ * functionality inside the admin app's route tree — deleting src/app/admin
+ * would have broken login for /tms-v2 too, since there is no /tms-v2/login
+ * and both apps share one Supabase session/allowlist. They now live at
+ * neutral top-level paths (src/app/{login,logout,reset-password,
+ * update-password}/**, outside src/app/admin/**), with a temporary
+ * compat redirect below for old /admin/{login,logout,reset-password,
+ * update-password} bookmarks — implemented here in middleware.ts (not as
+ * pages under src/app/admin/**) so the redirect itself also survives a
+ * complete deletion of src/app/admin/**.
  *
  * Also refreshes the Supabase session cookies on every matching request so
  * server components can rely on getUser(). Per @supabase/ssr docs, no code
@@ -24,27 +41,34 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
  * cookie refresh can land in a broken state.
  */
 
-// Exact admin paths (and their /sub-paths) that bypass the auth gate.
-// Centralised so future additions are a one-line edit and there's no risk
-// of an inline `if (pathname === ... || pathname.startsWith(...))` chain
-// drifting out of sync with the public-paths intent.
-const PUBLIC_ADMIN_PATHS = new Set<string>([
-  "/admin/login",
-  "/admin/reset-password",
-]);
+// Temporary compat redirects for the old /admin/* auth paths, so existing
+// bookmarks/links/saved-password-manager entries keep working after the
+// carve-out. Checked first, before any gating — an unauthenticated visitor
+// with an old /admin/login bookmark must reach /login, not get redirected
+// back to the now-nonexistent /admin/login by the gate below.
+const LEGACY_ADMIN_AUTH_REDIRECTS: Readonly<Record<string, string>> = {
+  "/admin/login": "/login",
+  "/admin/logout": "/logout",
+  "/admin/reset-password": "/reset-password",
+  "/admin/update-password": "/update-password",
+};
+
+// Exact neutral auth paths that bypass the session gate (sign-in screen,
+// request-reset-email screen). Centralised so future additions are a
+// one-line edit and there's no risk of an inline
+// `if (pathname === ... || pathname.startsWith(...))` chain drifting out of
+// sync with the public-paths intent.
+const PUBLIC_AUTH_PATHS = new Set<string>(["/login", "/reset-password"]);
 
 // Path prefixes that bypass the middleware entirely. Today the matcher
-// already excludes anything outside /admin/**, so this is defensive only —
-// if the matcher is ever broadened (e.g. to share session cookie refresh
-// across the whole site), the explicit list keeps these routes public.
+// already excludes anything outside the paths below, so this is defensive
+// only — if the matcher is ever broadened (e.g. to share session cookie
+// refresh across the whole site), the explicit list keeps these routes
+// public.
 const PUBLIC_PATH_PREFIXES: readonly string[] = ["/auth/callback"];
 
-function isPublicAdminPath(pathname: string): boolean {
-  if (PUBLIC_ADMIN_PATHS.has(pathname)) return true;
-  for (const p of PUBLIC_ADMIN_PATHS) {
-    if (pathname.startsWith(p + "/")) return true;
-  }
-  return false;
+function isPublicAuthPath(pathname: string): boolean {
+  return PUBLIC_AUTH_PATHS.has(pathname);
 }
 
 function isPublicPrefix(pathname: string): boolean {
@@ -118,25 +142,26 @@ async function crmGate(request: NextRequest, pathname: string) {
 }
 
 /**
- * Shared admin-session gate — the SAME gate for both /admin and /tms-v2.
+ * Shared admin-session gate — the SAME gate for /admin, /tms-v2, and the
+ * neutral auth routes (/logout, /update-password — /login and
+ * /reset-password bypass this gate entirely, see isPublicAuthPath).
  *
  * /tms-v2 is a clean-room app-layer rebuild that must sit behind the
  * identical login/session/cookie as /admin (see docs/portal/v2-architecture.md
  * §7): one Supabase Auth session, one ADMIN_EMAIL allowlist, one login
  * screen. There is no /tms-v2/login — an unauthenticated or non-admin
- * visitor is always bounced to /admin/login, exactly like /admin itself,
- * so a signed-in admin never sees a second login and an unauthenticated
- * visitor never finds a second door in.
+ * visitor is always bounced to /login, exactly like /admin itself, so a
+ * signed-in admin never sees a second login and an unauthenticated visitor
+ * never finds a second door in.
  *
  * This is a refactor of the pre-existing /admin gate logic (previously
  * inlined directly in middleware()), not new auth logic — extracted so
  * /tms-v2 reuses it by call, not by copy.
  */
 async function adminSessionGate(request: NextRequest, pathname: string) {
-  // Public admin sub-paths (login, reset-password) bypass the session gate
-  // so locked-out admins can sign in or request a recovery email. /tms-v2
-  // has no public sub-paths of its own — this only ever matches /admin/*.
-  if (isPublicAdminPath(pathname)) {
+  // Public auth paths (login, reset-password) bypass the session gate so
+  // locked-out admins can sign in or request a recovery email.
+  if (isPublicAuthPath(pathname)) {
     return NextResponse.next();
   }
 
@@ -144,7 +169,7 @@ async function adminSessionGate(request: NextRequest, pathname: string) {
   const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   if (!url || !key) {
     const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = "/admin/login";
+    redirectUrl.pathname = "/login";
     redirectUrl.searchParams.set("error", "misconfigured");
     return NextResponse.redirect(redirectUrl);
   }
@@ -171,7 +196,7 @@ async function adminSessionGate(request: NextRequest, pathname: string) {
 
   if (!user || !user.email) {
     const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = "/admin/login";
+    redirectUrl.pathname = "/login";
     return NextResponse.redirect(redirectUrl);
   }
 
@@ -179,7 +204,7 @@ async function adminSessionGate(request: NextRequest, pathname: string) {
   if (!adminEmail || user.email !== adminEmail) {
     await supabase.auth.signOut();
     const redirectUrl = request.nextUrl.clone();
-    redirectUrl.pathname = "/admin/login";
+    redirectUrl.pathname = "/login";
     redirectUrl.searchParams.set("error", "not_authorized");
     return NextResponse.redirect(redirectUrl);
   }
@@ -211,6 +236,17 @@ async function adminSessionGate(request: NextRequest, pathname: string) {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Legacy /admin/{login,logout,reset-password,update-password} compat
+  // redirect for old bookmarks/links — checked FIRST, before any gating, so
+  // an old link never gets caught by the (now-inapplicable) admin gate
+  // below or hits a 404 for a page that no longer exists at that path.
+  const legacyAuthTarget = LEGACY_ADMIN_AUTH_REDIRECTS[pathname];
+  if (legacyAuthTarget) {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = legacyAuthTarget;
+    return NextResponse.redirect(redirectUrl);
+  }
+
   // Defense-in-depth: explicit bypass for callback and other public-prefix
   // routes. Today the matcher already excludes these; this guarantees they
   // stay public even if the matcher is widened later.
@@ -228,10 +264,17 @@ export async function middleware(request: NextRequest) {
     return crmGate(request, pathname);
   }
 
-  // /admin and /tms-v2 share the exact same session gate (see
-  // adminSessionGate's doc comment) — same cookie, same allowlist, same
-  // login screen, no second implementation.
-  if (pathname.startsWith("/admin") || pathname.startsWith("/tms-v2")) {
+  // /admin, /tms-v2, and the neutral shared auth routes all share the exact
+  // same session gate (see adminSessionGate's doc comment) — same cookie,
+  // same allowlist, same login screen, no second implementation.
+  if (
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/tms-v2") ||
+    pathname === "/login" ||
+    pathname === "/logout" ||
+    pathname === "/reset-password" ||
+    pathname === "/update-password"
+  ) {
     return adminSessionGate(request, pathname);
   }
 
@@ -239,5 +282,13 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*", "/crm/:path*", "/tms-v2/:path*"],
+  matcher: [
+    "/admin/:path*",
+    "/crm/:path*",
+    "/tms-v2/:path*",
+    "/login",
+    "/logout",
+    "/reset-password",
+    "/update-password",
+  ],
 };

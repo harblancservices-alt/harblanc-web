@@ -58,7 +58,7 @@ export function UpdatePasswordForm() {
 
     // Sign out so the next sign-in uses the new password explicitly.
     await supabase.auth.signOut();
-    router.replace("/admin/login?notice=password_updated");
+    router.replace("/login?notice=password_updated");
     router.refresh();
   }
 

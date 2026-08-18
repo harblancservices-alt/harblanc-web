@@ -136,7 +136,7 @@ function buildClosingLine(
  * are Error instances with a `digest` string starting with
  * "NEXT_REDIRECT" — client-side catch handlers MUST re-throw them so
  * the framework's redirect machinery runs (e.g. session expiry sends
- * the operator to /admin/login instead of swallowing the throw and
+ * the operator to /login instead of swallowing the throw and
  * showing a generic "Unknown error" message).
  */
 function isNextRedirect(e: unknown): boolean {

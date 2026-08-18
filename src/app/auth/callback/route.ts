@@ -17,7 +17,7 @@ export const runtime = "nodejs";
  *   3. Redirect the user to `next` (sanitised so it must start with `/`
  *      and can't be a protocol-relative URL).
  *
- * If anything fails, bounce to /admin/login with an error param.
+ * If anything fails, bounce to /login with an error param.
  *
  * Security:
  *   - `code` is signed by Supabase — invalid codes return an error.
@@ -41,7 +41,7 @@ export async function GET(request: Request) {
     }
   }
 
-  const fallback = new URL("/admin/login", url.origin);
+  const fallback = new URL("/login", url.origin);
   fallback.searchParams.set("error", "auth_callback_failed");
   return NextResponse.redirect(fallback);
 }

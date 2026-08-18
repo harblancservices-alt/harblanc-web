@@ -18,7 +18,7 @@ export function ResetPasswordForm() {
 
     const supabase = createSupabaseBrowserClient();
     const origin = window.location.origin;
-    const redirectTo = `${origin}/auth/callback?next=/admin/update-password`;
+    const redirectTo = `${origin}/auth/callback?next=/update-password`;
 
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(
       email.trim(),
@@ -51,7 +51,7 @@ export function ResetPasswordForm() {
             inbox and click the link to set a new password.
           </p>
         </div>
-        <Link href="/admin/login" className={`mt-6 inline-block ${backLink}`}>
+        <Link href="/login" className={`mt-6 inline-block ${backLink}`}>
           &larr; Back to sign in
         </Link>
       </div>
@@ -101,7 +101,7 @@ export function ResetPasswordForm() {
         {status === "submitting" ? "Sending…" : "Send reset link"}
       </button>
 
-      <Link href="/admin/login" className={`mt-6 block text-center ${backLink}`}>
+      <Link href="/login" className={`mt-6 block text-center ${backLink}`}>
         &larr; Back to sign in
       </Link>
     </form>

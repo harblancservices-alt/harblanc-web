@@ -183,7 +183,7 @@ export function PortalSidebar({ email }: { email: string | null }) {
               Owner-operator
             </p>
           </div>
-          <form action="/admin/logout" method="post">
+          <form action="/logout" method="post">
             <button
               type="submit"
               aria-label="Sign out"
