@@ -76,16 +76,15 @@ export function LoginForm({
   /**
    * Where to land after a successful sign-in — set by middleware.ts when
    * it bounces an unauthenticated visitor here from a protected route
-   * (e.g. /tms-v2/loads), so a tms-v2 visitor lands back in tms-v2 and an
-   * admin visitor lands back in admin, without this form having to guess
-   * which app a given login belongs to. Falls back to /admin (today's
-   * existing default landing page) when absent — e.g. someone navigating
-   * to /login directly rather than being redirected here.
+   * (e.g. /tms-v2/loads), so a visitor lands back on the exact page they
+   * were headed to. Falls back to /tms-v2 (the live TMS home — /admin was
+   * retired and no longer exists) when absent, e.g. someone navigating to
+   * /login directly rather than being redirected here.
    */
   next?: string | null;
 }) {
   const router = useRouter();
-  const destination = sanitizeNext(next) ?? "/admin";
+  const destination = sanitizeNext(next) ?? "/tms-v2";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
