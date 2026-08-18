@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/tms-v2/ui/Button";
 import { Money } from "@/components/tms-v2/ui/Money";
@@ -33,17 +33,15 @@ export function PaymentSection({
   const [undoError, setUndoError] = useState<string | null>(null);
   const sentQuotes = finalizedQuotes.filter((f) => f.sentAt != null);
 
+  // Side effects run inline in the action itself, not a `useEffect` keyed on
+  // `state.ok` — see LoadFormModal.tsx for why.
   const [state, formAction, pending] = useActionState<SaveState, FormData>(async (_prev, formData) => {
     const result: MutationResult = await recordPayment(quoteRequestId, formData);
-    return result.ok ? { ok: true, error: null } : { ok: false, error: result.reason };
+    if (!result.ok) return { ok: false, error: result.reason };
+    setAdding(false);
+    router.refresh();
+    return { ok: true, error: null };
   }, INITIAL);
-
-  useEffect(() => {
-    if (state.ok) {
-      setAdding(false);
-      router.refresh();
-    }
-  }, [state.ok, router]);
 
   async function onUndo(paymentId: string) {
     if (!confirm("Undo this payment? This does not roll back an auto-advanced lead status.")) return;

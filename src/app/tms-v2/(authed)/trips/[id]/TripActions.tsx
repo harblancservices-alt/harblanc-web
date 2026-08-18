@@ -116,18 +116,16 @@ function AddExpenseModal({
     if (open) setLoadId(loads[0]?.id ?? "");
   }, [open, loads]);
 
+  // Side effects run inline in the action itself, not a `useEffect` keyed on
+  // `state.ok` — see LoadFormModal.tsx for why.
   const [state, formAction, pending] = useActionState<SaveState, FormData>(async (_prev, formData) => {
     if (!loadId) return { ok: false, error: "Pick a load." };
     const result: MutationResult = await addLoadExpense(loadId, formData);
-    return result.ok ? { ok: true, error: null } : { ok: false, error: result.reason };
+    if (!result.ok) return { ok: false, error: result.reason };
+    onSaved();
+    onClose();
+    return { ok: true, error: null };
   }, INITIAL);
-
-  useEffect(() => {
-    if (state.ok) {
-      onSaved();
-      onClose();
-    }
-  }, [state.ok, onSaved, onClose]);
 
   return (
     <Modal open={open} onClose={onClose} title="Add expense">
@@ -158,17 +156,15 @@ function AddExpenseModal({
 }
 
 function EditTripModal({ open, onClose, trip, onSaved }: { open: boolean; onClose: () => void; trip: Props["trip"]; onSaved: () => void }) {
+  // Side effects run inline in the action itself, not a `useEffect` keyed on
+  // `state.ok` — see LoadFormModal.tsx for why.
   const [state, formAction, pending] = useActionState<SaveState, FormData>(async (_prev, formData) => {
     const result: MutationResult = await updateTrip(trip.id, formData);
-    return result.ok ? { ok: true, error: null } : { ok: false, error: result.reason };
+    if (!result.ok) return { ok: false, error: result.reason };
+    onSaved();
+    onClose();
+    return { ok: true, error: null };
   }, INITIAL);
-
-  useEffect(() => {
-    if (state.ok) {
-      onSaved();
-      onClose();
-    }
-  }, [state.ok, onSaved, onClose]);
 
   return (
     <Modal open={open} onClose={onClose} title="Edit trip">
@@ -202,17 +198,15 @@ function EditTripModal({ open, onClose, trip, onSaved }: { open: boolean; onClos
 }
 
 function OdometerModal({ open, onClose, trip, onSaved }: { open: boolean; onClose: () => void; trip: Props["trip"]; onSaved: () => void }) {
+  // Side effects run inline in the action itself, not a `useEffect` keyed on
+  // `state.ok` — see LoadFormModal.tsx for why.
   const [state, formAction, pending] = useActionState<SaveState, FormData>(async (_prev, formData) => {
     const result: MutationResult = await updateTripOdometer(trip.id, formData);
-    return result.ok ? { ok: true, error: null } : { ok: false, error: result.reason };
+    if (!result.ok) return { ok: false, error: result.reason };
+    onSaved();
+    onClose();
+    return { ok: true, error: null };
   }, INITIAL);
-
-  useEffect(() => {
-    if (state.ok) {
-      onSaved();
-      onClose();
-    }
-  }, [state.ok, onSaved, onClose]);
 
   return (
     <Modal open={open} onClose={onClose} title="Edit odometer">

@@ -192,18 +192,17 @@ export function LogServiceModal({
     setExisting((prev) => prev.filter((a) => a.id !== id));
   }
 
+  // Side effects run inline in the action itself, not a `useEffect` keyed on
+  // `state.ok` — see LoadFormModal.tsx for why.
   const [state, action, pending] = useActionState<{ ok: boolean; error: string | null }, FormData>(
     async (_prev, fd) => {
       const result: MutationResult = editService ? await updateService(editService.id, fd) : await logService(fd);
-      return result.ok ? { ok: true, error: null } : { ok: false, error: result.reason };
+      if (!result.ok) return { ok: false, error: result.reason };
+      (onSaved ?? onClose)();
+      return { ok: true, error: null };
     },
     { ok: false, error: null },
   );
-
-  useEffect(() => {
-    if (state.ok) (onSaved ?? onClose)();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.ok]);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useActionState, useContext, useEffect, useState } from "react";
+import { createContext, useActionState, useContext, useState } from "react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { Modal } from "@/components/tms-v2/ui/Modal";
@@ -246,17 +246,15 @@ function MarkDeliveredModal({
   loadId: string;
   onSaved: () => void;
 }) {
+  // Side effects run inline in the action itself, not a `useEffect` keyed on
+  // `state.ok` — see LoadFormModal.tsx for why.
   const [state, formAction, pending] = useActionState<SaveState, FormData>(async (_prev, formData) => {
     const result: MutationResult = await markLoadDelivered(loadId, formData);
-    return result.ok ? { ok: true, error: null } : { ok: false, error: result.reason };
+    if (!result.ok) return { ok: false, error: result.reason };
+    onSaved();
+    onClose();
+    return { ok: true, error: null };
   }, INITIAL);
-
-  useEffect(() => {
-    if (state.ok) {
-      onSaved();
-      onClose();
-    }
-  }, [state.ok, onSaved, onClose]);
 
   return (
     <Modal open={open} onClose={onClose} title="Mark delivered">
@@ -335,17 +333,15 @@ function MarkTonuModal({
   loadId: string;
   onSaved: () => void;
 }) {
+  // Side effects run inline in the action itself, not a `useEffect` keyed on
+  // `state.ok` — see LoadFormModal.tsx for why.
   const [state, formAction, pending] = useActionState<SaveState, FormData>(async (_prev, formData) => {
     const result: MutationResult = await markLoadTonu(loadId, formData);
-    return result.ok ? { ok: true, error: null } : { ok: false, error: result.reason };
+    if (!result.ok) return { ok: false, error: result.reason };
+    onSaved();
+    onClose();
+    return { ok: true, error: null };
   }, INITIAL);
-
-  useEffect(() => {
-    if (state.ok) {
-      onSaved();
-      onClose();
-    }
-  }, [state.ok, onSaved, onClose]);
 
   return (
     <Modal open={open} onClose={onClose} title="Mark TONU">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState } from "react";
 import { Modal } from "@/components/tms-v2/ui/Modal";
 import { Button } from "@/components/tms-v2/ui/Button";
 import { editLoadOdometer } from "@/actions/tms-v2/loads";
@@ -33,17 +33,15 @@ export function OdometerModal({
   odoDelivered: number | null;
   onSaved: () => void;
 }) {
+  // Side effects run inline in the action itself, not a `useEffect` keyed on
+  // `state.ok` — see LoadFormModal.tsx for why.
   const [state, formAction, pending] = useActionState<SaveState, FormData>(async (_prev, formData) => {
     const result: MutationResult = await editLoadOdometer(loadId, formData);
-    return result.ok ? { ok: true, error: null } : { ok: false, error: result.reason };
+    if (!result.ok) return { ok: false, error: result.reason };
+    onSaved();
+    onClose();
+    return { ok: true, error: null };
   }, INITIAL);
-
-  useEffect(() => {
-    if (state.ok) {
-      onSaved();
-      onClose();
-    }
-  }, [state.ok, onSaved, onClose]);
 
   return (
     <Modal open={open} onClose={onClose} title="Edit odometer">

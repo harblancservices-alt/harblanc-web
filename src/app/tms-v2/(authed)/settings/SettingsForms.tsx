@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/tms-v2/ui/Button";
 import { updateFuelSettings, updateProfitGoals, updateCurrentCash } from "@/actions/tms-v2/settings";
@@ -22,17 +22,15 @@ const FIELD =
 export function FuelSettingsForm({ settings, disabled }: { settings: DispatchSettingsSummary; disabled: boolean }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
+  // Side effects run inline in the action itself, not a `useEffect` keyed on
+  // `state.ok` — see LoadFormModal.tsx for why.
   const [state, formAction, pending] = useActionState<SaveState, FormData>(async (_prev, formData) => {
     const result: MutationResult = await updateFuelSettings(formData);
-    return result.ok ? { ok: true, error: null } : { ok: false, error: result.reason };
+    if (!result.ok) return { ok: false, error: result.reason };
+    setEditing(false);
+    router.refresh();
+    return { ok: true, error: null };
   }, INITIAL);
-
-  useEffect(() => {
-    if (state.ok) {
-      setEditing(false);
-      router.refresh();
-    }
-  }, [state.ok, router]);
 
   if (!editing) {
     return (
@@ -81,17 +79,15 @@ export function FuelSettingsForm({ settings, disabled }: { settings: DispatchSet
 export function ProfitGoalsForm({ settings, disabled }: { settings: DispatchSettingsSummary; disabled: boolean }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
+  // Side effects run inline in the action itself, not a `useEffect` keyed on
+  // `state.ok` — see LoadFormModal.tsx for why.
   const [state, formAction, pending] = useActionState<SaveState, FormData>(async (_prev, formData) => {
     const result: MutationResult = await updateProfitGoals(formData);
-    return result.ok ? { ok: true, error: null } : { ok: false, error: result.reason };
+    if (!result.ok) return { ok: false, error: result.reason };
+    setEditing(false);
+    router.refresh();
+    return { ok: true, error: null };
   }, INITIAL);
-
-  useEffect(() => {
-    if (state.ok) {
-      setEditing(false);
-      router.refresh();
-    }
-  }, [state.ok, router]);
 
   if (!editing) {
     return (
@@ -138,17 +134,15 @@ export function ProfitGoalsForm({ settings, disabled }: { settings: DispatchSett
 export function CurrentCashForm({ settings, disabled }: { settings: DispatchSettingsSummary; disabled: boolean }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
+  // Side effects run inline in the action itself, not a `useEffect` keyed on
+  // `state.ok` — see LoadFormModal.tsx for why.
   const [state, formAction, pending] = useActionState<SaveState, FormData>(async (_prev, formData) => {
     const result: MutationResult = await updateCurrentCash(formData);
-    return result.ok ? { ok: true, error: null } : { ok: false, error: result.reason };
+    if (!result.ok) return { ok: false, error: result.reason };
+    setEditing(false);
+    router.refresh();
+    return { ok: true, error: null };
   }, INITIAL);
-
-  useEffect(() => {
-    if (state.ok) {
-      setEditing(false);
-      router.refresh();
-    }
-  }, [state.ok, router]);
 
   if (!editing) {
     return (

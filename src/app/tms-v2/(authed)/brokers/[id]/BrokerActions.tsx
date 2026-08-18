@@ -57,17 +57,15 @@ function EditBrokerModal({
   identity: BrokerIdentity;
   onSaved: () => void;
 }) {
+  // Side effects run inline in the action itself, not a `useEffect` keyed on
+  // `state.ok` — see LoadFormModal.tsx for why.
   const [state, formAction, pending] = useActionState<SaveState, FormData>(async (_prev, formData) => {
     const result: MutationResult = await updateBroker(identity.id, formData);
-    return result.ok ? { ok: true, error: null } : { ok: false, error: result.reason };
+    if (!result.ok) return { ok: false, error: result.reason };
+    onSaved();
+    onClose();
+    return { ok: true, error: null };
   }, INITIAL);
-
-  useEffect(() => {
-    if (state.ok) {
-      onSaved();
-      onClose();
-    }
-  }, [state.ok, onSaved, onClose]);
 
   return (
     <Modal

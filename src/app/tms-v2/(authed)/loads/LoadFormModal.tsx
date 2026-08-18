@@ -104,18 +104,18 @@ export function LoadFormModal({ open, onClose, brokerNames, activeTripNames, loa
     [activeTripNames, loadTrip],
   );
 
+  // Side effects run inline in the action itself, not a `useEffect` keyed on
+  // `state.ok` — that boolean stays `true` after the first successful save,
+  // so a second save in the same mount (this modal never unmounts between
+  // opens) wouldn't change the dependency's value and the effect would
+  // silently stop firing.
   const [state, formAction, pending] = useActionState<SaveState, FormData>(async (_prev, formData) => {
     const result: MutationResult<unknown> = load ? await editLoad(load.id, formData) : await addLoad(formData);
     if (!result.ok) return { ok: false, error: result.reason };
+    onSaved?.(load?.id ?? "");
+    onClose();
     return { ok: true, error: null };
   }, INITIAL);
-
-  useEffect(() => {
-    if (state.ok) {
-      onSaved?.(load?.id ?? "");
-      onClose();
-    }
-  }, [state.ok, load?.id, onSaved, onClose]);
 
   useEffect(() => {
     if (open) {
