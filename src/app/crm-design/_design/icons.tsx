@@ -188,3 +188,35 @@ export const IconFlag = (p: P) => (
     <path d="M5 4.25h12.5a1 1 0 0 1 .78 1.62L15.7 9.5l2.58 3.13a1 1 0 0 1-.78 1.62H5V4.25Z" />
   </svg>
 );
+export const IconInbox = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M3.5 12h5l1.5 3h4l1.5-3h5" />
+    <path d="M5.5 5.5h13l2 6.5v6a1.5 1.5 0 0 1-1.5 1.5h-14A1.5 1.5 0 0 1 3.5 18v-6l2-6.5Z" />
+  </svg>
+);
+export const IconCamera = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M4 8.5A1.5 1.5 0 0 1 5.5 7h1.8l1-2h7.4l1 2h1.8A1.5 1.5 0 0 1 20 8.5v9A1.5 1.5 0 0 1 18.5 19h-13A1.5 1.5 0 0 1 4 17.5v-9Z" />
+    <circle cx="12" cy="13" r="3.4" />
+  </svg>
+);
+export const IconUpload = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M12 15.5V4M8 8l4-4 4 4" />
+    <path d="M4.5 15.5v3a1.5 1.5 0 0 0 1.5 1.5h12a1.5 1.5 0 0 0 1.5-1.5v-3" />
+  </svg>
+);
+export const IconTruck = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M3 6.5h10v9H3z" />
+    <path d="M13 10h4l3.5 3v2.5H13z" />
+    <circle cx="7" cy="17.5" r="1.8" />
+    <circle cx="17" cy="17.5" r="1.8" />
+  </svg>
+);
+export const IconZoom = (p: P) => (
+  <svg {...base(p)}>
+    <circle cx="10.5" cy="10.5" r="6.5" />
+    <path d="M20 20l-4.8-4.8M8 10.5h5M10.5 8v5" />
+  </svg>
+);

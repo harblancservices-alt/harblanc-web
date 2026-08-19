@@ -24,6 +24,7 @@ import {
   IconCheck,
   IconContacts,
   IconDocument,
+  IconInbox,
   IconMail,
   IconMapPin,
   IconPhone,
@@ -36,12 +37,12 @@ import { GenerateDocumentDrawer } from "../../../_shared/GenerateDocumentDrawer"
 
 const STAGE_TONE_MAP = { neutral: "neutral", accent: "accent", success: "success", danger: "danger" } as const;
 
-type TabKey = "overview" | "contacts" | "activity" | "documents" | "tasks";
+type TabKey = "overview" | "contacts" | "activity" | "documents" | "tasks" | "intelligence";
 
 export default function CompanyDetailPage() {
   const params = useParams<{ id: string }>();
   const company = useCompany(params.id);
-  const { contacts, activities, documents, tasks, moveStage, toggleTask } = useStore();
+  const { contacts, activities, documents, tasks, bolRecords, companyLocations, currentUser, moveStage, toggleTask } = useStore();
   const [tab, setTab] = useState<TabKey>("overview");
   const [addContactOpen, setAddContactOpen] = useState(false);
   const [logActivityOpen, setLogActivityOpen] = useState(false);
@@ -56,6 +57,28 @@ export default function CompanyDetailPage() {
   const companyDocuments = documents.filter((d) => d.companyId === company.id);
   const companyTasks = tasks.filter((t) => t.companyId === company.id);
   const isLost = company.stage === "lost";
+
+  // Customer Intelligence — released BOL Center data only. A BOL never
+  // reaches this list until an admin explicitly released it (BOL Center §10);
+  // this tab is what "landing on the Customer profile" (audit item #12)
+  // actually looks like. Each released BOL's own selection gates which of
+  // its fields are even eligible to show here — checking "Company" but not
+  // "Observed freight" on one BOL, for instance, means that BOL contributes
+  // nothing to the freight list below.
+  const releasedBols = bolRecords.filter((b) => b.customerMatch.companyId === company.id && b.release);
+  const companyLocs = companyLocations.filter((l) => l.companyId === company.id);
+  const observedFreight = Array.from(
+    new Set(releasedBols.filter((b) => b.release!.selection.observedFreight).flatMap((b) => b.research.observedFreight)),
+  );
+  const observedLanes = Array.from(
+    new Set(releasedBols.filter((b) => b.release!.selection.observedLanes).flatMap((b) => b.research.observedLanes)),
+  );
+  const salesNotes = releasedBols.filter((b) => b.release!.selection.salesNotes && b.research.notes);
+  const lastObserved = releasedBols.reduce<string | null>(
+    (latest, b) => (!latest || b.uploadedAt > latest ? b.uploadedAt : latest),
+    null,
+  );
+  const isElevated = currentUser.role === "owner" || currentUser.role === "admin";
 
   return (
     <div className={PAGE_WIDTH}>
@@ -162,6 +185,7 @@ export default function CompanyDetailPage() {
               { key: "activity", label: "Activity", count: companyActivities.length },
               { key: "documents", label: "Documents", count: companyDocuments.length },
               { key: "tasks", label: "Tasks", count: companyTasks.filter((t) => t.status === "open").length },
+              { key: "intelligence", label: "Intelligence", count: releasedBols.length },
             ]}
             active={tab}
             onChange={setTab}
@@ -296,6 +320,101 @@ export default function CompanyDetailPage() {
                   </ul>
                 )}
               </Card>
+            )}
+
+            {tab === "intelligence" && (
+              <div className="flex flex-col gap-4">
+                {releasedBols.length === 0 ? (
+                  <Card>
+                    <EmptyState
+                      icon={<IconInbox />}
+                      title="No BOL intelligence released yet"
+                      body="When an admin releases BOL Center research for this company, verified locations, observed freight, and observed lanes will show up here."
+                    />
+                  </Card>
+                ) : (
+                  <>
+                    <Card className="flex flex-wrap items-center gap-4 p-4">
+                      <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--cd-text-muted)]">Sales status</span>
+                      <Badge tone="accent">AI-sourced · Released</Badge>
+                      <span className={`${TEXT.micro} text-[var(--cd-text-muted)]`}>
+                        {releasedBols.length} verified {releasedBols.length === 1 ? "BOL" : "BOLs"} · Last observed{" "}
+                        {lastObserved ? relativeTime(lastObserved) : "—"}
+                      </span>
+                    </Card>
+
+                    {companyLocs.length > 0 && (
+                      <Card>
+                        <CardHead title="Locations" hint="From the customer's BOL history, not manually entered." />
+                        <ul className="divide-y divide-[var(--cd-border)]">
+                          {companyLocs.map((l) => (
+                            <li key={l.id} className="flex items-center justify-between gap-3 px-4 py-3">
+                              <div className="min-w-0">
+                                <p className="text-[13.5px] font-semibold text-[var(--cd-text)]">{l.label}</p>
+                                <p className={`${TEXT.micro} text-[var(--cd-text-muted)]`}>{l.address}, {l.city}, {l.state}</p>
+                              </div>
+                              <span className={`shrink-0 ${TEXT.micro} text-[var(--cd-text-muted)]`}>
+                                {l.bolCount} {l.bolCount === 1 ? "BOL" : "BOLs"} · {l.source === "bol" ? "BOL-sourced" : "Manual"}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </Card>
+                    )}
+
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <Card>
+                        <CardHead title="Observed freight" />
+                        <div className="flex flex-wrap gap-1.5 p-4">
+                          {observedFreight.length === 0 ? (
+                            <p className={`${TEXT.micro} text-[var(--cd-text-muted)]`}>Not released.</p>
+                          ) : (
+                            observedFreight.map((f) => <Badge key={f} tone="neutral">{f}</Badge>)
+                          )}
+                        </div>
+                      </Card>
+                      <Card>
+                        <CardHead title="Observed lanes" />
+                        <div className="flex flex-wrap gap-1.5 p-4">
+                          {observedLanes.length === 0 ? (
+                            <p className={`${TEXT.micro} text-[var(--cd-text-muted)]`}>Not released.</p>
+                          ) : (
+                            observedLanes.map((l) => <Badge key={l} tone="neutral">{l}</Badge>)
+                          )}
+                        </div>
+                      </Card>
+                    </div>
+
+                    {salesNotes.length > 0 && (
+                      <Card>
+                        <CardHead title="Sales notes" hint="Research notes an admin chose to release." />
+                        <ul className="divide-y divide-[var(--cd-border)]">
+                          {salesNotes.map((b) => (
+                            <li key={b.id} className={`px-4 py-3 ${TEXT.body} text-[var(--cd-text-muted)]`}>
+                              {b.research.notes}
+                            </li>
+                          ))}
+                        </ul>
+                      </Card>
+                    )}
+
+                    <Card>
+                      <CardHead title="BOL sources" hint={`${releasedBols.length} verified`} />
+                      <div className="flex flex-wrap gap-1.5 p-4">
+                        {releasedBols.map((b) =>
+                          isElevated ? (
+                            <Link key={b.id} href={`/crm-design/admin/bol-center/${b.id}`}>
+                              <Badge tone="admin">{b.docNumber}</Badge>
+                            </Link>
+                          ) : (
+                            <Badge key={b.id} tone="neutral">{b.docNumber}</Badge>
+                          ),
+                        )}
+                      </div>
+                    </Card>
+                  </>
+                )}
+              </div>
             )}
           </div>
         </div>

@@ -319,3 +319,104 @@ important thing on the screen, which is backwards for the one CRM surface whose 
 easy to read. Both had to be fixed together, and both had to be fixed at the shared-primitive/token layer so the
 28+ screens stay one coherent system instead of drifting into 28 separately-tuned ones — exactly the failure mode
 the original audit (§7) diagnosed in the real CRM's own admin-purple hex literals.
+
+## 11. BOL Center — an admin-only intake/intelligence funnel (2026-08-19)
+
+New Admin section — nothing like this exists in the real CRM today. Purpose: Brent has 400+ BOL photos to turn
+into usable customer intelligence, and the single hardest requirement is negative — **uploading a BOL must never,
+by itself, put anything in front of Sales.** Every design choice below serves that one constraint first.
+
+### The core architectural decision: Company creation is deferred to Release, not Match
+
+The brief's own screen list (item 5) describes a `[Create Customer]` button at the *Customer Matching* step,
+implying a real Company record could exist before research/approval finish. This prototype deliberately does
+**not** do that. Here's why: this prototype's `companies` array has no "hidden from Sales" or "internal draft"
+concept — it's the same flat list every Sales Agent's Companies page reads from. Creating a real Company the
+moment a BOL is matched (even from one deliberate click, not automatically) would mean an unresearched,
+unapproved candidate shows up in front of every Sales Agent before Brent has decided it's worth their time —
+precisely the failure mode ("400 uploads → 400 things Sales sees") the brief calls out as the thing to prevent.
+
+So the funnel's actual data-flow guarantee is stronger than "uploading doesn't auto-create a company" — it's
+**"nothing before the Release click can ever become visible to a non-admin, full stop."** Concretely:
+- `uploadBol` → `runExtraction` → `updateExtractionField` → `confirmCustomerMatch` → `confirmLocation` →
+  `saveResearchNotes` → `setSalesRelevance` → `setBolStatus` (Approve/Reject/Keep Researching) all write **only**
+  to `bolRecords` (and, for location matching, read-only lookups against `companyLocations`). None of them touch
+  `companies`, `contacts`, or `tasks`.
+- `releaseBolToSales` is the **only** function in the entire store that can create a Company from BOL data, and
+  only when the admin has (a) already clicked Approve and (b) explicitly checked "Company" in the release
+  checklist and clicked Release. See `_lib/store.tsx`'s `releaseBolToSales`.
+
+**Consequence for the brief's `[Create Customer]` button:** relabeled to **"Confirm as New Customer"** on the
+Customer & Location tab (`bol-center/[id]/page.tsx`). It does exactly what its real-CRM-adjacent name promises —
+locks in `customerMatch.status: "confirmed_new"` as a research checkpoint distinguishing "we're fairly sure this
+is a new prospect" from "still ambiguous" — without creating anything Sales could stumble onto. The copy directly
+under the button says so ("Not in the CRM yet. Nothing is created until you release this BOL to Sales.") so the
+distinction is never left implicit. This is the one place this pass diverges from the brief's literal button
+label, and it's a deliberate trade against the brief's own CRITICAL constraint, not an oversight.
+
+### The funnel, screen by screen
+
+`BOL Center Inbox` (`admin/bol-center`) → `Upload BOL` (drawer: Take Photo / Upload Photo / Upload PDF, all
+equally weighted since the real workflow is "400 phone photos," not a form) → `BOL detail` (`admin/bol-center/
+[id]`), one page with the original photo pinned on the left across five tabs on the right:
+
+1. **Extraction** — every AI-detected field, each independently marked `✓ HIGH` or `? REVIEW`; every value is a
+   live-editable input, and editing one flips it to `✓ Corrected` — the AI's guess is a starting point, never
+   authoritative (brief item 4).
+2. **Customer & Location** — merges the brief's items 5+6 into one tab because a company *is* its locations; a
+   `MATCH FOUND` company links straight to its real profile, an unmatched one shows the "Confirm as New Customer"
+   path above, plus a manual "actually matches an existing company?" escape hatch for when the AI guesses wrong.
+   Each detected address is checked against that company's known locations (`companyLocations`) and shown as
+   either "Existing — {label}" or "New Location Detected." A lightweight duplicate heuristic (matching normalized
+   candidate name or pickup address against every other unresolved BOL) surfaces a "Possible duplicate" banner
+   with a link to compare — this is what "duplicates consolidated" looks like without a real entity-resolution
+   engine.
+3. **Contacts & Roles** — every detected person/org grouped by role (Shipper Contact / Consignee Contact /
+   Broker / Carrier), explicitly labeled as separate from the real CRM contact book, with a per-contact "Mark
+   verified" toggle (brief item 7).
+4. **Research** — free-text notes (autosaves on blur), a High/Medium/Low sales-relevance call, read-only Observed
+   Freight/Observed Lanes chips, and a "BOL History" list of every other BOL from the same company already in the
+   queue (brief item 8).
+5. **Approve & Release** — the two decisions kept visually and conceptually distinct, per the brief's explicit
+   instruction that approval and release are different decisions: Approve/Reject/Keep Researching first; only
+   once approved does the release checklist appear (`Company / Locations / General contact / Observed freight /
+   Observed lanes / Sales notes` on by default, `Original BOL / Internal research / Sensitive info / Raw
+   extracted data` off by default — the exact defaults the brief specified), and only clicking **Release to
+   Sales** triggers `releaseBolToSales`.
+
+Release does three things, all in `releaseBolToSales`: resolves or (only now) creates the Company; attaches new
+or bumps existing `CompanyLocation` rows; and logs one Activity item on that company ("Customer intelligence
+released from BOL Center") — which is how it becomes visible on that company's real Activity tab too, not just
+Intelligence. A guardrail worth calling out in the code: this function reads `bolRecords` from render scope and
+fires every side effect (company creation, activity log, toast) as plain top-level calls rather than nesting them
+inside a `setBolRecords` updater — nesting side effects in a state updater risks double-firing under React
+StrictMode's dev-mode double-invoke, which here would mean silently creating two companies from one click.
+
+### Where it lands — Company profile → Intelligence tab
+
+A 6th tab on `companies/[id]/page.tsx`, populated **only** from BOLs with `release !== null` matched to that
+company, and gated field-by-field by each BOL's own release selection (checking "Company" but not "Observed
+freight" on one BOL means that BOL contributes nothing to the freight list, even if research had it). Shows Sales
+Status (`AI-sourced · Released`), Locations, Observed Freight, Observed Lanes, Sales Notes, and BOL Sources — the
+last one links back into the BOL's own admin review page, but only for an owner/admin viewer; a Sales Agent sees
+the same doc-number badges as plain, non-interactive text, since the BOL Center workspace itself stays
+owner/admin-only regardless of what a company page links to.
+
+### Admin nav placement
+
+BOL Center is the 2nd tab in Admin, immediately after Overview — ahead of Accounts/Activity Log/Documents/
+Organization — with a live needs-attention badge (New + Needs Review + Ready for Approval counts). This follows
+directly from the audit's nav-hierarchy finding (§1/§2/§13): the highest-volume, most time-sensitive admin task
+gets top billing, not whatever order tabs happened to be added in. The Admin Overview page and the Documents tab
+were both updated to describe BOL Center accurately and link to it — the same "don't let one Admin surface's
+description silently drift out of sync with what another surface actually does" discipline the original audit
+flagged as a real bug in the real CRM's Overview page (audit §3, P0 #2).
+
+### A bug found and fixed while building this
+
+Testing the release flow surfaced a pre-existing hydration error unrelated to BOL Center: the sidebar's account
+menu rendered its dropdown (containing more `<button>`/`<a>` elements) as a *child* of the trigger `<button>` —
+invalid HTML, since interactive elements can't nest. Fixed by making the trigger and its dropdown siblings under
+a shared `relative` wrapper (`(app)/layout.tsx`) instead of parent/child. Unrelated to this task's scope but cheap
+to fix once found, and left unfixed it would have kept throwing a hydration warning on every single screen in the
+prototype, not just BOL Center's.

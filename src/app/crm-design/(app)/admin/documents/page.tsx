@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardHead, TEXT } from "../../../_design/ui";
+import Link from "next/link";
+import { Button, Card, CardHead, TEXT } from "../../../_design/ui";
 import { IconBillOfLadingGlyph, IconRateConfirmationGlyph } from "../../../_shared/doc-glyphs";
+import { IconInbox } from "../../../_design/icons";
 import { Modal } from "../../../_design/Modal";
 
 const TEMPLATES = [
@@ -20,7 +22,21 @@ const TEMPLATES = [
 export default function AdminDocumentsPage() {
   const [preview, setPreview] = useState<(typeof TEMPLATES)[number] | null>(null);
   return (
-    <Card>
+    <div className="flex flex-col gap-4">
+      <Card className="flex flex-wrap items-center justify-between gap-3 border-[var(--cd-admin)]/25 bg-[var(--cd-admin-soft)] px-4 py-3">
+        <p className={`${TEXT.body} text-[var(--cd-text)]`}>
+          Looking for BOLs your team uploaded (photos, not blank forms)? Those live in{" "}
+          <span className="font-semibold">BOL Center</span> — a separate intake/research workflow, not a document
+          library.
+        </p>
+        <Link href="/crm-design/admin/bol-center">
+          <Button variant="admin" size="sm">
+            <IconInbox width={14} height={14} /> Open BOL Center
+          </Button>
+        </Link>
+      </Card>
+
+      <Card>
       <CardHead title="Blank Templates" hint="The default master template for each generated document type — not a per-shipment archive." />
       <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2">
         {TEMPLATES.map((t) => (
@@ -47,6 +63,7 @@ export default function AdminDocumentsPage() {
           </span>
         </div>
       </Modal>
-    </Card>
+      </Card>
+    </div>
   );
 }

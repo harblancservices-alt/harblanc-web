@@ -117,3 +117,131 @@ export type TaskItem = {
   priority: "low" | "normal" | "high";
   status: "open" | "done";
 };
+
+/**
+ * BOL Center — an admin-only intake/intelligence funnel, entirely separate
+ * from the sales pipeline (Company.stage). Nothing here is a Company/Contact/
+ * Task/pipeline record: a BolRecord only ever produces one when an admin
+ * explicitly releases it (see store.releaseBolToSales). Uploading 400 of
+ * these creates 400 BolRecords and zero companies/opportunities.
+ */
+export type BolStatus =
+  | "new"
+  | "needs_review"
+  | "ai_extracted"
+  | "researching"
+  | "ready_for_approval"
+  | "approved"
+  | "rejected"
+  | "archived";
+
+export type ExtractConfidence = "high" | "review";
+
+/** One extracted field — the AI's guess is never silently authoritative:
+ * `corrected` flips true the moment an admin overrides `value` by hand. */
+export type ExtractedField = {
+  value: string;
+  confidence: ExtractConfidence;
+  corrected: boolean;
+};
+
+export type BolExtraction = {
+  customerName: ExtractedField;
+  shipperName: ExtractedField;
+  consigneeName: ExtractedField;
+  brokerName: ExtractedField;
+  carrierName: ExtractedField;
+  pickupAddress: ExtractedField;
+  pickupCity: ExtractedField;
+  pickupState: ExtractedField;
+  deliveryAddress: ExtractedField;
+  deliveryCity: ExtractedField;
+  deliveryState: ExtractedField;
+  commodity: ExtractedField;
+  weight: ExtractedField;
+  pickupDate: ExtractedField;
+  deliveryDate: ExtractedField;
+  referenceNumber: ExtractedField;
+};
+
+/** Detected people/orgs on the BOL — deliberately separate from `Contact`
+ * (the real CRM contact book): a broker or carrier named on a BOL is not a
+ * CRM contact until/unless an admin decides it should be. */
+export type BolContactRole = "shipper_contact" | "consignee_contact" | "broker" | "carrier";
+export type BolContact = {
+  role: BolContactRole;
+  name: string;
+  company: string;
+  phone: string;
+  email: string;
+};
+
+export type BolLocationRole = "pickup" | "delivery";
+export type BolLocationCandidate = {
+  role: BolLocationRole;
+  address: string;
+  city: string;
+  state: string;
+  matchStatus: "existing" | "new";
+  matchedLocationId: string | null;
+};
+
+export type CustomerMatchStatus = "matched" | "potential_new" | "confirmed_new";
+
+/** What Admin chooses to hand Sales at release time — a checkbox per field
+ * group, not an all-or-nothing dump of the BOL record. */
+export type BolReleaseSelection = {
+  company: boolean;
+  locations: boolean;
+  generalContact: boolean;
+  observedFreight: boolean;
+  observedLanes: boolean;
+  salesNotes: boolean;
+  originalBol: boolean;
+  internalResearch: boolean;
+  sensitiveInfo: boolean;
+  rawExtractedData: boolean;
+};
+
+export type BolRecord = {
+  id: string;
+  docNumber: string;
+  fileName: string;
+  uploadedAt: string;
+  uploadedByUserId: string;
+  status: BolStatus;
+  assignedReviewerId: string | null;
+  extraction: BolExtraction;
+  contacts: BolContact[];
+  locations: BolLocationCandidate[];
+  customerMatch: { status: CustomerMatchStatus; companyId: string | null; candidateName: string };
+  research: {
+    notes: string;
+    observedFreight: string[];
+    observedLanes: string[];
+    salesRelevance: "high" | "medium" | "low" | null;
+  };
+  /** Non-null the moment Admin clicks "Release to Sales" — separate from
+   * `status === "approved"` on purpose (approval and release are different
+   * decisions; an approved BOL can sit un-released indefinitely). */
+  release: { releasedAt: string; releasedByUserId: string; selection: BolReleaseSelection } | null;
+};
+
+/**
+ * A customer's known pickup/delivery location, sourced either manually or
+ * from a released BOL. This is the "Customer → Locations" architecture the
+ * BOL Center's Location Review step connects to (CRM_PROTOTYPE_MAP.md).
+ */
+export type CompanyLocation = {
+  id: string;
+  companyId: string;
+  label: string;
+  address: string;
+  city: string;
+  state: string;
+  role: "pickup" | "delivery" | "both";
+  source: "manual" | "bol";
+  firstObservedAt: string;
+  lastObservedAt: string;
+  bolCount: number;
+};

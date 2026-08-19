@@ -8,6 +8,11 @@ import { IconShield } from "../../_design/icons";
 
 const TABS: { href: string; label: string; exact: boolean }[] = [
   { href: "/crm-design/admin", label: "Overview", exact: true },
+  // BOL Center sits right after Overview, ahead of Accounts/Activity/
+  // Documents/Organization — it's the highest-volume, highest-priority
+  // admin task (400 photos to process), not a peripheral admin setting, so
+  // it gets the second slot rather than being appended at the end.
+  { href: "/crm-design/admin/bol-center", label: "BOL Center", exact: false },
   { href: "/crm-design/admin/accounts", label: "Accounts", exact: false },
   { href: "/crm-design/admin/activity", label: "Activity Log", exact: false },
   { href: "/crm-design/admin/documents", label: "Documents", exact: false },
@@ -30,8 +35,9 @@ const TABS: { href: string; label: string; exact: boolean }[] = [
  */
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? "";
-  const { currentUser } = useStore();
+  const { currentUser, bolRecords } = useStore();
   const isElevated = currentUser.role === "owner" || currentUser.role === "admin";
+  const bolNeedsAttention = bolRecords.filter((b) => b.status === "new" || b.status === "needs_review" || b.status === "ready_for_approval").length;
 
   if (!isElevated) {
     return (
@@ -60,13 +66,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               href={t.href}
               role="tab"
               aria-selected={active}
-              className={`shrink-0 rounded-[var(--cd-radius-sm)] px-3.5 py-2 text-[13px] font-bold transition-all ${
+              className={`flex shrink-0 items-center gap-1.5 rounded-[var(--cd-radius-sm)] px-3.5 py-2 text-[13px] font-bold transition-all ${
                 active
                   ? "bg-[var(--cd-surface)] text-[var(--cd-admin)] shadow-[var(--cd-shadow-sm)] ring-1 ring-[var(--cd-border-strong)]"
                   : "text-[var(--cd-text-muted)] hover:text-[var(--cd-text)]"
               }`}
             >
               {t.label}
+              {t.href === "/crm-design/admin/bol-center" && bolNeedsAttention > 0 && (
+                <span className="flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-[var(--cd-admin)] px-1 text-[10px] font-bold text-white">
+                  {bolNeedsAttention}
+                </span>
+              )}
             </Link>
           );
         })}

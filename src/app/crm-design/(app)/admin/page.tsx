@@ -12,13 +12,15 @@ import { Card, CardHead, TEXT } from "../../_design/ui";
  * below is accurate to what its linked tab actually shows.
  */
 export default function AdminOverviewPage() {
-  const { team, companies, documents, tasks } = useStore();
+  const { team, companies, documents, tasks, bolRecords } = useStore();
   const activeTeam = team.filter((m) => m.isActive).length;
   const openTasks = tasks.filter((t) => t.status === "open").length;
+  const bolNeedsAttention = bolRecords.filter((b) => b.status === "new" || b.status === "needs_review" || b.status === "ready_for_approval").length;
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+        <StatLink href="/crm-design/admin/bol-center" label="BOL Center — needs attention" value={String(bolNeedsAttention)} />
         <StatLink href="/crm-design/admin/accounts" label="Team accounts" value={`${activeTeam} active`} />
         <StatLink href="/crm-design/admin/documents" label="Master templates" value="2" />
         <StatLink href="/crm-design/admin/activity" label="Open tasks org-wide" value={String(openTasks)} />
@@ -29,16 +31,19 @@ export default function AdminOverviewPage() {
         <div className={`space-y-2 px-5 py-4 ${TEXT.body} leading-relaxed text-[var(--cd-text-muted)]`}>
           <p>
             {team.length} total team {team.length === 1 ? "account" : "accounts"} on this org. Use{" "}
+            <span className="font-semibold text-[var(--cd-text)]">BOL Center</span> to process uploaded BOL photos
+            into reviewed, research-backed customer intelligence before anything reaches Sales,{" "}
             <span className="font-semibold text-[var(--cd-text)]">Accounts</span> to review a teammate&rsquo;s access
             level and suspend or reassign their book of business, <span className="font-semibold text-[var(--cd-text)]">Activity Log</span>{" "}
             to see exactly who changed what and when across the team — every row links straight to the
             affected record — <span className="font-semibold text-[var(--cd-text)]">Documents</span> to browse the
-            org&rsquo;s two blank master templates (Rate Confirmation, Bill of Lading), and{" "}
+            org&rsquo;s two blank master templates (Rate Confirmation, Bill of Lading — a separate system from BOL
+            Center&rsquo;s uploaded shipment photos), and{" "}
             <span className="font-semibold text-[var(--cd-text)]">Organization</span> to edit the brokerage
             letterhead every generated document reads from.
           </p>
           <p className={`${TEXT.micro} text-[var(--cd-text-muted)]`}>
-            {companies.length} companies across the org, {documents.length} documents generated to date.
+            {companies.length} companies across the org, {bolRecords.length} BOLs in the intake queue, {documents.length} documents generated to date.
           </p>
         </div>
       </Card>

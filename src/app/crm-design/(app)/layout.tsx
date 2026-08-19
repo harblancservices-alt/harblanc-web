@@ -209,22 +209,28 @@ export default function AppShellLayout({ children }: { children: React.ReactNode
 
           <div className="my-2 h-px bg-[var(--cd-side-border)]" />
 
-          <button
-            type="button"
-            onClick={() => setAccountMenuOpen((v) => !v)}
-            className={`relative flex w-full items-center gap-2.5 rounded-[var(--cd-radius-sm)] px-2 py-2 text-left transition-colors hover:bg-[var(--cd-side-bg-raised)] ${
-              collapsed ? "justify-center" : ""
-            }`}
-          >
-            <Avatar name={currentUser.name} size={30} />
-            {!collapsed && (
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-[12.5px] font-semibold text-white">{currentUser.name}</span>
-                <span className="block truncate text-[11px] text-[var(--cd-side-text-dim)]">
-                  {currentUser.role === "owner" ? "Owner" : currentUser.role === "admin" ? "Admin" : "Sales Agent"}
+          {/* Trigger + dropdown are siblings under this wrapper, not parent/
+              child — a <button> containing other <button>/<a> elements is
+              invalid HTML and was throwing a hydration nesting error
+              (pre-existing, found while testing the BOL Center addition). */}
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setAccountMenuOpen((v) => !v)}
+              className={`flex w-full items-center gap-2.5 rounded-[var(--cd-radius-sm)] px-2 py-2 text-left transition-colors hover:bg-[var(--cd-side-bg-raised)] ${
+                collapsed ? "justify-center" : ""
+              }`}
+            >
+              <Avatar name={currentUser.name} size={30} />
+              {!collapsed && (
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[12.5px] font-semibold text-white">{currentUser.name}</span>
+                  <span className="block truncate text-[11px] text-[var(--cd-side-text-dim)]">
+                    {currentUser.role === "owner" ? "Owner" : currentUser.role === "admin" ? "Admin" : "Sales Agent"}
+                  </span>
                 </span>
-              </span>
-            )}
+              )}
+            </button>
             {accountMenuOpen && (
               <div
                 className="cd-animate-rise absolute bottom-full left-0 mb-2 w-56 overflow-hidden rounded-[var(--cd-radius-md)] border border-[var(--cd-border)] bg-[var(--cd-surface)] py-1 shadow-[var(--cd-shadow-lg)]"
@@ -263,7 +269,7 @@ export default function AppShellLayout({ children }: { children: React.ReactNode
                 </button>
               </div>
             )}
-          </button>
+          </div>
 
           <button
             type="button"
