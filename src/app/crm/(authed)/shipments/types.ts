@@ -121,6 +121,17 @@ export type CrmAccountLocation = {
   zip: string | null;
   receivingHours: string | null;
   dockNotes: string | null;
+  contactName: string | null;
+  contactPhone: string | null;
+  contactEmail: string | null;
+  defaultCarrierId: string | null;
+  defaultCarrierContactId: string | null;
+  /** Resolved for display only (batch-joined by listAccountLocations) —
+   * never written back; the actual FK is defaultCarrierId. */
+  defaultCarrierName: string | null;
+  defaultCarrierContactName: string | null;
+  defaultCarrierContactPhone: string | null;
+  defaultCarrierContactEmail: string | null;
 };
 
 export type AccountLocationFields = {
@@ -131,6 +142,11 @@ export type AccountLocationFields = {
   zip: string | null;
   receivingHours: string | null;
   dockNotes: string | null;
+  contactName: string | null;
+  contactPhone: string | null;
+  contactEmail: string | null;
+  defaultCarrierId: string | null;
+  defaultCarrierContactId: string | null;
 };
 
 // ── Shipments ────────────────────────────────────────────────────────────────
@@ -177,6 +193,10 @@ export type CrmShipmentRow = {
   customer_rate: number | null;
   carrier_id: string | null;
   carrier_rate: number | null;
+  carrier_contact_id: string | null;
+  carrier_contact_name: string | null;
+  carrier_contact_phone: string | null;
+  carrier_contact_email: string | null;
   notes: string | null;
   external_load_ref: string | null;
   truck_number: string | null;
@@ -232,6 +252,10 @@ export type CrmShipment = {
   customerRate: number | null;
   carrierId: string | null;
   carrierRate: number | null;
+  carrierContactId: string | null;
+  carrierContactName: string | null;
+  carrierContactPhone: string | null;
+  carrierContactEmail: string | null;
   notes: string | null;
   externalLoadRef: string | null;
   truckNumber: string | null;
@@ -301,6 +325,10 @@ export type ShipmentFields = {
   customerRate: number | null;
   carrierId: string | null;
   carrierRate: number | null;
+  carrierContactId: string | null;
+  carrierContactName: string | null;
+  carrierContactPhone: string | null;
+  carrierContactEmail: string | null;
   notes: string | null;
   externalLoadRef: string | null;
   truckNumber: string | null;

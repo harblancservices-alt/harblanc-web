@@ -94,6 +94,10 @@ function shipmentFieldsToRow(fields: Partial<ShipmentFields>): Record<string, un
   set("customerRate", "customer_rate");
   set("carrierId", "carrier_id");
   set("carrierRate", "carrier_rate");
+  set("carrierContactId", "carrier_contact_id");
+  set("carrierContactName", "carrier_contact_name");
+  set("carrierContactPhone", "carrier_contact_phone");
+  set("carrierContactEmail", "carrier_contact_email");
   set("notes", "notes");
   set("externalLoadRef", "external_load_ref");
   set("truckNumber", "truck_number");
@@ -307,6 +311,66 @@ export async function listShipments(): Promise<CrmShipmentSummary[]> {
   }));
 }
 
+/** A single account's shipments (active + historical), newest first, with
+ * the same carrier-name + RC/BOL-count enrichment listShipments() gives the
+ * org-wide list — used by the Active Customers profile's Shipments tab. */
+export async function listShipmentsForAccount(accountId: string): Promise<CrmShipmentSummary[]> {
+  const user = await requireCrmUser();
+  const supabase = await createCrmServerClient();
+
+  const { data: shipmentRows } = await supabase
+    .from("crm_shipments")
+    .select("*")
+    .eq("org_id", user.orgId)
+    .eq("account_id", accountId)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false });
+
+  const shipments = (shipmentRows ?? []) as CrmShipmentRow[];
+  if (shipments.length === 0) return [];
+
+  const shipmentIds = shipments.map((s) => s.id);
+  const carrierIds = Array.from(
+    new Set(shipments.map((s) => s.carrier_id).filter((v): v is string => Boolean(v))),
+  );
+
+  const [carriersResult, rcResult, bolResult] = await Promise.all([
+    carrierIds.length
+      ? supabase.from("crm_carriers").select("id, name").in("id", carrierIds)
+      : Promise.resolve({ data: [] }),
+    supabase
+      .from("crm_rate_confirmations")
+      .select("id, shipment_id")
+      .in("shipment_id", shipmentIds)
+      .is("deleted_at", null),
+    supabase
+      .from("crm_bills_of_lading")
+      .select("id, shipment_id")
+      .in("shipment_id", shipmentIds)
+      .is("deleted_at", null),
+  ]);
+
+  const carrierNameById = new Map<string, string>(
+    ((carriersResult.data ?? []) as { id: string; name: string }[]).map((c) => [c.id, c.name]),
+  );
+
+  const rcCountByShipment = new Map<string, number>();
+  for (const row of (rcResult.data ?? []) as { shipment_id: string }[]) {
+    rcCountByShipment.set(row.shipment_id, (rcCountByShipment.get(row.shipment_id) ?? 0) + 1);
+  }
+  const bolCountByShipment = new Map<string, number>();
+  for (const row of (bolResult.data ?? []) as { shipment_id: string }[]) {
+    bolCountByShipment.set(row.shipment_id, (bolCountByShipment.get(row.shipment_id) ?? 0) + 1);
+  }
+
+  return shipments.map((row) => ({
+    ...mapShipmentRow(row),
+    carrierName: row.carrier_id ? (carrierNameById.get(row.carrier_id) ?? null) : null,
+    rateConfirmationCount: rcCountByShipment.get(row.id) ?? 0,
+    bolCount: bolCountByShipment.get(row.id) ?? 0,
+  }));
+}
+
 /** Soft-delete a shipment. Any org member may delete — a shipment is
  * operational, same reasoning as calls/notes (no owner gate). */
 export async function softDeleteShipment(id: string): Promise<ActionResult> {
@@ -367,43 +431,92 @@ export async function searchCustomers(query: string): Promise<CustomerSearchResu
 
 // ── Locations ────────────────────────────────────────────────────────────────
 
+type AccountLocationRow = {
+  id: string;
+  account_id: string;
+  label: string | null;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+  receiving_hours: string | null;
+  dock_notes: string | null;
+  contact_name: string | null;
+  contact_phone: string | null;
+  contact_email: string | null;
+  default_carrier_id: string | null;
+  default_carrier_contact_id: string | null;
+};
+
 /** A customer's saved facilities, for the shipper/consignee location picker
- * when building a shipment off an existing account. */
+ * when building a shipment off an existing account. Batch-resolves each
+ * location's recurring carrier/contact (if set) the same way listShipments()
+ * batches carrier names — one extra pair of queries, not one per row. */
 export async function listAccountLocations(accountId: string): Promise<CrmAccountLocation[]> {
   await requireCrmUser();
   const supabase = await createCrmServerClient();
 
   const { data } = await supabase
     .from("crm_account_locations")
-    .select("id, account_id, label, address, city, state, zip, receiving_hours, dock_notes")
+    .select(
+      "id, account_id, label, address, city, state, zip, receiving_hours, dock_notes, contact_name, contact_phone, contact_email, default_carrier_id, default_carrier_contact_id",
+    )
     .eq("account_id", accountId)
     .is("deleted_at", null)
     .order("sort_order", { ascending: true })
     .order("created_at", { ascending: true });
 
-  return (
-    (data ?? []) as {
-      id: string;
-      account_id: string;
-      label: string | null;
-      address: string | null;
-      city: string | null;
-      state: string | null;
-      zip: string | null;
-      receiving_hours: string | null;
-      dock_notes: string | null;
-    }[]
-  ).map((r) => ({
-    id: r.id,
-    accountId: r.account_id,
-    label: r.label,
-    address: r.address,
-    city: r.city,
-    state: r.state,
-    zip: r.zip,
-    receivingHours: r.receiving_hours,
-    dockNotes: r.dock_notes,
-  }));
+  const rows = (data ?? []) as AccountLocationRow[];
+  if (rows.length === 0) return [];
+
+  const carrierIds = Array.from(
+    new Set(rows.map((r) => r.default_carrier_id).filter((v): v is string => Boolean(v))),
+  );
+  const contactIds = Array.from(
+    new Set(rows.map((r) => r.default_carrier_contact_id).filter((v): v is string => Boolean(v))),
+  );
+
+  const [carriersResult, contactsResult] = await Promise.all([
+    carrierIds.length
+      ? supabase.from("crm_carriers").select("id, name").in("id", carrierIds)
+      : Promise.resolve({ data: [] }),
+    contactIds.length
+      ? supabase.from("crm_carrier_contacts").select("id, name, phone, email").in("id", contactIds)
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  const carrierNameById = new Map<string, string>(
+    ((carriersResult.data ?? []) as { id: string; name: string }[]).map((c) => [c.id, c.name]),
+  );
+  const contactById = new Map<string, { name: string | null; phone: string | null; email: string | null }>(
+    ((contactsResult.data ?? []) as { id: string; name: string | null; phone: string | null; email: string | null }[]).map(
+      (c) => [c.id, { name: c.name, phone: c.phone, email: c.email }],
+    ),
+  );
+
+  return rows.map((r) => {
+    const contact = r.default_carrier_contact_id ? contactById.get(r.default_carrier_contact_id) : undefined;
+    return {
+      id: r.id,
+      accountId: r.account_id,
+      label: r.label,
+      address: r.address,
+      city: r.city,
+      state: r.state,
+      zip: r.zip,
+      receivingHours: r.receiving_hours,
+      dockNotes: r.dock_notes,
+      contactName: r.contact_name,
+      contactPhone: r.contact_phone,
+      contactEmail: r.contact_email,
+      defaultCarrierId: r.default_carrier_id,
+      defaultCarrierContactId: r.default_carrier_contact_id,
+      defaultCarrierName: r.default_carrier_id ? (carrierNameById.get(r.default_carrier_id) ?? null) : null,
+      defaultCarrierContactName: contact?.name ?? null,
+      defaultCarrierContactPhone: contact?.phone ?? null,
+      defaultCarrierContactEmail: contact?.email ?? null,
+    };
+  });
 }
 
 /**
@@ -432,6 +545,11 @@ export async function createAccountLocation(
       zip: fields.zip ?? null,
       receiving_hours: fields.receivingHours ?? null,
       dock_notes: fields.dockNotes ?? null,
+      contact_name: fields.contactName ?? null,
+      contact_phone: fields.contactPhone ?? null,
+      contact_email: fields.contactEmail ?? null,
+      default_carrier_id: fields.defaultCarrierId ?? null,
+      default_carrier_contact_id: fields.defaultCarrierContactId ?? null,
     })
     .select("id")
     .single();

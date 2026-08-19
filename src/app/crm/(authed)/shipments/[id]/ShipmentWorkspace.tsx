@@ -11,12 +11,13 @@ import { TextRow, TextAreaRow, MoneyRow, SelectRow, FormRow2, SelectedEntityChip
 import { LocationPickerModal } from "./LocationPickerModal";
 import { CarrierFormDialog } from "../../carriers/CarrierFormDialog";
 import { updateShipment, searchCustomers, createAccountLocation, softDeleteShipment } from "../actions";
-import { listCarriers } from "../carriers-actions";
+import { listCarriers, getCarrier } from "../carriers-actions";
 import { SHIPMENT_STATUSES, SHIPMENT_STATUS_LABEL, shipmentStatusTone } from "../statusMeta";
 import { EQUIPMENT_TYPES } from "../equipmentType";
 import type {
   CrmAccountLocation,
   CrmCarrier,
+  CrmCarrierContact,
   CrmShipmentDetail,
   CustomerSearchResult,
   ShipmentFields,
@@ -72,6 +73,7 @@ type LocalState = {
   refNumbers: string;
   specialInstructions: string;
   carrierRate: string;
+  carrierContactId: string;
   notes: string;
 };
 
@@ -81,6 +83,8 @@ const SHIPPER_AUTOFILL_KEYS = [
   "shipperCity",
   "shipperState",
   "shipperZip",
+  "shipperContact",
+  "shipperPhone",
 ] as const satisfies readonly (keyof LocalState)[];
 
 const CONSIGNEE_AUTOFILL_KEYS = [
@@ -89,6 +93,8 @@ const CONSIGNEE_AUTOFILL_KEYS = [
   "consigneeCity",
   "consigneeState",
   "consigneeZip",
+  "consigneeContact",
+  "consigneePhone",
 ] as const satisfies readonly (keyof LocalState)[];
 
 type AutoFill = { source: string; fields: Set<keyof LocalState> } | null;
@@ -130,6 +136,7 @@ function toLocal(shipment: CrmShipmentDetail): LocalState {
     refNumbers: str(shipment.refNumbers),
     specialInstructions: str(shipment.specialInstructions),
     carrierRate: shipment.carrierRate != null ? String(shipment.carrierRate) : "",
+    carrierContactId: str(shipment.carrierContactId),
     notes: str(shipment.notes),
   };
 }
@@ -167,6 +174,8 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
   const [consigneeAutoFill, setConsigneeAutoFill] = useState<AutoFill>(null);
   const [customerPickerOpen, setCustomerPickerOpen] = useState(false);
   const [carrierPickerOpen, setCarrierPickerOpen] = useState(false);
+  const [carrierContacts, setCarrierContacts] = useState<CrmCarrierContact[]>([]);
+  const [carrierAutoFillSource, setCarrierAutoFillSource] = useState<string | null>(null);
 
   const [saveError, setSaveError] = useState<string | null>(null);
   const [, startSaveTransition] = useTransition();
@@ -187,6 +196,15 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
     if (typeof window === "undefined") return;
     if (!window.matchMedia("(max-width: 1023px)").matches) return;
     setOpenSections(Object.fromEntries(SECTIONS.map((s, i) => [s.id, i === 0])));
+  }, []);
+
+  // Load the assigned carrier's contact roster once on mount (if a carrier
+  // is already set) so the Carrier Contact dropdown has options to show for
+  // an existing shipment, not just one just picked in this session.
+  useEffect(() => {
+    if (!shipment.carrierId) return;
+    getCarrier(shipment.carrierId).then((c) => setCarrierContacts(c?.contacts ?? []));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function jumpToSection(id: string) {
@@ -264,6 +282,8 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
             shipperCity: str(loc.city),
             shipperState: str(loc.state),
             shipperZip: str(loc.zip),
+            shipperContact: str(loc.contactName),
+            shipperPhone: str(loc.contactPhone),
           }
         : {
             consigneeLocationId: loc.id,
@@ -272,6 +292,8 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
             consigneeCity: str(loc.city),
             consigneeState: str(loc.state),
             consigneeZip: str(loc.zip),
+            consigneeContact: str(loc.contactName),
+            consigneePhone: str(loc.contactPhone),
           };
     setState((prev) => ({ ...prev, ...patch }));
     const keys = side === "shipper" ? SHIPPER_AUTOFILL_KEYS : CONSIGNEE_AUTOFILL_KEYS;
@@ -286,6 +308,8 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
             shipperCity: orNull(str(loc.city)),
             shipperState: orNull(str(loc.state)),
             shipperZip: orNull(str(loc.zip)),
+            shipperContact: orNull(str(loc.contactName)),
+            shipperPhone: orNull(str(loc.contactPhone)),
           }
         : {
             consigneeLocationId: loc.id,
@@ -294,8 +318,35 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
             consigneeCity: orNull(str(loc.city)),
             consigneeState: orNull(str(loc.state)),
             consigneeZip: orNull(str(loc.zip)),
+            consigneeContact: orNull(str(loc.contactName)),
+            consigneePhone: orNull(str(loc.contactPhone)),
           },
     );
+
+    // Recurring carrier suggestion: a location can name a carrier/contact
+    // it's normally booked with (crm_account_locations.default_carrier_id).
+    // Only offer it when no carrier is assigned yet — never clobber a
+    // carrier the user already picked or that came with the shipment.
+    if (loc.defaultCarrierId && !carrier) {
+      startSaveTransition(async () => {
+        const full = await getCarrier(loc.defaultCarrierId as string);
+        if (!full) return;
+        setCarrier(full);
+        setCarrierContacts(full.contacts);
+        const contact = loc.defaultCarrierContactId
+          ? full.contacts.find((c) => c.id === loc.defaultCarrierContactId)
+          : undefined;
+        setState((prev) => ({ ...prev, carrierContactId: contact?.id ?? "" }));
+        setCarrierAutoFillSource(loc.label || "saved location");
+        commit({
+          carrierId: full.id,
+          carrierContactId: contact?.id ?? null,
+          carrierContactName: contact?.name ?? null,
+          carrierContactPhone: contact?.phone ?? full.phone ?? null,
+          carrierContactEmail: contact?.email ?? full.email ?? null,
+        });
+      });
+    }
   }
 
   function resetLocation(side: "shipper" | "consignee") {
@@ -385,13 +436,35 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
   function selectCarrier(c: CrmCarrier) {
     setCarrierPickerOpen(false);
     setCarrier(c);
-    commit({ carrierId: c.id });
+    setCarrierContacts([]);
+    setCarrierAutoFillSource(null);
+    setState((prev) => ({ ...prev, carrierContactId: "" }));
+    commit({ carrierId: c.id, carrierContactId: null, carrierContactName: null, carrierContactPhone: null, carrierContactEmail: null });
+    startSaveTransition(async () => {
+      const full = await getCarrier(c.id);
+      setCarrierContacts(full?.contacts ?? []);
+    });
   }
 
   function resetCarrier() {
     setCarrierPickerOpen(false);
     setCarrier(null);
-    commit({ carrierId: null });
+    setCarrierContacts([]);
+    setCarrierAutoFillSource(null);
+    setState((prev) => ({ ...prev, carrierContactId: "" }));
+    commit({ carrierId: null, carrierContactId: null, carrierContactName: null, carrierContactPhone: null, carrierContactEmail: null });
+  }
+
+  function selectCarrierContact(contactId: string) {
+    setCarrierAutoFillSource(null);
+    setState((prev) => ({ ...prev, carrierContactId: contactId }));
+    const contact = carrierContacts.find((c) => c.id === contactId);
+    commit({
+      carrierContactId: contactId || null,
+      carrierContactName: contact?.name ?? null,
+      carrierContactPhone: contact?.phone ?? carrier?.phone ?? null,
+      carrierContactEmail: contact?.email ?? carrier?.email ?? null,
+    });
   }
 
   // ── Status ──────────────────────────────────────────────────────────────
@@ -541,6 +614,25 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
               </button>
             )}
           />
+          {carrierAutoFillSource && (
+            <p className="text-[12px] font-medium text-ok">
+              Auto-filled from {carrierAutoFillSource}&rsquo;s recurring carrier — editable below.
+            </p>
+          )}
+          {carrier && carrierContacts.length > 0 && (
+            <SelectRow
+              label="Carrier contact"
+              value={state.carrierContactId}
+              onChange={selectCarrierContact}
+            >
+              <option value="">No specific contact</option>
+              {carrierContacts.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name || "Unnamed"} {c.role ? `— ${c.role}` : ""}
+                </option>
+              ))}
+            </SelectRow>
+          )}
           <MoneyRow
             label="Carrier rate"
             value={state.carrierRate}
