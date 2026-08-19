@@ -345,8 +345,8 @@ export async function updateProspectLevel(
 /**
  * Soft-delete a company (set deleted_at). Admin-only (role=owner) — a
  * company is a shared record, same defense-in-depth reasoning as
- * settings/actions.ts::updateMember. RLS only scopes crm_accounts to the
- * org, not by role, so this app-layer check is the enforcement point.
+ * settings/actions.ts::updateBrokerProfile. RLS only scopes crm_accounts to
+ * the org, not by role, so this app-layer check is the enforcement point.
  */
 export async function deleteAccount(id: string): Promise<ActionResult> {
   const user = await requireCrmUser();
@@ -557,8 +557,8 @@ export async function updateContact(
 /**
  * Soft-delete a contact (set deleted_at). Admin-only (role=owner) — a
  * contact is a shared record, same defense-in-depth reasoning as
- * deleteAccount/settings::updateMember. If it was the company's primary
- * contact, clear that pointer so the profile never references a hidden row.
+ * deleteAccount above. If it was the company's primary contact, clear that
+ * pointer so the profile never references a hidden row.
  */
 export async function deleteContact(
   contactId: string,

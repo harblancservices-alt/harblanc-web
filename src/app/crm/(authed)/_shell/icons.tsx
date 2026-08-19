@@ -308,6 +308,19 @@ export function IconFlagSolid(props: IconProps) {
   );
 }
 
+/** Shield glyph — the owner-only "Admin Account" nav item, rendered in the
+ * CRM's purple admin accent (see CrmShell.tsx/MobileMoreSheet.tsx's
+ * `adminAccent` handling) regardless of active state, same "always-tinted"
+ * treatment ownerOnly/redAccent items already get for their own colors. */
+export function IconAdminAccount(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M12 3.5l7 2.9v5.1c0 4.6-2.98 8.36-7 9.5-4.02-1.14-7-4.9-7-9.5V6.4l7-2.9Z" />
+      <path d="M9 12l2 2 4-4.5" />
+    </svg>
+  );
+}
+
 /** Price-tag glyph — the Company Details card's "Tags" section header. */
 export function IconTag(props: IconProps) {
   return (

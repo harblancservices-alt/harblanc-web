@@ -10,6 +10,7 @@ import {
   IconCalendar,
   IconStarSolid,
   IconFlagSolid,
+  IconAdminAccount,
 } from "./icons";
 
 export type CrmNavItem = {
@@ -44,6 +45,17 @@ export type CrmNavItem = {
    * just "Active Clients", which wants a solid gold star at all times. Unlike
    * ownerOnly/redAccent this never tints the label or border. */
   iconTint?: "gold";
+  /** True for the single "Admin Account" item — owner-only (pushed only when
+   * role==='owner', same conditional-push pattern as AI Review's ownerOnly)
+   * but rendered in its OWN purple accent rather than AI Review's orange, so
+   * the two owner-only surfaces read as visually distinct: AI Review is a
+   * queue to work through, Admin Account is the elevated management area.
+   * CrmShell pulls this item (like Settings) out of the scrolling nav list
+   * into the sidebar's pinned bottom footer, below the account identity row
+   * — "pinned at the bottom of the sidebar" per the approved mockup — while
+   * MobileMoreSheet renders it inline in the More sheet's list, purple-
+   * tinted, same as it does for ownerOnly/redAccent items today. */
+  adminAccent?: boolean;
 };
 
 /**
@@ -123,6 +135,14 @@ export function buildCrmNav(
     });
   }
   nav.push({ href: "/crm/settings", label: "Settings", Icon: IconSettings });
+  if (role === "owner") {
+    nav.push({
+      href: "/crm/admin",
+      label: "Admin Account",
+      Icon: IconAdminAccount,
+      adminAccent: true,
+    });
+  }
   return nav;
 }
 

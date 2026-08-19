@@ -9,8 +9,9 @@ export type LogCrmEventInput = {
 };
 
 /**
- * Best-effort activity logging into crm_user_events — powers the owner-only
- * activity view (settings/activity/[userId]/page.tsx) and is otherwise
+ * Best-effort activity logging into crm_user_events — powers the "Last
+ * active" readout on the owner-only Admin Account section's Accounts detail
+ * page (../admin/accounts-data.ts::listTeamMembers) and is otherwise
  * completely invisible: no return value the caller could react to, and every
  * failure is swallowed here so a logging hiccup can never surface an error
  * or block navigation for the person being logged. RLS lets any member

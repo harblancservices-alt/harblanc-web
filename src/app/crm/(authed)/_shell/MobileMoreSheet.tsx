@@ -72,6 +72,7 @@ export function MobileMoreSheet({
             const active = isActive(pathname, item);
             const ownerOnly = !!item.ownerOnly;
             const redAccent = !!item.redAccent;
+            const adminAccent = !!item.adminAccent;
             const goldIcon = item.iconTint === "gold";
             return (
               // Divider lives on this wrapper, not the Link — see CrmShell's
@@ -92,12 +93,16 @@ export function MobileMoreSheet({
                         ? "border-warn bg-graphite-2 text-warn"
                         : redAccent
                           ? "border-bad bg-graphite-2 text-bad"
-                          : "border-accent bg-graphite-2 text-white"
+                          : adminAccent
+                            ? "border-[#c084fc] bg-graphite-2 text-[#c084fc]"
+                            : "border-accent bg-graphite-2 text-white"
                       : ownerOnly
                         ? "border-transparent text-warn/90 hover:bg-graphite-2/60 hover:text-warn"
                         : redAccent
                           ? "border-transparent text-bad/90 hover:bg-graphite-2/60 hover:text-bad"
-                          : "border-transparent text-white hover:bg-graphite-2/60",
+                          : adminAccent
+                            ? "border-transparent text-[#c084fc]/90 hover:bg-graphite-2/60 hover:text-[#c084fc]"
+                            : "border-transparent text-white hover:bg-graphite-2/60",
                   ].join(" ")}
                 >
                   <item.Icon
@@ -108,9 +113,11 @@ export function MobileMoreSheet({
                           ? "text-warn"
                           : redAccent
                             ? "text-bad"
-                            : active
-                              ? "text-accent"
-                              : "text-on-dark-dim"
+                            : adminAccent
+                              ? "text-[#c084fc]"
+                              : active
+                                ? "text-accent"
+                                : "text-on-dark-dim"
                     }
                   />
                   <span className="flex-1">{item.label}</span>

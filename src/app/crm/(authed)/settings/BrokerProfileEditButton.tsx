@@ -5,10 +5,10 @@ import { BTN_EDIT } from "../_shell/ui";
 import type { BrokerProfile } from "../_shell/brokerProfile";
 
 /**
- * Client-side trigger wrapper for BrokerProfileDialog — see MemberEditButton
- * for why this indirection exists: settings/page.tsx is a Server Component,
- * and a Server Component can't pass a plain function (the dialog's `trigger`
- * render prop) across the client boundary. The button has to be built here.
+ * Client-side trigger wrapper for BrokerProfileDialog: settings/page.tsx is
+ * a Server Component, and a Server Component can't pass a plain function
+ * (the dialog's `trigger` render prop) across the client boundary. The
+ * button has to be built here.
  */
 export function BrokerProfileEditButton({ profile }: { profile: BrokerProfile }) {
   return (

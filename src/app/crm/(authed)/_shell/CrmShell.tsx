@@ -66,7 +66,10 @@ export function CrmShell({
   // Companies/etc. Mobile is untouched: it stays in `moreNav` below and
   // still surfaces in the "More" sheet exactly as before.
   const settingsItem = navItems.find((item) => item.href === "/crm/settings");
-  const sidebarNavItems = navItems.filter((item) => item.href !== "/crm/settings");
+  const adminItem = navItems.find((item) => item.href === "/crm/admin");
+  const sidebarNavItems = navItems.filter(
+    (item) => item.href !== "/crm/settings" && item.href !== "/crm/admin",
+  );
   // Everything the bottom bar's 4 fixed slots don't cover (Active
   // Clients, Prospects, Settings, and — owner-only — AI Review) surfaces
   // in the mobile "More" sheet instead, so no destination the desktop
@@ -196,6 +199,21 @@ export function CrmShell({
               >
                 <IconSettings width={18} height={18} />
                 Settings
+              </Link>
+            )}
+            {adminItem && (
+              <Link
+                href={adminItem.href}
+                prefetch={false}
+                className={[
+                  "mb-1 flex items-center gap-2 rounded-lg px-3 py-2 text-[12.5px] font-semibold transition-colors",
+                  isActive(pathname, adminItem)
+                    ? "bg-graphite-2 text-[#c084fc]"
+                    : "text-[#c084fc]/90 hover:bg-graphite-2/60 hover:text-[#c084fc]",
+                ].join(" ")}
+              >
+                <adminItem.Icon width={18} height={18} className="text-[#c084fc]" />
+                {adminItem.label}
               </Link>
             )}
             <form action="/crm/logout" method="post">

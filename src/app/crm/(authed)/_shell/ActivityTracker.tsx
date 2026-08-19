@@ -19,6 +19,10 @@ const KNOWN_LABELS: Record<string, string> = {
   "/crm/ai-agent": "AI Agent",
   "/crm/ai-review": "AI Review",
   "/crm/settings": "Settings",
+  "/crm/admin": "Admin Account",
+  "/crm/admin/accounts": "Admin Accounts",
+  "/crm/admin/activity": "Admin Activity",
+  "/crm/admin/documents": "Admin Documents",
 };
 
 /** Concise human label for a route — exact matches for every known tab,
@@ -28,7 +32,7 @@ const KNOWN_LABELS: Record<string, string> = {
 function labelForPath(path: string): string {
   if (KNOWN_LABELS[path]) return KNOWN_LABELS[path];
   if (/^\/crm\/accounts\/[^/]+$/.test(path)) return "Company profile";
-  if (/^\/crm\/settings\/activity\/[^/]+$/.test(path)) return "Team activity";
+  if (/^\/crm\/admin\/accounts\/[^/]+$/.test(path)) return "Admin member detail";
   const last = path.split("/").filter(Boolean).pop() ?? "crm";
   return last.charAt(0).toUpperCase() + last.slice(1).replace(/-/g, " ");
 }
