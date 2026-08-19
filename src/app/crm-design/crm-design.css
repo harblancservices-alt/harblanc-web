@@ -1,0 +1,146 @@
+/*
+ * Design tokens for the CRM redesign prototype (/crm-design). Entirely
+ * self-contained — no reference to, or reuse of, any token/class from the
+ * real /crm ("--accent", ".crm-light", etc. are a different app's tokens).
+ * Everything below is scoped under .crm-design so it can never leak onto,
+ * or be affected by, any other route on this site.
+ *
+ * This file IS the visual half of DESIGN_DECISIONS.md's "design system"
+ * section — the values here are what every component in _design/ reads.
+ */
+
+.crm-design {
+  /* Surfaces */
+  --cd-bg: #f4f5f8;
+  --cd-surface: #ffffff;
+  --cd-surface-2: #f8f9fb;
+  --cd-border: #e3e5eb;
+  --cd-border-strong: #cfd2db;
+
+  /* Text */
+  --cd-text: #14161c;
+  --cd-text-muted: #565b6b;
+  --cd-text-subtle: #8a8fa0;
+  --cd-text-inverse: #ffffff;
+
+  /* Primary accent — the ONE color for interactive/active state everywhere
+     in the workspace. Nothing else in this prototype invents its own hue. */
+  --cd-accent: #2f5fd6;
+  --cd-accent-hover: #2650b8;
+  --cd-accent-soft: #eaf0ff;
+  --cd-accent-text-on: #ffffff;
+
+  /* Elevated/admin accent — ONE dedicated token (not a raw hex reused ad
+     hoc) for every owner-only surface: Admin Account nav item, Admin tab
+     bar, Admin badges. Replaces the real CRM's six-plus scattered #9333ea
+     literals with a single source of truth (see DESIGN_DECISIONS.md). */
+  --cd-admin: #7c4fe0;
+  --cd-admin-hover: #6a3fc9;
+  --cd-admin-soft: #f1ebfd;
+
+  /* Semantic status — used for badges/toasts/inline states ONLY, never for
+     navigation or "this is important" decoration. */
+  --cd-success: #17825a;
+  --cd-success-soft: #e5f6ee;
+  --cd-warning: #a8660a;
+  --cd-warning-soft: #fbf0dc;
+  --cd-danger: #c53434;
+  --cd-danger-soft: #fbeaea;
+
+  /* Sidebar (dark) */
+  --cd-side-bg: #14161d;
+  --cd-side-bg-raised: #1c1f29;
+  --cd-side-border: #262a36;
+  --cd-side-text: #cdd0db;
+  --cd-side-text-dim: #888ea3;
+
+  /* Elevation */
+  --cd-shadow-sm: 0 1px 2px rgba(15, 17, 23, 0.06);
+  --cd-shadow: 0 1px 3px rgba(15, 17, 23, 0.09), 0 1px 2px rgba(15, 17, 23, 0.05);
+  --cd-shadow-lg: 0 16px 40px rgba(15, 17, 23, 0.18), 0 4px 10px rgba(15, 17, 23, 0.08);
+
+  /* Radius — one scale, used consistently (cards/panels = md, controls =
+     sm, sheets/drawers = lg on their leading edge only). */
+  --cd-radius-sm: 6px;
+  --cd-radius-md: 8px;
+  --cd-radius-lg: 14px;
+
+  background: var(--cd-bg);
+  color: var(--cd-text);
+  min-height: 100vh;
+}
+
+.crm-design * {
+  box-sizing: border-box;
+}
+
+.crm-design ::selection {
+  background: var(--cd-accent-soft);
+  color: var(--cd-accent);
+}
+
+/* Thin, unobtrusive scrollbars inside the workspace only. */
+.crm-design .cd-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--cd-border-strong) transparent;
+}
+.crm-design .cd-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.crm-design .cd-scroll::-webkit-scrollbar-thumb {
+  background: var(--cd-border-strong);
+  border-radius: 8px;
+}
+
+@keyframes cd-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes cd-rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes cd-slide-in-right {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+@keyframes cd-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+.cd-animate-fade {
+  animation: cd-fade-in 0.15s ease-out;
+}
+.cd-animate-rise {
+  animation: cd-rise-in 0.18s ease-out;
+}
+.cd-animate-slide {
+  animation: cd-slide-in-right 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.cd-skeleton {
+  animation: cd-pulse 1.4s ease-in-out infinite;
+  background: var(--cd-border);
+  border-radius: 4px;
+}
