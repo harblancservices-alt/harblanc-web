@@ -4,8 +4,9 @@ import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CheckboxField, FormError, SubmitButton } from "../../../_shell/form";
 import { BTN_DANGER } from "../../../_shell/ui";
-import { updateMemberAccount, suspendMember } from "../../actions";
+import { updateMemberAccount } from "../../actions";
 import type { AdminTeamMember } from "../../types";
+import { SuspendReassignDialog } from "./SuspendReassignDialog";
 
 /**
  * The Accounts detail page's editable right side — ACCESS LEVEL segmented
@@ -21,20 +22,28 @@ import type { AdminTeamMember } from "../../types";
  * The caller MUST remount this on every server-confirmed change (the detail
  * page does via a `key` derived from member.role/isActive/canViewAllCompanies)
  * — accessLevel's useState and the two CheckboxFields' `defaultChecked` are
- * only ever read on mount. Without that key, calling suspendMember() and then
- * router.refresh() would update the `member` prop but leave this form's own
- * DOM state (and the "Active account" checkbox in particular) showing the
- * PRE-suspend value, so a follow-up "Save changes" click would silently
- * re-activate the account it just suspended.
+ * only ever read on mount. Without that key, a successful suspend-and-
+ * reassign (SuspendReassignDialog) followed by router.refresh() would update
+ * the `member` prop but leave this form's own DOM state (the "Active
+ * account" checkbox in particular) showing the PRE-suspend value, so a
+ * follow-up "Save changes" click would silently re-activate the account
+ * that was just suspended.
  */
-export function MemberAccountForm({ member }: { member: AdminTeamMember }) {
+export function MemberAccountForm({
+  member,
+  reassignTargets,
+}: {
+  member: AdminTeamMember;
+  /** Every other active member in the org — passed through unchanged to
+   * SuspendReassignDialog's dropdown. */
+  reassignTargets: AdminTeamMember[];
+}) {
   const [accessLevel, setAccessLevel] = useState<"member" | "owner">(
     member.role === "owner" ? "owner" : "member",
   );
   const [error, setError] = useState<string | null>(null);
-  const [suspendError, setSuspendError] = useState<string | null>(null);
+  const [suspendOpen, setSuspendOpen] = useState(false);
   const [pending, startTransition] = useTransition();
-  const [suspending, startSuspendTransition] = useTransition();
   const router = useRouter();
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -46,18 +55,6 @@ export function MemberAccountForm({ member }: { member: AdminTeamMember }) {
       const res = await updateMemberAccount(member.id, formData);
       if (res.ok) router.refresh();
       else setError(res.error);
-    });
-  }
-
-  function onSuspend() {
-    if (!window.confirm(`Suspend ${member.fullName || member.email || "this user"}? They won't be able to sign in.`)) {
-      return;
-    }
-    setSuspendError(null);
-    startSuspendTransition(async () => {
-      const res = await suspendMember(member.id);
-      if (res.ok) router.refresh();
-      else setSuspendError(res.error);
     });
   }
 
@@ -114,19 +111,27 @@ export function MemberAccountForm({ member }: { member: AdminTeamMember }) {
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line-strong pt-4">
-        <div>
-          <button
-            type="button"
-            onClick={onSuspend}
-            disabled={suspending}
-            className={`rounded-md px-3.5 py-2 text-[13px] font-semibold transition-colors disabled:opacity-60 ${BTN_DANGER}`}
-          >
-            {suspending ? "Suspending…" : "Suspend user"}
-          </button>
-          {suspendError && <p className="mt-1.5 text-[12px] text-bad">{suspendError}</p>}
-        </div>
+        <button
+          type="button"
+          onClick={() => setSuspendOpen(true)}
+          className={`rounded-md px-3.5 py-2 text-[13px] font-semibold transition-colors disabled:opacity-60 ${BTN_DANGER}`}
+        >
+          Suspend user
+        </button>
         <SubmitButton pending={pending}>Save changes</SubmitButton>
       </div>
+
+      {suspendOpen && (
+        <SuspendReassignDialog
+          member={member}
+          targets={reassignTargets}
+          onClose={() => setSuspendOpen(false)}
+          onSuccess={() => {
+            setSuspendOpen(false);
+            router.refresh();
+          }}
+        />
+      )}
     </form>
   );
 }

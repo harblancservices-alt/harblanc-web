@@ -60,8 +60,3 @@ export async function listTeamMembers(): Promise<AdminTeamMember[]> {
     return (a.fullName || a.email || "").localeCompare(b.fullName || b.email || "");
   });
 }
-
-export async function getTeamMember(memberId: string): Promise<AdminTeamMember | null> {
-  const members = await listTeamMembers();
-  return members.find((m) => m.id === memberId) ?? null;
-}

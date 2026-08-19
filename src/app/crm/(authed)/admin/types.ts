@@ -50,30 +50,24 @@ export type AdminActivityItem = {
   contactName: string | null;
 };
 
-/** One card in the Operational Documents library — every Rate Confirmation
- * or Bill of Lading generated across every shipment (crm_rate_confirmations /
- * crm_bills_of_lading, joined back to their parent crm_shipments + the
- * uploader's crm_profiles row). "pod" is a real filter option (matching the
- * approved mockup's RateCon/BOL/POD chip set) but the CRM has no POD source
- * of its own yet — proof-of-delivery only exists in tms-v2, which this
- * feature must never import from — so it never actually appears; see this
- * file's header note in documents-data.ts. */
-export type AdminDocumentType = "rate_confirmation" | "bill_of_lading" | "pod";
+/** One card in the Admin Account "Documents" tab — the blank MASTER
+ * templates the CRM's own RC/BOL generator is built from (crm_documents,
+ * kind='org_doc:Rate Confirmation'/'org_doc:Bill of Lading', account_id/
+ * deal_id both null — the exact rows ../settings/blankTemplates.ts used to
+ * self-seed before that Settings section was removed), not per-shipment
+ * generated output. POD is out of scope (Brent's call — no CRM POD source
+ * exists anyway; see documents-data.ts header). `docType` distinguishes
+ * which template a card is for card styling (icon/label), matching the
+ * vocabulary the rest of the CRM's RC/BOL code already uses. */
+export type AdminBlankTemplateType = "rate_confirmation" | "bill_of_lading";
 
-export type AdminDocumentCard = {
-  id: string;
-  docType: AdminDocumentType;
-  number: string;
-  status: string;
-  createdAt: string;
-  shipmentId: string;
-  shipmentNumber: string | null;
-  companyId: string | null;
-  companyName: string | null;
-  uploadedById: string | null;
-  uploadedByName: string | null;
-  pdfStoragePath: string | null;
+export type AdminBlankTemplate = {
+  docType: AdminBlankTemplateType;
+  label: string;
+  fileName: string | null;
+  storagePath: string | null;
   thumbUrl: string | null;
+  createdAt: string | null;
 };
 
 export type ActionResult = { ok: true } | { ok: false; error: string };

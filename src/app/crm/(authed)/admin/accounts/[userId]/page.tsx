@@ -4,7 +4,7 @@ import { Card, CardHead } from "../../../_shell/ui";
 import { BackButton } from "../../../_shell/BackButton";
 import { LocalTime } from "../../../_shell/LocalTime";
 import { formatDate } from "../../../_shell/format";
-import { getTeamMember } from "../../accounts-data";
+import { listTeamMembers } from "../../accounts-data";
 import { MemberAccountForm } from "./MemberAccountForm";
 
 export const dynamic = "force-dynamic";
@@ -32,8 +32,14 @@ export default async function AdminMemberDetailPage({
 }) {
   const { userId } = await params;
   const viewer = await requireCrmUser();
-  const member = await getTeamMember(userId);
+  const allMembers = await listTeamMembers();
+  const member = allMembers.find((m) => m.id === userId) ?? null;
   if (!member) notFound();
+
+  // Reassignment-target roster for the Suspend flow — every OTHER active
+  // member in the org (may include the primary owner or the viewer
+  // themselves; only the row being suspended is excluded).
+  const reassignTargets = allMembers.filter((m) => m.isActive && m.id !== member.id);
 
   const supabase = await createCrmServerClient();
   const { data: orgRow } = await supabase.from("crm_orgs").select("name").eq("id", viewer.orgId).maybeSingle();
@@ -105,6 +111,7 @@ export default async function AdminMemberDetailPage({
               <MemberAccountForm
                 key={`${member.id}-${member.role}-${member.isActive}-${member.canViewAllCompanies}`}
                 member={member}
+                reassignTargets={reassignTargets}
               />
             )}
           </div>

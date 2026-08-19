@@ -1,21 +1,16 @@
-import { listOperationalDocuments } from "../documents-data";
+import { listBlankTemplates } from "../documents-data";
 import { AdminDocumentsGrid } from "./AdminDocumentsGrid";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Admin Account "Documents" — the Operational Documents library this
- * feature moves out of Settings (../../settings/page.tsx's OrgDocumentsSection
- * "Documents" card — the reference-document TYPE library: blank Bill of
- * Lading/Rate Confirmation templates, Carrier Agreement, Shipper Agreement —
- * removed from Settings, see that file's diff). This is a different set of
- * documents than what OrgDocumentsSection showed: every RC/BOL actually
- * GENERATED across every shipment, not blank reference templates. Existing
- * org_doc:* rows/files from the old Settings library are left in Storage/
- * crm_documents untouched (nothing reads them anymore, but nothing deletes
- * them either) — see this PR's summary for that call.
+ * Admin Account "Documents" — the CRM's blank master templates (Rate
+ * Confirmation, Bill of Lading), not per-shipment generated output. See
+ * ../documents-data.ts for the full history: this tab originally showed
+ * every RC/BOL generated across shipments; Brent's correction was that this
+ * is a template library, not a job-output library.
  */
 export default async function AdminDocumentsPage() {
-  const documents = await listOperationalDocuments();
-  return <AdminDocumentsGrid documents={documents} />;
+  const templates = await listBlankTemplates();
+  return <AdminDocumentsGrid templates={templates} />;
 }

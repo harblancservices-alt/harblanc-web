@@ -129,25 +129,75 @@ export async function updateMemberAccount(
 }
 
 /**
- * The detail page's standalone "Suspend user" footer button — an immediate,
- * one-click deactivation (is_active=false only; role and the company-
- * visibility flag are untouched) distinct from the toggle-then-Save flow the
- * rest of the form uses, same rationale a destructive action usually gets
- * its own confirm rather than living inside a general "Save changes".
+ * The detail page's "Suspend user" flow — reassigns the member's entire book
+ * of business (every crm_accounts row with assigned_user_id = memberId) to
+ * `reassignToUserId`, THEN deactivates the member's account. Both steps are
+ * required together: Brent's explicit call is that a suspended member's
+ * companies must not go unowned, so suspension always carries a
+ * reassignment rather than offering a bare "deactivate, leave the companies
+ * orphaned" path.
+ *
+ * Same `loadEditableTarget` guards as updateMemberAccount apply to the
+ * member being suspended (owner-only caller, never self, never the primary
+ * owner). The reassignment target is independently re-verified here — never
+ * trusted from the client beyond its id — as an ACTIVE crm_profiles row in
+ * the SAME org (`loaded.callerOrgId`, from the caller's own verified
+ * session, never a submitted org id). The reassignment target may be any
+ * active member INCLUDING the primary owner or the caller themselves —
+ * only the row being suspended is restricted; there's no rule against the
+ * primary owner (or the acting admin) taking over a departing member's
+ * companies.
+ *
+ * Ordered so a failure is never destructive: companies move first (a safe,
+ * idempotent step — re-running it after a partial failure just finds 0
+ * rows left to move), and only once that succeeds does the account actually
+ * get deactivated. If the org has no other active member to reassign to,
+ * the caller gets a clear error instead of a silent no-op suspend.
  */
-export async function suspendMember(memberId: string): Promise<ActionResult> {
+export async function suspendAndReassignMember(
+  memberId: string,
+  reassignToUserId: string,
+): Promise<ActionResult> {
   const loaded = await loadEditableTarget(memberId);
   if (!loaded.ok) return loaded;
 
+  if (!reassignToUserId || reassignToUserId === memberId) {
+    return { ok: false, error: "Choose who should take over this user's companies." };
+  }
+
   const supabase = createServiceRoleClient();
-  const { error } = await supabase
+
+  const { data: targetData, error: targetError } = await supabase
+    .from("crm_profiles")
+    .select("id, is_active")
+    .eq("id", reassignToUserId)
+    .eq("org_id", loaded.callerOrgId)
+    .maybeSingle();
+  const target = targetData as { id: string; is_active: boolean } | null;
+  if (targetError || !target || !target.is_active) {
+    return { ok: false, error: "Choose an active user to reassign these companies to." };
+  }
+
+  const { error: reassignError } = await supabase
+    .from("crm_accounts")
+    .update({ assigned_user_id: reassignToUserId })
+    .eq("assigned_user_id", memberId)
+    .eq("org_id", loaded.callerOrgId)
+    .is("deleted_at", null);
+  if (reassignError) {
+    return { ok: false, error: "Could not reassign this user's companies. Please try again." };
+  }
+
+  const { error: suspendError } = await supabase
     .from("crm_profiles")
     .update({ is_active: false })
     .eq("id", memberId)
     .eq("org_id", loaded.callerOrgId);
-
-  if (error) {
-    return { ok: false, error: "Could not suspend this user. Please try again." };
+  if (suspendError) {
+    return {
+      ok: false,
+      error: "Companies were reassigned, but the account could not be suspended. Please try again.",
+    };
   }
 
   revalidatePath(`/crm/admin/accounts/${memberId}`);
