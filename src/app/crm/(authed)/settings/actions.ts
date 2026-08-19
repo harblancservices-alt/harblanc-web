@@ -12,10 +12,9 @@ function str(fd: FormData, key: string): string {
 /**
  * Upsert the org's single crm_broker_profile row — the company name/MC/DOT/
  * address every generated document (Bill of Lading, Rate Confirmation)
- * reads from. Admin-only (role=owner), same rationale as updateMember: RLS
- * only scopes crm_broker_profile to the org, not by role, so this app-layer
- * check is what keeps any signed-in member from rewriting the org's
- * letterhead identity.
+ * reads from. Admin-only (role=owner) — RLS only scopes crm_broker_profile
+ * to the org, not by role, so this app-layer check is what keeps any
+ * signed-in member from rewriting the org's letterhead identity.
  */
 export async function updateBrokerProfile(formData: FormData): Promise<ActionResult> {
   const user = await requireCrmUser();
