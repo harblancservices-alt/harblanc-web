@@ -67,7 +67,7 @@ export default function AdminMemberDetailPage() {
           <div className="flex flex-col items-center gap-2 px-5 py-6 text-center">
             <Avatar name={member.name} size={64} />
             <p className="text-[16px] font-bold text-[var(--cd-text)]">{member.name}</p>
-            <p className={`${TEXT.micro} text-[var(--cd-text-subtle)]`}>{member.email}</p>
+            <p className={`${TEXT.micro} text-[var(--cd-text-muted)]`}>{member.email}</p>
             <div className="mt-1 flex flex-wrap items-center justify-center gap-1.5">
               {member.isPrimaryOwner ? (
                 <Badge tone="admin">Primary owner</Badge>
@@ -93,14 +93,14 @@ export default function AdminMemberDetailPage() {
             <div className="flex flex-wrap items-center justify-between gap-3 p-5">
               <div>
                 <Badge tone={member.isActive ? "success" : "danger"}>{member.isActive ? "Active" : "Suspended"}</Badge>
-                <p className={`mt-1.5 ${TEXT.micro} max-w-sm text-[var(--cd-text-subtle)]`}>
+                <p className={`mt-1.5 ${TEXT.micro} max-w-sm text-[var(--cd-text-muted)]`}>
                   {member.isActive
                     ? "Suspending always reassigns this member's companies first — there is no way to suspend without reassigning."
                     : "This member's companies were already reassigned when they were suspended. Reactivating restores sign-in access only."}
                 </p>
               </div>
               {locked ? (
-                <span className={`${TEXT.micro} text-[var(--cd-text-subtle)]`}>
+                <span className={`${TEXT.micro} text-[var(--cd-text-muted)]`}>
                   {member.isPrimaryOwner ? "The primary owner can't be changed." : "You can't change your own status here."}
                 </span>
               ) : member.isActive ? (
@@ -119,7 +119,7 @@ export default function AdminMemberDetailPage() {
             <CardHead title="Access & visibility" />
             <div className="flex flex-col gap-5 p-5">
               {locked ? (
-                <p className={`rounded-[var(--cd-radius-sm)] border border-[var(--cd-border)] bg-[var(--cd-surface-2)] px-3.5 py-3 ${TEXT.body} text-[var(--cd-text-subtle)]`}>
+                <p className={`rounded-[var(--cd-radius-sm)] border border-[var(--cd-border)] bg-[var(--cd-surface-2)] px-3.5 py-3 ${TEXT.body} text-[var(--cd-text-muted)]`}>
                   {member.isPrimaryOwner
                     ? "This is the primary owner's account. It can't be changed by anyone, including other admins."
                     : "You can't edit your own access level here — ask another admin, or the primary owner."}
@@ -127,7 +127,7 @@ export default function AdminMemberDetailPage() {
               ) : (
                 <>
                   <div>
-                    <p className={`mb-1.5 ${TEXT.label} text-[var(--cd-text-subtle)]`}>Access level</p>
+                    <p className={`mb-1.5 ${TEXT.label} text-[var(--cd-text-muted)]`}>Access level</p>
                     <div className="inline-flex rounded-[var(--cd-radius-sm)] border border-[var(--cd-border-strong)] bg-[var(--cd-surface-2)] p-1">
                       <button
                         type="button"
@@ -145,7 +145,7 @@ export default function AdminMemberDetailPage() {
                       </button>
                     </div>
                     {role === "admin" && member.role !== "admin" && member.role !== "owner" && (
-                      <p className={`mt-1.5 ${TEXT.micro} text-[var(--cd-text-subtle)]`}>
+                      <p className={`mt-1.5 ${TEXT.micro} text-[var(--cd-text-muted)]`}>
                         Admin gives {member.name} control over every non-primary-owner account except their own — including
                         the ability to suspend other Sales Agents.
                       </p>
@@ -155,7 +155,7 @@ export default function AdminMemberDetailPage() {
                   <label className="flex items-center justify-between gap-3">
                     <span>
                       <span className="block text-[13.5px] font-semibold text-[var(--cd-text)]">Can view all companies</span>
-                      <span className={`block ${TEXT.micro} text-[var(--cd-text-subtle)]`}>
+                      <span className={`block ${TEXT.micro} text-[var(--cd-text-muted)]`}>
                         Off restricts this Sales Agent to only the companies assigned to them.
                       </span>
                     </span>
@@ -191,7 +191,7 @@ export default function AdminMemberDetailPage() {
         }
       >
         {reassignTargets.length === 0 ? (
-          <p className={`rounded-[var(--cd-radius-sm)] border border-[var(--cd-border)] bg-[var(--cd-surface-2)] px-3.5 py-3 ${TEXT.body} text-[var(--cd-text-subtle)]`}>
+          <p className={`rounded-[var(--cd-radius-sm)] border border-[var(--cd-border)] bg-[var(--cd-surface-2)] px-3.5 py-3 ${TEXT.body} text-[var(--cd-text-muted)]`}>
             There&rsquo;s no other active user to reassign {member.name}&rsquo;s companies to.
           </p>
         ) : (
@@ -209,7 +209,7 @@ export default function AdminMemberDetailPage() {
                 ))}
               </select>
             </Field>
-            <p className={`mt-3 ${TEXT.micro} text-[var(--cd-text-subtle)]`}>
+            <p className={`mt-3 ${TEXT.micro} text-[var(--cd-text-muted)]`}>
               Every company assigned to {member.name} moves to the person you choose, then their account is suspended —
               they won&rsquo;t be able to sign in.
             </p>
@@ -223,7 +223,7 @@ export default function AdminMemberDetailPage() {
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-3 px-5 py-3">
-      <dt className={`${TEXT.label} text-[var(--cd-text-subtle)]`}>{label}</dt>
+      <dt className={`${TEXT.label} text-[var(--cd-text-muted)]`}>{label}</dt>
       <dd className="text-[13px] font-medium text-[var(--cd-text)]">{value}</dd>
     </div>
   );

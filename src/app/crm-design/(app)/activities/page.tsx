@@ -118,7 +118,7 @@ function ActivityRow({
           <span className="truncate text-[13.5px] font-semibold text-[var(--cd-text)]">{title}</span>
         </div>
         {body && <p className={`mt-1 ${TEXT.micro} text-[var(--cd-text-muted)]`}>{body}</p>}
-        <p className={`mt-1 ${TEXT.micro} text-[var(--cd-text-subtle)]`}>
+        <p className={`mt-1 ${TEXT.micro} text-[var(--cd-text-muted)]`}>
           {firstName(author?.name ?? "Someone")} · {formatDateTime(occurredAt)}
         </p>
       </div>

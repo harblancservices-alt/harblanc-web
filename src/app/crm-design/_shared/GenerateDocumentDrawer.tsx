@@ -100,14 +100,14 @@ export function GenerateDocumentDrawer({
               <PreviewField label="Origin" value={`${company?.city ?? "—"}, ${company?.state ?? ""}`} />
               <PreviewField label="Destination" value="TBD — set on load" />
             </div>
-            <div className="mt-2 flex-1 rounded border border-dashed border-[#d5d5d5] p-3 text-[9.5px] text-[#999]">
+            <div className="mt-2 flex-1 rounded border border-dashed border-[var(--cd-border-strong)] p-3 text-[9.5px] text-[var(--cd-text-subtle)]">
               {type === "rate_confirmation"
                 ? "Rate, equipment type, and accessorial line items render here — mock preview only."
                 : "Commodity, weight, and piece-count line items render here — mock preview only."}
             </div>
-            <p className="text-center text-[8.5px] text-[#aaa]">Preview — prototype only, not a real document</p>
+            <p className="text-center text-[8.5px] text-[var(--cd-text-subtle)]">Preview — prototype only, not a real document</p>
           </div>
-          <p className={`mt-3 ${TEXT.micro} text-[var(--cd-text-subtle)]`}>
+          <p className={`mt-3 ${TEXT.micro} text-[var(--cd-text-muted)]`}>
             This is a mock preview for the click-through — the real feature would populate rate/line-item fields before
             generating a PDF, same as the shipped RC/BOL generator.
           </p>

@@ -27,7 +27,7 @@ export default function AdminAccountsPage() {
                   )}
                   {!m.isActive && <Badge tone="danger">Suspended</Badge>}
                 </div>
-                <p className={`truncate ${TEXT.micro} text-[var(--cd-text-subtle)]`}>
+                <p className={`truncate ${TEXT.micro} text-[var(--cd-text-muted)]`}>
                   {m.email} · {m.companiesOwned} {m.companiesOwned === 1 ? "company" : "companies"} · {m.openTasks} open tasks
                 </p>
               </div>

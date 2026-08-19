@@ -421,7 +421,7 @@ export default function AppShellLayout({ children }: { children: React.ReactNode
               <Avatar name={m.name} size={34} />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-[13.5px] font-semibold text-[var(--cd-text)]">{m.name}</span>
-                <span className={`block truncate ${TEXT.micro} text-[var(--cd-text-subtle)]`}>
+                <span className={`block truncate ${TEXT.micro} text-[var(--cd-text-muted)]`}>
                   {m.title} · {m.role === "owner" ? "Owner" : m.role === "admin" ? "Admin" : "Sales Agent"}
                   {!m.isActive ? " · Suspended" : ""}
                 </span>

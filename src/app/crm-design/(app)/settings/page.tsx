@@ -34,7 +34,7 @@ export default function SettingsPage() {
             <Avatar name={name} size={48} />
             <div>
               <p className="text-[14px] font-semibold text-[var(--cd-text)]">{name}</p>
-              <p className={`${TEXT.micro} text-[var(--cd-text-subtle)]`}>{currentUser.email}</p>
+              <p className={`${TEXT.micro} text-[var(--cd-text-muted)]`}>{currentUser.email}</p>
             </div>
           </div>
           <div className="flex flex-col gap-3 border-t border-[var(--cd-border)] p-4">
@@ -70,7 +70,7 @@ export default function SettingsPage() {
                 <IconShield width={13} height={13} /> Edit in Admin → Organization
               </Link>
             ) : (
-              <p className={`mt-2 ${TEXT.micro} text-[var(--cd-text-subtle)]`}>Only an Owner or Admin can edit this.</p>
+              <p className={`mt-2 ${TEXT.micro} text-[var(--cd-text-muted)]`}>Only an Owner or Admin can edit this.</p>
             )}
           </div>
         </Card>

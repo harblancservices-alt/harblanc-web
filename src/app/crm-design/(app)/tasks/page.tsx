@@ -93,7 +93,7 @@ function TaskRow({ task, onToggle }: { task: TaskItem; onToggle: () => void }) {
         <p className={`truncate text-[13.5px] font-semibold ${task.status === "done" ? "text-[var(--cd-text-subtle)] line-through" : "text-[var(--cd-text)]"}`}>
           {task.title}
         </p>
-        <p className={`${TEXT.micro} text-[var(--cd-text-subtle)]`}>
+        <p className={`${TEXT.micro} text-[var(--cd-text-muted)]`}>
           {company ? (
             <Link href={`/crm-design/companies/${company.id}`} className="hover:text-[var(--cd-accent)]">
               {company.name}

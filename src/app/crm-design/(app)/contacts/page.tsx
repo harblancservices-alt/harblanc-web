@@ -58,11 +58,11 @@ export default function ContactsPage() {
                     <p className="truncate text-[13.5px] font-semibold text-[var(--cd-text)]">
                       {c.name} {c.isDecisionMaker && <Badge tone="accent">DM</Badge>}
                     </p>
-                    <p className={`truncate ${TEXT.micro} text-[var(--cd-text-subtle)]`}>
+                    <p className={`truncate ${TEXT.micro} text-[var(--cd-text-muted)]`}>
                       {c.title} · {companyName(c.companyId)}
                     </p>
                   </div>
-                  <span className={`hidden shrink-0 items-center gap-1 ${TEXT.micro} text-[var(--cd-text-subtle)] sm:flex`}>
+                  <span className={`hidden shrink-0 items-center gap-1 ${TEXT.micro} text-[var(--cd-text-muted)] sm:flex`}>
                     <IconPhone width={12} height={12} /> {daysAgoLabel(c.lastContactedAt)}
                   </span>
                 </Link>

@@ -33,14 +33,14 @@ export default function AdminDocumentsPage() {
             <span className="text-[var(--cd-admin)]">{t.glyph}</span>
             <span>
               <span className="block text-[13.5px] font-bold text-[var(--cd-text)]">{t.label}</span>
-              <span className={`block ${TEXT.micro} text-[var(--cd-text-subtle)]`}>Blank master template</span>
+              <span className={`block ${TEXT.micro} text-[var(--cd-text-muted)]`}>Blank master template</span>
             </span>
           </button>
         ))}
       </div>
 
       <Modal open={!!preview} onClose={() => setPreview(null)} title={preview?.label ?? ""} subtitle="Preview">
-        <div className="flex aspect-[8.5/11] w-full items-center justify-center rounded-[var(--cd-radius-md)] border border-dashed border-[var(--cd-border-strong)] bg-white text-[var(--cd-text-subtle)]">
+        <div className="flex aspect-[8.5/11] w-full items-center justify-center rounded-[var(--cd-radius-md)] border border-dashed border-[var(--cd-border-strong)] bg-[var(--cd-surface-2)] text-[var(--cd-text-subtle)]">
           <span className="flex flex-col items-center gap-2">
             {preview?.glyph}
             <span className={TEXT.micro}>Mock preview — no real PDF in this prototype</span>

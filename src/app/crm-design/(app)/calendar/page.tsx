@@ -52,7 +52,7 @@ export default function CalendarPage() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_300px]">
         <Card className="overflow-hidden">
           <CardHead title={monthLabel} />
-          <div className="grid grid-cols-7 gap-px bg-[var(--cd-border)] text-center text-[10.5px] font-bold uppercase tracking-wide text-[var(--cd-text-subtle)]">
+          <div className="grid grid-cols-7 gap-px bg-[var(--cd-border)] text-center text-[10.5px] font-bold uppercase tracking-wide text-[var(--cd-text-muted)]">
             {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
               <div key={d} className="bg-[var(--cd-surface-2)] py-1.5">
                 {d}

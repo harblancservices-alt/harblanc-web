@@ -227,3 +227,95 @@ user-customizable, and no per-item color is invented anywhere else.
 - **Real auth / real role enforcement.** The Admin section's gate (`(app)/admin/layout.tsx`) is a client-side
   visual stand-in (an `EmptyState` for non-elevated viewers) for what would be a server-enforced redirect in
   production — appropriate for a prototype with no backend, not appropriate to ship as-is.
+
+## 10. Visual system correction — readability/contrast/hierarchy (2026-08-19)
+
+Brent's feedback on the first click-through: too light/washed-out/childish — pale gray secondary text, near-white
+text, translucent surfaces, barely-visible borders, indistinguishable alternating rows, low-contrast badges, tiny
+helper text, near-identical whites/grays. Explicit constraint: **not** everything-black — a deliberate three-tier
+hierarchy, not a flatter, paler one. Fixed at the token/primitive level first (`crm-design.css`, `_design/ui.tsx`),
+then applied consistently — not restyled screen by screen.
+
+### CURRENT (first build, tokens in `crm-design.css`)
+- Three surface tokens 3 hex steps apart (`--cd-surface: #ffffff`, `--cd-surface-2: #f8f9fb`, page `--cd-bg:
+  #f4f5f8`) — a card header bar, a zebra alt-row, and the page canvas around the card were all visually the same
+  color, so "technically different, visually identical" rows/panels were the default everywhere `ZEBRA`/`CardHead`
+  were used, not a per-page mistake.
+- Borders (`--cd-border: #e3e5eb`, `--cd-border-strong: #cfd2db`) light enough to be barely perceptible against
+  white — cards, inputs, tabs, table cells all under-defined.
+- Text tiers too close together and the bottom tier too pale (`--cd-text-muted: #565b6b`, `--cd-text-subtle:
+  #8a8fa0`) — and, more importantly, **`--cd-text-subtle` (the lowest tier) was the de facto default color for
+  almost every secondary-but-needed field** across ~14 page files: company industry/city/state, assigned rep,
+  last-contact dates, contact titles, admin roster emails, audit-log timestamps, and — worst instance — the
+  Admin Activity Log's own row detail text (the "Brent suspended Priya and reassigned her companies to Caleb"
+  line, i.e. the literal answer to "what happened," rendered in the single palest color in the system).
+- `INPUT` background was `--cd-surface` — identical to `Card`'s background, so a field sitting inside a white
+  card had no fill of its own, only a border, to signal "this is editable."
+- Badges: 10.5px text, no border on colored tones, soft-tint backgrounds close enough to their own text color to
+  read as low-contrast chips rather than instant status signals.
+- One genuinely missing hover state (Companies list's desktop `<tr>` had none at all) and two hand-duplicated
+  inline `<thead>` strings instead of a shared header-row primitive.
+- Three raw hex literals inside `GenerateDocumentDrawer.tsx` bypassing the token system entirely (`#d5d5d5`,
+  `#999`, `#aaa`) for the drawer's own explanatory captions (not the mock-document illustration itself, which
+  intentionally stays token-free — see below).
+
+### PROPOSED (now shipped)
+**Surfaces** — three real, visibly-stepped tiers, darkest→lightest: page canvas (`--cd-bg: #e7eaf1`) → header
+bars/zebra/sunken-input fill (`--cd-surface-2: #eef1f6`) → white card body (`--cd-surface: #ffffff`). Added
+`--cd-surface-hover` and `--cd-surface-selected` as dedicated tokens so hover/selected states are a distinct step,
+not a coincidence of reusing `--cd-surface-2`.
+
+**Borders** — `--cd-border: #d3d7e1` (cards/tables/tabs/modals) and `--cd-border-strong: #a7adbd` (inputs,
+stronger dividers) — both now clearly visible against white and against the canvas, not "technically present."
+
+**Text** — three tiers with real, deliberate gaps and each tier's *use* reclassified, not just its color darkened:
+- **Primary** (`--cd-text: #14161c`, unchanged) — names, amounts, headings, values. Near-black, not pure black.
+- **Secondary** (`--cd-text-muted: #454b5c`, darkened from `#565b6b`) — now the default for anything a user
+  actually needs on every pass through a screen: field labels, column headers, card-head hints/counts, contact
+  and company secondary lines (title/industry/city/state), rep names, activity/document/task dates, admin roster
+  emails, permission-caveat captions, and — the one that mattered most — every Activity Log row's WHO/WHAT/WHEN
+  detail text.
+- **Tertiary** (`--cd-text-subtle: #767c8f`, darkened from `#8a8fa0`) — narrowed to genuinely optional/decorative
+  use only: search-bar icons, placeholder text, breadcrumb trail, completed-item strikethrough, empty-state
+  captions, the stage tracker's not-yet-reached steps, and the mock-document drawer's own illustrative captions.
+  Went through every call site of this token across the app (~50 occurrences, 14 files) and reclassified each
+  one individually rather than just relying on the token getting less pale — a still-pale color used for
+  essential recurring information (a due date, a suspension reason) is a hierarchy bug, not a contrast bug, and
+  darkening the token alone wouldn't have fixed it.
+
+**Inputs** — `INPUT`'s background moved to `--cd-surface-2` (was `--cd-surface`, identical to its parent card),
+with a `focus:bg-[var(--cd-surface)]` step so a focused field visibly "lifts." An input now looks editable
+against both the page and the card it sits in.
+
+**Badges** — bumped to 11px/bold with real padding, and every tone (not just neutral) now carries a
+tone-matched 25%-opacity border, so a badge self-defines even sitting on a now-more-visible gray card header.
+
+**Tables/lists** — added two new shared primitives to `_design/ui.tsx` so this is fixed once, not per screen:
+`LIST_HEAD_ROW` (replaces two hand-duplicated inline `<thead>` strings, secondary-not-tertiary text) and
+`ROW_HOVER` (added to the one row type — Companies' desktop table — that had no hover feedback at all; the
+Command Palette's result-row hover was also promoted from the flat `--cd-surface-2` to the new dedicated
+`--cd-surface-hover` token for consistency with every other interactive row).
+
+**Semantic colors** — success/warning/danger deepened (e.g. `--cd-danger: #ad2a2a` from `#c53434`,
+`--cd-danger-soft: #f6d9d9` from `#fbeaea`) and the admin accent deepened slightly (`--cd-admin: #6d3fd4` from
+`#7c4fe0`) for stronger text-on-soft-background contrast, without changing any color's *meaning*.
+
+**Left as-is, deliberately:** `GenerateDocumentDrawer.tsx`'s mock-document preview (the 8.5×11 "fake paper"
+illustrating what a generated Rate Confirmation/BOL would look like) keeps its own independent, small, pale
+typography — it's a picture of a printed document, not app chrome, and real generated documents in the shipped
+product already have their own letterhead styling independent of the CRM's own UI tokens (matching the real
+CRM's actual RC/BOL PDF generator). Its *surrounding* explanatory captions (which ARE app chrome) were promoted
+to the token system and to secondary-tier contrast. The single documented gold-icon exception for "Active
+Clients" (§1/§8) is unchanged — it was never part of this problem, it's one deliberate, already-justified brand
+accent, not an instance of the washed-out pattern.
+
+### WHY
+Brent's complaint was two problems wearing one description. The *contrast* problem (pale-on-pale) is a token
+problem — three token edits fix every screen that reads from those tokens, which is why this was done in
+`crm-design.css`/`ui.tsx` first. But the *hierarchy* problem (essential information rendered in the tier reserved
+for decoration) is a classification problem no token value alone can fix — `--cd-text-subtle` could have been
+made pitch black and an Activity Log row's "what happened" text would still have been *visually* the least
+important thing on the screen, which is backwards for the one CRM surface whose entire job is making that text
+easy to read. Both had to be fixed together, and both had to be fixed at the shared-primitive/token layer so the
+28+ screens stay one coherent system instead of drifting into 28 separately-tuned ones — exactly the failure mode
+the original audit (§7) diagnosed in the real CRM's own admin-purple hex literals.

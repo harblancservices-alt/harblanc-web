@@ -105,7 +105,7 @@ function KpiTile({ label, value, tone, href }: { label: string; value: number; t
   return (
     <Link href={href}>
       <Card className="p-4 transition-shadow hover:shadow-[var(--cd-shadow-lg)]">
-        <p className={`${TEXT.label} text-[var(--cd-text-subtle)]`}>{label}</p>
+        <p className={`${TEXT.label} text-[var(--cd-text-muted)]`}>{label}</p>
         <p className={`mt-1.5 font-mono text-[26px] font-bold leading-none tabular-nums ${toneColor[tone]}`}>{value}</p>
       </Card>
     </Link>
@@ -128,7 +128,7 @@ function TaskRow({ taskId, title, companyId, dueAt, priority, onToggle }: { task
       </button>
       <div className="min-w-0 flex-1">
         <p className="truncate text-[13.5px] font-semibold text-[var(--cd-text)]">{title}</p>
-        <p className={`${TEXT.micro} text-[var(--cd-text-subtle)]`}>
+        <p className={`${TEXT.micro} text-[var(--cd-text-muted)]`}>
           {company ? (
             <Link href={`/crm-design/companies/${company.id}`} className="hover:text-[var(--cd-accent)]">
               {company.name}
@@ -151,7 +151,7 @@ function ActivityRow({ companyId, authorId, title, occurredAt }: { companyId: st
   return (
     <li className="px-4 py-2.5">
       <p className="truncate text-[13px] font-medium text-[var(--cd-text)]">{title}</p>
-      <p className={`${TEXT.micro} text-[var(--cd-text-subtle)]`}>
+      <p className={`${TEXT.micro} text-[var(--cd-text-muted)]`}>
         {firstName(author?.name ?? "Someone")}
         {company && (
           <>
@@ -175,7 +175,7 @@ function QuickLink({ href, icon, label, sub }: { href: string; icon: React.React
         <span className="flex h-10 w-10 items-center justify-center rounded-[var(--cd-radius-md)] bg-[var(--cd-accent-soft)] text-[var(--cd-accent)]">{icon}</span>
         <span>
           <span className="block text-[13.5px] font-bold text-[var(--cd-text)]">{label}</span>
-          <span className={`block ${TEXT.micro} text-[var(--cd-text-subtle)]`}>{sub}</span>
+          <span className={`block ${TEXT.micro} text-[var(--cd-text-muted)]`}>{sub}</span>
         </span>
       </Card>
     </Link>

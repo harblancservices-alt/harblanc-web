@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useStore, useTeamMemberById } from "../../_lib/store";
-import { Badge, Button, Card, EmptyState, INPUT, PAGE_WIDTH, PageHeader, TEXT, ZEBRA } from "../../_design/ui";
+import { Badge, Button, Card, EmptyState, INPUT, LIST_HEAD_ROW, PAGE_WIDTH, PageHeader, ROW_HOVER, TEXT, ZEBRA } from "../../_design/ui";
 import { STAGE_LABEL, STAGE_ORDER, STAGE_TONE } from "../../_lib/lifecycle";
 import { daysAgoLabel, firstName } from "../../_lib/format";
 import { IconBuilding, IconPlus, IconSearch } from "../../_design/icons";
@@ -67,7 +67,7 @@ export default function CompaniesPage() {
           <Card className="hidden lg:block">
             <table className="w-full text-[13px]">
               <thead>
-                <tr className="border-b border-[var(--cd-border)] bg-[var(--cd-surface-2)] text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--cd-text-subtle)]">
+                <tr className={LIST_HEAD_ROW}>
                   <th className="px-4 py-2.5">Company</th>
                   <th className="px-4 py-2.5">Stage</th>
                   <th className="px-4 py-2.5">Location</th>
@@ -102,12 +102,12 @@ function CompanyRow({ companyId }: { companyId: string }) {
   const c = companies.find((x) => x.id === companyId)!;
   const rep = useTeamMemberById(c.assignedUserId);
   return (
-    <tr>
+    <tr className={ROW_HOVER}>
       <td className="px-4 py-3">
         <Link href={`/crm-design/companies/${c.id}`} className="font-semibold text-[var(--cd-text)] hover:text-[var(--cd-accent)]">
           {c.name}
         </Link>
-        <p className={`${TEXT.micro} text-[var(--cd-text-subtle)]`}>{c.industry}</p>
+        <p className={`${TEXT.micro} text-[var(--cd-text-muted)]`}>{c.industry}</p>
       </td>
       <td className="px-4 py-3">
         <Badge tone={STAGE_TONE_MAP[STAGE_TONE[c.stage]]}>{STAGE_LABEL[c.stage]}</Badge>
@@ -129,11 +129,11 @@ function CompanyCard({ companyId }: { companyId: string }) {
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="truncate text-[14px] font-bold text-[var(--cd-text)]">{c.name}</p>
-            <p className={`${TEXT.micro} text-[var(--cd-text-subtle)]`}>{c.industry} · {c.city}, {c.state}</p>
+            <p className={`${TEXT.micro} text-[var(--cd-text-muted)]`}>{c.industry} · {c.city}, {c.state}</p>
           </div>
           <Badge tone={STAGE_TONE_MAP[STAGE_TONE[c.stage]]}>{STAGE_LABEL[c.stage]}</Badge>
         </div>
-        <div className={`mt-2.5 flex items-center justify-between border-t border-[var(--cd-border)] pt-2.5 ${TEXT.micro} text-[var(--cd-text-subtle)]`}>
+        <div className={`mt-2.5 flex items-center justify-between border-t border-[var(--cd-border)] pt-2.5 ${TEXT.micro} text-[var(--cd-text-muted)]`}>
           <span>{rep ? firstName(rep.name) : "Unassigned"}</span>
           <span>{daysAgoLabel(c.lastContactAt)}</span>
         </div>

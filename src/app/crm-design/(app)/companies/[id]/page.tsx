@@ -179,7 +179,7 @@ export default function CompanyDetailPage() {
                       <li key={a.id} className="px-4 py-3">
                         <p className="text-[13.5px] font-medium text-[var(--cd-text)]">{a.title}</p>
                         {a.body && <p className={`mt-0.5 ${TEXT.micro} text-[var(--cd-text-muted)]`}>{a.body}</p>}
-                        <p className={`mt-0.5 ${TEXT.micro} text-[var(--cd-text-subtle)]`}>{relativeTime(a.occurredAt)}</p>
+                        <p className={`mt-0.5 ${TEXT.micro} text-[var(--cd-text-muted)]`}>{relativeTime(a.occurredAt)}</p>
                       </li>
                     ))}
                   </ul>
@@ -208,7 +208,7 @@ export default function CompanyDetailPage() {
                             <p className="truncate text-[13.5px] font-semibold text-[var(--cd-text)]">
                               {c.name} {c.isDecisionMaker && <Badge tone="accent">DM</Badge>}
                             </p>
-                            <p className={`truncate ${TEXT.micro} text-[var(--cd-text-subtle)]`}>{c.title}</p>
+                            <p className={`truncate ${TEXT.micro} text-[var(--cd-text-muted)]`}>{c.title}</p>
                           </div>
                         </Link>
                       </li>
@@ -257,7 +257,7 @@ export default function CompanyDetailPage() {
                         </span>
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-[13.5px] font-semibold text-[var(--cd-text)]">{d.label}</p>
-                          <p className={`${TEXT.micro} text-[var(--cd-text-subtle)]`}>{formatDate(d.createdAt)}</p>
+                          <p className={`${TEXT.micro} text-[var(--cd-text-muted)]`}>{formatDate(d.createdAt)}</p>
                         </div>
                         <Badge tone={d.status === "signed" ? "success" : d.status === "sent" ? "accent" : "neutral"}>{d.status}</Badge>
                       </li>
@@ -290,7 +290,7 @@ export default function CompanyDetailPage() {
                         <p className={`flex-1 text-[13.5px] font-medium ${t.status === "done" ? "text-[var(--cd-text-subtle)] line-through" : "text-[var(--cd-text)]"}`}>
                           {t.title}
                         </p>
-                        {t.dueAt && <span className={`${TEXT.micro} text-[var(--cd-text-subtle)]`}>{relativeTime(t.dueAt)}</span>}
+                        {t.dueAt && <span className={`${TEXT.micro} text-[var(--cd-text-muted)]`}>{relativeTime(t.dueAt)}</span>}
                       </li>
                     ))}
                   </ul>
@@ -311,7 +311,7 @@ export default function CompanyDetailPage() {
 function Detail({ icon, label, value }: { icon?: React.ReactNode; label: string; value: string }) {
   return (
     <div className="flex items-center justify-between gap-3 px-3.5 py-2.5">
-      <span className={`flex items-center gap-1.5 ${TEXT.micro} font-semibold text-[var(--cd-text-subtle)]`}>
+      <span className={`flex items-center gap-1.5 ${TEXT.micro} font-semibold text-[var(--cd-text-muted)]`}>
         {icon}
         {label}
       </span>
@@ -338,7 +338,7 @@ function ActivityRow({ authorId, title, body, occurredAt, kind }: { authorId: st
       <div className="min-w-0 flex-1">
         <p className="text-[13.5px] font-semibold text-[var(--cd-text)]">{title}</p>
         {body && <p className={`mt-0.5 ${TEXT.micro} text-[var(--cd-text-muted)]`}>{body}</p>}
-        <p className={`mt-0.5 ${TEXT.micro} text-[var(--cd-text-subtle)]`}>
+        <p className={`mt-0.5 ${TEXT.micro} text-[var(--cd-text-muted)]`}>
           {firstName(author?.name ?? "Someone")} · {relativeTime(occurredAt)}
         </p>
       </div>

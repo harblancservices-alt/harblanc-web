@@ -75,7 +75,7 @@ export default function ContactDetailPage() {
                 <li key={a.id} className="px-4 py-3">
                   <p className="text-[13.5px] font-semibold text-[var(--cd-text)]">{a.title}</p>
                   {a.body && <p className={`mt-0.5 ${TEXT.micro} text-[var(--cd-text-muted)]`}>{a.body}</p>}
-                  <p className={`mt-0.5 ${TEXT.micro} text-[var(--cd-text-subtle)]`}>{relativeTime(a.occurredAt)}</p>
+                  <p className={`mt-0.5 ${TEXT.micro} text-[var(--cd-text-muted)]`}>{relativeTime(a.occurredAt)}</p>
                 </li>
               ))}
             </ul>
@@ -91,7 +91,7 @@ export default function ContactDetailPage() {
 function Row({ icon, label, value, href }: { icon?: React.ReactNode; label: string; value: string; href?: string }) {
   return (
     <div className="flex items-center justify-between gap-3 px-3.5 py-2.5">
-      <span className={`flex items-center gap-1.5 ${TEXT.micro} font-semibold text-[var(--cd-text-subtle)]`}>
+      <span className={`flex items-center gap-1.5 ${TEXT.micro} font-semibold text-[var(--cd-text-muted)]`}>
         {icon}
         {label}
       </span>

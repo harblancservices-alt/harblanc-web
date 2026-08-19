@@ -10,49 +10,79 @@
  */
 
 .crm-design {
-  /* Surfaces */
-  --cd-bg: #f4f5f8;
-  --cd-surface: #ffffff;
-  --cd-surface-2: #f8f9fb;
-  --cd-border: #e3e5eb;
-  --cd-border-strong: #cfd2db;
+  /*
+   * 2026-08-19 contrast/hierarchy correction pass (see DESIGN_DECISIONS.md,
+   * "Visual system correction" section, for the full before/after + why).
+   * Brent's feedback: too pale/washed-out/childish — near-white secondary
+   * text, translucent surfaces, barely-visible borders, indistinguishable
+   * rows, low-contrast badges. He does NOT want everything black — the fix
+   * is a DELIBERATE three-tier hierarchy with real gaps between the tiers,
+   * not a flatter, paler one.
+   */
 
-  /* Text */
+  /* Surfaces — three tiers with real, visible steps between them (the
+     previous --cd-surface-2 was 3 hex steps from white — invisible). Layered
+     darkest→lightest: page canvas → header bars/zebra/sunken fields → white
+     card body, so a card always reads as "floating" above the page and its
+     own header/alt-rows always read as a distinct layer within it. */
+  --cd-bg: #e7eaf1;
+  --cd-surface: #ffffff;
+  --cd-surface-2: #eef1f6;
+  --cd-surface-hover: #e2e7f0;
+  --cd-surface-selected: #dbe6fc;
+  --cd-border: #d3d7e1;
+  --cd-border-strong: #a7adbd;
+
+  /* Text — three tiers, each with a real, deliberate gap, per Brent's
+     explicit ask ("not everything black, but a deliberate hierarchy"):
+       primary  (#14161c) — near-black, not pure black, for names/amounts/
+                 headings/values a user reads first.
+       secondary (#454b5c) — clearly lighter than primary but comfortably
+                 readable at normal desktop distance: used for anything a
+                 user actually needs (dates, locations, roles, captions,
+                 explanatory copy, column headers, field labels).
+       tertiary (#767c8f) — the lowest tier, reserved ONLY for genuinely
+                 optional decoration (search icons, breadcrumb trail,
+                 completed-item strikethrough, empty-state captions) — never
+                 for information a user is expected to read every time. */
   --cd-text: #14161c;
-  --cd-text-muted: #565b6b;
-  --cd-text-subtle: #8a8fa0;
+  --cd-text-muted: #454b5c;
+  --cd-text-subtle: #767c8f;
   --cd-text-inverse: #ffffff;
 
   /* Primary accent — the ONE color for interactive/active state everywhere
      in the workspace. Nothing else in this prototype invents its own hue. */
   --cd-accent: #2f5fd6;
   --cd-accent-hover: #2650b8;
-  --cd-accent-soft: #eaf0ff;
+  --cd-accent-soft: #dde8ff;
   --cd-accent-text-on: #ffffff;
 
   /* Elevated/admin accent — ONE dedicated token (not a raw hex reused ad
      hoc) for every owner-only surface: Admin Account nav item, Admin tab
      bar, Admin badges. Replaces the real CRM's six-plus scattered #9333ea
      literals with a single source of truth (see DESIGN_DECISIONS.md). */
-  --cd-admin: #7c4fe0;
-  --cd-admin-hover: #6a3fc9;
-  --cd-admin-soft: #f1ebfd;
+  --cd-admin: #6d3fd4;
+  --cd-admin-hover: #5c34b8;
+  --cd-admin-soft: #ece3fb;
 
   /* Semantic status — used for badges/toasts/inline states ONLY, never for
-     navigation or "this is important" decoration. */
-  --cd-success: #17825a;
-  --cd-success-soft: #e5f6ee;
-  --cd-warning: #a8660a;
-  --cd-warning-soft: #fbf0dc;
-  --cd-danger: #c53434;
-  --cd-danger-soft: #fbeaea;
+     navigation or "this is important" decoration. Deepened + soft
+     backgrounds given real saturation so a badge reads instantly, not as a
+     near-white chip with a faint tint. */
+  --cd-success: #0f7a4e;
+  --cd-success-soft: #d8f0e2;
+  --cd-warning: #925c0a;
+  --cd-warning-soft: #f6e6c4;
+  --cd-danger: #ad2a2a;
+  --cd-danger-soft: #f6d9d9;
 
-  /* Sidebar (dark) */
+  /* Sidebar (dark) — already high-contrast; text-dim bumped slightly for a
+     crisper secondary tier on dark, matching the light-side correction. */
   --cd-side-bg: #14161d;
-  --cd-side-bg-raised: #1c1f29;
-  --cd-side-border: #262a36;
-  --cd-side-text: #cdd0db;
-  --cd-side-text-dim: #888ea3;
+  --cd-side-bg-raised: #21242f;
+  --cd-side-border: #2d313e;
+  --cd-side-text: #d7d9e2;
+  --cd-side-text-dim: #9ba1b5;
 
   /* Elevation */
   --cd-shadow-sm: 0 1px 2px rgba(15, 17, 23, 0.06);

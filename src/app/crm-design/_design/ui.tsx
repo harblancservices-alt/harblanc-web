@@ -111,7 +111,9 @@ export function CardHead({
     <div className="flex items-center justify-between gap-3 border-b border-[var(--cd-border)] bg-[var(--cd-surface-2)] px-4 py-2.5">
       <div className="min-w-0">
         <h2 className={`truncate ${TEXT.sectionTitle} text-[var(--cd-text)]`}>{title}</h2>
-        {hint && <p className={`truncate ${TEXT.micro} text-[var(--cd-text-subtle)]`}>{hint}</p>}
+        {/* Card-head hints are counts/context a user actually reads ("12
+            companies", "3 open tasks") — secondary tier, not decoration. */}
+        {hint && <p className={`truncate ${TEXT.micro} text-[var(--cd-text-muted)]`}>{hint}</p>}
       </div>
       {right}
     </div>
@@ -120,22 +122,37 @@ export function CardHead({
 
 export const ZEBRA = "[&>*:nth-child(odd)]:bg-[var(--cd-surface)] [&>*:nth-child(even)]:bg-[var(--cd-surface-2)]";
 
+/** Row/menu-item hover — one shared fill for every interactive row in the
+ * prototype (table rows, list rows, dropdown items) so hover feedback reads
+ * identically everywhere instead of some rows having none at all. */
+export const ROW_HOVER = "transition-colors hover:bg-[var(--cd-surface-hover)]";
+
+/** Column-header row for a raw `<table><thead><tr>` list — the tabular
+ * equivalent of CardHead, same dark-on-light-gray bar treatment, secondary
+ * (not tertiary) text since column headers are information a user reads on
+ * every single row below them. Apply to the `<tr>` inside `<thead>`. */
+export const LIST_HEAD_ROW =
+  "border-b border-[var(--cd-border)] bg-[var(--cd-surface-2)] text-left text-[11px] font-bold uppercase tracking-wide text-[var(--cd-text-muted)]";
+
 // ── Badges — status/role pills. Colors are pulled ONLY from the semantic
 // token set (accent/success/warning/danger/admin/neutral) — never a
 // one-off hex, so a badge's color always maps to a real meaning. ──
 type BadgeTone = "neutral" | "accent" | "success" | "warning" | "danger" | "admin";
+// Every tone gets a tone-matched border (not just neutral) — on a card
+// header or a zebra alt-row (both now a visible gray), a border-less soft-fill
+// badge could otherwise sit at low contrast against its own background.
 const BADGE_TONE: Record<BadgeTone, string> = {
   neutral: "bg-[var(--cd-surface-2)] text-[var(--cd-text-muted)] border border-[var(--cd-border-strong)]",
-  accent: "bg-[var(--cd-accent-soft)] text-[var(--cd-accent)]",
-  success: "bg-[var(--cd-success-soft)] text-[var(--cd-success)]",
-  warning: "bg-[var(--cd-warning-soft)] text-[var(--cd-warning)]",
-  danger: "bg-[var(--cd-danger-soft)] text-[var(--cd-danger)]",
-  admin: "bg-[var(--cd-admin-soft)] text-[var(--cd-admin)]",
+  accent: "bg-[var(--cd-accent-soft)] text-[var(--cd-accent)] border border-[var(--cd-accent)]/25",
+  success: "bg-[var(--cd-success-soft)] text-[var(--cd-success)] border border-[var(--cd-success)]/25",
+  warning: "bg-[var(--cd-warning-soft)] text-[var(--cd-warning)] border border-[var(--cd-warning)]/25",
+  danger: "bg-[var(--cd-danger-soft)] text-[var(--cd-danger)] border border-[var(--cd-danger)]/25",
+  admin: "bg-[var(--cd-admin-soft)] text-[var(--cd-admin)] border border-[var(--cd-admin)]/25",
 };
 export function Badge({ tone = "neutral", children }: { tone?: BadgeTone; children: ReactNode }) {
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide ${BADGE_TONE[tone]}`}
+      className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide leading-none ${BADGE_TONE[tone]}`}
     >
       {children}
     </span>
@@ -264,8 +281,12 @@ export function SkeletonRows({ rows = 5 }: { rows?: number }) {
   );
 }
 
+// Sunken fill (--cd-surface-2, not white) so an input visibly reads as
+// "editable" against both the page canvas AND the white card it usually
+// sits inside — a white-on-white input was one of the flattest spots in the
+// original build. Border strengthened to match.
 export const INPUT =
-  "h-9.5 w-full rounded-[var(--cd-radius-sm)] border border-[var(--cd-border-strong)] bg-[var(--cd-surface)] px-3 text-[13.5px] text-[var(--cd-text)] outline-none transition-colors placeholder:text-[var(--cd-text-subtle)] focus:border-[var(--cd-accent)] focus:ring-2 focus:ring-[var(--cd-accent-soft)]";
+  "h-9.5 w-full rounded-[var(--cd-radius-sm)] border border-[var(--cd-border-strong)] bg-[var(--cd-surface-2)] px-3 text-[13.5px] text-[var(--cd-text)] outline-none transition-colors placeholder:text-[var(--cd-text-subtle)] focus:border-[var(--cd-accent)] focus:bg-[var(--cd-surface)] focus:ring-2 focus:ring-[var(--cd-accent-soft)]";
 
 export function Field({
   label,
@@ -278,7 +299,10 @@ export function Field({
 }) {
   return (
     <label className="flex flex-col gap-1.5">
-      <span className={`${TEXT.label} text-[var(--cd-text-subtle)]`}>{label}</span>
+      {/* Field labels are read every time — secondary tier, not the lowest
+          one (the previous subtle/11px combination was the exact "tiny
+          helper text nobody can read" pattern Brent flagged). */}
+      <span className={`${TEXT.label} text-[var(--cd-text-muted)]`}>{label}</span>
       {children}
       {hint && <span className={`${TEXT.micro} text-[var(--cd-text-subtle)]`}>{hint}</span>}
     </label>

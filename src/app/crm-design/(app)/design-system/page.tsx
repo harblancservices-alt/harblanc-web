@@ -10,8 +10,10 @@ import {
   ErrorState,
   Field,
   INPUT,
+  LIST_HEAD_ROW,
   PAGE_WIDTH,
   PageHeader,
+  ROW_HOVER,
   SkeletonRows,
   TEXT,
   ZEBRA,
@@ -47,8 +49,8 @@ export default function DesignSystemPage() {
             <p className={`${TEXT.pageTitle} text-[var(--cd-text)]`}>Page title — 20px / bold</p>
             <p className={`${TEXT.sectionTitle} text-[var(--cd-text)]`}>Section title — 14px / bold</p>
             <p className={`${TEXT.body} text-[var(--cd-text)]`}>Body — 13.5px, used for most reading text.</p>
-            <p className={`${TEXT.label} text-[var(--cd-text-subtle)]`}>Label — 11px / semibold / uppercase</p>
-            <p className={`${TEXT.micro} text-[var(--cd-text-subtle)]`}>Micro — 11.5px, metadata and captions.</p>
+            <p className={`${TEXT.label} text-[var(--cd-text-muted)]`}>Label — 11px / semibold / uppercase / secondary tier</p>
+            <p className={`${TEXT.micro} text-[var(--cd-text-subtle)]`}>Micro — 11.5px, tertiary tier: genuinely optional metadata only.</p>
           </div>
         </Card>
 
@@ -116,17 +118,17 @@ export default function DesignSystemPage() {
         </Card>
 
         <Card>
-          <CardHead title="Table (zebra rows)" />
+          <CardHead title="Table (zebra rows + hover)" hint="LIST_HEAD_ROW + ZEBRA + ROW_HOVER — shared across every CRM list." />
           <table className="w-full text-[13px]">
             <thead>
-              <tr className="border-b border-[var(--cd-border)] bg-[var(--cd-surface-2)] text-left text-[11px] font-semibold uppercase tracking-wide text-[var(--cd-text-subtle)]">
+              <tr className={LIST_HEAD_ROW}>
                 <th className="px-4 py-2.5">Column A</th>
                 <th className="px-4 py-2.5">Column B</th>
               </tr>
             </thead>
             <tbody className={ZEBRA}>
               {[1, 2, 3].map((i) => (
-                <tr key={i}>
+                <tr key={i} className={ROW_HOVER}>
                   <td className="px-4 py-2.5 text-[var(--cd-text)]">Row {i}, cell A</td>
                   <td className="px-4 py-2.5 text-[var(--cd-text-muted)]">Row {i}, cell B</td>
                 </tr>

@@ -123,14 +123,14 @@ export function CommandPalette() {
                   setPaletteOpen(false);
                   router.push(r.href);
                 }}
-                className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-[var(--cd-surface-2)]"
+                className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-[var(--cd-surface-hover)]"
               >
                 <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[var(--cd-radius-sm)] bg-[var(--cd-surface-2)] text-[var(--cd-text-muted)]">
                   {r.icon}
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[13.5px] font-semibold text-[var(--cd-text)]">{r.label}</span>
-                  <span className={`block truncate ${TEXT.micro} text-[var(--cd-text-subtle)]`}>{r.sub}</span>
+                  <span className={`block truncate ${TEXT.micro} text-[var(--cd-text-muted)]`}>{r.sub}</span>
                 </span>
               </button>
             ))

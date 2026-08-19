@@ -37,7 +37,7 @@ export default function AdminOverviewPage() {
             <span className="font-semibold text-[var(--cd-text)]">Organization</span> to edit the brokerage
             letterhead every generated document reads from.
           </p>
-          <p className={`${TEXT.micro} text-[var(--cd-text-subtle)]`}>
+          <p className={`${TEXT.micro} text-[var(--cd-text-muted)]`}>
             {companies.length} companies across the org, {documents.length} documents generated to date.
           </p>
         </div>
@@ -50,7 +50,7 @@ function StatLink({ href, label, value }: { href: string; label: string; value: 
   return (
     <Link href={href}>
       <Card className="p-4 transition-shadow hover:shadow-[var(--cd-shadow-lg)]">
-        <p className={`${TEXT.label} text-[var(--cd-text-subtle)]`}>{label}</p>
+        <p className={`${TEXT.label} text-[var(--cd-text-muted)]`}>{label}</p>
         <p className="mt-1.5 font-mono text-[24px] font-bold leading-none text-[var(--cd-text)]">{value}</p>
       </Card>
     </Link>

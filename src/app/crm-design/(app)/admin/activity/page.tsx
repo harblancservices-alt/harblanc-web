@@ -130,10 +130,10 @@ function AuditRow({ row, onOpen }: { row: AuditLogItem; onOpen: () => void }) {
       <div className="min-w-0 flex-1">
         <div className="mb-1 flex flex-wrap items-center gap-2">
           <Badge tone={ACTION_TONE[row.action]}>{ACTION_LABEL[row.action]}</Badge>
-          <span className={`${TEXT.micro} text-[var(--cd-text-subtle)]`}>{formatDateTime(row.occurredAt)}</span>
+          <span className={`${TEXT.micro} text-[var(--cd-text-muted)]`}>{formatDateTime(row.occurredAt)}</span>
         </div>
         <p className="text-[13.5px] font-medium text-[var(--cd-text)]">{row.summary}</p>
-        {row.detail && <p className={`mt-0.5 ${TEXT.micro} text-[var(--cd-text-subtle)]`}>{row.detail}</p>}
+        {row.detail && <p className={`mt-0.5 ${TEXT.micro} text-[var(--cd-text-muted)]`}>{row.detail}</p>}
       </div>
       {clickable && (
         <span className={`shrink-0 rounded-[var(--cd-radius-sm)] border border-[var(--cd-admin)]/30 bg-[var(--cd-admin-soft)] px-2.5 py-1.5 text-[12px] font-semibold text-[var(--cd-admin)]`}>

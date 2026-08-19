@@ -48,14 +48,14 @@ function ActiveRow({ companyId }: { companyId: string }) {
       <Link href={`/crm-design/companies/${c.id}`} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5 transition-colors hover:bg-[var(--cd-accent-soft)]">
         <div className="min-w-0">
           <p className="truncate text-[13.5px] font-semibold text-[var(--cd-text)]">{c.name}</p>
-          <p className={`${TEXT.micro} text-[var(--cd-text-subtle)]`}>
+          <p className={`${TEXT.micro} text-[var(--cd-text-muted)]`}>
             {c.industry} · {c.city}, {c.state}
           </p>
         </div>
         <div className="flex items-center gap-3">
           <Badge tone="success">{c.annualFreightSpend}</Badge>
-          <span className={`${TEXT.micro} text-[var(--cd-text-subtle)]`}>{firstName(rep?.name ?? "Unassigned")}</span>
-          <span className={`${TEXT.micro} text-[var(--cd-text-subtle)]`}>{daysAgoLabel(c.lastContactAt)}</span>
+          <span className={`${TEXT.micro} text-[var(--cd-text-muted)]`}>{firstName(rep?.name ?? "Unassigned")}</span>
+          <span className={`${TEXT.micro} text-[var(--cd-text-muted)]`}>{daysAgoLabel(c.lastContactAt)}</span>
         </div>
       </Link>
     </li>
