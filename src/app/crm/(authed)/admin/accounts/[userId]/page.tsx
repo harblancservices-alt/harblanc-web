@@ -102,7 +102,10 @@ export default async function AdminMemberDetailPage({
                   : "You can't edit your own account from here — ask another admin, or the primary owner."}
               </p>
             ) : (
-              <MemberAccountForm member={member} />
+              <MemberAccountForm
+                key={`${member.id}-${member.role}-${member.isActive}-${member.canViewAllCompanies}`}
+                member={member}
+              />
             )}
           </div>
         </Card>

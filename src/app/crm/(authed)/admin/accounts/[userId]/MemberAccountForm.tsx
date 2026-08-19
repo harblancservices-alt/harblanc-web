@@ -17,6 +17,15 @@ import type { AdminTeamMember } from "../../types";
  * condition, but every field it submits is re-validated server-side in
  * ../../actions.ts regardless, so a stale/tampered client can never bypass
  * either rule.
+ *
+ * The caller MUST remount this on every server-confirmed change (the detail
+ * page does via a `key` derived from member.role/isActive/canViewAllCompanies)
+ * — accessLevel's useState and the two CheckboxFields' `defaultChecked` are
+ * only ever read on mount. Without that key, calling suspendMember() and then
+ * router.refresh() would update the `member` prop but leave this form's own
+ * DOM state (and the "Active account" checkbox in particular) showing the
+ * PRE-suspend value, so a follow-up "Save changes" click would silently
+ * re-activate the account it just suspended.
  */
 export function MemberAccountForm({ member }: { member: AdminTeamMember }) {
   const [accessLevel, setAccessLevel] = useState<"member" | "owner">(

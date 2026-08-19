@@ -1,4 +1,5 @@
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
+import { getCompanyVisibility } from "../_shell/companyVisibility";
 import { PageShell, Card, CardHead, EmptyState } from "../_shell/ui";
 import { IconCompanies } from "../_shell/icons";
 import { AddCompany } from "./AddCompany";
@@ -58,8 +59,9 @@ export default async function CompaniesPage({
 }: {
   searchParams: Promise<{ q?: string; stage?: string; rep?: string; tag?: string; sort?: string }>;
 }) {
-  await requireCrmUser();
+  const user = await requireCrmUser();
   const supabase = await createCrmServerClient();
+  const visibility = await getCompanyVisibility(user);
 
   const sp = await searchParams;
   const q = (sp.q ?? "").trim();
@@ -88,14 +90,19 @@ export default async function CompaniesPage({
     .map((p) => ({ id: p.id, label: firstName(p.full_name, p.email) || "Unnamed rep" }))
     .sort((a, b) => a.label.localeCompare(b.label));
 
-  // The full org roster (id/name only) for the "Add contact" dialog's company
+  // The org roster (id/name only) for the "Add contact" dialog's company
   // combobox — independent of the filtered/paginated `accounts` list below.
-  const { data: companyOptionsData } = await supabase
+  // Restricted the same way the main list is when the caller can't see every
+  // company (see getCompanyVisibility) — otherwise a restricted agent could
+  // still pick any company by name through this dropdown.
+  let companyOptionsQuery = supabase
     .from("crm_accounts")
     .select("id, name")
     .is("deleted_at", null)
     .order("name", { ascending: true })
     .limit(1000);
+  if (visibility.restricted) companyOptionsQuery = companyOptionsQuery.eq("assigned_user_id", visibility.userId);
+  const { data: companyOptionsData } = await companyOptionsQuery;
   const companyOptions = ((companyOptionsData ?? []) as CompanyOption[]).map((a) => ({
     id: a.id,
     name: titleCaseWords(a.name),
@@ -124,8 +131,17 @@ export default async function CompaniesPage({
     .or("ai_status.is.null,ai_status.neq.pending_review");
 
   if (stage) query = query.eq("lifecycle_status", stage);
-  if (rep === "unassigned") query = query.is("assigned_user_id", null);
-  else if (rep) query = query.eq("assigned_user_id", rep);
+  // A restricted agent (can_view_all_companies=false) only ever sees their
+  // own companies — this OVERRIDES the `rep` URL param entirely rather than
+  // combining with it, since that param is client-submitted and must never
+  // be trusted to narrow (or widen) what a restricted caller can reach.
+  if (visibility.restricted) {
+    query = query.eq("assigned_user_id", visibility.userId);
+  } else if (rep === "unassigned") {
+    query = query.is("assigned_user_id", null);
+  } else if (rep) {
+    query = query.eq("assigned_user_id", rep);
+  }
   if (tagFilterAccountIds !== null) {
     query = tagFilterAccountIds.length ? query.in("id", tagFilterAccountIds) : query.eq("id", "00000000-0000-0000-0000-000000000000");
   }

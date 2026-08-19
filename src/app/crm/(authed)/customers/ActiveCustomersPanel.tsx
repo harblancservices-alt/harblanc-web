@@ -1,4 +1,5 @@
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
+import { getCompanyVisibility } from "../_shell/companyVisibility";
 import { Card, CardHead, EmptyState } from "../_shell/ui";
 import { IconCustomers } from "../_shell/icons";
 import { firstName, timestampMs, titleCaseWords } from "../_shell/format";
@@ -40,27 +41,32 @@ type AccountRow = {
 export async function ActiveCustomersPanel() {
   const user = await requireCrmUser();
   const supabase = await createCrmServerClient();
+  const visibility = await getCompanyVisibility(user);
 
-  const { data } = await supabase
+  let accountsQuery = supabase
     .from("crm_accounts")
     .select("id, name, city, state, phone, phones")
     .eq("lifecycle_status", "active_customer")
     .is("deleted_at", null)
     .order("name", { ascending: true })
     .limit(500);
+  if (visibility.restricted) accountsQuery = accountsQuery.eq("assigned_user_id", visibility.userId);
+  const { data } = await accountsQuery;
 
   const accounts = ((data ?? []) as AccountRow[]).map((a) => ({ ...a, lifecycle_status: "active_customer" as const }));
   const accountIds = accounts.map((a) => a.id);
 
-  // Full org roster for CompanyRowActions' "Add contact" dialog combobox —
+  // Org roster for CompanyRowActions' "Add contact" dialog combobox —
   // independent of the customer-only `accounts` list above, same as the
-  // Companies page's companyOptions.
-  const { data: companyOptionsData } = await supabase
+  // Companies page's companyOptions, and restricted the same way.
+  let companyOptionsQuery = supabase
     .from("crm_accounts")
     .select("id, name")
     .is("deleted_at", null)
     .order("name", { ascending: true })
     .limit(1000);
+  if (visibility.restricted) companyOptionsQuery = companyOptionsQuery.eq("assigned_user_id", visibility.userId);
+  const { data: companyOptionsData } = await companyOptionsQuery;
   const companyOptions: CompanyOption[] = ((companyOptionsData ?? []) as CompanyOption[]).map((a) => ({
     id: a.id,
     name: titleCaseWords(a.name),
