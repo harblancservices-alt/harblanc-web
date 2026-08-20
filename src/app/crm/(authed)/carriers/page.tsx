@@ -38,7 +38,11 @@ export default async function CarriersPage({
 
   return (
     <PageShell
-      back={<BackButton fallbackHref="/crm/shipments" label="Shipments" />}
+      /* Falls back into the Active Clients hub (carriers is one of its 4
+         tabs), not the orphaned standalone /crm/shipments route — a rep who
+         arrived here from the hub should land back in it, not outside it
+         (CRM_MASTER_AUDIT.md §5/§10, P1 #8). */
+      back={<BackButton fallbackHref="/crm/active-customers" label="Active Clients" />}
       actions={<AddCarrierButton />}
     >
       <CarriersListClient carriers={rows} q={q} />

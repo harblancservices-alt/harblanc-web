@@ -45,8 +45,9 @@ export default async function AdminOverviewPage() {
             <span className="font-semibold text-fg">Accounts</span> to review a teammate&rsquo;s access
             level and account controls, <span className="font-semibold text-fg">Activity</span> to see
             what&rsquo;s happening across every company, and{" "}
-            <span className="font-semibold text-fg">Documents</span> to browse every Rate Confirmation and
-            Bill of Lading generated across every shipment.
+            <span className="font-semibold text-fg">Documents</span> to open the org&rsquo;s two blank
+            master templates (Rate Confirmation and Bill of Lading) — not a per-shipment archive; every
+            shipment&rsquo;s own generated documents live on that shipment&rsquo;s own record instead.
           </p>
         </div>
       </Card>
