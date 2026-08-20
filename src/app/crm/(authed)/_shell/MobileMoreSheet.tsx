@@ -70,58 +70,51 @@ export function MobileMoreSheet({
         </div>
 
         <nav className="flex flex-col gap-0.5 px-3 pb-2">
-          {items.map((item, index) => {
+          {items.map((item) => {
             const active = isActive(pathname, item);
             const adminAccent = !!item.adminAccent;
             const goldIcon = item.iconTint === "gold";
             return (
-              // Divider lives on this wrapper, not the Link — see CrmShell's
-              // sidebar for why (the Link's own border-color utilities
-              // clobber a divider color set on the same element).
-              <div
+              <Link
                 key={item.href}
-                className={index < items.length - 1 ? "border-b border-graphite-line/70" : ""}
+                href={item.href}
+                prefetch={false}
+                onClick={onClose}
+                className={[
+                  "flex items-center gap-3 rounded-[6px] px-3 py-2.5 text-[14px] font-semibold transition-colors",
+                  adminAccent
+                    ? active
+                      ? "bg-admin-soft text-admin"
+                      : "text-white hover:bg-graphite-2/60"
+                    : active
+                      ? "bg-graphite-2 text-white"
+                      : "text-white hover:bg-graphite-2/60",
+                ].join(" ")}
               >
-                <Link
-                  href={item.href}
-                  prefetch={false}
-                  onClick={onClose}
-                  className={[
-                    "flex items-center gap-3 border-l-2 px-3 py-2.5 text-[14px] font-medium transition-colors",
-                    active
-                      ? adminAccent
-                        ? "border-admin bg-graphite-2 text-admin"
-                        : "border-accent bg-graphite-2 text-white"
-                      : adminAccent
-                        ? "border-transparent text-admin/90 hover:bg-graphite-2/60 hover:text-admin"
-                        : "border-transparent text-white hover:bg-graphite-2/60",
-                  ].join(" ")}
-                >
-                  <item.Icon
-                    className={
-                      goldIcon
-                        ? "text-[#e3b341]"
-                        : adminAccent
-                          ? "text-admin"
-                          : active
-                            ? "text-accent"
-                            : "text-on-dark-dim"
-                    }
-                  />
-                  <span className="flex-1">{item.label}</span>
-                  {!!item.badge && (
-                    <span
-                      className={`inline-flex h-[18px] min-w-[18px] items-center justify-center px-1 text-[10.5px] font-bold leading-none tabular-nums ${
-                        item.badgeTone === "alert"
-                          ? "bg-bad text-white"
-                          : "bg-graphite-2 text-on-dark-dim"
-                      }`}
-                    >
-                      {item.badge > 99 ? "99+" : item.badge}
-                    </span>
-                  )}
-                </Link>
-              </div>
+                <item.Icon
+                  className={
+                    goldIcon
+                      ? "shrink-0 text-[#e3b341]"
+                      : adminAccent && active
+                        ? "shrink-0 text-admin"
+                        : active
+                          ? "shrink-0 text-accent"
+                          : "shrink-0 text-on-dark-dim"
+                  }
+                />
+                <span className="flex-1">{item.label}</span>
+                {!!item.badge && (
+                  <span
+                    className={`inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10.5px] font-bold leading-none tabular-nums ${
+                      item.badgeTone === "alert"
+                        ? "bg-bad text-white"
+                        : "bg-graphite-2 text-on-dark-dim"
+                    }`}
+                  >
+                    {item.badge > 99 ? "99+" : item.badge}
+                  </span>
+                )}
+              </Link>
             );
           })}
         </nav>

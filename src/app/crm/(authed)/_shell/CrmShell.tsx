@@ -94,73 +94,49 @@ export function CrmShell({
       <ActivityTracker />
 
       <div className="flex">
-        {/* Desktop sidebar */}
-        <aside className="sticky top-0 hidden h-screen w-[220px] shrink-0 flex-col border-r border-graphite-line bg-graphite lg:flex">
+        {/* Desktop sidebar — 2026-08-20: item shape rebuilt to match
+            /crm-design's sidebar exactly (Brent's forceful direction that
+            the real CRM must visually BECOME the prototype, sidebar
+            included). Was full-width rows with a border-l-2 accent bar and
+            a border-b divider between every item; crm-design uses
+            individually rounded pills with no divider lines at all, active
+            state reading through a filled background instead of a border,
+            and explicit "Workspace"/"Administration" section captions
+            instead of a divider line. Colors were already correct (the
+            sidebar's graphite background/graphite-2 hover already matched
+            crm-design's --cd-side-bg/--cd-side-bg-raised almost exactly) —
+            this is a shape-only rebuild. */}
+        <aside className="sticky top-0 hidden h-screen w-[236px] shrink-0 flex-col border-r border-graphite-line bg-graphite lg:flex">
           <BrandMark dark />
 
-          <nav className="flex flex-1 flex-col overflow-y-auto p-3">
-            {sidebarNavItems.map((item, index) => {
-              const active = isActive(pathname, item);
-              // One coherent color system, not four independent ad-hoc
-              // flags (CRM_MASTER_AUDIT.md §1/§2/§13 P1 #5): every item is
-              // the shared steel-blue accent unless it's Admin Account (the
-              // one dedicated elevated/`--admin` violet token), plus the one
-              // documented icon-only exception (Active Clients' gold star).
-              const admin = !!item.adminAccent;
-              const goldIcon = item.iconTint === "gold";
-              // Admin Account is promoted into this same scrolling list
-              // (not demoted to footer chrome) but still needs to read as
-              // visually set apart from the daily-driver workspace items
-              // above it — a section divider does that without inventing a
-              // second color.
-              const isFirstAdminItem = admin && !sidebarNavItems[index - 1]?.adminAccent;
-              return (
-                // The divider lives on this wrapper (border-b), never on the
-                // Link itself — the Link's own border-l-2/border-{color}
-                // utilities set the shorthand `border-color` on ALL sides,
-                // which would silently clobber a divider color set on the
-                // same element (verified: Tailwind's divide-y utility has
-                // exactly this collision and renders invisibly here).
-                <div
-                  key={item.href}
-                  className={[
-                    isFirstAdminItem ? "mt-2 border-t border-graphite-line pt-2" : "",
-                    index < sidebarNavItems.length - 1 ? "border-b border-graphite-line/70" : "",
-                  ]
-                    .filter(Boolean)
-                    .join(" ")}
-                >
+          <nav className="mt-1 flex flex-1 flex-col gap-0.5 overflow-y-auto px-2 pb-2">
+            <p className="px-2.5 pb-1 pt-2 text-[10.5px] font-bold uppercase tracking-[0.12em] text-on-dark-dim">
+              Workspace
+            </p>
+            {sidebarNavItems
+              .filter((item) => !item.adminAccent)
+              .map((item) => {
+                const active = isActive(pathname, item);
+                const goldIcon = item.iconTint === "gold";
+                return (
                   <Link
+                    key={item.href}
                     href={item.href}
                     prefetch={false}
                     className={[
-                      "flex items-center gap-3.5 border-l-2 px-3.5 py-3 text-[15px] font-medium transition-colors",
-                      active
-                        ? admin
-                          ? "border-admin bg-graphite-2 text-admin"
-                          : "border-accent bg-graphite-2 text-white"
-                        : admin
-                          ? "border-transparent text-admin/90 hover:bg-graphite-2/60 hover:text-admin"
-                          : "border-transparent text-white hover:bg-graphite-2/60",
+                      "flex items-center gap-3 rounded-[6px] px-2.5 py-2.5 text-[13.5px] font-semibold transition-colors",
+                      active ? "bg-graphite-2 text-white" : "text-white hover:bg-graphite-2/60",
                     ].join(" ")}
                   >
                     <item.Icon
-                      width={22}
-                      height={22}
-                      className={
-                        goldIcon
-                          ? "text-[#e3b341]"
-                          : admin
-                            ? "text-admin"
-                            : active
-                              ? "text-accent"
-                              : "text-on-dark-dim"
-                      }
+                      width={19}
+                      height={19}
+                      className={goldIcon ? "shrink-0 text-[#e3b341]" : active ? "shrink-0 text-accent" : "shrink-0 text-on-dark-dim"}
                     />
                     <span className="flex-1">{item.label}</span>
                     {!!item.badge && (
                       <span
-                        className={`inline-flex h-[18px] min-w-[18px] items-center justify-center px-1 text-[10.5px] font-bold leading-none tabular-nums ${
+                        className={`inline-flex h-[18px] min-w-[18px] items-center justify-center rounded-full px-1 text-[10.5px] font-bold leading-none tabular-nums ${
                           item.badgeTone === "alert"
                             ? "bg-bad text-white"
                             : "bg-graphite-2 text-on-dark-dim"
@@ -170,9 +146,32 @@ export function CrmShell({
                       </span>
                     )}
                   </Link>
-                </div>
-              );
-            })}
+                );
+              })}
+
+            {sidebarNavItems
+              .filter((item) => item.adminAccent)
+              .map((item) => {
+                const active = isActive(pathname, item);
+                return (
+                  <div key={item.href}>
+                    <p className="px-2.5 pb-1 pt-4 text-[10.5px] font-bold uppercase tracking-[0.12em] text-on-dark-dim">
+                      Administration
+                    </p>
+                    <Link
+                      href={item.href}
+                      prefetch={false}
+                      className={[
+                        "flex items-center gap-3 rounded-[6px] px-2.5 py-2.5 text-[13.5px] font-bold transition-colors",
+                        active ? "bg-admin-soft text-admin" : "text-white hover:bg-graphite-2/60",
+                      ].join(" ")}
+                    >
+                      <item.Icon width={19} height={19} className={`shrink-0 ${active ? "text-admin" : "text-on-dark-dim"}`} />
+                      <span className="flex-1">{item.label}</span>
+                    </Link>
+                  </div>
+                );
+              })}
           </nav>
 
           {/* Identity + sign out */}
@@ -297,7 +296,7 @@ function BrandMark({ dark = false }: { dark?: boolean }) {
       prefetch={false}
       className="flex items-center gap-2.5 px-3 pb-4 pt-3"
     >
-      <span className="flex h-7 w-7 shrink-0 items-center justify-center bg-accent text-[15px] font-black text-white">
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-[6px] bg-accent text-[15px] font-black text-white">
         H
       </span>
       <span className="flex flex-col leading-none">
