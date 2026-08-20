@@ -20,34 +20,39 @@ export const PAGE_CONTAINER = "mx-auto w-full max-w-[1600px] px-4 py-4 sm:px-6 s
 
 export function PageShell({
   title,
+  subtitle,
   back,
   actions,
   children,
 }: {
-  /** Page heading, every breakpoint (2026-08-20 — was `lg:hidden`, mobile
-   * only; most CRM list pages relied entirely on the first Card's CardHead
-   * for "what am I looking at" on desktop, with no page-level title at all.
-   * /crm-design's PageHeader always renders a real `<h1>` above the page's
-   * content, every screen, every breakpoint — this now matches that. Omit
-   * to render nothing, exactly like before this prop existed. */
+  /** Page heading, every breakpoint. Matches /crm-design's `PageHeader`
+   * (2026-08-20): title + subtitle sit together on the left, actions on the
+   * right, all in ONE row — was a separate title line above a second
+   * back/actions row. Omit to render nothing, exactly like before this prop
+   * existed. */
   title?: string;
-  /** An inline BackButton (or similar), rendered top-left. */
+  /** One subtitle line under the title (e.g. a count or a scope note —
+   * "42 companies in your org.", "Showing only companies assigned to you."),
+   * matching crm-design's `PageHeader` subtitle slot. */
+  subtitle?: ReactNode;
+  /** An inline BackButton (or similar) — rendered as its own row above the
+   * title, crm-design's `breadcrumb` slot equivalent. */
   back?: ReactNode;
-  /** Per-page action controls (Add company, Add task, ...), rendered top-right. */
+  /** Per-page action controls (Add company, Add task, ...), rendered on the
+   * same row as the title, right-aligned. */
   actions?: ReactNode;
   children: ReactNode;
 }) {
   return (
     <div className={PAGE_CONTAINER}>
-      {title && (
-        <h1 className="mb-3 truncate text-[20px] font-bold tracking-tight text-fg">
-          {title}
-        </h1>
-      )}
-      {(back || actions) && (
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">{back}</div>
-          <div className="flex flex-wrap items-center gap-2">{actions}</div>
+      {back && <div className="mb-2">{back}</div>}
+      {(title || actions) && (
+        <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            {title && <h1 className="truncate text-[20px] font-bold tracking-tight text-fg">{title}</h1>}
+            {subtitle && <p className="mt-0.5 text-[13px] text-fg-muted">{subtitle}</p>}
+          </div>
+          {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
         </div>
       )}
       <div className="space-y-4">{children}</div>

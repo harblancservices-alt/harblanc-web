@@ -249,6 +249,11 @@ export default async function CompaniesPage({
   return (
     <PageShell
       title="Companies"
+      subtitle={
+        visibility.restricted
+          ? "Showing only companies assigned to you."
+          : `${cards.length} compan${cards.length === 1 ? "y" : "ies"} in your org.`
+      }
       actions={
         <>
           <AddCompany reps={reps} />

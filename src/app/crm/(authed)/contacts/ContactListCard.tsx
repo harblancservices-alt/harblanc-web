@@ -1,21 +1,12 @@
 "use client";
 
-/**
- * House style for a mobile list card (D.5 in the mobile audit) — icon/
- * avatar, primary line, secondary meta line, 1-3 right-aligned actions.
- * `CompanyListCard`, `CarrierCard`, and admin's `TripCardRow`/
- * `ApplicationCardItem`/Expenses' `MobileCards` all already share this
- * shape independently; point new mobile cards at this file as the
- * reference rather than inventing another variant.
- */
-
 import Link from "next/link";
 import { ClickableListItem } from "../_shell/ClickableRow";
-import { BTN_ACTION } from "../_shell/ui";
+import { Badge } from "../_shell/ui";
+import { ContactAvatar } from "../_shell/ContactAvatar";
 import { IconMail, IconPhone } from "../_shell/icons";
 import { DueCountdown } from "../_shell/DueCountdown";
 import { digitsForTel } from "../_shell/contactFields";
-import { formatPhone } from "@/lib/domain/phone";
 
 export type ContactCardData = {
   id: string;
@@ -30,82 +21,77 @@ export type ContactCardData = {
   nextFollowupAt: string | null;
   accountId: string | null;
   companyName: string | null;
-  /** crm_contacts.role_category — only rendered by the desktop ContactTable's
-   * colored Role pill (ROLE_LABEL/ROLE_TONE); the mobile card keeps showing
-   * the free-text `title` job title instead, unchanged. */
+  /** crm_contacts.role_category — not shown on this list (crm-design's
+   * Contacts row only shows the free-text `title`); still carried through
+   * to the contact's own detail page. */
   roleCategory: string | null;
-  /** crm_contacts.last_contacted_at — only rendered by the desktop
-   * ContactTable; not part of the mobile card's layout. */
+  /** crm_contacts.last_contacted_at — not shown on this list. */
   lastContactedAt: string | null;
 };
 
-const ICON_BTN =
-  "flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg text-[12.5px] font-semibold transition-colors";
+const ICON_ACTION =
+  "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-fg-muted transition-colors hover:bg-accent hover:text-white";
 
 /**
- * One contact card in the global Contacts directory grid — same mobile-first
- * card/grid treatment as the Companies list (CompanyListCard.tsx), same
- * BTN_ACTION blue tap-to-call/tap-to-email pair. Every contact now has its
- * own profile page (surface 4), so the card always links to
- * /crm/contacts/[id] — the old table's "only navigate if there's a company"
- * caveat no longer applies.
+ * One contact row in the global Contacts directory — 2026-08-20 rebuild to
+ * match /crm-design's Contacts list exactly: ONE unified row shape at every
+ * breakpoint (avatar, name + DM badge, title · company, trailing meta),
+ * not a separate desktop table + mobile card-grid split (that split doesn't
+ * exist in the prototype at all — its Contacts list is a single `<ul>`, full
+ * stop). Call/email stay as small icon actions on the right rather than the
+ * old full-width labeled buttons — real, working quick-actions kept, just
+ * re-shaped to fit a row instead of a card.
  */
 export function ContactListCard({ contact }: { contact: ContactCardData }) {
   return (
-    <ClickableListItem
-      href={`/crm/contacts/${contact.id}`}
-      className="flex h-full min-h-[172px] flex-col justify-between rounded-lg border border-line-strong bg-card p-4 shadow-e1 hover:border-accent/40"
-    >
-      <div className="flex flex-col gap-2">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <p className="min-w-0 truncate text-[14.5px] font-bold text-fg">{contact.name}</p>
-          {contact.isDecisionMaker && (
-            <span className="inline-flex items-center rounded-full bg-ok-bg px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-ok">
-              Decision-maker
-            </span>
-          )}
+    <ClickableListItem href={`/crm/contacts/${contact.id}`} className="flex items-center gap-3 px-4 py-3">
+      <ContactAvatar className="h-9 w-9" />
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <p className="truncate text-[13.5px] font-semibold text-fg">{contact.name}</p>
+          {contact.isDecisionMaker && <Badge tone="success">DM</Badge>}
         </div>
-
-        {contact.title && <p className="truncate text-[12.5px] text-fg-muted">{contact.title}</p>}
-
-        {contact.accountId && contact.companyName ? (
-          <Link href={`/crm/accounts/${contact.accountId}`} prefetch={false} className="w-fit truncate text-[12.5px] text-accent hover:underline">
-            {contact.companyName}
-          </Link>
-        ) : (
-          <span className="text-[12.5px] text-fg-subtle">No company</span>
-        )}
-
+        <p className="truncate text-[12px] text-fg-muted">
+          {contact.title ? `${contact.title} · ` : ""}
+          {contact.accountId && contact.companyName ? (
+            <Link
+              href={`/crm/accounts/${contact.accountId}`}
+              prefetch={false}
+              onClick={(e) => e.stopPropagation()}
+              className="text-accent hover:underline"
+            >
+              {contact.companyName}
+            </Link>
+          ) : (
+            "No company"
+          )}
+        </p>
         {contact.nextFollowupAt && (
-          <div className="text-[12px]">
+          <div className="mt-0.5 text-[11.5px]">
             <DueCountdown iso={contact.nextFollowupAt} />
           </div>
         )}
       </div>
-
-      <div className="mt-3 flex gap-2">
-        {contact.phone ? (
-          <a href={`tel:${digitsForTel(contact.phone)}`} className={`${ICON_BTN} ${BTN_ACTION}`}>
-            <IconPhone width={13} height={13} />
-            {formatPhone(contact.phone)}
-            {contact.extension ? ` ×${contact.extension}` : ""}
+      <div className="flex shrink-0 items-center gap-1">
+        {contact.phone && (
+          <a
+            href={`tel:${digitsForTel(contact.phone)}`}
+            onClick={(e) => e.stopPropagation()}
+            aria-label={`Call ${contact.name}`}
+            className={ICON_ACTION}
+          >
+            <IconPhone width={14} height={14} />
           </a>
-        ) : (
-          <span aria-disabled className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg border border-fg-subtle bg-card text-[12px] font-semibold text-fg-subtle opacity-50">
-            <IconPhone width={13} height={13} />
-            No phone
-          </span>
         )}
-        {contact.email ? (
-          <a href={`mailto:${contact.email}`} className={`${ICON_BTN} ${BTN_ACTION}`}>
-            <IconMail width={13} height={13} />
-            Email
+        {contact.email && (
+          <a
+            href={`mailto:${contact.email}`}
+            onClick={(e) => e.stopPropagation()}
+            aria-label={`Email ${contact.name}`}
+            className={ICON_ACTION}
+          >
+            <IconMail width={14} height={14} />
           </a>
-        ) : (
-          <span aria-disabled className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-lg border border-fg-subtle bg-card text-[12px] font-semibold text-fg-subtle opacity-50">
-            <IconMail width={13} height={13} />
-            No email
-          </span>
         )}
       </div>
     </ClickableListItem>
