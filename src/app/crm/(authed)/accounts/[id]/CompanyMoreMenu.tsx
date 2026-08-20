@@ -4,6 +4,8 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { IconMore } from "../../_shell/icons";
 import { LogCallDialog } from "../../calls/LogCallDialog";
+import { Modal } from "../../_shell/Modal";
+import { BTN_DANGER } from "../../_shell/ui";
 import { deleteAccount } from "../actions";
 import type { TaskContactOption } from "../../tasks/TaskDialog";
 
@@ -16,6 +18,14 @@ import type { TaskContactOption } from "../../tasks/TaskDialog";
  * its own render, called from this menu's real onClick) rather than driving
  * it through extra state — calling `open()` during render would fire a side
  * effect mid-render and reopen on every rerender.
+ *
+ * "Delete company" confirms through the shared Modal (2026-08-19) instead of
+ * a native window.confirm() — CRM_INTERACTION_HIERARCHY.md §2/§7 cited this
+ * exact spot as the one native browser dialog in an otherwise all-Modal
+ * destructive-confirm language (Suspend & reassign, etc.). Same
+ * two-step shape as SuspendReassignDialog: the menu action only opens the
+ * confirm dialog; the actual deleteAccount() call fires from the Modal's own
+ * danger-toned footer button, never from the menu item itself.
  */
 export function CompanyMoreMenu({
   accountId,
@@ -31,6 +41,7 @@ export function CompanyMoreMenu({
   canDelete: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
@@ -54,12 +65,14 @@ export function CompanyMoreMenu({
   }, [open]);
 
   function remove() {
-    if (!window.confirm(`Delete ${accountName}? This can't be undone from here.`)) return;
     setError(null);
     startTransition(async () => {
       const res = await deleteAccount(accountId);
       if (res.ok) router.push("/crm/accounts");
-      else setError(res.error);
+      else {
+        setConfirmOpen(false);
+        setError(res.error);
+      }
     });
   }
 
@@ -90,11 +103,14 @@ export function CompanyMoreMenu({
           {canDelete && (
             <button
               type="button"
-              onClick={remove}
-              disabled={pending}
+              onClick={() => {
+                setOpen(false);
+                setError(null);
+                setConfirmOpen(true);
+              }}
               className="block w-full border-t border-line-strong px-4 py-3 text-left text-[13px] font-semibold text-bad hover:bg-bad-bg disabled:opacity-60"
             >
-              {pending ? "Deleting…" : "Delete company"}
+              Delete company
             </button>
           )}
         </div>
@@ -109,6 +125,39 @@ export function CompanyMoreMenu({
           return null;
         }}
       />
+
+      {confirmOpen && (
+        <Modal
+          open
+          onClose={() => !pending && setConfirmOpen(false)}
+          busy={pending}
+          title="Delete company"
+        >
+          <p className="text-[13.5px] leading-relaxed text-fg">
+            Delete <span className="font-semibold">{accountName}</span>? This can&rsquo;t be undone from
+            here.
+          </p>
+          {error && <p className="mt-2 text-[12.5px] text-bad">{error}</p>}
+          <div className="mt-4 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setConfirmOpen(false)}
+              disabled={pending}
+              className="rounded-md border border-fg-subtle bg-card px-3.5 py-2 text-[13px] font-semibold text-fg-muted transition-colors hover:bg-inset disabled:opacity-60"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={remove}
+              disabled={pending}
+              className={`rounded-md px-3.5 py-2 text-[13px] font-semibold transition-colors disabled:opacity-60 ${BTN_DANGER}`}
+            >
+              {pending ? "Deleting…" : "Delete company"}
+            </button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

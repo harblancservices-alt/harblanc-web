@@ -4,6 +4,8 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { IconMore } from "../../_shell/icons";
 import { LogCallDialog } from "../../calls/LogCallDialog";
+import { Modal } from "../../_shell/Modal";
+import { BTN_DANGER } from "../../_shell/ui";
 import { deleteContact } from "../../accounts/actions";
 import type { TaskContactOption } from "../../tasks/TaskDialog";
 
@@ -11,8 +13,8 @@ import type { TaskContactOption } from "../../tasks/TaskDialog";
  * The contact header's "More" menu — Log a call (only when there's a
  * company: crm_calls is keyed to account_id, so a company-less contact has
  * nowhere for the call to land) and, owner-only, Delete. Same
- * outside-click/Escape + ref-stashed-open-callback pattern as
- * CompanyMoreMenu.tsx.
+ * outside-click/Escape + ref-stashed-open-callback pattern, and same shared
+ * Modal delete-confirm pattern (2026-08-19), as CompanyMoreMenu.tsx.
  */
 export function ContactMoreMenu({
   contactId,
@@ -30,6 +32,7 @@ export function ContactMoreMenu({
   canDelete: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const ref = useRef<HTMLDivElement>(null);
@@ -53,7 +56,6 @@ export function ContactMoreMenu({
   }, [open]);
 
   function remove() {
-    if (!window.confirm(`Delete ${contactName}? This can't be undone from here.`)) return;
     setError(null);
     startTransition(async () => {
       // deleteContact's accountId param is only used for cache revalidation
@@ -62,7 +64,10 @@ export function ContactMoreMenu({
       // company-less contact.
       const res = await deleteContact(contactId, accountId ?? "");
       if (res.ok) router.push(accountId ? `/crm/accounts/${accountId}` : "/crm/contacts");
-      else setError(res.error);
+      else {
+        setConfirmOpen(false);
+        setError(res.error);
+      }
     });
   }
 
@@ -97,11 +102,14 @@ export function ContactMoreMenu({
           {canDelete && (
             <button
               type="button"
-              onClick={remove}
-              disabled={pending}
+              onClick={() => {
+                setOpen(false);
+                setError(null);
+                setConfirmOpen(true);
+              }}
               className="block w-full border-t border-line-strong px-4 py-3 text-left text-[13px] font-semibold text-bad hover:bg-bad-bg disabled:opacity-60"
             >
-              {pending ? "Deleting…" : "Delete"}
+              Delete
             </button>
           )}
         </div>
@@ -118,6 +126,34 @@ export function ContactMoreMenu({
             return null;
           }}
         />
+      )}
+
+      {confirmOpen && (
+        <Modal open onClose={() => !pending && setConfirmOpen(false)} busy={pending} title="Delete contact">
+          <p className="text-[13.5px] leading-relaxed text-fg">
+            Delete <span className="font-semibold">{contactName}</span>? This can&rsquo;t be undone from
+            here.
+          </p>
+          {error && <p className="mt-2 text-[12.5px] text-bad">{error}</p>}
+          <div className="mt-4 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setConfirmOpen(false)}
+              disabled={pending}
+              className="rounded-md border border-fg-subtle bg-card px-3.5 py-2 text-[13px] font-semibold text-fg-muted transition-colors hover:bg-inset disabled:opacity-60"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={remove}
+              disabled={pending}
+              className={`rounded-md px-3.5 py-2 text-[13px] font-semibold transition-colors disabled:opacity-60 ${BTN_DANGER}`}
+            >
+              {pending ? "Deleting…" : "Delete"}
+            </button>
+          </div>
+        </Modal>
       )}
     </div>
   );
