@@ -15,7 +15,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   await requireCrmAdmin();
 
   return (
-    <PageShell title="Admin Account">
+    <PageShell title="Admin Account" subtitle="Owner-only. Manage the team and review company-wide activity.">
       <AdminTabs />
       {children}
     </PageShell>

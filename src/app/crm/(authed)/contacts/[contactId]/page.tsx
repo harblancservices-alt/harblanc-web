@@ -206,14 +206,16 @@ export default async function ContactProfilePage({
 
   return (
     <PageShell>
-      {/* 2026-08-09 compact pass: this page used to stretch its cards edge to
-          edge inside PageShell's full 1600px container — a Role/Tasks/
-          Activity/Notes card with only a few lines of content read as a huge
-          empty white bar at that width. Capped to a centered ~800px column
-          here (PageShell/PAGE_CONTAINER itself is untouched — every other
-          /crm page still gets the full width) with tighter gaps/padding
-          throughout. */}
-      <div className="mx-auto flex w-full max-w-[800px] flex-col gap-3">
+      {/* 2026-08-20: rebuilt to crm-design's Contact detail composition —
+          header full-width above a 2-column [300px_1fr] grid, matching the
+          Company profile's own grid exactly (both pages now share the same
+          left-column-facts / right-column-activity shape). Was a single
+          centered ~800px column of stacked cards (a 2026-08-09 fix for a
+          real sparse-content problem at full width) — that problem doesn't
+          recur in the 2-column layout since the left column is narrow by
+          design and the right column has real content depth (Tasks +
+          History + Notes together). */}
+      <div className="flex flex-col gap-4">
         <ContactHeader
           contact={editDefaults}
           accountId={accountId}
@@ -224,91 +226,101 @@ export default async function ContactProfilePage({
           canDelete={isOwner}
         />
 
-        <Card>
-          <CardHead title="Role" />
-          <div className="p-4">
-            <RoleControl contactId={contact.id as string} accountId={accountId} current={contact.role_category as string | null} />
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[300px_1fr] lg:items-start">
+          {/* Left — contact facts, matching crm-design's "Contact info" card slot. */}
+          <div className="flex flex-col gap-4">
+            <Card>
+              <CardHead title="Role" />
+              <div className="p-4">
+                <RoleControl contactId={contact.id as string} accountId={accountId} current={contact.role_category as string | null} />
+              </div>
+            </Card>
+
+            {hasDetails && (
+              <Card>
+                <CardHead title="Details" />
+                <dl className="divide-y divide-line">
+                  {contact.best_time_to_call && (
+                    <div className="flex items-center justify-between gap-3 px-3.5 py-2.5">
+                      <dt className="text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">Best time to call</dt>
+                      <dd className="truncate text-[12.5px] font-medium text-fg">{contact.best_time_to_call as string}</dd>
+                    </div>
+                  )}
+                  {contact.next_followup_at && (
+                    <div className="flex items-center justify-between gap-3 px-3.5 py-2.5">
+                      <dt className="text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">Next follow-up</dt>
+                      <dd className="truncate text-[12.5px] font-medium text-fg">{formatDateTime(contact.next_followup_at as string)}</dd>
+                    </div>
+                  )}
+                  {contact.last_contacted_at && (
+                    <div className="flex items-center justify-between gap-3 px-3.5 py-2.5">
+                      <dt className="text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">Last contacted</dt>
+                      <dd className="truncate text-[12.5px] font-medium text-fg">{formatDate(contact.last_contacted_at as string)}</dd>
+                    </div>
+                  )}
+                </dl>
+              </Card>
+            )}
           </div>
-        </Card>
 
-        {hasDetails && (
-          <Card>
-            <CardHead title="Details" />
-            <div className="grid grid-cols-1 gap-x-6 gap-y-3 p-4 sm:grid-cols-3">
-              {contact.best_time_to_call && (
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">Best time to call</p>
-                  <p className="mt-1 text-[14px] text-fg">{contact.best_time_to_call as string}</p>
-                </div>
-              )}
-              {contact.next_followup_at && (
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">Next follow-up</p>
-                  <p className="mt-1 text-[14px] text-fg">{formatDateTime(contact.next_followup_at as string)}</p>
-                </div>
-              )}
-              {contact.last_contacted_at && (
-                <div>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">Last contacted</p>
-                  <p className="mt-1 text-[14px] text-fg">{formatDate(contact.last_contacted_at as string)}</p>
-                </div>
-              )}
-            </div>
-          </Card>
-        )}
-
-        <Card>
-          <CardHead
-            title="Tasks"
-            hint={openTasks.length ? `${openTasks.length} open` : undefined}
-            right={
-              <AddTaskButton
-                accountId={accountId}
-                contactOptions={contactOptions}
-                reps={reps}
-                canAssignOthers={isOwner}
-                currentUser={currentUser}
-                defaultContactId={contact.id as string}
+          {/* Right — activity, matching crm-design's "Activity history" card slot
+              (widened here to also hold Tasks/Notes, real sections the prototype's
+              simpler mock doesn't have). */}
+          <div className="flex flex-col gap-4">
+            <Card>
+              <CardHead
+                title="Tasks"
+                hint={openTasks.length ? `${openTasks.length} open` : undefined}
+                right={
+                  <AddTaskButton
+                    accountId={accountId}
+                    contactOptions={contactOptions}
+                    reps={reps}
+                    canAssignOthers={isOwner}
+                    currentUser={currentUser}
+                    defaultContactId={contact.id as string}
+                  />
+                }
               />
-            }
-          />
-          {tasks.length === 0 ? (
-            <p className="px-5 py-6 text-center text-[13px] text-fg-muted">No tasks tied to {contactName} yet.</p>
-          ) : (
-            <>
-              <ul className="grid grid-cols-1 items-start gap-2 p-2.5 sm:grid-cols-2">
-                {openTasks.map((t) => (
-                  <TaskRow key={t.id} task={t} accountId={accountId ?? undefined} reps={reps} contacts={contactOptions} canAssignOthers={isOwner} currentUser={currentUser} />
-                ))}
-              </ul>
-              {doneTasks.length > 0 && (
-                <details className="border-t border-line-strong">
-                  <summary className="cursor-pointer list-none px-4 py-2 text-[12px] font-semibold text-fg-subtle transition-colors hover:text-fg">
-                    {doneTasks.length} completed
-                  </summary>
-                  <ul className="grid grid-cols-1 items-start gap-2 border-t border-line-strong p-2.5 sm:grid-cols-2">
-                    {doneTasks.map((t) => (
+              {tasks.length === 0 ? (
+                <p className="px-5 py-6 text-center text-[13px] text-fg-muted">No tasks tied to {contactName} yet.</p>
+              ) : (
+                <>
+                  <ul className="grid grid-cols-1 items-start gap-2 p-2.5 sm:grid-cols-2">
+                    {openTasks.map((t) => (
                       <TaskRow key={t.id} task={t} accountId={accountId ?? undefined} reps={reps} contacts={contactOptions} canAssignOthers={isOwner} currentUser={currentUser} />
                     ))}
                   </ul>
-                </details>
+                  {doneTasks.length > 0 && (
+                    <details className="border-t border-line-strong">
+                      <summary className="cursor-pointer list-none px-4 py-2 text-[12px] font-semibold text-fg-subtle transition-colors hover:text-fg">
+                        {doneTasks.length} completed
+                      </summary>
+                      <ul className="grid grid-cols-1 items-start gap-2 border-t border-line-strong p-2.5 sm:grid-cols-2">
+                        {doneTasks.map((t) => (
+                          <TaskRow key={t.id} task={t} accountId={accountId ?? undefined} reps={reps} contacts={contactOptions} canAssignOthers={isOwner} currentUser={currentUser} />
+                        ))}
+                      </ul>
+                    </details>
+                  )}
+                </>
               )}
-            </>
-          )}
-        </Card>
+            </Card>
 
-        <ContactHistorySection accountId={accountId} items={historyItems} />
+            <ContactHistorySection accountId={accountId} items={historyItems} />
 
-        <Card>
-          <CardHead title="Notes" hint={humanNotes.length ? `${humanNotes.length} on file` : undefined} />
-          <NotesTab
-            accountId={accountId}
-            contactId={contact.id as string}
-            contactName={contactName}
-            notes={humanNotes}
-            currentUser={currentUser}
-          />
-        </Card>
+            <Card>
+              <CardHead title="Notes" hint={humanNotes.length ? `${humanNotes.length} on file` : undefined} />
+              <NotesTab
+                accountId={accountId}
+                contactId={contact.id as string}
+                contactName={contactName}
+                notes={humanNotes}
+                currentUser={currentUser}
+              />
+            </Card>
+          </div>
+        </div>
       </div>
     </PageShell>
   );
