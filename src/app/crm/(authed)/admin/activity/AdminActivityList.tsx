@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Card, CardHead, ZEBRA_ROWS, EmptyState, BTN_EDIT } from "../../_shell/ui";
+import { Badge, Card, CardHead, ZEBRA_ROWS, EmptyState, BTN_EDIT, type BadgeTone } from "../../_shell/ui";
 import { CONTROL } from "../../_shell/form";
 import { formatDateTime } from "../../_shell/format";
 import { IconSearch, IconContacts } from "../../_shell/icons";
@@ -23,10 +23,10 @@ function recordHref(item: AdminActivityItem): string | null {
   return null;
 }
 
-const TYPE_BADGE: Record<AdminActivityItem["type"], string> = {
-  call: "bg-accent/10 text-accent",
-  note: "bg-warn-bg text-warn",
-  activity: "bg-steel-bg text-steel",
+const TYPE_BADGE_TONE: Record<AdminActivityItem["type"], BadgeTone> = {
+  call: "accent",
+  note: "warning",
+  activity: "neutral",
 };
 
 const TYPE_LABEL: Record<AdminActivityItem["type"], string> = {
@@ -149,9 +149,7 @@ export function AdminActivityList({ items }: { items: AdminActivityItem[] }) {
                 <li key={item.id} className="flex flex-wrap items-start justify-between gap-3 px-5 py-3.5">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${TYPE_BADGE[item.type]}`}>
-                        {TYPE_LABEL[item.type]}
-                      </span>
+                      <Badge tone={TYPE_BADGE_TONE[item.type]}>{TYPE_LABEL[item.type]}</Badge>
                       <span className="truncate text-[13.5px] font-semibold text-fg">{item.title}</span>
                     </div>
                     {item.body && (

@@ -1,11 +1,11 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Card, CardHead, BTN_ACTION, BTN_EDIT, BTN_SUCCESS, BTN_DANGER, ZEBRA_ROWS } from "../../_shell/ui";
+import { Badge, Card, CardHead, BTN_ACTION, BTN_EDIT, BTN_SUCCESS, BTN_DANGER, ZEBRA_ROWS } from "../../_shell/ui";
 import { FormError } from "../../_shell/form";
 import { formatDateTime, formatMoney, titleCaseWords } from "../../_shell/format";
 import { IconRateConfirmation, IconBillOfLading } from "../../_shell/icons";
-import { docStatusLabel, docStatusTone } from "../docStatusMeta";
+import { docStatusLabel, docStatusBadgeTone } from "../docStatusMeta";
 import { getSignedPdfUrl, openStoredPdf } from "../pdfClient";
 import { DocViewer } from "@/components/ui/DocViewer";
 import { createRateConfirmationFromShipment, softDeleteRateConfirmation } from "../rate-confirmation-actions";
@@ -238,9 +238,7 @@ function DocColumn({
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <p className="truncate text-[13.5px] font-semibold text-fg">{doc.number}</p>
-                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${docStatusTone(doc.status)}`}>
-                    {docStatusLabel(doc.status)}
-                  </span>
+                  <Badge tone={docStatusBadgeTone(doc.status)}>{docStatusLabel(doc.status)}</Badge>
                   <span className="text-[11px] text-fg-subtle">v{doc.version}</span>
                 </div>
                 <p className="mt-0.5 truncate text-[12px] text-fg-subtle">
