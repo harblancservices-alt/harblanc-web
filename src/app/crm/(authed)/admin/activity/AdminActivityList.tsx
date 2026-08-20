@@ -149,7 +149,7 @@ export function AdminActivityList({ items }: { items: AdminActivityItem[] }) {
                 <li key={item.id} className="flex flex-wrap items-start justify-between gap-3 px-5 py-3.5">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className={`px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${TYPE_BADGE[item.type]}`}>
+                      <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide ${TYPE_BADGE[item.type]}`}>
                         {TYPE_LABEL[item.type]}
                       </span>
                       <span className="truncate text-[13.5px] font-semibold text-fg">{item.title}</span>

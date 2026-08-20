@@ -51,7 +51,7 @@ export function LeadCard({ lead }: { lead: AiAgentLead }) {
           <p className="min-w-0 truncate text-[14.5px] font-semibold text-fg">
             {lead.name}
           </p>
-          <span className="shrink-0 bg-steel-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-steel">
+          <span className="shrink-0 rounded-full bg-steel-bg px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-steel">
             New
           </span>
         </div>

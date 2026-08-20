@@ -83,10 +83,10 @@ export function ReviewCard({ lead }: { lead: AiReviewLead }) {
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-[15px] font-semibold text-fg">{lead.name}</span>
-            <span className="bg-steel-bg px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide text-steel">
+            <span className="rounded-full bg-steel-bg px-2.5 py-1 text-[10.5px] font-semibold uppercase tracking-wide text-steel">
               Pending review
             </span>
-            <span className="bg-slate-bg px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide text-slate">
+            <span className="rounded-full bg-slate-bg px-2.5 py-1 text-[10.5px] font-semibold uppercase tracking-wide text-slate">
               {sourceLabel(lead.source)}
             </span>
           </div>

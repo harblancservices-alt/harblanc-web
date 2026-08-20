@@ -52,7 +52,7 @@ export function ContactHeader({
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <h1 className="truncate text-[17px] font-bold tracking-tight text-fg">{contact.name}</h1>
               {role && (
-                <span className={`inline-flex items-center px-2 py-0.5 text-[10.5px] font-semibold uppercase tracking-wide ${ROLE_TONE[role]}`}>
+                <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[10.5px] font-semibold uppercase tracking-wide ${ROLE_TONE[role]}`}>
                   {ROLE_LABEL[role]}
                 </span>
               )}

@@ -60,7 +60,7 @@ export function ContactListCard({ contact }: { contact: ContactCardData }) {
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <p className="min-w-0 truncate text-[14.5px] font-bold text-fg">{contact.name}</p>
           {contact.isDecisionMaker && (
-            <span className="inline-flex items-center bg-ok-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ok">
+            <span className="inline-flex items-center rounded-full bg-ok-bg px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-ok">
               Decision-maker
             </span>
           )}

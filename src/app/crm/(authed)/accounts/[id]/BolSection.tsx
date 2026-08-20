@@ -288,7 +288,7 @@ export function BolSection({
             <li key={doc.id} className="flex items-center justify-between gap-3 px-5 py-3.5">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="shrink-0 bg-steel-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-steel">
+                  <span className="shrink-0 rounded-full bg-steel-bg px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-steel">
                     {typeLabel(doc.mimeType)}
                   </span>
                   <p className="truncate text-[13.5px] font-semibold text-fg">{doc.fileName}</p>

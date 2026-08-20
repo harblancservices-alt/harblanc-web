@@ -131,7 +131,7 @@ export function AiResearchSection({
             return (
               <li key={n.id} className="border-l-4 border-l-warn bg-warn-bg/40 px-5 py-4">
                 <div className="mb-2 flex items-center gap-2 text-[12px] text-fg-subtle">
-                  <span className="inline-flex items-center gap-1 bg-warn-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-warn">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-warn-bg px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-warn">
                     <IconAiAgent width={11} height={11} />
                     AI Research
                   </span>
