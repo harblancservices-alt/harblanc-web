@@ -143,23 +143,6 @@ export const ZEBRA_ROWS =
   "[&>*:nth-child(odd)]:bg-card [&>*:nth-child(even)]:bg-inset";
 
 /**
- * Excel/spreadsheet-style ruled grid for a CRM desktop data table (Companies,
- * Contacts, Active Customers, Tasks) — Brent's explicit call after reviewing
- * a mockup: real horizontal AND vertical grid lines like ruled writing
- * paper, tight row height, not the airier card-table spacing used elsewhere.
- * GRID_TABLE goes on the `<table>` (border-collapse so adjoining cell
- * borders merge into one ruled line instead of doubling up), GRID_HEAD_CELL
- * on every header `<th>` (sits under LIST_HEAD_ROW's light `bg-inset` on
- * the `<tr>`, 2026-08-20 — was a dark graphite border for the old dark bar,
- * now `border-line-strong` to read against the light band), GRID_CELL on
- * every body `<td>` — combine with ZEBRA_ROWS on the `<tbody>` for stripes
- * underneath the grid lines.
- */
-export const GRID_TABLE = "w-full table-fixed border-collapse text-[13px]";
-export const GRID_HEAD_CELL = "border border-line-strong px-3 py-1.5 text-left";
-export const GRID_CELL = "border border-line px-3 py-1.5";
-
-/**
  * Semantic button color standard — CRM-wide.
  *
  * Color-only fragments (border + background + text + hover + disabled) meant
