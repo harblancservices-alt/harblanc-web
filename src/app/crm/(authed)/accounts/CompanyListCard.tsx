@@ -1,7 +1,8 @@
 "use client";
 
 import { ClickableListItem } from "../_shell/ClickableRow";
-import { stageLabel, stageTone } from "./lifecycle";
+import { Badge } from "../_shell/ui";
+import { stageLabel, stageBadgeTone } from "./lifecycle";
 import { lastContactStatus, titleCaseWords, upperCaseState } from "../_shell/format";
 import { CompanyRowActions } from "./CompanyRowActions";
 import { ActiveCustomerRowActions, type ActiveCustomerActionsData } from "../customers/ActiveCustomerRowActions";
@@ -60,18 +61,14 @@ export function CompanyListCard({
       <div className="flex flex-col gap-2">
         <div className="flex items-start justify-between gap-2">
           <p className="min-w-0 truncate text-[14.5px] font-bold text-fg">{titleCaseWords(company.name)}</p>
-          <span
-            className={`shrink-0 inline-flex items-center rounded-md px-2 py-0.5 text-[10.5px] font-semibold ${stageTone(company.stage)}`}
-          >
-            {stageLabel(company.stage)}
-          </span>
+          <Badge tone={stageBadgeTone(company.stage)}>{stageLabel(company.stage)}</Badge>
         </div>
 
         <p className="text-[12.5px] text-fg-muted">{location || "—"}</p>
 
         {company.primaryTag && (
-          <span className="inline-flex w-fit items-center gap-1 rounded-md border border-line-strong bg-inset py-0.5 pl-1.5 pr-2 text-[11px] font-medium text-fg">
-            <span className="h-1.5 w-1.5 shrink-0" style={{ background: company.primaryTag.color || "var(--fg-subtle)" }} />
+          <span className="inline-flex w-fit items-center gap-1 rounded-full border border-line-strong bg-inset py-0.5 pl-1.5 pr-2 text-[11px] font-medium text-fg">
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: company.primaryTag.color || "var(--fg-subtle)" }} />
             {company.primaryTag.label}
           </span>
         )}

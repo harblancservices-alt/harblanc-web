@@ -112,3 +112,25 @@ export function stageLabel(value: string | null | undefined): string {
 export function stageTone(value: string | null | undefined): string {
   return LIFECYCLE_TONE[normalizeStage(value)];
 }
+
+/** Stage → shared Badge tone (2026-08-20, matching /crm-design's Companies
+ * list, which draws every stage pill from its 6-tone Badge set — neutral for
+ * cold/not-yet-moving stages, accent for in-motion, success for won,
+ * warning/danger for the two terminals). Replaces the LIFECYCLE_TONE raw
+ * className strings (steel/slate hues crm-design's palette doesn't have) at
+ * every call site that renders a stage as a Badge. */
+export const LIFECYCLE_BADGE_TONE: Record<LifecycleStage, "neutral" | "accent" | "success" | "warning" | "danger"> = {
+  lead: "neutral",
+  researching: "neutral",
+  contacted: "accent",
+  prospect: "accent",
+  in_the_door: "accent",
+  quoted: "accent",
+  active_customer: "success",
+  inactive: "warning",
+  lost: "danger",
+};
+
+export function stageBadgeTone(value: string | null | undefined): "neutral" | "accent" | "success" | "warning" | "danger" {
+  return LIFECYCLE_BADGE_TONE[normalizeStage(value)];
+}

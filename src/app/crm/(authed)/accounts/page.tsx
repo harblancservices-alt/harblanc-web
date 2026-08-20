@@ -1,6 +1,6 @@
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { getCompanyVisibility } from "../_shell/companyVisibility";
-import { PageShell, Card, CardHead, EmptyState } from "../_shell/ui";
+import { PageShell, Card, EmptyState } from "../_shell/ui";
 import { IconCompanies } from "../_shell/icons";
 import { AddCompany } from "./AddCompany";
 import { AccountsFilters } from "./AccountsFilters";
@@ -279,14 +279,20 @@ export default async function CompaniesPage({
         </Card>
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-3 [grid-auto-rows:1fr] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 md:hidden">
+          {/* Mobile cards — single-column stack, matching /crm-design's
+              CompaniesPage exactly (was a 2/3/4-col grid below `md`). */}
+          <div className="flex flex-col gap-2.5 lg:hidden">
             {cards.map((c) => (
               <CompanyListCard key={c.id} company={c} companyOptions={companyOptions} />
             ))}
           </div>
 
-          <Card className="hidden md:block">
-            <CardHead title="Companies" hint={`${cards.length} ${cards.length === 1 ? "company" : "companies"}`} />
+          {/* Desktop table — bare Card, no nested title bar (the page's own
+              H1 already says "Companies"; a second "Companies" CardHead
+              inside the card was redundant and isn't how crm-design's
+              Companies table is composed). Breakpoint moved md -> lg to
+              match the prototype's card/table switch point. */}
+          <Card className="hidden lg:block">
             <div className="overflow-x-auto">
               <CompanyTable companies={cards} companyOptions={companyOptions} />
             </div>

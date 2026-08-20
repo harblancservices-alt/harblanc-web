@@ -1,8 +1,8 @@
 "use client";
 
 import { ClickableRow } from "../_shell/ClickableRow";
-import { LIST_HEAD_ROW, ZEBRA_ROWS, GRID_TABLE, GRID_HEAD_CELL, GRID_CELL } from "../_shell/ui";
-import { stageLabel, stageTone } from "./lifecycle";
+import { LIST_HEAD_ROW, ZEBRA_ROWS, Badge } from "../_shell/ui";
+import { stageLabel, stageBadgeTone } from "./lifecycle";
 import { lastContactStatus, titleCaseWords, upperCaseState } from "../_shell/format";
 import { CompanyRowActions } from "./CompanyRowActions";
 import { ActiveCustomerRowActions, type ActiveCustomerActionsData } from "../customers/ActiveCustomerRowActions";
@@ -10,22 +10,24 @@ import type { CompanyOption } from "../contacts/CompanyCombobox";
 import type { CompanyCardData } from "./CompanyListCard";
 
 /**
- * Desktop (md+) table rendering of the Companies list — same CompanyCardData
- * the mobile CompanyListCard grid already consumes, laid out as an
- * Excel/spreadsheet-style ruled grid (Brent's approved mockup): real
- * horizontal + vertical grid lines via GRID_TABLE/GRID_HEAD_CELL/GRID_CELL,
- * tight row height, zebra stripes underneath, hover highlight + clickable
- * rows via ClickableRow. Mobile keeps CompanyListCard untouched; toggled by
- * `hidden`/`md:hidden` wrapper classes at the call site (page.tsx). Reused
- * as-is by the Active Customers page (customers/page.tsx), which is
- * deliberately the same grid, just pre-filtered to lifecycle_status=customer.
+ * Desktop (lg+) table rendering of the Companies list — same CompanyCardData
+ * the mobile CompanyListCard grid already consumes.
  *
- * 2026-08-09: the Actions column's tap-to-call button was replaced with
- * CompanyRowActions (Notes / Add contact / Loads-if-active-customer) — see
- * that file. `companies` is the org roster CompanyRowActions' Add-contact
- * dialog needs for its company combobox. `activeCustomerActions` swaps the
- * Actions column entirely — see CompanyListCard's matching prop (data, not
- * a render callback, since callers can be Server Components).
+ * 2026-08-20: rebuilt to match /crm-design's Companies table exactly (Brent's
+ * full-visual-migration directive) — a clean, borderless zebra-striped table
+ * (LIST_HEAD_ROW header band, ZEBRA_ROWS stripes, ClickableRow's built-in
+ * hover) instead of the previous Excel/spreadsheet-style ruled grid with a
+ * visible border on every cell (GRID_TABLE/GRID_HEAD_CELL/GRID_CELL — that
+ * whole visual language is gone from this table). Stage now renders through
+ * the shared `Badge` component (rounded-full pill) instead of a hand-rolled
+ * rounded-md chip. The extra Tag/Contacts/Actions columns beyond the
+ * prototype's simpler 5-column table (Company/Stage/Location/Assigned/Last
+ * contact) are real, working CRM functionality the mock data has no
+ * equivalent for — kept rather than deleted; see CompanyRowActions/
+ * ActiveCustomerRowActions for what "Actions" actually does.
+ *
+ * Reused as-is by the Active Customers page (customers/page.tsx), which is
+ * deliberately the same table, just pre-filtered to lifecycle_status=customer.
  */
 export function CompanyTable({
   companies,
@@ -37,25 +39,16 @@ export function CompanyTable({
   activeCustomerActions?: ActiveCustomerActionsData;
 }) {
   return (
-    <table className={GRID_TABLE}>
-      <colgroup>
-        <col className="w-[20%]" />
-        <col className="w-[9%]" />
-        <col className="w-[13%]" />
-        <col className="w-[12%]" />
-        <col className="w-[8%]" />
-        <col className="w-[12%]" />
-        <col className="w-[26%]" />
-      </colgroup>
+    <table className="w-full text-[13px]">
       <thead>
         <tr className={LIST_HEAD_ROW}>
-          <th className={GRID_HEAD_CELL}>Company</th>
-          <th className={GRID_HEAD_CELL}>Stage</th>
-          <th className={GRID_HEAD_CELL}>City/State</th>
-          <th className={GRID_HEAD_CELL}>Tag</th>
-          <th className={`${GRID_HEAD_CELL} text-right`}>Contacts</th>
-          <th className={GRID_HEAD_CELL}>Last contact</th>
-          <th className={`${GRID_HEAD_CELL} text-right`}>Actions</th>
+          <th className="px-4 py-2.5 text-left">Company</th>
+          <th className="px-4 py-2.5 text-left">Stage</th>
+          <th className="px-4 py-2.5 text-left">City/State</th>
+          <th className="px-4 py-2.5 text-left">Tag</th>
+          <th className="px-4 py-2.5 text-right">Contacts</th>
+          <th className="px-4 py-2.5 text-left">Last contact</th>
+          <th className="px-4 py-2.5 text-right">Actions</th>
         </tr>
       </thead>
       <tbody className={ZEBRA_ROWS}>
@@ -81,20 +74,16 @@ function CompanyTableRow({
 
   return (
     <ClickableRow href={`/crm/accounts/${company.id}`}>
-      <td className={`${GRID_CELL} truncate font-semibold text-fg`}>{titleCaseWords(company.name)}</td>
-      <td className={GRID_CELL}>
-        <span
-          className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10.5px] font-semibold ${stageTone(company.stage)}`}
-        >
-          {stageLabel(company.stage)}
-        </span>
+      <td className="px-4 py-3 truncate font-semibold text-fg">{titleCaseWords(company.name)}</td>
+      <td className="px-4 py-3">
+        <Badge tone={stageBadgeTone(company.stage)}>{stageLabel(company.stage)}</Badge>
       </td>
-      <td className={`${GRID_CELL} truncate text-fg-muted`}>{location || "—"}</td>
-      <td className={`${GRID_CELL} truncate`}>
+      <td className="px-4 py-3 truncate text-fg-muted">{location || "—"}</td>
+      <td className="px-4 py-3 truncate">
         {company.primaryTag ? (
-          <span className="inline-flex w-fit items-center gap-1 rounded-md border border-line-strong bg-inset py-0.5 pl-1.5 pr-2 text-[11px] font-medium text-fg">
+          <span className="inline-flex w-fit items-center gap-1 rounded-full border border-line-strong bg-inset py-0.5 pl-1.5 pr-2 text-[11px] font-medium text-fg">
             <span
-              className="h-1.5 w-1.5 shrink-0"
+              className="h-1.5 w-1.5 shrink-0 rounded-full"
               style={{ background: company.primaryTag.color || "var(--fg-subtle)" }}
             />
             {company.primaryTag.label}
@@ -103,11 +92,11 @@ function CompanyTableRow({
           <span className="text-fg-subtle">—</span>
         )}
       </td>
-      <td className={`${GRID_CELL} text-right tabular-nums text-fg-muted`}>{company.contactCount}</td>
-      <td className={`${GRID_CELL} truncate text-fg-muted`}>
+      <td className="px-4 py-3 text-right tabular-nums text-fg-muted">{company.contactCount}</td>
+      <td className="px-4 py-3 truncate text-fg-muted">
         {lastContact.freshness === "never" ? "Never" : lastContact.text}
       </td>
-      <td className={GRID_CELL}>
+      <td className="px-4 py-3">
         {activeCustomerActions ? (
           <ActiveCustomerRowActions
             company={company}
