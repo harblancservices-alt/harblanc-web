@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { notFound, useParams } from "next/navigation";
 import { useStore } from "../../../../_lib/store";
-import { Avatar, Badge, Button, Card, CardHead, Field, INPUT, TEXT } from "../../../../_design/ui";
+import { Avatar, Badge, Button, Card, CardHead, Field, INPUT, SegmentedControl, TEXT } from "../../../../_design/ui";
 import { formatDate, relativeTime } from "../../../../_lib/format";
 import { Modal } from "../../../../_design/Modal";
 import { BackLink } from "../../../../_shared/BackLink";
@@ -128,22 +128,15 @@ export default function AdminMemberDetailPage() {
                 <>
                   <div>
                     <p className={`mb-1.5 ${TEXT.label} text-[var(--cd-text-muted)]`}>Access level</p>
-                    <div className="inline-flex rounded-[var(--cd-radius-sm)] border border-[var(--cd-border-strong)] bg-[var(--cd-surface-2)] p-1">
-                      <button
-                        type="button"
-                        onClick={() => setRole("agent")}
-                        className={`rounded-[5px] px-4 py-2 text-[13px] font-semibold transition-colors ${role === "agent" ? "bg-[var(--cd-surface)] text-[var(--cd-accent)] shadow-[var(--cd-shadow-sm)]" : "text-[var(--cd-text-muted)]"}`}
-                      >
-                        Sales Agent
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setRole("admin")}
-                        className={`rounded-[5px] px-4 py-2 text-[13px] font-semibold transition-colors ${role === "admin" ? "bg-[var(--cd-surface)] text-[var(--cd-admin)] shadow-[var(--cd-shadow-sm)]" : "text-[var(--cd-text-muted)]"}`}
-                      >
-                        Admin
-                      </button>
-                    </div>
+                    <SegmentedControl
+                      mode="field"
+                      options={[
+                        { key: "agent", label: "Sales Agent", tone: "accent" },
+                        { key: "admin", label: "Admin", tone: "admin" },
+                      ]}
+                      active={role}
+                      onChange={setRole}
+                    />
                     {role === "admin" && member.role !== "admin" && member.role !== "owner" && (
                       <p className={`mt-1.5 ${TEXT.micro} text-[var(--cd-text-muted)]`}>
                         Admin gives {member.name} control over every non-primary-owner account except their own — including

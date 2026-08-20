@@ -1,10 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
-import { Button, Card, CardHead, TEXT } from "../../../_design/ui";
+import { Card, CardHead, TEXT, TextLink } from "../../../_design/ui";
 import { IconBillOfLadingGlyph, IconRateConfirmationGlyph } from "../../../_shared/doc-glyphs";
-import { IconInbox } from "../../../_design/icons";
 import { Modal } from "../../../_design/Modal";
 
 const TEMPLATES = [
@@ -29,11 +27,9 @@ export default function AdminDocumentsPage() {
           <span className="font-semibold">BOL Center</span> — a separate intake/research workflow, not a document
           library.
         </p>
-        <Link href="/crm-design/admin/bol-center">
-          <Button variant="admin" size="sm">
-            <IconInbox width={14} height={14} /> Open BOL Center
-          </Button>
-        </Link>
+        <TextLink href="/crm-design/admin/bol-center" tone="admin" className="shrink-0">
+          Open BOL Center →
+        </TextLink>
       </Card>
 
       <Card>

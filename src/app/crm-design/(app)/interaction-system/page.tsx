@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Badge, Button, Card, CardHead, LIST_HEAD_ROW, PAGE_WIDTH, PageHeader, ROW_HOVER, TEXT, ZEBRA } from "../../_design/ui";
+import { Badge, Button, Card, CardHead, LIST_HEAD_ROW, PAGE_WIDTH, PageHeader, ROW_HOVER, SegmentedControl, TEXT, TextLink, ZEBRA } from "../../_design/ui";
 import { Tabs } from "../../_design/Tabs";
 import { Modal } from "../../_design/Modal";
 import { Drawer } from "../../_design/Drawer";
@@ -37,6 +37,8 @@ export default function InteractionSystemPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [verified, setVerified] = useState(false);
+  const [confirmingReject, setConfirmingReject] = useState(false);
+  const [mockRelevance, setMockRelevance] = useState<"high" | "medium" | "low">("high");
 
   return (
     <div className={PAGE_WIDTH}>
@@ -90,13 +92,21 @@ export default function InteractionSystemPage() {
 
         {/* ── 4. Destructive ──────────────────────────────────────── */}
         <Card>
-          <CardHead title="4. Destructive action" hint="Always gates behind a confirming Modal — no exceptions. Click 'Reject' below to see the required pattern." />
+          <CardHead title="4. Destructive action" hint="Proportionate friction, not maximum friction. Reject uses a lightweight inline two-step confirm; a heavier, harder-to-undo action (Suspend & reassign) still gets the full Modal. Click 'Reject' to see it." />
           <div className="flex flex-wrap items-center gap-3 p-5">
-            <Button variant="danger" onClick={() => setModalOpen(true)}>
-              Reject
-            </Button>
+            {!confirmingReject ? (
+              <Button variant="danger" onClick={() => setConfirmingReject(true)}>
+                Reject
+              </Button>
+            ) : (
+              <span className="inline-flex items-center gap-2 rounded-[var(--cd-radius-sm)] border border-[var(--cd-danger)]/30 bg-[var(--cd-danger-soft)] py-1 pl-3 pr-1.5">
+                <span className="text-[12.5px] font-semibold text-[var(--cd-danger)]">Reject this BOL?</span>
+                <Button variant="danger" size="sm" onClick={() => setConfirmingReject(false)}>Reject</Button>
+                <Button variant="ghost" size="sm" onClick={() => setConfirmingReject(false)}>Cancel</Button>
+              </span>
+            )}
             <span className={`${TEXT.micro} text-[var(--cd-text-muted)]`}>
-              Today, BOL/OTR&rsquo;s Reject fires immediately with no modal — this demo shows the corrected behavior, reusing the same Cancel/Danger footer the Suspend &amp; Reassign flow already gets right.
+              Shipped on both BOL detail and OTR — Reject and Reopen already give it an undo path, so full-Modal friction would be disproportionate (Brent&rsquo;s call).
             </span>
           </div>
         </Card>
@@ -152,30 +162,38 @@ export default function InteractionSystemPage() {
 
         {/* ── 9. Filter / Segmented selector ─────────────────────── */}
         <Card>
-          <CardHead title="9. Filter / Segmented selector" hint="One shared shape, two honest modes — this is the new primitive the audit recommends (§6/§9 of the write-up)." />
+          <CardHead title="9. Filter / Segmented selector" hint="SegmentedControl — one shared component, two honest modes (Brent's decision). Quiet when it's just a view, solid when it commits a change." />
           <div className="flex flex-col gap-4 p-5">
             <div>
-              <p className={`mb-1.5 ${TEXT.label} text-[var(--cd-text-muted)]`}>mode=&quot;filter&quot; — view-only, narrows a list, no data changes</p>
-              <div className="flex gap-1.5">
-                {(["all", "new", "review"] as const).map((k) => (
-                  <SegBtn key={k} active={segFilter === k} onClick={() => setSegFilter(k)}>
-                    {k === "all" ? "All" : k === "new" ? "New" : "Needs Review"}
-                  </SegBtn>
-                ))}
-              </div>
+              <p className={`mb-1.5 ${TEXT.label} text-[var(--cd-text-muted)]`}>mode=&quot;filter&quot; — view-only, narrows a list or switches a document page, no data changes</p>
+              <SegmentedControl
+                mode="filter"
+                options={[
+                  { key: "all", label: "All" },
+                  { key: "new", label: "New" },
+                  { key: "review", label: "Needs Review" },
+                ]}
+                active={segFilter}
+                onChange={setSegFilter}
+              />
             </div>
             <div>
-              <p className={`mb-1.5 ${TEXT.label} text-[var(--cd-text-muted)]`}>mode=&quot;field&quot; — writes to a real record, same shape, tone-per-value like today&rsquo;s Sales Relevance</p>
-              <div className="flex gap-1.5">
-                {(["high", "medium", "low"] as const).map((k) => (
-                  <SegBtn key={k} active={segField === k} tone={k} onClick={() => setSegField(k)}>
-                    {k}
-                  </SegBtn>
-                ))}
-              </div>
+              <p className={`mb-1.5 ${TEXT.label} text-[var(--cd-text-muted)]`}>mode=&quot;field&quot; — writes to a real record (Sales Relevance, Access Level) — the active option gets a SOLID fill, on purpose</p>
+              <SegmentedControl
+                mode="field"
+                options={[
+                  { key: "high", label: "High", tone: "success" },
+                  { key: "medium", label: "Medium", tone: "warning" },
+                  { key: "low", label: "Low", tone: "neutral" },
+                ]}
+                active={segField}
+                onChange={setSegField}
+              />
             </div>
             <p className={`${TEXT.micro} text-[var(--cd-text-muted)]`}>
-              Today these two modes are five separate hand-rolled implementations (BOL Sales Relevance, OTR Sales Relevance — duplicated verbatim, Fit Width/Page, the page switcher, and Admin&rsquo;s Access Level toggle). One component, two modes, replaces all five.
+              Replaces five separate hand-rolled implementations that used to look identical regardless of
+              whether they wrote data: BOL Sales Relevance, OTR Sales Relevance (was duplicated verbatim),
+              Fit Width/Page, the document page switcher, and Admin&rsquo;s Access Level toggle.
             </p>
           </div>
         </Card>
@@ -302,18 +320,23 @@ export default function InteractionSystemPage() {
                 <Button variant="ghost" size="sm">Research First</Button>
               </Flag>
               <Flag n={4}>
-                <Button variant="secondary" size="sm">View Company →</Button>
+                <TextLink>View Company →</TextLink>
               </Flag>
             </div>
 
             <div className="mb-3">
               <p className={`mb-1.5 ${TEXT.label} text-[var(--cd-text-muted)]`}>Sales relevance</p>
               <Flag n={5}>
-                <div className="flex gap-2">
-                  <SegBtn active tone="high">high</SegBtn>
-                  <SegBtn tone="medium">medium</SegBtn>
-                  <SegBtn tone="low">low</SegBtn>
-                </div>
+                <SegmentedControl
+                  mode="field"
+                  options={[
+                    { key: "high", label: "High", tone: "success" },
+                    { key: "medium", label: "Medium", tone: "warning" },
+                    { key: "low", label: "Low", tone: "neutral" },
+                  ]}
+                  active={mockRelevance}
+                  onChange={setMockRelevance}
+                />
               </Flag>
             </div>
 
@@ -323,39 +346,42 @@ export default function InteractionSystemPage() {
                 <span className="ml-2 text-[13.5px] font-semibold text-[var(--cd-text)]">Cody Branson</span>
               </div>
               <Flag n={6}>
-                <button
-                  type="button"
-                  onClick={() => setVerified((v) => !v)}
-                  className={`flex shrink-0 items-center gap-1.5 rounded-[var(--cd-radius-sm)] border px-2.5 py-1.5 text-[11.5px] font-semibold ${
-                    verified ? "border-[var(--cd-success)]/30 bg-[var(--cd-success-soft)] text-[var(--cd-success)]" : "border-[var(--cd-border-strong)] bg-[var(--cd-surface)] text-[var(--cd-text-muted)]"
-                  }`}
-                >
-                  <IconCheck width={12} height={12} /> {verified ? "Verified" : "Mark verified"}
-                </button>
+                <label className="flex shrink-0 items-center gap-2 text-[12.5px] font-semibold text-[var(--cd-text-muted)]">
+                  <input type="checkbox" checked={verified} onChange={() => setVerified((v) => !v)} className="h-4 w-4 accent-[var(--cd-success)]" />
+                  <span className={verified ? "text-[var(--cd-success)]" : undefined}>{verified ? "Verified" : "Mark verified"}</span>
+                </label>
               </Flag>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
               <Button variant="admin" size="sm">Approve</Button>
               <Flag n={9}>
-                <Button variant="danger" size="sm">Reject</Button>
+                {!confirmingReject ? (
+                  <Button variant="danger" size="sm" onClick={() => setConfirmingReject(true)}>Reject</Button>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 rounded-[var(--cd-radius-sm)] border border-[var(--cd-danger)]/30 bg-[var(--cd-danger-soft)] py-1 pl-2 pr-1">
+                    <span className="text-[11.5px] font-semibold text-[var(--cd-danger)]">Reject?</span>
+                    <Button variant="danger" size="sm" onClick={() => setConfirmingReject(false)}>Reject</Button>
+                    <Button variant="ghost" size="sm" onClick={() => setConfirmingReject(false)}>Cancel</Button>
+                  </span>
+                )}
               </Flag>
             </div>
           </div>
         </Card>
 
         <Card className="mt-4">
-          <CardHead title="Callout legend" hint="Current treatment → recommended treatment, per CRM_INTERACTION_HIERARCHY.md §4" />
+          <CardHead title="Callout legend" hint="Was → is, per CRM_INTERACTION_HIERARCHY.md §4 — every item below shipped on the real BOL detail page." />
           <ul className="divide-y divide-[var(--cd-border)]">
-            <LegendRow n={1} current="Primary admin-fill Button" recommended="Correct as-is" ok />
-            <LegendRow n={2} current="Secondary Button" recommended="Correct as-is — a real mutation" ok />
-            <LegendRow n={3} current="Ghost Button" recommended="Correct as-is — optional escape hatch" ok />
-            <LegendRow n={4} current="Secondary Button (same weight as #2)" recommended="Demote to Text Link — pure navigation, no mutation" />
-            <LegendRow n={5} current="Bespoke bordered pills, duplicated in OTR" recommended="One shared SegmentedControl, mode=&quot;field&quot;" />
-            <LegendRow n={6} current="Button styled like a success Badge" recommended="A real checkbox/toggle control, not a badge costume" />
-            <LegendRow n={7} current="tone=&quot;warning&quot; Badge" recommended="Correct as-is — passive status" ok />
-            <LegendRow n={8} current="Whole-row hover, one-cell navigation" recommended="Whole row becomes the click target, on every breakpoint" />
-            <LegendRow n={9} current="Danger Button, fires immediately" recommended="Gate behind a confirming Modal (reuse Suspend & Reassign's pattern)" />
+            <LegendRow n={1} current="Primary admin-fill Button" recommended="Unchanged — correct as-is" ok />
+            <LegendRow n={2} current="Secondary Button" recommended="Unchanged — correct as-is, a real mutation" ok />
+            <LegendRow n={3} current="Ghost Button" recommended="Unchanged — correct as-is, optional escape hatch" ok />
+            <LegendRow n={4} current="Secondary Button (same weight as #2)" recommended="Now a Text Link — pure navigation, no mutation" />
+            <LegendRow n={5} current="Bespoke bordered pills, duplicated in OTR" recommended="Now SegmentedControl mode=&quot;field&quot; — one component, solid active fill" />
+            <LegendRow n={6} current="Button styled like a success Badge" recommended="Now a real checkbox — no more badge costume" />
+            <LegendRow n={7} current="tone=&quot;warning&quot; Badge" recommended="Unchanged — correct as-is, passive status" ok />
+            <LegendRow n={8} current="Whole-row hover, one-cell navigation" recommended="Whole row is now the click target, on every breakpoint" />
+            <LegendRow n={9} current="Danger Button, fired immediately" recommended="Now a lightweight inline two-step confirm (Brent's call — proportionate to Reject's undo path)" />
           </ul>
         </Card>
       </div>
@@ -363,18 +389,19 @@ export default function InteractionSystemPage() {
       <Modal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
-        title="Reject this BOL?"
-        subtitle="Filed, not deleted — it can be reopened from Approve & Release later."
+        title="Suspend user"
+        subtitle="Reserved for the heaviest confirmations — reassignment before an account is suspended."
         footer={
           <>
             <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button>
-            <Button variant="danger" onClick={() => setModalOpen(false)}>Reject</Button>
+            <Button variant="danger" onClick={() => setModalOpen(false)}>Reassign &amp; suspend</Button>
           </>
         }
       >
         <p className={`${TEXT.body} text-[var(--cd-text-muted)]`}>
-          This is the confirmation step §4/§9 of the audit recommends adding to the real Reject action — it
-          doesn&rsquo;t exist on the live BOL detail page yet.
+          Full Modal confirmation is still the right call when there&rsquo;s no cheap undo path — Admin →
+          Member detail&rsquo;s Suspend &amp; Reassign is the reference example. Reject doesn&rsquo;t need this
+          much friction (see §4 above) — it already has a one-click Reopen.
         </p>
       </Modal>
 
@@ -451,28 +478,6 @@ function ToolbarBtn({ icon, label, text, active }: { icon: React.ReactNode; labe
   );
 }
 
-const SEG_TONE: Record<string, string> = {
-  high: "border-[var(--cd-success)]/40 bg-[var(--cd-success-soft)] text-[var(--cd-success)]",
-  medium: "border-[var(--cd-warning)]/40 bg-[var(--cd-warning-soft)] text-[var(--cd-warning)]",
-  low: "border-[var(--cd-border-strong)] bg-[var(--cd-surface-2)] text-[var(--cd-text-muted)]",
-  new: "border-[var(--cd-admin)]/40 bg-[var(--cd-admin-soft)] text-[var(--cd-admin)]",
-  review: "border-[var(--cd-admin)]/40 bg-[var(--cd-admin-soft)] text-[var(--cd-admin)]",
-  all: "border-[var(--cd-admin)]/40 bg-[var(--cd-admin-soft)] text-[var(--cd-admin)]",
-};
-
-function SegBtn({ active, tone, onClick, children }: { active?: boolean; tone?: string; onClick?: () => void; children: React.ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-[var(--cd-radius-sm)] border px-3 py-1.5 text-[12px] font-bold capitalize transition-colors ${
-        active ? SEG_TONE[tone ?? "new"] : "border-[var(--cd-border-strong)] bg-[var(--cd-surface)] text-[var(--cd-text-muted)] hover:bg-[var(--cd-surface-hover)]"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
 
 function DoDont({ ok, children }: { ok: boolean; children: React.ReactNode }) {
   return (

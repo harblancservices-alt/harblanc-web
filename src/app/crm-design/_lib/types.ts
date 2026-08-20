@@ -202,10 +202,19 @@ export type BolLocationCandidate = {
 
 export type CustomerMatchStatus = "matched" | "potential_new" | "confirmed_new";
 
+/** Which of a BOL's (up to three) detected companies becomes its own
+ * Prospect card on release — a BOL always has a shipper and consignee, and
+ * sometimes a distinct bill-to (see BolExtraction.billToName). Shipper is
+ * the default (the freight owner is the real prospect for a hotshot/
+ * brokerage); consignee/bill-to are opt-in, and each checked role produces
+ * its OWN Prospect + Company, never a merge. See store.releaseBolToSales. */
+export type BolCompanyRole = "shipper" | "consignee" | "bill_to";
+
 /** What Admin chooses to hand Sales at release time — a checkbox per field
- * group, not an all-or-nothing dump of the BOL record. */
+ * group, not an all-or-nothing dump of the BOL record. Which COMPANIES get
+ * released is a separate decision (see BolCompanyRole / BolRecord.release);
+ * this only controls which fields those released companies carry. */
 export type BolReleaseSelection = {
-  company: boolean;
   locations: boolean;
   generalContact: boolean;
   observedFreight: boolean;
@@ -246,8 +255,18 @@ export type BolRecord = {
    * decisions; an approved BOL can sit un-released indefinitely). Release
    * ALSO flips `status` to "released", but the BOL record itself is never
    * removed or hidden from BOL Center — the document stays put; only a
-   * Prospect record (see below) is what actually reaches Sales. */
-  release: { releasedAt: string; releasedByUserId: string; selection: BolReleaseSelection } | null;
+   * Prospect record per released company (see `companies` below) is what
+   * actually reaches Sales. */
+  release: {
+    releasedAt: string;
+    releasedByUserId: string;
+    selection: BolReleaseSelection;
+    /** Exactly one entry per company role the admin checked at release time
+     * (shipper is default-checked; consignee/bill-to are opt-in) — this is
+     * what makes Company detail's Intelligence tab findable for a consignee
+     * or bill-to that was released alongside (or instead of) the shipper. */
+    companies: { role: BolCompanyRole; companyId: string; companyName: string }[];
+  } | null;
 };
 
 /**

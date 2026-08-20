@@ -15,6 +15,7 @@ type ProspectGroup = {
   observedLanes: string[];
   lastReleasedAt: string;
   location: string | null;
+  bolDocNumbers: string[];
 };
 
 /**
@@ -38,10 +39,12 @@ export default function ProspectsPage() {
       const existing = byCompany.get(p.companyId);
       const freight = sourceFreight(p, bolRecords, otrEntries);
       const lanes = sourceLanes(p, bolRecords, otrEntries);
+      const docNumber = p.source === "bol" ? bolRecords.find((b) => b.id === p.sourceBolId)?.docNumber : null;
       if (existing) {
         existing.sources.add(p.source);
         for (const f of freight) if (!existing.observedFreight.includes(f)) existing.observedFreight.push(f);
         for (const l of lanes) if (!existing.observedLanes.includes(l)) existing.observedLanes.push(l);
+        if (docNumber && !existing.bolDocNumbers.includes(docNumber)) existing.bolDocNumbers.push(docNumber);
         if (p.releasedAt > existing.lastReleasedAt) existing.lastReleasedAt = p.releasedAt;
       } else {
         const loc = companyLocations.find((l) => l.companyId === p.companyId);
@@ -53,6 +56,7 @@ export default function ProspectsPage() {
           observedLanes: lanes,
           lastReleasedAt: p.releasedAt,
           location: loc ? `${loc.city}, ${loc.state}` : company ? `${company.city}, ${company.state}` : null,
+          bolDocNumbers: docNumber ? [docNumber] : [],
         });
       }
     }
@@ -136,9 +140,12 @@ function ProspectCard({ group }: { group: ProspectGroup }) {
           )}
         </div>
 
-        <p className={`mt-3 border-t border-[var(--cd-border)] pt-2.5 ${TEXT.micro} text-[var(--cd-text-subtle)]`}>
-          Released {relativeTime(group.lastReleasedAt)}
-        </p>
+        <div className={`mt-3 border-t border-[var(--cd-border)] pt-2.5 ${TEXT.micro} text-[var(--cd-text-subtle)]`}>
+          {group.bolDocNumbers.length > 0 && (
+            <p className="truncate">Sourced from BOL #{group.bolDocNumbers.join(", #")}</p>
+          )}
+          <p>Released {relativeTime(group.lastReleasedAt)}</p>
+        </div>
       </Card>
     </Link>
   );

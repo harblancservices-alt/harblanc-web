@@ -17,6 +17,8 @@ import {
 import type {
   ActivityItem,
   AuditLogItem,
+  BolCompanyRole,
+  BolContactRole,
   BolExtraction,
   BolRecord,
   BolReleaseSelection,
@@ -97,7 +99,7 @@ type StoreState = {
   saveResearchNotes: (bolId: string, notes: string) => void;
   setSalesRelevance: (bolId: string, level: "high" | "medium" | "low") => void;
   setBolStatus: (bolId: string, status: BolStatus) => void;
-  releaseBolToSales: (bolId: string, selection: BolReleaseSelection) => void;
+  releaseBolToSales: (bolId: string, selection: BolReleaseSelection, companyRoles: BolCompanyRole[]) => void;
 
   // OTR — "Dispatch <company>" verbal prospects (see types.ts's OtrEntry
   // doc comment). Same funnel discipline as BOL Center: everything before
@@ -533,37 +535,101 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     [pushToast],
   );
 
+  // A BOL always names a shipper and consignee, and sometimes a distinct
+  // bill-to — release lets Admin pick which of those become their OWN
+  // Prospect (default: shipper only, the freight owner). Each checked role
+  // gets matched-or-created independently; nothing merges.
+  const BOL_COMPANY_FIELD: Record<BolCompanyRole, keyof BolExtraction> = {
+    shipper: "shipperName",
+    consignee: "consigneeName",
+    bill_to: "billToName",
+  };
+  const BOL_CONTACT_ROLE_FOR_COMPANY: Record<BolCompanyRole, BolContactRole> = {
+    shipper: "shipper_contact",
+    consignee: "consignee_contact",
+    bill_to: "bill_to_contact",
+  };
+  const normalizeCompanyName = (s: string) => s.trim().toLowerCase().replace(/[^a-z0-9]/g, "");
+
   const releaseBolToSales = useCallback(
-    (bolId: string, selection: BolReleaseSelection) => {
-      // Reads `bolRecords` from render scope (not from inside a setState
-      // updater) so every side effect below (addCompany, setActivities,
-      // pushToast) fires exactly once per click — nesting them inside a
-      // setBolRecords updater would double-fire under StrictMode's
-      // double-invoke and could silently create two companies.
+    (bolId: string, selection: BolReleaseSelection, companyRoles: BolCompanyRole[]) => {
+      // Reads `bolRecords`/`companies` from render scope (not from inside a
+      // setState updater) so every side effect below (setCompanies,
+      // setActivities, pushToast) fires exactly once per click — nesting
+      // them inside a setBolRecords updater would double-fire under
+      // StrictMode's double-invoke and could silently create two companies.
       const bol = bolRecords.find((b) => b.id === bolId);
       if (!bol) return;
-
-      // Resolve (or create, only now, only if Admin checked "Company") the
-      // target Company. This is the ONE place a BOL can ever produce a real
-      // CRM company — and only via this explicit, checkbox-gated click.
-      let companyId = bol.customerMatch.companyId;
-      if (!companyId && selection.company) {
-        const pickup = bol.locations.find((l) => l.role === "pickup");
-        const created = addCompany({
-          name: bol.customerMatch.candidateName || bol.extraction.customerName.value,
-          industry: "",
-          city: pickup?.city ?? bol.extraction.pickupCity.value,
-          state: pickup?.state ?? bol.extraction.pickupState.value,
-          assignedUserId: currentUserId,
-        });
-        companyId = created.id;
+      if (companyRoles.length === 0) {
+        pushToast("danger", "Pick at least one company to release.");
+        return;
       }
 
-      if (companyId && selection.locations) {
-        const resolvedCompanyId = companyId;
+      const newCompanies: Company[] = [];
+      const releasedCompanies: { role: BolCompanyRole; companyId: string; companyName: string }[] = [];
+      // Scoped to this one release click — so if two roles share a name
+      // (e.g. a self-consigned shipment), they resolve to the SAME new
+      // company instead of two duplicates racing on the same stale
+      // `companies` snapshot.
+      const resolvedThisRelease = new Map<string, string>();
+
+      for (const role of companyRoles) {
+        const field = bol.extraction[BOL_COMPANY_FIELD[role]];
+        const name = field?.value?.trim();
+        if (!name) continue;
+        const key = normalizeCompanyName(name);
+
+        let companyId =
+          (role === "shipper" && bol.customerMatch.status === "matched" ? bol.customerMatch.companyId : null) ??
+          resolvedThisRelease.get(key) ??
+          companies.find((c) => normalizeCompanyName(c.name) === key)?.id ??
+          null;
+
+        if (!companyId) {
+          const pickup = bol.locations.find((l) => l.role === "pickup");
+          const delivery = bol.locations.find((l) => l.role === "delivery");
+          const loc = role === "shipper" ? pickup : role === "consignee" ? delivery : pickup;
+          const created: Company = {
+            id: `c-${idRef.current++}`,
+            name,
+            industry: "Uncategorized",
+            city: loc?.city ?? "",
+            state: loc?.state ?? "",
+            stage: "new_lead",
+            assignedUserId: currentUserId,
+            phone: "—",
+            website: "—",
+            fitRating: 3,
+            tags: [],
+            lastContactAt: null,
+            createdAt: new Date().toISOString(),
+            annualFreightSpend: "Unknown",
+            primaryContactId: null,
+            notes: "",
+          };
+          newCompanies.push(created);
+          companyId = created.id;
+        }
+        resolvedThisRelease.set(key, companyId);
+        releasedCompanies.push({ role, companyId, companyName: name });
+      }
+
+      if (releasedCompanies.length === 0) {
+        pushToast("danger", "Selected companies have no name to release — check the extraction fields.");
+        return;
+      }
+
+      if (newCompanies.length > 0) setCompanies((prev) => [...newCompanies, ...prev]);
+
+      if (selection.locations) {
         setCompanyLocations((prevLocs) => {
           let next = prevLocs;
           for (const loc of bol.locations) {
+            // Pickup belongs to the shipper, delivery to the consignee — if
+            // that role wasn't released, the location has no sensible
+            // target and is skipped rather than guessed at.
+            const target = releasedCompanies.find((rc) => rc.role === (loc.role === "pickup" ? "shipper" : "consignee"));
+            if (!target) continue;
             if (loc.matchStatus === "existing" && loc.matchedLocationId) {
               next = next.map((l) =>
                 l.id === loc.matchedLocationId
@@ -575,7 +641,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
                 ...next,
                 {
                   id: `loc-${idRef.current++}`,
-                  companyId: resolvedCompanyId,
+                  companyId: target.companyId,
                   label: `${loc.city} ${loc.role === "pickup" ? "Pickup" : "Delivery"} Point`,
                   address: loc.address,
                   city: loc.city,
@@ -593,61 +659,90 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         });
       }
 
-      if (companyId) {
-        const resolvedCompanyId = companyId;
-        setActivities((prevAct) => [
-          {
-            id: `a-${idRef.current++}`,
-            kind: "note",
-            companyId: resolvedCompanyId,
-            contactId: null,
-            authorId: currentUserId,
-            title: "Customer intelligence released from BOL Center",
-            body: `Sourced from ${bol.docNumber} (${bol.fileName}) — ${[
-              selection.locations && "locations",
-              selection.observedFreight && "observed freight",
-              selection.observedLanes && "observed lanes",
-              selection.salesNotes && "research notes",
-            ]
-              .filter(Boolean)
-              .join(", ") || "company record only"}.`,
-            occurredAt: new Date().toISOString(),
-          },
-          ...prevAct,
-        ]);
-        // The one thing Sales actually sees. BOL Center keeps the document
-        // (status flips to "released" below, the record is never removed),
-        // and this Prospect is what makes it show up on /crm-design/prospects.
-        setProspects((prev) => [
-          {
-            id: `pr-${idRef.current++}`,
-            companyId: resolvedCompanyId,
-            source: "bol",
-            sourceBolId: bolId,
-            sourceOtrId: null,
-            releasedAt: new Date().toISOString(),
-            releasedByUserId: currentUserId,
-          },
-          ...prev,
-        ]);
+      const fieldSummary =
+        [
+          selection.locations && "locations",
+          selection.observedFreight && "observed freight",
+          selection.observedLanes && "observed lanes",
+          selection.salesNotes && "research notes",
+        ]
+          .filter(Boolean)
+          .join(", ") || "company record only";
+
+      if (selection.generalContact) {
+        const newContacts: Contact[] = [];
+        for (const rc of releasedCompanies) {
+          const contactRole = BOL_CONTACT_ROLE_FOR_COMPANY[rc.role];
+          for (const c of bol.contacts.filter((c) => c.role === contactRole)) {
+            newContacts.push({
+              id: `ct-${idRef.current++}`,
+              companyId: rc.companyId,
+              name: c.name,
+              title: "—",
+              email: c.email,
+              phone: c.phone,
+              isDecisionMaker: false,
+              lastContactedAt: null,
+              nextFollowupAt: null,
+            });
+          }
+        }
+        if (newContacts.length > 0) setContacts((prev) => [...newContacts, ...prev]);
       }
 
+      setActivities((prevAct) => [
+        ...releasedCompanies.map((rc) => ({
+          id: `a-${idRef.current++}`,
+          kind: "note" as const,
+          companyId: rc.companyId,
+          contactId: null,
+          authorId: currentUserId,
+          title: "Customer intelligence released from BOL Center",
+          body: `Sourced from BOL #${bol.docNumber} (${bol.fileName}) — ${fieldSummary}.`,
+          occurredAt: new Date().toISOString(),
+        })),
+        ...prevAct,
+      ]);
+
+      // The one thing Sales actually sees. BOL Center keeps the document
+      // (status flips to "released" below, the record is never removed),
+      // and one Prospect per released company is what makes each show up
+      // on /crm-design/prospects.
+      setProspects((prev) => [
+        ...releasedCompanies.map((rc) => ({
+          id: `pr-${idRef.current++}`,
+          companyId: rc.companyId,
+          source: "bol" as const,
+          sourceBolId: bolId,
+          sourceOtrId: null,
+          releasedAt: new Date().toISOString(),
+          releasedByUserId: currentUserId,
+        })),
+        ...prev,
+      ]);
+
+      const shipperRelease = releasedCompanies.find((rc) => rc.role === "shipper");
       setBolRecords((prev) =>
         prev.map((b) =>
           b.id === bolId
             ? {
                 ...b,
                 status: "released",
-                customerMatch: companyId ? { ...b.customerMatch, companyId, status: "matched" } : b.customerMatch,
-                release: { releasedAt: new Date().toISOString(), releasedByUserId: currentUserId, selection },
+                customerMatch: shipperRelease
+                  ? { ...b.customerMatch, companyId: shipperRelease.companyId, status: "matched" }
+                  : b.customerMatch,
+                release: { releasedAt: new Date().toISOString(), releasedByUserId: currentUserId, selection, companies: releasedCompanies },
               }
             : b,
         ),
       );
 
-      pushToast("success", companyId ? "Released to Sales — now on the Prospects tab." : "Nothing to release — check at least one field.");
+      pushToast(
+        "success",
+        `Released to Sales — ${releasedCompanies.length} ${releasedCompanies.length === 1 ? "company" : "companies"} now on the Prospects tab.`,
+      );
     },
-    [addCompany, bolRecords, currentUserId, pushToast],
+    [bolRecords, companies, currentUserId, pushToast],
   );
 
   // ── OTR ────────────────────────────────────────────────────────────

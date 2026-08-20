@@ -94,6 +94,115 @@ export function LinkButton({
   );
 }
 
+// ── Text link — pure navigation or a disclosure toggle, never a mutation.
+// Zero fill, zero border, on purpose: a Button implies "this changes
+// something," a Text Link implies "this takes you somewhere." See
+// CRM_INTERACTION_HIERARCHY.md §3/§7. ──
+const TEXT_LINK_TONE = {
+  accent: "text-[var(--cd-accent)]",
+  admin: "text-[var(--cd-admin)]",
+  danger: "text-[var(--cd-danger)]",
+} as const;
+type TextLinkTone = keyof typeof TEXT_LINK_TONE;
+
+export function TextLink({
+  href,
+  onClick,
+  tone = "accent",
+  className,
+  children,
+}: {
+  href?: string;
+  onClick?: () => void;
+  tone?: TextLinkTone;
+  className?: string;
+  children: ReactNode;
+}) {
+  const cls = `inline-flex items-center gap-1 text-[13px] font-semibold underline-offset-2 hover:underline ${TEXT_LINK_TONE[tone]} ${className ?? ""}`;
+  if (href) {
+    return (
+      <Link href={href} className={cls}>
+        {children}
+      </Link>
+    );
+  }
+  return (
+    <button type="button" onClick={onClick} className={cls}>
+      {children}
+    </button>
+  );
+}
+
+// ── Segmented control — "pick one of N," in two honest modes (Brent's
+// call, CRM_INTERACTION_HIERARCHY.md §10 decision 1). `mode="filter"` is
+// view-only (zoom fit-mode, a document's page switcher) and stays quiet —
+// soft tint on the active option, same weight as a Tab. `mode="field"`
+// writes to a real record (Sales Relevance, Access Level) and says so: a
+// SOLID fill on the active option, so "this commits a change" reads
+// differently from "this just narrows what you're looking at" without
+// either one getting louder in size or count. Replaces every bespoke
+// bordered-pill selector that used to be hand-rolled per screen. ──
+const SEGMENT_FIELD_TONE = {
+  success: "border-[var(--cd-success)] bg-[var(--cd-success)] text-white",
+  warning: "border-[var(--cd-warning)] bg-[var(--cd-warning)] text-white",
+  neutral: "border-[var(--cd-text-muted)] bg-[var(--cd-text-muted)] text-white",
+  accent: "border-[var(--cd-accent)] bg-[var(--cd-accent)] text-white",
+  admin: "border-[var(--cd-admin)] bg-[var(--cd-admin)] text-white",
+} as const;
+type SegmentFieldTone = keyof typeof SEGMENT_FIELD_TONE;
+
+const SEGMENT_FILTER_ACCENT = {
+  accent: "border-[var(--cd-accent)]/40 bg-[var(--cd-accent-soft)] text-[var(--cd-accent)]",
+  admin: "border-[var(--cd-admin)]/40 bg-[var(--cd-admin-soft)] text-[var(--cd-admin)]",
+} as const;
+type SegmentFilterAccent = keyof typeof SEGMENT_FILTER_ACCENT;
+
+export type SegmentOption<T extends string> = {
+  key: T;
+  label: string;
+  icon?: ReactNode;
+  /** mode="field" only — which semantic color the SOLID active fill uses
+   * (e.g. high=success, medium=warning, low=neutral). Ignored in
+   * mode="filter", which always uses the control's single `accent`. */
+  tone?: SegmentFieldTone;
+};
+
+export function SegmentedControl<T extends string>({
+  mode,
+  options,
+  active,
+  onChange,
+  accent = "admin",
+}: {
+  mode: "filter" | "field";
+  options: SegmentOption<T>[];
+  active: T;
+  onChange: (key: T) => void;
+  accent?: SegmentFilterAccent;
+}) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {options.map((o) => {
+        const isActive = o.key === active;
+        const activeCls = mode === "field" ? SEGMENT_FIELD_TONE[o.tone ?? "neutral"] : SEGMENT_FILTER_ACCENT[accent];
+        return (
+          <button
+            key={o.key}
+            type="button"
+            onClick={() => onChange(o.key)}
+            className={`flex h-8 items-center gap-1.5 rounded-[var(--cd-radius-sm)] border px-3 text-[12px] font-bold transition-colors ${
+              isActive ? activeCls : "border-[var(--cd-border-strong)] bg-[var(--cd-surface)] text-[var(--cd-text-muted)] hover:bg-[var(--cd-surface-hover)]"
+            }`}
+          >
+            {o.icon}
+            {o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Cards ──
 export function Card({ className, children, ...rest }: ComponentPropsWithoutRef<"div">) {
   return (

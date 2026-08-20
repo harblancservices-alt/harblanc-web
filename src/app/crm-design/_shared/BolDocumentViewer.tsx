@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import { Badge, TEXT } from "../_design/ui";
+import { Badge, SegmentedControl, TEXT } from "../_design/ui";
 import {
   IconFitPage,
   IconFitWidth,
@@ -231,12 +231,16 @@ function ZoomToolbar({
         <IconZoomIn width={14} height={14} />
       </button>
       <div className="mx-0.5 h-5 w-px bg-[var(--cd-border)]" />
-      <button type="button" onClick={onFitWidth} className={btn(fitMode === "width")} aria-label="Fit width">
-        <IconFitWidth width={14} height={14} /> <span className="hidden sm:inline">Fit Width</span>
-      </button>
-      <button type="button" onClick={onFitPage} className={btn(fitMode === "page")} aria-label="Fit page">
-        <IconFitPage width={14} height={14} /> <span className="hidden sm:inline">Fit Page</span>
-      </button>
+      <SegmentedControl
+        mode="filter"
+        accent="admin"
+        options={[
+          { key: "width", label: "Fit Width", icon: <IconFitWidth width={14} height={14} /> },
+          { key: "page", label: "Fit Page", icon: <IconFitPage width={14} height={14} /> },
+        ]}
+        active={fitMode}
+        onChange={(m) => (m === "width" ? onFitWidth() : onFitPage())}
+      />
       <div className="mx-0.5 h-5 w-px bg-[var(--cd-border)]" />
       <button type="button" onClick={onToggleFullscreen} className={btn(false)} aria-label={fullscreen ? "Exit fullscreen" : "Enter fullscreen"}>
         {fullscreen ? <IconMinimize width={14} height={14} /> : <IconMaximize width={14} height={14} />}
@@ -305,22 +309,13 @@ function ViewerPane({
       </div>
 
       {scanPages && scanPages.length > 1 && (
-        <div className="flex gap-1.5">
-          {scanPages.map((p, i) => (
-            <button
-              key={p.label}
-              type="button"
-              onClick={() => setPageIndex(i)}
-              className={`rounded-[var(--cd-radius-sm)] border px-2.5 py-1 text-[11.5px] font-semibold transition-colors ${
-                i === pageIndex
-                  ? "border-[var(--cd-admin)]/40 bg-[var(--cd-admin-soft)] text-[var(--cd-admin)]"
-                  : "border-[var(--cd-border-strong)] bg-[var(--cd-surface)] text-[var(--cd-text-muted)] hover:bg-[var(--cd-surface-hover)]"
-              }`}
-            >
-              {i + 1}. {p.label}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl
+          mode="filter"
+          accent="admin"
+          options={scanPages.map((p, i) => ({ key: String(i), label: `${i + 1}. ${p.label}` }))}
+          active={String(pageIndex)}
+          onChange={(k) => setPageIndex(Number(k))}
+        />
       )}
 
       {isPending ? (

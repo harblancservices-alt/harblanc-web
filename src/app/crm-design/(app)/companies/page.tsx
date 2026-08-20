@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useStore, useTeamMemberById } from "../../_lib/store";
 import { Badge, Button, Card, EmptyState, INPUT, LIST_HEAD_ROW, PAGE_WIDTH, PageHeader, ROW_HOVER, TEXT, ZEBRA } from "../../_design/ui";
 import { STAGE_LABEL, STAGE_ORDER, STAGE_TONE } from "../../_lib/lifecycle";
@@ -99,12 +100,14 @@ export default function CompaniesPage() {
 
 function CompanyRow({ companyId }: { companyId: string }) {
   const { companies } = useStore();
+  const router = useRouter();
   const c = companies.find((x) => x.id === companyId)!;
   const rep = useTeamMemberById(c.assignedUserId);
+  const href = `/crm-design/companies/${c.id}`;
   return (
-    <tr className={ROW_HOVER}>
+    <tr className={`${ROW_HOVER} cursor-pointer`} onClick={() => router.push(href)}>
       <td className="px-4 py-3">
-        <Link href={`/crm-design/companies/${c.id}`} className="font-semibold text-[var(--cd-text)] hover:text-[var(--cd-accent)]">
+        <Link href={href} className="font-semibold text-[var(--cd-text)] hover:text-[var(--cd-accent)]">
           {c.name}
         </Link>
         <p className={`${TEXT.micro} text-[var(--cd-text-muted)]`}>{c.industry}</p>

@@ -11,7 +11,13 @@ export function Tabs<T extends string>({
   onChange: (key: T) => void;
   tone?: "accent" | "admin";
 }) {
-  const activeColor = tone === "admin" ? "text-[var(--cd-admin)]" : "text-[var(--cd-accent)]";
+  // View-only — switches content or narrows a list, never writes a record
+  // (that's SegmentedControl mode="field", see _design/ui.tsx). Deliberately
+  // quiet: "current tab" reads through WEIGHT + a thin underline in the
+  // section's tone, not through filling the tab with that tone's color —
+  // so it never competes with the one real CTA on the same screen for
+  // attention. See CRM_INTERACTION_HIERARCHY.md §6/§10 decision 1.
+  const underline = tone === "admin" ? "border-[var(--cd-admin)]" : "border-[var(--cd-accent)]";
   return (
     <div
       role="tablist"
@@ -24,10 +30,10 @@ export function Tabs<T extends string>({
           role="tab"
           aria-selected={active === t.key}
           onClick={() => onChange(t.key)}
-          className={`flex shrink-0 items-center gap-1.5 rounded-[var(--cd-radius-sm)] px-3.5 py-2 text-[13px] font-bold transition-all ${
+          className={`flex shrink-0 items-center gap-1.5 rounded-[var(--cd-radius-sm)] border-b-2 px-3.5 py-2 text-[13px] font-bold transition-all ${
             active === t.key
-              ? `bg-[var(--cd-surface)] shadow-[var(--cd-shadow-sm)] ring-1 ring-[var(--cd-border-strong)] ${activeColor}`
-              : "text-[var(--cd-text-muted)] hover:text-[var(--cd-text)]"
+              ? `border-b-2 bg-[var(--cd-surface)] text-[var(--cd-text)] shadow-[var(--cd-shadow-sm)] ring-1 ring-[var(--cd-border-strong)] ${underline}`
+              : "border-transparent text-[var(--cd-text-muted)] hover:text-[var(--cd-text)]"
           }`}
         >
           {t.label}

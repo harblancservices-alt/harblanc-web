@@ -1,9 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { useStore, useTeamMemberById } from "../../../_lib/store";
-import { Badge, Button, Card, CardHead, EmptyState, INPUT, PAGE_WIDTH, PageHeader, TEXT } from "../../../_design/ui";
+import { Badge, Button, Card, CardHead, EmptyState, INPUT, PAGE_WIDTH, PageHeader, SegmentedControl, TEXT, TextLink } from "../../../_design/ui";
 import { Tabs } from "../../../_design/Tabs";
 import { IconMic, IconSearch } from "../../../_design/icons";
 import { OTR_STATUS_DESCRIPTION, OTR_STATUS_LABEL, OTR_STATUS_ORDER, OTR_STATUS_TONE } from "../../../_lib/otrStatus";
@@ -92,6 +91,7 @@ function OtrCard({ otr }: { otr: OtrEntry }) {
   const { setOtrStatus, saveOtrResearchNotes, setOtrSalesRelevance, releaseOtrToProspects } = useStore();
   const requester = useTeamMemberById(otr.requestedByUserId);
   const [notes, setNotes] = useState(otr.research.notes);
+  const [confirmingReject, setConfirmingReject] = useState(false);
   const editable = otr.status !== "released" && otr.status !== "rejected";
 
   return (
@@ -111,11 +111,7 @@ function OtrCard({ otr }: { otr: OtrEntry }) {
             <p className={`${TEXT.body} text-[var(--cd-text)]`}>
               Released {otr.release ? relativeTime(otr.release.releasedAt) : ""} — now on the Prospects tab.
             </p>
-            {otr.release?.companyId && (
-              <Link href={`/crm-design/companies/${otr.release.companyId}`}>
-                <Button variant="secondary" size="sm">View Company →</Button>
-              </Link>
-            )}
+            {otr.release?.companyId && <TextLink href={`/crm-design/companies/${otr.release.companyId}`}>View Company →</TextLink>}
           </div>
         ) : (
           <>
@@ -144,26 +140,16 @@ function OtrCard({ otr }: { otr: OtrEntry }) {
             {editable && (
               <div>
                 <span className={`mb-1.5 block ${TEXT.label} text-[var(--cd-text-muted)]`}>Sales relevance</span>
-                <div className="flex gap-2">
-                  {(["high", "medium", "low"] as const).map((level) => (
-                    <button
-                      key={level}
-                      type="button"
-                      onClick={() => setOtrSalesRelevance(otr.id, level)}
-                      className={`rounded-[var(--cd-radius-sm)] border px-3 py-1.5 text-[12px] font-bold capitalize transition-colors ${
-                        otr.research.salesRelevance === level
-                          ? level === "high"
-                            ? "border-[var(--cd-success)]/40 bg-[var(--cd-success-soft)] text-[var(--cd-success)]"
-                            : level === "medium"
-                              ? "border-[var(--cd-warning)]/40 bg-[var(--cd-warning-soft)] text-[var(--cd-warning)]"
-                              : "border-[var(--cd-border-strong)] bg-[var(--cd-surface-2)] text-[var(--cd-text-muted)]"
-                          : "border-[var(--cd-border-strong)] bg-[var(--cd-surface)] text-[var(--cd-text-muted)] hover:bg-[var(--cd-surface-hover)]"
-                      }`}
-                    >
-                      {level}
-                    </button>
-                  ))}
-                </div>
+                <SegmentedControl
+                  mode="field"
+                  options={[
+                    { key: "high", label: "High", tone: "success" },
+                    { key: "medium", label: "Medium", tone: "warning" },
+                    { key: "low", label: "Low", tone: "neutral" },
+                  ]}
+                  active={otr.research.salesRelevance ?? ""}
+                  onChange={(level) => setOtrSalesRelevance(otr.id, level as "high" | "medium" | "low")}
+                />
               </div>
             )}
 
@@ -192,10 +178,27 @@ function OtrCard({ otr }: { otr: OtrEntry }) {
                 <Button variant="secondary" size="sm" onClick={() => setOtrStatus(otr.id, "researching")}>
                   Reopen
                 </Button>
-              ) : (
-                <Button variant="danger" size="sm" onClick={() => setOtrStatus(otr.id, "rejected")}>
+              ) : !confirmingReject ? (
+                <Button variant="danger" size="sm" onClick={() => setConfirmingReject(true)}>
                   Reject
                 </Button>
+              ) : (
+                <span className="inline-flex items-center gap-2 rounded-[var(--cd-radius-sm)] border border-[var(--cd-danger)]/30 bg-[var(--cd-danger-soft)] py-1 pl-2.5 pr-1.5">
+                  <span className="text-[12px] font-semibold text-[var(--cd-danger)]">Reject this entry?</span>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={() => {
+                      setOtrStatus(otr.id, "rejected");
+                      setConfirmingReject(false);
+                    }}
+                  >
+                    Reject
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setConfirmingReject(false)}>
+                    Cancel
+                  </Button>
+                </span>
               )}
             </div>
           </>

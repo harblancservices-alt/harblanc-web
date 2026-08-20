@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useStore, useTeamMemberById } from "../../../_lib/store";
 import { Badge, Button, Card, EmptyState, INPUT, LIST_HEAD_ROW, PAGE_WIDTH, PageHeader, ROW_HOVER, TEXT, ZEBRA } from "../../../_design/ui";
 import { Tabs } from "../../../_design/Tabs";
@@ -152,12 +153,14 @@ function ConfidenceReadout({ bol }: { bol: BolRecord }) {
 }
 
 function BolRow({ bol }: { bol: BolRecord }) {
+  const router = useRouter();
   const reviewer = useTeamMemberById(bol.assignedReviewerId);
   const company = companyLabel(bol);
+  const href = `/crm-design/admin/bol-center/${bol.id}`;
   return (
-    <tr className={ROW_HOVER}>
+    <tr className={`${ROW_HOVER} cursor-pointer`} onClick={() => router.push(href)}>
       <td className="px-4 py-3">
-        <Link href={`/crm-design/admin/bol-center/${bol.id}`} className="font-semibold text-[var(--cd-text)] hover:text-[var(--cd-admin)]">
+        <Link href={href} className="font-semibold text-[var(--cd-text)] hover:text-[var(--cd-admin)]">
           {bol.docNumber}
         </Link>
         <p className={`${TEXT.micro} text-[var(--cd-text-muted)]`}>{bol.fileName}</p>

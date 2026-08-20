@@ -545,7 +545,12 @@ export const BOL_RECORDS: BolRecord[] = [
       observedLanes: ["Odessa, TX → Midland, TX"],
       salesRelevance: "high",
     },
-    release: { releasedAt: iso(7), releasedByUserId: "u-brent", selection: { company: true, locations: true, generalContact: true, observedFreight: true, observedLanes: true, salesNotes: true, originalBol: false, internalResearch: false, sensitiveInfo: false, rawExtractedData: false } },
+    release: {
+      releasedAt: iso(7),
+      releasedByUserId: "u-brent",
+      selection: { locations: true, generalContact: true, observedFreight: true, observedLanes: true, salesNotes: true, originalBol: false, internalResearch: false, sensitiveInfo: false, rawExtractedData: false },
+      companies: [{ role: "shipper", companyId: "c-lonestar-steel", companyName: "Lone Star Steel Fabrication" }],
+    },
   },
   // 2 — released, matched to an existing active customer.
   {
@@ -589,7 +594,12 @@ export const BOL_RECORDS: BolRecord[] = [
       observedLanes: ["Midland, TX → El Paso, TX"],
       salesRelevance: "high",
     },
-    release: { releasedAt: iso(5), releasedByUserId: "u-brent", selection: { company: true, locations: true, generalContact: false, observedFreight: true, observedLanes: true, salesNotes: false, originalBol: false, internalResearch: false, sensitiveInfo: false, rawExtractedData: false } },
+    release: {
+      releasedAt: iso(5),
+      releasedByUserId: "u-brent",
+      selection: { locations: true, generalContact: false, observedFreight: true, observedLanes: true, salesNotes: false, originalBol: false, internalResearch: false, sensitiveInfo: false, rawExtractedData: false },
+      companies: [{ role: "shipper", companyId: "c-permian-oilfield", companyName: "Permian Basin Oilfield Supply" }],
+    },
   },
   // 3 — ready for approval, matched to an existing customer, not yet released.
   {

@@ -14,6 +14,7 @@ import {
   EmptyState,
   PAGE_WIDTH,
   TEXT,
+  TextLink,
 } from "../../../_design/ui";
 import { Tabs } from "../../../_design/Tabs";
 import { STAGE_LABEL, STAGE_ORDER, STAGE_TONE } from "../../../_lib/lifecycle";
@@ -63,12 +64,19 @@ export default function CompanyDetailPage() {
   // released it (BOL Center §10 / OTR's parallel discipline); this tab is
   // what "landing on the Customer profile" (audit item #12) actually looks
   // like. A released BOL's own selection gates which of its fields are even
-  // eligible to show here — checking "Company" but not "Observed freight"
-  // on one BOL, for instance, means that BOL contributes nothing to the
-  // freight list below. OTR entries carry no such per-field selection (a
-  // released OTR entry is small enough that its whole research record goes)
-  // so they contribute unconditionally.
-  const releasedBols = bolRecords.filter((b) => b.customerMatch.companyId === company.id && b.release);
+  // eligible to show here — checking "Observed freight" or not on one BOL
+  // controls whether that BOL contributes to the freight list below. OTR
+  // entries carry no such per-field selection (a released OTR entry is
+  // small enough that its whole research record goes) so they contribute
+  // unconditionally.
+  //
+  // Matched by `release.companies` (one entry per company role Admin
+  // checked at release time — shipper/consignee/bill-to can each become a
+  // separate Prospect), not by `customerMatch.companyId` — that field only
+  // ever points at the shipper, so a consignee or bill-to released
+  // alongside (or instead of) the shipper would otherwise never find its
+  // own source BOLs here.
+  const releasedBols = bolRecords.filter((b) => b.release?.companies.some((rc) => rc.companyId === company.id));
   const releasedOtr = otrEntries.filter((o) => o.matchedCompanyId === company.id && o.release);
   const companyLocs = companyLocations.filter((l) => l.companyId === company.id);
   const observedFreight = Array.from(
@@ -414,21 +422,21 @@ export default function CompanyDetailPage() {
 
                     <Card>
                       <CardHead title="Sources" hint={`${sourceCount} verified`} />
-                      <div className="flex flex-wrap gap-1.5 p-4">
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 p-4">
                         {releasedBols.map((b) =>
                           isElevated ? (
-                            <Link key={b.id} href={`/crm-design/admin/bol-center/${b.id}`}>
-                              <Badge tone="admin">{b.docNumber}</Badge>
-                            </Link>
+                            <TextLink key={b.id} href={`/crm-design/admin/bol-center/${b.id}`} tone="admin">
+                              BOL #{b.docNumber} →
+                            </TextLink>
                           ) : (
                             <Badge key={b.id} tone="neutral">{b.docNumber}</Badge>
                           ),
                         )}
                         {releasedOtr.map((o) =>
                           isElevated ? (
-                            <Link key={o.id} href="/crm-design/admin/otr">
-                              <Badge tone="accent">OTR · {o.companyName}</Badge>
-                            </Link>
+                            <TextLink key={o.id} href="/crm-design/admin/otr" tone="accent">
+                              OTR · {o.companyName} →
+                            </TextLink>
                           ) : (
                             <Badge key={o.id} tone="neutral">Dispatch research</Badge>
                           ),

@@ -4,13 +4,13 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { notFound, useParams } from "next/navigation";
 import { useBolRecord, useCompany, useStore, useTeamMemberById } from "../../../../_lib/store";
-import { Badge, Breadcrumb, Button, Card, CardHead, TEXT } from "../../../../_design/ui";
+import { Badge, Breadcrumb, Button, Card, CardHead, SegmentedControl, TEXT, TextLink } from "../../../../_design/ui";
 import { Tabs } from "../../../../_design/Tabs";
 import { BOL_STATUS_DESCRIPTION, BOL_STATUS_LABEL, BOL_STATUS_TONE } from "../../../../_lib/bolStatus";
 import { firstName, formatDateTime } from "../../../../_lib/format";
 import { BolDocumentViewer } from "../../../../_shared/BolDocumentViewer";
 import { IconCheck, IconMapPin } from "../../../../_design/icons";
-import type { BolExtraction, BolReleaseSelection, BolStatus } from "../../../../_lib/types";
+import type { BolCompanyRole, BolExtraction, BolReleaseSelection, BolStatus } from "../../../../_lib/types";
 
 type TabKey = "extraction" | "customer" | "contacts" | "research" | "approve";
 
@@ -276,9 +276,7 @@ function CustomerLocationTab({ bolId }: { bolId: string }) {
                 <p className="text-[15px] font-bold text-[var(--cd-text)]">{matchedCompany.name}</p>
                 <p className={`${TEXT.micro} text-[var(--cd-text-muted)]`}>Already in the CRM — this BOL adds evidence, it doesn&rsquo;t create anything new.</p>
               </div>
-              <Link href={`/crm-design/companies/${matchedCompany.id}`}>
-                <Button variant="secondary" size="sm">View Company</Button>
-              </Link>
+              <TextLink href={`/crm-design/companies/${matchedCompany.id}`}>View Company →</TextLink>
             </div>
           ) : (
             <div className="flex flex-col gap-3">
@@ -346,9 +344,7 @@ function CustomerLocationTab({ bolId }: { bolId: string }) {
                 Possible duplicate — <span className="font-semibold">{duplicate.docNumber}</span> looks like the same
                 company (&ldquo;{duplicate.customerMatch.candidateName}&rdquo;). Consolidate before releasing either one.
               </p>
-              <Link href={`/crm-design/admin/bol-center/${duplicate.id}`}>
-                <Button variant="secondary" size="sm">Compare</Button>
-              </Link>
+              <TextLink href={`/crm-design/admin/bol-center/${duplicate.id}`}>Compare →</TextLink>
             </div>
           )}
         </div>
@@ -482,24 +478,22 @@ function ContactsTab({ bolId }: { bolId: string }) {
                   {c.company} · {c.phone} · {c.email}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() =>
-                  setVerified((prev) => {
-                    const next = new Set(prev);
-                    if (next.has(i)) next.delete(i);
-                    else next.add(i);
-                    return next;
-                  })
-                }
-                className={`flex shrink-0 items-center gap-1.5 rounded-[var(--cd-radius-sm)] border px-2.5 py-1.5 text-[11.5px] font-semibold transition-colors ${
-                  verified.has(i)
-                    ? "border-[var(--cd-success)]/30 bg-[var(--cd-success-soft)] text-[var(--cd-success)]"
-                    : "border-[var(--cd-border-strong)] bg-[var(--cd-surface)] text-[var(--cd-text-muted)] hover:bg-[var(--cd-surface-hover)]"
-                }`}
-              >
-                <IconCheck width={12} height={12} /> {verified.has(i) ? "Verified" : "Mark verified"}
-              </button>
+              <label className="flex shrink-0 items-center gap-2 text-[12.5px] font-semibold text-[var(--cd-text-muted)]">
+                <input
+                  type="checkbox"
+                  checked={verified.has(i)}
+                  onChange={() =>
+                    setVerified((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(i)) next.delete(i);
+                      else next.add(i);
+                      return next;
+                    })
+                  }
+                  className="h-4 w-4 accent-[var(--cd-success)]"
+                />
+                <span className={verified.has(i) ? "text-[var(--cd-success)]" : undefined}>{verified.has(i) ? "Verified" : "Mark verified"}</span>
+              </label>
             </li>
           ))}
         </ul>
@@ -509,8 +503,6 @@ function ContactsTab({ bolId }: { bolId: string }) {
 }
 
 // ── Research ───────────────────────────────────────────────────────────
-
-const RELEVANCE_TONE = { high: "success", medium: "warning", low: "neutral" } as const;
 
 function ResearchTab({ bolId }: { bolId: string }) {
   const bol = useBolRecord(bolId)!;
@@ -537,26 +529,16 @@ function ResearchTab({ bolId }: { bolId: string }) {
           />
           <div>
             <p className={`mb-1.5 ${TEXT.label} text-[var(--cd-text-muted)]`}>Sales relevance</p>
-            <div className="flex gap-2">
-              {(["high", "medium", "low"] as const).map((level) => (
-                <button
-                  key={level}
-                  type="button"
-                  onClick={() => setSalesRelevance(bolId, level)}
-                  className={`rounded-[var(--cd-radius-sm)] border px-3 py-1.5 text-[12px] font-bold capitalize transition-colors ${
-                    bol.research.salesRelevance === level
-                      ? level === "high"
-                        ? "border-[var(--cd-success)]/40 bg-[var(--cd-success-soft)] text-[var(--cd-success)]"
-                        : level === "medium"
-                          ? "border-[var(--cd-warning)]/40 bg-[var(--cd-warning-soft)] text-[var(--cd-warning)]"
-                          : "border-[var(--cd-border-strong)] bg-[var(--cd-surface-2)] text-[var(--cd-text-muted)]"
-                      : "border-[var(--cd-border-strong)] bg-[var(--cd-surface)] text-[var(--cd-text-muted)] hover:bg-[var(--cd-surface-hover)]"
-                  }`}
-                >
-                  {level}
-                </button>
-              ))}
-            </div>
+            <SegmentedControl
+              mode="field"
+              options={[
+                { key: "high", label: "High", tone: "success" },
+                { key: "medium", label: "Medium", tone: "warning" },
+                { key: "low", label: "Low", tone: "neutral" },
+              ]}
+              active={bol.research.salesRelevance ?? ""}
+              onChange={(level) => setSalesRelevance(bolId, level as "high" | "medium" | "low")}
+            />
           </div>
         </div>
       </Card>
@@ -608,7 +590,6 @@ function ResearchTab({ bolId }: { bolId: string }) {
 // ── Approve & Release ─────────────────────────────────────────────────
 
 const RELEASE_FIELDS: { key: keyof BolReleaseSelection; label: string; defaultOn: boolean }[] = [
-  { key: "company", label: "Company", defaultOn: true },
   { key: "locations", label: "Locations", defaultOn: true },
   { key: "generalContact", label: "General contact", defaultOn: true },
   { key: "observedFreight", label: "Observed freight", defaultOn: true },
@@ -622,14 +603,38 @@ const RELEASE_FIELDS: { key: keyof BolReleaseSelection; label: string; defaultOn
 
 const DECIDABLE: BolStatus[] = ["needs_review", "ai_extracted", "researching", "ready_for_approval"];
 
+/** A BOL always names a shipper and consignee, and sometimes a distinct
+ * bill-to (see BolExtraction.billToName) — release lets Admin pick which of
+ * those become their own Prospect. Shipper defaults on: the freight owner
+ * is the real prospect for a hotshot/brokerage. */
+const COMPANY_ROLE_META: { role: BolCompanyRole; label: string; field: keyof BolExtraction; tone: "accent" | "success" }[] = [
+  { role: "shipper", label: "Shipper", field: "shipperName", tone: "accent" },
+  { role: "consignee", label: "Consignee", field: "consigneeName", tone: "accent" },
+  { role: "bill_to", label: "Bill-To", field: "billToName", tone: "success" },
+];
+
 function ApproveReleaseTab({ bolId }: { bolId: string }) {
   const bol = useBolRecord(bolId)!;
   const { setBolStatus, releaseBolToSales } = useStore();
   const [selection, setSelection] = useState<BolReleaseSelection>(() =>
     RELEASE_FIELDS.reduce((acc, f) => ({ ...acc, [f.key]: f.defaultOn }), {} as BolReleaseSelection),
   );
+  const availableRoles = COMPANY_ROLE_META.filter((r) => bol.extraction[r.field]?.value?.trim());
+  const [companyRoles, setCompanyRoles] = useState<Set<BolCompanyRole>>(
+    () => new Set(bol.extraction.shipperName?.value?.trim() ? (["shipper"] as BolCompanyRole[]) : []),
+  );
+  const [confirmingReject, setConfirmingReject] = useState(false);
 
   const canDecide = DECIDABLE.includes(bol.status);
+
+  function toggleRole(role: BolCompanyRole) {
+    setCompanyRoles((prev) => {
+      const next = new Set(prev);
+      if (next.has(role)) next.delete(role);
+      else next.add(role);
+      return next;
+    });
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -646,9 +651,28 @@ function ApproveReleaseTab({ bolId }: { bolId: string }) {
                   Keep Researching
                 </Button>
               )}
-              <Button variant="danger" onClick={() => setBolStatus(bolId, "rejected")}>
-                Reject
-              </Button>
+              {!confirmingReject ? (
+                <Button variant="danger" onClick={() => setConfirmingReject(true)}>
+                  Reject
+                </Button>
+              ) : (
+                <span className="inline-flex items-center gap-2 rounded-[var(--cd-radius-sm)] border border-[var(--cd-danger)]/30 bg-[var(--cd-danger-soft)] py-1 pl-3 pr-1.5">
+                  <span className="text-[12.5px] font-semibold text-[var(--cd-danger)]">Reject this BOL?</span>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={() => {
+                      setBolStatus(bolId, "rejected");
+                      setConfirmingReject(false);
+                    }}
+                  >
+                    Reject
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setConfirmingReject(false)}>
+                    Cancel
+                  </Button>
+                </span>
+              )}
             </>
           ) : bol.status === "approved" ? (
             <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[var(--cd-success)]">
@@ -676,43 +700,79 @@ function ApproveReleaseTab({ bolId }: { bolId: string }) {
       <Card>
         <CardHead title="Release to Sales" hint="Admin picks exactly what Sales gets — never the whole record by default." />
         {bol.release ? (
-          <div className="flex flex-wrap items-center justify-between gap-3 p-4">
+          <div className="flex flex-col gap-3 p-4">
             <p className={`${TEXT.body} text-[var(--cd-text-muted)]`}>
-              Released {formatDateTime(bol.release.releasedAt)} — now a card on the Prospects tab, and Sales can see
-              the checked fields on the customer's profile. This document stays here in BOL Center either way.
+              Released {formatDateTime(bol.release.releasedAt)} — this document stays here in BOL Center either way.
             </p>
-            <div className="flex shrink-0 gap-2">
-              <Link href="/crm-design/prospects">
-                <Button variant="secondary" size="sm">View Prospects →</Button>
-              </Link>
-              {bol.customerMatch.companyId && (
-                <Link href={`/crm-design/companies/${bol.customerMatch.companyId}`}>
-                  <Button variant="secondary" size="sm">View Company →</Button>
-                </Link>
-              )}
+            <ul className="flex flex-col gap-1.5">
+              {bol.release.companies.map((rc) => (
+                <li key={rc.companyId} className="flex items-center justify-between gap-3 rounded-[var(--cd-radius-sm)] border border-[var(--cd-border)] bg-[var(--cd-surface-2)] px-3 py-2">
+                  <span className="min-w-0">
+                    <Badge tone={COMPANY_ROLE_META.find((r) => r.role === rc.role)?.tone ?? "accent"}>
+                      {COMPANY_ROLE_META.find((r) => r.role === rc.role)?.label ?? rc.role}
+                    </Badge>
+                    <span className="ml-2 truncate text-[13px] font-semibold text-[var(--cd-text)]">{rc.companyName}</span>
+                  </span>
+                  <TextLink href={`/crm-design/companies/${rc.companyId}`} className="shrink-0">
+                    View Company →
+                  </TextLink>
+                </li>
+              ))}
+            </ul>
+            <div>
+              <TextLink href="/crm-design/prospects">View Prospects →</TextLink>
             </div>
           </div>
         ) : bol.status !== "approved" ? (
           <p className={`p-4 ${TEXT.micro} text-[var(--cd-text-muted)]`}>Approve this BOL first — release is only available for approved intelligence.</p>
         ) : (
-          <div className="flex flex-col gap-3 p-4">
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {RELEASE_FIELDS.map((f) => (
-                <label key={f.key} className="flex items-center gap-2.5">
-                  <input
-                    type="checkbox"
-                    checked={selection[f.key]}
-                    onChange={(e) => setSelection((prev) => ({ ...prev, [f.key]: e.target.checked }))}
-                    className="h-4 w-4 accent-[var(--cd-admin)]"
-                  />
-                  <span className="text-[13px] text-[var(--cd-text)]">{f.label}</span>
-                </label>
-              ))}
-            </div>
+          <div className="flex flex-col gap-4 p-4">
             <div>
-              <Button variant="admin" onClick={() => releaseBolToSales(bolId, selection)}>
+              <p className={`mb-1.5 ${TEXT.label} text-[var(--cd-text-muted)]`}>Who becomes a prospect?</p>
+              <p className={`mb-2 ${TEXT.micro} text-[var(--cd-text-muted)]`}>Each checked company gets its own Prospect card — shipper is the freight owner and defaults on.</p>
+              <div className="flex flex-col gap-1.5">
+                {availableRoles.map((r) => (
+                  <label
+                    key={r.role}
+                    className="flex items-center gap-2.5 rounded-[var(--cd-radius-sm)] border border-[var(--cd-border-strong)] bg-[var(--cd-surface-2)] px-3 py-2"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={companyRoles.has(r.role)}
+                      onChange={() => toggleRole(r.role)}
+                      className="h-4 w-4 accent-[var(--cd-admin)]"
+                    />
+                    <Badge tone={r.tone}>{r.label}</Badge>
+                    <span className="truncate text-[13px] text-[var(--cd-text)]">{bol.extraction[r.field]?.value}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <p className={`mb-1.5 ${TEXT.label} text-[var(--cd-text-muted)]`}>What Sales sees</p>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {RELEASE_FIELDS.map((f) => (
+                  <label key={f.key} className="flex items-center gap-2.5">
+                    <input
+                      type="checkbox"
+                      checked={selection[f.key]}
+                      onChange={(e) => setSelection((prev) => ({ ...prev, [f.key]: e.target.checked }))}
+                      className="h-4 w-4 accent-[var(--cd-admin)]"
+                    />
+                    <span className="text-[13px] text-[var(--cd-text)]">{f.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <Button variant="admin" disabled={companyRoles.size === 0} onClick={() => releaseBolToSales(bolId, selection, Array.from(companyRoles))}>
                 Release to Sales
               </Button>
+              {companyRoles.size === 0 && (
+                <p className={`mt-1.5 ${TEXT.micro} text-[var(--cd-text-muted)]`}>Pick at least one company above.</p>
+              )}
             </div>
           </div>
         )}
