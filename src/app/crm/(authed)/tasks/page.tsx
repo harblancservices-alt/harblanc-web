@@ -158,6 +158,7 @@ export default async function TasksPage() {
   return (
     <PageShell
       title="Tasks"
+      subtitle="Every open task across the org, grouped by urgency."
       actions={
         <AddTaskButton
           accounts={accounts}
