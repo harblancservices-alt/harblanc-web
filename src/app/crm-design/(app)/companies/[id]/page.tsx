@@ -42,7 +42,7 @@ type TabKey = "overview" | "contacts" | "activity" | "documents" | "tasks" | "in
 export default function CompanyDetailPage() {
   const params = useParams<{ id: string }>();
   const company = useCompany(params.id);
-  const { contacts, activities, documents, tasks, bolRecords, companyLocations, currentUser, moveStage, toggleTask } = useStore();
+  const { contacts, activities, documents, tasks, bolRecords, otrEntries, companyLocations, currentUser, moveStage, toggleTask } = useStore();
   const [tab, setTab] = useState<TabKey>("overview");
   const [addContactOpen, setAddContactOpen] = useState(false);
   const [logActivityOpen, setLogActivityOpen] = useState(false);
@@ -58,24 +58,38 @@ export default function CompanyDetailPage() {
   const companyTasks = tasks.filter((t) => t.companyId === company.id);
   const isLost = company.stage === "lost";
 
-  // Customer Intelligence — released BOL Center data only. A BOL never
-  // reaches this list until an admin explicitly released it (BOL Center §10);
-  // this tab is what "landing on the Customer profile" (audit item #12)
-  // actually looks like. Each released BOL's own selection gates which of
-  // its fields are even eligible to show here — checking "Company" but not
-  // "Observed freight" on one BOL, for instance, means that BOL contributes
-  // nothing to the freight list below.
+  // Customer Intelligence — released data only, from EITHER funnel (BOL
+  // Center or OTR). Nothing reaches this tab until an admin explicitly
+  // released it (BOL Center §10 / OTR's parallel discipline); this tab is
+  // what "landing on the Customer profile" (audit item #12) actually looks
+  // like. A released BOL's own selection gates which of its fields are even
+  // eligible to show here — checking "Company" but not "Observed freight"
+  // on one BOL, for instance, means that BOL contributes nothing to the
+  // freight list below. OTR entries carry no such per-field selection (a
+  // released OTR entry is small enough that its whole research record goes)
+  // so they contribute unconditionally.
   const releasedBols = bolRecords.filter((b) => b.customerMatch.companyId === company.id && b.release);
+  const releasedOtr = otrEntries.filter((o) => o.matchedCompanyId === company.id && o.release);
   const companyLocs = companyLocations.filter((l) => l.companyId === company.id);
   const observedFreight = Array.from(
-    new Set(releasedBols.filter((b) => b.release!.selection.observedFreight).flatMap((b) => b.research.observedFreight)),
+    new Set([
+      ...releasedBols.filter((b) => b.release!.selection.observedFreight).flatMap((b) => b.research.observedFreight),
+      ...releasedOtr.flatMap((o) => o.research.observedFreight),
+    ]),
   );
   const observedLanes = Array.from(
-    new Set(releasedBols.filter((b) => b.release!.selection.observedLanes).flatMap((b) => b.research.observedLanes)),
+    new Set([
+      ...releasedBols.filter((b) => b.release!.selection.observedLanes).flatMap((b) => b.research.observedLanes),
+      ...releasedOtr.flatMap((o) => o.research.observedLanes),
+    ]),
   );
-  const salesNotes = releasedBols.filter((b) => b.release!.selection.salesNotes && b.research.notes);
-  const lastObserved = releasedBols.reduce<string | null>(
-    (latest, b) => (!latest || b.uploadedAt > latest ? b.uploadedAt : latest),
+  const salesNotes = [
+    ...releasedBols.filter((b) => b.release!.selection.salesNotes && b.research.notes),
+    ...releasedOtr.filter((o) => o.research.notes),
+  ];
+  const sourceCount = releasedBols.length + releasedOtr.length;
+  const lastObserved = [...releasedBols.map((b) => b.uploadedAt), ...releasedOtr.map((o) => o.release!.releasedAt)].reduce<string | null>(
+    (latest, at) => (!latest || at > latest ? at : latest),
     null,
   );
   const isElevated = currentUser.role === "owner" || currentUser.role === "admin";
@@ -185,7 +199,7 @@ export default function CompanyDetailPage() {
               { key: "activity", label: "Activity", count: companyActivities.length },
               { key: "documents", label: "Documents", count: companyDocuments.length },
               { key: "tasks", label: "Tasks", count: companyTasks.filter((t) => t.status === "open").length },
-              { key: "intelligence", label: "Intelligence", count: releasedBols.length },
+              { key: "intelligence", label: "Intelligence", count: sourceCount },
             ]}
             active={tab}
             onChange={setTab}
@@ -324,21 +338,21 @@ export default function CompanyDetailPage() {
 
             {tab === "intelligence" && (
               <div className="flex flex-col gap-4">
-                {releasedBols.length === 0 ? (
+                {sourceCount === 0 ? (
                   <Card>
                     <EmptyState
                       icon={<IconInbox />}
-                      title="No BOL intelligence released yet"
-                      body="When an admin releases BOL Center research for this company, verified locations, observed freight, and observed lanes will show up here."
+                      title="No intelligence released yet"
+                      body="When an admin releases BOL Center or OTR research for this company, verified locations, observed freight, and observed lanes will show up here."
                     />
                   </Card>
                 ) : (
                   <>
                     <Card className="flex flex-wrap items-center gap-4 p-4">
                       <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--cd-text-muted)]">Sales status</span>
-                      <Badge tone="accent">AI-sourced · Released</Badge>
+                      <Badge tone="accent">Released to Prospects</Badge>
                       <span className={`${TEXT.micro} text-[var(--cd-text-muted)]`}>
-                        {releasedBols.length} verified {releasedBols.length === 1 ? "BOL" : "BOLs"} · Last observed{" "}
+                        {sourceCount} verified {sourceCount === 1 ? "source" : "sources"} · Last observed{" "}
                         {lastObserved ? relativeTime(lastObserved) : "—"}
                       </span>
                     </Card>
@@ -399,7 +413,7 @@ export default function CompanyDetailPage() {
                     )}
 
                     <Card>
-                      <CardHead title="BOL sources" hint={`${releasedBols.length} verified`} />
+                      <CardHead title="Sources" hint={`${sourceCount} verified`} />
                       <div className="flex flex-wrap gap-1.5 p-4">
                         {releasedBols.map((b) =>
                           isElevated ? (
@@ -408,6 +422,15 @@ export default function CompanyDetailPage() {
                             </Link>
                           ) : (
                             <Badge key={b.id} tone="neutral">{b.docNumber}</Badge>
+                          ),
+                        )}
+                        {releasedOtr.map((o) =>
+                          isElevated ? (
+                            <Link key={o.id} href="/crm-design/admin/otr">
+                              <Badge tone="accent">OTR · {o.companyName}</Badge>
+                            </Link>
+                          ) : (
+                            <Badge key={o.id} tone="neutral">Dispatch research</Badge>
                           ),
                         )}
                       </div>

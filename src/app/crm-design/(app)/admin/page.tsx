@@ -12,15 +12,17 @@ import { Card, CardHead, TEXT } from "../../_design/ui";
  * below is accurate to what its linked tab actually shows.
  */
 export default function AdminOverviewPage() {
-  const { team, companies, documents, tasks, bolRecords } = useStore();
+  const { team, companies, documents, tasks, bolRecords, otrEntries, prospects } = useStore();
   const activeTeam = team.filter((m) => m.isActive).length;
   const openTasks = tasks.filter((t) => t.status === "open").length;
   const bolNeedsAttention = bolRecords.filter((b) => b.status === "new" || b.status === "needs_review" || b.status === "ready_for_approval").length;
+  const otrNeedsAttention = otrEntries.filter((o) => o.status === "new" || o.status === "ready_for_approval").length;
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         <StatLink href="/crm-design/admin/bol-center" label="BOL Center — needs attention" value={String(bolNeedsAttention)} />
+        <StatLink href="/crm-design/admin/otr" label="OTR — needs attention" value={String(otrNeedsAttention)} />
         <StatLink href="/crm-design/admin/accounts" label="Team accounts" value={`${activeTeam} active`} />
         <StatLink href="/crm-design/admin/documents" label="Master templates" value="2" />
         <StatLink href="/crm-design/admin/activity" label="Open tasks org-wide" value={String(openTasks)} />
@@ -33,6 +35,10 @@ export default function AdminOverviewPage() {
             {team.length} total team {team.length === 1 ? "account" : "accounts"} on this org. Use{" "}
             <span className="font-semibold text-[var(--cd-text)]">BOL Center</span> to process uploaded BOL photos
             into reviewed, research-backed customer intelligence before anything reaches Sales,{" "}
+            <span className="font-semibold text-[var(--cd-text)]">OTR</span> to do the same for document-less
+            companies Brent names to the assistant over the phone — the two intake funnels stay separate on purpose,
+            but both only ever reach Sales via an explicit Release to the{" "}
+            <span className="font-semibold text-[var(--cd-text)]">Prospects</span> tab,{" "}
             <span className="font-semibold text-[var(--cd-text)]">Accounts</span> to review a teammate&rsquo;s access
             level and suspend or reassign their book of business, <span className="font-semibold text-[var(--cd-text)]">Activity Log</span>{" "}
             to see exactly who changed what and when across the team — every row links straight to the
@@ -43,7 +49,7 @@ export default function AdminOverviewPage() {
             letterhead every generated document reads from.
           </p>
           <p className={`${TEXT.micro} text-[var(--cd-text-muted)]`}>
-            {companies.length} companies across the org, {bolRecords.length} BOLs in the intake queue, {documents.length} documents generated to date.
+            {companies.length} companies across the org, {bolRecords.length} BOLs in the intake queue, {otrEntries.length} OTR entries, {prospects.length} companies released to Prospects, {documents.length} documents generated to date.
           </p>
         </div>
       </Card>

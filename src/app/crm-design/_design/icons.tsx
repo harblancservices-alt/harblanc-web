@@ -258,3 +258,17 @@ export const IconFitPage = (p: P) => (
     <path d="M3.5 6V4.5A1 1 0 0 1 4.5 3.5H6M20.5 6V4.5a1 1 0 0 0-1-1H18M3.5 18v1.5a1 1 0 0 0 1 1H6M20.5 18v1.5a1 1 0 0 1-1 1H18" />
   </svg>
 );
+/** The Prospects nav item — same visual metaphor as the real CRM's own
+ * "Prospects" icon for continuity. */
+export const IconFlame = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M12 3c1.3 2.6-.3 4-1.6 5.5C9.2 9.8 8 11.4 8 13.3a4 4 0 0 0 8 0c0-1-.4-1.9-1-2.6.3 1 .1 2-.6 2.6-.2-1.3-.8-2.1-1.7-2.9.4 1.7-.2 2.7-1.2 3.4-.7.5-1.5 1.2-1.5 2.5a3 3 0 0 0 6 0C15.9 12.4 13.5 10.8 12 3Z" />
+  </svg>
+);
+/** A microphone — OTR's "Dispatch <company name>" verbal-intake concept. */
+export const IconMic = (p: P) => (
+  <svg {...base(p)}>
+    <rect x="9" y="3" width="6" height="11" rx="3" />
+    <path d="M6 11a6 6 0 0 0 12 0M12 17v3.5M9 20.5h6" />
+  </svg>
+);

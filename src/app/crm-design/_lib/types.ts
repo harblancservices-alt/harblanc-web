@@ -132,6 +132,7 @@ export type BolStatus =
   | "researching"
   | "ready_for_approval"
   | "approved"
+  | "released"
   | "rejected"
   | "archived";
 
@@ -242,7 +243,10 @@ export type BolRecord = {
   };
   /** Non-null the moment Admin clicks "Release to Sales" — separate from
    * `status === "approved"` on purpose (approval and release are different
-   * decisions; an approved BOL can sit un-released indefinitely). */
+   * decisions; an approved BOL can sit un-released indefinitely). Release
+   * ALSO flips `status` to "released", but the BOL record itself is never
+   * removed or hidden from BOL Center — the document stays put; only a
+   * Prospect record (see below) is what actually reaches Sales. */
   release: { releasedAt: string; releasedByUserId: string; selection: BolReleaseSelection } | null;
 };
 
@@ -263,4 +267,59 @@ export type CompanyLocation = {
   firstObservedAt: string;
   lastObservedAt: string;
   bolCount: number;
+};
+
+/**
+ * OTR — "Dispatch <company name>" verbal prospects: a company Brent names to
+ * the assistant over the phone, researched straight into the CRM with NO
+ * source document. Deliberately a SEPARATE admin-only funnel from BOL
+ * Center (which is always anchored to a real uploaded document) so the two
+ * never get confused — see admin/otr/page.tsx and DESIGN_DECISIONS.md.
+ * Nothing here reaches Sales until an explicit Release, same guarantee as
+ * BOL Center.
+ */
+export type OtrStatus = "new" | "researching" | "ready_for_approval" | "released" | "rejected";
+
+export type OtrEntry = {
+  id: string;
+  companyName: string;
+  city: string;
+  state: string;
+  industry: string;
+  phone: string;
+  website: string;
+  requestedByUserId: string;
+  requestedAt: string;
+  status: OtrStatus;
+  /** Set if research turns up that this company is already in the CRM —
+   * the release path matches onto it instead of creating a duplicate. */
+  matchedCompanyId: string | null;
+  research: {
+    notes: string;
+    observedFreight: string[];
+    observedLanes: string[];
+    salesRelevance: "high" | "medium" | "low" | null;
+  };
+  release: { releasedAt: string; releasedByUserId: string; companyId: string } | null;
+};
+
+/**
+ * A Prospect — the ONE thing an explicit admin Release (from OTR or from
+ * BOL Center) is allowed to hand to Sales. This is what the Prospects tab
+ * (`/crm-design/prospects`, visible to everyone) actually reads; Companies,
+ * OTR, and BOL Center all stay admin/roster surfaces, not this. One company
+ * can accumulate more than one Prospect record (e.g. two different BOLs
+ * released for the same company) — the Prospects page groups by companyId
+ * and shows one card per company, aggregating sources.
+ */
+export type ProspectSource = "otr" | "bol";
+
+export type Prospect = {
+  id: string;
+  companyId: string;
+  source: ProspectSource;
+  sourceBolId: string | null;
+  sourceOtrId: string | null;
+  releasedAt: string;
+  releasedByUserId: string;
 };

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useStore, useTeamMemberById } from "../_lib/store";
+import { useStore } from "../_lib/store";
 import { Badge, Button, Card, CardHead, EmptyState, PAGE_WIDTH, PageHeader, TEXT } from "../_design/ui";
 import { firstName, relativeTime } from "../_lib/format";
 import { IconActivity, IconBuilding, IconCalendar, IconCheck, IconPlus, IconTasks } from "../_design/icons";
@@ -27,7 +27,14 @@ export default function DashboardPage() {
   const activeCustomers = companies.filter((c) => c.stage === "active_customer").length;
   const newThisWeek = companies.filter((c) => Date.now() - new Date(c.createdAt).getTime() < 7 * 86_400_000).length;
 
-  const recentActivity = activities.slice(0, 8);
+  // Personal, not org-wide (Brent's call): "jump back to what I just did,"
+  // not a firehose of everyone's activity. The full org-wide feed still
+  // exists at /crm-design/activities (unlinked from primary nav now, but
+  // still a working deep link) for anyone who wants the whole picture.
+  const recentActivity = useMemo(
+    () => activities.filter((a) => a.authorId === currentUser.id).slice(0, 8),
+    [activities, currentUser.id],
+  );
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
@@ -71,13 +78,17 @@ export default function DashboardPage() {
         </Card>
 
         <Card>
-          <CardHead title="Recent activity" hint="Org-wide" right={<Link href="/crm-design/activities" className={`${TEXT.micro} font-semibold text-[var(--cd-accent)]`}>View all</Link>} />
+          <CardHead
+            title="Recent activity"
+            hint="Yours"
+            right={<Link href="/crm-design/activities" className={`${TEXT.micro} font-semibold text-[var(--cd-accent)]`}>View org-wide</Link>}
+          />
           {recentActivity.length === 0 ? (
-            <EmptyState icon={<IconActivity />} title="No activity yet" body="Calls, notes, and stage changes will show up here." />
+            <EmptyState icon={<IconActivity />} title="Nothing logged yet" body="Your own calls, notes, and stage changes will show up here — jump back to what you just did." />
           ) : (
             <ul className="divide-y divide-[var(--cd-border)]">
               {recentActivity.map((a) => (
-                <ActivityRow key={a.id} companyId={a.companyId} authorId={a.authorId} title={a.title} occurredAt={a.occurredAt} />
+                <ActivityRow key={a.id} companyId={a.companyId} contactId={a.contactId} title={a.title} occurredAt={a.occurredAt} />
               ))}
             </ul>
           )}
@@ -144,27 +155,31 @@ function TaskRow({ taskId, title, companyId, dueAt, priority, onToggle }: { task
   );
 }
 
-function ActivityRow({ companyId, authorId, title, occurredAt }: { companyId: string | null; authorId: string; title: string; occurredAt: string }) {
-  const { companies } = useStore();
-  const author = useTeamMemberById(authorId);
+function ActivityRow({ companyId, contactId, title, occurredAt }: { companyId: string | null; contactId: string | null; title: string; occurredAt: string }) {
+  const { companies, contacts } = useStore();
   const company = companies.find((c) => c.id === companyId);
-  return (
-    <li className="px-4 py-2.5">
+  const contact = !company ? contacts.find((c) => c.id === contactId) : null;
+  const href = company ? `/crm-design/companies/${company.id}` : contact ? `/crm-design/contacts/${contact.id}` : null;
+  const recordLabel = company?.name ?? contact?.name ?? null;
+
+  const body = (
+    <>
       <p className="truncate text-[13px] font-medium text-[var(--cd-text)]">{title}</p>
-      <p className={`${TEXT.micro} text-[var(--cd-text-muted)]`}>
-        {firstName(author?.name ?? "Someone")}
-        {company && (
-          <>
-            {" · "}
-            <Link href={`/crm-design/companies/${company.id}`} className="hover:text-[var(--cd-accent)]">
-              {company.name}
-            </Link>
-          </>
-        )}
-        {" · "}
+      <p className={`${TEXT.micro} ${href ? "text-[var(--cd-text-muted)]" : "text-[var(--cd-text-subtle)]"}`}>
+        {recordLabel ? `${recordLabel} · ` : ""}
         {relativeTime(occurredAt)}
       </p>
+    </>
+  );
+
+  return href ? (
+    <li>
+      <Link href={href} className="block px-4 py-2.5 transition-colors hover:bg-[var(--cd-surface-hover)]">
+        {body}
+      </Link>
     </li>
+  ) : (
+    <li className="px-4 py-2.5">{body}</li>
   );
 }
 

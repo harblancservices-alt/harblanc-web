@@ -654,6 +654,10 @@ function ApproveReleaseTab({ bolId }: { bolId: string }) {
             <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[var(--cd-success)]">
               <IconCheck width={14} height={14} /> Approved — see release checklist below.
             </span>
+          ) : bol.status === "released" ? (
+            <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[var(--cd-admin)]">
+              <IconCheck width={14} height={14} /> Released to Sales — see below.
+            </span>
           ) : bol.status === "rejected" ? (
             <div className="flex items-center gap-2">
               <span className="text-[13px] font-semibold text-[var(--cd-danger)]">Rejected.</span>
@@ -674,14 +678,19 @@ function ApproveReleaseTab({ bolId }: { bolId: string }) {
         {bol.release ? (
           <div className="flex flex-wrap items-center justify-between gap-3 p-4">
             <p className={`${TEXT.body} text-[var(--cd-text-muted)]`}>
-              Released {formatDateTime(bol.release.releasedAt)}. Sales can now see the checked fields on the customer's
-              profile.
+              Released {formatDateTime(bol.release.releasedAt)} — now a card on the Prospects tab, and Sales can see
+              the checked fields on the customer's profile. This document stays here in BOL Center either way.
             </p>
-            {bol.customerMatch.companyId && (
-              <Link href={`/crm-design/companies/${bol.customerMatch.companyId}`}>
-                <Button variant="secondary" size="sm">View Company →</Button>
+            <div className="flex shrink-0 gap-2">
+              <Link href="/crm-design/prospects">
+                <Button variant="secondary" size="sm">View Prospects →</Button>
               </Link>
-            )}
+              {bol.customerMatch.companyId && (
+                <Link href={`/crm-design/companies/${bol.customerMatch.companyId}`}>
+                  <Button variant="secondary" size="sm">View Company →</Button>
+                </Link>
+              )}
+            </div>
           </div>
         ) : bol.status !== "approved" ? (
           <p className={`p-4 ${TEXT.micro} text-[var(--cd-text-muted)]`}>Approve this BOL first — release is only available for approved intelligence.</p>

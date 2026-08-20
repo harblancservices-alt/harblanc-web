@@ -8,11 +8,13 @@ import { IconShield } from "../../_design/icons";
 
 const TABS: { href: string; label: string; exact: boolean }[] = [
   { href: "/crm-design/admin", label: "Overview", exact: true },
-  // BOL Center sits right after Overview, ahead of Accounts/Activity/
-  // Documents/Organization — it's the highest-volume, highest-priority
-  // admin task (400 photos to process), not a peripheral admin setting, so
-  // it gets the second slot rather than being appended at the end.
+  // BOL Center and OTR sit right after Overview, ahead of Accounts/
+  // Activity/Documents/Organization — they're the two intake funnels (the
+  // highest-volume, highest-priority admin work), grouped adjacently so
+  // they read as related, but on separate tabs so they never get confused:
+  // BOL Center is always anchored to a real document, OTR never is.
   { href: "/crm-design/admin/bol-center", label: "BOL Center", exact: false },
+  { href: "/crm-design/admin/otr", label: "OTR", exact: false },
   { href: "/crm-design/admin/accounts", label: "Accounts", exact: false },
   { href: "/crm-design/admin/activity", label: "Activity Log", exact: false },
   { href: "/crm-design/admin/documents", label: "Documents", exact: false },
@@ -35,9 +37,14 @@ const TABS: { href: string; label: string; exact: boolean }[] = [
  */
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() ?? "";
-  const { currentUser, bolRecords } = useStore();
+  const { currentUser, bolRecords, otrEntries } = useStore();
   const isElevated = currentUser.role === "owner" || currentUser.role === "admin";
   const bolNeedsAttention = bolRecords.filter((b) => b.status === "new" || b.status === "needs_review" || b.status === "ready_for_approval").length;
+  const otrNeedsAttention = otrEntries.filter((o) => o.status === "new" || o.status === "ready_for_approval").length;
+  const needsAttentionByHref: Record<string, number> = {
+    "/crm-design/admin/bol-center": bolNeedsAttention,
+    "/crm-design/admin/otr": otrNeedsAttention,
+  };
 
   if (!isElevated) {
     return (
@@ -73,9 +80,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               }`}
             >
               {t.label}
-              {t.href === "/crm-design/admin/bol-center" && bolNeedsAttention > 0 && (
+              {(needsAttentionByHref[t.href] ?? 0) > 0 && (
                 <span className="flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-[var(--cd-admin)] px-1 text-[10px] font-bold text-white">
-                  {bolNeedsAttention}
+                  {needsAttentionByHref[t.href]}
                 </span>
               )}
             </Link>

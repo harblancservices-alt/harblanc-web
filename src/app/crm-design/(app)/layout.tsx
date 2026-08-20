@@ -7,14 +7,13 @@ import { useStore } from "../_lib/store";
 import { Avatar, Button, INPUT, TEXT } from "../_design/ui";
 import { Modal } from "../_design/Modal";
 import {
-  IconActivity,
   IconBuilding,
-  IconCalendar,
   IconChevronLeft,
   IconChevronRight,
   IconContacts,
   IconDashboard,
   IconFlag,
+  IconFlame,
   IconLogout,
   IconMore,
   IconSearch,
@@ -54,10 +53,13 @@ const WORKSPACE: NavItem[] = [
   { href: "/crm-design", label: "Dashboard", Icon: IconDashboard },
   { href: "/crm-design/companies", label: "Companies", Icon: IconBuilding },
   { href: "/crm-design/contacts", label: "Contacts", Icon: IconContacts },
+  // Prospects is the sales-facing view of Companies released from OTR or
+  // BOL Center — deliberately its own top-level tab, not folded into
+  // Companies (Brent's explicit call, overriding the earlier audit rec —
+  // see DESIGN_DECISIONS.md). Card layout, not a table: prospects/page.tsx.
+  { href: "/crm-design/prospects", label: "Prospects", Icon: IconFlame },
   { href: "/crm-design/tasks", label: "Tasks", Icon: IconTasks },
-  { href: "/crm-design/calendar", label: "Calendar", Icon: IconCalendar },
   { href: "/crm-design/active-clients", label: "Active Clients", Icon: IconStar, goldIcon: true },
-  { href: "/crm-design/activities", label: "Activity Feed", Icon: IconActivity },
 ];
 
 const BOTTOM_HREFS = ["/crm-design", "/crm-design/companies", "/crm-design/contacts", "/crm-design/tasks"];

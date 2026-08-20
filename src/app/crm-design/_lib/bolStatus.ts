@@ -11,11 +11,12 @@ export const BOL_STATUS_ORDER: BolStatus[] = [
   "researching",
   "ready_for_approval",
   "approved",
+  "released",
   "rejected",
   "archived",
 ];
 
-/** The "main line" of the funnel — excludes the two terminal side-exits, for
+/** The "main line" of the funnel — excludes the terminal side-exits, for
  * anywhere that wants to show forward progress (not a filter list). */
 export const BOL_STATUS_ACTIVE: BolStatus[] = [
   "new",
@@ -24,6 +25,7 @@ export const BOL_STATUS_ACTIVE: BolStatus[] = [
   "researching",
   "ready_for_approval",
   "approved",
+  "released",
 ];
 
 export const BOL_STATUS_LABEL: Record<BolStatus, string> = {
@@ -33,20 +35,23 @@ export const BOL_STATUS_LABEL: Record<BolStatus, string> = {
   researching: "Researching",
   ready_for_approval: "Ready for Approval",
   approved: "Approved",
+  released: "Released",
   rejected: "Rejected",
   archived: "Archived",
 };
 
 /** Same three-tone-plus-danger discipline as STAGE_TONE in lifecycle.ts —
  * never a bespoke color per status. Neutral = not yet worked, accent =
- * actively in motion, success = approved, danger = rejected. */
-export const BOL_STATUS_TONE: Record<BolStatus, "neutral" | "accent" | "warning" | "success" | "danger"> = {
+ * actively in motion, success = approved, admin = handed to Sales, danger =
+ * rejected. */
+export const BOL_STATUS_TONE: Record<BolStatus, "neutral" | "accent" | "warning" | "success" | "danger" | "admin"> = {
   new: "neutral",
   needs_review: "warning",
   ai_extracted: "accent",
   researching: "accent",
   ready_for_approval: "warning",
   approved: "success",
+  released: "admin",
   rejected: "danger",
   archived: "neutral",
 };
@@ -58,6 +63,7 @@ export const BOL_STATUS_DESCRIPTION: Record<BolStatus, string> = {
   researching: "A reviewer is actively investigating this company before deciding.",
   ready_for_approval: "Research is done — awaiting an Approve / Reject decision.",
   approved: "Approved as real customer intelligence. May or may not be released to Sales yet.",
+  released: "Released to Sales as a Prospect. The document stays here — this is just a record it happened.",
   rejected: "Not worth pursuing — filed, not deleted.",
   archived: "Resolved and put away (e.g. merged into another record).",
 };

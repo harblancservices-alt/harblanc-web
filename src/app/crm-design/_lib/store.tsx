@@ -9,6 +9,8 @@ import {
   COMPANY_LOCATIONS,
   CONTACTS,
   DOCUMENTS,
+  OTR_ENTRIES,
+  PROSPECTS,
   TASKS,
   TEAM,
 } from "./data";
@@ -25,6 +27,9 @@ import type {
   Contact,
   CustomerMatchStatus,
   DocType,
+  OtrEntry,
+  OtrStatus,
+  Prospect,
   TaskItem,
   TeamMember,
 } from "./types";
@@ -49,6 +54,8 @@ type StoreState = {
   team: TeamMember[];
   bolRecords: BolRecord[];
   companyLocations: CompanyLocation[];
+  otrEntries: OtrEntry[];
+  prospects: Prospect[];
 
   currentUserId: string;
   setCurrentUserId: (id: string) => void;
@@ -91,6 +98,15 @@ type StoreState = {
   setSalesRelevance: (bolId: string, level: "high" | "medium" | "low") => void;
   setBolStatus: (bolId: string, status: BolStatus) => void;
   releaseBolToSales: (bolId: string, selection: BolReleaseSelection) => void;
+
+  // OTR — "Dispatch <company>" verbal prospects (see types.ts's OtrEntry
+  // doc comment). Same funnel discipline as BOL Center: everything before
+  // releaseOtrToProspects touches only otrEntries, never companies/
+  // contacts/tasks/prospects.
+  saveOtrResearchNotes: (otrId: string, notes: string) => void;
+  setOtrSalesRelevance: (otrId: string, level: "high" | "medium" | "low") => void;
+  setOtrStatus: (otrId: string, status: OtrStatus) => void;
+  releaseOtrToProspects: (otrId: string) => void;
 };
 
 const StoreContext = createContext<StoreState | null>(null);
@@ -105,6 +121,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [team, setTeam] = useState<TeamMember[]>(TEAM);
   const [bolRecords, setBolRecords] = useState<BolRecord[]>(BOL_RECORDS);
   const [companyLocations, setCompanyLocations] = useState<CompanyLocation[]>(COMPANY_LOCATIONS);
+  const [otrEntries, setOtrEntries] = useState<OtrEntry[]>(OTR_ENTRIES);
+  const [prospects, setProspects] = useState<Prospect[]>(PROSPECTS);
 
   const [currentUserId, setCurrentUserId] = useState<string>("u-brent");
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -597,6 +615,21 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           },
           ...prevAct,
         ]);
+        // The one thing Sales actually sees. BOL Center keeps the document
+        // (status flips to "released" below, the record is never removed),
+        // and this Prospect is what makes it show up on /crm-design/prospects.
+        setProspects((prev) => [
+          {
+            id: `pr-${idRef.current++}`,
+            companyId: resolvedCompanyId,
+            source: "bol",
+            sourceBolId: bolId,
+            sourceOtrId: null,
+            releasedAt: new Date().toISOString(),
+            releasedByUserId: currentUserId,
+          },
+          ...prev,
+        ]);
       }
 
       setBolRecords((prev) =>
@@ -604,7 +637,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           b.id === bolId
             ? {
                 ...b,
-                status: "approved",
+                status: "released",
                 customerMatch: companyId ? { ...b.customerMatch, companyId, status: "matched" } : b.customerMatch,
                 release: { releasedAt: new Date().toISOString(), releasedByUserId: currentUserId, selection },
               }
@@ -612,9 +645,99 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         ),
       );
 
-      pushToast("success", companyId ? "Released to Sales." : "Nothing to release — check at least one field.");
+      pushToast("success", companyId ? "Released to Sales — now on the Prospects tab." : "Nothing to release — check at least one field.");
     },
     [addCompany, bolRecords, currentUserId, pushToast],
+  );
+
+  // ── OTR ────────────────────────────────────────────────────────────
+  const saveOtrResearchNotes = useCallback(
+    (otrId: string, notes: string) => {
+      setOtrEntries((prev) => prev.map((o) => (o.id === otrId ? { ...o, research: { ...o.research, notes } } : o)));
+      pushToast("success", "Research notes saved.");
+    },
+    [pushToast],
+  );
+
+  const setOtrSalesRelevance = useCallback((otrId: string, level: "high" | "medium" | "low") => {
+    setOtrEntries((prev) => prev.map((o) => (o.id === otrId ? { ...o, research: { ...o.research, salesRelevance: level } } : o)));
+  }, []);
+
+  const setOtrStatus = useCallback(
+    (otrId: string, status: OtrStatus) => {
+      setOtrEntries((prev) => prev.map((o) => (o.id === otrId ? { ...o, status } : o)));
+      const label =
+        status === "rejected" ? "Rejected." : status === "researching" ? "Back to research." : status === "ready_for_approval" ? "Marked ready for approval." : "Updated.";
+      pushToast(status === "rejected" ? "danger" : "success", label);
+    },
+    [pushToast],
+  );
+
+  const releaseOtrToProspects = useCallback(
+    (otrId: string) => {
+      // Same "read from render scope, side effects as plain top-level
+      // calls" discipline as releaseBolToSales — see that function's own
+      // comment for why nesting these inside a setOtrEntries updater would
+      // risk double-firing under StrictMode.
+      const otr = otrEntries.find((o) => o.id === otrId);
+      if (!otr) return;
+
+      let companyId = otr.matchedCompanyId;
+      if (!companyId) {
+        const created = addCompany({
+          name: otr.companyName,
+          industry: otr.industry,
+          city: otr.city,
+          state: otr.state,
+          assignedUserId: currentUserId,
+        });
+        companyId = created.id;
+      }
+      const resolvedCompanyId = companyId;
+
+      setActivities((prevAct) => [
+        {
+          id: `a-${idRef.current++}`,
+          kind: "note",
+          companyId: resolvedCompanyId,
+          contactId: null,
+          authorId: currentUserId,
+          title: "Customer intelligence released from OTR",
+          body: `Researched from a verbal dispatch (${otr.companyName}) — no source document.`,
+          occurredAt: new Date().toISOString(),
+        },
+        ...prevAct,
+      ]);
+
+      setProspects((prev) => [
+        {
+          id: `pr-${idRef.current++}`,
+          companyId: resolvedCompanyId,
+          source: "otr",
+          sourceBolId: null,
+          sourceOtrId: otrId,
+          releasedAt: new Date().toISOString(),
+          releasedByUserId: currentUserId,
+        },
+        ...prev,
+      ]);
+
+      setOtrEntries((prev) =>
+        prev.map((o) =>
+          o.id === otrId
+            ? {
+                ...o,
+                status: "released",
+                matchedCompanyId: resolvedCompanyId,
+                release: { releasedAt: new Date().toISOString(), releasedByUserId: currentUserId, companyId: resolvedCompanyId },
+              }
+            : o,
+        ),
+      );
+
+      pushToast("success", "Released to Sales — now on the Prospects tab.");
+    },
+    [addCompany, currentUserId, otrEntries, pushToast],
   );
 
   const currentUser = team.find((m) => m.id === currentUserId) ?? team[0];
@@ -648,6 +771,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       addContact,
       bolRecords,
       companyLocations,
+      otrEntries,
+      prospects,
       uploadBol,
       runExtraction,
       updateExtractionField,
@@ -657,6 +782,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       setSalesRelevance,
       setBolStatus,
       releaseBolToSales,
+      saveOtrResearchNotes,
+      setOtrSalesRelevance,
+      setOtrStatus,
+      releaseOtrToProspects,
     }),
     [
       companies,
@@ -683,6 +812,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       addContact,
       bolRecords,
       companyLocations,
+      otrEntries,
+      prospects,
       uploadBol,
       runExtraction,
       updateExtractionField,
@@ -692,6 +823,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       setSalesRelevance,
       setBolStatus,
       releaseBolToSales,
+      saveOtrResearchNotes,
+      setOtrSalesRelevance,
+      setOtrStatus,
+      releaseOtrToProspects,
     ],
   );
 
@@ -717,6 +852,11 @@ export function useContactRecord(id: string | undefined) {
 export function useBolRecord(id: string | undefined) {
   const { bolRecords } = useStore();
   return bolRecords.find((b) => b.id === id) ?? null;
+}
+
+export function useOtrEntry(id: string | undefined) {
+  const { otrEntries } = useStore();
+  return otrEntries.find((o) => o.id === id) ?? null;
 }
 
 export function useTeamMemberById(id: string | null | undefined) {

@@ -420,3 +420,66 @@ invalid HTML, since interactive elements can't nest. Fixed by making the trigger
 a shared `relative` wrapper (`(app)/layout.tsx`) instead of parent/child. Unrelated to this task's scope but cheap
 to fix once found, and left unfixed it would have kept throwing a hydration warning on every single screen in the
 prototype, not just BOL Center's.
+
+## 12. Prospects + OTR — the funnel's actual output, and a second document-less intake path (2026-08-19)
+
+Six changes, all Brent-confirmed. The throughline: **Prospects is the ONE surface Sales sees; nothing reaches it
+except an explicit admin Release, from either intake funnel.**
+
+### Sidebar trim
+Removed "Calendar" and "Activity Feed" from the WORKSPACE nav (`(app)/layout.tsx`). Neither route was deleted —
+both still work as deep links (`/crm-design/calendar`, `/crm-design/activities`), same "orphan the route, don't
+delete it" precedent already used elsewhere in this prototype — they're just no longer primary nav destinations.
+The Admin → Activity Log tab is untouched (different surface entirely, already named to avoid colliding with the
+sales Activity Feed — see §7).
+
+### Prospects — brought back as its own tab, deliberately overriding the audit
+The original audit (CRM_MASTER_AUDIT.md) recommended folding "Prospects" into Companies. Brent's explicit call
+here reverses that: Prospects stays its own WORKSPACE nav item, visible to everyone, card layout (not a table) —
+`(app)/prospects/page.tsx`. One card per **company**, not per release event: a company released twice (say, two
+separate BOLs) still shows one card, with both sources tagged and their observed freight/lanes merged. This is
+the sales-facing answer to "what has an admin actually vetted and handed me" — Companies stays the full roster
+(including things reps added themselves), Prospects is the curated subset that came through a funnel.
+
+### OTR — a second intake funnel, deliberately lightweight and kept apart from BOL Center
+`OtrEntry` (types.ts) is BOL Center's document-less sibling: a company Brent names to the assistant over the
+phone ("Dispatch Big Spring Compression Services..."), researched with no source document at all. It could have
+been modeled as "a BolRecord with no scan," but that would blur exactly the distinction Brent asked to keep sharp
+— so it's a separate, deliberately smaller type (no extraction fields, no contacts, no document viewer, no
+locations-candidate matching) and a separate admin page (`admin/otr/page.tsx`, single-page card list, not a
+list+detail pair like BOL Center — there's simply less to review). Same funnel discipline as BOL Center: every
+action before Release touches only `otrEntries`; `releaseOtrToProspects` is the one function that can create a
+Company from an OTR entry, and it follows the exact same "read from render scope, fire side effects as plain
+calls" pattern `releaseBolToSales` established (see §11) to avoid double-firing under StrictMode.
+
+### A new `Prospect` record type ties both funnels together
+Rather than inferring "is this a prospect" from `Company.stage`, there's now an explicit `Prospect` record
+(`types.ts`) created by both release actions — `{ companyId, source: "otr" | "bol", sourceBolId, sourceOtrId,
+releasedAt, releasedByUserId }`. Explicit provenance is what lets a Prospect card say "From BOL" vs. "From
+research" without guessing, and it's what the Prospects page groups by `companyId` to get one card per company
+regardless of how many times that company has been released.
+
+### BOL Center release keeps the record — `"released"` joins `BolStatus`
+Previously, releasing a BOL set `status: "approved"` and left `release` as the only signal anything had happened
+— defensible, but "the record is still just called Approved" doesn't read as "this document did something." Added
+`"released"` as its own `BolStatus` value (also added to `BOL_STATUS_LABEL`/`_TONE`/`_DESCRIPTION`/`_ORDER` in
+`bolStatus.ts`, and to `OtrStatus` the same way in `otrStatus.ts`) — release now sets `status: "released"`
+explicitly, on top of (not instead of) setting `release`. The document is never removed from BOL Center; the
+status just tells you at a glance that this one already did its job. Two already-"approved" seed BOLs (`bol-2291`,
+`bol-4410`) were updated to `"released"` to match, with matching `Prospect` seed rows so the Prospects tab isn't
+empty on first load.
+
+### Company profile's Intelligence tab now reads both funnels
+It previously only read `bolRecords`. A company released purely via OTR (the seeded "Big Spring Compression
+Services" — no BOL exists for it at all) would otherwise show an empty Intelligence tab despite being a fully
+real, released Prospect. Fixed by merging `releasedBols` and `releasedOtr` for observed freight/lanes/notes and
+the "Sources" list (BOL doc numbers link to BOL Center; OTR entries link to the OTR tab, both admin-only —
+non-admin viewers see a plain, non-clickable tag either way).
+
+### Dashboard — personal, not org-wide
+"Recent activity" now filters to `activities.filter(a => a.authorId === currentUser.id)` — "jump back to what I
+just did," not an org firehose (that firehose still exists one click away via "View org-wide," which points at
+the now-unlinked-from-nav `/crm-design/activities`). Each row is now a real link to whatever it references
+(company, or contact when there's no company) instead of only the company name inside the row being clickable.
+"Your next best actions" — its own separate panel, its own separate data (open tasks) — was deliberately left
+alone; Brent and the team are still deciding the priority model there, and this pass didn't touch it.

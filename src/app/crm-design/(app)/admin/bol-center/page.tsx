@@ -29,7 +29,7 @@ export default function BolCenterInboxPage() {
   const [uploadOpen, setUploadOpen] = useState(false);
 
   const counts = useMemo(() => {
-    const c: Record<BolStatus, number> = { new: 0, needs_review: 0, ai_extracted: 0, researching: 0, ready_for_approval: 0, approved: 0, rejected: 0, archived: 0 };
+    const c: Record<BolStatus, number> = { new: 0, needs_review: 0, ai_extracted: 0, researching: 0, ready_for_approval: 0, approved: 0, released: 0, rejected: 0, archived: 0 };
     for (const b of bolRecords) c[b.status]++;
     return c;
   }, [bolRecords]);

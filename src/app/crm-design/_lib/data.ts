@@ -7,6 +7,8 @@ import type {
   CompanyLocation,
   Contact,
   ExtractedField,
+  OtrEntry,
+  Prospect,
   TaskItem,
   TeamMember,
 } from "./types";
@@ -353,6 +355,28 @@ export const COMPANIES: Company[] = [
     primaryContactId: null,
     notes: "Referral from Lone Star Steel. Not yet contacted.",
   },
+  // Released from OTR (see OTR_ENTRIES / PROSPECTS below) — a real Company
+  // row exists here exactly like every other release path (BOL Center's
+  // releaseBolToSales does the same thing), it's just seeded directly since
+  // this one came from an OTR release rather than a live click-through.
+  {
+    id: "c-bigspring-compression",
+    name: "Big Spring Compression Services",
+    industry: "Oilfield Compression Equipment",
+    city: "Big Spring",
+    state: "TX",
+    stage: "new_lead",
+    assignedUserId: "u-brent",
+    phone: "(432) 555-0177",
+    website: "bigspringcompression.com",
+    fitRating: 4,
+    tags: [],
+    lastContactAt: null,
+    createdAt: iso(3),
+    annualFreightSpend: "Unknown",
+    primaryContactId: null,
+    notes: "Sourced via OTR (Brent's own research, no document) — released as a Prospect, not yet contacted by Sales.",
+  },
 ];
 
 export const CONTACTS: Contact[] = [
@@ -469,14 +493,16 @@ export const COMPANY_LOCATIONS: CompanyLocation[] = [
 ];
 
 export const BOL_RECORDS: BolRecord[] = [
-  // 1 — approved + released, matched to an existing active customer.
+  // 1 — released, matched to an existing active customer. The document
+  // stays here (BOL Center never loses a record on release); the matching
+  // Prospect seed entry below is what actually reached the Prospects tab.
   {
     id: "bol-2291",
     docNumber: "LSS-BOL-2291",
     fileName: "bol_2291_scan.jpg",
     uploadedAt: iso(9),
     uploadedByUserId: "u-brent",
-    status: "approved",
+    status: "released",
     assignedReviewerId: "u-brent",
     extraction: {
       customerName: ef("Lone Star Steel Fabrication"),
@@ -513,14 +539,14 @@ export const BOL_RECORDS: BolRecord[] = [
     },
     release: { releasedAt: iso(7), releasedByUserId: "u-brent", selection: { company: true, locations: true, generalContact: true, observedFreight: true, observedLanes: true, salesNotes: true, originalBol: false, internalResearch: false, sensitiveInfo: false, rawExtractedData: false } },
   },
-  // 2 — approved + released, matched to an existing active customer.
+  // 2 — released, matched to an existing active customer.
   {
     id: "bol-4410",
     docNumber: "PBO-BOL-4410",
     fileName: "bol_4410_scan.jpg",
     uploadedAt: iso(6),
     uploadedByUserId: "u-brent",
-    status: "approved",
+    status: "released",
     assignedReviewerId: "u-brent",
     extraction: {
       customerName: ef("Permian Basin Oilfield Supply"),
@@ -912,6 +938,122 @@ export const BOL_RECORDS: BolRecord[] = [
     },
     release: null,
   },
+];
+
+// ── OTR ("Dispatch <company>" verbal prospects) ────────────────────────
+// Document-less companies Brent names to the assistant, researched straight
+// into the CRM — deliberately separate from BOL Center (see types.ts's
+// OtrEntry doc comment). Status spread mirrors BOL_RECORDS' variety on
+// purpose: new/researching/ready_for_approval/released/rejected.
+export const OTR_ENTRIES: OtrEntry[] = [
+  // Already released — the OTR half of PROSPECTS' seed data below.
+  {
+    id: "otr-1",
+    companyName: "Big Spring Compression Services",
+    city: "Big Spring",
+    state: "TX",
+    industry: "Oilfield Compression Equipment",
+    phone: "(432) 555-0177",
+    website: "bigspringcompression.com",
+    requestedByUserId: "u-brent",
+    requestedAt: iso(4),
+    status: "released",
+    matchedCompanyId: "c-bigspring-compression",
+    research: {
+      notes: "Brent: \"Dispatch Big Spring Compression Services — ran into their ops manager at the truck stop, they're hauling compressor packages out to the Permian all the time and currently using a broker out of Odessa they're not happy with.\" Checked FMCSA — legit shipper, not a carrier. Worth a call.",
+      observedFreight: ["Gas compressor packages", "Skid-mounted equipment"],
+      observedLanes: ["Big Spring, TX → Permian Basin, TX"],
+      salesRelevance: "high",
+    },
+    release: { releasedAt: iso(3), releasedByUserId: "u-brent", companyId: "c-bigspring-compression" },
+  },
+  {
+    id: "otr-2",
+    companyName: "Concho Valley Rig Movers",
+    city: "San Angelo",
+    state: "TX",
+    industry: "Oilfield Rig Moving",
+    phone: "(325) 555-0143",
+    website: "conchovalleyrig.com",
+    requestedByUserId: "u-brent",
+    requestedAt: iso(2),
+    status: "ready_for_approval",
+    matchedCompanyId: null,
+    research: {
+      notes: "Brent: \"Dispatch Concho Valley Rig Movers — Marcus's cousin works dispatch there, says they sub out overflow rig-moving loads to independents a few times a month.\" Confirmed active MC/DOT, no red flags. Ready to decide.",
+      observedFreight: ["Rig substructure", "Mud tanks", "Doghouses"],
+      observedLanes: ["San Angelo, TX → Permian Basin, TX"],
+      salesRelevance: "high",
+    },
+    release: null,
+  },
+  {
+    id: "otr-3",
+    companyName: "Trans-Pecos Feed & Supply",
+    city: "Alpine",
+    state: "TX",
+    industry: "Agricultural Feed Distribution",
+    phone: "(432) 555-0119",
+    website: "transpecosfeed.com",
+    requestedByUserId: "u-brent",
+    requestedAt: iso(1),
+    status: "researching",
+    matchedCompanyId: null,
+    research: {
+      notes: "Brent: \"Dispatch Trans-Pecos Feed & Supply — small outfit out in Alpine, not sure yet if they run enough volume to be worth it.\" Still digging — no verdict yet.",
+      observedFreight: [],
+      observedLanes: [],
+      salesRelevance: null,
+    },
+    release: null,
+  },
+  {
+    id: "otr-4",
+    companyName: "Golden Spread Wind Services",
+    city: "Pampa",
+    state: "TX",
+    industry: "Wind Energy Logistics",
+    phone: "(806) 555-0184",
+    website: "goldenspreadwind.com",
+    requestedByUserId: "u-brent",
+    requestedAt: iso(0, 15),
+    status: "new",
+    matchedCompanyId: null,
+    research: { notes: "", observedFreight: [], observedLanes: [], salesRelevance: null },
+    release: null,
+  },
+  {
+    id: "otr-5",
+    companyName: "Llano Uplift Quarry Co.",
+    city: "Llano",
+    state: "TX",
+    industry: "Aggregate / Quarry",
+    phone: "(325) 555-0161",
+    website: "llanouplift.com",
+    requestedByUserId: "u-brent",
+    requestedAt: iso(14),
+    status: "rejected",
+    matchedCompanyId: null,
+    research: {
+      notes: "Brent: \"Dispatch Llano Uplift Quarry — turns out they run their own dedicated fleet for the aggregate hauls, only outsource maybe twice a year. Not worth chasing.\"",
+      observedFreight: ["Crushed aggregate"],
+      observedLanes: [],
+      salesRelevance: "low",
+    },
+    release: null,
+  },
+];
+
+/**
+ * Prospects — the ONE thing Sales actually sees, populated only by an
+ * explicit Release from OTR or BOL Center. Seeded to match the releases
+ * already baked into OTR_ENTRIES/BOL_RECORDS above (otr-1, bol-2291,
+ * bol-4410) so the Prospects tab isn't empty on first load.
+ */
+export const PROSPECTS: Prospect[] = [
+  { id: "pr-1", companyId: "c-bigspring-compression", source: "otr", sourceBolId: null, sourceOtrId: "otr-1", releasedAt: iso(3), releasedByUserId: "u-brent" },
+  { id: "pr-2", companyId: "c-lonestar-steel", source: "bol", sourceBolId: "bol-2291", sourceOtrId: null, releasedAt: iso(7), releasedByUserId: "u-brent" },
+  { id: "pr-3", companyId: "c-permian-oilfield", source: "bol", sourceBolId: "bol-4410", sourceOtrId: null, releasedAt: iso(5), releasedByUserId: "u-brent" },
 ];
 
 function formatIsoDateOnly(isoString: string): string {
