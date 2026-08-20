@@ -1,20 +1,22 @@
+import Link from "next/link";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { PageShell, Card, CardHead } from "../_shell/ui";
 import { firstName } from "../_shell/format";
-import { BrokerProfileEditButton } from "./BrokerProfileEditButton";
 import { getBrokerProfile } from "../_shell/brokerProfile";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Settings — the signed-in identity plus the org's Company / Brokerage Info
- * (the letterhead every generated document reads from). Team management, the
- * per-member activity log, and the org document library used to live here
- * too; all three moved into the owner-only Admin Account section
- * (/crm/admin — see ../admin/**) and were removed from this page so there's
- * no duplicate surface for any of them. Settings itself stays reachable by
- * every CRM member (not owner-gated) since "your account" + reading the
- * company's letterhead info are both things a regular member still needs.
+ * Settings — the signed-in identity plus a read-only view of the org's
+ * Company / Brokerage Info (the letterhead every generated document reads
+ * from). Team management, the per-member activity log, and the org document
+ * library used to live here too; all four (this one included, per
+ * DESIGN_DECISIONS.md §2/§3) moved into the owner-only Admin Account section
+ * (/crm/admin — see ../admin/**). Brokerage Info's *edit* capability now
+ * lives at /crm/admin/organization; Settings keeps read access for every
+ * member (not owner-gated) since reading the company's letterhead info is
+ * still something a regular member needs, just no longer something they (or
+ * even an owner, from here) can edit.
  */
 export default async function SettingsPage() {
   const user = await requireCrmUser();
@@ -54,8 +56,18 @@ export default async function SettingsPage() {
         <Card>
           <CardHead
             title="Company / Brokerage Info"
-            hint="The letterhead every generated document reads from."
-            right={isAdmin && <BrokerProfileEditButton profile={brokerProfile} />}
+            hint="The letterhead every generated document reads from. Read-only here."
+            right={
+              isAdmin && (
+                <Link
+                  href="/crm/admin/organization"
+                  prefetch={false}
+                  className="shrink-0 text-[12.5px] font-semibold text-accent hover:underline"
+                >
+                  Edit in Admin → Organization
+                </Link>
+              )
+            }
           />
           <dl className="divide-y divide-line-strong">
             <Row label="Company name" value={brokerProfile.name || "—"} />

@@ -31,23 +31,32 @@ export default async function AdminOverviewPage() {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <StatLinkTile href="/crm/admin/bol-center" label="BOL Center" value="—" />
+        <StatLinkTile href="/crm/admin/otr" label="OTR" value="—" />
         <StatLinkTile href="/crm/admin/accounts" label="Team accounts" value={`${activeTeamCount ?? 0} active`} />
-        <StatLinkTile href="/crm/admin/documents" label="Operational documents" value={String(documentCount)} />
         <StatLinkTile href="/crm/admin/activity" label="Open tasks org-wide" value={String(openTaskCount ?? 0)} />
+        <StatLinkTile href="/crm/admin/documents" label="Master templates" value={String(documentCount)} />
+        <StatLinkTile href="/crm/admin/organization" label="Organization" value="Edit" />
       </div>
 
       <Card>
         <CardHead title="Admin Account" hint="Owner-only elevated area of the CRM" />
         <div className="space-y-2 px-5 py-4 text-[13.5px] leading-relaxed text-fg-muted">
           <p>
-            {teamCount ?? 0} total team {teamCount === 1 ? "account" : "accounts"} on this org. Use{" "}
-            <span className="font-semibold text-fg">Accounts</span> to review a teammate&rsquo;s access
-            level and account controls, <span className="font-semibold text-fg">Activity</span> to see
-            what&rsquo;s happening across every company, and{" "}
+            {teamCount ?? 0} total team {teamCount === 1 ? "account" : "accounts"} on this org.{" "}
+            <span className="font-semibold text-fg">BOL Center</span> and{" "}
+            <span className="font-semibold text-fg">OTR</span> are the two prospect-intake funnels this
+            section is designed around — neither is connected to a real pipeline yet, shown honestly rather
+            than faked. Use <span className="font-semibold text-fg">Accounts</span> to review a
+            teammate&rsquo;s access level and account controls,{" "}
+            <span className="font-semibold text-fg">Activity</span> to see what&rsquo;s happening across
+            every company (the CRM&rsquo;s real sales-activity feed — not yet a separate admin audit trail),{" "}
             <span className="font-semibold text-fg">Documents</span> to open the org&rsquo;s two blank
             master templates (Rate Confirmation and Bill of Lading) — not a per-shipment archive; every
-            shipment&rsquo;s own generated documents live on that shipment&rsquo;s own record instead.
+            shipment&rsquo;s own generated documents live on that shipment&rsquo;s own record instead — and{" "}
+            <span className="font-semibold text-fg">Organization</span> to edit the brokerage letterhead
+            every generated document reads from.
           </p>
         </div>
       </Card>

@@ -49,6 +49,7 @@ export async function updateBrokerProfile(formData: FormData): Promise<ActionRes
   }
 
   revalidatePath("/crm/settings");
+  revalidatePath("/crm/admin/organization");
   revalidatePath("/crm/shipments");
   return { ok: true };
 }

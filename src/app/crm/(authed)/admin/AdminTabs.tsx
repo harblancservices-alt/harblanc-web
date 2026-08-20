@@ -5,9 +5,25 @@ import { usePathname } from "next/navigation";
 
 const TABS: { href: string; label: string; exact: boolean }[] = [
   { href: "/crm/admin", label: "Overview", exact: true },
+  // BOL Center and OTR sit right after Overview, matching crm-design's
+  // admin tab order — the two intake funnels are the highest-priority admin
+  // work, grouped adjacently. Neither has a real backend yet (no bolRecords/
+  // otrEntries table); both pages say so honestly rather than faking data —
+  // see admin/bol-center/page.tsx and admin/otr/page.tsx.
+  { href: "/crm/admin/bol-center", label: "BOL Center", exact: false },
+  { href: "/crm/admin/otr", label: "OTR", exact: false },
   { href: "/crm/admin/accounts", label: "Accounts", exact: false },
+  // Deliberately still labeled "Activity", not "Activity Log" — this tab
+  // shows the real CRM's org-wide SALES activity feed (crm_activities/
+  // crm_calls/crm_notes), not an admin audit trail. crm-design's "Activity
+  // Log" tab is a genuinely different, real audit-log feature (who changed
+  // what admin setting, when) that the real CRM has no backend for yet
+  // (CRM_MASTER_AUDIT.md §3/§12). Renaming the label without building that
+  // backend would repeat the exact "Overview lies about what Documents
+  // shows" bug this section already had fixed once — see admin/page.tsx.
   { href: "/crm/admin/activity", label: "Activity", exact: false },
   { href: "/crm/admin/documents", label: "Documents", exact: false },
+  { href: "/crm/admin/organization", label: "Organization", exact: false },
 ];
 
 /**
