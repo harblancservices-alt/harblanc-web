@@ -331,11 +331,16 @@ export const COMPANIES: Company[] = [
     website: "caprockcotton.com",
     fitRating: 3,
     tags: ["Van", "Seasonal"],
-    lastContactAt: iso(15),
+    // Deliberately stale — 24 days since the last logged contact, no open
+    // task tracking it. Demonstrates the dashboard's "going stale" trigger
+    // (STALE_DAYS = 21) for an active prospect, not just a customer — see
+    // actionItems.ts. Assigned to Caleb (agent) so his dashboard shows one
+    // too, not just Brent's.
+    lastContactAt: iso(24),
     createdAt: iso(45),
     annualFreightSpend: "$140K",
     primaryContactId: "ct-sam-igbo",
-    notes: "Gin manager wants ginning-season capacity locked in by August.",
+    notes: "Gin manager wants ginning-season capacity locked in by August. Went quiet after the initial qualifying call — worth a check-in.",
   },
   {
     id: "c-blackland-dairy",
@@ -366,7 +371,10 @@ export const COMPANIES: Company[] = [
     city: "Big Spring",
     state: "TX",
     stage: "new_lead",
-    assignedUserId: "u-brent",
+    // Assigned to Dana (agent), not Brent — so the "new prospect, no action
+    // yet" dashboard trigger has a real example under an agent persona, not
+    // only owner/admin. Brent sourced it via OTR, but working it is Dana's.
+    assignedUserId: "u-dana",
     phone: "(432) 555-0177",
     website: "bigspringcompression.com",
     fitRating: 4,
@@ -407,7 +415,7 @@ export const TASKS: TaskItem[] = [
   { id: "t-2", title: "Send updated rate sheet", companyId: "c-coastal-refinery", contactId: "ct-neil-park", assignedUserId: "u-dana", dueAt: isoFuture(0), priority: "high", status: "open" },
   { id: "t-3", title: "Follow up on Crossroads Ag quote", companyId: "c-crossroads-ag", contactId: "ct-wanda-price", assignedUserId: "u-dana", dueAt: isoFuture(2), priority: "normal", status: "open" },
   { id: "t-4", title: "First contact — Red River Timber inbound lead", companyId: "c-redriver-timber", contactId: null, assignedUserId: "u-dana", dueAt: isoFuture(1), priority: "normal", status: "open" },
-  { id: "t-5", title: "Confirm modular lane rate w/ Felix", companyId: "c-gulfcoast-modular", contactId: "ct-felix-tran", assignedUserId: "u-caleb", dueAt: iso(-1), priority: "high", status: "open" },
+  { id: "t-5", title: "Confirm modular lane rate w/ Felix", companyId: "c-gulfcoast-modular", contactId: "ct-felix-tran", assignedUserId: "u-caleb", dueAt: iso(3), priority: "high", status: "open" },
   { id: "t-6", title: "Onboard Alamo shipping desk", companyId: "c-alamo-manufacturing", contactId: "ct-grace-nolan", assignedUserId: "u-marcus", dueAt: isoFuture(3), priority: "normal", status: "open" },
   { id: "t-7", title: "Revisit Piney Woods pipe in Q1", companyId: "c-piney-woods", contactId: "ct-tommy-shaw", assignedUserId: "u-caleb", dueAt: isoFuture(30), priority: "low", status: "open" },
   { id: "t-8", title: "Log this week's Desert Crane loads", companyId: "c-desert-crane", contactId: null, assignedUserId: "u-marcus", dueAt: iso(2), priority: "normal", status: "done" },
@@ -437,7 +445,7 @@ export const ACTIVITIES: ActivityItem[] = [
   { id: "a-11", kind: "email", companyId: "c-panhandle-grain", contactId: "ct-oscar-lin", authorId: "u-dana", title: "Email · Intro sent", body: null, occurredAt: iso(9) },
   { id: "a-12", kind: "call", companyId: "c-brazos-precast", contactId: "ct-hector-vega", authorId: "u-caleb", title: "Call · No answer", body: "Left voicemail, will try again Thursday.", occurredAt: iso(12) },
   { id: "a-13", kind: "document", companyId: "c-permian-oilfield", contactId: null, authorId: "u-brent", title: "Document generated: Rate Confirmation", body: "PBO-1190", occurredAt: iso(1) },
-  { id: "a-14", kind: "stage_change", companyId: "c-caprock-cotton", contactId: null, authorId: "u-caleb", title: "Stage changed: Contacted → Qualified", body: null, occurredAt: iso(15, 11) },
+  { id: "a-14", kind: "stage_change", companyId: "c-caprock-cotton", contactId: null, authorId: "u-caleb", title: "Stage changed: Contacted → Qualified", body: null, occurredAt: iso(24, 11) },
   { id: "a-15", kind: "call", companyId: "c-coastal-refinery", contactId: "ct-owen-castillo", authorId: "u-dana", title: "Call · Confirmed", body: "Walked through turnaround schedule for the next 6 weeks.", occurredAt: iso(7) },
 ];
 

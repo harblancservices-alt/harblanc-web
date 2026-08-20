@@ -5,21 +5,29 @@ import Link from "next/link";
 import { useStore } from "../_lib/store";
 import { Badge, Button, Card, CardHead, EmptyState, PAGE_WIDTH, PageHeader, TEXT } from "../_design/ui";
 import { firstName, relativeTime } from "../_lib/format";
-import { IconActivity, IconBuilding, IconCalendar, IconCheck, IconPlus, IconTasks } from "../_design/icons";
+import { IconActivity, IconBuilding, IconCalendar, IconCheck, IconFlame, IconPhone, IconPlus, IconTasks } from "../_design/icons";
 import { AddCompanyDrawer } from "../_shared/AddCompanyDrawer";
+import { computeActionItems, type ActionItem, type ActionItemReasonTone } from "../_lib/actionItems";
+
+const REASON_TONE_CLASS: Record<ActionItemReasonTone, string> = {
+  danger: "bg-[var(--cd-danger-soft)] text-[var(--cd-danger)]",
+  accent: "bg-[var(--cd-accent-soft)] text-[var(--cd-accent)]",
+  warning: "bg-[var(--cd-warning-soft)] text-[var(--cd-warning)]",
+  neutral: "bg-[var(--cd-surface-2)] text-[var(--cd-text-muted)]",
+};
+
+const TASK_KINDS = new Set(["overdue", "due_today", "due_soon"]);
 
 export default function DashboardPage() {
-  const { companies, tasks, activities, currentUser, toggleTask } = useStore();
+  const { companies, tasks, activities, prospects, currentUser, toggleTask } = useStore();
   const [addOpen, setAddOpen] = useState(false);
 
-  const myTasks = useMemo(
-    () =>
-      tasks
-        .filter((t) => t.status === "open")
-        .filter((t) => currentUser.role === "owner" || currentUser.role === "admin" || t.assignedUserId === currentUser.id)
-        .sort((a, b) => (a.dueAt ?? "9999").localeCompare(b.dueAt ?? "9999"))
-        .slice(0, 6),
-    [tasks, currentUser],
+  // Auto-computed and ranked — no manual priority tagging drives this order.
+  // See _lib/actionItems.ts for the signals (overdue > due today > going
+  // stale > new prospect > due soon) and how each is scored.
+  const actionItems = useMemo(
+    () => computeActionItems({ tasks, companies, activities, prospects, currentUser }).slice(0, 8),
+    [tasks, companies, activities, prospects, currentUser],
   );
 
   const overdue = tasks.filter((t) => t.status === "open" && t.dueAt && new Date(t.dueAt) < new Date()).length;
@@ -65,13 +73,17 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
-          <CardHead title="Your next best actions" hint={`${myTasks.length} open`} />
-          {myTasks.length === 0 ? (
-            <EmptyState icon={<IconCheck />} title="Nothing on your plate" body="Open tasks assigned to you will show up here." />
+          <CardHead title="Your next best actions" hint={`${actionItems.length} action${actionItems.length === 1 ? "" : "s"}`} />
+          {actionItems.length === 0 ? (
+            <EmptyState
+              icon={<IconCheck />}
+              title="Nothing needs your attention"
+              body="Overdue and due-today tasks, accounts going quiet, and new prospects with no first contact will show up here, ranked automatically."
+            />
           ) : (
             <ul className="divide-y divide-[var(--cd-border)]">
-              {myTasks.map((t) => (
-                <TaskRow key={t.id} taskId={t.id} title={t.title} companyId={t.companyId} dueAt={t.dueAt} priority={t.priority} onToggle={() => toggleTask(t.id)} />
+              {actionItems.map((item) => (
+                <ActionRow key={item.id} item={item} onToggleTask={toggleTask} />
               ))}
             </ul>
           )}
@@ -123,34 +135,63 @@ function KpiTile({ label, value, tone, href }: { label: string; value: number; t
   );
 }
 
-function TaskRow({ taskId, title, companyId, dueAt, priority, onToggle }: { taskId: string; title: string; companyId: string | null; dueAt: string | null; priority: string; onToggle: () => void }) {
-  const { companies } = useStore();
-  const company = companies.find((c) => c.id === companyId);
-  const overdue = dueAt && new Date(dueAt) < new Date() && new Date(dueAt).toDateString() !== new Date().toDateString();
-  return (
-    <li className="flex items-center gap-3 px-4 py-3">
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-label="Complete task"
-        className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-[var(--cd-border-strong)] text-transparent transition-colors hover:border-[var(--cd-accent)] hover:text-[var(--cd-accent)]"
-      >
-        <IconCheck width={12} height={12} />
-      </button>
+/**
+ * Renders every kind the auto-priority engine produces. Task-backed kinds
+ * (overdue/due_today/due_soon) keep the checkbox-complete behavior; the
+ * synthesized kinds (stale/new_prospect) aren't tasks — no checkbox, the
+ * whole row is a link straight to the company instead.
+ */
+function ActionRow({ item, onToggleTask }: { item: ActionItem; onToggleTask: (taskId: string) => void }) {
+  const isTask = TASK_KINDS.has(item.kind);
+
+  const leading = isTask ? (
+    <button
+      type="button"
+      onClick={() => item.taskId && onToggleTask(item.taskId)}
+      aria-label="Complete task"
+      className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-[var(--cd-border-strong)] text-transparent transition-colors hover:border-[var(--cd-accent)] hover:text-[var(--cd-accent)]"
+    >
+      <IconCheck width={12} height={12} />
+    </button>
+  ) : (
+    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--cd-accent-soft)] text-[var(--cd-accent)]">
+      {item.kind === "stale" ? <IconPhone width={11} height={11} /> : <IconFlame width={11} height={11} />}
+    </span>
+  );
+
+  const body = (
+    <>
+      {leading}
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[13.5px] font-semibold text-[var(--cd-text)]">{title}</p>
-        <p className={`${TEXT.micro} text-[var(--cd-text-muted)]`}>
-          {company ? (
-            <Link href={`/crm-design/companies/${company.id}`} className="hover:text-[var(--cd-accent)]">
-              {company.name}
+        <p className="truncate text-[13.5px] font-semibold text-[var(--cd-text)]">{item.title}</p>
+        {item.companyName &&
+          (isTask && item.href ? (
+            <Link
+              href={item.href}
+              onClick={(e) => e.stopPropagation()}
+              className={`${TEXT.micro} text-[var(--cd-text-muted)] hover:text-[var(--cd-accent)]`}
+            >
+              {item.companyName}
             </Link>
           ) : (
-            "No company"
-          )}
-          {dueAt && <> · {overdue ? <span className="font-semibold text-[var(--cd-danger)]">{relativeTime(dueAt)}</span> : relativeTime(dueAt)}</>}
-        </p>
+            <p className={`${TEXT.micro} text-[var(--cd-text-muted)]`}>{item.companyName}</p>
+          ))}
       </div>
-      {priority === "high" && <Badge tone="danger">High</Badge>}
+      {item.priority === "high" && <Badge tone="danger">High</Badge>}
+      <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10.5px] font-semibold whitespace-nowrap ${REASON_TONE_CLASS[item.reasonTone]}`}>
+        {item.reason}
+      </span>
+    </>
+  );
+
+  if (isTask) {
+    return <li className="flex items-center gap-3 px-4 py-3">{body}</li>;
+  }
+  return (
+    <li>
+      <Link href={item.href ?? "#"} className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-[var(--cd-surface-hover)]">
+        {body}
+      </Link>
     </li>
   );
 }
