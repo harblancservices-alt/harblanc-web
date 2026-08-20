@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useStore } from "../../_lib/store";
-import { EmptyState, PAGE_WIDTH, PageHeader, TEXT } from "../../_design/ui";
+import { EmptyState, PAGE_WIDTH, PAGE_WIDTH_FULL, PageHeader, TEXT } from "../../_design/ui";
 import { IconShield } from "../../_design/icons";
 
 const TABS: { href: string; label: string; exact: boolean }[] = [
@@ -46,6 +46,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     "/crm-design/admin/otr": otrNeedsAttention,
   };
 
+  // The BOL detail page's document-verification split (scan left, fields
+  // right) needs the full viewport — a centered 1400px box was squeezing
+  // the fields panel on any wide monitor (Brent's report). Every other
+  // admin screen (this list included) stays boxed on PAGE_WIDTH; only the
+  // one-level-deeper detail route (/admin/bol-center/[id], never the bare
+  // Inbox list itself) switches to PAGE_WIDTH_FULL, header/tabs included so
+  // there's no jarring narrow-header-over-wide-content mismatch.
+  // startsWith(".../bol-center/") — WITH the trailing slash — only matches
+  // when there's a further segment after it (the BOL's id), so the bare
+  // Inbox list route (no trailing segment) is correctly excluded.
+  const isBolDetail = pathname.startsWith("/crm-design/admin/bol-center/");
+  const containerWidth = isBolDetail ? PAGE_WIDTH_FULL : PAGE_WIDTH;
+
   if (!isElevated) {
     return (
       <div className={PAGE_WIDTH}>
@@ -59,7 +72,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   return (
-    <div className={PAGE_WIDTH}>
+    <div className={containerWidth}>
       <PageHeader
         title="Admin Account"
         subtitle="Owner/admin-only. Manage the team, review the audit trail, and set organization-wide settings."

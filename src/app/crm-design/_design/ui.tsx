@@ -12,6 +12,14 @@ import { initials as getInitials } from "../_lib/format";
 
 export const PAGE_WIDTH = "mx-auto w-full max-w-[1400px] px-4 py-5 sm:px-6 sm:py-7";
 
+/** Same vertical rhythm and horizontal padding as PAGE_WIDTH, but no
+ * max-width/centering — for the rare screen whose whole point is using the
+ * full viewport (currently just the BOL detail workspace's document/fields
+ * split, where a centered 1400px box was squeezing the fields panel on any
+ * wide monitor). Every other page stays on PAGE_WIDTH; this is deliberately
+ * not the default. */
+export const PAGE_WIDTH_FULL = "w-full px-4 py-5 sm:px-6 sm:py-7";
+
 // ── Typography scale — five sizes, used consistently everywhere. Nothing
 // in this prototype picks an arbitrary one-off text size. ──
 export const TEXT = {

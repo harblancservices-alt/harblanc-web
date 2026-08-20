@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { notFound, useParams } from "next/navigation";
 import { useBolRecord, useCompany, useStore, useTeamMemberById } from "../../../../_lib/store";
-import { Badge, Breadcrumb, Button, Card, CardHead, PAGE_WIDTH, TEXT } from "../../../../_design/ui";
+import { Badge, Breadcrumb, Button, Card, CardHead, TEXT } from "../../../../_design/ui";
 import { Tabs } from "../../../../_design/Tabs";
 import { BOL_STATUS_DESCRIPTION, BOL_STATUS_LABEL, BOL_STATUS_TONE } from "../../../../_lib/bolStatus";
 import { firstName, formatDateTime } from "../../../../_lib/format";
@@ -35,7 +35,7 @@ export default function BolDetailPage() {
   })();
 
   return (
-    <div className={PAGE_WIDTH}>
+    <>
       <Breadcrumb items={[{ label: "BOL Center", href: "/crm-design/admin/bol-center" }, { label: bol.docNumber }]} />
 
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
@@ -111,7 +111,7 @@ export default function BolDetailPage() {
           </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -199,7 +199,7 @@ function ExtractionTab({ bolId, pending }: { bolId: string; pending: boolean }) 
       {FIELD_GROUPS.filter((group) => group.fields.some((f) => bol.extraction[f.key])).map((group) => (
         <Card key={group.title}>
           <CardHead title={group.title} />
-          <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-x-6 gap-y-4 p-5 sm:grid-cols-2">
             {group.fields.map((f) => {
               const field = bol.extraction[f.key];
               if (!field) return null;
@@ -360,7 +360,7 @@ function CustomerLocationTab({ bolId }: { bolId: string }) {
             title="Also on this document"
             hint="A BOL can name more than one company worth evaluating — shown separately, never merged into the primary match above."
           />
-          <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-x-6 gap-y-4 p-5 sm:grid-cols-2">
             <div className="rounded-[var(--cd-radius-md)] border border-[var(--cd-border)] bg-[var(--cd-surface-2)] px-3.5 py-3">
               <p className={`${TEXT.label} text-[var(--cd-text-muted)]`}>Consignee</p>
               <p className="text-[13.5px] font-bold text-[var(--cd-text)]">{bol.extraction.consigneeName.value}</p>
