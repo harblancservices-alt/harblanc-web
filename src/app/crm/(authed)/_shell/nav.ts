@@ -7,7 +7,6 @@ import {
   IconSettings,
   IconFlame,
   IconAiReview,
-  IconCalendar,
   IconStarSolid,
   IconFlagSolid,
   IconAdminAccount,
@@ -96,7 +95,6 @@ export function buildCrmNav(
       badgeTone: "alert",
     },
     { href: "/crm/tasks", label: "Tasks", Icon: IconTasks },
-    { href: "/crm/calendar", label: "Calendar", Icon: IconCalendar },
     {
       href: "/crm/active-customers",
       label: "Active Clients",
