@@ -27,34 +27,28 @@ export type CrmNavItem = {
    * plain gray count, e.g. Active Clients' size or AI Review's queue
    * depth — informational, not something demanding action. */
   badgeTone?: "alert" | "neutral";
-  /** True for items only ever pushed when role==='owner' (currently just AI
-   * Review). CrmShell and MobileMoreSheet render these in an orange accent
-   * — icon + label — so the admin can tell admin-only tabs apart from
-   * everyday ones at a glance, in both the desktop sidebar and the mobile
-   * More sheet. */
-  ownerOnly?: boolean;
-  /** True for items that should read as urgent/attention-grabbing for EVERY
-   * user, not just the owner (currently just Upgrades — a place to flag
-   * things Brent should look at). CrmShell and MobileMoreSheet render these
-   * in the CRM's red `--bad` token — icon + label — regardless of active
-   * state, same mechanism as `ownerOnly`'s always-orange treatment but not
-   * role-gated. An item is never expected to set both. */
-  redAccent?: boolean;
   /** Forces the item's ICON (only — border/background/label stay the normal
    * item treatment) to a fixed color regardless of active state. Currently
-   * just "Active Clients", which wants a solid gold star at all times. Unlike
-   * ownerOnly/redAccent this never tints the label or border. */
+   * just "Active Clients", which wants a solid gold star at all times — the
+   * one deliberate, documented brand-color exception in the nav (everything
+   * else pulls from the shared accent/admin token pair below). */
   iconTint?: "gold";
   /** True for the single "Admin Account" item — owner-only (pushed only when
-   * role==='owner', same conditional-push pattern as AI Review's ownerOnly)
-   * but rendered in its OWN purple accent rather than AI Review's orange, so
-   * the two owner-only surfaces read as visually distinct: AI Review is a
-   * queue to work through, Admin Account is the elevated management area.
-   * CrmShell pulls this item (like Settings) out of the scrolling nav list
-   * into the sidebar's pinned bottom footer, below the account identity row
-   * — "pinned at the bottom of the sidebar" per the approved mockup — while
-   * MobileMoreSheet renders it inline in the More sheet's list, purple-
-   * tinted, same as it does for ownerOnly/redAccent items today. */
+   * role==='owner') and rendered in the CRM's dedicated `--admin` token
+   * (violet), full nav weight, promoted back into the main scrolling list
+   * with one divider above it rather than demoted into footer chrome — the
+   * owner's most powerful surface shouldn't be visually the smallest thing
+   * in the shell (CRM_MASTER_AUDIT.md §1/§2/§13 P1 #7).
+   *
+   * 2026-08-19: collapsed from four independent hardcoded accent flags
+   * (ownerOnly→amber, redAccent→red, adminAccent→raw hex, iconTint→gold) down
+   * to two — this flag (the one elevated/admin token) and iconTint (the one
+   * named brand exception). AI Review and Upgrades no longer carry their own
+   * ad-hoc color: AI Review is already role-gated structurally (only ever
+   * pushed for an owner), so it doesn't need a color to also say "owner
+   * only"; Upgrades is demoted to footer placement instead of a permanent red
+   * flag (see CrmShell). One accent per semantic category, not one invented
+   * color per feature. */
   adminAccent?: boolean;
 };
 
@@ -112,17 +106,6 @@ export function buildCrmNav(
       badgeTone: "neutral",
       iconTint: "gold",
     },
-    {
-      href: "/crm/upgrades",
-      label: "Upgrades",
-      Icon: IconFlagSolid,
-      redAccent: true,
-      // Backlog count, not a time-sensitive queue (see badgeTone doc above)
-      // — same "neutral" bucket as Active Clients/AI Review, independent
-      // of the item's always-on red accent.
-      badge: outstandingUpgradeCount > 0 ? outstandingUpgradeCount : undefined,
-      badgeTone: "neutral",
-    },
   ];
   if (role === "owner") {
     nav.push({
@@ -131,9 +114,18 @@ export function buildCrmNav(
       Icon: IconAiReview,
       badge: pendingReviewCount > 0 ? pendingReviewCount : undefined,
       badgeTone: "neutral",
-      ownerOnly: true,
     });
   }
+  nav.push({
+    href: "/crm/upgrades",
+    label: "Upgrades",
+    Icon: IconFlagSolid,
+    // Backlog count, informational — same "neutral" bucket as Active
+    // Clients/AI Review, no longer paired with a permanent red flag (moved
+    // to footer placement in CrmShell, see CRM_MASTER_AUDIT.md §1/§2 P1 #6).
+    badge: outstandingUpgradeCount > 0 ? outstandingUpgradeCount : undefined,
+    badgeTone: "neutral",
+  });
   nav.push({ href: "/crm/settings", label: "Settings", Icon: IconSettings });
   if (role === "owner") {
     nav.push({

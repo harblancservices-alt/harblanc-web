@@ -38,7 +38,7 @@ export function AdminTabs() {
             aria-selected={active}
             className={`shrink-0 rounded-md px-3.5 py-2 text-[13px] font-bold transition-all ${
               active
-                ? "bg-card text-[#9333ea] shadow-e2 ring-1 ring-line-strong"
+                ? "bg-card text-admin shadow-e2 ring-1 ring-line-strong"
                 : "text-fg-muted hover:bg-card/60 hover:text-fg"
             }`}
           >

@@ -82,7 +82,7 @@ export function MemberAccountForm({
             onClick={() => setAccessLevel("owner")}
             aria-pressed={accessLevel === "owner"}
             className={`rounded-md px-4 py-2 text-[13px] font-semibold transition-colors ${
-              accessLevel === "owner" ? "bg-card text-[#9333ea] shadow-e1 ring-1 ring-line-strong" : "text-fg-muted hover:text-fg"
+              accessLevel === "owner" ? "bg-card text-admin shadow-e1 ring-1 ring-line-strong" : "text-fg-muted hover:text-fg"
             }`}
           >
             Admin

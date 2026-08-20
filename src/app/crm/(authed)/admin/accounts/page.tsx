@@ -46,7 +46,7 @@ export default async function AdminAccountsPage() {
                       {firstName(m.fullName, m.email) || "Unnamed"}
                     </span>
                     {m.isPrimaryOwner ? (
-                      <span className="bg-[#f3e8ff] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#9333ea]">
+                      <span className="bg-admin-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-admin">
                         Primary owner
                       </span>
                     ) : m.role === "owner" ? (

@@ -103,7 +103,7 @@ export function AdminActivityList({ items }: { items: AdminActivityItem[] }) {
                 aria-selected={type === t.key}
                 onClick={() => setType(t.key)}
                 className={`rounded-md px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
-                  type === t.key ? "bg-card text-[#9333ea] shadow-e1 ring-1 ring-line-strong" : "text-fg-muted hover:text-fg"
+                  type === t.key ? "bg-card text-admin shadow-e1 ring-1 ring-line-strong" : "text-fg-muted hover:text-fg"
                 }`}
               >
                 {t.label}

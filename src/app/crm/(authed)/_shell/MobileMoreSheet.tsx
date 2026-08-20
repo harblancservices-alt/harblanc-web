@@ -12,8 +12,10 @@ import { IconLogout } from "./icons";
  * `items` is already role-filtered by buildCrmNav/moreNav in CrmShell (the
  * same source feeding the desktop sidebar and the bottom bar), so an
  * owner-only destination like AI Review only ever appears here for an
- * owner — this component does no gating of its own. Owner-only items
- * render in the same orange accent as the desktop sidebar (item.ownerOnly).
+ * owner — this component does no gating of its own. Admin Account renders
+ * in the CRM's dedicated `--admin` violet token, same as the desktop
+ * sidebar; every other item shares the one workspace accent, plus the one
+ * documented gold-icon exception on Active Clients (item.iconTint).
  */
 export function MobileMoreSheet({
   open,
@@ -70,8 +72,6 @@ export function MobileMoreSheet({
         <nav className="flex flex-col gap-0.5 px-3 pb-2">
           {items.map((item, index) => {
             const active = isActive(pathname, item);
-            const ownerOnly = !!item.ownerOnly;
-            const redAccent = !!item.redAccent;
             const adminAccent = !!item.adminAccent;
             const goldIcon = item.iconTint === "gold";
             return (
@@ -89,35 +89,23 @@ export function MobileMoreSheet({
                   className={[
                     "flex items-center gap-3 border-l-2 px-3 py-2.5 text-[14px] font-medium transition-colors",
                     active
-                      ? ownerOnly
-                        ? "border-warn bg-graphite-2 text-warn"
-                        : redAccent
-                          ? "border-bad bg-graphite-2 text-bad"
-                          : adminAccent
-                            ? "border-[#c084fc] bg-graphite-2 text-[#c084fc]"
-                            : "border-accent bg-graphite-2 text-white"
-                      : ownerOnly
-                        ? "border-transparent text-warn/90 hover:bg-graphite-2/60 hover:text-warn"
-                        : redAccent
-                          ? "border-transparent text-bad/90 hover:bg-graphite-2/60 hover:text-bad"
-                          : adminAccent
-                            ? "border-transparent text-[#c084fc]/90 hover:bg-graphite-2/60 hover:text-[#c084fc]"
-                            : "border-transparent text-white hover:bg-graphite-2/60",
+                      ? adminAccent
+                        ? "border-admin bg-graphite-2 text-admin"
+                        : "border-accent bg-graphite-2 text-white"
+                      : adminAccent
+                        ? "border-transparent text-admin/90 hover:bg-graphite-2/60 hover:text-admin"
+                        : "border-transparent text-white hover:bg-graphite-2/60",
                   ].join(" ")}
                 >
                   <item.Icon
                     className={
                       goldIcon
                         ? "text-[#e3b341]"
-                        : ownerOnly
-                          ? "text-warn"
-                          : redAccent
-                            ? "text-bad"
-                            : adminAccent
-                              ? "text-[#c084fc]"
-                              : active
-                                ? "text-accent"
-                                : "text-on-dark-dim"
+                        : adminAccent
+                          ? "text-admin"
+                          : active
+                            ? "text-accent"
+                            : "text-on-dark-dim"
                     }
                   />
                   <span className="flex-1">{item.label}</span>

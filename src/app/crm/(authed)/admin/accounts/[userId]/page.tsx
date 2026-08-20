@@ -65,7 +65,7 @@ export default async function AdminMemberDetailPage({
             <p className="text-[13px] text-fg-muted">{member.email || "—"}</p>
             <div className="mt-1 flex flex-wrap items-center justify-center gap-1.5">
               {member.isPrimaryOwner ? (
-                <span className="bg-[#f3e8ff] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#9333ea]">
+                <span className="bg-admin-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-admin">
                   Primary owner
                 </span>
               ) : member.role === "owner" ? (

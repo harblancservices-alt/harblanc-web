@@ -240,6 +240,18 @@ input[type="date"]::-webkit-date-and-time-value {
      primary-action colour of any reused design-system Button/primitive. */
   --accent: var(--v2-blue);
   --accent-hover: var(--v2-blue-hover);
+
+  /* Elevated/admin accent — ONE dedicated token for every owner-only CRM
+     surface (Admin Account nav item, Admin tab bar, Admin role badges).
+     Replaces 9+ raw #9333ea/#c084fc/#f3e8ff hex literals that had been
+     copy-pasted file to file with no shared source of truth (CRM_MASTER_AUDIT.md
+     §2/§7/§12). Ported from the crm-design prototype's --cd-admin token
+     (crm-design.css) — same violet, so the elevated-surface color meaning
+     carries over unchanged from the approved redesign. Scoped to .crm-light
+     only; nothing outside the CRM reads --color-admin. */
+  --admin: #6d3fd4;
+  --admin-hover: #5c34b8;
+  --admin-soft: #ece3fb;
 }
 
 /* ============================================================== */
@@ -488,6 +500,9 @@ html[data-layout="landscape"] [data-shell="main"] { padding-bottom: 0 !important
   --color-slate-bg: var(--slate-bg);
   --color-info: var(--info);
   --color-info-hover: var(--info-hover);
+  --color-admin: var(--admin);
+  --color-admin-hover: var(--admin-hover);
+  --color-admin-soft: var(--admin-soft);
 
   --shadow-e1: var(--v2-e1);
   --shadow-e2: var(--v2-e2);

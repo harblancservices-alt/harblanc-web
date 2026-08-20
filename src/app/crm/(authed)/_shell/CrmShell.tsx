@@ -60,15 +60,19 @@ export function CrmShell({
     outstandingUpgradeCount,
   );
   const mobileNav = bottomNav(navItems);
-  // Settings moved to the bottom identity block on desktop (between the
-  // profile row and Sign out) — pulled out of the scrolling nav list so it
-  // reads as account-level chrome, not a destination alongside Dashboard/
-  // Companies/etc. Mobile is untouched: it stays in `moreNav` below and
-  // still surfaces in the "More" sheet exactly as before.
+  // Settings and Upgrades stay pulled into the bottom identity block on
+  // desktop (between the profile row and Sign out) — account-level chrome
+  // and a lower-emphasis feedback link, not daily-driver destinations
+  // alongside Dashboard/Companies/etc (CRM_MASTER_AUDIT.md §1/§2 P1 #6).
+  // Admin Account is the opposite move: promoted BACK into the main
+  // scrolling list (with one divider above it) instead of demoted into
+  // footer chrome — it's the owner's most powerful surface, not account
+  // chrome (§1/§2 P1 #7). Mobile is untouched: all three still surface in
+  // the "More" sheet via `moreNav` exactly as before.
   const settingsItem = navItems.find((item) => item.href === "/crm/settings");
-  const adminItem = navItems.find((item) => item.href === "/crm/admin");
+  const upgradesItem = navItems.find((item) => item.href === "/crm/upgrades");
   const sidebarNavItems = navItems.filter(
-    (item) => item.href !== "/crm/settings" && item.href !== "/crm/admin",
+    (item) => item.href !== "/crm/settings" && item.href !== "/crm/upgrades",
   );
   // Everything the bottom bar's 4 fixed slots don't cover (Active
   // Clients, Prospects, Settings, and — owner-only — AI Review) surfaces
@@ -97,18 +101,19 @@ export function CrmShell({
           <nav className="flex flex-1 flex-col overflow-y-auto p-3">
             {sidebarNavItems.map((item, index) => {
               const active = isActive(pathname, item);
-              // Owner-only items (currently just AI Review) render in an
-              // orange accent — the CRM's existing --warn/amber token —
-              // regardless of active state, so the admin can tell
-              // admin-only tabs apart from everyday ones at a glance.
-              // Red-accent items (currently just Upgrades) render the same
-              // way but in --bad/red, for every user, not just the owner.
-              // iconTint (currently just Active Clients' gold star) only
-              // recolors the icon, unlike ownerOnly/redAccent — the border/
-              // background/label stay the normal item treatment.
-              const ownerOnly = !!item.ownerOnly;
-              const redAccent = !!item.redAccent;
+              // One coherent color system, not four independent ad-hoc
+              // flags (CRM_MASTER_AUDIT.md §1/§2/§13 P1 #5): every item is
+              // the shared steel-blue accent unless it's Admin Account (the
+              // one dedicated elevated/`--admin` violet token), plus the one
+              // documented icon-only exception (Active Clients' gold star).
+              const admin = !!item.adminAccent;
               const goldIcon = item.iconTint === "gold";
+              // Admin Account is promoted into this same scrolling list
+              // (not demoted to footer chrome) but still needs to read as
+              // visually set apart from the daily-driver workspace items
+              // above it — a section divider does that without inventing a
+              // second color.
+              const isFirstAdminItem = admin && !sidebarNavItems[index - 1]?.adminAccent;
               return (
                 // The divider lives on this wrapper (border-b), never on the
                 // Link itself — the Link's own border-l-2/border-{color}
@@ -118,7 +123,12 @@ export function CrmShell({
                 // exactly this collision and renders invisibly here).
                 <div
                   key={item.href}
-                  className={index < sidebarNavItems.length - 1 ? "border-b border-graphite-line/70" : ""}
+                  className={[
+                    isFirstAdminItem ? "mt-2 border-t border-graphite-line pt-2" : "",
+                    index < sidebarNavItems.length - 1 ? "border-b border-graphite-line/70" : "",
+                  ]
+                    .filter(Boolean)
+                    .join(" ")}
                 >
                   <Link
                     href={item.href}
@@ -126,16 +136,12 @@ export function CrmShell({
                     className={[
                       "flex items-center gap-3.5 border-l-2 px-3.5 py-3 text-[15px] font-medium transition-colors",
                       active
-                        ? ownerOnly
-                          ? "border-warn bg-graphite-2 text-warn"
-                          : redAccent
-                            ? "border-bad bg-graphite-2 text-bad"
-                            : "border-accent bg-graphite-2 text-white"
-                        : ownerOnly
-                          ? "border-transparent text-warn/90 hover:bg-graphite-2/60 hover:text-warn"
-                          : redAccent
-                            ? "border-transparent text-bad/90 hover:bg-graphite-2/60 hover:text-bad"
-                            : "border-transparent text-white hover:bg-graphite-2/60",
+                        ? admin
+                          ? "border-admin bg-graphite-2 text-admin"
+                          : "border-accent bg-graphite-2 text-white"
+                        : admin
+                          ? "border-transparent text-admin/90 hover:bg-graphite-2/60 hover:text-admin"
+                          : "border-transparent text-white hover:bg-graphite-2/60",
                     ].join(" ")}
                   >
                     <item.Icon
@@ -144,13 +150,11 @@ export function CrmShell({
                       className={
                         goldIcon
                           ? "text-[#e3b341]"
-                          : ownerOnly
-                            ? "text-warn"
-                            : redAccent
-                              ? "text-bad"
-                              : active
-                                ? "text-accent"
-                                : "text-on-dark-dim"
+                          : admin
+                            ? "text-admin"
+                            : active
+                              ? "text-accent"
+                              : "text-on-dark-dim"
                       }
                     />
                     <span className="flex-1">{item.label}</span>
@@ -201,19 +205,26 @@ export function CrmShell({
                 Settings
               </Link>
             )}
-            {adminItem && (
+            {upgradesItem && (
               <Link
-                href={adminItem.href}
+                href={upgradesItem.href}
                 prefetch={false}
                 className={[
-                  "mb-1 flex items-center gap-2 rounded-lg px-3 py-2 text-[12.5px] font-semibold transition-colors",
-                  isActive(pathname, adminItem)
-                    ? "bg-graphite-2 text-[#c084fc]"
-                    : "text-[#c084fc]/90 hover:bg-graphite-2/60 hover:text-[#c084fc]",
+                  "mb-1 flex items-center justify-between gap-2 rounded-lg px-3 py-2 text-[12.5px] font-medium transition-colors",
+                  isActive(pathname, upgradesItem)
+                    ? "bg-graphite-2 text-white"
+                    : "text-on-dark-dim hover:bg-graphite-2/60 hover:text-white",
                 ].join(" ")}
               >
-                <adminItem.Icon width={18} height={18} className="text-[#c084fc]" />
-                {adminItem.label}
+                <span className="flex items-center gap-2">
+                  <upgradesItem.Icon width={18} height={18} />
+                  {upgradesItem.label}
+                </span>
+                {!!upgradesItem.badge && (
+                  <span className="inline-flex h-[18px] min-w-[18px] items-center justify-center bg-graphite-2 px-1 text-[10.5px] font-bold leading-none tabular-nums text-on-dark-dim">
+                    {upgradesItem.badge > 99 ? "99+" : upgradesItem.badge}
+                  </span>
+                )}
               </Link>
             )}
             <form action="/crm/logout" method="post">
