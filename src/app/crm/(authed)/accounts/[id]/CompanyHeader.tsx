@@ -78,7 +78,7 @@ export function CompanyHeader({
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-line-strong bg-card px-4 py-3.5 shadow-e2">
       <div className="flex min-w-0 flex-wrap items-center gap-3">
         <BackButton fallbackHref="/crm/accounts" label="Companies" />
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center bg-inset text-fg-subtle">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-accent/10 text-accent">
           <IconCompanies width={18} height={18} />
         </span>
         <h1 className="min-w-0 truncate text-[18px] font-bold tracking-tight text-fg">{name}</h1>
