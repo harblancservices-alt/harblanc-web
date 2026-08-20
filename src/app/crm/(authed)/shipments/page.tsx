@@ -60,6 +60,7 @@ export default async function ShipmentsPage({
 
   return (
     <PageShell
+      title="Shipments"
       actions={
         <>
           <Link

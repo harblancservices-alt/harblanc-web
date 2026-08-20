@@ -248,6 +248,7 @@ export default async function CompaniesPage({
 
   return (
     <PageShell
+      title="Companies"
       actions={
         <>
           <AddCompany reps={reps} />

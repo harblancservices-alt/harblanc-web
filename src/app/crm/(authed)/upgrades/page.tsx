@@ -103,7 +103,7 @@ export default async function UpgradesPage() {
   });
 
   return (
-    <PageShell>
+    <PageShell title="Upgrades">
       <UpgradeComposer orgId={user.orgId} />
 
       <Card>

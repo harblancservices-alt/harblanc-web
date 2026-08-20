@@ -38,6 +38,7 @@ export default async function CarriersPage({
 
   return (
     <PageShell
+      title="Carriers"
       /* Falls back into the Active Clients hub (carriers is one of its 4
          tabs), not the orphaned standalone /crm/shipments route — a rep who
          arrived here from the hub should land back in it, not outside it

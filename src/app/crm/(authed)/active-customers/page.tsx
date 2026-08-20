@@ -70,7 +70,7 @@ export default async function ActiveCustomersHubPage({
   }));
 
   return (
-    <PageShell>
+    <PageShell title="Active Clients">
       <ActiveCustomersTabs
         activeCustomers={<ActiveCustomersPanel />}
         carriers={<CarriersListClient carriers={carrierRows} q={q} />}

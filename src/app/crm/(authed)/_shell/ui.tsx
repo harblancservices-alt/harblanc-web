@@ -24,10 +24,12 @@ export function PageShell({
   actions,
   children,
 }: {
-  /** Mobile-only page heading (below `lg`) — most CRM list pages only show
-   * their title inside a desktop-only CardHead, leaving a phone with no
-   * on-screen confirmation of which list it's looking at. Omit to render
-   * nothing, exactly like before this prop existed. */
+  /** Page heading, every breakpoint (2026-08-20 — was `lg:hidden`, mobile
+   * only; most CRM list pages relied entirely on the first Card's CardHead
+   * for "what am I looking at" on desktop, with no page-level title at all.
+   * /crm-design's PageHeader always renders a real `<h1>` above the page's
+   * content, every screen, every breakpoint — this now matches that. Omit
+   * to render nothing, exactly like before this prop existed. */
   title?: string;
   /** An inline BackButton (or similar), rendered top-left. */
   back?: ReactNode;
@@ -38,7 +40,7 @@ export function PageShell({
   return (
     <div className={PAGE_CONTAINER}>
       {title && (
-        <h1 className="mb-3 truncate text-[17px] font-semibold text-fg lg:hidden">
+        <h1 className="mb-3 truncate text-[20px] font-bold tracking-tight text-fg">
           {title}
         </h1>
       )}
@@ -71,16 +73,20 @@ export function Card({
 /**
  * The header band for a Card/section — the ONE place this hierarchy level is
  * styled, so every CRM page (dashboard, Companies, Tasks, Settings,
- * AI Agent, AI Review) reads identically. A solid graphite `bg-bar` bar with
- * white `text-bar-fg` lettering — the same dark chrome token the sidebar
- * uses — so the header unmistakably "sits above" the list beneath it rather
- * than blending into it. Deliberately slim (a title bar, not a banner) — the
- * owner's call after the original py-4/15.5px treatment ate too much vertical
- * space stacked across a page of cards. Raw `<table>` column-header rows use
- * the matching `LIST_HEAD_ROW` class below so the two ways a CRM list renders
- * (Card+CardHead, or a `<thead>`) read as one consistent style; any hand-built
- * dark bar elsewhere in the CRM (e.g. the calendar day modal) should match
- * this exact padding/type scale rather than drifting its own.
+ * AI Agent, AI Review, Admin) reads identically.
+ *
+ * 2026-08-20: rebuilt to match /crm-design's CardHead exactly (Brent's
+ * explicit, forceful direction — the real CRM must visually BECOME the
+ * approved prototype, not land on "close enough"). A light `bg-inset`
+ * band (crm-design's `--cd-surface-2`) with near-black `text-fg` lettering
+ * — NOT the previous solid dark-graphite `bg-bar`/white-text treatment.
+ * That dark-bar version was a deliberate, approved CRM-only choice at the
+ * time it shipped, but it's exactly the kind of "doesn't look like the
+ * prototype" divergence this migration exists to remove — every card
+ * header, table header, and section band in /crm-design is this light
+ * gray-blue tone, never a black bar. Raw `<table>` column-header rows use
+ * the matching `LIST_HEAD_ROW` class below so the two ways a CRM list
+ * renders (Card+CardHead, or a `<thead>`) read as one consistent style.
  */
 export function CardHead({
   title,
@@ -92,13 +98,13 @@ export function CardHead({
   right?: ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-graphite-line bg-bar px-4 py-2.5">
+    <div className="flex items-center justify-between gap-3 border-b border-line bg-inset px-4 py-2.5">
       <div className="min-w-0">
-        <h2 className="truncate text-[13.5px] font-bold tracking-tight text-bar-fg">
+        <h2 className="truncate text-[14px] font-bold tracking-tight text-fg">
           {title}
         </h2>
         {hint && (
-          <p className="truncate text-[11px] font-medium text-bar-fg/70">
+          <p className="truncate text-[11.5px] font-medium text-fg-muted">
             {hint}
           </p>
         )}
@@ -109,13 +115,14 @@ export function CardHead({
 }
 
 /** Column-header row for a raw `<table><thead><tr>` list (Contacts,
- * Companies, …) — the tabular equivalent of CardHead, same `bg-bar` /
- * `text-bar-fg` dark treatment so every CRM list header reads identically
- * whether it's a card section or a real table. Apply to the `<tr>` inside
- * `<thead>`; each `<th>` keeps its own padding — use `px-5 py-2` to match
- * CardHead's slim height. */
+ * Companies, …) — the tabular equivalent of CardHead, same light
+ * `bg-inset`/`text-fg-muted` treatment (crm-design's LIST_HEAD_ROW,
+ * 2026-08-20) so every CRM list header reads identically whether it's a
+ * card section or a real table. Apply to the `<tr>` inside `<thead>`; each
+ * `<th>` keeps its own padding — use `px-5 py-2` to match CardHead's slim
+ * height. */
 export const LIST_HEAD_ROW =
-  "bg-bar text-[11px] font-semibold uppercase tracking-[0.1em] text-bar-fg";
+  "border-b border-line bg-inset text-[11px] font-bold uppercase tracking-[0.08em] text-fg-muted";
 
 /**
  * Zebra-striped rows for a CRM record list — alternating `bg-card` (white)
@@ -137,12 +144,14 @@ export const ZEBRA_ROWS =
  * paper, tight row height, not the airier card-table spacing used elsewhere.
  * GRID_TABLE goes on the `<table>` (border-collapse so adjoining cell
  * borders merge into one ruled line instead of doubling up), GRID_HEAD_CELL
- * on every header `<th>` (sits under LIST_HEAD_ROW's dark bg on the `<tr>`),
- * GRID_CELL on every body `<td>` — combine with ZEBRA_ROWS on the `<tbody>`
- * for stripes underneath the grid lines.
+ * on every header `<th>` (sits under LIST_HEAD_ROW's light `bg-inset` on
+ * the `<tr>`, 2026-08-20 — was a dark graphite border for the old dark bar,
+ * now `border-line-strong` to read against the light band), GRID_CELL on
+ * every body `<td>` — combine with ZEBRA_ROWS on the `<tbody>` for stripes
+ * underneath the grid lines.
  */
 export const GRID_TABLE = "w-full table-fixed border-collapse text-[13px]";
-export const GRID_HEAD_CELL = "border border-graphite-line px-3 py-1.5 text-left";
+export const GRID_HEAD_CELL = "border border-line-strong px-3 py-1.5 text-left";
 export const GRID_CELL = "border border-line px-3 py-1.5";
 
 /**
@@ -188,6 +197,35 @@ export const BTN_DANGER =
   "border border-bad/30 bg-bad-bg text-bad hover:bg-bad/10 disabled:opacity-60";
 export const BTN_NEUTRAL =
   "border border-fg-subtle bg-card text-fg-muted hover:bg-inset hover:text-fg disabled:opacity-60";
+
+/**
+ * Status/role pill — matches /crm-design's Badge exactly (2026-08-20 full
+ * visual migration): `rounded-full`, 11px bold uppercase, a tone-matched
+ * soft fill + a tone-matched border at 45% opacity (not the sharp-cornered,
+ * borderless chips hand-rolled per usage across the CRM before this pass).
+ * Colors pull only from the semantic token set — never a one-off hex — so
+ * every badge in the app maps to a real, learnable meaning. Use this for
+ * every new status/role pill; existing hand-rolled ones are being migrated
+ * to it screen by screen.
+ */
+const BADGE_TONE = {
+  neutral: "bg-inset text-fg-muted border border-line-strong",
+  accent: "bg-accent/10 text-accent border border-accent/45",
+  success: "bg-ok-bg text-ok border border-ok/45",
+  warning: "bg-warn-bg text-warn border border-warn/45",
+  danger: "bg-bad-bg text-bad border border-bad/45",
+  admin: "bg-admin-soft text-admin border border-admin/45",
+} as const;
+export type BadgeTone = keyof typeof BADGE_TONE;
+export function Badge({ tone = "neutral", children }: { tone?: BadgeTone; children: ReactNode }) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide leading-none ${BADGE_TONE[tone]}`}
+    >
+      {children}
+    </span>
+  );
+}
 
 export function StatTile({
   label,

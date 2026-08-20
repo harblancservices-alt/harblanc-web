@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Card, CardHead, ZEBRA_ROWS, EmptyState } from "../../_shell/ui";
+import { Card, CardHead, ZEBRA_ROWS, EmptyState, Badge } from "../../_shell/ui";
 import { firstName, formatDate } from "../../_shell/format";
 import { IconContacts } from "../../_shell/icons";
 import { listTeamMembers } from "../accounts-data";
@@ -37,7 +37,7 @@ export default async function AdminAccountsPage() {
                 prefetch={false}
                 className="flex items-center gap-3 px-5 py-3.5 transition-colors hover:bg-accent/5"
               >
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center bg-accent text-[13px] font-semibold text-white">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent text-[13px] font-semibold text-white">
                   {initials(m.fullName, m.email)}
                 </span>
                 <div className="min-w-0 flex-1">
@@ -46,23 +46,13 @@ export default async function AdminAccountsPage() {
                       {firstName(m.fullName, m.email) || "Unnamed"}
                     </span>
                     {m.isPrimaryOwner ? (
-                      <span className="bg-admin-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-admin">
-                        Primary owner
-                      </span>
+                      <Badge tone="admin">Primary owner</Badge>
                     ) : m.role === "owner" ? (
-                      <span className="bg-ok-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ok">
-                        Admin
-                      </span>
+                      <Badge tone="success">Admin</Badge>
                     ) : (
-                      <span className="bg-steel-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-steel">
-                        Sales Agent
-                      </span>
+                      <Badge tone="neutral">Sales Agent</Badge>
                     )}
-                    {!m.isActive && (
-                      <span className="bg-bad-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-bad">
-                        Suspended
-                      </span>
-                    )}
+                    {!m.isActive && <Badge tone="danger">Suspended</Badge>}
                   </div>
                   <p className="truncate text-[12.5px] text-fg-muted">
                     {m.email || "—"} · {m.companiesOwned} {m.companiesOwned === 1 ? "company" : "companies"} ·{" "}

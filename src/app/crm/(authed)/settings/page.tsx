@@ -28,7 +28,7 @@ export default async function SettingsPage() {
   const me = meRow as { full_name: string | null; title: string | null } | null;
 
   return (
-    <PageShell>
+    <PageShell title="Settings">
       <Card>
         <CardHead title="Your account" />
         <div className="flex items-center gap-3 px-5 py-4">
@@ -90,7 +90,7 @@ function Avatar({
 }) {
   return (
     <span
-      className="flex shrink-0 items-center justify-center bg-accent font-semibold text-white"
+      className="flex shrink-0 items-center justify-center rounded-full bg-accent font-semibold text-white"
       style={{ width: size, height: size, fontSize: Math.round(size * 0.36) }}
     >
       {initials(name ?? null, email ?? null)}

@@ -178,7 +178,7 @@ export function CrmShell({
           {/* Identity + sign out */}
           <div className="border-t border-graphite-line p-3">
             <div className="mb-2 flex items-center gap-2.5 px-1">
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center bg-accent text-[13px] font-semibold text-white">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent text-[13px] font-semibold text-white">
                 {initial}
               </span>
               <span className="min-w-0">

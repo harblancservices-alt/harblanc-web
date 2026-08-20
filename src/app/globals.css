@@ -220,35 +220,52 @@ input[type="date"]::-webkit-date-and-time-value {
 /* ============================================================== */
 /* HELLO HOTSHOT CRM THEME — scoped override, fully independent of the
    admin portal. The CRM shell root (see src/app/crm) carries .crm-light.
-   It adopts the SAME V2 "Fleet Ops" light surfaces as the admin so the
-   CRM looks premium, but its brand accent is a distinct STEEL BLUE (never
-   the dispatch red) so the two products never read as the same app.
-   Nothing here touches .admin-light or the public :root palette. */
+   Nothing here touches .admin-light, .tms-v2-light, or the public :root
+   palette.
+   *
+   * 2026-08-20 FULL VISUAL MIGRATION: Brent's explicit, forceful direction
+   * — the real CRM must visually BECOME the approved /crm-design prototype
+   * (src/app/crm-design/crm-design.css's --cd-* tokens), not just land on
+   * similar-ish values. Every value below is copied byte-for-byte from
+   * crm-design.css's `.crm-design` block — this scope no longer shares the
+   * admin/tms-v2 "V2 Fleet Ops" --v2-* raw tokens at all (previously
+   * --canvas/--card/--line/--fg/etc were aliases of --v2-canvas/--v2-card/
+   * etc, which is exactly why the CRM kept LOOKING like the admin portal's
+   * palette instead of the prototype's — same numbers, different design
+   * system). The CRM is now its own independent light palette, matching
+   * the prototype pixel-for-pixel at the token layer. See _shell/ui.tsx's
+   * CardHead/LIST_HEAD_ROW for the matching structural change (dark bar →
+   * light band) this token swap alone doesn't cover. */
 .crm-light {
-  --canvas: var(--v2-canvas);      /* page background (gray between cards) */
-  --panel: #ffffff;                /* top bar                             */
-  --card: var(--v2-card);          /* raised white cards                  */
-  --elevated: #eef0f3;             /* hover / active                      */
-  --line: var(--v2-line);          /* borders                            */
-  --line-strong: var(--v2-line-strong);
-  --fg: var(--v2-ink);             /* near-black primary text            */
-  --fg-muted: var(--v2-ink-2);     /* secondary                          */
-  --fg-subtle: var(--v2-ink-3);    /* labels / captions                  */
-  --bar: var(--v2-graphite);       /* solid graphite section-header bar   */
-  --bar-fg: #f4f4f5;
-  /* CRM brand accent → V2 steel blue (dispatch keeps red). This flips the
-     primary-action colour of any reused design-system Button/primitive. */
-  --accent: var(--v2-blue);
-  --accent-hover: var(--v2-blue-hover);
+  --canvas: #e7eaf1;        /* crm-design --cd-bg            */
+  --panel: #ffffff;
+  --card: #ffffff;          /* crm-design --cd-surface       */
+  --inset: #eef1f6;         /* crm-design --cd-surface-2 (CardHead/zebra/sunken fields) */
+  --elevated: #e2e7f0;      /* crm-design --cd-surface-hover */
+  --line: #d3d7e1;          /* crm-design --cd-border        */
+  --line-strong: #a7adbd;   /* crm-design --cd-border-strong */
+  --fg: #14161c;            /* crm-design --cd-text          */
+  --fg-muted: #454b5c;      /* crm-design --cd-text-muted    */
+  --fg-subtle: #767c8f;     /* crm-design --cd-text-subtle   */
+  --bar: #14161c;           /* unused by CardHead post-migration; kept for any
+                                remaining bare bg-bar/text-bar-fg call site */
+  --bar-fg: #ffffff;
+  /* CRM brand accent — crm-design --cd-accent/--cd-accent-hover (steel
+     blue, close to but not identical to the old --v2-blue; this is the
+     prototype's exact value, not a coincidental match). */
+  --accent: #2f5fd6;
+  --accent-hover: #2650b8;
 
-  /* Elevated/admin accent — ONE dedicated token for every owner-only CRM
-     surface (Admin Account nav item, Admin tab bar, Admin role badges).
-     Replaces 9+ raw #9333ea/#c084fc/#f3e8ff hex literals that had been
-     copy-pasted file to file with no shared source of truth (CRM_MASTER_AUDIT.md
-     §2/§7/§12). Ported from the crm-design prototype's --cd-admin token
-     (crm-design.css) — same violet, so the elevated-surface color meaning
-     carries over unchanged from the approved redesign. Scoped to .crm-light
-     only; nothing outside the CRM reads --color-admin. */
+  /* Semantic status — crm-design's exact success/warning/danger, not the
+     shared --v2-green/amber/red the admin/tms-v2 themes use. */
+  --ok: #0f7a4e;       --ok-bg: #d8f0e2;
+  --warn: #925c0a;     --warn-bg: #f6e6c4;
+  --bad: #ad2a2a;      --bad-bg: #f6d9d9;
+
+  /* Elevated/admin accent — crm-design's --cd-admin, one dedicated token
+     for every owner-only CRM surface (Admin Account nav item, Admin tab
+     bar, Admin role badges). Replaced 9+ raw #9333ea/#c084fc/#f3e8ff hex
+     literals (CRM_MASTER_AUDIT.md §2/§7/§12). */
   --admin: #6d3fd4;
   --admin-hover: #5c34b8;
   --admin-soft: #ece3fb;

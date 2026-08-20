@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
-import { Card, CardHead } from "../../../_shell/ui";
+import { Card, CardHead, Badge } from "../../../_shell/ui";
 import { BackButton } from "../../../_shell/BackButton";
 import { LocalTime } from "../../../_shell/LocalTime";
 import { formatDate } from "../../../_shell/format";
@@ -58,32 +58,22 @@ export default async function AdminMemberDetailPage({
         <Card className="h-fit">
           <CardHead title="Profile" />
           <div className="flex flex-col items-center gap-2 px-5 py-6 text-center">
-            <span className="flex h-16 w-16 items-center justify-center bg-accent text-[22px] font-semibold text-white">
+            <span className="flex h-16 w-16 items-center justify-center rounded-full bg-accent text-[22px] font-semibold text-white">
               {initials(member.fullName, member.email)}
             </span>
             <p className="text-[16px] font-bold text-fg">{member.fullName || "Unnamed"}</p>
             <p className="text-[13px] text-fg-muted">{member.email || "—"}</p>
             <div className="mt-1 flex flex-wrap items-center justify-center gap-1.5">
               {member.isPrimaryOwner ? (
-                <span className="bg-admin-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-admin">
-                  Primary owner
-                </span>
+                <Badge tone="admin">Primary owner</Badge>
               ) : member.role === "owner" ? (
-                <span className="bg-ok-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-ok">
-                  Admin
-                </span>
+                <Badge tone="success">Admin</Badge>
               ) : (
-                <span className="bg-steel-bg px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-steel">
-                  Sales Agent
-                </span>
+                <Badge tone="neutral">Sales Agent</Badge>
               )}
-              <span
-                className={`px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-                  member.isActive ? "bg-ok-bg text-ok" : "bg-bad-bg text-bad"
-                }`}
-              >
+              <Badge tone={member.isActive ? "success" : "danger"}>
                 {member.isActive ? "Active" : "Suspended"}
-              </span>
+              </Badge>
             </div>
           </div>
           <dl className="divide-y divide-line-strong border-t border-line-strong">

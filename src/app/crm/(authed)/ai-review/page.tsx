@@ -104,7 +104,7 @@ export default async function AiReviewPage() {
   }));
 
   return (
-    <PageShell>
+    <PageShell title="AI Review">
       <Card>
         <CardHead
           title="AI Review queue"

@@ -63,7 +63,7 @@ export default async function AiAgentPage() {
   }));
 
   return (
-    <PageShell>
+    <PageShell title="Prospects">
       <Card>
         <CardHead
           title="Prospects"

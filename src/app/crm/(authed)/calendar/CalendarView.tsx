@@ -277,12 +277,12 @@ function DayDetailModal({
         aria-modal="true"
         aria-label={formatDayHeading(dateKey)}
       >
-        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-graphite-line bg-bar px-4 py-2.5">
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-line bg-inset px-4 py-2.5">
           <div className="min-w-0">
-            <h2 className="truncate text-[13.5px] font-bold tracking-tight text-bar-fg">
+            <h2 className="truncate text-[14px] font-bold tracking-tight text-fg">
               {formatDayHeading(dateKey)}
             </h2>
-            <p className="truncate text-[11px] font-medium text-bar-fg/70">
+            <p className="truncate text-[11.5px] font-medium text-fg-muted">
               {items.length} item{items.length === 1 ? "" : "s"}
             </p>
           </div>

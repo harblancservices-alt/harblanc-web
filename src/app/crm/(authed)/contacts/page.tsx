@@ -121,6 +121,7 @@ export default async function ContactsPage({
 
   return (
     <PageShell
+      title="Contacts"
       actions={
         <>
           <AddCompany reps={reps} />
