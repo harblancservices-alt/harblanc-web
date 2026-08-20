@@ -1,5 +1,5 @@
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
-import { PageShell, Card, CardHead, EmptyState, ZEBRA_ROWS } from "../_shell/ui";
+import { PageShell, Card, EmptyState } from "../_shell/ui";
 import { IconAiAgent } from "../_shell/icons";
 import { LeadCard, type AiAgentLead } from "./LeadCard";
 
@@ -63,26 +63,32 @@ export default async function AiAgentPage() {
   }));
 
   return (
-    <PageShell title="Prospects">
-      <Card>
-        <CardHead
-          title="Prospects"
-          hint={agentLeads.length ? `${agentLeads.length} unclaimed ${agentLeads.length === 1 ? "lead" : "leads"}` : undefined}
-        />
-        {agentLeads.length === 0 ? (
+    <PageShell
+      title="Prospects"
+      subtitle={
+        agentLeads.length
+          ? `${agentLeads.length} unclaimed ${agentLeads.length === 1 ? "lead" : "leads"} · released, not yet claimed`
+          : undefined
+      }
+    >
+      {agentLeads.length === 0 ? (
+        <Card>
           <EmptyState
             icon={<IconAiAgent />}
             title="No unclaimed leads"
             body="Every released AI-researched lead has been claimed. Newly released leads will show up here for the team to claim."
           />
-        ) : (
-          <div className={`grid gap-4 p-4 sm:grid-cols-2 lg:grid-cols-3 ${ZEBRA_ROWS}`}>
-            {agentLeads.map((lead) => (
-              <LeadCard key={lead.id} lead={lead} />
-            ))}
-          </div>
-        )}
-      </Card>
+        </Card>
+      ) : (
+        // Card grid, not a Card-wrapped table — matches crm-design's
+        // Prospects page exactly (same grid-cols-2/3 breakpoints, no
+        // redundant CardHead repeating the page's own H1 "Prospects").
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {agentLeads.map((lead) => (
+            <LeadCard key={lead.id} lead={lead} />
+          ))}
+        </div>
+      )}
     </PageShell>
   );
 }

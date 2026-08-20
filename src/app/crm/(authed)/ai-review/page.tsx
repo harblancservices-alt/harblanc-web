@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
-import { PageShell, Card, CardHead, EmptyState, ZEBRA_ROWS } from "../_shell/ui";
+import { PageShell, Card, EmptyState, ZEBRA_ROWS } from "../_shell/ui";
 import { IconAiReview } from "../_shell/icons";
 import { ReviewCard, type AiReviewLead } from "./ReviewCard";
 import { titleCaseWords, upperCaseState } from "../_shell/format";
@@ -104,26 +104,27 @@ export default async function AiReviewPage() {
   }));
 
   return (
-    <PageShell title="AI Review">
-      <Card>
-        <CardHead
-          title="AI Review queue"
-          hint={reviewLeads.length ? `${reviewLeads.length} pending` : undefined}
-        />
-        {reviewLeads.length === 0 ? (
+    <PageShell
+      title="AI Review"
+      subtitle={reviewLeads.length ? `${reviewLeads.length} pending review · owner-only` : "Owner-only."}
+    >
+      {reviewLeads.length === 0 ? (
+        <Card>
           <EmptyState
             icon={<IconAiReview />}
             title="Nothing to review"
             body="New AI-researched leads will show up here before they reach the team."
           />
-        ) : (
+        </Card>
+      ) : (
+        <Card>
           <ul className={`divide-y divide-line-strong ${ZEBRA_ROWS}`}>
             {reviewLeads.map((lead) => (
               <ReviewCard key={lead.id} lead={lead} />
             ))}
           </ul>
-        )}
-      </Card>
+        </Card>
+      )}
     </PageShell>
   );
 }
