@@ -7,9 +7,8 @@ const TABS: { href: string; label: string; exact: boolean }[] = [
   { href: "/crm/admin", label: "Overview", exact: true },
   // BOL Center and OTR sit right after Overview, matching crm-design's
   // admin tab order — the two intake funnels are the highest-priority admin
-  // work, grouped adjacently. OTR has a real backend (crm_otr_entries,
-  // 2026-08-20); BOL Center (scanned-document intake) still doesn't and says
-  // so honestly rather than faking data — see admin/bol-center/page.tsx.
+  // work, grouped adjacently. Both have real backends now (crm_bol_entries
+  // and crm_otr_entries, 2026-08-20).
   { href: "/crm/admin/bol-center", label: "BOL Center", exact: false },
   { href: "/crm/admin/otr", label: "OTR", exact: false },
   { href: "/crm/admin/accounts", label: "Accounts", exact: false },
@@ -34,9 +33,18 @@ const TABS: { href: string; label: string; exact: boolean }[] = [
  * visual idiom as that component, just Link-driven with pathname-based
  * active state instead of client tab-index state.
  */
-export function AdminTabs({ otrNeedsAttention = 0 }: { otrNeedsAttention?: number }) {
+export function AdminTabs({
+  otrNeedsAttention = 0,
+  bolNeedsAttention = 0,
+}: {
+  otrNeedsAttention?: number;
+  bolNeedsAttention?: number;
+}) {
   const pathname = usePathname() ?? "";
-  const badgeByHref: Record<string, number> = { "/crm/admin/otr": otrNeedsAttention };
+  const badgeByHref: Record<string, number> = {
+    "/crm/admin/otr": otrNeedsAttention,
+    "/crm/admin/bol-center": bolNeedsAttention,
+  };
 
   return (
     <div

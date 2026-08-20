@@ -16,18 +16,23 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   await requireCrmAdmin();
   const supabase = await createCrmServerClient();
 
-  // OTR's tab badge — same needs-attention predicate as its Overview stat
-  // tile (admin/page.tsx). BOL Center has no equivalent since it has no real
-  // backend yet.
+  // OTR/BOL Center tab badges — both intake funnels share the same
+  // needs-attention predicate (new or ready-for-approval rows).
   const { count: otrNeedsAttention } = await supabase
     .from("crm_otr_entries")
     .select("id", { count: "exact", head: true })
     .in("status", ["new", "ready_for_approval"])
     .is("deleted_at", null);
 
+  const { count: bolNeedsAttention } = await supabase
+    .from("crm_bol_entries")
+    .select("id", { count: "exact", head: true })
+    .in("status", ["new", "ready_for_approval"])
+    .is("deleted_at", null);
+
   return (
     <PageShell title="Admin Account" subtitle="Owner-only. Manage the team and review company-wide activity.">
-      <AdminTabs otrNeedsAttention={otrNeedsAttention ?? 0} />
+      <AdminTabs otrNeedsAttention={otrNeedsAttention ?? 0} bolNeedsAttention={bolNeedsAttention ?? 0} />
       {children}
     </PageShell>
   );

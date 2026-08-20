@@ -1,29 +1,94 @@
-import { requireCrmAdmin } from "../guard";
+import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { Card, EmptyState } from "../../_shell/ui";
-import { IconAdminAccount } from "../../_shell/icons";
+import { IconBillOfLading } from "../../_shell/icons";
+import { AddBolEntryButton } from "./AddBolEntryButton";
+import { BolEntryCard, type BolEntryData } from "./BolEntryCard";
+import type { BolStatus } from "./actions";
 
 export const dynamic = "force-dynamic";
 
+type BolRow = {
+  id: string;
+  bol_number: string | null;
+  carrier: string | null;
+  shipper_name: string | null;
+  shipper_address: string | null;
+  consignee_name: string | null;
+  consignee_address: string | null;
+  bill_to: string | null;
+  commodity: string | null;
+  weight: string | null;
+  pickup_date: string | null;
+  delivery_date: string | null;
+  reference: string | null;
+  notes: string | null;
+  status: BolStatus;
+};
+
 /**
- * BOL Center — crm-design's admin-only BOL photo intake/intelligence funnel
- * (upload → AI extraction → customer/location match → research → approve →
- * release to Prospects). Nothing in the real CRM implements this today: no
- * `bolRecords` table, no extraction pipeline, no release-to-Prospects action.
- * This tab exists so the IA crm-design designed is visible in the real nav
- * (matching CRM_MIGRATION_MATRIX.md §3's "keep it structurally present, mark
- * it missing" instruction) rather than silently absent — it is deliberately
- * NOT a fake inbox with invented rows.
+ * BOL Center — researched BOL profiles: a bill of lading Brent has already
+ * worked (shipper/consignee/route captured), tracked through a
+ * research→approval workflow. Mirrors admin/otr/page.tsx's shape (see
+ * ./actions.ts and the crm_bol_entries migration's header comment) — a
+ * single page/card-list, admin-only.
  */
 export default async function AdminBolCenterPage() {
-  await requireCrmAdmin();
+  await requireCrmUser();
+  const supabase = await createCrmServerClient();
+
+  const { data } = await supabase
+    .from("crm_bol_entries")
+    .select(
+      "id, bol_number, carrier, shipper_name, shipper_address, consignee_name, consignee_address, bill_to, commodity, weight, pickup_date, delivery_date, reference, notes, status"
+    )
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false });
+
+  const entries = (data ?? []) as BolRow[];
 
   return (
-    <Card>
-      <EmptyState
-        icon={<IconAdminAccount />}
-        title="BOL Center isn't connected yet"
-        body="This is where uploaded BOL photos would queue for AI extraction, customer/location matching, and research before release to Prospects — a real crm-design feature with no backend in the real CRM yet. Nothing is faked here; building it needs a new table, an extraction pipeline, and a release action."
-      />
-    </Card>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[13px] text-fg-muted">
+          {entries.length} {entries.length === 1 ? "profile" : "profiles"} — bills of lading researched into shipper/consignee/route detail.
+        </p>
+        <AddBolEntryButton />
+      </div>
+
+      {entries.length === 0 ? (
+        <Card>
+          <EmptyState
+            icon={<IconBillOfLading />}
+            title="No BOL profiles yet"
+            body="Add a bill of lading Brent has worked — shipper, consignee, route, and whatever research turns up before it's released."
+          />
+        </Card>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {entries.map((e) => (
+            <BolEntryCard
+              key={e.id}
+              bol={{
+                id: e.id,
+                bolNumber: e.bol_number,
+                carrier: e.carrier,
+                shipperName: e.shipper_name,
+                shipperAddress: e.shipper_address,
+                consigneeName: e.consignee_name,
+                consigneeAddress: e.consignee_address,
+                billTo: e.bill_to,
+                commodity: e.commodity,
+                weight: e.weight,
+                pickupDate: e.pickup_date,
+                deliveryDate: e.delivery_date,
+                reference: e.reference,
+                notes: e.notes,
+                status: e.status,
+              } satisfies BolEntryData}
+            />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
