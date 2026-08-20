@@ -220,3 +220,41 @@ export const IconZoom = (p: P) => (
     <path d="M20 20l-4.8-4.8M8 10.5h5M10.5 8v5" />
   </svg>
 );
+export const IconZoomIn = (p: P) => (
+  <svg {...base(p)}>
+    <circle cx="10.5" cy="10.5" r="6.5" />
+    <path d="M20 20l-4.8-4.8M8 10.5h5M10.5 8v5" />
+  </svg>
+);
+export const IconZoomOut = (p: P) => (
+  <svg {...base(p)}>
+    <circle cx="10.5" cy="10.5" r="6.5" />
+    <path d="M20 20l-4.8-4.8M8 10.5h5" />
+  </svg>
+);
+/** Four corner-brackets expanding outward — "enter fullscreen." */
+export const IconMaximize = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M4 9V5a1 1 0 0 1 1-1h4M20 9V5a1 1 0 0 0-1-1h-4M4 15v4a1 1 0 0 0 1 1h4M20 15v4a1 1 0 0 1-1 1h-4" />
+  </svg>
+);
+/** Four corner-brackets pointing inward — "exit fullscreen." */
+export const IconMinimize = (p: P) => (
+  <svg {...base(p)}>
+    <path d="M9 4v4a1 1 0 0 1-1 1H4M15 4v4a1 1 0 0 0 1 1h4M9 20v-4a1 1 0 0 0-1-1H4M15 20v-4a1 1 0 0 1 1-1h4" />
+  </svg>
+);
+/** Simple horizontal double-arrow — "fit to width." */
+export const IconFitWidth = (p: P) => (
+  <svg {...base(p)}>
+    <rect x="3.5" y="6" width="17" height="12" rx="1.5" />
+    <path d="M8 12h8M8 12l1.8-1.8M8 12l1.8 1.8M16 12l-1.8-1.8M16 12l-1.8 1.8" />
+  </svg>
+);
+/** A page silhouette fully enclosed by brackets — "fit whole page." */
+export const IconFitPage = (p: P) => (
+  <svg {...base(p)}>
+    <rect x="7" y="3.5" width="10" height="17" rx="1.2" />
+    <path d="M3.5 6V4.5A1 1 0 0 1 4.5 3.5H6M20.5 6V4.5a1 1 0 0 0-1-1H18M3.5 18v1.5a1 1 0 0 0 1 1H6M20.5 18v1.5a1 1 0 0 1-1 1H18" />
+  </svg>
+);

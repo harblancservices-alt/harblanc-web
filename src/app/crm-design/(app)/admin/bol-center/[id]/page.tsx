@@ -53,22 +53,42 @@ export default function BolDetailPage() {
         )}
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[360px_1fr] lg:items-start">
-        {/* Left — persistent document viewer */}
-        <div className="lg:sticky lg:top-4">
-          <Card className="p-3.5">
+      {/*
+        Document-verification layout: the scan is the DOMINANT pane (~63%
+        width on desktop, fills the available height) so Brent can check
+        every extracted field against the source image without opening or
+        closing anything — the fields rail scrolls independently on the
+        right (~37%). Both columns are `lg:h-[...]` + internally scrollable
+        rather than the page itself scrolling, which is what makes "both
+        visible at once" actually work instead of the document just being a
+        tall block above a tall block. Below `lg`, this collapses to a
+        single stacked column (document first, full-width) — see
+        BolDocumentViewer's own fullscreen mode for close reading on phones.
+      */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1.7fr_1fr] lg:items-stretch">
+        {/* Left — persistent, dominant document viewer */}
+        {/* min-w-0 matters here: a grid item's default min-width is `auto`
+            (its content's intrinsic width), so without this an oversized
+            zoomed image inside would force the whole 1.7fr track — and the
+            page — wider than the viewport instead of scrolling within its
+            own pane. Same reasoning applies inside BolDocumentViewer's own
+            containers. */}
+        <div className="min-w-0 lg:sticky lg:top-4 lg:h-[calc(100vh-180px)] lg:min-h-[560px]">
+          <Card className="flex h-full min-w-0 flex-col p-3.5">
             <BolDocumentViewer bol={bol} />
           </Card>
-          <Card className="mt-3 p-3.5">
-            <dl className="space-y-2">
+        </div>
+
+        {/* Right — compact metadata + tabbed review workspace, scrolls on
+            its own so the document pane never has to shrink to fit it. */}
+        <div className="min-w-0 lg:h-[calc(100vh-180px)] lg:min-h-[560px] lg:overflow-y-auto lg:pr-0.5">
+          <Card className="mb-3 p-3">
+            <dl className="flex flex-wrap items-center gap-x-4 gap-y-1">
               <Row label="Uploaded" value={formatDateTime(bol.uploadedAt)} />
               <Row label="Reviewer" value={reviewer ? reviewer.name : "Unassigned"} />
             </dl>
           </Card>
-        </div>
 
-        {/* Right — tabbed review workspace */}
-        <div>
           <Tabs
             tone="admin"
             tabs={[
