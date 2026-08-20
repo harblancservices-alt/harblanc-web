@@ -1,16 +1,107 @@
 # CRM Real-Data Design Migration — Status
 
-**Branch:** `crm/real-design-rebuild` (off `main` @ `6857c75`)
-**Commits (6):**
-1. `59d0e92` — feat(crm): design foundation - real `--admin` token + collapsed nav accents
-2. `e47cfa8` — fix(crm): Admin Overview copy bug + Carriers back-button hub fallback
-3. `c724260` — docs: REBUILD_STATUS.md (superseded by this version)
-4. `b731865` — fix(crm/admin): close the dual-deactivation-path bug with a real Reactivate action
-5. `57482f8` — docs(crm): clarify BOL/RC Library scope as org-wide
-6. `c3283a3` — feat(crm): destructive-confirm interaction upgrade for Delete company/contact
+**All work landed directly on `main`** (deploy-authorized execution pass; earlier passes worked on
+`crm/real-design-rebuild`, merged to `main` at `d702b84`, then deployed and production-verified).
 
-This document supersedes the earlier "re-skin only" status doc after Brent formally expanded the
-scope to a full `/crm` → new-design migration with deploy authorization.
+## Pass 3 — full visual migration to /crm-design (2026-08-20, this pass)
+
+Brent forcefully rejected Pass 2's conclusion that the real CRM's presentation already
+substantially matched the prototype. His explicit correction: the real CRM must visually **become**
+`/crm-design` — obvious, dramatic, recognizable at a glance — not land on similar-ish token values.
+This pass re-read `/crm-design`'s actual implementation (not just its docs) and found the real,
+concrete gap Pass 2 missed: **the real CRM's tokens were numerically close to crm-design's, but they
+were aliases of the shared admin-portal "V2 Fleet Ops" palette — same numbers, different design
+system** — and several shared primitives (`CardHead`, sidebar nav items, Modal, form inputs, badges,
+buttons, empty states, avatars) were structurally different shapes entirely, which no amount of
+color-matching would have fixed. This pass rebuilt those shared primitives directly.
+
+**Commits (this pass, all on `main`):**
+- `0790fd8` — full token repoint (`.crm-light` → crm-design.css's exact `--cd-*` values) + `CardHead`/`LIST_HEAD_ROW` rebuilt from a dark bar to crm-design's light band + `Badge` component + `PageShell` title cascade
+- `657f126` — sunken form-field fill (`CONTROL`) + `Modal` header/body split with circular close button
+- `a54210c` — circular `EmptyState` icons + crisp 6px button radius on primary CTAs
+- `00edd74` — pill-shape sweep for 7 remaining hand-rolled status/role badges
+- `d048cc4` — sidebar + mobile "More" sheet nav-item shape rebuild (rounded pills, no dividers, "Workspace"/"Administration" captions) — read crm-design's actual `layout.tsx`, not just its tokens
+
+### What changed, concretely
+1. **Tokens** (`globals.css` `.crm-light`): every value (canvas/card/inset/line/line-strong/fg/
+   fg-muted/fg-subtle/accent/accent-hover/ok/warn/bad + soft variants) repointed from the shared
+   `--v2-*` admin-portal palette to crm-design.css's `--cd-*` values, byte-for-byte. Verified in the
+   compiled production CSS (not just source) — see Verification below.
+2. **CardHead + LIST_HEAD_ROW** (`_shell/ui.tsx`): the single highest-impact change. Every card/
+   list/section header across the entire CRM was a solid dark-graphite bar with white text; now a
+   light `bg-inset` band with near-black text, matching crm-design's `CardHead` exactly. Cascades to
+   every screen automatically since it's one shared component.
+3. **Sidebar + mobile "More" sheet**: rebuilt from full-width divided rows with a border-left accent
+   bar to crm-design's individually-rounded pill items with no dividers, filled active-state
+   background, and explicit "Workspace"/"Administration" section captions (copied from crm-design's
+   actual conditional class strings, including the specific `bg-admin-soft`-on-dark treatment for
+   the active Admin Account item).
+4. **Badge component + pill sweep**: added a shared `Badge` (rounded-full, tone-matched border) and
+   converted every hand-rolled sharp-cornered status/role chip found across the app (Admin roster/
+   detail, Prospects, AI Review, Contacts, Contact detail, Company detail's AI-suggestion and
+   Documents chips) to the pill shape crm-design uses everywhere.
+5. **Forms**: `CONTROL`'s background moved from `bg-card` (identical to its parent card — the exact
+   flat "no fill signals editable" problem crm-design's own docs describe fixing) to `bg-inset` with
+   a `focus:bg-card` lift, matching crm-design's `INPUT` token exactly.
+6. **Modal**: rebuilt with a separate border-b header band and independently-scrolling body (was one
+   scrolling region), circular icon-only close button (was a bordered "Cancel" text button) —
+   matches crm-design's `Modal` component exactly.
+7. **PageShell title**: was `lg:hidden` (mobile-only) at 17px; most desktop list pages had **no**
+   page-level title at all, relying entirely on the first Card's `CardHead`. Now always visible at
+   crm-design's 20px bold `pageTitle` scale, added to every major list page that was missing one.
+8. **EmptyState icons + button radius**: circular icon chips (was `rounded-lg`); the 5 most prominent
+   primary-CTA buttons (Add Company/Contact/Carrier, New Shipment) switched from a 12px pill-like
+   `rounded-xl` to crm-design's crisp 6px radius.
+9. **Avatars**: person-initial avatars (admin roster, admin detail, sidebar identity, Settings)
+   switched from square to circular, matching crm-design's `Avatar` and the CRM's own existing
+   precedent (`ContactAvatar` was already circular). `CompanyAvatar`'s square is a separate,
+   deliberate, already-approved company-vs-person distinction — left untouched.
+
+### Deliberately left as-is (documented, not oversights)
+- `DocumentSigner.tsx`'s dark toolbar bars — a full-screen signature-capture tool overlay, not a
+  list/card screen the CardHead redesign governs; crm-design has no equivalent screen to compare
+  against.
+- `CompanyHeader.tsx`'s `#15803d` Active-Customer pill and `CompanyAvatar`'s square shape — both
+  explicitly documented, dated, Brent-approved exceptions predating this pass.
+- `--steel`/`--slate` badge hues (role/type tags in a few files: LeadCard, BolSection, ReviewCard)
+  — crm-design's badge palette doesn't have these tones at all; left as a muted blue-gray rather than
+  force-fitting them into neutral/accent. Shape (now pill) matches; hue is a minor residual
+  difference, noted as a follow-up, not fixed this pass.
+- The 15 remaining `window.confirm()` destructive-action dialogs (see Pass 1 section below) — same
+  reasoning as before: real, safe, working today; a wholesale behavioral swap without authenticated
+  testing is unjustified risk on a live CRM.
+
+### Verification (Pass 3)
+- `npx tsc --noEmit` — clean after every commit (5/5 checkpoints this pass).
+- `npm run build` — exit 0, all 88 routes compiled, run in an isolated worktree (two attempts; first
+  hit a transient `npm install` file-lock race on Windows leaving `node_modules/.bin/next` missing,
+  fixed by re-running `npm install`, not a code issue — full detail in the session, not repeated
+  here).
+- `npx vitest run` — **193/193 tests pass**.
+- `npx eslint src/app/crm` — same 19 pre-existing problems (10 errors/9 warnings) as the Pass 1
+  baseline, in files this pass never touched (`BillOfLadingGenerator.tsx`, `calendar/page.tsx`,
+  `ContactsMasterDetail.tsx`, `bol-actions.ts`, plus the same set from Pass 1) — zero new lint issues.
+- **Compiled-CSS verification, not just source review**: extracted the actual `.crm-light{...}` rule
+  from the production build's minified CSS chunk and confirmed every token value matches exactly
+  (`--canvas:#e7eaf1`, `--admin:#6d3fd4`, etc.), and confirmed `.tms-v2-light`'s own rule immediately
+  after it is untouched and still reads from the separate `--v2-*` tokens — proof the change is
+  correctly scoped, not just correct in source.
+- Every real `/crm` route (24, including dynamic segments) hit unauthenticated against a live dev
+  server → clean `307`/`200`, zero 500s, zero console/server errors.
+- Repo-wide `tms-v2` import scan (both directions): zero cross-imports. `git diff 6857c75 --stat --
+  src/app/tms-v2` (pre-migration baseline to current `HEAD`, across all 3 passes): empty — zero
+  `tms-v2` files touched this entire migration.
+
+---
+
+## Pass 1 & 2 — original re-skin + expanded migration (2026-08-19/20)
+
+The sections below are Pass 1/2's original report, kept for the complete history. Their
+"already matches" framing for un-touched screens is superseded by Pass 3 above where it concerns
+visual presentation — Pass 3's token/primitive rebuild cascades to every screen listed as
+"needed zero screen-specific edits" below, so those screens now inherit the NEW look, not the old
+one. The functional/business-logic findings below (Admin dual-deactivation fix, Carriers routing,
+Documents audit, etc.) are unaffected by Pass 3 and remain accurate as-is.
 
 ---
 
@@ -228,11 +319,18 @@ pass on:
    Contacts, and the Active Customers hub — this pass verified these are unchanged/already-correct
    via code review, not a live click-through.
 
+Pass 3 adds to that list: a logged-in pass on the new sidebar/mobile-nav pill shape, the new
+CardHead light band on a few visually-dense screens (Company detail's Timeline/Contacts/Shipments
+tabs, Admin's 4 tabs, Companies/Contacts/Tasks lists), the new Modal shape on at least one dialog
+(e.g. Add Company), and the new sunken form-field fill on one form (e.g. Edit Company).
+
 ---
 
 ## Deployment
 
 Given a clean `tsc`/build/test/eslint pass and zero regressions detected across every available
-verification surface, this branch was merged to `main` and pushed, per Brent's explicit deploy
-authorization for this pass. See the end of this document (or the accompanying chat report) for the
-production commit hash, Vercel deploy outcome, and post-deploy smoke-test results.
+verification surface (including compiled-CSS verification for Pass 3's token change), all three
+passes were pushed directly to `main`, per Brent's explicit deploy authorization. Pass 1/2 deployed
+and was production-verified at commit `d702b84` (see that smoke test's results earlier in this
+session). Pass 3's rollback target, if a post-deploy production smoke test fails, is `d702b84` —
+the last known-good, already-verified production commit before this pass's visual rebuild.
