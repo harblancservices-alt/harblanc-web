@@ -136,9 +136,7 @@ function AuditRow({ row, onOpen }: { row: AuditLogItem; onOpen: () => void }) {
         {row.detail && <p className={`mt-0.5 ${TEXT.micro} text-[var(--cd-text-muted)]`}>{row.detail}</p>}
       </div>
       {clickable && (
-        <span className={`shrink-0 rounded-[var(--cd-radius-sm)] border border-[var(--cd-admin)]/30 bg-[var(--cd-admin-soft)] px-2.5 py-1.5 text-[12px] font-semibold text-[var(--cd-admin)]`}>
-          View record
-        </span>
+        <span className="shrink-0 text-[12.5px] font-semibold text-[var(--cd-admin)]">View record →</span>
       )}
     </li>
   );

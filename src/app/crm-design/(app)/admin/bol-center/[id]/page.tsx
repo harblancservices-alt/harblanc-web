@@ -6,6 +6,7 @@ import { notFound, useParams } from "next/navigation";
 import { useBolRecord, useCompany, useStore, useTeamMemberById } from "../../../../_lib/store";
 import { Badge, Breadcrumb, Button, Card, CardHead, SegmentedControl, TEXT, TextLink } from "../../../../_design/ui";
 import { Tabs } from "../../../../_design/Tabs";
+import { Modal } from "../../../../_design/Modal";
 import { BOL_STATUS_DESCRIPTION, BOL_STATUS_LABEL, BOL_STATUS_TONE } from "../../../../_lib/bolStatus";
 import { firstName, formatDateTime } from "../../../../_lib/format";
 import { BolDocumentViewer } from "../../../../_shared/BolDocumentViewer";
@@ -244,6 +245,12 @@ function CustomerLocationTab({ bolId }: { bolId: string }) {
   const bol = useBolRecord(bolId)!;
   const { bolRecords, companies, companyLocations, confirmCustomerMatch, confirmLocation } = useStore();
   const matchedCompany = useCompany(bol.customerMatch.companyId ?? undefined);
+  // Selecting a company/location is a draft until explicitly confirmed — a
+  // <select> that fires its own mutation on change means a misclick
+  // silently reassigns the customer match with no undo affordance visible
+  // in the UI. See CRM_INTERACTION_HIERARCHY.md item 3.
+  const [matchCompanyDraft, setMatchCompanyDraft] = useState("");
+  const [locationMatchDraft, setLocationMatchDraft] = useState<Record<number, string>>({});
 
   // Duplicate hint — another unresolved BOL sharing this candidate's name or
   // pickup address. Client-side heuristic only (no real entity resolution);
@@ -270,7 +277,7 @@ function CustomerLocationTab({ bolId }: { bolId: string }) {
         <CardHead title="Customer match" />
         <div className="p-4">
           {bol.customerMatch.status === "matched" && matchedCompany ? (
-            <div className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--cd-radius-md)] border border-[var(--cd-success)]/30 bg-[var(--cd-success-soft)] px-4 py-3.5">
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--cd-radius-md)] border border-[var(--cd-success)]/45 bg-[var(--cd-success-soft)] px-4 py-3.5">
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--cd-success)]">Match found</p>
                 <p className="text-[15px] font-bold text-[var(--cd-text)]">{matchedCompany.name}</p>
@@ -280,7 +287,7 @@ function CustomerLocationTab({ bolId }: { bolId: string }) {
             </div>
           ) : (
             <div className="flex flex-col gap-3">
-              <div className="rounded-[var(--cd-radius-md)] border border-[var(--cd-accent)]/30 bg-[var(--cd-accent-soft)] px-4 py-3.5">
+              <div className="rounded-[var(--cd-radius-md)] border border-[var(--cd-accent)]/45 bg-[var(--cd-accent-soft)] px-4 py-3.5">
                 <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--cd-accent)]">Potential new customer</p>
                 <p className="text-[15px] font-bold text-[var(--cd-text)]">{bol.customerMatch.candidateName || "Unknown — run extraction first"}</p>
                 <p className={`${TEXT.micro} text-[var(--cd-text-muted)]`}>
@@ -317,29 +324,40 @@ function CustomerLocationTab({ bolId }: { bolId: string }) {
                   <summary className="cursor-pointer font-semibold text-[var(--cd-text-muted)] hover:text-[var(--cd-text)]">
                     Actually matches an existing company?
                   </summary>
-                  <select
-                    className="mt-2 h-9 w-full rounded-[var(--cd-radius-sm)] border border-[var(--cd-border-strong)] bg-[var(--cd-surface-2)] px-2.5 text-[13px] text-[var(--cd-text)]"
-                    defaultValue=""
-                    onChange={(e) => {
-                      if (e.target.value) confirmCustomerMatch(bolId, "matched", e.target.value);
-                    }}
-                  >
-                    <option value="" disabled>
-                      Choose a company…
-                    </option>
-                    {companies.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
+                  <div className="mt-2 flex gap-2">
+                    <select
+                      className="h-9 flex-1 rounded-[var(--cd-radius-sm)] border border-[var(--cd-border-strong)] bg-[var(--cd-surface-2)] px-2.5 text-[13px] text-[var(--cd-text)]"
+                      value={matchCompanyDraft}
+                      onChange={(e) => setMatchCompanyDraft(e.target.value)}
+                    >
+                      <option value="" disabled>
+                        Choose a company…
                       </option>
-                    ))}
-                  </select>
+                      {companies.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      disabled={!matchCompanyDraft}
+                      onClick={() => {
+                        confirmCustomerMatch(bolId, "matched", matchCompanyDraft);
+                        setMatchCompanyDraft("");
+                      }}
+                    >
+                      Confirm match
+                    </Button>
+                  </div>
                 </details>
               )}
             </div>
           )}
 
           {duplicate && (
-            <div className="mt-3 flex items-center justify-between gap-3 rounded-[var(--cd-radius-md)] border border-[var(--cd-warning)]/30 bg-[var(--cd-warning-soft)] px-4 py-2.5">
+            <div className="mt-3 flex items-center justify-between gap-3 rounded-[var(--cd-radius-md)] border border-[var(--cd-warning)]/45 bg-[var(--cd-warning-soft)] px-4 py-2.5">
               <p className={`${TEXT.micro} text-[var(--cd-text)]`}>
                 Possible duplicate — <span className="font-semibold">{duplicate.docNumber}</span> looks like the same
                 company (&ldquo;{duplicate.customerMatch.candidateName}&rdquo;). Consolidate before releasing either one.
@@ -402,22 +420,33 @@ function CustomerLocationTab({ bolId }: { bolId: string }) {
                       <>
                         <Badge tone="accent">New Location Detected</Badge>
                         {companyLocationOptions.length > 0 && (
-                          <select
-                            className="h-8 rounded-[var(--cd-radius-sm)] border border-[var(--cd-border-strong)] bg-[var(--cd-surface-2)] px-2 text-[11.5px] text-[var(--cd-text)]"
-                            defaultValue=""
-                            onChange={(e) => {
-                              if (e.target.value) confirmLocation(bolId, i, "existing", e.target.value);
-                            }}
-                          >
-                            <option value="" disabled>
-                              Match to existing…
-                            </option>
-                            {companyLocationOptions.map((l) => (
-                              <option key={l.id} value={l.id}>
-                                {l.label}
+                          <>
+                            <select
+                              className="h-8 rounded-[var(--cd-radius-sm)] border border-[var(--cd-border-strong)] bg-[var(--cd-surface-2)] px-2 text-[11.5px] text-[var(--cd-text)]"
+                              value={locationMatchDraft[i] ?? ""}
+                              onChange={(e) => setLocationMatchDraft((prev) => ({ ...prev, [i]: e.target.value }))}
+                            >
+                              <option value="" disabled>
+                                Match to existing…
                               </option>
-                            ))}
-                          </select>
+                              {companyLocationOptions.map((l) => (
+                                <option key={l.id} value={l.id}>
+                                  {l.label}
+                                </option>
+                              ))}
+                            </select>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              disabled={!locationMatchDraft[i]}
+                              onClick={() => {
+                                confirmLocation(bolId, i, "existing", locationMatchDraft[i]);
+                                setLocationMatchDraft((prev) => ({ ...prev, [i]: "" }));
+                              }}
+                            >
+                              Confirm
+                            </Button>
+                          </>
                         )}
                       </>
                     )}
@@ -651,28 +680,9 @@ function ApproveReleaseTab({ bolId }: { bolId: string }) {
                   Keep Researching
                 </Button>
               )}
-              {!confirmingReject ? (
-                <Button variant="danger" onClick={() => setConfirmingReject(true)}>
-                  Reject
-                </Button>
-              ) : (
-                <span className="inline-flex items-center gap-2 rounded-[var(--cd-radius-sm)] border border-[var(--cd-danger)]/30 bg-[var(--cd-danger-soft)] py-1 pl-3 pr-1.5">
-                  <span className="text-[12.5px] font-semibold text-[var(--cd-danger)]">Reject this BOL?</span>
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    onClick={() => {
-                      setBolStatus(bolId, "rejected");
-                      setConfirmingReject(false);
-                    }}
-                  >
-                    Reject
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => setConfirmingReject(false)}>
-                    Cancel
-                  </Button>
-                </span>
-              )}
+              <Button variant="danger" onClick={() => setConfirmingReject(true)}>
+                Reject
+              </Button>
             </>
           ) : bol.status === "approved" ? (
             <span className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-[var(--cd-success)]">
@@ -777,6 +787,34 @@ function ApproveReleaseTab({ bolId }: { bolId: string }) {
           </div>
         )}
       </Card>
+
+      <Modal
+        open={confirmingReject}
+        onClose={() => setConfirmingReject(false)}
+        title="Reject this BOL?"
+        subtitle="Filed, not deleted — it can be reopened from here later."
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setConfirmingReject(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                setBolStatus(bolId, "rejected");
+                setConfirmingReject(false);
+              }}
+            >
+              Reject
+            </Button>
+          </>
+        }
+      >
+        <p className={`${TEXT.body} text-[var(--cd-text-muted)]`}>
+          {bol.docNumber} won&rsquo;t be reviewed further and won&rsquo;t be released to Sales. Same confirmation
+          pattern as Admin → Suspend &amp; Reassign.
+        </p>
+      </Modal>
     </div>
   );
 }

@@ -17,8 +17,10 @@ import {
   TextLink,
 } from "../../../_design/ui";
 import { Tabs } from "../../../_design/Tabs";
+import { Modal } from "../../../_design/Modal";
 import { STAGE_LABEL, STAGE_ORDER, STAGE_TONE } from "../../../_lib/lifecycle";
 import { daysAgoLabel, firstName, formatDate, relativeTime } from "../../../_lib/format";
+import type { LifecycleStage } from "../../../_lib/types";
 import {
   IconActivity,
   IconBuilding,
@@ -48,6 +50,7 @@ export default function CompanyDetailPage() {
   const [addContactOpen, setAddContactOpen] = useState(false);
   const [logActivityOpen, setLogActivityOpen] = useState(false);
   const [generateDocOpen, setGenerateDocOpen] = useState(false);
+  const [pendingStage, setPendingStage] = useState<LifecycleStage | null>(null);
 
   const rep = useTeamMemberById(company?.assignedUserId);
 
@@ -128,36 +131,77 @@ export default function CompanyDetailPage() {
         </div>
       </div>
 
-      {/* Stage tracker */}
+      {/* Stage tracker — a control, not a passive status readout, so it's
+          framed with a CardHead like every other interactive section on
+          this page rather than reading as a bare row of badges. Advancing
+          exactly one stage forward (the common, expected action) applies
+          immediately; jumping backward or skipping ahead opens a
+          confirmation Modal first — same proportionate-friction reasoning
+          as Reject vs. Suspend (CRM_INTERACTION_HIERARCHY.md §7/§10). */}
       {!isLost && (
-        <Card className="mb-4 overflow-x-auto p-3">
-          <div className="flex min-w-max items-center gap-1">
-            {STAGE_ORDER.map((s, i) => {
-              const currentIdx = STAGE_ORDER.indexOf(company.stage as typeof STAGE_ORDER[number]);
-              const reached = i <= currentIdx;
-              const isCurrent = s === company.stage;
-              return (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => moveStage(company.id, s)}
-                  className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-bold transition-colors ${
-                    isCurrent
-                      ? "bg-[var(--cd-accent)] text-white"
-                      : reached
-                        ? "bg-[var(--cd-accent-soft)] text-[var(--cd-accent)]"
-                        : "bg-[var(--cd-surface-2)] text-[var(--cd-text-subtle)] hover:bg-[var(--cd-border)]"
-                  }`}
-                >
-                  {reached && !isCurrent && <IconCheck width={11} height={11} />}
-                  {STAGE_LABEL[s]}
-                  {i < STAGE_ORDER.length - 1 && <span className="ml-1 text-[var(--cd-text-subtle)]">›</span>}
-                </button>
-              );
-            })}
+        <Card className="mb-4">
+          <CardHead title="Stage" hint="Click to move forward one stage — jumping back or skipping ahead asks first." />
+          <div className="overflow-x-auto p-3">
+            <div className="flex min-w-max items-center gap-1">
+              {STAGE_ORDER.map((s, i) => {
+                const currentIdx = STAGE_ORDER.indexOf(company.stage as typeof STAGE_ORDER[number]);
+                const reached = i <= currentIdx;
+                const isCurrent = s === company.stage;
+                return (
+                  <button
+                    key={s}
+                    type="button"
+                    disabled={isCurrent}
+                    onClick={() => (i === currentIdx + 1 ? moveStage(company.id, s) : setPendingStage(s))}
+                    className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[12px] font-bold transition-colors disabled:cursor-default ${
+                      isCurrent
+                        ? "bg-[var(--cd-accent)] text-white"
+                        : reached
+                          ? "bg-[var(--cd-accent-soft)] text-[var(--cd-accent)] hover:bg-[var(--cd-accent)]/20"
+                          : "bg-[var(--cd-surface-2)] text-[var(--cd-text-subtle)] hover:bg-[var(--cd-border)]"
+                    }`}
+                  >
+                    {reached && !isCurrent && <IconCheck width={11} height={11} />}
+                    {STAGE_LABEL[s]}
+                    {i < STAGE_ORDER.length - 1 && <span className="ml-1 text-[var(--cd-text-subtle)]">›</span>}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </Card>
       )}
+
+      <Modal
+        open={pendingStage !== null}
+        onClose={() => setPendingStage(null)}
+        title={pendingStage ? `Move to ${STAGE_LABEL[pendingStage]}?` : ""}
+        subtitle={
+          pendingStage && STAGE_ORDER.indexOf(pendingStage) < STAGE_ORDER.indexOf(company.stage as typeof STAGE_ORDER[number])
+            ? "This moves the stage backward."
+            : "This skips one or more stages."
+        }
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setPendingStage(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              onClick={() => {
+                if (pendingStage) moveStage(company.id, pendingStage);
+                setPendingStage(null);
+              }}
+            >
+              Move stage
+            </Button>
+          </>
+        }
+      >
+        <p className={`${TEXT.body} text-[var(--cd-text-muted)]`}>
+          {company.name} is currently {STAGE_LABEL[company.stage as typeof STAGE_ORDER[number]] ?? company.stage}.
+        </p>
+      </Modal>
       {isLost && (
         <Card className="mb-4 flex items-center justify-between p-3.5">
           <Badge tone="danger">Lost</Badge>

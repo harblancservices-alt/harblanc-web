@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useStore, useTeamMemberById } from "../../../_lib/store";
 import { Badge, Button, Card, CardHead, EmptyState, INPUT, PAGE_WIDTH, PageHeader, SegmentedControl, TEXT, TextLink } from "../../../_design/ui";
 import { Tabs } from "../../../_design/Tabs";
+import { Modal } from "../../../_design/Modal";
 import { IconMic, IconSearch } from "../../../_design/icons";
 import { OTR_STATUS_DESCRIPTION, OTR_STATUS_LABEL, OTR_STATUS_ORDER, OTR_STATUS_TONE } from "../../../_lib/otrStatus";
 import { firstName, relativeTime } from "../../../_lib/format";
@@ -107,7 +108,7 @@ function OtrCard({ otr }: { otr: OtrEntry }) {
         </p>
 
         {otr.status === "released" ? (
-          <div className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--cd-radius-md)] border border-[var(--cd-admin)]/25 bg-[var(--cd-admin-soft)] px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-[var(--cd-radius-md)] border border-[var(--cd-admin)]/45 bg-[var(--cd-admin-soft)] px-4 py-3">
             <p className={`${TEXT.body} text-[var(--cd-text)]`}>
               Released {otr.release ? relativeTime(otr.release.releasedAt) : ""} — now on the Prospects tab.
             </p>
@@ -178,32 +179,43 @@ function OtrCard({ otr }: { otr: OtrEntry }) {
                 <Button variant="secondary" size="sm" onClick={() => setOtrStatus(otr.id, "researching")}>
                   Reopen
                 </Button>
-              ) : !confirmingReject ? (
+              ) : (
                 <Button variant="danger" size="sm" onClick={() => setConfirmingReject(true)}>
                   Reject
                 </Button>
-              ) : (
-                <span className="inline-flex items-center gap-2 rounded-[var(--cd-radius-sm)] border border-[var(--cd-danger)]/30 bg-[var(--cd-danger-soft)] py-1 pl-2.5 pr-1.5">
-                  <span className="text-[12px] font-semibold text-[var(--cd-danger)]">Reject this entry?</span>
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    onClick={() => {
-                      setOtrStatus(otr.id, "rejected");
-                      setConfirmingReject(false);
-                    }}
-                  >
-                    Reject
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => setConfirmingReject(false)}>
-                    Cancel
-                  </Button>
-                </span>
               )}
             </div>
           </>
         )}
       </div>
+
+      <Modal
+        open={confirmingReject}
+        onClose={() => setConfirmingReject(false)}
+        title="Reject this entry?"
+        subtitle="Filed, not deleted — it can be reopened from here later."
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setConfirmingReject(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() => {
+                setOtrStatus(otr.id, "rejected");
+                setConfirmingReject(false);
+              }}
+            >
+              Reject
+            </Button>
+          </>
+        }
+      >
+        <p className={`${TEXT.body} text-[var(--cd-text-muted)]`}>
+          {otr.companyName} won&rsquo;t be researched further and won&rsquo;t be released to Prospects. Same
+          confirmation pattern as Admin → Suspend &amp; Reassign.
+        </p>
+      </Modal>
     </Card>
   );
 }

@@ -1,9 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { useStore, useTeamMemberById } from "../../_lib/store";
-import { Badge, Card, CardHead, EmptyState, INPUT, PAGE_WIDTH, PageHeader, TEXT, ZEBRA } from "../../_design/ui";
+import { Badge, Card, CardHead, EmptyState, INPUT, PAGE_WIDTH, PageHeader, TEXT, TextLink, ZEBRA } from "../../_design/ui";
 import { firstName, formatDateTime } from "../../_lib/format";
 import { IconActivity, IconDocument, IconMail, IconPhone, IconSearch, IconTasks } from "../../_design/icons";
 import type { ActivityKind } from "../../_lib/types";
@@ -123,9 +122,9 @@ function ActivityRow({
         </p>
       </div>
       {company && (
-        <Link href={`/crm-design/companies/${company.id}`} className={`shrink-0 rounded-[var(--cd-radius-sm)] border border-[var(--cd-accent)]/30 bg-[var(--cd-accent-soft)] px-2.5 py-1.5 text-[12px] font-semibold text-[var(--cd-accent)] transition-colors hover:bg-[var(--cd-accent)] hover:text-white`}>
-          {company.name}
-        </Link>
+        <TextLink href={`/crm-design/companies/${company.id}`} className="shrink-0">
+          {company.name} →
+        </TextLink>
       )}
     </li>
   );

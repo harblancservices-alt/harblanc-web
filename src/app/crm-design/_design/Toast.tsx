@@ -4,9 +4,9 @@ import { useStore } from "../_lib/store";
 import { IconCheck, IconInfo, IconAlertTriangle } from "./icons";
 
 const TONE_STYLE: Record<string, string> = {
-  success: "border-[var(--cd-success)]/25 bg-[var(--cd-success-soft)] text-[var(--cd-success)]",
-  info: "border-[var(--cd-accent)]/25 bg-[var(--cd-accent-soft)] text-[var(--cd-accent)]",
-  danger: "border-[var(--cd-danger)]/25 bg-[var(--cd-danger-soft)] text-[var(--cd-danger)]",
+  success: "border-[var(--cd-success)]/45 bg-[var(--cd-success-soft)] text-[var(--cd-success)]",
+  info: "border-[var(--cd-accent)]/45 bg-[var(--cd-accent-soft)] text-[var(--cd-accent)]",
+  danger: "border-[var(--cd-danger)]/45 bg-[var(--cd-danger-soft)] text-[var(--cd-danger)]",
 };
 
 const TONE_ICON: Record<string, React.ReactNode> = {

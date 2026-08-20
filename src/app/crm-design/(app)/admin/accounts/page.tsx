@@ -31,7 +31,7 @@ export default function AdminAccountsPage() {
                   {m.email} · {m.companiesOwned} {m.companiesOwned === 1 ? "company" : "companies"} · {m.openTasks} open tasks
                 </p>
               </div>
-              <span className={`shrink-0 ${TEXT.micro} text-[var(--cd-text-subtle)]`}>Since {formatDate(m.createdAt)}</span>
+              <span className={`shrink-0 ${TEXT.micro} text-[var(--cd-text-muted)]`}>Since {formatDate(m.createdAt)}</span>
             </Link>
           </li>
         ))}

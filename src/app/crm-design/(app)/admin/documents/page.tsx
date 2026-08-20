@@ -21,7 +21,7 @@ export default function AdminDocumentsPage() {
   const [preview, setPreview] = useState<(typeof TEMPLATES)[number] | null>(null);
   return (
     <div className="flex flex-col gap-4">
-      <Card className="flex flex-wrap items-center justify-between gap-3 border-[var(--cd-admin)]/25 bg-[var(--cd-admin-soft)] px-4 py-3">
+      <Card className="flex flex-wrap items-center justify-between gap-3 border-[var(--cd-admin)]/45 bg-[var(--cd-admin-soft)] px-4 py-3">
         <p className={`${TEXT.body} text-[var(--cd-text)]`}>
           Looking for BOLs your team uploaded (photos, not blank forms)? Those live in{" "}
           <span className="font-semibold">BOL Center</span> — a separate intake/research workflow, not a document

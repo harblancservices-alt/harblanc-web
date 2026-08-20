@@ -92,21 +92,13 @@ export default function InteractionSystemPage() {
 
         {/* ── 4. Destructive ──────────────────────────────────────── */}
         <Card>
-          <CardHead title="4. Destructive action" hint="Proportionate friction, not maximum friction. Reject uses a lightweight inline two-step confirm; a heavier, harder-to-undo action (Suspend & reassign) still gets the full Modal. Click 'Reject' to see it." />
+          <CardHead title="4. Destructive action" hint="Every destructive action gets the same confirming Modal, no exceptions — Reject (BOL/OTR) now matches Suspend & Reassign's pattern exactly (Brent's call, supersedes the earlier lighter inline confirm)." />
           <div className="flex flex-wrap items-center gap-3 p-5">
-            {!confirmingReject ? (
-              <Button variant="danger" onClick={() => setConfirmingReject(true)}>
-                Reject
-              </Button>
-            ) : (
-              <span className="inline-flex items-center gap-2 rounded-[var(--cd-radius-sm)] border border-[var(--cd-danger)]/30 bg-[var(--cd-danger-soft)] py-1 pl-3 pr-1.5">
-                <span className="text-[12.5px] font-semibold text-[var(--cd-danger)]">Reject this BOL?</span>
-                <Button variant="danger" size="sm" onClick={() => setConfirmingReject(false)}>Reject</Button>
-                <Button variant="ghost" size="sm" onClick={() => setConfirmingReject(false)}>Cancel</Button>
-              </span>
-            )}
+            <Button variant="danger" onClick={() => setConfirmingReject(true)}>
+              Reject
+            </Button>
             <span className={`${TEXT.micro} text-[var(--cd-text-muted)]`}>
-              Shipped on both BOL detail and OTR — Reject and Reopen already give it an undo path, so full-Modal friction would be disproportionate (Brent&rsquo;s call).
+              Click to see the confirming Modal — the same Cancel/Danger footer used everywhere a destructive action exists in the prototype.
             </span>
           </div>
         </Card>
@@ -307,7 +299,7 @@ export default function InteractionSystemPage() {
               </div>
             </Flag>
 
-            <div className="mb-3 rounded-[var(--cd-radius-md)] border border-[var(--cd-accent)]/30 bg-[var(--cd-accent-soft)] px-4 py-3.5">
+            <div className="mb-3 rounded-[var(--cd-radius-md)] border border-[var(--cd-accent)]/45 bg-[var(--cd-accent-soft)] px-4 py-3.5">
               <p className="text-[11px] font-bold uppercase tracking-wide text-[var(--cd-accent)]">Potential new customer</p>
               <p className="text-[15px] font-bold text-[var(--cd-text)]">Permian Rig Movers LLC</p>
             </div>
@@ -356,15 +348,7 @@ export default function InteractionSystemPage() {
             <div className="flex flex-wrap items-center gap-2">
               <Button variant="admin" size="sm">Approve</Button>
               <Flag n={9}>
-                {!confirmingReject ? (
-                  <Button variant="danger" size="sm" onClick={() => setConfirmingReject(true)}>Reject</Button>
-                ) : (
-                  <span className="inline-flex items-center gap-1.5 rounded-[var(--cd-radius-sm)] border border-[var(--cd-danger)]/30 bg-[var(--cd-danger-soft)] py-1 pl-2 pr-1">
-                    <span className="text-[11.5px] font-semibold text-[var(--cd-danger)]">Reject?</span>
-                    <Button variant="danger" size="sm" onClick={() => setConfirmingReject(false)}>Reject</Button>
-                    <Button variant="ghost" size="sm" onClick={() => setConfirmingReject(false)}>Cancel</Button>
-                  </span>
-                )}
+                <Button variant="danger" size="sm" onClick={() => setConfirmingReject(true)}>Reject</Button>
               </Flag>
             </div>
           </div>
@@ -381,7 +365,7 @@ export default function InteractionSystemPage() {
             <LegendRow n={6} current="Button styled like a success Badge" recommended="Now a real checkbox — no more badge costume" />
             <LegendRow n={7} current="tone=&quot;warning&quot; Badge" recommended="Unchanged — correct as-is, passive status" ok />
             <LegendRow n={8} current="Whole-row hover, one-cell navigation" recommended="Whole row is now the click target, on every breakpoint" />
-            <LegendRow n={9} current="Danger Button, fired immediately" recommended="Now a lightweight inline two-step confirm (Brent's call — proportionate to Reject's undo path)" />
+            <LegendRow n={9} current="Danger Button, fired immediately" recommended="Now a confirming Modal — same Cancel/Danger pattern as Suspend & Reassign (Brent's call: destructive actions stay consistent CRM-wide)" />
           </ul>
         </Card>
       </div>
@@ -390,7 +374,7 @@ export default function InteractionSystemPage() {
         open={modalOpen}
         onClose={() => setModalOpen(false)}
         title="Suspend user"
-        subtitle="Reserved for the heaviest confirmations — reassignment before an account is suspended."
+        subtitle="The reference example this pattern was built from — reassignment before an account is suspended."
         footer={
           <>
             <Button variant="secondary" onClick={() => setModalOpen(false)}>Cancel</Button>
@@ -399,9 +383,26 @@ export default function InteractionSystemPage() {
         }
       >
         <p className={`${TEXT.body} text-[var(--cd-text-muted)]`}>
-          Full Modal confirmation is still the right call when there&rsquo;s no cheap undo path — Admin →
-          Member detail&rsquo;s Suspend &amp; Reassign is the reference example. Reject doesn&rsquo;t need this
-          much friction (see §4 above) — it already has a one-click Reopen.
+          Admin → Member detail&rsquo;s Suspend &amp; Reassign is where this Cancel/Danger footer pattern started.
+          It&rsquo;s now the one confirmation shape every destructive action in the prototype uses — including
+          Reject (§4 above), which used to fire immediately.
+        </p>
+      </Modal>
+
+      <Modal
+        open={confirmingReject}
+        onClose={() => setConfirmingReject(false)}
+        title="Reject this BOL?"
+        subtitle="Filed, not deleted — it can be reopened from here later."
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => setConfirmingReject(false)}>Cancel</Button>
+            <Button variant="danger" onClick={() => setConfirmingReject(false)}>Reject</Button>
+          </>
+        }
+      >
+        <p className={`${TEXT.body} text-[var(--cd-text-muted)]`}>
+          Same Cancel/Danger footer as Suspend &amp; Reassign above — shipped on both BOL detail and OTR.
         </p>
       </Modal>
 
@@ -483,7 +484,7 @@ function DoDont({ ok, children }: { ok: boolean; children: React.ReactNode }) {
   return (
     <div
       className={`flex flex-col items-start gap-2 rounded-[var(--cd-radius-md)] border p-3.5 ${
-        ok ? "border-[var(--cd-success)]/30 bg-[var(--cd-success-soft)]" : "border-[var(--cd-danger)]/30 bg-[var(--cd-danger-soft)]"
+        ok ? "border-[var(--cd-success)]/45 bg-[var(--cd-success-soft)]" : "border-[var(--cd-danger)]/45 bg-[var(--cd-danger-soft)]"
       }`}
     >
       <span className={`flex items-center gap-1.5 ${TEXT.micro} font-bold uppercase tracking-wide ${ok ? "text-[var(--cd-success)]" : "text-[var(--cd-danger)]"}`}>

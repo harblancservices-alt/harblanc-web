@@ -140,7 +140,7 @@ function ProspectCard({ group }: { group: ProspectGroup }) {
           )}
         </div>
 
-        <div className={`mt-3 border-t border-[var(--cd-border)] pt-2.5 ${TEXT.micro} text-[var(--cd-text-subtle)]`}>
+        <div className={`mt-3 border-t border-[var(--cd-border)] pt-2.5 ${TEXT.micro} text-[var(--cd-text-muted)]`}>
           {group.bolDocNumbers.length > 0 && (
             <p className="truncate">Sourced from BOL #{group.bolDocNumbers.join(", #")}</p>
           )}

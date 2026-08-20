@@ -258,13 +258,18 @@ type BadgeTone = "neutral" | "accent" | "success" | "warning" | "danger" | "admi
 // Every tone gets a tone-matched border (not just neutral) — on a card
 // header or a zebra alt-row (both now a visible gray), a border-less soft-fill
 // badge could otherwise sit at low contrast against its own background.
+// Border opacity is /45, not /25 — at /25 a tinted border all but disappears
+// against its own soft-fill background, which is exactly the "barely-visible
+// border" the readability sweep flagged (2026-08-19). Same reasoning as the
+// info-banner and pill-link border bumps elsewhere in this pass — this is
+// the one place it's componentized, so every badge in the app inherits it.
 const BADGE_TONE: Record<BadgeTone, string> = {
   neutral: "bg-[var(--cd-surface-2)] text-[var(--cd-text-muted)] border border-[var(--cd-border-strong)]",
-  accent: "bg-[var(--cd-accent-soft)] text-[var(--cd-accent)] border border-[var(--cd-accent)]/25",
-  success: "bg-[var(--cd-success-soft)] text-[var(--cd-success)] border border-[var(--cd-success)]/25",
-  warning: "bg-[var(--cd-warning-soft)] text-[var(--cd-warning)] border border-[var(--cd-warning)]/25",
-  danger: "bg-[var(--cd-danger-soft)] text-[var(--cd-danger)] border border-[var(--cd-danger)]/25",
-  admin: "bg-[var(--cd-admin-soft)] text-[var(--cd-admin)] border border-[var(--cd-admin)]/25",
+  accent: "bg-[var(--cd-accent-soft)] text-[var(--cd-accent)] border border-[var(--cd-accent)]/45",
+  success: "bg-[var(--cd-success-soft)] text-[var(--cd-success)] border border-[var(--cd-success)]/45",
+  warning: "bg-[var(--cd-warning-soft)] text-[var(--cd-warning)] border border-[var(--cd-warning)]/45",
+  danger: "bg-[var(--cd-danger-soft)] text-[var(--cd-danger)] border border-[var(--cd-danger)]/45",
+  admin: "bg-[var(--cd-admin-soft)] text-[var(--cd-admin)] border border-[var(--cd-admin)]/45",
 };
 export function Badge({ tone = "neutral", children }: { tone?: BadgeTone; children: ReactNode }) {
   return (
