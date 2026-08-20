@@ -20,6 +20,7 @@ export default async function AdminOverviewPage() {
     { count: bolCount },
     { count: openTaskCount },
     { count: pendingReviewCount },
+    { count: otrCount },
   ] = await Promise.all([
     supabase.from("crm_profiles").select("id", { count: "exact", head: true }),
     supabase.from("crm_profiles").select("id", { count: "exact", head: true }).eq("is_active", true),
@@ -34,6 +35,9 @@ export default async function AdminOverviewPage() {
       .in("source", ["ai_agent", "field_capture"])
       .eq("ai_status", "pending_review")
       .is("deleted_at", null),
+    // Errors (e.g. the migration hasn't been applied yet) resolve to
+    // count=null, not a thrown error — see crm_otr_entries.sql's header.
+    supabase.from("crm_otr_entries").select("id", { count: "exact", head: true }).is("deleted_at", null),
   ]);
 
   const documentCount = (rcCount ?? 0) + (bolCount ?? 0);
@@ -42,7 +46,7 @@ export default async function AdminOverviewPage() {
     <div className="space-y-4">
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         <StatLinkTile href="/crm/admin/bol-center" label="BOL Center" value="—" />
-        <StatLinkTile href="/crm/admin/otr" label="OTR" value="—" />
+        <StatLinkTile href="/crm/admin/otr" label="OTR" value={otrCount === null ? "—" : String(otrCount)} />
         <StatLinkTile href="/crm/ai-review" label="AI Review — pending" value={String(pendingReviewCount ?? 0)} />
         <StatLinkTile href="/crm/admin/accounts" label="Team accounts" value={`${activeTeamCount ?? 0} active`} />
         <StatLinkTile href="/crm/admin/activity" label="Open tasks org-wide" value={String(openTaskCount ?? 0)} />
@@ -57,8 +61,11 @@ export default async function AdminOverviewPage() {
             {teamCount ?? 0} total team {teamCount === 1 ? "account" : "accounts"} on this org.{" "}
             <span className="font-semibold text-fg">BOL Center</span> and{" "}
             <span className="font-semibold text-fg">OTR</span> are the two prospect-intake funnels this
-            section is designed around — neither is connected to a real pipeline yet, shown honestly rather
-            than faked. <span className="font-semibold text-fg">AI Review</span> is the pending-review
+            section is designed around. <span className="font-semibold text-fg">OTR</span> tracks
+            companies named to Brent over the phone, with no document at all — releasing an entry creates
+            a real company. <span className="font-semibold text-fg">BOL Center</span> (scanned-document
+            intake) has no real pipeline yet, shown honestly rather than faked.{" "}
+            <span className="font-semibold text-fg">AI Review</span> is the pending-review
             queue for AI-sourced and Field Capture leads — moved here from the primary sales nav since
             it&rsquo;s an owner/admin gate, not a sales-agent destination. Use{" "}
             <span className="font-semibold text-fg">Accounts</span> to review a

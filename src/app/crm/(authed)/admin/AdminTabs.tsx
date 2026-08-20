@@ -7,9 +7,9 @@ const TABS: { href: string; label: string; exact: boolean }[] = [
   { href: "/crm/admin", label: "Overview", exact: true },
   // BOL Center and OTR sit right after Overview, matching crm-design's
   // admin tab order — the two intake funnels are the highest-priority admin
-  // work, grouped adjacently. Neither has a real backend yet (no bolRecords/
-  // otrEntries table); both pages say so honestly rather than faking data —
-  // see admin/bol-center/page.tsx and admin/otr/page.tsx.
+  // work, grouped adjacently. OTR has a real backend (crm_otr_entries,
+  // 2026-08-20); BOL Center (scanned-document intake) still doesn't and says
+  // so honestly rather than faking data — see admin/bol-center/page.tsx.
   { href: "/crm/admin/bol-center", label: "BOL Center", exact: false },
   { href: "/crm/admin/otr", label: "OTR", exact: false },
   { href: "/crm/admin/accounts", label: "Accounts", exact: false },
@@ -34,8 +34,9 @@ const TABS: { href: string; label: string; exact: boolean }[] = [
  * visual idiom as that component, just Link-driven with pathname-based
  * active state instead of client tab-index state.
  */
-export function AdminTabs() {
+export function AdminTabs({ otrNeedsAttention = 0 }: { otrNeedsAttention?: number }) {
   const pathname = usePathname() ?? "";
+  const badgeByHref: Record<string, number> = { "/crm/admin/otr": otrNeedsAttention };
 
   return (
     <div
@@ -45,6 +46,7 @@ export function AdminTabs() {
     >
       {TABS.map((t) => {
         const active = t.exact ? pathname === t.href : pathname.startsWith(t.href);
+        const badge = badgeByHref[t.href] ?? 0;
         return (
           <Link
             key={t.href}
@@ -52,13 +54,18 @@ export function AdminTabs() {
             prefetch={false}
             role="tab"
             aria-selected={active}
-            className={`shrink-0 rounded-md px-3.5 py-2 text-[13px] font-bold transition-all ${
+            className={`flex shrink-0 items-center gap-1.5 rounded-md px-3.5 py-2 text-[13px] font-bold transition-all ${
               active
                 ? "bg-card text-admin shadow-e2 ring-1 ring-line-strong"
                 : "text-fg-muted hover:bg-card/60 hover:text-fg"
             }`}
           >
             {t.label}
+            {badge > 0 && (
+              <span className="flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-admin px-1 text-[10px] font-bold text-white">
+                {badge}
+              </span>
+            )}
           </Link>
         );
       })}

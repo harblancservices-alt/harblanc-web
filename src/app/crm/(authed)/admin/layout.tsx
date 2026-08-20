@@ -1,4 +1,5 @@
 import { requireCrmAdmin } from "./guard";
+import { createCrmServerClient } from "@/lib/crm/auth";
 import { PageShell } from "../_shell/ui";
 import { AdminTabs } from "./AdminTabs";
 
@@ -13,10 +14,20 @@ export const dynamic = "force-dynamic";
  */
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   await requireCrmAdmin();
+  const supabase = await createCrmServerClient();
+
+  // OTR's tab badge — same needs-attention predicate as its Overview stat
+  // tile (admin/page.tsx). BOL Center has no equivalent since it has no real
+  // backend yet.
+  const { count: otrNeedsAttention } = await supabase
+    .from("crm_otr_entries")
+    .select("id", { count: "exact", head: true })
+    .in("status", ["new", "ready_for_approval"])
+    .is("deleted_at", null);
 
   return (
     <PageShell title="Admin Account" subtitle="Owner-only. Manage the team and review company-wide activity.">
-      <AdminTabs />
+      <AdminTabs otrNeedsAttention={otrNeedsAttention ?? 0} />
       {children}
     </PageShell>
   );
