@@ -1,36 +1,17 @@
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { Card, EmptyState } from "../../_shell/ui";
 import { IconBillOfLading } from "../../_shell/icons";
-import { AddBolEntryButton } from "./AddBolEntryButton";
-import { BolEntryCard, type BolEntryData } from "./BolEntryCard";
+import { BolTable, type BolRow } from "./BolTable";
 import type { BolStatus } from "./actions";
 
 export const dynamic = "force-dynamic";
 
-type BolRow = {
-  id: string;
-  bol_number: string | null;
-  carrier: string | null;
-  shipper_name: string | null;
-  shipper_address: string | null;
-  consignee_name: string | null;
-  consignee_address: string | null;
-  bill_to: string | null;
-  commodity: string | null;
-  weight: string | null;
-  pickup_date: string | null;
-  delivery_date: string | null;
-  reference: string | null;
-  notes: string | null;
-  status: BolStatus;
-};
-
 /**
- * BOL Center — researched BOL profiles: a bill of lading Brent has already
- * worked (shipper/consignee/route captured), tracked through a
- * research→approval workflow. Mirrors admin/otr/page.tsx's shape (see
- * ./actions.ts and the crm_bol_entries migration's header comment) — a
- * single page/card-list, admin-only.
+ * BOL Center — the document-inbox list. Intake is external (an upstream
+ * Claude session extracts/researches a BOL photo and inserts the row +
+ * attaches the document); this page is purely the review queue: one row per
+ * BOL, click through to the detail workspace to resolve it against real
+ * companies/contacts. See ./actions.ts's header comment for the full model.
  */
 export default async function AdminBolCenterPage() {
   await requireCrmUser();
@@ -39,55 +20,58 @@ export default async function AdminBolCenterPage() {
   const { data } = await supabase
     .from("crm_bol_entries")
     .select(
-      "id, bol_number, carrier, shipper_name, shipper_address, consignee_name, consignee_address, bill_to, commodity, weight, pickup_date, delivery_date, reference, notes, status"
+      "id, bol_number, carrier, shipper_name, consignee_name, status, created_at, matched_shipper_account_id, matched_consignee_account_id",
     )
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
 
-  const entries = (data ?? []) as BolRow[];
+  const entries = data ?? [];
+  const ids = entries.map((e) => e.id as string);
+
+  const contactCounts = new Map<string, number>();
+  if (ids.length) {
+    const { data: contacts } = await supabase.from("crm_bol_contacts").select("bol_id").in("bol_id", ids);
+    for (const c of contacts ?? []) {
+      const key = c.bol_id as string;
+      contactCounts.set(key, (contactCounts.get(key) ?? 0) + 1);
+    }
+  }
+
+  const rows: BolRow[] = entries.map((e) => {
+    const totalSides = [e.shipper_name, e.consignee_name].filter(Boolean).length;
+    const resolvedSides = [e.matched_shipper_account_id, e.matched_consignee_account_id].filter(Boolean).length;
+    return {
+      id: e.id as string,
+      bolNumber: e.bol_number as string | null,
+      carrier: e.carrier as string | null,
+      shipperName: e.shipper_name as string | null,
+      consigneeName: e.consignee_name as string | null,
+      status: e.status as BolStatus,
+      createdAt: e.created_at as string,
+      companiesResolved: resolvedSides,
+      companiesTotal: totalSides,
+      contactCount: contactCounts.get(e.id as string) ?? 0,
+    };
+  });
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-[13px] text-fg-muted">
-          {entries.length} {entries.length === 1 ? "profile" : "profiles"} — bills of lading researched into shipper/consignee/route detail.
-        </p>
-        <AddBolEntryButton />
-      </div>
+      <p className="text-[13px] text-fg-muted">
+        {rows.length} {rows.length === 1 ? "BOL" : "BOLs"} in the review queue — extracted upstream, resolved against real companies here.
+      </p>
 
-      {entries.length === 0 ? (
+      {rows.length === 0 ? (
         <Card>
           <EmptyState
             icon={<IconBillOfLading />}
-            title="No BOL profiles yet"
-            body="Add a bill of lading Brent has worked — shipper, consignee, route, and whatever research turns up before it's released."
+            title="No BOLs to review"
+            body="BOLs arrive here once they've been extracted and researched upstream — nothing to do until one lands."
           />
         </Card>
       ) : (
-        <div className="flex flex-col gap-3">
-          {entries.map((e) => (
-            <BolEntryCard
-              key={e.id}
-              bol={{
-                id: e.id,
-                bolNumber: e.bol_number,
-                carrier: e.carrier,
-                shipperName: e.shipper_name,
-                shipperAddress: e.shipper_address,
-                consigneeName: e.consignee_name,
-                consigneeAddress: e.consignee_address,
-                billTo: e.bill_to,
-                commodity: e.commodity,
-                weight: e.weight,
-                pickupDate: e.pickup_date,
-                deliveryDate: e.delivery_date,
-                reference: e.reference,
-                notes: e.notes,
-                status: e.status,
-              } satisfies BolEntryData}
-            />
-          ))}
-        </div>
+        <Card className="overflow-x-auto p-0">
+          <BolTable rows={rows} />
+        </Card>
       )}
     </div>
   );

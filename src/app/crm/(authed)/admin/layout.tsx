@@ -16,18 +16,20 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   await requireCrmAdmin();
   const supabase = await createCrmServerClient();
 
-  // OTR/BOL Center tab badges — both intake funnels share the same
-  // needs-attention predicate (new or ready-for-approval rows).
+  // OTR's tab badge — its own new/ready-for-approval funnel.
   const { count: otrNeedsAttention } = await supabase
     .from("crm_otr_entries")
     .select("id", { count: "exact", head: true })
     .in("status", ["new", "ready_for_approval"])
     .is("deleted_at", null);
 
+  // BOL Center's tab badge — new or explicitly flagged rows in the review
+  // queue; 'ready' isn't included here since it's a normal, expected resting
+  // state (both sides resolved), not something needing the admin's attention.
   const { count: bolNeedsAttention } = await supabase
     .from("crm_bol_entries")
     .select("id", { count: "exact", head: true })
-    .in("status", ["new", "ready_for_approval"])
+    .in("status", ["new", "needs_review"])
     .is("deleted_at", null);
 
   return (
