@@ -43,7 +43,7 @@ export function NewShipmentButton({
         type="button"
         onClick={onClick}
         disabled={pending}
-        className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-[15px] font-bold shadow-e2 transition-all hover:-translate-y-0.5 hover:shadow-e3 disabled:pointer-events-none disabled:opacity-60 ${BTN_PRIMARY}`}
+        className={`inline-flex items-center gap-2 rounded-md px-4 py-2.5 text-[15px] font-bold shadow-e2 transition-all hover:-translate-y-0.5 hover:shadow-e3 disabled:pointer-events-none disabled:opacity-60 ${BTN_PRIMARY}`}
       >
         <IconPlus width={16} height={16} />
         {pending ? "Creating…" : label}

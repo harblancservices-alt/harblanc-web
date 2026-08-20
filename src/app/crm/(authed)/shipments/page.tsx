@@ -65,7 +65,7 @@ export default async function ShipmentsPage({
         <>
           <Link
             href="/crm/carriers"
-            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-[14px] font-semibold transition-colors ${BTN_EDIT}`}
+            className={`inline-flex items-center gap-2 rounded-md px-4 py-2.5 text-[14px] font-semibold transition-colors ${BTN_EDIT}`}
           >
             <IconTruck width={16} height={16} />
             Carriers

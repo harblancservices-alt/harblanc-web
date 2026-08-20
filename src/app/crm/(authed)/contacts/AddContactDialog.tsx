@@ -78,7 +78,7 @@ export function AddContactDialog({
         <button
           type="button"
           onClick={openDialog}
-          className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-[15px] font-bold shadow-e2 transition-all hover:-translate-y-0.5 hover:shadow-e3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${BTN_ACTION}`}
+          className={`inline-flex items-center gap-2 rounded-md px-4 py-2.5 text-[15px] font-bold shadow-e2 transition-all hover:-translate-y-0.5 hover:shadow-e3 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white ${BTN_ACTION}`}
         >
           <IconPlus width={16} height={16} />
           Add contact

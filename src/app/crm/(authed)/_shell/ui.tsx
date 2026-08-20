@@ -342,7 +342,7 @@ export function EmptyState({
   return (
     <div className="flex flex-col items-center justify-center gap-3 px-6 py-14 text-center">
       {icon && (
-        <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-inset text-fg-subtle">
+        <span className="flex h-12 w-12 items-center justify-center rounded-full bg-inset text-fg-subtle">
           {icon}
         </span>
       )}
