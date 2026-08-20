@@ -1,0 +1,64 @@
+import { listShipmentsForAccount } from "../../shipments/actions";
+import { ShipmentCard } from "../../shipments/ShipmentCard";
+import { NewShipmentButton } from "../../shipments/NewShipmentButton";
+
+const ACTIVE_STATUSES = new Set(["open", "dispatched", "in_transit"]);
+
+/**
+ * The profile's "Shipments" tab — this customer's loads, active first then
+ * historical, each already carrying its RC/BOL doc counts (see
+ * listShipmentsForAccount). "Create load" pre-links the new shipment to this
+ * account instead of the org-wide NewShipmentButton's blank-shipment flow, so
+ * a load started from a customer's profile never needs the customer picked
+ * again on the shipment itself. Reuses ShipmentCard unmodified — a shipment
+ * row looks the same here as it does on /crm/shipments.
+ */
+export async function ShipmentsTab({ accountId, accountName }: { accountId: string; accountName: string }) {
+  const shipments = await listShipmentsForAccount(accountId);
+  const active = shipments.filter((s) => ACTIVE_STATUSES.has((s.status || "open").toLowerCase()));
+  const historical = shipments.filter((s) => !ACTIVE_STATUSES.has((s.status || "open").toLowerCase()));
+
+  return (
+    <div className="flex flex-col gap-4 p-4">
+      <div className="flex items-center justify-end">
+        <NewShipmentButton accountId={accountId} customerName={accountName} label="Create load" />
+      </div>
+
+      {shipments.length === 0 ? (
+        <p className="py-8 text-center text-[13.5px] text-fg-muted">
+          No shipments for this customer yet — create one to start a load.
+        </p>
+      ) : (
+        <>
+          <div>
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
+              Active {active.length ? `(${active.length})` : ""}
+            </p>
+            {active.length === 0 ? (
+              <p className="text-[12.5px] text-fg-subtle">No active loads.</p>
+            ) : (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {active.map((s) => (
+                  <ShipmentCard key={s.id} shipment={s} />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {historical.length > 0 && (
+            <div>
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
+                History ({historical.length})
+              </p>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {historical.map((s) => (
+                  <ShipmentCard key={s.id} shipment={s} />
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}

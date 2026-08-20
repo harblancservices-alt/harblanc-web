@@ -30,6 +30,11 @@ function locationFieldsFromForm(fd: FormData) {
     zip: optStr(fd, "zip"),
     receiving_hours: optStr(fd, "receiving_hours"),
     dock_notes: optStr(fd, "dock_notes"),
+    contact_name: optStr(fd, "contact_name"),
+    contact_phone: optStr(fd, "contact_phone"),
+    contact_email: optStr(fd, "contact_email"),
+    default_carrier_id: optStr(fd, "default_carrier_id"),
+    default_carrier_contact_id: optStr(fd, "default_carrier_contact_id"),
   };
 }
 

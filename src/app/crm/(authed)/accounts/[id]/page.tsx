@@ -26,6 +26,7 @@ import { type CrmBolDocument } from "./BolSection";
 import { CompanyProfileSection } from "./CompanyProfileSection";
 import { StrayNumbersSection } from "./StrayNumbersSection";
 import { LocationsSection } from "./LocationsSection";
+import { ShipmentsTab } from "./ShipmentsTab";
 import type { CrmTaskItem } from "../../tasks/TaskRow";
 
 export const dynamic = "force-dynamic";
@@ -486,6 +487,7 @@ export default async function AccountDetailPage({
                 />
               }
               contactsCount={contacts.length}
+              shipments={<ShipmentsTab accountId={account.id as string} accountName={accountName} />}
               tasks={
                 <TasksTab
                   accountId={account.id as string}

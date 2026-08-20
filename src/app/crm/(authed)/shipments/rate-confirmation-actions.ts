@@ -157,13 +157,33 @@ export async function createRateConfirmationFromShipment(shipmentId: string): Pr
   let carrierRow: CrmCarrierRow | null = null;
   let primaryContact: CrmCarrierContactRow | null = null;
   if (shipmentRow.carrier_id) {
-    const [{ data: carrierData }, contact] = await Promise.all([
-      supabase.from("crm_carriers").select("*").eq("id", shipmentRow.carrier_id).maybeSingle(),
-      loadPrimaryCarrierContact(supabase, shipmentRow.carrier_id),
-    ]);
+    const { data: carrierData } = await supabase
+      .from("crm_carriers")
+      .select("*")
+      .eq("id", shipmentRow.carrier_id)
+      .maybeSingle();
     carrierRow = (carrierData as CrmCarrierRow) ?? null;
-    primaryContact = contact;
+
+    // Prefer the contact actually used/selected for THIS load (shipment.
+    // carrier_contact_id, set via the shipment workspace's Carrier Contact
+    // picker or a location's recurring-carrier auto-suggest) over guessing
+    // the carrier's oldest contact row — that fallback only applies to
+    // shipments created before this field existed.
+    if (shipmentRow.carrier_contact_id) {
+      const { data: contactData } = await supabase
+        .from("crm_carrier_contacts")
+        .select("*")
+        .eq("id", shipmentRow.carrier_contact_id)
+        .maybeSingle();
+      primaryContact = (contactData as CrmCarrierContactRow) ?? null;
+    } else if (!shipmentRow.carrier_contact_name) {
+      primaryContact = await loadPrimaryCarrierContact(supabase, shipmentRow.carrier_id);
+    }
   }
+
+  const carrierContactName = shipmentRow.carrier_contact_name ?? primaryContact?.name ?? null;
+  const carrierContactPhone = shipmentRow.carrier_contact_phone ?? carrierRow?.phone ?? primaryContact?.phone ?? null;
+  const carrierContactEmail = shipmentRow.carrier_contact_email ?? carrierRow?.email ?? primaryContact?.email ?? null;
 
   const { data: rcData, error } = await supabase
     .from("crm_rate_confirmations")
@@ -175,9 +195,9 @@ export async function createRateConfirmationFromShipment(shipmentId: string): Pr
       carrier_name: carrierRow?.name ?? null,
       carrier_mc: carrierRow?.mc_number ?? null,
       carrier_dot: carrierRow?.dot_number ?? null,
-      carrier_contact: primaryContact?.name ?? null,
-      carrier_phone: carrierRow?.phone ?? primaryContact?.phone ?? null,
-      carrier_email: carrierRow?.email ?? primaryContact?.email ?? null,
+      carrier_contact: carrierContactName,
+      carrier_phone: carrierContactPhone,
+      carrier_email: carrierContactEmail,
       doc_snapshot: { shipment: shipmentRow, carrier: carrierRow, carrierContact: primaryContact },
       total_carrier_pay: 0,
     })

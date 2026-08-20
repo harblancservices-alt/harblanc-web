@@ -7,6 +7,7 @@ import { Card } from "../../_shell/ui";
 const TABS = [
   { key: "timeline", label: "Timeline" },
   { key: "contacts", label: "Contacts" },
+  { key: "shipments", label: "Shipments" },
   { key: "tasks", label: "Tasks" },
   { key: "files", label: "Files" },
 ] as const;
@@ -30,6 +31,8 @@ export function ProfileCenterTabs({
   timelineCount,
   contacts,
   contactsCount,
+  shipments,
+  shipmentsCount,
   tasks,
   tasksCount,
   files,
@@ -38,6 +41,8 @@ export function ProfileCenterTabs({
   timelineCount?: number;
   contacts: ReactNode;
   contactsCount?: number;
+  shipments: ReactNode;
+  shipmentsCount?: number;
   tasks: ReactNode;
   tasksCount?: number;
   files: ReactNode;
@@ -46,6 +51,7 @@ export function ProfileCenterTabs({
   const counts: Partial<Record<TabKey, number | undefined>> = {
     timeline: timelineCount,
     contacts: contactsCount,
+    shipments: shipmentsCount,
     tasks: tasksCount,
   };
 
@@ -75,6 +81,7 @@ export function ProfileCenterTabs({
 
       <div className={tab === "timeline" ? "" : "hidden"}>{timeline}</div>
       <div className={tab === "contacts" ? "" : "hidden"}>{contacts}</div>
+      <div className={tab === "shipments" ? "" : "hidden"}>{shipments}</div>
       <div className={tab === "tasks" ? "" : "hidden"}>{tasks}</div>
       <div className={tab === "files" ? "" : "hidden"}>{files}</div>
     </Card>

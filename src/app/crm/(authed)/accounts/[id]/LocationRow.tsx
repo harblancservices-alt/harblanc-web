@@ -6,7 +6,25 @@ import { BTN_EDIT, BTN_DANGER } from "../../_shell/ui";
 import { LocationDialog, type LocationDefaults } from "./LocationDialog";
 import { deleteLocation } from "./locations-actions";
 
-export function LocationRow({ accountId, location }: { accountId: string; location: Required<LocationDefaults> }) {
+export type LocationListItem = LocationDefaults & {
+  id: string;
+  label: string | null;
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+  receiving_hours: string | null;
+  dock_notes: string | null;
+  contact_name: string | null;
+  contact_phone: string | null;
+  contact_email: string | null;
+  default_carrier_id: string | null;
+  default_carrier_contact_id: string | null;
+  default_carrier_name: string | null;
+  default_carrier_contact_name: string | null;
+};
+
+export function LocationRow({ accountId, location }: { accountId: string; location: LocationListItem }) {
   const [pending, startTransition] = useTransition();
   const router = useRouter();
 
@@ -34,6 +52,18 @@ export function LocationRow({ accountId, location }: { accountId: string; locati
           )}
           {location.dock_notes && (
             <p className="mt-1 whitespace-pre-wrap text-[12.5px] text-fg-muted">{location.dock_notes}</p>
+          )}
+          {(location.contact_name || location.contact_phone || location.contact_email) && (
+            <p className="mt-1 text-[12.5px] text-fg-muted">
+              <span className="font-semibold text-fg-subtle">Contact:</span>{" "}
+              {[location.contact_name, location.contact_phone, location.contact_email].filter(Boolean).join(" · ")}
+            </p>
+          )}
+          {location.default_carrier_name && (
+            <p className="mt-1 text-[12.5px] text-fg-muted">
+              <span className="font-semibold text-fg-subtle">Usual carrier:</span> {location.default_carrier_name}
+              {location.default_carrier_contact_name ? ` (${location.default_carrier_contact_name})` : ""}
+            </p>
           )}
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
