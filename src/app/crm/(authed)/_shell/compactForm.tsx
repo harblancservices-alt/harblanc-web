@@ -22,8 +22,14 @@ import { BTN_DANGER, BTN_EDIT } from "./ui";
 
 export const LABEL = "text-[9.5px] font-bold uppercase tracking-[0.07em] text-fg leading-none";
 
+// 2026-08-20: sunken bg-inset fill (was bg-card, identical to its parent
+// Card's own background — the exact "white-on-white, no fill to signal
+// 'editable'" flatness crm-design.css's own docs call out fixing). A field
+// now visibly reads as editable against both the page canvas and the white
+// card it sits inside, and "lifts" to bg-card on focus, matching
+// /crm-design's INPUT token exactly.
 export const CONTROL =
-  "rounded-[5px] border border-fg-subtle bg-card font-medium text-fg outline-none transition-shadow focus:border-accent focus:ring-1 focus:ring-accent/50";
+  "rounded-[5px] border border-line-strong bg-inset font-medium text-fg outline-none transition-colors focus:border-accent focus:bg-card focus:ring-1 focus:ring-accent/50";
 
 // Explicit vertical padding + line-height (not a bare fixed h-* with zero
 // vertical padding) so short values ("PPE") and long values center

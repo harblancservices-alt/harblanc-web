@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { IconX } from "./icons";
 
 /**
  * The CRM's one modal shell — a bottom-sheet on mobile, a centred dialog on
@@ -8,6 +9,13 @@ import { useEffect } from "react";
  * the e3 shadow over a dimmed scrim). Every CRM dialog (company create/edit,
  * contact add/edit, tag create) renders through this so the overlay
  * behaviour, escape-to-close, and scroll-lock stay identical everywhere.
+ *
+ * 2026-08-20: header rebuilt to match /crm-design's Modal exactly — a
+ * separate border-b header band (title, no longer sharing the same
+ * scrolling region as the body) with a circular icon-only close button,
+ * not the previous bordered rectangular "Cancel" text button sharing space
+ * with the title. The body is now its own independently-scrolling region
+ * below the header, matching the prototype's header/body split.
  */
 export function Modal({
   open,
@@ -57,23 +65,24 @@ export function Modal({
       role="presentation"
     >
       <div
-        className={`w-full overflow-y-auto border border-line bg-card p-4 shadow-e3 sm:max-h-[92vh] sm:rounded-lg ${fullScreen ? "h-[100dvh] max-h-[100dvh] rounded-none" : "max-h-[92vh] rounded-t-lg"} ${wide ? "max-w-6xl" : "max-w-lg"}`}
+        className={`flex w-full flex-col overflow-hidden border border-line bg-card shadow-e3 sm:max-h-[92vh] sm:rounded-lg ${fullScreen ? "h-[100dvh] max-h-[100dvh] rounded-none" : "max-h-[92vh] rounded-t-lg"} ${wide ? "max-w-6xl" : "max-w-lg"}`}
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-label={title}
       >
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 className="text-[16px] font-semibold text-fg">{title}</h2>
+        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-line px-4 py-3.5">
+          <h2 className="truncate text-[15px] font-bold tracking-tight text-fg">{title}</h2>
           <button
             type="button"
             onClick={() => !busy && onClose()}
-            className="rounded-[5px] border border-fg-subtle px-2.5 py-1 text-[12.5px] font-medium text-fg-muted transition-colors hover:bg-inset hover:text-fg"
+            aria-label="Close"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-fg-subtle transition-colors hover:bg-inset hover:text-fg"
           >
-            Cancel
+            <IconX width={16} height={16} />
           </button>
         </div>
-        {children}
+        <div className="flex-1 overflow-y-auto p-4">{children}</div>
       </div>
     </div>
   );
