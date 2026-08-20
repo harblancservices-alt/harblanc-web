@@ -138,6 +138,21 @@ const FIELD_GROUPS: { title: string; fields: { key: keyof BolExtraction; label: 
       { key: "referenceNumber", label: "Reference #" },
     ],
   },
+  // Optional — only some real-world BOLs carry a bill-to distinct from
+  // shipper/consignee. This group (and the Proof of Delivery one below)
+  // simply doesn't render when a record has neither field, so every other
+  // seed BOL is unaffected.
+  {
+    title: "Bill-To (if different from Shipper/Consignee)",
+    fields: [
+      { key: "billToName", label: "Bill-To Company" },
+      { key: "billToAddress", label: "Bill-To Address" },
+    ],
+  },
+  {
+    title: "Proof of Delivery",
+    fields: [{ key: "receivedBySignature", label: "Received & Signed By" }],
+  },
 ];
 
 function ExtractionTab({ bolId, pending }: { bolId: string; pending: boolean }) {
@@ -161,12 +176,13 @@ function ExtractionTab({ bolId, pending }: { bolId: string; pending: boolean }) 
 
   return (
     <div className="flex flex-col gap-4">
-      {FIELD_GROUPS.map((group) => (
+      {FIELD_GROUPS.filter((group) => group.fields.some((f) => bol.extraction[f.key])).map((group) => (
         <Card key={group.title}>
           <CardHead title={group.title} />
           <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2">
             {group.fields.map((f) => {
               const field = bol.extraction[f.key];
+              if (!field) return null;
               return (
                 <label key={f.key} className="flex flex-col gap-1">
                   <span className="flex items-center justify-between">
@@ -318,6 +334,30 @@ function CustomerLocationTab({ bolId }: { bolId: string }) {
         </div>
       </Card>
 
+      {bol.extraction.billToName && (
+        <Card>
+          <CardHead
+            title="Also on this document"
+            hint="A BOL can name more than one company worth evaluating — shown separately, never merged into the primary match above."
+          />
+          <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2">
+            <div className="rounded-[var(--cd-radius-md)] border border-[var(--cd-border)] bg-[var(--cd-surface-2)] px-3.5 py-3">
+              <p className={`${TEXT.label} text-[var(--cd-text-muted)]`}>Consignee</p>
+              <p className="text-[13.5px] font-bold text-[var(--cd-text)]">{bol.extraction.consigneeName.value}</p>
+              <p className={`${TEXT.micro} text-[var(--cd-text-muted)]`}>Where the freight physically lands.</p>
+            </div>
+            <div className="rounded-[var(--cd-radius-md)] border border-[var(--cd-border)] bg-[var(--cd-surface-2)] px-3.5 py-3">
+              <p className={`${TEXT.label} text-[var(--cd-text-muted)]`}>Bill-To</p>
+              <p className="text-[13.5px] font-bold text-[var(--cd-text)]">{bol.extraction.billToName.value}</p>
+              <p className={`${TEXT.micro} text-[var(--cd-text-muted)]`}>
+                {bol.extraction.billToAddress?.value || "—"} — the paying customer, not necessarily the same
+                company as the consignee above.
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
+
       <Card>
         <CardHead title="Location review" hint="Connects to the customer's Locations history." />
         {bol.locations.length === 0 ? (
@@ -385,12 +425,14 @@ function normalize(s: string): string {
 const ROLE_LABEL: Record<string, string> = {
   shipper_contact: "Shipper Contact",
   consignee_contact: "Consignee Contact",
+  bill_to_contact: "Bill-To Contact",
   broker: "Broker",
   carrier: "Carrier",
 };
-const ROLE_TONE: Record<string, "accent" | "neutral" | "warning"> = {
+const ROLE_TONE: Record<string, "accent" | "neutral" | "warning" | "success"> = {
   shipper_contact: "accent",
   consignee_contact: "accent",
+  bill_to_contact: "success",
   broker: "warning",
   carrier: "neutral",
 };

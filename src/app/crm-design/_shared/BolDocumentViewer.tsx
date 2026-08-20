@@ -11,14 +11,20 @@ import type { BolRecord } from "../_lib/types";
  * The original scan is the source of truth for the whole review workflow —
  * it stays pinned and visible across every tab on the detail page (see
  * bol-center/[id]/page.tsx), and is never replaced by the extracted data
- * sitting next to it. There's no real image asset here (this is a mock
- * prototype); the "photo" is a stylized reconstruction of the BOL form using
- * the record's own extracted values, so it reads as a specific scanned
- * document rather than a generic placeholder.
+ * sitting next to it.
+ *
+ * Two rendering paths: most seed BOLs have no real image asset (this is a
+ * mock prototype), so their "photo" is a stylized reconstruction of the BOL
+ * form built from the record's own extracted values. A small number of
+ * records (currently just BOL #000025029, a real scan Brent uploaded) carry
+ * `bol.scanPages` — real rendered page images — and render those instead,
+ * with a page switcher when there's more than one.
  */
 export function BolDocumentViewer({ bol }: { bol: BolRecord }) {
   const [zoomed, setZoomed] = useState(false);
+  const [pageIndex, setPageIndex] = useState(0);
   const isPending = bol.docNumber === "—";
+  const scanPages = bol.scanPages;
 
   return (
     <div className="flex flex-col gap-3">
@@ -40,11 +46,38 @@ export function BolDocumentViewer({ bol }: { bol: BolRecord }) {
         </button>
       </div>
 
+      {scanPages && scanPages.length > 1 && (
+        <div className="flex gap-1.5">
+          {scanPages.map((p, i) => (
+            <button
+              key={p.label}
+              type="button"
+              onClick={() => setPageIndex(i)}
+              className={`rounded-[var(--cd-radius-sm)] border px-2.5 py-1 text-[11.5px] font-semibold transition-colors ${
+                i === pageIndex
+                  ? "border-[var(--cd-admin)]/40 bg-[var(--cd-admin-soft)] text-[var(--cd-admin)]"
+                  : "border-[var(--cd-border-strong)] bg-[var(--cd-surface)] text-[var(--cd-text-muted)] hover:bg-[var(--cd-surface-hover)]"
+              }`}
+            >
+              {i + 1}. {p.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="cd-scroll overflow-auto rounded-[var(--cd-radius-md)] border border-[var(--cd-border)] bg-[var(--cd-surface-2)] p-4" style={{ maxHeight: 620 }}>
         {isPending ? (
           <div className="flex aspect-[8.5/11] w-full flex-col items-center justify-center gap-2 rounded border border-dashed border-[var(--cd-border-strong)] bg-[var(--cd-surface)] text-[var(--cd-text-subtle)]">
             <span className={TEXT.micro}>Photo received — extraction hasn&rsquo;t run yet.</span>
           </div>
+        ) : scanPages ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={scanPages[pageIndex]?.url}
+            alt={`${bol.docNumber} — ${scanPages[pageIndex]?.label}`}
+            className="mx-auto block w-full rounded shadow-[0_1px_6px_rgba(0,0,0,0.18)] transition-transform duration-200"
+            style={{ transform: zoomed ? "scale(1.28)" : "scale(1)", transformOrigin: "top center" }}
+          />
         ) : (
           <div
             className="mx-auto flex aspect-[8.5/11] w-full flex-col gap-2.5 overflow-hidden rounded border border-[#d9d5c9] bg-[#fbfaf6] p-5 text-[10px] text-[#1c1c1c] shadow-[0_1px_6px_rgba(0,0,0,0.18)] transition-transform duration-200"

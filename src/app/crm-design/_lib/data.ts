@@ -850,6 +850,68 @@ export const BOL_RECORDS: BolRecord[] = [
     research: { notes: "Duplicate upload of BOL-0846 (clearer scan) — archived after merge.", observedFreight: [], observedLanes: [], salesRelevance: null },
     release: null,
   },
+  // 11 — a REAL BOL Brent uploaded manually (not synthetic seed data): a
+  // 2-page Adobe Scan (packing list + the actual Bill of Lading). Rendered
+  // to real PNG pages (see scanPages) so the document viewer shows the
+  // actual scan instead of the reconstructed mock "photo" every other seed
+  // record uses. Needs review because the one handwritten field (the
+  // proof-of-delivery signature) can't be AI-verified with confidence.
+  // Two distinct candidate companies on this document — the shipper
+  // (Metallic Products Corp.) and the bill-to/consignee (BlueScope) — kept
+  // deliberately unconflated; see the Extraction tab's Bill-To fields and
+  // the Contacts & Roles tab's bill_to_contact entry.
+  {
+    id: "bol-000025029",
+    docNumber: "000025029",
+    fileName: "Adobe_Scan_Aug_18_2026.pdf",
+    uploadedAt: iso(0, 18),
+    uploadedByUserId: "u-brent",
+    status: "needs_review",
+    assignedReviewerId: "u-brent",
+    scanPages: [
+      { label: "Bill of Lading", url: "/crm-design/bol-samples/bol-000025029-bol.png" },
+      { label: "Packing List", url: "/crm-design/bol-samples/bol-000025029-packing-list.png" },
+    ],
+    extraction: {
+      customerName: ef("Metallic Products Corp."),
+      shipperName: ef("Metallic Products Corp."),
+      consigneeName: ef("BlueScope Jackson – Warehouse"),
+      brokerName: ef("", "review"),
+      carrierName: ef("FTX Brokerage LLC"),
+      pickupAddress: ef("7777 Hollister St"),
+      pickupCity: ef("Houston"),
+      pickupState: ef("TX"),
+      deliveryAddress: ef("2410 Madison Technology Dr"),
+      deliveryCity: ef("Jackson"),
+      deliveryState: ef("TN"),
+      commodity: ef("(1) Vents — 20 ctn, 4,400 lb; (2) Vents, Prevent, Ridgeline — 1 ctn, 342 lb — NMFC 37370-1, Class 125"),
+      weight: ef("4,742 lb (21 cartons total)"),
+      pickupDate: ef("08/13/2026"),
+      deliveryDate: ef("08/14/2026 (proposed)"),
+      referenceNumber: ef("PO 568941 · SO 0052466-0000 · WO 10303-04"),
+      billToName: ef("BlueScope Building NA"),
+      billToAddress: ef("PO Box 219056, Kansas City, MO 64141 · (816) 968-3000 · Cust# 000412"),
+      receivedBySignature: ef("Thomas Harris — 08/18/2026", "review"),
+    },
+    contacts: [
+      { role: "shipper_contact", name: "Steven Mireles", company: "Metallic Products Corp.", phone: "(713) 856-9696", email: "" },
+      { role: "bill_to_contact", name: "Accounts Payable", company: "BlueScope Building NA", phone: "(816) 968-3000", email: "" },
+      { role: "consignee_contact", name: "Thomas Harris (received & signed)", company: "BlueScope Jackson – Warehouse", phone: "(731) 422-6290", email: "" },
+      { role: "carrier", name: "FTX Brokerage LLC — Dispatch", company: "FTX Brokerage LLC", phone: "", email: "" },
+    ],
+    locations: [
+      { role: "pickup", address: "7777 Hollister St", city: "Houston", state: "TX", matchStatus: "new", matchedLocationId: null },
+      { role: "delivery", address: "2410 Madison Technology Dr", city: "Jackson", state: "TN", matchStatus: "new", matchedLocationId: null },
+    ],
+    customerMatch: { status: "potential_new", companyId: null, candidateName: "Metallic Products Corp." },
+    research: {
+      notes: "Real BOL Brent brought in directly (not from the AI-agent pipeline). Two companies worth evaluating here, not one: Metallic Products Corp. (Houston, TX — steel vent manufacturer, the shipper) and BlueScope (bill-to: BlueScope Building NA, Kansas City MO — the paying customer, freight is prepaid; consignee: BlueScope Jackson – Warehouse, Jackson TN — where it actually lands). Worth checking DOT/MC on Metallic Products and whether BlueScope has other inbound freight before recommending either for release.",
+      observedFreight: ["Vents (24GA steel, various)"],
+      observedLanes: ["Houston, TX → Jackson, TN"],
+      salesRelevance: null,
+    },
+    release: null,
+  },
 ];
 
 function formatIsoDateOnly(isoString: string): string {
