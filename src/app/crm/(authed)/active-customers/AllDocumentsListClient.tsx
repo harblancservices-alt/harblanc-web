@@ -127,7 +127,7 @@ export function AllDocumentsListClient({ documents }: { documents: AllDocumentSu
           <Card className="hidden md:block">
             <CardHead
               title="BOL / RC Library"
-              hint={`${filtered.length} ${filtered.length === 1 ? "document" : "documents"}`}
+              hint={`${filtered.length} ${filtered.length === 1 ? "document" : "documents"} · every Rate Confirmation and Bill of Lading generated from any shipment, org-wide`}
             />
             <div className="overflow-x-auto">
               <DocumentTable
