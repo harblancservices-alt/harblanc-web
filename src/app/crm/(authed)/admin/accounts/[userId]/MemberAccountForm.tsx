@@ -3,8 +3,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CheckboxField, FormError, SubmitButton } from "../../../_shell/form";
-import { BTN_DANGER } from "../../../_shell/ui";
-import { updateMemberAccount } from "../../actions";
+import { BTN_DANGER, BTN_SUCCESS } from "../../../_shell/ui";
+import { updateMemberAccount, reactivateMember } from "../../actions";
 import type { AdminTeamMember } from "../../types";
 import { SuspendReassignDialog } from "./SuspendReassignDialog";
 
@@ -21,13 +21,18 @@ import { SuspendReassignDialog } from "./SuspendReassignDialog";
  *
  * The caller MUST remount this on every server-confirmed change (the detail
  * page does via a `key` derived from member.role/isActive/canViewAllCompanies)
- * — accessLevel's useState and the two CheckboxFields' `defaultChecked` are
- * only ever read on mount. Without that key, a successful suspend-and-
- * reassign (SuspendReassignDialog) followed by router.refresh() would update
- * the `member` prop but leave this form's own DOM state (the "Active
- * account" checkbox in particular) showing the PRE-suspend value, so a
- * follow-up "Save changes" click would silently re-activate the account
- * that was just suspended.
+ * — accessLevel's useState and the CheckboxField's `defaultChecked` are only
+ * ever read on mount.
+ *
+ * Status (Active/Suspended) is deliberately NOT part of this form (2026-08-19)
+ * — it used to be a plain "Active account" checkbox submitted together with
+ * role/visibility, which meant unchecking it and hitting "Save changes"
+ * deactivated a member with zero company reassignment, a second, unsafe path
+ * alongside the dedicated Suspend flow (CRM_MASTER_AUDIT.md §3/§6, P0 #1).
+ * Status now has exactly one action per state in the footer below: "Suspend
+ * & reassign…" (opens SuspendReassignDialog — the only way to deactivate)
+ * when active, or "Reactivate" (reactivateMember(), no reassignment needed)
+ * when suspended — matching DESIGN_DECISIONS.md §2's approved shape.
  */
 export function MemberAccountForm({
   member,
@@ -101,7 +106,6 @@ export function MemberAccountForm({
           Account controls
         </p>
         <div className="flex flex-col gap-2">
-          <CheckboxField label="Active account" name="is_active" defaultChecked={member.isActive} />
           <CheckboxField
             label="Can view all companies"
             name="can_view_all_companies"
@@ -111,13 +115,17 @@ export function MemberAccountForm({
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line-strong pt-4">
-        <button
-          type="button"
-          onClick={() => setSuspendOpen(true)}
-          className={`rounded-md px-3.5 py-2 text-[13px] font-semibold transition-colors disabled:opacity-60 ${BTN_DANGER}`}
-        >
-          Suspend user
-        </button>
+        {member.isActive ? (
+          <button
+            type="button"
+            onClick={() => setSuspendOpen(true)}
+            className={`rounded-md px-3.5 py-2 text-[13px] font-semibold transition-colors disabled:opacity-60 ${BTN_DANGER}`}
+          >
+            Suspend & reassign…
+          </button>
+        ) : (
+          <ReactivateButton memberId={member.id} onSuccess={() => router.refresh()} />
+        )}
         <SubmitButton pending={pending}>Save changes</SubmitButton>
       </div>
 
@@ -133,5 +141,36 @@ export function MemberAccountForm({
         />
       )}
     </form>
+  );
+}
+
+/** The suspended-state counterpart to "Suspend & reassign…" — a single
+ * action, no dialog (reactivateMember() needs no reassignment input), same
+ * pending-disabled pattern as every other CRM async button. */
+function ReactivateButton({ memberId, onSuccess }: { memberId: string; onSuccess: () => void }) {
+  const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  function onClick() {
+    setError(null);
+    startTransition(async () => {
+      const res = await reactivateMember(memberId);
+      if (res.ok) onSuccess();
+      else setError(res.error);
+    });
+  }
+
+  return (
+    <span className="flex flex-col gap-1">
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={pending}
+        className={`rounded-md px-3.5 py-2 text-[13px] font-semibold transition-colors disabled:opacity-60 ${BTN_SUCCESS}`}
+      >
+        {pending ? "Reactivating…" : "Reactivate"}
+      </button>
+      {error && <span className="text-[12px] text-bad">{error}</span>}
+    </span>
   );
 }

@@ -89,12 +89,20 @@ async function loadEditableTarget(
 
 /**
  * The Accounts detail page's "Save changes" — sets access level (Sales
- * Agent/Admin), the two Account Controls toggles, in one write. `role` here
- * is the ONLY place in the app that can promote/demote a member post-launch
+ * Agent/Admin) and "Can view all companies" only. `role` here is the ONLY
+ * place in the app that can promote/demote a member post-launch
  * (crm_profiles_guard_role blocks every other path); promoting someone to
  * Admin gives them control over every non-primary-owner, non-self account —
  * never over the primary owner or their own row, both enforced above and
  * re-enforced by every other action in this file.
+ *
+ * Does NOT touch is_active (2026-08-19) — status changes only ever happen
+ * through suspendAndReassignMember() or reactivateMember() below, both of
+ * which enforce "a suspended member's companies must never go unowned." The
+ * general form used to also carry an "Active account" checkbox wired into
+ * this action, which could silently deactivate a member with zero
+ * reassignment — the exact P0 bug CRM_MASTER_AUDIT.md §3 flagged. That
+ * checkbox is now removed from MemberAccountForm.tsx entirely.
  */
 export async function updateMemberAccount(
   memberId: string,
@@ -105,7 +113,6 @@ export async function updateMemberAccount(
 
   const roleInput = String(formData.get("access_level") ?? "").trim();
   const role = roleInput === "owner" ? "owner" : "member";
-  const isActive = String(formData.get("is_active") ?? "") === "on";
   const canViewAllCompanies = String(formData.get("can_view_all_companies") ?? "") === "on";
 
   const supabase = createServiceRoleClient();
@@ -113,7 +120,6 @@ export async function updateMemberAccount(
     .from("crm_profiles")
     .update({
       role,
-      is_active: isActive,
       can_view_all_companies: canViewAllCompanies,
     })
     .eq("id", memberId)
@@ -198,6 +204,39 @@ export async function suspendAndReassignMember(
       ok: false,
       error: "Companies were reassigned, but the account could not be suspended. Please try again.",
     };
+  }
+
+  revalidatePath(`/crm/admin/accounts/${memberId}`);
+  revalidatePath("/crm/admin/accounts");
+  return { ok: true };
+}
+
+/**
+ * The detail page's "Reactivate" action — the counterpart to
+ * suspendAndReassignMember() for the opposite direction. Unlike suspending,
+ * reactivating never needs a reassignment step (the member has no companies
+ * to hand off — suspension already moved them all away), so this is a
+ * single-field flip, not a dialog flow. Added 2026-08-19 alongside removing
+ * the "Active account" checkbox from updateMemberAccount()'s form (see that
+ * function's docstring) — before this, the ONLY way to set is_active back
+ * to true was that same unsafe checkbox, which could ALSO deactivate a
+ * member with zero reassignment. Status now only ever changes through this
+ * action or suspendAndReassignMember(), never through the general Save
+ * button.
+ */
+export async function reactivateMember(memberId: string): Promise<ActionResult> {
+  const loaded = await loadEditableTarget(memberId);
+  if (!loaded.ok) return loaded;
+
+  const supabase = createServiceRoleClient();
+  const { error } = await supabase
+    .from("crm_profiles")
+    .update({ is_active: true })
+    .eq("id", memberId)
+    .eq("org_id", loaded.callerOrgId);
+
+  if (error) {
+    return { ok: false, error: "Could not reactivate this account. Please try again." };
   }
 
   revalidatePath(`/crm/admin/accounts/${memberId}`);
