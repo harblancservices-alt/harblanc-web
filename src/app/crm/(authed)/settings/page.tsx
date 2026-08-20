@@ -28,40 +28,45 @@ export default async function SettingsPage() {
   const me = meRow as { full_name: string | null; title: string | null } | null;
 
   return (
-    <PageShell title="Settings">
-      <Card>
-        <CardHead title="Your account" />
-        <div className="flex items-center gap-3 px-5 py-4">
-          <Avatar name={me?.full_name ?? user.fullName} email={user.email} size={48} />
-          <div className="min-w-0">
-            <p className="truncate text-[15px] font-semibold text-fg">
-              {firstName(me?.full_name ?? user.fullName, user.email) || "—"}
-            </p>
-            <p className="truncate text-[13px] text-fg-muted">
-              {me?.title || "No title set"} · {user.email}
-            </p>
+    <PageShell title="Settings" subtitle="Your personal account.">
+      {/* Capped to crm-design's max-w-xl column (was full page width) —
+          Settings' short, single-focus cards read as sparse stretched edge
+          to edge across the wide container every other /crm list page uses. */}
+      <div className="flex max-w-xl flex-col gap-4">
+        <Card>
+          <CardHead title="Your account" />
+          <div className="flex items-center gap-3 px-5 py-4">
+            <Avatar name={me?.full_name ?? user.fullName} email={user.email} size={48} />
+            <div className="min-w-0">
+              <p className="truncate text-[15px] font-semibold text-fg">
+                {firstName(me?.full_name ?? user.fullName, user.email) || "—"}
+              </p>
+              <p className="truncate text-[13px] text-fg-muted">
+                {me?.title || "No title set"} · {user.email}
+              </p>
+            </div>
           </div>
-        </div>
-        <dl className="divide-y divide-line-strong border-t border-line-strong">
-          <Row label="Role" value={roleLabel(user.role)} />
-        </dl>
-      </Card>
+          <dl className="divide-y divide-line-strong border-t border-line-strong">
+            <Row label="Role" value={roleLabel(user.role)} />
+          </dl>
+        </Card>
 
-      <Card>
-        <CardHead
-          title="Company / Brokerage Info"
-          hint="The letterhead every generated document reads from."
-          right={isAdmin && <BrokerProfileEditButton profile={brokerProfile} />}
-        />
-        <dl className="divide-y divide-line-strong">
-          <Row label="Company name" value={brokerProfile.name || "—"} />
-          <Row label="MC #" value={brokerProfile.mc || "—"} />
-          <Row label="DOT #" value={brokerProfile.dot || "—"} />
-          <Row label="Address" value={brokerProfile.address || "—"} />
-          <Row label="Phone" value={brokerProfile.phone || "—"} />
-          <Row label="Email" value={brokerProfile.email || "—"} />
-        </dl>
-      </Card>
+        <Card>
+          <CardHead
+            title="Company / Brokerage Info"
+            hint="The letterhead every generated document reads from."
+            right={isAdmin && <BrokerProfileEditButton profile={brokerProfile} />}
+          />
+          <dl className="divide-y divide-line-strong">
+            <Row label="Company name" value={brokerProfile.name || "—"} />
+            <Row label="MC #" value={brokerProfile.mc || "—"} />
+            <Row label="DOT #" value={brokerProfile.dot || "—"} />
+            <Row label="Address" value={brokerProfile.address || "—"} />
+            <Row label="Phone" value={brokerProfile.phone || "—"} />
+            <Row label="Email" value={brokerProfile.email || "—"} />
+          </dl>
+        </Card>
+      </div>
     </PageShell>
   );
 }
