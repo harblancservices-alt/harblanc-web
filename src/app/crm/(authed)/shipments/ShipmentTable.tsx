@@ -1,9 +1,9 @@
 "use client";
 
 import { ClickableRow } from "../_shell/ClickableRow";
-import { LIST_HEAD_ROW, ZEBRA_ROWS, GRID_TABLE, GRID_HEAD_CELL, GRID_CELL } from "../_shell/ui";
+import { LIST_HEAD_ROW, ZEBRA_ROWS, Badge } from "../_shell/ui";
 import { titleCaseWords, upperCaseState, formatDate } from "../_shell/format";
-import { shipmentStatusLabel, shipmentStatusTone } from "./statusMeta";
+import { shipmentStatusLabel, shipmentStatusBadgeTone } from "./statusMeta";
 import type { ShipmentListRow } from "./ShipmentsListClient";
 
 function lane(row: ShipmentListRow): string {
@@ -13,33 +13,28 @@ function lane(row: ShipmentListRow): string {
   return from || to || "—";
 }
 
-/** Desktop (md+) table rendering of the Shipments list — same
- * ShipmentListRow the mobile ShipmentCard grid consumes, same ruled-grid
- * treatment as CompanyTable (GRID_TABLE/GRID_HEAD_CELL/GRID_CELL + zebra
- * stripes + ClickableRow). */
+/**
+ * Desktop (lg+) table rendering of the Shipments list — same ShipmentListRow
+ * the mobile ShipmentCard grid consumes.
+ *
+ * 2026-08-20: rebuilt from the Excel/spreadsheet-style ruled grid to the
+ * same clean, borderless zebra-striped table every other CRM list now uses,
+ * matching crm-design exactly (same change as CompanyTable/DocumentTable/
+ * CarrierTable). Status renders through the shared Badge component.
+ */
 export function ShipmentTable({ shipments }: { shipments: ShipmentListRow[] }) {
   return (
-    <table className={GRID_TABLE}>
-      <colgroup>
-        <col className="w-[12%]" />
-        <col className="w-[16%]" />
-        <col className="w-[22%]" />
-        <col className="w-[14%]" />
-        <col className="w-[10%]" />
-        <col className="w-[10%]" />
-        <col className="w-[8%]" />
-        <col className="w-[8%]" />
-      </colgroup>
+    <table className="w-full text-[13px]">
       <thead>
         <tr className={LIST_HEAD_ROW}>
-          <th className={GRID_HEAD_CELL}>Job #</th>
-          <th className={GRID_HEAD_CELL}>Customer</th>
-          <th className={GRID_HEAD_CELL}>Lane</th>
-          <th className={GRID_HEAD_CELL}>Carrier</th>
-          <th className={GRID_HEAD_CELL}>Status</th>
-          <th className={GRID_HEAD_CELL}>Pickup</th>
-          <th className={GRID_HEAD_CELL}>Delivery</th>
-          <th className={`${GRID_HEAD_CELL} text-right`}>Docs</th>
+          <th className="px-4 py-2.5 text-left">Job #</th>
+          <th className="px-4 py-2.5 text-left">Customer</th>
+          <th className="px-4 py-2.5 text-left">Lane</th>
+          <th className="px-4 py-2.5 text-left">Carrier</th>
+          <th className="px-4 py-2.5 text-left">Status</th>
+          <th className="px-4 py-2.5 text-left">Pickup</th>
+          <th className="px-4 py-2.5 text-left">Delivery</th>
+          <th className="px-4 py-2.5 text-right">Docs</th>
         </tr>
       </thead>
       <tbody className={ZEBRA_ROWS}>
@@ -54,24 +49,20 @@ export function ShipmentTable({ shipments }: { shipments: ShipmentListRow[] }) {
 function ShipmentTableRow({ shipment }: { shipment: ShipmentListRow }) {
   return (
     <ClickableRow href={`/crm/shipments/${shipment.id}`}>
-      <td className={`${GRID_CELL} truncate font-semibold text-fg`}>{shipment.shipmentNumber}</td>
-      <td className={`${GRID_CELL} truncate text-fg-muted`}>
+      <td className="px-4 py-3 truncate font-semibold text-fg">{shipment.shipmentNumber}</td>
+      <td className="px-4 py-3 truncate text-fg-muted">
         {shipment.customerName ? titleCaseWords(shipment.customerName) : "—"}
       </td>
-      <td className={`${GRID_CELL} truncate text-fg-muted`}>{lane(shipment)}</td>
-      <td className={`${GRID_CELL} truncate text-fg-muted`}>
+      <td className="px-4 py-3 truncate text-fg-muted">{lane(shipment)}</td>
+      <td className="px-4 py-3 truncate text-fg-muted">
         {shipment.carrierName ? titleCaseWords(shipment.carrierName) : "—"}
       </td>
-      <td className={GRID_CELL}>
-        <span
-          className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10.5px] font-semibold ${shipmentStatusTone(shipment.status)}`}
-        >
-          {shipmentStatusLabel(shipment.status)}
-        </span>
+      <td className="px-4 py-3">
+        <Badge tone={shipmentStatusBadgeTone(shipment.status)}>{shipmentStatusLabel(shipment.status)}</Badge>
       </td>
-      <td className={`${GRID_CELL} truncate text-fg-muted`}>{formatDate(shipment.pickupAt)}</td>
-      <td className={`${GRID_CELL} truncate text-fg-muted`}>{formatDate(shipment.deliveryAt)}</td>
-      <td className={`${GRID_CELL} text-right tabular-nums text-fg-muted`}>
+      <td className="px-4 py-3 truncate text-fg-muted">{formatDate(shipment.pickupAt)}</td>
+      <td className="px-4 py-3 truncate text-fg-muted">{formatDate(shipment.deliveryAt)}</td>
+      <td className="px-4 py-3 text-right tabular-nums text-fg-muted">
         {shipment.rateConfirmationCount + shipment.bolCount > 0
           ? `${shipment.rateConfirmationCount} RC · ${shipment.bolCount} BOL`
           : "—"}

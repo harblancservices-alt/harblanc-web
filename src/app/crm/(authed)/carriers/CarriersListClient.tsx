@@ -85,13 +85,13 @@ export function CarriersListClient({ carriers, q }: { carriers: CarrierListRow[]
               Showing the first 20 matches — refine your search to find more.
             </p>
           )}
-          <div className="grid grid-cols-1 gap-3 [grid-auto-rows:1fr] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 md:hidden">
+          <div className="flex flex-col gap-2.5 lg:hidden">
             {carriers.map((c) => (
               <CarrierCard key={c.id} carrier={c} />
             ))}
           </div>
 
-          <Card className="hidden md:block">
+          <Card className="hidden lg:block">
             <CardHead
               title="Carriers"
               hint={`${carriers.length} ${carriers.length === 1 ? "carrier" : "carriers"}${pending ? " · searching…" : ""}`}

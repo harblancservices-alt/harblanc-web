@@ -111,7 +111,7 @@ export function AllDocumentsListClient({ documents }: { documents: AllDocumentSu
         </Card>
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-3 [grid-auto-rows:1fr] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 md:hidden">
+          <div className="flex flex-col gap-2.5 lg:hidden">
             {filtered.map((doc) => (
               <DocumentCard
                 key={`${doc.docType}-${doc.id}`}
@@ -124,7 +124,7 @@ export function AllDocumentsListClient({ documents }: { documents: AllDocumentSu
             ))}
           </div>
 
-          <Card className="hidden md:block">
+          <Card className="hidden lg:block">
             <CardHead
               title="BOL / RC Library"
               hint={`${filtered.length} ${filtered.length === 1 ? "document" : "documents"} · every Rate Confirmation and Bill of Lading generated from any shipment, org-wide`}

@@ -48,3 +48,19 @@ export function docStatusLabel(value: string | null | undefined): string {
 export function docStatusTone(value: string | null | undefined): string {
   return DOC_STATUS_TONE[normalize(value)];
 }
+
+/** Status -> shared Badge tone (2026-08-20, matching crm-design's Badge
+ * set). Replaces DOC_STATUS_TONE's raw className strings (steel/slate hues
+ * crm-design's palette doesn't have) at every Badge call site. */
+export const DOC_STATUS_BADGE_TONE: Record<DocStatus, "neutral" | "accent" | "success" | "danger"> = {
+  draft: "neutral",
+  generated: "accent",
+  sent: "accent",
+  accepted: "success",
+  completed: "success",
+  cancelled: "danger",
+};
+
+export function docStatusBadgeTone(value: string | null | undefined): "neutral" | "accent" | "success" | "danger" {
+  return DOC_STATUS_BADGE_TONE[normalize(value)];
+}

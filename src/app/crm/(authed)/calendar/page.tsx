@@ -174,7 +174,7 @@ export default async function CrmCalendarPage() {
   const todayKey = centralDateKey(new Date().toISOString())!;
 
   return (
-    <PageShell title="Calendar">
+    <PageShell title="Calendar" subtitle="Task due dates and follow-ups across the org.">
       <CalendarView items={items} todayKey={todayKey} />
     </PageShell>
   );

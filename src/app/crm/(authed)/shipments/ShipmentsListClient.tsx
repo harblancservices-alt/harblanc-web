@@ -84,13 +84,13 @@ export function ShipmentsListClient({ shipments }: { shipments: ShipmentListRow[
         </Card>
       ) : (
         <>
-          <div className="grid grid-cols-1 gap-3 [grid-auto-rows:1fr] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 md:hidden">
+          <div className="flex flex-col gap-2.5 lg:hidden">
             {filtered.map((s) => (
               <ShipmentCard key={s.id} shipment={s} />
             ))}
           </div>
 
-          <Card className="hidden md:block">
+          <Card className="hidden lg:block">
             <CardHead
               title="Shipments"
               hint={`${filtered.length} ${filtered.length === 1 ? "shipment" : "shipments"}`}

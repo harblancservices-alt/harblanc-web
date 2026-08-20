@@ -173,7 +173,9 @@ export async function ActiveCustomersPanel() {
 
   return (
     <>
-      <div className="grid grid-cols-1 gap-3 [grid-auto-rows:1fr] sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 md:hidden">
+      {/* Mobile — single-column stack, matching Companies list's own
+          crm-design-aligned breakpoint (was a 2/3/4-col grid below `md`). */}
+      <div className="flex flex-col gap-2.5 lg:hidden">
         {cards.map((c) => (
           <CompanyListCard
             key={c.id}
@@ -184,7 +186,7 @@ export async function ActiveCustomersPanel() {
         ))}
       </div>
 
-      <Card className="hidden md:block">
+      <Card className="hidden lg:block">
         <CardHead
           title="Active Customers"
           hint={`${cards.length} ${cards.length === 1 ? "customer" : "customers"}`}

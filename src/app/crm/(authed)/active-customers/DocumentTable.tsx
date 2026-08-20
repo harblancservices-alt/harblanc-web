@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { ClickableRow } from "../_shell/ClickableRow";
-import { LIST_HEAD_ROW, ZEBRA_ROWS, GRID_TABLE, GRID_HEAD_CELL, GRID_CELL, BTN_EDIT, BTN_DANGER } from "../_shell/ui";
+import { LIST_HEAD_ROW, ZEBRA_ROWS, Badge, BTN_EDIT, BTN_DANGER } from "../_shell/ui";
 import { IconRateConfirmation, IconBillOfLading } from "../_shell/icons";
 import { titleCaseWords, upperCaseState, formatDate } from "../_shell/format";
-import { docStatusLabel, docStatusTone } from "../shipments/docStatusMeta";
+import { docStatusLabel, docStatusBadgeTone } from "../shipments/docStatusMeta";
 import type { AllDocumentSummary } from "../shipments/types";
 
 export function lane(doc: AllDocumentSummary): string {
@@ -25,10 +25,17 @@ export function editorHref(doc: AllDocumentSummary): string {
     : `/crm/shipments/${doc.shipmentId}/bol/${doc.id}`;
 }
 
-/** Desktop (md+) table rendering of the org-wide RC/BOL library — same
- * GRID_TABLE/ClickableRow treatment as ShipmentTable, with a trailing
- * actions cell (Open/Download/Delete) since library rows need those extra
- * affordances a plain navigate-on-click row doesn't. */
+/**
+ * Desktop (lg+) table rendering of the org-wide RC/BOL library.
+ *
+ * 2026-08-20: rebuilt from the Excel/spreadsheet-style ruled grid
+ * (GRID_TABLE/GRID_HEAD_CELL/GRID_CELL — a border on every cell) to the same
+ * clean, borderless zebra-striped table every other CRM list now uses,
+ * matching crm-design exactly. Status renders through the shared Badge
+ * component (rounded-full pill) instead of a hand-rolled rounded-md chip.
+ * A trailing actions cell (Open/Download/Delete) stays — real, working
+ * functionality a plain navigate-on-click row doesn't have.
+ */
 export function DocumentTable({
   documents,
   downloadingId,
@@ -43,27 +50,17 @@ export function DocumentTable({
   onDelete: (doc: AllDocumentSummary) => void;
 }) {
   return (
-    <table className={GRID_TABLE}>
-      <colgroup>
-        <col className="w-[13%]" />
-        <col className="w-[9%]" />
-        <col className="w-[15%]" />
-        <col className="w-[13%]" />
-        <col className="w-[19%]" />
-        <col className="w-[9%]" />
-        <col className="w-[8%]" />
-        <col className="w-[14%]" />
-      </colgroup>
+    <table className="w-full text-[13px]">
       <thead>
         <tr className={LIST_HEAD_ROW}>
-          <th className={GRID_HEAD_CELL}>Doc #</th>
-          <th className={GRID_HEAD_CELL}>Status</th>
-          <th className={GRID_HEAD_CELL}>Customer</th>
-          <th className={GRID_HEAD_CELL}>Carrier</th>
-          <th className={GRID_HEAD_CELL}>Lane</th>
-          <th className={GRID_HEAD_CELL}>Job #</th>
-          <th className={GRID_HEAD_CELL}>Date</th>
-          <th className={`${GRID_HEAD_CELL} text-right`}>Actions</th>
+          <th className="px-4 py-2.5 text-left">Doc #</th>
+          <th className="px-4 py-2.5 text-left">Status</th>
+          <th className="px-4 py-2.5 text-left">Customer</th>
+          <th className="px-4 py-2.5 text-left">Carrier</th>
+          <th className="px-4 py-2.5 text-left">Lane</th>
+          <th className="px-4 py-2.5 text-left">Job #</th>
+          <th className="px-4 py-2.5 text-left">Date</th>
+          <th className="px-4 py-2.5 text-right">Actions</th>
         </tr>
       </thead>
       <tbody className={ZEBRA_ROWS}>
@@ -97,7 +94,7 @@ function DocumentTableRow({
 }) {
   return (
     <ClickableRow href={editorHref(doc)}>
-      <td className={`${GRID_CELL} truncate`}>
+      <td className="px-4 py-3 truncate">
         <div className="flex min-w-0 items-center gap-1.5">
           <span className="shrink-0 text-accent">
             {doc.docType === "rate_confirmation" ? (
@@ -112,23 +109,19 @@ function DocumentTableRow({
           <span className="truncate font-semibold text-fg">{doc.number}</span>
         </div>
       </td>
-      <td className={GRID_CELL}>
-        <span
-          className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10.5px] font-semibold ${docStatusTone(doc.status)}`}
-        >
-          {docStatusLabel(doc.status)}
-        </span>
+      <td className="px-4 py-3">
+        <Badge tone={docStatusBadgeTone(doc.status)}>{docStatusLabel(doc.status)}</Badge>
       </td>
-      <td className={`${GRID_CELL} truncate text-fg-muted`}>
+      <td className="px-4 py-3 truncate text-fg-muted">
         {doc.customerName ? titleCaseWords(doc.customerName) : "—"}
       </td>
-      <td className={`${GRID_CELL} truncate text-fg-muted`}>
+      <td className="px-4 py-3 truncate text-fg-muted">
         {doc.carrierName ? titleCaseWords(doc.carrierName) : "—"}
       </td>
-      <td className={`${GRID_CELL} truncate text-fg-muted`}>{lane(doc)}</td>
-      <td className={`${GRID_CELL} truncate text-fg-muted`}>{doc.shipmentNumber ?? "—"}</td>
-      <td className={`${GRID_CELL} truncate text-fg-muted`}>{formatDate(doc.createdAt)}</td>
-      <td className={`${GRID_CELL} text-right`}>
+      <td className="px-4 py-3 truncate text-fg-muted">{lane(doc)}</td>
+      <td className="px-4 py-3 truncate text-fg-muted">{doc.shipmentNumber ?? "—"}</td>
+      <td className="px-4 py-3 truncate text-fg-muted">{formatDate(doc.createdAt)}</td>
+      <td className="px-4 py-3 text-right">
         <div className="flex items-center justify-end gap-1.5">
           <Link href={editorHref(doc)} className={`rounded-md px-2 py-1 text-[11.5px] font-semibold transition-colors ${BTN_EDIT}`}>
             Open

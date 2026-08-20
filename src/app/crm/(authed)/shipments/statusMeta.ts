@@ -50,3 +50,19 @@ export function shipmentStatusLabel(value: string | null | undefined): string {
 export function shipmentStatusTone(value: string | null | undefined): string {
   return SHIPMENT_STATUS_TONE[normalizeStatus(value)];
 }
+
+/** Status -> shared Badge tone (2026-08-20, matching crm-design's Badge
+ * set). Replaces SHIPMENT_STATUS_TONE's raw className strings (steel/slate
+ * hues crm-design's palette doesn't have) at every Badge call site. */
+export const SHIPMENT_STATUS_BADGE_TONE: Record<ShipmentStatus, "neutral" | "accent" | "success" | "danger"> = {
+  open: "neutral",
+  dispatched: "accent",
+  in_transit: "accent",
+  delivered: "success",
+  invoiced: "success",
+  cancelled: "danger",
+};
+
+export function shipmentStatusBadgeTone(value: string | null | undefined): "neutral" | "accent" | "success" | "danger" {
+  return SHIPMENT_STATUS_BADGE_TONE[normalizeStatus(value)];
+}
