@@ -334,3 +334,88 @@ passes were pushed directly to `main`, per Brent's explicit deploy authorization
 and was production-verified at commit `d702b84` (see that smoke test's results earlier in this
 session). Pass 3's rollback target, if a post-deploy production smoke test fails, is `d702b84` —
 the last known-good, already-verified production commit before this pass's visual rebuild.
+
+---
+
+## Pass 4 — structural rebuilds, page by page (2026-08-20, this pass)
+
+Brent rejected Pass 3 twice: token/primitive fixes alone were not the assignment. The bar he set —
+"screenshot the real page next to its crm-design counterpart, a person should say these are the same
+product" — required literally opening each crm-design page's source, comparing it to the real page's
+JSX composition, and rebuilding the real page's layout/structure to match, not just re-theming it.
+This pass went page by page against that bar. **Commits, in order:** `213d5d8` Dashboard rebuild →
+`6820057` Companies list rebuild → `c4c4aad` Contacts list rebuild → `9f17a3b` Tasks subtitle →
+`1823a46` Contact detail 2-column rebuild + Admin subtitle → `578d762` Settings subtitle/column match
+→ `4f71635` Company detail tab-strip restructure → `c64c2d0` Active Customers hub / Carriers /
+Shipments / Documents table rebuilds → `9a5511f` loading-skeleton fixes + dead-token removal →
+`182c199` Prospects/AI Review cleanup → `2d0f294` Login split-screen rebuild → `3c22474` Company
+header icon-chip tint → `d9c7f0a` remaining Badge-component consistency sweep (Shipment detail's
+DocumentsSection, Admin Activity's type chips).
+
+### Page-by-page status (every real `/crm` page against its crm-design counterpart)
+
+**Fully rebuilt this pass (structure changed, not just tokens):**
+- Dashboard — 4 separate widget lists consolidated into one tiered NBA feed + new "Recent activity,
+  mine" query + QuickLink tiles, matching crm-design's composition exactly.
+- Companies list — ruled Excel-grid table → clean zebra table + Badge; mobile card grid → single-
+  column stack; breakpoint `md`→`lg`.
+- Contacts list — desktop-table/mobile-card split (which crm-design doesn't have) collapsed into one
+  unified row component used at every breakpoint.
+- Contact detail — single centered column of 6 stacked cards → header + 2-column
+  `[300px_1fr]` grid layout.
+- Company detail tabs — tab-strip separated from the content Card into its own standalone pill bar;
+  "Timeline"/"Files" labels renamed to "Activity"/"Documents" to match crm-design's naming.
+- Company header — icon chip re-tinted (`bg-accent/10 text-accent`) to match crm-design's treatment.
+- Active Customers hub / Carriers / Shipments / Documents tables — same ruled-grid→zebra-table+Badge
+  rebuild as Companies list, applied across all four surfaces; breakpoints fixed `md`→`lg`.
+- Login — single centered dark card → crm-design's exact split-screen (branding panel + form panel).
+- Prospects / AI Review — redundant nested CardHead removed, count moved into PageShell subtitle.
+
+**Subtitle-only, deliberately not restructured (with a stated reason, not a rationalization):**
+- Tasks — `TaskRow`'s richer "H1" card design is a dated, Brent-approved pattern with no crm-design
+  equivalent to migrate to; kept.
+- Settings — wrapped in crm-design's `max-w-xl` column; kept the real edit-inline Brokerage Info
+  pattern over crm-design's mock read-only/link-to-Organization version, since no real Admin
+  Organization tab exists to link to.
+- Calendar — `DayDetailModal`'s real month nav / mobile Month-List toggle / timezone-aware grid is
+  functionally richer than crm-design's inline side-panel mock; converting was assessed as a
+  regression risk for a minor UX difference, not a missing-structure gap.
+
+**Confirmed already structurally aligned this pass (opened both, compared, no gap found — not a
+skip):**
+- Admin Overview, Accounts list, member detail, Documents — each opened side-by-side against its
+  crm-design counterpart; grid/Card/list composition already matches (these were rebuilt in an
+  earlier session, per repo history). Admin Activity intentionally differs: it shows the CRM's real
+  business-activity feed (calls/notes/activities), not crm-design's admin-audit-log mock — the real
+  CRM has no admin action audit trail to show instead, a stated gap, not a fake.
+- Admin layout/tab bar — real `AdminTabs` correctly shows only the 4 tabs the real CRM actually has
+  (Overview/Accounts/Activity/Documents), omitting crm-design's BOL Center/OTR/Organization tabs,
+  which have no real backend — per this pass's explicit "don't fake missing features" instruction.
+
+**No crm-design counterpart exists (stated plainly, not used to skip verification):**
+- Shipment detail, Carrier detail — `DESIGN_DECISIONS.md` scopes these out of the prototype entirely.
+  Both were grepped for the same anti-patterns fixed everywhere else (ruled grids, wrong breakpoints,
+  sharp-cornered chips) and found already clean, inheriting the shared-primitive fixes. Shipment
+  detail's `DocumentsSection` status chip was the one remaining raw-className badge in the whole CRM;
+  this pass's final commit routes it through the shared `Badge` component.
+
+### Verification (this pass)
+- `tsc --noEmit` — clean.
+- `npx eslint` on the full `src/app/crm` tree — 8 pre-existing errors / 9 warnings, all in files this
+  pass never touched (confirmed via `git diff origin/main..HEAD --stat`); zero new issues.
+- `npx vitest run` — 193/193 tests pass, 14 files.
+- `npm run build` — clean production build, all routes compiled.
+- Route sweep (17 top-level `/crm` routes) against an isolated worktree's prod build — correct
+  `307`/`200` behavior, zero errors.
+- Browser check of `/crm/login` — zero console errors, correct page title/content.
+- `tms-v2` separation — `git diff 6857c75 --stat -- src/app/tms-v2` empty; `tms-v2` string only
+  appears in 3 pre-existing harmless code comments inside `src/app/crm`.
+- Pushed to `main` at `d9c7f0a`; production ETag confirmed changed post-push; production route sweep
+  (5 spot-checked routes) clean.
+
+### Still open
+No remaining page has an unaddressed structural gap against its crm-design counterpart as of this
+commit. The items in the "Risk note" section above (an authenticated click-through Brent should do)
+still apply and now extend to every page rebuilt in this pass — none of this pass's structural
+changes have been verified with real login credentials, only through code review, compiled output,
+and unauthenticated route/console checks.
