@@ -19,21 +19,31 @@ export default async function AdminOverviewPage() {
     { count: rcCount },
     { count: bolCount },
     { count: openTaskCount },
+    { count: pendingReviewCount },
   ] = await Promise.all([
     supabase.from("crm_profiles").select("id", { count: "exact", head: true }),
     supabase.from("crm_profiles").select("id", { count: "exact", head: true }).eq("is_active", true),
     supabase.from("crm_rate_confirmations").select("id", { count: "exact", head: true }).is("deleted_at", null),
     supabase.from("crm_bills_of_lading").select("id", { count: "exact", head: true }).is("deleted_at", null),
     supabase.from("crm_tasks").select("id", { count: "exact", head: true }).eq("status", "open"),
+    // Same predicate as /crm/ai-review itself and the old nav badge it used
+    // to carry (../_shell/layout.tsx) — AI Review moved here, not deleted.
+    supabase
+      .from("crm_accounts")
+      .select("id", { count: "exact", head: true })
+      .in("source", ["ai_agent", "field_capture"])
+      .eq("ai_status", "pending_review")
+      .is("deleted_at", null),
   ]);
 
   const documentCount = (rcCount ?? 0) + (bolCount ?? 0);
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         <StatLinkTile href="/crm/admin/bol-center" label="BOL Center" value="—" />
         <StatLinkTile href="/crm/admin/otr" label="OTR" value="—" />
+        <StatLinkTile href="/crm/ai-review" label="AI Review — pending" value={String(pendingReviewCount ?? 0)} />
         <StatLinkTile href="/crm/admin/accounts" label="Team accounts" value={`${activeTeamCount ?? 0} active`} />
         <StatLinkTile href="/crm/admin/activity" label="Open tasks org-wide" value={String(openTaskCount ?? 0)} />
         <StatLinkTile href="/crm/admin/documents" label="Master templates" value={String(documentCount)} />
@@ -48,7 +58,10 @@ export default async function AdminOverviewPage() {
             <span className="font-semibold text-fg">BOL Center</span> and{" "}
             <span className="font-semibold text-fg">OTR</span> are the two prospect-intake funnels this
             section is designed around — neither is connected to a real pipeline yet, shown honestly rather
-            than faked. Use <span className="font-semibold text-fg">Accounts</span> to review a
+            than faked. <span className="font-semibold text-fg">AI Review</span> is the pending-review
+            queue for AI-sourced and Field Capture leads — moved here from the primary sales nav since
+            it&rsquo;s an owner/admin gate, not a sales-agent destination. Use{" "}
+            <span className="font-semibold text-fg">Accounts</span> to review a
             teammate&rsquo;s access level and account controls,{" "}
             <span className="font-semibold text-fg">Activity</span> to see what&rsquo;s happening across
             every company (the CRM&rsquo;s real sales-activity feed — not yet a separate admin audit trail),{" "}

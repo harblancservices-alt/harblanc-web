@@ -7,22 +7,36 @@ import type { CompanyOption } from "./contacts/CompanyCombobox";
 import { TaskDialog, type TaskAccountOption, type TaskContactOption } from "./tasks/TaskDialog";
 import { CompanyDialog, type RepOption } from "./accounts/CompanyDialog";
 import { LogCallDialog } from "./calls/LogCallDialog";
-import { BTN_PRIMARY } from "./_shell/ui";
+import { BTN_PRIMARY, BTN_EDIT } from "./_shell/ui";
 
 /**
- * The dashboard's quick-actions strip — a row of solid pill buttons (Brent's
- * approved Command Center mockup), each wired to an existing dialog via its
- * `trigger` render prop. Split into small Client Components (rather than
+ * The dashboard's quick-actions strip, each wired to an existing dialog via
+ * its `trigger` render prop. Split into small Client Components (rather than
  * building the `trigger` callbacks inline in page.tsx) because `trigger` is
  * a function prop — a Server Component can never hand a closure to a Client
  * Component (same rule buildCrmNav's docstring calls out for icon
  * components). page.tsx only ever passes these plain, serializable data.
  * Rendered inside QuickActionsStrip.tsx, which supplies the horizontal-
  * scroll row layout shared with the (Link-only) Research Queue pill.
+ *
+ * Visual weight: 2026-08-20 crm-design catch-up. Was a row of 5 equally-
+ * weighted solid pill buttons (`rounded-full`, raw #2563eb hex) predating
+ * crm-design entirely ("Brent's approved Command Center mockup" — an older,
+ * since-superseded design pass) — confirmed live against production as a
+ * genuine crm-design mismatch, not just a stale comment. crm-design's own
+ * dashboard has exactly one solid primary action ("Add company," in the
+ * page header) and nothing else competing with it. These 5 actions are real
+ * working functionality the prototype never had to design for, so they're
+ * kept, not deleted — but demoted to BTN_EDIT's low-emphasis outline
+ * treatment (same token every other secondary action in the CRM uses) and
+ * the design system's crisp `rounded-md` shape, so "Add company" in the
+ * header reads as the one obvious primary action and this strip reads as
+ * secondary shortcuts underneath it, matching crm-design's actual hierarchy
+ * instead of a row of five undifferentiated pills.
  */
 
 const BUTTON_CLASS =
-  "inline-flex h-11 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-[#2563eb] bg-[#2563eb] px-4 text-[13px] font-bold text-white shadow-e1 transition-colors hover:bg-[#1d4ed8] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white";
+  `inline-flex h-9.5 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md px-3.5 text-[12.5px] font-bold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent ${BTN_EDIT}`;
 
 export function QuickAddContactButton({ companies }: { companies: CompanyOption[] }) {
   return (
@@ -64,7 +78,7 @@ export function HeaderAddCompanyButton({ reps }: { reps: RepOption[] }) {
         <button
           type="button"
           onClick={open}
-          className={`inline-flex h-11 shrink-0 items-center gap-1.5 rounded-lg px-3.5 text-[13.5px] font-bold transition-colors ${BTN_PRIMARY}`}
+          className={`inline-flex h-11 shrink-0 items-center gap-1.5 rounded-md px-3.5 text-[13.5px] font-bold transition-colors ${BTN_PRIMARY}`}
         >
           <IconPlus width={16} height={16} />
           Add

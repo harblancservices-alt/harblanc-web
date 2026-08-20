@@ -6,7 +6,6 @@ import {
   IconTasks,
   IconSettings,
   IconFlame,
-  IconAiReview,
   IconStarSolid,
   IconFlagSolid,
   IconAdminAccount,
@@ -105,15 +104,15 @@ export function buildCrmNav(
       iconTint: "gold",
     },
   ];
-  if (role === "owner") {
-    nav.push({
-      href: "/crm/ai-review",
-      label: "AI Review",
-      Icon: IconAiReview,
-      badge: pendingReviewCount > 0 ? pendingReviewCount : undefined,
-      badgeTone: "neutral",
-    });
-  }
+  // AI Review moved under Admin Account (2026-08-20, Brent's explicit
+  // directive, overriding /crm-design's own silence on this feature — see
+  // CRM_MIGRATION_MATRIX.md §0/§3): the pending-review queue is an
+  // owner/admin tool, not a sales-agent nav destination, and having it as a
+  // standalone Workspace item alongside Companies/Tasks/etc. was exactly the
+  // "same underlying concept split across two disconnected destinations"
+  // problem CRM_MASTER_AUDIT.md §1 flagged. It's still reachable at
+  // /crm/ai-review (route unchanged, functionality untouched) via a stat
+  // tile on the Admin Overview page instead of a nav item here.
   nav.push({
     href: "/crm/upgrades",
     label: "Upgrades",
