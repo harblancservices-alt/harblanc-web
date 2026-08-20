@@ -262,6 +262,13 @@ export default function AppShellLayout({ children }: { children: React.ReactNode
                 >
                   Design system reference
                 </Link>
+                <Link
+                  href="/crm-design/interaction-system"
+                  onClick={() => setAccountMenuOpen(false)}
+                  className={`block w-full px-3.5 py-2 text-left ${TEXT.micro} text-[var(--cd-text-subtle)] hover:bg-[var(--cd-surface-2)]`}
+                >
+                  Interaction system reference
+                </Link>
                 <button
                   type="button"
                   onClick={signOut}
