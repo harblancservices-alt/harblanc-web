@@ -70,6 +70,31 @@ async function recomputeReadyStatus(supabase: Awaited<ReturnType<typeof createCr
   }
 }
 
+/** The reverse direction from syncDocumentAccount: if this BOL still has no
+ * document attached, but the company just linked to it already has a BOL on
+ * file (e.g. someone uploaded it straight to the company's own BOL tab
+ * before ever touching BOL Center), adopt the most recent one instead of
+ * leaving the BOL entry looking document-less. Never overwrites a document
+ * BOL Center already has attached. */
+async function adoptExistingCompanyDocument(supabase: Awaited<ReturnType<typeof createCrmServerClient>>, bolId: string, accountId: string) {
+  const { data: bol } = await supabase.from("crm_bol_entries").select("document_id").eq("id", bolId).maybeSingle();
+  if (bol?.document_id) return;
+
+  const { data: existingDoc } = await supabase
+    .from("crm_documents")
+    .select("id")
+    .eq("account_id", accountId)
+    .eq("kind", "bol")
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (existingDoc) {
+    await supabase.from("crm_bol_entries").update({ document_id: existingDoc.id }).eq("id", bolId);
+  }
+}
+
 /** Keep the attached document's account_id pointed at whichever company is
  * resolved (shipper preferred), so it shows up on that company's own BOL tab
  * for free (BolSection.tsx reads crm_documents where account_id = X). */
@@ -132,6 +157,7 @@ export async function linkCompany(bolId: string, side: CompanySide, accountId: s
   });
 
   await recomputeReadyStatus(supabase, bolId);
+  await adoptExistingCompanyDocument(supabase, bolId, accountId);
   await syncDocumentAccount(supabase, bolId);
   revalidateBol(bolId);
   return { ok: true };
