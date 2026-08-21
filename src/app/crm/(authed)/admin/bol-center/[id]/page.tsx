@@ -43,7 +43,7 @@ export default async function BolDetailPage({ params }: { params: Promise<{ id: 
 
   if (!bol) notFound();
 
-  const [{ data: contacts }, { data: document }, { data: shipperAccount }, { data: consigneeAccount }] = await Promise.all([
+  const [{ data: contacts }, { data: document }, { data: shipperAccount }, { data: consigneeAccount }, { data: billToAccount }] = await Promise.all([
     supabase
       .from("crm_bol_contacts")
       .select("id, role, name, phone, email, matched_contact_id")
@@ -57,6 +57,9 @@ export default async function BolDetailPage({ params }: { params: Promise<{ id: 
       : Promise.resolve({ data: null }),
     bol.matched_consignee_account_id
       ? supabase.from("crm_accounts").select("id, name, lifecycle_status").eq("id", bol.matched_consignee_account_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    bol.matched_bill_to_account_id
+      ? supabase.from("crm_accounts").select("id, name, lifecycle_status").eq("id", bol.matched_bill_to_account_id).maybeSingle()
       : Promise.resolve({ data: null }),
   ]);
 
@@ -119,6 +122,15 @@ export default async function BolDetailPage({ params }: { params: Promise<{ id: 
           queryAddress={bol.consignee_address as string | null}
           matchedAccount={consigneeAccount ? { id: consigneeAccount.id as string, name: consigneeAccount.name as string, lifecycleStatus: consigneeAccount.lifecycle_status as string } : null}
         />
+        {bol.bill_to && (
+          <CompanyMatchSection
+            bolId={id}
+            side="bill_to"
+            queryName={bol.bill_to as string}
+            queryAddress={null}
+            matchedAccount={billToAccount ? { id: billToAccount.id as string, name: billToAccount.name as string, lifecycleStatus: billToAccount.lifecycle_status as string } : null}
+          />
+        )}
       </div>
 
       <ContactsSection
@@ -133,6 +145,7 @@ export default async function BolDetailPage({ params }: { params: Promise<{ id: 
         }))}
         shipperAccountId={bol.matched_shipper_account_id as string | null}
         consigneeAccountId={bol.matched_consignee_account_id as string | null}
+        billToAccountId={bol.matched_bill_to_account_id as string | null}
       />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

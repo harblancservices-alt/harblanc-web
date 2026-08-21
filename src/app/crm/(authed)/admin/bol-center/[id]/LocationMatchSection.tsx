@@ -6,7 +6,7 @@ import { Card, CardHead, Badge, BTN_PRIMARY } from "../../../_shell/ui";
 import { Modal } from "../../../_shell/Modal";
 import { Field, SubmitButton, FormError } from "../../../_shell/form";
 import { MATCH_TIER_LABEL, type ScoredMatch } from "../matching";
-import { searchLocationMatches, linkLocation, createLocationFromBol, type LocationCandidate, type CompanySide } from "../actions";
+import { searchLocationMatches, linkLocation, createLocationFromBol, type LocationCandidate, type LocationSide } from "../actions";
 
 export function LocationMatchSection({
   bolId,
@@ -16,7 +16,7 @@ export function LocationMatchSection({
   matchedLocationId,
 }: {
   bolId: string;
-  side: CompanySide;
+  side: LocationSide;
   accountId: string | null;
   queryAddress: string | null;
   matchedLocationId: string | null;

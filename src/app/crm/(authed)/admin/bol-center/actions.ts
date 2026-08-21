@@ -23,7 +23,10 @@ import { rankByName, type ScoredMatch } from "./matching";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 export type BolStatus = "new" | "needs_review" | "ready" | "processed" | "ignored";
-export type CompanySide = "shipper" | "consignee";
+export type CompanySide = "shipper" | "consignee" | "bill_to";
+/** Locations are real physical dock addresses — only shipper/consignee have
+ * one; a Bill To party is a billing contact, never a pickup/delivery point. */
+export type LocationSide = "shipper" | "consignee";
 export type BolContactRole = "shipper" | "consignee" | "bill_to" | "other";
 
 async function requireAdminUser() {
@@ -38,17 +41,23 @@ function revalidateBol(bolId?: string) {
   if (bolId) revalidatePath(`/crm/admin/bol-center/${bolId}`);
 }
 
-function accountCol(side: CompanySide): "matched_shipper_account_id" | "matched_consignee_account_id" {
-  return side === "shipper" ? "matched_shipper_account_id" : "matched_consignee_account_id";
+const ACCOUNT_COL_BY_SIDE = {
+  shipper: "matched_shipper_account_id",
+  consignee: "matched_consignee_account_id",
+  bill_to: "matched_bill_to_account_id",
+} as const;
+function accountCol(side: CompanySide): "matched_shipper_account_id" | "matched_consignee_account_id" | "matched_bill_to_account_id" {
+  return ACCOUNT_COL_BY_SIDE[side];
 }
-function locationCol(side: CompanySide): "matched_shipper_location_id" | "matched_consignee_location_id" {
+function locationCol(side: LocationSide): "matched_shipper_location_id" | "matched_consignee_location_id" {
   return side === "shipper" ? "matched_shipper_location_id" : "matched_consignee_location_id";
 }
-function nameField(side: CompanySide): "shipper_name" | "consignee_name" {
-  return side === "shipper" ? "shipper_name" : "consignee_name";
-}
-function addressField(side: CompanySide): "shipper_address" | "consignee_address" {
-  return side === "shipper" ? "shipper_address" : "consignee_address";
+/** Bill To has no separate address column (it's always been one free-text
+ * field) — only shipper/consignee support the address-fill-on-link path. */
+function addressField(side: CompanySide): "shipper_address" | "consignee_address" | null {
+  if (side === "shipper") return "shipper_address";
+  if (side === "consignee") return "consignee_address";
+  return null;
 }
 
 /** Both sides resolved and status hasn't been manually pinned elsewhere ->
@@ -95,18 +104,52 @@ async function adoptExistingCompanyDocument(supabase: Awaited<ReturnType<typeof 
   }
 }
 
-/** Keep the attached document's account_id pointed at whichever company is
- * resolved (shipper preferred), so it shows up on that company's own BOL tab
- * for free (BolSection.tsx reads crm_documents where account_id = X). */
-async function syncDocumentAccount(supabase: Awaited<ReturnType<typeof createCrmServerClient>>, bolId: string) {
+/** Fans this BOL's attached document out to EVERY resolved company (shipper,
+ * consignee, bill-to) — not just one preferred side. crm_documents already
+ * supports many rows sharing one storage_path, so this reuses the file (no
+ * duplicate upload) and just adds one lightweight metadata row per company
+ * that doesn't already have one, so each company's own BolSection.tsx query
+ * (account_id + kind='bol') independently finds it. The original document
+ * row (BOL Center's canonical document_id) is never modified. */
+async function propagateDocumentToResolvedCompanies(supabase: Awaited<ReturnType<typeof createCrmServerClient>>, bolId: string) {
   const { data: row } = await supabase
     .from("crm_bol_entries")
-    .select("document_id, matched_shipper_account_id, matched_consignee_account_id")
+    .select("org_id, document_id, matched_shipper_account_id, matched_consignee_account_id, matched_bill_to_account_id")
     .eq("id", bolId)
     .maybeSingle();
   if (!row?.document_id) return;
-  const accountId = row.matched_shipper_account_id ?? row.matched_consignee_account_id ?? null;
-  await supabase.from("crm_documents").update({ account_id: accountId }).eq("id", row.document_id);
+
+  const { data: doc } = await supabase
+    .from("crm_documents")
+    .select("file_name, storage_path, mime_type")
+    .eq("id", row.document_id)
+    .maybeSingle();
+  if (!doc) return;
+
+  const accountIds = [row.matched_shipper_account_id, row.matched_consignee_account_id, row.matched_bill_to_account_id].filter(
+    (id): id is string => Boolean(id),
+  );
+
+  for (const accountId of accountIds) {
+    const { data: existing } = await supabase
+      .from("crm_documents")
+      .select("id")
+      .eq("account_id", accountId)
+      .eq("kind", "bol")
+      .eq("storage_path", doc.storage_path)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (existing) continue;
+
+    await supabase.from("crm_documents").insert({
+      org_id: row.org_id,
+      account_id: accountId,
+      kind: "bol",
+      file_name: doc.file_name,
+      storage_path: doc.storage_path,
+      mime_type: doc.mime_type,
+    });
+  }
 }
 
 // ── Company matching ─────────────────────────────────────────────────────────
@@ -158,7 +201,7 @@ export async function linkCompany(bolId: string, side: CompanySide, accountId: s
 
   await recomputeReadyStatus(supabase, bolId);
   await adoptExistingCompanyDocument(supabase, bolId, accountId);
-  await syncDocumentAccount(supabase, bolId);
+  await propagateDocumentToResolvedCompanies(supabase, bolId);
   revalidateBol(bolId);
   return { ok: true };
 }
@@ -178,8 +221,15 @@ export async function updateExistingCompanyFromBol(bolId: string, side: CompanyS
   const user = await requireAdminUser();
   const supabase = await createCrmServerClient();
 
-  const { data: bol } = await supabase.from("crm_bol_entries").select(addressField(side)).eq("id", bolId).maybeSingle();
-  const bolAddress = bol ? ((bol as Record<string, unknown>)[addressField(side)] as string | null) : null;
+  const addrField = addressField(side);
+  const bolAddress = addrField
+    ? await supabase
+        .from("crm_bol_entries")
+        .select(addrField)
+        .eq("id", bolId)
+        .maybeSingle()
+        .then((res) => (res.data ? ((res.data as Record<string, unknown>)[addrField] as string | null) : null))
+    : null;
 
   if (bolAddress) {
     const { data: account } = await supabase.from("crm_accounts").select("address").eq("id", accountId).maybeSingle();
@@ -229,7 +279,7 @@ export async function searchLocationMatches(accountId: string, queryAddressText:
   );
 }
 
-export async function linkLocation(bolId: string, side: CompanySide, locationId: string): Promise<ActionResult> {
+export async function linkLocation(bolId: string, side: LocationSide, locationId: string): Promise<ActionResult> {
   await requireAdminUser();
   const supabase = await createCrmServerClient();
   const { error } = await supabase.from("crm_bol_entries").update({ [locationCol(side)]: locationId }).eq("id", bolId);
@@ -240,7 +290,7 @@ export async function linkLocation(bolId: string, side: CompanySide, locationId:
 
 /** Creates a location via the existing createLocation() action (the same
  * one the Details tab's "Locations & docks" group uses), then links it. */
-export async function createLocationFromBol(bolId: string, side: CompanySide, accountId: string, formData: FormData): Promise<ActionResult> {
+export async function createLocationFromBol(bolId: string, side: LocationSide, accountId: string, formData: FormData): Promise<ActionResult> {
   await requireAdminUser();
   const supabase = await createCrmServerClient();
   const result = await createLocation(accountId, formData);
@@ -305,13 +355,18 @@ export async function createContactFromBolContact(bolContactId: string, formData
 
   const { data: bol } = await supabase
     .from("crm_bol_entries")
-    .select("matched_shipper_account_id, matched_consignee_account_id")
+    .select("matched_shipper_account_id, matched_consignee_account_id, matched_bill_to_account_id")
     .eq("id", bc.bol_id as string)
     .maybeSingle();
   if (!bol) return { ok: false, error: "BOL not found." };
 
-  const accountId =
-    bc.role === "consignee" ? (bol.matched_consignee_account_id as string | null) : (bol.matched_shipper_account_id as string | null);
+  const accountIdByRole: Record<string, string | null> = {
+    shipper: bol.matched_shipper_account_id as string | null,
+    consignee: bol.matched_consignee_account_id as string | null,
+    bill_to: bol.matched_bill_to_account_id as string | null,
+    other: null,
+  };
+  const accountId = accountIdByRole[bc.role as string] ?? null;
   if (!accountId) {
     return { ok: false, error: "Resolve the company for this side of the BOL before creating a contact." };
   }
@@ -492,7 +547,7 @@ export async function attachBolDocument(
   const { error } = await supabase.from("crm_bol_entries").update({ document_id: doc.id }).eq("id", bolId);
   if (error) return { ok: false, error: "File uploaded, but couldn't be attached to this BOL." };
 
-  await syncDocumentAccount(supabase, bolId);
+  await propagateDocumentToResolvedCompanies(supabase, bolId);
   revalidateBol(bolId);
   return { ok: true };
 }

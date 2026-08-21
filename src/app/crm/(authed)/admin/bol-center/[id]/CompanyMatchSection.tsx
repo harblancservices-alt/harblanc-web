@@ -94,7 +94,7 @@ export function CompanyMatchSection({
     });
   }
 
-  const label = side === "shipper" ? "Shipper" : "Consignee";
+  const label = side === "shipper" ? "Shipper" : side === "consignee" ? "Consignee" : "Bill To";
 
   return (
     <Card>

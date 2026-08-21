@@ -29,12 +29,21 @@ export function ContactsSection({
   contacts,
   shipperAccountId,
   consigneeAccountId,
+  billToAccountId,
 }: {
   bolId: string;
   contacts: BolContact[];
   shipperAccountId: string | null;
   consigneeAccountId: string | null;
+  billToAccountId: string | null;
 }) {
+  function accountForRole(role: BolContactRole): string | null {
+    if (role === "shipper") return shipperAccountId;
+    if (role === "consignee") return consigneeAccountId;
+    if (role === "bill_to") return billToAccountId;
+    return null; // "other" has no natural company on this BOL
+  }
+
   return (
     <Card>
       <CardHead title="Contacts" hint={contacts.length ? `${contacts.length} identified` : undefined} />
@@ -44,11 +53,7 @@ export function ContactsSection({
         <ul className="flex flex-col divide-y divide-line-strong">
           {contacts.map((c) => (
             <li key={c.id} className="p-4">
-              <ContactRow
-                bolId={bolId}
-                contact={c}
-                accountId={c.role === "consignee" ? consigneeAccountId : shipperAccountId}
-              />
+              <ContactRow bolId={bolId} contact={c} accountId={accountForRole(c.role)} />
             </li>
           ))}
         </ul>

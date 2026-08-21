@@ -20,7 +20,7 @@ export default async function AdminBolCenterPage() {
   const { data } = await supabase
     .from("crm_bol_entries")
     .select(
-      "id, bol_number, carrier, shipper_name, consignee_name, status, created_at, matched_shipper_account_id, matched_consignee_account_id",
+      "id, bol_number, carrier, shipper_name, consignee_name, bill_to, status, created_at, matched_shipper_account_id, matched_consignee_account_id, matched_bill_to_account_id",
     )
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
@@ -38,8 +38,8 @@ export default async function AdminBolCenterPage() {
   }
 
   const rows: BolRow[] = entries.map((e) => {
-    const totalSides = [e.shipper_name, e.consignee_name].filter(Boolean).length;
-    const resolvedSides = [e.matched_shipper_account_id, e.matched_consignee_account_id].filter(Boolean).length;
+    const totalSides = [e.shipper_name, e.consignee_name, e.bill_to].filter(Boolean).length;
+    const resolvedSides = [e.matched_shipper_account_id, e.matched_consignee_account_id, e.matched_bill_to_account_id].filter(Boolean).length;
     return {
       id: e.id as string,
       bolNumber: e.bol_number as string | null,
