@@ -202,6 +202,9 @@ export async function linkCompany(bolId: string, side: CompanySide, accountId: s
   await recomputeReadyStatus(supabase, bolId);
   await adoptExistingCompanyDocument(supabase, bolId, accountId);
   await propagateDocumentToResolvedCompanies(supabase, bolId);
+  if (side === "shipper" || side === "consignee") {
+    await autoResolveLocation(supabase, bolId, side, accountId);
+  }
   revalidateBol(bolId);
   return { ok: true };
 }
@@ -306,6 +309,50 @@ export async function createLocationFromBol(bolId: string, side: LocationSide, a
 
   if (!created) return { ok: false, error: "Location saved, but couldn't be linked. Please link it manually." };
   return linkLocation(bolId, side, created.id as string);
+}
+
+/** Called automatically whenever a shipper/consignee company resolves
+ * (link existing, update & link, or create new) — the BOL's address for
+ * that side was previously left to sit unattached until someone separately
+ * clicked through the Locations section. Never overrides a location that's
+ * already set. Searches the resolved company's existing locations first
+ * (same real matcher as searchLocationMatches) and links a confident match;
+ * only creates a new crm_account_locations row (via the same
+ * createLocationFromBol path a manual "Add New Location" click uses) when
+ * nothing on file is a good match. */
+async function autoResolveLocation(
+  supabase: Awaited<ReturnType<typeof createCrmServerClient>>,
+  bolId: string,
+  side: LocationSide,
+  accountId: string,
+) {
+  const locCol = locationCol(side);
+  const addrCol = side === "shipper" ? "shipper_address" : "consignee_address";
+
+  const { data: bol } = await supabase.from("crm_bol_entries").select(`${addrCol}, ${locCol}`).eq("id", bolId).maybeSingle();
+  const bolRecord = bol as Record<string, unknown> | null;
+  if (!bolRecord || bolRecord[locCol]) return; // already has a location — never override
+  const bolAddress = (bolRecord[addrCol] as string | null)?.trim();
+  if (!bolAddress) return;
+
+  const { data: locations } = await supabase
+    .from("crm_account_locations")
+    .select("id, label, address, city, state, zip")
+    .eq("account_id", accountId)
+    .is("deleted_at", null)
+    .limit(50);
+
+  const ranked = rankByName((locations ?? []) as LocationCandidate[], bolAddress, (l) => l.address ?? "");
+  const existingMatch = ranked.find((m) => m.tier === "exact" || m.tier === "likely");
+
+  if (existingMatch) {
+    await linkLocation(bolId, side, existingMatch.row.id);
+    return;
+  }
+
+  const fd = new FormData();
+  fd.set("address", bolAddress);
+  await createLocationFromBol(bolId, side, accountId, fd);
 }
 
 // ── Contact matching (crm_bol_contacts, populated upstream) ─────────────────

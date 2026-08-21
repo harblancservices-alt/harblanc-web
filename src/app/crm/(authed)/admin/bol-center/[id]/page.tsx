@@ -8,6 +8,7 @@ import { StatusBar } from "./StatusBar";
 import { DocumentSection } from "./DocumentSection";
 import { InformationSection } from "./InformationSection";
 import { CompanyMatchSection } from "./CompanyMatchSection";
+import { billToPartyName } from "../matching";
 import { LocationMatchSection } from "./LocationMatchSection";
 import { ContactsSection } from "./ContactsSection";
 import { ResearchSection } from "./ResearchSection";
@@ -126,7 +127,7 @@ export default async function BolDetailPage({ params }: { params: Promise<{ id: 
           <CompanyMatchSection
             bolId={id}
             side="bill_to"
-            queryName={bol.bill_to as string}
+            queryName={billToPartyName(bol.bill_to as string | null)}
             queryAddress={null}
             matchedAccount={billToAccount ? { id: billToAccount.id as string, name: billToAccount.name as string, lifecycleStatus: billToAccount.lifecycle_status as string } : null}
           />

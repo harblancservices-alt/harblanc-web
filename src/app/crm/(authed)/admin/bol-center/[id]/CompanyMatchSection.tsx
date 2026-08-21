@@ -126,38 +126,48 @@ export function CompanyMatchSection({
             {candidates === null ? (
               <p className="text-[12.5px] text-fg-subtle">Searching existing companies…</p>
             ) : candidates.length === 0 ? (
-              <p className="text-[13px] text-fg-muted">No existing company looks like a match.</p>
+              <div className="flex flex-col items-start gap-2 rounded-md border border-dashed border-line-strong bg-inset px-4 py-4">
+                <p className="text-[13.5px] font-semibold text-fg">No likely match</p>
+                <p className="text-[12.5px] text-fg-muted">
+                  No existing company scored high enough to suggest — every real candidate was checked and none cleared the bar. This is a new company.
+                </p>
+                <button type="button" onClick={() => setCreateOpen(true)} className={`inline-flex h-9 items-center rounded-md px-4 text-[13px] font-bold transition-colors ${BTN_PRIMARY}`}>
+                  Create New Company
+                </button>
+              </div>
             ) : (
-              <ul className="flex flex-col gap-2">
-                {candidates.map((m) => (
-                  <li key={m.row.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-line-strong px-3 py-2.5">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="truncate text-[13.5px] font-semibold text-fg">{titleCaseWords(m.row.name)}</p>
-                        <Badge tone={m.tier === "exact" ? "success" : m.tier === "likely" ? "accent" : "neutral"}>{MATCH_TIER_LABEL[m.tier]}</Badge>
+              <>
+                <ul className="flex flex-col gap-2">
+                  {candidates.map((m) => (
+                    <li key={m.row.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-line-strong px-3 py-2.5">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="truncate text-[13.5px] font-semibold text-fg">{titleCaseWords(m.row.name)}</p>
+                          <Badge tone={m.tier === "exact" ? "success" : m.tier === "likely" ? "accent" : "neutral"}>{MATCH_TIER_LABEL[m.tier]}</Badge>
+                        </div>
+                        <p className="text-[11.5px] text-fg-muted">
+                          {[m.row.city, m.row.state].filter(Boolean).join(", ") || "—"} · similarity {(m.score * 100).toFixed(0)}%
+                          {m.sameCityState ? " · same city/state" : ""}
+                        </p>
                       </div>
-                      <p className="text-[11.5px] text-fg-muted">
-                        {[m.row.city, m.row.state].filter(Boolean).join(", ") || "—"} · similarity {(m.score * 100).toFixed(0)}%
-                        {m.sameCityState ? " · same city/state" : ""}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-2">
-                      <button type="button" disabled={pending || busyId === m.row.id} onClick={() => useExisting(m.row.id)} className={`inline-flex h-8 items-center rounded-md px-3 text-[12.5px] font-bold transition-colors disabled:opacity-60 ${BTN_PRIMARY}`}>
-                        Use Existing
-                      </button>
-                      <button type="button" disabled={pending || busyId === m.row.id} onClick={() => updateAndUse(m.row.id)} className={`inline-flex h-8 items-center rounded-md px-3 text-[12.5px] font-bold transition-colors disabled:opacity-60 ${BTN_EDIT}`}>
-                        Update &amp; Use
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <button type="button" disabled={pending || busyId === m.row.id} onClick={() => useExisting(m.row.id)} className={`inline-flex h-8 items-center rounded-md px-3 text-[12.5px] font-bold transition-colors disabled:opacity-60 ${BTN_PRIMARY}`}>
+                          Use Existing
+                        </button>
+                        <button type="button" disabled={pending || busyId === m.row.id} onClick={() => updateAndUse(m.row.id)} className={`inline-flex h-8 items-center rounded-md px-3 text-[12.5px] font-bold transition-colors disabled:opacity-60 ${BTN_EDIT}`}>
+                          Update &amp; Use
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                <div>
+                  <button type="button" onClick={() => setCreateOpen(true)} className={`inline-flex h-8 items-center rounded-md px-3 text-[12.5px] font-bold transition-colors ${BTN_PRIMARY}`}>
+                    None of these — Create New Company
+                  </button>
+                </div>
+              </>
             )}
-            <div>
-              <button type="button" onClick={() => setCreateOpen(true)} className={`inline-flex h-8 items-center rounded-md px-3 text-[12.5px] font-bold transition-colors ${BTN_PRIMARY}`}>
-                Create New Company
-              </button>
-            </div>
           </>
         )}
       </div>
