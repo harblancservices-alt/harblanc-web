@@ -70,4 +70,19 @@ export type AdminBlankTemplate = {
   createdAt: string | null;
 };
 
+/** One card in the Documents tab for an org-level uploaded file (insurance
+ * certs, W9s, agreements, anything that isn't tied to a company) —
+ * crm_documents rows with kind='org_doc:upload', account_id/deal_id both
+ * null, distinct from the two fixed template kinds above so templates and
+ * uploads never collide. Unlike AdminBlankTemplate these are user-managed:
+ * deletable, no fixed docType/label. */
+export type AdminOrgUpload = {
+  id: string;
+  fileName: string;
+  storagePath: string;
+  mimeType: string | null;
+  sizeBytes: number | null;
+  createdAt: string;
+};
+
 export type ActionResult = { ok: true } | { ok: false; error: string };

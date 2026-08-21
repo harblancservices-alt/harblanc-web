@@ -1,5 +1,5 @@
 import { createCrmServerClient } from "@/lib/crm/auth";
-import type { AdminBlankTemplate, AdminBlankTemplateType } from "./types";
+import type { AdminBlankTemplate, AdminBlankTemplateType, AdminOrgUpload } from "./types";
 
 const STORAGE_BUCKET = "crm-documents";
 const SIGNED_URL_TTL_SECONDS = 300;
@@ -23,6 +23,11 @@ const BLANK_TEMPLATES: { kind: string; label: string; docType: AdminBlankTemplat
   { kind: "org_doc:Rate Confirmation", label: "Rate Confirmation", docType: "rate_confirmation" },
   { kind: "org_doc:Bill of Lading", label: "Bill of Lading", docType: "bill_of_lading" },
 ];
+
+/** Kind for an admin-uploaded org-level document (insurance certs, W9s,
+ * agreements) — deliberately distinct from the two BLANK_TEMPLATES kinds
+ * above so an upload can never collide with a generator template. */
+export const ORG_UPLOAD_KIND = "org_doc:upload";
 
 type OrgDocRow = { file_name: string; storage_path: string; created_at: string };
 
@@ -84,5 +89,32 @@ export async function listBlankTemplates(): Promise<AdminBlankTemplate[]> {
     storagePath: row?.storage_path ?? null,
     thumbUrl: row ? (thumbByPath.get(`${row.storage_path}${THUMB_SUFFIX}`) ?? null) : null,
     createdAt: row?.created_at ?? null,
+  }));
+}
+
+/**
+ * Org-level uploaded documents (insurance certs, W9s, agreements — anything
+ * not tied to a company). Same crm_documents table, kind=ORG_UPLOAD_KIND,
+ * account_id/deal_id both null so they never show up on a company profile.
+ * Admin-managed: uploaded/deleted via ./documents/actions.ts.
+ */
+export async function listOrgUploads(): Promise<AdminOrgUpload[]> {
+  const supabase = await createCrmServerClient();
+  const { data } = await supabase
+    .from("crm_documents")
+    .select("id, file_name, storage_path, mime_type, size_bytes, created_at")
+    .eq("kind", ORG_UPLOAD_KIND)
+    .is("account_id", null)
+    .is("deal_id", null)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false });
+
+  return (data ?? []).map((r) => ({
+    id: r.id as string,
+    fileName: r.file_name as string,
+    storagePath: r.storage_path as string,
+    mimeType: r.mime_type as string | null,
+    sizeBytes: r.size_bytes as number | null,
+    createdAt: r.created_at as string,
   }));
 }
