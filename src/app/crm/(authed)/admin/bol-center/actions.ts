@@ -6,7 +6,7 @@ import { logActivity, CRM_ACTIVITY } from "@/lib/crm/activity";
 import { createAccount, createContact } from "../../accounts/actions";
 import { createLocation } from "../../accounts/[id]/locations-actions";
 import { normalizeStage } from "../../accounts/lifecycle";
-import { rankByName, type ScoredMatch } from "./matching";
+import { rankByName, billToPartyName, type ScoredMatch } from "./matching";
 
 /**
  * BOL Center (/crm/admin/bol-center) — the DOWNSTREAM review workflow for a
@@ -52,14 +52,6 @@ function accountCol(side: CompanySide): "matched_shipper_account_id" | "matched_
 function locationCol(side: LocationSide): "matched_shipper_location_id" | "matched_consignee_location_id" {
   return side === "shipper" ? "matched_shipper_location_id" : "matched_consignee_location_id";
 }
-/** Bill To has no separate address column (it's always been one free-text
- * field) — only shipper/consignee support the address-fill-on-link path. */
-function addressField(side: CompanySide): "shipper_address" | "consignee_address" | null {
-  if (side === "shipper") return "shipper_address";
-  if (side === "consignee") return "consignee_address";
-  return null;
-}
-
 /** Both sides resolved and status hasn't been manually pinned elsewhere ->
  * status becomes 'ready' automatically. This is a computed fact (both FKs
  * are non-null), never a manual label-flip. 'needs_review'/'processed'/
@@ -209,46 +201,70 @@ export async function linkCompany(bolId: string, side: CompanySide, accountId: s
   return { ok: true };
 }
 
-/** Creates a brand-new company via the SAME createAccount() every other
- * "Add company" flow in the CRM uses — no parallel insert path. */
-export async function createCompanyFromBol(bolId: string, side: CompanySide, formData: FormData): Promise<ActionResult> {
-  await requireAdminUser();
-  const result = await createAccount(formData);
-  if (!result.ok) return result;
-  return linkCompany(bolId, side, result.id);
-}
+export type ResolveCompanyResult = { ok: true; accountId: string } | { ok: false; error: string };
 
-/** Non-destructive: only fills the matched company's address if it's
- * currently empty, then links. Never overwrites data that's already there. */
-export async function updateExistingCompanyFromBol(bolId: string, side: CompanySide, accountId: string): Promise<ActionResult> {
-  const user = await requireAdminUser();
+/**
+ * The single-click "Add to Prospects" path — collapses search, link-or-
+ * create, and prospect promotion into one action so the UI never has to
+ * show a pre-filled form for data the BOL already gave us. Still runs the
+ * real matcher first (never skips dedup): only "exact"/"likely" tiers count
+ * as confident enough to auto-link without a human picking from a list —
+ * "possible" is too weak to auto-apply, so that case falls through to
+ * create-new exactly like a genuine no-match would. A brand-new company is
+ * created straight into 'prospect' (not the usual 'lead' default) since
+ * that's the whole point of this button; an existing company gets promoted
+ * the same way addToProspects always has.
+ */
+export async function resolveAndProspectCompany(bolId: string, side: CompanySide): Promise<ResolveCompanyResult> {
+  await requireAdminUser();
   const supabase = await createCrmServerClient();
 
-  const addrField = addressField(side);
-  const bolAddress = addrField
-    ? await supabase
-        .from("crm_bol_entries")
-        .select(addrField)
-        .eq("id", bolId)
-        .maybeSingle()
-        .then((res) => (res.data ? ((res.data as Record<string, unknown>)[addrField] as string | null) : null))
-    : null;
+  const { data: bol } = await supabase
+    .from("crm_bol_entries")
+    .select("shipper_name, shipper_address, consignee_name, consignee_address, bill_to")
+    .eq("id", bolId)
+    .maybeSingle();
+  if (!bol) return { ok: false, error: "BOL not found." };
 
-  if (bolAddress) {
-    const { data: account } = await supabase.from("crm_accounts").select("address").eq("id", accountId).maybeSingle();
-    if (account && !account.address) {
-      await supabase.from("crm_accounts").update({ address: bolAddress }).eq("id", accountId);
-      await logActivity(supabase, {
-        orgId: user.orgId,
-        userId: user.id,
-        accountId,
-        kind: CRM_ACTIVITY.detailsUpdated,
-        summary: "Address filled in from a BOL",
-      });
-    }
+  let queryName: string;
+  let queryAddress: string | null;
+  if (side === "shipper") {
+    queryName = (bol.shipper_name as string | null) ?? "";
+    queryAddress = bol.shipper_address as string | null;
+  } else if (side === "consignee") {
+    queryName = (bol.consignee_name as string | null) ?? "";
+    queryAddress = bol.consignee_address as string | null;
+  } else {
+    queryName = billToPartyName(bol.bill_to as string | null);
+    queryAddress = null;
+  }
+  if (!queryName.trim()) return { ok: false, error: "No name was extracted for this party." };
+
+  const candidates = await searchCompanyMatches(queryName, queryAddress);
+  const confident = candidates.find((c) => c.tier === "exact" || c.tier === "likely");
+
+  let accountId: string;
+  if (confident) {
+    const linkResult = await linkCompany(bolId, side, confident.row.id);
+    if (!linkResult.ok) return linkResult;
+    accountId = confident.row.id;
+  } else {
+    const fd = new FormData();
+    fd.set("name", queryName);
+    if (queryAddress) fd.set("address", queryAddress);
+    fd.set("source", "bol");
+    fd.set("lifecycle_status", "prospect");
+    const createResult = await createAccount(fd);
+    if (!createResult.ok) return createResult;
+    const linkResult = await linkCompany(bolId, side, createResult.id);
+    if (!linkResult.ok) return linkResult;
+    accountId = createResult.id;
   }
 
-  return linkCompany(bolId, side, accountId);
+  const prospectResult = await addToProspects(accountId);
+  if (!prospectResult.ok) return prospectResult;
+
+  return { ok: true, accountId };
 }
 
 // ── Location matching ────────────────────────────────────────────────────────
@@ -390,14 +406,11 @@ export async function linkBolContact(bolContactId: string, contactId: string): P
   return { ok: true };
 }
 
-/** Creates the contact via createContact() under whichever company is
- * already resolved for this contact's role — a contact is never created
- * without an account_id. */
-export async function createContactFromBolContact(bolContactId: string, formData: FormData): Promise<ActionResult> {
-  await requireAdminUser();
-  const supabase = await createCrmServerClient();
-
-  const { data: bc } = await supabase.from("crm_bol_contacts").select("bol_id, role").eq("id", bolContactId).maybeSingle();
+async function accountIdForBolContact(
+  supabase: Awaited<ReturnType<typeof createCrmServerClient>>,
+  bolContactId: string,
+): Promise<{ ok: true; bolId: string; accountId: string; name: string | null; phone: string | null; email: string | null } | { ok: false; error: string }> {
+  const { data: bc } = await supabase.from("crm_bol_contacts").select("bol_id, role, name, phone, email").eq("id", bolContactId).maybeSingle();
   if (!bc) return { ok: false, error: "Contact record not found." };
 
   const { data: bol } = await supabase
@@ -417,20 +430,54 @@ export async function createContactFromBolContact(bolContactId: string, formData
   if (!accountId) {
     return { ok: false, error: "Resolve the company for this side of the BOL before creating a contact." };
   }
+  return { ok: true, bolId: bc.bol_id as string, accountId, name: bc.name as string | null, phone: bc.phone as string | null, email: bc.email as string | null };
+}
 
-  const result = await createContact(accountId, formData);
-  if (!result.ok) return result;
+export type ResolveContactResult = { ok: true; contactId: string } | { ok: false; error: string };
+
+/** The single-click "Add Contact" path — searches the resolved company's
+ * existing contacts first (real dedup, same matcher as searchContactMatches)
+ * and links a confident match instead of creating a duplicate; only creates
+ * a new crm_contacts row, straight from the fields the BOL already gave us,
+ * when nothing on file is a good match. Never orphaned — always requires a
+ * resolved company for this contact's role first. */
+export async function resolveBolContact(bolContactId: string): Promise<ResolveContactResult> {
+  await requireAdminUser();
+  const supabase = await createCrmServerClient();
+
+  const resolved = await accountIdForBolContact(supabase, bolContactId);
+  if (!resolved.ok) return resolved;
+  if (!resolved.name?.trim()) return { ok: false, error: "No name was extracted for this contact." };
+
+  const candidates = await searchContactMatches(resolved.accountId, resolved.name);
+  const confident = candidates.find((c) => c.tier === "exact" || c.tier === "likely");
+
+  if (confident) {
+    const linkResult = await linkBolContact(bolContactId, confident.row.id);
+    if (!linkResult.ok) return linkResult;
+    return { ok: true, contactId: confident.row.id };
+  }
+
+  const fd = new FormData();
+  fd.set("name", resolved.name);
+  if (resolved.phone) fd.set("phones", JSON.stringify([{ label: "Main", number: resolved.phone }]));
+  if (resolved.email) fd.set("email", resolved.email);
+
+  const createResult = await createContact(resolved.accountId, fd);
+  if (!createResult.ok) return createResult;
 
   const { data: created } = await supabase
     .from("crm_contacts")
     .select("id")
-    .eq("account_id", accountId)
+    .eq("account_id", resolved.accountId)
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-
   if (!created) return { ok: false, error: "Contact saved, but couldn't be linked. Please link it manually." };
-  return linkBolContact(bolContactId, created.id as string);
+
+  const linkResult = await linkBolContact(bolContactId, created.id as string);
+  if (!linkResult.ok) return linkResult;
+  return { ok: true, contactId: created.id as string };
 }
 
 export async function updateBolContactFields(bolContactId: string, formData: FormData): Promise<ActionResult> {

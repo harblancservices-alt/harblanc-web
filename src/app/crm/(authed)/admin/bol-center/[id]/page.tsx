@@ -137,7 +137,6 @@ export default async function BolDetailPage({ params }: { params: Promise<{ id: 
       </div>
 
       <ContactsSection
-        bolId={id}
         contacts={(contacts ?? []).map((c) => ({
           id: c.id as string,
           role: c.role as BolContactRole,
