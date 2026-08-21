@@ -72,23 +72,25 @@ export default async function BolDetailPage({ params }: { params: Promise<{ id: 
     <div className="space-y-4">
       <BackButton fallbackHref="/crm/admin/bol-center" label="Back to BOL Center" exact />
 
-      <Card>
-        <CardHead
-          title={title}
-          hint={hint || undefined}
-          right={<Badge tone={STATUS_TONE[status]}>{STATUS_LABEL[status]}</Badge>}
-        />
-        <div className="flex flex-wrap items-center justify-between gap-3 p-4">
-          <p className="text-[12.5px] text-fg-muted">Received {formatDateTime(bol.created_at as string)}</p>
-          <StatusBar bolId={id} status={status} />
-        </div>
-      </Card>
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHead
+            title={title}
+            hint={hint || undefined}
+            right={<Badge tone={STATUS_TONE[status]}>{STATUS_LABEL[status]}</Badge>}
+          />
+          <div className="flex flex-col gap-3 p-4">
+            <p className="text-[12.5px] text-fg-muted">Received {formatDateTime(bol.created_at as string)}</p>
+            <StatusBar bolId={id} status={status} />
+          </div>
+        </Card>
 
-      <DocumentSection
-        bolId={id}
-        orgId={user.orgId}
-        document={document ? { id: document.id as string, fileName: document.file_name as string, storagePath: document.storage_path as string, mimeType: document.mime_type as string | null } : null}
-      />
+        <DocumentSection
+          bolId={id}
+          orgId={user.orgId}
+          document={document ? { id: document.id as string, fileName: document.file_name as string, storagePath: document.storage_path as string, mimeType: document.mime_type as string | null } : null}
+        />
+      </div>
 
       <InformationSection
         bolId={id}
