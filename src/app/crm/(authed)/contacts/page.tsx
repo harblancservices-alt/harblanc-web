@@ -24,6 +24,7 @@ type ContactRow = {
   account_id: string | null;
   role_category: string | null;
   last_contacted_at: string | null;
+  current_mood: string | null;
 };
 
 /**
@@ -64,7 +65,7 @@ export default async function ContactsPage({
   let query = supabase
     .from("crm_contacts")
     .select(
-      "id, name, title, email, phone, mobile, extension, is_decision_maker, next_followup_at, account_id, role_category, last_contacted_at",
+      "id, name, title, email, phone, mobile, extension, is_decision_maker, next_followup_at, account_id, role_category, last_contacted_at, current_mood",
     )
     .is("deleted_at", null);
 
@@ -116,6 +117,7 @@ export default async function ContactsPage({
     companyName: c.account_id ? accountName.get(c.account_id) ?? null : null,
     roleCategory: c.role_category,
     lastContactedAt: c.last_contacted_at,
+    currentMood: c.current_mood,
   }));
 
   return (

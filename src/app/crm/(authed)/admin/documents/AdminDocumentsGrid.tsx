@@ -1,14 +1,16 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { Card, CardHead, BTN_PRIMARY } from "../../_shell/ui";
-import { IconRateConfirmation, IconBillOfLading } from "../../_shell/icons";
+import { IconRateConfirmation, IconBillOfLading, IconMore } from "../../_shell/icons";
 import { formatDate } from "../../_shell/format";
+import { Modal } from "../../_shell/Modal";
+import { Field, SubmitButton, FormError } from "../../_shell/form";
 import { getSignedPdfUrl } from "../../shipments/pdfClient";
 import { DocViewer, type ViewerDoc } from "@/components/ui/DocViewer";
-import { createOrgDocument, deleteOrgDocument } from "./actions";
+import { createOrgDocument, renameOrgDocument, deleteOrgDocument } from "./actions";
 import type { AdminBlankTemplate, AdminOrgUpload } from "../types";
 
 const STORAGE_BUCKET = "crm-documents";
@@ -48,6 +50,133 @@ type PreviewTarget =
   | { kind: "upload"; upload: AdminOrgUpload };
 
 /**
+ * One uploaded doc's card — thumbnail block opens the viewer; a small
+ * top-right "⋯" (never a visible action row — the two blank template cards
+ * next to these have NO such control at all, so a loud row here would read
+ * as inconsistent) opens Rename/Delete. Its own popover + rename dialog
+ * state lives here, not in the parent grid, so opening one card's menu never
+ * touches any other card's render.
+ */
+function UploadCard({
+  upload,
+  onOpen,
+  onRename,
+  onDelete,
+}: {
+  upload: AdminOrgUpload;
+  onOpen: () => void;
+  onRename: (fileName: string) => Promise<{ ok: boolean; error?: string }>;
+  onDelete: () => Promise<{ ok: boolean; error?: string }>;
+}) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onDocClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [menuOpen]);
+
+  async function submitRename(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const fileName = String(new FormData(e.currentTarget).get("file_name") ?? "");
+    setPending(true);
+    setLocalError(null);
+    const res = await onRename(fileName);
+    setPending(false);
+    if (res.ok) setRenaming(false);
+    else setLocalError(res.error ?? "Could not rename the file.");
+  }
+
+  async function handleDeleteClick() {
+    setMenuOpen(false);
+    if (!window.confirm(`Delete "${upload.fileName}"? This can't be undone.`)) return;
+    const res = await onDelete();
+    if (!res.ok) setLocalError(res.error ?? "Could not delete the file.");
+  }
+
+  return (
+    <div className="relative flex flex-col overflow-hidden rounded-lg border border-line-strong bg-card text-left shadow-e1 transition-shadow hover:shadow-e2">
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onOpen}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") onOpen();
+        }}
+        className="flex cursor-pointer flex-col overflow-hidden"
+      >
+        <div className="flex aspect-[4/3] items-center justify-center overflow-hidden bg-inset text-fg-subtle">
+          <IconFile width={32} height={32} />
+        </div>
+        <div className="flex flex-col gap-1 p-3">
+          <p className="truncate pr-5 text-[13.5px] font-bold text-fg">{upload.fileName}</p>
+          <p className="text-[12px] text-fg-subtle">
+            {[formatDate(upload.createdAt), formatBytes(upload.sizeBytes)].filter(Boolean).join(" · ")}
+          </p>
+        </div>
+      </div>
+
+      <div ref={menuRef} className="absolute right-1.5 top-1.5">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setMenuOpen((v) => !v);
+          }}
+          aria-label="Document actions"
+          className="flex h-6 w-6 items-center justify-center rounded-full bg-card/90 text-fg-subtle shadow-e1 transition-colors hover:bg-inset hover:text-fg"
+        >
+          <IconMore width={14} height={14} />
+        </button>
+        {menuOpen && (
+          <div className="absolute right-0 top-full z-20 mt-1 w-32 overflow-hidden rounded-lg border border-line-strong bg-card shadow-e3">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setMenuOpen(false);
+                setLocalError(null);
+                setRenaming(true);
+              }}
+              className="block w-full px-3 py-2 text-left text-[12.5px] font-medium text-fg hover:bg-inset"
+            >
+              Rename
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                void handleDeleteClick();
+              }}
+              className="block w-full px-3 py-2 text-left text-[12.5px] font-medium text-bad hover:bg-bad-bg"
+            >
+              Delete
+            </button>
+          </div>
+        )}
+      </div>
+
+      {localError && <p className="px-3 pb-2 text-[11px] text-bad">{localError}</p>}
+
+      <Modal open={renaming} onClose={() => setRenaming(false)} busy={pending} title="Rename document">
+        <FormError message={localError} />
+        <form onSubmit={submitRename} className="flex flex-col gap-2">
+          <Field label="File name" name="file_name" defaultValue={upload.fileName} required autoFocus />
+          <SubmitButton pending={pending}>Save</SubmitButton>
+        </form>
+      </Modal>
+    </div>
+  );
+}
+
+/**
  * Documents tab — the two blank master templates (read-only, generator
  * output) and org-level uploads (insurance certs, W9s, agreements — user-
  * managed) together in one 5-across grid. Upload goes straight from the
@@ -55,9 +184,10 @@ type PreviewTarget =
  * session/RLS, same mechanism as accounts/[id]/BolSection.tsx — only the
  * metadata is written server-side after, via ./actions.ts::createOrgDocument.
  * Viewing either card type opens the same shared DocViewer; uploads pass
- * `onDelete` (DocViewer's own built-in confirm-then-delete flow), templates
- * don't, since templates aren't deletable — enforced again server-side in
- * deleteOrgDocument, not just by omitting the button.
+ * `onDelete` (DocViewer's own built-in confirm-then-delete flow) in addition
+ * to the card's own quiet kebab menu — templates get neither, since
+ * templates aren't editable, enforced again server-side in
+ * renameOrgDocument/deleteOrgDocument, not just by omitting the controls.
  */
 export function AdminDocumentsGrid({
   templates,
@@ -121,13 +251,16 @@ export function AdminDocumentsGrid({
     router.refresh();
   }
 
+  async function handleRename(id: string, fileName: string) {
+    const res = await renameOrgDocument(id, fileName);
+    if (res.ok) router.refresh();
+    return res;
+  }
+
   async function handleDelete(id: string) {
     const res = await deleteOrgDocument(id);
-    if (!res.ok) {
-      setError(res.error);
-      throw new Error(res.error);
-    }
-    router.refresh();
+    if (res.ok) router.refresh();
+    return res;
   }
 
   const previewDoc: ViewerDoc | null = preview
@@ -206,26 +339,13 @@ export function AdminDocumentsGrid({
           })}
 
           {uploads.map((u) => (
-            <div
+            <UploadCard
               key={u.id}
-              role="button"
-              tabIndex={0}
-              onClick={() => openUpload(u)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") openUpload(u);
-              }}
-              className="flex cursor-pointer flex-col overflow-hidden rounded-lg border border-line-strong bg-card text-left shadow-e1 transition-shadow hover:shadow-e2"
-            >
-              <div className="flex aspect-[4/3] items-center justify-center overflow-hidden bg-inset text-fg-subtle">
-                <IconFile width={32} height={32} />
-              </div>
-              <div className="flex flex-col gap-1 p-3">
-                <p className="truncate text-[13.5px] font-bold text-fg">{u.fileName}</p>
-                <p className="text-[12px] text-fg-subtle">
-                  {[formatDate(u.createdAt), formatBytes(u.sizeBytes)].filter(Boolean).join(" · ")}
-                </p>
-              </div>
-            </div>
+              upload={u}
+              onOpen={() => openUpload(u)}
+              onRename={(fileName) => handleRename(u.id, fileName)}
+              onDelete={() => handleDelete(u.id)}
+            />
           ))}
 
           {templates.length === 0 && uploads.length === 0 && (
@@ -241,7 +361,14 @@ export function AdminDocumentsGrid({
             setPreview(null);
             setPreviewUrl(null);
           }}
-          onDelete={preview?.kind === "upload" ? () => handleDelete(preview.upload.id) : undefined}
+          onDelete={
+            preview?.kind === "upload"
+              ? async () => {
+                  const res = await handleDelete(preview.upload.id);
+                  if (!res.ok) throw new Error(res.error ?? "Could not delete the file.");
+                }
+              : undefined
+          }
           deleteLabel="Delete"
         />
       )}

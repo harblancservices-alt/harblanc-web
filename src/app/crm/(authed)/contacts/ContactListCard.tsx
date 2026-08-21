@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ClickableListItem } from "../_shell/ClickableRow";
 import { Badge } from "../_shell/ui";
 import { ContactAvatar } from "../_shell/ContactAvatar";
+import { MoodBadge } from "../_shell/MoodBadge";
 import { IconMail, IconPhone } from "../_shell/icons";
 import { DueCountdown } from "../_shell/DueCountdown";
 import { digitsForTel } from "../_shell/contactFields";
@@ -27,6 +28,7 @@ export type ContactCardData = {
   roleCategory: string | null;
   /** crm_contacts.last_contacted_at — not shown on this list. */
   lastContactedAt: string | null;
+  currentMood: string | null;
 };
 
 const ICON_ACTION =
@@ -50,6 +52,7 @@ export function ContactListCard({ contact }: { contact: ContactCardData }) {
         <div className="flex flex-wrap items-center gap-1.5">
           <p className="truncate text-[13.5px] font-semibold text-fg">{contact.name}</p>
           {contact.isDecisionMaker && <Badge tone="success">DM</Badge>}
+          <MoodBadge mood={contact.currentMood} />
         </div>
         <p className="truncate text-[12px] text-fg-muted">
           {contact.title ? `${contact.title} · ` : ""}

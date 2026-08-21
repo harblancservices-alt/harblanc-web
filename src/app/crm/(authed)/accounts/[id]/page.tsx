@@ -113,7 +113,7 @@ export default async function AccountDetailPage({
     supabase
       .from("crm_contacts")
       .select(
-        "id, name, title, email, phones, links, best_time_to_call, is_decision_maker, notes, next_followup_at, last_contacted_at, role_category",
+        "id, name, title, email, phones, links, best_time_to_call, is_decision_maker, notes, next_followup_at, last_contacted_at, role_category, current_mood",
       )
       .eq("account_id", id)
       .is("deleted_at", null)
@@ -190,6 +190,7 @@ export default async function AccountDetailPage({
     next_followup_at: string | null;
     last_contacted_at: string | null;
     role_category: string | null;
+    current_mood: string | null;
   }[]).map((c) => ({ ...c, name: titleCaseWords(c.name) }));
   const contacts: CrmContact[] = contactRows.map((c) => ({
     ...c,

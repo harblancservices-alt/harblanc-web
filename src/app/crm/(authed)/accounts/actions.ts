@@ -6,6 +6,8 @@ import { logActivity, CRM_ACTIVITY } from "@/lib/crm/activity";
 import { normalizeStage, stageLabel, DEFAULT_LIFECYCLE } from "./lifecycle";
 import { centralInputToIso, titleCaseWords, upperCaseState } from "../_shell/format";
 import { phonesFromFormValue, linksFromFormValue, parsePhones, looksLikePhone } from "../_shell/contactFields";
+import { MOOD_VALUES } from "../_shell/mood";
+import { syncFollowupTask } from "@/lib/crm/followupTask";
 
 /**
  * Every write in the Hello Hotshot CRM lives here. All actions share the same
@@ -483,6 +485,16 @@ function contactFieldsFromForm(fd: FormData) {
     // instantly via setContactRole). Leaving it out of this object means
     // create/update never touch the column, so a save from this form can't
     // silently null out a role a rep already set via the pills.
+    //
+    // current_mood IS here, unlike role — Brent's explicit call: mood is set
+    // from this form at creation time (MoodPicker), then changed afterward
+    // via the separate inline MoodControl (mirrors RoleControl's own
+    // instant-save pattern). Since ContactDialog always renders MoodPicker
+    // with the contact's existing mood as its defaultValue, a save that
+    // doesn't touch the picker resubmits the same value — never a silent
+    // null-out the way excluding it entirely (like role_category) guards
+    // against.
+    current_mood: optStr(fd, "current_mood"),
   };
 }
 
@@ -508,17 +520,36 @@ export async function createContact(
   if (error || !data) {
     return { ok: false, error: "Could not save the contact. Please try again." };
   }
+  const contactId = data.id as string;
 
   await logActivity(supabase, {
     orgId: user.orgId,
     userId: user.id,
     accountId,
-    contactId: data.id as string,
+    contactId,
     kind: CRM_ACTIVITY.contactAdded,
     summary: `Contact added: ${fields.name}`,
   });
 
+  // Keeps a real crm_tasks row in sync with next_followup_at — see
+  // src/lib/crm/followupTask.ts's header comment for why this exists (a
+  // follow-up date used to save with no linked task, so it never showed up
+  // on the real Tasks page).
+  const followupTaskId = await syncFollowupTask(supabase, {
+    orgId: user.orgId,
+    userId: user.id,
+    accountId,
+    contactId,
+    subjectName: fields.name,
+    followupAt: fields.next_followup_at,
+    existingTaskId: null,
+  });
+  if (followupTaskId) {
+    await supabase.from("crm_contacts").update({ followup_task_id: followupTaskId }).eq("id", contactId);
+  }
+
   revalidateAccount(accountId);
+  revalidatePath("/crm/tasks");
   return { ok: true };
 }
 
@@ -532,6 +563,9 @@ export async function updateContact(
   if (!fields.name) return { ok: false, error: "Contact name is required." };
 
   const supabase = await createCrmServerClient();
+
+  const { data: prior } = await supabase.from("crm_contacts").select("followup_task_id").eq("id", contactId).maybeSingle();
+
   const { error } = await supabase
     .from("crm_contacts")
     .update({ ...fields })
@@ -550,7 +584,21 @@ export async function updateContact(
     summary: `Contact updated: ${fields.name}`,
   });
 
+  const followupTaskId = await syncFollowupTask(supabase, {
+    orgId: user.orgId,
+    userId: user.id,
+    accountId,
+    contactId,
+    subjectName: fields.name,
+    followupAt: fields.next_followup_at,
+    existingTaskId: (prior?.followup_task_id as string | null) ?? null,
+  });
+  if (followupTaskId !== (prior?.followup_task_id ?? null)) {
+    await supabase.from("crm_contacts").update({ followup_task_id: followupTaskId }).eq("id", contactId);
+  }
+
   revalidateAccount(accountId);
+  revalidatePath("/crm/tasks");
   return { ok: true };
 }
 
@@ -646,6 +694,32 @@ export async function setContactRole(
     .eq("id", contactId);
 
   if (error) return { ok: false, error: "Could not update the role." };
+  revalidateAccount(accountId ?? undefined);
+  revalidatePath(`/crm/contacts/${contactId}`);
+  return { ok: true };
+}
+
+/** Instant-save for MoodControl — same shape as setContactRole. `mood` is
+ * validated against the real vocabulary here too (not just trusted from the
+ * client) since the DB check constraint would reject anything else anyway;
+ * failing fast with a clear error beats a raw constraint-violation message. */
+export async function setContactMood(
+  contactId: string,
+  accountId: string | null,
+  mood: string | null,
+): Promise<ActionResult> {
+  await requireCrmUser();
+  if (mood && !(MOOD_VALUES as string[]).includes(mood)) {
+    return { ok: false, error: "Not a valid mood." };
+  }
+  const supabase = await createCrmServerClient();
+
+  const { error } = await supabase
+    .from("crm_contacts")
+    .update({ current_mood: mood })
+    .eq("id", contactId);
+
+  if (error) return { ok: false, error: "Could not update the mood." };
   revalidateAccount(accountId ?? undefined);
   revalidatePath(`/crm/contacts/${contactId}`);
   return { ok: true };

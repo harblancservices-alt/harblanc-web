@@ -9,6 +9,7 @@ import { IconPlus } from "../_shell/icons";
 import { BTN_ACTION } from "../_shell/ui";
 import { PhonesEditor } from "../_shell/PhonesEditor";
 import { LinksEditor } from "../_shell/LinksEditor";
+import { MoodPicker } from "../_shell/MoodPicker";
 import { CompanyCombobox, type CompanyOption, type CompanySelection } from "./CompanyCombobox";
 import { createContactQuick } from "./actions";
 
@@ -99,6 +100,8 @@ export function AddContactDialog({
 
           <PhonesEditor />
           <LinksEditor />
+
+          <MoodPicker />
 
           <Field
             label="Best time to call"

@@ -5,6 +5,7 @@ import { PageShell, Card, CardHead } from "../../_shell/ui";
 import { firstName, titleCaseWords, formatDate, formatDateTime } from "../../_shell/format";
 import { parsePhones, parseLinks } from "../../_shell/contactFields";
 import { RoleControl } from "../../accounts/[id]/RoleControl";
+import { MoodControl } from "../../accounts/[id]/MoodControl";
 import type { TaskContactOption } from "../../tasks/TaskDialog";
 import { TaskRow, type CrmTaskItem } from "../../tasks/TaskRow";
 import { callOutcomeLabel } from "../../calls/outcomes";
@@ -44,7 +45,7 @@ export default async function ContactProfilePage({
   const { data: contact } = await supabase
     .from("crm_contacts")
     .select(
-      "id, name, title, email, phones, links, best_time_to_call, next_followup_at, last_contacted_at, role_category, account_id",
+      "id, name, title, email, phones, links, best_time_to_call, next_followup_at, last_contacted_at, role_category, current_mood, account_id",
     )
     .eq("id", contactId)
     .is("deleted_at", null)
@@ -199,6 +200,7 @@ export default async function ContactProfilePage({
     best_time_to_call: contact.best_time_to_call as string | null,
     next_followup_at: contact.next_followup_at as string | null,
     role_category: contact.role_category as string | null,
+    current_mood: contact.current_mood as string | null,
   };
 
   const currentUser = { id: user.id, label: firstName(user.fullName, user.email) || "You" };
@@ -233,6 +235,13 @@ export default async function ContactProfilePage({
               <CardHead title="Role" />
               <div className="p-4">
                 <RoleControl contactId={contact.id as string} accountId={accountId} current={contact.role_category as string | null} />
+              </div>
+            </Card>
+
+            <Card>
+              <CardHead title="Current Mood" />
+              <div className="p-4">
+                <MoodControl contactId={contact.id as string} accountId={accountId} current={contact.current_mood as string | null} />
               </div>
             </Card>
 

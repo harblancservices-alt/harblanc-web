@@ -17,6 +17,7 @@ import { NotesTab, type CrmNoteItem } from "./NotesTab";
 import { deleteContact } from "../actions";
 import type { RepOption } from "../CompanyDialog";
 import { ContactAvatar } from "../../_shell/ContactAvatar";
+import { MoodBadge } from "../../_shell/MoodBadge";
 
 export type CrmContact = ContactDefaults & {
   id: string;
@@ -263,7 +264,10 @@ export function ContactsMasterDetail({
                   >
                     <ContactAvatar className="h-9 w-9" />
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[13.5px] font-semibold text-fg">{c.name}</span>
+                      <span className="flex items-center gap-1.5">
+                        <span className="block truncate text-[13.5px] font-semibold text-fg">{c.name}</span>
+                        <MoodBadge mood={c.current_mood} />
+                      </span>
                       {c.title && <span className="block truncate text-[11.5px] text-fg-muted">{c.title}</span>}
                     </span>
                   </button>
@@ -305,7 +309,10 @@ export function ContactsMasterDetail({
               <div className="flex min-w-0 items-center gap-3">
                 <ContactAvatar className="h-12 w-12" />
                 <div className="min-w-0">
-                  <p className="truncate text-[16px] font-bold text-fg">{selected.name}</p>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <p className="truncate text-[16px] font-bold text-fg">{selected.name}</p>
+                    <MoodBadge mood={selected.current_mood} />
+                  </div>
                   {selected.title && <p className="text-[13px] text-fg-muted">{selected.title}</p>}
                 </div>
               </div>

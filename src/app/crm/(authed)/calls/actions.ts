@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { logActivity, CRM_ACTIVITY } from "@/lib/crm/activity";
+import { syncFollowupTask } from "@/lib/crm/followupTask";
 import { callOutcomeLabel } from "./outcomes";
 import { centralInputToIso, titleCaseWords } from "../_shell/format";
 import { DEFAULT_LIFECYCLE } from "../accounts/lifecycle";
@@ -293,22 +294,58 @@ export async function logCall(formData: FormData): Promise<ActionResult> {
       : phoneDigits(rawPhone)
     : null;
 
-  const { error: callError } = await supabase.from("crm_calls").insert({
-    org_id: user.orgId,
-    account_id: accountId,
-    contact_id: contactId,
-    user_id: user.id,
-    outcome,
-    duration_seconds: durationSeconds,
-    summary,
-    notes,
-    followup_required: followupRequired,
-    reminder_at: reminderAt,
-    phone: normalizedPhone,
-  });
+  const { data: newCall, error: callError } = await supabase
+    .from("crm_calls")
+    .insert({
+      org_id: user.orgId,
+      account_id: accountId,
+      contact_id: contactId,
+      user_id: user.id,
+      outcome,
+      duration_seconds: durationSeconds,
+      summary,
+      notes,
+      followup_required: followupRequired,
+      reminder_at: reminderAt,
+      phone: normalizedPhone,
+    })
+    .select("id")
+    .single();
 
-  if (callError) {
+  if (callError || !newCall) {
     return { ok: false, error: "Could not log the call. Please try again." };
+  }
+
+  // Keeps a real crm_tasks row in sync with the reminder — see
+  // src/lib/crm/followupTask.ts's header comment. Each logged call is its
+  // own row (never edited in place), so this always creates a fresh task
+  // rather than upserting one (existingTaskId is always null here) — two
+  // different calls' reminders shouldn't share/overwrite one task.
+  if (reminderAt) {
+    let subjectName = "this contact";
+    if (contactId) {
+      const { data: c } = await supabase.from("crm_contacts").select("name").eq("id", contactId).maybeSingle();
+      if (c?.name) subjectName = c.name as string;
+    } else if (accountId) {
+      const { data: a } = await supabase.from("crm_accounts").select("name").eq("id", accountId).maybeSingle();
+      if (a?.name) subjectName = a.name as string;
+    } else if (normalizedPhone) {
+      subjectName = normalizedPhone;
+    }
+
+    const followupTaskId = await syncFollowupTask(supabase, {
+      orgId: user.orgId,
+      userId: user.id,
+      accountId,
+      contactId,
+      subjectName,
+      followupAt: reminderAt,
+      existingTaskId: null,
+    });
+    if (followupTaskId) {
+      await supabase.from("crm_calls").update({ followup_task_id: followupTaskId }).eq("id", newCall.id);
+    }
+    revalidatePath("/crm/tasks");
   }
 
   // Best-effort: record that we spoke to this contact.

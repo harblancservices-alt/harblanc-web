@@ -6,6 +6,7 @@ import { logActivity, CRM_ACTIVITY } from "@/lib/crm/activity";
 import { DEFAULT_LIFECYCLE } from "../accounts/lifecycle";
 import { centralInputToIso, titleCaseWords } from "../_shell/format";
 import { phonesFromFormValue, linksFromFormValue } from "../_shell/contactFields";
+import { syncFollowupTask } from "@/lib/crm/followupTask";
 
 export type ActionResult =
   | { ok: true; accountId: string | null }
@@ -112,6 +113,7 @@ export async function createContactQuick(formData: FormData): Promise<ActionResu
       best_time_to_call: optStr(formData, "best_time_to_call"),
       notes: optStr(formData, "notes"),
       next_followup_at: centralInputToIso(optStr(formData, "next_followup_at")),
+      current_mood: optStr(formData, "current_mood"),
     })
     .select("id")
     .single();
@@ -119,17 +121,35 @@ export async function createContactQuick(formData: FormData): Promise<ActionResu
   if (contactErr || !contact) {
     return { ok: false, error: "Could not save the contact. Please try again." };
   }
+  const contactId = contact.id as string;
 
   if (accountId) {
     await logActivity(supabase, {
       orgId: user.orgId,
       userId: user.id,
       accountId,
-      contactId: contact.id as string,
+      contactId,
       kind: CRM_ACTIVITY.contactAdded,
       summary: `Contact added: ${name}`,
     });
   }
+
+  // Keeps a real crm_tasks row in sync with next_followup_at — see
+  // src/lib/crm/followupTask.ts's header comment.
+  const followupAt = centralInputToIso(optStr(formData, "next_followup_at"));
+  const followupTaskId = await syncFollowupTask(supabase, {
+    orgId: user.orgId,
+    userId: user.id,
+    accountId,
+    contactId,
+    subjectName: name,
+    followupAt,
+    existingTaskId: null,
+  });
+  if (followupTaskId) {
+    await supabase.from("crm_contacts").update({ followup_task_id: followupTaskId }).eq("id", contactId);
+  }
+  if (followupAt) revalidatePath("/crm/tasks");
 
   revalidateContactPaths(accountId);
   return { ok: true, accountId };

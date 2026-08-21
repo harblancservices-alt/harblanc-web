@@ -2,7 +2,6 @@ import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { getCompanyVisibility } from "../_shell/companyVisibility";
 import { PageShell, Card, EmptyState } from "../_shell/ui";
 import { IconCompanies } from "../_shell/icons";
-import { AddCompany } from "./AddCompany";
 import { AccountsFilters } from "./AccountsFilters";
 import { CompanyListCard, type CompanyCardData } from "./CompanyListCard";
 import { CompanyTable } from "./CompanyTable";
@@ -254,12 +253,7 @@ export default async function CompaniesPage({
           ? "Showing only companies assigned to you."
           : `${cards.length} compan${cards.length === 1 ? "y" : "ies"} in your org.`
       }
-      actions={
-        <>
-          <AddCompany reps={reps} />
-          <AddContactDialog companies={companyOptions} />
-        </>
-      }
+      actions={<AddContactDialog companies={companyOptions} />}
     >
       <Card className="p-4">
         <AccountsFilters q={q} stage={stage} rep={rep} tag={tagFilter} sort={sort} reps={reps} tags={allTags} />
@@ -277,8 +271,7 @@ export default async function CompaniesPage({
             <EmptyState
               icon={<IconCompanies />}
               title="No companies yet"
-              body="Add your first carrier or shipper to start building your pipeline."
-              action={<AddCompany reps={reps} />}
+              body="Companies come in through the BOL and prospect workflow."
             />
           )}
         </Card>

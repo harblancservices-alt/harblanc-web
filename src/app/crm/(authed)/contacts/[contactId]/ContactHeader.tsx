@@ -5,6 +5,7 @@ import { IconMail, IconPhone } from "../../_shell/icons";
 import { digitsForTel } from "../../_shell/contactFields";
 import { formatPhone } from "@/lib/domain/phone";
 import { ROLE_LABEL, ROLE_TONE, normalizeRoleCategory } from "../../accounts/[id]/roles";
+import { MoodBadge } from "../../_shell/MoodBadge";
 import { EditContactButton } from "./ContactProfileActions";
 import { ContactMoreMenu } from "./ContactMoreMenu";
 import { ContactAvatar } from "../../_shell/ContactAvatar";
@@ -56,6 +57,7 @@ export function ContactHeader({
                   {ROLE_LABEL[role]}
                 </span>
               )}
+              <MoodBadge mood={contact.current_mood} />
             </div>
             <p className="mt-0.5 truncate text-[12.5px] text-fg-muted">
               {contact.title ? `${contact.title}` : null}

@@ -7,6 +7,7 @@ import { Modal } from "../../_shell/Modal";
 import { Field, TextareaField, SubmitButton, FormError } from "../../_shell/form";
 import { PhonesEditor } from "../../_shell/PhonesEditor";
 import { LinksEditor } from "../../_shell/LinksEditor";
+import { MoodPicker } from "../../_shell/MoodPicker";
 import type { PhoneEntry, LinkEntry } from "../../_shell/contactFields";
 import { createContact, updateContact } from "../actions";
 import { toDatetimeLocal } from "../../_shell/format";
@@ -24,6 +25,10 @@ export type ContactDefaults = {
   /** A CrmPersonRoleCategory slug (see PeopleSection.tsx), or null/unset —
    * drives the color-coded role pill everywhere a contact renders. */
   role_category?: string | null;
+  /** A ContactMood slug (see _shell/mood.ts), or null/unset. Unlike
+   * role_category, this one IS submitted through this form (MoodPicker) —
+   * see contactFieldsFromForm's comment in ../actions.ts for why. */
+  current_mood?: string | null;
 };
 
 /**
@@ -100,6 +105,8 @@ export function ContactDialog({
 
           <PhonesEditor defaultValue={d.phones} />
           <LinksEditor defaultValue={d.links} />
+
+          <MoodPicker defaultValue={d.current_mood} />
 
           <Field
             label="Best time to call"

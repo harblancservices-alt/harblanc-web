@@ -51,6 +51,29 @@ export async function createOrgDocument(input: {
   return { ok: true };
 }
 
+/** Renames an upload's display name (file_name) only — the storage object
+ * and its path are untouched, so this never risks breaking the signed-URL
+ * lookup. Re-guards on kind=ORG_UPLOAD_KIND, same as deleteOrgDocument, so a
+ * template row can never be renamed even if the action were somehow called
+ * with its id. */
+export async function renameOrgDocument(documentId: string, fileName: string): Promise<ActionResult> {
+  await requireAdminUser();
+  const trimmed = fileName.trim();
+  if (!trimmed) return { ok: false, error: "File name can't be empty." };
+
+  const supabase = await createCrmServerClient();
+  const { error } = await supabase
+    .from("crm_documents")
+    .update({ file_name: trimmed })
+    .eq("id", documentId)
+    .eq("kind", ORG_UPLOAD_KIND);
+
+  if (error) return { ok: false, error: "Could not rename the file. Please try again." };
+
+  revalidateDocuments();
+  return { ok: true };
+}
+
 /** Soft-delete only, matching every other CRM document delete (e.g.
  * accounts/[id]/bol-actions.ts's deleteBolDocument) — the storage object
  * stays in place, the row just stops showing up. */
