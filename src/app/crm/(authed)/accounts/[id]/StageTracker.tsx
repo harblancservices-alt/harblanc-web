@@ -45,6 +45,7 @@ export function StageTracker({
   accountId,
   current,
   onStageChange,
+  variant = "chevron",
 }: {
   accountId: string;
   current: string;
@@ -53,6 +54,13 @@ export function StageTracker({
    * Onboarding task on reaching Active Customer) from a component that stays
    * mounted across the transition. See StageTrackerSection.tsx. */
   onStageChange?: (stage: LifecycleStage) => void;
+  /** "chevron" (default) is the original filled chevron chain — the ONLY
+   * thing mobile ever renders, unchanged. "strip" is the desktop
+   * company-profile redesign's pipeline bar (2026-08-22): the same six
+   * stages, same click-to-set handler, same `updateLifecycleStatus` write —
+   * just drawn as a label over a 4px progress bar per the design handoff.
+   * Purely a rendering switch; no behavior differs between the two. */
+  variant?: "chevron" | "strip";
 }) {
   const active = normalizeStage(current);
   const activeIndex = (SELECTABLE_LIFECYCLE_STAGES as readonly LifecycleStage[]).indexOf(active);
@@ -81,6 +89,48 @@ export function StageTracker({
   const stageNum = activeIndex + 1;
   const toClose = total - stageNum;
   const pct = Math.round((activeIndex / (total - 1)) * 100);
+
+  if (variant === "strip") {
+    return (
+      <div className="w-full">
+        <div className="flex items-center gap-4">
+          <div className="flex min-w-0 flex-1 gap-1">
+            {SELECTABLE_LIFECYCLE_STAGES.map((stage, i) => {
+              const done = i < activeIndex;
+              const isCurrent = i === activeIndex;
+              const isBusy = busyStage === stage;
+              return (
+                <button
+                  key={stage}
+                  type="button"
+                  onClick={() => setStage(stage)}
+                  disabled={pending}
+                  aria-current={isCurrent ? "step" : undefined}
+                  className="group flex min-w-0 flex-1 flex-col gap-1.5 text-left disabled:opacity-70"
+                >
+                  <span
+                    className={`truncate text-[11px] ${isCurrent ? "font-bold text-fg" : "font-medium text-fg-muted"}`}
+                  >
+                    {isBusy ? "…" : LIFECYCLE_LABEL[stage]}
+                  </span>
+                  <span
+                    aria-hidden
+                    className={`h-1 rounded-sm transition-colors ${
+                      done ? "bg-accent/45" : isCurrent ? "bg-accent" : "bg-line group-hover:bg-line-strong"
+                    }`}
+                  />
+                </button>
+              );
+            })}
+          </div>
+          <span className="shrink-0 whitespace-nowrap text-[12px] text-fg-muted">
+            Stage {stageNum} of {total} · <b className="text-fg">{pct}%</b>
+          </span>
+        </div>
+        {error && <p className="mt-1.5 text-[12px] text-bad">{error}</p>}
+      </div>
+    );
+  }
 
   return (
     <div className="w-full">

@@ -20,7 +20,7 @@ import { FilesTab } from "./FilesTab";
 import { CompanyDetailsCard, type CompanyFreightData } from "./CompanyDetailsCard";
 import { CustomFieldsCard } from "./CustomFieldsCard";
 import { type CrmCommodityPhoto } from "./CommodityPhotoTiles";
-import { callOutcomeLabel } from "../../calls/outcomes";
+import { callOutcomeLabel, callOutcomeTone } from "../../calls/outcomes";
 import type { TaskContactOption } from "../../tasks/TaskDialog";
 import { type CrmBolDocument } from "./BolSection";
 import { CompanyProfileSection } from "./CompanyProfileSection";
@@ -28,6 +28,11 @@ import { StrayNumbersSection } from "./StrayNumbersSection";
 import { LocationsSection } from "./LocationsSection";
 import { ShipmentsTab } from "./ShipmentsTab";
 import type { CrmTaskItem } from "../../tasks/TaskRow";
+import { fetchAccountLocations } from "./locations-data";
+import { DesktopProfile } from "./desktop/DesktopProfile";
+import type { IdentityLink } from "./desktop/IdentityCard";
+import type { WheelContact } from "./desktop/ContactsWheel";
+import { timestampMs } from "../../_shell/format";
 
 export const dynamic = "force-dynamic";
 
@@ -72,7 +77,7 @@ export default async function AccountDetailPage({
   const { data: account } = await supabase
     .from("crm_accounts")
     .select(
-      "id, name, industry, website, phone, phones, links, address, city, state, zip, company_size, commodities, annual_freight_spend, revenue_potential, source, lifecycle_status, assigned_user_id, primary_contact_id, needs_finalize, created_at, updated_at, dot_number, mc_number, company_type, email, context_notes, custom, equipment_needed, lanes, volume_frequency, weight_range, special_requirements, ai_confirmed_fields, linkedin_url",
+      "id, name, industry, website, phone, phones, links, address, city, state, zip, company_size, commodities, annual_freight_spend, revenue_potential, source, lifecycle_status, assigned_user_id, primary_contact_id, needs_finalize, created_at, updated_at, dot_number, mc_number, company_type, email, context_notes, custom, equipment_needed, lanes, volume_frequency, weight_range, special_requirements, ai_confirmed_fields, linkedin_url, dba, year_founded, ownership_type",
     )
     .eq("id", id)
     .is("deleted_at", null)
@@ -96,6 +101,7 @@ export default async function AccountDetailPage({
     commodityPhotosRes,
     accountTagsRes,
     orgTagsRes,
+    locations,
   ] = await Promise.all([
     supabase.from("crm_profiles").select("id, full_name, email, is_active, role"),
     supabase
@@ -156,6 +162,10 @@ export default async function AccountDetailPage({
       .limit(60),
     supabase.from("crm_account_tags").select("tag_id").eq("account_id", id),
     supabase.from("crm_tags").select("id, label, color").order("label", { ascending: true }),
+    // Desktop layout only — the mobile tree still renders the self-fetching
+    // LocationsSection. Folded into this Promise.all so it costs no extra
+    // round-trip latency, and shares the SAME helper LocationsSection uses.
+    fetchAccountLocations(supabase, id),
   ]);
 
   const profiles = (profilesRes.data ?? []) as ProfileRow[];
@@ -309,6 +319,12 @@ export default async function AccountDetailPage({
       contactId: c.contact_id,
       contactName: c.contact_id ? contactNameById.get(c.contact_id) ?? null : null,
       title: `Call · ${callOutcomeLabel(c.outcome)}${durLabel}`,
+      // Desktop timeline splits the same string into an event name + a
+      // status pill (see desktop/ActivityFeed.tsx). Mobile still reads
+      // `title` and is unaffected.
+      kind: `Call${durLabel}`,
+      tag: callOutcomeLabel(c.outcome),
+      tagTone: callOutcomeTone(c.outcome),
       body: [c.summary, c.notes].filter(Boolean).join("\n") || null,
       followupAt: c.followup_required ? c.reminder_at : null,
     };
@@ -399,7 +415,45 @@ export default async function AccountDetailPage({
   const currentRepId = account.assigned_user_id as string | null;
   const currentRepLabel = reps.find((r) => r.id === currentRepId)?.label ?? null;
 
-  return (
+  // ── Desktop-only derivations (2026-08-22 design-handoff rebuild) ───────
+  // Every value below is shaped from data this page ALREADY loads — nothing
+  // new is queried and nothing is written differently. The mobile tree below
+  // ignores all of it.
+  const desktopLinks: IdentityLink[] = [
+    ...(websiteHref ? [{ label: "Website", href: websiteHref }] : []),
+    ...(account.linkedin_url ? [{ label: "LinkedIn", href: normalizeHref(account.linkedin_url as string) }] : []),
+    ...links
+      .filter((l) => l.url && l.label?.toLowerCase() !== "website")
+      .map((l) => ({ label: l.label || "Link", href: normalizeHref(l.url) })),
+  ];
+
+  // The rail's contact wheel: primary contact first (tinted + PRIMARY pill),
+  // everyone else in their existing created_at order.
+  const wheelContacts: WheelContact[] = contacts
+    .map((c) => ({
+      id: c.id,
+      name: c.name,
+      title: c.title ?? null,
+      email: c.email ?? null,
+      phone: c.phones[0]?.number ?? null,
+      isPrimary: c.id === (account.primary_contact_id as string | null),
+    }))
+    .sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary));
+
+  // The next-follow-up banner is the soonest OPEN, DATED task on this
+  // company — the same crm_tasks rows the Tasks tab lists, so "Mark done"
+  // there and Done on the task card are the same completeTask write.
+  const nextFollowUpTask =
+    openTasks
+      .filter((t) => t.due_at)
+      .sort((a, b) => (timestampMs(a.due_at) ?? 0) - (timestampMs(b.due_at) ?? 0))[0] ?? null;
+
+  const commodityChips = ((account.commodities as string | null) ?? "")
+    .split(",")
+    .map((c) => c.trim())
+    .filter(Boolean);
+
+  const mobileTree = (
     <PageShell>
       {account.needs_finalize && <FinalizeBanner defaults={editDefaults} reps={reps} />}
 
@@ -517,5 +571,113 @@ export default async function AccountDetailPage({
         <CustomFieldsCard custom={account.custom as Record<string, unknown> | null} />
       </div>
     </PageShell>
+  );
+
+  return (
+    <>
+      {/* MOBILE / TABLET — the pre-existing profile, byte-for-byte. Brent's
+          mobile design system is locked; the redesign below is desktop-only,
+          so the two trees are gated against each other at `lg` rather than
+          one layout trying to be both. */}
+      <div className="lg:hidden">{mobileTree}</div>
+
+      {/* DESKTOP — the 2026-08-22 design-handoff rebuild, hybrid skin
+          (handoff layout + structure, CRM `.crm-light` tokens). */}
+      <div className="hidden lg:block">
+        {account.needs_finalize && (
+          <div className="px-6 pt-4">
+            <FinalizeBanner defaults={editDefaults} reps={reps} />
+          </div>
+        )}
+
+        <DesktopProfile
+          accountId={account.id as string}
+          accountName={accountName}
+          industry={account.industry as string | null}
+          city={accountCity}
+          stage={stage}
+          ownerLabel={currentRepLabel}
+          editDefaults={editDefaults}
+          reps={reps}
+          canDelete={isOwner}
+          email={companyEmail}
+          phones={phones}
+          fullAddress={fullAddress}
+          links={desktopLinks}
+          contacts={wheelContacts}
+          glance={{
+            annualFreightSpend: account.annual_freight_spend as number | null,
+            companySize: account.company_size as string | null,
+            yearFounded: account.year_founded as number | null,
+            companyType: account.company_type as string | null,
+            ownershipType: account.ownership_type as string | null,
+            source: account.source as string | null,
+          }}
+          commodities={commodityChips}
+          commoditiesFromAi={!!aiConfirmedFields.commodities}
+          attachedTags={attachedTags}
+          orgTags={orgTags}
+          followUp={
+            nextFollowUpTask
+              ? {
+                  taskId: nextFollowUpTask.id,
+                  title: nextFollowUpTask.title,
+                  notes: nextFollowUpTask.notes,
+                  dueAt: nextFollowUpTask.due_at as string,
+                }
+              : null
+          }
+          activityItems={activityItems}
+          notesCount={humanNotes.length}
+          strayContacts={contactOptions}
+          locations={locations}
+          profileFacts={{
+            dba: account.dba as string | null,
+            linkedinUrl: account.linkedin_url as string | null,
+            yearFounded: account.year_founded as number | null,
+            ownershipType: account.ownership_type as string | null,
+            companyType: account.company_type as string | null,
+            companySize: account.company_size as string | null,
+            annualFreightSpend: account.annual_freight_spend as number | null,
+            source: account.source as string | null,
+            dotNumber: account.dot_number as string | null,
+            mcNumber: account.mc_number as string | null,
+            contextNotes: account.context_notes as string | null,
+            confirmed: aiConfirmedFields,
+          }}
+          custom={account.custom as Record<string, unknown> | null}
+          activityPanel={<ActivityLogSection accountId={account.id as string} items={activityItems} />}
+          notesPanel={
+            <NotesTab
+              accountId={account.id as string}
+              accountName={accountName}
+              notes={humanNotes}
+              contactOptions={contactOptions}
+              currentUser={currentUser}
+            />
+          }
+          shipmentsPanel={<ShipmentsTab accountId={account.id as string} accountName={accountName} />}
+          tasksPanel={
+            <TasksTab
+              accountId={account.id as string}
+              tasks={tasks}
+              reps={reps}
+              contacts={contactOptions}
+              canAssignOthers={isOwner}
+              currentUser={currentUser}
+            />
+          }
+          tasksCount={openTasks.length}
+          documentsPanel={
+            <FilesTab
+              accountId={account.id as string}
+              orgId={user.orgId}
+              documents={documents}
+              photos={commodityPhotos}
+            />
+          }
+        />
+      </div>
+    </>
   );
 }

@@ -8,6 +8,7 @@ import { LabelPicker } from "../../_shell/LabelPicker";
 import { PHONE_LABEL_PRESETS, digitsForTel, type PhoneEntry } from "../../_shell/contactFields";
 import { assignCompanyPhoneToContact, createContactFromPhone } from "../actions";
 import { formatPhone } from "@/lib/domain/phone";
+import { D_CARD, D_H3, D_MONO } from "./desktop/ui";
 
 export type StrayContactOption = { id: string; name: string };
 
@@ -17,17 +18,48 @@ export type StrayContactOption = { id: string; name: string };
  * the whole company phones list surfaced with two escape hatches: move a
  * number onto an existing contact, or spin up a brand-new contact from it.
  * Lives on the profile's Contacts tab, next to the people list it feeds.
+ *
+ * 2026-08-22: gained a `variant` for the desktop company-profile redesign,
+ * which pairs this card side-by-side with Locations in a half-width column
+ * (design handoff §Main column). "compact" swaps ONLY the outer chrome and
+ * row spacing — the assign / create-contact flows, their state, and their
+ * server actions are the same code either way, so the two variants can't
+ * drift. "card" is the original, and is what mobile still renders.
  */
 export function StrayNumbersSection({
   accountId,
   phones,
   contacts,
+  variant = "card",
 }: {
   accountId: string;
   phones: PhoneEntry[];
   contacts: StrayContactOption[];
+  variant?: "card" | "compact";
 }) {
   if (!phones.length) return null;
+
+  const rows = phones.map((p) => (
+    <StrayNumberRow
+      key={`${p.label}:${p.number}`}
+      accountId={accountId}
+      phone={p}
+      contacts={contacts}
+      compact={variant === "compact"}
+    />
+  ));
+
+  if (variant === "compact") {
+    return (
+      <div className={`${D_CARD} p-4 px-[18px]`}>
+        <h3 className={`${D_H3} mb-1`}>
+          Stray numbers <span className="font-medium text-fg-muted">· {phones.length}</span>
+        </h3>
+        <p className="mb-2.5 text-[11px] font-medium text-fg-muted">Numbers not yet tied to a contact.</p>
+        <ul className="flex flex-col gap-2">{rows}</ul>
+      </div>
+    );
+  }
 
   return (
     <Card>
@@ -35,16 +67,7 @@ export function StrayNumbersSection({
         title="Stray numbers"
         hint="Company numbers not tied to a person — assign one to a contact or create a contact from it."
       />
-      <ul className={`divide-y divide-line-strong ${ZEBRA_ROWS}`}>
-        {phones.map((p) => (
-          <StrayNumberRow
-            key={`${p.label}:${p.number}`}
-            accountId={accountId}
-            phone={p}
-            contacts={contacts}
-          />
-        ))}
-      </ul>
+      <ul className={`divide-y divide-line-strong ${ZEBRA_ROWS}`}>{rows}</ul>
     </Card>
   );
 }
@@ -53,10 +76,14 @@ function StrayNumberRow({
   accountId,
   phone,
   contacts,
+  compact = false,
 }: {
   accountId: string;
   phone: PhoneEntry;
   contacts: StrayContactOption[];
+  /** Desktop half-width variant — outlined row instead of a zebra list row,
+   * and the number set in IBM Plex Mono. Behavior is identical. */
+  compact?: boolean;
 }) {
   const router = useRouter();
   const [label, setLabel] = useState(phone.label);
@@ -116,15 +143,15 @@ function StrayNumberRow({
   }
 
   return (
-    <li className="flex flex-col gap-3 px-5 py-4">
+    <li className={compact ? "flex flex-col gap-2.5 rounded-lg border border-line p-3" : "flex flex-col gap-3 px-5 py-4"}>
       <div className="flex flex-wrap items-center gap-3">
         <a
           href={`tel:${digitsForTel(phone.number)}`}
-          className="shrink-0 font-mono text-[14px] font-semibold text-accent hover:underline"
+          className={`shrink-0 text-[14px] font-semibold text-accent hover:underline ${compact ? D_MONO : "font-mono"}`}
         >
           {formatPhone(phone.number)}
         </a>
-        <div className="w-44">
+        <div className={compact ? "w-36" : "w-44"}>
           <LabelPicker value={label} onChange={setLabel} presets={PHONE_LABEL_PRESETS} />
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-2">

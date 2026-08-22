@@ -271,6 +271,21 @@ input[type="date"]::-webkit-date-and-time-value {
   --admin-soft: #ece3fb;
 }
 
+/* CRM numeric/temporal tier — IBM Plex Mono, the ONE font addition the
+   company-profile redesign brought in (Brent's readability call,
+   2026-08-22). The family was already loaded by layout.tsx via next/font
+   (--font-plex-mono) but unused, since the site-wide --font-mono token is
+   deliberately aliased to Public Sans (see the comment on --font-sans).
+   This class is the narrow, explicit opt-out: PHONE NUMBERS and TIMESTAMPS
+   only — never body copy, headings, labels, money, or IDs, which all stay
+   on Public Sans. Scoped to .crm-light so no other product surface picks it
+   up by accident. */
+.crm-light .crm-num {
+  font-family: var(--font-plex-mono), ui-monospace, SFMono-Regular, Menlo,
+    Consolas, monospace;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
 /* ============================================================== */
 /* TMS V2 THEME — scoped override, fully independent of the admin portal
    and the CRM. The /tms-v2 shell root carries .tms-v2-light.

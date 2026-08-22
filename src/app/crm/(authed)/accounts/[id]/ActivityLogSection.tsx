@@ -19,6 +19,19 @@ export type CrmActivityLogItem = {
   body: string | null;
   /** Next follow-up, when a logged call flagged one. */
   followupAt: string | null;
+  /** ── Desktop-redesign additions (2026-08-22), all OPTIONAL and ignored by
+   * this component, so the mobile timeline renders exactly as before. The
+   * handoff's activity row splits what `title` packs into one string into a
+   * bold event name plus a colored status pill, so page.tsx now also supplies
+   * the two halves separately for desktop/ActivityFeed.tsx to use. */
+  /** Event name without the outcome — "Call · 3m", "Note", the activity
+   * summary. Falls back to `title` when absent. */
+  kind?: string;
+  /** Status pill text — a call's outcome label, e.g. "Call Back". */
+  tag?: string | null;
+  /** Tailwind tone classes for that pill (see calls/outcomes.ts's
+   * callOutcomeTone) — always a fixed bg-*-bg/text-* status tint. */
+  tagTone?: string | null;
 };
 
 const TYPE_TONE: Record<CrmActivityLogItem["type"], string> = {
