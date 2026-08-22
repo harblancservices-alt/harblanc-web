@@ -163,9 +163,21 @@ export async function findPossibleDuplicates(
 /**
  * Create a company for the caller's org and log the first timeline entry.
  * org_id + assigned rep come from the session; RLS WITH CHECK enforces org.
+ *
+ * `options.unassigned` (default false) is the ONE override to the "defaults
+ * to the creator" rule below — used only by BOL Center's new-company paths
+ * (resolveAndProspectCompany/createAndProspectCompany/prospectCarrier),
+ * which need a freshly-created prospect to land UNCLAIMED in the agent
+ * queue (/crm/ai-agent), not pre-owned by whichever admin happened to
+ * process the BOL. An explicit empty assigned_user_id in the form data does
+ * NOT achieve this — optStr treats "" as null and the `?? user.id` fallback
+ * still applies — so this needs its own real signal. Every other caller
+ * (the manual Add-Company dialog included) omits `options` entirely and
+ * keeps the unchanged default: assign to the creator.
  */
 export async function createAccount(
   formData: FormData,
+  options?: { unassigned?: boolean },
 ): Promise<CreateAccountResult> {
   const user = await requireCrmUser();
 
@@ -180,8 +192,9 @@ export async function createAccount(
   const lifecycle = normalizeStage(
     str(formData, "lifecycle_status") || DEFAULT_LIFECYCLE,
   );
-  // Optional rep from the form; default to the creator.
-  const assigned = optStr(formData, "assigned_user_id") ?? user.id;
+  // Optional rep from the form; defaults to the creator UNLESS the caller
+  // explicitly opted into an unassigned company (see options.unassigned above).
+  const assigned = options?.unassigned ? null : (optStr(formData, "assigned_user_id") ?? user.id);
 
   const supabase = await createCrmServerClient();
   const { data, error } = await supabase
