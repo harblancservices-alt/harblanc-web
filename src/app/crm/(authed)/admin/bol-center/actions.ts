@@ -267,6 +267,89 @@ export async function resolveAndProspectCompany(bolId: string, side: CompanySide
   return { ok: true, accountId };
 }
 
+/**
+ * The reviewed-candidate path's "none of these — create new" fallback:
+ * unlike resolveAndProspectCompany, this never re-runs the matcher (the human
+ * already saw the candidate list and rejected it) and takes name/address from
+ * an editable inline form instead of re-reading crm_bol_entries verbatim —
+ * so a misparsed name can be fixed before the account is created. Deliberately
+ * separate from updateExtractedFields: that action overwrites all 12 From-BOL
+ * fields at once (built for a full-form submit) and would null out every
+ * other field if called with just this row's two inputs.
+ */
+export async function createAndProspectCompany(bolId: string, side: CompanySide, formData: FormData): Promise<ResolveCompanyResult> {
+  await requireAdminUser();
+  const name = String(formData.get("name") ?? "").trim();
+  if (!name) return { ok: false, error: "Company name is required." };
+  const address = String(formData.get("address") ?? "").trim();
+
+  const fd = new FormData();
+  fd.set("name", name);
+  if (address) fd.set("address", address);
+  fd.set("source", "bol");
+  fd.set("lifecycle_status", "prospect");
+  const createResult = await createAccount(fd);
+  if (!createResult.ok) return createResult;
+
+  const linkResult = await linkCompany(bolId, side, createResult.id);
+  if (!linkResult.ok) return linkResult;
+
+  const prospectResult = await addToProspects(createResult.id);
+  if (!prospectResult.ok) return prospectResult;
+
+  return { ok: true, accountId: createResult.id };
+}
+
+/**
+ * Real per-candidate context for the match-review list: how many shipments
+ * this org already has on file for the account (crm_shipments.account_id),
+ * and who currently owns it (crm_accounts.assigned_user_id -> crm_profiles).
+ * Both are genuine columns already used elsewhere (listShipmentsForAccount,
+ * the account profile's rep picker) — nothing here is estimated or faked.
+ */
+export type CandidateMeta = {
+  accountId: string;
+  priorLoadCount: number;
+  currentOwnerName: string | null;
+};
+
+export async function getCandidateMeta(accountIds: string[]): Promise<CandidateMeta[]> {
+  await requireAdminUser();
+  if (accountIds.length === 0) return [];
+  const supabase = await createCrmServerClient();
+
+  const [{ data: accounts }, { data: shipments }] = await Promise.all([
+    supabase.from("crm_accounts").select("id, assigned_user_id").in("id", accountIds),
+    supabase.from("crm_shipments").select("account_id").in("account_id", accountIds).is("deleted_at", null),
+  ]);
+
+  const accountRows = (accounts ?? []) as { id: string; assigned_user_id: string | null }[];
+  const ownerIds = Array.from(new Set(accountRows.map((a) => a.assigned_user_id).filter((id): id is string => Boolean(id))));
+
+  const { data: profiles } = ownerIds.length
+    ? await supabase.from("crm_profiles").select("id, full_name, email").in("id", ownerIds)
+    : { data: [] as { id: string; full_name: string | null; email: string | null }[] };
+  const nameById = new Map(
+    ((profiles ?? []) as { id: string; full_name: string | null; email: string | null }[]).map((p) => [p.id, p.full_name || p.email || "Unnamed"]),
+  );
+  const ownerByAccount = new Map(accountRows.map((a) => [a.id, a.assigned_user_id]));
+
+  const loadCountByAccount = new Map<string, number>();
+  for (const s of (shipments ?? []) as { account_id: string | null }[]) {
+    if (!s.account_id) continue;
+    loadCountByAccount.set(s.account_id, (loadCountByAccount.get(s.account_id) ?? 0) + 1);
+  }
+
+  return accountIds.map((id) => {
+    const ownerId = ownerByAccount.get(id) ?? null;
+    return {
+      accountId: id,
+      priorLoadCount: loadCountByAccount.get(id) ?? 0,
+      currentOwnerName: ownerId ? (nameById.get(ownerId) ?? null) : null,
+    };
+  });
+}
+
 // ── Location matching ────────────────────────────────────────────────────────
 
 export type LocationCandidate = {
@@ -520,6 +603,45 @@ export async function addToProspects(accountId: string): Promise<ActionResult> {
   revalidatePath("/crm/accounts");
   revalidatePath(`/crm/accounts/${accountId}`);
   return { ok: true };
+}
+
+/**
+ * The carrier printed on a BOL is not a sales target by default (it's who
+ * moved the freight, not who might ship with us) — so unlike shipper/
+ * consignee/bill_to it has no matched_*_account_id slot on crm_bol_entries
+ * (adding one would be a schema change). This is the explicit override for
+ * the rare case it's worth prospecting anyway: same real matcher + create-or-
+ * link + addToProspects pipeline as resolveAndProspectCompany, just without
+ * a link back onto the BOL row.
+ */
+export type ProspectCarrierResult = { ok: true; accountId: string } | { ok: false; error: string };
+
+export async function prospectCarrier(bolId: string): Promise<ProspectCarrierResult> {
+  await requireAdminUser();
+  const supabase = await createCrmServerClient();
+  const { data: bol } = await supabase.from("crm_bol_entries").select("carrier").eq("id", bolId).maybeSingle();
+  const carrierName = ((bol?.carrier as string | null) ?? "").trim();
+  if (!carrierName) return { ok: false, error: "No carrier was extracted for this BOL." };
+
+  const candidates = await searchCompanyMatches(carrierName, null);
+  const confident = candidates.find((c) => c.tier === "exact" || c.tier === "likely");
+
+  let accountId: string;
+  if (confident) {
+    accountId = confident.row.id;
+  } else {
+    const fd = new FormData();
+    fd.set("name", carrierName);
+    fd.set("source", "bol");
+    fd.set("lifecycle_status", "prospect");
+    const createResult = await createAccount(fd);
+    if (!createResult.ok) return createResult;
+    accountId = createResult.id;
+  }
+
+  const prospectResult = await addToProspects(accountId);
+  if (!prospectResult.ok) return prospectResult;
+  return { ok: true, accountId };
 }
 
 // ── BOL status / lifecycle ───────────────────────────────────────────────────

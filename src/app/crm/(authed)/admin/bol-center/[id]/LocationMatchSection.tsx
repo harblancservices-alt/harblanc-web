@@ -2,12 +2,19 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardHead, Badge, BTN_PRIMARY } from "../../../_shell/ui";
+import { Badge, BTN_PRIMARY } from "../../../_shell/ui";
 import { Modal } from "../../../_shell/Modal";
 import { Field, SubmitButton, FormError } from "../../../_shell/form";
 import { MATCH_TIER_LABEL, type ScoredMatch } from "../matching";
 import { searchLocationMatches, linkLocation, createLocationFromBol, type LocationCandidate, type LocationSide } from "../actions";
 
+/**
+ * Nested inside a CompanyRow (a resolved shipper/consignee already has one
+ * company card) — no own Card/CardHead here, just a small labeled block, so
+ * it reads as "part of this company" rather than a competing top-level
+ * section. All matching/link/create logic is unchanged from the original
+ * standalone version.
+ */
 export function LocationMatchSection({
   bolId,
   side,
@@ -39,7 +46,7 @@ export function LocationMatchSection({
     };
   }, [accountId, matchedLocationId, queryAddress]);
 
-  function useExisting(locationId: string) {
+  function linkExistingLocation(locationId: string) {
     setError(null);
     startTransition(async () => {
       const res = await linkLocation(bolId, side, locationId);
@@ -63,9 +70,9 @@ export function LocationMatchSection({
   }
 
   return (
-    <Card>
-      <CardHead title={`${label} — Location`} />
-      <div className="flex flex-col gap-3 p-4">
+    <div className="flex flex-col gap-2">
+      <p className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-fg-subtle">{label} dock location</p>
+      <div className="flex flex-col gap-3">
         {error && <p className="text-[12.5px] text-bad">{error}</p>}
 
         {!accountId ? (
@@ -91,7 +98,7 @@ export function LocationMatchSection({
                       </div>
                       <p className="text-[11.5px] text-fg-muted">{[m.row.address, m.row.city, m.row.state].filter(Boolean).join(", ") || "—"}</p>
                     </div>
-                    <button type="button" disabled={pending} onClick={() => useExisting(m.row.id)} className={`inline-flex h-8 shrink-0 items-center rounded-md px-3 text-[12.5px] font-bold transition-colors disabled:opacity-60 ${BTN_PRIMARY}`}>
+                    <button type="button" disabled={pending} onClick={() => linkExistingLocation(m.row.id)} className={`inline-flex h-8 shrink-0 items-center rounded-md px-3 text-[12.5px] font-bold transition-colors disabled:opacity-60 ${BTN_PRIMARY}`}>
                       Use Existing
                     </button>
                   </li>
@@ -115,6 +122,6 @@ export function LocationMatchSection({
           <SubmitButton pending={pending}>Add location</SubmitButton>
         </form>
       </Modal>
-    </Card>
+    </div>
   );
 }
