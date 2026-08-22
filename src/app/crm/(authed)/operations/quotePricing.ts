@@ -68,17 +68,23 @@ export type QuoteBreakdown = {
 };
 
 /**
- * Starting values. mpg/pricePerGallon come from FUEL_DEFAULTS so the
- * calculator and every other diesel figure in the codebase start from the
- * same truck; hourlyRate/brokeragePct/avgMph are this calculator's own
- * house assumptions.
+ * Starting values. Diesel PRICE still comes from FUEL_DEFAULTS so the
+ * calculator and the rest of the codebase quote off the same pump price;
+ * everything else is this calculator's own house assumption.
  */
 export const QUOTE_DEFAULTS: Omit<QuoteInputs, "miles"> = {
   // 62 mph (Brent, 2026-08-22 — was 50). A door-to-door blended average for
   // the lanes this outfit actually runs, not a legal limit: mostly interstate
   // miles, so 50 was pricing in more hours than a real run takes.
   avgMph: 62,
-  mpg: FUEL_DEFAULTS.mpg,
+  // 9 mpg (Brent, 2026-08-22 — was FUEL_DEFAULTS.mpg, 13). DELIBERATELY a
+  // local override, NOT a change to FUEL_DEFAULTS: that constant is the
+  // shared dispatch truck (src/lib/dispatch/fuel.ts), used as the fallback
+  // in lib/data/analytics.ts and lib/data/broker-profile.ts, so editing it
+  // would move every diesel figure in the TMS. Quoting loaded hotshot miles
+  // wants a more conservative number than the fleet-wide average the TMS
+  // reports against; the rep can still change it per quote.
+  mpg: 9,
   pricePerGallon: FUEL_DEFAULTS.ppg,
   hourlyRate: 125,
   brokeragePct: 25,

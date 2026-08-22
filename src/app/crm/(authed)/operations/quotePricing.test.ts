@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { FUEL_DEFAULTS } from "@/lib/dispatch/fuel";
 import { computeQuote, QUOTE_DEFAULTS, type QuoteInputs } from "./quotePricing";
 
 /** 620 miles at the default 62 mph is exactly 10 drive hours, so the hour
@@ -8,9 +9,17 @@ function inputs(over: Partial<QuoteInputs> = {}): QuoteInputs {
 }
 
 describe("QUOTE_DEFAULTS", () => {
-  it("starts from the shared truck (FUEL_DEFAULTS), not its own numbers", () => {
-    expect(QUOTE_DEFAULTS.mpg).toBe(13);
-    expect(QUOTE_DEFAULTS.pricePerGallon).toBe(4.7);
+  it("quotes off the shared pump price", () => {
+    expect(QUOTE_DEFAULTS.pricePerGallon).toBe(FUEL_DEFAULTS.ppg);
+  });
+
+  it("overrides mpg locally instead of moving the shared dispatch truck", () => {
+    // 9 for quoting loaded hotshot miles; FUEL_DEFAULTS stays 13 because the
+    // TMS's analytics and broker-profile fall back to it. If this ever fails
+    // because FUEL_DEFAULTS changed, fix FUEL_DEFAULTS' caller — don't just
+    // re-point QUOTE_DEFAULTS at it.
+    expect(QUOTE_DEFAULTS.mpg).toBe(9);
+    expect(FUEL_DEFAULTS.mpg).toBe(13);
   });
 
   it("carries the house assumptions", () => {
@@ -31,12 +40,12 @@ describe("computeQuote", () => {
     expect(q.driveHours).toBe(10);
     // 10 h x $125
     expect(q.timeCost).toBe(1250);
-    // 620 / 13 mpg x $4.70
-    expect(q.fuelCost).toBeCloseTo(224.154, 3);
-    expect(q.subtotal).toBeCloseTo(1474.154, 3);
+    // 620 / 9 mpg x $4.70
+    expect(q.fuelCost).toBeCloseTo(323.778, 3);
+    expect(q.subtotal).toBeCloseTo(1573.778, 3);
     // 25% ON TOP of the subtotal (a markup, not a margin)
-    expect(q.brokerageFee).toBeCloseTo(368.538, 3);
-    expect(q.total).toBeCloseTo(1842.692, 3);
+    expect(q.brokerageFee).toBeCloseTo(393.444, 3);
+    expect(q.total).toBeCloseTo(1967.222, 3);
   });
 
   it("bills drive hours only — no dock time anywhere in the total", () => {
