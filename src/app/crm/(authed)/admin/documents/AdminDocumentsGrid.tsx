@@ -7,6 +7,7 @@ import { Card, CardHead, BTN_PRIMARY, BTN_EDIT, BTN_DANGER } from "../../_shell/
 import { IconRateConfirmation, IconBillOfLading } from "../../_shell/icons";
 import { formatDate } from "../../_shell/format";
 import { CONTROL } from "../../_shell/form";
+import { DocThumb } from "../../_shell/DocThumb";
 import { getSignedPdfUrl } from "../../shipments/pdfClient";
 import { createOrgDocument, renameOrgDocument, deleteOrgDocument } from "./actions";
 import type { AdminBlankTemplate, AdminOrgUpload } from "../types";
@@ -25,18 +26,6 @@ function typeIcon(t: AdminBlankTemplate["docType"]) {
  * has ever been uploaded for that slot. */
 function templateTitle(t: AdminBlankTemplate): string {
   return t.fileName || t.label;
-}
-
-/** Generic file icon for an org upload's thumbnail block — no dedicated
- * "file" icon exists in _shell/icons.tsx, and none of the doc-type icons
- * there (Rate Confirmation, BOL) fit an arbitrary upload. */
-function IconFile({ width = 32, height = 32 }: { width?: number; height?: number }) {
-  return (
-    <svg width={width} height={height} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-      <path d="M14 2v6h6" />
-    </svg>
-  );
 }
 
 function sanitizeFileName(name: string): string {
@@ -243,9 +232,14 @@ export function AdminDocumentsGrid({
                     hasFile && !editMode ? "cursor-pointer transition-shadow hover:shadow-e2" : hasFile ? "" : "opacity-80"
                   }`}
                 >
-                  {t.thumbUrl && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={t.thumbUrl} alt={templateTitle(t)} className="h-full w-full object-cover object-top" />
+                  {hasFile && (
+                    <DocThumb
+                      thumbUrl={t.thumbUrl}
+                      previewUrl={t.previewUrl}
+                      fileName={t.fileName ?? templateTitle(t)}
+                      mimeType="application/pdf"
+                      className="h-full w-full"
+                    />
                   )}
                 </div>
                 <div className="flex flex-col gap-1.5 p-3">
@@ -285,7 +279,14 @@ export function AdminDocumentsGrid({
                 }
                 className={`flex aspect-[4/3] items-center justify-center overflow-hidden bg-inset text-fg-subtle ${editMode ? "" : "cursor-pointer transition-shadow hover:shadow-e2"}`}
               >
-                <IconFile width={32} height={32} />
+                <DocThumb
+                  thumbUrl={u.thumbUrl}
+                  previewUrl={u.previewUrl}
+                  fileName={u.fileName}
+                  mimeType={u.mimeType}
+                  sizeBytes={u.sizeBytes}
+                  className="h-full w-full"
+                />
               </div>
               <div className="flex flex-col gap-1.5 p-3">
                 {editMode ? (

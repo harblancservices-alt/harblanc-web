@@ -414,3 +414,24 @@ export function IndiaFlag(props: SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+
+/** Generic document/file glyph — the fallback tile for an uploaded file we
+ * can't render a real preview of (not a PDF, not an image, or the render
+ * failed). Promoted here from a local copy inside admin/documents/
+ * AdminDocumentsGrid.tsx once a second surface (Operations → Documents)
+ * needed the same fallback, so the two can't drift.
+ *
+ * ALWAYS pair it with a visible type label (see _shell/DocThumb.tsx) — on
+ * its own, a thin grey page outline centered in an empty box is
+ * indistinguishable from a browser's broken-image placeholder, which is
+ * exactly how it was read when upload cards had nothing else to show. */
+export function IconFile(props: IconProps) {
+  return (
+    // strokeWidth goes THROUGH base() (not after the spread) so a caller can
+    // still override it — base() spreads props last, by design.
+    <svg {...base({ strokeWidth: 1.5, ...props })}>
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <path d="M14 2v6h6" />
+    </svg>
+  );
+}

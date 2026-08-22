@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Card, CardHead, EmptyState, BTN_NEUTRAL, DEPTH_PRIMARY, Badge } from "../../_shell/ui";
 import { CONTROL, LABEL } from "../../_shell/form";
 import { IconBillOfLading, IconCheck } from "../../_shell/icons";
+import { DocThumb } from "../../_shell/DocThumb";
 import { formatDate } from "../../_shell/format";
 import {
   MAX_PACKET_DOCUMENTS,
@@ -14,13 +15,16 @@ import {
 
 /** One selectable row — the org's uploaded document templates, trimmed to
  * exactly what this screen renders. No storage path: the client only ever
- * posts IDs (see page.tsx). */
+ * posts IDs (see page.tsx). The two signed URLs feed DocThumb, the same
+ * preview component the Admin Documents grid uses. */
 export type PacketTemplate = {
   id: string;
   fileName: string;
   mimeType: string | null;
   sizeBytes: number | null;
   createdAt: string;
+  thumbUrl: string | null;
+  previewUrl: string | null;
 };
 
 const PACKET_ROUTE = "/crm/operations/documents/packet";
@@ -212,6 +216,21 @@ export function PacketBuilder({ templates }: { templates: PacketTemplate[] }) {
                     checked={checked}
                     onChange={() => toggle(t.id)}
                     className="h-4 w-4 shrink-0 accent-[var(--accent)]"
+                  />
+                  {/* Same preview component and the same signed-URL sources
+                      as the Admin Documents grid — one mechanism, so a
+                      document looks the same in both places. Portrait chip
+                      here rather than the grid's 4:3 card face, since these
+                      are rows in a list. */}
+                  <DocThumb
+                    thumbUrl={t.thumbUrl}
+                    previewUrl={t.previewUrl}
+                    fileName={t.fileName}
+                    mimeType={t.mimeType}
+                    sizeBytes={t.sizeBytes}
+                    className={`h-16 w-12 shrink-0 rounded border ${
+                      checked ? "border-accent" : "border-line-strong"
+                    }`}
                   />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[13.5px] font-bold text-fg">{t.fileName}</span>

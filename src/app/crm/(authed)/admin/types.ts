@@ -70,6 +70,9 @@ export type AdminBlankTemplate = {
   fileName: string | null;
   storagePath: string | null;
   thumbUrl: string | null;
+  /** Signed URL for the ORIGINAL template PDF — the fallback DocThumb rasters
+   * in the browser if the `.thumb.v3.png` sibling ever goes missing. */
+  previewUrl: string | null;
   createdAt: string | null;
 };
 
@@ -86,6 +89,14 @@ export type AdminOrgUpload = {
   mimeType: string | null;
   sizeBytes: number | null;
   createdAt: string;
+  /** Signed URL for the `<storagePath>.thumb.v3.png` sibling rendered
+   * server-side at upload time — null for anything uploaded while that step
+   * was missing (see documents-data.ts), and for non-PDF uploads. */
+  thumbUrl: string | null;
+  /** Signed URL for the ORIGINAL stored object. Lets _shell/DocThumb.tsx
+   * show an image upload directly, and raster a first-page preview in the
+   * browser for a PDF that has no stored thumbnail. */
+  previewUrl: string | null;
 };
 
 export type ActionResult = { ok: true } | { ok: false; error: string };

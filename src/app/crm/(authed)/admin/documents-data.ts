@@ -1,15 +1,20 @@
 import { createCrmServerClient } from "@/lib/crm/auth";
 import type { AdminBlankTemplate, AdminBlankTemplateType, AdminOrgUpload } from "./types";
 
-const STORAGE_BUCKET = "crm-documents";
+export const STORAGE_BUCKET = "crm-documents";
 const SIGNED_URL_TTL_SECONDS = 300;
 /** Same suffix/convention as the old ../settings/page.tsx's THUMB_SUFFIX — a
  * `<storagePath>.thumb.v3.png` sibling object holding a pre-rendered PNG of
- * the PDF's first page, written when the template was generated
- * (../settings/blankTemplates.ts, before that Settings section was
- * removed). Duplicated literal, not imported — same "use server"/plain-
- * module split reasoning as everywhere else this suffix appears. */
-const THUMB_SUFFIX = ".thumb.v3.png";
+ * the PDF's first page.
+ *
+ * EXPORTED (2026-08-22), no longer a duplicated literal. It used to be
+ * copied per file on the "use server"/plain-module split reasoning, but that
+ * rule is about what a "use server" file may EXPORT — importing a constant
+ * FROM a plain module INTO one is fine, and this file IS the plain module.
+ * Now that ./documents/actions.ts WRITES this sibling and this file READS
+ * it, the writer and the reader have to agree on the string exactly; a
+ * drifting copy would silently produce thumbnails nothing ever looks up. */
+export const THUMB_SUFFIX = ".thumb.v3.png";
 
 /** The only two blank master templates the CRM's document generator
  * produces — matches ../settings/blankTemplates.ts's (removed)
@@ -78,12 +83,19 @@ export async function listBlankTemplates(): Promise<AdminBlankTemplate[]> {
   );
 
   const withPath = rows.filter((r) => r.row);
-  const thumbByPath = new Map<string, string>();
+  const signedByPath = new Map<string, string>();
   if (withPath.length) {
-    const thumbPaths = withPath.map((r) => `${r.row!.storage_path}${THUMB_SUFFIX}`);
-    const { data: signedRows } = await supabase.storage.from(STORAGE_BUCKET).createSignedUrls(thumbPaths, SIGNED_URL_TTL_SECONDS);
+    // Sign the thumbnail sibling AND the original, in one call — the
+    // original is what _shell/DocThumb.tsx falls back to rastering in the
+    // browser if the sibling has gone missing, so a template can never
+    // degrade to an unexplained empty tile.
+    const paths = [
+      ...withPath.map((r) => `${r.row!.storage_path}${THUMB_SUFFIX}`),
+      ...withPath.map((r) => r.row!.storage_path),
+    ];
+    const { data: signedRows } = await supabase.storage.from(STORAGE_BUCKET).createSignedUrls(paths, SIGNED_URL_TTL_SECONDS);
     for (const s of signedRows ?? []) {
-      if (s.signedUrl && s.path) thumbByPath.set(s.path, s.signedUrl);
+      if (s.signedUrl && s.path) signedByPath.set(s.path, s.signedUrl);
     }
   }
 
@@ -93,7 +105,8 @@ export async function listBlankTemplates(): Promise<AdminBlankTemplate[]> {
     label: def.label,
     fileName: row?.file_name ?? null,
     storagePath: row?.storage_path ?? null,
-    thumbUrl: row ? (thumbByPath.get(`${row.storage_path}${THUMB_SUFFIX}`) ?? null) : null,
+    thumbUrl: row ? (signedByPath.get(`${row.storage_path}${THUMB_SUFFIX}`) ?? null) : null,
+    previewUrl: row ? (signedByPath.get(row.storage_path) ?? null) : null,
     createdAt: row?.created_at ?? null,
   }));
 }
@@ -103,6 +116,24 @@ export async function listBlankTemplates(): Promise<AdminBlankTemplate[]> {
  * not tied to a company). Same crm_documents table, kind=ORG_UPLOAD_KIND,
  * account_id/deal_id both null so they never show up on a company profile.
  * Admin-managed: uploaded/deleted via ./documents/actions.ts.
+ *
+ * Returns TWO signed URLs per row, both through the same batched
+ * `createSignedUrls` call listBlankTemplates() above already uses:
+ *
+ *   thumbUrl   — the `<storagePath>.thumb.v3.png` sibling, when one exists.
+ *   previewUrl — the ORIGINAL object, always.
+ *
+ * Both are needed because the thumbnail sibling is NOT guaranteed. Commit
+ * 966cc15 (the Admin Account section) replaced the old
+ * settings/documents-actions.ts upload path — which rendered that sibling on
+ * every PDF upload — with ./documents/actions.ts::createOrgDocument, which
+ * was written without the step. Every document uploaded between then and the
+ * fix has no sibling object, and a Storage object can't be backfilled with
+ * SQL. So _shell/DocThumb.tsx falls back to previewUrl: straight into an
+ * <img> for an image, or a browser-side first-page raster for a PDF.
+ * createSignedUrls reports per-item errors (signedUrl comes back null for an
+ * object that isn't there), so a missing sibling yields null here rather
+ * than a URL that would 404 into a broken image.
  */
 export async function listOrgUploads(): Promise<AdminOrgUpload[]> {
   const supabase = await createCrmServerClient();
@@ -115,12 +146,29 @@ export async function listOrgUploads(): Promise<AdminOrgUpload[]> {
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
 
-  return (data ?? []).map((r) => ({
-    id: r.id as string,
-    fileName: r.file_name as string,
-    storagePath: r.storage_path as string,
-    mimeType: r.mime_type as string | null,
-    sizeBytes: r.size_bytes as number | null,
-    createdAt: r.created_at as string,
+  const rows = (data ?? []) as (OrgDocRow & { mime_type: string | null; size_bytes: number | null })[];
+  if (rows.length === 0) return [];
+
+  const signedByPath = new Map<string, string>();
+  const paths = [
+    ...rows.map((r) => r.storage_path),
+    ...rows.map((r) => `${r.storage_path}${THUMB_SUFFIX}`),
+  ];
+  const { data: signedRows } = await supabase.storage
+    .from(STORAGE_BUCKET)
+    .createSignedUrls(paths, SIGNED_URL_TTL_SECONDS);
+  for (const s of signedRows ?? []) {
+    if (s.signedUrl && s.path) signedByPath.set(s.path, s.signedUrl);
+  }
+
+  return rows.map((r) => ({
+    id: r.id,
+    fileName: r.file_name,
+    storagePath: r.storage_path,
+    mimeType: r.mime_type,
+    sizeBytes: r.size_bytes,
+    createdAt: r.created_at,
+    thumbUrl: signedByPath.get(`${r.storage_path}${THUMB_SUFFIX}`) ?? null,
+    previewUrl: signedByPath.get(r.storage_path) ?? null,
   }));
 }

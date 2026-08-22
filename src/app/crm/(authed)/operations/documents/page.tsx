@@ -26,6 +26,11 @@ export const dynamic = "force-dynamic";
  * needs it and never sends it; it posts document IDs, and the route handler
  * resolves each ID's storage path itself, org-scoped, so a tampered payload
  * can't reach another org's object.
+ *
+ * `thumbUrl`/`previewUrl` are short-lived signed URLs listOrgUploads()
+ * already produces for the Admin grid — passing them straight through is
+ * what makes a row here look identical to its card there, off the one
+ * preview mechanism (_shell/DocThumb.tsx) rather than a second one.
  */
 export default async function OperationsDocumentsPage() {
   const uploads = await listOrgUploads();
@@ -36,6 +41,8 @@ export default async function OperationsDocumentsPage() {
     mimeType: u.mimeType,
     sizeBytes: u.sizeBytes,
     createdAt: u.createdAt,
+    thumbUrl: u.thumbUrl,
+    previewUrl: u.previewUrl,
   }));
 
   return <PacketBuilder templates={templates} />;
