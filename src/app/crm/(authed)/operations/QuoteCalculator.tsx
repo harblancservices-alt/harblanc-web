@@ -1,10 +1,10 @@
 "use client";
 
 import { useMemo, useRef, useState, useTransition, type ReactNode } from "react";
-import { Card, CardHead, BTN_NEUTRAL, DEPTH_PRIMARY } from "../_shell/ui";
+import { Card, CardHead, BTN_NEUTRAL } from "../_shell/ui";
 import { CONTROL, LABEL } from "../_shell/form";
 import { stripCommas, titleCaseWords, upperCaseState } from "../_shell/format";
-import { IconChevronDown, IconMapPin } from "../_shell/icons";
+import { IconMapPin } from "../_shell/icons";
 // formatMoney from the shared money module rather than _shell/format's: for
 // whole dollars the two produce byte-identical output (same locale, same
 // currency, same zero fraction digits), but this one also has the `cents`
@@ -88,13 +88,15 @@ function Line({
 /**
  * Operations → Quote Calculator.
  *
- * Three stacked sections, in the order a rep actually works: the LANE at the
- * top, the ANSWER in the middle, and the rate ASSUMPTIONS collapsed at the
- * bottom. Each is a Card + CardHead — the shared section-header-band idiom
- * the rest of the CRM uses — so the screen reads as a hierarchy rather than
- * one long undifferentiated form. Figures are `.crm-num` (IBM Plex Mono,
- * tabular lining) so the money column doesn't jitter as it updates; see the
- * scope note on that class in globals.css.
+ * TWO COLUMNS on lg+ (Brent's approved layout): the ANSWER on the left,
+ * always visible, and the INPUTS you drive it with on the right. Below lg
+ * they stack, PRICING FIRST — the source order is answer-then-inputs, so the
+ * stacked view needs no order overrides and a phone opens on the number.
+ *
+ * The formula, the ZIP→miles action, and every default are untouched from
+ * the previous single-column version; this is a layout change only. Figures
+ * are `.crm-num` (IBM Plex Mono, tabular lining) so the money column doesn't
+ * jitter as it updates — see the scope note on that class in globals.css.
  *
  * ONE server round trip, and only for ZIP → miles (./lane-actions.ts). The
  * pricing itself is a pure function (./quotePricing.ts) recomputed in the
@@ -113,7 +115,6 @@ export function QuoteCalculator() {
   const [miles, setMiles] = useState("");
   const [rates, setRates] = useState<Record<RateKey, string>>(INITIAL_RATES);
   const [lane, setLane] = useState<LaneMilesLookup | null>(null);
-  const [showAssumptions, setShowAssumptions] = useState(false);
   const [pending, startTransition] = useTransition();
 
   /** True once the rep has typed in the Miles box themselves. Blocks the
@@ -179,125 +180,40 @@ export function QuoteCalculator() {
       : null;
 
   return (
-    <div className="space-y-4">
-      {/* ── ROUTE ──────────────────────────────────────────────────────── */}
-      <Card>
-        <CardHead
-          title="Route"
-          hint="Enter the lane and we'll estimate the miles"
-          right={
-            <button
-              type="button"
-              onClick={() => runLookup(true)}
-              disabled={!bothZipsComplete || pending}
-              className={`inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-[12.5px] font-bold transition-colors disabled:pointer-events-none disabled:opacity-60 ${BTN_NEUTRAL}`}
-            >
-              <IconMapPin width={14} height={14} />
-              {pending ? "Looking up…" : "Get miles"}
-            </button>
-          }
-        />
-        <div className="flex flex-col gap-3 p-4">
-          <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)]">
-            <label className="flex w-full min-w-0 flex-col gap-1">
-              <span className={LABEL}>Origin ZIP</span>
-              <input
-                type="text"
-                inputMode="numeric"
-                autoComplete="postal-code"
-                maxLength={10}
-                placeholder="77002"
-                value={originZip}
-                onChange={(e) => setOriginZip(e.target.value)}
-                onBlur={onZipBlur}
-                className={`crm-num h-10 w-full min-w-0 ${CONTROL}`}
-              />
-            </label>
-
-            <span aria-hidden className="hidden pb-2.5 text-[15px] font-bold text-fg-muted sm:block">
-              →
-            </span>
-
-            <label className="flex w-full min-w-0 flex-col gap-1">
-              <span className={LABEL}>Destination ZIP</span>
-              <input
-                type="text"
-                inputMode="numeric"
-                autoComplete="postal-code"
-                maxLength={10}
-                placeholder="75201"
-                value={destZip}
-                onChange={(e) => setDestZip(e.target.value)}
-                onBlur={onZipBlur}
-                className={`crm-num h-10 w-full min-w-0 ${CONTROL}`}
-              />
-            </label>
-
-            <span aria-hidden className="hidden pb-2.5 text-[15px] font-bold text-fg-muted sm:block">
-              =
-            </span>
-
-            <label className="flex w-full min-w-0 flex-col gap-1">
-              <span className={LABEL}>Miles</span>
-              <input
-                type="text"
-                inputMode="decimal"
-                autoComplete="off"
-                placeholder="0"
-                value={miles}
-                onChange={(e) => {
-                  milesTouched.current = true;
-                  setMiles(e.target.value);
-                }}
-                className={`crm-num h-10 w-full min-w-0 font-bold ${CONTROL}`}
-              />
-            </label>
-          </div>
-
-          {lane?.ok === true && (
-            <p className="text-[12.5px] font-semibold text-ok">
-              {laneLabel} · <span className="crm-num tabular-nums">{lane.miles}</span> mi estimated.
-              Editable — override it if you know the lane runs longer.
-            </p>
-          )}
-          {lane?.ok === false && (
-            <p className="text-[12.5px] font-semibold text-warn">{lane.error}</p>
-          )}
-          {!lane && (
-            <p className="text-[12.5px] font-medium text-fg-muted">
-              Miles fill in from the two ZIPs, or type them straight in — whichever is faster.
-            </p>
-          )}
-        </div>
-      </Card>
-
-      {/* ── THE ANSWER ─────────────────────────────────────────────────── */}
+    // items-start so the two columns size to their own content instead of
+    // the right stack stretching to match the pricing card's height.
+    <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
+      {/* ══ LEFT — THE PRICING (the answer, always visible) ══════════════ */}
       <Card>
         <CardHead title="Quote" hint="Updates as you type" />
 
-        <div className="flex flex-col items-center gap-1 border-b border-line-strong bg-accent/10 px-4 py-6 text-center">
-          <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-accent">
+        {/* The hero band: solid accent, white figure. The one place on this
+            screen that reads as a filled surface rather than a card face. */}
+        <div className="flex flex-col items-center gap-1.5 border-b border-line-strong bg-accent px-4 py-7 text-center">
+          <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-white">
             Total quote
           </span>
-          <span className="crm-num text-[44px] font-bold leading-none tracking-tight text-accent tabular-nums sm:text-[54px]">
+          <span className="crm-num text-[46px] font-bold leading-none tracking-tight text-white tabular-nums sm:text-[56px]">
             {formatMoney(quote.total)}
           </span>
           {!hasMiles && (
-            <span className="mt-1 text-[12.5px] font-semibold text-warn">
-              No miles yet — this is dock time only.
+            // A pill, not dimmed text — legible on the filled band without
+            // reaching for a faint tint.
+            <span className="mt-1 rounded-full bg-white/20 px-3 py-1 text-[12px] font-bold text-white">
+              No miles yet — this is dock time only
             </span>
           )}
         </div>
 
         <div className="flex flex-col p-4">
           <Line label="Drive hours" value={formatHours(quote.driveHours)} hint="Miles ÷ avg speed" />
-          <Line label="Total hours" value={formatHours(quote.totalHours)} hint="Drive + load / unload" />
+          <Line label="+ Load / unload" value={formatHours(inputs.loadUnloadHours)} />
+          <Line label="Total hours" value={formatHours(quote.totalHours)} strong />
 
           <Line
             label="Time cost"
             value={formatMoney(quote.timeCost)}
             hint={`${formatHours(quote.totalHours)} × ${formatMoney(inputs.hourlyRate)}/hr`}
-            strong
           />
           <Line
             label="Fuel cost"
@@ -316,7 +232,7 @@ export function QuoteCalculator() {
               <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-fg-muted">
                 Effective $/mile
               </p>
-              <p className="crm-num mt-1 text-[17px] font-bold text-fg tabular-nums">
+              <p className="crm-num mt-1 text-[19px] font-bold text-fg tabular-nums">
                 {quote.perMile === null ? "—" : formatMoney(quote.perMile, { cents: true })}
               </p>
             </div>
@@ -324,7 +240,7 @@ export function QuoteCalculator() {
               <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-fg-muted">
                 Effective $/hr
               </p>
-              <p className="crm-num mt-1 text-[17px] font-bold text-fg tabular-nums">
+              <p className="crm-num mt-1 text-[19px] font-bold text-fg tabular-nums">
                 {quote.perHour === null ? "—" : formatMoney(quote.perHour, { cents: true })}
               </p>
             </div>
@@ -332,48 +248,115 @@ export function QuoteCalculator() {
 
           <p className="mt-4 border-t border-line-strong pt-3 text-[12.5px] font-medium leading-relaxed text-fg-muted">
             Estimate only. It prices time at a blended hourly rate plus diesel, then adds the
-            brokerage fee on top — open Rate assumptions to adjust any of it for the job in front of
+            brokerage fee on top — adjust the route or the rate assumptions for the job in front of
             you. Nothing here is saved or sent.
           </p>
         </div>
       </Card>
 
-      {/* ── ASSUMPTIONS (collapsed by default) ─────────────────────────── */}
-      <Card>
-        <CardHead
-          title="Rate assumptions"
-          hint={`${QUOTE_DEFAULTS.avgMph} mph · ${QUOTE_DEFAULTS.mpg} mpg · ${formatMoney(
-            QUOTE_DEFAULTS.hourlyRate,
-          )}/hr · ${QUOTE_DEFAULTS.brokeragePct}% brokerage`}
-          right={
-            <div className="flex items-center gap-2">
-              {showAssumptions && (
-                <button
-                  type="button"
-                  onClick={resetRates}
-                  className={`inline-flex h-8 items-center rounded-md px-3 text-[12.5px] font-bold transition-colors ${BTN_NEUTRAL}`}
-                >
-                  Reset
-                </button>
-              )}
+      {/* ══ RIGHT — THE INPUTS you drive it with ════════════════════════ */}
+      <div className="flex flex-col gap-4">
+        <Card>
+          <CardHead
+            title="Route"
+            hint="Enter the lane and we'll estimate the miles"
+            right={
               <button
                 type="button"
-                onClick={() => setShowAssumptions((v) => !v)}
-                aria-expanded={showAssumptions}
-                className={`inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-[12.5px] font-bold transition-colors ${DEPTH_PRIMARY}`}
+                onClick={() => runLookup(true)}
+                disabled={!bothZipsComplete || pending}
+                className={`inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-[12.5px] font-bold transition-colors disabled:pointer-events-none disabled:opacity-60 ${BTN_NEUTRAL}`}
               >
-                {showAssumptions ? "Hide" : "Adjust"}
-                <IconChevronDown
-                  width={14}
-                  height={14}
-                  className={showAssumptions ? "rotate-180 transition-transform" : "transition-transform"}
-                />
+                <IconMapPin width={14} height={14} />
+                {pending ? "Looking up…" : "Get miles"}
               </button>
+            }
+          />
+          <div className="flex flex-col gap-3 p-4">
+            <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-2">
+              <label className="flex w-full min-w-0 flex-col gap-1">
+                <span className={LABEL}>Origin ZIP</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="postal-code"
+                  maxLength={10}
+                  placeholder="77002"
+                  value={originZip}
+                  onChange={(e) => setOriginZip(e.target.value)}
+                  onBlur={onZipBlur}
+                  className={`crm-num h-10 w-full min-w-0 ${CONTROL}`}
+                />
+              </label>
+
+              <span aria-hidden className="pb-2.5 text-[15px] font-bold text-fg-muted">
+                →
+              </span>
+
+              <label className="flex w-full min-w-0 flex-col gap-1">
+                <span className={LABEL}>Destination ZIP</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="postal-code"
+                  maxLength={10}
+                  placeholder="75201"
+                  value={destZip}
+                  onChange={(e) => setDestZip(e.target.value)}
+                  onBlur={onZipBlur}
+                  className={`crm-num h-10 w-full min-w-0 ${CONTROL}`}
+                />
+              </label>
             </div>
-          }
-        />
-        {showAssumptions && (
-          <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-3">
+
+            <label className="flex w-full min-w-0 flex-col gap-1">
+              <span className={LABEL}>Miles</span>
+              <input
+                type="text"
+                inputMode="decimal"
+                autoComplete="off"
+                placeholder="0"
+                value={miles}
+                onChange={(e) => {
+                  milesTouched.current = true;
+                  setMiles(e.target.value);
+                }}
+                className={`crm-num h-10 w-full min-w-0 font-bold ${CONTROL}`}
+              />
+            </label>
+
+            {lane?.ok === true && (
+              <p className="text-[12.5px] font-semibold text-ok">
+                {laneLabel} · <span className="crm-num tabular-nums">{lane.miles}</span> mi estimated.
+                Editable — override it if you know the lane runs longer.
+              </p>
+            )}
+            {lane?.ok === false && (
+              <p className="text-[12.5px] font-semibold text-warn">{lane.error}</p>
+            )}
+            {!lane && (
+              <p className="text-[12.5px] font-medium text-fg-muted">
+                Miles fill in from the two ZIPs, or type them straight in — whichever is faster.
+              </p>
+            )}
+          </div>
+        </Card>
+
+        <Card>
+          <CardHead
+            title="Rate assumptions"
+            hint="Editable per quote — the total follows live"
+            right={
+              <button
+                type="button"
+                onClick={resetRates}
+                className={`inline-flex h-8 items-center rounded-md px-3 text-[12.5px] font-bold transition-colors ${BTN_NEUTRAL}`}
+              >
+                Reset
+              </button>
+            }
+          />
+          <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2">
             {RATE_FIELDS.map((f) => (
               <label key={f.key} className="flex w-full min-w-0 flex-col gap-1">
                 <span className={LABEL}>{f.label}</span>
@@ -388,8 +371,8 @@ export function QuoteCalculator() {
               </label>
             ))}
           </div>
-        )}
-      </Card>
+        </Card>
+      </div>
     </div>
   );
 }
