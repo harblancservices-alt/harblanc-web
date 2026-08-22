@@ -9,6 +9,7 @@ import {
   IconStarSolid,
   IconFlagSolid,
   IconAdminAccount,
+  IconTruck,
 } from "./icons";
 
 export type CrmNavItem = {
@@ -102,6 +103,18 @@ export function buildCrmNav(
       badge: customerCount > 0 ? customerCount : undefined,
       badgeTone: "neutral",
       iconTint: "gold",
+    },
+    // Operations — the everyday operating tools (Quote Calculator,
+    // Documents/vendor packets, Active Loads). Visible to EVERY CRM user,
+    // sales agents included: nothing under it is owner-only. The one
+    // admin-gated piece of the Documents story — UPLOADING the lawyer-
+    // provided templates — deliberately stays where it already lives
+    // (/crm/admin/documents, owner-only); this tab only ever READS that
+    // library and bundles a selection into a download.
+    {
+      href: "/crm/operations",
+      label: "Operations",
+      Icon: IconTruck,
     },
   ];
   // AI Review moved under Admin Account (2026-08-20, Brent's explicit
