@@ -1,5 +1,6 @@
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { CrmShell } from "./_shell/CrmShell";
+import { CLAIMABLE_LEAD_SOURCES } from "./ai-agent/queue";
 
 export const dynamic = "force-dynamic";
 
@@ -31,14 +32,15 @@ export default async function CrmAuthedLayout({
     pendingReviewCount = count ?? 0;
   }
 
-  // Unclaimed released AI leads — the alert every CRM user sees, badging the
-  // "AI Agent" nav item. Same predicate as the /crm/ai-agent tab itself, the
-  // dashboard's "New leads to claim" card, and its due-count bell, so all
-  // four surfaces always agree.
+  // Unclaimed released leads — the alert every CRM user sees, badging the
+  // "Prospects" nav item. Same CLAIMABLE_LEAD_SOURCES predicate as the
+  // /crm/ai-agent tab itself and claimAiLead()'s claim guard, so all three
+  // surfaces always agree — covers AI Agent, Field Capture, BOL Center, and
+  // OTR released companies, not just AI-researched ones.
   const { count: unclaimedAiCount } = await supabase
     .from("crm_accounts")
     .select("id", { count: "exact", head: true })
-    .in("source", ["ai_agent", "field_capture"])
+    .in("source", CLAIMABLE_LEAD_SOURCES)
     .eq("ai_status", "released")
     .is("assigned_user_id", null)
     .is("deleted_at", null);

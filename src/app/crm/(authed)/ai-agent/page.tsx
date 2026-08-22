@@ -2,6 +2,7 @@ import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { PageShell, Card, EmptyState } from "../_shell/ui";
 import { IconAiAgent } from "../_shell/icons";
 import { LeadCard, type AiAgentLead } from "./LeadCard";
+import { CLAIMABLE_LEAD_SOURCES } from "./queue";
 
 export const dynamic = "force-dynamic";
 
@@ -15,13 +16,14 @@ type AccountRow = {
 };
 
 /**
- * Prospects tab (route: /crm/ai-agent) — unclaimed leads only. Every crm_account the AI-agent or
- * Field Capture research process produced that an admin has released
- * (ai_status='released') AND nobody has claimed yet (assigned_user_id IS
- * NULL); pending-review leads live only in /crm/ai-review until then. The
- * moment a lead is claimed it drops out of this query entirely — it still
- * lives on as an ordinary company in /crm/accounts, just not here. Visible
- * to every CRM user, newest-first.
+ * Prospects tab (route: /crm/ai-agent) — unclaimed leads only. Every
+ * crm_account released (ai_status='released') that nobody has claimed yet
+ * (assigned_user_id IS NULL), from any of the intake pipelines that publish
+ * into this queue (CLAIMABLE_LEAD_SOURCES — AI Agent research, Field
+ * Capture, BOL Center, OTR); pending-review AI/Field-Capture leads live
+ * only in /crm/ai-review until then. The moment a lead is claimed it drops
+ * out of this query entirely — it still lives on as an ordinary company in
+ * /crm/accounts, just not here. Visible to every CRM user, newest-first.
  */
 export default async function AiAgentPage() {
   await requireCrmUser();
@@ -30,7 +32,7 @@ export default async function AiAgentPage() {
   const { data } = await supabase
     .from("crm_accounts")
     .select("id, name, city, state, commodities, created_at")
-    .in("source", ["ai_agent", "field_capture"])
+    .in("source", CLAIMABLE_LEAD_SOURCES)
     .eq("ai_status", "released")
     .is("assigned_user_id", null)
     .is("deleted_at", null)
@@ -76,7 +78,7 @@ export default async function AiAgentPage() {
           <EmptyState
             icon={<IconAiAgent />}
             title="No unclaimed leads"
-            body="Every released AI-researched lead has been claimed. Newly released leads will show up here for the team to claim."
+            body="Every released lead has been claimed. Newly released leads — from AI research, Field Capture, BOL Center, or OTR — will show up here for the team to claim."
           />
         </Card>
       ) : (

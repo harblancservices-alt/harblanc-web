@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { logActivity, CRM_ACTIVITY } from "@/lib/crm/activity";
-import { normalizeStage, stageLabel, DEFAULT_LIFECYCLE } from "./lifecycle";
+import { normalizeStage, stageLabel, stageRank, DEFAULT_LIFECYCLE } from "./lifecycle";
 import { centralInputToIso, titleCaseWords, upperCaseState } from "../_shell/format";
 import { phonesFromFormValue, linksFromFormValue, parsePhones, looksLikePhone } from "../_shell/contactFields";
 import { MOOD_VALUES } from "../_shell/mood";
@@ -313,6 +313,67 @@ export async function updateLifecycleStatus(
   });
 
   revalidateAccount(id);
+  return { ok: true };
+}
+
+/**
+ * The single shared "send to Prospects and publish into the agent claim
+ * queue" action — used by BOL Center (admin/bol-center/actions.ts) and OTR
+ * (admin/otr/actions.ts) so both intake funnels feed /crm/ai-agent through
+ * the exact same rule, not two parallel copies that could drift.
+ *
+ * Two independent things happen together, both idempotent:
+ *  - Lifecycle promotion, guardrail-checked: only advances the company to
+ *    'prospect' when its current stage genuinely ranks below it (lead/
+ *    researching/contacted) — one already at or beyond Prospect (in_the_
+ *    door/quoted/active_customer, or the terminal inactive/lost) is left
+ *    exactly where it is. This is the ONE place either caller should ever
+ *    write lifecycle_status for this purpose.
+ *  - ai_status is set to 'released' UNCONDITIONALLY (not gated on whether a
+ *    stage change happened) — that's what makes the company appear in the
+ *    claim queue at all; /crm/ai-agent and claimAiLead() key on ai_status/
+ *    source, not lifecycle stage, so a company already sitting at Prospect
+ *    (or beyond) still needs this to become claimable.
+ *
+ * assigned_user_id is never written here — leaving it untouched (normally
+ * still NULL for a fresh intake) is what keeps the company claimable; the
+ * claim queue's own `assigned_user_id IS NULL` gate is what actually keeps
+ * an already-owned company from surfacing there, so there's nothing extra
+ * to guard. source is only set when the account has none yet — a real
+ * existing source is never clobbered.
+ */
+export async function promoteAccountToProspect(
+  supabase: Awaited<ReturnType<typeof createCrmServerClient>>,
+  user: { orgId: string; id: string },
+  accountId: string,
+  sourceIfMissing: string,
+  activitySummary = "Added to Prospects",
+): Promise<ActionResult> {
+  const { data: account } = await supabase.from("crm_accounts").select("lifecycle_status, source").eq("id", accountId).maybeSingle();
+  if (!account) return { ok: false, error: "Company not found." };
+
+  const currentStage = normalizeStage(account.lifecycle_status as string | null);
+  const willPromote = stageRank(currentStage) < stageRank("prospect");
+
+  const fields: { lifecycle_status?: string; source?: string; ai_status: string } = { ai_status: "released" };
+  if (willPromote) fields.lifecycle_status = "prospect";
+  if (!account.source) fields.source = sourceIfMissing;
+
+  const { error } = await supabase.from("crm_accounts").update(fields).eq("id", accountId);
+  if (error) return { ok: false, error: "Could not update the company." };
+
+  if (willPromote) {
+    await logActivity(supabase, {
+      orgId: user.orgId,
+      userId: user.id,
+      accountId,
+      kind: CRM_ACTIVITY.lifecycleChanged,
+      summary: activitySummary,
+    });
+  }
+
+  revalidateAccount(accountId);
+  revalidatePath("/crm/ai-agent");
   return { ok: true };
 }
 

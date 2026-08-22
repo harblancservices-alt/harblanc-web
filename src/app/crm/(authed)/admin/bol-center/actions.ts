@@ -3,9 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { logActivity, CRM_ACTIVITY } from "@/lib/crm/activity";
-import { createAccount, createContact } from "../../accounts/actions";
+import { createAccount, createContact, promoteAccountToProspect } from "../../accounts/actions";
 import { createLocation } from "../../accounts/[id]/locations-actions";
-import { normalizeStage, stageRank } from "../../accounts/lifecycle";
 import { rankByName, billToPartyName, type ScoredMatch } from "./matching";
 
 /**
@@ -144,54 +143,6 @@ async function propagateDocumentToResolvedCompanies(supabase: Awaited<ReturnType
   }
 }
 
-/**
- * The ONE place BOL Center ever writes lifecycle_status/source — every
- * "Add to Prospects"/"Quick add"/link/create path funnels through this, so
- * the no-downgrade guardrail (Brent, 2026-08-21) can never be bypassed by a
- * new call site forgetting to check it. Only advances a company to
- * 'prospect' when its current stage ranks BELOW prospect (lead/researching/
- * contacted) — a company already at or beyond prospect (in_the_door/quoted/
- * active_customer, or the terminal inactive/lost) is left exactly where it
- * is; BOL Center only ever links it. source is set to 'bol' only when the
- * account has no source yet, so a real existing source is never clobbered.
- * Only logs a "Added to Prospects" activity entry when it actually promotes
- * — a pure link (no stage change) doesn't spam the activity feed.
- */
-async function promoteToProspectWithGuardrail(
-  supabase: Awaited<ReturnType<typeof createCrmServerClient>>,
-  user: { orgId: string; id: string },
-  accountId: string,
-): Promise<ActionResult> {
-  const { data: account } = await supabase.from("crm_accounts").select("lifecycle_status, source").eq("id", accountId).maybeSingle();
-  if (!account) return { ok: false, error: "Company not found." };
-
-  const currentStage = normalizeStage(account.lifecycle_status as string | null);
-  const willPromote = stageRank(currentStage) < stageRank("prospect");
-
-  const fields: { lifecycle_status?: string; source?: string } = {};
-  if (willPromote) fields.lifecycle_status = "prospect";
-  if (!account.source) fields.source = "bol";
-
-  if (Object.keys(fields).length > 0) {
-    const { error } = await supabase.from("crm_accounts").update(fields).eq("id", accountId);
-    if (error) return { ok: false, error: "Could not update the company." };
-  }
-
-  if (willPromote) {
-    await logActivity(supabase, {
-      orgId: user.orgId,
-      userId: user.id,
-      accountId,
-      kind: CRM_ACTIVITY.lifecycleChanged,
-      summary: "Added to Prospects from a BOL",
-    });
-    revalidatePath("/crm/accounts");
-    revalidatePath(`/crm/accounts/${accountId}`);
-  }
-
-  return { ok: true };
-}
-
 /** Auto-attaches this side's still-unresolved crm_bol_contacts to the
  * account just linked/promoted — reuses resolveBolContact exactly (real
  * dedup match-or-create, never a parallel insert). A contact with no name
@@ -295,7 +246,7 @@ export async function linkCompany(bolId: string, side: CompanySide, accountId: s
     summary: `Linked as ${side} on a BOL`,
   });
 
-  const promoteResult = await promoteToProspectWithGuardrail(supabase, user, accountId);
+  const promoteResult = await promoteAccountToProspect(supabase, user, accountId, "bol", "Added to Prospects from a BOL");
   if (!promoteResult.ok) return promoteResult;
 
   await autoAttachContactsForSide(supabase, bolId, side);
@@ -701,7 +652,7 @@ export async function updateBolContactFields(bolContactId: string, formData: For
 export async function addToProspects(accountId: string): Promise<ActionResult> {
   const user = await requireAdminUser();
   const supabase = await createCrmServerClient();
-  const result = await promoteToProspectWithGuardrail(supabase, user, accountId);
+  const result = await promoteAccountToProspect(supabase, user, accountId, "bol", "Added to Prospects from a BOL");
   if (!result.ok) return result;
   await autoAttachContactsForAccount(supabase, accountId);
   return { ok: true };
@@ -753,7 +704,7 @@ export async function prospectCarrier(bolId: string): Promise<ProspectCarrierRes
   const { error } = await supabase.from("crm_bol_entries").update({ matched_carrier_account_id: accountId }).eq("id", bolId);
   if (error) return { ok: false, error: "Could not link the carrier account." };
 
-  const promoteResult = await promoteToProspectWithGuardrail(supabase, user, accountId);
+  const promoteResult = await promoteAccountToProspect(supabase, user, accountId, "bol", "Added to Prospects from a BOL");
   if (!promoteResult.ok) return promoteResult;
 
   revalidateBol(bolId);

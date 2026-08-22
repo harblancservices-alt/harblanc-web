@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { logActivity, CRM_ACTIVITY } from "@/lib/crm/activity";
 import { normalizeStage, DEFAULT_LIFECYCLE } from "../../accounts/lifecycle";
+import { promoteAccountToProspect } from "../../accounts/actions";
 import { titleCaseWords, upperCaseState } from "../../_shell/format";
 
 /**
@@ -82,8 +83,15 @@ export async function setOtrStatus(id: string, status: Exclude<OtrStatus, "relea
 /**
  * The only path that creates a real crm_accounts row from an OTR entry —
  * mirrors accounts/actions.ts's createAccount() exactly (org_id from the
- * session, default 'lead' stage, logs one crm_activities row), then marks the
- * entry released so it can never be released twice.
+ * session, default 'lead' stage, logs one crm_activities row), then
+ * publishes it into the agent claim queue (/crm/ai-agent) via the same
+ * promoteAccountToProspect() BOL Center uses — promotes to Prospect
+ * (guardrail-checked; a fresh 'lead' row always clears it) and sets
+ * ai_status='released'. assigned_user_id is deliberately left NULL (no
+ * longer auto-assigned to the releasing admin) so the company lands
+ * unclaimed in the queue for any rep to pick up, same as every other
+ * released source. Finally marks the OTR entry released so it can never be
+ * released twice.
  */
 export async function releaseOtrEntry(id: string): Promise<ActionResult> {
   const user = await requireAdminUser();
@@ -109,7 +117,6 @@ export async function releaseOtrEntry(id: string): Promise<ActionResult> {
       context_notes: entry.notes,
       source: "otr",
       lifecycle_status: normalizeStage(DEFAULT_LIFECYCLE),
-      assigned_user_id: user.id,
     })
     .select("id")
     .single();
@@ -123,6 +130,9 @@ export async function releaseOtrEntry(id: string): Promise<ActionResult> {
     kind: CRM_ACTIVITY.accountCreated,
     summary: "Company released from OTR intake",
   });
+
+  const promoteResult = await promoteAccountToProspect(supabase, user, account.id as string, "otr", "Released from OTR intake");
+  if (!promoteResult.ok) return promoteResult;
 
   const { error: updateError } = await supabase
     .from("crm_otr_entries")
