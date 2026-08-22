@@ -11,6 +11,7 @@ import { CompanyRow } from "./CompanyRow";
 import { CarrierRow } from "./CarrierRow";
 import { LoadDetailSummary } from "./LoadDetailSummary";
 import { ActionDock, type PartySummary } from "./ActionDock";
+import { SectionCard } from "./SectionCard";
 import { billToPartyName } from "../matching";
 import type { BolContact } from "./ContactRow";
 
@@ -123,10 +124,7 @@ export default async function BolDetailPage({ params }: { params: Promise<{ id: 
         </div>
 
         <div className="flex flex-col gap-4">
-          <div className="overflow-hidden rounded-lg border border-line-strong bg-card shadow-e2">
-            <div className="flex items-center justify-between gap-3 border-b border-line bg-inset px-4 py-2.5">
-              <h2 className="text-[14px] font-bold tracking-tight text-fg">Companies</h2>
-            </div>
+          <SectionCard title="Companies">
             <CompanyRow
               bolId={id}
               side="shipper"
@@ -161,7 +159,7 @@ export default async function BolDetailPage({ params }: { params: Promise<{ id: 
             )}
             {otherContacts.length > 0 && (
               <div className="flex flex-col gap-2 p-4">
-                <p className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-fg-subtle">Other contacts — no company side on this BOL</p>
+                <p className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-fg">Other contacts — no company side on this BOL</p>
                 <ul className="flex flex-col gap-1.5">
                   {otherContacts.map((c) => (
                     <li key={c.id} className="text-[12.5px] text-fg-muted">
@@ -171,7 +169,7 @@ export default async function BolDetailPage({ params }: { params: Promise<{ id: 
                 </ul>
               </div>
             )}
-          </div>
+          </SectionCard>
 
           <CarrierRow bolId={id} carrier={bol.carrier as string | null} />
 

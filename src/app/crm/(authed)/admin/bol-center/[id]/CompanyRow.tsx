@@ -3,9 +3,11 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Badge, BTN_EDIT, BTN_SUCCESS } from "../../../_shell/ui";
+import { Badge } from "../../../_shell/ui";
 import { Field } from "../../../_shell/form";
 import { titleCaseWords } from "../../../_shell/format";
+import { SectionCard } from "./SectionCard";
+import { DEPTH_EDIT, DEPTH_SUCCESS, DEPTH_NEUTRAL } from "./buttonDepth";
 import {
   resolveAndProspectCompany,
   createAndProspectCompany,
@@ -133,7 +135,7 @@ export function CompanyRow({
   return (
     <div className="border-b border-line p-4 last:border-b-0">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-fg-subtle">{label} — Company</p>
+        <p className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-fg">{label} — Company</p>
         {matchedAccount && (
           <Badge tone={matchedAccount.lifecycleStatus === "prospect" ? "success" : "neutral"}>{matchedAccount.lifecycleStatus}</Badge>
         )}
@@ -153,12 +155,12 @@ export function CompanyRow({
                   type="button"
                   disabled={pending}
                   onClick={onAddToProspects}
-                  className={`inline-flex h-8 items-center rounded-md px-3 text-[12.5px] font-bold transition-colors disabled:opacity-60 ${BTN_SUCCESS}`}
+                  className={`inline-flex h-8 items-center rounded-md px-3 text-[12.5px] font-bold transition-colors ${DEPTH_SUCCESS}`}
                 >
                   {pending ? "…" : "Add to Prospects"}
                 </button>
               )}
-              <Link href={`/crm/accounts/${matchedAccount.id}`} className={`inline-flex h-8 items-center rounded-md px-3 text-[12.5px] font-bold transition-colors ${BTN_EDIT}`}>
+              <Link href={`/crm/accounts/${matchedAccount.id}`} className={`inline-flex h-8 items-center rounded-md px-3 text-[12.5px] font-bold transition-colors ${DEPTH_EDIT}`}>
                 View Company →
               </Link>
             </div>
@@ -180,11 +182,14 @@ export function CompanyRow({
           )}
 
           {contacts.length > 0 && (
-            <div className="mt-3 flex flex-col gap-2 border-t border-line pt-3">
-              <p className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-fg-subtle">Contacts</p>
-              {contacts.map((c) => (
-                <ContactRow key={c.id} contact={c} accountId={matchedAccount.id} />
-              ))}
+            <div className="mt-3">
+              <SectionCard title="Contacts">
+                <div className="flex flex-col gap-2 p-3">
+                  {contacts.map((c) => (
+                    <ContactRow key={c.id} contact={c} accountId={matchedAccount.id} />
+                  ))}
+                </div>
+              </SectionCard>
             </div>
           )}
         </>
@@ -199,7 +204,7 @@ export function CompanyRow({
               type="button"
               disabled={pending}
               onClick={quickProspect}
-              className="inline-flex h-7 shrink-0 items-center rounded-md border border-line-strong bg-card px-2.5 text-[11.5px] font-semibold text-fg-muted transition-colors hover:bg-elevated hover:text-fg disabled:opacity-60"
+              className={`inline-flex h-7 shrink-0 items-center rounded-md px-2.5 text-[11.5px] font-semibold transition-colors ${DEPTH_NEUTRAL}`}
             >
               {pending ? "…" : "Quick add to Prospects"}
             </button>
@@ -243,7 +248,7 @@ export function CompanyRow({
               <button
                 type="submit"
                 disabled={pending}
-                className={`inline-flex h-8 w-fit items-center rounded-md px-3 text-[12.5px] font-bold transition-colors disabled:opacity-60 ${BTN_SUCCESS}`}
+                className={`inline-flex h-8 w-fit items-center rounded-md px-3 text-[12.5px] font-bold transition-colors ${DEPTH_SUCCESS}`}
               >
                 {pending ? "Adding…" : "Add to Prospects"}
               </button>

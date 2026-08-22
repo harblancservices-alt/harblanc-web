@@ -2,8 +2,8 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { BTN_PRIMARY, BTN_SUCCESS } from "../../../_shell/ui";
 import { resolveAndProspectCompany, addToProspects, markProcessed, type CompanySide, type BolStatus } from "../actions";
+import { DEPTH_PRIMARY, DEPTH_SUCCESS } from "./buttonDepth";
 
 export type PartySummary = {
   side: CompanySide;
@@ -75,7 +75,7 @@ export function ActionDock({ bolId, status, parties }: { bolId: string; status: 
           type="button"
           disabled={pending || status === "processed"}
           onClick={onMarkProcessed}
-          className={`inline-flex h-9 items-center rounded-md px-3.5 text-[13px] font-bold transition-colors disabled:opacity-60 ${BTN_SUCCESS}`}
+          className={`inline-flex h-9 items-center rounded-md px-3.5 text-[13px] font-bold transition-colors ${DEPTH_SUCCESS}`}
         >
           {status === "processed" ? "Processed" : "Mark Processed"}
         </button>
@@ -83,7 +83,7 @@ export function ActionDock({ bolId, status, parties }: { bolId: string; status: 
           type="button"
           disabled={pending || pendingParties.length === 0}
           onClick={sendToProspects}
-          className={`inline-flex h-9 items-center rounded-md px-4 text-[13px] font-bold transition-colors disabled:opacity-60 ${BTN_PRIMARY}`}
+          className={`inline-flex h-9 items-center rounded-md px-4 text-[13px] font-bold transition-colors ${DEPTH_PRIMARY}`}
         >
           {pending ? "Sending…" : "Send to Prospects"}
         </button>

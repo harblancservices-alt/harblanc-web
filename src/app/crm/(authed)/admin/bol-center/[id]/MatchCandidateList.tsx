@@ -1,8 +1,9 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Badge, BTN_PRIMARY } from "../../../_shell/ui";
+import { Badge } from "../../../_shell/ui";
 import { MATCH_TIER_LABEL, type ScoredMatch } from "../matching";
+import { DEPTH_PRIMARY } from "./buttonDepth";
 
 /** What actually drove the score, straight from the real matcher's own
  * `sameCityState` signal — not a separate estimate. */
@@ -51,7 +52,7 @@ export function MatchCandidateList<T>({
             type="button"
             disabled={pending}
             onClick={() => onUse(m.row)}
-            className={`inline-flex h-8 shrink-0 items-center rounded-md px-3 text-[12.5px] font-bold transition-colors disabled:opacity-60 ${BTN_PRIMARY}`}
+            className={`inline-flex h-8 shrink-0 items-center rounded-md px-3 text-[12.5px] font-bold transition-colors ${DEPTH_PRIMARY}`}
           >
             Use this
           </button>

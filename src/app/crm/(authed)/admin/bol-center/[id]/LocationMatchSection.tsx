@@ -2,11 +2,12 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Badge, BTN_PRIMARY } from "../../../_shell/ui";
+import { Badge } from "../../../_shell/ui";
 import { Modal } from "../../../_shell/Modal";
 import { Field, SubmitButton, FormError } from "../../../_shell/form";
 import { MATCH_TIER_LABEL, type ScoredMatch } from "../matching";
 import { searchLocationMatches, linkLocation, createLocationFromBol, type LocationCandidate, type LocationSide } from "../actions";
+import { DEPTH_PRIMARY } from "./buttonDepth";
 
 /**
  * Nested inside a CompanyRow (a resolved shipper/consignee already has one
@@ -71,7 +72,7 @@ export function LocationMatchSection({
 
   return (
     <div className="flex flex-col gap-2">
-      <p className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-fg-subtle">{label} dock location</p>
+      <p className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-fg">{label} dock location</p>
       <div className="flex flex-col gap-3">
         {error && <p className="text-[12.5px] text-bad">{error}</p>}
 
@@ -98,7 +99,7 @@ export function LocationMatchSection({
                       </div>
                       <p className="text-[11.5px] text-fg-muted">{[m.row.address, m.row.city, m.row.state].filter(Boolean).join(", ") || "—"}</p>
                     </div>
-                    <button type="button" disabled={pending} onClick={() => linkExistingLocation(m.row.id)} className={`inline-flex h-8 shrink-0 items-center rounded-md px-3 text-[12.5px] font-bold transition-colors disabled:opacity-60 ${BTN_PRIMARY}`}>
+                    <button type="button" disabled={pending} onClick={() => linkExistingLocation(m.row.id)} className={`inline-flex h-8 shrink-0 items-center rounded-md px-3 text-[12.5px] font-bold transition-colors ${DEPTH_PRIMARY}`}>
                       Use Existing
                     </button>
                   </li>
@@ -106,7 +107,7 @@ export function LocationMatchSection({
               </ul>
             )}
             <div>
-              <button type="button" onClick={() => setCreateOpen(true)} className={`inline-flex h-8 items-center rounded-md px-3 text-[12.5px] font-bold transition-colors ${BTN_PRIMARY}`}>
+              <button type="button" onClick={() => setCreateOpen(true)} className={`inline-flex h-8 items-center rounded-md px-3 text-[12.5px] font-bold transition-colors ${DEPTH_PRIMARY}`}>
                 Add New Location
               </button>
             </div>

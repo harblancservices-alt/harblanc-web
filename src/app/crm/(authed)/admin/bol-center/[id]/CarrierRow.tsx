@@ -3,8 +3,9 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Card, CardHead, BTN_EDIT, BTN_NEUTRAL } from "../../../_shell/ui";
 import { prospectCarrier } from "../actions";
+import { SectionCard } from "./SectionCard";
+import { DEPTH_EDIT, DEPTH_NEUTRAL } from "./buttonDepth";
 
 /**
  * The carrier printed on a BOL is who moved the freight, not a sales
@@ -34,8 +35,7 @@ export function CarrierRow({ bolId, carrier }: { bolId: string; carrier: string 
   }
 
   return (
-    <Card>
-      <CardHead title="Not a Sales Target" hint="The carrier that moved this freight — excluded from prospecting by default" />
+    <SectionCard title="Not a Sales Target" hint="The carrier that moved this freight — excluded from prospecting by default">
       <div className="flex flex-wrap items-center justify-between gap-3 p-4">
         {carrier ? (
           <>
@@ -45,7 +45,7 @@ export function CarrierRow({ bolId, carrier }: { bolId: string; carrier: string 
             </div>
             {error && <p className="text-[12.5px] text-bad">{error}</p>}
             {prospected ? (
-              <Link href={`/crm/accounts/${prospected}`} className={`inline-flex h-8 shrink-0 items-center rounded-md px-3 text-[12.5px] font-bold transition-colors ${BTN_EDIT}`}>
+              <Link href={`/crm/accounts/${prospected}`} className={`inline-flex h-8 shrink-0 items-center rounded-md px-3 text-[12.5px] font-bold transition-colors ${DEPTH_EDIT}`}>
                 View Company →
               </Link>
             ) : (
@@ -53,7 +53,7 @@ export function CarrierRow({ bolId, carrier }: { bolId: string; carrier: string 
                 type="button"
                 disabled={pending}
                 onClick={onOverride}
-                className={`inline-flex h-8 shrink-0 items-center rounded-md px-3 text-[12.5px] font-bold transition-colors disabled:opacity-60 ${BTN_NEUTRAL}`}
+                className={`inline-flex h-8 shrink-0 items-center rounded-md px-3 text-[12.5px] font-bold transition-colors ${DEPTH_NEUTRAL}`}
               >
                 {pending ? "…" : "Actually, treat as a prospect"}
               </button>
@@ -63,6 +63,6 @@ export function CarrierRow({ bolId, carrier }: { bolId: string; carrier: string 
           <p className="text-[13px] text-fg-muted">No carrier was extracted from this BOL.</p>
         )}
       </div>
-    </Card>
+    </SectionCard>
   );
 }

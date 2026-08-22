@@ -3,11 +3,12 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Badge, BTN_EDIT, BTN_SUCCESS, BTN_WARNING } from "../../../_shell/ui";
+import { Badge } from "../../../_shell/ui";
 import { TextRow } from "../../../_shell/compactForm";
 import { MatchCandidateList } from "./MatchCandidateList";
 import { searchContactMatches, linkBolContact, resolveBolContact, updateBolContactFields, type BolContactRole, type ContactCandidate } from "../actions";
 import type { ScoredMatch } from "../matching";
+import { DEPTH_EDIT, DEPTH_SUCCESS, DEPTH_WARNING } from "./buttonDepth";
 
 export type BolContact = {
   id: string;
@@ -110,7 +111,7 @@ export function ContactRow({ contact, accountId }: { contact: BolContact; accoun
       {contact.matchedContactId ? (
         <div className="mt-1.5 flex items-center justify-between gap-2">
           <p className="text-[12px] text-fg-muted">{[contact.phone, contact.email].filter(Boolean).join(" · ") || "No phone/email"}</p>
-          <Link href={`/crm/contacts/${contact.matchedContactId}`} className={`inline-flex h-7 shrink-0 items-center rounded-md px-2.5 text-[12px] font-bold transition-colors ${BTN_EDIT}`}>
+          <Link href={`/crm/contacts/${contact.matchedContactId}`} className={`inline-flex h-7 shrink-0 items-center rounded-md px-2.5 text-[12px] font-bold transition-colors ${DEPTH_EDIT}`}>
             View Contact →
           </Link>
         </div>
@@ -129,7 +130,7 @@ export function ContactRow({ contact, accountId }: { contact: BolContact; accoun
             type="button"
             disabled={pending || (!phone.trim() && !email.trim())}
             onClick={saveField}
-            className={`inline-flex h-7 w-fit items-center rounded-md px-2.5 text-[12px] font-bold transition-colors disabled:opacity-60 ${BTN_WARNING}`}
+            className={`inline-flex h-7 w-fit items-center rounded-md px-2.5 text-[12px] font-bold transition-colors ${DEPTH_WARNING}`}
           >
             Save
           </button>
@@ -159,7 +160,7 @@ export function ContactRow({ contact, accountId }: { contact: BolContact; accoun
               <button
                 type="submit"
                 disabled={pending}
-                className={`inline-flex h-7 w-fit items-center rounded-md px-2.5 text-[12px] font-bold transition-colors disabled:opacity-60 ${BTN_SUCCESS}`}
+                className={`inline-flex h-7 w-fit items-center rounded-md px-2.5 text-[12px] font-bold transition-colors ${DEPTH_SUCCESS}`}
               >
                 {pending ? "Adding…" : "Add Contact"}
               </button>
@@ -168,7 +169,7 @@ export function ContactRow({ contact, accountId }: { contact: BolContact; accoun
             <button
               type="button"
               onClick={() => setCreateOpen(true)}
-              className={`inline-flex h-7 w-fit items-center rounded-md px-2.5 text-[12px] font-bold transition-colors ${BTN_SUCCESS}`}
+              className={`inline-flex h-7 w-fit items-center rounded-md px-2.5 text-[12px] font-bold transition-colors ${DEPTH_SUCCESS}`}
             >
               No CRM match — Add Contact
             </button>

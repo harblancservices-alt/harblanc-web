@@ -2,10 +2,11 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardHead, BTN_EDIT } from "../../../_shell/ui";
 import { Modal } from "../../../_shell/Modal";
 import { Field, SubmitButton, FormError } from "../../../_shell/form";
 import { updateExtractedFields, saveResearchNotes } from "../actions";
+import { SectionCard } from "./SectionCard";
+import { DEPTH_EDIT } from "./buttonDepth";
 
 /** Every From-BOL field, unchanged from the original InformationSection —
  * still one shared edit form so a single submit can't clobber fields it
@@ -44,7 +45,7 @@ function FillChip({ label, onClick }: { label: string; onClick: () => void }) {
 function FieldRow({ label, value, onFill }: { label: string; value: string | null; onFill: () => void }) {
   return (
     <div className="min-w-0">
-      <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-fg-subtle">{label}</p>
+      <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-fg">{label}</p>
       {value ? <p className="text-[13px] text-fg">{value}</p> : <div className="mt-0.5"><FillChip label={label} onClick={onFill} /></div>}
     </div>
   );
@@ -87,16 +88,15 @@ export function LoadDetailSummary({ bolId, fields, notes }: { bolId: string; fie
   }
 
   return (
-    <Card>
-      <CardHead
-        title="Load Detail"
-        hint={fields.bolNumber ? `BOL ${fields.bolNumber}` : undefined}
-        right={
-          <button type="button" onClick={() => setEditOpen(true)} className={`rounded-md px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${BTN_EDIT}`}>
-            Edit
-          </button>
-        }
-      />
+    <SectionCard
+      title="Load Detail"
+      hint={fields.bolNumber ? `BOL ${fields.bolNumber}` : undefined}
+      right={
+        <button type="button" onClick={() => setEditOpen(true)} className={`rounded-md px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${DEPTH_EDIT}`}>
+          Edit
+        </button>
+      }
+    >
       <button type="button" onClick={() => setExpanded((v) => !v)} className="flex w-full items-center justify-between gap-3 p-4 text-left transition-colors hover:bg-inset/60">
         <p className="truncate text-[13px] text-fg">{summary}</p>
         <span className="shrink-0 text-[11.5px] font-semibold text-accent">{expanded ? "Hide details" : "Details"}</span>
@@ -112,7 +112,7 @@ export function LoadDetailSummary({ bolId, fields, notes }: { bolId: string; fie
           <FieldRow label="BOL #" value={fields.bolNumber} onFill={() => setEditOpen(true)} />
 
           <div className="col-span-2 sm:col-span-3">
-            <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-fg-subtle">Research note</p>
+            <p className="text-[10.5px] font-semibold uppercase tracking-[0.08em] text-fg">Research note</p>
             <textarea
               value={notesValue}
               onChange={(e) => setNotesValue(e.target.value)}
@@ -152,6 +152,6 @@ export function LoadDetailSummary({ bolId, fields, notes }: { bolId: string; fie
           <SubmitButton pending={pending}>Save</SubmitButton>
         </form>
       </Modal>
-    </Card>
+    </SectionCard>
   );
 }

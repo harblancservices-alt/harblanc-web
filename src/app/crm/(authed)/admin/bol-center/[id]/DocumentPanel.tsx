@@ -3,10 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
-import { Card, CardHead, BTN_PRIMARY, BTN_EDIT } from "../../../_shell/ui";
 import { getSignedPdfUrl } from "../../../shipments/pdfClient";
 import { DocViewer, PdfViewerPages } from "@/components/ui/DocViewer";
 import { attachBolDocument } from "../actions";
+import { SectionCard } from "./SectionCard";
+import { DEPTH_PRIMARY, DEPTH_EDIT } from "./buttonDepth";
 
 const STORAGE_BUCKET = "crm-documents";
 const ACCEPT = "application/pdf,image/*";
@@ -80,8 +81,7 @@ export function DocumentPanel({ bolId, orgId, document }: { bolId: string; orgId
   const isImage = Boolean(document?.mimeType?.startsWith("image/"));
 
   return (
-    <Card>
-      <CardHead title="Document" hint={document ? document.fileName : "No document attached"} />
+    <SectionCard title="Document" hint={document ? document.fileName : "No document attached"}>
       <div className="flex flex-col gap-3 p-3">
         {error && <p className="text-[12.5px] text-bad">{error}</p>}
 
@@ -105,7 +105,7 @@ export function DocumentPanel({ bolId, orgId, document }: { bolId: string; orgId
               type="button"
               disabled={!signedUrl}
               onClick={() => setFullScreen(true)}
-              className={`inline-flex h-9 items-center gap-1.5 rounded-md px-3.5 text-[13px] font-bold transition-colors disabled:opacity-60 ${BTN_PRIMARY}`}
+              className={`inline-flex h-9 items-center gap-1.5 rounded-md px-3.5 text-[13px] font-bold transition-colors ${DEPTH_PRIMARY}`}
             >
               Open full-screen ↗
             </button>
@@ -117,7 +117,7 @@ export function DocumentPanel({ bolId, orgId, document }: { bolId: string; orgId
               type="button"
               disabled={uploading}
               onClick={() => inputRef.current?.click()}
-              className={`inline-flex h-9 items-center rounded-md px-3.5 text-[13px] font-bold transition-colors disabled:opacity-60 ${BTN_EDIT}`}
+              className={`inline-flex h-9 items-center rounded-md px-3.5 text-[13px] font-bold transition-colors ${DEPTH_EDIT}`}
             >
               {uploading ? "Uploading…" : "Attach a file"}
             </button>
@@ -139,6 +139,6 @@ export function DocumentPanel({ bolId, orgId, document }: { bolId: string; orgId
       {fullScreen && signedUrl && document && (
         <DocViewer doc={{ name: document.fileName, url: signedUrl, isImage }} onClose={() => setFullScreen(false)} />
       )}
-    </Card>
+    </SectionCard>
   );
 }
