@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Modal } from "../_shell/Modal";
 import { Field, TextareaField, FormError, FieldLabel } from "../_shell/form";
 import { CONTROL, CONTROL_SIZE, LABEL } from "../_shell/compactForm";
+import { centralDayRange, centralDateKey } from "../_shell/format";
 import { StickyActionBar } from "../_shell/StickyActionBar";
 import { BTN_NEUTRAL } from "../_shell/ui";
 import {
@@ -74,6 +75,22 @@ const DROPDOWN =
   "absolute left-0 top-[calc(100%+4px)] z-20 max-h-56 w-full overflow-y-auto rounded-[5px] border border-line-strong bg-card py-1 shadow-e3";
 const DROPDOWN_ROW = "block w-full px-2.5 py-1.5 text-left text-[12.5px] text-fg transition-colors hover:bg-inset";
 
+// Follow-up reminder default — tomorrow at 8:00 AM Central. A prefill only:
+// the rep can still change or clear either field (FollowupFields' "Clear
+// time" button and "No specific time" option are untouched), and this is
+// only ever read at dialog-open time (initial useState value / resetFields),
+// never re-applied on a later render, so an edit or a clear sticks.
+const DEFAULT_REMINDER_TIME = "08:00";
+function defaultReminderDate(): string {
+  // "Tomorrow" computed against the Central calendar day, not the rep's
+  // machine timezone — centralDayRange already gives Central midnight
+  // (today) as a UTC instant; +24h lands within Central "tomorrow" even
+  // across a DST transition (a Central civil day is never shorter than 23h,
+  // so a ±1h drift from true midnight never crosses into the wrong day).
+  const { startMs } = centralDayRange(new Date());
+  return centralDateKey(new Date(startMs + 24 * 60 * 60 * 1000).toISOString()) ?? "";
+}
+
 /**
  * "Who did you talk to?" — logs a call against any combination of an existing
  * or brand-new contact, company, and phone number, filled in in ANY order.
@@ -123,8 +140,8 @@ export function LogCallDialog({
 
   const [outcome, setOutcome] = useState("");
   const [followup, setFollowup] = useState(false);
-  const [reminderDate, setReminderDate] = useState("");
-  const [reminderTime, setReminderTime] = useState("");
+  const [reminderDate, setReminderDate] = useState(defaultReminderDate);
+  const [reminderTime, setReminderTime] = useState(DEFAULT_REMINDER_TIME);
 
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm>(null);
   const [dismissedContactDup, setDismissedContactDup] = useState(false);
@@ -165,8 +182,8 @@ export function LogCallDialog({
     setPhone({ text: "", autofilled: false });
     setOutcome("");
     setFollowup(false);
-    setReminderDate("");
-    setReminderTime("");
+    setReminderDate(defaultReminderDate());
+    setReminderTime(DEFAULT_REMINDER_TIME);
     setPendingConfirm(null);
     setDismissedContactDup(false);
     setDismissedCompanyDup(false);
