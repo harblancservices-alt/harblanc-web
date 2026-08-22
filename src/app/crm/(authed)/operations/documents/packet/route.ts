@@ -93,14 +93,22 @@ export async function POST(request: Request): Promise<Response> {
   const supabase = await createCrmServerClient();
 
   // Layer 3: re-resolve every id against the caller's own org, restricted to
-  // the org-upload template kind. Storage paths come from HERE, never from
-  // the client.
+  // the org-upload kind AND to documents an admin has actually published.
+  // Storage paths come from HERE, never from the client.
+  //
+  // `is_public` is re-checked on this side on purpose. The Operations list
+  // already only renders published documents, but a filtered LIST is a
+  // presentation choice — this is the download itself. Without the predicate
+  // here, an unpublished document's id (from a stale page, a copied request,
+  // or a hand-rolled POST) would still come back in a zip, which would make
+  // "hidden" mean "unlisted" rather than "unreachable".
   const { data: rows, error: lookupError } = await supabase
     .from("crm_documents")
     .select("id, file_name, storage_path, size_bytes")
     .in("id", ids)
     .eq("org_id", user.orgId)
     .eq("kind", ORG_UPLOAD_KIND)
+    .eq("is_public", true)
     .is("account_id", null)
     .is("deal_id", null)
     .is("deleted_at", null);

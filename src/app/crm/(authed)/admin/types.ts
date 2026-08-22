@@ -74,6 +74,10 @@ export type AdminBlankTemplate = {
    * in the browser if the `.thumb.v3.png` sibling ever goes missing. */
   previewUrl: string | null;
   createdAt: string | null;
+  /** crm_documents.is_public — whether this template shows to sales agents
+   * in Operations → Documents. False when there's no row at all (nothing to
+   * publish), which is also when the grid disables the toggle. */
+  isPublic: boolean;
 };
 
 /** One card in the Documents tab for an org-level uploaded file (insurance
@@ -97,6 +101,10 @@ export type AdminOrgUpload = {
    * show an image upload directly, and raster a first-page preview in the
    * browser for a PDF that has no stored thumbnail. */
   previewUrl: string | null;
+  /** crm_documents.is_public — whether a sales agent sees this document in
+   * Operations → Documents. Defaults false at the column level, so a fresh
+   * upload is private until an admin publishes it. */
+  isPublic: boolean;
 };
 
 export type ActionResult = { ok: true } | { ok: false; error: string };

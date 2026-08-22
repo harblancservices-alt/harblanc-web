@@ -39,7 +39,7 @@ export const ORG_UPLOAD_KIND = "org_doc:upload";
  * both templates and uploads; only deletion stays upload-only). */
 export const TEMPLATE_KINDS = BLANK_TEMPLATES.map((t) => t.kind);
 
-type OrgDocRow = { id: string; file_name: string; storage_path: string; created_at: string };
+type OrgDocRow = { id: string; file_name: string; storage_path: string; created_at: string; is_public: boolean };
 
 /**
  * Admin Account "Documents" tab — the org's blank master RC/BOL templates,
@@ -70,7 +70,7 @@ export async function listBlankTemplates(): Promise<AdminBlankTemplate[]> {
     BLANK_TEMPLATES.map(async (t) => {
       const { data } = await supabase
         .from("crm_documents")
-        .select("id, file_name, storage_path, created_at")
+        .select("id, file_name, storage_path, created_at, is_public")
         .eq("kind", t.kind)
         .is("account_id", null)
         .is("deal_id", null)
@@ -108,6 +108,9 @@ export async function listBlankTemplates(): Promise<AdminBlankTemplate[]> {
     thumbUrl: row ? (signedByPath.get(`${row.storage_path}${THUMB_SUFFIX}`) ?? null) : null,
     previewUrl: row ? (signedByPath.get(row.storage_path) ?? null) : null,
     createdAt: row?.created_at ?? null,
+    // No row means no document to publish; false is the honest state and
+    // the grid renders that card's toggle disabled.
+    isPublic: row?.is_public ?? false,
   }));
 }
 
@@ -136,15 +139,41 @@ export async function listBlankTemplates(): Promise<AdminBlankTemplate[]> {
  * than a URL that would 404 into a broken image.
  */
 export async function listOrgUploads(): Promise<AdminOrgUpload[]> {
+  return readOrgUploads({ publicOnly: false });
+}
+
+/**
+ * The SALES-AGENT view of the same library — only documents an admin has
+ * explicitly published (is_public = true). Backs Operations → Documents
+ * (/crm/operations/documents), where a rep picks documents to bundle into a
+ * vendor packet.
+ *
+ * A separate NAMED function rather than an optional `publicOnly` argument on
+ * listOrgUploads(): with a flag, a future caller who forgets to pass it
+ * silently exposes every private document, and the failure is invisible in
+ * review. With two functions, the agent-facing read path is impossible to
+ * reach by accident — you have to type "public" to get the public list.
+ *
+ * This is the presentation filter. The packet DOWNLOAD route
+ * (operations/documents/packet/route.ts) re-applies the same is_public
+ * predicate to the ids it's handed, so hiding a document here also makes it
+ * genuinely unreachable rather than merely unlisted.
+ */
+export async function listPublicOrgDocuments(): Promise<AdminOrgUpload[]> {
+  return readOrgUploads({ publicOnly: true });
+}
+
+async function readOrgUploads({ publicOnly }: { publicOnly: boolean }): Promise<AdminOrgUpload[]> {
   const supabase = await createCrmServerClient();
-  const { data } = await supabase
+  let query = supabase
     .from("crm_documents")
-    .select("id, file_name, storage_path, mime_type, size_bytes, created_at")
+    .select("id, file_name, storage_path, mime_type, size_bytes, created_at, is_public")
     .eq("kind", ORG_UPLOAD_KIND)
     .is("account_id", null)
     .is("deal_id", null)
-    .is("deleted_at", null)
-    .order("created_at", { ascending: false });
+    .is("deleted_at", null);
+  if (publicOnly) query = query.eq("is_public", true);
+  const { data } = await query.order("created_at", { ascending: false });
 
   const rows = (data ?? []) as (OrgDocRow & { mime_type: string | null; size_bytes: number | null })[];
   if (rows.length === 0) return [];
@@ -170,5 +199,6 @@ export async function listOrgUploads(): Promise<AdminOrgUpload[]> {
     createdAt: r.created_at,
     thumbUrl: signedByPath.get(`${r.storage_path}${THUMB_SUFFIX}`) ?? null,
     previewUrl: signedByPath.get(r.storage_path) ?? null,
+    isPublic: r.is_public,
   }));
 }

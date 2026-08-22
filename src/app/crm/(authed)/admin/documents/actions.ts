@@ -4,9 +4,14 @@ import { revalidatePath } from "next/cache";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { ORG_UPLOAD_KIND, STORAGE_BUCKET, TEMPLATE_KINDS, THUMB_SUFFIX } from "../documents-data";
 
-/** Titles are editable for both uploads AND the two blank templates —
- * deletion stays upload-only (see deleteOrgDocument below). */
-const RENAMEABLE_KINDS = [ORG_UPLOAD_KIND, ...TEMPLATE_KINDS];
+/** The document kinds THIS TAB manages: admin uploads plus the two blank
+ * master templates. Titles are editable for both, and both can be published
+ * or hidden. Deletion stays upload-only (see deleteOrgDocument below).
+ *
+ * Every write below scopes to this list, so a document id belonging to a
+ * COMPANY (a customer BOL, a commodity photo, a generated rate con) matches
+ * nothing and is left untouched no matter what id is posted. */
+const TAB_MANAGED_KINDS = [ORG_UPLOAD_KIND, ...TEMPLATE_KINDS];
 import type { ActionResult } from "../types";
 
 /**
@@ -124,11 +129,63 @@ export async function renameOrgDocument(documentId: string, fileName: string): P
     .from("crm_documents")
     .update({ file_name: trimmed })
     .eq("id", documentId)
-    .in("kind", RENAMEABLE_KINDS);
+    .in("kind", TAB_MANAGED_KINDS);
 
   if (error) return { ok: false, error: "Could not rename the file. Please try again." };
 
   revalidateDocuments();
+  return { ok: true };
+}
+
+/**
+ * Publishes / unpublishes ONE document — the slide toggle on each card in the
+ * Admin Documents grid. `is_public = true` is the only thing that puts a
+ * document in front of a sales agent in Operations → Documents.
+ *
+ * Owner-only, enforced HERE and not merely in the UI: requireAdminUser()
+ * re-checks role==='owner' on every call, exactly like renameOrgDocument and
+ * deleteOrgDocument above. That check is the real gate — crm_documents' RLS
+ * policy is a plain org match (`org_id = crm_current_org()`, for all
+ * operations), so RLS alone would let any member of the org update the
+ * column. This is the same posture every other write on this tab already
+ * has; it is not a new gap introduced by publishing.
+ *
+ * Scoped to the kinds this tab actually manages (uploads + the two blank
+ * master templates, via TAB_MANAGED_KINDS). A document id belonging to a
+ * COMPANY — a customer's BOL, a commodity photo, a generated rate con —
+ * simply matches nothing and is left alone, so this action can never be
+ * repurposed to publish per-account paperwork into the shared library.
+ *
+ * Revalidates BOTH surfaces: the admin grid it was flipped from, and the
+ * Operations list whose contents just changed.
+ */
+export async function setDocumentPublic(
+  documentId: string,
+  isPublic: boolean,
+): Promise<ActionResult> {
+  await requireAdminUser();
+  const supabase = await createCrmServerClient();
+
+  const { error } = await supabase
+    .from("crm_documents")
+    .update({ is_public: isPublic })
+    .eq("id", documentId)
+    .in("kind", TAB_MANAGED_KINDS)
+    .is("account_id", null)
+    .is("deal_id", null)
+    .is("deleted_at", null);
+
+  if (error) {
+    return {
+      ok: false,
+      error: isPublic
+        ? "Could not publish the document. Please try again."
+        : "Could not hide the document. Please try again.",
+    };
+  }
+
+  revalidateDocuments();
+  revalidatePath("/crm/operations/documents");
   return { ok: true };
 }
 

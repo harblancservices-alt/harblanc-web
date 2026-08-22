@@ -8,13 +8,58 @@ import { IconRateConfirmation, IconBillOfLading } from "../../_shell/icons";
 import { formatDate } from "../../_shell/format";
 import { CONTROL } from "../../_shell/form";
 import { DocThumb } from "../../_shell/DocThumb";
+import { SlideToggle } from "../../_shell/SlideToggle";
 import { getSignedPdfUrl } from "../../shipments/pdfClient";
-import { createOrgDocument, renameOrgDocument, deleteOrgDocument } from "./actions";
+import { createOrgDocument, renameOrgDocument, deleteOrgDocument, setDocumentPublic } from "./actions";
 import type { AdminBlankTemplate, AdminOrgUpload } from "../types";
 
 const STORAGE_BUCKET = "crm-documents";
 const ACCEPT = "application/pdf,image/*";
 const GRID_CLASS = "grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5";
+
+/**
+ * The per-card publish control. ON means sales agents see this document in
+ * Operations → Documents; OFF means only admins do.
+ *
+ * The label carries the state in WORDS as well as switch position ("Public"
+ * in the success token when on, "Make public" when off) — a lone switch is
+ * ambiguous at a glance in a five-across grid, and this decides who can see
+ * a legal document, so it should never be a guess.
+ */
+function PublicToggleRow({
+  isPublic,
+  disabled,
+  busy,
+  hint,
+  onToggle,
+  documentLabel,
+}: {
+  isPublic: boolean;
+  disabled?: boolean;
+  busy?: boolean;
+  hint?: string;
+  onToggle: () => void;
+  documentLabel: string;
+}) {
+  return (
+    <div className="mt-1 flex items-center justify-between gap-2 border-t border-line-strong pt-2">
+      <span
+        className={`truncate text-[11px] font-bold uppercase tracking-[0.08em] ${
+          isPublic ? "text-ok" : "text-fg-muted"
+        }`}
+      >
+        {hint ?? (isPublic ? "Public" : "Make public")}
+      </span>
+      <SlideToggle
+        checked={isPublic}
+        disabled={disabled}
+        busy={busy}
+        onChange={onToggle}
+        label={`Show "${documentLabel}" to sales agents in Operations`}
+      />
+    </div>
+  );
+}
 
 function typeIcon(t: AdminBlankTemplate["docType"]) {
   return t === "bill_of_lading" ? <IconBillOfLading width={14} height={14} /> : <IconRateConfirmation width={14} height={14} />;
@@ -80,6 +125,29 @@ export function AdminDocumentsGrid({
   const [saving, setSaving] = useState(false);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const inputRef = useRef<HTMLInputElement>(null);
+  /** Optimistic public state per document id, so the switch moves on the
+   * click instead of waiting a round trip. Cleared for that id once the
+   * server confirms (router.refresh brings back the real value) or rolled
+   * back on failure. */
+  const [publicOverrides, setPublicOverrides] = useState<Record<string, boolean>>({});
+  const [publishing, setPublishing] = useState<string | null>(null);
+
+  async function togglePublic(documentId: string, current: boolean) {
+    const next = !current;
+    setError(null);
+    setPublicOverrides((prev) => ({ ...prev, [documentId]: next }));
+    setPublishing(documentId);
+    const res = await setDocumentPublic(documentId, next);
+    setPublishing(null);
+    if (!res.ok) {
+      // Roll the switch back to where it was — never leave the UI claiming
+      // a document is published when the write didn't land.
+      setPublicOverrides((prev) => ({ ...prev, [documentId]: current }));
+      setError(res.error);
+      return;
+    }
+    router.refresh();
+  }
 
   function openInNewWindow(key: string, storagePath: string, label: string) {
     setError(null);
@@ -259,6 +327,16 @@ export function AdminDocumentsGrid({
                     </div>
                   )}
                   <p className="text-[12px] text-fg-subtle">{hasFile ? "Blank master template" : "No template on file yet"}</p>
+                  <PublicToggleRow
+                    isPublic={t.id ? (publicOverrides[t.id] ?? t.isPublic) : false}
+                    disabled={!t.id}
+                    busy={publishing === t.id}
+                    hint={t.id ? undefined : "Nothing to publish"}
+                    documentLabel={templateTitle(t)}
+                    onToggle={() => {
+                      if (t.id) void togglePublic(t.id, publicOverrides[t.id] ?? t.isPublic);
+                    }}
+                  />
                 </div>
               </div>
             );
@@ -311,6 +389,12 @@ export function AdminDocumentsGrid({
                 <p className="text-[12px] text-fg-subtle">
                   {[formatDate(u.createdAt), formatBytes(u.sizeBytes)].filter(Boolean).join(" · ")}
                 </p>
+                <PublicToggleRow
+                  isPublic={publicOverrides[u.id] ?? u.isPublic}
+                  busy={publishing === u.id}
+                  documentLabel={u.fileName}
+                  onToggle={() => void togglePublic(u.id, publicOverrides[u.id] ?? u.isPublic)}
+                />
               </div>
             </div>
           ))}

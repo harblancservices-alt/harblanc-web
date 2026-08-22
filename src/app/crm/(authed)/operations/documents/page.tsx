@@ -1,12 +1,16 @@
-// listOrgUploads() is the SAME reader the owner-only Admin Documents grid
-// uses (../../admin/documents/page.tsx) — one source of truth for "the org's
-// uploaded document templates", not a second copy of that query. It carries
-// no owner gate of its own, and it doesn't need one: crm_documents' RLS
-// policy is org-match (`org_id = crm_current_org()`), so every CRM user in
-// the org may READ the library. Only WRITING it (upload/rename/delete) is
-// owner-only, and that stays in ../../admin/documents/actions.ts where each
-// action re-verifies role==='owner' itself.
-import { listOrgUploads } from "../../admin/documents-data";
+// listPublicOrgDocuments() is the SALES-AGENT read of the same library the
+// owner-only Admin Documents grid lists — one query module, not a second
+// copy — narrowed to `is_public = true`. Admins see every document at
+// /crm/admin/documents and decide, per document, which ones reach this
+// screen; a fresh upload defaults to private (the column default) and stays
+// invisible here until someone flips its toggle.
+//
+// A separate named function rather than a `publicOnly` flag on
+// listOrgUploads(), so the agent-facing path can't be reached by forgetting
+// an argument. Writing the library (upload/rename/delete/publish) stays in
+// ../../admin/documents/actions.ts, where every action re-verifies
+// role==='owner' itself.
+import { listPublicOrgDocuments } from "../../admin/documents-data";
 import { PacketBuilder, type PacketTemplate } from "./PacketBuilder";
 
 export const dynamic = "force-dynamic";
@@ -33,7 +37,7 @@ export const dynamic = "force-dynamic";
  * preview mechanism (_shell/DocThumb.tsx) rather than a second one.
  */
 export default async function OperationsDocumentsPage() {
-  const uploads = await listOrgUploads();
+  const uploads = await listPublicOrgDocuments();
 
   const templates: PacketTemplate[] = uploads.map((u) => ({
     id: u.id,
