@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Badge } from "../../../_shell/ui";
 import { Field } from "../../../_shell/form";
 import { titleCaseWords } from "../../../_shell/format";
+import { normalizeStage, stageLabel } from "../../../accounts/lifecycle";
 import { SectionCard } from "./SectionCard";
 import { DEPTH_EDIT, DEPTH_SUCCESS, DEPTH_NEUTRAL } from "./buttonDepth";
 import {
@@ -137,7 +138,9 @@ export function CompanyRow({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-fg">{label} — Company</p>
         {matchedAccount && (
-          <Badge tone={matchedAccount.lifecycleStatus === "prospect" ? "success" : "neutral"}>{matchedAccount.lifecycleStatus}</Badge>
+          <Badge tone={normalizeStage(matchedAccount.lifecycleStatus) === "new_lead" ? "success" : "neutral"}>
+            {stageLabel(matchedAccount.lifecycleStatus)}
+          </Badge>
         )}
       </div>
 
@@ -150,7 +153,7 @@ export function CompanyRow({
           <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2">
             <p className="truncate text-[14px] font-semibold text-fg">{matchedAccount.name}</p>
             <div className="flex shrink-0 items-center gap-2">
-              {matchedAccount.lifecycleStatus !== "prospect" && (
+              {normalizeStage(matchedAccount.lifecycleStatus) !== "new_lead" && (
                 <button
                   type="button"
                   disabled={pending}

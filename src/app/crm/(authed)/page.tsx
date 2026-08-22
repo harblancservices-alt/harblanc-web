@@ -6,7 +6,6 @@ import {
   formatRelativeTime,
   dueCountdown,
   firstName as profileFirstName,
-  centralDayRange,
   titleCaseWords,
 } from "./_shell/format";
 import { parsePhones, digitsForTel } from "./_shell/contactFields";
@@ -18,8 +17,12 @@ import { CounterTiles, type CounterTileData } from "./CounterTiles";
 import { DashboardSearch, type SearchContactOption } from "./DashboardSearch";
 import { NextBestActionSection, type NbaItem } from "./NextBestActionSection";
 import { IconNote, IconCompanies, IconCalendar, IconTasks } from "./_shell/icons";
-import { normalizeStage } from "./accounts/lifecycle";
+import { normalizeStage, stageRank, stageLabel, STALE_DAYS_BY_STAGE, LOST_WINBACK_DAYS } from "./accounts/lifecycle";
 import { CRM_ACTIVITY, CRM_CONTACT_ACTIVITY_KINDS } from "@/lib/crm/activity";
+import { ensureWinbackTask } from "@/lib/crm/stageAutomation";
+import { CLAIMABLE_LEAD_SOURCES } from "./ai-agent/queue";
+import { taskUrgencyBucket } from "@/lib/crm/taskUrgency";
+import { taskPriorityCompare } from "./tasks/priority";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +61,9 @@ type AccountRow = {
   phone: string | null;
   phones: unknown;
   lifecycle_status: string | null;
+  assigned_user_id: string | null;
+  source: string | null;
+  ai_status: string | null;
   created_at: string;
   attention_dismissed_at: string | null;
   primary_contact_id: string | null;
@@ -156,10 +162,6 @@ export default async function CrmDashboardPage() {
   const supabase = await createCrmServerClient();
 
   const now = new Date();
-  // Day boundaries are Central calendar-day boundaries — "today" turns over
-  // at Central midnight regardless of the server's own zone (Vercel runs
-  // UTC), matching every other overdue/due-today split in the CRM.
-  const { startMs: todayStart, endMs: todayEnd } = centralDayRange(now);
 
   const [
     openTasksRes,
@@ -210,7 +212,7 @@ export default async function CrmDashboardPage() {
     supabase
       .from("crm_accounts")
       .select(
-        "id, name, phone, phones, lifecycle_status, created_at, attention_dismissed_at, primary_contact_id, dba, linkedin_url, year_founded, ownership_type, industry, company_size, website, fit_rating, payment_terms, current_carrier, context_notes",
+        "id, name, phone, phones, lifecycle_status, assigned_user_id, source, ai_status, created_at, attention_dismissed_at, primary_contact_id, dba, linkedin_url, year_founded, ownership_type, industry, company_size, website, fit_rating, payment_terms, current_carrier, context_notes",
       )
       .is("deleted_at", null)
       .or("ai_status.is.null,ai_status.neq.pending_review")
@@ -374,14 +376,12 @@ export default async function CrmDashboardPage() {
     assigneeName: t.assigned_user_id ? (profileNameById.get(t.assigned_user_id) ?? null) : null,
     companyPhone: t.account_id ? (companyPhoneById.get(t.account_id) ?? null) : null,
   }));
-  const taskDueBucket = (t: CrmTaskItem) => {
-    const ms = timestampMs(t.due_at);
-    if (ms !== null && ms < todayStart) return 0; // overdue
-    if (ms !== null && ms <= todayEnd) return 1; // due today
-    return 2; // no due date, or a future one
-  };
-  const overdueTasks = allOpenTasks.filter((t) => taskDueBucket(t) === 0);
-  const dueTodayTasks = allOpenTasks.filter((t) => taskDueBucket(t) === 1);
+  // Shared bucketing (lib/crm/taskUrgency.ts) — same Central-day-boundary
+  // logic the global Tasks page and TaskRow's rail color use, so all three
+  // agree (CRM_URGENCY_AUDIT.md §2 flagged this as three independent
+  // reimplementations of the same check).
+  const overdueTasks = allOpenTasks.filter((t) => taskUrgencyBucket(t.due_at, now) === "overdue");
+  const dueTodayTasks = allOpenTasks.filter((t) => taskUrgencyBucket(t.due_at, now) === "today");
 
   const overdueCount = overdueTasks.length;
   const dueTodayCount = dueTodayTasks.length;
@@ -423,35 +423,105 @@ export default async function CrmDashboardPage() {
     if (current === undefined || ms > current) lastContactMsByAccount.set(row.account_id, ms);
   }
 
-  const STALE_THRESHOLD_DAYS = 7;
-  const NEW_LEAD_GRACE_DAYS = 3;
   const DISMISS_WINDOW_DAYS = 5;
-  const nonTerminalAccounts = allAccounts.filter((a) => {
-    const stage = normalizeStage(a.lifecycle_status);
-    return stage !== "lost" && stage !== "inactive";
-  });
-  const staleAccountsFull = nonTerminalAccounts
+  // "lost" is a dead end for the research-gap/no-contact prospecting-hygiene
+  // tiers below, same as the old terminal-stage exclusion (which used to
+  // also cover a separate "inactive" stage — that stage is gone; see
+  // lifecycle.ts's legacyAlias, which folds old "inactive" rows into "lost"
+  // at read time regardless of what's still stored).
+  const nonLostAccounts = allAccounts.filter((a) => normalizeStage(a.lifecycle_status) !== "lost");
+  const lostAccounts = allAccounts.filter((a) => normalizeStage(a.lifecycle_status) === "lost");
+
+  /** Days since the account's last logged contact, falling back to
+   * created_at when there's no contact record at all (never-contacted isn't
+   * "infinitely stale" — it just hasn't had time to be). Shared by the
+   * stale tier's per-stage clock below and the Lost win-back clock. */
+  function daysQuiet(a: AccountRow): number {
+    const ms = lastContactMsByAccount.get(a.id) ?? timestampMs(a.created_at) ?? now.getTime();
+    return Math.floor((now.getTime() - ms) / DAY_MS);
+  }
+  /** New Lead's clock runs off "how long has this sat unclaimed"
+   * (created_at) rather than contact recency — an unclaimed lead has none by
+   * definition; see STALE_DAYS_BY_STAGE's own comment in lifecycle.ts. */
+  function daysUnclaimed(a: AccountRow): number {
+    const ms = timestampMs(a.created_at) ?? now.getTime();
+    return Math.floor((now.getTime() - ms) / DAY_MS);
+  }
+  /** A New Lead is normally unclaimed by construction (claiming advances it
+   * straight to Researching — see claimAiLead), but a company CAN be created
+   * manually at New Lead and pre-assigned to its creator in the same write
+   * (accounts/actions.ts::createAccount defaults assigned_user_id to the
+   * creator) — a real case confirmed against live data, not hypothetical.
+   * That account has an owner already, so it isn't claimable (claimAiLead's
+   * `assigned_user_id IS NULL` guard would just reject it) and its clock
+   * should run off actual contact recency like every other owned stage, not
+   * "unclaimed" time it never really had. */
+  function isUnclaimedNewLead(a: AccountRow): boolean {
+    return normalizeStage(a.lifecycle_status) === "new_lead" && a.assigned_user_id === null;
+  }
+  /** True only when the CLAIM pill would actually work — matches
+   * claimAiLead's own guard (ai_status='released' AND source IN
+   * CLAIMABLE_LEAD_SOURCES AND unassigned) exactly, so the button's promise
+   * always holds. isUnclaimedNewLead alone isn't enough: a company can be an
+   * unassigned New Lead from a plain manual quick-add (source "manual" or
+   * null, ai_status never set to "released") — real data confirmed this too
+   * — and claimAiLead would reject that with "no longer available to claim"
+   * since it was never published into the Prospects queue in the first
+   * place. */
+  function isClaimableNewLead(a: AccountRow): boolean {
+    return (
+      isUnclaimedNewLead(a) &&
+      a.ai_status === "released" &&
+      (CLAIMABLE_LEAD_SOURCES as readonly string[]).includes(a.source ?? "")
+    );
+  }
+  function staleDays(a: AccountRow): number {
+    return isUnclaimedNewLead(a) ? daysUnclaimed(a) : daysQuiet(a);
+  }
+
+  // ── Going stale — per-stage clocks (CRM_URGENCY_AUDIT.md P0: the old flat
+  // 7-day rule treated a brand-new Lead the same as an already-Quoted
+  // account; see STALE_DAYS_BY_STAGE in lifecycle.ts for the actual
+  // thresholds, now the single source of truth every reader here defers to).
+  // active_customer has no configured threshold (never nags) and lost is
+  // handled separately by the win-back clock below, so a missing threshold
+  // just excludes the stage rather than needing a second check. ──
+  const staleAccountsFull = nonLostAccounts
     .filter((a) => {
+      const threshold = STALE_DAYS_BY_STAGE[normalizeStage(a.lifecycle_status)];
+      if (threshold === undefined) return false;
       const dismissedMs = timestampMs(a.attention_dismissed_at);
       if (dismissedMs !== null && now.getTime() - dismissedMs < DISMISS_WINDOW_DAYS * DAY_MS) return false;
-      const ms = lastContactMsByAccount.get(a.id);
-      if (ms === undefined) {
-        const createdMs = timestampMs(a.created_at);
-        return createdMs === null || now.getTime() - createdMs >= NEW_LEAD_GRACE_DAYS * DAY_MS;
-      }
-      return now.getTime() - ms >= STALE_THRESHOLD_DAYS * DAY_MS;
+      return staleDays(a) >= threshold;
     })
-    .sort((a, b) => (lastContactMsByAccount.get(a.id) ?? -Infinity) - (lastContactMsByAccount.get(b.id) ?? -Infinity));
+    // NBA ranking (CRM_URGENCY_AUDIT.md): quoting outranks contacted outranks
+    // researching outranks new_lead(unclaimed) — exactly the funnel order
+    // stageRank already encodes, so sorting by rank descending gives that
+    // ordering for free; days-stale breaks ties within the same stage.
+    .sort((a, b) => {
+      const rankDiff = stageRank(normalizeStage(b.lifecycle_status)) - stageRank(normalizeStage(a.lifecycle_status));
+      return rankDiff !== 0 ? rankDiff : staleDays(b) - staleDays(a);
+    });
+
+  // ── Lost win-back (CRM_URGENCY_AUDIT.md: no cron in this CRM, so computed
+  // at READ time on every dashboard load) — a lost account quiet for
+  // LOST_WINBACK_DAYS both surfaces in the NBA queue below AND lazily gets
+  // ONE unassigned "Reach back out" task if it doesn't already have an open
+  // one (see lib/crm/stageAutomation.ts::ensureWinbackTask). ──
+  const dueWinbackAccounts = lostAccounts.filter((a) => daysQuiet(a) >= LOST_WINBACK_DAYS);
+  await Promise.all(
+    dueWinbackAccounts.map((a) => ensureWinbackTask(supabase, { orgId: user.orgId, accountId: a.id })),
+  );
 
   // ── Needs Research — companies with no AI-research note on file yet,
-  // thinnest profile first. Excludes terminal stages, same as Stale. Folds
-  // into the Next Best Action queue below — no longer a standalone widget. ──
+  // thinnest profile first. Excludes lost, same as Stale. Folds into the
+  // Next Best Action queue below — no longer a standalone widget. ──
   const researchedAccountIds = new Set(
     ((researchNotesRes.data ?? []) as { account_id: string | null }[])
       .map((r) => r.account_id)
       .filter((id): id is string => Boolean(id)),
   );
-  const researchGapFull = nonTerminalAccounts
+  const researchGapFull = nonLostAccounts
     .filter((a) => !researchedAccountIds.has(a.id))
     .map((a) => ({ id: a.id, name: titleCaseWords(a.name), completenessPct: buildProfileCompleteness(a) }))
     .sort((a, b) => a.completenessPct - b.completenessPct);
@@ -465,7 +535,7 @@ export default async function CrmDashboardPage() {
     if (!c.account_id) continue;
     contactCountByAccount.set(c.account_id, (contactCountByAccount.get(c.account_id) ?? 0) + 1);
   }
-  const noContactAccounts = nonTerminalAccounts
+  const noContactAccounts = nonLostAccounts
     .filter((a) => (contactCountByAccount.get(a.id) ?? 0) === 0)
     .sort((a, b) => (timestampMs(b.created_at) ?? 0) - (timestampMs(a.created_at) ?? 0))
     .slice(0, 10);
@@ -487,10 +557,15 @@ export default async function CrmDashboardPage() {
   // risk): overdue work always outranks due-today, which outranks staleness,
   // which outranks a research gap, which outranks a bare contact gap — each
   // tier then sorted by its own natural urgency. ──
-  const overdueTaskItems: { item: NbaItem; sortMs: number }[] = overdueTasks.map((t) => {
+  // Task-based tiers sort by due date first (the tier's own natural
+  // urgency), then priority as a tiebreak (CRM_URGENCY_AUDIT.md P0: priority
+  // used to never affect ordering anywhere — see tasks/priority.ts's
+  // taskPriorityCompare, shared with the global Tasks page).
+  const overdueTaskItems: { item: NbaItem; sortMs: number; priority: string | null }[] = overdueTasks.map((t) => {
     const overdueText = dueCountdown(t.due_at).text;
     return {
       sortMs: timestampMs(t.due_at) ?? 0,
+      priority: t.priority,
       item: {
         id: `task-${t.id}`,
         href: t.account_id ? `/crm/accounts/${t.account_id}` : t.contact_id ? `/crm/contacts/${t.contact_id}` : "/crm/tasks",
@@ -502,29 +577,94 @@ export default async function CrmDashboardPage() {
       },
     };
   });
-  const staleItems: NbaItem[] = staleAccountsFull.map((a) => {
-    const ms = lastContactMsByAccount.get(a.id);
-    const days = ms === undefined ? null : Math.floor((now.getTime() - ms) / DAY_MS);
+  const dueTodayTaskItems: { item: NbaItem; sortMs: number; priority: string | null }[] = dueTodayTasks.map((t) => {
+    const dueText = dueCountdown(t.due_at).text;
     return {
-      id: `stale-${a.id}`,
-      href: `/crm/accounts/${a.id}`,
-      avatarLabel: titleCaseWords(a.name),
-      companyName: titleCaseWords(a.name),
-      reason: days === null ? "Never contacted" : `Stale ${days}d`,
-      tag: "STALE",
-      // Phase 5: opens the same TaskDialog every task entry point uses,
-      // pre-filled but still editable, instead of bare navigation.
-      action: {
-        kind: "task",
-        label: "FOLLOW UP",
-        defaults: {
-          title: `Follow up with ${titleCaseWords(a.name)}`,
-          task_type: "Follow-up call",
-          account_id: a.id,
-        },
+      sortMs: timestampMs(t.due_at) ?? 0,
+      priority: t.priority,
+      item: {
+        id: `task-today-${t.id}`,
+        href: t.account_id ? `/crm/accounts/${t.account_id}` : t.contact_id ? `/crm/contacts/${t.contact_id}` : "/crm/tasks",
+        avatarLabel: t.companyName || t.contactName || t.title,
+        companyName: t.companyName,
+        reason: t.contactName ? `${dueText} · ${t.contactName}` : `${dueText} · ${t.title}`,
+        tag: null,
+        action: taskContextAction(t),
       },
     };
   });
+  // Stale tier reason now names the stage (thresholds differ per stage, so
+  // "Stale 6d" alone no longer tells the full story — see STALE_DAYS_BY_STAGE)
+  // and the pill itself is stage-aware: what a rep should DO about a stale
+  // New Lead (claim it) is a different action than a stale Quoting account
+  // (chase the quote), so the label and the task it pre-fills both follow
+  // the account's actual stage instead of every row offering the same
+  // generic "FOLLOW UP".
+  const staleItems: NbaItem[] = staleAccountsFull.map((a) => {
+    const stage = normalizeStage(a.lifecycle_status);
+    const unclaimed = isUnclaimedNewLead(a);
+    const days = staleDays(a);
+    const name = titleCaseWords(a.name);
+    const reason = unclaimed ? `Unclaimed ${days}d` : `${stageLabel(stage)} · stale ${days}d`;
+
+    let action: NbaItem["action"];
+    if (isClaimableNewLead(a)) {
+      // Claiming IS the resolution here — see NbaClaimAction (assigns +
+      // advances to Researching + fires that stage's entry task in one call).
+      action = { kind: "claim", label: "CLAIM", accountId: a.id };
+    } else if (stage === "researching" || stage === "new_lead") {
+      // A New Lead that's either already assigned or was never published
+      // into the claim queue (see isClaimableNewLead) isn't claimable, so it
+      // falls back to the same "start working it" pill Researching gets.
+      action = {
+        kind: "task",
+        label: "REACH OUT",
+        defaults: { title: `Reach out to ${name}`, task_type: "Research prospect", account_id: a.id },
+      };
+    } else if (stage === "quoting") {
+      action = {
+        kind: "task",
+        label: "FOLLOW UP ON QUOTE",
+        defaults: {
+          title: `Follow up on quote with ${name}`,
+          task_type: "Follow-up call",
+          account_id: a.id,
+          due_at: new Date(now.getTime() + 24 * 3_600_000).toISOString(),
+        },
+      };
+    } else {
+      // "contacted" — the only remaining staleness-eligible stage.
+      action = {
+        kind: "task",
+        label: "FOLLOW UP",
+        defaults: { title: `Follow up with ${name}`, task_type: "Follow-up call", account_id: a.id },
+      };
+    }
+
+    return {
+      id: `stale-${a.id}`,
+      href: `/crm/accounts/${a.id}`,
+      avatarLabel: name,
+      companyName: name,
+      reason,
+      tag: "STALE",
+      action,
+    };
+  });
+  // Lost win-back — the task offering the actual outreach was already
+  // lazily created above (ensureWinbackTask); this item is deliberately a
+  // plain link to the company (which surfaces that already-created,
+  // unassigned task), not another task-offer pill — that would create a
+  // SECOND task on top of the one that already exists.
+  const winbackItems: NbaItem[] = dueWinbackAccounts.map((a) => ({
+    id: `winback-${a.id}`,
+    href: `/crm/accounts/${a.id}`,
+    avatarLabel: titleCaseWords(a.name),
+    companyName: titleCaseWords(a.name),
+    reason: `Lost · quiet ${daysQuiet(a)}d`,
+    tag: "WIN-BACK",
+    action: { kind: "link", label: "REACH BACK OUT", href: `/crm/accounts/${a.id}` },
+  }));
   const researchItems: NbaItem[] = researchGapFull.map((c) => ({
     id: `research-${c.id}`,
     href: `/crm/accounts/${c.id}`,
@@ -542,37 +682,34 @@ export default async function CrmDashboardPage() {
       },
     },
   }));
-  const dueTodayTaskItems: NbaItem[] = dueTodayTasks.map((t) => {
-    const dueText = dueCountdown(t.due_at).text;
+  const noContactItems: NbaItem[] = noContactAccounts.map((a) => {
+    const name = titleCaseWords(a.name);
     return {
-      id: `task-today-${t.id}`,
-      href: t.account_id ? `/crm/accounts/${t.account_id}` : t.contact_id ? `/crm/contacts/${t.contact_id}` : "/crm/tasks",
-      avatarLabel: t.companyName || t.contactName || t.title,
-      companyName: t.companyName,
-      reason: t.contactName ? `${dueText} · ${t.contactName}` : `${dueText} · ${t.title}`,
+      id: `no-contact-${a.id}`,
+      href: `/crm/accounts/${a.id}`,
+      avatarLabel: name,
+      companyName: name,
+      reason: "No contacts on file",
       tag: null,
-      action: taskContextAction(t),
+      // Opens the same AddContactDialog the Companies list uses, pre-
+      // attached to this company (see NbaAddContactAction.tsx) — the gap
+      // this row flags is resolved directly, in one click, instead of the
+      // old bare-navigation "RESEARCH" pill that just pointed at the profile
+      // (CRM_TASK_INTEGRATION_AUDIT.md §7 classified that as tier D).
+      action: { kind: "add-contact", label: "ADD CONTACT", accountId: a.id, accountName: name },
     };
   });
-  const noContactItems: NbaItem[] = noContactAccounts.map((a) => ({
-    id: `no-contact-${a.id}`,
-    href: `/crm/accounts/${a.id}`,
-    avatarLabel: titleCaseWords(a.name),
-    companyName: titleCaseWords(a.name),
-    reason: "No contacts on file",
-    tag: null,
-    // Deliberately still a plain link, not a task offer — adding a contact
-    // resolves this gap directly (CRM_TASK_INTEGRATION_AUDIT.md §7 classifies
-    // this tier D, unlike Stale/Research above).
-    action: { kind: "link", label: "RESEARCH", href: `/crm/accounts/${a.id}` },
-  }));
 
-  const overdueItems = overdueTaskItems.sort((a, b) => a.sortMs - b.sortMs).map((x) => x.item);
+  const tierSort = (a: { sortMs: number; priority: string | null }, b: { sortMs: number; priority: string | null }) =>
+    a.sortMs - b.sortMs || taskPriorityCompare(a, b);
+  const overdueItems = overdueTaskItems.sort(tierSort).map((x) => x.item);
+  const dueTodayItems = dueTodayTaskItems.sort(tierSort).map((x) => x.item);
 
   const nbaItems: NbaItem[] = [
     ...overdueItems,
-    ...dueTodayTaskItems,
+    ...dueTodayItems,
     ...staleItems,
+    ...winbackItems,
     ...researchItems,
     ...noContactItems,
   ].slice(0, 40);
@@ -655,6 +792,7 @@ export default async function CrmDashboardPage() {
             reps={reps}
             canAssignOthers={canAssignOthers}
             currentUser={currentUser}
+            companies={companyOptions}
           />
         </div>
 

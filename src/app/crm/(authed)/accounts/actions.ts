@@ -8,6 +8,7 @@ import { centralInputToIso, titleCaseWords, upperCaseState } from "../_shell/for
 import { phonesFromFormValue, linksFromFormValue, parsePhones, looksLikePhone } from "../_shell/contactFields";
 import { MOOD_VALUES } from "../_shell/mood";
 import { syncFollowupTask } from "@/lib/crm/followupTask";
+import { fireStageEntryTask } from "@/lib/crm/stageAutomation";
 
 /**
  * Every write in the Hello Hotshot CRM lives here. All actions share the same
@@ -287,7 +288,14 @@ export async function updateAccount(
   return { ok: true };
 }
 
-/** Move a company to a new lifecycle stage and log the transition. */
+/**
+ * Move a company to a new lifecycle stage, log the transition, and fire that
+ * stage's entry automation (CRM_URGENCY_AUDIT.md P0 — an auto-task for
+ * researching/contacted/quoting, assigned to whoever currently owns the
+ * account; see lib/crm/stageAutomation.ts). No cron in this CRM, so this
+ * synchronous call IS the automation — there's nowhere else it fires from
+ * besides here and claimAiLead's own claim→researching advance.
+ */
 export async function updateLifecycleStatus(
   id: string,
   status: string,
@@ -298,7 +306,7 @@ export async function updateLifecycleStatus(
 
   const { data: prior } = await supabase
     .from("crm_accounts")
-    .select("lifecycle_status")
+    .select("lifecycle_status, assigned_user_id")
     .eq("id", id)
     .maybeSingle();
 
@@ -325,6 +333,14 @@ export async function updateLifecycleStatus(
     meta: { from: priorStage, to: next },
   });
 
+  await fireStageEntryTask(supabase, {
+    orgId: user.orgId,
+    actorUserId: user.id,
+    accountId: id,
+    ownerUserId: (prior?.assigned_user_id as string | null) ?? null,
+    stage: next,
+  });
+
   revalidateAccount(id);
   return { ok: true };
 }
@@ -336,12 +352,14 @@ export async function updateLifecycleStatus(
  * the exact same rule, not two parallel copies that could drift.
  *
  * Two independent things happen together, both idempotent:
- *  - Lifecycle promotion, guardrail-checked: only advances the company to
- *    'prospect' when its current stage genuinely ranks below it (lead/
- *    researching/contacted) — one already at or beyond Prospect (in_the_
- *    door/quoted/active_customer, or the terminal inactive/lost) is left
- *    exactly where it is. This is the ONE place either caller should ever
- *    write lifecycle_status for this purpose.
+ *  - Lifecycle promotion, guardrail-checked: only (re-)sets the company to
+ *    'new_lead' when its current stage genuinely ranks below Researching —
+ *    in practice that means it's already at new_lead (a fresh company has
+ *    nowhere lower to rank). One already at Researching or beyond (or the
+ *    terminal Lost) is left exactly where it is — never downgraded back to
+ *    New Lead just because a BOL/OTR/Discord company got re-published. This
+ *    is the ONE place either caller should ever write lifecycle_status for
+ *    this purpose.
  *  - ai_status is set to 'released' UNCONDITIONALLY (not gated on whether a
  *    stage change happened) — that's what makes the company appear in the
  *    claim queue at all; /crm/ai-agent and claimAiLead() key on ai_status/
@@ -366,10 +384,10 @@ export async function promoteAccountToProspect(
   if (!account) return { ok: false, error: "Company not found." };
 
   const currentStage = normalizeStage(account.lifecycle_status as string | null);
-  const willPromote = stageRank(currentStage) < stageRank("prospect");
+  const willPromote = stageRank(currentStage) < stageRank("researching");
 
   const fields: { lifecycle_status?: string; source?: string; ai_status: string } = { ai_status: "released" };
-  if (willPromote) fields.lifecycle_status = "prospect";
+  if (willPromote) fields.lifecycle_status = "new_lead";
   if (!account.source) fields.source = sourceIfMissing;
 
   const { error } = await supabase.from("crm_accounts").update(fields).eq("id", accountId);
@@ -387,34 +405,6 @@ export async function promoteAccountToProspect(
 
   revalidateAccount(accountId);
   revalidatePath("/crm/ai-agent");
-  return { ok: true };
-}
-
-/** Set (or clear, passing null) the 1–10 Prospect-stage level meter on the
- * stage tracker — crm_accounts.prospect_level. Only ever shown/editable while
- * the company sits on the Prospect stage, but the write itself doesn't
- * re-check that: an out-of-stage value just won't be visible until the
- * company is back on Prospect. */
-export async function updateProspectLevel(
-  id: string,
-  level: number | null,
-): Promise<ActionResult> {
-  await requireCrmUser();
-  if (level !== null && (!Number.isInteger(level) || level < 1 || level > 10)) {
-    return { ok: false, error: "Level must be between 1 and 10." };
-  }
-  const supabase = await createCrmServerClient();
-
-  const { error } = await supabase
-    .from("crm_accounts")
-    .update({ prospect_level: level })
-    .eq("id", id);
-
-  if (error) {
-    return { ok: false, error: "Could not save the prospect level. Please try again." };
-  }
-
-  revalidateAccount(id);
   return { ok: true };
 }
 

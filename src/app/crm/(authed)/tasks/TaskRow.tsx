@@ -5,10 +5,11 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ClickableListItem } from "../_shell/ClickableRow";
-import { centralDayRange, timestampMs, formatDateTime, dueCountdown } from "../_shell/format";
+import { formatDateTime, dueCountdown } from "../_shell/format";
 import { digitsForTel } from "../_shell/contactFields";
 import { formatPhone } from "@/lib/domain/phone";
 import { normalizePriority } from "./priority";
+import { taskUrgencyBucket } from "@/lib/crm/taskUrgency";
 import { TASK_TYPE_CHIP_TONE } from "./taskType";
 import { completeTask, reopenTask } from "./actions";
 import {
@@ -77,17 +78,13 @@ function contextAction(
 type UrgencyBucket = "overdue" | "today" | "upcoming" | "done";
 
 /** Rail/meta urgency bucket — a simpler 4-way split than the countdown pill
- * below (no "no due date" state of its own; an undated open task reads as
- * "upcoming" blue, same as a far-future one) since the rail/meta-row only
+ * below (adds "done" on top of the shared overdue/today/upcoming bucketing
+ * — see lib/crm/taskUrgency.ts, also used by the global Tasks page and the
+ * dashboard's NBA queue so all three agree) since the rail/meta-row only
  * needs a color, not a message. */
 function urgencyBucket(task: CrmTaskItem, done: boolean): UrgencyBucket {
   if (done) return "done";
-  const ms = timestampMs(task.due_at);
-  if (ms === null) return "upcoming";
-  const { startMs, endMs } = centralDayRange();
-  if (ms < startMs) return "overdue";
-  if (ms <= endMs) return "today";
-  return "upcoming";
+  return taskUrgencyBucket(task.due_at);
 }
 
 /** Left rail color — literal hex per the approved mockup (distinct from the

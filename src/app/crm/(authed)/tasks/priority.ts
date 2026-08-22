@@ -22,6 +22,27 @@ export const PRIORITY_TONE: Record<TaskPriority, string> = {
   high: "bg-bad-bg text-bad",
 };
 
+/** Sort weight — higher sorts first. The single place priority becomes a
+ * real ordering signal (CRM_URGENCY_AUDIT.md P0: "priority is 100%
+ * decorative") — used as the within-urgency-tier sort on the global Tasks
+ * page and the dashboard's Next Best Action queue (see taskPriorityCompare
+ * below), never as a tier of its own: a low-priority overdue task still
+ * outranks a high-priority upcoming one. */
+export const PRIORITY_WEIGHT: Record<TaskPriority, number> = {
+  high: 2,
+  normal: 1,
+  low: 0,
+};
+
+export function priorityWeight(value: string | null | undefined): number {
+  return PRIORITY_WEIGHT[normalizePriority(value)];
+}
+
+/** Comparator for Array.prototype.sort — highest priority first. */
+export function taskPriorityCompare(a: { priority: string | null }, b: { priority: string | null }): number {
+  return priorityWeight(b.priority) - priorityWeight(a.priority);
+}
+
 export function normalizePriority(value: string | null | undefined): TaskPriority {
   const v = (value ?? "").toLowerCase();
   return (TASK_PRIORITIES as readonly string[]).includes(v)

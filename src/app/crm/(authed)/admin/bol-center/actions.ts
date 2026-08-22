@@ -312,7 +312,7 @@ export async function resolveAndProspectCompany(bolId: string, side: CompanySide
     fd.set("name", queryName);
     if (queryAddress) fd.set("address", queryAddress);
     fd.set("source", "bol");
-    fd.set("lifecycle_status", "prospect");
+    fd.set("lifecycle_status", "new_lead");
     // Unassigned so this brand-new prospect lands in the agent claim queue
     // instead of being born "owned" by whichever admin processed the BOL.
     const createResult = await createAccount(fd, { unassigned: true });
@@ -347,7 +347,7 @@ export async function createAndProspectCompany(bolId: string, side: CompanySide,
   fd.set("name", name);
   if (address) fd.set("address", address);
   fd.set("source", "bol");
-  fd.set("lifecycle_status", "prospect");
+  fd.set("lifecycle_status", "new_lead");
   // Unassigned so this brand-new prospect lands in the agent claim queue
   // instead of being born "owned" by whichever admin processed the BOL.
   const createResult = await createAccount(fd, { unassigned: true });
@@ -699,7 +699,7 @@ export async function prospectCarrier(bolId: string): Promise<ProspectCarrierRes
     const fd = new FormData();
     fd.set("name", carrierName);
     fd.set("source", "bol");
-    fd.set("lifecycle_status", "prospect");
+    fd.set("lifecycle_status", "new_lead");
     // Unassigned so this brand-new prospect lands in the agent claim queue
     // instead of being born "owned" by whichever admin overrode the carrier.
     const createResult = await createAccount(fd, { unassigned: true });

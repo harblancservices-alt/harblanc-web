@@ -122,7 +122,13 @@ export function CalendarView({ items, todayKey }: { items: CalendarItem[]; today
       if (arr) arr.push(it);
       else m.set(it.dateKey, [it]);
     }
-    for (const arr of m.values()) arr.sort((a, b) => a.sortMs - b.sortMs);
+    // Overdue items float to the top of their day (CRM_URGENCY_AUDIT.md:
+    // "nothing happens when a task crosses into overdue except a repaint" —
+    // this makes overdue-ness a real ordering signal here too, not just the
+    // red dot/chip below) — chronological by due time within that split.
+    for (const arr of m.values()) {
+      arr.sort((a, b) => Number(b.overdue) - Number(a.overdue) || a.sortMs - b.sortMs);
+    }
     return m;
   }, [items]);
 

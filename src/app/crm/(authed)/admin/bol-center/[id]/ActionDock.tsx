@@ -20,14 +20,14 @@ export type CarrierSummary = { matchedAccountId: string; lifecycleStatus: string
 
 /** True when a party/carrier is worth promoting: named but either
  * unresolved (nothing linked yet — resolveAndProspectCompany will link/
- * create it fresh at Prospect) or resolved at a stage that genuinely ranks
- * below Prospect. Mirrors the no-downgrade guardrail so the dock's "N not
+ * create it fresh at New Lead) or resolved at a stage that genuinely ranks
+ * below Researching. Mirrors the no-downgrade guardrail so the dock's "N not
  * yet in Prospects" count and button never claim work is pending for a
- * company that's already at or beyond Prospect (e.g. an Active Customer). */
+ * company that's already at or beyond Researching (e.g. an Active Customer). */
 function isPending(hasName: boolean, matchedAccount: { lifecycleStatus: string } | null): boolean {
   if (!hasName) return false;
   if (!matchedAccount) return true;
-  return stageRank(normalizeStage(matchedAccount.lifecycleStatus)) < stageRank("prospect");
+  return stageRank(normalizeStage(matchedAccount.lifecycleStatus)) < stageRank("researching");
 }
 
 /**

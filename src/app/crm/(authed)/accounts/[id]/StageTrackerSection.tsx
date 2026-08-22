@@ -19,12 +19,10 @@ export function StageTrackerSection({
   accountId,
   accountName,
   stage,
-  prospectLevel,
 }: {
   accountId: string;
   accountName: string;
   stage: string;
-  prospectLevel?: number | null;
 }) {
   const [justGraduated, setJustGraduated] = useState(false);
   const isActiveCustomer = normalizeStage(stage) === "active_customer";
@@ -50,8 +48,9 @@ export function StageTrackerSection({
       <StageTracker
         accountId={accountId}
         current={stage}
-        prospectLevel={prospectLevel}
-        onGraduatedToActiveCustomer={() => setJustGraduated(true)}
+        onStageChange={(next) => {
+          if (next === "active_customer") setJustGraduated(true);
+        }}
       />
     </div>
   );

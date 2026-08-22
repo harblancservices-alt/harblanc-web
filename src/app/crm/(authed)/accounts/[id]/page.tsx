@@ -80,18 +80,6 @@ export default async function AccountDetailPage({
 
   if (!account) notFound();
 
-  // Prospect-level meter's value — a separate, error-tolerant query rather
-  // than a column on the main select above: prospect_level is a very recent
-  // addition, and if it somehow isn't live yet this must NOT take the whole
-  // profile page down with it (see the CRM's "verify migrations live" scars).
-  // A failed/missing column just means the meter renders empty.
-  const { data: levelRow } = await supabase
-    .from("crm_accounts")
-    .select("prospect_level")
-    .eq("id", id)
-    .maybeSingle();
-  const prospectLevel = (levelRow?.prospect_level as number | null | undefined) ?? null;
-
   const accountName = titleCaseWords(account.name as string);
   const accountAddress = titleCaseWords(account.address as string | null) || null;
   const accountCity = titleCaseWords(account.city as string | null) || null;
@@ -439,7 +427,6 @@ export default async function AccountDetailPage({
           accountId={account.id as string}
           accountName={accountName}
           stage={stage}
-          prospectLevel={prospectLevel}
         />
 
         {/* 2026-08-09 relayout: Company Details (left, unchanged width) absorbs

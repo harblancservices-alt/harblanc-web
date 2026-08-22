@@ -1,12 +1,14 @@
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { PageShell, Card, CardHead, EmptyState } from "../_shell/ui";
 import { IconTasks } from "../_shell/icons";
-import { firstName, timestampMs, centralDayRange } from "../_shell/format";
+import { firstName } from "../_shell/format";
 import { parsePhones } from "../_shell/contactFields";
 import { TaskRow, type CrmTaskItem } from "./TaskRow";
 import { DeleteTaskButton } from "./DeleteTaskButton";
 import { AddTaskButton } from "./AddTaskButton";
 import type { RepOption } from "../accounts/CompanyDialog";
+import { taskUrgencyBucket } from "@/lib/crm/taskUrgency";
+import { taskPriorityCompare } from "./priority";
 
 export const dynamic = "force-dynamic";
 
@@ -134,24 +136,20 @@ export default async function TasksPage() {
     companyPhone: r.account_id ? companyPhoneById.get(r.account_id) ?? null : null,
   }));
 
-  // Central calendar-day boundaries — see page.tsx (dashboard) for why.
-  const { startMs: todayStart, endMs: todayEnd } = centralDayRange();
-
   const openTasks = tasks.filter((t) => t.status !== "completed");
   const doneTasks = tasks.filter((t) => t.status === "completed");
 
-  const overdue = openTasks.filter((t) => {
-    const ms = timestampMs(t.due_at);
-    return ms !== null && ms < todayStart;
-  });
-  const dueToday = openTasks.filter((t) => {
-    const ms = timestampMs(t.due_at);
-    return ms !== null && ms >= todayStart && ms <= todayEnd;
-  });
-  const upcoming = openTasks.filter((t) => {
-    const ms = timestampMs(t.due_at);
-    return ms === null || ms > todayEnd;
-  });
+  // Urgency bucketing via the shared helper (lib/crm/taskUrgency.ts) — same
+  // Central-day-boundary logic the dashboard's NBA queue and TaskRow's rail
+  // color use, so all three agree (CRM_URGENCY_AUDIT.md §2). Within each
+  // bucket, priority is now a REAL sort (CRM_URGENCY_AUDIT.md P0 — priority
+  // used to be 100% decorative): high-priority tasks float to the top of
+  // their bucket. Array.sort is stable, and openTasks already arrives
+  // due_at-ascending from the query above, so the priority sort's ties break
+  // by due date for free — no separate secondary comparator needed.
+  const overdue = openTasks.filter((t) => taskUrgencyBucket(t.due_at) === "overdue").sort(taskPriorityCompare);
+  const dueToday = openTasks.filter((t) => taskUrgencyBucket(t.due_at) === "today").sort(taskPriorityCompare);
+  const upcoming = openTasks.filter((t) => taskUrgencyBucket(t.due_at) === "upcoming").sort(taskPriorityCompare);
 
   const hasAny = tasks.length > 0;
 
