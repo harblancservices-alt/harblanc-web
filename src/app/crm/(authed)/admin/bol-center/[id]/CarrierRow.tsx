@@ -10,25 +10,35 @@ import { DEPTH_EDIT, DEPTH_NEUTRAL } from "./buttonDepth";
 /**
  * The carrier printed on a BOL is who moved the freight, not a sales
  * target — so it gets its own group, off by default, with an explicit
- * override if this one's actually worth prospecting. No matched_*_account_id
- * slot exists for it on crm_bol_entries (unlike shipper/consignee/bill_to),
- * so once prospected there's no persisted link back to this BOL — the
- * "View Company" link below only survives for the current page session,
- * same limitation the shipper/consignee/bill_to rows had before their own
- * FK columns existed.
+ * override if this one's actually worth prospecting. matchedAccount is
+ * fetched fresh from crm_bol_entries.matched_carrier_account_id (2026-08-21
+ * migration 20260821020000), so "View Company" survives a refresh, same as
+ * the other three sides — the override itself (prospectCarrier) persists
+ * that column and promotes the account subject to the same no-downgrade
+ * guardrail every other side uses.
  */
-export function CarrierRow({ bolId, carrier }: { bolId: string; carrier: string | null }) {
+export function CarrierRow({
+  bolId,
+  carrier,
+  matchedAccount,
+}: {
+  bolId: string;
+  carrier: string | null;
+  matchedAccount: { id: string; name: string; lifecycleStatus: string } | null;
+}) {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const [prospected, setProspected] = useState<string | null>(null);
+  const [localAccountId, setLocalAccountId] = useState<string | null>(null);
+
+  const resolvedId = matchedAccount?.id ?? localAccountId;
 
   function onOverride() {
     setError(null);
     startTransition(async () => {
       const res = await prospectCarrier(bolId);
       if (res.ok) {
-        setProspected(res.accountId);
+        setLocalAccountId(res.accountId);
         router.refresh();
       } else setError(res.error);
     });
@@ -44,8 +54,8 @@ export function CarrierRow({ bolId, carrier }: { bolId: string; carrier: string 
               <p className="mt-0.5 text-[11.5px] text-fg-muted">Carrier</p>
             </div>
             {error && <p className="text-[12.5px] text-bad">{error}</p>}
-            {prospected ? (
-              <Link href={`/crm/accounts/${prospected}`} className={`inline-flex h-8 shrink-0 items-center rounded-md px-3 text-[12.5px] font-bold transition-colors ${DEPTH_EDIT}`}>
+            {resolvedId ? (
+              <Link href={`/crm/accounts/${resolvedId}`} className={`inline-flex h-8 shrink-0 items-center rounded-md px-3 text-[12.5px] font-bold transition-colors ${DEPTH_EDIT}`}>
                 View Company →
               </Link>
             ) : (

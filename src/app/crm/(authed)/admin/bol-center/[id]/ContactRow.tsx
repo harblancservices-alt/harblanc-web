@@ -46,6 +46,11 @@ export function ContactRow({ contact, accountId }: { contact: BolContact; accoun
   const [createOpen, setCreateOpen] = useState(false);
 
   const missingField = !contact.matchedContactId && !contact.phone?.trim() && !contact.email?.trim();
+  // A company's auto-attach (linkCompany/addToProspects) now attaches this
+  // contact even with no phone/email rather than silently skipping it — this
+  // flag keeps that gap visible on the resolved row instead of it just
+  // reading as done.
+  const stillNeedsField = Boolean(contact.matchedContactId) && !contact.phone?.trim() && !contact.email?.trim();
   const canSearch = Boolean(accountId) && Boolean(contact.name?.trim()) && !contact.matchedContactId && !missingField;
 
   useEffect(() => {
@@ -109,11 +114,16 @@ export function ContactRow({ contact, accountId }: { contact: BolContact; accoun
       {error && <p className="mt-1 text-[12px] text-bad">{error}</p>}
 
       {contact.matchedContactId ? (
-        <div className="mt-1.5 flex items-center justify-between gap-2">
-          <p className="text-[12px] text-fg-muted">{[contact.phone, contact.email].filter(Boolean).join(" · ") || "No phone/email"}</p>
-          <Link href={`/crm/contacts/${contact.matchedContactId}`} className={`inline-flex h-7 shrink-0 items-center rounded-md px-2.5 text-[12px] font-bold transition-colors ${DEPTH_EDIT}`}>
-            View Contact →
-          </Link>
+        <div className="mt-1.5 flex flex-col gap-1.5">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-[12px] text-fg-muted">{[contact.phone, contact.email].filter(Boolean).join(" · ") || "No phone/email"}</p>
+            <Link href={`/crm/contacts/${contact.matchedContactId}`} className={`inline-flex h-7 shrink-0 items-center rounded-md px-2.5 text-[12px] font-bold transition-colors ${DEPTH_EDIT}`}>
+              View Contact →
+            </Link>
+          </div>
+          {stillNeedsField && (
+            <p className="text-[11px] font-semibold text-warn">No phone or email on file — a rep can&rsquo;t work this contact. Edit it from the contact profile to fix.</p>
+          )}
         </div>
       ) : !contact.name?.trim() ? (
         <p className="mt-1.5 text-[12px] text-fg-subtle">Nothing extracted for this contact.</p>

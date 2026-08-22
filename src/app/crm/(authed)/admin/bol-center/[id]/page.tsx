@@ -10,7 +10,7 @@ import { DocumentPanel } from "./DocumentPanel";
 import { CompanyRow } from "./CompanyRow";
 import { CarrierRow } from "./CarrierRow";
 import { LoadDetailSummary } from "./LoadDetailSummary";
-import { ActionDock, type PartySummary } from "./ActionDock";
+import { ActionDock, type PartySummary, type CarrierSummary } from "./ActionDock";
 import { SectionCard } from "./SectionCard";
 import { billToPartyName } from "../matching";
 import type { BolContact } from "./ContactRow";
@@ -46,7 +46,7 @@ export default async function BolDetailPage({ params }: { params: Promise<{ id: 
 
   if (!bol) notFound();
 
-  const [{ data: contactRows }, { data: document }, { data: shipperAccount }, { data: consigneeAccount }, { data: billToAccount }] = await Promise.all([
+  const [{ data: contactRows }, { data: document }, { data: shipperAccount }, { data: consigneeAccount }, { data: billToAccount }, { data: carrierAccount }] = await Promise.all([
     supabase
       .from("crm_bol_contacts")
       .select("id, role, name, phone, email, matched_contact_id")
@@ -63,6 +63,9 @@ export default async function BolDetailPage({ params }: { params: Promise<{ id: 
       : Promise.resolve({ data: null }),
     bol.matched_bill_to_account_id
       ? supabase.from("crm_accounts").select("id, name, lifecycle_status").eq("id", bol.matched_bill_to_account_id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    bol.matched_carrier_account_id
+      ? supabase.from("crm_accounts").select("id, name, lifecycle_status").eq("id", bol.matched_carrier_account_id).maybeSingle()
       : Promise.resolve({ data: null }),
   ]);
 
@@ -86,12 +89,14 @@ export default async function BolDetailPage({ params }: { params: Promise<{ id: 
   const shipperMatched = shipperAccount ? { id: shipperAccount.id as string, name: shipperAccount.name as string, lifecycleStatus: shipperAccount.lifecycle_status as string } : null;
   const consigneeMatched = consigneeAccount ? { id: consigneeAccount.id as string, name: consigneeAccount.name as string, lifecycleStatus: consigneeAccount.lifecycle_status as string } : null;
   const billToMatched = billToAccount ? { id: billToAccount.id as string, name: billToAccount.name as string, lifecycleStatus: billToAccount.lifecycle_status as string } : null;
+  const carrierMatched = carrierAccount ? { id: carrierAccount.id as string, name: carrierAccount.name as string, lifecycleStatus: carrierAccount.lifecycle_status as string } : null;
 
   const parties: PartySummary[] = [
     { side: "shipper" as CompanySide, hasName: Boolean(shipperName?.trim()), matchedAccount: shipperMatched ? { id: shipperMatched.id, lifecycleStatus: shipperMatched.lifecycleStatus } : null },
     { side: "consignee" as CompanySide, hasName: Boolean(consigneeName?.trim()), matchedAccount: consigneeMatched ? { id: consigneeMatched.id, lifecycleStatus: consigneeMatched.lifecycleStatus } : null },
     { side: "bill_to" as CompanySide, hasName: Boolean(bol.bill_to), matchedAccount: billToMatched ? { id: billToMatched.id, lifecycleStatus: billToMatched.lifecycleStatus } : null },
   ];
+  const carrierSummary: CarrierSummary = carrierMatched ? { matchedAccountId: carrierMatched.id, lifecycleStatus: carrierMatched.lifecycleStatus } : null;
 
   return (
     <div className="space-y-4">
@@ -171,7 +176,7 @@ export default async function BolDetailPage({ params }: { params: Promise<{ id: 
             )}
           </SectionCard>
 
-          <CarrierRow bolId={id} carrier={bol.carrier as string | null} />
+          <CarrierRow bolId={id} carrier={bol.carrier as string | null} matchedAccount={carrierMatched} />
 
           <LoadDetailSummary
             bolId={id}
@@ -194,7 +199,7 @@ export default async function BolDetailPage({ params }: { params: Promise<{ id: 
         </div>
       </div>
 
-      <ActionDock bolId={id} status={status} parties={parties} />
+      <ActionDock bolId={id} status={status} parties={parties} carrier={carrierSummary} />
 
       <p className="text-[11px] text-fg-subtle">
         {[formatDate(bol.created_at as string) && `Entered ${formatDate(bol.created_at as string)}`, bol.processed_at ? `Processed ${formatDate(bol.processed_at as string)}` : null]

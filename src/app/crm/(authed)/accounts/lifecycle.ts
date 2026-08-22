@@ -134,3 +134,16 @@ export const LIFECYCLE_BADGE_TONE: Record<LifecycleStage, "neutral" | "accent" |
 export function stageBadgeTone(value: string | null | undefined): "neutral" | "accent" | "success" | "warning" | "danger" {
   return LIFECYCLE_BADGE_TONE[normalizeStage(value)];
 }
+
+/** Position of a stage within the ordered funnel — lower rank = earlier
+ * stage. The single place any caller should compare two stages' progress,
+ * so "is this company far enough along that I shouldn't touch its stage"
+ * checks (e.g. BOL Center's promote-to-Prospect guardrail — never downgrade
+ * a company that's already further along) stay centralized instead of each
+ * caller re-deriving an index into LIFECYCLE_STAGES itself. inactive/lost
+ * sit after active_customer in LIFECYCLE_STAGES, so they naturally rank
+ * "at or beyond" prospect here too — a dropped-out company is never
+ * silently revived to Prospect by a rank comparison alone. */
+export function stageRank(stage: LifecycleStage): number {
+  return LIFECYCLE_STAGES.indexOf(stage);
+}

@@ -5,7 +5,7 @@ import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { logActivity, CRM_ACTIVITY } from "@/lib/crm/activity";
 import { createAccount, createContact } from "../../accounts/actions";
 import { createLocation } from "../../accounts/[id]/locations-actions";
-import { normalizeStage } from "../../accounts/lifecycle";
+import { normalizeStage, stageRank } from "../../accounts/lifecycle";
 import { rankByName, billToPartyName, type ScoredMatch } from "./matching";
 
 /**
@@ -144,6 +144,101 @@ async function propagateDocumentToResolvedCompanies(supabase: Awaited<ReturnType
   }
 }
 
+/**
+ * The ONE place BOL Center ever writes lifecycle_status/source — every
+ * "Add to Prospects"/"Quick add"/link/create path funnels through this, so
+ * the no-downgrade guardrail (Brent, 2026-08-21) can never be bypassed by a
+ * new call site forgetting to check it. Only advances a company to
+ * 'prospect' when its current stage ranks BELOW prospect (lead/researching/
+ * contacted) — a company already at or beyond prospect (in_the_door/quoted/
+ * active_customer, or the terminal inactive/lost) is left exactly where it
+ * is; BOL Center only ever links it. source is set to 'bol' only when the
+ * account has no source yet, so a real existing source is never clobbered.
+ * Only logs a "Added to Prospects" activity entry when it actually promotes
+ * — a pure link (no stage change) doesn't spam the activity feed.
+ */
+async function promoteToProspectWithGuardrail(
+  supabase: Awaited<ReturnType<typeof createCrmServerClient>>,
+  user: { orgId: string; id: string },
+  accountId: string,
+): Promise<ActionResult> {
+  const { data: account } = await supabase.from("crm_accounts").select("lifecycle_status, source").eq("id", accountId).maybeSingle();
+  if (!account) return { ok: false, error: "Company not found." };
+
+  const currentStage = normalizeStage(account.lifecycle_status as string | null);
+  const willPromote = stageRank(currentStage) < stageRank("prospect");
+
+  const fields: { lifecycle_status?: string; source?: string } = {};
+  if (willPromote) fields.lifecycle_status = "prospect";
+  if (!account.source) fields.source = "bol";
+
+  if (Object.keys(fields).length > 0) {
+    const { error } = await supabase.from("crm_accounts").update(fields).eq("id", accountId);
+    if (error) return { ok: false, error: "Could not update the company." };
+  }
+
+  if (willPromote) {
+    await logActivity(supabase, {
+      orgId: user.orgId,
+      userId: user.id,
+      accountId,
+      kind: CRM_ACTIVITY.lifecycleChanged,
+      summary: "Added to Prospects from a BOL",
+    });
+    revalidatePath("/crm/accounts");
+    revalidatePath(`/crm/accounts/${accountId}`);
+  }
+
+  return { ok: true };
+}
+
+/** Auto-attaches this side's still-unresolved crm_bol_contacts to the
+ * account just linked/promoted — reuses resolveBolContact exactly (real
+ * dedup match-or-create, never a parallel insert). A contact with no name
+ * at all is skipped (nothing to attach); one with a name but no phone/email
+ * is still attached (never silently dropped) — resolveBolContact doesn't
+ * require either, only a name. */
+async function autoAttachContactsForSide(
+  supabase: Awaited<ReturnType<typeof createCrmServerClient>>,
+  bolId: string,
+  side: CompanySide,
+) {
+  const { data: contacts } = await supabase
+    .from("crm_bol_contacts")
+    .select("id, name")
+    .eq("bol_id", bolId)
+    .eq("role", side)
+    .is("matched_contact_id", null);
+
+  for (const c of (contacts ?? []) as { id: string; name: string | null }[]) {
+    if (!c.name?.trim()) continue;
+    await resolveBolContact(c.id);
+  }
+}
+
+/** The retroactive counterpart to autoAttachContactsForSide — for a company
+ * that was already linked to a BOL side before it's promoted (e.g. an older
+ * BOL matched before this auto-attach existed, or addToProspects called
+ * directly on an already-resolved side), finds every BOL side this account
+ * is currently linked to and attaches each one's remaining contacts. */
+async function autoAttachContactsForAccount(supabase: Awaited<ReturnType<typeof createCrmServerClient>>, accountId: string) {
+  const { data: rows } = await supabase
+    .from("crm_bol_entries")
+    .select("id, matched_shipper_account_id, matched_consignee_account_id, matched_bill_to_account_id")
+    .or(`matched_shipper_account_id.eq.${accountId},matched_consignee_account_id.eq.${accountId},matched_bill_to_account_id.eq.${accountId}`);
+
+  for (const row of (rows ?? []) as {
+    id: string;
+    matched_shipper_account_id: string | null;
+    matched_consignee_account_id: string | null;
+    matched_bill_to_account_id: string | null;
+  }[]) {
+    if (row.matched_shipper_account_id === accountId) await autoAttachContactsForSide(supabase, row.id, "shipper");
+    if (row.matched_consignee_account_id === accountId) await autoAttachContactsForSide(supabase, row.id, "consignee");
+    if (row.matched_bill_to_account_id === accountId) await autoAttachContactsForSide(supabase, row.id, "bill_to");
+  }
+}
+
 // ── Company matching ─────────────────────────────────────────────────────────
 
 export type CompanyCandidate = {
@@ -177,6 +272,15 @@ export async function searchCompanyMatches(
   );
 }
 
+/**
+ * Links a company to this BOL side AND promotes it (subject to the
+ * no-downgrade guardrail) AND auto-attaches this side's contacts — every
+ * caller (candidate "Use this", quick-add, create-and-prospect) gets all
+ * three for free from this one function, so no path can link a company
+ * without also promoting it (2026-08-21 fix: previously the candidate-review
+ * "Use this" button called this function directly with no promotion at all,
+ * which is why matched-but-unpromoted companies were getting stuck on Lead).
+ */
 export async function linkCompany(bolId: string, side: CompanySide, accountId: string): Promise<ActionResult> {
   const user = await requireAdminUser();
   const supabase = await createCrmServerClient();
@@ -191,6 +295,10 @@ export async function linkCompany(bolId: string, side: CompanySide, accountId: s
     summary: `Linked as ${side} on a BOL`,
   });
 
+  const promoteResult = await promoteToProspectWithGuardrail(supabase, user, accountId);
+  if (!promoteResult.ok) return promoteResult;
+
+  await autoAttachContactsForSide(supabase, bolId, side);
   await recomputeReadyStatus(supabase, bolId);
   await adoptExistingCompanyDocument(supabase, bolId, accountId);
   await propagateDocumentToResolvedCompanies(supabase, bolId);
@@ -261,9 +369,8 @@ export async function resolveAndProspectCompany(bolId: string, side: CompanySide
     accountId = createResult.id;
   }
 
-  const prospectResult = await addToProspects(accountId);
-  if (!prospectResult.ok) return prospectResult;
-
+  // linkCompany already promotes (subject to the guardrail) and auto-attaches
+  // contacts — no separate addToProspects call needed here.
   return { ok: true, accountId };
 }
 
@@ -294,9 +401,8 @@ export async function createAndProspectCompany(bolId: string, side: CompanySide,
   const linkResult = await linkCompany(bolId, side, createResult.id);
   if (!linkResult.ok) return linkResult;
 
-  const prospectResult = await addToProspects(createResult.id);
-  if (!prospectResult.ok) return prospectResult;
-
+  // linkCompany already promotes (subject to the guardrail) and auto-attaches
+  // contacts — no separate addToProspects call needed here.
   return { ok: true, accountId: createResult.id };
 }
 
@@ -583,44 +689,49 @@ export async function updateBolContactFields(bolContactId: string, formData: For
 
 // ── Prospects ─────────────────────────────────────────────────────────────────
 
+/**
+ * Standalone promote — used by CompanyRow's resolved-state "Add to
+ * Prospects" button and the sticky dock's bulk "Send to Prospects", both of
+ * which only have an accountId on hand (the link already happened earlier,
+ * possibly in a prior session before auto-attach existed). Also runs the
+ * retroactive contact auto-attach for every BOL side this account is
+ * currently linked to, so re-promoting an already-linked-but-stuck company
+ * picks up any contacts that were never attached the first time around.
+ */
 export async function addToProspects(accountId: string): Promise<ActionResult> {
   const user = await requireAdminUser();
   const supabase = await createCrmServerClient();
-  const { error } = await supabase
-    .from("crm_accounts")
-    .update({ lifecycle_status: normalizeStage("prospect"), source: "bol" })
-    .eq("id", accountId);
-  if (error) return { ok: false, error: "Could not add to Prospects." };
-
-  await logActivity(supabase, {
-    orgId: user.orgId,
-    userId: user.id,
-    accountId,
-    kind: CRM_ACTIVITY.lifecycleChanged,
-    summary: "Added to Prospects from a BOL",
-  });
-
-  revalidatePath("/crm/accounts");
-  revalidatePath(`/crm/accounts/${accountId}`);
+  const result = await promoteToProspectWithGuardrail(supabase, user, accountId);
+  if (!result.ok) return result;
+  await autoAttachContactsForAccount(supabase, accountId);
   return { ok: true };
 }
 
 /**
  * The carrier printed on a BOL is not a sales target by default (it's who
- * moved the freight, not who might ship with us) — so unlike shipper/
- * consignee/bill_to it has no matched_*_account_id slot on crm_bol_entries
- * (adding one would be a schema change). This is the explicit override for
- * the rare case it's worth prospecting anyway: same real matcher + create-or-
- * link + addToProspects pipeline as resolveAndProspectCompany, just without
- * a link back onto the BOL row.
+ * moved the freight, not who might ship with us) — this is the explicit
+ * override for the rare case it's worth prospecting anyway: same real
+ * matcher + create-or-link + promote-with-guardrail pipeline as
+ * resolveAndProspectCompany, persisted onto
+ * crm_bol_entries.matched_carrier_account_id (2026-08-21 migration
+ * 20260821020000) so "View Company" survives a refresh, same as the other
+ * three sides. Idempotent — if this BOL's carrier was already overridden,
+ * returns the existing linked account instead of creating a duplicate.
  */
 export type ProspectCarrierResult = { ok: true; accountId: string } | { ok: false; error: string };
 
 export async function prospectCarrier(bolId: string): Promise<ProspectCarrierResult> {
-  await requireAdminUser();
+  const user = await requireAdminUser();
   const supabase = await createCrmServerClient();
-  const { data: bol } = await supabase.from("crm_bol_entries").select("carrier").eq("id", bolId).maybeSingle();
-  const carrierName = ((bol?.carrier as string | null) ?? "").trim();
+  const { data: bol } = await supabase
+    .from("crm_bol_entries")
+    .select("carrier, matched_carrier_account_id")
+    .eq("id", bolId)
+    .maybeSingle();
+  if (!bol) return { ok: false, error: "BOL not found." };
+  if (bol.matched_carrier_account_id) return { ok: true, accountId: bol.matched_carrier_account_id as string };
+
+  const carrierName = ((bol.carrier as string | null) ?? "").trim();
   if (!carrierName) return { ok: false, error: "No carrier was extracted for this BOL." };
 
   const candidates = await searchCompanyMatches(carrierName, null);
@@ -639,8 +750,13 @@ export async function prospectCarrier(bolId: string): Promise<ProspectCarrierRes
     accountId = createResult.id;
   }
 
-  const prospectResult = await addToProspects(accountId);
-  if (!prospectResult.ok) return prospectResult;
+  const { error } = await supabase.from("crm_bol_entries").update({ matched_carrier_account_id: accountId }).eq("id", bolId);
+  if (error) return { ok: false, error: "Could not link the carrier account." };
+
+  const promoteResult = await promoteToProspectWithGuardrail(supabase, user, accountId);
+  if (!promoteResult.ok) return promoteResult;
+
+  revalidateBol(bolId);
   return { ok: true, accountId };
 }
 
