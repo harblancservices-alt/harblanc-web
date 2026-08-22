@@ -1,10 +1,9 @@
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
-import { PageShell, Card, EmptyState, ZEBRA_ROWS } from "../_shell/ui";
-import { IconContacts } from "../_shell/icons";
+import { PageShell } from "../_shell/ui";
 import { firstName, titleCaseWords } from "../_shell/format";
-import { ContactsSearch } from "./ContactsSearch";
 import { AddContactDialog } from "./AddContactDialog";
-import { ContactListCard, type ContactCardData } from "./ContactListCard";
+import { ContactsDirectory } from "./ContactsDirectory";
+import type { ContactCardData } from "./ContactListCard";
 import type { CompanyOption } from "./CompanyCombobox";
 import { AddCompany } from "../accounts/AddCompany";
 import type { RepOption } from "../accounts/CompanyDialog";
@@ -28,22 +27,23 @@ type ContactRow = {
 };
 
 /**
- * PostgREST parses `.or()` as a comma-separated list, so a raw user string
- * containing , ( ) . or an ilike wildcard (% _ \) would corrupt the filter.
- * All become spaces — a name/email/title is letters, digits and the usual
- * separators, so nothing searchable is lost.
- */
-function sanitize(q: string): string {
-  return q.replace(/[,()%_\\*."':]/g, " ").replace(/\s+/g, " ").trim();
-}
-
-/**
- * Global Contacts — every contact across the caller's org in one directory,
- * rebuilt into the same mobile-first card grid as the Companies list
- * (CompanyListCard.tsx), each linked to its own profile (surface 4) rather
- * than the old table's "only navigate if there's a company" fallback — every
- * contact has a real detail page now, company or not. RLS-scoped to the org.
- * Search matches name / email / title / phone via ilike.
+ * Global Contacts — every contact across the caller's org in one directory.
+ *
+ * 2026-08-22 rebuild (Brent approved the mockup): this page is now a PURE
+ * DATA LOADER. It fetches the org's contacts once, whole, and hands them to
+ * ContactsDirectory, which does all the searching, chip filtering, grouping,
+ * and sorting on the client — so search narrows the list as you type instead
+ * of the old Search-button round trip. That's viable because the directory
+ * is ~61 rows today and hard-capped at 1000 below; if it ever outgrows that,
+ * server-side filtering comes back, not a bigger client payload.
+ *
+ * Only serializable props cross the RSC boundary (plain arrays of plain
+ * objects — no callbacks, no component props). This area has crashed on
+ * exactly that mistake before; see the CRM RSC trigger-boundary rule.
+ *
+ * `?q=` and `?dm=1` are still honoured as SEEDS for the client state so the
+ * dashboard's "Decision Makers" tile deep-link and any bookmarked search URL
+ * keep working — the filtering itself no longer happens here.
  */
 export default async function ContactsPage({
   searchParams,
@@ -54,31 +54,22 @@ export default async function ContactsPage({
   const supabase = await createCrmServerClient();
 
   const sp = await searchParams;
-  const q = (sp.q ?? "").trim();
-  const safe = sanitize(q);
-  // Dashboard's "Decision Makers" counter tile deep-links here with dm=1 —
-  // the org-wide filtered view the recommendations audit called for
-  // (crm_contacts.is_decision_maker already exists and is already badged on
-  // every card below; this just adds a way to see ONLY those at once).
-  const decisionMakersOnly = sp.dm === "1";
+  const initialQuery = (sp.q ?? "").trim();
+  // "Decision Makers" is crm_contacts.is_decision_maker, full stop — the same
+  // column the dashboard's Decision Makers counter tile counts
+  // (crm/(authed)/page.tsx) before deep-linking here with ?dm=1. The chip in
+  // the toolbar filters on the identical flag; there is no second definition.
+  const initialDecisionMakers = sp.dm === "1";
 
-  let query = supabase
+  const { data } = await supabase
     .from("crm_contacts")
     .select(
       "id, name, title, email, phone, mobile, extension, is_decision_maker, next_followup_at, account_id, role_category, last_contacted_at, current_mood",
     )
-    .is("deleted_at", null);
+    .is("deleted_at", null)
+    .order("name", { ascending: true })
+    .limit(1000);
 
-  if (decisionMakersOnly) query = query.eq("is_decision_maker", true);
-
-  if (safe.length >= 1) {
-    const like = `%${safe}%`;
-    query = query.or(
-      [`name.ilike.${like}`, `email.ilike.${like}`, `title.ilike.${like}`, `phone.ilike.${like}`, `mobile.ilike.${like}`].join(","),
-    );
-  }
-
-  const { data } = await query.order("name", { ascending: true }).limit(300);
   const contacts = ((data ?? []) as ContactRow[]).map((c) => ({ ...c, name: titleCaseWords(c.name) }));
 
   const accountIds = [...new Set(contacts.map((c) => c.account_id).filter(Boolean) as string[])];
@@ -101,8 +92,6 @@ export default async function ContactsPage({
     .filter((p) => p.is_active)
     .map((p) => ({ id: p.id, label: firstName(p.full_name, p.email) || "Unnamed rep" }))
     .sort((a, b) => a.label.localeCompare(b.label));
-
-  const searching = q.length > 0;
 
   const cards: ContactCardData[] = contacts.map((c) => ({
     id: c.id,
@@ -131,31 +120,12 @@ export default async function ContactsPage({
         </>
       }
     >
-      <Card className="p-4">
-        <ContactsSearch q={q} />
-      </Card>
-
-      {cards.length === 0 ? (
-        <Card>
-          <EmptyState
-            icon={<IconContacts />}
-            title={searching ? "No contacts match" : "No contacts yet"}
-            body={searching ? "Try a different search, or clear it to see every contact." : "Add your first contact above, or from any company profile."}
-            action={searching ? undefined : <AddContactDialog companies={companyOptions} />}
-          />
-        </Card>
-      ) : (
-        // ONE unified list, every breakpoint — matches /crm-design's
-        // Contacts page exactly (a single Card with a zebra-striped `<ul>`,
-        // no separate desktop table vs. mobile card-grid split).
-        <Card>
-          <ul className={`divide-y divide-line ${ZEBRA_ROWS}`}>
-            {cards.map((c) => (
-              <ContactListCard key={c.id} contact={c} />
-            ))}
-          </ul>
-        </Card>
-      )}
+      <ContactsDirectory
+        contacts={cards}
+        companies={companyOptions}
+        initialQuery={initialQuery}
+        initialDecisionMakers={initialDecisionMakers}
+      />
     </PageShell>
   );
 }
