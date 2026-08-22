@@ -17,8 +17,10 @@ import {
   removeBolLineItem,
   updateBol,
   generateBol,
+  sendBolDocument,
 } from "../../../bol-actions";
 import type { BolFields, BolLineItemInput, CrmBillOfLadingDetail, CrmShipmentDetail } from "../../../types";
+import { TaskOfferButton } from "../../../../tasks/TaskOfferButton";
 
 function str(v: string | null | undefined): string {
   return v ?? "";
@@ -209,6 +211,24 @@ export function BolEditor({
     });
   }
 
+  function runAction(name: string, fn: () => Promise<{ ok: true } | { ok: false; error: string }>) {
+    setActionError(null);
+    setBusyAction(name);
+    startAction(async () => {
+      const result = await fn();
+      setBusyAction(null);
+      if (!result.ok) {
+        setActionError(result.error);
+        return;
+      }
+      await refresh();
+    });
+  }
+
+  function onSend() {
+    runAction("send", () => sendBolDocument(bol.id));
+  }
+
   async function openPreview() {
     if (!bol.pdfStoragePath) return;
     setPreviewOpen(true);
@@ -283,6 +303,30 @@ export function BolEditor({
 
         <FormError message={saveError} />
         <FormError message={actionError} />
+
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {bol.status === "generated" && (
+            <button
+              type="button"
+              onClick={onSend}
+              disabled={busy}
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors disabled:opacity-60 ${BTN_ACTION}`}
+            >
+              {busyAction === "send" ? "Marking…" : "Mark as Sent"}
+            </button>
+          )}
+          {bol.status === "sent" && shipment.accountId && (
+            <TaskOfferButton
+              label="+ Chase task if unsigned"
+              defaults={{
+                title: `Chase unsigned bill of lading: ${bol.bolNumber}`,
+                notes: shipment.customerName ? `${shipment.customerName} — ${shipment.shipmentNumber}` : shipment.shipmentNumber,
+                task_type: "Follow-up call",
+                account_id: shipment.accountId,
+              }}
+            />
+          )}
+        </div>
       </Card>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">

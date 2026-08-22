@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { logActivity, CRM_ACTIVITY } from "@/lib/crm/activity";
+import { syncFollowupOnTaskChange } from "@/lib/crm/followupTask";
 import { normalizePriority } from "./priority";
 import { centralInputToIso } from "../_shell/format";
 
@@ -175,6 +176,12 @@ export async function completeTask(taskId: string): Promise<ActionResult> {
     return { ok: false, error: "Could not complete the task." };
   }
 
+  // Reverse-sync: if this task is what a contact/call's follow-up currently
+  // points at, clear its active follow-up state so it stops double-counting
+  // on the Dashboard/Calendar now that the underlying task is done. See
+  // syncFollowupOnTaskChange's own comment for the staleness guard.
+  await syncFollowupOnTaskChange(supabase, taskId, "completed", null);
+
   const accountId = (task?.account_id as string | null) ?? null;
   const contactId = (task?.contact_id as string | null) ?? null;
   if (accountId || contactId) {
@@ -203,7 +210,7 @@ export async function reopenTask(taskId: string): Promise<ActionResult> {
 
   const { data: task } = await supabase
     .from("crm_tasks")
-    .select("title, account_id, contact_id")
+    .select("title, account_id, contact_id, due_at")
     .eq("id", taskId)
     .maybeSingle();
 
@@ -213,6 +220,10 @@ export async function reopenTask(taskId: string): Promise<ActionResult> {
     .eq("id", taskId);
 
   if (error) return { ok: false, error: "Could not reopen the task." };
+
+  // Reverse-sync: restore the follow-up state this task represents (if any)
+  // back to this task's own due date — symmetric with completeTask.
+  await syncFollowupOnTaskChange(supabase, taskId, "reopened", (task?.due_at as string | null) ?? null);
 
   const accountId = (task?.account_id as string | null) ?? null;
   const contactId = (task?.contact_id as string | null) ?? null;
@@ -248,6 +259,10 @@ export async function deleteTask(
     .eq("id", taskId);
 
   if (error) return { ok: false, error: "Could not delete the task." };
+
+  // Reverse-sync: a deleted task is gone for good, so unlike complete/reopen
+  // this also clears the pointer itself (nothing to "restore" later).
+  await syncFollowupOnTaskChange(supabase, taskId, "deleted", null);
 
   revalidate(accountId);
   return { ok: true };

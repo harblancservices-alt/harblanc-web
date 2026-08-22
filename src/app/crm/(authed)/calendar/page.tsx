@@ -26,7 +26,6 @@ type ContactRow = {
   id: string;
   name: string;
   account_id: string | null;
-  next_followup_at: string | null;
 };
 
 type CallRow = {
@@ -54,10 +53,16 @@ export default async function CrmCalendarPage() {
   const supabase = await createCrmServerClient();
 
   const [tasksRes, contactsRes, callsRes, accountsRes, profilesRes] = await Promise.all([
+    // crm_tasks is the sole source for calendar occurrences — every
+    // follow-up (contact or call sourced) already has a linked open task via
+    // syncFollowupTask(), so an open task's due_at already covers it. Only
+    // open tasks render as active occurrences (see CRM_TASK_INTEGRATION_
+    // AUDIT.md Phase 2 — a completed task shouldn't linger on the calendar).
     supabase
       .from("crm_tasks")
       .select("id, title, task_type, due_at, status, account_id, assigned_user_id")
       .not("due_at", "is", null)
+      .eq("status", "open")
       .is("deleted_at", null)
       .order("due_at", { ascending: true })
       .limit(1000),
@@ -65,7 +70,7 @@ export default async function CrmCalendarPage() {
     // can resolve a contact name too, in one query.
     supabase
       .from("crm_contacts")
-      .select("id, name, account_id, next_followup_at")
+      .select("id, name, account_id")
       .is("deleted_at", null)
       .order("name", { ascending: true })
       .limit(3000),
@@ -124,25 +129,6 @@ export default async function CrmCalendarPage() {
     })
     .filter((x): x is CalendarItem => x !== null);
 
-  const followupItems: CalendarItem[] = contactRows
-    .filter((c) => c.next_followup_at)
-    .map((c): CalendarItem => {
-      const dateKey = centralDateKey(c.next_followup_at)!;
-      const ms = timestampMs(c.next_followup_at) ?? 0;
-      const companyName = c.account_id ? accountNameById.get(c.account_id) ?? null : null;
-      return {
-        id: `followup-${c.id}`,
-        type: "followup",
-        dateKey,
-        sortMs: ms,
-        timeLabel: formatDateTime(c.next_followup_at),
-        label: `Follow up: ${c.name}`,
-        sub: companyName ?? "No company",
-        href: c.account_id ? `/crm/accounts/${c.account_id}` : "/crm/contacts",
-        overdue: false,
-      };
-    });
-
   const callItems: CalendarItem[] = ((callsRes.data ?? []) as CallRow[])
     .map((c): CalendarItem | null => {
       const dateKey = centralDateKey(c.occurred_at);
@@ -167,7 +153,7 @@ export default async function CrmCalendarPage() {
     })
     .filter((x): x is CalendarItem => x !== null);
 
-  const items = [...taskItems, ...followupItems, ...callItems].sort(
+  const items = [...taskItems, ...callItems].sort(
     (a, b) => a.sortMs - b.sortMs,
   );
 

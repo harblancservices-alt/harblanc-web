@@ -101,3 +101,58 @@ export async function syncFollowupTask(
 
   return newTask.id as string;
 }
+
+/**
+ * The missing reverse half of syncFollowupTask: when a follow-up-linked
+ * task's own status changes (complete/reopen/delete), mirror that back onto
+ * whichever crm_contacts/crm_calls row spawned it, via the same
+ * `followup_task_id` pointer syncFollowupTask itself writes.
+ *
+ * followup_task_id is treated as a STABLE pointer across complete/reopen —
+ * only next_followup_at/reminder_at (the "is this actively due" signal)
+ * toggles between null and the task's due_at. That's what makes reopen able
+ * to find its way back to the same contact/call: if complete() also cleared
+ * the pointer, reopen() would have nothing left to look up. The pointer is
+ * only cleared on "this task is gone for good" (delete) — matching
+ * syncFollowupTask's own clear-on-null-date behavior — or already handled
+ * by syncFollowupTask itself when the rep directly edits the date field.
+ *
+ * The lookup (`eq("followup_task_id", taskId)`) IS the staleness guard: if
+ * the contact/call has since been re-pointed at a replacement follow-up task
+ * (a newer one created after this taskId), this row's followup_task_id no
+ * longer matches, so nothing is found and nothing is touched — a completed/
+ * deleted task never clobbers a follow-up that has since moved on.
+ *
+ * Best-effort, matching syncFollowupTask's own contract: never throws, never
+ * blocks the caller's own task write.
+ */
+export async function syncFollowupOnTaskChange(
+  supabase: SupabaseClient,
+  taskId: string,
+  action: "completed" | "reopened" | "deleted",
+  taskDueAt: string | null,
+): Promise<void> {
+  try {
+    const restoredAt = action === "reopened" ? taskDueAt : null;
+
+    await supabase
+      .from("crm_contacts")
+      .update(
+        action === "deleted"
+          ? { next_followup_at: null, followup_task_id: null }
+          : { next_followup_at: restoredAt },
+      )
+      .eq("followup_task_id", taskId);
+
+    await supabase
+      .from("crm_calls")
+      .update(
+        action === "deleted"
+          ? { reminder_at: null, followup_required: false, followup_task_id: null }
+          : { reminder_at: restoredAt, followup_required: action === "reopened" },
+      )
+      .eq("followup_task_id", taskId);
+  } catch {
+    // best-effort — never fail the task's own write
+  }
+}

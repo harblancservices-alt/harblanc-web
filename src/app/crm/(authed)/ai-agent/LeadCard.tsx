@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { claimAiLead } from "./actions";
+import { TaskOfferButton } from "../tasks/TaskOfferButton";
+import { Badge } from "../_shell/ui";
 
 export type AiAgentLead = {
   id: string;
@@ -25,13 +26,18 @@ export type AiAgentLead = {
 export function LeadCard({ lead }: { lead: AiAgentLead }) {
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
+  // Claiming removes this lead from the server's unclaimed-only query, so a
+  // router.refresh() right after claiming would unmount this card (and the
+  // task offer with it) before the rep gets a chance to see it — stay local
+  // and let the next real navigation pick up the server's already-
+  // revalidated data instead.
+  const [claimed, setClaimed] = useState(false);
 
   function claim() {
     setError(null);
     startTransition(async () => {
       const res = await claimAiLead(lead.id);
-      if (res.ok) router.refresh();
+      if (res.ok) setClaimed(true);
       else setError(res.error);
     });
   }
@@ -69,16 +75,30 @@ export function LeadCard({ lead }: { lead: AiAgentLead }) {
         </dl>
       </div>
 
-      <div className="relative z-10 mt-3">
-        <button
-          type="button"
-          onClick={claim}
-          disabled={pending}
-          className="pointer-events-auto inline-flex h-8 items-center rounded-lg bg-accent px-3 text-[12.5px] font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-60 max-lg:h-10 max-lg:px-3.5"
-        >
-          {pending ? "Claiming…" : "Claim / I'll work this"}
-        </button>
-        {error && <p className="mt-1 text-[12px] text-bad">{error}</p>}
+      <div className="relative z-10 mt-3 flex flex-wrap items-center gap-2 pointer-events-auto">
+        {claimed ? (
+          <>
+            <Badge tone="success">Claimed — yours</Badge>
+            <TaskOfferButton
+              label="+ Add follow-up task"
+              defaults={{
+                title: `Follow up with ${lead.name}`,
+                task_type: "Follow-up call",
+                account_id: lead.id,
+              }}
+            />
+          </>
+        ) : (
+          <button
+            type="button"
+            onClick={claim}
+            disabled={pending}
+            className="inline-flex h-8 items-center rounded-lg bg-accent px-3 text-[12.5px] font-semibold text-white transition-colors hover:bg-accent-hover disabled:opacity-60 max-lg:h-10 max-lg:px-3.5"
+          >
+            {pending ? "Claiming…" : "Claim / I'll work this"}
+          </button>
+        )}
+        {error && <p className="mt-1 w-full text-[12px] text-bad">{error}</p>}
       </div>
     </div>
   );

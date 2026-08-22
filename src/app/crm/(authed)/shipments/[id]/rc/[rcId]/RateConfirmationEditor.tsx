@@ -21,10 +21,12 @@ import {
   updateRateConfirmationLine,
   removeRateConfirmationLine,
   generateRateConfirmation,
+  sendRateConfirmation,
   markRateConfirmationAccepted,
   markRateConfirmationCompleted,
 } from "../../../rate-confirmation-actions";
 import type { CrmCarrier, CrmRateConfirmationDetail, CrmShipmentDetail, RateConfirmationFields } from "../../../types";
+import { TaskOfferButton } from "../../../../tasks/TaskOfferButton";
 
 function str(v: string | null | undefined): string {
   return v ?? "";
@@ -410,6 +412,10 @@ export function RateConfirmationEditor({
     });
   }
 
+  function onSend() {
+    runAction("send", () => sendRateConfirmation(rc.id));
+  }
+
   async function openPreview() {
     if (!rc.pdfStoragePath) return;
     setPreviewOpen(true);
@@ -480,7 +486,28 @@ export function RateConfirmationEditor({
         <FormError message={saveError} />
         <FormError message={actionError} />
 
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {rc.status === "generated" && (
+            <button
+              type="button"
+              onClick={onSend}
+              disabled={busy}
+              className={`inline-flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-semibold transition-colors disabled:opacity-60 ${BTN_ACTION}`}
+            >
+              {busyAction === "send" ? "Marking…" : "Mark as Sent"}
+            </button>
+          )}
+          {rc.status === "sent" && shipment.accountId && (
+            <TaskOfferButton
+              label="+ Chase task if unsigned"
+              defaults={{
+                title: `Chase unsigned rate confirmation: ${rc.rcNumber}`,
+                notes: shipment.customerName ? `${shipment.customerName} — ${shipment.shipmentNumber}` : shipment.shipmentNumber,
+                task_type: "Follow-up call",
+                account_id: shipment.accountId,
+              }}
+            />
+          )}
           {rc.status === "sent" && (
             <button
               type="button"

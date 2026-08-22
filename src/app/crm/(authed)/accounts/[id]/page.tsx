@@ -9,7 +9,7 @@ import type { RepOption } from "../CompanyDialog";
 import { normalizeStage } from "../lifecycle";
 import { FinalizeBanner } from "./FinalizeBanner";
 import { CompanyHeader } from "./CompanyHeader";
-import { StageTracker } from "./StageTracker";
+import { StageTrackerSection } from "./StageTrackerSection";
 import type { CrmTagOption } from "./TagsCard";
 import { ProfileCenterTabs } from "./ProfileCenterTabs";
 import { ActivityLogSection, type CrmActivityLogItem } from "./ActivityLogSection";
@@ -435,11 +435,12 @@ export default async function AccountDetailPage({
             that put it in its own outlined bar. Every other stage still
             gets the full tracker. Existing "customer" rows normalize to
             "active_customer" (see lifecycle.ts), so this covers them too. */}
-        {normalizeStage(stage) !== "active_customer" && (
-          <div className="w-full rounded-lg border border-line-strong bg-card p-4 shadow-e2">
-            <StageTracker accountId={account.id as string} current={stage} prospectLevel={prospectLevel} />
-          </div>
-        )}
+        <StageTrackerSection
+          accountId={account.id as string}
+          accountName={accountName}
+          stage={stage}
+          prospectLevel={prospectLevel}
+        />
 
         {/* 2026-08-09 relayout: Company Details (left, unchanged width) absorbs
             what used to be four separate cards (About/Tags/Company owner/the

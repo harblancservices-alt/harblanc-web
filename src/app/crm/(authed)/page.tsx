@@ -48,16 +48,6 @@ type ProfileRow = {
   is_active: boolean;
 };
 
-type FollowupContactRow = {
-  id: string;
-  name: string;
-  account_id: string | null;
-  next_followup_at: string | null;
-  notes: string | null;
-  phone: string | null;
-  phones: unknown;
-};
-
 /** crm_accounts columns the completeness score reads — Company/Commercial/
  * Context field groups only (see buildProfileCompleteness below); the
  * Freight-profile group is intentionally excluded, matching the prior
@@ -140,11 +130,11 @@ function centralHour(date: Date): number {
 function taskContextAction(task: CrmTaskItem): NbaItem["action"] {
   const type = (task.task_type ?? "").toLowerCase();
   if (type.includes("email")) {
-    return task.contactEmail ? { label: "EMAIL", href: `mailto:${task.contactEmail}` } : null;
+    return task.contactEmail ? { kind: "link", label: "EMAIL", href: `mailto:${task.contactEmail}` } : null;
   }
   if (type.includes("call") || type.includes("voicemail")) {
     const phone = task.contactPhone || task.companyPhone;
-    return phone ? { label: "CALL", href: `tel:${digitsForTel(phone)}` } : null;
+    return phone ? { kind: "link", label: "CALL", href: `tel:${digitsForTel(phone)}` } : null;
   }
   return null;
 }
@@ -170,10 +160,8 @@ export default async function CrmDashboardPage() {
   // at Central midnight regardless of the server's own zone (Vercel runs
   // UTC), matching every other overdue/due-today split in the CRM.
   const { startMs: todayStart, endMs: todayEnd } = centralDayRange(now);
-  const endOfTodayISO = new Date(todayEnd).toISOString();
 
   const [
-    followupContactsRes,
     openTasksRes,
     profilesRes,
     companyOptionsRes,
@@ -184,18 +172,12 @@ export default async function CrmDashboardPage() {
     myCallsRes,
     myNotesRes,
   ] = await Promise.all([
-    // Follow-ups due today or overdue — contacts whose next_followup_at has
-    // arrived. Everything this query returns is either overdue or due today
-    // (nothing further out), so `overdue` below is the only split needed.
-    supabase
-      .from("crm_contacts")
-      .select("id, name, account_id, next_followup_at, notes, phone, phones")
-      .is("deleted_at", null)
-      .not("next_followup_at", "is", null)
-      .lte("next_followup_at", endOfTodayISO)
-      .order("next_followup_at", { ascending: true })
-      .limit(100),
     // Every open task, org-wide — not just the viewer's own assignments.
+    // Source of truth for "is there active future work, and when is it
+    // due" — including every follow-up (contact or call sourced), since
+    // syncFollowupTask() guarantees a follow-up always has a linked open
+    // task here. No separate next_followup_at-driven query needed anymore
+    // (see CRM_TASK_INTEGRATION_AUDIT.md Phase 2).
     supabase
       .from("crm_tasks")
       .select(
@@ -266,7 +248,6 @@ export default async function CrmDashboardPage() {
       .limit(8),
   ]);
 
-  const followupRows = (followupContactsRes.data ?? []) as FollowupContactRow[];
   const openTaskRows = (openTasksRes.data ?? []) as TaskRowData[];
   const profiles = (profilesRes.data ?? []) as ProfileRow[];
   const profileNameById = new Map(
@@ -318,9 +299,7 @@ export default async function CrmDashboardPage() {
   );
   const missingNameIds = [
     ...new Set(
-      [...openTaskRows.map((t) => t.account_id), ...followupRows.map((c) => c.account_id)].filter(
-        (id): id is string => Boolean(id) && !nameById.has(id as string),
-      ),
+      openTaskRows.map((t) => t.account_id).filter((id): id is string => Boolean(id) && !nameById.has(id as string)),
     ),
   ];
   if (missingNameIds.length) {
@@ -380,22 +359,11 @@ export default async function CrmDashboardPage() {
     .sort((a, b) => (timestampMs(b.occurredAt) ?? 0) - (timestampMs(a.occurredAt) ?? 0))
     .slice(0, 8);
 
-  // ── Tasks + follow-ups, bucketed by due date (shared by the counters, the
-  // Follow-ups Due list, and Next Best Action's overdue tier). ──
-  const callList = followupRows.map((c) => {
-    const ms = timestampMs(c.next_followup_at);
-    return {
-      id: c.id,
-      name: titleCaseWords(c.name),
-      account_id: c.account_id,
-      companyName: c.account_id ? (nameById.get(c.account_id) ?? null) : null,
-      next_followup_at: c.next_followup_at,
-      notes: c.notes,
-      phone: parsePhones(c.phones)[0]?.number || c.phone || null,
-      overdue: ms !== null && ms < todayStart,
-    };
-  });
-
+  // ── Tasks, bucketed by due date (shared by the counters and Next Best
+  // Action's overdue/due-today tiers). crm_tasks is the sole source here —
+  // every follow-up (contact or call sourced) already has a linked open
+  // task via syncFollowupTask(), so a separate next_followup_at-driven query
+  // would only double-count it (see CRM_TASK_INTEGRATION_AUDIT.md Phase 2). ──
   const allOpenTasks: CrmTaskItem[] = openTaskRows.map((t) => ({
     ...t,
     companyName: t.account_id ? (nameById.get(t.account_id) ?? null) : null,
@@ -414,11 +382,9 @@ export default async function CrmDashboardPage() {
   };
   const overdueTasks = allOpenTasks.filter((t) => taskDueBucket(t) === 0);
   const dueTodayTasks = allOpenTasks.filter((t) => taskDueBucket(t) === 1);
-  const overdueFollowups = callList.filter((c) => c.overdue);
-  const dueTodayFollowups = callList.filter((c) => !c.overdue);
 
-  const overdueCount = overdueTasks.length + overdueFollowups.length;
-  const dueTodayCount = dueTodayTasks.length + dueTodayFollowups.length;
+  const overdueCount = overdueTasks.length;
+  const dueTodayCount = dueTodayTasks.length;
 
   // ── Going stale / Stale counter — companies gone quiet: the longest since
   // a logged call or a genuine contact-kind activity (matching the Companies
@@ -536,18 +502,6 @@ export default async function CrmDashboardPage() {
       },
     };
   });
-  const overdueFollowupItems: { item: NbaItem; sortMs: number }[] = overdueFollowups.map((c) => ({
-    sortMs: timestampMs(c.next_followup_at) ?? 0,
-    item: {
-      id: `followup-${c.id}`,
-      href: c.account_id ? `/crm/accounts/${c.account_id}` : `/crm/contacts/${c.id}`,
-      avatarLabel: c.companyName || c.name,
-      companyName: c.companyName,
-      reason: `${dueCountdown(c.next_followup_at).text} · ${c.name}`,
-      tag: "OVERDUE",
-      action: c.phone ? { label: "CALL", href: `tel:${digitsForTel(c.phone)}` } : null,
-    },
-  }));
   const staleItems: NbaItem[] = staleAccountsFull.map((a) => {
     const ms = lastContactMsByAccount.get(a.id);
     const days = ms === undefined ? null : Math.floor((now.getTime() - ms) / DAY_MS);
@@ -558,7 +512,17 @@ export default async function CrmDashboardPage() {
       companyName: titleCaseWords(a.name),
       reason: days === null ? "Never contacted" : `Stale ${days}d`,
       tag: "STALE",
-      action: { label: "FOLLOW UP", href: `/crm/accounts/${a.id}` },
+      // Phase 5: opens the same TaskDialog every task entry point uses,
+      // pre-filled but still editable, instead of bare navigation.
+      action: {
+        kind: "task",
+        label: "FOLLOW UP",
+        defaults: {
+          title: `Follow up with ${titleCaseWords(a.name)}`,
+          task_type: "Follow-up call",
+          account_id: a.id,
+        },
+      },
     };
   });
   const researchItems: NbaItem[] = researchGapFull.map((c) => ({
@@ -568,17 +532,28 @@ export default async function CrmDashboardPage() {
     companyName: c.name,
     reason: `${c.completenessPct}% profile complete`,
     tag: null,
-    action: { label: "RESEARCH", href: `/crm/accounts/${c.id}` },
+    action: {
+      kind: "task",
+      label: "RESEARCH",
+      defaults: {
+        title: `Research ${c.name}`,
+        task_type: "Research prospect",
+        account_id: c.id,
+      },
+    },
   }));
-  const dueTodayFollowupItems: NbaItem[] = dueTodayFollowups.map((c) => ({
-    id: `followup-today-${c.id}`,
-    href: c.account_id ? `/crm/accounts/${c.account_id}` : `/crm/contacts/${c.id}`,
-    avatarLabel: c.companyName || c.name,
-    companyName: c.companyName,
-    reason: `Due today · ${c.name}`,
-    tag: null,
-    action: c.phone ? { label: "CALL", href: `tel:${digitsForTel(c.phone)}` } : null,
-  }));
+  const dueTodayTaskItems: NbaItem[] = dueTodayTasks.map((t) => {
+    const dueText = dueCountdown(t.due_at).text;
+    return {
+      id: `task-today-${t.id}`,
+      href: t.account_id ? `/crm/accounts/${t.account_id}` : t.contact_id ? `/crm/contacts/${t.contact_id}` : "/crm/tasks",
+      avatarLabel: t.companyName || t.contactName || t.title,
+      companyName: t.companyName,
+      reason: t.contactName ? `${dueText} · ${t.contactName}` : `${dueText} · ${t.title}`,
+      tag: null,
+      action: taskContextAction(t),
+    };
+  });
   const noContactItems: NbaItem[] = noContactAccounts.map((a) => ({
     id: `no-contact-${a.id}`,
     href: `/crm/accounts/${a.id}`,
@@ -586,16 +561,17 @@ export default async function CrmDashboardPage() {
     companyName: titleCaseWords(a.name),
     reason: "No contacts on file",
     tag: null,
-    action: { label: "RESEARCH", href: `/crm/accounts/${a.id}` },
+    // Deliberately still a plain link, not a task offer — adding a contact
+    // resolves this gap directly (CRM_TASK_INTEGRATION_AUDIT.md §7 classifies
+    // this tier D, unlike Stale/Research above).
+    action: { kind: "link", label: "RESEARCH", href: `/crm/accounts/${a.id}` },
   }));
 
-  const overdueItems = [...overdueTaskItems, ...overdueFollowupItems]
-    .sort((a, b) => a.sortMs - b.sortMs)
-    .map((x) => x.item);
+  const overdueItems = overdueTaskItems.sort((a, b) => a.sortMs - b.sortMs).map((x) => x.item);
 
   const nbaItems: NbaItem[] = [
     ...overdueItems,
-    ...dueTodayFollowupItems,
+    ...dueTodayTaskItems,
     ...staleItems,
     ...researchItems,
     ...noContactItems,
@@ -672,7 +648,14 @@ export default async function CrmDashboardPage() {
           backend equivalent before this pass). */}
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <NextBestActionSection items={nbaItems} mobileVisibleCount={4} />
+          <NextBestActionSection
+            items={nbaItems}
+            mobileVisibleCount={4}
+            contacts={quickTaskContacts}
+            reps={reps}
+            canAssignOthers={canAssignOthers}
+            currentUser={currentUser}
+          />
         </div>
 
         <Card>

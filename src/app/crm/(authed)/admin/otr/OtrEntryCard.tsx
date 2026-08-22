@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Card, CardHead, Badge, type BadgeTone } from "../../_shell/ui";
 import { Modal } from "../../_shell/Modal";
 import { saveOtrNotes, setOtrStatus, releaseOtrEntry, type OtrStatus } from "./actions";
+import { TaskOfferButton } from "../../tasks/TaskOfferButton";
 
 export type OtrEntryData = {
   id: string;
@@ -93,11 +94,23 @@ export function OtrEntryCard({ otr }: { otr: OtrEntryData }) {
         {otr.status === "released" ? (
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-admin/45 bg-admin-soft px-4 py-3">
             <p className="text-[13.5px] text-fg">Released — now a real company.</p>
-            {otr.releasedAccountId && (
-              <Link href={`/crm/accounts/${otr.releasedAccountId}`} className="text-[13px] font-semibold text-admin hover:underline">
-                View company →
-              </Link>
-            )}
+            <div className="flex shrink-0 items-center gap-2">
+              {otr.releasedAccountId && (
+                <TaskOfferButton
+                  label="+ Add follow-up task"
+                  defaults={{
+                    title: `Follow up with ${otr.companyName}`,
+                    task_type: "Follow-up call",
+                    account_id: otr.releasedAccountId,
+                  }}
+                />
+              )}
+              {otr.releasedAccountId && (
+                <Link href={`/crm/accounts/${otr.releasedAccountId}`} className="text-[13px] font-semibold text-admin hover:underline">
+                  View company →
+                </Link>
+              )}
+            </div>
           </div>
         ) : (
           <>

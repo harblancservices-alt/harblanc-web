@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Card, CardHead, BTN_EDIT, BTN_SUCCESS } from "../../../_shell/ui";
 import { titleCaseWords } from "../../../_shell/format";
 import { resolveAndProspectCompany, type CompanySide } from "../actions";
+import { TaskOfferButton } from "../../../tasks/TaskOfferButton";
 
 /**
  * Shows the party the BOL already gave us — name + address, right there,
@@ -32,6 +33,11 @@ export function CompanyMatchSection({
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  // Once resolved, the matched company itself is gone by the time the page
+  // refreshes (matchedAccount.lifecycleStatus flips to 'prospect', hiding
+  // this section's own button) — hold the id/name locally so the follow-up
+  // task offer has something to render even after that refresh.
+  const [justProspected, setJustProspected] = useState<{ accountId: string; name: string } | null>(null);
 
   const label = side === "shipper" ? "Shipper" : side === "consignee" ? "Consignee" : "Bill To";
 
@@ -39,8 +45,12 @@ export function CompanyMatchSection({
     setError(null);
     startTransition(async () => {
       const res = await resolveAndProspectCompany(bolId, side);
-      if (res.ok) router.refresh();
-      else setError(res.error);
+      if (res.ok) {
+        setJustProspected({ accountId: res.accountId, name: titleCaseWords(queryName) });
+        router.refresh();
+      } else {
+        setError(res.error);
+      }
     });
   }
 
@@ -88,6 +98,19 @@ export function CompanyMatchSection({
                 </button>
               )}
             </div>
+          </div>
+        )}
+
+        {justProspected && (
+          <div className="flex items-center gap-2">
+            <TaskOfferButton
+              label="+ Add follow-up task"
+              defaults={{
+                title: `Follow up with ${justProspected.name}`,
+                task_type: "Follow-up call",
+                account_id: justProspected.accountId,
+              }}
+            />
           </div>
         )}
       </div>

@@ -58,12 +58,18 @@ export function StageTracker({
   accountId,
   current,
   prospectLevel,
+  onGraduatedToActiveCustomer,
 }: {
   accountId: string;
   current: string;
   /** Current crm_accounts.prospect_level, or null if unset/unreadable (e.g.
    * the column isn't live yet) — the meter just starts empty either way. */
   prospectLevel?: number | null;
+  /** Fires right after the Quoted→Active Customer graduation succeeds — lets
+   * the parent (which stops rendering this tracker once the company IS an
+   * active customer) offer an Onboarding task from a component that stays
+   * mounted across that transition. See StageTrackerSection.tsx. */
+  onGraduatedToActiveCustomer?: () => void;
 }) {
   const active = normalizeStage(current);
   const activeIndex = (SELECTABLE_LIFECYCLE_STAGES as readonly LifecycleStage[]).indexOf(active);
@@ -103,6 +109,7 @@ export function StageTracker({
       const res = await updateLifecycleStatus(accountId, "quoted");
       if (res.ok) {
         setConfirmQuoted(false);
+        onGraduatedToActiveCustomer?.();
         router.refresh();
       } else {
         setConfirmError(res.error);

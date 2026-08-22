@@ -2,6 +2,9 @@ import Link from "next/link";
 import { Card, CardHead } from "./_shell/ui";
 import { ClickableListItem } from "./_shell/ClickableRow";
 import { CompanyAvatar } from "./_shell/InitialAvatar";
+import { NbaTaskAction } from "./NbaTaskAction";
+import type { TaskDefaults, TaskContactOption } from "./tasks/TaskDialog";
+import type { RepOption } from "./accounts/CompanyDialog";
 
 export type NbaItem = {
   id: string;
@@ -15,7 +18,15 @@ export type NbaItem = {
   /** e.g. "Overdue 3d · Jeff Alvarez" / "No contact in 21d" / "18% profile complete". */
   reason: string;
   tag: "OVERDUE" | "STALE" | null;
-  action: { label: "CALL" | "EMAIL" | "RESEARCH" | "FOLLOW UP"; href: string } | null;
+  action:
+    /** RESEARCH is also a valid "link" label here — the No-Contact tier's
+     * RESEARCH pill is deliberately plain navigation, not a task offer (see
+     * page.tsx's noContactItems comment: audit §7 classifies that tier D). */
+    | { kind: "link"; label: "CALL" | "EMAIL" | "RESEARCH"; href: string }
+    /** FOLLOW UP / RESEARCH open a pre-filled TaskDialog (Phase 5) instead
+     * of navigating — see NbaTaskAction.tsx. */
+    | { kind: "task"; label: "RESEARCH" | "FOLLOW UP"; defaults: TaskDefaults }
+    | null;
 };
 
 const TAG_TONE: Record<NonNullable<NbaItem["tag"]>, string> = {
@@ -23,7 +34,7 @@ const TAG_TONE: Record<NonNullable<NbaItem["tag"]>, string> = {
   STALE: "bg-warn-bg text-warn",
 };
 
-const ACTION_PILL_TONE: Record<NonNullable<NbaItem["action"]>["label"], string> = {
+const ACTION_PILL_TONE: Record<"CALL" | "EMAIL" | "RESEARCH" | "FOLLOW UP", string> = {
   CALL: "bg-accent text-white hover:bg-accent-hover",
   EMAIL: "bg-accent text-white hover:bg-accent-hover",
   "FOLLOW UP": "border border-warn/40 bg-warn-bg text-warn hover:bg-warn/10",
@@ -36,19 +47,33 @@ const ACTION_PILL_TONE: Record<NonNullable<NbaItem["action"]>["label"], string> 
  * needing research (page.tsx builds and tiers the merged `items` — overdue
  * work first, then staleness, then research gaps — see the comment on
  * `buildNextBestAction` there for the exact ordering rule). Deliberately a
- * plain server component: every action pill here is a real `tel:`/`mailto:`/
- * profile-link anchor, never a dialog trigger, so this never needs to cross
- * the RSC function-prop boundary that has bitten this page before.
+ * plain server component: CALL/EMAIL pills are real `tel:`/`mailto:` anchors,
+ * and FOLLOW UP/RESEARCH pills render NbaTaskAction (a Client Component) with
+ * only plain, serializable props (contacts/reps/currentUser, all already
+ * fetched by the Dashboard) — never a function prop from this Server
+ * Component, so this doesn't cross the RSC boundary that's bitten this page
+ * before (see NbaTaskAction.tsx's own comment).
  */
 export function NextBestActionSection({
   items,
   mobileVisibleCount,
+  contacts,
+  reps,
+  canAssignOthers,
+  currentUser,
 }: {
   items: NbaItem[];
   /** Rows beyond this index stay in the DOM (search/print/tab order) but
    * are visually hidden below `lg` — the mockup's mobile "top ~4" cap
    * without needing a second, differently-sliced array from the caller. */
   mobileVisibleCount?: number;
+  /** Org-wide roster, already fetched by the Dashboard — threaded through to
+   * NbaTaskAction so a FOLLOW UP/RESEARCH pill's TaskDialog doesn't need its
+   * own per-row fetch (see NbaTaskAction.tsx). */
+  contacts: TaskContactOption[];
+  reps: RepOption[];
+  canAssignOthers: boolean;
+  currentUser: { id: string; label: string };
 }) {
   return (
     <Card>
@@ -85,13 +110,24 @@ export function NextBestActionSection({
                 </div>
                 <p className="mt-0.5 truncate text-[12.5px] text-fg-muted">{item.reason}</p>
               </div>
-              {item.action && (
+              {item.action?.kind === "link" && (
                 <a
                   href={item.action.href}
                   className={`inline-flex h-8 shrink-0 items-center rounded-full px-3 text-[11.5px] font-bold transition-colors ${ACTION_PILL_TONE[item.action.label]}`}
                 >
                   {item.action.label}
                 </a>
+              )}
+              {item.action?.kind === "task" && (
+                <NbaTaskAction
+                  label={item.action.label}
+                  defaults={item.action.defaults}
+                  contacts={contacts}
+                  reps={reps}
+                  canAssignOthers={canAssignOthers}
+                  currentUser={currentUser}
+                  className={`inline-flex h-8 shrink-0 items-center rounded-full px-3 text-[11.5px] font-bold transition-colors ${ACTION_PILL_TONE[item.action.label]}`}
+                />
               )}
             </ClickableListItem>
             );
