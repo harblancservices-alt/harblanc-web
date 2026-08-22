@@ -4,7 +4,6 @@ import { IconTasks } from "../_shell/icons";
 import { firstName } from "../_shell/format";
 import { parsePhones } from "../_shell/contactFields";
 import { TaskRow, type CrmTaskItem } from "./TaskRow";
-import { DeleteTaskButton } from "./DeleteTaskButton";
 import { AddTaskButton } from "./AddTaskButton";
 import type { RepOption } from "../accounts/CompanyDialog";
 import { taskUrgencyBucket } from "@/lib/crm/taskUrgency";
@@ -198,9 +197,7 @@ export default async function TasksPage() {
                 </summary>
                 <ul className="grid grid-cols-1 items-start gap-2.5 p-3 sm:grid-cols-2 lg:grid-cols-3">
                   {doneTasks.map((t) => (
-                    <TaskRow key={t.id} task={t} showCompany {...dialogProps}>
-                      <DeleteTaskButton taskId={t.id} accountId={t.account_id} title={t.title} />
-                    </TaskRow>
+                    <TaskRow key={t.id} task={t} showCompany {...dialogProps} />
                   ))}
                 </ul>
               </details>
@@ -237,9 +234,7 @@ function Group({
       <CardHead title={title} hint={`${tasks.length}`} />
       <ul className="grid grid-cols-1 items-start gap-2.5 p-3 sm:grid-cols-2 lg:grid-cols-3">
         {tasks.map((t) => (
-          <TaskRow key={t.id} task={t} showCompany {...dialogProps}>
-            <DeleteTaskButton taskId={t.id} accountId={t.account_id} title={t.title} />
-          </TaskRow>
+          <TaskRow key={t.id} task={t} showCompany {...dialogProps} />
         ))}
       </ul>
     </Card>

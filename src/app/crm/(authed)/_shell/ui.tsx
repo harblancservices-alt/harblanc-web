@@ -187,6 +187,50 @@ export const BTN_NEUTRAL =
   "border border-fg-subtle bg-card text-fg-muted hover:bg-inset hover:text-fg disabled:opacity-60";
 
 /**
+ * DEPTH_* — the "tactile" button treatment. Same semantic colors as each
+ * BTN_* counterpart above, plus a soft elevation shadow (the real shadow-e1
+ * token) combined with an inset bottom-edge line for solid buttons, or a
+ * doubled border-line-strong + a semantic-color ring for outline buttons.
+ * Every value referenced (--shadow-e1, --accent-hover, --line-strong,
+ * --accent/--ok/--warn/--bad) is an existing `.crm-light` token — nothing new.
+ *
+ * Originally page-scoped to the BOL detail page's visual-hierarchy pass
+ * (Brent, approved 2026-08-21); promoted here unchanged when the task card's
+ * Style-C rebuild adopted the same treatment, so the two can't drift.
+ * bol-center/[id]/buttonDepth.ts now re-exports these — the strings are
+ * byte-identical to what it defined before, so that page renders the same.
+ *
+ * Each constant is a single, fully self-contained class string — never
+ * composed on top of a BTN_* import — so there's no risk of two utilities
+ * fighting over the same CSS property (border-width, box-shadow) depending
+ * on Tailwind's generated stylesheet order.
+ *
+ * DEPTH_SUCCESS's bottom edge uses --line-strong (neutral), not a darker
+ * green: `.crm-light` defines --ok/--ok-bg only, no darker "ok-hover" token
+ * exists anywhere in globals.css (unlike --accent/--accent-hover).
+ *
+ * Disabled states use opacity-60 and drop the shadow — never a faint grey
+ * swap, so a pending button stays legible.
+ */
+export const DEPTH_PRIMARY =
+  "border border-accent bg-accent text-white shadow-[var(--shadow-e1),inset_0_-2px_0_0_var(--accent-hover)] hover:bg-accent-hover disabled:opacity-60 disabled:shadow-none";
+
+export const DEPTH_SUCCESS =
+  "border border-ok bg-ok text-white shadow-[var(--shadow-e1),inset_0_-2px_0_0_var(--line-strong)] hover:bg-ok/90 disabled:opacity-60 disabled:shadow-none";
+
+export const DEPTH_EDIT =
+  "border-2 border-line-strong bg-card text-accent ring-1 ring-accent/30 shadow-e1 hover:bg-accent/10 disabled:opacity-60";
+
+export const DEPTH_WARNING =
+  "border-2 border-line-strong bg-card text-warn ring-1 ring-warn/30 shadow-e1 hover:bg-warn/10 disabled:opacity-60";
+
+export const DEPTH_DANGER =
+  "border-2 border-line-strong bg-bad-bg text-bad ring-1 ring-bad/30 shadow-e1 hover:bg-bad/10 disabled:opacity-60";
+
+export const DEPTH_NEUTRAL =
+  "border-2 border-line-strong bg-card text-fg-muted ring-1 ring-fg-subtle/20 shadow-e1 hover:bg-inset hover:text-fg disabled:opacity-60";
+
+/**
  * Status/role pill — matches /crm-design's Badge exactly (2026-08-20 full
  * visual migration): `rounded-full`, 11px bold uppercase, a tone-matched
  * soft fill + a tone-matched border at 45% opacity (not the sharp-cornered,

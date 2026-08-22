@@ -1,20 +1,21 @@
 "use client";
 
-import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-import { BTN_DANGER, BTN_ACTION } from "../../_shell/ui";
+import { BTN_ACTION } from "../../_shell/ui";
 import { IconPlus, IconTasks } from "../../_shell/icons";
 import type { RepOption } from "../CompanyDialog";
 import { TaskDialog, type TaskContactOption } from "../../tasks/TaskDialog";
-import { TaskRow, TASK_ACTION_BTN, type CrmTaskItem } from "../../tasks/TaskRow";
-import { deleteTask } from "../../tasks/actions";
+import { TaskRow, type CrmTaskItem } from "../../tasks/TaskRow";
 
 /**
- * The center panel's "Tasks" tab — reintroduces per-account task management
- * (open/completed, add/edit/complete/delete), which the first pass of this
- * rebuild had dropped from the page entirely. Trimmed from the old
+ * The center panel's "Tasks" tab — per-account task management (open/
+ * completed, add/edit/complete/snooze/delete). Trimmed from the old
  * TasksSection.tsx it replaces: no Log call/Add person slots in the header
  * (those live in the Contacts tab and top-bar More menu now) — just Add task.
+ *
+ * Delete used to be an inline pill this component owned, passed into TaskRow
+ * through a `children` slot. The Style-C card owns Delete itself now (in its
+ * ⋯ menu, behind the shared confirm Modal), so this is back to a plain list —
+ * no delete handler, no router.refresh(), no local pending/error state.
  */
 export function TasksTab({
   accountId,
@@ -31,22 +32,8 @@ export function TasksTab({
   canAssignOthers: boolean;
   currentUser: { id: string; label: string };
 }) {
-  const [pending, startTransition] = useTransition();
-  const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
-
   const open = tasks.filter((t) => t.status !== "completed");
   const done = tasks.filter((t) => t.status === "completed");
-
-  function remove(task: CrmTaskItem) {
-    if (!window.confirm(`Delete "${task.title}"?`)) return;
-    setError(null);
-    startTransition(async () => {
-      const res = await deleteTask(task.id, accountId);
-      if (res.ok) router.refresh();
-      else setError(res.error);
-    });
-  }
 
   return (
     <div>
@@ -68,8 +55,6 @@ export function TasksTab({
         />
       </div>
 
-      {error && <p className="px-5 pb-2 text-[12.5px] text-bad">{error}</p>}
-
       {tasks.length === 0 ? (
         <div className="flex flex-col items-center gap-2 px-6 py-10 text-center">
           <span className="flex h-11 w-11 items-center justify-center bg-inset text-fg-subtle">
@@ -82,11 +67,7 @@ export function TasksTab({
         <>
           <ul className="grid max-h-[640px] grid-cols-1 items-start gap-2 overflow-y-auto px-3 pb-3 sm:grid-cols-2 lg:grid-cols-3">
             {open.map((t) => (
-              <TaskRow key={t.id} task={t} accountId={accountId} reps={reps} contacts={contacts} canAssignOthers={canAssignOthers} currentUser={currentUser}>
-                <button type="button" onClick={() => remove(t)} disabled={pending} className={`${TASK_ACTION_BTN} ${BTN_DANGER}`}>
-                  Delete
-                </button>
-              </TaskRow>
+              <TaskRow key={t.id} task={t} accountId={accountId} reps={reps} contacts={contacts} canAssignOthers={canAssignOthers} currentUser={currentUser} />
             ))}
           </ul>
           {done.length > 0 && (
@@ -96,11 +77,7 @@ export function TasksTab({
               </summary>
               <ul className="grid max-h-[480px] grid-cols-1 items-start gap-2 overflow-y-auto border-t border-line-strong p-3 sm:grid-cols-2 lg:grid-cols-3">
                 {done.map((t) => (
-                  <TaskRow key={t.id} task={t} accountId={accountId} reps={reps} contacts={contacts} canAssignOthers={canAssignOthers} currentUser={currentUser}>
-                    <button type="button" onClick={() => remove(t)} disabled={pending} className={`inline-flex items-center rounded-lg px-2.5 py-1.5 text-[12px] font-semibold transition-colors ${BTN_DANGER}`}>
-                      Delete
-                    </button>
-                  </TaskRow>
+                  <TaskRow key={t.id} task={t} accountId={accountId} reps={reps} contacts={contacts} canAssignOthers={canAssignOthers} currentUser={currentUser} />
                 ))}
               </ul>
             </details>

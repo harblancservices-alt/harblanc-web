@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { logActivity, CRM_ACTIVITY } from "@/lib/crm/activity";
 import { syncFollowupTask } from "@/lib/crm/followupTask";
+import { completeTask } from "../tasks/actions";
 import { callOutcomeLabel } from "./outcomes";
 import { centralInputToIso, titleCaseWords } from "../_shell/format";
 import { DEFAULT_LIFECYCLE } from "../accounts/lifecycle";
@@ -375,6 +376,27 @@ export async function logCall(formData: FormData): Promise<ActionResult> {
       phone: normalizedPhone,
     },
   });
+
+  // ── "Log call" straight off a task card ────────────────────────────────
+  // The task that told the rep to make this call is closed by the same save,
+  // so the job-to-be-done ("call them, log it, move on") is one flow instead
+  // of three. Only ever set by TaskCard's Log-call trigger, which passes the
+  // task's own id; every other LogCallDialog call site omits it entirely.
+  //
+  // Deliberately LAST and deliberately best-effort: the call itself is
+  // already committed above, so a completion failure must not turn a saved
+  // call into an error the rep sees. completeTask() is reused whole rather
+  // than a bare status update here — it carries the task_completed activity
+  // log AND the follow-up reverse-sync, and it re-resolves the caller through
+  // RLS itself, so a tampered task id can't close someone else's org's task.
+  //
+  // Note this runs even when the rep set a follow-up reminder above: that
+  // creates a NEW follow-up task for the next touch, which is correct — the
+  // old task is done, the next one is scheduled.
+  const completeTaskId = optStr(formData, "complete_task_id");
+  if (completeTaskId) {
+    await completeTask(completeTaskId);
+  }
 
   revalidate(accountId, contactId);
   return { ok: true };

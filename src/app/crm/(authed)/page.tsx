@@ -4,11 +4,10 @@ import { PageShell, Card, CardHead, EmptyState } from "./_shell/ui";
 import {
   timestampMs,
   formatRelativeTime,
-  dueCountdown,
   firstName as profileFirstName,
   titleCaseWords,
 } from "./_shell/format";
-import { parsePhones, digitsForTel } from "./_shell/contactFields";
+import { parsePhones } from "./_shell/contactFields";
 import type { CrmTaskItem } from "./tasks/TaskRow";
 import type { RepOption } from "./accounts/CompanyDialog";
 import { HeaderAddCompanyButton } from "./QuickActions";
@@ -128,21 +127,6 @@ function centralHour(date: Date): number {
     }).format(date),
   );
   return h === 24 ? 0 : h;
-}
-
-/** Mirrors TaskRow's contextAction — the Call/Email pill a task row offers
- * based on its task_type, kept as a standalone function here since this page
- * renders its own Next-Best-Action row shape rather than a full TaskRow. */
-function taskContextAction(task: CrmTaskItem): NbaItem["action"] {
-  const type = (task.task_type ?? "").toLowerCase();
-  if (type.includes("email")) {
-    return task.contactEmail ? { kind: "link", label: "EMAIL", href: `mailto:${task.contactEmail}` } : null;
-  }
-  if (type.includes("call") || type.includes("voicemail")) {
-    const phone = task.contactPhone || task.companyPhone;
-    return phone ? { kind: "link", label: "CALL", href: `tel:${digitsForTel(phone)}` } : null;
-  }
-  return null;
 }
 
 /**
@@ -561,38 +545,20 @@ export default async function CrmDashboardPage() {
   // urgency), then priority as a tiebreak (CRM_URGENCY_AUDIT.md P0: priority
   // used to never affect ordering anywhere — see tasks/priority.ts's
   // taskPriorityCompare, shared with the global Tasks page).
-  const overdueTaskItems: { item: NbaItem; sortMs: number; priority: string | null }[] = overdueTasks.map((t) => {
-    const overdueText = dueCountdown(t.due_at).text;
-    return {
-      sortMs: timestampMs(t.due_at) ?? 0,
-      priority: t.priority,
-      item: {
-        id: `task-${t.id}`,
-        href: t.account_id ? `/crm/accounts/${t.account_id}` : t.contact_id ? `/crm/contacts/${t.contact_id}` : "/crm/tasks",
-        avatarLabel: t.companyName || t.contactName || t.title,
-        companyName: t.companyName,
-        reason: t.contactName ? `${overdueText} · ${t.contactName}` : `${overdueText} · ${t.title}`,
-        tag: "OVERDUE",
-        action: taskContextAction(t),
-      },
-    };
-  });
-  const dueTodayTaskItems: { item: NbaItem; sortMs: number; priority: string | null }[] = dueTodayTasks.map((t) => {
-    const dueText = dueCountdown(t.due_at).text;
-    return {
-      sortMs: timestampMs(t.due_at) ?? 0,
-      priority: t.priority,
-      item: {
-        id: `task-today-${t.id}`,
-        href: t.account_id ? `/crm/accounts/${t.account_id}` : t.contact_id ? `/crm/contacts/${t.contact_id}` : "/crm/tasks",
-        avatarLabel: t.companyName || t.contactName || t.title,
-        companyName: t.companyName,
-        reason: t.contactName ? `${dueText} · ${t.contactName}` : `${dueText} · ${t.title}`,
-        tag: null,
-        action: taskContextAction(t),
-      },
-    };
-  });
+  //
+  // These stay raw CrmTaskItems now rather than being flattened into NbaItem
+  // rows: NextBestActionSection renders them with the shared Style-C TaskRow
+  // card, so a task can be completed / logged / snoozed straight from the
+  // dashboard (TASK_CARD_AUDIT.md §4.1 — it previously could not be completed
+  // here at all). The old avatarLabel/reason/tag flattening and this page's
+  // hand-copied taskContextAction went with it; the card derives all of that
+  // from the task itself.
+  const taskSort = (a: CrmTaskItem, b: CrmTaskItem) =>
+    (timestampMs(a.due_at) ?? 0) - (timestampMs(b.due_at) ?? 0) || taskPriorityCompare(a, b);
+  const nbaTasks: CrmTaskItem[] = [
+    ...[...overdueTasks].sort(taskSort),
+    ...[...dueTodayTasks].sort(taskSort),
+  ].slice(0, 20);
   // Stale tier reason now names the stage (thresholds differ per stage, so
   // "Stale 6d" alone no longer tells the full story — see STALE_DAYS_BY_STAGE)
   // and the pill itself is stage-aware: what a rep should DO about a stale
@@ -700,19 +666,15 @@ export default async function CrmDashboardPage() {
     };
   });
 
-  const tierSort = (a: { sortMs: number; priority: string | null }, b: { sortMs: number; priority: string | null }) =>
-    a.sortMs - b.sortMs || taskPriorityCompare(a, b);
-  const overdueItems = overdueTaskItems.sort(tierSort).map((x) => x.item);
-  const dueTodayItems = dueTodayTaskItems.sort(tierSort).map((x) => x.item);
-
+  // The non-task signal tiers, in rank order below the task block. Combined
+  // cap unchanged at 40 rows of work — the task cards claim their slots first,
+  // exactly as they did when everything shared one flat list.
   const nbaItems: NbaItem[] = [
-    ...overdueItems,
-    ...dueTodayItems,
     ...staleItems,
     ...winbackItems,
     ...researchItems,
     ...noContactItems,
-  ].slice(0, 40);
+  ].slice(0, Math.max(0, 40 - nbaTasks.length));
 
   // ── Counter tiles ──
   const tiles: CounterTileData[] = [
@@ -786,9 +748,11 @@ export default async function CrmDashboardPage() {
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <NextBestActionSection
+            tasks={nbaTasks}
             items={nbaItems}
             mobileVisibleCount={4}
             contacts={quickTaskContacts}
+            accounts={companyOptions}
             reps={reps}
             canAssignOthers={canAssignOthers}
             currentUser={currentUser}

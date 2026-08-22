@@ -110,16 +110,23 @@ function defaultReminderDate(): string {
  * sites that already know who's being called (a company profile, a contact
  * card, a specific phone-list row) — they just pre-run the same cross-autofill
  * a manual selection would, and remain fully editable.
+ *
+ * `completeTaskId` is the task card's "Log call" wiring: when set, saving the
+ * call also completes that task server-side (see logCall's own comment). Only
+ * TaskCard passes it; every other call site leaves it null and behaves
+ * exactly as before.
  */
 export function LogCallDialog({
   accountId = null,
   contactId = null,
   phone: phoneHint = null,
+  completeTaskId = null,
   trigger,
 }: {
   accountId?: string | null;
   contactId?: string | null;
   phone?: string | null;
+  completeTaskId?: string | null;
   trigger: (open: () => void) => ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -357,6 +364,7 @@ export function LogCallDialog({
           <input type="hidden" name="phone" value={phone.text.trim()} />
           <input type="hidden" name="contact_force" value={dismissedContactDup ? "on" : ""} />
           <input type="hidden" name="account_force" value={dismissedCompanyDup ? "on" : ""} />
+          {completeTaskId && <input type="hidden" name="complete_task_id" value={completeTaskId} />}
 
           {/* Contact */}
           <div className="flex flex-col gap-1">

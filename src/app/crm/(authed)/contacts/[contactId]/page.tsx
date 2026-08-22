@@ -58,9 +58,14 @@ export default async function ContactProfilePage({
   const contactOptions: TaskContactOption[] = [{ id: contact.id as string, name: contactName }];
 
   const [accountRes, profilesRes, notesRes, callsRes, activitiesRes, tasksRes] = await Promise.all([
+    // phone/phones ride along so this page's task cards can fall back to the
+    // company's main number when the contact has none — the same "best number"
+    // resolution the global Tasks page and the company profile already do.
     accountId
-      ? supabase.from("crm_accounts").select("id, name").eq("id", accountId).maybeSingle()
-      : Promise.resolve({ data: null as { id: string; name: string } | null }),
+      ? supabase.from("crm_accounts").select("id, name, phone, phones").eq("id", accountId).maybeSingle()
+      : Promise.resolve({
+          data: null as { id: string; name: string; phone: string | null; phones: unknown } | null,
+        }),
     supabase.from("crm_profiles").select("id, full_name, email, is_active"),
     supabase
       .from("crm_notes")
@@ -95,6 +100,9 @@ export default async function ContactProfilePage({
   ]);
 
   const accountName = accountRes.data ? titleCaseWords(accountRes.data.name as string) : null;
+  const companyPhone = accountRes.data
+    ? parsePhones(accountRes.data.phones)[0]?.number || accountRes.data.phone || null
+    : null;
 
   const profiles = (profilesRes.data ?? []) as ProfileRow[];
   const profileById = new Map(profiles.map((p) => [p.id, p]));
@@ -181,6 +189,15 @@ export default async function ContactProfilePage({
     ...t,
     companyName: accountName,
     contactName,
+    // Every task on this page belongs to THIS contact (the query is scoped by
+    // contact_id), so their title/phone/email resolve straight off the record
+    // already loaded above — no extra lookup map needed. Without these four
+    // the card has no number to call and no primary action at all, which is
+    // exactly how this surface used to render (TASK_CARD_AUDIT.md §4.2).
+    contactTitle: contact.title as string | null,
+    contactPhone: parsePhones(contact.phones)[0]?.number || null,
+    contactEmail: contact.email as string | null,
+    companyPhone,
     assigneeName: t.assigned_user_id ? profileName(profileById.get(t.assigned_user_id)) : null,
   }));
   const openTasks = tasks.filter((t) => t.status !== "completed");

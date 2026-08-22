@@ -5,6 +5,7 @@ import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { logActivity, CRM_ACTIVITY } from "@/lib/crm/activity";
 import { syncFollowupOnTaskChange } from "@/lib/crm/followupTask";
 import { normalizePriority } from "./priority";
+import { snoozeDays, snoozedDueAt } from "./snooze";
 import { centralInputToIso } from "../_shell/format";
 
 /**
@@ -239,6 +240,49 @@ export async function reopenTask(taskId: string): Promise<ActionResult> {
   }
 
   revalidate(accountId);
+  return { ok: true };
+}
+
+/**
+ * Push an open task's due date out by a preset (+1 day / +3 days / next
+ * week) — the task card's amber Snooze dropdown. Writes due_at ONLY: no
+ * status change, no full form, no other field touched, so a snooze can never
+ * silently undo an edit the rep made from the dialog.
+ *
+ * The preset key is re-validated here via snoozeDays() rather than trusting
+ * a number off the wire — a tampered request can't push a task an arbitrary
+ * distance out. Date math lives in tasks/snooze.ts (shared with the client
+ * card, which renders the same preset list).
+ *
+ * Reverse-syncs like every other task status write: if this task is what a
+ * contact's or call's follow-up points at, that follow-up date moves with it
+ * — "reopened" is the right verb for syncFollowupOnTaskChange here (the task
+ * stays open and actively due, just later), so the Dashboard/Calendar don't
+ * keep showing the old date.
+ */
+export async function snoozeTask(taskId: string, preset: string): Promise<ActionResult> {
+  await requireCrmUser();
+
+  const days = snoozeDays(preset);
+  if (days === null) return { ok: false, error: "That snooze option isn't available." };
+
+  const supabase = await createCrmServerClient();
+
+  const { data: task } = await supabase
+    .from("crm_tasks")
+    .select("due_at, account_id")
+    .eq("id", taskId)
+    .maybeSingle();
+
+  const nextDue = snoozedDueAt((task?.due_at as string | null) ?? null, days);
+  if (!nextDue) return { ok: false, error: "Could not work out the new due date." };
+
+  const { error } = await supabase.from("crm_tasks").update({ due_at: nextDue }).eq("id", taskId);
+  if (error) return { ok: false, error: "Could not snooze the task." };
+
+  await syncFollowupOnTaskChange(supabase, taskId, "reopened", nextDue);
+
+  revalidate((task?.account_id as string | null) ?? null);
   return { ok: true };
 }
 

@@ -5,7 +5,8 @@ import { CompanyAvatar } from "./_shell/InitialAvatar";
 import { NbaTaskAction } from "./NbaTaskAction";
 import { NbaClaimAction } from "./NbaClaimAction";
 import { NbaAddContactAction } from "./NbaAddContactAction";
-import type { TaskDefaults, TaskContactOption } from "./tasks/TaskDialog";
+import { TaskRow, type CrmTaskItem } from "./tasks/TaskRow";
+import type { TaskDefaults, TaskContactOption, TaskAccountOption } from "./tasks/TaskDialog";
 import type { RepOption } from "./accounts/CompanyDialog";
 import type { CompanyOption } from "./contacts/CompanyCombobox";
 
@@ -18,7 +19,7 @@ export type NbaItem = {
    * when the item has no company. */
   avatarLabel: string;
   companyName: string | null;
-  /** e.g. "Overdue 3d · Jeff Alvarez" / "Researching · stale 6d" / "18% profile complete". */
+  /** e.g. "Researching · stale 6d" / "18% profile complete". */
   reason: string;
   tag: "OVERDUE" | "STALE" | "WIN-BACK" | null;
   action:
@@ -64,41 +65,63 @@ const ACTION_PILL_TONE: Record<ActionLabel, string> = {
 };
 
 /**
- * NEXT BEST ACTION — the dashboard's primary, widest column: one ranked
- * list mixing overdue/due-today tasks, going-stale accounts (stage-aware —
- * see page.tsx's staleItems), Lost win-backs, research gaps, and no-contact
- * companies (page.tsx builds and tiers the merged `items` — see the comment
- * there for the exact ordering rule). Deliberately a plain Server Component:
- * every pill kind (link / task / claim / add-contact) renders a Client
- * Component with only plain, serializable props (contacts/reps/currentUser/
- * companies, all already fetched by the Dashboard) — never a function prop
- * from this Server Component, so this doesn't cross the RSC boundary that's
- * bitten this page before (see each action component's own comment).
+ * NEXT BEST ACTION — the dashboard's primary, widest column: one ranked queue
+ * mixing real crm_tasks with the org-wide signal tiers (going-stale accounts,
+ * Lost win-backs, research gaps, no-contact companies — page.tsx builds and
+ * tiers them; see the comment there for the exact ordering rule).
  *
- * Every pill is a real one-click action now (CRM_URGENCY_AUDIT.md follow-up)
- * — no pill both implies an action and just navigates: CALL/EMAIL are real
- * tel:/mailto: links, REACH BACK OUT is the one deliberate exception (see
- * its type comment above), and everything else either opens a pre-filled
- * TaskDialog, claims the lead, or opens the add-contact form inline.
+ * TWO row shapes, deliberately:
+ *
+ *   1. REAL TASKS render the shared Style-C TaskRow card — the same card the
+ *      global Tasks page, the company profile and the contact profile use. The
+ *      dashboard used to render its own flattened row here with only a CALL/
+ *      EMAIL pill, which meant a task could not be COMPLETED from the
+ *      dashboard at all (TASK_CARD_AUDIT.md §4.1): a rep called off the queue
+ *      and then had to go find the task somewhere else to close it. The card
+ *      brings its Done / Log call / Snooze / ⋯ row with it.
+ *   2. SIGNAL ROWS (stale / win-back / research / no-contact) keep their
+ *      existing compact stage-aware pill row unchanged — they aren't tasks,
+ *      there's nothing to complete, and their whole value is being scannable.
+ *
+ * The two blocks are rendered separately rather than interleaved in one
+ * `divide-y` list: task cards carry their own border, and a `divide-y` no-ops
+ * against children that set their own border-color. Ordering is unaffected —
+ * every task tier already outranks every signal tier, so tasks-then-signals IS
+ * the ranked order.
+ *
+ * Deliberately a plain Server Component: TaskRow and every pill kind is a
+ * Client Component receiving only plain, serializable props (tasks/contacts/
+ * reps/currentUser/companies, all already fetched by the Dashboard) — never a
+ * function prop from this Server Component, so this doesn't cross the RSC
+ * boundary that's bitten this page before.
  */
 export function NextBestActionSection({
+  tasks,
   items,
   mobileVisibleCount,
   contacts,
+  accounts,
   reps,
   canAssignOthers,
   currentUser,
   companies,
 }: {
+  /** Real crm_tasks rows, already tiered/sorted by the caller (overdue first,
+   * then due-today, each by due date then priority). */
+  tasks: CrmTaskItem[];
+  /** The non-task signal tiers, in rank order. */
   items: NbaItem[];
-  /** Rows beyond this index stay in the DOM (search/print/tab order) but
-   * are visually hidden below `lg` — the mockup's mobile "top ~4" cap
-   * without needing a second, differently-sliced array from the caller. */
+  /** Entries beyond this index (counted across tasks THEN items, i.e. the
+   * combined ranked order) stay in the DOM for search/print/tab order but are
+   * visually hidden below `lg` — the mockup's mobile "top ~4" cap. */
   mobileVisibleCount?: number;
   /** Org-wide roster, already fetched by the Dashboard — threaded through to
-   * NbaTaskAction so a task pill's TaskDialog doesn't need its own per-row
-   * fetch (see NbaTaskAction.tsx). */
+   * NbaTaskAction and to each TaskRow's edit dialog so neither needs its own
+   * per-row fetch. */
   contacts: TaskContactOption[];
+  /** Company picker options for a task card's edit dialog (a dashboard task's
+   * company isn't fixed the way it is inside a company profile). */
+  accounts: TaskAccountOption[];
   reps: RepOption[];
   canAssignOthers: boolean;
   currentUser: { id: string; label: string };
@@ -106,80 +129,110 @@ export function NextBestActionSection({
    * AddContactDialog for the same reason (no per-row fetch). */
   companies: CompanyOption[];
 }) {
+  const total = tasks.length + items.length;
+  /** How many of the mobile-visible slots the task block has already used, so
+   * the signal rows below continue the same count rather than restarting it. */
+  const taskSlots = mobileVisibleCount === undefined ? 0 : Math.min(tasks.length, mobileVisibleCount);
+
   return (
     <Card>
-      <CardHead title="Next Best Action" hint={items.length ? `${items.length} to work` : "Nothing urgent"} />
-      {items.length === 0 ? (
+      <CardHead title="Next Best Action" hint={total ? `${total} to work` : "Nothing urgent"} />
+      {total === 0 ? (
         <p className="px-5 py-8 text-center text-[13px] text-fg-muted">
           Nothing needs action right now. Every account is on track.
         </p>
       ) : (
-        <ul className="divide-y divide-line-strong">
-          {items.map((item, idx) => {
-            const hiddenOnMobile = mobileVisibleCount !== undefined && idx >= mobileVisibleCount;
-            return (
-            <ClickableListItem
-              key={item.id}
-              href={item.href}
-              className={`items-start gap-3 px-4 py-3 ${hiddenOnMobile ? "hidden lg:flex" : "flex"}`}
-            >
-              <CompanyAvatar name={item.avatarLabel} />
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <Link
-                    href={item.href}
-                    prefetch={false}
-                    className="truncate text-[14px] font-semibold text-fg hover:underline"
-                  >
-                    {item.companyName || item.avatarLabel}
-                  </Link>
-                  {item.tag && (
-                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${TAG_TONE[item.tag]}`}>
-                      {item.tag}
-                    </span>
-                  )}
-                </div>
-                <p className="mt-0.5 truncate text-[12.5px] text-fg-muted">{item.reason}</p>
-              </div>
-              {item.action?.kind === "link" && (
-                <a
-                  href={item.action.href}
-                  className={`inline-flex h-8 shrink-0 items-center rounded-full px-3 text-[11.5px] font-bold transition-colors ${ACTION_PILL_TONE[item.action.label]}`}
-                >
-                  {item.action.label}
-                </a>
-              )}
-              {item.action?.kind === "task" && (
-                <NbaTaskAction
-                  label={item.action.label}
-                  defaults={item.action.defaults}
+        <>
+          {tasks.length > 0 && (
+            <ul className="grid grid-cols-1 items-start gap-2.5 p-3 sm:grid-cols-2">
+              {tasks.map((task, idx) => (
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  showCompany
+                  accounts={accounts}
                   contacts={contacts}
                   reps={reps}
                   canAssignOthers={canAssignOthers}
                   currentUser={currentUser}
-                  className={`inline-flex h-8 shrink-0 items-center rounded-full px-3 text-[11.5px] font-bold transition-colors ${ACTION_PILL_TONE[item.action.label]}`}
+                  {...(mobileVisibleCount !== undefined && idx >= mobileVisibleCount
+                    ? { className: "hidden lg:flex" }
+                    : {})}
                 />
-              )}
-              {item.action?.kind === "claim" && (
-                <NbaClaimAction
-                  accountId={item.action.accountId}
-                  label={item.action.label}
-                  className={`inline-flex h-8 shrink-0 items-center rounded-full px-3 text-[11.5px] font-bold transition-colors ${ACTION_PILL_TONE[item.action.label]}`}
-                />
-              )}
-              {item.action?.kind === "add-contact" && (
-                <NbaAddContactAction
-                  accountId={item.action.accountId}
-                  accountName={item.action.accountName}
-                  companies={companies}
-                  label={item.action.label}
-                  className={`inline-flex h-8 shrink-0 items-center rounded-full px-3 text-[11.5px] font-bold transition-colors ${ACTION_PILL_TONE[item.action.label]}`}
-                />
-              )}
-            </ClickableListItem>
-            );
-          })}
-        </ul>
+              ))}
+            </ul>
+          )}
+
+          {items.length > 0 && (
+            <ul className={`divide-y divide-line-strong ${tasks.length > 0 ? "border-t border-line-strong" : ""}`}>
+              {items.map((item, idx) => {
+                const hiddenOnMobile =
+                  mobileVisibleCount !== undefined && taskSlots + idx >= mobileVisibleCount;
+                return (
+                  <ClickableListItem
+                    key={item.id}
+                    href={item.href}
+                    className={`items-start gap-3 px-4 py-3 ${hiddenOnMobile ? "hidden lg:flex" : "flex"}`}
+                  >
+                    <CompanyAvatar name={item.avatarLabel} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <Link
+                          href={item.href}
+                          prefetch={false}
+                          className="truncate text-[14px] font-semibold text-fg hover:underline"
+                        >
+                          {item.companyName || item.avatarLabel}
+                        </Link>
+                        {item.tag && (
+                          <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${TAG_TONE[item.tag]}`}>
+                            {item.tag}
+                          </span>
+                        )}
+                      </div>
+                      <p className="mt-0.5 truncate text-[12.5px] text-fg-muted">{item.reason}</p>
+                    </div>
+                    {item.action?.kind === "link" && (
+                      <a
+                        href={item.action.href}
+                        className={`inline-flex h-8 shrink-0 items-center rounded-full px-3 text-[11.5px] font-bold transition-colors ${ACTION_PILL_TONE[item.action.label]}`}
+                      >
+                        {item.action.label}
+                      </a>
+                    )}
+                    {item.action?.kind === "task" && (
+                      <NbaTaskAction
+                        label={item.action.label}
+                        defaults={item.action.defaults}
+                        contacts={contacts}
+                        reps={reps}
+                        canAssignOthers={canAssignOthers}
+                        currentUser={currentUser}
+                        className={`inline-flex h-8 shrink-0 items-center rounded-full px-3 text-[11.5px] font-bold transition-colors ${ACTION_PILL_TONE[item.action.label]}`}
+                      />
+                    )}
+                    {item.action?.kind === "claim" && (
+                      <NbaClaimAction
+                        accountId={item.action.accountId}
+                        label={item.action.label}
+                        className={`inline-flex h-8 shrink-0 items-center rounded-full px-3 text-[11.5px] font-bold transition-colors ${ACTION_PILL_TONE[item.action.label]}`}
+                      />
+                    )}
+                    {item.action?.kind === "add-contact" && (
+                      <NbaAddContactAction
+                        accountId={item.action.accountId}
+                        accountName={item.action.accountName}
+                        companies={companies}
+                        label={item.action.label}
+                        className={`inline-flex h-8 shrink-0 items-center rounded-full px-3 text-[11.5px] font-bold transition-colors ${ACTION_PILL_TONE[item.action.label]}`}
+                      />
+                    )}
+                  </ClickableListItem>
+                );
+              })}
+            </ul>
+          )}
+        </>
       )}
     </Card>
   );
