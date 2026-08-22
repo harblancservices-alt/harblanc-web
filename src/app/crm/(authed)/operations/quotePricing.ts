@@ -26,6 +26,11 @@ import { FUEL_DEFAULTS, dieselCost } from "@/lib/dispatch/fuel";
  * NOT wired to any settings table. dispatch_settings (where mpg/diesel price
  * live for the TMS) is a dispatch table the CRM's RLS-scoped client cannot
  * read, so the defaults below are constants the rep can override per quote.
+ *
+ * 2026-08-22: load/unload hours REMOVED (Brent). Billable time is drive time
+ * only — miles ÷ avg speed — so there is no longer a separate "total hours"
+ * distinct from drive hours, and dock time is not priced. If it ever comes
+ * back it belongs here as an input, not as a fudge inside the hourly rate.
  */
 
 export type QuoteInputs = {
@@ -33,8 +38,6 @@ export type QuoteInputs = {
   miles: number;
   /** Average speed used to turn miles into drive hours. */
   avgMph: number;
-  /** Hours on the dock, both ends, that aren't driving. */
-  loadUnloadHours: number;
   /** Truck fuel economy. */
   mpg: number;
   /** Diesel price per gallon. */
@@ -47,31 +50,34 @@ export type QuoteInputs = {
 };
 
 export type QuoteBreakdown = {
+  /** Miles ÷ avg speed. The ONLY billable hours — see the module note. */
   driveHours: number;
-  totalHours: number;
   timeCost: number;
   fuelCost: number;
+  /** Time + fuel: what the carrier is paid, before the brokerage fee. */
   subtotal: number;
   brokerageFee: number;
+  /** Subtotal + brokerage fee: the all-in price the shipper pays. */
   total: number;
-  /** total ÷ miles — null when there are no miles to divide by. */
-  perMile: number | null;
-  /** total ÷ totalHours — null when there are no hours to divide by. */
-  perHour: number | null;
+  /** total ÷ miles — the all-in rate the shipper pays per mile. */
+  shipperPerMile: number | null;
+  /** subtotal ÷ miles — the carrier's base pay per mile. */
+  carrierPerMile: number | null;
+  /** brokerageFee ÷ miles — the broker's margin per mile. */
+  brokerPerMile: number | null;
 };
 
 /**
  * Starting values. mpg/pricePerGallon come from FUEL_DEFAULTS so the
  * calculator and every other diesel figure in the codebase start from the
- * same truck; hourlyRate/brokeragePct/avgMph/loadUnloadHours are this
- * calculator's own house assumptions.
+ * same truck; hourlyRate/brokeragePct/avgMph are this calculator's own
+ * house assumptions.
  */
 export const QUOTE_DEFAULTS: Omit<QuoteInputs, "miles"> = {
   // 62 mph (Brent, 2026-08-22 — was 50). A door-to-door blended average for
   // the lanes this outfit actually runs, not a legal limit: mostly interstate
   // miles, so 50 was pricing in more hours than a real run takes.
   avgMph: 62,
-  loadUnloadHours: 2,
   mpg: FUEL_DEFAULTS.mpg,
   pricePerGallon: FUEL_DEFAULTS.ppg,
   hourlyRate: 125,
@@ -85,25 +91,34 @@ function clean(value: number): number {
   return Number.isFinite(value) && value > 0 ? value : 0;
 }
 
+/** total ÷ miles, guarded — null (rendered "—") rather than a division by
+ * zero when there are no miles yet. */
+function perMile(amount: number, miles: number): number | null {
+  return miles > 0 ? amount / miles : null;
+}
+
 /**
  * The whole quote, in one pass. Every division is guarded: a zero (or
  * blank) speed yields zero drive hours rather than Infinity, zero mpg
- * yields zero fuel (dieselCost's own guard), and the two derived per-unit
- * rates come back null rather than dividing by zero.
+ * yields zero fuel (dieselCost's own guard), and the three per-mile rates
+ * come back null rather than dividing by zero.
+ *
+ * The three per-mile figures are a decomposition of the SAME total, not
+ * three independent calculations — carrierPerMile + brokerPerMile always
+ * equals shipperPerMile, because subtotal + brokerageFee always equals
+ * total. There's a test pinning that.
  */
 export function computeQuote(input: QuoteInputs): QuoteBreakdown {
   const miles = clean(input.miles);
   const avgMph = clean(input.avgMph);
-  const loadUnloadHours = clean(input.loadUnloadHours);
   const mpg = clean(input.mpg);
   const pricePerGallon = clean(input.pricePerGallon);
   const hourlyRate = clean(input.hourlyRate);
   const brokeragePct = clean(input.brokeragePct);
 
   const driveHours = avgMph > 0 ? miles / avgMph : 0;
-  const totalHours = driveHours + loadUnloadHours;
 
-  const timeCost = totalHours * hourlyRate;
+  const timeCost = driveHours * hourlyRate;
   const fuelCost = dieselCost(miles, { mpg, ppg: pricePerGallon, factoringPct: 0 });
 
   const subtotal = timeCost + fuelCost;
@@ -112,13 +127,13 @@ export function computeQuote(input: QuoteInputs): QuoteBreakdown {
 
   return {
     driveHours,
-    totalHours,
     timeCost,
     fuelCost,
     subtotal,
     brokerageFee,
     total,
-    perMile: miles > 0 ? total / miles : null,
-    perHour: totalHours > 0 ? total / totalHours : null,
+    shipperPerMile: perMile(total, miles),
+    carrierPerMile: perMile(subtotal, miles),
+    brokerPerMile: perMile(brokerageFee, miles),
   };
 }

@@ -22,7 +22,6 @@ type RateKey = Exclude<keyof QuoteInputs, "miles">;
 
 const RATE_FIELDS: { key: RateKey; label: string }[] = [
   { key: "avgMph", label: "Avg speed (mph)" },
-  { key: "loadUnloadHours", label: "Load / unload (hrs)" },
   { key: "mpg", label: "Truck MPG" },
   { key: "pricePerGallon", label: "Fuel ($/gal)" },
   { key: "hourlyRate", label: "Hourly rate ($/hr)" },
@@ -31,7 +30,6 @@ const RATE_FIELDS: { key: RateKey; label: string }[] = [
 
 const INITIAL_RATES: Record<RateKey, string> = {
   avgMph: String(QUOTE_DEFAULTS.avgMph),
-  loadUnloadHours: String(QUOTE_DEFAULTS.loadUnloadHours),
   mpg: String(QUOTE_DEFAULTS.mpg),
   pricePerGallon: String(QUOTE_DEFAULTS.pricePerGallon),
   hourlyRate: String(QUOTE_DEFAULTS.hourlyRate),
@@ -86,6 +84,34 @@ function Line({
 }
 
 /**
+ * One of the three per-mile rates under the breakdown. Each is a different
+ * slice of the same quote — what the shipper pays, what the carrier gets,
+ * what's left for the broker — so all three share one tile treatment rather
+ * than one of them being visually promoted; the big TOTAL band above is
+ * already the headline. Renders "—" (never $0.00) when there are no miles,
+ * so an empty lane reads as "not computed yet", not "free".
+ */
+function PerMileTile({
+  label,
+  sub,
+  value,
+}: {
+  label: string;
+  sub: string;
+  value: number | null;
+}) {
+  return (
+    <div className="rounded-md border border-line-strong bg-inset px-3 py-2.5">
+      <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-fg-muted">{label}</p>
+      <p className="crm-num mt-1 text-[19px] font-bold text-fg tabular-nums">
+        {value === null ? "—" : formatMoney(value, { cents: true })}
+      </p>
+      <p className="mt-0.5 text-[11px] font-medium text-fg-muted">{sub}</p>
+    </div>
+  );
+}
+
+/**
  * Operations → Quote Calculator.
  *
  * TWO COLUMNS on lg+ (Brent's approved layout): the ANSWER on the left,
@@ -128,7 +154,6 @@ export function QuoteCalculator() {
     () => ({
       miles: toNumber(miles),
       avgMph: toNumber(rates.avgMph),
-      loadUnloadHours: toNumber(rates.loadUnloadHours),
       mpg: toNumber(rates.mpg),
       pricePerGallon: toNumber(rates.pricePerGallon),
       hourlyRate: toNumber(rates.hourlyRate),
@@ -141,14 +166,27 @@ export function QuoteCalculator() {
   const hasMiles = inputs.miles > 0;
   const bothZipsComplete = isCompleteZip(originZip) && isCompleteZip(destZip);
 
-  function runLookup(force: boolean) {
-    if (!bothZipsComplete) return;
-    const key = `${normalizeZip(originZip)}-${normalizeZip(destZip)}`;
+  /**
+   * ZIPs are passed in explicitly rather than read off state: the auto-run
+   * below fires from inside an onChange, in the same tick as the setState
+   * for that field, so the state variable is still the PREVIOUS value there.
+   */
+  function runLookup({
+    force,
+    origin = originZip,
+    dest = destZip,
+  }: {
+    force: boolean;
+    origin?: string;
+    dest?: string;
+  }) {
+    if (!isCompleteZip(origin) || !isCompleteZip(dest)) return;
+    const key = `${normalizeZip(origin)}-${normalizeZip(dest)}`;
     if (!force && lookedUpLane.current === key) return;
     lookedUpLane.current = key;
 
     startTransition(async () => {
-      const result = await lookupLaneMiles({ originZip, destZip });
+      const result = await lookupLaneMiles({ originZip: origin, destZip: dest });
       setLane(result);
       if (result.ok) {
         setMiles(String(result.miles));
@@ -157,11 +195,28 @@ export function QuoteCalculator() {
     });
   }
 
-  /** Auto-lookup when a ZIP field is left and the lane is newly complete —
-   * unless the rep has already put their own number in Miles. */
+  /**
+   * Fires the moment the DESTINATION becomes a complete ZIP and an origin is
+   * already in — no blur, no button (Brent). Typing the last digit of the
+   * destination is the signal that the lane is fully described, so that's
+   * when the miles should appear.
+   *
+   * Guarded three ways: only when both ZIPs are complete, only when the rep
+   * hasn't hand-typed a mileage (milesTouched), and only once per distinct
+   * lane (lookedUpLane) — so continuing to type a ZIP+4 suffix, which
+   * normalizes to the same 5 digits, doesn't refire the action.
+   */
+  function onDestZipChange(value: string) {
+    setDestZip(value);
+    if (milesTouched.current) return;
+    runLookup({ force: false, dest: value });
+  }
+
+  /** Backstop for the other direction: origin edited AFTER a destination is
+   * already sitting there. Same guards. */
   function onZipBlur() {
     if (milesTouched.current) return;
-    runLookup(false);
+    runLookup({ force: false });
   }
 
   function setRate(key: RateKey, value: string) {
@@ -199,21 +254,23 @@ export function QuoteCalculator() {
           {!hasMiles && (
             // A pill, not dimmed text — legible on the filled band without
             // reaching for a faint tint.
+            // With load/unload gone, zero miles is a genuine zero — every
+            // leg of the quote is a function of miles now, so this can't say
+            // "dock time only" any more.
             <span className="mt-1 rounded-full bg-white/20 px-3 py-1 text-[12px] font-bold text-white">
-              No miles yet — this is dock time only
+              Add the lane or the miles to price this load
             </span>
           )}
         </div>
 
         <div className="flex flex-col p-4">
           <Line label="Drive hours" value={formatHours(quote.driveHours)} hint="Miles ÷ avg speed" />
-          <Line label="+ Load / unload" value={formatHours(inputs.loadUnloadHours)} />
-          <Line label="Total hours" value={formatHours(quote.totalHours)} strong />
 
           <Line
             label="Time cost"
             value={formatMoney(quote.timeCost)}
-            hint={`${formatHours(quote.totalHours)} × ${formatMoney(inputs.hourlyRate)}/hr`}
+            hint={`${formatHours(quote.driveHours)} × ${formatMoney(inputs.hourlyRate)}/hr`}
+            strong
           />
           <Line
             label="Fuel cost"
@@ -227,23 +284,25 @@ export function QuoteCalculator() {
             hint={`${rates.brokeragePct || "0"}% of subtotal, on top`}
           />
 
-          <div className="mt-3 grid grid-cols-2 gap-3">
-            <div className="rounded-md border border-line-strong bg-inset px-3 py-2.5">
-              <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-fg-muted">
-                Effective $/mile
-              </p>
-              <p className="crm-num mt-1 text-[19px] font-bold text-fg tabular-nums">
-                {quote.perMile === null ? "—" : formatMoney(quote.perMile, { cents: true })}
-              </p>
-            </div>
-            <div className="rounded-md border border-line-strong bg-inset px-3 py-2.5">
-              <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-fg-muted">
-                Effective $/hr
-              </p>
-              <p className="crm-num mt-1 text-[19px] font-bold text-fg tabular-nums">
-                {quote.perHour === null ? "—" : formatMoney(quote.perHour, { cents: true })}
-              </p>
-            </div>
+          {/* Three views of the SAME total, split by who the money is for.
+              Carrier + Broker = Shipper, always (subtotal + fee = total) —
+              pinned by a test in quotePricing.test.ts. */}
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <PerMileTile
+              label="Shipper $/mi"
+              sub="All-in, per mile"
+              value={quote.shipperPerMile}
+            />
+            <PerMileTile
+              label="Carrier $/mi"
+              sub="Base pay, per mile"
+              value={quote.carrierPerMile}
+            />
+            <PerMileTile
+              label="Broker $/mi"
+              sub="Margin, per mile"
+              value={quote.brokerPerMile}
+            />
           </div>
 
           <p className="mt-4 border-t border-line-strong pt-3 text-[12.5px] font-medium leading-relaxed text-fg-muted">
@@ -263,7 +322,7 @@ export function QuoteCalculator() {
             right={
               <button
                 type="button"
-                onClick={() => runLookup(true)}
+                onClick={() => runLookup({ force: true })}
                 disabled={!bothZipsComplete || pending}
                 className={`inline-flex h-8 items-center gap-1.5 rounded-md px-3 text-[12.5px] font-bold transition-colors disabled:pointer-events-none disabled:opacity-60 ${BTN_NEUTRAL}`}
               >
@@ -302,7 +361,7 @@ export function QuoteCalculator() {
                   maxLength={10}
                   placeholder="75201"
                   value={destZip}
-                  onChange={(e) => setDestZip(e.target.value)}
+                  onChange={(e) => onDestZipChange(e.target.value)}
                   onBlur={onZipBlur}
                   className={`crm-num h-10 w-full min-w-0 ${CONTROL}`}
                 />
