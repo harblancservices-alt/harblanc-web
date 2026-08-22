@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { computeQuote, QUOTE_DEFAULTS, type QuoteInputs } from "./quotePricing";
 
+/** 620 miles at the default 62 mph is exactly 10 drive hours, so the hour
+ * and time-cost figures stay whole and a regression in them is unmissable. */
 function inputs(over: Partial<QuoteInputs> = {}): QuoteInputs {
-  return { miles: 500, ...QUOTE_DEFAULTS, ...over };
+  return { miles: 620, ...QUOTE_DEFAULTS, ...over };
 }
 
 describe("QUOTE_DEFAULTS", () => {
@@ -12,7 +14,7 @@ describe("QUOTE_DEFAULTS", () => {
   });
 
   it("carries the house assumptions", () => {
-    expect(QUOTE_DEFAULTS.avgMph).toBe(50);
+    expect(QUOTE_DEFAULTS.avgMph).toBe(62);
     expect(QUOTE_DEFAULTS.loadUnloadHours).toBe(2);
     expect(QUOTE_DEFAULTS.hourlyRate).toBe(125);
     expect(QUOTE_DEFAULTS.brokeragePct).toBe(25);
@@ -20,19 +22,19 @@ describe("QUOTE_DEFAULTS", () => {
 });
 
 describe("computeQuote", () => {
-  it("walks a 500-mile job end to end", () => {
+  it("walks a 620-mile job end to end", () => {
     const q = computeQuote(inputs());
-    // 500 / 50 = 10 drive hours, + 2 on the dock = 12
+    // 620 / 62 = 10 drive hours, + 2 on the dock = 12
     expect(q.driveHours).toBe(10);
     expect(q.totalHours).toBe(12);
     // 12 h x $125
     expect(q.timeCost).toBe(1500);
-    // 500 / 13 mpg x $4.70
-    expect(q.fuelCost).toBeCloseTo(180.769, 3);
-    expect(q.subtotal).toBeCloseTo(1680.769, 3);
+    // 620 / 13 mpg x $4.70
+    expect(q.fuelCost).toBeCloseTo(224.154, 3);
+    expect(q.subtotal).toBeCloseTo(1724.154, 3);
     // 25% ON TOP of the subtotal (a markup, not a margin)
-    expect(q.brokerageFee).toBeCloseTo(420.192, 3);
-    expect(q.total).toBeCloseTo(2100.962, 3);
+    expect(q.brokerageFee).toBeCloseTo(431.038, 3);
+    expect(q.total).toBeCloseTo(2155.192, 3);
   });
 
   it("treats brokeragePct as a markup: total = subtotal x 1.25", () => {
@@ -42,13 +44,22 @@ describe("computeQuote", () => {
 
   it("derives the two per-unit rates off the total", () => {
     const q = computeQuote(inputs());
-    expect(q.perMile).toBeCloseTo(q.total / 500, 6);
+    expect(q.perMile).toBeCloseTo(q.total / 620, 6);
     expect(q.perHour).toBeCloseTo(q.total / 12, 6);
   });
 
   it("matches dieselCost's own formula for the fuel leg", () => {
     const q = computeQuote(inputs({ miles: 650, mpg: 10, pricePerGallon: 5 }));
     expect(q.fuelCost).toBeCloseTo((650 / 10) * 5, 6);
+  });
+
+  it("prices fewer hours at 62 mph than the old 50 mph assumption did", () => {
+    const fast = computeQuote(inputs({ avgMph: 62 }));
+    const slow = computeQuote(inputs({ avgMph: 50 }));
+    expect(fast.totalHours).toBeLessThan(slow.totalHours);
+    expect(fast.total).toBeLessThan(slow.total);
+    // Fuel is a function of miles, not speed — it must NOT move.
+    expect(fast.fuelCost).toBeCloseTo(slow.fuelCost, 6);
   });
 
   describe("divide-by-zero and half-typed input guards", () => {

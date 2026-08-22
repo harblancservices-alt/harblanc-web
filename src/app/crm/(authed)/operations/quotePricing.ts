@@ -67,7 +67,10 @@ export type QuoteBreakdown = {
  * calculator's own house assumptions.
  */
 export const QUOTE_DEFAULTS: Omit<QuoteInputs, "miles"> = {
-  avgMph: 50,
+  // 62 mph (Brent, 2026-08-22 — was 50). A door-to-door blended average for
+  // the lanes this outfit actually runs, not a legal limit: mostly interstate
+  // miles, so 50 was pricing in more hours than a real run takes.
+  avgMph: 62,
   loadUnloadHours: 2,
   mpg: FUEL_DEFAULTS.mpg,
   pricePerGallon: FUEL_DEFAULTS.ppg,
