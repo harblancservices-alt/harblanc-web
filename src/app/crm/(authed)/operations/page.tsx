@@ -1,5 +1,4 @@
-import { ComingSoonPanel } from "./ComingSoonPanel";
-import { IconRateConfirmation } from "../_shell/icons";
+import { QuoteCalculator } from "./QuoteCalculator";
 
 export const dynamic = "force-dynamic";
 
@@ -7,20 +6,16 @@ export const dynamic = "force-dynamic";
  * Operations → Quote Calculator. The section's landing tab (it owns the bare
  * /crm/operations route — see OperationsTabs).
  *
- * Placeholder on purpose: the pricing formula is still Brent's call
- * (roughly hourly rate + fuel + a brokerage percentage on top, exact numbers
- * TBD), and shipping a calculator against a guessed formula would put wrong
- * money in front of a rep. Nothing is computed, stored, or implied here
- * until the real formula lands.
+ * A thin Server Component over an entirely client-side calculator: the math
+ * is a pure function (./quotePricing.ts) run in the browser as the rep
+ * types, so there's nothing to fetch here, no server action, and no route
+ * handler. No props cross the RSC boundary at all.
+ *
+ * The formula is a house assumption, not an audited rate model — a blended
+ * hourly rate driven off miles/avg speed, plus diesel, plus the brokerage
+ * percentage on top. Every input is editable per quote and the panel says
+ * out loud that it's an estimate.
  */
 export default function OperationsQuoteCalculatorPage() {
-  return (
-    <ComingSoonPanel
-      title="Quote Calculator"
-      hint="Price a load before you send it"
-      icon={<IconRateConfirmation width={22} height={22} />}
-      headline="Coming soon"
-      body="Enter a lane and the load's details, and this will price the job — labor, fuel, and the brokerage fee on top — with a line-by-line breakdown you can quote from. Waiting on the final formula before it goes live."
-    />
-  );
+  return <QuoteCalculator />;
 }

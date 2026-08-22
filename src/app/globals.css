@@ -277,9 +277,18 @@ input[type="date"]::-webkit-date-and-time-value {
    (--font-plex-mono) but unused, since the site-wide --font-mono token is
    deliberately aliased to Public Sans (see the comment on --font-sans).
    This class is the narrow, explicit opt-out: PHONE NUMBERS and TIMESTAMPS
-   only — never body copy, headings, labels, money, or IDs, which all stay
-   on Public Sans. Scoped to .crm-light so no other product surface picks it
-   up by accident. */
+   — never body copy, headings, labels, or IDs, which all stay on Public
+   Sans. Scoped to .crm-light so no other product surface picks it up by
+   accident.
+
+   2026-08-22, second permitted use (Brent's explicit call when the
+   Operations Quote Calculator was built): LIVE CALCULATOR FIGURES — the
+   editable numeric inputs and the computed money/hours column on
+   /crm/operations. Those digits change on every keystroke, and tabular
+   lining figures are what keeps the column from jittering as they do. This
+   is a deliberate, named exception, NOT a general licence for money: a
+   dollar figure sitting still on a page (rate confirmation totals, revenue
+   estimates, KPI tiles) still stays on Public Sans. */
 .crm-light .crm-num {
   font-family: var(--font-plex-mono), ui-monospace, SFMono-Regular, Menlo,
     Consolas, monospace;
