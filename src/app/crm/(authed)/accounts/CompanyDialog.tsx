@@ -125,12 +125,25 @@ export function CompanyDialog({
   /** Show the destructive "Delete company" footer action — owner-only,
    * edit mode only. The server action re-checks the role regardless. */
   canDelete = false,
+  /** Show the "Assigned rep" select — owner-only, edit mode only (create
+   * mode's simplified form has no Assignment section at all; a new company
+   * still defaults to its creator in createAccount).
+   *
+   * Cosmetic, exactly like canDelete: hiding the field keeps a non-admin
+   * from being offered a change they're not allowed to make, but
+   * updateAccount() re-checks the rule server-side and the
+   * crm_accounts_guard_assignment trigger re-checks it again at the DB.
+   * Non-admins change ownership through the profile's own Claim control
+   * (desktop/AssignmentControl.tsx), which is the only assignment surface
+   * they get. */
+  canAssign = false,
   trigger,
 }: {
   mode: "create" | "edit";
   reps: RepOption[];
   defaults?: CompanyDefaults;
   canDelete?: boolean;
+  canAssign?: boolean;
   trigger: (open: () => void) => ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -343,7 +356,7 @@ export function CompanyDialog({
 
               <div className="flex flex-col gap-2">
                 <SectionDivider label="Assignment" bare />
-                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <div className={`grid grid-cols-1 gap-2 ${canAssign ? "sm:grid-cols-2" : ""}`}>
                   <SelectField
                     label="Lifecycle"
                     name="lifecycle_status"
@@ -355,18 +368,20 @@ export function CompanyDialog({
                       </option>
                     ))}
                   </SelectField>
-                  <SelectField
-                    label="Assigned rep"
-                    name="assigned_user_id"
-                    defaultValue={d.assigned_user_id ?? ""}
-                  >
-                    <option value="">Unassigned</option>
-                    {reps.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.label}
-                      </option>
-                    ))}
-                  </SelectField>
+                  {canAssign && (
+                    <SelectField
+                      label="Assigned rep"
+                      name="assigned_user_id"
+                      defaultValue={d.assigned_user_id ?? ""}
+                    >
+                      <option value="">Unassigned</option>
+                      {reps.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.label}
+                        </option>
+                      ))}
+                    </SelectField>
+                  )}
                 </div>
               </div>
             </>

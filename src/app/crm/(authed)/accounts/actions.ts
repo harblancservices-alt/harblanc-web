@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { logActivity, CRM_ACTIVITY } from "@/lib/crm/activity";
 import { normalizeStage, stageLabel, stageRank, DEFAULT_LIFECYCLE } from "./lifecycle";
-import { centralInputToIso, titleCaseWords, upperCaseState } from "../_shell/format";
+import { centralInputToIso, firstName, titleCaseWords, upperCaseState } from "../_shell/format";
 import { phonesFromFormValue, linksFromFormValue, parsePhones, looksLikePhone } from "../_shell/contactFields";
 import { MOOD_VALUES } from "../_shell/mood";
 import { syncFollowupTask } from "@/lib/crm/followupTask";
@@ -246,10 +246,12 @@ export async function updateAccount(
 
   const supabase = await createCrmServerClient();
 
-  // Read the prior stage so we can detect a move and log it.
+  // Read the prior stage AND the prior owner: the stage so we can detect a
+  // move and log it, the owner so the assignment gate below can tell a claim
+  // (unowned → self, allowed for anyone) from a reassign (admin-only).
   const { data: prior } = await supabase
     .from("crm_accounts")
-    .select("lifecycle_status")
+    .select("lifecycle_status, assigned_user_id")
     .eq("id", id)
     .maybeSingle();
 
@@ -257,6 +259,35 @@ export async function updateAccount(
     str(formData, "lifecycle_status") || (prior?.lifecycle_status as string),
   );
   const assigned = optStr(formData, "assigned_user_id");
+
+  /**
+   * ASSIGNMENT GATE — this form (CompanyDialog's "Assigned rep" select) used
+   * to be an unguarded second door onto crm_accounts.assigned_user_id, which
+   * let any member silently take or hand off ANY company in the org,
+   * including one owned by another rep. Ownership now follows exactly one
+   * rule wherever it's written, and this enforces the same one assignAccount()
+   * below does: a non-admin's ONLY legal transition is unowned → themselves.
+   * Anything else — reassigning an owned company, or seating someone other
+   * than yourself — is admin-only. The select is also hidden from non-owners
+   * in the UI (CompanyDialog's `canAssign` prop), but that's cosmetic; this
+   * is the check that actually holds, and the companion trigger migration
+   * 20260822000000_crm_accounts_guard_assignment.sql backs it at the DB.
+   *
+   * Re-submitting the value the row ALREADY has is never blocked, so a member
+   * editing any other field on a company they own keeps working unchanged.
+   */
+  const priorAssigned = (prior?.assigned_user_id as string | null) ?? null;
+  if (
+    assigned !== null &&
+    assigned !== priorAssigned &&
+    user.role !== "owner" &&
+    !(priorAssigned === null && assigned === user.id)
+  ) {
+    return {
+      ok: false,
+      error: "Only an admin can change who a company is assigned to.",
+    };
+  }
 
   const { error } = await supabase
     .from("crm_accounts")
@@ -285,6 +316,186 @@ export async function updateAccount(
   }
 
   revalidateAccount(id);
+  return { ok: true };
+}
+
+/**
+ * Claim / assign / reassign / unassign a company — the ONE control-driven
+ * write of crm_accounts.assigned_user_id, and the single place the ownership
+ * rule lives (ASSIGNMENT_AUDIT.md):
+ *
+ *  - UNCLAIMED (assigned_user_id IS NULL): ANY CRM user may claim it. A
+ *    non-admin may only target THEMSELVES; an admin may seat any active rep.
+ *  - ALREADY CLAIMED: admin (role='owner') ONLY — to move it to another rep,
+ *    or to unassign it (targetUserId = null). A member is rejected even for
+ *    the company they own themselves: handing an account off (or dropping it
+ *    back into the pool) is an admin call, not self-service.
+ *
+ * RLS does NOT back this up. crm_accounts_rw (crm_foundation.sql:499) scopes
+ * ROWS by org and never COLUMNS by role — the same shape as the crm_profiles
+ * hole that 20260818000000_crm_profiles_role_lockdown.sql had to close with a
+ * trigger, and reachable the same way (the publishable-key client the app
+ * already uses directly elsewhere). The companion migration
+ * 20260822000000_crm_accounts_guard_assignment.sql applies that same trigger
+ * pattern to this column; until it's applied, the checks below are the only
+ * enforcement there is.
+ *
+ * Race-safe exactly like claimAiLead (ai-agent/actions.ts:36-45): the UPDATE
+ * re-asserts the ownership state this call decided against — `IS NULL` for a
+ * claim, `= currentOwner` for a reassign — so two people acting at once can
+ * only ever seat one of them, and the loser gets a clear message instead of
+ * silently clobbering the winner.
+ *
+ * Claiming an unclaimed NEW LEAD also advances it to Researching and fires
+ * that stage's entry task assigned to the NEW OWNER, so claiming from a
+ * company profile behaves identically to claiming the same company from the
+ * Prospects queue. Deliberately claim-only and new_lead-only: an admin
+ * reassigning a company that's already at Quoting never rewinds its stage,
+ * matching the no-downgrade guardrail promoteAccountToProspect uses.
+ */
+export async function assignAccount(
+  accountId: string,
+  targetUserId: string | null,
+): Promise<ActionResult> {
+  const user = await requireCrmUser();
+  const supabase = await createCrmServerClient();
+
+  const { data: account } = await supabase
+    .from("crm_accounts")
+    .select("assigned_user_id, lifecycle_status, name")
+    .eq("id", accountId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (!account) return { ok: false, error: "Company not found." };
+
+  const currentOwner = (account.assigned_user_id as string | null) ?? null;
+  const isAdmin = user.role === "owner";
+
+  // ── The rule, in one place ────────────────────────────────────────────
+  if (currentOwner === null) {
+    if (targetUserId === null) return { ok: true }; // already unassigned
+    if (!isAdmin && targetUserId !== user.id) {
+      return { ok: false, error: "Only an admin can assign a company to someone else." };
+    }
+  } else if (!isAdmin) {
+    return { ok: false, error: "Only an admin can reassign or unassign a company." };
+  }
+  if (targetUserId === currentOwner) return { ok: true };
+
+  // Never trust the submitted id beyond its shape — the target must be a
+  // real, ACTIVE member. crm_profiles RLS is org-matched, so an id from
+  // another org simply reads back nothing and is refused like an unknown one
+  // (same "re-verify the target independently" reasoning as
+  // admin/actions.ts::suspendAndReassignMember). Both the old and the new
+  // owner are resolved in this one round-trip, since the timeline entry
+  // wants to name them.
+  const lookupIds = Array.from(
+    new Set([currentOwner, targetUserId].filter((v): v is string => Boolean(v))),
+  );
+  const { data: profileRows } = await supabase
+    .from("crm_profiles")
+    .select("id, full_name, email, is_active")
+    .in("id", lookupIds);
+
+  const profileById = new Map(
+    ((profileRows ?? []) as { id: string; full_name: string | null; email: string | null; is_active: boolean }[]).map(
+      (p) => [p.id, p],
+    ),
+  );
+
+  if (targetUserId !== null) {
+    const target = profileById.get(targetUserId);
+    if (!target || !target.is_active) {
+      return { ok: false, error: "Choose an active user to assign this company to." };
+    }
+  }
+
+  function labelFor(userId: string | null): string | null {
+    if (!userId) return null;
+    const p = profileById.get(userId);
+    return (p ? firstName(p.full_name, p.email) : "") || "a teammate";
+  }
+
+  // The guard predicate IS the concurrency control — see the docstring.
+  const write = supabase
+    .from("crm_accounts")
+    .update({ assigned_user_id: targetUserId })
+    .eq("id", accountId)
+    .is("deleted_at", null);
+  const guarded =
+    currentOwner === null
+      ? write.is("assigned_user_id", null)
+      : write.eq("assigned_user_id", currentOwner);
+
+  const { data: updated, error } = await guarded.select("id").maybeSingle();
+
+  if (error) {
+    return { ok: false, error: "Could not change who this company is assigned to. Please try again." };
+  }
+  if (!updated) {
+    return {
+      ok: false,
+      error:
+        currentOwner === null
+          ? `${account.name as string} was just claimed by someone else.`
+          : `${account.name as string} just changed hands. Reload and try again.`,
+    };
+  }
+
+  const priorLabel = labelFor(currentOwner);
+  const targetLabel = labelFor(targetUserId);
+  const summary =
+    targetUserId === null
+      ? `Unassigned${priorLabel ? ` (was ${priorLabel})` : ""}`
+      : currentOwner === null
+        ? targetUserId === user.id
+          ? "Claimed this company"
+          : `Assigned to ${targetLabel}`
+        : `Reassigned: ${priorLabel} → ${targetLabel}`;
+
+  await logActivity(supabase, {
+    orgId: user.orgId,
+    userId: user.id,
+    accountId,
+    kind: CRM_ACTIVITY.repChanged,
+    summary,
+    meta: { from: currentOwner, to: targetUserId },
+  });
+
+  // Claim-only stage advance — mirrors claimAiLead (ai-agent/actions.ts:62-87)
+  // so the two claim surfaces can't drift. Never runs on a reassign.
+  const priorStage = normalizeStage(account.lifecycle_status as string | null);
+  if (currentOwner === null && targetUserId !== null && priorStage === "new_lead") {
+    const { error: stageError } = await supabase
+      .from("crm_accounts")
+      .update({ lifecycle_status: "researching" })
+      .eq("id", accountId);
+
+    if (!stageError) {
+      await logActivity(supabase, {
+        orgId: user.orgId,
+        userId: user.id,
+        accountId,
+        kind: CRM_ACTIVITY.lifecycleChanged,
+        summary: `Stage changed: ${stageLabel(priorStage)} → ${stageLabel("researching")}`,
+        meta: { from: priorStage, to: "researching" },
+      });
+
+      await fireStageEntryTask(supabase, {
+        orgId: user.orgId,
+        actorUserId: user.id,
+        accountId,
+        ownerUserId: targetUserId,
+        stage: "researching",
+      });
+    }
+  }
+
+  revalidateAccount(accountId);
+  // The Prospects tab and its nav badge are both keyed on
+  // assigned_user_id IS NULL (ai-agent/page.tsx:37, layout.tsx:45), so a
+  // claim made from a profile has to drop the lead out of both.
+  revalidatePath("/crm/ai-agent");
   return { ok: true };
 }
 

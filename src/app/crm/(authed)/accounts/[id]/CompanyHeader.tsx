@@ -2,16 +2,30 @@ import { IconCompanies } from "../../_shell/icons";
 import { BackButton } from "../../_shell/BackButton";
 import { EditCompany } from "./EditCompany";
 import { CompanyMoreMenu } from "./CompanyMoreMenu";
+import { ClaimCompanyButton } from "./ClaimCompanyButton";
 import type { CompanyDefaults, RepOption } from "../CompanyDialog";
 import type { TaskContactOption } from "../../tasks/TaskDialog";
 
-/** Compact "Rep: Tyler Brooks" chip — a small initial avatar + name, purely
- * a display (changing the rep is still done through the Edit button's
- * "Assigned rep" field, same as every other company field it edits). Plain
- * server-rendered markup, no interaction, so no client-boundary concerns. */
-function RepBadge({ label }: { label: string | null }) {
+/** Compact "Rep: Tyler Brooks" chip — a small initial avatar + name. The
+ * CLAIMED state is still purely a display: reassigning or unassigning an
+ * owned company is admin-only and lives on the desktop AssignmentControl (or
+ * the Edit dialog's "Assigned rep" field), not in this locked row.
+ *
+ * The UNCLAIMED state is the one interactive case (2026-08-22) — a bare
+ * "Unassigned" span told a rep nothing they could act on, so it's now a
+ * Claim button. That's a client component of its own; everything else here
+ * stays plain server-rendered markup with no client-boundary concerns. */
+function RepBadge({
+  label,
+  accountId,
+  currentUserId,
+}: {
+  label: string | null;
+  accountId: string;
+  currentUserId: string;
+}) {
   if (!label) {
-    return <span className="inline-flex items-center text-[12px] font-medium text-fg-subtle">Unassigned</span>;
+    return <ClaimCompanyButton accountId={accountId} currentUserId={currentUserId} />;
   }
   const initial = label.trim().charAt(0).toUpperCase() || "?";
   return (
@@ -62,6 +76,8 @@ export function CompanyHeader({
   editDefaults,
   reps,
   repLabel,
+  currentUserId,
+  isAdmin,
   isActiveCustomer,
   canDelete,
 }: {
@@ -71,6 +87,10 @@ export function CompanyHeader({
   editDefaults: CompanyDefaults & { id: string };
   reps: RepOption[];
   repLabel: string | null;
+  /** Claim target for the unclaimed-state button — see RepBadge. */
+  currentUserId: string;
+  /** role === 'owner' — only surfaces the Edit dialog's "Assigned rep" field. */
+  isAdmin: boolean;
   isActiveCustomer: boolean;
   canDelete: boolean;
 }) {
@@ -85,9 +105,9 @@ export function CompanyHeader({
         {isActiveCustomer && <ActiveCustomerPill />}
       </div>
       <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-        <RepBadge label={repLabel} />
+        <RepBadge label={repLabel} accountId={accountId} currentUserId={currentUserId} />
         <CompanyMoreMenu accountId={accountId} accountName={name} contacts={contacts} canDelete={canDelete} />
-        <EditCompany defaults={editDefaults} reps={reps} canDelete={canDelete} />
+        <EditCompany defaults={editDefaults} reps={reps} canDelete={canDelete} canAssign={isAdmin} />
       </div>
     </div>
   );

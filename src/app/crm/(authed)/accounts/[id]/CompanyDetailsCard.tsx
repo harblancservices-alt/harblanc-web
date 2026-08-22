@@ -163,6 +163,7 @@ export function CompanyDetailsCard({
   orgTags,
   editDefaults,
   reps,
+  canAssign = false,
   isActiveCustomer,
 }: {
   accountId: string;
@@ -181,6 +182,9 @@ export function CompanyDetailsCard({
   orgTags: CrmTagOption[];
   editDefaults: CompanyDefaults & { id: string };
   reps: RepOption[];
+  /** Owner-only — forwarded to EditCompany so an admin still gets the form's
+   * "Assigned rep" select from this trigger too. */
+  canAssign?: boolean;
   isActiveCustomer: boolean;
 }) {
   const phoneRows: PhoneEntry[] = phones.length ? phones : legacyPhone ? [{ label: "Main", number: legacyPhone }] : [];
@@ -218,7 +222,7 @@ export function CompanyDetailsCard({
             {industry && <p className={`mt-0.5 truncate text-[12px] font-medium ${HEADER_SUB}`}>{industry}</p>}
           </div>
         </div>
-        <EditCompany defaults={editDefaults} reps={reps} variant="onDark" />
+        <EditCompany defaults={editDefaults} reps={reps} canAssign={canAssign} variant="onDark" />
       </div>
 
       <div className="flex flex-col gap-5 p-5">

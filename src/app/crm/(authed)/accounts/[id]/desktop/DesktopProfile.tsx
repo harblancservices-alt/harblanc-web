@@ -54,7 +54,10 @@ export function DesktopProfile({
   industry,
   city,
   stage,
+  ownerId,
   ownerLabel,
+  currentUserId,
+  isAdmin,
   editDefaults,
   reps,
   canDelete,
@@ -87,7 +90,10 @@ export function DesktopProfile({
   industry: string | null;
   city: string | null;
   stage: string;
+  ownerId: string | null;
   ownerLabel: string | null;
+  currentUserId: string;
+  isAdmin: boolean;
   editDefaults: CompanyDefaults & { id: string };
   reps: RepOption[];
   canDelete: boolean;
@@ -122,7 +128,10 @@ export function DesktopProfile({
         name={accountName}
         accountId={accountId}
         stage={stage}
+        ownerId={ownerId}
         ownerLabel={ownerLabel}
+        currentUserId={currentUserId}
+        isAdmin={isAdmin}
         editDefaults={editDefaults}
         reps={reps}
         canDelete={canDelete}

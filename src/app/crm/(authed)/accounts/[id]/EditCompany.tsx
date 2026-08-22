@@ -22,12 +22,17 @@ export function EditCompany({
   defaults,
   reps,
   canDelete = false,
+  canAssign = false,
   variant = "button",
   label,
 }: {
   defaults: CompanyDefaults;
   reps: RepOption[];
   canDelete?: boolean;
+  /** Owner-only — surfaces the form's "Assigned rep" select. Defaults to
+   * false so any trigger that doesn't know the caller's role can't offer it;
+   * updateAccount() enforces the rule regardless. */
+  canAssign?: boolean;
   variant?: "button" | "link" | "onDark" | "pill";
   label?: string;
 }) {
@@ -37,6 +42,7 @@ export function EditCompany({
       reps={reps}
       defaults={defaults}
       canDelete={canDelete}
+      canAssign={canAssign}
       trigger={(open) => {
         if (variant === "link") {
           return (

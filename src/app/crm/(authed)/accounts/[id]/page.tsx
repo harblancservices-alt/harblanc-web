@@ -455,7 +455,7 @@ export default async function AccountDetailPage({
 
   const mobileTree = (
     <PageShell>
-      {account.needs_finalize && <FinalizeBanner defaults={editDefaults} reps={reps} />}
+      {account.needs_finalize && <FinalizeBanner defaults={editDefaults} reps={reps} canAssign={isOwner} />}
 
       <div className="flex flex-col gap-4">
         <CompanyHeader
@@ -465,6 +465,8 @@ export default async function AccountDetailPage({
           editDefaults={editDefaults}
           reps={reps}
           repLabel={currentRepLabel}
+          currentUserId={user.id}
+          isAdmin={isOwner}
           isActiveCustomer={normalizeStage(stage) === "active_customer"}
           canDelete={isOwner}
         />
@@ -508,6 +510,7 @@ export default async function AccountDetailPage({
             orgTags={orgTags}
             editDefaults={editDefaults}
             reps={reps}
+            canAssign={isOwner}
             isActiveCustomer={normalizeStage(stage) === "active_customer"}
           />
 
@@ -586,7 +589,7 @@ export default async function AccountDetailPage({
       <div className="hidden lg:block">
         {account.needs_finalize && (
           <div className="px-6 pt-4">
-            <FinalizeBanner defaults={editDefaults} reps={reps} />
+            <FinalizeBanner defaults={editDefaults} reps={reps} canAssign={isOwner} />
           </div>
         )}
 
@@ -596,7 +599,10 @@ export default async function AccountDetailPage({
           industry={account.industry as string | null}
           city={accountCity}
           stage={stage}
+          ownerId={currentRepId}
           ownerLabel={currentRepLabel}
+          currentUserId={user.id}
+          isAdmin={isOwner}
           editDefaults={editDefaults}
           reps={reps}
           canDelete={isOwner}

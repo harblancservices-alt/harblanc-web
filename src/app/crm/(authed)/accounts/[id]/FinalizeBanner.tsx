@@ -14,9 +14,12 @@ import { CompanyDialog, type CompanyDefaults, type RepOption } from "../CompanyD
 export function FinalizeBanner({
   defaults,
   reps,
+  canAssign = false,
 }: {
   defaults: CompanyDefaults;
   reps: RepOption[];
+  /** Owner-only — see CompanyDialog's own `canAssign` docstring. */
+  canAssign?: boolean;
 }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-warn/30 bg-warn-bg px-5 py-3.5">
@@ -30,6 +33,7 @@ export function FinalizeBanner({
         mode="edit"
         reps={reps}
         defaults={defaults}
+        canAssign={canAssign}
         trigger={(open) => (
           <button
             type="button"
