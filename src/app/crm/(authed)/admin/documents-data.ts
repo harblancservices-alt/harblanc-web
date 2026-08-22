@@ -29,7 +29,12 @@ const BLANK_TEMPLATES: { kind: string; label: string; docType: AdminBlankTemplat
  * above so an upload can never collide with a generator template. */
 export const ORG_UPLOAD_KIND = "org_doc:upload";
 
-type OrgDocRow = { file_name: string; storage_path: string; created_at: string };
+/** The two template kinds, exported so ./documents/actions.ts::
+ * renameOrgDocument can allow renaming them too (titles are editable for
+ * both templates and uploads; only deletion stays upload-only). */
+export const TEMPLATE_KINDS = BLANK_TEMPLATES.map((t) => t.kind);
+
+type OrgDocRow = { id: string; file_name: string; storage_path: string; created_at: string };
 
 /**
  * Admin Account "Documents" tab — the org's blank master RC/BOL templates,
@@ -60,7 +65,7 @@ export async function listBlankTemplates(): Promise<AdminBlankTemplate[]> {
     BLANK_TEMPLATES.map(async (t) => {
       const { data } = await supabase
         .from("crm_documents")
-        .select("file_name, storage_path, created_at")
+        .select("id, file_name, storage_path, created_at")
         .eq("kind", t.kind)
         .is("account_id", null)
         .is("deal_id", null)
@@ -83,6 +88,7 @@ export async function listBlankTemplates(): Promise<AdminBlankTemplate[]> {
   }
 
   return rows.map(({ def, row }) => ({
+    id: row?.id ?? null,
     docType: def.docType,
     label: def.label,
     fileName: row?.file_name ?? null,

@@ -62,6 +62,9 @@ export type AdminActivityItem = {
 export type AdminBlankTemplateType = "rate_confirmation" | "bill_of_lading";
 
 export type AdminBlankTemplate = {
+  /** crm_documents.id — null when no file has ever been uploaded for this
+   * template slot yet (nothing to rename). */
+  id: string | null;
   docType: AdminBlankTemplateType;
   label: string;
   fileName: string | null;

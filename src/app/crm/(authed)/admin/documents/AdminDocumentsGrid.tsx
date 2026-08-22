@@ -19,6 +19,14 @@ function typeIcon(t: AdminBlankTemplate["docType"]) {
   return t === "bill_of_lading" ? <IconBillOfLading width={14} height={14} /> : <IconRateConfirmation width={14} height={14} />;
 }
 
+/** The displayed/editable title for a template card — whatever it's been
+ * renamed to (file_name), falling back to the fixed type label ("Rate
+ * Confirmation"/"Bill of Lading") until someone renames it or when no file
+ * has ever been uploaded for that slot. */
+function templateTitle(t: AdminBlankTemplate): string {
+  return t.fileName || t.label;
+}
+
 /** Generic file icon for an org upload's thumbnail block — no dedicated
  * "file" icon exists in _shell/icons.tsx, and none of the doc-type icons
  * there (Rate Confirmation, BOL) fit an arbitrary upload. */
@@ -44,24 +52,27 @@ function formatBytes(bytes: number | null): string {
 }
 
 /**
- * Documents tab — the two blank master templates (read-only, generator
- * output) and org-level uploads (insurance certs, W9s, agreements — user-
- * managed) together in one 5-across grid.
+ * Documents tab — the two blank master templates (generator output) and
+ * org-level uploads (insurance certs, W9s, agreements) together in one
+ * 5-across grid.
  *
  * Opening ANY doc (template or upload) pops a real separate browser
- * window/tab (window.open on a freshly-fetched signed URL) — the browser's
- * own native PDF/image view handles zoom there. No in-app overlay viewer;
- * Brent needs to flip between the document and the CRM, which a same-window
- * takeover doesn't allow (same reasoning as the BOL Center detail page's
- * "Open in new window").
+ * window/tab. `window.open` is called SYNCHRONOUSLY on the click itself
+ * (before the signed-URL fetch), then navigated to the real URL once it
+ * resolves — calling window.open only after an `await` is what silently got
+ * this treated as a same-window/blocked-popup navigation by the browser
+ * (Safari in particular blocks a popup that isn't a direct, synchronous
+ * response to the user gesture); this two-step open-blank-then-navigate
+ * pattern is the standard fix and is real, not a same-tab fallback.
  *
- * Rename/delete live behind a single header "Edit" toggle, not a per-card
- * control — Brent couldn't find/use the previous per-card "⋯" menu. Clicking
- * Edit swaps every upload card's title into a text input and reveals a
- * small Delete button; clicking Save persists whichever titles actually
- * changed and exits. Templates never get an input or a delete button, in
- * or out of edit mode — enforced again server-side in
- * renameOrgDocument/deleteOrgDocument regardless of what the UI shows.
+ * Rename/delete live behind a single header "Edit" toggle (always visible,
+ * regardless of whether any uploads exist yet — a prior version gated it on
+ * uploads.length, which hid it entirely for an org with only the 2
+ * templates). In edit mode EVERY title is a text input, templates included;
+ * Save persists whichever titles actually changed. Delete stays upload-only
+ * — no delete control ever renders for a template card, and
+ * deleteOrgDocument re-guards that server-side regardless of what the UI
+ * shows.
  */
 export function AdminDocumentsGrid({
   templates,
@@ -81,16 +92,20 @@ export function AdminDocumentsGrid({
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const inputRef = useRef<HTMLInputElement>(null);
 
-  async function openInNewWindow(key: string, storagePath: string, label: string) {
+  function openInNewWindow(key: string, storagePath: string, label: string) {
     setError(null);
     setOpening(key);
-    const url = await getSignedPdfUrl(storagePath);
-    setOpening(null);
-    if (!url) {
-      setError(`Could not open ${label}. Please try again.`);
-      return;
-    }
-    window.open(url, "_blank", "noopener,noreferrer");
+    // Synchronous, direct response to the click — browsers won't block this.
+    const win = window.open("", "_blank");
+    void getSignedPdfUrl(storagePath).then((url) => {
+      setOpening(null);
+      if (!url || !win) {
+        win?.close();
+        setError(`Could not open ${label}. Please try again.`);
+        return;
+      }
+      win.location.href = url;
+    });
   }
 
   async function handleFile(file: File) {
@@ -122,21 +137,28 @@ export function AdminDocumentsGrid({
 
   function enterEditMode() {
     setError(null);
-    setDrafts(Object.fromEntries(uploads.map((u) => [u.id, u.fileName])));
+    const seed: Record<string, string> = {};
+    for (const t of templates) if (t.id) seed[t.id] = templateTitle(t);
+    for (const u of uploads) seed[u.id] = u.fileName;
+    setDrafts(seed);
     setEditMode(true);
   }
 
   async function saveAndExitEditMode() {
     setError(null);
     setSaving(true);
-    const changed = uploads.filter((u) => drafts[u.id]?.trim() && drafts[u.id].trim() !== u.fileName);
-    for (const u of changed) {
-      const res = await renameOrgDocument(u.id, drafts[u.id].trim());
+    const originalById = new Map<string, string>();
+    for (const t of templates) if (t.id) originalById.set(t.id, templateTitle(t));
+    for (const u of uploads) originalById.set(u.id, u.fileName);
+
+    const changedIds = Object.keys(drafts).filter((id) => drafts[id]?.trim() && drafts[id].trim() !== originalById.get(id));
+    for (const id of changedIds) {
+      const res = await renameOrgDocument(id, drafts[id].trim());
       if (!res.ok) setError(res.error);
     }
     setSaving(false);
     setEditMode(false);
-    if (changed.length) router.refresh();
+    if (changedIds.length) router.refresh();
   }
 
   async function handleDelete(u: AdminOrgUpload) {
@@ -168,25 +190,24 @@ export function AdminDocumentsGrid({
               >
                 {uploading ? "Uploading…" : "Upload document"}
               </button>
-              {uploads.length > 0 &&
-                (editMode ? (
-                  <button
-                    type="button"
-                    disabled={saving}
-                    onClick={saveAndExitEditMode}
-                    className={`inline-flex h-9 items-center gap-1.5 rounded-md px-3.5 text-[13px] font-bold transition-colors disabled:opacity-60 ${BTN_PRIMARY}`}
-                  >
-                    {saving ? "Saving…" : "Save"}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={enterEditMode}
-                    className={`inline-flex h-9 items-center gap-1.5 rounded-md px-3.5 text-[13px] font-bold transition-colors ${BTN_EDIT}`}
-                  >
-                    Edit
-                  </button>
-                ))}
+              {editMode ? (
+                <button
+                  type="button"
+                  disabled={saving}
+                  onClick={saveAndExitEditMode}
+                  className={`inline-flex h-9 items-center gap-1.5 rounded-md px-3.5 text-[13px] font-bold transition-colors disabled:opacity-60 ${BTN_PRIMARY}`}
+                >
+                  {saving ? "Saving…" : "Save"}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={enterEditMode}
+                  className={`inline-flex h-9 items-center gap-1.5 rounded-md px-3.5 text-[13px] font-bold transition-colors ${BTN_EDIT}`}
+                >
+                  Edit
+                </button>
+              )}
               <input
                 ref={inputRef}
                 type="file"
@@ -204,37 +225,46 @@ export function AdminDocumentsGrid({
         <div className={GRID_CLASS}>
           {templates.map((t) => {
             const hasFile = Boolean(t.storagePath);
+            const canEditTitle = editMode && Boolean(t.id);
             return (
-              <div
-                key={t.docType}
-                role={hasFile ? "button" : undefined}
-                tabIndex={hasFile ? 0 : undefined}
-                onClick={hasFile ? () => openInNewWindow(t.docType, t.storagePath!, t.label) : undefined}
-                onKeyDown={
-                  hasFile
-                    ? (e) => {
-                        if (e.key === "Enter" || e.key === " ") openInNewWindow(t.docType, t.storagePath!, t.label);
-                      }
-                    : undefined
-                }
-                className={`flex flex-col overflow-hidden rounded-lg border border-line-strong bg-card text-left shadow-e1 ${
-                  hasFile ? "cursor-pointer transition-shadow hover:shadow-e2" : "opacity-80"
-                }`}
-              >
-                <div className="flex aspect-[4/3] items-center justify-center overflow-hidden bg-inset">
+              <div key={t.docType} className="flex flex-col overflow-hidden rounded-lg border border-line-strong bg-card text-left shadow-e1">
+                <div
+                  role={hasFile && !editMode ? "button" : undefined}
+                  tabIndex={hasFile && !editMode ? 0 : undefined}
+                  onClick={hasFile && !editMode ? () => openInNewWindow(t.docType, t.storagePath!, templateTitle(t)) : undefined}
+                  onKeyDown={
+                    hasFile && !editMode
+                      ? (e) => {
+                          if (e.key === "Enter" || e.key === " ") openInNewWindow(t.docType, t.storagePath!, templateTitle(t));
+                        }
+                      : undefined
+                  }
+                  className={`flex aspect-[4/3] items-center justify-center overflow-hidden bg-inset ${
+                    hasFile && !editMode ? "cursor-pointer transition-shadow hover:shadow-e2" : hasFile ? "" : "opacity-80"
+                  }`}
+                >
                   {t.thumbUrl && (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={t.thumbUrl} alt={t.label} className="h-full w-full object-cover object-top" />
+                    <img src={t.thumbUrl} alt={templateTitle(t)} className="h-full w-full object-cover object-top" />
                   )}
                 </div>
-                <div className="flex flex-col gap-1 p-3">
-                  <div className="flex items-center gap-1.5">
-                    <span className="shrink-0 text-accent">{typeIcon(t.docType)}</span>
-                    <span className="text-[13.5px] font-bold text-fg">{t.label}</span>
-                  </div>
-                  <p className="text-[12px] text-fg-subtle">
-                    {opening === t.docType ? "Opening…" : hasFile ? "Blank master template" : "No template on file yet"}
-                  </p>
+                <div className="flex flex-col gap-1.5 p-3">
+                  {canEditTitle ? (
+                    <input
+                      type="text"
+                      value={drafts[t.id as string] ?? templateTitle(t)}
+                      onChange={(e) => setDrafts((prev) => ({ ...prev, [t.id as string]: e.target.value }))}
+                      className={`w-full min-w-0 ${CONTROL}`}
+                    />
+                  ) : (
+                    <div className="flex items-center gap-1.5">
+                      <span className="shrink-0 text-accent">{typeIcon(t.docType)}</span>
+                      <span className="truncate text-[13.5px] font-bold text-fg">
+                        {opening === t.docType ? "Opening…" : templateTitle(t)}
+                      </span>
+                    </div>
+                  )}
+                  <p className="text-[12px] text-fg-subtle">{hasFile ? "Blank master template" : "No template on file yet"}</p>
                 </div>
               </div>
             );

@@ -2,7 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
-import { ORG_UPLOAD_KIND } from "../documents-data";
+import { ORG_UPLOAD_KIND, TEMPLATE_KINDS } from "../documents-data";
+
+/** Titles are editable for both uploads AND the two blank templates —
+ * deletion stays upload-only (see deleteOrgDocument below). */
+const RENAMEABLE_KINDS = [ORG_UPLOAD_KIND, ...TEMPLATE_KINDS];
 import type { ActionResult } from "../types";
 
 /**
@@ -51,11 +55,10 @@ export async function createOrgDocument(input: {
   return { ok: true };
 }
 
-/** Renames an upload's display name (file_name) only — the storage object
+/** Renames a document's display name (file_name) only — the storage object
  * and its path are untouched, so this never risks breaking the signed-URL
- * lookup. Re-guards on kind=ORG_UPLOAD_KIND, same as deleteOrgDocument, so a
- * template row can never be renamed even if the action were somehow called
- * with its id. */
+ * lookup. Allows both upload AND template kinds (titles are editable for
+ * both); deletion stays upload-only, see deleteOrgDocument below. */
 export async function renameOrgDocument(documentId: string, fileName: string): Promise<ActionResult> {
   await requireAdminUser();
   const trimmed = fileName.trim();
@@ -66,7 +69,7 @@ export async function renameOrgDocument(documentId: string, fileName: string): P
     .from("crm_documents")
     .update({ file_name: trimmed })
     .eq("id", documentId)
-    .eq("kind", ORG_UPLOAD_KIND);
+    .in("kind", RENAMEABLE_KINDS);
 
   if (error) return { ok: false, error: "Could not rename the file. Please try again." };
 
