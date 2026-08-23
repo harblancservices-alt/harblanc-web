@@ -1,8 +1,10 @@
 import { listShipmentsForAccount } from "../../shipments/actions";
 import { ShipmentCard } from "../../shipments/ShipmentCard";
 import { NewShipmentButton } from "../../shipments/NewShipmentButton";
-
-const ACTIVE_STATUSES = new Set(["open", "dispatched", "in_transit"]);
+// The ONE definition of "active", shared with Operations → Active Loads.
+// Was a private const here; promoted to statusMeta.ts so the two surfaces
+// can't drift apart on what counts as a live load.
+import { isActiveShipmentStatus } from "../../shipments/statusMeta";
 
 /**
  * The profile's "Shipments" tab — this customer's loads, active first then
@@ -15,8 +17,8 @@ const ACTIVE_STATUSES = new Set(["open", "dispatched", "in_transit"]);
  */
 export async function ShipmentsTab({ accountId, accountName }: { accountId: string; accountName: string }) {
   const shipments = await listShipmentsForAccount(accountId);
-  const active = shipments.filter((s) => ACTIVE_STATUSES.has((s.status || "open").toLowerCase()));
-  const historical = shipments.filter((s) => !ACTIVE_STATUSES.has((s.status || "open").toLowerCase()));
+  const active = shipments.filter((s) => isActiveShipmentStatus(s.status));
+  const historical = shipments.filter((s) => !isActiveShipmentStatus(s.status));
 
   return (
     <div className="flex flex-col gap-4 p-4">

@@ -17,6 +17,30 @@ export const SHIPMENT_STATUSES = [
 
 export type ShipmentStatus = (typeof SHIPMENT_STATUSES)[number];
 
+/**
+ * The statuses that make a shipment an ACTIVE load — still moving, still
+ * something a rep has to work. Everything after in_transit (delivered,
+ * invoiced) is history, and cancelled never was.
+ *
+ * Promoted here 2026-08-22 from a private const inside
+ * accounts/[id]/ShipmentsTab.tsx, which was the first surface to need it.
+ * Operations → Active Loads is the second, and two copies of this set would
+ * be two screens that quietly disagree about what "active" means the first
+ * time the vocabulary changes. It belongs with the vocabulary it filters.
+ */
+export const ACTIVE_SHIPMENT_STATUSES: ReadonlySet<string> = new Set([
+  "open",
+  "dispatched",
+  "in_transit",
+]);
+
+/** Same normalization the label/tone helpers use — an unknown or blank
+ * status reads as "open", so a row can never fall out of the active list
+ * just because its status column holds something unexpected. */
+export function isActiveShipmentStatus(value: string | null | undefined): boolean {
+  return ACTIVE_SHIPMENT_STATUSES.has(normalizeStatus(value));
+}
+
 export const SHIPMENT_STATUS_LABEL: Record<ShipmentStatus, string> = {
   open: "Open",
   dispatched: "Dispatched",
