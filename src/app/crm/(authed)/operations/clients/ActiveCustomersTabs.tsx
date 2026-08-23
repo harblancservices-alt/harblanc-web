@@ -4,7 +4,6 @@ import { useState, type ReactNode } from "react";
 
 const TABS = [
   { key: "customers", label: "Active Customers" },
-  { key: "carriers", label: "Carriers" },
   { key: "shipments", label: "Shipments" },
   { key: "documents", label: "BOL / RC" },
 ] as const;
@@ -12,29 +11,31 @@ const TABS = [
 type TabKey = (typeof TABS)[number]["key"];
 
 /**
- * The Active Customers hub's top tab bar — client-side only, no route
+ * The Active Clients hub's inner tab bar — client-side only, no route
  * change/reload when switching. Every panel is passed in already rendered
  * (server-fetched by the page above) and stays mounted, just hidden, same
  * "state survives tab switches" reasoning as accounts/[id]/ProfileCenterTabs.
- * A per-tab action button (Add carrier / New Shipment) renders in a small
- * row above the panel, only for the tab that owns it — Active Customers and
- * BOL/RC are read-only views with nothing to create.
+ * A per-tab action button (New Shipment) renders in a small row above the
+ * panel, only for the tab that owns it — Active Customers and BOL/RC are
+ * read-only views with nothing to create.
  *
- * On mobile the strip is a 4-column grid so all tabs fit on screen with no
+ * WAS FOUR TABS. "Carriers" came out 2026-08-22 when the carrier directory
+ * became its own Operations sub-tab (../carriers) — the same directory in
+ * two places inside one tab strip would have been a step backwards, not a
+ * convenience. Nothing was lost: carrier CRUD, search and the detail route
+ * are all intact one tab over.
+ *
+ * On mobile the strip is a 3-column grid so all tabs fit on screen with no
  * horizontal scroll (labels wrap to two lines if needed); at `sm:` it
  * reverts to the original horizontally-scrollable segmented control.
  */
 export function ActiveCustomersTabs({
   activeCustomers,
-  carriers,
-  carrierActions,
   shipments,
   shipmentActions,
   documents,
 }: {
   activeCustomers: ReactNode;
-  carriers: ReactNode;
-  carrierActions?: ReactNode;
   shipments: ReactNode;
   shipmentActions?: ReactNode;
   documents: ReactNode;
@@ -42,7 +43,6 @@ export function ActiveCustomersTabs({
   const [tab, setTab] = useState<TabKey>("customers");
 
   const actionsByTab: Partial<Record<TabKey, ReactNode>> = {
-    carriers: carrierActions,
     shipments: shipmentActions,
   };
   const currentActions = actionsByTab[tab];
@@ -51,8 +51,8 @@ export function ActiveCustomersTabs({
     <div className="space-y-4">
       <div
         role="tablist"
-        aria-label="Active Customers hub"
-        className="grid grid-cols-4 gap-1 rounded-lg border border-line-strong bg-inset p-1.5 shadow-e2 sm:flex sm:overflow-x-auto"
+        aria-label="Active Clients"
+        className="grid grid-cols-3 gap-1 rounded-lg border border-line-strong bg-inset p-1.5 shadow-e2 sm:flex sm:overflow-x-auto"
       >
         {TABS.map((t) => (
           <button
@@ -75,7 +75,6 @@ export function ActiveCustomersTabs({
       {currentActions && <div className="flex justify-end">{currentActions}</div>}
 
       <div className={tab === "customers" ? "" : "hidden"}>{activeCustomers}</div>
-      <div className={tab === "carriers" ? "" : "hidden"}>{carriers}</div>
       <div className={tab === "shipments" ? "" : "hidden"}>{shipments}</div>
       <div className={tab === "documents" ? "" : "hidden"}>{documents}</div>
     </div>

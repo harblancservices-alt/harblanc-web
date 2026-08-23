@@ -12,7 +12,7 @@ export default async function CarrierDetailPage({ params }: { params: Promise<{ 
   if (!carrier) notFound();
 
   return (
-    <PageShell back={<BackButton fallbackHref="/crm/carriers" label="Carriers" />}>
+    <PageShell back={<BackButton fallbackHref="/crm/operations/carriers" label="Carriers" />}>
       <CarrierDetail carrier={carrier} />
     </PageShell>
   );

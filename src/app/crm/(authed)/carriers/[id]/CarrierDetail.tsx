@@ -26,7 +26,7 @@ export function CarrierDetail({ carrier }: { carrier: CrmCarrierWithContacts }) 
     setDeleteError(null);
     startDeleteTransition(async () => {
       const result = await softDeleteCarrier(carrier.id);
-      if (result.ok) router.push("/crm/carriers");
+      if (result.ok) router.push("/crm/operations/carriers");
       else setDeleteError(result.error);
     });
   }

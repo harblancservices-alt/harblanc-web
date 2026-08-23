@@ -1,52 +1,29 @@
-import { PageShell } from "../_shell/ui";
-import { BackButton } from "../_shell/BackButton";
-import { listCarriers } from "../shipments/carriers-actions";
-import { CarriersListClient, type CarrierListRow } from "./CarriersListClient";
-import { AddCarrierButton } from "./AddCarrierButton";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
 /**
- * The org's carrier directory — independent of any one shipment, reused
- * from the Shipment workspace's carrier picker/"Add carrier" flow. Reads
- * listCarriers() (up to the org's first 20 alphabetically — see
- * carriers-actions.ts's comment on why that's the intended shape for a
- * picker; the directory page here just reuses the same action for its full
- * list, matching every other CRM list's "already the full page, filter
- * client-side" pattern).
+ * Compat redirect. The carrier directory moved into Operations on
+ * 2026-08-22 (/crm/operations/carriers); this route stays alive so existing
+ * bookmarks, the "Carriers" link on the shipment workspace, and the detail
+ * page's own back button all still resolve.
+ *
+ * `q` IS forwarded — it's a real server-side search on the directory (see
+ * ../operations/carriers/page.tsx), so a shared "/crm/carriers?q=lone star"
+ * link must keep its query on the way through rather than silently landing
+ * on the unfiltered list.
+ *
+ * NOTE the sibling [id] route is NOT redirected and must not be: carrier
+ * DETAIL still lives at /crm/carriers/[id], linked from the carrier rows,
+ * from CarrierFormDialog after a create, and from the shipment workspace.
+ * Only this list page moved.
  */
-export default async function CarriersPage({
+export default async function CarriersRedirect({
   searchParams,
 }: {
   searchParams: Promise<{ q?: string }>;
 }) {
   const sp = await searchParams;
   const q = (sp.q ?? "").trim();
-  const carriers = await listCarriers(q);
-
-  const rows: CarrierListRow[] = carriers.map((c) => ({
-    id: c.id,
-    name: c.name,
-    mcNumber: c.mcNumber,
-    dotNumber: c.dotNumber,
-    phone: c.phone,
-    city: c.city,
-    state: c.state,
-    equipment: c.equipment,
-    status: c.status,
-  }));
-
-  return (
-    <PageShell
-      title="Carriers"
-      /* Falls back into the Active Clients hub (carriers is one of its 4
-         tabs), not the orphaned standalone /crm/shipments route — a rep who
-         arrived here from the hub should land back in it, not outside it
-         (CRM_MASTER_AUDIT.md §5/§10, P1 #8). */
-      back={<BackButton fallbackHref="/crm/active-customers" label="Active Clients" />}
-      actions={<AddCarrierButton />}
-    >
-      <CarriersListClient carriers={rows} q={q} />
-    </PageShell>
-  );
+  redirect(q ? `/crm/operations/carriers?q=${encodeURIComponent(q)}` : "/crm/operations/carriers");
 }

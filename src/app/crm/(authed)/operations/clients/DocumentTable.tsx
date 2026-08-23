@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { ClickableRow } from "../_shell/ClickableRow";
-import { LIST_HEAD_ROW, ZEBRA_ROWS, Badge, BTN_EDIT, BTN_DANGER } from "../_shell/ui";
-import { IconRateConfirmation, IconBillOfLading } from "../_shell/icons";
-import { titleCaseWords, upperCaseState, formatDate } from "../_shell/format";
-import { docStatusLabel, docStatusBadgeTone } from "../shipments/docStatusMeta";
-import type { AllDocumentSummary } from "../shipments/types";
+import { ClickableRow } from "../../_shell/ClickableRow";
+import { LIST_HEAD_ROW, ZEBRA_ROWS, Badge, BTN_EDIT, BTN_DANGER } from "../../_shell/ui";
+import { IconRateConfirmation, IconBillOfLading } from "../../_shell/icons";
+import { titleCaseWords, upperCaseState, formatDate } from "../../_shell/format";
+import { docStatusLabel, docStatusBadgeTone } from "../../shipments/docStatusMeta";
+import type { AllDocumentSummary } from "../../shipments/types";
 
 export function lane(doc: AllDocumentSummary): string {
   const from =

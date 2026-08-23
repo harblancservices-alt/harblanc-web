@@ -45,15 +45,10 @@ export default async function CrmAuthedLayout({
     .is("assigned_user_id", null)
     .is("deleted_at", null);
 
-  // Active-customers count for the nav badge — visible to every CRM user
-  // (the tab itself isn't owner-gated), same predicate as /crm/customers.
-  // "active_customer" is the 2026-08-09 canonical final-stage slug (see
-  // accounts/lifecycle.ts) — was "customer" before the 7-stage funnel rebuild.
-  const { count: customerCount } = await supabase
-    .from("crm_accounts")
-    .select("id", { count: "exact", head: true })
-    .eq("lifecycle_status", "active_customer")
-    .is("deleted_at", null);
+  // (The active-customers count query that used to live here went away with
+  // the "Active Clients" nav item on 2026-08-22 — it became an Operations
+  // sub-tab and no longer carries a badge, so the count is no longer read.
+  // One fewer count query on every single CRM page render.)
 
   // Outstanding (not-done) Upgrades requests for the nav badge — visible to
   // every CRM user, same as the other backlog counts above; the board itself
@@ -71,7 +66,6 @@ export default async function CrmAuthedLayout({
       role={user.role}
       pendingReviewCount={pendingReviewCount}
       unclaimedAiLeadsCount={unclaimedAiCount ?? 0}
-      customerCount={customerCount ?? 0}
       outstandingUpgradeCount={outstandingUpgradeCount ?? 0}
     >
       {children}

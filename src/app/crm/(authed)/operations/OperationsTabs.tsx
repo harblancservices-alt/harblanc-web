@@ -10,6 +10,12 @@ const TABS: { href: string; label: string; exact: boolean }[] = [
   { href: "/crm/operations", label: "Quote Calculator", exact: true },
   { href: "/crm/operations/documents", label: "Documents", exact: false },
   { href: "/crm/operations/loads", label: "Active Loads", exact: false },
+  // Both moved in 2026-08-22 from their own destinations: Active Clients
+  // was the top-level /crm/active-customers nav item, Active Carriers was
+  // the standalone /crm/carriers list plus a tab inside that hub. Both old
+  // routes now redirect here.
+  { href: "/crm/operations/clients", label: "Active Clients", exact: false },
+  { href: "/crm/operations/carriers", label: "Active Carriers", exact: false },
 ];
 
 /**

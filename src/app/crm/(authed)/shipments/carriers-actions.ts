@@ -65,7 +65,7 @@ export async function createCarrier(fields: Partial<CarrierFields>): Promise<Cre
 
   if (error || !data) return { ok: false, error: "Could not save the carrier. Please try again." };
 
-  revalidatePath("/crm/carriers");
+  revalidatePath("/crm/operations/carriers");
   return { ok: true, id: data.id as string, carrier: mapCarrierRow(data as CrmCarrierRow) };
 }
 
@@ -86,7 +86,7 @@ export async function updateCarrier(
   const { error } = await supabase.from("crm_carriers").update(row).eq("id", id);
   if (error) return { ok: false, error: "Could not update the carrier. Please try again." };
 
-  revalidatePath("/crm/carriers");
+  revalidatePath("/crm/operations/carriers");
   revalidatePath(`/crm/carriers/${id}`);
   return { ok: true };
 }
@@ -177,6 +177,6 @@ export async function softDeleteCarrier(id: string): Promise<ActionResult> {
     .eq("id", id);
   if (error) return { ok: false, error: "Could not delete the carrier." };
 
-  revalidatePath("/crm/carriers");
+  revalidatePath("/crm/operations/carriers");
   return { ok: true };
 }

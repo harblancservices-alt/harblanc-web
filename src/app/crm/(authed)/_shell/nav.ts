@@ -6,7 +6,6 @@ import {
   IconTasks,
   IconSettings,
   IconFlame,
-  IconStarSolid,
   IconFlagSolid,
   IconAdminAccount,
   IconTruck,
@@ -28,9 +27,11 @@ export type CrmNavItem = {
   badgeTone?: "alert" | "neutral";
   /** Forces the item's ICON (only — border/background/label stay the normal
    * item treatment) to a fixed color regardless of active state. Currently
-   * just "Active Clients", which wants a solid gold star at all times — the
-   * one deliberate, documented brand-color exception in the nav (everything
-   * else pulls from the shared accent/admin token pair below). */
+   * unused since 2026-08-22, when "Active Clients" — the only item that ever
+   * set it (a solid gold star at all times) — became an Operations sub-tab.
+   * Kept as a supported flag, with its CrmShell rendering intact, so the
+   * next deliberate brand exception has somewhere to go; everything in the
+   * nav today pulls from the shared accent/admin token pair below. */
   iconTint?: "gold";
   /** True for the single "Admin Account" item — owner-only (pushed only when
    * role==='owner') and rendered in the CRM's dedicated `--admin` token
@@ -71,7 +72,7 @@ export type CrmNavItem = {
  * settings render-prop crash — "pipeline" the deal-dialog crash, not the
  * removed nav tab). layout.tsx (a Server Component) must pass only plain
  * primitives — role, pendingReviewCount, unclaimedAiLeadsCount,
- * customerCount, outstandingUpgradeCount — into CrmShell, which calls this
+ * outstandingUpgradeCount — into CrmShell, which calls this
  * itself instead of receiving its output as a prop. Since /crm routes are
  * all force-dynamic and never prerendered at build time, `next build`/`tsc`
  * won't catch a regression here — it only throws on a real request.
@@ -80,7 +81,6 @@ export function buildCrmNav(
   role: string,
   pendingReviewCount: number,
   unclaimedAiLeadsCount: number,
-  customerCount: number,
   outstandingUpgradeCount: number,
 ): CrmNavItem[] {
   const nav: CrmNavItem[] = [
@@ -95,26 +95,31 @@ export function buildCrmNav(
       badgeTone: "alert",
     },
     { href: "/crm/tasks", label: "Tasks", Icon: IconTasks },
-    {
-      href: "/crm/active-customers",
-      label: "Active Clients",
-      Icon: IconStarSolid,
-      match: ["/crm/shipments", "/crm/carriers", "/crm/customers"],
-      badge: customerCount > 0 ? customerCount : undefined,
-      badgeTone: "neutral",
-      iconTint: "gold",
-    },
-    // Operations — the everyday operating tools (Quote Calculator,
-    // Documents/vendor packets, Active Loads). Visible to EVERY CRM user,
-    // sales agents included: nothing under it is owner-only. The one
-    // admin-gated piece of the Documents story — UPLOADING the lawyer-
-    // provided templates — deliberately stays where it already lives
-    // (/crm/admin/documents, owner-only); this tab only ever READS that
-    // library and bundles a selection into a download.
+    // Operations — the everyday operating tools: Quote Calculator,
+    // Documents/vendor packets, Active Loads, Active Clients, Active
+    // Carriers. Visible to EVERY CRM user, sales agents included: nothing
+    // under it is owner-only. The one admin-gated piece of the Documents
+    // story — UPLOADING the lawyer-provided templates — deliberately stays
+    // where it already lives (/crm/admin/documents, owner-only); this tab
+    // only ever READS that library and bundles a selection into a download.
+    //
+    // 2026-08-22: "Active Clients" was a top-level item of its own here
+    // (/crm/active-customers, gold star, customer-count badge) until it
+    // became an Operations sub-tab; the carrier directory (/crm/carriers)
+    // joined it. `match` carries over from that removed item so the
+    // still-live standalone routes those sub-tabs reuse — and the compat
+    // redirects — keep lighting Operations in the sidebar rather than
+    // nothing at all.
     {
       href: "/crm/operations",
       label: "Operations",
       Icon: IconTruck,
+      match: [
+        "/crm/active-customers",
+        "/crm/carriers",
+        "/crm/customers",
+        "/crm/shipments",
+      ],
     },
   ];
   // AI Review moved under Admin Account (2026-08-20, Brent's explicit

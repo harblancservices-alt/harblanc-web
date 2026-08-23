@@ -1,11 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { BTN_EDIT, BTN_DANGER } from "../_shell/ui";
-import { IconRateConfirmation, IconBillOfLading } from "../_shell/icons";
-import { titleCaseWords, formatDate } from "../_shell/format";
-import { docStatusLabel, docStatusTone } from "../shipments/docStatusMeta";
-import type { AllDocumentSummary } from "../shipments/types";
+import { BTN_EDIT, BTN_DANGER } from "../../_shell/ui";
+import { IconRateConfirmation, IconBillOfLading } from "../../_shell/icons";
+import { titleCaseWords, formatDate } from "../../_shell/format";
+import { docStatusLabel, docStatusTone } from "../../shipments/docStatusMeta";
+import type { AllDocumentSummary } from "../../shipments/types";
 import { lane, editorHref } from "./DocumentTable";
 
 /** One document card in the mobile grid — compact card mirroring

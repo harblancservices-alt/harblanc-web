@@ -13,7 +13,17 @@ const KNOWN_LABELS: Record<string, string> = {
   "/crm": "Dashboard",
   "/crm/accounts": "Companies",
   "/crm/customers": "Active Customers",
+  // Operations sub-tabs. The two /crm/{active-customers,carriers} entries
+  // below are the pre-2026-08-22 routes, kept so historical rows in the
+  // activity log still read as words rather than falling through to the
+  // humanized-slug fallback.
+  "/crm/operations": "Quote Calculator",
+  "/crm/operations/documents": "Operations Documents",
+  "/crm/operations/loads": "Active Loads",
+  "/crm/operations/clients": "Active Clients",
+  "/crm/operations/carriers": "Active Carriers",
   "/crm/active-customers": "Active Customers",
+  "/crm/carriers": "Carriers",
   "/crm/contacts": "Contacts",
   "/crm/tasks": "Tasks",
   "/crm/ai-agent": "AI Agent",

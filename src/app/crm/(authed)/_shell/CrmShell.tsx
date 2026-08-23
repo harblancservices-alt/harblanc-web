@@ -19,7 +19,6 @@ type CrmShellProps = {
   role: string;
   pendingReviewCount: number;
   unclaimedAiLeadsCount: number;
-  customerCount: number;
   outstandingUpgradeCount: number;
   children: React.ReactNode;
 };
@@ -46,7 +45,6 @@ export function CrmShell({
   role,
   pendingReviewCount,
   unclaimedAiLeadsCount,
-  customerCount,
   outstandingUpgradeCount,
   children,
 }: CrmShellProps) {
@@ -56,7 +54,6 @@ export function CrmShell({
     role,
     pendingReviewCount,
     unclaimedAiLeadsCount,
-    customerCount,
     outstandingUpgradeCount,
   );
   const mobileNav = bottomNav(navItems);

@@ -1,13 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Card, CardHead, EmptyState } from "../_shell/ui";
-import { CONTROL } from "../_shell/form";
-import { IconSearch, IconRateConfirmation } from "../_shell/icons";
-import { openStoredPdf } from "../shipments/pdfClient";
-import { softDeleteRateConfirmation } from "../shipments/rate-confirmation-actions";
-import { softDeleteBol } from "../shipments/bol-actions";
-import type { AllDocumentSummary } from "../shipments/types";
+import { Card, CardHead, EmptyState } from "../../_shell/ui";
+import { CONTROL } from "../../_shell/form";
+import { IconSearch, IconRateConfirmation } from "../../_shell/icons";
+import { openStoredPdf } from "../../shipments/pdfClient";
+import { softDeleteRateConfirmation } from "../../shipments/rate-confirmation-actions";
+import { softDeleteBol } from "../../shipments/bol-actions";
+import type { AllDocumentSummary } from "../../shipments/types";
 import { DocumentTable } from "./DocumentTable";
 import { DocumentCard } from "./DocumentCard";
 

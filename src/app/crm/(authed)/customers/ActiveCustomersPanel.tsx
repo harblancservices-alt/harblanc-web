@@ -35,7 +35,7 @@ type AccountRow = {
  * (every row here already shares one stage, so there's nothing to filter by).
  *
  * Extracted out of customers/page.tsx (which still renders this at
- * /crm/customers) so the /crm/active-customers hub's "Active Customers" tab
+ * /crm/customers) so the Operations > Active Clients hub's "Active Customers" tab
  * can render the exact same panel without duplicating the query logic.
  */
 export async function ActiveCustomersPanel() {

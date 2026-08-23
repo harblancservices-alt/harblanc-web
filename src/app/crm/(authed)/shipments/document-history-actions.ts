@@ -134,7 +134,7 @@ type AllBolRow = {
 /**
  * Every Rate Confirmation + Bill of Lading ever generated or drafted across
  * every shipment in the org, newest first — the read-only BOL/RC library the
- * /crm/active-customers hub's "BOL/RC" tab lists. Same union-of-two-tables
+ * Operations > Active Clients hub's "BOL/RC" tab lists. Same union-of-two-tables
  * shape as listShipmentDocuments above, just org-wide (no shipment_id filter)
  * and carrying each doc's parent shipment number + customer name (read off
  * crm_shipments.customer_name — a snapshot taken at shipment-creation time,
