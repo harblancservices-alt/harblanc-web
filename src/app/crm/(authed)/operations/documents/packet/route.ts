@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
-import { ORG_UPLOAD_KIND } from "../../../admin/documents-data";
+import { PUBLISHABLE_KINDS } from "../../../admin/documents-data";
 import {
   MAX_PACKET_BYTES,
   MAX_PACKET_DOCUMENTS,
@@ -31,7 +31,7 @@ import {
  *      ../../layout.tsx (route handlers don't run through layouts), so it
  *      must do its own check rather than assume the section gate ran.
  *   3. IDs FROM THE CLIENT ARE NEVER TRUSTED. The lookup filters on the
- *      caller's own org_id and on kind=ORG_UPLOAD_KIND, on top of
+ *      caller's own org_id and on the publishable org-document kinds, on top of
  *      crm_documents' org-match RLS — so a tampered payload can neither
  *      reach another org's object nor smuggle out a company-scoped document
  *      (a customer's BOL, a commodity photo) through the template picker.
@@ -93,7 +93,8 @@ export async function POST(request: Request): Promise<Response> {
   const supabase = await createCrmServerClient();
 
   // Layer 3: re-resolve every id against the caller's own org, restricted to
-  // the org-upload kind AND to documents an admin has actually published.
+  // the org-level document kinds (PUBLISHABLE_KINDS — uploads plus the two
+  // blank master templates) AND to documents an admin has actually published.
   // Storage paths come from HERE, never from the client.
   //
   // `is_public` is re-checked on this side on purpose. The Operations list
@@ -107,7 +108,7 @@ export async function POST(request: Request): Promise<Response> {
     .select("id, file_name, storage_path, size_bytes")
     .in("id", ids)
     .eq("org_id", user.orgId)
-    .eq("kind", ORG_UPLOAD_KIND)
+    .in("kind", PUBLISHABLE_KINDS)
     .eq("is_public", true)
     .is("account_id", null)
     .is("deal_id", null)

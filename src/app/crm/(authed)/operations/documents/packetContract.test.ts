@@ -2,12 +2,16 @@ import { describe, expect, it } from "vitest";
 import { dedupeEntryName, safePacketFileName, MAX_PACKET_NAME_LENGTH } from "./packetContract";
 
 describe("safePacketFileName", () => {
-  it("keeps an ordinary name, collapsing spaces to dashes", () => {
-    expect(safePacketFileName("Vendor Packet Alamo")).toBe("Vendor-Packet-Alamo");
+  it("keeps an ordinary folder name, spaces and all", () => {
+    expect(safePacketFileName("New Customer Packet")).toBe("New Customer Packet");
+  });
+
+  it("collapses runs of whitespace to a single space", () => {
+    expect(safePacketFileName("New   Customer\tPacket")).toBe("New Customer Packet");
   });
 
   it("strips characters that would break a Content-Disposition header", () => {
-    expect(safePacketFileName('Vendor "Packet" / 2026 \\ #1')).toBe("Vendor-Packet-2026-1");
+    expect(safePacketFileName('Vendor "Packet" / 2026 \\ #1')).toBe("Vendor Packet 2026 1");
   });
 
   it("keeps dots, dashes and underscores", () => {
@@ -16,6 +20,7 @@ describe("safePacketFileName", () => {
 
   it("trims leading and trailing separators", () => {
     expect(safePacketFileName("  --Alamo--  ")).toBe("Alamo");
+    expect(safePacketFileName("   ")).toBe("packet");
   });
 
   it("falls back to 'packet' when nothing survives", () => {

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
-import { ORG_UPLOAD_KIND, STORAGE_BUCKET, TEMPLATE_KINDS, THUMB_SUFFIX } from "../documents-data";
+import { ORG_UPLOAD_KIND, PUBLISHABLE_KINDS, STORAGE_BUCKET, THUMB_SUFFIX } from "../documents-data";
 
 /** The document kinds THIS TAB manages: admin uploads plus the two blank
  * master templates. Titles are editable for both, and both can be published
@@ -10,8 +10,13 @@ import { ORG_UPLOAD_KIND, STORAGE_BUCKET, TEMPLATE_KINDS, THUMB_SUFFIX } from ".
  *
  * Every write below scopes to this list, so a document id belonging to a
  * COMPANY (a customer BOL, a commodity photo, a generated rate con) matches
- * nothing and is left untouched no matter what id is posted. */
-const TAB_MANAGED_KINDS = [ORG_UPLOAD_KIND, ...TEMPLATE_KINDS];
+ * nothing and is left untouched no matter what id is posted.
+ *
+ * Imported from ../documents-data rather than redeclared here: the writer
+ * (setDocumentPublic) and the readers (listPublicOrgDocuments, the packet
+ * route) have to agree on this list exactly, and they didn't while it was a
+ * private const — publishing a template wrote a flag nothing read. */
+const TAB_MANAGED_KINDS = PUBLISHABLE_KINDS;
 import type { ActionResult } from "../types";
 
 /**

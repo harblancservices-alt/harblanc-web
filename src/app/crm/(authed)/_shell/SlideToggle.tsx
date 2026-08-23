@@ -24,7 +24,10 @@ export function SlideToggle({
   checked: boolean;
   onChange: (next: boolean) => void;
   disabled?: boolean;
-  /** Accessible name — required, since the track itself has no text. */
+  /** Accessible name — required, since the track itself has no text. Also
+   * rendered as the hover tooltip, so a sighted user can confirm what the
+   * switch will DO before flipping it (the label next to a switch usually
+   * names the current state, not the action). */
   label: string;
   /** Renders the pending state without changing the visual position, so the
    * switch doesn't appear to snap back while the action is in flight. */
@@ -36,6 +39,7 @@ export function SlideToggle({
       role="switch"
       aria-checked={checked}
       aria-label={label}
+      title={label}
       aria-busy={busy || undefined}
       disabled={disabled || busy}
       onClick={() => onChange(!checked)}

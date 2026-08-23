@@ -11,43 +11,50 @@
 // ../../admin/documents/actions.ts, where every action re-verifies
 // role==='owner' itself.
 import { listPublicOrgDocuments } from "../../admin/documents-data";
-import { PacketBuilder, type PacketTemplate } from "./PacketBuilder";
+import { DocumentLibrary, type LibraryDocument } from "./DocumentLibrary";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Operations → Documents — the vendor-packet builder. A rep picks documents
- * out of the org's template library, names the packet, and downloads a zip
- * of those files.
+ * Operations → Documents — the sales agent's view of the org document
+ * library, and the folder compiler.
  *
- * Nothing is persisted: there is no saved-packet table and no packet object
- * written back to Storage (Brent's explicit call — the packet is ephemeral,
- * the download IS the deliverable). This page is therefore a pure read, and
- * the whole write path is a single streaming route handler.
+ * ONE record and ONE stored file per document, org-wide. This page creates
+ * nothing: no second table, no second bucket, no duplicate row, no saved
+ * folder. It reads the very crm_documents rows the Admin grid manages and
+ * hands them to a client grid that mirrors that grid's layout — same
+ * documents, two permission levels.
  *
- * Only plain, serializable values cross into PacketBuilder (a client
- * component). `storagePath` is deliberately dropped here — the client never
- * needs it and never sends it; it posts document IDs, and the route handler
- * resolves each ID's storage path itself, org-scoped, so a tampered payload
- * can't reach another org's object.
+ * Compiling a folder is equally stateless: the client posts document IDs to
+ * ./packet/route.ts, which streams a zip back and writes nothing anywhere
+ * (Brent's explicit call — the packet is ephemeral, the download IS the
+ * deliverable). So this page stays a pure read.
  *
- * `thumbUrl`/`previewUrl` are short-lived signed URLs listOrgUploads()
- * already produces for the Admin grid — passing them straight through is
- * what makes a row here look identical to its card there, off the one
- * preview mechanism (_shell/DocThumb.tsx) rather than a second one.
+ * Everything crossing into DocumentLibrary (a client component) is a plain
+ * serializable value. `storagePath` is included: the rep's per-document
+ * "open" and "download" mint a short-lived signed URL from it, exactly the
+ * way the Admin grid does. It is NOT what the compile route trusts — that
+ * takes IDs only and re-resolves each path server-side, org-scoped and
+ * is_public-checked.
+ *
+ * `thumbUrl`/`previewUrl` are the short-lived signed URLs
+ * listPublicOrgDocuments() already produces for the Admin grid; passing them
+ * straight through is what makes a card here identical to its card there,
+ * off the one preview mechanism (_shell/DocThumb.tsx) rather than a second.
  */
 export default async function OperationsDocumentsPage() {
-  const uploads = await listPublicOrgDocuments();
+  const published = await listPublicOrgDocuments();
 
-  const templates: PacketTemplate[] = uploads.map((u) => ({
-    id: u.id,
-    fileName: u.fileName,
-    mimeType: u.mimeType,
-    sizeBytes: u.sizeBytes,
-    createdAt: u.createdAt,
-    thumbUrl: u.thumbUrl,
-    previewUrl: u.previewUrl,
+  const documents: LibraryDocument[] = published.map((d) => ({
+    id: d.id,
+    fileName: d.fileName,
+    storagePath: d.storagePath,
+    mimeType: d.mimeType,
+    sizeBytes: d.sizeBytes,
+    createdAt: d.createdAt,
+    thumbUrl: d.thumbUrl,
+    previewUrl: d.previewUrl,
   }));
 
-  return <PacketBuilder templates={templates} />;
+  return <DocumentLibrary documents={documents} />;
 }

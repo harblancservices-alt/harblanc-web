@@ -11,7 +11,7 @@
  * must not import from a route file either, so both sides import this.
  */
 
-/** Max documents in one packet. Guards the route against an accidental
+/** Max documents in one compiled folder. Guards the route against an accidental
  * "select all 500" that would blow the serverless function's memory while
  * every file is held in RAM for zipping. */
 export const MAX_PACKET_DOCUMENTS = 25;
@@ -29,20 +29,34 @@ export const MAX_PACKET_NAME_LENGTH = 80;
 export const PACKET_FILENAME_HEADER = "x-packet-filename";
 
 /**
- * Filesystem-safe slug for the packet's zip filename — same conservative
- * rule the camera export uses (letters, digits, dot, dash, underscore,
- * space; spaces collapsed to dashes), so a packet named "Vendor Packet —
- * Alamo / 2026" can't produce a broken Content-Disposition header.
- * Falls back to "packet" when a name slugs down to nothing.
+ * Filesystem-safe name for the compiled folder's zip file. Conservative
+ * character set (letters, digits, dot, dash, underscore, space), so a folder
+ * named "New Customer Packet / 2026" can't produce a broken
+ * Content-Disposition header. Falls back to "packet" when a name reduces to
+ * nothing.
+ *
+ * SPACES ARE KEPT (they used to be collapsed to dashes): the rep types a
+ * folder name, and the file that lands in Downloads should read as that
+ * name — "New Customer Packet.zip", not "New-Customer-Packet.zip". A space
+ * is legal inside the quoted filename of a Content-Disposition header and
+ * on every filesystem this app targets; the characters that genuinely break
+ * that header (quotes, backslashes, slashes, semicolons, non-ASCII) are
+ * still stripped, which is the part that actually matters.
  */
 export function safePacketFileName(name: string): string {
   const slug = (name || "")
-    .trim()
+    // Whitespace collapses FIRST, before the character filter — a tab or a
+    // newline pasted into the field is a word separator, and stripping it as
+    // a disallowed character would silently weld "New Customer" to "Packet".
+    .replace(/\s+/g, " ")
     .replace(/[^A-Za-z0-9._ -]+/g, "")
-    .replace(/\s+/g, "-")
+    // Removing a character from between two spaces leaves a double space,
+    // so collapse once more after the filter. Same for runs of dashes.
+    .replace(/ {2,}/g, " ")
     .replace(/-+/g, "-")
-    .replace(/^[-.]+|[-.]+$/g, "")
-    .slice(0, MAX_PACKET_NAME_LENGTH);
+    .replace(/^[-. ]+|[-. ]+$/g, "")
+    .slice(0, MAX_PACKET_NAME_LENGTH)
+    .trimEnd();
   return slug || "packet";
 }
 

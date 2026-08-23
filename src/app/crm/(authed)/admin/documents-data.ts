@@ -39,6 +39,29 @@ export const ORG_UPLOAD_KIND = "org_doc:upload";
  * both templates and uploads; only deletion stays upload-only). */
 export const TEMPLATE_KINDS = BLANK_TEMPLATES.map((t) => t.kind);
 
+/**
+ * Every kind the Admin Documents tab manages, and therefore every kind whose
+ * `is_public` flag means something: admin uploads plus the two blank master
+ * templates.
+ *
+ * ONE list, three consumers — ./documents/actions.ts (which WRITES
+ * is_public), listPublicOrgDocuments() below (which READS it), and
+ * ../../operations/documents/packet/route.ts (which RE-CHECKS it before
+ * putting bytes into a zip). It was previously a private const in actions.ts
+ * while both readers filtered on ORG_UPLOAD_KIND alone, which quietly made
+ * the two template cards' publish toggle a no-op: flipping one wrote
+ * is_public=true and nothing ever looked at it again. The
+ * 20260822010000_crm_documents_is_public migration's own wording is the
+ * intent — "one column covers everything the tab shows, and the toggle + the
+ * Operations filter behave identically for every card" — so the readers now
+ * use the same list the writer does.
+ *
+ * A document belonging to a COMPANY (a customer's BOL, a commodity photo, a
+ * generated rate con) is not in this list, so no code path can publish
+ * per-account paperwork into the shared library.
+ */
+export const PUBLISHABLE_KINDS = [ORG_UPLOAD_KIND, ...TEMPLATE_KINDS];
+
 type OrgDocRow = { id: string; file_name: string; storage_path: string; created_at: string; is_public: boolean };
 
 /**
@@ -139,7 +162,7 @@ export async function listBlankTemplates(): Promise<AdminBlankTemplate[]> {
  * than a URL that would 404 into a broken image.
  */
 export async function listOrgUploads(): Promise<AdminOrgUpload[]> {
-  return readOrgUploads({ publicOnly: false });
+  return readOrgDocuments({ kinds: [ORG_UPLOAD_KIND], publicOnly: false });
 }
 
 /**
@@ -154,21 +177,32 @@ export async function listOrgUploads(): Promise<AdminOrgUpload[]> {
  * review. With two functions, the agent-facing read path is impossible to
  * reach by accident — you have to type "public" to get the public list.
  *
+ * Spans PUBLISHABLE_KINDS, not uploads alone: a blank master template an
+ * admin has published is a document a rep should be able to pull into a
+ * folder, and the Admin grid offers the same toggle on those cards. See
+ * PUBLISHABLE_KINDS above for why the reader and the writer share one list.
+ *
  * This is the presentation filter. The packet DOWNLOAD route
  * (operations/documents/packet/route.ts) re-applies the same is_public
  * predicate to the ids it's handed, so hiding a document here also makes it
  * genuinely unreachable rather than merely unlisted.
  */
 export async function listPublicOrgDocuments(): Promise<AdminOrgUpload[]> {
-  return readOrgUploads({ publicOnly: true });
+  return readOrgDocuments({ kinds: PUBLISHABLE_KINDS, publicOnly: true });
 }
 
-async function readOrgUploads({ publicOnly }: { publicOnly: boolean }): Promise<AdminOrgUpload[]> {
+async function readOrgDocuments({
+  kinds,
+  publicOnly,
+}: {
+  kinds: string[];
+  publicOnly: boolean;
+}): Promise<AdminOrgUpload[]> {
   const supabase = await createCrmServerClient();
   let query = supabase
     .from("crm_documents")
     .select("id, file_name, storage_path, mime_type, size_bytes, created_at, is_public")
-    .eq("kind", ORG_UPLOAD_KIND)
+    .in("kind", kinds)
     .is("account_id", null)
     .is("deal_id", null)
     .is("deleted_at", null);

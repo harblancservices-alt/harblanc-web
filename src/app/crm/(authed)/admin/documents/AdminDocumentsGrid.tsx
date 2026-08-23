@@ -18,13 +18,23 @@ const ACCEPT = "application/pdf,image/*";
 const GRID_CLASS = "grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5";
 
 /**
- * The per-card publish control. ON means sales agents see this document in
- * Operations → Documents; OFF means only admins do.
+ * The per-card publish control — the ONLY thing that puts a document in front
+ * of a sales agent in Operations → Documents. ON means every CRM user sees
+ * it there; OFF means only admins see it, here.
  *
- * The label carries the state in WORDS as well as switch position ("Public"
- * in the success token when on, "Make public" when off) — a lone switch is
- * ambiguous at a glance in a five-across grid, and this decides who can see
- * a legal document, so it should never be a guess.
+ * It never creates, copies, moves or deletes anything: setDocumentPublic
+ * writes one boolean column on the existing crm_documents row. Publishing and
+ * unpublishing are the same write in both directions, so a document can go
+ * back and forth without its file or its record changing at all.
+ *
+ * TWO PIECES OF WORDING, deliberately, because a lone switch is ambiguous at
+ * a glance in a five-across grid and this decides who can see a legal
+ * document:
+ *   - the text beside it names the current STATE — "Public" in the success
+ *     token, "Private" in muted;
+ *   - the switch's own accessible name (and hover tooltip) names the ACTION
+ *     it will perform — "Make public" / "Unpublish".
+ * Naming only one of the two is what makes a toggle a guess.
  */
 function PublicToggleRow({
   isPublic,
@@ -48,14 +58,18 @@ function PublicToggleRow({
           isPublic ? "text-ok" : "text-fg-muted"
         }`}
       >
-        {hint ?? (isPublic ? "Public" : "Make public")}
+        {hint ?? (isPublic ? "Public" : "Private")}
       </span>
       <SlideToggle
         checked={isPublic}
         disabled={disabled}
         busy={busy}
         onChange={onToggle}
-        label={`Show "${documentLabel}" to sales agents in Operations`}
+        label={
+          isPublic
+            ? `Unpublish "${documentLabel}" — hide it from Operations → Documents`
+            : `Make "${documentLabel}" public — show it in Operations → Documents`
+        }
       />
     </div>
   );
@@ -236,7 +250,7 @@ export function AdminDocumentsGrid({
       <Card>
         <CardHead
           title="Documents"
-          hint="Master templates and org-level files"
+          hint="Master templates and org files · Public ones show in Operations"
           right={
             <>
               <button

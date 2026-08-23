@@ -275,6 +275,28 @@ export function IconSearch(props: IconProps) {
   );
 }
 
+/** Tray-with-a-down-arrow. Per-document "Download" on the Operations
+ * Documents grid, and the compiled-folder action bar. */
+export function IconDownload(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M12 3v12" />
+      <path d="M7.5 10.5L12 15l4.5-4.5" />
+      <path d="M4 17v2.5A1.5 1.5 0 0 0 5.5 21h13a1.5 1.5 0 0 0 1.5-1.5V17" />
+    </svg>
+  );
+}
+
+/** Plain folder. The Operations "Compile Folder" action — a rep bundles the
+ * documents they picked into one named download. */
+export function IconFolder(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M3 7.5A1.5 1.5 0 0 1 4.5 6h4.1a1.5 1.5 0 0 1 1.06.44l1.4 1.4a1.5 1.5 0 0 0 1.06.44h7.38A1.5 1.5 0 0 1 21 9.78V18a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18z" />
+    </svg>
+  );
+}
+
 export function IconTrash(props: IconProps) {
   return (
     <svg {...base(props)}>
