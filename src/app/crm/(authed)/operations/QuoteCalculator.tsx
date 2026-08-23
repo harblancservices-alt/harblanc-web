@@ -2,12 +2,7 @@
 
 import { useMemo, useRef, useState, useTransition, type ReactNode } from "react";
 import { Card, CardHead, BTN_NEUTRAL } from "../_shell/ui";
-// The COMPACT tokens, not _shell/form's bundled CONTROL: that one bakes in
-// its own roomy padding for list search bars. CONTROL + CONTROL_SIZE is the
-// pair every dense CRM form uses (~26px controls on desktop, comfortable tap
-// targets below `sm`), and NARROW caps a numeric field at a width that suits
-// the digits in it instead of letting it stretch across the column.
-import { CONTROL, CONTROL_SIZE, LABEL, NARROW } from "../_shell/compactForm";
+import { CONTROL, LABEL } from "../_shell/form";
 import { stripCommas, titleCaseWords, upperCaseState } from "../_shell/format";
 import { IconMapPin } from "../_shell/icons";
 // formatMoney from the shared money module rather than _shell/format's: for
@@ -32,6 +27,19 @@ const RATE_FIELDS: { key: RateKey; label: string }[] = [
   { key: "hourlyRate", label: "Hourly rate ($/hr)" },
   { key: "brokeragePct", label: "Brokerage (%)" },
 ];
+
+/**
+ * Input widths, sized to the DIGITS each field actually holds rather than
+ * stretched to fill its grid cell — a 2-to-5 character value in a
+ * column-wide bar is mostly empty space (Brent, 2026-08-22).
+ *
+ * Desktop only. Below `sm` every field goes back to full width so it stays a
+ * comfortable tap target; this is a horizontal change on a laptop, not a
+ * shrink of the whole form. Vertical rhythm is deliberately untouched.
+ */
+const W_ZIP = "w-full sm:w-[5.25rem]"; // "77002"
+const W_MILES = "w-full sm:w-[6rem]"; // "1,240"
+const W_RATE = "w-full sm:w-[5rem]"; // "62", "9", "4.70", "125", "25"
 
 const INITIAL_RATES: Record<RateKey, string> = {
   avgMph: String(QUOTE_DEFAULTS.avgMph),
@@ -67,25 +75,19 @@ function Line({
 }) {
   return (
     <div
-      className={`flex items-baseline justify-between gap-3 py-1 ${
-        strong ? "border-t border-line-strong pt-1.5" : ""
+      className={`flex items-baseline justify-between gap-4 py-2 ${
+        strong ? "border-t border-line-strong pt-2.5" : ""
       }`}
     >
       <span className="min-w-0">
-        <span
-          className={`block text-[12.5px] leading-tight ${
-            strong ? "font-bold text-fg" : "font-medium text-fg-muted"
-          }`}
-        >
+        <span className={`block text-[13px] ${strong ? "font-bold text-fg" : "font-medium text-fg-muted"}`}>
           {label}
         </span>
-        {hint && (
-          <span className="block text-[11px] font-medium leading-tight text-fg-muted">{hint}</span>
-        )}
+        {hint && <span className="mt-0.5 block text-[11.5px] font-medium text-fg-muted">{hint}</span>}
       </span>
       <span
-        className={`crm-num shrink-0 leading-tight tabular-nums ${
-          strong ? "text-[15px] font-bold text-fg" : "text-[13.5px] font-semibold text-fg"
+        className={`crm-num shrink-0 tabular-nums ${
+          strong ? "text-[16px] font-bold text-fg" : "text-[14px] font-semibold text-fg"
         }`}
       >
         {value}
@@ -112,14 +114,12 @@ function PerMileTile({
   value: number | null;
 }) {
   return (
-    <div className="rounded-md border border-line-strong bg-inset px-2.5 py-1.5">
-      <p className="text-[10px] font-bold uppercase leading-tight tracking-[0.08em] text-fg-muted">
-        {label}
-      </p>
-      <p className="crm-num text-[17px] font-bold leading-tight text-fg tabular-nums">
+    <div className="rounded-md border border-line-strong bg-inset px-3 py-2.5">
+      <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-fg-muted">{label}</p>
+      <p className="crm-num mt-1 text-[19px] font-bold text-fg tabular-nums">
         {value === null ? "—" : formatMoney(value, { cents: true })}
       </p>
-      <p className="text-[10.5px] font-medium leading-tight text-fg-muted">{sub}</p>
+      <p className="mt-0.5 text-[11px] font-medium text-fg-muted">{sub}</p>
     </div>
   );
 }
@@ -250,18 +250,18 @@ export function QuoteCalculator() {
   return (
     // items-start so the two columns size to their own content instead of
     // the right stack stretching to match the pricing card's height.
-    <div className="grid gap-3 lg:grid-cols-2 lg:items-start">
+    <div className="grid gap-4 lg:grid-cols-2 lg:items-start">
       {/* ══ LEFT — THE PRICING (the answer, always visible) ══════════════ */}
       <Card>
         <CardHead title="Quote" hint="Updates as you type" />
 
         {/* The hero band: solid accent, white figure. The one place on this
             screen that reads as a filled surface rather than a card face. */}
-        <div className="flex flex-col items-center gap-0.5 border-b border-line-strong bg-accent px-4 py-3.5 text-center">
-          <span className="text-[10.5px] font-bold uppercase leading-none tracking-[0.14em] text-white">
+        <div className="flex flex-col items-center gap-1.5 border-b border-line-strong bg-accent px-4 py-7 text-center">
+          <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-white">
             Total quote
           </span>
-          <span className="crm-num text-[36px] font-bold leading-none tracking-tight text-white tabular-nums sm:text-[42px]">
+          <span className="crm-num text-[46px] font-bold leading-none tracking-tight text-white tabular-nums sm:text-[56px]">
             {formatMoney(quote.total)}
           </span>
           {!hasMiles && (
@@ -270,13 +270,13 @@ export function QuoteCalculator() {
             // With load/unload gone, zero miles is a genuine zero — every
             // leg of the quote is a function of miles now, so this can't say
             // "dock time only" any more.
-            <span className="mt-0.5 rounded-full bg-white/20 px-2.5 py-0.5 text-[11px] font-bold text-white">
+            <span className="mt-1 rounded-full bg-white/20 px-3 py-1 text-[12px] font-bold text-white">
               Add the lane or the miles to price this load
             </span>
           )}
         </div>
 
-        <div className="flex flex-col px-3 py-2">
+        <div className="flex flex-col p-4">
           <Line label="Drive hours" value={formatHours(quote.driveHours)} hint="Miles ÷ avg speed" />
 
           <Line
@@ -300,7 +300,7 @@ export function QuoteCalculator() {
           {/* Three views of the SAME total, split by who the money is for.
               Carrier + Broker = Shipper, always (subtotal + fee = total) —
               pinned by a test in quotePricing.test.ts. */}
-          <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
+          <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
             <PerMileTile
               label="Shipper $/mi"
               sub="All-in, per mile"
@@ -318,16 +318,16 @@ export function QuoteCalculator() {
             />
           </div>
 
-          <p className="mt-2.5 border-t border-line-strong pt-2 text-[11.5px] font-medium leading-snug text-fg-muted">
-            Estimate only — time at a blended hourly rate plus diesel, then the brokerage fee on
-            top. Adjust the route or the rate assumptions for the job in front of you. Nothing here
-            is saved or sent.
+          <p className="mt-4 border-t border-line-strong pt-3 text-[12.5px] font-medium leading-relaxed text-fg-muted">
+            Estimate only. It prices time at a blended hourly rate plus diesel, then adds the
+            brokerage fee on top — adjust the route or the rate assumptions for the job in front of
+            you. Nothing here is saved or sent.
           </p>
         </div>
       </Card>
 
       {/* ══ RIGHT — THE INPUTS you drive it with ════════════════════════ */}
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-4">
         <Card>
           <CardHead
             title="Route"
@@ -344,9 +344,15 @@ export function QuoteCalculator() {
               </button>
             }
           />
-          <div className="flex flex-col gap-2 px-3 py-2.5">
-            <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-2">
-              <label className="flex w-full min-w-0 flex-col gap-0.5">
+          <div className="flex flex-col gap-3 p-4">
+            {/* Flex, not a 1fr/auto/1fr grid: grid cells stretch their
+                contents, which is exactly what made these read as wide empty
+                bars. As flex items the two ZIP boxes size to themselves and
+                sit left-aligned with the arrow between them. `flex-1` keeps
+                them splitting the row on mobile for tap comfort; at `sm`
+                they drop to their intrinsic width. */}
+            <div className="flex flex-wrap items-end gap-2 sm:gap-3">
+              <label className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-none">
                 <span className={LABEL}>Origin ZIP</span>
                 <input
                   type="text"
@@ -357,15 +363,15 @@ export function QuoteCalculator() {
                   value={originZip}
                   onChange={(e) => setOriginZip(e.target.value)}
                   onBlur={onZipBlur}
-                  className={`crm-num w-full min-w-0 ${CONTROL_SIZE} ${CONTROL}`}
+                  className={`crm-num h-10 ${W_ZIP} ${CONTROL}`}
                 />
               </label>
 
-              <span aria-hidden className="pb-1 text-[14px] font-bold text-fg-muted sm:pb-[5px]">
+              <span aria-hidden className="pb-2.5 text-[15px] font-bold text-fg-muted">
                 →
               </span>
 
-              <label className="flex w-full min-w-0 flex-col gap-0.5">
+              <label className="flex min-w-0 flex-1 flex-col gap-1 sm:flex-none">
                 <span className={LABEL}>Destination ZIP</span>
                 <input
                   type="text"
@@ -376,12 +382,12 @@ export function QuoteCalculator() {
                   value={destZip}
                   onChange={(e) => onDestZipChange(e.target.value)}
                   onBlur={onZipBlur}
-                  className={`crm-num w-full min-w-0 ${CONTROL_SIZE} ${CONTROL}`}
+                  className={`crm-num h-10 ${W_ZIP} ${CONTROL}`}
                 />
               </label>
             </div>
 
-            <label className="flex w-full min-w-0 flex-col gap-0.5">
+            <label className="flex min-w-0 flex-col gap-1">
               <span className={LABEL}>Miles</span>
               <input
                 type="text"
@@ -393,7 +399,7 @@ export function QuoteCalculator() {
                   milesTouched.current = true;
                   setMiles(e.target.value);
                 }}
-                className={`crm-num w-full min-w-0 font-bold ${NARROW.short} ${CONTROL_SIZE} ${CONTROL}`}
+                className={`crm-num h-10 font-bold ${W_MILES} ${CONTROL}`}
               />
             </label>
 
@@ -428,9 +434,13 @@ export function QuoteCalculator() {
               </button>
             }
           />
-          <div className="grid grid-cols-2 gap-x-3 gap-y-2 px-3 py-2.5 sm:grid-cols-3">
+          {/* Two-up grid on mobile (full-width fields, easy to tap), a
+              wrapping row of intrinsic-width boxes from `sm` up. A fixed
+              2-column grid at this size would just re-introduce the dead
+              space: every one of these holds 1-4 characters. */}
+          <div className="grid grid-cols-2 gap-3 p-4 sm:flex sm:flex-wrap sm:gap-x-5 sm:gap-y-3">
             {RATE_FIELDS.map((f) => (
-              <label key={f.key} className="flex w-full min-w-0 flex-col gap-0.5">
+              <label key={f.key} className="flex min-w-0 flex-col gap-1">
                 <span className={LABEL}>{f.label}</span>
                 <input
                   type="text"
@@ -438,10 +448,7 @@ export function QuoteCalculator() {
                   autoComplete="off"
                   value={rates[f.key]}
                   onChange={(e) => setRate(f.key, e.target.value)}
-                  // NARROW.short caps these at 6.5rem on desktop — every one
-                  // of them holds 1–4 digits, so a full-width box was mostly
-                  // dead space. Mobile keeps the full cell width.
-                  className={`crm-num w-full min-w-0 ${NARROW.short} ${CONTROL_SIZE} ${CONTROL}`}
+                  className={`crm-num h-10 ${W_RATE} ${CONTROL}`}
                 />
               </label>
             ))}
