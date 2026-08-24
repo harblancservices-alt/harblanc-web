@@ -1,31 +1,21 @@
 import { notFound } from "next/navigation";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { CRM_ACTIVITY } from "@/lib/crm/activity";
-import { PageShell, Card, CardHead } from "../../_shell/ui";
 import { firstName, titleCaseWords, upperCaseState } from "../../_shell/format";
 import { parsePhones, parseLinks, normalizeHref } from "../../_shell/contactFields";
-import type { LaneEntry } from "../../_shell/LanesEditor";
 import type { RepOption } from "../CompanyDialog";
-import { normalizeStage } from "../lifecycle";
+import type { CrmContact } from "./ContactsMasterDetail";
 import { FinalizeBanner } from "./FinalizeBanner";
-import { CompanyHeader } from "./CompanyHeader";
-import { StageTrackerSection } from "./StageTrackerSection";
 import type { CrmTagOption } from "./TagsCard";
-import { ProfileCenterTabs } from "./ProfileCenterTabs";
 import { ActivityLogSection, type CrmActivityLogItem } from "./ActivityLogSection";
-import { ContactsMasterDetail, type CrmContact } from "./ContactsMasterDetail";
 import { TasksTab } from "./TasksTab";
 import { NotesTab, type CrmNoteItem } from "./NotesTab";
 import { FilesTab } from "./FilesTab";
-import { CompanyDetailsCard, type CompanyFreightData } from "./CompanyDetailsCard";
-import { CustomFieldsCard } from "./CustomFieldsCard";
 import { type CrmCommodityPhoto } from "./CommodityPhotoTiles";
 import { callOutcomeLabel, callOutcomeTone } from "../../calls/outcomes";
 import type { TaskContactOption } from "../../tasks/TaskDialog";
 import { type CrmBolDocument } from "./BolSection";
 import { CompanyProfileSection } from "./CompanyProfileSection";
-import { StrayNumbersSection } from "./StrayNumbersSection";
-import { LocationsSection } from "./LocationsSection";
 import { ShipmentsTab } from "./ShipmentsTab";
 import type { CrmTaskItem } from "../../tasks/TaskRow";
 import { fetchAccountLocations } from "./locations-data";
@@ -33,6 +23,8 @@ import { DesktopProfile } from "./desktop/DesktopProfile";
 import type { IdentityLink } from "./desktop/IdentityCard";
 import type { WheelContact } from "./desktop/ContactsWheel";
 import { timestampMs } from "../../_shell/format";
+import { MobileProfile } from "./mobile/MobileProfile";
+import type { MobilePerson } from "./mobile/MobilePeople";
 
 export const dynamic = "force-dynamic";
 
@@ -47,22 +39,27 @@ function profileName(p: ProfileRow | undefined): string | null {
 }
 
 /**
- * Company profile — rebuilt to Brent's reference layout (2026-08-08), then
- * relaid out again (2026-08-09) into two columns: top bar (breadcrumb + name
- * + More/Edit) → StageTracker (now a 7-stage funnel; the one control that
- * actually moves the stage) → CompanyDetailsCard (left, fixed width — a
- * single merged card absorbing what used to be four separate cards: About,
- * Tags, Company owner/Sales rep, and the old right-column Company details +
- * Freight profile) | a widened tabbed Timeline/Contacts/Tasks/Files panel
- * (default Contacts) with its own standalone Notes card underneath (Notes
- * used to be a tab in that same panel). No Deals tab — crm_deals has no real
- * usage anywhere in this codebase. Company profile/Commercial/Locations/
- * Stray numbers/Custom fields ride below the two columns as isolated cards —
- * real data/functionality the reference design doesn't name but that must
- * still display somewhere. The AI Suggestions/AI Research components (and
- * their underlying crm_ai_suggestions data / ai_status columns) still exist
- * on disk — see AiSuggestionsPanel.tsx/AiResearchSection.tsx — just not
- * rendered here anymore.
+ * Company profile — ONE data load, TWO layouts, gated against each other at
+ * `lg` so neither can regress the other:
+ *
+ *   `lg:hidden`    → mobile/MobileProfile.tsx  (2026-08-23 phone redesign)
+ *   `hidden lg:block` → desktop/DesktopProfile.tsx (2026-08-22 handoff build)
+ *
+ * Every query lives here and both trees are shaped from the same results —
+ * no screen re-fetches, and no write differs between them. Where a panel is
+ * an async Server Component (ShipmentsTab, CompanyProfileSection) it is
+ * built here and handed down as a ReactNode.
+ *
+ * The AI Suggestions/AI Research components (and their underlying
+ * crm_ai_suggestions data / ai_status columns) still exist on disk — see
+ * AiSuggestionsPanel.tsx/AiResearchSection.tsx — just not rendered here.
+ * No Deals tab either: crm_deals has no real usage anywhere in this codebase.
+ *
+ * CompanyHeader.tsx / CompanyDetailsCard.tsx / ProfileCenterTabs.tsx /
+ * ContactsMasterDetail.tsx are no longer rendered by this page — the mobile
+ * redesign replaced the first three outright and moved per-contact detail to
+ * /crm/contacts/[contactId]. They are left on disk because other surfaces
+ * still reference their types and behavior; nothing imports them from here.
  */
 export default async function AccountDetailPage({
   params,
@@ -378,15 +375,15 @@ export default async function AccountDetailPage({
   const companyEmail = (account.email as string | null) || primaryContactEmail;
 
   const aiConfirmedFields = (account.ai_confirmed_fields as Record<string, unknown> | null) ?? {};
-  const freight: CompanyFreightData = {
-    commodities: (account.commodities as string | null) ?? null,
-    equipmentNeeded: ((account.equipment_needed as string[] | null) ?? []).filter(Boolean),
-    lanes: ((account.lanes as LaneEntry[] | null) ?? []).filter((l) => l.origin || l.destination),
-    volumeFrequency: (account.volume_frequency as string | null) ?? null,
-    weightRange: (account.weight_range as string | null) ?? null,
-    specialRequirements: ((account.special_requirements as string[] | null) ?? []).filter(Boolean),
-    confirmed: aiConfirmedFields,
-  };
+
+  // (The `freight: CompanyFreightData` object that used to sit here fed
+  // CompanyDetailsCard, which the 2026-08-23 mobile redesign replaced. That
+  // card's own "Freight profile" block had already narrowed to Commodities
+  // alone — equipment/lanes/volume/weight/special-requirements stopped
+  // rendering when the inline Commodities picker landed — so the only live
+  // values it carried, `commodities` and `confirmed.commodities`, are passed
+  // straight to CommoditiesCard by both trees now. Nothing stopped
+  // displaying; one dead intermediate object went away.)
 
   const editDefaults = {
     id: account.id as string,
@@ -453,135 +450,129 @@ export default async function AccountDetailPage({
     .map((c) => c.trim())
     .filter(Boolean);
 
+  // ── MOBILE derivations (2026-08-23 redesign) ─────────────────────────
+  // Same discipline as the desktop block above: everything here is reshaped
+  // from data this page ALREADY loads. No extra query, no different write.
+  // `is_decision_maker` is selected and lives on contactRows, but CrmContact
+  // (= ContactDefaults + id/name/phones/links) doesn't carry it, so read it
+  // off the raw rows rather than widening a shared type for one badge.
+  const decisionMakerIds = new Set(contactRows.filter((c) => c.is_decision_maker).map((c) => c.id));
+
+  const mobilePeople: MobilePerson[] = contacts
+    .map((c) => ({
+      id: c.id,
+      name: c.name,
+      title: c.title ?? null,
+      phone: c.phones[0]?.number ?? null,
+      email: c.email ?? null,
+      isPrimary: c.id === (account.primary_contact_id as string | null),
+      isDecisionMaker: decisionMakerIds.has(c.id),
+      defaults: {
+        id: c.id,
+        name: c.name,
+        title: c.title,
+        email: c.email,
+        phones: c.phones,
+        links: c.links,
+        best_time_to_call: c.best_time_to_call,
+        notes: c.notes,
+        next_followup_at: c.next_followup_at,
+        role_category: c.role_category,
+        current_mood: c.current_mood,
+      },
+    }))
+    .sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary));
+
   const mobileTree = (
-    <PageShell>
-      {account.needs_finalize && <FinalizeBanner defaults={editDefaults} reps={reps} canAssign={isOwner} />}
-
-      <div className="flex flex-col gap-4">
-        <CompanyHeader
-          name={accountName}
+    <MobileProfile
+      accountId={account.id as string}
+      accountName={accountName}
+      industry={account.industry as string | null}
+      city={accountCity}
+      state={accountState}
+      stage={stage}
+      repLabel={currentRepLabel}
+      currentUserId={user.id}
+      isAdmin={isOwner}
+      editDefaults={editDefaults}
+      reps={reps}
+      canDelete={isOwner}
+      finalizeBanner={
+        account.needs_finalize ? <FinalizeBanner defaults={editDefaults} reps={reps} canAssign={isOwner} /> : null
+      }
+      followUp={
+        nextFollowUpTask
+          ? {
+              taskId: nextFollowUpTask.id,
+              title: nextFollowUpTask.title,
+              notes: nextFollowUpTask.notes,
+              dueAt: nextFollowUpTask.due_at as string,
+            }
+          : null
+      }
+      phones={phones}
+      legacyPhone={companyPhone}
+      email={companyEmail}
+      fullAddress={fullAddress}
+      links={desktopLinks}
+      commodities={commodityChips}
+      commoditiesFromAi={!!aiConfirmedFields.commodities}
+      glance={{
+        annualFreightSpend: account.annual_freight_spend as number | null,
+        companySize: account.company_size as string | null,
+        yearFounded: account.year_founded as number | null,
+        companyType: account.company_type as string | null,
+        ownershipType: account.ownership_type as string | null,
+        source: account.source as string | null,
+      }}
+      people={mobilePeople}
+      strayContacts={contactOptions}
+      attachedTags={attachedTags}
+      orgTags={orgTags}
+      activityItems={activityItems}
+      notesCount={humanNotes.length}
+      openTaskCount={openTasks.length}
+      documentCount={documents.length}
+      custom={account.custom as Record<string, unknown> | null}
+      tasksPanel={
+        <TasksTab
           accountId={account.id as string}
-          contacts={contactOptions}
-          editDefaults={editDefaults}
+          tasks={tasks}
           reps={reps}
-          repLabel={currentRepLabel}
-          currentUserId={user.id}
-          isAdmin={isOwner}
-          isActiveCustomer={normalizeStage(stage) === "active_customer"}
-          canDelete={isOwner}
+          contacts={contactOptions}
+          canAssignOthers={isOwner}
+          currentUser={currentUser}
         />
-
-        {/* Active Customer is the funnel's final stage — the company is
-            through it, so the process tracker has nothing left to track.
-            The indicator for that lives inline in CompanyHeader's title row
-            (a solid green pill next to the name) instead of a standalone
-            box here — Brent's 2026-08-10 call, replacing an earlier version
-            that put it in its own outlined bar. Every other stage still
-            gets the full tracker. Existing "customer" rows normalize to
-            "active_customer" (see lifecycle.ts), so this covers them too. */}
-        <StageTrackerSection
+      }
+      activityPanel={<ActivityLogSection accountId={account.id as string} items={activityItems} />}
+      notesPanel={
+        <NotesTab
           accountId={account.id as string}
           accountName={accountName}
-          stage={stage}
+          notes={humanNotes}
+          contactOptions={contactOptions}
+          currentUser={currentUser}
         />
-
-        {/* 2026-08-09 relayout: Company Details (left, unchanged width) absorbs
-            what used to be four separate cards (About/Tags/Company owner/the
-            old right-column Company Details+Freight profile); the freed-up
-            right column's space goes to widening the Contacts/Timeline/Tasks
-            card, with Notes now its own card underneath. On mobile this grid
-            collapses to one column and already stacks in the right order —
-            Company Details, then Contacts, then Notes. */}
-        <div className="grid gap-4 lg:grid-cols-[300px_1fr] lg:items-start">
-          <CompanyDetailsCard
-            accountId={account.id as string}
-            name={accountName}
-            industry={account.industry as string | null}
-            email={companyEmail}
-            website={website}
-            websiteHref={websiteHref}
-            fullAddress={fullAddress}
-            phones={phones}
-            legacyPhone={companyPhone}
-            linkedinUrl={account.linkedin_url as string | null}
-            links={links}
-            freight={freight}
-            attachedTags={attachedTags}
-            orgTags={orgTags}
-            editDefaults={editDefaults}
-            reps={reps}
-            canAssign={isOwner}
-            isActiveCustomer={normalizeStage(stage) === "active_customer"}
-          />
-
-          <div className="flex flex-col gap-4">
-            <ProfileCenterTabs
-              timeline={<ActivityLogSection accountId={account.id as string} items={activityItems} />}
-              timelineCount={activityItems.length}
-              contacts={
-                <ContactsMasterDetail
-                  accountId={account.id as string}
-                  contacts={contacts}
-                  contactOptions={contactOptions}
-                  activityItems={activityItems}
-                  tasks={tasks}
-                  notes={humanNotes}
-                  reps={reps}
-                  canAssignOthers={isOwner}
-                  canDelete={isOwner}
-                  currentUser={currentUser}
-                />
-              }
-              contactsCount={contacts.length}
-              shipments={<ShipmentsTab accountId={account.id as string} accountName={accountName} />}
-              tasks={
-                <TasksTab
-                  accountId={account.id as string}
-                  tasks={tasks}
-                  reps={reps}
-                  contacts={contactOptions}
-                  canAssignOthers={isOwner}
-                  currentUser={currentUser}
-                />
-              }
-              tasksCount={openTasks.length}
-              files={
-                <FilesTab
-                  accountId={account.id as string}
-                  orgId={user.orgId}
-                  documents={documents}
-                  photos={commodityPhotos}
-                />
-              }
-            />
-
-            <Card id="notes">
-              <CardHead title="Notes" hint={humanNotes.length ? `${humanNotes.length} on file` : undefined} />
-              <NotesTab
-                accountId={account.id as string}
-                accountName={accountName}
-                notes={humanNotes}
-                contactOptions={contactOptions}
-                currentUser={currentUser}
-              />
-            </Card>
-          </div>
-        </div>
-
-        {phones.length > 0 && <StrayNumbersSection accountId={account.id as string} phones={phones} contacts={contactOptions} />}
-        <LocationsSection accountId={account.id as string} />
-        <CompanyProfileSection accountId={account.id as string} />
-        <CustomFieldsCard custom={account.custom as Record<string, unknown> | null} />
-      </div>
-    </PageShell>
+      }
+      shipmentsPanel={<ShipmentsTab accountId={account.id as string} accountName={accountName} />}
+      documentsPanel={
+        <FilesTab
+          accountId={account.id as string}
+          orgId={user.orgId}
+          documents={documents}
+          photos={commodityPhotos}
+        />
+      }
+      companyProfilePanel={<CompanyProfileSection accountId={account.id as string} />}
+    />
   );
 
   return (
     <>
-      {/* MOBILE / TABLET — the pre-existing profile, byte-for-byte. Brent's
-          mobile design system is locked; the redesign below is desktop-only,
-          so the two trees are gated against each other at `lg` rather than
-          one layout trying to be both. */}
+      {/* MOBILE / TABLET — Brent's approved 2026-08-23 phone redesign (see
+          mobile/MobileProfile.tsx for what it replaced and why). The two
+          trees stay gated against each other at `lg` rather than one layout
+          trying to be both, so a change here can never reach desktop. */}
       <div className="lg:hidden">{mobileTree}</div>
 
       {/* DESKTOP — the 2026-08-22 design-handoff rebuild, hybrid skin

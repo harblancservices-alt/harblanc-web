@@ -154,6 +154,18 @@ export function IconNote(props: IconProps) {
   );
 }
 
+/** Pencil-on-page — the "Edit" affordance. Added 2026-08-23 for the mobile
+ * company profile's Log call / Add person / Edit action row; purely
+ * additive, no existing icon changed. */
+export function IconPencil(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M11 4H4v16h16v-7" />
+      <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z" />
+    </svg>
+  );
+}
+
 export function IconCalendar(props: IconProps) {
   return (
     <svg {...base(props)}>

@@ -10,6 +10,7 @@ import {
   type LifecycleStage,
 } from "../lifecycle";
 import { IconCheck } from "../../_shell/icons";
+import { Modal } from "../../_shell/Modal";
 
 /** The arrow's point/notch depth in px — same value feeds the clip-path and
  * the negative margin that nests each segment's notch into the previous
@@ -54,19 +55,24 @@ export function StageTracker({
    * Onboarding task on reaching Active Customer) from a component that stays
    * mounted across the transition. See StageTrackerSection.tsx. */
   onStageChange?: (stage: LifecycleStage) => void;
-  /** "chevron" (default) is the original filled chevron chain — the ONLY
-   * thing mobile ever renders, unchanged. "strip" is the desktop
+  /** "chevron" is the original filled chevron chain. "strip" is the desktop
    * company-profile redesign's pipeline bar (2026-08-22): the same six
    * stages, same click-to-set handler, same `updateLifecycleStatus` write —
    * just drawn as a label over a 4px progress bar per the design handoff.
-   * Purely a rendering switch; no behavior differs between the two. */
-  variant?: "chevron" | "strip";
+   * "compact" is the MOBILE profile rebuild (2026-08-23): the six chevrons
+   * need 622px, which is why the phone bar scrolled sideways under your
+   * thumb and showed three stages at a time — so on a phone the chain
+   * becomes a six-segment progress bar plus a bottom-sheet picker, where
+   * every stage gets a full-width tap target instead of a 112px sliver.
+   * Purely a rendering switch; no behavior differs between the three. */
+  variant?: "chevron" | "strip" | "compact";
 }) {
   const active = normalizeStage(current);
   const activeIndex = (SELECTABLE_LIFECYCLE_STAGES as readonly LifecycleStage[]).indexOf(active);
   const [pending, startTransition] = useTransition();
   const [busyStage, setBusyStage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const router = useRouter();
 
   function setStage(stage: LifecycleStage) {
@@ -77,6 +83,7 @@ export function StageTracker({
       const res = await updateLifecycleStatus(accountId, stage);
       setBusyStage(null);
       if (res.ok) {
+        setSheetOpen(false);
         onStageChange?.(stage);
         router.refresh();
       } else {
@@ -89,6 +96,90 @@ export function StageTracker({
   const stageNum = activeIndex + 1;
   const toClose = total - stageNum;
   const pct = Math.round((activeIndex / (total - 1)) * 100);
+
+  if (variant === "compact") {
+    const nextStage = SELECTABLE_LIFECYCLE_STAGES[activeIndex + 1] ?? null;
+    return (
+      <div className="w-full">
+        <div className="flex items-baseline justify-between gap-2.5">
+          <span className="min-w-0 truncate text-[15px] font-extrabold tracking-[-0.01em] text-fg">
+            {LIFECYCLE_LABEL[active]}
+          </span>
+          <span className="crm-num shrink-0 whitespace-nowrap text-[11.5px] font-bold text-fg-muted">
+            Stage {stageNum} of {total} · {pct}%
+          </span>
+        </div>
+
+        <div aria-hidden className="mt-2 grid grid-cols-6 gap-[3px]">
+          {SELECTABLE_LIFECYCLE_STAGES.map((stage, i) => (
+            <span
+              key={stage}
+              className={`h-1.5 rounded-sm ${
+                i < activeIndex ? "bg-accent/45" : i === activeIndex ? "bg-accent" : "bg-line"
+              }`}
+            />
+          ))}
+        </div>
+
+        <div className="mt-2 flex items-center justify-between gap-2.5">
+          <span className="min-w-0 truncate text-[11.5px] font-bold text-fg-muted">
+            {nextStage ? `Next up: ${LIFECYCLE_LABEL[nextStage]}` : "Final stage"}
+          </span>
+          <button
+            type="button"
+            onClick={() => setSheetOpen(true)}
+            className="shrink-0 whitespace-nowrap text-[12.5px] font-extrabold text-accent transition-colors hover:text-accent-hover"
+          >
+            Change stage ›
+          </button>
+        </div>
+
+        {error && <p className="mt-1.5 text-[12px] font-semibold text-bad">{error}</p>}
+
+        <Modal open={sheetOpen} onClose={() => setSheetOpen(false)} title="Pipeline stage" busy={pending}>
+          <div className="flex flex-col gap-1.5 p-4">
+            {SELECTABLE_LIFECYCLE_STAGES.map((stage, i) => {
+              const done = i < activeIndex;
+              const isCurrent = i === activeIndex;
+              const isBusy = busyStage === stage;
+              const tone = isCurrent
+                ? "border-accent bg-accent/[0.07] text-accent shadow-e1"
+                : stage === "lost"
+                  ? "border-bad/35 bg-card text-bad hover:bg-bad/5"
+                  : done
+                    ? "border-line-strong bg-card text-fg-muted hover:bg-inset"
+                    : "border-line-strong bg-card text-fg hover:bg-inset";
+              const badge = isCurrent
+                ? "border-accent bg-accent text-white"
+                : done
+                  ? "border-ok/40 bg-ok-bg text-ok"
+                  : stage === "lost"
+                    ? "border-bad/35 bg-bad-bg text-bad"
+                    : "border-line-strong bg-inset text-fg-muted";
+              return (
+                <button
+                  key={stage}
+                  type="button"
+                  onClick={() => setStage(stage)}
+                  disabled={pending}
+                  aria-current={isCurrent ? "step" : undefined}
+                  className={`flex items-center gap-[11px] rounded-[11px] border px-3 py-3 text-left text-[14.5px] font-extrabold tracking-[-0.01em] transition-colors disabled:opacity-60 ${tone}`}
+                >
+                  <span
+                    className={`flex h-[23px] w-[23px] shrink-0 items-center justify-center rounded-full border text-[11px] font-extrabold ${badge}`}
+                  >
+                    {done ? <IconCheck width={12} height={12} /> : i + 1}
+                  </span>
+                  <span className="min-w-0 truncate">{isBusy ? "…" : LIFECYCLE_LABEL[stage]}</span>
+                </button>
+              );
+            })}
+            {error && <p className="mt-1 text-[12.5px] font-semibold text-bad">{error}</p>}
+          </div>
+        </Modal>
+      </div>
+    );
+  }
 
   if (variant === "strip") {
     return (

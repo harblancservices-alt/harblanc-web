@@ -24,21 +24,23 @@ export function StageTrackerSection({
   accountId: string;
   accountName: string;
   stage: string;
-  /** Passed straight through to StageTracker. "chevron" (the default, and
-   * the only thing the mobile layout uses) keeps the original card-wrapped
-   * chevron chain; "strip" is the desktop redesign's flush pipeline bar,
-   * which supplies its own chrome from the page shell, so this wrapper
-   * renders it bare. See StageTracker.tsx. */
-  variant?: "chevron" | "strip";
+  /** Passed straight through to StageTracker. "chevron" (the default) keeps
+   * the original card-wrapped chevron chain; "strip" is the desktop
+   * redesign's flush pipeline bar and "compact" the mobile rebuild's
+   * progress-bar + sheet — both of those supply their own chrome from the
+   * surface that hosts them, so this wrapper renders them bare. See
+   * StageTracker.tsx. */
+  variant?: "chevron" | "strip" | "compact";
 }) {
   const [justGraduated, setJustGraduated] = useState(false);
   const isActiveCustomer = normalizeStage(stage) === "active_customer";
-  const shell = variant === "strip" ? "w-full" : "w-full rounded-lg border border-line-strong bg-card p-4 shadow-e2";
+  const bare = variant === "strip" || variant === "compact";
+  const shell = bare ? "w-full" : "w-full rounded-lg border border-line-strong bg-card p-4 shadow-e2";
 
   if (isActiveCustomer) {
     if (!justGraduated) return null;
     return (
-      <div className={variant === "strip" ? "w-full" : "w-full rounded-lg border border-line-strong bg-card p-3 shadow-e2"}>
+      <div className={bare ? "w-full" : "w-full rounded-lg border border-line-strong bg-card p-3 shadow-e2"}>
         <TaskOfferButton
           label="+ Add onboarding task"
           defaults={{

@@ -1,7 +1,7 @@
 "use client";
 
 import { CompanyDialog, type CompanyDefaults, type RepOption } from "../CompanyDialog";
-import { IconPlus } from "../../_shell/icons";
+import { IconPencil, IconPlus } from "../../_shell/icons";
 import { PILL, PILL_SIZE, PILL_DASHED } from "../../_shell/compactForm";
 
 /**
@@ -33,7 +33,7 @@ export function EditCompany({
    * false so any trigger that doesn't know the caller's role can't offer it;
    * updateAccount() enforces the rule regardless. */
   canAssign?: boolean;
-  variant?: "button" | "link" | "onDark" | "pill";
+  variant?: "button" | "link" | "onDark" | "pill" | "mobileHeader";
   label?: string;
 }) {
   return (
@@ -63,6 +63,22 @@ export function EditCompany({
               className="shrink-0 text-[13px] font-semibold text-white underline decoration-1 underline-offset-2 hover:text-white/80"
             >
               {label ?? "Edit"}
+            </button>
+          );
+        }
+        if (variant === "mobileHeader") {
+          // Third of the mobile profile's 44px action row (Log call / Add
+          // person / Edit) — see mobile/MobileHeader.tsx. Styled here rather
+          // than through a className prop so the mobile page's class tokens
+          // stay scoped to mobile/ui.ts.
+          return (
+            <button
+              type="button"
+              onClick={open}
+              className="inline-flex h-11 min-w-0 items-center justify-center gap-1.5 rounded-[11px] border border-line-strong bg-inset px-2 text-[13px] font-extrabold text-fg transition-colors hover:bg-elevated"
+            >
+              <IconPencil width={15} height={15} />
+              <span className="truncate">{label ?? "Edit"}</span>
             </button>
           );
         }
