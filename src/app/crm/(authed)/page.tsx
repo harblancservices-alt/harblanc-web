@@ -19,7 +19,6 @@ import { IconNote, IconCompanies, IconCalendar, IconTasks } from "./_shell/icons
 import { normalizeStage, stageRank, stageLabel, STALE_DAYS_BY_STAGE, LOST_WINBACK_DAYS } from "./accounts/lifecycle";
 import { CRM_ACTIVITY, CRM_CONTACT_ACTIVITY_KINDS } from "@/lib/crm/activity";
 import { ensureWinbackTask } from "@/lib/crm/stageAutomation";
-import { CLAIMABLE_LEAD_SOURCES } from "./ai-agent/queue";
 import { taskUrgencyBucket } from "@/lib/crm/taskUrgency";
 import { taskPriorityCompare } from "./tasks/priority";
 
@@ -444,20 +443,15 @@ export default async function CrmDashboardPage() {
     return normalizeStage(a.lifecycle_status) === "new_lead" && a.assigned_user_id === null;
   }
   /** True only when the CLAIM pill would actually work — matches
-   * claimAiLead's own guard (ai_status='released' AND source IN
-   * CLAIMABLE_LEAD_SOURCES AND unassigned) exactly, so the button's promise
-   * always holds. isUnclaimedNewLead alone isn't enough: a company can be an
-   * unassigned New Lead from a plain manual quick-add (source "manual" or
-   * null, ai_status never set to "released") — real data confirmed this too
-   * — and claimAiLead would reject that with "no longer available to claim"
-   * since it was never published into the Prospects queue in the first
-   * place. */
+   * claimAiLead's own guard (ai_status='released' AND unassigned) exactly,
+   * so the button's promise always holds. See ai-agent/queue.ts for why the
+   * gate is source-agnostic. isUnclaimedNewLead alone isn't enough: a company
+   * can be an unassigned New Lead from a plain manual quick-add (ai_status
+   * never set to "released") — real data confirmed this too — and claimAiLead
+   * would reject that with "no longer available to claim" since it was never
+   * published into the Prospects queue in the first place. */
   function isClaimableNewLead(a: AccountRow): boolean {
-    return (
-      isUnclaimedNewLead(a) &&
-      a.ai_status === "released" &&
-      (CLAIMABLE_LEAD_SOURCES as readonly string[]).includes(a.source ?? "")
-    );
+    return isUnclaimedNewLead(a) && a.ai_status === "released";
   }
   function staleDays(a: AccountRow): number {
     return isUnclaimedNewLead(a) ? daysUnclaimed(a) : daysQuiet(a);

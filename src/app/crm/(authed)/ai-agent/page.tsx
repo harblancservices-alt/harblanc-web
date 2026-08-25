@@ -2,7 +2,6 @@ import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { PageShell, Card, EmptyState } from "../_shell/ui";
 import { IconAiAgent } from "../_shell/icons";
 import { LeadCard, type AiAgentLead } from "./LeadCard";
-import { CLAIMABLE_LEAD_SOURCES } from "./queue";
 
 export const dynamic = "force-dynamic";
 
@@ -18,12 +17,12 @@ type AccountRow = {
 /**
  * Prospects tab (route: /crm/ai-agent) — unclaimed leads only. Every
  * crm_account released (ai_status='released') that nobody has claimed yet
- * (assigned_user_id IS NULL), from any of the intake pipelines that publish
- * into this queue (CLAIMABLE_LEAD_SOURCES — AI Agent research, Field
- * Capture, BOL Center, OTR); pending-review AI/Field-Capture leads live
- * only in /crm/ai-review until then. The moment a lead is claimed it drops
- * out of this query entirely — it still lives on as an ordinary company in
- * /crm/accounts, just not here. Visible to every CRM user, newest-first.
+ * (assigned_user_id IS NULL), from ANY intake pipeline — see ./queue.ts for
+ * why the gate is source-agnostic. Anything still awaiting review
+ * (ai_status='pending_review') lives only in /crm/ai-review until released.
+ * The moment a lead is claimed it drops out of this query entirely — it
+ * still lives on as an ordinary company in /crm/accounts, and claiming is in
+ * fact what makes it appear there. Visible to every CRM user, newest-first.
  */
 export default async function AiAgentPage() {
   await requireCrmUser();
@@ -32,7 +31,6 @@ export default async function AiAgentPage() {
   const { data } = await supabase
     .from("crm_accounts")
     .select("id, name, city, state, commodities, created_at")
-    .in("source", CLAIMABLE_LEAD_SOURCES)
     .eq("ai_status", "released")
     .is("assigned_user_id", null)
     .is("deleted_at", null)

@@ -5,15 +5,15 @@ import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { logActivity, CRM_ACTIVITY } from "@/lib/crm/activity";
 import { fireStageEntryTask } from "@/lib/crm/stageAutomation";
 import { normalizeStage, stageLabel } from "../accounts/lifecycle";
-import { CLAIMABLE_LEAD_SOURCES } from "./queue";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
 /**
  * Claim a released lead from the queue — sets assigned_user_id to the
- * caller, allowed for any CRM user. Covers every source that publishes into
- * this queue (CLAIMABLE_LEAD_SOURCES — AI Agent, Field Capture, BOL Center,
- * OTR), not just AI-researched leads, despite the function's name. The
+ * caller, allowed for any CRM user. Covers every company published into this
+ * queue regardless of where it came from (see ./queue.ts: the gate is
+ * ai_status='released' AND unclaimed; source is provenance only), not just
+ * AI-researched leads, despite the function's name. The
  * update is guarded on assigned_user_id IS NULL so a race between two reps
  * clicking "Claim" at once can only ever seat one of them; the loser gets a
  * clear "already claimed" error instead of silently overwriting the
@@ -37,7 +37,6 @@ export async function claimAiLead(accountId: string): Promise<ActionResult> {
     .from("crm_accounts")
     .update({ assigned_user_id: user.id })
     .eq("id", accountId)
-    .in("source", CLAIMABLE_LEAD_SOURCES)
     .eq("ai_status", "released")
     .is("deleted_at", null)
     .is("assigned_user_id", null)

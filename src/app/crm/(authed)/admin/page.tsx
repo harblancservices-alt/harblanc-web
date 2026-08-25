@@ -33,7 +33,6 @@ export default async function AdminOverviewPage() {
     supabase
       .from("crm_accounts")
       .select("id", { count: "exact", head: true })
-      .in("source", ["ai_agent", "field_capture"])
       .eq("ai_status", "pending_review")
       .is("deleted_at", null),
     // Errors (e.g. the migration hasn't been applied yet) resolve to

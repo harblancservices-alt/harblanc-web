@@ -24,11 +24,12 @@ type AccountRow = {
 
 /**
  * AI Review queue — owner-only. Every crm_account still awaiting a human
- * look (ai_status='pending_review'), whether it came from the AI-agent
- * research process (source='ai_agent') or an admin's Field Capture session
- * (source='field_capture') — both land here so nothing new reaches the team
- * unreviewed. Non-owners are redirected server-side, same enforcement point
- * as the settings admin gate: RLS only scopes rows to the org, not by role.
+ * look (ai_status='pending_review'), whatever pipeline produced it, so
+ * nothing new reaches the team unreviewed. Keyed on ai_status alone: the
+ * ai_agent/field_capture source enumeration was retired 2026-08-25 with
+ * those pipelines, and source is provenance only (see ai-agent/queue.ts).
+ * Non-owners are redirected server-side, same enforcement point as the
+ * settings admin gate: RLS only scopes rows to the org, not by role.
  */
 export default async function AiReviewPage() {
   const user = await requireCrmUser();
@@ -41,7 +42,6 @@ export default async function AiReviewPage() {
     .select(
       "id, name, address, city, state, zip, website, phone, industry, commodities, source, created_at",
     )
-    .in("source", ["ai_agent", "field_capture"])
     .eq("ai_status", "pending_review")
     .is("deleted_at", null)
     .order("created_at", { ascending: false })

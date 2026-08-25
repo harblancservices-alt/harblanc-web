@@ -32,11 +32,20 @@ function normalizeHref(url: string | null): string | null {
 }
 
 /** Human label for a lead's origin, so the queue reads clearly when it mixes
- * AI-researched leads with admin Field Capture leads. */
+ * pipelines. Source is free-typed provenance text (the column is plain
+ * nullable text with no constraint — production values include things like
+ * "Cold Call"), so anything unrecognised is title-cased and shown as-is
+ * rather than collapsed to "Unknown source". The ai_agent/field_capture
+ * special cases are kept only so the 11 historical rows carrying those values
+ * still read as words; both pipelines were retired 2026-08-25. */
 function sourceLabel(source: string | null): string {
+  if (!source?.trim()) return "Unknown source";
   if (source === "field_capture") return "Field Capture";
   if (source === "ai_agent") return "AI Agent";
-  return "Unknown source";
+  if (source === "bol") return "BOL Center";
+  if (source === "otr") return "OTR";
+  if (source === "manual") return "Manual";
+  return source;
 }
 
 /**

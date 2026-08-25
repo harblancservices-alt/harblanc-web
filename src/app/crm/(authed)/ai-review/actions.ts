@@ -33,7 +33,6 @@ export async function releaseAiLead(accountId: string): Promise<ActionResult> {
     .from("crm_accounts")
     .select("name")
     .eq("id", accountId)
-    .in("source", ["ai_agent", "field_capture"])
     .eq("ai_status", "pending_review")
     .is("deleted_at", null)
     .maybeSingle();
@@ -77,7 +76,6 @@ export async function discardAiLead(accountId: string): Promise<ActionResult> {
     .from("crm_accounts")
     .select("name")
     .eq("id", accountId)
-    .in("source", ["ai_agent", "field_capture"])
     .eq("ai_status", "pending_review")
     .is("deleted_at", null)
     .maybeSingle();

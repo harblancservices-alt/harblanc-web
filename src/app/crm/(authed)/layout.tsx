@@ -1,6 +1,5 @@
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { CrmShell } from "./_shell/CrmShell";
-import { CLAIMABLE_LEAD_SOURCES } from "./ai-agent/queue";
 
 export const dynamic = "force-dynamic";
 
@@ -19,28 +18,27 @@ export default async function CrmAuthedLayout({
   const supabase = await createCrmServerClient();
 
   // Pending-review count for the nav badge — owners only, so this extra
-  // count-only query never runs for regular members. Covers both AI-agent
-  // research leads and Field Capture leads; both land in the same queue.
+  // count-only query never runs for regular members. Keyed on ai_status
+  // alone: the ai_agent/field_capture source enumeration this used to carry
+  // was retired 2026-08-25 along with those pipelines, and source is
+  // provenance only (see ai-agent/queue.ts).
   let pendingReviewCount = 0;
   if (user.role === "owner") {
     const { count } = await supabase
       .from("crm_accounts")
       .select("id", { count: "exact", head: true })
-      .in("source", ["ai_agent", "field_capture"])
       .eq("ai_status", "pending_review")
       .is("deleted_at", null);
     pendingReviewCount = count ?? 0;
   }
 
   // Unclaimed released leads — the alert every CRM user sees, badging the
-  // "Prospects" nav item. Same CLAIMABLE_LEAD_SOURCES predicate as the
-  // /crm/ai-agent tab itself and claimAiLead()'s claim guard, so all three
-  // surfaces always agree — covers AI Agent, Field Capture, BOL Center, and
-  // OTR released companies, not just AI-researched ones.
+  // "Prospects" nav item. Exactly the gate defined in ai-agent/queue.ts, the
+  // same one /crm/ai-agent, claimAiLead(), the dashboard's Claim pill, and
+  // the Companies-list filter use, so all five surfaces always agree.
   const { count: unclaimedAiCount } = await supabase
     .from("crm_accounts")
     .select("id", { count: "exact", head: true })
-    .in("source", CLAIMABLE_LEAD_SOURCES)
     .eq("ai_status", "released")
     .is("assigned_user_id", null)
     .is("deleted_at", null);
