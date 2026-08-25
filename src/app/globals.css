@@ -255,6 +255,13 @@ input[type="date"]::-webkit-date-and-time-value {
      prototype's exact value, not a coincidental match). */
   --accent: #2f5fd6;
   --accent-hover: #2650b8;
+  /* The tint sibling --ok-bg/--warn-bg/--bad-bg all had and --accent lacked:
+     the accent at ~8% over white, pre-blended so it is OPAQUE. An 8%-alpha
+     accent would composite against whatever is behind it, and on this theme
+     that is --canvas (#e7eaf1, a blue-grey) — which is exactly the bug the
+     tab row spent four revisions chasing. Added 2026-08-25 for the tab
+     hover state; reusable anywhere a faint accent wash is wanted. */
+  --accent-bg: #eef2fc;
 
   /* Semantic status — crm-design's exact success/warning/danger, not the
      shared --v2-green/amber/red the admin/tms-v2 themes use. */
@@ -487,6 +494,7 @@ html[data-layout="landscape"] [data-shell="main"] { padding-bottom: 0 !important
   --color-foreground: var(--foreground);
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
+  --color-accent-bg: var(--accent-bg);
   --color-accent-destructive: var(--accent-destructive);
   --color-accent-destructive-hover: var(--accent-destructive-hover);
   --color-border-default: var(--border);

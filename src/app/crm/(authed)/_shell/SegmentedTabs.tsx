@@ -104,9 +104,20 @@ const CHIP_SIZE: Record<SegmentedTabSize, string> = {
 const CHIP_ACTIVE = "border-accent bg-accent font-semibold text-white";
 
 /**
- * Inactive: an OUTLINED BLUE button — blue border, blue text, transparent
- * fill. Hover tints the fill with the same blue at 8% and leaves border and
- * text alone.
+ * Inactive: a WHITE button with a blue border and blue text. Hover tints the
+ * white with the accent at 8%; border and text stay blue.
+ *
+ * THE FILL MUST BE OPAQUE. This is the actual fix for four rounds of "the
+ * tabs look grey": the fill used to be `bg-transparent`, and the first
+ * painted surface behind these tabs is the CrmShell root at --canvas
+ * (#e7eaf1, a light blue-grey) — every element in between is transparent. A
+ * transparent button on a grey page IS a grey button, so no amount of
+ * recolouring the border and text could ever fix it. Measured on both Admin
+ * and Operations before changing anything.
+ *
+ * `bg-card` is the white: --card is #fff in .crm-light. (--surface-2 is not
+ * defined in this scope.) It is a neutral token by name only — the value is
+ * pure white, which is the point.
  *
  * BLUE, NOT RED. `--accent` (#2f5fd6) is the CRM's primary-action colour —
  * the same value BTN_PRIMARY paints Assign/Save/Create with. Red is the
@@ -124,8 +135,26 @@ const CHIP_ACTIVE = "border-accent bg-accent font-semibold text-white";
  * whole /crm/(authed) tree). So this is a real token, not a literal — the red
  * had to be hardcoded precisely because `--v2-accent` is NOT in this scope.
  */
-const CHIP_INACTIVE =
-  "border-accent bg-transparent font-medium text-accent hover:bg-accent/[0.08]";
+/*
+ * Hover is an OPAQUE blend, not an alpha. `hover:bg-accent/[0.08]` would
+ * replace the white fill with 8%-opaque accent, which composites against the
+ * grey canvas again and puts the grey straight back on hover — the same bug,
+ * one state over. --accent-bg is that blend pre-computed (see globals.css);
+ * it is the tint sibling --ok-bg/--warn-bg/--bad-bg already had and --accent
+ * was missing.
+ *
+ * A color-mix() arbitrary value would also work, but a named token is better
+ * here: it is reusable, it matches the --ok-bg/--warn-bg/--bad-bg family
+ * already in the theme, and it keeps an arbitrary value out of the one
+ * component every tab row in the CRM depends on.
+ *
+ * Verified by hovering a real tab and reading the computed style —
+ * rgb(238,242,252), opaque, border and text still accent. Scanning
+ * document.styleSheets for the rule does NOT work (cross-origin sheets throw
+ * and the utility is JIT-emitted only for class strings that appear in
+ * source), so that check produces false negatives.
+ */
+const CHIP_INACTIVE = "border-accent bg-card font-medium text-accent hover:bg-accent-bg";
 
 /** The count, inline and quiet — the same treatment on every row, so an
  * outer tab's count and a filter tab's count read as the same thing. */
