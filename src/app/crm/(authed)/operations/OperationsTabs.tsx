@@ -16,10 +16,13 @@ const TABS: { href: string; label: string; exact: boolean }[] = [
   // Active Clients tab restated, so it went; these two are real destinations
   // that existed nowhere else, so they moved rather than being deleted.
   //
-  // "Shipments" is NOT "Active Loads": ../loads filters to active statuses
-  // only, so a delivered/invoiced/cancelled shipment is reachable through
-  // this tab and no other. See ./shipments/page.tsx.
-  { href: "/crm/operations/shipments", label: "Shipments", exact: false },
+  // "All Shipments", not "Shipments" — the bare name read as a duplicate of
+  // "Active Loads" and the two are not the same set. Both query
+  // crm_shipments through listShipments(); ../loads then filters to
+  // isActiveShipmentStatus (open/dispatched/in_transit), so a delivered,
+  // invoiced or cancelled shipment appears HERE and nowhere else. Active
+  // Loads is a strict SUBSET of this tab. The label now says so.
+  { href: "/crm/operations/shipments", label: "All Shipments", exact: false },
   // Both moved in 2026-08-22 from their own destinations: Active Clients
   // was the top-level /crm/active-customers nav item, Active Carriers was
   // the standalone /crm/carriers list plus a tab inside that hub. Both old
