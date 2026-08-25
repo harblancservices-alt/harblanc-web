@@ -1,7 +1,9 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { Card, BTN_PRIMARY, BTN_NEUTRAL } from "../_shell/ui";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Card, BTN_PRIMARY, BTN_NEUTRAL, BTN_EDIT } from "../_shell/ui";
 import { FormError } from "../_shell/form";
 import { CONTROL, CONTROL_SIZE, LABEL } from "../_shell/compactForm";
 import { SegmentedTabs } from "../_shell/SegmentedTabs";
@@ -11,7 +13,9 @@ import type { TeamMember } from "./assign-data";
 import {
   ASSIGN_FALLBACK_NOTE,
   countBySource,
+  itemHref,
   itemKey,
+  itemOpenLabel,
   matchesFilter,
   partitionBySource,
   sortByLongestWaiting,
@@ -46,7 +50,18 @@ export function AssignBoard({
   team: TeamMember[];
   now: number;
 }) {
+  const router = useRouter();
   const [filter, setFilter] = useState<WorkFilterKey>("all");
+  /**
+   * TWO MODES. Default is BROWSE: no checkbox exists anywhere, the whole row
+   * opens the item so an admin can look before deciding. SELECT mode reveals
+   * the checkboxes, stops rows navigating, and shows the selection bar.
+   *
+   * Browse first because looking is the more common act — you read the queue
+   * far more often than you hand it out, and a screen full of checkboxes
+   * makes reading feel like a form to fill in.
+   */
+  const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -58,6 +73,17 @@ export function AssignBoard({
 
   const visibleKeys = visible.map(itemKey);
   const allVisibleSelected = visibleKeys.length > 0 && visibleKeys.every((k) => selected.has(k));
+
+  /** Leaving select mode always clears the selection — an invisible pending
+   * selection that reappears later is a trap. */
+  function toggleSelectMode() {
+    setSelectMode((prev) => {
+      if (prev) setSelected(new Set());
+      return !prev;
+    });
+    setError(null);
+    setNotice(null);
+  }
 
   function toggle(key: string) {
     setSelected((prev) => {
@@ -164,9 +190,23 @@ export function AssignBoard({
               active: filter === f.key,
               onSelect: () => setFilter(f.key),
               count: counts[f.key],
+              // "All" aggregates the others rather than owning work, so it
+              // never carries a dot; the per-source tabs do, when non-zero.
+              countNeedsAttention: f.key !== "all",
             }))}
           />
-          <p className="text-[12px] text-fg-subtle">Sorted by longest waiting</p>
+          <div className="flex flex-wrap items-center gap-3">
+            <p className="text-[12px] text-fg-subtle">Sorted by longest waiting</p>
+            <button
+              type="button"
+              onClick={toggleSelectMode}
+              className={`rounded-md px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
+                selectMode ? BTN_NEUTRAL : BTN_EDIT
+              }`}
+            >
+              {selectMode ? "Cancel" : "Select to assign"}
+            </button>
+          </div>
         </div>
 
         {visible.length === 0 ? (
@@ -183,19 +223,25 @@ export function AssignBoard({
             <table className="w-full min-w-[680px] border-collapse">
               <thead>
                 <tr className="border-b border-line text-[10.5px] font-bold uppercase tracking-[0.07em] text-fg-muted">
-                  <th className="w-9 px-4 py-2">
-                    <input
-                      type="checkbox"
-                      checked={allVisibleSelected}
-                      onChange={toggleAllVisible}
-                      aria-label="Select everything shown"
-                      className="h-4 w-4 cursor-pointer accent-[#2563eb]"
-                    />
-                  </th>
+                  {/* The select-all cell EXISTS ONLY IN SELECT MODE. Browse
+                      mode renders no checkbox anywhere in the DOM — not a
+                      hidden one, not a disabled one. */}
+                  {selectMode && (
+                    <th className="w-9 px-4 py-2">
+                      <input
+                        type="checkbox"
+                        checked={allVisibleSelected}
+                        onChange={toggleAllVisible}
+                        aria-label="Select everything shown"
+                        className="h-4 w-4 cursor-pointer accent-[#2563eb]"
+                      />
+                    </th>
+                  )}
                   <th className="px-2 py-2 text-left">Company</th>
                   <th className="px-2 py-2 text-left">Type</th>
                   <th className="px-2 py-2 text-left">What it needs</th>
                   <th className="px-2 py-2 text-left">Waiting</th>
+                  {!selectMode && <th className="w-32 px-2 py-2" />}
                 </tr>
               </thead>
               <tbody>
@@ -203,23 +249,26 @@ export function AssignBoard({
                   const key = itemKey(item);
                   const checked = selected.has(key);
                   const urgency = waitingUrgency(item.waitingSince, now);
+                  const href = itemHref(item);
                   return (
                     <tr
                       key={key}
-                      onClick={() => toggle(key)}
-                      className={`cursor-pointer border-b border-line transition-colors ${
-                        checked ? "bg-accent/5" : "hover:bg-inset"
+                      onClick={() => (selectMode ? toggle(key) : router.push(href))}
+                      className={`group cursor-pointer border-b border-line transition-colors ${
+                        checked ? "bg-accent-bg" : "hover:bg-accent-bg"
                       }`}
                     >
-                      <td className="px-4 py-2.5" onClick={(e) => e.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => toggle(key)}
-                          aria-label={`Select ${item.company}`}
-                          className="h-4 w-4 cursor-pointer accent-[#2563eb]"
-                        />
-                      </td>
+                      {selectMode && (
+                        <td className="px-4 py-2.5" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggle(key)}
+                            aria-label={`Select ${item.company}`}
+                            className="h-4 w-4 cursor-pointer accent-[#2563eb]"
+                          />
+                        </td>
+                      )}
                       <td className="px-2 py-2.5">
                         <p className="text-[13px] font-semibold text-fg">{titleCaseWords(item.company)}</p>
                         {(item.city || item.state) && (
@@ -243,6 +292,20 @@ export function AssignBoard({
                       >
                         {waitingLabel(item.waitingSince, now)}
                       </td>
+                      {/* A REAL link, not just the row handler — so the label
+                          can say where it goes, and middle-click / open-in-
+                          new-tab work the way they do everywhere else. */}
+                      {!selectMode && (
+                        <td className="px-2 py-2.5 text-right" onClick={(e) => e.stopPropagation()}>
+                          <Link
+                            href={href}
+                            prefetch={false}
+                            className="invisible whitespace-nowrap text-[12px] font-semibold text-accent underline-offset-2 hover:underline group-hover:visible"
+                          >
+                            {itemOpenLabel(item.source)} &rsaquo;
+                          </Link>
+                        </td>
+                      )}
                     </tr>
                   );
                 })}

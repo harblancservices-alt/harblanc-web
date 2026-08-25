@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   countBySource,
+  itemHref,
   itemKey,
+  itemOpenLabel,
   matchesFilter,
   needsLabel,
   parseItemKey,
@@ -42,6 +44,31 @@ describe("itemKey / parseItemKey", () => {
   it("survives a uuid containing no colon and keeps the full id", () => {
     const id = "f267e2a5-767a-4478-a34d-0622d9442172";
     expect(parseItemKey(itemKey({ source: "bol", id })).id).toBe(id);
+  });
+});
+
+describe("itemHref / itemOpenLabel", () => {
+  it("sends a prospect to its company profile", () => {
+    expect(itemHref({ source: "prospect", id: "acc-1" })).toBe("/crm/accounts/acc-1");
+    expect(itemOpenLabel("prospect")).toBe("View company");
+  });
+
+  it("sends a BOL entry to its own detail route", () => {
+    expect(itemHref({ source: "bol", id: "bol-1" })).toBe("/crm/admin/bol-center/bol-1");
+    expect(itemOpenLabel("bol")).toBe("Open BOL entry");
+  });
+
+  it("sends an OTR entry to the OTR queue, not to a company", () => {
+    // An OTR entry has no crm_accounts row until it is released, and there is
+    // no per-entry route, so it must NOT be linked as if it were a company.
+    expect(itemHref({ source: "otr", id: "otr-1" })).toBe("/crm/admin/otr");
+    expect(itemOpenLabel("otr")).toBe("Open in OTR");
+    expect(itemOpenLabel("otr")).not.toContain("company");
+  });
+
+  it("never routes a non-prospect into /crm/accounts", () => {
+    expect(itemHref({ source: "otr", id: "x" })).not.toContain("/crm/accounts/");
+    expect(itemHref({ source: "bol", id: "x" })).not.toContain("/crm/accounts/");
   });
 });
 

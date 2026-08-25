@@ -51,6 +51,44 @@ export function parseItemKey(key: string): { source: WorkSource; id: string } {
   return { source: key.slice(0, i) as WorkSource, id: key.slice(i + 1) };
 }
 
+/**
+ * Where "open this item" goes, per source. The three sources are genuinely
+ * different kinds of record and only one of them is a company:
+ *
+ *   prospect — a real crm_accounts row (ai_status='released'), so it opens
+ *              the company profile.
+ *   bol      — crm_bol_entries has its own detail route in the BOL Center.
+ *   otr      — an OTR entry is NOT a company. It has no crm_accounts row
+ *              until it is RELEASED, and crm_otr_entries has no per-entry
+ *              route either (admin/otr renders a single list of cards with no
+ *              anchors to link to), so this lands on the OTR queue itself.
+ *              That is the most specific destination that exists; inventing a
+ *              deep link to a page that cannot receive one would just 404.
+ */
+export function itemHref(item: Pick<WorkItem, "source" | "id">): string {
+  switch (item.source) {
+    case "prospect":
+      return `/crm/accounts/${item.id}`;
+    case "bol":
+      return `/crm/admin/bol-center/${item.id}`;
+    case "otr":
+      return "/crm/admin/otr";
+  }
+}
+
+/** The hover affordance's label. Never promises "company" for a record that
+ * is not one — an OTR entry is a name someone said over the phone. */
+export function itemOpenLabel(source: WorkSource): string {
+  switch (source) {
+    case "prospect":
+      return "View company";
+    case "bol":
+      return "Open BOL entry";
+    case "otr":
+      return "Open in OTR";
+  }
+}
+
 export const SOURCE_LABEL: Record<WorkSource, string> = {
   prospect: "Prospects",
   otr: "OTR",

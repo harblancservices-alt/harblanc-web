@@ -58,9 +58,14 @@ export type SegmentedTabItem = {
    */
   count?: number;
   /**
-   * Draw this tab's count in the brand red instead of muted grey. For a
-   * count that genuinely needs chasing (an attention queue), never as
-   * decoration — if every count is emphasised, none of them are.
+   * Put a small red dot after this tab's count, meaning "there is work
+   * actually waiting here".
+   *
+   * The dot only appears when the count is also non-zero — a tab with nothing
+   * behind it has nothing to chase. Use it for a real queue, never as
+   * decoration: if every tab has a dot, none of them mean anything. An "All"
+   * tab in particular should NOT set this — it aggregates other tabs rather
+   * than owning work itself.
    */
   countNeedsAttention?: boolean;
 };
@@ -156,8 +161,15 @@ const CHIP_ACTIVE = "border-accent bg-accent font-semibold text-white";
  */
 const CHIP_INACTIVE = "border-accent bg-card font-medium text-accent hover:bg-accent-bg";
 
-/** The count, inline and quiet — the same treatment on every row, so an
- * outer tab's count and a filter tab's count read as the same thing. */
+/**
+ * Label · count · dot. The count is a PLAIN NUMBER — no pill, no circle
+ * around it, nothing stacked — and the dot is the only thing that ever marks
+ * a tab as needing attention.
+ *
+ * Colour, both states, is the tab's own: white at 70% on the filled tab,
+ * accent blue at a lighter weight on an outlined one. Never a neutral; a grey
+ * count would put the grey straight back that five revisions removed.
+ */
 function TabCount({
   value,
   active,
@@ -167,14 +179,20 @@ function TabCount({
   active: boolean;
   attention?: boolean;
 }) {
-  // An attention count of zero is nothing to chase, so it disappears; an
-  // ordinary count of zero is information and stays.
-  if (attention && !value) return null;
-  // White on the filled tab, accent blue on an outlined one. `attention` no
-  // longer changes the COLOUR — every count is already the accent — it only
-  // controls whether a zero is shown at all.
   const tone = active ? "text-white/70" : "text-accent";
-  return <span className={`font-mono text-[11.5px] font-medium tabular-nums ${tone}`}>{value}</span>;
+  return (
+    <>
+      <span className={`font-mono text-[11.5px] font-normal tabular-nums ${tone}`}>{value}</span>
+      {/* Only when this tab genuinely has work waiting. A zero count never
+          gets a dot — there is nothing behind it to chase. */}
+      {attention && value > 0 && (
+        <span
+          aria-hidden
+          className="ml-0.5 inline-block h-2 w-2 shrink-0 rounded-full bg-[#c0272d]"
+        />
+      )}
+    </>
+  );
 }
 
 export function SegmentedTabs({
