@@ -7,6 +7,7 @@ import { Card, BTN_PRIMARY, BTN_EDIT, BTN_ACTION, BTN_DANGER, BTN_SUCCESS, ZEBRA
 import { FormError } from "../../../../_shell/form";
 import { formatDateTime, titleCaseWords, formatPhone } from "../../../../_shell/format";
 import { TextRow, SelectRow, SectionDivider } from "../../fields";
+import { StopTimingReview } from "../../StopTimingReview";
 import { RemoveRowButton, TextRow as CompactTextRow } from "../../../../_shell/compactForm";
 import { docStatusLabel, docStatusTone } from "../../../docStatusMeta";
 import { getSignedPdfUrl, openStoredPdf } from "../../../pdfClient";
@@ -328,6 +329,8 @@ export function BolEditor({
           )}
         </div>
       </Card>
+
+      <StopTimingReview shipment={shipment} onEdit={onClose} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <ReadOnlyPartyCard

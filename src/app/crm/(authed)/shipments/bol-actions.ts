@@ -5,6 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { logActivity, CRM_ACTIVITY } from "@/lib/crm/activity";
 import { formatDate } from "../_shell/format";
+import { resolveShipmentTiming } from "./timing";
 import { getBrokerProfile } from "../_shell/brokerProfile";
 import { renderCrmShipmentBolPdfBuffer } from "@/lib/pdf/renderCrmShipmentBolPdf";
 import type { CrmShipmentBolPdfData } from "@/lib/pdf/CrmShipmentBolPDF";
@@ -385,6 +386,7 @@ export async function generateBol(bolId: string): Promise<GenerateDocResult> {
   }
 
   const broker = await getBrokerProfile();
+  const bolTiming = resolveShipmentTiming(shipmentRow);
 
   const pdfData: CrmShipmentBolPdfData = {
     bolNumber: detail.bolNumber,
@@ -409,8 +411,14 @@ export async function generateBol(bolId: string): Promise<GenerateDocResult> {
       contact: shipmentRow.consignee_contact,
       phone: shipmentRow.consignee_phone,
     },
-    pickupDate: formatDate(shipmentRow.pickup_at),
-    deliveryDate: formatDate(shipmentRow.delivery_at),
+    // Timing comes from the shipment's timing model, falling back to the
+    // legacy columns for shipments that predate it (see shipments/timing.ts).
+    // Previously this was formatDate(pickup_at), which silently dropped the
+    // time and ignored the window entirely.
+    pickupDate: bolTiming.pickup.dateLabel,
+    pickupTimeLabel: bolTiming.pickup.timeLabel,
+    deliveryDate: bolTiming.delivery.dateLabel,
+    deliveryTimeLabel: bolTiming.delivery.timeLabel,
     poNumber: shipmentRow.po_number,
     refNumbers: shipmentRow.ref_numbers,
     carrier: {

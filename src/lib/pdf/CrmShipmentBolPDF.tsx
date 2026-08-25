@@ -39,7 +39,11 @@ export type CrmShipmentBolPdfData = {
   shipper: PartyInfo;
   consignee: PartyInfo;
   pickupDate: string | null;
+  /** Resolved timing text for the pickup stop; null when unknown. */
+  pickupTimeLabel: string | null;
   deliveryDate: string | null;
+  /** Resolved timing text for the delivery stop; null when unknown. */
+  deliveryTimeLabel: string | null;
   poNumber: string | null;
   refNumbers: string | null;
   carrier: {
@@ -208,12 +212,17 @@ function PartyBox({
   title,
   party,
   date,
+  timeLabel,
   poNumber,
   refNumbers,
 }: {
   title: string;
   party: PartyInfo;
   date: string | null;
+  /** "Time TBD" | "8:00 AM – 10:00 AM" | "8:30 AM Appointment", resolved from
+   * the shipment's timing model. Previously the BOL received the date only
+   * and the time was silently discarded by formatDate(). */
+  timeLabel: string | null;
   poNumber: string | null;
   refNumbers: string | null;
 }) {
@@ -225,6 +234,7 @@ function PartyBox({
         <Text style={styles.fieldLine}>{party.address || "—"}</Text>
         <Text style={styles.fieldLine}>{cityStateZip(party.city, party.state, party.zip) || "—"}</Text>
         <Text style={styles.fieldLine}>Date: {date || "—"}</Text>
+        {timeLabel && <Text style={styles.fieldLine}>Time: {timeLabel}</Text>}
         <View style={styles.cols2}>
           <Text style={[styles.fieldLine, { flex: 1 }]}>PO Number: {poNumber || "—"}</Text>
           <Text style={[styles.fieldLine, { flex: 1 }]}>Reference Number: {refNumbers || "—"}</Text>
@@ -308,6 +318,7 @@ export function CrmShipmentBolPDF({ data }: { data: CrmShipmentBolPdfData }) {
             title="Ship From"
             party={data.shipper}
             date={data.pickupDate}
+            timeLabel={data.pickupTimeLabel}
             poNumber={data.poNumber}
             refNumbers={data.refNumbers}
           />
@@ -315,6 +326,7 @@ export function CrmShipmentBolPDF({ data }: { data: CrmShipmentBolPdfData }) {
             title="Ship To"
             party={data.consignee}
             date={data.deliveryDate}
+            timeLabel={data.deliveryTimeLabel}
             poNumber={data.poNumber}
             refNumbers={data.refNumbers}
           />

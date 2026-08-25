@@ -8,6 +8,7 @@ import { FormError } from "../../../../_shell/form";
 import { AsyncSearchPicker } from "../../../../_shell/AsyncSearchPicker";
 import { formatMoney, formatDateTime, titleCaseWords, formatPhone } from "../../../../_shell/format";
 import { TextRow, TextAreaRow, MoneyRow, NARROW, FormRow2, FormRow3, SectionDivider, SelectedEntityChip, SelectRow } from "../../fields";
+import { StopTimingReview } from "../../StopTimingReview";
 import { RemoveRowButton } from "../../../../_shell/compactForm";
 import { StickyActionBar } from "../../../../_shell/StickyActionBar";
 import { docStatusLabel, docStatusTone } from "../../../docStatusMeta";
@@ -530,6 +531,8 @@ export function RateConfirmationEditor({
           )}
         </div>
       </Card>
+
+      <StopTimingReview shipment={shipment} onEdit={onClose} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="flex flex-col gap-3">

@@ -71,6 +71,16 @@ type StopInfo = {
   zip: string | null;
   contact: string | null;
   phone: string | null;
+  /** "August 26, 2026". Resolved by the generate action from the shipment's
+   * timing model (or its legacy fallback) — see shipments/timing.ts. A stop
+   * previously printed a bare window with NO date, which left a carrier
+   * unable to tell what day to arrive. */
+  dateLabel: string | null;
+  /** "Time TBD" | "8:00 AM – 10:00 AM" | "8:30 AM Appointment". Never shown
+   * without dateLabel. */
+  timeLabel: string | null;
+  /** LEGACY free-text window, still carried for shipments that predate the
+   * timing model. Only rendered when dateLabel/timeLabel are absent. */
   window: string | null;
   number: string | null;
   notes: string | null;
@@ -190,10 +200,17 @@ function StopBlock({ title, stop }: { title: string; stop: StopInfo }) {
           <Field label="Contact" value={titleCaseName(stop.contact)} />
           <Field label="Phone" value={formatPhone(stop.phone)} />
         </View>
+        {/* Date first, and always present when known — a time or window
+            without its date is what made earlier RCs undispatchable. */}
         <View style={styles.cols2}>
-          <Field label="Window" value={stop.window} />
+          <Field label="Date" value={stop.dateLabel} />
           <Field label="Number" value={stop.number} />
         </View>
+        {stop.dateLabel ? (
+          <Field label="Time" value={stop.timeLabel} />
+        ) : (
+          <Field label="Window" value={stop.window} />
+        )}
         <Field label="Notes" value={stop.notes} />
       </View>
     </View>
@@ -330,7 +347,13 @@ export function CrmRateConfirmationPDF({ data }: { data: CrmRateConfirmationPdfD
             ))}
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>TOTAL CARRIER PAY</Text>
-              <Text style={styles.totalAmount}>${data.totalCarrierPay.toFixed(2)}</Text>
+              {/* No pay lines at all means nobody has entered carrier pay —
+                  distinct from a deliberate $0.00. Saying so is honest;
+                  printing $0.00 reads as an agreed rate of zero. No value is
+                  invented either way. */}
+              <Text style={styles.totalAmount}>
+                {data.lines.length === 0 ? "NOT ENTERED" : `$${data.totalCarrierPay.toFixed(2)}`}
+              </Text>
             </View>
           </View>
           <View style={[styles.cols2, { marginTop: 8 }]}>

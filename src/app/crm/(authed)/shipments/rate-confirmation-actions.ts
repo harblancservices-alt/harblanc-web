@@ -5,6 +5,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { logActivity, CRM_ACTIVITY } from "@/lib/crm/activity";
 import { formatDate } from "../_shell/format";
+import { resolveShipmentTiming } from "./timing";
 import { getBrokerProfile } from "../_shell/brokerProfile";
 import { renderCrmRateConfirmationPdfBuffer } from "@/lib/pdf/renderCrmRateConfirmationPdf";
 import type { CrmRateConfirmationPdfData } from "@/lib/pdf/CrmRateConfirmationPDF";
@@ -209,17 +210,26 @@ export async function createRateConfirmationFromShipment(shipmentId: string): Pr
   }
   const rcRow = rcData as CrmRateConfirmationRow;
 
-  const { error: lineError } = await supabase.from("crm_rate_confirmation_lines").insert({
-    org_id: user.orgId,
-    rate_confirmation_id: rcRow.id,
-    label: "Linehaul",
-    amount: shipmentRow.carrier_rate ?? 0,
-    sort_order: 0,
-  });
-  if (lineError) {
-    return { ok: false, error: "Rate confirmation created, but could not seed the linehaul line." };
+  // Seed the Linehaul line ONLY from a carrier rate that actually exists.
+  // Previously this inserted `carrier_rate ?? 0`, which manufactured a
+  // "Linehaul $0.00" line on every shipment with no rate entered — the RC
+  // then printed TOTAL CARRIER PAY $0.00, indistinguishable from a genuinely
+  // agreed zero. With no line seeded, the total has no lines to sum and the
+  // PDF prints "NOT ENTERED" instead. shipment.carrier_rate remains the only
+  // source; no value is invented and no pricing model is introduced.
+  if (shipmentRow.carrier_rate !== null && shipmentRow.carrier_rate !== undefined) {
+    const { error: lineError } = await supabase.from("crm_rate_confirmation_lines").insert({
+      org_id: user.orgId,
+      rate_confirmation_id: rcRow.id,
+      label: "Linehaul",
+      amount: shipmentRow.carrier_rate,
+      sort_order: 0,
+    });
+    if (lineError) {
+      return { ok: false, error: "Rate confirmation created, but could not seed the linehaul line." };
+    }
+    await recomputeTotal(supabase, rcRow.id);
   }
-  await recomputeTotal(supabase, rcRow.id);
 
   if (shipmentRow.account_id) {
     await logActivity(supabase, {
@@ -478,6 +488,7 @@ export async function generateRateConfirmation(rcId: string): Promise<GenerateDo
   const shipmentRow = shipmentData as CrmShipmentRow;
 
   const broker = await getBrokerProfile();
+  const rcTiming = resolveShipmentTiming(shipmentRow);
 
   const pdfData: CrmRateConfirmationPdfData = {
     rcNumber: detail.rcNumber,
@@ -503,6 +514,11 @@ export async function generateRateConfirmation(rcId: string): Promise<GenerateDo
       zip: shipmentRow.shipper_zip,
       contact: shipmentRow.shipper_contact,
       phone: shipmentRow.shipper_phone,
+      // The RC previously carried a window with NO date, leaving a carrier
+      // unable to tell what day to arrive. Date and timing now both come from
+      // the shipment's timing model (or its legacy fallback).
+      dateLabel: rcTiming.pickup.dateLabel,
+      timeLabel: rcTiming.pickup.timeLabel,
       window: shipmentRow.pickup_window,
       number: shipmentRow.pickup_number,
       notes: shipmentRow.pickup_notes,
@@ -515,6 +531,8 @@ export async function generateRateConfirmation(rcId: string): Promise<GenerateDo
       zip: shipmentRow.consignee_zip,
       contact: shipmentRow.consignee_contact,
       phone: shipmentRow.consignee_phone,
+      dateLabel: rcTiming.delivery.dateLabel,
+      timeLabel: rcTiming.delivery.timeLabel,
       window: shipmentRow.delivery_window,
       number: shipmentRow.delivery_number,
       notes: shipmentRow.delivery_notes,
