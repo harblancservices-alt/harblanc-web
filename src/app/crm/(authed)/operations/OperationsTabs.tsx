@@ -10,12 +10,26 @@ const TABS: { href: string; label: string; exact: boolean }[] = [
   { href: "/crm/operations", label: "Quote Calculator", exact: true },
   { href: "/crm/operations/documents", label: "Documents", exact: false },
   { href: "/crm/operations/loads", label: "Active Loads", exact: false },
+  // Shipments and BOL / RC came UP here 2026-08-25 from a second tab row
+  // nested inside Active Clients. Operations had two stacked tab rows and the
+  // lower one's first tab ("Active Customers") was just this section's own
+  // Active Clients tab restated, so it went; these two are real destinations
+  // that existed nowhere else, so they moved rather than being deleted.
+  //
+  // "Shipments" is NOT "Active Loads": ../loads filters to active statuses
+  // only, so a delivered/invoiced/cancelled shipment is reachable through
+  // this tab and no other. See ./shipments/page.tsx.
+  { href: "/crm/operations/shipments", label: "Shipments", exact: false },
   // Both moved in 2026-08-22 from their own destinations: Active Clients
   // was the top-level /crm/active-customers nav item, Active Carriers was
   // the standalone /crm/carriers list plus a tab inside that hub. Both old
   // routes now redirect here.
   { href: "/crm/operations/clients", label: "Active Clients", exact: false },
   { href: "/crm/operations/carriers", label: "Active Carriers", exact: false },
+  // Generated shipment paperwork. Deliberately last and deliberately NOT
+  // merged with "Documents" above — that tab is the uploaded org library
+  // (crm_documents); this is crm_rate_confirmations + crm_bills_of_lading.
+  { href: "/crm/operations/bol-rc", label: "BOL / RC", exact: false },
 ];
 
 /**
