@@ -38,7 +38,7 @@ export function OperationsTabs() {
     <div
       role="tablist"
       aria-label="Operations sections"
-      className="flex gap-1 overflow-x-auto rounded-lg border border-line-strong bg-inset p-1.5 shadow-e1"
+      className="flex gap-6 overflow-x-auto border-b border-line"
     >
       {TABS.map((t) => {
         const active = t.exact ? pathname === t.href : pathname.startsWith(t.href);
@@ -49,13 +49,12 @@ export function OperationsTabs() {
             prefetch={false}
             role="tab"
             aria-selected={active}
-            className={`flex shrink-0 items-center gap-1.5 rounded-md px-3.5 py-2 text-[13px] font-bold transition-all ${
-              active
-                ? "bg-card text-accent shadow-e2 ring-1 ring-line-strong"
-                : "text-fg-muted hover:bg-card/60 hover:text-fg"
+            className={`relative flex shrink-0 items-center gap-1.5 pb-2.5 pt-1 text-[13.5px] transition-colors ${
+              active ? "font-semibold text-fg" : "font-normal text-fg-muted hover:text-fg"
             }`}
           >
             {t.label}
+            {active && <span aria-hidden className="absolute inset-x-0 -bottom-px h-[3px] rounded-full bg-[#c0272d]" />}
           </Link>
         );
       })}
