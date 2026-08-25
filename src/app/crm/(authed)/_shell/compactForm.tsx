@@ -50,6 +50,31 @@ export const NARROW = {
 } as const;
 
 /**
+ * Field width scale — each field is as wide as its longest realistic value,
+ * so a 2-character state code and a company name stop being the same size
+ * and the form reads as differentiated fields instead of identical bars.
+ *
+ * Same contract as NARROW above: `sm:`-prefixed, so below `sm` every field
+ * still takes the full row width and the mobile layout is untouched. Applied
+ * through a Row's `className` prop.
+ *
+ * Kept separate from NARROW rather than redefining it — NARROW's three keys
+ * are already used by the RC editor on a different scale, and changing them
+ * would silently resize fields outside this pass.
+ */
+export const FIELD_W = {
+  state: "sm:max-w-[64px]",
+  count: "sm:max-w-[84px]",   // pieces
+  zip: "sm:max-w-[100px]",
+  time: "sm:max-w-[108px]",   // window start/end, appointment
+  weight: "sm:max-w-[120px]",
+  date: "sm:max-w-[140px]",
+  code: "sm:max-w-[150px]",   // currency, phone, PO #, truck #, trailer #
+  medium: "sm:max-w-[190px]", // city, ref #s, fixed-option dropdowns
+  // Names, addresses, commodity, description and free text take no cap.
+} as const;
+
+/**
  * Shared tappable-pill tokens for MultiSelectChips (Equipment needed,
  * Special requirements) and TagsCard (account tags) — both already used the
  * same tap-to-select-green/tap-again-to-deselect interaction by convention,

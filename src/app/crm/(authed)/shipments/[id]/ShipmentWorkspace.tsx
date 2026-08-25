@@ -7,7 +7,7 @@ import { FormError } from "../../_shell/form";
 import { AsyncSearchPicker } from "../../_shell/AsyncSearchPicker";
 import { formatDate, titleCaseWords, formatPhone, formatStateCase, stripCommas } from "../../_shell/format";
 import { IconChevronDown } from "../../_shell/icons";
-import { TextRow, TextAreaRow, MoneyRow, SelectRow, FormRow2, SelectedEntityChip } from "./fields";
+import { TextRow, TextAreaRow, MoneyRow, SelectRow, SectionDivider, SelectedEntityChip, FIELD_W } from "./fields";
 import { LocationPickerModal } from "./LocationPickerModal";
 import { CarrierFormDialog } from "../../carriers/CarrierFormDialog";
 import { updateShipment, searchCustomers, createAccountLocation, softDeleteShipment } from "../actions";
@@ -180,27 +180,33 @@ function toLocal(shipment: CrmShipmentDetail): LocalState {
 }
 
 /**
- * The shipment operational editor — Customer / Carrier / Freight / Notes /
- * Shipper / Consignee / Pickup / Delivery sections, alternating left/right
- * on desktop, each field autosaved on blur (or immediately for pickers/
- * selects) via updateShipment. No Customer Rate field here (2026-08-09,
- * dropped from the workspace entirely) and no Create RC/BOL buttons — those
- * live at the bottom of the Documents section now (DocumentsSection.tsx),
- * which opens them as modals instead of navigating to a separate route.
+ * The shipment operational editor — Customer / Carrier / Notes / Shipper /
+ * Consignee / Timing / Freight sections, each field autosaved on blur (or
+ * immediately for pickers/selects) via updateShipment. No Customer Rate
+ * field here (2026-08-09, dropped from the workspace entirely) and no Create
+ * RC/BOL buttons — those live at the bottom of the Documents section now
+ * (DocumentsSection.tsx), which opens them as modals instead of navigating
+ * to a separate route.
  * Every picker (customer, shipper/consignee location, carrier) only ever
  * FILLS fields — nothing is ever locked, and every selected entity carries
  * a small square blue Change (reopen the picker to swap) / Reset (detach the
  * id link AND blank whatever it filled) button, compact style 2026-08-09.
+ *
+ * 2026-08-25 layout pass: three columns at xl (two at md, one below), and
+ * every field capped to the width of its longest realistic value via FIELD_W
+ * so a 2-character state and a company name are no longer the same size.
+ * Pickup and Delivery merged into ONE "Timing" card — they are two halves of
+ * the same decision and were previously separated only by the two-column
+ * grid. No field was removed, renamed, or reordered within its group.
  */
 const SECTIONS = [
   { id: "customer", title: "Customer" },
   { id: "carrier", title: "Carrier" },
-  { id: "freight", title: "Freight" },
   { id: "notes", title: "Notes" },
   { id: "shipper", title: "Shipper" },
   { id: "consignee", title: "Consignee" },
-  { id: "pickup", title: "Pickup" },
-  { id: "delivery", title: "Delivery" },
+  { id: "timing", title: "Timing" },
+  { id: "freight", title: "Freight" },
 ] as const;
 
 export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail }) {
@@ -699,7 +705,13 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      {/* One column below lg, two at lg, three at xl. The first break stays
+          at `lg` on purpose: the collapse-all-but-one effect above keys off
+          `max-width: 1023px`, so moving the grid to `md` would put collapsed
+          cards into a two-column layout. Cards are ordered so the xl grid
+          reads Customer/Carrier/Notes, Shipper/Consignee/Timing, then
+          Freight across the bottom. */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3">
         <SectionCard title="Customer" {...sectionProps("customer")}>
           {(!state.accountId || customerPickerOpen) && (
             <AsyncSearchPicker<CustomerSearchResult>
@@ -785,6 +797,7 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
               label="Carrier contact"
               value={state.carrierContactId}
               onChange={selectCarrierContact}
+              className={FIELD_W.medium}
             >
               <option value="">No specific contact</option>
               {carrierContacts.map((c) => (
@@ -799,70 +812,7 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
             value={state.carrierRate}
             onChange={(v) => set("carrierRate", v)}
             onBlur={() => commit({ carrierRate: moneyOrNull(state.carrierRate) })}
-          />
-        </SectionCard>
-
-        <SectionCard title="Freight" {...sectionProps("freight")}>
-          <FormRow2>
-            <TextRow
-              label="Commodity"
-              value={state.commodity}
-              onChange={(v) => set("commodity", v)}
-              onBlur={() => commit({ commodity: orNull(state.commodity) })}
-            />
-            <SelectRow label="Equipment" value={state.equipment} onChange={changeEquipment}>
-              <option value="">Select equipment…</option>
-              {EQUIPMENT_TYPES.map((t) => (
-                <option key={t} value={t}>
-                  {t}
-                </option>
-              ))}
-              {state.equipment && !(EQUIPMENT_TYPES as readonly string[]).includes(state.equipment) && (
-                <option value={state.equipment}>{state.equipment} (legacy)</option>
-              )}
-            </SelectRow>
-          </FormRow2>
-          <TextAreaRow
-            label="Description"
-            value={state.description}
-            onChange={(v) => set("description", v)}
-            onBlur={() => commit({ description: orNull(state.description) })}
-            rows={2}
-          />
-          <FormRow2>
-            <TextRow
-              label="Weight"
-              value={state.weight}
-              onChange={(v) => set("weight", v)}
-              onBlur={() => commit({ weight: orNull(state.weight) })}
-            />
-            <TextRow
-              label="Pieces"
-              value={state.pieces}
-              onChange={(v) => set("pieces", v)}
-              onBlur={() => commit({ pieces: orNull(state.pieces) })}
-            />
-          </FormRow2>
-          <FormRow2>
-            <TextRow
-              label="PO #"
-              value={state.poNumber}
-              onChange={(v) => set("poNumber", v)}
-              onBlur={() => commit({ poNumber: orNull(state.poNumber) })}
-            />
-            <TextRow
-              label="Ref #s"
-              value={state.refNumbers}
-              onChange={(v) => set("refNumbers", v)}
-              onBlur={() => commit({ refNumbers: orNull(state.refNumbers) })}
-            />
-          </FormRow2>
-          <TextAreaRow
-            label="Special instructions"
-            value={state.specialInstructions}
-            onChange={(v) => set("specialInstructions", v)}
-            onBlur={() => commit({ specialInstructions: orNull(state.specialInstructions) })}
-            rows={2}
+            className={FIELD_W.code}
           />
         </SectionCard>
 
@@ -908,7 +858,9 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
             onBlur={() => commit({ shipperAddress: orNull(state.shipperAddress) })}
             highlight={shipperAutoFill?.fields.has("shipperAddress")}
           />
-          <FormRow2>
+          {/* City/State/ZIP/Contact/Phone as one wrapping line: a 2-letter
+              state and a 5-digit ZIP no longer get a half-card track each. */}
+          <FieldRow>
             <TextRow
               label="City"
               value={state.shipperCity}
@@ -919,6 +871,7 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
                 commit({ shipperCity: orNull(formatted) });
               }}
               highlight={shipperAutoFill?.fields.has("shipperCity")}
+              className={FIELD_W.medium}
             />
             <TextRow
               label="State"
@@ -930,20 +883,20 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
                 commit({ shipperState: orNull(formatted) });
               }}
               highlight={shipperAutoFill?.fields.has("shipperState")}
+              className={FIELD_W.state}
             />
-          </FormRow2>
-          <TextRow
-            label="ZIP"
-            value={state.shipperZip}
-            onChange={(v) => setShipperField("shipperZip", v)}
-            onBlur={() => {
-              const formatted = stripCommas(state.shipperZip);
-              setShipperField("shipperZip", formatted);
-              commit({ shipperZip: orNull(formatted) });
-            }}
-            highlight={shipperAutoFill?.fields.has("shipperZip")}
-          />
-          <FormRow2>
+            <TextRow
+              label="ZIP"
+              value={state.shipperZip}
+              onChange={(v) => setShipperField("shipperZip", v)}
+              onBlur={() => {
+                const formatted = stripCommas(state.shipperZip);
+                setShipperField("shipperZip", formatted);
+                commit({ shipperZip: orNull(formatted) });
+              }}
+              highlight={shipperAutoFill?.fields.has("shipperZip")}
+              className={FIELD_W.zip}
+            />
             <TextRow
               label="Contact"
               value={state.shipperContact}
@@ -953,6 +906,7 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
                 set("shipperContact", formatted);
                 commit({ shipperContact: orNull(formatted) });
               }}
+              className={FIELD_W.medium}
             />
             <TextRow
               label="Phone"
@@ -963,8 +917,9 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
                 set("shipperPhone", formatted);
                 commit({ shipperPhone: orNull(formatted) });
               }}
+              className={FIELD_W.code}
             />
-          </FormRow2>
+          </FieldRow>
           {state.accountId && (
             <button
               type="button"
@@ -1009,7 +964,8 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
             onBlur={() => commit({ consigneeAddress: orNull(state.consigneeAddress) })}
             highlight={consigneeAutoFill?.fields.has("consigneeAddress")}
           />
-          <FormRow2>
+          {/* Same wrapping line as Shipper — the two cards stay symmetrical. */}
+          <FieldRow>
             <TextRow
               label="City"
               value={state.consigneeCity}
@@ -1020,6 +976,7 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
                 commit({ consigneeCity: orNull(formatted) });
               }}
               highlight={consigneeAutoFill?.fields.has("consigneeCity")}
+              className={FIELD_W.medium}
             />
             <TextRow
               label="State"
@@ -1031,20 +988,20 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
                 commit({ consigneeState: orNull(formatted) });
               }}
               highlight={consigneeAutoFill?.fields.has("consigneeState")}
+              className={FIELD_W.state}
             />
-          </FormRow2>
-          <TextRow
-            label="ZIP"
-            value={state.consigneeZip}
-            onChange={(v) => setConsigneeField("consigneeZip", v)}
-            onBlur={() => {
-              const formatted = stripCommas(state.consigneeZip);
-              setConsigneeField("consigneeZip", formatted);
-              commit({ consigneeZip: orNull(formatted) });
-            }}
-            highlight={consigneeAutoFill?.fields.has("consigneeZip")}
-          />
-          <FormRow2>
+            <TextRow
+              label="ZIP"
+              value={state.consigneeZip}
+              onChange={(v) => setConsigneeField("consigneeZip", v)}
+              onBlur={() => {
+                const formatted = stripCommas(state.consigneeZip);
+                setConsigneeField("consigneeZip", formatted);
+                commit({ consigneeZip: orNull(formatted) });
+              }}
+              highlight={consigneeAutoFill?.fields.has("consigneeZip")}
+              className={FIELD_W.zip}
+            />
             <TextRow
               label="Contact"
               value={state.consigneeContact}
@@ -1054,6 +1011,7 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
                 set("consigneeContact", formatted);
                 commit({ consigneeContact: orNull(formatted) });
               }}
+              className={FIELD_W.medium}
             />
             <TextRow
               label="Phone"
@@ -1064,8 +1022,9 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
                 set("consigneePhone", formatted);
                 commit({ consigneePhone: orNull(formatted) });
               }}
+              className={FIELD_W.code}
             />
-          </FormRow2>
+          </FieldRow>
           {state.accountId && (
             <button
               type="button"
@@ -1078,7 +1037,13 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
           )}
         </SectionCard>
 
-        <SectionCard title="Pickup" {...sectionProps("pickup")}>
+        {/* Pickup and Delivery were two cards; they are one now. Both stops
+            are the same three questions asked twice, and a broker sets them
+            together — splitting them put a whole card between "picks up
+            when" and "delivers when". Every field from both cards is here,
+            unchanged, under its own divider. */}
+        <SectionCard title="Timing" {...sectionProps("timing")}>
+          <SectionDivider label="Pickup" bare />
           <StopTimingFields
             stop="pickup"
             label="Pickup"
@@ -1102,6 +1067,7 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
             value={state.pickupNumber}
             onChange={(v) => set("pickupNumber", v)}
             onBlur={() => commit({ pickupNumber: orNull(state.pickupNumber) })}
+            className={FIELD_W.code}
           />
           <TextAreaRow
             label="Pickup notes"
@@ -1110,9 +1076,8 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
             onBlur={() => commit({ pickupNotes: orNull(state.pickupNotes) })}
             rows={2}
           />
-        </SectionCard>
 
-        <SectionCard title="Delivery" {...sectionProps("delivery")}>
+          <SectionDivider label="Delivery" bare />
           <StopTimingFields
             stop="delivery"
             label="Delivery"
@@ -1136,12 +1101,91 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
             value={state.deliveryNumber}
             onChange={(v) => set("deliveryNumber", v)}
             onBlur={() => commit({ deliveryNumber: orNull(state.deliveryNumber) })}
+            className={FIELD_W.code}
           />
           <TextAreaRow
             label="Delivery notes"
             value={state.deliveryNotes}
             onChange={(v) => set("deliveryNotes", v)}
             onBlur={() => commit({ deliveryNotes: orNull(state.deliveryNotes) })}
+            rows={2}
+          />
+        </SectionCard>
+
+        {/* Freight sits on its own row and takes two of the three columns —
+            its description and special-instructions textareas are the widest
+            things on the form. */}
+        <SectionCard title="Freight" className="xl:col-span-2" {...sectionProps("freight")}>
+          {/* Commodity/Equipment/Weight/Pieces read as one line of freight
+              identity — they were three stacked 2-up grids before, which put
+              a 5-character Pieces box on a half-card track. */}
+          <FieldRow>
+            <TextRow
+              label="Commodity"
+              value={state.commodity}
+              onChange={(v) => set("commodity", v)}
+              onBlur={() => commit({ commodity: orNull(state.commodity) })}
+              className={FIELD_W.medium}
+            />
+            <SelectRow
+              label="Equipment"
+              value={state.equipment}
+              onChange={changeEquipment}
+              className={FIELD_W.medium}
+            >
+              <option value="">Select equipment…</option>
+              {EQUIPMENT_TYPES.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+              {state.equipment && !(EQUIPMENT_TYPES as readonly string[]).includes(state.equipment) && (
+                <option value={state.equipment}>{state.equipment} (legacy)</option>
+              )}
+            </SelectRow>
+            <TextRow
+              label="Weight"
+              value={state.weight}
+              onChange={(v) => set("weight", v)}
+              onBlur={() => commit({ weight: orNull(state.weight) })}
+              className={FIELD_W.weight}
+            />
+            <TextRow
+              label="Pieces"
+              value={state.pieces}
+              onChange={(v) => set("pieces", v)}
+              onBlur={() => commit({ pieces: orNull(state.pieces) })}
+              className={FIELD_W.count}
+            />
+          </FieldRow>
+          <TextAreaRow
+            label="Description"
+            value={state.description}
+            onChange={(v) => set("description", v)}
+            onBlur={() => commit({ description: orNull(state.description) })}
+            rows={2}
+          />
+          <FieldRow>
+            <TextRow
+              label="PO #"
+              value={state.poNumber}
+              onChange={(v) => set("poNumber", v)}
+              onBlur={() => commit({ poNumber: orNull(state.poNumber) })}
+              className={FIELD_W.code}
+            />
+            <TextRow
+              label="Ref #s"
+              value={state.refNumbers}
+              onChange={(v) => set("refNumbers", v)}
+              onBlur={() => commit({ refNumbers: orNull(state.refNumbers) })}
+              className={FIELD_W.medium}
+            />
+          </FieldRow>
+          <TextAreaRow
+            label="Special instructions"
+            value={state.specialInstructions}
+            onChange={(v) => set("specialInstructions", v)}
+            onBlur={() => commit({ specialInstructions: orNull(state.specialInstructions) })}
             rows={2}
           />
         </SectionCard>
@@ -1201,46 +1245,51 @@ function StopTimingFields({
 
   return (
     <>
-      <TextRow
-        label={`${label} date`}
-        type="date"
-        value={date}
-        onChange={onDate}
-        onBlur={onDateBlur}
-      />
-
-      <SelectRow label={`${label} timing`} value={mode} onChange={onMode}>
-        <option value="">Not set</option>
-        <option value="tbd">Time TBD</option>
-        <option value="window">Window</option>
-        <option value="appointment">Appointment</option>
-      </SelectRow>
-
-      {mode === "tbd" && (
-        <p className="text-[12px] font-semibold text-fg-muted">
-          Time TBD — no time will be recorded for this stop.
-        </p>
-      )}
-
-      {mode === "appointment" && (
+      {/* Date, mode, and whatever times the mode calls for sit on one line —
+          the whole stop's timing is legible without scanning downward. The
+          notes below stay full width. */}
+      <FieldRow>
         <TextRow
-          label="Appointment time"
-          type="time"
-          value={appointmentTime}
-          onChange={onAppointment}
-          onBlur={onAppointmentBlur}
+          label={`${label} date`}
+          type="date"
+          value={date}
+          onChange={onDate}
+          onBlur={onDateBlur}
+          className={FIELD_W.date}
         />
-      )}
 
-      {mode === "window" && (
-        <>
-          <FormRow2>
+        <SelectRow
+          label={`${label} timing`}
+          value={mode}
+          onChange={onMode}
+          className={FIELD_W.medium}
+        >
+          <option value="">Not set</option>
+          <option value="tbd">Time TBD</option>
+          <option value="window">Window</option>
+          <option value="appointment">Appointment</option>
+        </SelectRow>
+
+        {mode === "appointment" && (
+          <TextRow
+            label="Appointment time"
+            type="time"
+            value={appointmentTime}
+            onChange={onAppointment}
+            onBlur={onAppointmentBlur}
+            className={FIELD_W.time}
+          />
+        )}
+
+        {mode === "window" && (
+          <>
             <TextRow
               label="Window start"
               type="time"
               value={windowStart}
               onChange={onWindowStart}
               onBlur={onWindowBlur}
+              className={FIELD_W.time}
             />
             <TextRow
               label="Window end"
@@ -1248,14 +1297,22 @@ function StopTimingFields({
               value={windowEnd}
               onChange={onWindowEnd}
               onBlur={onWindowBlur}
+              className={FIELD_W.time}
             />
-          </FormRow2>
-          {windowIncomplete && (
-            <p className="text-[12px] font-semibold text-bad">
-              The window end must be later than the start. Use Appointment for a specific time.
-            </p>
-          )}
-        </>
+          </>
+        )}
+      </FieldRow>
+
+      {mode === "tbd" && (
+        <p className="text-[12px] font-semibold text-fg-muted">
+          Time TBD — no time will be recorded for this stop.
+        </p>
+      )}
+
+      {mode === "window" && windowIncomplete && (
+        <p className="text-[12px] font-semibold text-bad">
+          The window end must be later than the start. Use Appointment for a specific time.
+        </p>
       )}
 
       {legacy && (
@@ -1267,6 +1324,21 @@ function StopTimingFields({
       )}
     </>
   );
+}
+
+/**
+ * A row of fields that keep their OWN widths instead of being forced into
+ * equal columns. FormRow2/FormRow3 are `grid-cols-N`, which stretches every
+ * child to the same track — exactly what this pass is undoing — so grouped
+ * rows like City / State / ZIP / Contact use flex-wrap here and let each
+ * field's FIELD_W cap decide its size. Wraps naturally as the card narrows,
+ * and below `sm` the caps are inert so each field takes a full line.
+ *
+ * Local to this file on purpose: it is layout for this form, not a general
+ * primitive, and `_shell/compactForm` already owns the shared vocabulary.
+ */
+function FieldRow({ children }: { children: React.ReactNode }) {
+  return <div className="flex w-full flex-wrap items-start gap-2">{children}</div>;
 }
 
 function AutoFillNote({ autoFill }: { autoFill: AutoFill }) {
@@ -1285,6 +1357,7 @@ function SectionCard({
   right,
   open,
   onToggle,
+  className,
   children,
 }: {
   /** Anchor id for the mobile jump-nav (`section-${id}`) — omit to fall back
@@ -1297,11 +1370,13 @@ function SectionCard({
    * attribute (always expanded, matches pre-mobile-work behavior). */
   open?: boolean;
   onToggle?: (open: boolean) => void;
+  /** Grid placement for the card itself (e.g. Freight's `xl:col-span-2`). */
+  className?: string;
   children: ReactNode;
 }) {
   const controlled = open !== undefined;
   return (
-    <Card id={id ? `section-${id}` : undefined}>
+    <Card id={id ? `section-${id}` : undefined} className={className}>
       <details
         {...(controlled
           ? { open, onToggle: (e: React.SyntheticEvent<HTMLDetailsElement>) => onToggle?.(e.currentTarget.open) }

@@ -24,6 +24,7 @@ export {
   CONTROL,
   CONTROL_SIZE,
   NARROW,
+  FIELD_W,
   TextRow,
   TextAreaRow,
   MoneyRow,
