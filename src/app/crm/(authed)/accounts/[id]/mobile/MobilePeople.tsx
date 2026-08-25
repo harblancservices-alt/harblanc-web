@@ -79,6 +79,9 @@ export function MobilePeople({ accountId, people }: { accountId: string; people:
                   {formatPhone(p.phone)}
                 </span>
               )}
+              {p.email && (
+                <span className="mt-0.5 block truncate text-[12px] font-semibold text-fg-muted">{p.email}</span>
+              )}
             </div>
 
             <div className="flex shrink-0 items-center gap-1.5">
