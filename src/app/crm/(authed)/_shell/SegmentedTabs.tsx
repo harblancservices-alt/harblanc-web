@@ -4,12 +4,13 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 /**
- * The CRM's ONE tab row — SOLID FILL (Brent, 2026-08-25, third and final
- * revision). The active tab is a filled brand-red button with white text;
- * every inactive tab is plain muted text sitting directly on the page
- * background. There is no track, no chip, no border and no fill of any kind
- * behind an inactive tab, in any state — hover darkens the TEXT and nothing
- * else.
+ * The CRM's ONE tab row — a row of BUTTONS (Brent, 2026-08-25). Every tab is
+ * the same size and shape: the selected one is filled brand red with white
+ * text, the rest are outlined with a transparent fill. Hover darkens an
+ * outlined tab's border and text.
+ *
+ * There is no track behind the row and no grey FILL on any tab in any state.
+ * The border is a hairline outline, not a surface.
  *
  * NO GREY ANYWHERE. That is the specific, repeated instruction: the two
  * previous versions of this component (a light-track segmented control, then
@@ -79,25 +80,33 @@ export type SegmentedTabSize = "sm" | "lg";
  */
 const TRACK = "inline-flex w-fit max-w-full items-stretch overflow-x-auto";
 
+/** ~6px between buttons at both sizes, so the borders read as separate
+ * buttons rather than one joined strip. */
 const TRACK_SIZE: Record<SegmentedTabSize, string> = {
-  sm: "gap-1",
+  sm: "gap-1.5",
   lg: "gap-1.5",
 };
 
-const CHIP = "flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[3px] leading-tight transition-colors";
+/** `border` is on the BASE, not on either state: an outlined tab and a filled
+ * one must occupy the same box, or the row would jump by 2px as the selection
+ * moves. The active tab's border is simply its own red. */
+const CHIP =
+  "flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[3px] border leading-tight transition-colors";
 
 const CHIP_SIZE: Record<SegmentedTabSize, string> = {
   sm: "px-[15px] py-[7px] text-[13px]",
   lg: "px-[18px] py-[9px] text-[14px]",
 };
 
-/** Active: a filled brand-red button. Reads as the one thing selected without
- * needing a track behind it to be read against. */
-const CHIP_ACTIVE = "bg-[#c0272d] font-semibold text-white";
+/** Active: a filled brand-red button. */
+const CHIP_ACTIVE = "border-[#c0272d] bg-[#c0272d] font-semibold text-white";
 
-/** Inactive: text only. No fill, no border, and crucially no hover wash —
- * the text darkens toward the foreground colour and nothing else moves. */
-const CHIP_INACTIVE = "bg-transparent font-normal text-fg-muted hover:text-fg";
+/** Inactive: an OUTLINED button — transparent fill, a visible hairline, and
+ * dark-grey (not faint) text, so the row reads as a row of buttons rather
+ * than as loose words. Hover darkens the border and the text; the fill stays
+ * transparent, because no grey surface may appear in a tab row in any state. */
+const CHIP_INACTIVE =
+  "border-line bg-transparent font-medium text-fg-muted hover:border-fg-subtle hover:text-fg";
 
 /** The count, inline and quiet — the same treatment on every row, so an
  * outer tab's count and a filter tab's count read as the same thing. */
