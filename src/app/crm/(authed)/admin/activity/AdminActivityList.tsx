@@ -6,6 +6,7 @@ import { Badge, Card, CardHead, ZEBRA_ROWS, EmptyState, BTN_EDIT, type BadgeTone
 import { CONTROL } from "../../_shell/form";
 import { formatDateTime } from "../../_shell/format";
 import { IconSearch, IconContacts } from "../../_shell/icons";
+import { SegmentedTabs } from "../../_shell/SegmentedTabs";
 import type { AdminActivityItem } from "../types";
 
 const TYPE_TABS = [
@@ -94,22 +95,16 @@ export function AdminActivityList({ items }: { items: AdminActivityItem[] }) {
         </label>
 
         <div className="flex flex-wrap items-center gap-2">
-          <div role="tablist" aria-label="Activity type" className="flex gap-1 rounded-lg border border-line-strong bg-inset p-1">
-            {TYPE_TABS.map((t) => (
-              <button
-                key={t.key}
-                type="button"
-                role="tab"
-                aria-selected={type === t.key}
-                onClick={() => setType(t.key)}
-                className={`rounded-md px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
-                  type === t.key ? "bg-card text-admin shadow-e1 ring-1 ring-line-strong" : "text-fg-muted hover:text-fg"
-                }`}
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
+          {/* INNER row — the small size, under Admin's own large one. */}
+          <SegmentedTabs
+            ariaLabel="Activity type"
+            items={TYPE_TABS.map((t) => ({
+              key: t.key,
+              label: t.label,
+              active: type === t.key,
+              onSelect: () => setType(t.key),
+            }))}
+          />
 
           <select value={author} onChange={(e) => setAuthor(e.target.value)} className={`h-9 ${CONTROL}`}>
             <option value="">All reps</option>

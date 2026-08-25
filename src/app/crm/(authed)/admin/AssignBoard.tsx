@@ -163,11 +163,7 @@ export function AssignBoard({
               label: f.label,
               active: filter === f.key,
               onSelect: () => setFilter(f.key),
-              badge: (
-                <span className={`font-mono text-[11px] tabular-nums ${filter === f.key ? "text-fg" : "text-fg-subtle"}`}>
-                  {counts[f.key]}
-                </span>
-              ),
+              count: counts[f.key],
             }))}
           />
           <p className="text-[12px] text-fg-subtle">Sorted by longest waiting</p>

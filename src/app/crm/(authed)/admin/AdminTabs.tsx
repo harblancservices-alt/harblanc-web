@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { SegmentedTabs } from "../_shell/SegmentedTabs";
 
 const TABS: { href: string; label: string; exact: boolean }[] = [
   { href: "/crm/admin", label: "Overview", exact: true },
@@ -47,35 +47,23 @@ export function AdminTabs({
   };
 
   return (
-    <div
-      role="tablist"
-      aria-label="Admin Account sections"
-      className="flex gap-6 overflow-x-auto border-b border-line"
-    >
-      {TABS.map((t) => {
-        const active = t.exact ? pathname === t.href : pathname.startsWith(t.href);
+    <SegmentedTabs
+      ariaLabel="Admin Account sections"
+      size="lg"
+      items={TABS.map((t) => {
         const badge = badgeByHref[t.href] ?? 0;
-        return (
-          <Link
-            key={t.href}
-            href={t.href}
-            prefetch={false}
-            role="tab"
-            aria-selected={active}
-            className={`relative flex shrink-0 items-center gap-1.5 pb-2.5 pt-1 text-[13.5px] transition-colors ${
-              active ? "font-semibold text-fg" : "font-normal text-fg-muted hover:text-fg"
-            }`}
-          >
-            {t.label}
-            {badge > 0 && (
-              <span className="flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-admin px-1 text-[10px] font-bold text-white">
-                {badge}
-              </span>
-            )}
-            {active && <span aria-hidden className="absolute inset-x-0 -bottom-px h-[3px] rounded-full bg-[#c0272d]" />}
-          </Link>
-        );
+        return {
+          key: t.href,
+          label: t.label,
+          href: t.href,
+          active: t.exact ? pathname === t.href : pathname.startsWith(t.href),
+          count: badge || undefined,
+          // OTR and BOL Center counts are an ATTENTION queue — rows sitting
+          // in new/needs-review that an owner has to clear — so they take the
+          // red. Every other tab here has no count at all.
+          countNeedsAttention: true,
+        };
       })}
-    </div>
+    />
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { SegmentedTabs } from "../../_shell/SegmentedTabs";
 
 const TABS = [
   { key: "customers", label: "Active Customers" },
@@ -49,28 +50,19 @@ export function ActiveCustomersTabs({
 
   return (
     <div className="space-y-4">
-      <div
-        role="tablist"
-        aria-label="Active Clients"
-        className="grid grid-cols-3 gap-1 rounded-lg border border-line-strong bg-inset p-1.5 shadow-e2 sm:flex sm:overflow-x-auto"
-      >
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            role="tab"
-            aria-selected={tab === t.key}
-            onClick={() => setTab(t.key)}
-            className={`rounded-md px-1 py-2 text-[11px] leading-tight font-bold transition-all sm:shrink-0 sm:px-4 sm:py-2.5 sm:text-[13.5px] sm:leading-normal ${
-              tab === t.key
-                ? "bg-card text-accent shadow-e2 ring-1 ring-line-strong"
-                : "text-fg-muted hover:bg-card/60 hover:text-fg"
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
+      {/* INNER row — the small size, under Operations' own large one. The
+          old three-column mobile grid goes with the hand-rolled markup; the
+          segmented track hugs its content and scrolls if it has to, which is
+          what every other tab row in the CRM now does. */}
+      <SegmentedTabs
+        ariaLabel="Active Clients"
+        items={TABS.map((t) => ({
+          key: t.key,
+          label: t.label,
+          active: tab === t.key,
+          onSelect: () => setTab(t.key),
+        }))}
+      />
 
       {currentActions && <div className="flex justify-end">{currentActions}</div>}
 

@@ -33,7 +33,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     .is("deleted_at", null);
 
   return (
-    <PageShell title="Admin Account" subtitle="Owner-only. Manage the team and review company-wide activity.">
+    // No title/subtitle: the tab row IS the section header, and the heading
+    // above it was a line of text nobody needed on every page of the section
+    // (Brent, 2026-08-25 — he wanted the vertical space back). PageShell
+    // renders nothing at all when both are omitted, so the tabs sit at the
+    // top of the content area with the shell's normal padding.
+    <PageShell>
       <AdminTabs otrNeedsAttention={otrNeedsAttention ?? 0} bolNeedsAttention={bolNeedsAttention ?? 0} />
       {children}
     </PageShell>

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { ReactNode } from "react";
 import { D_H3, D_LINK } from "./ui";
+import { SegmentedTabs } from "../../../_shell/SegmentedTabs";
 
 const TABS = [
   { key: "overview", label: "Overview" },
@@ -63,36 +64,20 @@ export function WorkspaceTabs({
 
   return (
     <div className="overflow-hidden rounded-lg border border-line-strong bg-card shadow-e2">
-      <div role="tablist" aria-label="Company workspace" className="flex gap-0.5 border-b border-line-strong bg-inset px-3 pt-2">
-        {TABS.map((t) => {
-          const active = tab === t.key;
-          const count = counts[t.key];
-          return (
-            <button
-              key={t.key}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => setTab(t.key)}
-              className={`relative top-px flex items-center gap-1.5 rounded-t-lg border border-b-0 px-4 py-2.5 text-[13px] transition-colors ${
-                active
-                  ? "border-line-strong bg-card font-bold text-fg"
-                  : "border-transparent font-semibold text-fg-muted hover:text-fg"
-              }`}
-            >
-              {t.label}
-              {count ? (
-                <span
-                  className={`rounded-full px-1.5 py-px text-[10px] font-bold ${
-                    active ? "bg-accent text-white" : "bg-line-strong text-fg"
-                  }`}
-                >
-                  {count}
-                </span>
-              ) : null}
-            </button>
-          );
-        })}
+      {/* The header band is bg-card, not bg-inset: the segmented track
+          carries its own bg-inset fill, and an inset track on an inset band
+          would have no visible edge. */}
+      <div className="border-b border-line-strong bg-card px-3 py-2.5">
+        <SegmentedTabs
+          ariaLabel="Company workspace"
+          items={TABS.map((t) => ({
+            key: t.key,
+            label: t.label,
+            active: tab === t.key,
+            onSelect: () => setTab(t.key),
+            count: counts[t.key],
+          }))}
+        />
       </div>
 
       <div className={tab === "overview" ? "flex flex-col gap-6 p-5" : "hidden"}>

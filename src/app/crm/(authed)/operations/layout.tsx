@@ -18,10 +18,10 @@ export const dynamic = "force-dynamic";
  */
 export default function OperationsLayout({ children }: { children: React.ReactNode }) {
   return (
-    <PageShell
-      title="Operations"
-      subtitle="Quote a load, build a document packet, and work your active loads."
-    >
+    // No title/subtitle — same call as ../admin/layout.tsx: the tab row is
+    // the section header, and the heading above it was repeated on every page
+    // of the section for no benefit.
+    <PageShell>
       <OperationsTabs />
       {children}
     </PageShell>
