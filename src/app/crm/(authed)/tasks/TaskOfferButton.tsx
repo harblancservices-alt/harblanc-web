@@ -7,8 +7,8 @@ import { getTaskOfferOptions, type TaskOfferOptions } from "./offerActions";
 /**
  * The "offer" half of CRM_TASK_INTEGRATION_AUDIT.md Phase 3/4/5: a small,
  * optional "+ Create task" affordance shown after a lead-conversion or
- * document-send moment (claim an AI lead, add to Prospects, release an OTR
- * entry, move to Active Customer, send an RC/BOL) — never automatic, the rep
+ * document-send moment (claim a lead, release to Prospects from BOL Center
+ * or OTR, move to Active Customer, send an RC/BOL) — never automatic, the rep
  * still decides whether to create it and can edit anything before saving.
  * Reuses TaskDialog itself (same dialog Tasks/company-profile/dashboard all
  * share) rather than a second task UI — this component only supplies the

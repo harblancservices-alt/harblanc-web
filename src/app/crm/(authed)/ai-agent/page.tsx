@@ -18,8 +18,7 @@ type AccountRow = {
  * Prospects tab (route: /crm/ai-agent) — unclaimed leads only. Every
  * crm_account released (ai_status='released') that nobody has claimed yet
  * (assigned_user_id IS NULL), from ANY intake pipeline — see ./queue.ts for
- * why the gate is source-agnostic. Anything still awaiting review
- * (ai_status='pending_review') lives only in /crm/ai-review until released.
+ * why the gate is source-agnostic.
  * The moment a lead is claimed it drops out of this query entirely — it
  * still lives on as an ordinary company in /crm/accounts, and claiming is in
  * fact what makes it appear there. Visible to every CRM user, newest-first.
@@ -76,7 +75,7 @@ export default async function AiAgentPage() {
           <EmptyState
             icon={<IconAiAgent />}
             title="No unclaimed leads"
-            body="Every released lead has been claimed. Newly released leads — from AI research, Field Capture, BOL Center, or OTR — will show up here for the team to claim."
+            body="Every released lead has been claimed. Newly released leads — from BOL Center or OTR — will show up here for the team to claim."
           />
         </Card>
       ) : (

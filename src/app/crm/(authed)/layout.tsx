@@ -17,21 +17,6 @@ export default async function CrmAuthedLayout({
   const user = await requireCrmUser();
   const supabase = await createCrmServerClient();
 
-  // Pending-review count for the nav badge — owners only, so this extra
-  // count-only query never runs for regular members. Keyed on ai_status
-  // alone: the ai_agent/field_capture source enumeration this used to carry
-  // was retired 2026-08-25 along with those pipelines, and source is
-  // provenance only (see ai-agent/queue.ts).
-  let pendingReviewCount = 0;
-  if (user.role === "owner") {
-    const { count } = await supabase
-      .from("crm_accounts")
-      .select("id", { count: "exact", head: true })
-      .eq("ai_status", "pending_review")
-      .is("deleted_at", null);
-    pendingReviewCount = count ?? 0;
-  }
-
   // Unclaimed released leads — the alert every CRM user sees, badging the
   // "Prospects" nav item. Exactly the gate defined in ai-agent/queue.ts, the
   // same one /crm/ai-agent, claimAiLead(), the dashboard's Claim pill, and
@@ -62,7 +47,6 @@ export default async function CrmAuthedLayout({
       email={user.email}
       fullName={user.fullName}
       role={user.role}
-      pendingReviewCount={pendingReviewCount}
       unclaimedAiLeadsCount={unclaimedAiCount ?? 0}
       outstandingUpgradeCount={outstandingUpgradeCount ?? 0}
     >

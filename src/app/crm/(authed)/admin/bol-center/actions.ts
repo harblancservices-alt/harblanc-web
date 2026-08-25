@@ -263,7 +263,7 @@ export async function linkCompany(bolId: string, side: CompanySide, accountId: s
 export type ResolveCompanyResult = { ok: true; accountId: string } | { ok: false; error: string };
 
 /**
- * The single-click "Add to Prospects" path — collapses search, link-or-
+ * The single-click "Quick release" path — collapses search, link-or-
  * create, and prospect promotion into one action so the UI never has to
  * show a pre-filled form for data the BOL already gave us. Still runs the
  * real matcher first (never skips dedup): only "exact"/"likely" tiers count
@@ -645,8 +645,8 @@ export async function updateBolContactFields(bolContactId: string, formData: For
 // ── Prospects ─────────────────────────────────────────────────────────────────
 
 /**
- * Standalone promote — used by CompanyRow's resolved-state "Add to
- * Prospects" button and the sticky dock's bulk "Send to Prospects", both of
+ * Standalone promote — used by CompanyRow's resolved-state "Release to
+ * Prospects" button and the sticky dock's bulk "Release to Prospects", both of
  * which only have an accountId on hand (the link already happened earlier,
  * possibly in a prior session before auto-attach existed). Also runs the
  * retroactive contact auto-attach for every BOL side this account is

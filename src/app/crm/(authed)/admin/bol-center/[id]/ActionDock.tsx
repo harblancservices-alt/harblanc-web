@@ -22,7 +22,7 @@ export type CarrierSummary = { matchedAccountId: string; lifecycleStatus: string
  * unresolved (nothing linked yet — resolveAndProspectCompany will link/
  * create it fresh at New Lead) or resolved at a stage that genuinely ranks
  * below Researching. Mirrors the no-downgrade guardrail so the dock's "N not
- * yet in Prospects" count and button never claim work is pending for a
+ * yet released" count and button never claim work is pending for a
  * company that's already at or beyond Researching (e.g. an Active Customer). */
 function isPending(hasName: boolean, matchedAccount: { lifecycleStatus: string } | null): boolean {
   if (!hasName) return false;
@@ -32,7 +32,7 @@ function isPending(hasName: boolean, matchedAccount: { lifecycleStatus: string }
 
 /**
  * Sticky bottom dock — the page's two real completion actions, always in
- * reach while scrolling the entity queue. "Send to Prospects" bulk-promotes
+ * reach while scrolling the entity queue. "Release to Prospects" bulk-promotes
  * every resolved party (shipper/consignee/bill_to, plus the carrier if it
  * was already overridden) through the same promote-with-guardrail pipeline
  * the Company rows use individually, then always finishes by marking the
@@ -111,8 +111,8 @@ export function ActionDock({
         ) : (
           <p className="text-[12px] text-fg-muted">
             {totalPending > 0
-              ? `${totalPending} part${totalPending === 1 ? "y" : "ies"} not yet in Prospects.`
-              : "Every extracted company is already in Prospects."}
+              ? `${totalPending} part${totalPending === 1 ? "y" : "ies"} not yet released.`
+              : "Every extracted company has been released."}
           </p>
         )}
       </div>
@@ -131,7 +131,7 @@ export function ActionDock({
           onClick={sendToProspects}
           className={`inline-flex h-9 items-center rounded-md px-4 text-[13px] font-bold transition-colors ${DEPTH_PRIMARY}`}
         >
-          {pending ? "Sending…" : "Send to Prospects"}
+          {pending ? "Releasing…" : "Release to Prospects"}
         </button>
       </div>
     </div>

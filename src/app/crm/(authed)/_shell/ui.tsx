@@ -154,7 +154,7 @@ export const ZEBRA_ROWS =
  *
  *   BTN_PRIMARY — filled steel-blue (var(--accent)). Save / Add / Create /
  *                 Search / primary CTA.
- *   BTN_SUCCESS — filled green.  Done / Complete / Release to team / approve.
+ *   BTN_SUCCESS — filled green.  Done / Complete / Release to Prospects / approve.
  *   BTN_ACTION  — filled 2563eb. Operational actions — Log call, Add person,
  *                 Add task, Note, Email, and the per-contact card actions.
  *                 Brent's explicit call: these read as "do something now"

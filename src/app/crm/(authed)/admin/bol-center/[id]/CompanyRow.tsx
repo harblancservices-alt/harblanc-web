@@ -160,7 +160,7 @@ export function CompanyRow({
                   onClick={onAddToProspects}
                   className={`inline-flex h-8 items-center rounded-md px-3 text-[12.5px] font-bold transition-colors ${DEPTH_SUCCESS}`}
                 >
-                  {pending ? "…" : "Add to Prospects"}
+                  {pending ? "…" : "Release to Prospects"}
                 </button>
               )}
               <Link href={`/crm/accounts/${matchedAccount.id}`} className={`inline-flex h-8 items-center rounded-md px-3 text-[12.5px] font-bold transition-colors ${DEPTH_EDIT}`}>
@@ -209,7 +209,7 @@ export function CompanyRow({
               onClick={quickProspect}
               className={`inline-flex h-7 shrink-0 items-center rounded-md px-2.5 text-[11.5px] font-semibold transition-colors ${DEPTH_NEUTRAL}`}
             >
-              {pending ? "…" : "Quick add to Prospects"}
+              {pending ? "…" : "Quick release"}
             </button>
           </div>
 
@@ -243,7 +243,7 @@ export function CompanyRow({
 
           {(candidates?.length === 0 || createOpen) && (
             <form onSubmit={submitCreate} className="flex flex-col gap-2 rounded-md border border-line-strong p-3">
-              <p className="text-[11.5px] font-semibold text-fg-muted">No CRM match — create a new prospect from these fields.</p>
+              <p className="text-[11.5px] font-semibold text-fg-muted">No CRM match — create and release a new prospect from these fields.</p>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <Field label="Company name" name="name" defaultValue={titleCaseWords(queryName)} required />
                 <Field label="Address" name="address" defaultValue={queryAddress ?? ""} />
@@ -253,7 +253,7 @@ export function CompanyRow({
                 disabled={pending}
                 className={`inline-flex h-8 w-fit items-center rounded-md px-3 text-[12.5px] font-bold transition-colors ${DEPTH_SUCCESS}`}
               >
-                {pending ? "Adding…" : "Add to Prospects"}
+                {pending ? "Releasing…" : "Release to Prospects"}
               </button>
             </form>
           )}

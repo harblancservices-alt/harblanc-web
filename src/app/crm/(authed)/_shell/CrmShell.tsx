@@ -17,7 +17,6 @@ type CrmShellProps = {
    * values and cannot cross that boundary — see buildCrmNav's docstring for
    * the exact failure mode this avoids) is built here, client-side. */
   role: string;
-  pendingReviewCount: number;
   unclaimedAiLeadsCount: number;
   outstandingUpgradeCount: number;
   children: React.ReactNode;
@@ -43,7 +42,6 @@ export function CrmShell({
   email,
   fullName,
   role,
-  pendingReviewCount,
   unclaimedAiLeadsCount,
   outstandingUpgradeCount,
   children,
@@ -52,7 +50,6 @@ export function CrmShell({
   const initial = (fullName || email || "?").trim().charAt(0).toUpperCase();
   const navItems = buildCrmNav(
     role,
-    pendingReviewCount,
     unclaimedAiLeadsCount,
     outstandingUpgradeCount,
   );

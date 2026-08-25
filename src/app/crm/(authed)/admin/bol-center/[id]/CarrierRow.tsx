@@ -65,7 +65,7 @@ export function CarrierRow({
                 onClick={onOverride}
                 className={`inline-flex h-8 shrink-0 items-center rounded-md px-3 text-[12.5px] font-bold transition-colors ${DEPTH_NEUTRAL}`}
               >
-                {pending ? "…" : "Actually, treat as a prospect"}
+                {pending ? "…" : "Actually, this is a prospect — release it."}
               </button>
             )}
           </>

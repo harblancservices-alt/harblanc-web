@@ -19,7 +19,6 @@ export default async function AdminOverviewPage() {
     { count: rcCount },
     { count: bolCount },
     { count: openTaskCount },
-    { count: pendingReviewCount },
     { count: otrCount },
     { count: bolEntryCount },
   ] = await Promise.all([
@@ -28,13 +27,6 @@ export default async function AdminOverviewPage() {
     supabase.from("crm_rate_confirmations").select("id", { count: "exact", head: true }).is("deleted_at", null),
     supabase.from("crm_bills_of_lading").select("id", { count: "exact", head: true }).is("deleted_at", null),
     supabase.from("crm_tasks").select("id", { count: "exact", head: true }).eq("status", "open"),
-    // Same predicate as /crm/ai-review itself and the old nav badge it used
-    // to carry (../_shell/layout.tsx) — AI Review moved here, not deleted.
-    supabase
-      .from("crm_accounts")
-      .select("id", { count: "exact", head: true })
-      .eq("ai_status", "pending_review")
-      .is("deleted_at", null),
     // Errors (e.g. the migration hasn't been applied yet) resolve to
     // count=null, not a thrown error — see crm_otr_entries.sql's header.
     supabase.from("crm_otr_entries").select("id", { count: "exact", head: true }).is("deleted_at", null),
@@ -48,7 +40,6 @@ export default async function AdminOverviewPage() {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         <StatLinkTile href="/crm/admin/bol-center" label="BOL Center" value={bolEntryCount === null ? "—" : String(bolEntryCount)} />
         <StatLinkTile href="/crm/admin/otr" label="OTR" value={otrCount === null ? "—" : String(otrCount)} />
-        <StatLinkTile href="/crm/ai-review" label="AI Review — pending" value={String(pendingReviewCount ?? 0)} />
         <StatLinkTile href="/crm/admin/accounts" label="Team accounts" value={`${activeTeamCount ?? 0} active`} />
         <StatLinkTile href="/crm/admin/activity" label="Open tasks org-wide" value={String(openTaskCount ?? 0)} />
         <StatLinkTile href="/crm/admin/documents" label="Master templates" value={String(documentCount)} />
@@ -65,10 +56,7 @@ export default async function AdminOverviewPage() {
             section is designed around. <span className="font-semibold text-fg">OTR</span> tracks
             companies named to Brent over the phone, with no document at all — releasing an entry creates
             a real company. <span className="font-semibold text-fg">BOL Center</span> tracks bills of
-            lading Brent has already worked, researched into shipper/consignee/route detail.{" "}
-            <span className="font-semibold text-fg">AI Review</span> is the pending-review
-            queue for AI-sourced and Field Capture leads — moved here from the primary sales nav since
-            it&rsquo;s an owner/admin gate, not a sales-agent destination. Use{" "}
+            lading Brent has already worked, researched into shipper/consignee/route detail. Use{" "}
             <span className="font-semibold text-fg">Accounts</span> to review a
             teammate&rsquo;s access level and account controls,{" "}
             <span className="font-semibold text-fg">Activity</span> to see what&rsquo;s happening across

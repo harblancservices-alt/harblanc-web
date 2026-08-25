@@ -38,7 +38,7 @@ const STATUS_DESCRIPTION: Record<OtrStatus, string> = {
   new: "Not yet started.",
   researching: "Being researched — no document, just what Brent said and what turns up.",
   ready_for_approval: "Research done — ready for a release decision.",
-  released: "A real Company now exists from this entry.",
+  released: "Released to Prospects — a company now exists, waiting to be claimed.",
   rejected: "Filed, not deleted — can be reopened.",
 };
 
@@ -93,7 +93,7 @@ export function OtrEntryCard({ otr }: { otr: OtrEntryData }) {
 
         {otr.status === "released" ? (
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border border-admin/45 bg-admin-soft px-4 py-3">
-            <p className="text-[13.5px] text-fg">Released — now a real company.</p>
+            <p className="text-[13.5px] text-fg">Released to Prospects — waiting to be claimed.</p>
             <div className="flex shrink-0 items-center gap-2">
               {otr.releasedAccountId && (
                 <TaskOfferButton
@@ -168,7 +168,7 @@ export function OtrEntryCard({ otr }: { otr: OtrEntryData }) {
               {otr.status === "ready_for_approval" && (
                 <>
                   <button type="button" disabled={pending} onClick={release} className={`inline-flex h-8 items-center rounded-md px-3 text-[12.5px] font-bold transition-colors ${BTN_ADMIN}`}>
-                    Release to Company
+                    Release to Prospects
                   </button>
                   <button type="button" disabled={pending} onClick={() => transition("researching")} className="inline-flex h-8 items-center rounded-md border border-line-strong bg-card px-3 text-[12.5px] font-bold text-fg-muted transition-colors hover:bg-inset">
                     Keep Researching
@@ -191,7 +191,7 @@ export function OtrEntryCard({ otr }: { otr: OtrEntryData }) {
 
       <Modal open={confirmingReject} onClose={() => setConfirmingReject(false)} title="Reject this entry?">
         <p className="mb-4 text-[13.5px] text-fg-muted">
-          {otr.companyName} won&rsquo;t be researched further and won&rsquo;t become a company. Filed, not deleted — it can be reopened later.
+          {otr.companyName} won&rsquo;t be researched further and won&rsquo;t be released to Prospects. Filed, not deleted — it can be reopened later.
         </p>
         <div className="flex justify-end gap-2">
           <button type="button" onClick={() => setConfirmingReject(false)} className="inline-flex h-9 items-center rounded-md border border-line-strong bg-card px-3.5 text-[13px] font-semibold text-fg-muted hover:bg-inset">

@@ -125,18 +125,21 @@ export default async function CompaniesPage({
     .from("crm_accounts")
     .select("id, name, city, state, lifecycle_status, assigned_user_id, phone, phones, created_at")
     .is("deleted_at", null)
-    // Pending-review AI leads live in the admin review queue (/crm/ai-review)
-    // until released — they must not leak into Companies before that. Written
-    // as an OR (rather than .neq) so NULL ai_status rows (every non-AI
-    // company) still pass: `column <> value` in SQL is NULL, not true, for
-    // NULL columns, which would silently hide every ordinary company.
+    // Anything still awaiting review must not leak into Companies. Kept as a
+    // defensive filter after /crm/ai-review was deleted (2026-08-25): nothing
+    // writes ai_status='pending_review' today and there are 0 such rows, but
+    // the column and value are live data other code reads, so this stays
+    // rather than assuming none will ever appear again. Written as an OR
+    // (rather than .neq) so NULL ai_status rows (the majority) still pass:
+    // `column <> value` in SQL is NULL, not true, for NULL columns, which
+    // would silently hide every ordinary company.
     .or("ai_status.is.null,ai_status.neq.pending_review");
 
   // Released-but-unclaimed prospects live in the claim queue (/crm/ai-agent)
   // only — claiming one is what surfaces it here. Exact complement of that
   // queue's predicate; see excludeUnclaimedProspects' comment for why it's a
-  // negated OR and why it's narrower than "assigned_user_id IS NULL" (the
-  // "Unassigned" rep filter below still works for never-assigned companies).
+  // negated OR ("Unassigned" in the rep filter below still works for
+  // never-released companies).
   query = excludeUnclaimedProspects(query);
 
   if (stage) query = query.eq("lifecycle_status", stage);

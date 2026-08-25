@@ -57,10 +57,7 @@ export type CrmNavItem = {
  * /crm/ai-agent — the team's released lead register) is visible to everyone,
  * badged with the count of released leads nobody has claimed yet — the same
  * alert surfaced on the dashboard's "New leads to claim" card and folded
- * into its due-count bell. "AI Review"
- * (the pending-review queue) is owner-only — mirroring the server-side
- * redirect on /crm/ai-review, so a non-owner never even sees the destination
- * in the nav — and its badge (`pendingReviewCount`) is owner-only too.
+ * into its due-count bell.
  *
  * Built fresh per call (rather than spread from a shared module-level array)
  * so the per-request badge counts never leak between requests.
@@ -76,10 +73,14 @@ export type CrmNavItem = {
  * itself instead of receiving its output as a prop. Since /crm routes are
  * all force-dynamic and never prerendered at build time, `next build`/`tsc`
  * won't catch a regression here — it only throws on a real request.
+ *
+ * 2026-08-25: `pendingReviewCount` was removed from this signature. AI Review
+ * lost its nav item on 2026-08-20 (it became a stat tile on Admin Overview),
+ * leaving the parameter threaded through layout.tsx -> CrmShell -> here but
+ * never read; the whole /crm/ai-review surface has since been deleted.
  */
 export function buildCrmNav(
   role: string,
-  pendingReviewCount: number,
   unclaimedAiLeadsCount: number,
   outstandingUpgradeCount: number,
 ): CrmNavItem[] {
@@ -122,15 +123,10 @@ export function buildCrmNav(
       ],
     },
   ];
-  // AI Review moved under Admin Account (2026-08-20, Brent's explicit
-  // directive, overriding /crm-design's own silence on this feature — see
-  // CRM_MIGRATION_MATRIX.md §0/§3): the pending-review queue is an
-  // owner/admin tool, not a sales-agent nav destination, and having it as a
-  // standalone Workspace item alongside Companies/Tasks/etc. was exactly the
-  // "same underlying concept split across two disconnected destinations"
-  // problem CRM_MASTER_AUDIT.md §1 flagged. It's still reachable at
-  // /crm/ai-review (route unchanged, functionality untouched) via a stat
-  // tile on the Admin Overview page instead of a nav item here.
+  // AI Review lost its nav item here on 2026-08-20 (it became a stat tile on
+  // Admin Overview), and the whole surface was deleted 2026-08-25 along with
+  // the ai_agent/field_capture pipelines that were its only producers —
+  // nothing writes ai_status='pending_review' anymore. No route to link to.
   nav.push({
     href: "/crm/upgrades",
     label: "Upgrades",
