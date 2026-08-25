@@ -64,9 +64,8 @@ export function WorkspaceTabs({
 
   return (
     <div className="overflow-hidden rounded-lg border border-line-strong bg-card shadow-e2">
-      {/* The header band is bg-card, not bg-inset: the segmented track
-          carries its own bg-inset fill, and an inset track on an inset band
-          would have no visible edge. */}
+      {/* White, never bg-inset — tabs sit on the page surface now and no grey
+          may appear behind a tab row anywhere. */}
       <div className="border-b border-line-strong bg-card px-3 py-2.5">
         <SegmentedTabs
           ariaLabel="Company workspace"

@@ -4,22 +4,30 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 /**
- * The CRM's ONE segmented tab row — Brent's pick (option 2 of the tab-styles
- * sheet, 2026-08-25). The whole row sits in a light track; the active tab
- * lifts out of it as a white chip with a short red rule along its bottom
- * inside edge, so which tab is selected is obvious at a glance instead of
- * being carried by text weight alone.
+ * The CRM's ONE tab row — SOLID FILL (Brent, 2026-08-25, third and final
+ * revision). The active tab is a filled brand-red button with white text;
+ * every inactive tab is plain muted text sitting directly on the page
+ * background. There is no track, no chip, no border and no fill of any kind
+ * behind an inactive tab, in any state — hover darkens the TEXT and nothing
+ * else.
  *
- * ONE component, used everywhere, deliberately: before this, five tab rows
- * each hand-rolled the same pill-in-a-bar and had already drifted apart —
- * different paddings, different text sizes, different active colors (violet
+ * NO GREY ANYWHERE. That is the specific, repeated instruction: the two
+ * previous versions of this component (a light-track segmented control, then
+ * an underline row) were both rejected for the grey they introduced. If a
+ * change here ever reintroduces a grey surface in a tab row, it is wrong.
+ *
+ * The file is still named SegmentedTabs for its import path only — the
+ * segmented look it was named for is gone. Renaming would touch every call
+ * site for no behavioural gain; the name is historical, this comment is the
+ * truth.
+ *
+ * ONE component, used everywhere, deliberately: before it, five tab rows each
+ * hand-rolled the same pill-in-a-bar and had already drifted apart —
+ * different paddings, different text sizes, different active colours (violet
  * in Admin, steel-blue in Operations), and one that silently became a
  * three-column grid on mobile. Restyling each row separately would have
- * recreated exactly that drift.
- *
- * NESTING (from the same sheet's footnote): use this on the INNER row where
- * tabs sit inside tabs, and give the outer row a different shape — option 1
- * (underline) or option 4 (boxed) — so the two levels never look alike.
+ * recreated exactly that drift, which is why nesting is expressed as a `size`
+ * prop rather than a second component.
  *
  * Serves both tab flavors the CRM uses: `href` renders a Next Link (route
  * tabs, where the panel is its own addressable URL) and `onSelect` renders a
@@ -63,29 +71,33 @@ export type SegmentedTabItem = {
  */
 export type SegmentedTabSize = "sm" | "lg";
 
-/** Track: hugs its content (never full-width), light fill, hairline. */
-const TRACK = "inline-flex w-fit max-w-full items-stretch gap-0 overflow-x-auto border border-line bg-inset";
+/**
+ * The row itself. NO background, NO border, NO padding — it is a bare flex
+ * container so the tabs sit directly on whatever surface the page provides.
+ * Still hugs its content rather than stretching, and still scrolls rather
+ * than wrapping if it ever runs out of room.
+ */
+const TRACK = "inline-flex w-fit max-w-full items-stretch overflow-x-auto";
 
 const TRACK_SIZE: Record<SegmentedTabSize, string> = {
-  sm: "rounded-[4px] p-[3px]",
-  lg: "rounded-[5px] p-[4px]",
+  sm: "gap-1",
+  lg: "gap-1.5",
 };
 
-/** Every chip, active or not. `relative` anchors the active red rule. */
-const CHIP =
-  "relative flex shrink-0 items-center gap-1.5 whitespace-nowrap leading-tight transition-colors";
+const CHIP = "flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-[3px] leading-tight transition-colors";
 
 const CHIP_SIZE: Record<SegmentedTabSize, string> = {
-  sm: "rounded-[3px] px-[15px] py-[7px] text-[13px]",
-  lg: "rounded-[4px] px-[18px] py-[9px] text-[14px]",
+  sm: "px-[15px] py-[7px] text-[13px]",
+  lg: "px-[18px] py-[9px] text-[14px]",
 };
 
-/** Active: lifts to white, inset from the track by the track's own padding. */
-const CHIP_ACTIVE = "border border-line bg-card font-semibold text-fg";
+/** Active: a filled brand-red button. Reads as the one thing selected without
+ * needing a track behind it to be read against. */
+const CHIP_ACTIVE = "bg-[#c0272d] font-semibold text-white";
 
-/** Inactive: no fill at all — only the text darkens on hover, so the active
- * chip stays the loudest thing in the row. */
-const CHIP_INACTIVE = "border border-transparent font-normal text-fg-muted hover:text-fg";
+/** Inactive: text only. No fill, no border, and crucially no hover wash —
+ * the text darkens toward the foreground colour and nothing else moves. */
+const CHIP_INACTIVE = "bg-transparent font-normal text-fg-muted hover:text-fg";
 
 /** The count, inline and quiet — the same treatment on every row, so an
  * outer tab's count and a filter tab's count read as the same thing. */
@@ -101,7 +113,13 @@ function TabCount({
   // An attention count of zero is nothing to chase, so it disappears; an
   // ordinary count of zero is information and stays.
   if (attention && !value) return null;
-  const tone = attention ? "text-[#c0272d]" : active ? "text-fg" : "text-fg-subtle";
+  // On the active tab the chip is already red, so an attention count can't be
+  // red too — it reads as white at reduced opacity, against the fill.
+  const tone = active
+    ? "text-white/70"
+    : attention
+      ? "text-[#c0272d]"
+      : "text-fg-subtle";
   return <span className={`font-mono text-[11.5px] font-medium tabular-nums ${tone}`}>{value}</span>;
 }
 
@@ -133,7 +151,6 @@ export function SegmentedTabs({
             {item.count !== undefined && (
               <TabCount value={item.count} active={item.active} attention={item.countNeedsAttention} />
             )}
-            {item.active && <ActiveRule />}
           </>
         );
 
@@ -165,26 +182,15 @@ export function SegmentedTabs({
   );
 }
 
-/**
- * The 2px brand-red rule along the active chip's bottom inside edge.
+/*
+ * The active tab's red is the literal #c0272d rather than a token: the brand
+ * red is defined as `--v2-accent` in globals.css, which is scoped to the
+ * tms-v2 themes and is NOT in scope inside `.crm-light`, so
+ * `var(--v2-accent)` would resolve to nothing here and the fill would
+ * silently disappear. lib/domain/reach/signature.ts hardcodes the same value
+ * for the same reason. `--bad` is the CRM's red but it is the ERROR red
+ * (#ad2a2a) and carries a meaning a selected tab does not.
  *
- * Literal #c0272d rather than a token: the brand red is defined as
- * `--v2-accent` in globals.css, which is scoped to the tms-v2 themes and is
- * NOT in scope inside `.crm-light`, so `var(--v2-accent)` would resolve to
- * nothing here and the rule would silently disappear. lib/domain/reach/
- * signature.ts hardcodes the same value for the same reason. `--bad` is the
- * CRM's red but it is the ERROR red (#ad2a2a) and carries a meaning this rule
- * does not have.
- *
- * Sits at bottom-[1px] so it reads as inside the chip's border rather than
- * replacing it, and inset horizontally so it's a short rule under the label,
- * not a full-width underline.
+ * The old ActiveRule (a short red underline inside a white chip) is gone with
+ * the chip it lived in — the whole tab is the red now.
  */
-function ActiveRule() {
-  return (
-    <span
-      aria-hidden
-      className="pointer-events-none absolute inset-x-[6px] bottom-[1px] h-[2px] rounded-full bg-[#c0272d]"
-    />
-  );
-}
