@@ -84,6 +84,21 @@ function shipmentFieldsToRow(fields: Partial<ShipmentFields>): Record<string, un
   set("deliveryWindow", "delivery_window");
   set("deliveryNumber", "delivery_number");
   set("deliveryNotes", "delivery_notes");
+  // Timing model (2026-08-25). The workspace always sends a stop's five keys
+  // together (see commitTiming), so the mode and its clock columns move as one
+  // unit and a stale window can never survive a switch to appointment. The
+  // partial `key in fields` semantics above still apply: a caller that touches
+  // only, say, pickupNotes leaves every timing column alone.
+  set("pickupDate", "pickup_date");
+  set("pickupTimingMode", "pickup_timing_mode");
+  set("pickupAppointmentTime", "pickup_appointment_time");
+  set("pickupWindowStart", "pickup_window_start");
+  set("pickupWindowEnd", "pickup_window_end");
+  set("deliveryDate", "delivery_date");
+  set("deliveryTimingMode", "delivery_timing_mode");
+  set("deliveryAppointmentTime", "delivery_appointment_time");
+  set("deliveryWindowStart", "delivery_window_start");
+  set("deliveryWindowEnd", "delivery_window_end");
   set("commodity", "commodity");
   set("description", "description");
   set("weight", "weight");

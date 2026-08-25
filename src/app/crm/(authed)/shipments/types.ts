@@ -151,6 +151,24 @@ export type AccountLocationFields = {
 
 // ── Shipments ────────────────────────────────────────────────────────────────
 
+/**
+ * How a stop's time-of-day is expressed, once a DATE is known. Added
+ * 2026-08-25 with the crm_shipments timing columns.
+ *
+ *   'tbd'         date known, time genuinely not scheduled yet. No time is
+ *                 stored — deliberately NOT midnight and not a placeholder.
+ *   'window'      an arrival range: both bounds set, end strictly after start.
+ *   'appointment' a specific booked time.
+ *
+ * The three are mutually exclusive and enforced by CHECK constraints on the
+ * table (crm_shipments_{pickup,delivery}_timing_shape_check), so a stale
+ * window can never sit behind an appointment.
+ *
+ * A NULL mode on a row means "this shipment predates the timing model" and
+ * is what selects the read-only legacy fallback in the workspace.
+ */
+export type StopTimingMode = "tbd" | "window" | "appointment";
+
 export type CrmShipmentRow = {
   id: string;
   org_id: string;
@@ -174,14 +192,33 @@ export type CrmShipmentRow = {
   consignee_zip: string | null;
   consignee_contact: string | null;
   consignee_phone: string | null;
+  /** LEGACY. Retained for backwards compatibility and read-only fallback
+   * display; no longer written by the shipment workspace (2026-08-25). */
   pickup_at: string | null;
+  /** LEGACY. Free-text "HH:MM - HH:MM". Superseded by pickup_window_start/end. */
   pickup_window: string | null;
   pickup_number: string | null;
   pickup_notes: string | null;
+  /** LEGACY — see pickup_at. */
   delivery_at: string | null;
+  /** LEGACY — see pickup_window. */
   delivery_window: string | null;
   delivery_number: string | null;
   delivery_notes: string | null;
+  /** Timing model (2026-08-25). `date` column: a calendar day with no
+   * time-of-day and no timezone, which is what lets a date exist without a
+   * time. `time` columns are Central wall-clock, same convention the legacy
+   * window text used. */
+  pickup_date: string | null;
+  pickup_timing_mode: StopTimingMode | null;
+  pickup_appointment_time: string | null;
+  pickup_window_start: string | null;
+  pickup_window_end: string | null;
+  delivery_date: string | null;
+  delivery_timing_mode: StopTimingMode | null;
+  delivery_appointment_time: string | null;
+  delivery_window_start: string | null;
+  delivery_window_end: string | null;
   commodity: string | null;
   description: string | null;
   weight: string | null;
@@ -233,14 +270,28 @@ export type CrmShipment = {
   consigneeZip: string | null;
   consigneeContact: string | null;
   consigneePhone: string | null;
+  /** LEGACY — read-only fallback only; not written by the workspace. */
   pickupAt: string | null;
+  /** LEGACY — read-only fallback only; not written by the workspace. */
   pickupWindow: string | null;
   pickupNumber: string | null;
   pickupNotes: string | null;
+  /** LEGACY — read-only fallback only; not written by the workspace. */
   deliveryAt: string | null;
+  /** LEGACY — read-only fallback only; not written by the workspace. */
   deliveryWindow: string | null;
   deliveryNumber: string | null;
   deliveryNotes: string | null;
+  pickupDate: string | null;
+  pickupTimingMode: StopTimingMode | null;
+  pickupAppointmentTime: string | null;
+  pickupWindowStart: string | null;
+  pickupWindowEnd: string | null;
+  deliveryDate: string | null;
+  deliveryTimingMode: StopTimingMode | null;
+  deliveryAppointmentTime: string | null;
+  deliveryWindowStart: string | null;
+  deliveryWindowEnd: string | null;
   commodity: string | null;
   description: string | null;
   weight: string | null;
@@ -314,6 +365,19 @@ export type ShipmentFields = {
   deliveryWindow: string | null;
   deliveryNumber: string | null;
   deliveryNotes: string | null;
+  /** Timing model. Always written as a COMPLETE set by
+   * ShipmentWorkspace's commitTiming(), never field-by-field, so the mode and
+   * its clock columns can never drift apart mid-update. */
+  pickupDate: string | null;
+  pickupTimingMode: StopTimingMode | null;
+  pickupAppointmentTime: string | null;
+  pickupWindowStart: string | null;
+  pickupWindowEnd: string | null;
+  deliveryDate: string | null;
+  deliveryTimingMode: StopTimingMode | null;
+  deliveryAppointmentTime: string | null;
+  deliveryWindowStart: string | null;
+  deliveryWindowEnd: string | null;
   commodity: string | null;
   description: string | null;
   weight: string | null;

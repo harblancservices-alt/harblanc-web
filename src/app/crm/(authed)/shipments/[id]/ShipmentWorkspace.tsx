@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { Card, BTN_PRIMARY, BTN_EDIT } from "../../_shell/ui";
 import { FormError } from "../../_shell/form";
 import { AsyncSearchPicker } from "../../_shell/AsyncSearchPicker";
-import { toDatetimeLocal, centralInputToIso, titleCaseWords, formatPhone, formatStateCase, stripCommas } from "../../_shell/format";
+import { formatDate, titleCaseWords, formatPhone, formatStateCase, stripCommas } from "../../_shell/format";
 import { IconChevronDown } from "../../_shell/icons";
-import { TextRow, TextAreaRow, MoneyRow, SelectRow, FormRow2, SelectedEntityChip, TimeWindowRow } from "./fields";
+import { TextRow, TextAreaRow, MoneyRow, SelectRow, FormRow2, SelectedEntityChip } from "./fields";
 import { LocationPickerModal } from "./LocationPickerModal";
 import { CarrierFormDialog } from "../../carriers/CarrierFormDialog";
 import { updateShipment, searchCustomers, createAccountLocation, softDeleteShipment } from "../actions";
@@ -29,6 +29,32 @@ function str(v: string | null | undefined): string {
 function orNull(v: string): string | null {
   const t = v.trim();
   return t || null;
+}
+
+/**
+ * Postgres `time` comes back as "HH:MM:SS"; <input type="time"> wants
+ * "HH:MM". Trims to the minute in both directions — seconds are never
+ * meaningful for a dock appointment.
+ */
+function hhmm(v: string | null | undefined): string {
+  if (!v) return "";
+  const m = /^(\d{2}):(\d{2})/.exec(v.trim());
+  return m ? `${m[1]}:${m[2]}` : "";
+}
+
+/**
+ * Read-only summary of a LEGACY stop — a shipment created before the timing
+ * model, whose new columns are all NULL. Renders what is actually stored,
+ * without reinterpreting it: a degenerate window like "08:00 - 08:00" is
+ * shown verbatim rather than being guessed into an appointment, because the
+ * original intent is unknowable. Editing the stop with the new controls above
+ * is what supersedes this line.
+ */
+function legacyStopSummary(at: string | null, window: string | null): string | null {
+  const parts: string[] = [];
+  if (at) parts.push(formatDate(at));
+  if (window?.trim()) parts.push(`window ${window.trim()}`);
+  return parts.length ? parts.join(" · ") : null;
 }
 function moneyOrNull(v: string): number | null {
   const t = v.trim();
@@ -56,12 +82,18 @@ type LocalState = {
   consigneeZip: string;
   consigneeContact: string;
   consigneePhone: string;
-  pickupAt: string;
-  pickupWindow: string;
+  pickupDate: string;
+  pickupTimingMode: string;
+  pickupAppointmentTime: string;
+  pickupWindowStart: string;
+  pickupWindowEnd: string;
   pickupNumber: string;
   pickupNotes: string;
-  deliveryAt: string;
-  deliveryWindow: string;
+  deliveryDate: string;
+  deliveryTimingMode: string;
+  deliveryAppointmentTime: string;
+  deliveryWindowStart: string;
+  deliveryWindowEnd: string;
   deliveryNumber: string;
   deliveryNotes: string;
   commodity: string;
@@ -119,12 +151,18 @@ function toLocal(shipment: CrmShipmentDetail): LocalState {
     consigneeZip: str(shipment.consigneeZip),
     consigneeContact: str(shipment.consigneeContact),
     consigneePhone: str(shipment.consigneePhone),
-    pickupAt: toDatetimeLocal(shipment.pickupAt),
-    pickupWindow: str(shipment.pickupWindow),
+    pickupDate: str(shipment.pickupDate),
+    pickupTimingMode: str(shipment.pickupTimingMode),
+    pickupAppointmentTime: hhmm(shipment.pickupAppointmentTime),
+    pickupWindowStart: hhmm(shipment.pickupWindowStart),
+    pickupWindowEnd: hhmm(shipment.pickupWindowEnd),
     pickupNumber: str(shipment.pickupNumber),
     pickupNotes: str(shipment.pickupNotes),
-    deliveryAt: toDatetimeLocal(shipment.deliveryAt),
-    deliveryWindow: str(shipment.deliveryWindow),
+    deliveryDate: str(shipment.deliveryDate),
+    deliveryTimingMode: str(shipment.deliveryTimingMode),
+    deliveryAppointmentTime: hhmm(shipment.deliveryAppointmentTime),
+    deliveryWindowStart: hhmm(shipment.deliveryWindowStart),
+    deliveryWindowEnd: hhmm(shipment.deliveryWindowEnd),
     deliveryNumber: str(shipment.deliveryNumber),
     deliveryNotes: str(shipment.deliveryNotes),
     commodity: str(shipment.commodity),
@@ -225,6 +263,129 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
   function set<K extends keyof LocalState>(key: K, value: LocalState[K]) {
     setState((prev) => ({ ...prev, [key]: value }));
   }
+
+  // ── Stop timing ────────────────────────────────────────────────────────
+  // One writer for both stops. Always sends the stop's FIVE keys together so
+  // the mode and its clock columns move as a single unit — that is what makes
+  // "switching mode clears the other mode's values" true in the database and
+  // not just on screen. The DB CHECK constraints
+  // (crm_shipments_*_timing_shape_check) are the final backstop.
+  //
+  // An incomplete state is held locally and simply not written: a window with
+  // only a start, or an end that is not after the start, never reaches the
+  // server. That is the client half of the validation; the constraint is the
+  // other half.
+  type TimingLocal = {
+    date: string;
+    mode: string;
+    appointmentTime: string;
+    windowStart: string;
+    windowEnd: string;
+  };
+
+  function timingOf(stop: "pickup" | "delivery", overrides: Partial<TimingLocal> = {}): TimingLocal {
+    const base: TimingLocal =
+      stop === "pickup"
+        ? {
+            date: state.pickupDate,
+            mode: state.pickupTimingMode,
+            appointmentTime: state.pickupAppointmentTime,
+            windowStart: state.pickupWindowStart,
+            windowEnd: state.pickupWindowEnd,
+          }
+        : {
+            date: state.deliveryDate,
+            mode: state.deliveryTimingMode,
+            appointmentTime: state.deliveryAppointmentTime,
+            windowStart: state.deliveryWindowStart,
+            windowEnd: state.deliveryWindowEnd,
+          };
+    return { ...base, ...overrides };
+  }
+
+  /** null = this local state is not yet a valid, writable timing set. */
+  function buildTimingFields(stop: "pickup" | "delivery", t: TimingLocal): Partial<ShipmentFields> | null {
+    const date = orNull(t.date);
+    const P = stop === "pickup";
+
+    // No date -> no timing at all. Clears the whole stop rather than leaving a
+    // mode stranded without a day (which the DB would reject anyway).
+    if (!date) {
+      return P
+        ? { pickupDate: null, pickupTimingMode: null, pickupAppointmentTime: null, pickupWindowStart: null, pickupWindowEnd: null }
+        : { deliveryDate: null, deliveryTimingMode: null, deliveryAppointmentTime: null, deliveryWindowStart: null, deliveryWindowEnd: null };
+    }
+
+    // Date chosen but no mode yet — a legitimate mid-entry state.
+    if (!t.mode) {
+      return P
+        ? { pickupDate: date, pickupTimingMode: null, pickupAppointmentTime: null, pickupWindowStart: null, pickupWindowEnd: null }
+        : { deliveryDate: date, deliveryTimingMode: null, deliveryAppointmentTime: null, deliveryWindowStart: null, deliveryWindowEnd: null };
+    }
+
+    if (t.mode === "tbd") {
+      return P
+        ? { pickupDate: date, pickupTimingMode: "tbd", pickupAppointmentTime: null, pickupWindowStart: null, pickupWindowEnd: null }
+        : { deliveryDate: date, deliveryTimingMode: "tbd", deliveryAppointmentTime: null, deliveryWindowStart: null, deliveryWindowEnd: null };
+    }
+
+    if (t.mode === "appointment") {
+      const appt = orNull(t.appointmentTime);
+      if (!appt) return null; // incomplete — hold, don't write
+      return P
+        ? { pickupDate: date, pickupTimingMode: "appointment", pickupAppointmentTime: appt, pickupWindowStart: null, pickupWindowEnd: null }
+        : { deliveryDate: date, deliveryTimingMode: "appointment", deliveryAppointmentTime: appt, deliveryWindowStart: null, deliveryWindowEnd: null };
+    }
+
+    // window
+    const startT = orNull(t.windowStart);
+    const endT = orNull(t.windowEnd);
+    if (!startT || !endT) return null;      // both bounds required
+    if (endT <= startT) return null;        // strictly later; blocks 08:00-08:00
+    return P
+      ? { pickupDate: date, pickupTimingMode: "window", pickupAppointmentTime: null, pickupWindowStart: startT, pickupWindowEnd: endT }
+      : { deliveryDate: date, deliveryTimingMode: "window", deliveryAppointmentTime: null, deliveryWindowStart: startT, deliveryWindowEnd: endT };
+  }
+
+  function commitTiming(stop: "pickup" | "delivery", overrides: Partial<TimingLocal> = {}) {
+    const fields = buildTimingFields(stop, timingOf(stop, overrides));
+    if (fields) commit(fields);
+  }
+
+  /** Mode switch: update local state AND clear the outgoing mode's inputs in
+   * the same tick, so nothing stale lingers on screen either. */
+  function setTimingMode(stop: "pickup" | "delivery", mode: string) {
+    const cleared = { mode, appointmentTime: "", windowStart: "", windowEnd: "" };
+    if (stop === "pickup") {
+      setState((prev) => ({
+        ...prev,
+        pickupTimingMode: mode,
+        pickupAppointmentTime: "",
+        pickupWindowStart: "",
+        pickupWindowEnd: "",
+      }));
+    } else {
+      setState((prev) => ({
+        ...prev,
+        deliveryTimingMode: mode,
+        deliveryAppointmentTime: "",
+        deliveryWindowStart: "",
+        deliveryWindowEnd: "",
+      }));
+    }
+    // 'tbd' (and a cleared mode) are complete on their own, so they persist
+    // immediately. 'window'/'appointment' need their times first.
+    commitTiming(stop, cleared);
+  }
+
+  const pickupLegacy =
+    !shipment.pickupTimingMode && !state.pickupDate
+      ? legacyStopSummary(shipment.pickupAt, shipment.pickupWindow)
+      : null;
+  const deliveryLegacy =
+    !shipment.deliveryTimingMode && !state.deliveryDate
+      ? legacyStopSummary(shipment.deliveryAt, shipment.deliveryWindow)
+      : null;
 
   function untrack(setter: (updater: (prev: AutoFill) => AutoFill) => void, key: keyof LocalState) {
     setter((prev) => {
@@ -918,18 +1079,23 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
         </SectionCard>
 
         <SectionCard title="Pickup" {...sectionProps("pickup")}>
-          <TextRow
-            label="Pickup date/time"
-            type="datetime-local"
-            value={state.pickupAt}
-            onChange={(v) => set("pickupAt", v)}
-            onBlur={() => commit({ pickupAt: centralInputToIso(state.pickupAt) })}
-          />
-          <TimeWindowRow
-            label="Pickup window"
-            value={state.pickupWindow}
-            onChange={(v) => set("pickupWindow", v)}
-            onBlur={() => commit({ pickupWindow: orNull(state.pickupWindow) })}
+          <StopTimingFields
+            stop="pickup"
+            label="Pickup"
+            date={state.pickupDate}
+            mode={state.pickupTimingMode}
+            appointmentTime={state.pickupAppointmentTime}
+            windowStart={state.pickupWindowStart}
+            windowEnd={state.pickupWindowEnd}
+            legacy={pickupLegacy}
+            onDate={(v) => set("pickupDate", v)}
+            onDateBlur={() => commitTiming("pickup")}
+            onMode={(v) => setTimingMode("pickup", v)}
+            onAppointment={(v) => set("pickupAppointmentTime", v)}
+            onAppointmentBlur={() => commitTiming("pickup")}
+            onWindowStart={(v) => set("pickupWindowStart", v)}
+            onWindowEnd={(v) => set("pickupWindowEnd", v)}
+            onWindowBlur={() => commitTiming("pickup")}
           />
           <TextRow
             label="Pickup #"
@@ -947,18 +1113,23 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
         </SectionCard>
 
         <SectionCard title="Delivery" {...sectionProps("delivery")}>
-          <TextRow
-            label="Delivery date/time"
-            type="datetime-local"
-            value={state.deliveryAt}
-            onChange={(v) => set("deliveryAt", v)}
-            onBlur={() => commit({ deliveryAt: centralInputToIso(state.deliveryAt) })}
-          />
-          <TimeWindowRow
-            label="Delivery window"
-            value={state.deliveryWindow}
-            onChange={(v) => set("deliveryWindow", v)}
-            onBlur={() => commit({ deliveryWindow: orNull(state.deliveryWindow) })}
+          <StopTimingFields
+            stop="delivery"
+            label="Delivery"
+            date={state.deliveryDate}
+            mode={state.deliveryTimingMode}
+            appointmentTime={state.deliveryAppointmentTime}
+            windowStart={state.deliveryWindowStart}
+            windowEnd={state.deliveryWindowEnd}
+            legacy={deliveryLegacy}
+            onDate={(v) => set("deliveryDate", v)}
+            onDateBlur={() => commitTiming("delivery")}
+            onMode={(v) => setTimingMode("delivery", v)}
+            onAppointment={(v) => set("deliveryAppointmentTime", v)}
+            onAppointmentBlur={() => commitTiming("delivery")}
+            onWindowStart={(v) => set("deliveryWindowStart", v)}
+            onWindowEnd={(v) => set("deliveryWindowEnd", v)}
+            onWindowBlur={() => commitTiming("delivery")}
           />
           <TextRow
             label="Delivery #"
@@ -977,6 +1148,124 @@ export function ShipmentWorkspace({ shipment }: { shipment: CrmShipmentDetail })
       </div>
       {locationSaveError && <FormError message={locationSaveError} />}
     </div>
+  );
+}
+
+/**
+ * A stop's timing: DATE first and on its own, then how the time-of-day is
+ * expressed. Date and time are separate controls on purpose — the old single
+ * datetime-local made a date impossible to record without inventing an hour,
+ * which is the defect this replaces.
+ *
+ * The time inputs shown are decided entirely by the mode, so an appointment
+ * and a window are never on screen at the same time. Times use step={900}
+ * (quarter-hour), matching the convention the previous window control used.
+ */
+function StopTimingFields({
+  label,
+  date,
+  mode,
+  appointmentTime,
+  windowStart,
+  windowEnd,
+  legacy,
+  onDate,
+  onDateBlur,
+  onMode,
+  onAppointment,
+  onAppointmentBlur,
+  onWindowStart,
+  onWindowEnd,
+  onWindowBlur,
+}: {
+  stop: "pickup" | "delivery";
+  label: string;
+  date: string;
+  mode: string;
+  appointmentTime: string;
+  windowStart: string;
+  windowEnd: string;
+  /** Read-only legacy summary, or null when this stop uses the new model. */
+  legacy: string | null;
+  onDate: (v: string) => void;
+  onDateBlur: () => void;
+  onMode: (v: string) => void;
+  onAppointment: (v: string) => void;
+  onAppointmentBlur: () => void;
+  onWindowStart: (v: string) => void;
+  onWindowEnd: (v: string) => void;
+  onWindowBlur: () => void;
+}) {
+  const windowIncomplete =
+    mode === "window" && Boolean(windowStart) && Boolean(windowEnd) && windowEnd <= windowStart;
+
+  return (
+    <>
+      <TextRow
+        label={`${label} date`}
+        type="date"
+        value={date}
+        onChange={onDate}
+        onBlur={onDateBlur}
+      />
+
+      <SelectRow label={`${label} timing`} value={mode} onChange={onMode}>
+        <option value="">Not set</option>
+        <option value="tbd">Time TBD</option>
+        <option value="window">Window</option>
+        <option value="appointment">Appointment</option>
+      </SelectRow>
+
+      {mode === "tbd" && (
+        <p className="text-[12px] font-semibold text-fg-muted">
+          Time TBD — no time will be recorded for this stop.
+        </p>
+      )}
+
+      {mode === "appointment" && (
+        <TextRow
+          label="Appointment time"
+          type="time"
+          value={appointmentTime}
+          onChange={onAppointment}
+          onBlur={onAppointmentBlur}
+        />
+      )}
+
+      {mode === "window" && (
+        <>
+          <FormRow2>
+            <TextRow
+              label="Window start"
+              type="time"
+              value={windowStart}
+              onChange={onWindowStart}
+              onBlur={onWindowBlur}
+            />
+            <TextRow
+              label="Window end"
+              type="time"
+              value={windowEnd}
+              onChange={onWindowEnd}
+              onBlur={onWindowBlur}
+            />
+          </FormRow2>
+          {windowIncomplete && (
+            <p className="text-[12px] font-semibold text-bad">
+              The window end must be later than the start. Use Appointment for a specific time.
+            </p>
+          )}
+        </>
+      )}
+
+      {legacy && (
+        <p className="rounded-[5px] border border-line-strong bg-inset px-2.5 py-1.5 text-[12px] text-fg-muted">
+          <span className="font-semibold text-fg">Legacy timing:</span> {legacy}
+          <br />
+          Recorded before timing modes existed. Set a {label.toLowerCase()} date above to replace it.
+        </p>
+      )}
+    </>
   );
 }
 
