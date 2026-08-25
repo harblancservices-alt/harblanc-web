@@ -4,13 +4,13 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 /**
- * The CRM's ONE tab row — a row of BUTTONS (Brent, 2026-08-25). Every tab is
- * the same size and shape: the selected one is filled brand red with white
- * text, the rest are outlined with a transparent fill. Hover darkens an
- * outlined tab's border and text.
+ * The CRM's ONE tab row — a row of RED BUTTONS (Brent, 2026-08-25). Every tab
+ * is the same size and shape: the selected one is filled brand red with white
+ * text, the rest are outlined in the same red with red text and a transparent
+ * fill. Hover tints an outlined tab with that red at 8%.
  *
- * There is no track behind the row and no grey FILL on any tab in any state.
- * The border is a hairline outline, not a surface.
+ * NO GREY, ANYWHERE, IN ANY STATE — no track, no border, no text, no fill.
+ * See CHIP_INACTIVE for why this is stated so bluntly.
  *
  * NO GREY ANYWHERE. That is the specific, repeated instruction: the two
  * previous versions of this component (a light-track segmented control, then
@@ -101,12 +101,20 @@ const CHIP_SIZE: Record<SegmentedTabSize, string> = {
 /** Active: a filled brand-red button. */
 const CHIP_ACTIVE = "border-[#c0272d] bg-[#c0272d] font-semibold text-white";
 
-/** Inactive: an OUTLINED button — transparent fill, a visible hairline, and
- * dark-grey (not faint) text, so the row reads as a row of buttons rather
- * than as loose words. Hover darkens the border and the text; the fill stays
- * transparent, because no grey surface may appear in a tab row in any state. */
+/**
+ * Inactive: an OUTLINED RED button — red border, red text, transparent fill.
+ * Hover tints the fill with the same red at 8% and leaves border and text
+ * alone.
+ *
+ * Every value here is the literal brand red. NO NEUTRAL TOKEN may be used on
+ * a tab in any state — not border-line, not text-fg-muted, not a hover
+ * bg-inset. Three earlier revisions of this component were each rejected for
+ * the grey they introduced (a grey track, then a grey underline row, then a
+ * grey hairline and muted text). If a future change reaches for a neutral
+ * here, it is reintroducing the exact thing that was rejected four times.
+ */
 const CHIP_INACTIVE =
-  "border-line bg-transparent font-medium text-fg-muted hover:border-fg-subtle hover:text-fg";
+  "border-[#c0272d] bg-transparent font-medium text-[#c0272d] hover:bg-[#c0272d]/[0.08]";
 
 /** The count, inline and quiet — the same treatment on every row, so an
  * outer tab's count and a filter tab's count read as the same thing. */
@@ -122,13 +130,10 @@ function TabCount({
   // An attention count of zero is nothing to chase, so it disappears; an
   // ordinary count of zero is information and stays.
   if (attention && !value) return null;
-  // On the active tab the chip is already red, so an attention count can't be
-  // red too — it reads as white at reduced opacity, against the fill.
-  const tone = active
-    ? "text-white/70"
-    : attention
-      ? "text-[#c0272d]"
-      : "text-fg-subtle";
+  // White on the red fill, red on an outlined tab. `attention` no longer
+  // changes the COLOUR — every count is already the brand red — it only
+  // controls whether a zero is shown at all.
+  const tone = active ? "text-white/70" : "text-[#c0272d]";
   return <span className={`font-mono text-[11.5px] font-medium tabular-nums ${tone}`}>{value}</span>;
 }
 
