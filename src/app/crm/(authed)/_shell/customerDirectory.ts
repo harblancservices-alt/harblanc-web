@@ -1,5 +1,5 @@
 import { createCrmServerClient } from "@/lib/crm/auth";
-import { normalizeStage } from "../accounts/lifecycle";
+import { isActiveCustomerStage } from "../accounts/lifecycle";
 import { parsePhones } from "./contactFields";
 import { titleCaseWords, upperCaseState } from "./format";
 
@@ -50,7 +50,7 @@ export async function getActiveCustomers(): Promise<CustomerOption[]> {
     .limit(1000);
 
   const rows = (data ?? []) as AccountRow[];
-  const active = rows.filter((r) => normalizeStage(r.lifecycle_status) === "active_customer");
+  const active = rows.filter((r) => isActiveCustomerStage(r.lifecycle_status));
 
   const contactIds = active
     .map((r) => r.primary_contact_id)

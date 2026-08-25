@@ -71,17 +71,20 @@ export const LIFECYCLE_TONE: Record<LifecycleStage, string> = {
  * DEFAULT_LIFECYCLE. Covers both the pre-2026-08-09 5-stage vocabulary
  * ("qualified"/"customer") and the 2026-08-09..2026-08-22 7-stage vocabulary
  * this rebuild replaces (lead/prospect/in_the_door/quoted/inactive). */
-function legacyAlias(value: string): LifecycleStage | null {
-  if (value === "lead") return "new_lead";
-  if (value === "prospect") return "new_lead";
-  if (value === "qualified") return "new_lead"; // old alias resolved to "prospect", which now resolves to "new_lead"
-  if (value === "in_the_door") return "contacted";
-  if (value === "quoted") return "quoting";
-  if (value === "customer") return "active_customer";
+export const LEGACY_STAGE_ALIASES: Record<string, LifecycleStage> = {
+  lead: "new_lead",
+  prospect: "new_lead",
+  qualified: "new_lead", // old alias resolved to "prospect", which now resolves to "new_lead"
+  in_the_door: "contacted",
+  quoted: "quoting",
+  customer: "active_customer",
   // "inactive" was a second terminal/dropped-out state alongside "lost" in
   // the old model; the new model has one terminal stage, so it folds in.
-  if (value === "inactive") return "lost";
-  return null;
+  inactive: "lost",
+};
+
+function legacyAlias(value: string): LifecycleStage | null {
+  return LEGACY_STAGE_ALIASES[value] ?? null;
 }
 
 /** Normalize an arbitrary stored value to a known stage (falls back to
@@ -132,6 +135,36 @@ export function stageBadgeTone(value: string | null | undefined): "neutral" | "a
 export function stageRank(stage: LifecycleStage): number {
   return LIFECYCLE_STAGES.indexOf(stage);
 }
+
+/**
+ * The ONE "is this company an Active Customer?" predicate the whole CRM
+ * shares. Anywhere a surface needs to show only won accounts — the Active
+ * Customers list, the Bill of Lading "start from a customer" picker, the
+ * load builder's Customer picker — it asks this instead of re-deriving its
+ * own string comparison, so a future vocabulary change lands in one place.
+ * Goes through normalizeStage, so legacy raw values (e.g. the pre-2026-08-09
+ * "customer") count exactly like the canonical "active_customer" does.
+ */
+export function isActiveCustomerStage(value: string | null | undefined): boolean {
+  return normalizeStage(value) === "active_customer";
+}
+
+/**
+ * Every RAW lifecycle_status value that isActiveCustomerStage() accepts —
+ * the SQL-side twin of that predicate, for queries that must filter in the
+ * database (an `.in("lifecycle_status", ...)` clause) instead of pulling
+ * every account and filtering in JS. Derived from LEGACY_STAGE_ALIASES
+ * rather than typed out, so adding or retiring an alias can never leave the
+ * two forms out of sync.
+ *
+ * Note the asymmetry this deliberately does NOT paper over: a NULL or
+ * unrecognized lifecycle_status normalizes to new_lead, so it is excluded by
+ * both forms — an account has to be explicitly marked won to be offered.
+ */
+export const ACTIVE_CUSTOMER_STAGE_VALUES: readonly string[] = [
+  "active_customer",
+  ...Object.keys(LEGACY_STAGE_ALIASES).filter((raw) => LEGACY_STAGE_ALIASES[raw] === "active_customer"),
+];
 
 /**
  * Per-stage staleness clocks (CRM_URGENCY_AUDIT.md P0) — the single source

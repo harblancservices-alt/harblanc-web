@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { logActivity, CRM_ACTIVITY } from "@/lib/crm/activity";
+import { ACTIVE_CUSTOMER_STAGE_VALUES } from "../accounts/lifecycle";
 import { mapShipmentRow, mapCarrierRow } from "./mappers";
 import type {
   AccountLocationFields,
@@ -407,8 +408,24 @@ export async function softDeleteShipment(id: string): Promise<ActionResult> {
 
 // ── Customer selection ──────────────────────────────────────────────────────
 
-/** crm_accounts search by name, for the "start shipment from customer"
- * picker. Empty query returns the org's first 20 accounts alphabetically. */
+/**
+ * The load builder's Customer picker — crm_accounts search by name, scoped
+ * to ACTIVE CUSTOMERS ONLY (2026-08-24). You build a load for a company
+ * you've already won, so the picker offers only accounts sitting at the
+ * same active_customer stage the Active Customers list is built on; leads,
+ * prospects and still-quoting companies are not selectable here. The stage
+ * filter is the shared ACTIVE_CUSTOMER_STAGE_VALUES from
+ * accounts/lifecycle.ts (the SQL twin of isActiveCustomerStage), so the
+ * definition lives in one place instead of being re-spelled here.
+ *
+ * This narrows what can be PICKED, never what can be DISPLAYED: a shipment
+ * already linked to a company that has since fallen out of the stage still
+ * renders its linked-company chip from the shipment row's own
+ * account_id/customer_name (see ShipmentWorkspace), which never consults
+ * this search — so no saved value is ever blanked by this filter.
+ *
+ * Empty query returns the org's first 20 active customers alphabetically.
+ */
 export async function searchCustomers(query: string): Promise<CustomerSearchResult[]> {
   const user = await requireCrmUser();
   const supabase = await createCrmServerClient();
@@ -418,6 +435,7 @@ export async function searchCustomers(query: string): Promise<CustomerSearchResu
     .from("crm_accounts")
     .select("id, name, city, state")
     .eq("org_id", user.orgId)
+    .in("lifecycle_status", ACTIVE_CUSTOMER_STAGE_VALUES)
     .is("deleted_at", null)
     .order("name")
     .limit(20);
