@@ -20,8 +20,8 @@ function load(over: Partial<LoadRow> = {}): LoadRow {
     consigneeCity: "Dallas",
     consigneeState: "TX",
     carrierName: "Lone Star Hauling",
-    pickupAt: "2026-08-24T14:00:00.000Z",
-    deliveryAt: "2026-08-25T14:00:00.000Z",
+    pickupOn: "2026-08-24",
+    deliveryOn: "2026-08-25",
     rcStatus: "sent",
     bolStatus: "draft",
     ...over,
@@ -111,9 +111,9 @@ describe("matchesQuery", () => {
 });
 
 describe("sortLoads", () => {
-  const a = load({ id: "a", loadNumber: "HS-1001", pickupAt: "2026-08-24T00:00:00.000Z" });
-  const b = load({ id: "b", loadNumber: "HS-1002", pickupAt: "2026-08-22T00:00:00.000Z" });
-  const none = load({ id: "c", loadNumber: "HS-1003", pickupAt: null });
+  const a = load({ id: "a", loadNumber: "HS-1001", pickupOn: "2026-08-24" });
+  const b = load({ id: "b", loadNumber: "HS-1002", pickupOn: "2026-08-22" });
+  const none = load({ id: "c", loadNumber: "HS-1003", pickupOn: null });
 
   it("does not mutate its input", () => {
     const rows = [a, b];

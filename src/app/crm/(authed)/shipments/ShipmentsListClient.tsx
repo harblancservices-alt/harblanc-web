@@ -6,24 +6,13 @@ import { CONTROL } from "../_shell/form";
 import { IconTruck, IconSearch } from "../_shell/icons";
 import { ShipmentCard } from "./ShipmentCard";
 import { ShipmentTable } from "./ShipmentTable";
+import type { ShipmentListRow } from "./shipmentListRow";
 
-/** Plain-data shape ShipmentCard/ShipmentTable render — a subset of
- * CrmShipmentSummary's fields, passed down from the server page. */
-export type ShipmentListRow = {
-  id: string;
-  shipmentNumber: string;
-  status: string;
-  customerName: string | null;
-  shipperCity: string | null;
-  shipperState: string | null;
-  consigneeCity: string | null;
-  consigneeState: string | null;
-  carrierName: string | null;
-  pickupAt: string | null;
-  deliveryAt: string | null;
-  rateConfirmationCount: number;
-  bolCount: number;
-};
+// The row shape and its builder live in the plain ./shipmentListRow module —
+// server components build these rows, and they cannot call a function
+// exported from a "use client" file. Re-exported here so existing
+// `from "./ShipmentsListClient"` type imports keep working.
+export type { ShipmentListRow };
 
 function matches(row: ShipmentListRow, q: string): boolean {
   const haystack = [

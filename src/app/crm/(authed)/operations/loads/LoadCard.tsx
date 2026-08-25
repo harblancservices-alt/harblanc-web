@@ -1,7 +1,8 @@
 "use client";
 
 import { ClickableListItem } from "../../_shell/ClickableRow";
-import { formatDate, titleCaseWords } from "../../_shell/format";
+import { titleCaseWords } from "../../_shell/format";
+import { formatStopDateShort } from "../../shipments/timing";
 import { CarrierCell, DocPills, LoadStatusBadge, laneLabel } from "./loadCells";
 import type { LoadRow } from "./loadRow";
 
@@ -37,10 +38,10 @@ export function LoadCard({ row }: { row: LoadRow }) {
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] text-fg-muted">
         <span>
-          Pickup <span className="crm-num tabular-nums text-fg">{formatDate(row.pickupAt)}</span>
+          Pickup <span className="crm-num tabular-nums text-fg">{formatStopDateShort(row.pickupOn)}</span>
         </span>
         <span>
-          Delivery <span className="crm-num tabular-nums text-fg">{formatDate(row.deliveryAt)}</span>
+          Delivery <span className="crm-num tabular-nums text-fg">{formatStopDateShort(row.deliveryOn)}</span>
         </span>
       </div>
 

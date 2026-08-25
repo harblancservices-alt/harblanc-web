@@ -28,8 +28,21 @@ export type LoadRow = {
   consigneeCity: string | null;
   consigneeState: string | null;
   carrierName: string | null;
-  pickupAt: string | null;
-  deliveryAt: string | null;
+  /**
+   * The stop's calendar day as "YYYY-MM-DD", resolved from the shipment's
+   * timing model with the legacy fallback (shipments/timing.ts), NOT the raw
+   * pickup_at/delivery_at columns.
+   *
+   * Phase 1 moved timing to pickup_date/pickup_timing_mode and stopped
+   * writing pickup_at. Reading it here meant every newly-scheduled load
+   * showed a blank date AND sank to the bottom of a date sort as
+   * "unscheduled" — sortLoads deliberately sinks nulls.
+   *
+   * A plain "YYYY-MM-DD" string sorts correctly as-is and needs no Date
+   * object, so both branches order against each other without a conversion.
+   */
+  pickupOn: string | null;
+  deliveryOn: string | null;
   /** Status of the newest Rate Confirmation on this load; null if none. */
   rcStatus: DocState;
   /** Status of the newest Bill of Lading on this load; null if none. */
@@ -117,9 +130,9 @@ function sortValue(row: LoadRow, key: SortKey): string | number | null {
     case "carrier":
       return row.carrierName?.toLowerCase() ?? null;
     case "pickup":
-      return row.pickupAt;
+      return row.pickupOn;
     case "delivery":
-      return row.deliveryAt;
+      return row.deliveryOn;
     case "status":
       return STATUS_ORDER[(row.status || "").trim().toLowerCase()] ?? 99;
   }

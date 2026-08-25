@@ -1,8 +1,9 @@
 "use client";
 
 import { ClickableListItem } from "../_shell/ClickableRow";
-import { titleCaseWords, upperCaseState, formatDate } from "../_shell/format";
+import { titleCaseWords, upperCaseState } from "../_shell/format";
 import { shipmentStatusLabel, shipmentStatusTone } from "./statusMeta";
+import { formatStopDateShort } from "./timing";
 import type { ShipmentListRow } from "./ShipmentsListClient";
 
 function lane(row: ShipmentListRow): string {
@@ -47,8 +48,8 @@ export function ShipmentCard({ shipment }: { shipment: ShipmentListRow }) {
       </div>
 
       <div className="mt-3 flex items-center gap-x-3 gap-y-1 text-[11.5px] text-fg-subtle">
-        <span>Pickup: {formatDate(shipment.pickupAt)}</span>
-        <span>Delivery: {formatDate(shipment.deliveryAt)}</span>
+        <span>Pickup: {formatStopDateShort(shipment.pickupOn)}</span>
+        <span>Delivery: {formatStopDateShort(shipment.deliveryOn)}</span>
       </div>
     </ClickableListItem>
   );

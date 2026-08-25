@@ -5,7 +5,8 @@ import { IconTruck, IconX } from "../_shell/icons";
 import { BTN_EDIT, BTN_NEUTRAL } from "../_shell/ui";
 import { titleCaseWords } from "../_shell/format";
 import { listShipments } from "./actions";
-import { ShipmentsListClient, type ShipmentListRow } from "./ShipmentsListClient";
+import { ShipmentsListClient } from "./ShipmentsListClient";
+import { toShipmentListRow, type ShipmentListRow } from "./shipmentListRow";
 import { NewShipmentButton } from "./NewShipmentButton";
 
 export const dynamic = "force-dynamic";
@@ -42,21 +43,7 @@ export default async function ShipmentsPage({
     accountName = data?.name ? titleCaseWords(data.name as string) : "this customer";
   }
 
-  const rows: ShipmentListRow[] = scoped.map((s) => ({
-    id: s.id,
-    shipmentNumber: s.shipmentNumber,
-    status: s.status,
-    customerName: s.customerName,
-    shipperCity: s.shipperCity,
-    shipperState: s.shipperState,
-    consigneeCity: s.consigneeCity,
-    consigneeState: s.consigneeState,
-    carrierName: s.carrierName,
-    pickupAt: s.pickupAt,
-    deliveryAt: s.deliveryAt,
-    rateConfirmationCount: s.rateConfirmationCount,
-    bolCount: s.bolCount,
-  }));
+  const rows: ShipmentListRow[] = scoped.map(toShipmentListRow);
 
   return (
     <PageShell

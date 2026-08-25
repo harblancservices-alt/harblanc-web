@@ -1,6 +1,7 @@
 import { listShipments } from "../../shipments/actions";
 import { listAllDocuments } from "../../shipments/document-history-actions";
 import { isActiveShipmentStatus } from "../../shipments/statusMeta";
+import { resolveShipmentTimingFromDomain } from "../../shipments/timing";
 import { LoadCenterClient } from "./LoadCenterClient";
 import type { LoadRow } from "./loadRow";
 
@@ -50,23 +51,28 @@ export default async function OperationsActiveLoadsPage() {
 
   const loads: LoadRow[] = shipments
     .filter((s) => isActiveShipmentStatus(s.status))
-    .map((s) => ({
-      id: s.id,
-      // shipment_number is DB-assigned and effectively always present; the
-      // id slice is a last-resort label so a row can never render nameless.
-      loadNumber: s.shipmentNumber || s.id.slice(0, 8).toUpperCase(),
-      status: s.status,
-      customerName: s.customerName,
-      shipperCity: s.shipperCity,
-      shipperState: s.shipperState,
-      consigneeCity: s.consigneeCity,
-      consigneeState: s.consigneeState,
-      carrierName: s.carrierName,
-      pickupAt: s.pickupAt,
-      deliveryAt: s.deliveryAt,
-      rcStatus: rcByShipment.get(s.id) ?? null,
-      bolStatus: bolByShipment.get(s.id) ?? null,
-    }));
+    .map((s) => {
+      // Resolve through the shared timing rule rather than reading pickup_at,
+      // which Phase 1 stopped writing — see shipments/timing.ts.
+      const timing = resolveShipmentTimingFromDomain(s);
+      return {
+        id: s.id,
+        // shipment_number is DB-assigned and effectively always present; the
+        // id slice is a last-resort label so a row can never render nameless.
+        loadNumber: s.shipmentNumber || s.id.slice(0, 8).toUpperCase(),
+        status: s.status,
+        customerName: s.customerName,
+        shipperCity: s.shipperCity,
+        shipperState: s.shipperState,
+        consigneeCity: s.consigneeCity,
+        consigneeState: s.consigneeState,
+        carrierName: s.carrierName,
+        pickupOn: timing.pickup.sortKey,
+        deliveryOn: timing.delivery.sortKey,
+        rcStatus: rcByShipment.get(s.id) ?? null,
+        bolStatus: bolByShipment.get(s.id) ?? null,
+      };
+    });
 
   return <LoadCenterClient loads={loads} />;
 }

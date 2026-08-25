@@ -2,8 +2,9 @@
 
 import { ClickableRow } from "../_shell/ClickableRow";
 import { LIST_HEAD_ROW, ZEBRA_ROWS, Badge } from "../_shell/ui";
-import { titleCaseWords, upperCaseState, formatDate } from "../_shell/format";
+import { titleCaseWords, upperCaseState } from "../_shell/format";
 import { shipmentStatusLabel, shipmentStatusBadgeTone } from "./statusMeta";
+import { formatStopDateShort } from "./timing";
 import type { ShipmentListRow } from "./ShipmentsListClient";
 
 function lane(row: ShipmentListRow): string {
@@ -60,8 +61,8 @@ function ShipmentTableRow({ shipment }: { shipment: ShipmentListRow }) {
       <td className="px-4 py-3">
         <Badge tone={shipmentStatusBadgeTone(shipment.status)}>{shipmentStatusLabel(shipment.status)}</Badge>
       </td>
-      <td className="px-4 py-3 truncate text-fg-muted">{formatDate(shipment.pickupAt)}</td>
-      <td className="px-4 py-3 truncate text-fg-muted">{formatDate(shipment.deliveryAt)}</td>
+      <td className="px-4 py-3 truncate text-fg-muted">{formatStopDateShort(shipment.pickupOn)}</td>
+      <td className="px-4 py-3 truncate text-fg-muted">{formatStopDateShort(shipment.deliveryOn)}</td>
       <td className="px-4 py-3 text-right tabular-nums text-fg-muted">
         {shipment.rateConfirmationCount + shipment.bolCount > 0
           ? `${shipment.rateConfirmationCount} RC · ${shipment.bolCount} BOL`

@@ -1,4 +1,4 @@
-import { formatDate } from "../_shell/format";
+import { formatDate, toDatetimeLocal } from "../_shell/format";
 import type { CrmShipmentRow, StopTimingMode } from "./types";
 
 /**
@@ -37,7 +37,51 @@ export type ResolvedStopTiming = {
   mode: StopTimingMode | null;
   /** One line for compact spots: "August 26, 2026 · 8:30 AM Appointment". */
   summary: string | null;
+  /**
+   * The stop's CALENDAR DAY as "YYYY-MM-DD" — sortable as a plain string, and
+   * the same shape whichever branch produced it, so a new-model row and a
+   * legacy row order against each other correctly.
+   *
+   * dateLabel cannot do this job: "August 26, 2026" sorts alphabetically, and
+   * the two branches produce different month formats. List screens that need
+   * to both sort and render a date use this plus formatStopDateShort below.
+   */
+  sortKey: string | null;
 };
+
+/** "2026-08-26" -> "Aug 26, 2026" — the compact form a dense list column
+ * wants, from the sortKey rather than from dateLabel, so a legacy row and a
+ * new-model row read identically. Same "—" placeholder formatDate() uses, so
+ * an unscheduled stop looks exactly as it does today. */
+export function formatStopDateShort(sortKey: string | null): string {
+  if (!sortKey) return "—";
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(sortKey);
+  if (!m) return "—";
+  const MONTHS_SHORT = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+  ];
+  const month = MONTHS_SHORT[Number(m[2]) - 1];
+  if (!month) return "—";
+  return `${month} ${Number(m[3])}, ${m[1]}`;
+}
+
+/** The Central calendar day a legacy timestamptz falls on, as "YYYY-MM-DD".
+ * Goes through toDatetimeLocal so it uses the same Central conversion every
+ * other CRM read of a stored instant does — a raw slice of the ISO string
+ * would give the UTC day, which is the previous day for anything stored
+ * after 6pm Central. */
+function centralDayOf(iso: string | null): string | null {
+  const local = toDatetimeLocal(iso);
+  return local ? local.slice(0, 10) : null;
+}
+
+/** "2026-08-26" (a Postgres `date`) normalized to a bare sort key. */
+function dateSortKey(value: string | null): string | null {
+  if (!value) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(value.trim());
+  return m ? `${m[1]}-${m[2]}-${m[3]}` : null;
+}
 
 /** "2026-08-26" -> "August 26, 2026". No Date object, no timezone, no drift. */
 function formatDateOnly(value: string | null): string | null {
@@ -115,6 +159,7 @@ export function resolveStopTiming(
       timeLabel,
       mode: mode ?? null,
       summary: [dateLabel, timeLabel].filter(Boolean).join(" · ") || null,
+      sortKey: dateSortKey(date),
     };
   }
 
@@ -130,10 +175,18 @@ export function resolveStopTiming(
       timeLabel,
       mode: null,
       summary: [dateLabel, timeLabel].filter(Boolean).join(" · ") || null,
+      sortKey: centralDayOf(legacyAt),
     };
   }
 
-  return { source: "none", dateLabel: null, timeLabel: null, mode: null, summary: null };
+  return {
+    source: "none",
+    dateLabel: null,
+    timeLabel: null,
+    mode: null,
+    summary: null,
+    sortKey: null,
+  };
 }
 
 /**

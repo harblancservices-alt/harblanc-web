@@ -2,7 +2,8 @@
 
 import { ClickableRow } from "../../_shell/ClickableRow";
 import { LIST_HEAD_ROW, ZEBRA_ROWS } from "../../_shell/ui";
-import { formatDate, titleCaseWords } from "../../_shell/format";
+import { titleCaseWords } from "../../_shell/format";
+import { formatStopDateShort } from "../../shipments/timing";
 import { IconChevronDown } from "../../_shell/icons";
 import { CarrierCell, DocPills, LoadStatusBadge, laneLabel } from "./loadCells";
 import type { LoadRow, SortDir, SortKey } from "./loadRow";
@@ -89,10 +90,10 @@ export function LoadTable({
               <LoadStatusBadge status={row.status} />
             </td>
             <td className="crm-num whitespace-nowrap px-4 py-3 tabular-nums text-fg-muted">
-              {formatDate(row.pickupAt)}
+              {formatStopDateShort(row.pickupOn)}
             </td>
             <td className="crm-num whitespace-nowrap px-4 py-3 tabular-nums text-fg-muted">
-              {formatDate(row.deliveryAt)}
+              {formatStopDateShort(row.deliveryOn)}
             </td>
             <td className="truncate px-4 py-3 text-fg">
               {row.customerName ? titleCaseWords(row.customerName) : "—"}

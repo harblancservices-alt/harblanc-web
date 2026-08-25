@@ -1,5 +1,6 @@
 import { listShipmentsForAccount } from "../../shipments/actions";
 import { ShipmentCard } from "../../shipments/ShipmentCard";
+import { toShipmentListRow } from "../../shipments/shipmentListRow";
 import { NewShipmentButton } from "../../shipments/NewShipmentButton";
 // The ONE definition of "active", shared with Operations → Active Loads.
 // Was a private const here; promoted to statusMeta.ts so the two surfaces
@@ -41,7 +42,7 @@ export async function ShipmentsTab({ accountId, accountName }: { accountId: stri
             ) : (
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {active.map((s) => (
-                  <ShipmentCard key={s.id} shipment={s} />
+                  <ShipmentCard key={s.id} shipment={toShipmentListRow(s)} />
                 ))}
               </div>
             )}
@@ -54,7 +55,7 @@ export async function ShipmentsTab({ accountId, accountName }: { accountId: stri
               </p>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 {historical.map((s) => (
-                  <ShipmentCard key={s.id} shipment={s} />
+                  <ShipmentCard key={s.id} shipment={toShipmentListRow(s)} />
                 ))}
               </div>
             </div>
