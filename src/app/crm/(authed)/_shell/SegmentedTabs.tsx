@@ -4,13 +4,15 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 /**
- * The CRM's ONE tab row — a row of RED BUTTONS (Brent, 2026-08-25). Every tab
- * is the same size and shape: the selected one is filled brand red with white
- * text, the rest are outlined in the same red with red text and a transparent
- * fill. Hover tints an outlined tab with that red at 8%.
+ * The CRM's ONE tab row — a row of BLUE BUTTONS (Brent, 2026-08-25). Every
+ * tab is the same size and shape: the selected one is filled with the primary
+ * accent and white text, the rest are outlined in that accent with accent
+ * text and a transparent fill. Hover tints an outlined tab with the accent at
+ * 8%.
  *
  * NO GREY, ANYWHERE, IN ANY STATE — no track, no border, no text, no fill.
- * See CHIP_INACTIVE for why this is stated so bluntly.
+ * See CHIP_INACTIVE for why this is stated so bluntly, and for why the colour
+ * is the primary blue rather than the alert red.
  *
  * NO GREY ANYWHERE. That is the specific, repeated instruction: the two
  * previous versions of this component (a light-track segmented control, then
@@ -98,23 +100,32 @@ const CHIP_SIZE: Record<SegmentedTabSize, string> = {
   lg: "px-[18px] py-[9px] text-[14px]",
 };
 
-/** Active: a filled brand-red button. */
-const CHIP_ACTIVE = "border-[#c0272d] bg-[#c0272d] font-semibold text-white";
+/** Active: a filled primary-blue button. */
+const CHIP_ACTIVE = "border-accent bg-accent font-semibold text-white";
 
 /**
- * Inactive: an OUTLINED RED button — red border, red text, transparent fill.
- * Hover tints the fill with the same red at 8% and leaves border and text
- * alone.
+ * Inactive: an OUTLINED BLUE button — blue border, blue text, transparent
+ * fill. Hover tints the fill with the same blue at 8% and leaves border and
+ * text alone.
  *
- * Every value here is the literal brand red. NO NEUTRAL TOKEN may be used on
- * a tab in any state — not border-line, not text-fg-muted, not a hover
- * bg-inset. Three earlier revisions of this component were each rejected for
- * the grey they introduced (a grey track, then a grey underline row, then a
- * grey hairline and muted text). If a future change reaches for a neutral
- * here, it is reintroducing the exact thing that was rejected four times.
+ * BLUE, NOT RED. `--accent` (#2f5fd6) is the CRM's primary-action colour —
+ * the same value BTN_PRIMARY paints Assign/Save/Create with. Red is the
+ * alert/destructive accent (Delete shipment, error states); tabs are
+ * navigation, so they take the primary colour.
+ *
+ * NO NEUTRAL TOKEN may be used on a tab in any state — not border-line, not
+ * text-fg-muted, not a hover bg-inset. Four earlier revisions of this
+ * component were each rejected for the grey they introduced (a grey track,
+ * an underline row, a grey hairline, grey text). If a future change reaches
+ * for a neutral here, it is reintroducing exactly what was rejected.
+ *
+ * Unlike the brand red this replaces, `--accent` IS defined in `.crm-light`,
+ * which is the only scope this component ever renders in (CrmShell wraps the
+ * whole /crm/(authed) tree). So this is a real token, not a literal — the red
+ * had to be hardcoded precisely because `--v2-accent` is NOT in this scope.
  */
 const CHIP_INACTIVE =
-  "border-[#c0272d] bg-transparent font-medium text-[#c0272d] hover:bg-[#c0272d]/[0.08]";
+  "border-accent bg-transparent font-medium text-accent hover:bg-accent/[0.08]";
 
 /** The count, inline and quiet — the same treatment on every row, so an
  * outer tab's count and a filter tab's count read as the same thing. */
@@ -130,10 +141,10 @@ function TabCount({
   // An attention count of zero is nothing to chase, so it disappears; an
   // ordinary count of zero is information and stays.
   if (attention && !value) return null;
-  // White on the red fill, red on an outlined tab. `attention` no longer
-  // changes the COLOUR — every count is already the brand red — it only
+  // White on the filled tab, accent blue on an outlined one. `attention` no
+  // longer changes the COLOUR — every count is already the accent — it only
   // controls whether a zero is shown at all.
-  const tone = active ? "text-white/70" : "text-[#c0272d]";
+  const tone = active ? "text-white/70" : "text-accent";
   return <span className={`font-mono text-[11.5px] font-medium tabular-nums ${tone}`}>{value}</span>;
 }
 
