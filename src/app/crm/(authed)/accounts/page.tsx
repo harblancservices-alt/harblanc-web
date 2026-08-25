@@ -12,6 +12,7 @@ import type { RepOption } from "./CompanyDialog";
 import type { CrmTag } from "./tags";
 import { AddContactDialog } from "../contacts/AddContactDialog";
 import type { CompanyOption } from "../contacts/CompanyCombobox";
+import { excludeUnclaimedProspects } from "../ai-agent/queue";
 
 export const dynamic = "force-dynamic";
 
@@ -94,12 +95,14 @@ export default async function CompaniesPage({
   // Restricted the same way the main list is when the caller can't see every
   // company (see getCompanyVisibility) — otherwise a restricted agent could
   // still pick any company by name through this dropdown.
-  let companyOptionsQuery = supabase
-    .from("crm_accounts")
-    .select("id, name")
-    .is("deleted_at", null)
-    .order("name", { ascending: true })
-    .limit(1000);
+  let companyOptionsQuery = excludeUnclaimedProspects(
+    supabase
+      .from("crm_accounts")
+      .select("id, name")
+      .is("deleted_at", null)
+      .order("name", { ascending: true })
+      .limit(1000),
+  );
   if (visibility.restricted) companyOptionsQuery = companyOptionsQuery.eq("assigned_user_id", visibility.userId);
   const { data: companyOptionsData } = await companyOptionsQuery;
   const companyOptions = ((companyOptionsData ?? []) as CompanyOption[]).map((a) => ({
@@ -128,6 +131,13 @@ export default async function CompaniesPage({
     // company) still pass: `column <> value` in SQL is NULL, not true, for
     // NULL columns, which would silently hide every ordinary company.
     .or("ai_status.is.null,ai_status.neq.pending_review");
+
+  // Released-but-unclaimed prospects live in the claim queue (/crm/ai-agent)
+  // only — claiming one is what surfaces it here. Exact complement of that
+  // queue's predicate; see excludeUnclaimedProspects' comment for why it's a
+  // negated OR and why it's narrower than "assigned_user_id IS NULL" (the
+  // "Unassigned" rep filter below still works for never-assigned companies).
+  query = excludeUnclaimedProspects(query);
 
   if (stage) query = query.eq("lifecycle_status", stage);
   // A restricted agent (can_view_all_companies=false) only ever sees their
