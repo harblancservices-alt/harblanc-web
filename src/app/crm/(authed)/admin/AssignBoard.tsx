@@ -397,11 +397,24 @@ export function AssignBoard({
                         )}
                       </p>
                     </div>
+                    {/* SOLID BLUE IN ITS BASE STATE. It used to be disabled
+                        whenever nothing was selected, which rendered it at
+                        60% opacity — three washed-out buttons stacked down
+                        the panel, reading as broken rather than as the
+                        primary action. It is the primary action on this
+                        panel, so it looks like one at all times.
+                        With no selection it does the useful thing instead of
+                        nothing: turns on select mode so you can pick. */}
                     <button
                       type="button"
-                      disabled={selectedCount === 0 || pending}
-                      onClick={() => handOff(p.id, Array.from(selected), p.name)}
-                      className={`shrink-0 rounded-md px-3 py-2 text-[12.5px] font-bold transition-colors disabled:pointer-events-none disabled:opacity-40 ${BTN_PRIMARY}`}
+                      disabled={pending}
+                      onClick={() =>
+                        selectedCount === 0
+                          ? setSelectMode(true)
+                          : handOff(p.id, Array.from(selected), p.name)
+                      }
+                      title={selectedCount === 0 ? "Pick work on the left to hand to this person" : undefined}
+                      className={`shrink-0 rounded-md px-3 py-2 text-[12.5px] font-bold transition-colors disabled:opacity-60 ${BTN_PRIMARY}`}
                     >
                       {pending ? "Assigning…" : `Assign ${selectedCount || ""}`.trim()}
                     </button>
@@ -497,16 +510,20 @@ function TaskComposer({ team, items }: { team: TeamMember[]; items: WorkItem[] }
       <div className="flex flex-col gap-3 p-4">
         <div>
           <p className={LABEL}>Quick tasks — one click</p>
-          <div className="mt-1.5 flex flex-wrap gap-1.5">
+          {/* A fixed grid, not flex-wrap. Six buttons of different widths
+              wrapped raggedly and left "Chase the PO" orphaned on its own
+              line at most widths; an even grid puts three per row at every
+              size the panel actually gets. */}
+          <div className="mt-1.5 grid grid-cols-2 gap-1.5 sm:grid-cols-3">
             {QUICK_TASKS.map((q) => (
               <button
                 key={q}
                 type="button"
                 onClick={() => setTitle(q)}
-                className={`rounded-[5px] border px-2.5 py-1.5 text-[12.5px] font-semibold transition-colors ${
+                className={`rounded-[5px] border px-2.5 py-1.5 text-center text-[12.5px] font-semibold transition-colors ${
                   title === q
-                    ? "border-accent bg-accent/10 text-accent"
-                    : "border-line-strong bg-card text-fg-muted hover:border-accent/50 hover:text-fg"
+                    ? "border-accent bg-accent text-white"
+                    : "border-accent/40 bg-card text-accent hover:border-accent hover:bg-accent-bg"
                 }`}
               >
                 {q}
