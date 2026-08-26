@@ -1,4 +1,5 @@
 import { createCrmServerClient, requireCrmUser } from "@/lib/crm/auth";
+import { initialsOf } from "../_shell/format";
 import { needsLabel, type WorkItem } from "./workItem";
 
 /**
@@ -54,13 +55,6 @@ export type AssignBoardData = {
   now: number;
 };
 
-function initialsOf(name: string, email: string | null): string {
-  const source = name.trim() || (email ?? "").split("@")[0].replace(/[._-]+/g, " ");
-  const parts = source.split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
 
 /** Stages that still count as "on someone's plate" for the load readout. A
  * won or dropped-out company is not work in progress. */

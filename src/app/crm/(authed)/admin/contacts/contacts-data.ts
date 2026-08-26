@@ -1,6 +1,5 @@
 import { createCrmServerClient, requireCrmUser } from "@/lib/crm/auth";
-import { CRM_CONTACT_ACTIVITY_KINDS } from "@/lib/crm/activity";
-import { timestampMs } from "../../_shell/format";
+import { lastContactByContact } from "@/lib/crm/lastContact";
 
 /**
  * Server-side read for Admin → Contacts — every crm_contacts row in the org,
@@ -72,27 +71,9 @@ export async function getAdminContactsData(): Promise<AdminContactsData> {
   const contacts = contactsRes.data ?? [];
   const contactIds = contacts.map((c) => c.id as string);
 
-  const [callsRes, activitiesRes] = contactIds.length
-    ? await Promise.all([
-        supabase
-          .from("crm_calls")
-          .select("contact_id, occurred_at")
-          .in("contact_id", contactIds)
-          .is("deleted_at", null)
-          .order("occurred_at", { ascending: false })
-          .limit(3000),
-        supabase
-          .from("crm_activities")
-          .select("contact_id, occurred_at")
-          .in("contact_id", contactIds)
-          .in("kind", CRM_CONTACT_ACTIVITY_KINDS)
-          .order("occurred_at", { ascending: false })
-          .limit(3000),
-      ])
-    : [
-        { data: [] as { contact_id: string; occurred_at: string }[] },
-        { data: [] as { contact_id: string; occurred_at: string }[] },
-      ];
+  // Last contact per CONTACT — the shared definition
+  // (lib/crm/lastContact.ts), the per-person clock rather than the company's.
+  const lastContactMsByContact = await lastContactByContact(supabase, contactIds);
 
   const nameByUser = new Map<string, string>();
   for (const p of profilesRes.data ?? []) {
@@ -110,17 +91,6 @@ export async function getAdminContactsData(): Promise<AdminContactsData> {
       },
     ]),
   );
-
-  // Reduced to a single MAX(occurred_at) per contact.
-  const lastContactMsByContact = new Map<string, number>();
-  for (const r of [...(callsRes.data ?? []), ...(activitiesRes.data ?? [])]) {
-    const id = r.contact_id as string | null;
-    if (!id) continue;
-    const ms = timestampMs(r.occurred_at as string);
-    if (ms === null) continue;
-    const current = lastContactMsByContact.get(id);
-    if (current === undefined || ms > current) lastContactMsByContact.set(id, ms);
-  }
 
   const rows: AdminContactRow[] = contacts.map((c) => {
     const accountId = (c.account_id as string | null) ?? null;

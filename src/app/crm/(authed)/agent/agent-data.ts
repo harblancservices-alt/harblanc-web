@@ -1,6 +1,6 @@
 import { createCrmServerClient, type CrmUser } from "@/lib/crm/auth";
-import { CRM_CONTACT_ACTIVITY_KINDS } from "@/lib/crm/activity";
-import { timestampMs } from "../_shell/format";
+import { contactCountByAccount } from "@/lib/crm/contactCount";
+import { lastContactByAccount } from "@/lib/crm/lastContact";
 import { normalizePriority } from "../tasks/priority";
 import type { AgentTask, AgentCompany } from "./agentWork";
 import type { CompletenessInput } from "./completeness";
@@ -59,36 +59,8 @@ export async function getAgentDashboardData(user: CrmUser): Promise<AgentDashboa
   const accountIds = accounts.map((a) => a.id as string);
   const nameById = new Map(accounts.map((a) => [a.id as string, (a.name as string) || "Unnamed company"]));
 
-  const [callsRes, activitiesRes] = accountIds.length
-    ? await Promise.all([
-        supabase
-          .from("crm_calls")
-          .select("account_id, occurred_at")
-          .in("account_id", accountIds)
-          .is("deleted_at", null)
-          .order("occurred_at", { ascending: false })
-          .limit(2000),
-        supabase
-          .from("crm_activities")
-          .select("account_id, occurred_at")
-          .in("account_id", accountIds)
-          .in("kind", CRM_CONTACT_ACTIVITY_KINDS)
-          .order("occurred_at", { ascending: false })
-          .limit(2000),
-      ])
-    : [
-        { data: [] as { account_id: string; occurred_at: string }[] },
-        { data: [] as { account_id: string; occurred_at: string }[] },
-      ];
-
-  const lastContactMsByAccount = new Map<string, number>();
-  for (const r of [...(callsRes.data ?? []), ...(activitiesRes.data ?? [])]) {
-    const ms = timestampMs(r.occurred_at as string);
-    if (ms === null) continue;
-    const id = r.account_id as string;
-    const current = lastContactMsByAccount.get(id);
-    if (current === undefined || ms > current) lastContactMsByAccount.set(id, ms);
-  }
+  // Last contact — the shared definition (lib/crm/lastContact.ts).
+  const lastContactMsByAccount = await lastContactByAccount(supabase, accountIds);
 
   // A task can point at a company this agent does NOT own — an admin can send
   // one about anything, and the ownership of a company can move while a task
@@ -153,19 +125,7 @@ export async function getAgentDashboardData(user: CrmUser): Promise<AgentDashboa
     };
   });
 
-  // One grouped count for the whole book, rather than a query per company.
-  const contactCountByAccount = new Map<string, number>();
-  if (accountIds.length) {
-    const { data: contactRows } = await supabase
-      .from("crm_contacts")
-      .select("account_id")
-      .in("account_id", accountIds)
-      .is("deleted_at", null);
-    for (const c of contactRows ?? []) {
-      const id = c.account_id as string;
-      contactCountByAccount.set(id, (contactCountByAccount.get(id) ?? 0) + 1);
-    }
-  }
+  const contactCounts = await contactCountByAccount(supabase, accountIds);
 
   const completeness: CompletenessInput[] = accounts.map((a) => ({
     id: a.id as string,
@@ -174,7 +134,7 @@ export async function getAgentDashboardData(user: CrmUser): Promise<AgentDashboa
     state: (a.state as string | null) ?? null,
     address: (a.address as string | null) ?? null,
     industry: (a.industry as string | null) ?? null,
-    contactCount: contactCountByAccount.get(a.id as string) ?? 0,
+    contactCount: contactCounts.get(a.id as string) ?? 0,
   }));
 
   const companies: AgentCompany[] = accounts.map((a) => ({

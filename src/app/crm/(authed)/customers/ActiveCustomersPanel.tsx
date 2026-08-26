@@ -1,10 +1,11 @@
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { getCompanyVisibility, applyCompanyVisibility } from "../_shell/companyVisibility";
+import { countContactRows } from "@/lib/crm/contactCount";
+import { lastContactByAccount } from "@/lib/crm/lastContact";
 import { Card, CardHead, EmptyState } from "../_shell/ui";
 import { IconCustomers } from "../_shell/icons";
-import { firstName, timestampMs, titleCaseWords } from "../_shell/format";
+import { firstName, titleCaseWords } from "../_shell/format";
 import { parsePhones } from "../_shell/contactFields";
-import { CRM_CONTACT_ACTIVITY_KINDS } from "@/lib/crm/activity";
 import { CompanyListCard, type CompanyCardData } from "../accounts/CompanyListCard";
 import { CompanyTable } from "../accounts/CompanyTable";
 import type { CrmTag } from "../accounts/tags";
@@ -72,7 +73,7 @@ export async function ActiveCustomersPanel() {
     name: titleCaseWords(a.name),
   }));
 
-  const [profilesRes, tagsRes, tagLinkRes, contactsRes, lastCallsRes, lastActivitiesRes] = await Promise.all([
+  const [profilesRes, tagsRes, tagLinkRes, contactsRes] = await Promise.all([
     supabase.from("crm_profiles").select("id, full_name, email, is_active, role"),
     supabase.from("crm_tags").select("id, label, color").order("label"),
     accountIds.length
@@ -81,24 +82,6 @@ export async function ActiveCustomersPanel() {
     accountIds.length
       ? supabase.from("crm_contacts").select("id, name, account_id").in("account_id", accountIds).is("deleted_at", null)
       : Promise.resolve({ data: [] as { id: string; name: string; account_id: string }[] }),
-    accountIds.length
-      ? supabase
-          .from("crm_calls")
-          .select("account_id, occurred_at")
-          .in("account_id", accountIds)
-          .is("deleted_at", null)
-          .order("occurred_at", { ascending: false })
-          .limit(2000)
-      : Promise.resolve({ data: [] as { account_id: string; occurred_at: string }[] }),
-    accountIds.length
-      ? supabase
-          .from("crm_activities")
-          .select("account_id, occurred_at")
-          .in("account_id", accountIds)
-          .in("kind", CRM_CONTACT_ACTIVITY_KINDS)
-          .order("occurred_at", { ascending: false })
-          .limit(2000)
-      : Promise.resolve({ data: [] as { account_id: string; occurred_at: string }[] }),
   ]);
 
   const tagById = new Map(((tagsRes.data ?? []) as CrmTag[]).map((t) => [t.id, t]));
@@ -113,10 +96,11 @@ export async function ActiveCustomersPanel() {
   for (const list of tagsByAccount.values()) list.sort((a, b) => a.label.localeCompare(b.label));
 
   const contactRows = (contactsRes.data ?? []) as { id: string; name: string; account_id: string }[];
-  const contactCountByAccount = new Map<string, number>();
+  // The rows are already here for the task-contact picker, so the count comes
+  // from the shared pure counter rather than a second query.
+  const contactCounts = countContactRows(contactRows);
   const contactOptionsByAccount = new Map<string, TaskContactOption[]>();
   for (const c of contactRows) {
-    contactCountByAccount.set(c.account_id, (contactCountByAccount.get(c.account_id) ?? 0) + 1);
     const list = contactOptionsByAccount.get(c.account_id) ?? [];
     list.push({ id: c.id, name: titleCaseWords(c.name) });
     contactOptionsByAccount.set(c.account_id, list);
@@ -135,16 +119,8 @@ export async function ActiveCustomersPanel() {
     currentUser,
   };
 
-  const lastContactMsByAccount = new Map<string, number>();
-  for (const row of [
-    ...((lastCallsRes.data ?? []) as { account_id: string; occurred_at: string }[]),
-    ...((lastActivitiesRes.data ?? []) as { account_id: string; occurred_at: string }[]),
-  ]) {
-    const ms = timestampMs(row.occurred_at);
-    if (ms === null) continue;
-    const current = lastContactMsByAccount.get(row.account_id);
-    if (current === undefined || ms > current) lastContactMsByAccount.set(row.account_id, ms);
-  }
+  // Last contact — the shared definition (lib/crm/lastContact.ts).
+  const lastContactMsByAccount = await lastContactByAccount(supabase, accountIds);
 
   const cards: CompanyCardData[] = accounts.map((a) => ({
     id: a.id,
@@ -153,7 +129,7 @@ export async function ActiveCustomersPanel() {
     city: a.city,
     state: a.state,
     primaryTag: tagsByAccount.get(a.id)?.[0] ?? null,
-    contactCount: contactCountByAccount.get(a.id) ?? 0,
+    contactCount: contactCounts.get(a.id) ?? 0,
     lastContactMs: lastContactMsByAccount.get(a.id) ?? null,
     phone: parsePhones(a.phones)[0]?.number || a.phone,
   }));

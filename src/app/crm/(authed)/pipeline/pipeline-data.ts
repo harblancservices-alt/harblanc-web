@@ -1,10 +1,9 @@
 import { createCrmServerClient, type CrmUser } from "@/lib/crm/auth";
-import { CRM_CONTACT_ACTIVITY_KINDS } from "@/lib/crm/activity";
-import { timestampMs } from "../_shell/format";
 import {
   getCompanyVisibility,
   applyCompanyVisibility,
 } from "../_shell/companyVisibility";
+import { lastContactByAccount } from "@/lib/crm/lastContact";
 import type { PipelineCard } from "./pipeline";
 
 /**
@@ -45,46 +44,20 @@ export async function getPipelineData(user: CrmUser): Promise<PipelineData> {
   const accounts = accountData ?? [];
   const accountIds = accounts.map((a) => a.id as string);
 
-  const [callsRes, activitiesRes, tasksRes] = accountIds.length
-    ? await Promise.all([
-        supabase
-          .from("crm_calls")
-          .select("account_id, occurred_at")
-          .in("account_id", accountIds)
-          .is("deleted_at", null)
-          .order("occurred_at", { ascending: false })
-          .limit(3000),
-        supabase
-          .from("crm_activities")
-          .select("account_id, occurred_at")
-          .in("account_id", accountIds)
-          .in("kind", CRM_CONTACT_ACTIVITY_KINDS)
-          .order("occurred_at", { ascending: false })
-          .limit(3000),
-        supabase
-          .from("crm_tasks")
-          .select("account_id")
-          .in("account_id", accountIds)
-          .eq("status", "open")
-          .is("deleted_at", null),
-      ])
-    : [
-        { data: [] as { account_id: string; occurred_at: string }[] },
-        { data: [] as { account_id: string; occurred_at: string }[] },
-        { data: [] as { account_id: string }[] },
-      ];
+  const { data: taskRows } = accountIds.length
+    ? await supabase
+        .from("crm_tasks")
+        .select("account_id")
+        .in("account_id", accountIds)
+        .eq("status", "open")
+        .is("deleted_at", null)
+    : { data: [] as { account_id: string }[] };
 
-  const lastContactMsByAccount = new Map<string, number>();
-  for (const r of [...(callsRes.data ?? []), ...(activitiesRes.data ?? [])]) {
-    const ms = timestampMs(r.occurred_at as string);
-    if (ms === null) continue;
-    const id = r.account_id as string;
-    const current = lastContactMsByAccount.get(id);
-    if (current === undefined || ms > current) lastContactMsByAccount.set(id, ms);
-  }
+  // Last contact — the shared definition (lib/crm/lastContact.ts).
+  const lastContactMsByAccount = await lastContactByAccount(supabase, accountIds);
 
   const openTasksByAccount = new Map<string, number>();
-  for (const t of tasksRes.data ?? []) {
+  for (const t of taskRows ?? []) {
     const id = t.account_id as string | null;
     if (id) openTasksByAccount.set(id, (openTasksByAccount.get(id) ?? 0) + 1);
   }

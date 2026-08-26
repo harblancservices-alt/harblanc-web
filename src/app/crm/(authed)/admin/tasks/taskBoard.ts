@@ -1,5 +1,5 @@
 import { taskDueBucket } from "@/lib/crm/taskUrgency";
-import { timestampMs } from "../../_shell/format";
+import { initialsOf, timestampMs } from "../../_shell/format";
 import { summarizeDue, UNASSIGNED_KEY, type DueCounts, type DueTaskRow } from "../dueReport";
 
 /**
@@ -16,6 +16,9 @@ import { summarizeDue, UNASSIGNED_KEY, type DueCounts, type DueTaskRow } from ".
  */
 
 export { UNASSIGNED_KEY };
+// Re-exported so the board and its tests keep one import site while the
+// implementation lives with the other display helpers.
+export { initialsOf };
 
 export type BoardColumn = {
   /** An assignee id, or UNASSIGNED_KEY. Also the drop target's id. */
@@ -62,12 +65,6 @@ export function sortByUrgency(cards: DueTaskRow[], now: Date = new Date()): DueT
   });
 }
 
-export function initialsOf(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
 
 /**
  * One column per person, UNASSIGNED FIRST.

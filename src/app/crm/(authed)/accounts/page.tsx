@@ -5,14 +5,15 @@ import { IconCompanies } from "../_shell/icons";
 import { AccountsFilters } from "./AccountsFilters";
 import { CompanyListCard, type CompanyCardData } from "./CompanyListCard";
 import { CompanyTable } from "./CompanyTable";
-import { firstName, titleCaseWords, timestampMs } from "../_shell/format";
+import { firstName, titleCaseWords } from "../_shell/format";
 import { parsePhones } from "../_shell/contactFields";
-import { CRM_CONTACT_ACTIVITY_KINDS } from "@/lib/crm/activity";
 import type { RepOption } from "./CompanyDialog";
 import type { CrmTag } from "./tags";
 import { AddContactDialog } from "../contacts/AddContactDialog";
 import type { CompanyOption } from "../contacts/CompanyCombobox";
 import { excludeUnclaimedProspects } from "../ai-agent/queue";
+import { contactCountByAccount } from "@/lib/crm/contactCount";
+import { lastContactByAccount } from "@/lib/crm/lastContact";
 
 export const dynamic = "force-dynamic";
 
@@ -174,37 +175,11 @@ export default async function CompaniesPage({
 
   const accountIds = accounts.map((a) => a.id);
 
-  const [tagLinkRes, contactsRes, lastCallsRes, lastActivitiesRes] = await Promise.all([
+  const [tagLinkRes, contactCounts] = await Promise.all([
     accountIds.length
       ? supabase.from("crm_account_tags").select("account_id, tag_id").in("account_id", accountIds)
       : Promise.resolve({ data: [] as { account_id: string; tag_id: string }[] }),
-    accountIds.length
-      ? supabase.from("crm_contacts").select("id, account_id").in("account_id", accountIds).is("deleted_at", null)
-      : Promise.resolve({ data: [] as { id: string; account_id: string }[] }),
-    // Last-contact column: newest-first rows from each source, capped well
-    // above what 200 companies' worth of recent history could need — reduced
-    // to a single MAX(occurred_at) per company below.
-    accountIds.length
-      ? supabase
-          .from("crm_calls")
-          .select("account_id, occurred_at")
-          .in("account_id", accountIds)
-          .is("deleted_at", null)
-          .order("occurred_at", { ascending: false })
-          .limit(2000)
-      : Promise.resolve({ data: [] as { account_id: string; occurred_at: string }[] }),
-    accountIds.length
-      ? supabase
-          .from("crm_activities")
-          .select("account_id, occurred_at")
-          .in("account_id", accountIds)
-          // Only kinds that represent a human actually reaching the company
-          // — see CRM_CONTACT_ACTIVITY_KINDS. Without this, an AI-research
-          // run or any other system/automated event reads as "contacted."
-          .in("kind", CRM_CONTACT_ACTIVITY_KINDS)
-          .order("occurred_at", { ascending: false })
-          .limit(2000)
-      : Promise.resolve({ data: [] as { account_id: string; occurred_at: string }[] }),
+    contactCountByAccount(supabase, accountIds),
   ]);
 
   const tagsByAccount = new Map<string, CrmTag[]>();
@@ -217,27 +192,11 @@ export default async function CompaniesPage({
   }
   for (const list of tagsByAccount.values()) list.sort((a, b) => a.label.localeCompare(b.label));
 
-  const contactCountByAccount = new Map<string, number>();
-  for (const c of (contactsRes.data ?? []) as { id: string; account_id: string }[]) {
-    contactCountByAccount.set(c.account_id, (contactCountByAccount.get(c.account_id) ?? 0) + 1);
-  }
 
-  // Last-contact — the more recent of the account's last logged call and its
-  // last CONTACT-kind timeline activity (a call already lands in
-  // crm_activities too, but a note/stage-change/contact-add with no call
-  // should still count as contact). The activities query above is filtered
-  // to CRM_CONTACT_ACTIVITY_KINDS, so system/automated rows (AI research, AI
-  // suggestions, record creation, etc.) never inflate this.
-  const lastContactMsByAccount = new Map<string, number>();
-  for (const row of [
-    ...((lastCallsRes.data ?? []) as { account_id: string; occurred_at: string }[]),
-    ...((lastActivitiesRes.data ?? []) as { account_id: string; occurred_at: string }[]),
-  ]) {
-    const ms = timestampMs(row.occurred_at);
-    if (ms === null) continue;
-    const current = lastContactMsByAccount.get(row.account_id);
-    if (current === undefined || ms > current) lastContactMsByAccount.set(row.account_id, ms);
-  }
+  // Last contact — THE shared definition (lib/crm/lastContact.ts), not a
+  // local reduce. Six readers used to carry their own copy of this query
+  // pair; they now all call the same helper.
+  const lastContactMsByAccount = await lastContactByAccount(supabase, accountIds);
 
   if (sort === "stale") {
     // Coldest (or never-contacted) first, so stale accounts surface at the
@@ -256,7 +215,7 @@ export default async function CompaniesPage({
     city: a.city,
     state: a.state,
     primaryTag: tagsByAccount.get(a.id)?.[0] ?? null,
-    contactCount: contactCountByAccount.get(a.id) ?? 0,
+    contactCount: contactCounts.get(a.id) ?? 0,
     lastContactMs: lastContactMsByAccount.get(a.id) ?? null,
     phone: parsePhones(a.phones)[0]?.number || a.phone,
   }));

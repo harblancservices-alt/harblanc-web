@@ -1,6 +1,6 @@
 import { createCrmServerClient, requireCrmUser } from "@/lib/crm/auth";
-import { CRM_CONTACT_ACTIVITY_KINDS } from "@/lib/crm/activity";
-import { timestampMs } from "../../_shell/format";
+import { initialsOf } from "../../_shell/format";
+import { lastContactByAccount } from "@/lib/crm/lastContact";
 import type { CompanyRow } from "./companyRow";
 
 /**
@@ -27,12 +27,6 @@ export type CompaniesData = {
   agents: CompanyAgent[];
 };
 
-function initialsOf(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
 
 export async function getCompaniesData(): Promise<CompaniesData> {
   const user = await requireCrmUser();
@@ -47,32 +41,12 @@ export async function getCompaniesData(): Promise<CompaniesData> {
   const accounts = accountData ?? [];
   const accountIds = accounts.map((a) => a.id as string);
 
-  const [profilesRes, callsRes, activitiesRes, tasksRes] = await Promise.all([
+  const [profilesRes, tasksRes] = await Promise.all([
     supabase
       .from("crm_profiles")
       .select("id, full_name, email")
       .eq("org_id", user.orgId)
       .eq("is_active", true),
-
-    accountIds.length
-      ? supabase
-          .from("crm_calls")
-          .select("account_id, occurred_at")
-          .in("account_id", accountIds)
-          .is("deleted_at", null)
-          .order("occurred_at", { ascending: false })
-          .limit(2000)
-      : Promise.resolve({ data: [] as { account_id: string; occurred_at: string }[] }),
-
-    accountIds.length
-      ? supabase
-          .from("crm_activities")
-          .select("account_id, occurred_at")
-          .in("account_id", accountIds)
-          .in("kind", CRM_CONTACT_ACTIVITY_KINDS)
-          .order("occurred_at", { ascending: false })
-          .limit(2000)
-      : Promise.resolve({ data: [] as { account_id: string; occurred_at: string }[] }),
 
     supabase
       .from("crm_tasks")
@@ -88,16 +62,8 @@ export async function getCompaniesData(): Promise<CompaniesData> {
     nameByUser.set(p.id as string, name);
   }
 
-  // Reduced to a single MAX(occurred_at) per company, exactly as the
-  // Companies list does it.
-  const lastContactMsByAccount = new Map<string, number>();
-  for (const r of [...(callsRes.data ?? []), ...(activitiesRes.data ?? [])]) {
-    const ms = timestampMs(r.occurred_at as string);
-    if (ms === null) continue;
-    const id = r.account_id as string;
-    const current = lastContactMsByAccount.get(id);
-    if (current === undefined || ms > current) lastContactMsByAccount.set(id, ms);
-  }
+  // Last contact — the shared definition (lib/crm/lastContact.ts).
+  const lastContactMsByAccount = await lastContactByAccount(supabase, accountIds);
 
   const openWorkByAccount = new Map<string, number>();
   for (const t of tasksRes.data ?? []) {

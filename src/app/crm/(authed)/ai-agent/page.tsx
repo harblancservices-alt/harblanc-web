@@ -1,3 +1,4 @@
+import { contactCountByAccount } from "@/lib/crm/contactCount";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { PageShell, Card, EmptyState } from "../_shell/ui";
 import { IconAiAgent } from "../_shell/icons";
@@ -39,18 +40,7 @@ export default async function AiAgentPage() {
   const leads = (data ?? []) as AccountRow[];
   const ids = leads.map((l) => l.id);
 
-  const { data: contactRows } = ids.length
-    ? await supabase
-        .from("crm_contacts")
-        .select("account_id")
-        .in("account_id", ids)
-        .is("deleted_at", null)
-    : { data: [] as { account_id: string }[] };
-
-  const contactCountByAccount = new Map<string, number>();
-  for (const c of (contactRows ?? []) as { account_id: string }[]) {
-    contactCountByAccount.set(c.account_id, (contactCountByAccount.get(c.account_id) ?? 0) + 1);
-  }
+  const contactCounts = await contactCountByAccount(supabase, ids);
 
   const agentLeads: AiAgentLead[] = leads.map((l) => ({
     id: l.id,
@@ -58,7 +48,7 @@ export default async function AiAgentPage() {
     city: l.city,
     state: l.state,
     commodities: l.commodities,
-    contactCount: contactCountByAccount.get(l.id) ?? 0,
+    contactCount: contactCounts.get(l.id) ?? 0,
   }));
 
   return (

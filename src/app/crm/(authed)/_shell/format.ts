@@ -374,6 +374,25 @@ export function lastContactStatus(
  * leaving inconsistent casing as-is. Never applied to free-form note/
  * summary body text — only to name/company/address/city fields.
  */
+/**
+ * Two-letter avatar initials for a person — THE implementation.
+ *
+ * Was three: admin/assign-data.ts, admin/companies/companies-data.ts and
+ * admin/tasks/taskBoard.ts each carried a copy, two identical and one with an
+ * email fallback the others lacked. This is the superset, so an avatar for a
+ * profile with no full_name reads "BH" from brent@… rather than "?".
+ *
+ * First and last initial for a multi-word name ("Mary Jane Watson" -> MW),
+ * the first two letters for a single word, "?" when there is nothing at all.
+ */
+export function initialsOf(name: string, email?: string | null): string {
+  const source = name.trim() || (email ?? "").split("@")[0].replace(/[._-]+/g, " ");
+  const parts = source.split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
 export function titleCaseWords(value: string | null | undefined): string {
   if (!value) return "";
   return value
