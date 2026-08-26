@@ -1,31 +1,55 @@
+"use client";
+
+import { useState, useTransition } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { titleCaseWords } from "../_shell/format";
-import { GAP_REASON, type CompletenessGap } from "./completeness";
+import { ContactDialog } from "../accounts/[id]/ContactDialog";
+import { fillCompanyGap } from "../accounts/[id]/details-actions";
+import { GAP_REASON, type CompletenessGap, type GapKind } from "./completeness";
 
 /**
- * Completeness gaps, rendered ALONGSIDE real tasks but visibly not one of
- * them.
+ * Completeness gaps — grouped by company, and FIXABLE WHERE THEY SIT.
  *
- * THE VISUAL DISTINCTION IS THE POINT (Brent, 2026-08-26). An agent has to be
- * able to tell "the system noticed this" from "Brent asked me for this",
- * because only one of those is worth pushing back on. So a gap row:
+ * Brent, 2026-08-26: "give the gaps record a real look and function."
  *
- *   - has NO checkbox. There is nothing to complete — it disappears when the
- *     field is filled, which is a different mechanism and should look like
- *     one. A tick box would promise a completion that cannot happen.
- *   - is prefixed with a hollow square rather than the tasks' filled dot.
- *   - sits on the inset surface, not a white card.
- *   - says why, in muted text, so the ask never reads as arbitrary.
+ * FUNCTION. A gap used to be a link: it told you something was missing and
+ * sent you to the company profile to fix it, which meant leaving the
+ * dashboard, finding the field, saving, and coming back. Now the input opens
+ * in the row. Type it, save, the row goes — that disappearance is the whole
+ * reward, so it happens immediately rather than waiting on a page reload.
  *
- * Everything here is derived per render from the company record. Nothing is
- * stored, nothing is counted in the open/overdue numbers, and there is
- * nothing to reap when it is fixed.
+ * "FIND A CONTACT" IS THE EXCEPTION and opens the real add-contact dialog,
+ * pre-filled with the company. A person is a name, a title, a number and an
+ * email; cramming that into one inline field would produce bad records
+ * faster, which is the opposite of the point.
+ *
+ * GROUPED BY COMPANY. Five rows covering two companies read as five
+ * unrelated chores; two blocks read as "these two companies need filling
+ * in", which is what it actually is. It also roughly halves the height.
+ *
+ * WHAT DELIBERATELY DID NOT CHANGE, because it was already right: gaps are
+ * DERIVED and never stored (completeness.ts), so there is nothing to reap
+ * and they self-heal; there is no checkbox and no Done button, because
+ * there is nothing to complete — the row leaves when the field is filled;
+ * and they stay out of the overdue and due-today counts, which only ever
+ * mean real tasks.
+ *
+ * The optimistic hide plus router.refresh() is deliberate: the refresh
+ * re-derives the gaps from the server, so if a save half-succeeded the row
+ * comes back rather than staying gone on a lie.
  */
+
+/** What the inline editor asks for, per kind. `null` means this kind is not
+ * inline-fixable and opens a dialog instead. */
+const INLINE: Partial<Record<GapKind, { placeholder: string; label: string }>> = {
+  industry: { placeholder: "e.g. Scaffolding, Pumps, Fence rental", label: "Industry" },
+  address: { placeholder: "Street address", label: "Address" },
+};
+
 export function CompletenessList({
   gaps,
   total,
-  /** Heading tone — the dashboard gives this its own card, the planning board
-   * tucks it under the Inbox column. */
   compact = false,
 }: {
   gaps: CompletenessGap[];
@@ -33,45 +57,170 @@ export function CompletenessList({
   total: number;
   compact?: boolean;
 }) {
-  if (gaps.length === 0) return null;
+  const router = useRouter();
+  const [pending, startTransition] = useTransition();
+  /** Rows hidden the instant they save, before the server round-trip lands. */
+  const [fixed, setFixed] = useState<Set<string>>(new Set());
+  const [editing, setEditing] = useState<string | null>(null);
+  const [value, setValue] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const visible = gaps.filter((g) => !fixed.has(g.id));
+  if (visible.length === 0) return null;
+
+  // Grouped, preserving the order companies first appear in.
+  const byCompany = new Map<string, { name: string; gaps: CompletenessGap[] }>();
+  for (const g of visible) {
+    const entry = byCompany.get(g.companyId) ?? { name: g.companyName, gaps: [] };
+    entry.gaps.push(g);
+    byCompany.set(g.companyId, entry);
+  }
+
+  function open(gap: CompletenessGap) {
+    setEditing(gap.id);
+    setValue("");
+    setError(null);
+  }
+
+  function save(gap: CompletenessGap) {
+    const v = value.trim();
+    if (!v) return;
+    setError(null);
+    startTransition(async () => {
+      const res = await fillCompanyGap(gap.companyId, gap.kind, v);
+      if (!res.ok) {
+        setError(res.error);
+        return;
+      }
+      setFixed((prev) => new Set(prev).add(gap.id));
+      setEditing(null);
+      setValue("");
+      router.refresh();
+    });
+  }
 
   return (
-    <div className={compact ? "" : "border-t border-line"}>
-      <div className="flex flex-wrap items-baseline gap-2 px-3 py-2">
-        <span className="text-[11px] font-bold uppercase tracking-[0.09em] text-fg-muted">
-          Gaps in your records
-        </span>
-        {/* Says "5 of 23" rather than implying five is all there is. */}
-        <span className="text-[11.5px] text-fg-subtle">
-          {total > gaps.length ? `${gaps.length} of ${total}` : total}
-        </span>
-      </div>
+    <div className={compact ? "" : ""}>
+      {/* No second heading: the card this sits in already says "Gaps". The
+          count moves up here so the panel is one header, not two. */}
+      {total > visible.length && (
+        <p className="px-4 pb-1 pt-2 text-[11.5px] text-fg-subtle">
+          Showing {visible.length} of {total}
+        </p>
+      )}
 
-      <ul className="space-y-1 px-2 pb-2">
-        {gaps.map((gap) => (
-          <li key={gap.id}>
+      {error && (
+        <p className="mx-3 mb-2 rounded-md border border-bad/30 bg-bad-bg px-2.5 py-1.5 text-[12px] font-semibold text-bad">
+          {error}
+        </p>
+      )}
+
+      <ul className="flex flex-col gap-2 p-3">
+        {[...byCompany.entries()].map(([companyId, entry]) => (
+          <li
+            key={companyId}
+            className="rounded-lg border border-line-strong bg-card p-3 shadow-e1"
+          >
             <Link
-              href={gap.href}
+              href={`/crm/accounts/${companyId}`}
               prefetch={false}
-              className="flex items-start gap-2 rounded-[5px] border border-dashed border-line-strong bg-inset px-2.5 py-2 transition-colors hover:border-accent hover:bg-accent-bg"
+              className="block truncate text-[13px] font-bold text-fg hover:text-accent hover:underline"
             >
-              {/* A DASH, not a box (2026-08-26). This was a 9px hollow
-                  square, chosen to read as "not a checkbox" — and it did not.
-                  At real size a small bordered square IS an unchecked
-                  checkbox to the eye, whatever the DOM says, and Brent asked
-                  twice what these rows were. A dash cannot be mistaken for
-                  something tickable: there is no box to tick. It is also
-                  distinct from the task card's round checkbox AND from the
-                  high-priority dot, so nothing on either surface reads as a
-                  control that is not one. */}
-              <span aria-hidden className="mt-[7px] h-px w-2 shrink-0 bg-fg-subtle" />
-              <span className="min-w-0 flex-1">
-                <span className="block text-[12.5px] font-bold text-fg">{gap.label}</span>
-                <span className="block truncate text-[11.5px] text-fg-subtle">
-                  {titleCaseWords(gap.companyName)} &middot; {GAP_REASON[gap.kind]}
-                </span>
-              </span>
+              {titleCaseWords(entry.name)}
             </Link>
+            <p className="mt-0.5 text-[11.5px] text-fg-subtle">
+              {entry.gaps.length} {entry.gaps.length === 1 ? "thing" : "things"} missing
+            </p>
+
+            <div className="mt-2 flex flex-col gap-1.5">
+              {entry.gaps.map((gap) => {
+                const inline = INLINE[gap.kind];
+                const isOpen = editing === gap.id;
+
+                // The one gap that is a real form, not a field.
+                if (!inline) {
+                  return (
+                    <ContactDialog
+                      key={gap.id}
+                      accountId={gap.companyId}
+                      mode="create"
+                      trigger={(openDialog) => (
+                        <button
+                          type="button"
+                          onClick={openDialog}
+                          className="flex items-baseline gap-2 rounded-md border border-line px-2.5 py-1.5 text-left transition-colors hover:border-accent hover:bg-accent-bg"
+                        >
+                          <span className="text-[12.5px] font-semibold text-fg">{gap.label}</span>
+                          <span className="truncate text-[11.5px] text-fg-subtle">
+                            {GAP_REASON[gap.kind]}
+                          </span>
+                        </button>
+                      )}
+                    />
+                  );
+                }
+
+                if (!isOpen) {
+                  return (
+                    <button
+                      key={gap.id}
+                      type="button"
+                      onClick={() => open(gap)}
+                      className="flex items-baseline gap-2 rounded-md border border-line px-2.5 py-1.5 text-left transition-colors hover:border-accent hover:bg-accent-bg"
+                    >
+                      <span className="text-[12.5px] font-semibold text-fg">{gap.label}</span>
+                      <span className="truncate text-[11.5px] text-fg-subtle">
+                        {GAP_REASON[gap.kind]}
+                      </span>
+                    </button>
+                  );
+                }
+
+                return (
+                  <form
+                    key={gap.id}
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      save(gap);
+                    }}
+                    className="flex items-center gap-1.5 rounded-md border border-accent bg-accent-bg px-2 py-1.5"
+                  >
+                    <input
+                      autoFocus
+                      value={value}
+                      onChange={(e) => setValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Escape") {
+                          setEditing(null);
+                          setValue("");
+                        }
+                      }}
+                      placeholder={inline.placeholder}
+                      aria-label={`${inline.label} for ${entry.name}`}
+                      disabled={pending}
+                      className="min-w-0 flex-1 rounded border border-line-strong bg-card px-2 py-1 text-[12.5px] text-fg outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 disabled:opacity-60"
+                    />
+                    <button
+                      type="submit"
+                      disabled={pending || !value.trim()}
+                      className="shrink-0 rounded bg-accent px-2 py-1 text-[11.5px] font-bold text-white disabled:opacity-50"
+                    >
+                      {pending ? "…" : "Save"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditing(null);
+                        setValue("");
+                      }}
+                      className="shrink-0 rounded px-1.5 py-1 text-[11.5px] font-semibold text-fg-muted hover:text-fg"
+                    >
+                      Cancel
+                    </button>
+                  </form>
+                );
+              })}
+            </div>
           </li>
         ))}
       </ul>

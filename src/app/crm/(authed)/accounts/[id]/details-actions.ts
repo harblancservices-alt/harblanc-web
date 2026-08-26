@@ -78,6 +78,45 @@ async function applyUpdate(accountId: string, fields: Record<string, unknown>): 
   return { ok: true };
 }
 
+/**
+ * Fill ONE missing field from the dashboard's gaps panel, without leaving it.
+ *
+ * Reuses applyUpdate — the same single-field write path the profile's detail
+ * groups use — rather than adding a write of its own. It deliberately does
+ * NOT go through updateAccount: that requires a company name in the form
+ * (a one-field save has none) and always clears needs_finalize, which would
+ * mark a quick-added company "finished" because somebody set its industry.
+ *
+ * The column per gap kind is a map, so adding a kind later is one line here
+ * and one in completeness.ts.
+ *
+ * Revalidates the DASHBOARD as well as the company, because that is where
+ * this is called from and the row has to be gone when it settles.
+ */
+const GAP_COLUMN: Record<string, string> = {
+  industry: "industry",
+  address: "address",
+};
+
+export async function fillCompanyGap(
+  accountId: string,
+  kind: string,
+  value: string,
+): Promise<ActionResult> {
+  const column = GAP_COLUMN[kind];
+  if (!column) return { ok: false, error: "That gap can't be filled from here." };
+
+  const trimmed = value.trim();
+  if (!trimmed) return { ok: false, error: "Type something first." };
+
+  const result = await applyUpdate(accountId, { [column]: trimmed });
+  if (result.ok) {
+    revalidatePath("/crm");
+    revalidatePath("/crm/tasks");
+  }
+  return result;
+}
+
 export async function updateCompanyProfile(accountId: string, formData: FormData): Promise<ActionResult> {
   return applyUpdate(accountId, {
     dba: optStr(formData, "dba"),
