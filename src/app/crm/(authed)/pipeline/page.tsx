@@ -22,7 +22,14 @@ export default async function PipelinePage() {
   const { cards, restricted, now } = await getPipelineData(user);
 
   return (
-    <div className="mx-auto w-full max-w-[1400px] px-4 py-4 sm:px-6">
+    // FULL WIDTH (Brent, 2026-08-26: "extend the pipeline and task pages to
+    // the edges of the screen"). This was max-w-[1400px] with mx-auto, which
+    // centred a board inside a wide screen and left a margin on both sides.
+    // A board is not prose -- it has columns that want room -- so the cap is
+    // gone and only the edge padding stays. Deliberately local to this page
+    // rather than a change to PAGE_CONTAINER, which the other eleven
+    // reading-width pages still want.
+    <div className="w-full px-4 py-4 sm:px-6">
       <PipelineBoard cards={cards} restricted={restricted} now={now} />
     </div>
   );

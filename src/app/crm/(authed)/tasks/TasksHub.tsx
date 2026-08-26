@@ -134,7 +134,13 @@ export function TasksHub({
                 if (id) move(id, key);
               }}
               aria-label={`${PLAN_LABEL[key]}, ${board[key].length} tasks`}
-              className={`flex w-[19.5rem] shrink-0 flex-col rounded-lg border transition-colors ${
+              // GROWS TO FILL, floors at 19.5rem. Fixed-width columns meant
+              // that removing the page's width cap changed nothing visible --
+              // four 19.5rem columns still clustered at the left of a wide
+              // screen. flex-1 lets them share whatever room there is; the
+              // min-width keeps a card readable and keeps the horizontal
+              // scroll working on a narrow window.
+              className={`flex min-w-[19.5rem] flex-1 flex-col rounded-lg border transition-colors ${
                 over === key ? "border-accent bg-accent-bg" : "border-line-strong bg-inset"
               }`}
             >
