@@ -129,12 +129,16 @@ function SectionBand({ label, count }: { label: string; count: number }) {
 export function ContactsDirectory({
   contacts,
   companies,
+  restricted = false,
   initialQuery,
   initialDecisionMakers,
 }: {
   contacts: ContactCardData[];
   /** Only used for the empty-state "Add contact" affordance. */
   companies: CompanyOption[];
+  /** True when the caller only sees contacts at companies they own — changes
+   * what "no contacts" is allowed to claim. See the empty state below. */
+  restricted?: boolean;
   /** Seed from `?q=` so an old shared/bookmarked search URL still lands on
    * the same result set; the URL is not written to afterwards (typing is
    * local state, not navigation). */
@@ -321,7 +325,8 @@ export function ContactsDirectory({
 
         <p className="text-[12px] font-medium text-fg-muted">
           Showing {sorted.length} of {contacts.length} contact{contacts.length === 1 ? "" : "s"}
-          {byCompany ? ` across ${groups.length} compan${groups.length === 1 ? "y" : "ies"}` : ""}.
+          {byCompany ? ` across ${groups.length} compan${groups.length === 1 ? "y" : "ies"}` : ""}
+          {restricted ? " at the companies you own" : ""}.
         </p>
       </Card>
 
@@ -329,16 +334,27 @@ export function ContactsDirectory({
         <Card>
           <EmptyState
             icon={<IconContacts />}
-            title={contacts.length === 0 ? "No contacts yet" : "No contacts match"}
+            title={
+              contacts.length > 0
+                ? "No contacts match"
+                : restricted
+                  ? "No contacts at your companies"
+                  : "No contacts yet"
+            }
             body={
-              contacts.length === 0
-                ? "Add your first contact above, or from any company profile."
-                : "Try a different search, or clear the filters to see every contact."
+              contacts.length > 0
+                ? "Try a different search, or clear the filters to see every contact."
+                : restricted
+                  ? "This directory only shows contacts at companies assigned to you. Others exist — an admin can see them all on Admin → Contacts."
+                  : "Add your first contact above, or from any company profile."
             }
             action={
-              contacts.length === 0 ? (
-                <AddContactDialog companies={companies} />
-              ) : (
+              /* Three cases, not two. "Clear filters" is only honest when a
+                 filter is what emptied the list; offering it to a restricted
+                 caller who simply owns nothing is a button that does nothing.
+                 They get no action at all — the body already tells them where
+                 the rest of the org's contacts live. */
+              contacts.length > 0 ? (
                 <button
                   type="button"
                   onClick={clearAll}
@@ -346,6 +362,8 @@ export function ContactsDirectory({
                 >
                   Clear filters
                 </button>
+              ) : restricted ? null : (
+                <AddContactDialog companies={companies} />
               )
             }
           />

@@ -42,13 +42,23 @@ export type CompanyVisibility = {
  * workspace list and cannot touch their admin access; and being an owner
  * cannot override their own agent-side filter.
  *
- * Applied to the CRM's actual company-ROSTER surfaces — the Companies list
- * (../accounts/page.tsx) and Active Customers (../customers/
- * ActiveCustomersPanel.tsx) — not to every place a company name is looked up
- * (task/call/contact "which company" pickers, the dashboard's queues, the
- * calendar). Those reference a specific company a rep is already working
- * with rather than let them browse the org's whole roster, which is what
- * these flags are about.
+ * WHERE IT IS APPLIED (Brent, 2026-08-25 — widened from the roster-only
+ * scope it launched with):
+ *   - the Companies list          ../accounts/page.tsx
+ *   - Active Customers            ../customers/ActiveCustomersPanel.tsx
+ *   - the Contacts directory      ../contacts/page.tsx — you see contacts at
+ *                                 companies you own, via getVisibleAccountIds
+ *   - the Tasks page's company    ../tasks/page.tsx — you cannot file a task
+ *     picker                      against a company you can't see
+ *
+ * WHERE IT IS DELIBERATELY NOT:
+ *   - the calendar's id→name lookup (../calendar/page.tsx). It only labels
+ *     events the viewer can already see; filtering it would print "Unknown"
+ *     on their own entries.
+ *   - the internal customer directory (./customerDirectory.ts). Active
+ *     customers are visible to everyone, confirmed by Brent.
+ *   - /crm/admin/** , which is role-gated instead and shows the full picture
+ *     on purpose — including the new Admin -> Contacts.
  *
  * FAILS CLOSED (2026-08-25). If the read fails — network hiccup, schema
  * drift, a profile row that has gone missing — the caller is treated as
@@ -100,4 +110,35 @@ export function applyCompanyVisibility<
     return query.or(`assigned_user_id.eq.${visibility.userId},assigned_user_id.is.null`);
   }
   return query.eq("assigned_user_id", visibility.userId);
+}
+
+/**
+ * THE SAME RULE, resolved to a concrete set of company ids.
+ *
+ * For surfaces that filter something ATTACHED to a company rather than the
+ * company itself — Contacts, and the Tasks page's company picker. They can't
+ * apply the filter to their own query directly (crm_contacts has no owner
+ * column of its own), so they narrow by `account_id IN (…)` instead.
+ *
+ * Returns NULL for an unrestricted caller, meaning "do not narrow at all".
+ * Null is deliberately not an empty array: the difference between "sees
+ * everything" and "sees nothing" is the whole point, and an `.in()` on an
+ * empty list would silently turn the former into the latter.
+ *
+ * Runs the id query through applyCompanyVisibility like every other caller,
+ * so a change to the rule reaches this automatically — the point is that
+ * "what can this person see" is answered in exactly one place.
+ */
+export async function getVisibleAccountIds(
+  visibility: CompanyVisibility,
+): Promise<string[] | null> {
+  if (!visibility.restricted) return null;
+
+  const supabase = await createCrmServerClient();
+  const query = applyCompanyVisibility(
+    supabase.from("crm_accounts").select("id").is("deleted_at", null).limit(5000),
+    visibility,
+  );
+  const { data } = await query;
+  return ((data ?? []) as { id: string }[]).map((a) => a.id);
 }

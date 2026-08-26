@@ -1,4 +1,9 @@
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
+import {
+  getCompanyVisibility,
+  getVisibleAccountIds,
+  applyCompanyVisibility,
+} from "../_shell/companyVisibility";
 import { PageShell } from "../_shell/ui";
 import { firstName, titleCaseWords } from "../_shell/format";
 import { AddContactDialog } from "./AddContactDialog";
@@ -50,8 +55,16 @@ export default async function ContactsPage({
 }: {
   searchParams: Promise<{ q?: string; dm?: string }>;
 }) {
-  await requireCrmUser();
+  const user = await requireCrmUser();
   const supabase = await createCrmServerClient();
+
+  // SCOPED TO THE COMPANIES YOU OWN (Brent, 2026-08-25). Same rule and same
+  // module as the Companies list — a contact belongs to a company, so who may
+  // see the contact follows who may see the company. `null` means "don't
+  // narrow", which is how an unrestricted caller still gets the whole
+  // directory. The org-wide view lives at /crm/admin/contacts, owner-gated.
+  const visibility = await getCompanyVisibility(user);
+  const visibleAccountIds = await getVisibleAccountIds(visibility);
 
   const sp = await searchParams;
   const initialQuery = (sp.q ?? "").trim();
@@ -61,7 +74,7 @@ export default async function ContactsPage({
   // the toolbar filters on the identical flag; there is no second definition.
   const initialDecisionMakers = sp.dm === "1";
 
-  const { data } = await supabase
+  let contactsQuery = supabase
     .from("crm_contacts")
     .select(
       "id, name, title, email, phone, mobile, extension, is_decision_maker, next_followup_at, account_id, role_category, last_contacted_at, current_mood",
@@ -69,6 +82,12 @@ export default async function ContactsPage({
     .is("deleted_at", null)
     .order("name", { ascending: true })
     .limit(1000);
+  // A contact whose company is one you can't see is one you can't see. A
+  // contact with NO company has no company to inherit visibility from, so it
+  // is out too — .in() never matches a null account_id. Those surface on
+  // Admin -> Contacts.
+  if (visibleAccountIds !== null) contactsQuery = contactsQuery.in("account_id", visibleAccountIds);
+  const { data } = await contactsQuery;
 
   const contacts = ((data ?? []) as ContactRow[]).map((c) => ({ ...c, name: titleCaseWords(c.name) }));
 
@@ -78,12 +97,17 @@ export default async function ContactsPage({
     : { data: [] as { id: string; name: string }[] };
   const accountName = new Map(((accountsData ?? []) as { id: string; name: string }[]).map((a) => [a.id, titleCaseWords(a.name)]));
 
-  const { data: companyOptionsData } = await supabase
+  // The Add-contact / Add-company dialogs' company picker, narrowed the same
+  // way — offering a company you can't otherwise see would be a way around
+  // the filter above.
+  let companyOptionsQuery = supabase
     .from("crm_accounts")
     .select("id, name")
     .is("deleted_at", null)
     .order("name", { ascending: true })
     .limit(1000);
+  companyOptionsQuery = applyCompanyVisibility(companyOptionsQuery, visibility);
+  const { data: companyOptionsData } = await companyOptionsQuery;
   const companyOptions = (companyOptionsData ?? []) as CompanyOption[];
 
   const { data: profilesData } = await supabase.from("crm_profiles").select("id, full_name, email, is_active");
@@ -112,7 +136,11 @@ export default async function ContactsPage({
   return (
     <PageShell
       title="Contacts"
-      subtitle={`${cards.length} contact${cards.length === 1 ? "" : "s"} across every company.`}
+      subtitle={
+        visibility.restricted
+          ? `${cards.length} contact${cards.length === 1 ? "" : "s"} at the companies you own.`
+          : `${cards.length} contact${cards.length === 1 ? "" : "s"} across every company.`
+      }
       actions={
         <>
           <AddCompany reps={reps} />
@@ -123,6 +151,7 @@ export default async function ContactsPage({
       <ContactsDirectory
         contacts={cards}
         companies={companyOptions}
+        restricted={visibility.restricted}
         initialQuery={initialQuery}
         initialDecisionMakers={initialDecisionMakers}
       />

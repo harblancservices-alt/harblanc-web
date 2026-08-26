@@ -1,4 +1,5 @@
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
+import { getCompanyVisibility, getVisibleAccountIds } from "../_shell/companyVisibility";
 import { PageShell, Card, CardHead, EmptyState } from "../_shell/ui";
 import { IconTasks } from "../_shell/icons";
 import { firstName } from "../_shell/format";
@@ -43,6 +44,8 @@ export default async function TasksPage() {
   const user = await requireCrmUser();
   const supabase = await createCrmServerClient();
   const canAssignOthers = user.role === "owner";
+  const visibility = await getCompanyVisibility(user);
+  const visibleAccountIds = await getVisibleAccountIds(visibility);
 
   const [tasksRes, accountsRes, contactsRes, profilesRes] = await Promise.all([
     supabase
@@ -80,6 +83,23 @@ export default async function TasksPage() {
     phones: unknown;
   }[];
   const nameById = new Map(accounts.map((a) => [a.id, a.name]));
+
+  /**
+   * THE PICKER'S list, narrowed to what this caller may see (Brent,
+   * 2026-08-25) — filing a task against a company you can't open makes no
+   * sense, and it would be a way around the Companies filter.
+   *
+   * Deliberately a SECOND list rather than narrowing `accounts` itself. That
+   * one also resolves the company NAME and phone for task rows already on
+   * screen, and this page's list is org-wide on purpose (see the docstring):
+   * scoping it would blank the company on other people's rows — the exact
+   * failure Brent rejected for the calendar. Names stay resolvable; only what
+   * you can CHOOSE is narrowed.
+   */
+  const pickerAccounts =
+    visibleAccountIds === null
+      ? accounts
+      : accounts.filter((a) => visibleAccountIds.includes(a.id));
   const companyPhoneById = new Map(
     accounts.map((a) => [a.id, parsePhones(a.phones)[0]?.number || a.phone || null]),
   );
@@ -122,7 +142,7 @@ export default async function TasksPage() {
   // Bundled TaskRow dialog props — every row's Edit/Reschedule dialog needs
   // the same company/contact/rep rosters the "Add task" button above already
   // loads, so this is passed straight through rather than each row re-deriving it.
-  const dialogProps = { accounts, contacts: contactOptions, reps, canAssignOthers, currentUser };
+  const dialogProps = { accounts: pickerAccounts, contacts: contactOptions, reps, canAssignOthers, currentUser };
 
   const tasks: CrmTaskItem[] = rows.map((r) => ({
     ...r,
@@ -158,7 +178,7 @@ export default async function TasksPage() {
       subtitle="Every open task across the org, grouped by urgency."
       actions={
         <AddTaskButton
-          accounts={accounts}
+          accounts={pickerAccounts}
           contacts={contactOptions}
           reps={reps}
           canAssignOthers={canAssignOthers}
@@ -174,7 +194,7 @@ export default async function TasksPage() {
             body="Add a standalone task above, or add one from any company profile."
             action={
               <AddTaskButton
-                accounts={accounts}
+                accounts={pickerAccounts}
                 contacts={contactOptions}
                 reps={reps}
                 canAssignOthers={canAssignOthers}
