@@ -9,6 +9,7 @@ import { SegmentedTabs } from "../../_shell/SegmentedTabs";
 import { lastContactStatus, titleCaseWords, upperCaseState } from "../../_shell/format";
 import { stageLabel, stageTone } from "../../accounts/lifecycle";
 import { assignCompanies } from "../assign-actions";
+import { batchTaskSpec, defaultDueDate, dueDateToInstant } from "./assignmentTask";
 import type { CompanyAgent } from "./companies-data";
 import {
   countByOwner,
@@ -48,6 +49,9 @@ export function CompaniesBoard({
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  /** null = "use whatever the selection suggests"; a string = admin edited it. */
+  const [titleOverride, setTitleOverride] = useState<string | null>(null);
+  const [dueDate, setDueDate] = useState(() => defaultDueDate(new Date()));
 
   const sorted = useMemo(() => sortForAdmin(rows), [rows]);
   const counts = useMemo(() => countByOwner(rows, agents.map((a) => a.id)), [rows, agents]);
@@ -91,20 +95,51 @@ export function CompaniesBoard({
     setError(null);
     setNotice(null);
     startTransition(async () => {
-      const result = await assignCompanies(agent.id, ids);
+      const result = await assignCompanies(agent.id, ids, {
+        title: taskTitle,
+        taskType: spec.taskType,
+        dueAt: dueDateToInstant(dueDate),
+      });
       if (!result.ok) {
         setError(result.error);
         return;
       }
       setSelected(new Set());
-      setNotice(
-        `${result.claimed} ${result.claimed === 1 ? "company" : "companies"} now owned by ${agent.name}.`,
-      );
+      // Say exactly what happened, including what was SKIPPED — a silent
+      // duplicate-guard looks like a failed write.
+      const parts = [
+        `${result.claimed} ${result.claimed === 1 ? "company" : "companies"} now owned by ${agent.name}`,
+      ];
+      if (result.tasked > 0) parts.push(`${result.tasked} ${result.tasked === 1 ? "task" : "tasks"} created`);
+      if (result.alreadyHadTask > 0)
+        parts.push(
+          `${result.alreadyHadTask} already had this task, so ${result.alreadyHadTask === 1 ? "it was" : "they were"} left alone`,
+        );
+      if (result.movedTasks > 0)
+        parts.push(`${result.movedTasks} existing ${result.movedTasks === 1 ? "task" : "tasks"} moved across`);
+      setNotice(`${parts.join(" · ")}.${result.warning ? ` ${result.warning}` : ""}`);
       router.refresh();
     });
   }
 
   const selectedCount = selected.size;
+
+  /**
+   * The task the assignment will create. Derived from what the selected
+   * companies actually are (source + stage), defaulted a few days out, and
+   * BOTH shown and editable before confirming — the admin is never made to
+   * pick, but is never left guessing what was picked for them either.
+   *
+   * Recomputed from the selection rather than held in state, so changing the
+   * selection updates the suggestion; the admin's own edits are held in
+   * titleOverride/dueDate and survive it.
+   */
+  const selectedRows = useMemo(
+    () => rows.filter((r) => selected.has(r.id)).map((r) => ({ source: r.source, stage: r.stage })),
+    [rows, selected],
+  );
+  const spec = useMemo(() => batchTaskSpec(selectedRows), [selectedRows]);
+  const taskTitle = titleOverride ?? spec.title;
 
   // Unassigned first and loudest, then All, then one tab per agent.
   const filterItems = [
@@ -291,27 +326,54 @@ export function CompaniesBoard({
         )}
 
         {selectedCount > 0 && (
-          <div className="flex shrink-0 flex-wrap items-center gap-3 bg-[#111418] px-4 py-3">
-            <span className="text-[13px] font-bold text-white">{selectedCount} selected</span>
-            <span className="text-[12.5px] text-white/60">Hand to</span>
-            {agents.map((a) => (
+          <div className="flex shrink-0 flex-col gap-2.5 bg-[#111418] px-4 py-3">
+            {/* The task is shown BEFORE confirming, not chosen silently: the
+                admin can see and change both the title and the due date, and
+                only then picks who gets it. */}
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span className="text-[13px] font-bold text-white">{selectedCount} selected</span>
+              <label className="flex items-center gap-1.5">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-white/50">Task</span>
+                <input
+                  type="text"
+                  value={taskTitle}
+                  onChange={(e) => setTitleOverride(e.target.value)}
+                  aria-label="Task title"
+                  className="min-w-[16rem] rounded-md border border-white/25 bg-white/10 px-2.5 py-1.5 text-[12.5px] font-medium text-white placeholder:text-white/40 focus:border-white/50 focus:outline-none"
+                />
+              </label>
+              <label className="flex items-center gap-1.5">
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-white/50">Due</span>
+                <input
+                  type="date"
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                  aria-label="Task due date"
+                  className="rounded-md border border-white/25 bg-white/10 px-2.5 py-1.5 text-[12.5px] font-medium text-white focus:border-white/50 focus:outline-none [color-scheme:dark]"
+                />
+              </label>
               <button
-                key={a.id}
                 type="button"
-                disabled={pending}
-                onClick={() => handOff(a)}
-                className="rounded-md border border-white/25 px-3 py-1.5 text-[12.5px] font-semibold text-white transition-colors hover:bg-white/10 disabled:opacity-50"
+                onClick={() => setSelected(new Set())}
+                className="ml-auto text-[12.5px] font-semibold text-white underline underline-offset-2 hover:text-white/80"
               >
-                {a.name}
+                clear
               </button>
-            ))}
-            <button
-              type="button"
-              onClick={() => setSelected(new Set())}
-              className="ml-auto text-[12.5px] font-semibold text-white underline underline-offset-2 hover:text-white/80"
-            >
-              clear
-            </button>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[12.5px] text-white/60">Hand to</span>
+              {agents.map((a) => (
+                <button
+                  key={a.id}
+                  type="button"
+                  disabled={pending || !taskTitle.trim()}
+                  onClick={() => handOff(a)}
+                  className="rounded-md border border-white/25 px-3 py-1.5 text-[12.5px] font-semibold text-white transition-colors hover:bg-white/10 disabled:opacity-50"
+                >
+                  {pending ? "Assigning…" : a.name}
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </Card>
