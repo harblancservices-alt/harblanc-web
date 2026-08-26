@@ -23,6 +23,19 @@
  * the column is plain nullable text with no constraint. Anything keyed on it
  * was always going to drift.
  *
+ * NO LONGER THE POOL'S COMPLEMENT (2026-08-26). This used to be the exact
+ * inverse of Admin -> Overview's "work to assign" query, and the two were
+ * described as one rule seen from both sides. They diverged when the pool
+ * became simply "assigned_user_id IS NULL" — Brent's call that every unowned
+ * company must be assignable.
+ *
+ * This predicate deliberately did NOT follow. Widening it to hide every
+ * unowned company would REMOVE ten companies from agents' Companies lists,
+ * which is the opposite of the visibility that change was made for. So the
+ * pool now shows a superset: a company with no owner and no ai_status
+ * appears both here and in the pool, which is the right way round — being
+ * assignable and being visible are not mutually exclusive.
+ *
  * WHERE THIS LIVES, AND WHY IT MOVED (2026-08-26). This was ai-agent/queue.ts,
  * next to the Prospects claim queue that owned the idea. That page is gone —
  * the claim model was retired on 2026-08-25 (agents no longer pick work out of
@@ -37,8 +50,9 @@
  */
 
 /**
- * The COMPLEMENT of the gate, as a PostgREST `or=` filter: keep a row unless
- * it is a released, still-unassigned company. Being ASSIGNED is what makes a
+ * Keep a row unless it is a RELEASED, still-unassigned company. Note the
+ * `released` half: this is narrower than "unowned", on purpose — see the
+ * note at the top of the file. Being ASSIGNED is what makes a
  * company appear in the roster; until then it lives only in Admin ->
  * Overview's pool, waiting to be handed to someone.
  *

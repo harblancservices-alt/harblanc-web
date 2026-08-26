@@ -12,8 +12,10 @@ import { findDuplicates } from "./duplicates";
  * status vocabulary imported from the screen that owned it. Both those
  * funnels are gone: an OTR entry is now a company from the moment it is
  * created, and BOL Center was retired because nothing in the app ever wrote
- * crm_bol_entries. The pool is the same size it was; it is just made of one
- * kind of thing now.
+ * crm_bol_entries.
+ *
+ * AND ONE CONDITION. The pool is every company with no owner — see the
+ * query below for why the old ai_status test had to go.
  */
 
 export type TeamMember = {
@@ -70,13 +72,32 @@ export async function getAssignBoardData(): Promise<AssignBoardData> {
   const supabase = await createCrmServerClient();
 
   const [prospectsRes, profilesRes, tasksRes, ownedRes, allNamesRes, contactsRes] = await Promise.all([
-    // Unowned companies — the CRM's existing gate, verbatim:
-    // ai_status = 'released' AND assigned_user_id IS NULL.
+    // EVERY COMPANY NOBODY OWNS. One condition, deliberately:
+    // assigned_user_id IS NULL.
+    //
+    // Brent, 2026-08-26: "any company unassigned currently still needs to
+    // show under overview in companies. to be assigned."
+    //
+    // This carried `.eq("ai_status", "released")` until then — inherited
+    // from the retired Prospects claim queue, where "released" meant an
+    // admin had published a lead into the pool. Once the pool became the
+    // ONLY way work is handed out, that extra condition stopped being a
+    // gate and became a leak: a company that never went through the AI
+    // release path has ai_status NULL, so it was unowned AND unassignable,
+    // which is another way of saying invisible.
+    //
+    // It was hiding 10 of 52 unowned companies — every one created by hand
+    // or inline from a call log or the add-contact dialog, which insert
+    // source='manual' and never touch ai_status.
+    //
+    // NO lifecycle filter either, per the same instruction. That does mean
+    // unowned Lost companies appear here (5 of the 10 recovered). They are
+    // genuinely unowned and genuinely assignable — reaching back out to a
+    // lost account is real work — but it is worth knowing they are there.
     supabase
       .from("crm_accounts")
       .select("id, name, city, state, created_at")
       .is("deleted_at", null)
-      .eq("ai_status", "released")
       .is("assigned_user_id", null),
 
     supabase

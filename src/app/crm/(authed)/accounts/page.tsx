@@ -136,11 +136,11 @@ export default async function CompaniesPage({
     // would silently hide every ordinary company.
     .or("ai_status.is.null,ai_status.neq.pending_review");
 
-  // Released-but-unassigned companies live in Admin -> Overview's assign pool
-  // only — being assigned is what surfaces one here. Exact complement of that
-  // pool's predicate; see excludeUnclaimedProspects' comment for why it's a
-  // negated OR ("Unassigned" in the rep filter below still works for
-  // never-released companies).
+  // Released-but-unassigned companies are held back from the roster until
+  // somebody owns them. NOT the exact complement of the assign pool any
+  // more — the pool is every unowned company as of 2026-08-26, and this
+  // stayed narrower deliberately, because widening it would hide companies
+  // rather than surface them. See unclaimedCompanies.ts.
   // YIELDS to an explicit "Show unassigned" grant. This exclusion hides
   // released-but-unassigned companies from the roster (they live in the
   // assign pool). Someone whose profile says they may see the unowned
