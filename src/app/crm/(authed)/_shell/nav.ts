@@ -5,7 +5,6 @@ import {
   IconContacts,
   IconTasks,
   IconSettings,
-  IconFlame,
   IconFlagSolid,
   IconAdminAccount,
   IconTruck,
@@ -20,10 +19,10 @@ export type CrmNavItem = {
   /** Small count badge rendered beside the label (e.g. pending AI reviews). */
   badge?: number;
   /** Badge color: "alert" (red, `bg-bad`) is reserved for genuinely urgent,
-   * time-sensitive queues — currently just Prospects' unclaimed leads.
-   * Everything else ("neutral", the default when omitted) renders as a
-   * plain gray count, e.g. Active Clients' size or AI Review's queue
-   * depth — informational, not something demanding action. */
+   * time-sensitive queues. Nothing sets it today — Prospects' unclaimed-leads
+   * count was the only one and left with the item on 2026-08-25. Everything
+   * else ("neutral", the default when omitted) renders as a plain gray count,
+   * e.g. Upgrades' backlog depth — informational, not demanding action. */
   badgeTone?: "alert" | "neutral";
   /** Forces the item's ICON (only — border/background/label stay the normal
    * item treatment) to a fixed color regardless of active state. Currently
@@ -69,11 +68,7 @@ export type CrmNavItem = {
 };
 
 /**
- * Build the CRM nav for the signed-in user. "Prospects" (route stays
- * /crm/ai-agent — the team's released lead register) is visible to everyone,
- * badged with the count of released leads nobody has claimed yet — the same
- * alert surfaced on the dashboard's "New leads to claim" card and folded
- * into its due-count bell.
+ * Build the CRM nav for the signed-in user.
  *
  * Built fresh per call (rather than spread from a shared module-level array)
  * so the per-request badge counts never leak between requests.
@@ -84,33 +79,32 @@ export type CrmNavItem = {
  * Server->Client boundary (same class of bug as commit fbfabd7's pipeline/
  * settings render-prop crash — "pipeline" the deal-dialog crash, not the
  * removed nav tab). layout.tsx (a Server Component) must pass only plain
- * primitives — role, pendingReviewCount, unclaimedAiLeadsCount,
- * outstandingUpgradeCount — into CrmShell, which calls this
- * itself instead of receiving its output as a prop. Since /crm routes are
- * all force-dynamic and never prerendered at build time, `next build`/`tsc`
- * won't catch a regression here — it only throws on a real request.
+ * primitives — role, outstandingUpgradeCount — into CrmShell, which calls
+ * this itself instead of receiving its output as a prop. Since /crm routes
+ * are all force-dynamic and never prerendered at build time, `next build`/
+ * `tsc` won't catch a regression here — it only throws on a real request.
  *
- * 2026-08-25: `pendingReviewCount` was removed from this signature. AI Review
- * lost its nav item on 2026-08-20 (it became a stat tile on Admin Overview),
- * leaving the parameter threaded through layout.tsx -> CrmShell -> here but
- * never read; the whole /crm/ai-review surface has since been deleted.
+ * 2026-08-25: `pendingReviewCount` and then `unclaimedAiLeadsCount` came off
+ * this signature as AI Review and Prospects lost their nav items. Each was
+ * threaded layout.tsx -> CrmShell -> here purely to badge an item that no
+ * longer exists, and each cost a count query on every CRM page render; both
+ * queries were deleted with the parameter rather than left computing a
+ * number nothing reads.
  */
 export function buildCrmNav(
   role: string,
-  unclaimedAiLeadsCount: number,
   outstandingUpgradeCount: number,
 ): CrmNavItem[] {
   const nav: CrmNavItem[] = [
     { href: "/crm", label: "Dashboard", Icon: IconDashboard },
     { href: "/crm/accounts", label: "Companies", Icon: IconCompanies },
     { href: "/crm/contacts", label: "Contacts", Icon: IconContacts },
-    {
-      href: "/crm/ai-agent",
-      label: "Prospects",
-      Icon: IconFlame,
-      badge: unclaimedAiLeadsCount > 0 ? unclaimedAiLeadsCount : undefined,
-      badgeTone: "alert",
-    },
+    // PROSPECTS IS GONE (2026-08-25). The claim model is retired: agents no
+    // longer pick work out of a shared pool, an admin assigns it. The route
+    // /crm/ai-agent and its page are untouched and still load, they are
+    // simply not a nav destination any more — and its unclaimed-leads badge
+    // went with it. Unclaimed companies now surface on Admin → Companies
+    // under the Unassigned filter, which is the admin's inbox.
     { href: "/crm/tasks", label: "Tasks", Icon: IconTasks },
     // Operations — the everyday operating tools: Quote Calculator,
     // Documents/vendor packets, Active Loads, Active Clients, Active
@@ -187,9 +181,9 @@ export function bottomNav(nav: CrmNavItem[]): CrmNavItem[] {
 }
 
 /**
- * Everything NOT in the mobile bottom bar's 4 fixed slots — Active
- * Customers, Prospects, Settings, and (owner-only, already filtered out of
- * `nav` for non-owners by buildCrmNav) AI Review. Fed into the mobile
+ * Everything NOT in the mobile bottom bar's 4 fixed slots — Operations,
+ * Upgrades, Settings, and (owner-only, already filtered out of `nav` for
+ * non-owners by buildCrmNav) Admin Account. Fed into the mobile
  * "More" sheet so every destination the desktop sidebar lists stays
  * reachable on mobile too. Derived from the same `nav` array as bottomNav
  * (and the desktop sidebar) rather than its own hardcoded list, so the three

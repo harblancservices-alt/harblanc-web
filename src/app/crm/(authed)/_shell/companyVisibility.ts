@@ -21,10 +21,14 @@ export type CompanyVisibility = {
  * is already working with rather than let them browse the org's whole
  * roster, which is what this flag is about.
  *
- * "Defaults safely": if the read fails for any reason (network hiccup, or a
- * future schema drift), this returns `restricted: false` — the same
- * behavior every account had before this flag existed — rather than
- * silently hiding companies from someone who's supposed to see them all.
+ * FAILS CLOSED (2026-08-25). If the read fails — network hiccup, schema
+ * drift, a profile row that has gone missing — a non-owner is now treated as
+ * RESTRICTED rather than unrestricted. Under the centralised model a sales
+ * agent is meant to see only their own companies, so the safe failure is
+ * showing too little, not showing them the whole org. This inverts the old
+ * default, which pre-dated that rule.
+ *
+ * An owner is still resolved without a query and always sees everything.
  */
 export async function getCompanyVisibility(user: CrmUser): Promise<CompanyVisibility> {
   if (user.role === "owner") return { restricted: false, userId: user.id };
@@ -36,6 +40,7 @@ export async function getCompanyVisibility(user: CrmUser): Promise<CompanyVisibi
     .eq("id", user.id)
     .maybeSingle();
 
-  const canViewAll = (data as { can_view_all_companies: boolean } | null)?.can_view_all_companies ?? true;
+  // `?? false` — no row, or no answer, means restricted.
+  const canViewAll = (data as { can_view_all_companies: boolean } | null)?.can_view_all_companies ?? false;
   return { restricted: !canViewAll, userId: user.id };
 }

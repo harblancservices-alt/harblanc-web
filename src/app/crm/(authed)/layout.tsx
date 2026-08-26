@@ -17,16 +17,10 @@ export default async function CrmAuthedLayout({
   const user = await requireCrmUser();
   const supabase = await createCrmServerClient();
 
-  // Unclaimed released leads — the alert every CRM user sees, badging the
-  // "Prospects" nav item. Exactly the gate defined in ai-agent/queue.ts, the
-  // same one /crm/ai-agent, claimAiLead(), the dashboard's Claim pill, and
-  // the Companies-list filter use, so all five surfaces always agree.
-  const { count: unclaimedAiCount } = await supabase
-    .from("crm_accounts")
-    .select("id", { count: "exact", head: true })
-    .eq("ai_status", "released")
-    .is("assigned_user_id", null)
-    .is("deleted_at", null);
+  // (The unclaimed-leads count query that used to live here went away with
+  // the "Prospects" nav item on 2026-08-25 — the claim model is retired, so
+  // nothing badges that number any more. One fewer count query on every CRM
+  // page render. Unclaimed companies now surface on Admin → Companies.)
 
   // (The active-customers count query that used to live here went away with
   // the "Active Clients" nav item on 2026-08-22 — it became an Operations
@@ -47,7 +41,6 @@ export default async function CrmAuthedLayout({
       email={user.email}
       fullName={user.fullName}
       role={user.role}
-      unclaimedAiLeadsCount={unclaimedAiCount ?? 0}
       outstandingUpgradeCount={outstandingUpgradeCount ?? 0}
     >
       {children}

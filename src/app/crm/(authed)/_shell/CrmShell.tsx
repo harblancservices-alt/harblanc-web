@@ -17,7 +17,6 @@ type CrmShellProps = {
    * values and cannot cross that boundary — see buildCrmNav's docstring for
    * the exact failure mode this avoids) is built here, client-side. */
   role: string;
-  unclaimedAiLeadsCount: number;
   outstandingUpgradeCount: number;
   children: React.ReactNode;
 };
@@ -42,17 +41,12 @@ export function CrmShell({
   email,
   fullName,
   role,
-  unclaimedAiLeadsCount,
   outstandingUpgradeCount,
   children,
 }: CrmShellProps) {
   const pathname = usePathname() ?? "";
   const initial = (fullName || email || "?").trim().charAt(0).toUpperCase();
-  const navItems = buildCrmNav(
-    role,
-    unclaimedAiLeadsCount,
-    outstandingUpgradeCount,
-  );
+  const navItems = buildCrmNav(role, outstandingUpgradeCount);
   const mobileNav = bottomNav(navItems);
   // Settings and Upgrades stay pulled into the bottom identity block on
   // desktop (between the profile row and Sign out) — account-level chrome
@@ -68,14 +62,16 @@ export function CrmShell({
   const sidebarNavItems = navItems.filter(
     (item) => item.href !== "/crm/settings" && item.href !== "/crm/upgrades",
   );
-  // Everything the bottom bar's 4 fixed slots don't cover (Active
-  // Clients, Prospects, Settings, and — owner-only — AI Review) surfaces
-  // in the mobile "More" sheet instead, so no destination the desktop
-  // sidebar lists is ever unreachable on mobile.
+  // Everything the bottom bar's 4 fixed slots don't cover (Operations,
+  // Upgrades, Settings, and — owner-only — Admin Account and its children)
+  // surfaces in the mobile "More" sheet instead, so no destination the
+  // desktop sidebar lists is ever unreachable on mobile.
   const moreItems = moreNav(navItems);
-  // Only "alert"-tone badges (currently Prospects' unclaimed count) bubble up
-  // as the red More-sheet dot — a neutral badge (Active Clients, AI
-  // Review) hiding inside More shouldn't make the dot read as urgent.
+  // Only "alert"-tone badges bubble up as the red More-sheet dot — a neutral
+  // badge (Upgrades' backlog count) hiding inside More shouldn't make the dot
+  // read as urgent. Nothing sets "alert" today: Prospects' unclaimed-leads
+  // count was the only one, and it left with the item on 2026-08-25. The
+  // mechanism stays for the next genuinely time-sensitive queue.
   const moreAlertTotal = moreItems.reduce(
     (sum, item) => sum + (item.badgeTone === "alert" ? (item.badge ?? 0) : 0),
     0,
