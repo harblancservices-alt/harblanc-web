@@ -1,6 +1,7 @@
 import { createCrmServerClient, requireCrmUser } from "@/lib/crm/auth";
 import { initialsOf } from "../_shell/format";
 import { type WorkItem } from "./workItem";
+import { findDuplicates } from "./duplicates";
 
 /**
  * Server-side reads for Admin → Overview's assignment board: every company
@@ -59,7 +60,7 @@ export async function getAssignBoardData(): Promise<AssignBoardData> {
   const user = await requireCrmUser();
   const supabase = await createCrmServerClient();
 
-  const [prospectsRes, profilesRes, tasksRes, ownedRes, contactsRes] = await Promise.all([
+  const [prospectsRes, profilesRes, tasksRes, ownedRes, allNamesRes, contactsRes] = await Promise.all([
     // Unowned companies — the CRM's existing gate, verbatim:
     // ai_status = 'released' AND assigned_user_id IS NULL.
     supabase
@@ -84,6 +85,16 @@ export async function getAssignBoardData(): Promise<AssignBoardData> {
       .not("assigned_user_id", "is", null)
       .in("lifecycle_status", IN_FUNNEL),
 
+    // Every live company's name, for read-time duplicate detection. id+name
+    // only — this is the cheapest possible shape and it is the whole org
+    // because a pool company can collide with an ASSIGNED one just as
+    // easily (BETCO does exactly that).
+    supabase
+      .from("crm_accounts")
+      .select("id, name")
+      .is("deleted_at", null)
+      .limit(5000),
+
     supabase
       .from("crm_contacts")
       .select("id, name, account_id, title")
@@ -92,6 +103,15 @@ export async function getAssignBoardData(): Promise<AssignBoardData> {
       .order("name", { ascending: true })
       .limit(2000),
   ]);
+
+  const poolRows = (prospectsRes.data ?? []) as { id: string; name: string | null }[];
+  const duplicates = findDuplicates(
+    poolRows.map((r) => ({ id: r.id, name: (r.name as string) || "" })),
+    ((allNamesRes.data ?? []) as { id: string; name: string | null }[]).map((r) => ({
+      id: r.id,
+      name: (r.name as string) || "",
+    })),
+  );
 
   const items: WorkItem[] = [];
 
@@ -106,6 +126,7 @@ export async function getAssignBoardData(): Promise<AssignBoardData> {
       // every row is an unowned company, and what it needs is an owner.
       needs: "Assign an owner",
       waitingSince: row.created_at as string,
+      duplicateOf: duplicates.get(row.id as string) ?? [],
     });
   }
 

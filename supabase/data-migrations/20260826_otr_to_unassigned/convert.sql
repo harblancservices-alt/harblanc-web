@@ -28,11 +28,13 @@
 --      converted them. A null there is the honest record, and it doubles as a
 --      second way to identify this batch.
 --
--- SKIPPED: BETCO Scaffolds (d8f72d52-0601-4585-8f7e-0c706f03b3d9). It
--- normalizes to the same name as two existing accounts (Betco Scaffold, Betco
--- Scaffold San Antonio). Merging or duplicating on a guess is worse than
--- leaving it, so its entry is untouched and it is reported for a human to
--- eyeball. See README.md.
+-- BETCO Scaffolds was held back on the first run (2026-08-26) because it
+-- normalizes to the same name as two existing accounts. Brent's ruling later
+-- the same day: duplicates do not block conversion, they get LABELLED and he
+-- deals with them himself. It was converted in a second pass using this same
+-- statement with the id filter removed, and the work pool now shows it as
+-- "Duplicate" -- a flag derived at read time by admin/duplicates.ts, never a
+-- stored column. 38 of 38 converted; 1 shows the flag.
 --
 -- SKIPPED: the 3 rejected entries. A rejection is a decision already made;
 -- converting one quietly reverses it.
@@ -52,7 +54,6 @@ with src as (
   from crm_otr_entries e
   where e.deleted_at is null
     and e.status = 'new'
-    and e.id <> 'd8f72d52-0601-4585-8f7e-0c706f03b3d9'::uuid  -- BETCO Scaffolds
 ),
 ins_accounts as (
   insert into crm_accounts (

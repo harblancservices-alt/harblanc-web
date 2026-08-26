@@ -31,6 +31,7 @@ function item(over: Partial<WorkItem> = {}): WorkItem {
     state: "TX",
     needs: "Assign an owner",
     waitingSince: ago(2 * HOUR),
+    duplicateOf: [],
     ...over,
   };
 }

@@ -34,6 +34,13 @@ import { AddCompanyButton } from "./AddCompanyButton";
  * 2026-08-26 when OTR and BOL Center were retired: the pool is one kind of
  * thing now, and a filter with a single option is furniture.
  *
+ * The Type column survived that cull with a NEW job. It no longer says where
+ * a row came from — every row is a company, and source is a label on the
+ * record, not a kind of thing. It says whether this company already appears
+ * to be in the book under another name, computed at read time. Brent's rule:
+ * duplicates convert like everything else and get labelled so he can deal
+ * with them himself.
+ *
  * There is deliberately no metric tile, no activity feed and no per-person
  * performance number on this page. The only number attached to a person is
  * their current load, and it is there to answer "who has room" — not to
@@ -236,6 +243,12 @@ export function AssignBoard({
                     )}
                   </th>
                   <th className="px-2 py-2 text-left">Company</th>
+                  {/* Was PROVENANCE (Prospects / OTR / BOL) until those
+                      funnels were retired and every row became a company.
+                      It carries the read-time duplicate flag now: mostly
+                      empty, which is the point — a column that only speaks
+                      up when something needs a person. */}
+                  <th className="px-2 py-2 text-left">Type</th>
                   <th className="px-2 py-2 text-left">What it needs</th>
                   <th className="px-2 py-2 text-left">Waiting</th>
                   {/* Reserved in BOTH modes, like the gutter. The column count
@@ -283,6 +296,19 @@ export function AssignBoard({
                           <p className="text-[11.5px] text-fg-subtle">
                             {[item.city, item.state].filter(Boolean).join(", ")}
                           </p>
+                        )}
+                      </td>
+                      <td className="px-2 py-2.5">
+                        {item.duplicateOf.length > 0 && (
+                          <span
+                            // The names go in the title so "which one?" —
+                            // the first thing you ask — is one hover away
+                            // rather than a separate hunt.
+                            title={`Already in the CRM as: ${item.duplicateOf.join(", ")}`}
+                            className="inline-flex rounded-[4px] border border-warn/60 px-1.5 py-0.5 text-[11px] font-semibold text-warn"
+                          >
+                            Duplicate
+                          </span>
                         )}
                       </td>
                       <td className="px-2 py-2.5 text-[12.5px] text-fg-muted">{item.needs}</td>

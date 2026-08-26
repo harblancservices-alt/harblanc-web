@@ -38,6 +38,17 @@ export type WorkItem = {
   needs: string;
   /** ISO timestamp this item started waiting (its created_at). */
   waitingSince: string;
+  /**
+   * Other companies already in the book that look like this one, by name.
+   *
+   * DERIVED AT READ TIME (admin/duplicates.ts), never stored — same call as
+   * the completeness gaps. Empty for the overwhelming majority. Brent's rule
+   * is that a duplicate does not block anything: it converts like everything
+   * else and gets labelled so he can deal with it himself, so this is a
+   * label, not a gate. Carries the NAMES rather than a boolean because "which
+   * one?" is the first thing you ask when you see the flag.
+   */
+  duplicateOf: string[];
 };
 
 /** Every item is a company now, so "open this" is always its profile. */
