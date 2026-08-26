@@ -178,15 +178,14 @@ export function AssignBoard({
           you're picking, and Card's own `overflow-hidden` makes a
           viewport-sticky child impossible. Scrolling the LIST instead of the
           page keeps the bar planted at the panel's foot. */}
-      {/* 22rem, not the 7rem this used to be: the due-date readout now sits
-          above this card, and at 7rem the selection rail measured 233px below
-          the fold — the exact failure the bounded height exists to prevent.
-          The rail cannot be made viewport-sticky instead, because Card sets
-          overflow-hidden and that makes it a scroll container of its own, so
-          sticky would resolve against the card rather than the window.
-          22rem covers the shell padding, the Admin tab row, and a readout of
-          three people; a much larger team pushes the rail down again. */}
-      <Card className="flex max-h-[calc(100vh-22rem)] flex-col">
+      {/* Back to 7rem. It was briefly 22rem to clear the "Where the work
+          stands" readout that sat above this card; Brent removed that section
+          on 2026-08-25, so the extra 15rem is now just empty page under a
+          short card. The rail cannot be made viewport-sticky instead of
+          bounded, because Card sets overflow-hidden and that makes it a
+          scroll container of its own — sticky would resolve against the card
+          rather than the window. */}
+      <Card className="flex max-h-[calc(100vh-7rem)] flex-col">
         <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-line px-4 py-3">
           <h2 className="text-[15px] font-bold tracking-tight text-fg">Work to assign</h2>
           <p className="text-[12.5px] text-fg-muted">

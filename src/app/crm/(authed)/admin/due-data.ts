@@ -2,23 +2,24 @@ import { createCrmServerClient } from "@/lib/crm/auth";
 import type { DueTaskRow } from "./dueReport";
 
 /**
- * Server-side read for Admin -> Overview's due-date readout: every OPEN task
- * in the org, with its due date, its owner, and the company it hangs off.
+ * Server-side read for Admin -> Tasks: every OPEN task in the org, with its
+ * due date, its owner, and the company it hangs off.
  *
  * Org-wide by design — this is the owner's management view, and the whole
  * point is seeing the tasks that are NOT theirs. RLS still scopes it to the
  * org; nothing here reaches past it.
  *
- * Names are resolved against the same active-profile roster the assignment
- * board loads, so a person appears with the same name on both halves of the
- * page.
+ * Named "...ForReport" because it also fed Admin -> Overview's "Where the
+ * work stands" readout until Brent removed that section (2026-08-25). The
+ * board is now its only caller; the name is kept so the git history of the
+ * query stays greppable.
  */
 export type OpenTasksReport = {
   tasks: DueTaskRow[];
   /** Server clock, stamped HERE rather than in a component body — every
-   * label on both admin surfaces is computed against one instant, and
-   * `Date.now()` during render is an impure call the React Compiler rejects
-   * outright (react-hooks/purity). Same contract as assign-data.ts. */
+   * label on the board is computed against one instant, and `Date.now()`
+   * during render is an impure call the React Compiler rejects outright
+   * (react-hooks/purity). Same contract as assign-data.ts. */
   now: number;
 };
 

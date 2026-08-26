@@ -42,6 +42,8 @@ export function AgentDashboard({
   companies,
   now,
   addCompanyButton,
+  viewSwitch = null,
+  banner = null,
 }: {
   /** Display name shown next to the brand mark. */
   name: string;
@@ -51,8 +53,14 @@ export function AgentDashboard({
    * instant so the server and client renders can't disagree by a day. */
   now: number;
   /** The "+ Add" company dialog trigger, passed in from the server page
-   * because it needs the rep roster. */
+   * because it needs the rep roster. Null while an owner previews somebody
+   * else — see AgentHome. */
   addCompanyButton: React.ReactNode;
+  /** Owner-only view switcher, rendered in the header. Null for an agent,
+   * whose /crm is this page and nothing else. */
+  viewSwitch?: React.ReactNode;
+  /** One line above the panels, e.g. the preview notice. */
+  banner?: string | null;
 }) {
   const at = new Date(now);
   const groups = groupAgentWork(tasks, at);
@@ -78,12 +86,21 @@ export function AgentDashboard({
       <header className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line pb-3">
         <h1 className="text-[19px] font-bold tracking-tight text-fg">Hello Hotshot</h1>
         <p className="text-[14px] text-fg-muted">{name}</p>
-        <div className="ml-auto flex flex-wrap items-baseline gap-x-5 gap-y-1">
-          <Stat value={groups.overdue.length} label="Overdue" tone="bad" />
-          <Stat value={groups.today.length} label="Due today" tone="accent" />
-          <Stat value={companies.length} label="Companies" tone="fg" />
+        <div className="ml-auto flex flex-wrap items-center gap-x-5 gap-y-2">
+          <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1">
+            <Stat value={groups.overdue.length} label="Overdue" tone="bad" />
+            <Stat value={groups.today.length} label="Due today" tone="accent" />
+            <Stat value={companies.length} label="Companies" tone="fg" />
+          </div>
+          {viewSwitch}
         </div>
       </header>
+
+      {banner && (
+        <p className="mb-3 rounded-md border border-admin/30 bg-inset px-3 py-2 text-[12.5px] font-semibold text-fg-muted">
+          {banner}
+        </p>
+      )}
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
         {/* ── Your work ─────────────────────────────────────────────── */}
@@ -124,7 +141,7 @@ export function AgentDashboard({
           <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-2.5">
             <h2 className="text-[15px] font-bold tracking-tight text-fg">Your companies</h2>
             <span className="text-[12.5px] font-semibold text-fg-muted">{companies.length}</span>
-            <span className="ml-auto">{addCompanyButton}</span>
+            {addCompanyButton && <span className="ml-auto">{addCompanyButton}</span>}
           </div>
 
           {companies.length === 0 ? (

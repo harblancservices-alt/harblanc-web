@@ -141,8 +141,13 @@ function centralHour(date: Date): number {
  * comment for exactly which. RLS-scoped to the caller's org; force-dynamic
  * keeps it live.
  */
-export default async function CrmDashboardPage() {
+export default async function CrmDashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ view?: string; as?: string }>;
+}) {
   const user = await requireCrmUser();
+  const sp = await searchParams;
 
   // A SALES AGENT GETS A DIFFERENT HOME PAGE (2026-08-25). Everything below
   // this line is the OWNER's command centre: org-wide queues, every open task
@@ -152,6 +157,18 @@ export default async function CrmDashboardPage() {
   // that isn't theirs. The branch is here, before the queries, so an agent
   // never pays for reads their page won't render.
   if (user.role !== "owner") return <AgentHome user={user} />;
+
+  // ...and an OWNER can go and look at it, at /crm?view=agent. Brent approved
+  // that screen and then couldn't find it, because this branch had already
+  // sent him here. A toggle rather than the dashboard stacked below this one:
+  // the command centre runs ~1500px of Next Best Action queue, so anything
+  // underneath is off the bottom of the world — and Brent owns no companies
+  // and has no open tasks, so his own agent view is two empty cards, which
+  // appended here would have looked exactly like the bug he reported.
+  // `?as=` previews a specific person and is validated in AgentHome.
+  if (sp.view === "agent") {
+    return <AgentHome user={user} isOwner viewAs={sp.as ?? null} />;
+  }
 
   const supabase = await createCrmServerClient();
 
@@ -721,6 +738,15 @@ export default async function CrmDashboardPage() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <DashboardSearch companies={companyOptions} contacts={searchContacts} />
+          {/* The way into the agent dashboard. Owner-only by construction —
+              this whole header only renders past the role branch above. */}
+          <Link
+            href="/crm?view=agent"
+            prefetch={false}
+            className="inline-flex h-11 shrink-0 items-center rounded-md border border-accent bg-card px-3.5 text-[13px] font-bold text-accent transition-colors hover:bg-accent-bg"
+          >
+            Agent view
+          </Link>
           <HeaderAddCompanyButton reps={reps} />
         </div>
       </div>
