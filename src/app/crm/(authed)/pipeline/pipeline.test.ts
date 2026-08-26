@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildPipeline, isRealStageMove, isStage, sortColumn, type PipelineCard } from "./pipeline";
+import { buildPipeline, splitPipeline, isRealStageMove, isStage, sortColumn, type PipelineCard } from "./pipeline";
 import { LIFECYCLE_STAGES } from "../accounts/lifecycle";
 
 const NOW = 1_787_000_000_000;
@@ -99,5 +99,56 @@ describe("isStage", () => {
     for (const s of LIFECYCLE_STAGES) expect(isStage(s)).toBe(true);
     expect(isStage("quoted")).toBe(false);
     expect(isStage("")).toBe(false);
+  });
+});
+
+describe("splitPipeline — option B", () => {
+  it("renders a column only for stages that have companies", () => {
+    const { columns } = splitPipeline([c("a", "new_lead"), c("b", "new_lead")]);
+    expect(columns).toHaveLength(1);
+    expect(columns[0].stage).toBe("new_lead");
+    expect(columns[0].cards).toHaveLength(2);
+  });
+
+  it("names every other stage in the empty list", () => {
+    const { emptyStages } = splitPipeline([c("a", "new_lead")]);
+    expect(emptyStages).toHaveLength(LIFECYCLE_STAGES.length - 1);
+    expect(emptyStages).not.toContain("new_lead");
+    // The two terminal stages must be listed — they are the ones that become
+    // unreachable if the card control ever stops offering every stage.
+    expect(emptyStages).toContain("lost");
+    expect(emptyStages).toContain("disqualified");
+  });
+
+  it("accounts for all ten stages between the two halves, with no overlap", () => {
+    const { columns, emptyStages } = splitPipeline([c("a", "quoting"), c("b", "lost")]);
+    const shown = columns.map((col) => col.stage);
+    expect(shown).toEqual(["quoting", "lost"]);
+    expect(shown.length + emptyStages.length).toBe(LIFECYCLE_STAGES.length);
+    for (const s of shown) expect(emptyStages).not.toContain(s);
+  });
+
+  it("keeps funnel order on both sides", () => {
+    const { columns, emptyStages } = splitPipeline([
+      c("a", "lost"),
+      c("b", "new_lead"),
+      c("c", "quoting"),
+    ]);
+    expect(columns.map((col) => col.stage)).toEqual(["new_lead", "quoting", "lost"]);
+    expect(emptyStages).toEqual(
+      LIFECYCLE_STAGES.filter((s) => !["new_lead", "quoting", "lost"].includes(s)),
+    );
+  });
+
+  it("renders no columns and lists every stage when there is nothing at all", () => {
+    const { columns, emptyStages } = splitPipeline([]);
+    expect(columns).toHaveLength(0);
+    expect(emptyStages).toEqual([...LIFECYCLE_STAGES]);
+  });
+
+  it("puts a legacy-valued row in the column its value resolves to", () => {
+    // `researching` is not a stage any more; it resolves to New Lead.
+    const { columns } = splitPipeline([c("a", "researching")]);
+    expect(columns.map((col) => col.stage)).toEqual(["new_lead"]);
   });
 });

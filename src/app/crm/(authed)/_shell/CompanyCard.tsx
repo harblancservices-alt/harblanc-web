@@ -43,6 +43,7 @@ export function CompanyCard({
   now,
   compact = false,
   flag = null,
+  hideStage = false,
 }: {
   card: CompanyCardData;
   /** Epoch ms, from the server — never Date.now() during render. */
@@ -63,6 +64,16 @@ export function CompanyCard({
    * ago than this stage tolerates. That earns a badge.
    */
   flag?: "new" | "quiet" | null;
+  /**
+   * Drop the stage pill.
+   *
+   * For the pipeline board, where the card already sits in a column headed
+   * with that exact stage — printing it again on the card is the same
+   * duplicated-signal mistake as the old triple overdue indicator. Everywhere
+   * else (the dashboard, any list not grouped by stage) the stage is one of
+   * the most useful things on the card and stays.
+   */
+  hideStage?: boolean;
 }) {
   const place = [titleCaseWords(card.city), upperCaseState(card.state)].filter(Boolean).join(", ");
   const badge = sourceBadge(card.source);
@@ -97,13 +108,15 @@ export function CompanyCard({
       </p>
 
       {/* Where it is, and for how long */}
-      <div className="mt-2">
-        <span
-          className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${LIFECYCLE_TONE[stage]}`}
-        >
-          {stageWithAgeLabel(card, now)}
-        </span>
-      </div>
+      {!hideStage && (
+        <div className="mt-2">
+          <span
+            className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${LIFECYCLE_TONE[stage]}`}
+          >
+            {stageWithAgeLabel(card, now)}
+          </span>
+        </div>
+      )}
 
       {/* Who to call */}
       <div className="mt-2 border-t border-line pt-2">

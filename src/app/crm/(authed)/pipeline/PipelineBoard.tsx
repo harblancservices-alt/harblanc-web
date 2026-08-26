@@ -3,32 +3,37 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { CompanyCard as SharedCompanyCard } from "../_shell/CompanyCard";
-import { LIFECYCLE_LABEL, LIFECYCLE_TONE, type LifecycleStage } from "../accounts/lifecycle";
-import { updateLifecycleStatus } from "../accounts/actions";
 import {
-  buildPipeline,
-  isRealStageMove,
-  isStage,
-  type PipelineCard,
-} from "./pipeline";
+  LIFECYCLE_LABEL,
+  LIFECYCLE_STAGES,
+  LIFECYCLE_TONE,
+  stageNeedsReason,
+  type LifecycleStage,
+} from "../accounts/lifecycle";
+import { updateLifecycleStatus } from "../accounts/actions";
+import { StageReasonDialog } from "../accounts/StageReasonDialog";
+import { splitPipeline, isRealStageMove, isStage, type PipelineCard } from "./pipeline";
 
 /**
  * Workspace → Pipeline — the agent's book of business as a funnel.
  *
- * One column per lifecycle stage, one card per company, drag a card to move
- * the company through the funnel. The stages are accounts/lifecycle.ts's six,
- * in its order — not a set invented here.
+ * OPTION B (Brent, 2026-08-26): a column only for stages that have something
+ * in them, and one tile at the end naming the ones that do not.
  *
- * THE WRITE IS THE EXISTING ONE. Dropping a card calls
+ * What that replaced: ten fixed columns, which needed volume spread across
+ * ten stages to make sense. With four companies all at New Lead it drew one
+ * real column and nine slivers of rotated vertical text across a dead screen.
+ * The rotated text was the symptom of forcing ten columns into a narrow page;
+ * it cannot happen here because nothing renders a column it has no room for.
+ *
+ * THE WRITE IS THE EXISTING ONE. Moving a card calls
  * accounts/actions.ts::updateLifecycleStatus, the same action the company
- * profile's stage tracker uses — so a stage change from this board logs the
- * same transition activity and fires the same stage-entry automation. There
- * is no second way to move a company through the funnel.
+ * profile's stage buttons use — same transition activity, same stage-entry
+ * automation, same stage_changed_at stamp. There is no second way to move a
+ * company through the funnel.
  *
- * WHAT A CARD SHOWS is what an agent needs to pick the next move and nothing
- * else: who they are, where they are, how long since anyone spoke to them,
- * and whether work is already in flight. Deliberately no stage pill on the
- * card — the column it is sitting in already says that.
+ * WHAT A CARD SHOWS is the shared rich card (_shell/CompanyCard.tsx), the
+ * same one the agent dashboard draws.
  */
 export function PipelineBoard({
   cards,
@@ -42,27 +47,49 @@ export function PipelineBoard({
 }) {
   const router = useRouter();
   const at = new Date(now);
-  const columns = buildPipeline(cards);
+  const { columns, emptyStages } = splitPipeline(cards);
 
   const [dragging, setDragging] = useState<string | null>(null);
   const [over, setOver] = useState<LifecycleStage | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  /** A move waiting on a loss reason. Nothing is written until it resolves. */
+  const [needReason, setNeedReason] = useState<{ companyId: string; stage: LifecycleStage } | null>(null);
 
   const byId = new Map(cards.map((c) => [c.id, c]));
 
-  function move(companyId: string, target: LifecycleStage) {
-    const card = byId.get(companyId);
-    if (!card || !isRealStageMove(card, target)) return;
+  function commit(companyId: string, target: LifecycleStage, reason?: string) {
     setError(null);
     startTransition(async () => {
-      const result = await updateLifecycleStatus(companyId, target);
+      const result = await updateLifecycleStatus(companyId, target, reason);
       if (!result.ok) {
         setError(result.error);
         return;
       }
+      setNeedReason(null);
       router.refresh();
     });
+  }
+
+  /**
+   * Every move goes through here — a drop and a pick from the card's own
+   * control alike.
+   *
+   * THE REASON GATE LIVES HERE, not only on the profile. Lost and
+   * Disqualified refuse to be set without a reason (see
+   * updateLifecycleStatus), so before this gate a drag onto Lost failed
+   * server-side with an error banner and no way to satisfy it. Now it opens
+   * the same dialog the profile uses.
+   */
+  function move(companyId: string, target: LifecycleStage) {
+    const card = byId.get(companyId);
+    if (!card || !isRealStageMove(card, target)) return;
+    setError(null);
+    if (stageNeedsReason(target)) {
+      setNeedReason({ companyId, stage: target });
+      return;
+    }
+    commit(companyId, target);
   }
 
   if (cards.length === 0) {
@@ -100,24 +127,13 @@ export function PipelineBoard({
         </p>
       )}
 
-      {/* Sideways for the board, down inside each column — a long column must
-          not stretch the page.
-
-          TEN COLUMNS (2026-08-26). At the old fixed 17.5rem every column, ten
-          stages want ~2900px, so the board became a long sideways scroll
-          through mostly-empty columns to reach the far end of the funnel.
-
-          EMPTY COLUMNS NOW COLLAPSE to a narrow labelled rail. They are NOT
-          hidden — an empty column is information ("nothing is at Quoting")
-          and, more importantly, it is a drop target you have to be able to
-          aim at, which a hidden column is not. It still highlights and still
-          accepts a drop; it just does not spend 280px saying "Nothing here."
-          With a real book that typically halves the board's width. */}
+      {/* Columns size to the space and sit LEFT, they do not stretch to fill
+          it. One populated column spread across a 2500px screen would be
+          worse than the problem being fixed — so each is a comfortable
+          reading width and the row simply ends where the stages do. */}
       <div className="min-h-0 flex-1 overflow-x-auto pb-1">
-        <div className="flex h-full min-h-[20rem] gap-3">
-          {columns.map((col) => {
-            const collapsed = col.cards.length === 0;
-            return (
+        <div className="flex h-full min-h-[20rem] items-stretch gap-3">
+          {columns.map((col) => (
             <section
               key={col.stage}
               onDragOver={(e) => {
@@ -133,27 +149,10 @@ export function PipelineBoard({
                 if (id && isStage(col.stage)) move(id, col.stage);
               }}
               aria-label={`${LIFECYCLE_LABEL[col.stage]}, ${col.cards.length} companies`}
-              className={`flex shrink-0 flex-col rounded-lg border transition-all ${
-                collapsed ? "w-11" : "w-[16.5rem]"
-              } ${
-                over === col.stage
-                  ? "border-accent bg-accent-bg"
-                  : "border-line-strong bg-inset"
+              className={`flex w-[19rem] shrink-0 flex-col rounded-lg border transition-colors ${
+                over === col.stage ? "border-accent bg-accent-bg" : "border-line-strong bg-inset"
               }`}
             >
-              {collapsed ? (
-                // Vertical label so the stage stays readable at 44px. Still a
-                // full-height drop target.
-                <div className="flex min-h-0 flex-1 items-center justify-center py-3">
-                  <span
-                    className="whitespace-nowrap text-[11.5px] font-semibold text-fg-subtle"
-                    style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
-                  >
-                    {LIFECYCLE_LABEL[col.stage]}
-                  </span>
-                </div>
-              ) : (
-              <>
               <header className="flex items-center gap-2 px-3 py-2.5">
                 <span
                   className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${LIFECYCLE_TONE[col.stage]}`}
@@ -165,52 +164,94 @@ export function PipelineBoard({
 
               <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-2 pb-2">
                 {col.cards.map((card) => (
-                    <CompanyCard
-                      key={card.id}
-                      card={card}
-                      now={at}
-                      pending={pending}
-                      isDragging={dragging === card.id}
-                      onDragStart={setDragging}
-                      onDragEnd={() => {
-                        setDragging(null);
-                        setOver(null);
-                      }}
-                      onPick={move}
-                    />
-                  ))}
+                  <CompanyCard
+                    key={card.id}
+                    card={card}
+                    now={at}
+                    pending={pending}
+                    isDragging={dragging === card.id}
+                    onDragStart={setDragging}
+                    onDragEnd={() => {
+                      setDragging(null);
+                      setOver(null);
+                    }}
+                    onPick={move}
+                  />
+                ))}
               </div>
-              </>
-              )}
             </section>
-            );
-          })}
+          ))}
+
+          {/* THE STAGES WITH NOTHING IN THEM — one tile, named, at the end.
+              Not hidden: a stage you cannot see is a stage you assume is
+              gone, and a company can still be moved into any of these from
+              a card's own control. Not a drop target either, deliberately —
+              a single tile standing for seven stages cannot say WHICH one a
+              drop meant. */}
+          {emptyStages.length > 0 && (
+            <aside
+              aria-label={`${emptyStages.length} stages with no companies`}
+              className="flex w-[13rem] shrink-0 flex-col rounded-lg border border-dashed border-line-strong bg-inset/50 px-3 py-2.5"
+            >
+              <p className="text-[12.5px] font-bold text-fg-muted">
+                + {emptyStages.length} more {emptyStages.length === 1 ? "stage" : "stages"}
+              </p>
+              <p className="mt-0.5 text-[11px] text-fg-subtle">nothing here yet</p>
+              <ul className="mt-2 flex flex-col gap-0.5">
+                {emptyStages.map((s) => (
+                  <li key={s} className="truncate text-[11.5px] text-fg-subtle">
+                    {LIFECYCLE_LABEL[s]}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-auto pt-2 text-[11px] leading-snug text-fg-subtle">
+                Use a card&rsquo;s Move control to send a company to one of these.
+              </p>
+            </aside>
+          )}
         </div>
       </div>
 
       <p className="text-[12px] text-fg-subtle">
         Drag a company to another column to move its stage · coldest sits at the top of each
-        column · empty stages collapse to a rail and still accept a drop.
+        column · stages with nothing in them are listed at the end.
       </p>
+
+      <StageReasonDialog
+        stage={needReason?.stage ?? null}
+        pending={pending}
+        error={error}
+        onCancel={() => setNeedReason(null)}
+        onConfirm={(reason) => {
+          if (needReason) commit(needReason.companyId, needReason.stage, reason);
+        }}
+      />
     </div>
   );
 }
 
 /**
- * The pipeline's card: the SHARED rich card (_shell/CompanyCard.tsx) wrapped
- * in the drag affordance and the stage control.
+ * A card on the board: the shared rich card, plus the drag affordance and a
+ * compact stage control.
  *
- * THE CONTROL SITS OUTSIDE THE LINK, on purpose. Brent's rule is that the
- * card has one destination and nothing else on it is clickable, and the card
- * itself now honours that exactly. But the "Move to…" select is the ONLY
- * non-drag way to move a company — dragging is unreliable on touch and
- * impossible by keyboard — so removing it would cost real people the ability
- * to use this board at all.
+ * THE CONTROL IS SMALL AND RIGHT-ALIGNED, not a full-width select under every
+ * card (Brent, 2026-08-26: the clumsiest part of the old board). It was a
+ * 100%-wide bordered dropdown repeated on every card, as visually heavy as
+ * the card content itself and costing a card's worth of height per column.
  *
- * Nesting it inside the link is not an option either: a <select> inside an
- * <a> is invalid HTML and behaves like a trap. So it is a SIBLING, drawn
- * beneath the card as part of the same tile. The card body is one
- * destination; the control is a control.
+ * IT IS STILL A NATIVE <select>. Styled down to a small button, but native —
+ * which buys keyboard operation, the platform picker on touch, and screen
+ * reader semantics for free. Hand-rolling a menu would have meant
+ * re-implementing all three, and this control exists precisely for the people
+ * drag-and-drop fails.
+ *
+ * IT LISTS ALL TEN STAGES, always — including the ones with no column. That
+ * is the whole cost of option B: if a stage is not rendered you cannot drag
+ * to it, so without this Lost and Disqualified would be unreachable from
+ * this board.
+ *
+ * It sits OUTSIDE the card's link, as a sibling: a <select> inside an <a> is
+ * invalid HTML and behaves like a trap.
  */
 function CompanyCard({
   card,
@@ -242,22 +283,24 @@ function CompanyCard({
         isDragging ? "opacity-40" : ""
       }`}
     >
-      <SharedCompanyCard card={card} now={now.getTime()} compact />
+      <SharedCompanyCard card={card} now={now.getTime()} compact hideStage />
 
-      <select
-        value=""
-        disabled={pending}
-        onChange={(e) => e.target.value && onPick(card.id, e.target.value as LifecycleStage)}
-        aria-label={`Move ${card.name} to another stage`}
-        className="mt-1 w-full rounded-[4px] border border-line bg-card px-1 py-0.5 text-[11px] font-semibold text-fg-muted disabled:opacity-60"
-      >
-        <option value="">Move to…</option>
-        {(Object.keys(LIFECYCLE_LABEL) as LifecycleStage[]).map((s) => (
-          <option key={s} value={s}>
-            {LIFECYCLE_LABEL[s]}
-          </option>
-        ))}
-      </select>
+      <div className="mt-1 flex justify-end">
+        <select
+          value=""
+          disabled={pending}
+          onChange={(e) => e.target.value && onPick(card.id, e.target.value as LifecycleStage)}
+          aria-label={`Move ${card.name} to another stage`}
+          className="cursor-pointer rounded-[4px] border border-line bg-card px-1.5 py-0.5 text-[11px] font-semibold text-fg-subtle hover:border-accent hover:text-accent disabled:opacity-60"
+        >
+          <option value="">Move ⌄</option>
+          {LIFECYCLE_STAGES.map((s) => (
+            <option key={s} value={s}>
+              {LIFECYCLE_LABEL[s]}
+            </option>
+          ))}
+        </select>
+      </div>
     </div>
   );
 }

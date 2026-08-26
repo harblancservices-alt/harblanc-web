@@ -10,8 +10,7 @@ import {
   stageNeedsReason,
   type LifecycleStage,
 } from "../lifecycle";
-import { Modal } from "../../_shell/Modal";
-import { SubmitButton, FormError } from "../../_shell/form";
+import { StageReasonDialog } from "../StageReasonDialog";
 
 /**
  * The company profile's stage control — ten buttons, the current one
@@ -66,7 +65,6 @@ export function StageTracker({
   /** The stage waiting on a reason. Non-null means the dialog is open, and
    * nothing has been written yet. */
   const [reasonFor, setReasonFor] = useState<LifecycleStage | null>(null);
-  const [reason, setReason] = useState("");
   const router = useRouter();
 
   function commit(stage: LifecycleStage, why?: string) {
@@ -77,7 +75,6 @@ export function StageTracker({
       setBusyStage(null);
       if (res.ok) {
         setReasonFor(null);
-        setReason("");
         onStageChange?.(stage);
         router.refresh();
       } else {
@@ -92,7 +89,6 @@ export function StageTracker({
     // The gate is here, BEFORE any write. Closing the dialog leaves the
     // company exactly where it was.
     if (stageNeedsReason(stage)) {
-      setReason("");
       setReasonFor(stage);
       return;
     }
@@ -159,51 +155,17 @@ export function StageTracker({
 
       {error && <p className="mt-2 text-[12px] font-semibold text-bad">{error}</p>}
 
-      <Modal
-        open={reasonFor !== null}
-        onClose={() => setReasonFor(null)}
-        busy={pending}
-        title={reasonFor ? `Why ${LIFECYCLE_LABEL[reasonFor]}?` : ""}
-      >
-        <FormError message={error} />
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (reasonFor && reason.trim()) commit(reasonFor, reason);
-          }}
-          className="flex flex-col gap-2"
-        >
-          <label className="flex flex-col gap-1.5">
-            <span className="text-[11px] font-semibold uppercase tracking-[0.08em] text-fg-muted">
-              Reason
-            </span>
-            <textarea
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              rows={3}
-              autoFocus
-              required
-              placeholder={
-                reasonFor === "disqualified"
-                  ? "What ruled them out? Wrong freight, no authority, out of area…"
-                  : "What happened? Went with someone else, price, no response…"
-              }
-              className="w-full resize-none rounded-md border border-line-strong bg-inset p-2.5 text-[13px] text-fg outline-none focus:border-accent focus:bg-card focus:ring-2 focus:ring-accent/20"
-            />
-          </label>
-          <p className="text-[11.5px] text-fg-subtle">
-            {reasonFor === "disqualified"
-              ? "Disqualified means we ruled them out. It never resurfaces for win-back."
-              : "Lost means they went elsewhere. It comes back as a win-back candidate later."}
-          </p>
-          {/* The textarea's `required` plus the submit guard above are what
-              enforce a non-empty reason; SubmitButton has no disabled prop
-              and does not need one. */}
-          <SubmitButton pending={pending}>
-            {reasonFor ? `Mark ${LIFECYCLE_LABEL[reasonFor]}` : "Save"}
-          </SubmitButton>
-        </form>
-      </Modal>
+      {/* The prompt itself is shared with the pipeline board — see
+          accounts/StageReasonDialog.tsx. Same wording, same rules, one copy. */}
+      <StageReasonDialog
+        stage={reasonFor}
+        pending={pending}
+        error={error}
+        onCancel={() => setReasonFor(null)}
+        onConfirm={(why) => {
+          if (reasonFor) commit(reasonFor, why);
+        }}
+      />
     </div>
   );
 }

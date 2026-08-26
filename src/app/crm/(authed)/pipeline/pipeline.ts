@@ -39,6 +39,32 @@ export function buildPipeline(cards: PipelineCard[]): PipelineColumn[] {
 }
 
 /**
+ * The board Brent chose (option B, 2026-08-26): a column for every stage that
+ * HAS something, and one tile at the end naming the ones that do not.
+ *
+ * WHY, IN HIS DATA. Ten columns need volume spread across ten stages. He has
+ * four companies, all at New Lead, so the old board drew one real column and
+ * nine slivers of rotated vertical text across a mostly-dead screen. This
+ * renders one column and a tile reading "+ 9 more stages".
+ *
+ * THE EMPTY STAGES ARE NAMED, NOT HIDDEN. They still exist, a company can
+ * still be moved into one, and the tile lists them so that is obvious. What
+ * they lose is a column each.
+ *
+ * Order is preserved on both sides — populated columns stay in funnel order,
+ * and so do the names in the tile.
+ */
+export function splitPipeline(
+  cards: PipelineCard[],
+): { columns: PipelineColumn[]; emptyStages: LifecycleStage[] } {
+  const all = buildPipeline(cards);
+  return {
+    columns: all.filter((c) => c.cards.length > 0),
+    emptyStages: all.filter((c) => c.cards.length === 0).map((c) => c.stage),
+  };
+}
+
+/**
  * Coldest first inside a column, then by name.
  *
  * The question a pipeline column answers is "which of these is going stale",
