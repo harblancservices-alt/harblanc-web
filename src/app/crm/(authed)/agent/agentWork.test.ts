@@ -5,7 +5,7 @@ import {
   dueLabel,
   dueTint,
   groupAgentWork,
-  sortAgentCompanies,
+  newlyAssigned,
   type AgentCompany,
   type AgentTask,
 } from "./agentWork";
@@ -142,25 +142,38 @@ describe("companyFlag", () => {
   });
 });
 
-describe("sortAgentCompanies", () => {
-  it("puts never-contacted first, then coldest, then by name", () => {
+describe("newlyAssigned", () => {
+  it("keeps only companies nobody has logged a contact against", () => {
     const rows = [
-      company("Fresh", NOW.getTime() - DAY, "contacted"),
-      company("Cold", NOW.getTime() - 30 * DAY, "contacted"),
-      company("Never B", null, "contacted"),
-      company("Never A", null, "contacted"),
+      company("Worked", NOW.getTime() - DAY, "contacted"),
+      company("Untouched", null, "new_lead"),
     ];
-    expect(sortAgentCompanies(rows).map((c) => c.name)).toEqual([
-      "Never A",
-      "Never B",
-      "Cold",
-      "Fresh",
-    ]);
+    expect(newlyAssigned(rows).map((c) => c.name)).toEqual(["Untouched"]);
+  });
+
+  it("drops a company the moment a contact is logged — the leave trigger", () => {
+    const before = [company("Acme", null, "new_lead")];
+    expect(newlyAssigned(before)).toHaveLength(1);
+    const after = [company("Acme", NOW.getTime(), "new_lead")];
+    expect(newlyAssigned(after)).toHaveLength(0);
+  });
+
+  it("puts the newest first", () => {
+    const rows = [
+      { ...company("Older", null, "new_lead"), createdMs: NOW.getTime() - 10 * DAY },
+      { ...company("Newer", null, "new_lead"), createdMs: NOW.getTime() - DAY },
+    ];
+    expect(newlyAssigned(rows).map((c) => c.name)).toEqual(["Newer", "Older"]);
+  });
+
+  it("falls back to name order when nothing carries a created date", () => {
+    const rows = [company("B", null, "new_lead"), company("A", null, "new_lead")];
+    expect(newlyAssigned(rows).map((c) => c.name)).toEqual(["A", "B"]);
   });
 
   it("does not mutate its input", () => {
-    const rows = [company("B", null, null), company("A", NOW.getTime(), null)];
-    sortAgentCompanies(rows);
+    const rows = [company("B", null, null), company("A", null, null)];
+    newlyAssigned(rows);
     expect(rows.map((c) => c.name)).toEqual(["B", "A"]);
   });
 });

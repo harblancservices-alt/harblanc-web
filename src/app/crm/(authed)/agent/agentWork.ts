@@ -135,6 +135,45 @@ export function dueTint(dueAt: string | null, now: Date = new Date()): DueTint {
 }
 
 /**
+ * NEWLY ASSIGNED AND NOT YET WORKED — the dashboard's third area.
+ *
+ * Brent's rule (2026-08-26): the dashboard does NOT show an agent's roster.
+ * That lives on the Companies page. It shows only companies handed to them
+ * that they have not acted on yet, and a company LEAVES the list when the
+ * agent does something meaningful with it.
+ *
+ * THE TRIGGER IS LOGGING A CONTACT. He left the exact action to the profile
+ * redesign; a logged contact is the natural one, because it is the only
+ * thing on that page that means "I have actually engaged with this
+ * business" — opening a profile, reading it, or editing a field are all
+ * things you can do without touching the customer. It is also already
+ * defined and already shared: lastContactMs is lib/crm/lastContact.ts's
+ * rule, the later of the last logged call and the last CONTACT-kind
+ * activity, which is what stops a record-created event counting as work.
+ *
+ * So the whole rule is: assigned to me, and lastContactMs is null.
+ *
+ * DERIVED, NEVER STORED — same call as the completeness gaps. There is no
+ * "acknowledged" flag to set, nothing to reap, and nothing that can drift
+ * out of step with the calls table.
+ *
+ * NEWEST FIRST, because "new" is the point. Falls back to name order when
+ * created_at is unavailable, so the list never reshuffles at random.
+ */
+export function newlyAssigned(companies: AgentCompany[]): AgentCompany[] {
+  return companies
+    .filter((c) => c.lastContactMs === null)
+    .sort((a, b) => {
+      const am = a.createdMs ?? null;
+      const bm = b.createdMs ?? null;
+      if (am !== null && bm !== null && am !== bm) return bm - am;
+      if (am === null && bm !== null) return 1;
+      if (bm === null && am !== null) return -1;
+      return a.name.localeCompare(b.name);
+    });
+}
+
+/**
  * A company's "why is this on my list" flag.
  *
  * "new" — never contacted at all. "quiet" — contacted, but longer ago than
@@ -180,20 +219,3 @@ export function activityStatus(
   return { text, tone: freshness === "cold" ? "bad" : "plain" };
 }
 
-/**
- * Order for "Your companies": the ones needing attention first.
- *
- * Never-contacted is the worst case, so it sorts as colder than any
- * contacted company rather than sinking to the bottom as a missing value —
- * the same rule Admin -> Companies sorts by (companyRow.ts::sortForAdmin),
- * minus its unassigned-first tier, which is meaningless here since every row
- * on this screen is already owned by the viewer.
- */
-export function sortAgentCompanies(companies: AgentCompany[]): AgentCompany[] {
-  return [...companies].sort((a, b) => {
-    const am = a.lastContactMs ?? -Infinity;
-    const bm = b.lastContactMs ?? -Infinity;
-    if (am !== bm) return am - bm;
-    return a.name.localeCompare(b.name);
-  });
-}

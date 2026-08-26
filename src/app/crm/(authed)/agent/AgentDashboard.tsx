@@ -14,7 +14,7 @@ import {
   dueLabel,
   dueTint,
   groupAgentWork,
-  sortAgentCompanies,
+  newlyAssigned,
   type AgentCompany,
   type AgentTask,
 } from "./agentWork";
@@ -62,7 +62,7 @@ export function AgentDashboard({
 }) {
   const at = new Date(now);
   const groups = groupAgentWork(tasks, at);
-  const sortedCompanies = sortAgentCompanies(companies);
+  const newCompanies = newlyAssigned(companies);
 
   const [expanded, setExpanded] = useState(false);
   const shown = expanded ? Infinity : GROUP_CAP;
@@ -81,7 +81,7 @@ export function AgentDashboard({
   const gapTotal = countGaps(completeness);
 
   const COMPANY_CAP = 8;
-  const visibleCompanies = sortedCompanies.slice(0, COMPANY_CAP);
+  const visibleNew = newCompanies.slice(0, COMPANY_CAP);
 
   return (
     <div className="mx-auto w-full max-w-[1400px] px-4 py-4 sm:px-6">
@@ -92,11 +92,17 @@ export function AgentDashboard({
         <div className="ml-auto flex flex-wrap items-baseline gap-x-5 gap-y-1">
           <Stat value={groups.overdue.length} label="Overdue" tone="bad" />
           <Stat value={groups.today.length} label="Due today" tone="accent" />
-          <Stat value={companies.length} label="Companies" tone="fg" />
+          <Stat value={newCompanies.length} label="New to work" tone="fg" />
         </div>
       </header>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
+      {/* THREE AREAS, NOT TWO (Brent, 2026-08-26). It was a wide "Your work"
+          column with the gaps bolted onto its bottom, beside a narrow roster
+          — two panels, one of them half empty, and the gaps reading as a
+          footnote to the task list rather than their own kind of thing.
+          Tasks, gaps and new companies are three separate questions, so they
+          get three columns. */}
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         {/* ── Your work ─────────────────────────────────────────────── */}
         <Card>
           <div className="flex flex-wrap items-baseline gap-2 border-b border-line px-4 py-3">
@@ -128,28 +134,60 @@ export function AgentDashboard({
               )}
             </>
           )}
-
-          <CompletenessList gaps={gaps} total={gapTotal} />
         </Card>
 
-        {/* ── Your companies ────────────────────────────────────────── */}
+        {/* ── Gaps ──────────────────────────────────────────────────── */}
         <Card>
-          <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-2.5">
-            <h2 className="text-[15px] font-bold tracking-tight text-fg">Your companies</h2>
-            <span className="text-[12.5px] font-semibold text-fg-muted">{companies.length}</span>
-            <span className="ml-auto">{addCompanyButton}</span>
+          <div className="flex flex-wrap items-baseline gap-2 border-b border-line px-4 py-3">
+            <h2 className="text-[15px] font-bold tracking-tight text-fg">Gaps</h2>
+            <p className="text-[12.5px] text-fg-muted">records missing something</p>
           </div>
-
-          {companies.length === 0 ? (
+          {gapTotal === 0 ? (
             <div className="px-4 py-10 text-center">
-              <p className="text-[13.5px] font-semibold text-fg">No companies yet</p>
+              <p className="text-[13.5px] font-semibold text-fg">Nothing missing</p>
               <p className="mt-0.5 text-[12.5px] text-fg-muted">
-                Add one, or wait for one to be assigned to you.
+                Every company you own has a contact, a location and a trade.
               </p>
             </div>
           ) : (
+            <CompletenessList gaps={gaps} total={gapTotal} compact />
+          )}
+        </Card>
+
+        {/* ── New to work ───────────────────────────────────────────── */}
+        <Card>
+          <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-2.5">
+            <h2 className="text-[15px] font-bold tracking-tight text-fg">New to work</h2>
+            <span className="text-[12.5px] font-semibold text-fg-muted">{newCompanies.length}</span>
+            <span className="ml-auto">{addCompanyButton}</span>
+          </div>
+
+          {/* NOT THE ROSTER. Only companies handed to you that you have not
+              logged a contact against yet — see agentWork.ts::newlyAssigned.
+              The full book is the Companies page, linked below. */}
+          {newCompanies.length === 0 ? (
+            <div className="px-4 py-10 text-center">
+              <p className="text-[13.5px] font-semibold text-fg">
+                {companies.length === 0 ? "No companies yet" : "You have started on all of them"}
+              </p>
+              <p className="mt-0.5 text-[12.5px] text-fg-muted">
+                {companies.length === 0
+                  ? "Add one, or wait for one to be assigned to you."
+                  : "New ones show up here until you log a call or a note."}
+              </p>
+              {companies.length > 0 && (
+                <Link
+                  href="/crm/accounts"
+                  prefetch={false}
+                  className="mt-2 inline-block text-[13px] font-bold text-accent hover:underline"
+                >
+                  See all {companies.length}
+                </Link>
+              )}
+            </div>
+          ) : (
             <ul className="flex flex-col gap-2 p-3">
-              {visibleCompanies.map((c) => (
+              {visibleNew.map((c) => (
                 <li key={c.id}>
                   {/* The SHARED rich card (_shell/CompanyCard.tsx) — the same
                       component the pipeline board draws, so the two screens
@@ -157,19 +195,17 @@ export function AgentDashboard({
                   <CompanyCard card={c} now={at.getTime()} flag={companyFlag(c, at)} />
                 </li>
               ))}
-              {companies.length > COMPANY_CAP && (
-                <li className="px-4 py-3">
-                  {/* Their own book, in full — the Companies list is already
-                      scoped to a restricted agent's own rows. Not a pool. */}
-                  <Link
-                    href="/crm/accounts"
-                    prefetch={false}
-                    className="text-[13px] font-bold text-accent hover:underline"
-                  >
-                    See all {companies.length}
-                  </Link>
-                </li>
-              )}
+              <li className="px-1 pt-1">
+                <Link
+                  href="/crm/accounts"
+                  prefetch={false}
+                  className="text-[13px] font-bold text-accent hover:underline"
+                >
+                  {newCompanies.length > COMPANY_CAP
+                    ? `See all ${companies.length} companies`
+                    : `All ${companies.length} companies`}
+                </Link>
+              </li>
             </ul>
           )}
         </Card>

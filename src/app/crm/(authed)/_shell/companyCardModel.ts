@@ -45,6 +45,9 @@ export type CompanyCardData = {
   contactPhone: string | null;
   /** Open crm_tasks on this company. */
   openTasks: number;
+  /** crm_accounts.created_at as epoch ms. Optional: only the surfaces that
+   * order by "newest first" need it. */
+  createdMs?: number | null;
 };
 
 /**
