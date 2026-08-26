@@ -1,4 +1,5 @@
 import { getAssignBoardData } from "./assign-data";
+import { listQuickTasks } from "./quick-task-actions";
 import { AssignBoard } from "./AssignBoard";
 
 export const dynamic = "force-dynamic";
@@ -17,6 +18,9 @@ export const dynamic = "force-dynamic";
  * person is their current load, and it answers "who has room".
  */
 export default async function AdminOverviewPage() {
-  const { items, team, now } = await getAssignBoardData();
-  return <AssignBoard items={items} team={team} now={now} />;
+  const [{ items, team, now }, quickTasks] = await Promise.all([
+    getAssignBoardData(),
+    listQuickTasks(),
+  ]);
+  return <AssignBoard items={items} team={team} now={now} quickTasks={quickTasks} />;
 }

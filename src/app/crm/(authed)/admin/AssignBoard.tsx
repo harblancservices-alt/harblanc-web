@@ -9,7 +9,8 @@ import { CONTROL, CONTROL_SIZE, LABEL } from "../_shell/compactForm";
 import { SegmentedTabs } from "../_shell/SegmentedTabs";
 import { titleCaseWords } from "../_shell/format";
 import { assignWork, sendTask } from "./assign-actions";
-import { DEFAULT_QUICK_TASKS, isDuplicateQuickTask, normalizeQuickTask } from "./quickTasks";
+import { isDuplicateQuickTask, normalizeQuickTask } from "./quickTasks";
+import { addQuickTask, removeQuickTask, type QuickTask } from "./quick-task-actions";
 import type { TeamMember } from "./assign-data";
 import {
   ASSIGN_FALLBACK_NOTE,
@@ -46,10 +47,13 @@ export function AssignBoard({
   items,
   team,
   now,
+  quickTasks,
 }: {
   items: WorkItem[];
   team: TeamMember[];
   now: number;
+  /** Live rows from crm_quick_tasks, org-shared and ordered. */
+  quickTasks: QuickTask[];
 }) {
   const router = useRouter();
   const [filter, setFilter] = useState<WorkFilterKey>("all");
@@ -455,7 +459,7 @@ export function AssignBoard({
           )}
         </Card>
 
-        <TaskComposer team={team} items={items} />
+        <TaskComposer team={team} items={items} quickTasks={quickTasks} />
       </div>
     </div>
   );
@@ -471,15 +475,19 @@ export function AssignBoard({
  * a task at. Those items are still assignable on the left; they just can't be
  * the subject of a company-linked task yet.
  */
-function TaskComposer({ team, items }: { team: TeamMember[]; items: WorkItem[] }) {
+function TaskComposer({
+  team,
+  items,
+  quickTasks,
+}: {
+  team: TeamMember[];
+  items: WorkItem[];
+  /** Live rows from crm_quick_tasks, already ordered by sort_order. */
+  quickTasks: QuickTask[];
+}) {
+  const router = useRouter();
+  const [taskEditPending, startTaskEdit] = useTransition();
   const [title, setTitle] = useState("");
-  /**
-   * SESSION-ONLY. Seeded from DEFAULT_QUICK_TASKS; adds and deletes live here
-   * and nowhere else, because there is no approved place to put them yet.
-   * When a store exists this becomes the fetched list and these two handlers
-   * become server actions — the UI does not change. See quickTasks.ts.
-   */
-  const [quickTasks, setQuickTasks] = useState<string[]>([...DEFAULT_QUICK_TASKS]);
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
@@ -500,26 +508,43 @@ function TaskComposer({ team, items }: { team: TeamMember[]; items: WorkItem[] }
     [items],
   );
 
-  function addQuickTask() {
+  /** Both handlers write to crm_quick_tasks and let the server action's
+   * revalidatePath refresh the list — no local copy to drift out of sync. */
+  function onAddQuickTask() {
     const label = normalizeQuickTask(draft);
     if (!label) {
       setAddError("Give the button a label.");
       return;
     }
-    if (isDuplicateQuickTask(quickTasks, label)) {
+    if (isDuplicateQuickTask(quickTasks.map((q) => q.label), label)) {
       setAddError(`"${label}" is already there.`);
       return;
     }
-    setQuickTasks((prev) => [...prev, label]);
-    setDraft("");
     setAddError(null);
+    startTaskEdit(async () => {
+      const result = await addQuickTask(label);
+      if (!result.ok) {
+        setAddError(result.error);
+        return;
+      }
+      setDraft("");
+      router.refresh();
+    });
   }
 
-  function removeQuickTask(label: string) {
-    setQuickTasks((prev) => prev.filter((q) => q !== label));
-    // Clearing a button that is currently the composer's title would leave a
-    // selected-looking state with nothing selected.
-    setTitle((t) => (t === label ? "" : t));
+  function onRemoveQuickTask(task: QuickTask) {
+    setAddError(null);
+    startTaskEdit(async () => {
+      const result = await removeQuickTask(task.id);
+      if (!result.ok) {
+        setAddError(result.error);
+        return;
+      }
+      // Clearing a button that is currently the composer's title would leave
+      // a selected-looking state with nothing selected.
+      setTitle((t) => (t === task.label ? "" : t));
+      router.refresh();
+    });
   }
 
   function send() {
@@ -587,17 +612,18 @@ function TaskComposer({ team, items }: { team: TeamMember[]; items: WorkItem[] }
                 type="text"
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && addQuickTask()}
+                onKeyDown={(e) => e.key === "Enter" && onAddQuickTask()}
                 placeholder="e.g. Ask about their reefer volume"
                 aria-label="New quick task"
                 className={`min-w-0 flex-1 ${CONTROL_SIZE} ${CONTROL}`}
               />
               <button
                 type="button"
-                onClick={addQuickTask}
-                className={`rounded-md px-3 py-2 text-[12.5px] font-bold transition-colors ${BTN_PRIMARY}`}
+                onClick={onAddQuickTask}
+                disabled={taskEditPending}
+                className={`rounded-md px-3 py-2 text-[12.5px] font-bold transition-colors disabled:opacity-60 ${BTN_PRIMARY}`}
               >
-                Add
+                {taskEditPending ? "Saving…" : "Add"}
               </button>
             </div>
           )}
@@ -609,18 +635,19 @@ function TaskComposer({ team, items }: { team: TeamMember[]; items: WorkItem[] }
               title. */}
           <div className="mt-1.5 grid grid-cols-2 gap-1.5 sm:grid-cols-3">
             {quickTasks.map((q) => (
-              <div key={q} className="relative">
+              <div key={q.id} className="relative">
                 <button
                   type="button"
-                  onClick={() => (editing ? removeQuickTask(q) : setTitle(q))}
-                  className={`w-full rounded-[5px] border border-accent px-2.5 py-1.5 text-center text-[12.5px] font-semibold text-white transition-colors ${
-                    title === q && !editing
+                  disabled={taskEditPending}
+                  onClick={() => (editing ? onRemoveQuickTask(q) : setTitle(q.label))}
+                  className={`w-full rounded-[5px] border border-accent px-2.5 py-1.5 text-center text-[12.5px] font-semibold text-white transition-colors disabled:opacity-60 ${
+                    title === q.label && !editing
                       ? "bg-accent-hover ring-2 ring-accent/40"
                       : "bg-accent hover:bg-accent-hover"
                   }`}
-                  title={editing ? `Remove "${q}"` : undefined}
+                  title={editing ? `Remove "${q.label}"` : undefined}
                 >
-                  {q}
+                  {q.label}
                 </button>
                 {editing && (
                   <span
@@ -635,15 +662,9 @@ function TaskComposer({ team, items }: { team: TeamMember[]; items: WorkItem[] }
           </div>
           {editing && (
             <p className="mt-1.5 text-[11.5px] text-fg-muted">
-              Click a button to remove it. Changes last for this session only — see below.
+              Click a button to remove it. Removed buttons are kept and can be restored.
             </p>
           )}
-          {/* Said plainly on screen, not just in a commit message: this is
-              the one part of the panel that does not survive a reload. */}
-          <p className="mt-1.5 text-[11.5px] text-warn">
-            Custom quick tasks aren&rsquo;t saved yet — they reset on reload and aren&rsquo;t shared with the
-            team. Needs a place to store them.
-          </p>
         </div>
 
         <label className="flex flex-col gap-1">

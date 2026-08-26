@@ -1,23 +1,22 @@
 /**
- * The one-click task labels on Admin → Overview's composer.
+ * Validation for Admin → Overview's one-click task buttons.
  *
- * ⚠️ NOT PERSISTED YET. Buttons added or deleted through the UI live in React
- * state for the session only — reload and this list is back. That is
- * deliberate: custom quick tasks have to be shared by everyone in the org, so
- * they belong in the database, and adding a table or a column is a schema
- * change Brent has not approved. The UI is built and wired so it can be felt;
- * the moment a store exists, DEFAULT_QUICK_TASKS becomes the seed and the
- * component's local state becomes a fetch. See the report for the two shapes
- * on offer.
+ * PERSISTED as of 2026-08-25 in public.crm_quick_tasks, one row per button,
+ * shared org-wide and soft-deleted. This module holds only the pure rules;
+ * the reads and writes live in quick-task-actions.ts.
  *
- * localStorage was ruled out explicitly: it is per-browser, so one rep's
- * additions would be invisible to everyone else, which is worse than not
- * having the feature.
+ * localStorage was ruled out: it is per-browser, so one rep's additions would
+ * be invisible to everyone else — worse than not having the feature.
  *
- * WORDING. These are what a freight salesperson would actually write on a
- * follow-up, not generic CRM verbs. "Call them back" was replaced with "Call
- * or reach out" — a rep emails and texts at least as often as they dial, and
- * "back" wrongly implies the customer called first.
+ * WORDING of the seeded set (see the migration). These are what a freight
+ * salesperson would actually write on a follow-up, not generic CRM verbs.
+ * "Call them back" became "Call or reach out" — a rep emails and texts at
+ * least as often as they dial, and "back" wrongly implies the customer called
+ * first.
+ *
+ * DEFAULT_QUICK_TASKS is kept as the seed's mirror so the migration's list
+ * has one place to be read from in tests. It is NOT what the UI renders —
+ * the UI renders rows.
  */
 export const DEFAULT_QUICK_TASKS: readonly string[] = [
   "Call or reach out",
