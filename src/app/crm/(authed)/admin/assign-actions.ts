@@ -32,6 +32,76 @@ const FALLBACK_TITLE: Record<Exclude<WorkSource, "prospect">, (company: string) 
   bol: (c) => `Match the companies on the ${c} bill of lading`,
 };
 
+/**
+ * The ONE place crm_accounts.assigned_user_id is written by an admin. Both
+ * the work board (which assigns released prospects) and the Companies tab
+ * (which reassigns any company) go through it, so "assign a company" has a
+ * single definition rather than one per screen.
+ *
+ * Returns the number of rows actually updated — never the number requested —
+ * so a caller can't report success for a row that was soft-deleted or moved
+ * out from under it.
+ */
+async function setAccountOwner(
+  supabase: Awaited<ReturnType<typeof createCrmServerClient>>,
+  accountIds: string[],
+  personId: string,
+): Promise<{ ok: true; count: number } | { ok: false }> {
+  if (accountIds.length === 0) return { ok: true, count: 0 };
+  const { data, error } = await supabase
+    .from("crm_accounts")
+    .update({ assigned_user_id: personId })
+    .in("id", accountIds)
+    .is("deleted_at", null)
+    .select("id");
+  if (error) return { ok: false };
+  return { ok: true, count: data?.length ?? 0 };
+}
+
+/** Shared guard: caller is an owner and the assignee is a real active member
+ * of THIS org. Never trust an id off the wire. */
+async function requireAdminAndAssignee(
+  personId: string,
+): Promise<{ ok: true; supabase: Awaited<ReturnType<typeof createCrmServerClient>> } | { ok: false; error: string }> {
+  const user = await requireCrmUser();
+  if (user.role !== "owner") return { ok: false, error: "Only an admin can hand out work." };
+  if (!personId) return { ok: false, error: "Pick someone to assign this to." };
+
+  const supabase = await createCrmServerClient();
+  const { data: person } = await supabase
+    .from("crm_profiles")
+    .select("id")
+    .eq("id", personId)
+    .eq("org_id", user.orgId)
+    .eq("is_active", true)
+    .maybeSingle();
+  if (!person) return { ok: false, error: "That person isn't on this org." };
+  return { ok: true, supabase };
+}
+
+/**
+ * Admin → Companies: hand a set of companies to an agent.
+ *
+ * Step 1 of the centralised model, and deliberately ONLY the ownership write:
+ * it does not create a task, touch lifecycle, or log an activity. Those are
+ * later steps.
+ */
+export async function assignCompanies(
+  personId: string,
+  accountIds: string[],
+): Promise<AssignResult> {
+  if (accountIds.length === 0) return { ok: false, error: "Nothing is selected." };
+  const guard = await requireAdminAndAssignee(personId);
+  if (!guard.ok) return { ok: false, error: guard.error };
+
+  const result = await setAccountOwner(guard.supabase, accountIds, personId);
+  if (!result.ok) return { ok: false, error: "Could not reassign those companies. Please try again." };
+
+  revalidatePath("/crm/admin/companies");
+  revalidatePath("/crm/admin");
+  return { ok: true, claimed: result.count, tasked: 0 };
+}
+
 export async function assignWork(personId: string, keys: string[]): Promise<AssignResult> {
   const user = await requireCrmUser();
   if (user.role !== "owner") return { ok: false, error: "Only an admin can hand out work." };
@@ -55,17 +125,9 @@ export async function assignWork(personId: string, keys: string[]): Promise<Assi
   const prospectIds = parsed.filter((p) => p.source === "prospect").map((p) => p.id);
   const fallbacks = parsed.filter((p) => p.source !== "prospect");
 
-  let claimed = 0;
-  if (prospectIds.length > 0) {
-    const { data, error } = await supabase
-      .from("crm_accounts")
-      .update({ assigned_user_id: personId })
-      .in("id", prospectIds)
-      .is("deleted_at", null)
-      .select("id");
-    if (error) return { ok: false, error: "Could not assign those companies. Please try again." };
-    claimed = data?.length ?? 0;
-  }
+  const owned = await setAccountOwner(supabase, prospectIds, personId);
+  if (!owned.ok) return { ok: false, error: "Could not assign those companies. Please try again." };
+  const claimed = owned.count;
 
   let tasked = 0;
   if (fallbacks.length > 0) {
