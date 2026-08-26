@@ -21,6 +21,7 @@ import { CRM_ACTIVITY, CRM_CONTACT_ACTIVITY_KINDS } from "@/lib/crm/activity";
 import { ensureWinbackTask } from "@/lib/crm/stageAutomation";
 import { taskUrgencyBucket } from "@/lib/crm/taskUrgency";
 import { taskPriorityCompare } from "./tasks/priority";
+import { AgentHome } from "./agent/AgentHome";
 
 export const dynamic = "force-dynamic";
 
@@ -142,6 +143,16 @@ function centralHour(date: Date): number {
  */
 export default async function CrmDashboardPage() {
   const user = await requireCrmUser();
+
+  // A SALES AGENT GETS A DIFFERENT HOME PAGE (2026-08-25). Everything below
+  // this line is the OWNER's command centre: org-wide queues, every open task
+  // in the business, a Next Best Action list built across all 56 companies.
+  // That is the wrong screen for someone whose job is the handful of things
+  // assigned to them, and under the centralised model it also shows them work
+  // that isn't theirs. The branch is here, before the queries, so an agent
+  // never pays for reads their page won't render.
+  if (user.role !== "owner") return <AgentHome user={user} />;
+
   const supabase = await createCrmServerClient();
 
   const now = new Date();

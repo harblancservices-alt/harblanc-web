@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createCrmServerClient, requireCrmUser } from "@/lib/crm/auth";
 import { parseItemKey, type WorkSource } from "./workItem";
+import { defaultDueDate, dueDateToInstant } from "./companies/assignmentTask";
 
 /**
  * Writes for the Admin → Overview assignment board.
@@ -301,6 +302,13 @@ export async function assignWork(personId: string, keys: string[]): Promise<Assi
     for (const r of otrRows.data ?? []) nameById.set(r.id as string, (r.company_name as string) || "a company");
     for (const r of bolRows.data ?? []) nameById.set(r.id as string, (r.shipper_name as string) || "a shipment");
 
+    // DUE-DATED, not undated (2026-08-25). These used to go out with
+    // due_at: null, which meant handing someone work that could never
+    // become overdue — invisible to Admin -> Overview's deadline readout and
+    // to the bottom of their own dashboard forever. Same default window
+    // Admin -> Companies assigns with (DEFAULT_DUE_DAYS), so a handed-out
+    // item carries the same expectation whichever screen handed it out.
+    const dueAt = dueDateToInstant(defaultDueDate(new Date()));
     const result = await insertTasks(
       supabase,
       user.orgId,
@@ -308,7 +316,7 @@ export async function assignWork(personId: string, keys: string[]): Promise<Assi
         account_id: null,
         title: FALLBACK_TITLE[f.source as "otr" | "bol"](nameById.get(f.id) ?? "a company"),
         task_type: null,
-        due_at: null,
+        due_at: dueAt,
         assigned_user_id: personId,
       })),
     );
