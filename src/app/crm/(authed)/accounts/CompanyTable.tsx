@@ -4,6 +4,8 @@ import { ClickableRow } from "../_shell/ClickableRow";
 import { LIST_HEAD_ROW, ZEBRA_ROWS, Badge } from "../_shell/ui";
 import { stageLabel, stageBadgeTone } from "./lifecycle";
 import { lastContactStatus, titleCaseWords, upperCaseState } from "../_shell/format";
+import { temperatureOf } from "@/lib/crm/temperature";
+import { TemperatureDot } from "../_shell/TemperatureDot";
 import { CompanyRowActions } from "./CompanyRowActions";
 import { ActiveCustomerRowActions, type ActiveCustomerActionsData } from "../customers/ActiveCustomerRowActions";
 import type { CompanyOption } from "../contacts/CompanyCombobox";
@@ -32,10 +34,14 @@ import type { CompanyCardData } from "./CompanyListCard";
 export function CompanyTable({
   companies,
   companyOptions,
+  now,
   activeCustomerActions,
 }: {
   companies: CompanyCardData[];
   companyOptions: CompanyOption[];
+  /** Server clock — never Date.now() during render (React Compiler purity
+   * rule). One instant for every temperature on the page. */
+  now: number;
   activeCustomerActions?: ActiveCustomerActionsData;
 }) {
   return (
@@ -53,7 +59,7 @@ export function CompanyTable({
       </thead>
       <tbody className={ZEBRA_ROWS}>
         {companies.map((c) => (
-          <CompanyTableRow key={c.id} company={c} companyOptions={companyOptions} activeCustomerActions={activeCustomerActions} />
+          <CompanyTableRow key={c.id} company={c} companyOptions={companyOptions} activeCustomerActions={activeCustomerActions} now={now} />
         ))}
       </tbody>
     </table>
@@ -63,14 +69,17 @@ export function CompanyTable({
 function CompanyTableRow({
   company,
   companyOptions,
+  now,
   activeCustomerActions,
 }: {
   company: CompanyCardData;
   companyOptions: CompanyOption[];
+  now: number;
   activeCustomerActions?: ActiveCustomerActionsData;
 }) {
   const location = [titleCaseWords(company.city), upperCaseState(company.state)].filter(Boolean).join(", ");
   const lastContact = lastContactStatus(company.lastContactMs);
+  const temp = temperatureOf({ stage: company.stage, lastContactMs: company.lastContactMs, now });
 
   return (
     <ClickableRow href={`/crm/accounts/${company.id}`}>
@@ -94,7 +103,10 @@ function CompanyTableRow({
       </td>
       <td className="px-4 py-3 text-right tabular-nums text-fg-muted">{company.contactCount}</td>
       <td className="px-4 py-3 truncate text-fg-muted">
-        {lastContact.freshness === "never" ? "Never" : lastContact.text}
+        <span className="flex items-center gap-1.5">
+          <TemperatureDot temp={temp} />
+          {lastContact.freshness === "never" ? "Never" : lastContact.text}
+        </span>
       </td>
       <td className="px-4 py-3">
         {activeCustomerActions ? (

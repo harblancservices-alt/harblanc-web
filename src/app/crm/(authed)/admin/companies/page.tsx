@@ -1,5 +1,6 @@
 import { getCompaniesData } from "./companies-data";
 import { CompaniesBoard } from "./CompaniesBoard";
+import { serverNow } from "@/lib/crm/serverNow";
 
 export const dynamic = "force-dynamic";
 
@@ -17,5 +18,5 @@ export const dynamic = "force-dynamic";
  */
 export default async function AdminCompaniesPage() {
   const { rows, agents } = await getCompaniesData();
-  return <CompaniesBoard rows={rows} agents={agents} />;
+  return <CompaniesBoard now={serverNow()} rows={rows} agents={agents} />;
 }

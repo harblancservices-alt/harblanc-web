@@ -4,6 +4,8 @@ import { ClickableListItem } from "../_shell/ClickableRow";
 import { Badge } from "../_shell/ui";
 import { stageLabel, stageBadgeTone } from "./lifecycle";
 import { lastContactStatus, titleCaseWords, upperCaseState } from "../_shell/format";
+import { temperatureOf } from "@/lib/crm/temperature";
+import { TemperatureDot } from "../_shell/TemperatureDot";
 import { CompanyRowActions } from "./CompanyRowActions";
 import { ActiveCustomerRowActions, type ActiveCustomerActionsData } from "../customers/ActiveCustomerRowActions";
 import type { CompanyOption } from "../contacts/CompanyCombobox";
@@ -44,14 +46,19 @@ export type CompanyCardData = {
 export function CompanyListCard({
   company,
   companyOptions,
+  now,
   activeCustomerActions,
 }: {
   company: CompanyCardData;
   companyOptions: CompanyOption[];
+  /** Server clock — never Date.now() during render (React Compiler purity
+   * rule). One instant for every temperature on the page. */
+  now: number;
   activeCustomerActions?: ActiveCustomerActionsData;
 }) {
   const location = [titleCaseWords(company.city), upperCaseState(company.state)].filter(Boolean).join(", ");
   const lastContact = lastContactStatus(company.lastContactMs);
+  const temp = temperatureOf({ stage: company.stage, lastContactMs: company.lastContactMs, now });
 
   return (
     <ClickableListItem
@@ -78,7 +85,10 @@ export function CompanyListCard({
             {company.contactCount} contact{company.contactCount === 1 ? "" : "s"}
           </span>
           <span>
-            {lastContact.freshness === "never" ? "Never contacted" : `Last contact: ${lastContact.text}`}
+            <span className="flex items-center gap-1.5">
+              <TemperatureDot temp={temp} />
+              {lastContact.freshness === "never" ? "Never contacted" : `Last contact: ${lastContact.text}`}
+            </span>
           </span>
         </div>
       </div>

@@ -1,5 +1,6 @@
 import { getAdminContactsData } from "./contacts-data";
 import { ContactsTable } from "./ContactsTable";
+import { serverNow } from "@/lib/crm/serverNow";
 
 export const dynamic = "force-dynamic";
 
@@ -18,5 +19,5 @@ export const dynamic = "force-dynamic";
  */
 export default async function AdminContactsPage() {
   const { rows, ownerNames } = await getAdminContactsData();
-  return <ContactsTable rows={rows} ownerNames={ownerNames} />;
+  return <ContactsTable now={serverNow()} rows={rows} ownerNames={ownerNames} />;
 }

@@ -12,6 +12,7 @@ import type { CrmTag } from "../accounts/tags";
 import type { CompanyOption } from "../contacts/CompanyCombobox";
 import type { RepOption } from "../accounts/CompanyDialog";
 import type { TaskContactOption } from "../tasks/TaskDialog";
+import { serverNow } from "@/lib/crm/serverNow";
 
 type AccountRow = {
   id: string;
@@ -154,6 +155,7 @@ export async function ActiveCustomersPanel() {
       <div className="flex flex-col gap-2.5 lg:hidden">
         {cards.map((c) => (
           <CompanyListCard
+            now={serverNow()}
             key={c.id}
             company={c}
             companyOptions={companyOptions}
@@ -168,7 +170,7 @@ export async function ActiveCustomersPanel() {
           hint={`${cards.length} ${cards.length === 1 ? "customer" : "customers"}`}
         />
         <div className="overflow-x-auto">
-          <CompanyTable
+          <CompanyTable now={serverNow()}
             companies={cards}
             companyOptions={companyOptions}
             activeCustomerActions={activeCustomerActions}

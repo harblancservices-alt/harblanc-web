@@ -32,6 +32,9 @@ export type AdminContactRow = {
   companyName: string | null;
   /** Display name of the company's owner, or null when nobody owns it. */
   ownerName: string | null;
+  /** The COMPANY's stage, raw — a contact has no stage of its own, and the
+   * temperature marker measures against the company's clock. */
+  companyStage: string | null;
   /** Epoch ms of this contact's most recent real human contact, or null. */
   lastContactMs: number | null;
 };
@@ -58,7 +61,7 @@ export async function getAdminContactsData(): Promise<AdminContactsData> {
       .limit(2000),
     supabase
       .from("crm_accounts")
-      .select("id, name, assigned_user_id")
+      .select("id, name, assigned_user_id, lifecycle_status")
       .is("deleted_at", null)
       .limit(5000),
     supabase
@@ -88,6 +91,7 @@ export async function getAdminContactsData(): Promise<AdminContactsData> {
       {
         name: (a.name as string) || "Unnamed company",
         ownerId: (a.assigned_user_id as string | null) ?? null,
+        stage: (a.lifecycle_status as string | null) ?? null,
       },
     ]),
   );
@@ -108,6 +112,7 @@ export async function getAdminContactsData(): Promise<AdminContactsData> {
       // so it reads as "no company" the same as a genuinely unlinked one and
       // the Unlinked filter finds both.
       companyName: acc?.name ?? null,
+      companyStage: acc?.stage ?? null,
       ownerName: acc?.ownerId ? (nameByUser.get(acc.ownerId) ?? "Former teammate") : null,
       lastContactMs: lastContactMsByContact.get(c.id as string) ?? null,
     };

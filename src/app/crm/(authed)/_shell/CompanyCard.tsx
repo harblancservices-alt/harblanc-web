@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { titleCaseWords, upperCaseState, lastContactStatus, formatPhone } from "./format";
 import { LIFECYCLE_TONE } from "../accounts/lifecycle";
+import { temperatureOf } from "@/lib/crm/temperature";
+import { TemperatureDot } from "./TemperatureDot";
 import {
   cardStage,
   contactLine,
@@ -80,6 +82,7 @@ export function CompanyCard({
   const contact = contactLine(card);
   const phone = (card.contactPhone ?? "").trim();
   const contactStatus = lastContactStatus(card.lastContactMs, new Date(now));
+  const temp = temperatureOf({ stage: card.stage, lastContactMs: card.lastContactMs, now });
 
   return (
     <Link
@@ -140,7 +143,10 @@ export function CompanyCard({
       </div>
 
       {/* State of play */}
-      <div className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1">
+      <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+        {/* Temperature — one dot, the same one the contacts table and the
+            call log use. Silent for stages with no clock. */}
+        <TemperatureDot temp={temp} />
         {/* Silent when there is nothing to say AND nobody to say it about —
             "Never contacted" under "Nobody to call there yet" is the same
             fact twice. A company-level call with no contact on file still

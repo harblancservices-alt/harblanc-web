@@ -25,6 +25,7 @@ function c(
     isDecisionMaker: false,
     accountId: ownerName === null ? null : "acc",
     companyName: ownerName === null ? null : "Some Co",
+    companyStage: null,
     ownerName,
     lastContactMs,
   };

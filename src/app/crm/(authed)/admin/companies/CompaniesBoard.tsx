@@ -7,6 +7,8 @@ import { Card, BTN_PRIMARY, BTN_NEUTRAL } from "../../_shell/ui";
 import { FormError } from "../../_shell/form";
 import { SegmentedTabs } from "../../_shell/SegmentedTabs";
 import { lastContactStatus, titleCaseWords, upperCaseState } from "../../_shell/format";
+import { temperatureOf } from "@/lib/crm/temperature";
+import { TemperatureDot } from "../../_shell/TemperatureDot";
 import { stageLabel, stageTone } from "../../accounts/lifecycle";
 import { assignCompanies } from "../assign-actions";
 import { batchTaskSpec } from "./assignmentTask";
@@ -38,7 +40,11 @@ import {
 export function CompaniesBoard({
   rows,
   agents,
+  now,
 }: {
+  /** Server clock — never Date.now() during render (React Compiler purity
+   * rule). One instant for every temperature in the table. */
+  now: number;
   rows: CompanyRow[];
   agents: CompanyAgent[];
 }) {
@@ -253,6 +259,7 @@ export function CompaniesBoard({
                 {visible.map((row) => {
                   const checked = selected.has(row.id);
                   const contact = lastContactStatus(row.lastContactMs);
+                  const temp = temperatureOf({ stage: row.stage, lastContactMs: row.lastContactMs, now });
                   const href = `/crm/accounts/${row.id}`;
                   return (
                     <tr
@@ -306,7 +313,10 @@ export function CompaniesBoard({
                         </span>
                       </td>
                       <td className="px-2 py-2.5 text-[12.5px] text-fg-muted">
-                        {contact.freshness === "never" ? "Never" : contact.text}
+                        <span className="flex items-center gap-1.5">
+                          <TemperatureDot temp={temp} />
+                          {contact.freshness === "never" ? "Never" : contact.text}
+                        </span>
                       </td>
                       <td className="px-2 py-2.5 text-[12.5px] text-fg-muted">
                         {row.openWork > 0 ? row.openWork : "—"}

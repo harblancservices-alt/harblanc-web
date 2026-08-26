@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { Card } from "../../_shell/ui";
 import { SegmentedTabs } from "../../_shell/SegmentedTabs";
 import { lastContactStatus, titleCaseWords, formatPhone } from "../../_shell/format";
+import { temperatureOf } from "@/lib/crm/temperature";
+import { TemperatureDot } from "../../_shell/TemperatureDot";
 import type { AdminContactRow } from "./contacts-data";
 import {
   countContactsByOwner,
@@ -30,7 +32,11 @@ import {
 export function ContactsTable({
   rows,
   ownerNames: roster,
+  now,
 }: {
+  /** Server clock — never Date.now() during render (React Compiler purity
+   * rule). One instant for every temperature in the table. */
+  now: number;
   rows: AdminContactRow[];
   /** The full active roster — a person with zero contacts still gets a tab. */
   ownerNames: string[];
@@ -109,6 +115,13 @@ export function ContactsTable({
             <tbody>
               {visible.map((row) => {
                 const contact = lastContactStatus(row.lastContactMs);
+                // Measured against the COMPANY's stage clock — a contact has
+                // no stage of its own. Same dot as the company cards.
+                const temp = temperatureOf({
+                  stage: row.companyStage,
+                  lastContactMs: row.lastContactMs,
+                  now,
+                });
                 const href = `/crm/contacts/${row.id}`;
                 return (
                   <tr
@@ -162,7 +175,10 @@ export function ContactsTable({
                               : "text-fg-muted"
                       }`}
                     >
-                      {contact.text}
+                      <span className="flex items-center gap-1.5">
+                        <TemperatureDot temp={temp} />
+                        {contact.text}
+                      </span>
                     </td>
                     <td className="w-28 px-2 py-2.5 text-right">
                       <span className="invisible whitespace-nowrap text-[12px] font-semibold text-accent underline-offset-2 group-hover:visible">

@@ -14,6 +14,7 @@ import type { CompanyOption } from "../contacts/CompanyCombobox";
 import { excludeUnclaimedProspects } from "../_shell/unclaimedCompanies";
 import { contactCountByAccount } from "@/lib/crm/contactCount";
 import { lastContactByAccount } from "@/lib/crm/lastContact";
+import { serverNow } from "@/lib/crm/serverNow";
 
 export const dynamic = "force-dynamic";
 
@@ -208,6 +209,11 @@ export default async function CompaniesPage({
     });
   }
 
+  // ONE server instant for every temperature on this page — the React
+  // Compiler rejects serverNow() during render, and a per-row clock would let
+  // two rows disagree about what "today" means anyway.
+  const renderedAt = serverNow();
+
   const cards: CompanyCardData[] = accounts.map((a) => ({
     id: a.id,
     name: a.name,
@@ -272,7 +278,7 @@ export default async function CompaniesPage({
               CompaniesPage exactly (was a 2/3/4-col grid below `md`). */}
           <div className="flex flex-col gap-2.5 lg:hidden">
             {cards.map((c) => (
-              <CompanyListCard key={c.id} company={c} companyOptions={companyOptions} />
+              <CompanyListCard key={c.id} company={c} companyOptions={companyOptions} now={renderedAt} />
             ))}
           </div>
 
@@ -283,7 +289,7 @@ export default async function CompaniesPage({
               match the prototype's card/table switch point. */}
           <Card className="hidden lg:block">
             <div className="overflow-x-auto">
-              <CompanyTable companies={cards} companyOptions={companyOptions} />
+              <CompanyTable companies={cards} companyOptions={companyOptions} now={renderedAt} />
             </div>
           </Card>
         </>
