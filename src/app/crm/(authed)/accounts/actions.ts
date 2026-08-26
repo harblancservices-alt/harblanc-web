@@ -92,6 +92,14 @@ function accountFieldsFromForm(fd: FormData): Record<string, unknown> {
     fields.revenue_potential = optNum(fd, "revenue_potential");
   }
   if (fd.has("source")) fields.source = optStr(fd, "source");
+  // Folded in 2026-08-26 from updateCompanyProfile (details-actions.ts), the
+  // writer behind the profile's SECOND company form. One form, one writer.
+  // Every assignment here is fd.has()-guarded, so a caller that does not
+  // submit these — the quick-create path, for one — still cannot null them.
+  if (fd.has("dba")) fields.dba = optStr(fd, "dba");
+  if (fd.has("linkedin_url")) fields.linkedin_url = optStr(fd, "linkedin_url");
+  if (fd.has("year_founded")) fields.year_founded = optNum(fd, "year_founded");
+  if (fd.has("ownership_type")) fields.ownership_type = optStr(fd, "ownership_type");
   return fields;
 }
 
@@ -1208,7 +1216,8 @@ export async function addNote(
  * contact_id alongside account_id (account_id may be null for a contact with
  * no company) so both the company-profile Notes feed and the global Contacts
  * directory can attribute the note to exactly who it's about. Shared by
- * QuickNoteDialog for both callers.
+ * one shared note path for both callers (the old QuickNoteDialog was
+ * deleted 2026-08-26).
  */
 export async function addContactNote(
   contactId: string,

@@ -47,6 +47,13 @@ export type CompanyDefaults = {
   source?: string | null;
   lifecycle_status?: string | null;
   assigned_user_id?: string | null;
+  /** Folded in 2026-08-26 from the second, smaller company form
+   * (CompanyProfileDialog), which owned exactly these four and nothing else.
+   * One company, one edit form. */
+  dba?: string | null;
+  linkedin_url?: string | null;
+  year_founded?: number | null;
+  ownership_type?: string | null;
 };
 
 /** Freight-fit classification. A plain text column with no DB check
@@ -351,6 +358,31 @@ export function CompanyDialog({
                   name="source"
                   placeholder="e.g. Referral, Cold call, Web"
                   defaultValue={d.source}
+                />
+              </div>
+
+              {/* THE SECOND FORM'S FIELDS, FOLDED IN (2026-08-26). These four
+                  lived in CompanyProfileDialog, opened from the profile's own
+                  "Company profile" grid — so the page had two edit forms and
+                  no way to tell which one owned a given field. There is one
+                  form now. */}
+              <div className="flex flex-col gap-2">
+                <SectionDivider label="Registered details" bare />
+                <Field label="Trading name (DBA)" name="dba" defaultValue={d.dba} />
+                <div className="grid grid-cols-2 gap-2">
+                  <Field
+                    label="Year founded"
+                    name="year_founded"
+                    inputMode="numeric"
+                    defaultValue={d.year_founded ?? undefined}
+                  />
+                  <Field label="Ownership" name="ownership_type" defaultValue={d.ownership_type} />
+                </div>
+                <Field
+                  label="LinkedIn"
+                  name="linkedin_url"
+                  placeholder="linkedin.com/company/…"
+                  defaultValue={d.linkedin_url}
                 />
               </div>
 
