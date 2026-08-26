@@ -554,7 +554,7 @@ export async function sendBolDocument(id: string): Promise<ActionResult> {
       userId: user.id,
       accountId: prior.accountId,
       kind: CRM_ACTIVITY.bolSent,
-      summary: `Bill of lading sent: ${prior.bolNumber}`,
+      summary: `Bill of lading marked sent: ${prior.bolNumber}`,
     });
   }
 

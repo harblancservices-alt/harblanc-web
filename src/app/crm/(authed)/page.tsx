@@ -15,8 +15,10 @@ export const dynamic = "force-dynamic";
  * answers "what am I working on", and that question has the same shape
  * whoever is asking. This route briefly branched on role (owner → the
  * command centre, agent → this) with an "Agent view" toggle bolted on for
- * owners; both are gone. The command centre moved to /crm/command-center,
- * unlinked — see its own docstring.
+ * owners; both are gone. The org-wide command centre that used to live here
+ * (six counter tiles, the Next Best Action queue, the activity feed) was
+ * parked unlinked at /crm/command-center and then deleted outright on
+ * 2026-08-26 — Brent's call. Git has it if it is ever wanted back.
  *
  * The whole page is AgentHome, a server component, so the org-wide reads the
  * command centre used to run on this route are simply never issued: Dashboard

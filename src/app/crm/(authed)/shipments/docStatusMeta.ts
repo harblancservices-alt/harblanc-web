@@ -18,7 +18,11 @@ export type DocStatus = (typeof DOC_STATUSES)[number];
 export const DOC_STATUS_LABEL: Record<DocStatus, string> = {
   draft: "Draft",
   generated: "Generated",
-  sent: "Sent",
+  // "Marked sent", not "Sent" (Brent, 2026-08-26). Nothing in the CRM
+  // actually dispatches a document — sendBolDocument/sendRateConfirmation
+  // only record the state transition. A chip reading "Sent" claims an email
+  // left the building, which is a lie the UI was telling on every row.
+  sent: "Marked sent",
   accepted: "Accepted",
   completed: "Completed",
   cancelled: "Cancelled",

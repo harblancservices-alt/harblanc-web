@@ -658,7 +658,7 @@ export async function sendRateConfirmation(id: string): Promise<ActionResult> {
       userId: user.id,
       accountId: prior.accountId,
       kind: CRM_ACTIVITY.rateConfirmationSent,
-      summary: `Rate confirmation sent: ${prior.rcNumber}`,
+      summary: `Rate confirmation marked sent: ${prior.rcNumber}`,
     });
   }
 
