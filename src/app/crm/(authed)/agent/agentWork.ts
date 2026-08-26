@@ -1,6 +1,7 @@
 import { taskDueBucket, daysLate, type TaskDueBucket } from "@/lib/crm/taskUrgency";
 import { lastContactStatus, timestampMs, centralDayRange } from "../_shell/format";
 import { normalizeStage, STALE_DAYS_BY_STAGE } from "../accounts/lifecycle";
+import type { CompanyCardData } from "../_shell/companyCardModel";
 
 /**
  * The agent dashboard's row shapes and every pure derivation over them.
@@ -33,20 +34,12 @@ export type AgentTask = {
   isHigh: boolean;
 };
 
-export type AgentCompany = {
-  id: string;
-  name: string;
-  city: string | null;
-  state: string | null;
-  /** crm_accounts.lifecycle_status, raw — read through lifecycle.ts. */
-  stage: string | null;
-  /**
-   * Epoch ms of the most recent real human contact, or null for never. The
-   * EXISTING definition (later of last logged call and last CONTACT-kind
-   * activity), not a second one — see agent-data.ts.
-   */
-  lastContactMs: number | null;
-};
+/**
+ * An agent's company IS the shared company card (see _shell/companyCard.ts).
+ * The dashboard and the pipeline board show the same facts about a company,
+ * so they share one type rather than two that drift apart.
+ */
+export type AgentCompany = CompanyCardData;
 
 /** The mockup's three headed groups, in order, plus everything past them. */
 export type AgentWorkGroups = {

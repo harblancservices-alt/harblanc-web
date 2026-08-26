@@ -1,5 +1,5 @@
 import { LIFECYCLE_STAGES, normalizeStage, type LifecycleStage } from "../accounts/lifecycle";
-import { lastContactStatus } from "../_shell/format";
+import type { CompanyCardData } from "../_shell/companyCardModel";
 
 /**
  * Workspace → Pipeline: the column shape and every pure derivation over it.
@@ -14,22 +14,12 @@ import { lastContactStatus } from "../_shell/format";
  * future change to the funnel reaches this board for free.
  */
 
-export type PipelineCard = {
-  id: string;
-  name: string;
-  city: string | null;
-  state: string | null;
-  /** crm_accounts.lifecycle_status, raw — bucketed via normalizeStage. */
-  stage: string | null;
-  /**
-   * Epoch ms of the last real human contact, or null for never. The EXISTING
-   * definition (later of last logged call and last CONTACT-kind activity),
-   * lifted rather than re-derived — see pipeline-data.ts.
-   */
-  lastContactMs: number | null;
-  /** Open crm_tasks on this company — "is anything already moving here". */
-  openTasks: number;
-};
+/**
+ * A pipeline card IS the shared company card (see _shell/companyCard.ts) —
+ * the board and the agent dashboard show the same facts about a company, so
+ * they share one type rather than two that drift.
+ */
+export type PipelineCard = CompanyCardData;
 
 export type PipelineColumn = {
   stage: LifecycleStage;
@@ -67,11 +57,6 @@ export function sortColumn(cards: PipelineCard[]): PipelineCard[] {
   return cards;
 }
 
-/** What the card's activity line says — delegated whole to the Companies
- * list's helper so every surface describes the same company identically. */
-export function cardActivity(card: PipelineCard, now: Date = new Date()) {
-  return lastContactStatus(card.lastContactMs, now);
-}
 
 /** A drop that changes nothing is not worth a write — updateLifecycleStatus
  * would no-op anyway, but this saves the round trip and the refresh. */

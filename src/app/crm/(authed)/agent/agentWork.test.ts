@@ -31,7 +31,11 @@ function task(id: string, dueAt: string | null, title = `Task ${id}`): AgentTask
 }
 
 function company(name: string, lastContactMs: number | null, stage: string | null): AgentCompany {
-  return { id: name, name, city: null, state: null, stage, lastContactMs };
+  return {
+    id: name, name, city: null, state: null, stage, lastContactMs,
+    source: null, stageChangedMs: null, contactName: null, contactTitle: null,
+    contactPhone: null, openTasks: 0,
+  };
 }
 
 const DAY = 86_400_000;

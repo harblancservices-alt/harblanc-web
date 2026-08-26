@@ -4,6 +4,8 @@ import {
   applyCompanyVisibility,
 } from "../_shell/companyVisibility";
 import { lastContactByAccount } from "@/lib/crm/lastContact";
+import { primaryContactByAccount } from "@/lib/crm/primaryContact";
+import { timestampMs } from "../_shell/format";
 import type { PipelineCard } from "./pipeline";
 
 /**
@@ -34,7 +36,7 @@ export async function getPipelineData(user: CrmUser): Promise<PipelineData> {
 
   let query = supabase
     .from("crm_accounts")
-    .select("id, name, city, state, lifecycle_status")
+    .select("id, name, city, state, lifecycle_status, source, stage_changed_at, primary_contact_id")
     .is("deleted_at", null)
     .order("name", { ascending: true })
     .limit(1000);
@@ -56,6 +58,14 @@ export async function getPipelineData(user: CrmUser): Promise<PipelineData> {
   // Last contact — the shared definition (lib/crm/lastContact.ts).
   const lastContactMsByAccount = await lastContactByAccount(supabase, accountIds);
 
+  // Who to call, by the shared rule (lib/crm/primaryContact.ts).
+  const primaryIdByAccount = new Map<string, string>();
+  for (const a of accounts) {
+    const pid = a.primary_contact_id as string | null;
+    if (pid) primaryIdByAccount.set(a.id as string, pid);
+  }
+  const contactByAccount = await primaryContactByAccount(supabase, accountIds, primaryIdByAccount);
+
   const openTasksByAccount = new Map<string, number>();
   for (const t of taskRows ?? []) {
     const id = t.account_id as string | null;
@@ -68,7 +78,12 @@ export async function getPipelineData(user: CrmUser): Promise<PipelineData> {
     city: (a.city as string | null) ?? null,
     state: (a.state as string | null) ?? null,
     stage: (a.lifecycle_status as string | null) ?? null,
+    source: (a.source as string | null) ?? null,
+    stageChangedMs: timestampMs(a.stage_changed_at as string | null),
     lastContactMs: lastContactMsByAccount.get(a.id as string) ?? null,
+    contactName: contactByAccount.get(a.id as string)?.name ?? null,
+    contactTitle: contactByAccount.get(a.id as string)?.title ?? null,
+    contactPhone: contactByAccount.get(a.id as string)?.phone ?? null,
     openTasks: openTasksByAccount.get(a.id as string) ?? 0,
   }));
 

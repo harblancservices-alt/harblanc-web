@@ -1,5 +1,7 @@
+import { timestampMs } from "../_shell/format";
 import { createCrmServerClient, type CrmUser } from "@/lib/crm/auth";
 import { contactCountByAccount } from "@/lib/crm/contactCount";
+import { primaryContactByAccount } from "@/lib/crm/primaryContact";
 import { lastContactByAccount } from "@/lib/crm/lastContact";
 import { normalizePriority } from "../tasks/priority";
 import type { AgentTask, AgentCompany } from "./agentWork";
@@ -48,7 +50,7 @@ export async function getAgentDashboardData(user: CrmUser): Promise<AgentDashboa
 
     supabase
       .from("crm_accounts")
-      .select("id, name, city, state, lifecycle_status, address, industry")
+      .select("id, name, city, state, lifecycle_status, address, industry, source, stage_changed_at, primary_contact_id")
       .eq("assigned_user_id", user.id)
       .is("deleted_at", null)
       .order("name", { ascending: true })
@@ -137,13 +139,33 @@ export async function getAgentDashboardData(user: CrmUser): Promise<AgentDashboa
     contactCount: contactCounts.get(a.id as string) ?? 0,
   }));
 
+  // Who to call, by the shared rule (lib/crm/primaryContact.ts).
+  const primaryIdByAccount = new Map<string, string>();
+  for (const a of accounts) {
+    const pid = a.primary_contact_id as string | null;
+    if (pid) primaryIdByAccount.set(a.id as string, pid);
+  }
+  const contactByAccount = await primaryContactByAccount(supabase, accountIds, primaryIdByAccount);
+
+  // Open tasks per company, for the card's "is anything already moving here".
+  const openTaskByAccount = new Map<string, number>();
+  for (const t of tasks) {
+    if (t.accountId) openTaskByAccount.set(t.accountId, (openTaskByAccount.get(t.accountId) ?? 0) + 1);
+  }
+
   const companies: AgentCompany[] = accounts.map((a) => ({
     id: a.id as string,
     name: (a.name as string) || "Unnamed company",
     city: (a.city as string | null) ?? null,
     state: (a.state as string | null) ?? null,
     stage: (a.lifecycle_status as string | null) ?? null,
+    source: (a.source as string | null) ?? null,
+    stageChangedMs: timestampMs(a.stage_changed_at as string | null),
     lastContactMs: lastContactMsByAccount.get(a.id as string) ?? null,
+    contactName: contactByAccount.get(a.id as string)?.name ?? null,
+    contactTitle: contactByAccount.get(a.id as string)?.title ?? null,
+    contactPhone: contactByAccount.get(a.id as string)?.phone ?? null,
+    openTasks: openTaskByAccount.get(a.id as string) ?? 0,
   }));
 
   return { tasks, companies, completeness, now: Date.now() };

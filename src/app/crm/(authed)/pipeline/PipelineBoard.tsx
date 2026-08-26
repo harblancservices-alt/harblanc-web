@@ -1,14 +1,12 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { titleCaseWords, upperCaseState } from "../_shell/format";
+import { CompanyCard as SharedCompanyCard } from "../_shell/CompanyCard";
 import { LIFECYCLE_LABEL, LIFECYCLE_TONE, type LifecycleStage } from "../accounts/lifecycle";
 import { updateLifecycleStatus } from "../accounts/actions";
 import {
   buildPipeline,
-  cardActivity,
   isRealStageMove,
   isStage,
   type PipelineCard,
@@ -198,6 +196,22 @@ export function PipelineBoard({
   );
 }
 
+/**
+ * The pipeline's card: the SHARED rich card (_shell/CompanyCard.tsx) wrapped
+ * in the drag affordance and the stage control.
+ *
+ * THE CONTROL SITS OUTSIDE THE LINK, on purpose. Brent's rule is that the
+ * card has one destination and nothing else on it is clickable, and the card
+ * itself now honours that exactly. But the "Move to…" select is the ONLY
+ * non-drag way to move a company — dragging is unreliable on touch and
+ * impossible by keyboard — so removing it would cost real people the ability
+ * to use this board at all.
+ *
+ * Nesting it inside the link is not an option either: a <select> inside an
+ * <a> is invalid HTML and behaves like a trap. So it is a SIBLING, drawn
+ * beneath the card as part of the same tile. The card body is one
+ * destination; the control is a control.
+ */
 function CompanyCard({
   card,
   now,
@@ -215,11 +229,8 @@ function CompanyCard({
   onDragEnd: () => void;
   onPick: (companyId: string, stage: LifecycleStage) => void;
 }) {
-  const activity = cardActivity(card, now);
-  const place = [titleCaseWords(card.city), upperCaseState(card.state)].filter(Boolean).join(", ");
-
   return (
-    <article
+    <div
       draggable
       onDragStart={(e) => {
         e.dataTransfer.setData("text/plain", card.id);
@@ -227,49 +238,18 @@ function CompanyCard({
         onDragStart(card.id);
       }}
       onDragEnd={onDragEnd}
-      className={`cursor-grab rounded-[5px] border border-line bg-card p-2.5 shadow-e1 transition-opacity active:cursor-grabbing ${
+      className={`cursor-grab transition-opacity active:cursor-grabbing ${
         isDragging ? "opacity-40" : ""
       }`}
     >
-      <Link
-        href={`/crm/accounts/${card.id}`}
-        prefetch={false}
-        draggable={false}
-        className="block truncate text-[13px] font-bold text-fg hover:text-accent hover:underline"
-      >
-        {titleCaseWords(card.name)}
-      </Link>
-      {place && <p className="truncate text-[11.5px] text-fg-subtle">{place}</p>}
+      <SharedCompanyCard card={card} now={now.getTime()} compact />
 
-      <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
-        <span
-          className={`text-[11.5px] font-bold ${
-            activity.freshness === "fresh"
-              ? "text-ok"
-              : activity.freshness === "aging"
-                ? "text-warn"
-                : "text-bad"
-          }`}
-        >
-          {activity.text}
-        </span>
-        {/* "Is anything already moving here" — the other half of deciding the
-            next move. Silent at zero rather than showing a 0 badge. */}
-        {card.openTasks > 0 && (
-          <span className="text-[11.5px] text-fg-muted">
-            {card.openTasks} open {card.openTasks === 1 ? "task" : "tasks"}
-          </span>
-        )}
-      </div>
-
-      {/* The non-drag path. Always present, never hover-revealed — dragging is
-          unreliable on touch and impossible by keyboard. */}
       <select
         value=""
         disabled={pending}
         onChange={(e) => e.target.value && onPick(card.id, e.target.value as LifecycleStage)}
         aria-label={`Move ${card.name} to another stage`}
-        className="mt-1.5 w-full rounded-[4px] border border-line bg-card px-1 py-0.5 text-[11px] font-semibold text-fg-muted disabled:opacity-60"
+        className="mt-1 w-full rounded-[4px] border border-line bg-card px-1 py-0.5 text-[11px] font-semibold text-fg-muted disabled:opacity-60"
       >
         <option value="">Move to…</option>
         {(Object.keys(LIFECYCLE_LABEL) as LifecycleStage[]).map((s) => (
@@ -278,6 +258,6 @@ function CompanyCard({
           </option>
         ))}
       </select>
-    </article>
+    </div>
   );
 }

@@ -271,9 +271,14 @@ function TaskCard({
         onDragStart(task.id);
       }}
       onDragEnd={onDragEnd}
+      // NO RED LEFT EDGE. Overdue used to be signalled three ways at once —
+      // this edge, the due pill and the priority dot — and three signals for
+      // one fact is noise, not emphasis (Brent, 2026-08-26). The PILL is the
+      // one that survives, because it is the only one carrying the actual
+      // information: not "late" but "4 days late".
       className={`cursor-grab rounded-[5px] border border-line bg-card p-2.5 shadow-e1 transition-opacity active:cursor-grabbing ${
         isDragging ? "opacity-40" : ""
-      } ${late ? "border-l-[3px] border-l-bad" : ""}`}
+      }`}
     >
       <div className="flex items-start gap-2">
         {/* The completion control. A real checkbox, not a styled div — it has
@@ -288,15 +293,21 @@ function TaskCard({
         />
         <div className="min-w-0 flex-1">
           <p className="flex items-start gap-1.5 text-[13px] font-bold leading-snug text-fg">
-            {/* HIGH PRIORITY IS A DOT, not a badge. It has to be findable at a
-                glance without competing with the due pill, and a card carrying
-                three coloured chips reads as noise. Normal priority shows
-                nothing at all — the absence is the signal. */}
+            {/* HIGH PRIORITY IS A DOT, not a badge. It has to be findable at
+                a glance without competing with the due pill, and a card
+                carrying three coloured chips reads as noise. Normal priority
+                shows nothing at all — the absence is the signal.
+                
+                AMBER, NOT RED. It used to be bg-bad, the same colour the card
+                used for overdue, so a high-priority task that was perfectly
+                on time still looked alarming and you could not tell the two
+                apart. Red now means late and nothing else; this dot means
+                priority and nothing else. */}
             {task.isHigh && (
               <span
                 aria-label="High priority"
                 title="High priority"
-                className="mt-[5px] h-[7px] w-[7px] shrink-0 rounded-full bg-bad"
+                className="mt-[5px] h-[7px] w-[7px] shrink-0 rounded-full bg-warn"
               />
             )}
             <span className="min-w-0">{task.title}</span>
@@ -335,28 +346,29 @@ function TaskCard({
         )}
       </div>
 
-      {/* THE BRIEF AND THE BAR, folded away. Both can be paragraphs, and a
-          board of open paragraphs stops being a board — so the card stays one
-          glance and opens when you're actually about to do the work. Rendered
-          only when there is something to reveal. */}
-      {(task.instructions || task.definitionOfDone) && (
-        <details className="mt-1.5">
-          <summary className="cursor-pointer list-none text-[11.5px] font-semibold text-accent hover:underline">
-            Details
-          </summary>
-          <div className="mt-1 space-y-1.5 border-l-2 border-line pl-2">
-            {task.definitionOfDone && (
-              <p className="text-[11.5px] text-fg-muted">
-                <span className="font-bold text-fg">Done when:</span> {task.definitionOfDone}
-              </p>
-            )}
-            {task.instructions && (
-              <p className="whitespace-pre-wrap text-[11.5px] leading-relaxed text-fg-muted">
-                {task.instructions}
-              </p>
-            )}
-          </div>
-        </details>
+      {/* THE BRIEF AND THE BAR, ON THE FACE (Brent, 2026-08-26: everything
+          visible). These were behind a "Details" toggle, on the reasoning
+          that a board of open paragraphs stops being a board. Brent's call
+          overrides it, and the conditional is what keeps it workable: MOST
+          tasks carry neither, so most cards stay exactly as short as they
+          were — and the tall ones are tall because somebody actually wrote a
+          brief, which is worth seeing without a click.
+
+          "Done when" leads. It is the thing being asked for; the brief is
+          context for getting there. */}
+      {(task.definitionOfDone || task.instructions) && (
+        <div className="mt-1.5 space-y-1 border-l-2 border-line pl-2">
+          {task.definitionOfDone && (
+            <p className="text-[11.5px] leading-relaxed text-fg-muted">
+              <span className="font-bold text-fg">Done when:</span> {task.definitionOfDone}
+            </p>
+          )}
+          {task.instructions && (
+            <p className="whitespace-pre-wrap text-[11.5px] leading-relaxed text-fg-muted">
+              {task.instructions}
+            </p>
+          )}
+        </div>
       )}
 
       {/* The non-drag path. Always present, not hover-revealed, so keyboard

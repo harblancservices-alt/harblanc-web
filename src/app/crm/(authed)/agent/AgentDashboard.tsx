@@ -4,12 +4,12 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Card, BTN_EDIT } from "../_shell/ui";
-import { titleCaseWords, upperCaseState } from "../_shell/format";
+import { CompanyCard } from "../_shell/CompanyCard";
+import { titleCaseWords } from "../_shell/format";
 import { CompleteTaskDialog } from "../tasks/CompleteTaskDialog";
 import { CompletenessList } from "./CompletenessList";
 import { gapsForBook, countGaps, type CompletenessInput } from "./completeness";
 import {
-  activityStatus,
   companyFlag,
   dueLabel,
   dueTint,
@@ -148,58 +148,15 @@ export function AgentDashboard({
               </p>
             </div>
           ) : (
-            <ul>
-              {visibleCompanies.map((c) => {
-                const status = activityStatus(c, at);
-                const flag = companyFlag(c, at);
-                const place = [titleCaseWords(c.city), upperCaseState(c.state)]
-                  .filter(Boolean)
-                  .join(", ");
-                return (
-                  <li key={c.id} className="border-b border-line last:border-b-0">
-                    <Link
-                      href={`/crm/accounts/${c.id}`}
-                      prefetch={false}
-                      className="flex items-start gap-3 px-4 py-2.5 transition-colors hover:bg-accent-bg"
-                    >
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-[13.5px] font-bold text-fg">
-                          {titleCaseWords(c.name)}
-                        </span>
-                        {place && (
-                          <span className="block truncate text-[11.5px] text-fg-subtle">{place}</span>
-                        )}
-                      </span>
-                      <span className="flex shrink-0 flex-col items-end gap-1">
-                        <span
-                          className={`text-[12.5px] font-bold ${
-                            status.tone === "good"
-                              ? "text-ok"
-                              : status.tone === "warn"
-                                ? "text-warn"
-                                : status.tone === "bad"
-                                  ? "text-bad"
-                                  : "text-fg-muted"
-                          }`}
-                        >
-                          {status.text}
-                        </span>
-                        {flag && (
-                          <span
-                            className={`rounded-[3px] border px-1.5 py-px text-[10.5px] font-semibold ${
-                              flag === "quiet"
-                                ? "border-warn/60 text-warn"
-                                : "border-bad/50 text-bad"
-                            }`}
-                          >
-                            {flag === "quiet" ? "quiet" : "never contacted"}
-                          </span>
-                        )}
-                      </span>
-                    </Link>
-                  </li>
-                );
-              })}
+            <ul className="flex flex-col gap-2 p-3">
+              {visibleCompanies.map((c) => (
+                <li key={c.id}>
+                  {/* The SHARED rich card (_shell/CompanyCard.tsx) — the same
+                      component the pipeline board draws, so the two screens
+                      can never disagree about a company. */}
+                  <CompanyCard card={c} now={at.getTime()} flag={companyFlag(c, at)} />
+                </li>
+              ))}
               {companies.length > COMPANY_CAP && (
                 <li className="px-4 py-3">
                   {/* Their own book, in full — the Companies list is already

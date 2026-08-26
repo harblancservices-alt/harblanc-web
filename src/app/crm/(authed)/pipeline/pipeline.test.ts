@@ -11,7 +11,10 @@ function c(
   lastContactMs: number | null = NOW,
   name = `Co ${id}`,
 ): PipelineCard {
-  return { id, name, city: null, state: null, stage, lastContactMs, openTasks: 0 };
+  return {
+    id, name, city: null, state: null, stage, lastContactMs, openTasks: 0,
+    source: null, stageChangedMs: null, contactName: null, contactTitle: null, contactPhone: null,
+  };
 }
 
 describe("buildPipeline", () => {
