@@ -25,9 +25,11 @@ import {
 /**
  * Admin → Companies — the management view of the entire company universe.
  *
- * Every crm_accounts row in the org, whoever owns it. The filter row leads
- * with UNASSIGNED because that is the admin's inbox: a company sitting there
- * is a company nobody is working.
+ * Every crm_accounts row in the org, whoever owns it, and that is what it
+ * OPENS on. The filter row still LEADS with Unassigned — a company nobody
+ * owns is the one state here that needs somebody to act, which is why it is
+ * also the only tab that carries an attention dot — but leading the row and
+ * being the default are different things, and it is no longer the default.
  *
  * Same browse/select interaction as the assignment board — browse by default
  * with rows linking through to the profile, select mode for handing work out
@@ -49,7 +51,13 @@ export function CompaniesBoard({
   agents: CompanyAgent[];
 }) {
   const router = useRouter();
-  const [filter, setFilter] = useState<string>(UNASSIGNED);
+  // OPENS ON ALL (Brent, 2026-08-26). It opened on Unassigned, on the
+  // reasoning that unowned work is the admin's inbox — but this screen is
+  // the management view of every company, and opening it pre-filtered made
+  // "99 in the org" a number you had to click to actually see. Unassigned
+  // keeps its tab, its count and its attention dot; it is just no longer
+  // where the page starts.
+  const [filter, setFilter] = useState<string>("all");
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
@@ -155,7 +163,9 @@ export function CompaniesBoard({
   const spec = batchTaskSpec(rows.filter((r) => selected.has(r.id)).map((r) => ({ stage: r.stage })));
   const taskTitle = titleOverride ?? spec.title;
 
-  // Unassigned first and loudest, then All, then one tab per agent.
+  // Unassigned first and loudest, then All, then one tab per agent. The
+  // order is deliberate and unchanged: it is the tab that needs attention,
+  // even though the page now opens on All.
   const filterItems = [
     {
       key: UNASSIGNED,
