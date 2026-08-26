@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { buildCrmNav, bottomNav, moreNav, isActive } from "./nav";
+import { buildCrmNav, bottomNav, moreNav, isActive, isParentActive } from "./nav";
 import { IconLogout, IconMore, IconSettings } from "./icons";
 import { MobileMoreSheet } from "./MobileMoreSheet";
 import { ActivityTracker } from "./ActivityTracker";
@@ -146,7 +146,10 @@ export function CrmShell({
             {sidebarNavItems
               .filter((item) => item.adminAccent)
               .map((item) => {
-                const active = isActive(pathname, item);
+                // isParentActive, not isActive: /crm/admin is a prefix of
+                // every child route, so the parent would otherwise light up
+                // alongside whichever child is selected.
+                const active = isParentActive(pathname, item);
                 return (
                   <div key={item.href}>
                     <p className="px-2.5 pb-1 pt-4 text-[10.5px] font-bold uppercase tracking-[0.12em] text-on-dark-dim">
@@ -163,6 +166,32 @@ export function CrmShell({
                       <item.Icon width={19} height={19} className={`shrink-0 ${active ? "text-admin" : "text-on-dark-dim"}`} />
                       <span className="flex-1">{item.label}</span>
                     </Link>
+                    {/* Sub-items: indented under the parent, same admin
+                        accent when selected, one step down in weight so the
+                        hierarchy reads without a second colour. */}
+                    {(item.children ?? []).map((child) => {
+                      const childActive = isActive(pathname, child);
+                      return (
+                        <Link
+                          key={child.href}
+                          href={child.href}
+                          prefetch={false}
+                          className={[
+                            "mt-0.5 flex items-center gap-3 rounded-[6px] py-2 pl-9 pr-2.5 text-[12.5px] font-semibold transition-colors",
+                            childActive
+                              ? "bg-admin-soft text-admin"
+                              : "text-on-dark-dim hover:bg-graphite-2/60 hover:text-white",
+                          ].join(" ")}
+                        >
+                          <child.Icon
+                            width={16}
+                            height={16}
+                            className={`shrink-0 ${childActive ? "text-admin" : "text-on-dark-dim"}`}
+                          />
+                          <span className="flex-1">{child.label}</span>
+                        </Link>
+                      );
+                    })}
                   </div>
                 );
               })}

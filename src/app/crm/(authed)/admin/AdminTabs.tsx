@@ -5,10 +5,10 @@ import { SegmentedTabs } from "../_shell/SegmentedTabs";
 
 const TABS: { href: string; label: string; exact: boolean }[] = [
   { href: "/crm/admin", label: "Overview", exact: true },
-  // Companies sits second, right after Overview: it is the centre of the
-  // centralised company/work model (every company in the org, whoever owns
-  // it), so it ranks above the two intake funnels that FEED it.
-  { href: "/crm/admin/companies", label: "Companies", exact: false },
+  // Companies is NOT here. It moved to the left sidebar as a child of Admin
+  // Account (2026-08-25) — it is a destination in its own right, not one of
+  // Admin's internal sections. Route and page are unchanged; see
+  // _shell/nav.ts.
   // BOL Center and OTR sit right after Overview, matching crm-design's
   // admin tab order — the two intake funnels are the highest-priority admin
   // work, grouped adjacently. Both have real backends now (crm_bol_entries

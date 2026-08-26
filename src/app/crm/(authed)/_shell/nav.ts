@@ -50,6 +50,22 @@ export type CrmNavItem = {
    * flag (see CrmShell). One accent per semantic category, not one invented
    * color per feature. */
   adminAccent?: boolean;
+  /**
+   * Sub-items rendered indented beneath this one in the sidebar.
+   *
+   * Added 2026-08-25 for Admin Account → Companies, and built as a general
+   * mechanism rather than a special case: the centralised company/work model
+   * will keep adding surfaces under Admin Account, and a second child should
+   * cost one line here and nothing else.
+   *
+   * A child inherits its parent's visibility — buildCrmNav only ever pushes
+   * the Admin Account item for an owner, so its children are owner-only for
+   * free, with /crm/admin/**'s own requireCrmAdmin() gate behind them.
+   *
+   * Children are flattened into the mobile "More" sheet (see moreNav) so
+   * nothing the desktop sidebar lists is unreachable on a phone.
+   */
+  children?: CrmNavItem[];
 };
 
 /**
@@ -144,6 +160,12 @@ export function buildCrmNav(
       label: "Admin Account",
       Icon: IconAdminAccount,
       adminAccent: true,
+      children: [
+        // The management view of every company in the org. Lives here rather
+        // than in the Admin top tab row (Brent, 2026-08-25) — it is a
+        // destination of its own, not one of Admin's internal sections.
+        { href: "/crm/admin/companies", label: "Companies", Icon: IconCompanies },
+      ],
     });
   }
   return nav;
@@ -174,7 +196,11 @@ export function bottomNav(nav: CrmNavItem[]): CrmNavItem[] {
  * surfaces can never drift out of sync with each other.
  */
 export function moreNav(nav: CrmNavItem[]): CrmNavItem[] {
-  return nav.filter((item) => !BOTTOM_HREFS.includes(item.href));
+  // Children are flattened in beside their parent so a nested destination is
+  // still reachable on a phone — the sheet is a flat list by design.
+  return nav
+    .filter((item) => !BOTTOM_HREFS.includes(item.href))
+    .flatMap((item) => [item, ...(item.children ?? [])]);
 }
 
 export function isActive(pathname: string, item: CrmNavItem): boolean {
@@ -183,4 +209,17 @@ export function isActive(pathname: string, item: CrmNavItem): boolean {
   return (item.match ?? []).some(
     (p) => pathname === p || pathname.startsWith(p + "/"),
   );
+}
+
+/**
+ * Should the PARENT row light up?
+ *
+ * Not simply isActive(): a parent's href is a prefix of its children's, so
+ * /crm/admin/companies makes plain isActive() true for Admin Account too and
+ * both rows would read as selected at once. A parent is active only when the
+ * path is within it AND no child owns it.
+ */
+export function isParentActive(pathname: string, item: CrmNavItem): boolean {
+  if (!isActive(pathname, item)) return false;
+  return !(item.children ?? []).some((child) => isActive(pathname, child));
 }
