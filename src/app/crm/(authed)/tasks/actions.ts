@@ -326,6 +326,18 @@ export async function completeTask(
    * a careless one.
    */
   note?: string | null,
+  /**
+   * "YYYY-MM-DD" — plans an UNDATED task as part of closing it, so the
+   * close-out dialog can take the date and the note in one step instead of
+   * refusing and sending the person away to drag a card first.
+   *
+   * A DATE, not a timestamp: the caller picks a day, the server decides the
+   * instant (Central midday, matching every other due-date write in the CRM),
+   * so a tampered request cannot smuggle in an arbitrary moment. Ignored when
+   * the task already has a date — closing something must never silently
+   * rewrite a date somebody planned.
+   */
+  plannedFor?: string | null,
 ): Promise<ActionResult> {
   const user = await requireCrmUser();
   const supabase = await createCrmServerClient();
@@ -336,6 +348,11 @@ export async function completeTask(
     .eq("id", taskId)
     .maybeSingle();
   if (!task) return { ok: false, error: "That task no longer exists." };
+
+  // Only ever used when the task has no date of its own.
+  const backfillDueAt = task.due_at
+    ? null
+    : centralInputToIso(plannedFor?.trim() ? `${plannedFor.trim()}T12:00` : null);
 
   /**
    * TWO STANDARDS, both enforced here (Brent, 2026-08-26).
@@ -359,11 +376,11 @@ export async function completeTask(
    * problem. Telling someone their note is missing, then telling them the
    * task was never planned, is two round trips for one broken state.
    */
-  if (!task.due_at) {
+  if (!task.due_at && !backfillDueAt) {
     return {
       ok: false,
       reason: "not_planned",
-      error: "Plan this before closing it — drag it onto a day first.",
+      error: "Say which day this was for before closing it.",
     };
   }
   if (!note?.trim()) {
@@ -374,9 +391,16 @@ export async function completeTask(
     };
   }
 
+  // ONE write. The date, the status and the completion stamp land together,
+  // so a task can never end up dated-but-open (or worse, closed with the
+  // date write having failed) because of a half-applied two-step.
   const { error } = await supabase
     .from("crm_tasks")
-    .update({ status: "completed", completed_at: new Date().toISOString() })
+    .update({
+      status: "completed",
+      completed_at: new Date().toISOString(),
+      ...(backfillDueAt ? { due_at: backfillDueAt } : {}),
+    })
     .eq("id", taskId);
 
   if (error) {

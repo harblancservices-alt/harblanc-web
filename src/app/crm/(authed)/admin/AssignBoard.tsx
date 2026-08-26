@@ -729,13 +729,21 @@ function TaskComposer({
               ))}
             </select>
           </label>
+          {/* HIGH PRIORITY REQUIRES A DATE (Brent, 2026-08-26). "Urgent,
+              whenever" is a contradiction — it tells the agent to drop
+              everything for something with no deadline, which is how urgent
+              stops meaning anything. Normal-priority work is unchanged: it
+              stays optional and lands in their Inbox to plan. */}
           <label className="flex flex-col gap-1">
-            <span className={LABEL}>Due</span>
+            <span className={LABEL}>{high ? "Due — required" : "Due"}</span>
             <input
               type="date"
               value={due}
               onChange={(e) => setDue(e.target.value)}
-              className={`w-full ${CONTROL_SIZE} ${CONTROL}`}
+              aria-invalid={high && !due}
+              className={`w-full ${CONTROL_SIZE} ${CONTROL} ${
+                high && !due ? "border-bad" : ""
+              }`}
             />
           </label>
           <label className="flex flex-col gap-1">
@@ -831,13 +839,18 @@ function TaskComposer({
           <button
             type="button"
             onClick={send}
-            disabled={pending || !title.trim() || !who}
+            disabled={pending || !title.trim() || !who || (high && !due)}
             className={`rounded-md px-3.5 py-2 text-[13px] font-bold transition-colors disabled:pointer-events-none disabled:opacity-50 ${BTN_PRIMARY}`}
           >
             {pending ? "Sending…" : "Send it"}
           </button>
           <span className="text-[12px] text-fg-muted">
-            {sent ?? (due ? "Lands on their board for that day." : "Lands in their Inbox to plan.")}
+            {sent ??
+              (high && !due
+                ? "High priority needs a date — say when it’s needed."
+                : due
+                  ? "Lands on their board for that day."
+                  : "Lands in their Inbox to plan.")}
           </span>
           {title && (
             <button

@@ -370,7 +370,8 @@ export async function assignWork(personId: string, keys: string[]): Promise<Assi
  *
  * DUE DATE DEFAULTS TO NONE, matching what assignment does: undated work
  * lands in the agent's Inbox and they plan it. A date is still allowed here,
- * for the case where it genuinely cannot move.
+ * for the case where it genuinely cannot move — and is REQUIRED when the
+ * task is flagged high priority, since "urgent, whenever" is not a thing.
  *
  * The CONTACT is re-checked against the chosen company rather than trusted:
  * the picker only offers that company's contacts, but a stale or tampered
@@ -394,6 +395,19 @@ export async function sendTask(input: {
   const title = input.title.trim();
   if (!title) return { ok: false, error: "Give the task a title." };
   if (!input.assignedUserId) return { ok: false, error: "Pick who it's for." };
+
+  /**
+   * HIGH PRIORITY REQUIRES A DATE (Brent, 2026-08-26). Flagging something
+   * urgent without saying when it is needed is a contradiction — it tells the
+   * agent to drop everything for a thing with no deadline, which is how
+   * "urgent" stops meaning anything.
+   *
+   * Only high. Normal-priority work still lands undated in their Inbox and
+   * they plan it themselves; that is the default path and it is unchanged.
+   */
+  if (normalizePriority(input.priority) === "high" && !input.dueAt) {
+    return { ok: false, error: "High priority needs a due date — say when it's needed." };
+  }
 
   const supabase = await createCrmServerClient();
 

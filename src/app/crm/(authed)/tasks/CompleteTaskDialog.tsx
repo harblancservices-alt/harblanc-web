@@ -3,7 +3,8 @@
 import { useState, useTransition } from "react";
 import { BTN_PRIMARY, BTN_NEUTRAL } from "../_shell/ui";
 import { CONTROL, CONTROL_SIZE, LABEL } from "../_shell/compactForm";
-import { completeTask, planTask } from "./actions";
+import { completeTask } from "./actions";
+import { dueDateInputForColumn } from "./plan";
 
 /**
  * The close-out dialog. ONE component in front of every "Done" control in the
@@ -11,16 +12,18 @@ import { completeTask, planTask } from "./actions";
  *
  * WHAT IT ASKS FOR
  *   - the NOTE, always. Required by completeTask; this is where it comes from.
- *   - a PLAN, only when the task has no due date. completeTask refuses to
- *     close work that was never planned, so rather than bounce the person off
- *     a server error, the dialog notices first and offers the one thing that
- *     fixes it.
+ *   - the DAY, only when the task has no due date — an undated task cannot be
+ *     closed, and this is where that gets fixed.
  *
- * THE PLAN STEP IS DELIBERATELY NOT AUTOMATIC. It would be trivial to date
- * the task silently on close and never mention it, and that would defeat the
- * rule — the point is that a person decides when work happens. So it is an
- * explicit button with its own label, and the note field is still required
- * alongside it.
+ * ONE STEP, TWO FIELDS (Brent, 2026-08-26). An earlier cut made planning a
+ * separate button you pressed before the note became usable; that was a
+ * refusal with a chore attached. Now the date input simply appears next to
+ * the note, pre-filled with today, and one submit does both — completeTask
+ * takes the date and applies it in the same write.
+ *
+ * The date is still SHOWN and still editable rather than being applied
+ * silently. The rule exists so a person says which day the work belonged to;
+ * back-filling it invisibly would satisfy the check and lose the point.
  *
  * The server checks both regardless (tasks/actions.ts::completeTask). This
  * dialog exists to make the rules easy to satisfy, never to be the thing that
@@ -43,37 +46,30 @@ export function CompleteTaskDialog({
   onClose: () => void;
   onDone: () => void;
 }) {
+  const needsDate = dueAt === null;
   const [note, setNote] = useState("");
+  /** Only meaningful when the task has no date. Defaults to today, which is
+   * the honest answer nine times out of ten — you are closing it now. */
+  const [day, setDay] = useState(() =>
+    needsDate ? dueDateInputForColumn("today", new Date()) : "",
+  );
   const [error, setError] = useState<string | null>(null);
-  const [planned, setPlanned] = useState(dueAt !== null);
   const [pending, startTransition] = useTransition();
 
-  function planToday() {
-    setError(null);
-    startTransition(async () => {
-      const result = await planTask(taskId, "today");
-      if (!result.ok) {
-        setError(result.error);
-        return;
-      }
-      setPlanned(true);
-    });
-  }
-
   function save() {
+    if (needsDate && !day) {
+      setError("Pick the day this was for.");
+      return;
+    }
     if (!note.trim()) {
       setError("Say what happened before closing this.");
       return;
     }
     setError(null);
     startTransition(async () => {
-      const result = await completeTask(taskId, note);
+      const result = await completeTask(taskId, note, needsDate ? day : null);
       if (!result.ok) {
         setError(result.error);
-        // The server saw something the dialog didn't — most likely the task
-        // was un-planned in another tab. Re-open the plan step rather than
-        // leaving a dead Done button.
-        if (result.reason === "not_planned") setPlanned(false);
         return;
       }
       onDone();
@@ -100,23 +96,20 @@ export function CompleteTaskDialog({
           </p>
         )}
 
-        {!planned ? (
-          <div className="mt-3 rounded-md border border-warn/40 bg-warn-bg px-3 py-2.5">
-            <p className="text-[12.5px] font-semibold text-fg">This was never planned.</p>
-            <p className="mt-0.5 text-[12px] text-fg-muted">
-              It has no date, so it is still sitting in your Inbox. Put it on a day before
-              closing it.
-            </p>
-            <button
-              type="button"
-              onClick={planToday}
-              disabled={pending}
-              className={`mt-2 rounded-md px-3 py-1.5 text-[12.5px] font-bold transition-colors ${BTN_PRIMARY}`}
-            >
-              {pending ? "Planning…" : "Plan it for today"}
-            </button>
-          </div>
-        ) : null}
+        {needsDate && (
+          <label className="mt-3 flex flex-col gap-1">
+            <span className={LABEL}>Which day was this for</span>
+            <input
+              type="date"
+              value={day}
+              onChange={(e) => setDay(e.target.value)}
+              className={`w-full ${CONTROL_SIZE} ${CONTROL}`}
+            />
+            <span className="text-[11.5px] text-fg-subtle">
+              It was never planned, so it needs a day before it can close.
+            </span>
+          </label>
+        )}
 
         <label className="mt-3 flex flex-col gap-1">
           <span className={LABEL}>What happened</span>
@@ -136,7 +129,7 @@ export function CompleteTaskDialog({
           <button
             type="button"
             onClick={save}
-            disabled={pending || !planned || !note.trim()}
+            disabled={pending || !note.trim() || (needsDate && !day)}
             className={`rounded-md px-3.5 py-2 text-[13px] font-bold transition-colors disabled:pointer-events-none disabled:opacity-50 ${BTN_PRIMARY}`}
           >
             {pending ? "Closing…" : "Mark it done"}
