@@ -25,15 +25,24 @@ const KNOWN_LABELS: Record<string, string> = {
   "/crm/active-customers": "Active Customers",
   "/crm/carriers": "Carriers",
   "/crm/contacts": "Contacts",
+  "/crm/pipeline": "Pipeline",
   "/crm/tasks": "Tasks",
   "/crm/ai-agent": "AI Agent",
-  "/crm/ai-review": "AI Review",
   "/crm/settings": "Settings",
   "/crm/admin": "Admin Account",
   "/crm/admin/accounts": "Admin Accounts",
+  "/crm/admin/companies": "Admin Companies",
+  "/crm/admin/contacts": "Admin Contacts",
+  "/crm/admin/tasks": "Admin Tasks",
   "/crm/admin/activity": "Admin Activity",
   "/crm/admin/documents": "Admin Documents",
 };
+
+// "/crm/ai-review" came out on 2026-08-26. Unlike the retired-but-real
+// routes above, that page no longer EXISTS, so nothing can navigate to it and
+// this entry could never fire again. The 24 historical rows are unaffected:
+// crm_user_events stores the label on the row at write time (see
+// activity-actions.ts), so they still read "AI Review" without the map.
 
 /** Concise human label for a route — exact matches for every known tab,
  * pattern matches for the two dynamic profile-style routes, and a generic
