@@ -2,9 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   assignmentTaskSpec,
   batchTaskSpec,
-  DEFAULT_DUE_DAYS,
-  defaultDueDate,
-  dueDateToInstant,
 } from "./assignmentTask";
 import { TASK_TYPES } from "../../tasks/taskType";
 
@@ -81,36 +78,5 @@ describe("batchTaskSpec", () => {
 
   it("handles an empty selection without throwing", () => {
     expect(batchTaskSpec([]).title).toBe("Make first contact");
-  });
-});
-
-describe("defaultDueDate", () => {
-  it("defaults a few days out", () => {
-    expect(defaultDueDate(new Date("2026-08-25T09:00:00"))).toBe("2026-08-28");
-    expect(DEFAULT_DUE_DAYS).toBe(3);
-  });
-
-  it("rolls over a month boundary", () => {
-    expect(defaultDueDate(new Date("2026-08-30T09:00:00"))).toBe("2026-09-02");
-  });
-
-  it("uses LOCAL calendar parts, so a late-evening assign doesn't skip a day", () => {
-    // toISOString() on 23:30 Central would already be tomorrow in UTC.
-    expect(defaultDueDate(new Date("2026-08-25T23:30:00"), 1)).toBe("2026-08-26");
-  });
-});
-
-describe("dueDateToInstant", () => {
-  it("lands at local midday so a timezone shift can't move the day", () => {
-    const iso = dueDateToInstant("2026-08-28");
-    expect(iso).not.toBeNull();
-    expect(new Date(iso as string).getDate()).toBe(28);
-    expect(new Date(iso as string).getHours()).toBe(12);
-  });
-
-  it("returns null for empty or unparseable input", () => {
-    expect(dueDateToInstant("")).toBeNull();
-    expect(dueDateToInstant("   ")).toBeNull();
-    expect(dueDateToInstant("not-a-date")).toBeNull();
   });
 });

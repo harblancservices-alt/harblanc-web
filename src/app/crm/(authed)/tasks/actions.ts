@@ -285,14 +285,40 @@ export async function reassignTask(
 
 /**
  * Mark a task complete: set status + completed_at and log a task_completed
- * activity — linked to both the task's company AND its contact (whichever
+ * activity — optionally carrying a completion NOTE as that activity's body,
+ * which is where "what has this person actually done" is answered. Append-only
+ * by construction, so it cannot be edited away later the way a task column
+ * could. See the `note` parameter.
+ *
+ * THE ONE COMPLETION PATH. Six callers reach it (the Tasks board, the agent
+ * dashboard, TaskRow, the desktop and mobile follow-up banners, and the
+ * log-a-call flow) and nothing else writes crm_tasks.status = 'completed'.
+ * That is deliberate and worth keeping: a future "you must say what happened"
+ * rule has exactly one place to live.
+ *
+ * The original description follows.
+ *
+ * Sets status + completed_at and logs a task_completed activity — linked to both the task's company AND its contact (whichever
  * are set; a contact-only task with no account still gets logged, it just
  * won't show on a company timeline that doesn't exist). Reads the task first
  * (RLS-scoped) so a completion works from anywhere (the global list, the
  * dashboard queue, or a company profile) without the caller passing the
  * title/account/contact back in.
  */
-export async function completeTask(taskId: string): Promise<ActionResult> {
+export async function completeTask(
+  taskId: string,
+  /**
+   * What actually happened — recorded as the task_completed activity's body.
+   *
+   * OPTIONAL FOR NOW, on purpose. Brent is introducing a standard where
+   * closing a task requires a note; this is the parameter that standard will
+   * turn on, and the check will go HERE rather than in a dialog, so no caller
+   * can route around it. Until then a null body is left null: see the note in
+   * calls/actions.ts on why an absent note must stay visibly absent rather
+   * than being filled with something plausible.
+   */
+  note?: string | null,
+): Promise<ActionResult> {
   const user = await requireCrmUser();
   const supabase = await createCrmServerClient();
 
@@ -327,6 +353,10 @@ export async function completeTask(taskId: string): Promise<ActionResult> {
       contactId,
       kind: CRM_ACTIVITY.taskCompleted,
       summary: `Task completed: ${(task?.title as string) ?? "Task"}`,
+      // The evidence. crm_activities.body already exists and logActivity
+      // already accepts it — this event simply never passed one. Trimmed to
+      // null so whitespace can't read as a note that was written.
+      body: note?.trim() || null,
     });
   }
 

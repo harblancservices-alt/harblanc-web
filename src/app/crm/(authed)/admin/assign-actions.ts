@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { createCrmServerClient, requireCrmUser } from "@/lib/crm/auth";
 import { parseItemKey, type WorkSource } from "./workItem";
-import { defaultDueDate, dueDateToInstant } from "./companies/assignmentTask";
 
 /**
  * Writes for the Admin → Overview assignment board.
@@ -139,11 +138,16 @@ export type AssignCompaniesResult =
   | { ok: false; error: string };
 
 /**
- * Admin → Companies: hand a set of companies to an agent AND put a clock on
- * the work.
+ * Admin → Companies: hand a set of companies to an agent and put the work in
+ * their queue.
  *
- * Step 2. A company cannot be overdue; a task can. So assignment writes the
- * owner and creates a due-dated task, and "past due" becomes a real state.
+ * Step 2, amended 2026-08-25. A company cannot be worked; a task can. So
+ * assignment writes the owner AND creates a task. That task is now created
+ * UNDATED: it lands in the agent's Inbox on Workspace → Tasks and they drag
+ * it onto a day. It briefly carried a 3-day default, which meant every
+ * assignment arrived already planned into a day column and the Inbox this
+ * board was built around was never actually the destination for assigned
+ * work. An undated task is UNPLANNED, not overdue.
  *
  * ATOMICITY, honestly. The Supabase JS client has no transaction API, and a
  * real one would mean a Postgres function — a schema change, which is out of
@@ -165,7 +169,14 @@ export type AssignCompaniesResult =
 export async function assignCompanies(
   personId: string,
   accountIds: string[],
-  task: { title: string; taskType: string; dueAt: string | null },
+  /**
+   * NO dueAt. Assigned work is created UNDATED on purpose (Brent,
+   * 2026-08-25) so it lands in the agent's Inbox on Workspace → Tasks and
+   * they plan it onto a day themselves. Everything else about step 2 is
+   * unchanged: the task is still created, linked to the company, assigned to
+   * the person, titled from the work type and duplicate-guarded.
+   */
+  task: { title: string; taskType: string },
 ): Promise<AssignCompaniesResult> {
   if (accountIds.length === 0) return { ok: false, error: "Nothing is selected." };
   const title = task.title.trim();
@@ -203,7 +214,10 @@ export async function assignCompanies(
       account_id: id,
       title,
       task_type: task.taskType,
-      due_at: task.dueAt,
+      // Undated — see the `task` parameter. An undated task is UNPLANNED,
+      // never overdue: taskUrgencyBucket reads a null due_at as "upcoming",
+      // so nothing counts it as late anywhere.
+      due_at: null,
       assigned_user_id: personId,
     })),
   );
@@ -302,13 +316,6 @@ export async function assignWork(personId: string, keys: string[]): Promise<Assi
     for (const r of otrRows.data ?? []) nameById.set(r.id as string, (r.company_name as string) || "a company");
     for (const r of bolRows.data ?? []) nameById.set(r.id as string, (r.shipper_name as string) || "a shipment");
 
-    // DUE-DATED, not undated (2026-08-25). These used to go out with
-    // due_at: null, which meant handing someone work that could never
-    // become overdue — invisible to Admin -> Overview's deadline readout and
-    // to the bottom of their own dashboard forever. Same default window
-    // Admin -> Companies assigns with (DEFAULT_DUE_DAYS), so a handed-out
-    // item carries the same expectation whichever screen handed it out.
-    const dueAt = dueDateToInstant(defaultDueDate(new Date()));
     const result = await insertTasks(
       supabase,
       user.orgId,
@@ -316,7 +323,11 @@ export async function assignWork(personId: string, keys: string[]): Promise<Assi
         account_id: null,
         title: FALLBACK_TITLE[f.source as "otr" | "bol"](nameById.get(f.id) ?? "a company"),
         task_type: null,
-        due_at: dueAt,
+        // UNDATED, matching assignCompanies above. These briefly carried a
+        // 3-day default so they couldn't hide from Admin → Overview's
+        // deadline readout; that readout is gone and the rule is now the
+        // other way round — an admin hands work over, the agent dates it.
+        due_at: null,
         assigned_user_id: personId,
       })),
     );

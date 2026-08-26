@@ -78,33 +78,7 @@ export function batchTaskSpec(
   return specs.every((s) => s.title === first.title) ? first : FIRST_CONTACT;
 }
 
-/** Days out the due date defaults to. Short enough that "past due" means
- * something soon, long enough not to be overdue before the agent looks. */
-export const DEFAULT_DUE_DAYS = 3;
-
-/**
- * Default due date as "YYYY-MM-DD" for a <input type="date">.
- *
- * Built from local calendar parts rather than toISOString(), which converts
- * to UTC first and can hand back yesterday's or tomorrow's date depending on
- * the offset — the CRM runs in Central.
- */
-export function defaultDueDate(now: Date, days: number = DEFAULT_DUE_DAYS): string {
-  const d = new Date(now);
-  d.setDate(d.getDate() + days);
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${d.getFullYear()}-${mm}-${dd}`;
-}
-
-/**
- * "YYYY-MM-DD" -> an instant at local MIDDAY, matching the task composer.
- * Midday so a timezone shift can never roll the due date onto the wrong day.
- * Returns null for empty input — a task with no due date is allowed by the
- * column, it just can't go overdue.
- */
-export function dueDateToInstant(date: string): string | null {
-  if (!date.trim()) return null;
-  const d = new Date(`${date}T12:00:00`);
-  return Number.isNaN(d.getTime()) ? null : d.toISOString();
-}
+// DEFAULT_DUE_DAYS / defaultDueDate / dueDateToInstant lived here until
+// 2026-08-25. Assignment no longer sets a due date at all — assigned work
+// lands undated in the agent's Inbox and they plan it — so all three lost
+// their only callers and went rather than sitting here unused.

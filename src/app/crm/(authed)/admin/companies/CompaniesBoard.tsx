@@ -9,7 +9,7 @@ import { SegmentedTabs } from "../../_shell/SegmentedTabs";
 import { lastContactStatus, titleCaseWords, upperCaseState } from "../../_shell/format";
 import { stageLabel, stageTone } from "../../accounts/lifecycle";
 import { assignCompanies } from "../assign-actions";
-import { batchTaskSpec, defaultDueDate, dueDateToInstant } from "./assignmentTask";
+import { batchTaskSpec } from "./assignmentTask";
 import type { CompanyAgent } from "./companies-data";
 import {
   countByOwner,
@@ -51,7 +51,13 @@ export function CompaniesBoard({
   const [pending, startTransition] = useTransition();
   /** null = "use whatever the selection suggests"; a string = admin edited it. */
   const [titleOverride, setTitleOverride] = useState<string | null>(null);
-  const [dueDate, setDueDate] = useState(() => defaultDueDate(new Date()));
+  // NO DUE DATE AT ASSIGN TIME (Brent, 2026-08-25). The picker that used to
+  // sit here is gone with it — assigned work lands UNDATED in the agent's
+  // Inbox on Workspace → Tasks, and they drag it onto a day. Deciding when
+  // something happens is the agent's job and the board is where they do it;
+  // an admin guessing a date at hand-off just meant every assignment arrived
+  // pre-planned into a day column and Inbox was never the destination it was
+  // built to be.
 
   const sorted = useMemo(() => sortForAdmin(rows), [rows]);
   const counts = useMemo(() => countByOwner(rows, agents.map((a) => a.id)), [rows, agents]);
@@ -98,7 +104,6 @@ export function CompaniesBoard({
       const result = await assignCompanies(agent.id, ids, {
         title: taskTitle,
         taskType: spec.taskType,
-        dueAt: dueDateToInstant(dueDate),
       });
       if (!result.ok) {
         setError(result.error);
@@ -132,7 +137,7 @@ export function CompaniesBoard({
    *
    * Recomputed from the selection rather than held in state, so changing the
    * selection updates the suggestion; the admin's own edits are held in
-   * titleOverride/dueDate and survive it.
+   * titleOverride and survive it.
    */
   // Computed plainly, NOT via useMemo. The dependency would be `selected`, a
   // Set — a mutable reference the React Compiler cannot prove stable, so a
@@ -344,16 +349,9 @@ export function CompaniesBoard({
                   className="min-w-[16rem] rounded-md border border-white/25 bg-white/10 px-2.5 py-1.5 text-[12.5px] font-medium text-white placeholder:text-white/40 focus:border-white/50 focus:outline-none"
                 />
               </label>
-              <label className="flex items-center gap-1.5">
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-white/50">Due</span>
-                <input
-                  type="date"
-                  value={dueDate}
-                  onChange={(e) => setDueDate(e.target.value)}
-                  aria-label="Task due date"
-                  className="rounded-md border border-white/25 bg-white/10 px-2.5 py-1.5 text-[12.5px] font-medium text-white focus:border-white/50 focus:outline-none [color-scheme:dark]"
-                />
-              </label>
+              <span className="text-[11.5px] text-white/50">
+                lands undated in their Inbox
+              </span>
               <button
                 type="button"
                 onClick={() => setSelected(new Set())}
