@@ -27,11 +27,17 @@ export const dynamic = "force-dynamic";
  */
 export default async function TasksPage() {
   const user = await requireCrmUser();
-  const { tasks, companies, doneThisWeek, now } = await getPlanData(user);
+  const { tasks, companies, completeness, doneThisWeek, now } = await getPlanData(user);
 
   return (
     <div className="mx-auto w-full max-w-[1400px] px-4 py-4 sm:px-6">
-      <TasksHub tasks={tasks} companies={companies} now={now} doneThisWeek={doneThisWeek} />
+      <TasksHub
+        tasks={tasks}
+        companies={companies}
+        completeness={completeness}
+        now={now}
+        doneThisWeek={doneThisWeek}
+      />
     </div>
   );
 }

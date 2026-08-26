@@ -8,6 +8,8 @@ import { CONTROL, CONTROL_SIZE } from "../_shell/compactForm";
 import { BTN_PRIMARY, BTN_NEUTRAL } from "../_shell/ui";
 import { createTask, planTask } from "./actions";
 import { CompleteTaskDialog } from "./CompleteTaskDialog";
+import { CompletenessList } from "../agent/CompletenessList";
+import { gapsForBook, countGaps, type CompletenessInput } from "../agent/completeness";
 import {
   buildPlanBoard,
   dueDateInputForColumn,
@@ -40,10 +42,13 @@ import {
 export function TasksHub({
   tasks,
   companies,
+  completeness,
   now,
   doneThisWeek,
 }: {
   tasks: PlanTask[];
+  /** Company records the gaps are derived from, per render — never stored. */
+  completeness: CompletenessInput[];
   /** Companies this agent may file a task against — scoped upstream by the
    * shared visibility rule, same as every other picker. */
   companies: { id: string; name: string }[];
@@ -65,6 +70,11 @@ export function TasksHub({
   const [pending, startTransition] = useTransition();
 
   const byId = new Map(tasks.map((t) => [t.id, t]));
+  // Derived every render. Shown under INBOX because that column is already
+  // "work you haven't planned"; a gap is the same kind of thing, minus the
+  // human who asked for it.
+  const gaps = gapsForBook(completeness, 4);
+  const gapTotal = countGaps(completeness);
   const overdueCount = tasks.filter((t) => isOverdue(t, at)).length;
 
   function move(taskId: string, target: PlanColumn) {
@@ -166,7 +176,7 @@ export function TasksHub({
                   />
                 )}
 
-                {board[key].length === 0 && composing !== key ? (
+                {board[key].length === 0 && composing !== key && !(key === "inbox" && gaps.length) ? (
                   <p className="px-1 py-6 text-center text-[12px] text-fg-subtle">
                     {key === "inbox" ? "Nothing waiting to be planned." : "Nothing here."}
                   </p>
@@ -188,6 +198,8 @@ export function TasksHub({
                     />
                   ))
                 )}
+
+                {key === "inbox" && <CompletenessList gaps={gaps} total={gapTotal} compact />}
               </div>
             </section>
           ))}

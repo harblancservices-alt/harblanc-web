@@ -21,13 +21,14 @@ import { AgentDashboard } from "./AgentDashboard";
  * creator anyway — createAccount defaults assigned_user_id to `user.id`.
  */
 export async function AgentHome({ user }: { user: CrmUser }) {
-  const { tasks, companies, now } = await getAgentDashboardData(user);
+  const { tasks, companies, completeness, now } = await getAgentDashboardData(user);
 
   return (
     <AgentDashboard
       name={firstName(user.fullName, user.email) || "You"}
       tasks={tasks}
       companies={companies}
+      completeness={completeness}
       now={now}
       addCompanyButton={<HeaderAddCompanyButton reps={[]} />}
     />

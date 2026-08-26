@@ -6,6 +6,7 @@ import {
 } from "../_shell/companyVisibility";
 import { normalizePriority } from "./priority";
 import type { PlanTask } from "./plan";
+import type { CompletenessInput } from "../agent/completeness";
 
 /**
  * Server-side reads for Workspace → Tasks, the planning board. Scoped to ONE
@@ -25,6 +26,9 @@ import type { PlanTask } from "./plan";
 export type PlanData = {
   tasks: PlanTask[];
   companies: { id: string; name: string }[];
+  /** Company records the completeness gaps are DERIVED from at render time —
+   * never stored as tasks. See agent/completeness.ts. */
+  completeness: CompletenessInput[];
   /** Tasks this person completed since the start of the current week. */
   doneThisWeek: number;
   /** Server clock, stamped here rather than in a component body — Date.now()
@@ -46,7 +50,7 @@ export async function getPlanData(user: CrmUser): Promise<PlanData> {
 
   let companiesQuery = supabase
     .from("crm_accounts")
-    .select("id, name")
+    .select("id, name, city, state, address, industry")
     .is("deleted_at", null)
     .order("name", { ascending: true })
     .limit(1000);
@@ -135,8 +139,43 @@ export async function getPlanData(user: CrmUser): Promise<PlanData> {
     };
   });
 
+  // Gap inputs, from the SAME company rows already loaded above plus one
+  // grouped contact count. No extra per-company queries.
+  const bookIds = ((companiesRes.data ?? []) as { id: string }[]).map((a) => a.id);
+  const contactCountByAccount = new Map<string, number>();
+  if (bookIds.length) {
+    const { data: contactRows } = await supabase
+      .from("crm_contacts")
+      .select("account_id")
+      .in("account_id", bookIds)
+      .is("deleted_at", null);
+    for (const c of contactRows ?? []) {
+      const id = c.account_id as string;
+      contactCountByAccount.set(id, (contactCountByAccount.get(id) ?? 0) + 1);
+    }
+  }
+  const completeness: CompletenessInput[] = (
+    (companiesRes.data ?? []) as {
+      id: string;
+      name: string;
+      city: string | null;
+      state: string | null;
+      address: string | null;
+      industry: string | null;
+    }[]
+  ).map((a) => ({
+    id: a.id,
+    name: a.name || "Unnamed company",
+    city: a.city ?? null,
+    state: a.state ?? null,
+    address: a.address ?? null,
+    industry: a.industry ?? null,
+    contactCount: contactCountByAccount.get(a.id) ?? 0,
+  }));
+
   return {
     tasks,
+    completeness,
     companies: ((companiesRes.data ?? []) as { id: string; name: string }[]).map((a) => ({
       id: a.id,
       name: titleCaseWords(a.name),

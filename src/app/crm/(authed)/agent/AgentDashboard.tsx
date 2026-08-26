@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { Card, BTN_EDIT } from "../_shell/ui";
 import { titleCaseWords, upperCaseState } from "../_shell/format";
 import { CompleteTaskDialog } from "../tasks/CompleteTaskDialog";
+import { CompletenessList } from "./CompletenessList";
+import { gapsForBook, countGaps, type CompletenessInput } from "./completeness";
 import {
   activityStatus,
   companyFlag,
@@ -41,6 +43,7 @@ export function AgentDashboard({
   name,
   tasks,
   companies,
+  completeness,
   now,
   addCompanyButton,
 }: {
@@ -48,6 +51,8 @@ export function AgentDashboard({
   name: string;
   tasks: AgentTask[];
   companies: AgentCompany[];
+  /** Company records the completeness gaps are derived from, per render. */
+  completeness: CompletenessInput[];
   /** Server clock — every label on this page is computed against this one
    * instant so the server and client renders can't disagree by a day. */
   now: number;
@@ -69,6 +74,11 @@ export function AgentDashboard({
     (sum, rows) => sum + Math.max(0, rows.length - shown),
     0,
   );
+
+  // Derived here, every render. Nothing stored, nothing to reap — see
+  // completeness.ts.
+  const gaps = gapsForBook(completeness);
+  const gapTotal = countGaps(completeness);
 
   const COMPANY_CAP = 8;
   const visibleCompanies = sortedCompanies.slice(0, COMPANY_CAP);
@@ -118,6 +128,8 @@ export function AgentDashboard({
               )}
             </>
           )}
+
+          <CompletenessList gaps={gaps} total={gapTotal} />
         </Card>
 
         {/* ── Your companies ────────────────────────────────────────── */}

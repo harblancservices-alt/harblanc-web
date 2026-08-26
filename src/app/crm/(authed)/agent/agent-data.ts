@@ -3,6 +3,7 @@ import { CRM_CONTACT_ACTIVITY_KINDS } from "@/lib/crm/activity";
 import { timestampMs } from "../_shell/format";
 import { normalizePriority } from "../tasks/priority";
 import type { AgentTask, AgentCompany } from "./agentWork";
+import type { CompletenessInput } from "./completeness";
 
 /**
  * Server-side reads for the agent dashboard — everything scoped to ONE
@@ -23,6 +24,10 @@ import type { AgentTask, AgentCompany } from "./agentWork";
 export type AgentDashboardData = {
   tasks: AgentTask[];
   companies: AgentCompany[];
+  /** Everything needed to DERIVE completeness gaps at render time. Not
+   * stored, not queried separately — the same company rows above, plus a
+   * contact count. See completeness.ts for why these are never task rows. */
+  completeness: CompletenessInput[];
   /** Server clock, passed to the client so every date label is computed
    * against ONE instant — the same hydration guard the assignment board uses. */
   now: number;
@@ -43,7 +48,7 @@ export async function getAgentDashboardData(user: CrmUser): Promise<AgentDashboa
 
     supabase
       .from("crm_accounts")
-      .select("id, name, city, state, lifecycle_status")
+      .select("id, name, city, state, lifecycle_status, address, industry")
       .eq("assigned_user_id", user.id)
       .is("deleted_at", null)
       .order("name", { ascending: true })
@@ -148,6 +153,30 @@ export async function getAgentDashboardData(user: CrmUser): Promise<AgentDashboa
     };
   });
 
+  // One grouped count for the whole book, rather than a query per company.
+  const contactCountByAccount = new Map<string, number>();
+  if (accountIds.length) {
+    const { data: contactRows } = await supabase
+      .from("crm_contacts")
+      .select("account_id")
+      .in("account_id", accountIds)
+      .is("deleted_at", null);
+    for (const c of contactRows ?? []) {
+      const id = c.account_id as string;
+      contactCountByAccount.set(id, (contactCountByAccount.get(id) ?? 0) + 1);
+    }
+  }
+
+  const completeness: CompletenessInput[] = accounts.map((a) => ({
+    id: a.id as string,
+    name: (a.name as string) || "Unnamed company",
+    city: (a.city as string | null) ?? null,
+    state: (a.state as string | null) ?? null,
+    address: (a.address as string | null) ?? null,
+    industry: (a.industry as string | null) ?? null,
+    contactCount: contactCountByAccount.get(a.id as string) ?? 0,
+  }));
+
   const companies: AgentCompany[] = accounts.map((a) => ({
     id: a.id as string,
     name: (a.name as string) || "Unnamed company",
@@ -157,5 +186,5 @@ export async function getAgentDashboardData(user: CrmUser): Promise<AgentDashboa
     lastContactMs: lastContactMsByAccount.get(a.id as string) ?? null,
   }));
 
-  return { tasks, companies, now: Date.now() };
+  return { tasks, companies, completeness, now: Date.now() };
 }
