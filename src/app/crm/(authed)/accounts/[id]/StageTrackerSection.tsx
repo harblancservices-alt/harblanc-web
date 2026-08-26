@@ -33,7 +33,7 @@ export function StageTrackerSection({
   variant?: "chevron" | "strip" | "compact";
 }) {
   const [justGraduated, setJustGraduated] = useState(false);
-  const isActiveCustomer = normalizeStage(stage) === "active_customer";
+  const isActiveCustomer = normalizeStage(stage) === "active";
   const bare = variant === "strip" || variant === "compact";
   const shell = bare ? "w-full" : "w-full rounded-lg border border-line-strong bg-card p-4 shadow-e2";
 
@@ -60,7 +60,7 @@ export function StageTrackerSection({
         current={stage}
         variant={variant}
         onStageChange={(next) => {
-          if (next === "active_customer") setJustGraduated(true);
+          if (next === "active") setJustGraduated(true);
         }}
       />
     </div>

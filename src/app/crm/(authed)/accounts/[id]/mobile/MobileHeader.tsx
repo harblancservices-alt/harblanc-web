@@ -63,7 +63,7 @@ export function MobileHeader({
   canDelete: boolean;
 }) {
   const normalized = normalizeStage(stage);
-  const isActiveCustomer = normalized === "active_customer";
+  const isActiveCustomer = normalized === "active";
   const subtitle = [industry, [city, state].filter(Boolean).join(", ") || null].filter(Boolean).join(" · ");
   const repInitial = repLabel?.trim().charAt(0).toUpperCase() || "?";
 

@@ -24,15 +24,32 @@ import type { LifecycleStage } from "@/app/crm/(authed)/accounts/lifecycle";
 
 type StageEntryTaskSpec = { title: string; task_type: string; dueInHours?: number };
 
-/** new_lead and active_customer are deliberately absent — no auto-task on
- * entering either (a brand-new unclaimed lead has nothing to do yet; a won
- * account's onboarding task is still the existing manual "+ Add onboarding
- * task" offer on the profile, not an automatic one). "lost" is handled by
- * the separate win-back clock below, not stage entry. */
+/**
+ * Which stages fire an automatic task on ENTRY.
+ *
+ * Absent on purpose, each for its own reason:
+ *   new_lead      nothing to do yet; nobody owns it.
+ *   engaged       they are already talking to you. An automatic "follow up"
+ *                 on the stage that MEANS a live conversation is noise.
+ *   active        a won account's onboarding task is still the manual
+ *                 "+ Add onboarding task" offer on the profile.
+ *   lost          handled by the separate win-back clock, not stage entry.
+ *   disqualified  ruled out deliberately. Generating work on the stage whose
+ *                 whole point is "stop working this" would be perverse.
+ *
+ * `researching` became `qualified` in the 2026-08-26 ten-stage rebuild, and
+ * the task moved with it — the work at that point is unchanged.
+ */
 const STAGE_ENTRY_TASK: Partial<Record<LifecycleStage, StageEntryTaskSpec>> = {
-  researching: { title: "Research + first outreach", task_type: "Research prospect" },
+  qualified: { title: "Research + first outreach", task_type: "Research prospect" },
   contacted: { title: "Follow up", task_type: "Follow-up call" },
   quoting: { title: "Follow up on quote", task_type: "Follow-up call", dueInHours: 24 },
+  // Onboarding is a promise with a clock on it — they have said yes and are
+  // waiting on us, so this is the one new stage that earns an auto-task.
+  setup: { title: "Get them set up", task_type: "Follow-up call", dueInHours: 48 },
+  // Getting a quiet customer talking again is real work that will not happen
+  // by itself. Undated: it is a nudge, not a deadline.
+  dormant: { title: "Re-engage this customer", task_type: "Follow-up call" },
 };
 
 /**

@@ -102,11 +102,24 @@ export function PipelineBoard({
         </p>
       )}
 
-      {/* Sideways for the board, down inside each column — six columns will
-          not fit a laptop, and a long column must not stretch the page. */}
+      {/* Sideways for the board, down inside each column — a long column must
+          not stretch the page.
+
+          TEN COLUMNS (2026-08-26). At the old fixed 17.5rem every column, ten
+          stages want ~2900px, so the board became a long sideways scroll
+          through mostly-empty columns to reach the far end of the funnel.
+
+          EMPTY COLUMNS NOW COLLAPSE to a narrow labelled rail. They are NOT
+          hidden — an empty column is information ("nothing is at Quoting")
+          and, more importantly, it is a drop target you have to be able to
+          aim at, which a hidden column is not. It still highlights and still
+          accepts a drop; it just does not spend 280px saying "Nothing here."
+          With a real book that typically halves the board's width. */}
       <div className="min-h-0 flex-1 overflow-x-auto pb-1">
         <div className="flex h-full min-h-[20rem] gap-3">
-          {columns.map((col) => (
+          {columns.map((col) => {
+            const collapsed = col.cards.length === 0;
+            return (
             <section
               key={col.stage}
               onDragOver={(e) => {
@@ -122,12 +135,27 @@ export function PipelineBoard({
                 if (id && isStage(col.stage)) move(id, col.stage);
               }}
               aria-label={`${LIFECYCLE_LABEL[col.stage]}, ${col.cards.length} companies`}
-              className={`flex w-[17.5rem] shrink-0 flex-col rounded-lg border transition-colors ${
+              className={`flex shrink-0 flex-col rounded-lg border transition-all ${
+                collapsed ? "w-11" : "w-[16.5rem]"
+              } ${
                 over === col.stage
                   ? "border-accent bg-accent-bg"
                   : "border-line-strong bg-inset"
               }`}
             >
+              {collapsed ? (
+                // Vertical label so the stage stays readable at 44px. Still a
+                // full-height drop target.
+                <div className="flex min-h-0 flex-1 items-center justify-center py-3">
+                  <span
+                    className="whitespace-nowrap text-[11.5px] font-semibold text-fg-subtle"
+                    style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
+                  >
+                    {LIFECYCLE_LABEL[col.stage]}
+                  </span>
+                </div>
+              ) : (
+              <>
               <header className="flex items-center gap-2 px-3 py-2.5">
                 <span
                   className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${LIFECYCLE_TONE[col.stage]}`}
@@ -138,12 +166,7 @@ export function PipelineBoard({
               </header>
 
               <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-2 pb-2">
-                {col.cards.length === 0 ? (
-                  <p className="px-1 py-6 text-center text-[12px] text-fg-subtle">
-                    Nothing here.
-                  </p>
-                ) : (
-                  col.cards.map((card) => (
+                {col.cards.map((card) => (
                     <CompanyCard
                       key={card.id}
                       card={card}
@@ -157,17 +180,19 @@ export function PipelineBoard({
                       }}
                       onPick={move}
                     />
-                  ))
-                )}
+                  ))}
               </div>
+              </>
+              )}
             </section>
-          ))}
+            );
+          })}
         </div>
       </div>
 
       <p className="text-[12px] text-fg-subtle">
         Drag a company to another column to move its stage · coldest sits at the top of each
-        column.
+        column · empty stages collapse to a rail and still accept a drop.
       </p>
     </div>
   );

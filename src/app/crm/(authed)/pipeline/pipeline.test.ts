@@ -37,7 +37,7 @@ describe("buildPipeline", () => {
     // "quoted" and "customer" are pre-2026-08-09 vocabulary.
     const board = buildPipeline([c("old", "quoted"), c("older", "customer")]);
     expect(board.find((col) => col.stage === "quoting")!.cards.map((x) => x.id)).toEqual(["old"]);
-    expect(board.find((col) => col.stage === "active_customer")!.cards.map((x) => x.id)).toEqual([
+    expect(board.find((col) => col.stage === "active")!.cards.map((x) => x.id)).toEqual([
       "older",
     ]);
     expect(board).toHaveLength(LIFECYCLE_STAGES.length);

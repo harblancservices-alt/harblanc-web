@@ -54,7 +54,16 @@ export type AssignBoardData = {
 
 /** Stages that still count as "on someone's plate" for the load readout. A
  * won or dropped-out company is not work in progress. */
-const IN_FUNNEL = ["new_lead", "researching", "contacted", "quoting"];
+// Stages that still count as work in progress. Deliberately excludes the
+// won stage (active), the two terminal ones (lost, disqualified) AND dormant
+// — a customer who has gone quiet is a problem to work, but it is not
+// pipeline load, and counting it as such would make a rep look busy for
+// holding stale accounts. Raw values include the pre-remap vocabulary so the
+// count is right before and after the remap.
+const IN_FUNNEL = [
+  "new_lead", "qualified", "contacted", "engaged", "quoting", "setup",
+  "researching", // legacy raw value, still on live rows pre-remap
+];
 
 export async function getAssignBoardData(): Promise<AssignBoardData> {
   const user = await requireCrmUser();

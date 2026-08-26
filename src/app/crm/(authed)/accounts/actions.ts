@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { logActivity, CRM_ACTIVITY } from "@/lib/crm/activity";
-import { normalizeStage, stageLabel, stageRank, DEFAULT_LIFECYCLE } from "./lifecycle";
+import { normalizeStage, stageLabel, stageRank, stageNeedsReason, DEFAULT_LIFECYCLE } from "./lifecycle";
 import { centralInputToIso, firstName, titleCaseWords, upperCaseState } from "../_shell/format";
 import { phonesFromFormValue, linksFromFormValue, parsePhones, looksLikePhone } from "../_shell/contactFields";
 import { MOOD_VALUES } from "../_shell/mood";
@@ -470,7 +470,7 @@ export async function assignAccount(
   if (currentOwner === null && targetUserId !== null && priorStage === "new_lead") {
     const { error: stageError } = await supabase
       .from("crm_accounts")
-      .update({ lifecycle_status: "researching" })
+      .update({ lifecycle_status: "qualified" })
       .eq("id", accountId);
 
     if (!stageError) {
@@ -479,8 +479,8 @@ export async function assignAccount(
         userId: user.id,
         accountId,
         kind: CRM_ACTIVITY.lifecycleChanged,
-        summary: `Stage changed: ${stageLabel(priorStage)} → ${stageLabel("researching")}`,
-        meta: { from: priorStage, to: "researching" },
+        summary: `Stage changed: ${stageLabel(priorStage)} → ${stageLabel("qualified")}`,
+        meta: { from: priorStage, to: "qualified" },
       });
 
       await fireStageEntryTask(supabase, {
@@ -488,7 +488,7 @@ export async function assignAccount(
         actorUserId: user.id,
         accountId,
         ownerUserId: targetUserId,
-        stage: "researching",
+        stage: "qualified",
       });
     }
   }
@@ -501,18 +501,35 @@ export async function assignAccount(
 
 /**
  * Move a company to a new lifecycle stage, log the transition, and fire that
- * stage's entry automation (CRM_URGENCY_AUDIT.md P0 — an auto-task for
- * researching/contacted/quoting, assigned to whoever currently owns the
- * account; see lib/crm/stageAutomation.ts). No cron in this CRM, so this
- * synchronous call IS the automation — there's nowhere else it fires from
- * besides here.
+ * stage's entry automation (an auto-task for qualified/contacted/quoting/
+ * setup/dormant, assigned to whoever currently owns the account; see
+ * lib/crm/stageAutomation.ts). No cron in this CRM, so this synchronous call
+ * IS the automation — there's nowhere else it fires from besides here.
+ *
+ * Also stamps stage_changed_at, and takes the loss reason the two terminal
+ * stages require.
  */
 export async function updateLifecycleStatus(
   id: string,
   status: string,
+  /**
+   * Why, for the two stages that demand it. Required for Lost and
+   * Disqualified and ignored for the other eight -- carrying a "reason" on a
+   * company that is merely Quoting would be a lie waiting to be read back.
+   */
+  reason?: string,
 ): Promise<ActionResult> {
   const user = await requireCrmUser();
   const next = normalizeStage(status);
+
+  // RE-CHECKED SERVER-SIDE. The dialog will not let you commit Lost or
+  // Disqualified without a reason, but a UI gate is not enforcement -- this
+  // action is reachable directly.
+  const trimmedReason = (reason ?? "").trim();
+  if (stageNeedsReason(next) && !trimmedReason) {
+    return { ok: false, error: `${stageLabel(next)} needs a reason.` };
+  }
+
   const supabase = await createCrmServerClient();
 
   const { data: prior } = await supabase
@@ -526,7 +543,18 @@ export async function updateLifecycleStatus(
 
   const { error } = await supabase
     .from("crm_accounts")
-    .update({ lifecycle_status: next })
+    .update({
+      lifecycle_status: next,
+      // Distinct from updated_at, which moves on any edit. This answers "how
+      // long has it been sitting where it is", which is what the staleness
+      // clocks and the pipeline board actually ask.
+      stage_changed_at: new Date().toISOString(),
+      // Written only for the stages that carry one, and CLEARED on the way
+      // out. A company moved from Lost back into the funnel must not keep the
+      // reason it was lost -- that reason is no longer true, and a stale one
+      // is worse than none.
+      stage_loss_reason: stageNeedsReason(next) ? trimmedReason : null,
+    })
     .eq("id", id);
 
   if (error) {
@@ -541,7 +569,12 @@ export async function updateLifecycleStatus(
     summary: priorStage
       ? `Stage changed: ${stageLabel(priorStage)} → ${stageLabel(next)}`
       : `Stage set to ${stageLabel(next)}`,
-    meta: { from: priorStage, to: next },
+    // The reason goes on the timeline entry too, not just the column: the
+    // column holds the CURRENT reason and is cleared on the way out, so
+    // without this the "why" would vanish the moment somebody reopened the
+    // company. The timeline is the record that has to survive.
+    body: trimmedReason || null,
+    meta: { from: priorStage, to: next, reason: trimmedReason || null },
   });
 
   await fireStageEntryTask(supabase, {
@@ -567,7 +600,7 @@ export async function updateLifecycleStatus(
  *
  * Two independent things happen together, both idempotent:
  *  - Lifecycle promotion, guardrail-checked: only (re-)sets the company to
- *    'new_lead' when its current stage genuinely ranks below Researching —
+ *    'new_lead' when its current stage genuinely ranks below Qualified —
  *    in practice that means it's already at new_lead (a fresh company has
  *    nowhere lower to rank). One already at Researching or beyond (or the
  *    terminal Lost) is left exactly where it is — never downgraded back to
@@ -598,7 +631,11 @@ export async function promoteAccountToProspect(
   if (!account) return { ok: false, error: "Company not found." };
 
   const currentStage = normalizeStage(account.lifecycle_status as string | null);
-  const willPromote = stageRank(currentStage) < stageRank("researching");
+  // Only promote a company that has not moved past the very start of the
+  // funnel. The threshold was stageRank("researching") until the ten-stage
+  // rebuild; `qualified` inherits that position, so the rule is unchanged in
+  // meaning — in practice it means "still at New Lead".
+  const willPromote = stageRank(currentStage) < stageRank("qualified");
 
   const fields: { lifecycle_status?: string; source?: string; ai_status: string } = { ai_status: "released" };
   if (willPromote) fields.lifecycle_status = "new_lead";

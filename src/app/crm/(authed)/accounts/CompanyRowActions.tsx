@@ -33,7 +33,7 @@ export function CompanyRowActions({
   companies: CompanyOption[];
   variant: "table" | "card";
 }) {
-  const isActiveCustomer = normalizeStage(company.stage) === "active_customer";
+  const isActiveCustomer = normalizeStage(company.stage) === "active";
   const initialCompany = { text: titleCaseWords(company.name), selectedId: company.id };
 
   const itemClass =
