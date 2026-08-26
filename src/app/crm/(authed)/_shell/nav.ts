@@ -4,6 +4,7 @@ import {
   IconCompanies,
   IconContacts,
   IconTasks,
+  IconPipeline,
   IconSettings,
   IconFlagSolid,
   IconAdminAccount,
@@ -99,6 +100,11 @@ export function buildCrmNav(
     { href: "/crm", label: "Dashboard", Icon: IconDashboard },
     { href: "/crm/accounts", label: "Companies", Icon: IconCompanies },
     { href: "/crm/contacts", label: "Contacts", Icon: IconContacts },
+    // The funnel view of the same companies — one column per
+    // lifecycle_status, drag to advance a stage. Sits next to Companies
+    // because it is the same book of business, arranged by where each one is
+    // rather than alphabetically.
+    { href: "/crm/pipeline", label: "Pipeline", Icon: IconPipeline },
     // PROSPECTS IS GONE (2026-08-25). The claim model is retired: agents no
     // longer pick work out of a shared pool, an admin assigns it. The route
     // /crm/ai-agent and its page are untouched and still load, they are
