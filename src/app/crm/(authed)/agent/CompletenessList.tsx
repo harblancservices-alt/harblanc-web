@@ -55,11 +55,16 @@ export function CompletenessList({
               prefetch={false}
               className="flex items-start gap-2 rounded-[5px] border border-dashed border-line-strong bg-inset px-2.5 py-2 transition-colors hover:border-accent hover:bg-accent-bg"
             >
-              {/* Hollow square, never a checkbox — see the component note. */}
-              <span
-                aria-hidden
-                className="mt-[3px] h-[9px] w-[9px] shrink-0 rounded-[2px] border border-fg-subtle"
-              />
+              {/* A DASH, not a box (2026-08-26). This was a 9px hollow
+                  square, chosen to read as "not a checkbox" — and it did not.
+                  At real size a small bordered square IS an unchecked
+                  checkbox to the eye, whatever the DOM says, and Brent asked
+                  twice what these rows were. A dash cannot be mistaken for
+                  something tickable: there is no box to tick. It is also
+                  distinct from the task card's round checkbox AND from the
+                  high-priority dot, so nothing on either surface reads as a
+                  control that is not one. */}
+              <span aria-hidden className="mt-[7px] h-px w-2 shrink-0 bg-fg-subtle" />
               <span className="min-w-0 flex-1">
                 <span className="block text-[12.5px] font-bold text-fg">{gap.label}</span>
                 <span className="block truncate text-[11.5px] text-fg-subtle">

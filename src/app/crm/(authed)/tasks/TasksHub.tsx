@@ -378,21 +378,34 @@ function TaskCard({
       )}
 
       {/* The non-drag path. Always present, not hover-revealed, so keyboard
-          and touch users can plan too — dragging is unreliable on both. */}
+          and touch users can plan too — dragging is unreliable on both.
+          
+          COMPACT AND RIGHT-ALIGNED (2026-08-26), matching the pipeline card.
+          This was a 100%-wide bordered dropdown under every card — the thing
+          Brent called the clumsiest part of that board. He named the pipeline
+          because that was the screenshot in front of him; it was the same
+          control here, as visually heavy as the card content and costing a
+          card's worth of height per column.
+
+          Still a native <select>: keyboard operation, the platform picker on
+          touch and screen-reader semantics come free, and this control exists
+          precisely for the people drag-and-drop fails. */}
+      <div className="mt-1 flex justify-end">
       <select
         value=""
         disabled={pending}
         onChange={(e) => e.target.value && onPick(task.id, e.target.value as PlanColumn)}
         aria-label={`Move "${task.title}" to another column`}
-        className="mt-1.5 w-full rounded-[4px] border border-line bg-card px-1 py-0.5 text-[11px] font-semibold text-fg-muted disabled:opacity-60"
+        className="cursor-pointer rounded-[4px] border border-line bg-card px-1.5 py-0.5 text-[11px] font-semibold text-fg-subtle hover:border-accent hover:text-accent disabled:opacity-60"
       >
-        <option value="">Move to…</option>
+        <option value="">Move ⌄</option>
         {PLAN_COLUMNS.map((c) => (
           <option key={c} value={c}>
             {PLAN_LABEL[c]}
           </option>
         ))}
       </select>
+      </div>
     </article>
   );
 }
