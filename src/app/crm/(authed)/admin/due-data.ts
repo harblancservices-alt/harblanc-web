@@ -13,7 +13,16 @@ import type { DueTaskRow } from "./dueReport";
  * board loads, so a person appears with the same name on both halves of the
  * page.
  */
-export async function getOpenTasksForReport(): Promise<DueTaskRow[]> {
+export type OpenTasksReport = {
+  tasks: DueTaskRow[];
+  /** Server clock, stamped HERE rather than in a component body — every
+   * label on both admin surfaces is computed against one instant, and
+   * `Date.now()` during render is an impure call the React Compiler rejects
+   * outright (react-hooks/purity). Same contract as assign-data.ts. */
+  now: number;
+};
+
+export async function getOpenTasksForReport(): Promise<OpenTasksReport> {
   const supabase = await createCrmServerClient();
 
   const { data: taskData } = await supabase
@@ -39,7 +48,7 @@ export async function getOpenTasksForReport(): Promise<DueTaskRow[]> {
 
   const nameById = new Map((accountData ?? []).map((a) => [a.id as string, a.name as string]));
 
-  return tasks.map((t) => {
+  const rows: DueTaskRow[] = tasks.map((t) => {
     const accountId = (t.account_id as string | null) ?? null;
     return {
       id: t.id as string,
@@ -50,4 +59,6 @@ export async function getOpenTasksForReport(): Promise<DueTaskRow[]> {
       companyName: accountId ? (nameById.get(accountId) ?? null) : null,
     };
   });
+
+  return { tasks: rows, now: Date.now() };
 }

@@ -29,6 +29,12 @@ function optStr(fd: FormData, key: string): string | null {
 function revalidate(accountId?: string | null) {
   revalidatePath("/crm");
   revalidatePath("/crm/tasks");
+  // Both admin surfaces that report on tasks: the Tasks board (one column
+  // per person) and Overview's due-date readout. Added 2026-08-25 with the
+  // board — a reassignment that doesn't refresh the screen you did it on is
+  // a card that snaps back.
+  revalidatePath("/crm/admin/tasks");
+  revalidatePath("/crm/admin");
   if (accountId) revalidatePath(`/crm/accounts/${accountId}`);
 }
 
@@ -146,6 +152,77 @@ export async function updateTask(
   }
 
   revalidate(fields.account_id);
+  return { ok: true };
+}
+
+/**
+ * Move ONE task to a different owner — nothing else. Drives Admin -> Tasks'
+ * drag-and-drop (2026-08-25), and lives here rather than in a board-specific
+ * actions file so every crm_tasks write in the CRM stays in one module,
+ * behind one org guard and one revalidate().
+ *
+ * Deliberately NOT updateTask(). That takes a whole FormData and rewrites
+ * every column on it; a drag knows one thing (the new owner) and would have
+ * to round-trip title/notes/due/priority/links just to avoid blanking them.
+ * A gesture that carries one fact should write one column.
+ *
+ * `assigneeId: null` drops the task back into the unassigned pile — a real
+ * move, not an error.
+ *
+ * DOES NOT TOUCH THE COMPANY'S OWNER, deliberately. Step 2's flow runs the
+ * other way: assigning a COMPANY (admin/assign-actions.ts::assignCompanies)
+ * sets crm_accounts.assigned_user_id and drags that company's open tasks
+ * along with it. Keeping the reverse direction closed means ownership has
+ * exactly one source of truth and one place it can be changed, instead of a
+ * small gesture on a task silently rewriting who owns a whole account. An
+ * admin routinely hands one task about someone else's company to whoever has
+ * room; that must not transfer the account.
+ */
+export async function reassignTask(
+  taskId: string,
+  assigneeId: string | null,
+): Promise<ActionResult> {
+  const user = await requireCrmUser();
+  if (user.role !== "owner") {
+    return { ok: false, error: "Only an admin can assign tasks to someone else." };
+  }
+
+  const supabase = await createCrmServerClient();
+
+  // The target must be a real, ACTIVE member of the caller's own org — never
+  // trusted off the wire. Suspending a member reassigns their companies
+  // (admin/actions.ts::suspendAndReassignMember); dropping fresh work onto
+  // that same account afterwards would quietly undo it.
+  if (assigneeId) {
+    const { data: person } = await supabase
+      .from("crm_profiles")
+      .select("id")
+      .eq("id", assigneeId)
+      .eq("org_id", user.orgId)
+      .eq("is_active", true)
+      .maybeSingle();
+    if (!person) return { ok: false, error: "That person isn't on this org." };
+  }
+
+  // Read first so the revalidate below can reach the company's own timeline,
+  // and so a missing/out-of-org task fails loudly instead of updating zero
+  // rows and reporting success.
+  const { data: task } = await supabase
+    .from("crm_tasks")
+    .select("account_id")
+    .eq("id", taskId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (!task) return { ok: false, error: "That task no longer exists." };
+
+  const { error } = await supabase
+    .from("crm_tasks")
+    .update({ assigned_user_id: assigneeId })
+    .eq("id", taskId);
+
+  if (error) return { ok: false, error: "Could not move that task. Please try again." };
+
+  revalidate((task.account_id as string | null) ?? null);
   return { ok: true };
 }
 

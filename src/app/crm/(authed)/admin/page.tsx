@@ -24,7 +24,7 @@ export const dynamic = "force-dynamic";
  * deadline someone missed or a load that answers "who has room".
  */
 export default async function AdminOverviewPage() {
-  const [{ items, team, now }, openTasks, quickTasks] = await Promise.all([
+  const [{ items, team, now }, { tasks: openTasks }, quickTasks] = await Promise.all([
     getAssignBoardData(),
     getOpenTasksForReport(),
     listQuickTasks(),

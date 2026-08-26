@@ -159,6 +159,10 @@ export function buildCrmNav(
         // than in the Admin top tab row (Brent, 2026-08-25) — it is a
         // destination of its own, not one of Admin's internal sections.
         { href: "/crm/admin/companies", label: "Companies", Icon: IconCompanies },
+        // Its sibling: every open task in the org, one column per person,
+        // draggable between them. Same reasoning as Companies — a destination
+        // of its own, not one of Admin's internal tab sections.
+        { href: "/crm/admin/tasks", label: "Tasks", Icon: IconTasks },
       ],
     });
   }
