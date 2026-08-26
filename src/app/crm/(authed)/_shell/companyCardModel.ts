@@ -78,29 +78,6 @@ export function cardStage(card: CompanyCardData): LifecycleStage {
   return normalizeStage(card.stage);
 }
 
-/**
- * Where the company came from, as a short badge.
- *
- * `crm_accounts.source` carries two vocabularies at once in production: the
- * lowercase tokens the code writes and free text a human typed into the same
- * box ("Cold Call", a person's name with a phone extension). Known tokens get
- * a clean label; anything else becomes "Other" rather than spilling a
- * sentence into a badge. Null becomes null — no badge at all, which is
- * quieter than a badge reading "Unknown" on the many rows that have none.
- */
-const SOURCE_BADGE: Record<string, string> = {
-  otr: "OTR",
-  bol: "BOL",
-  manual: "Manual",
-  ai_agent: "Prospect",
-  field_capture: "Field",
-};
-
-export function sourceBadge(source: string | null): string | null {
-  const raw = (source ?? "").trim().toLowerCase();
-  if (!raw) return null;
-  return SOURCE_BADGE[raw] ?? "Other";
-}
 
 /**
  * The person to call, as one line: "Dave Mena · Ops Manager".

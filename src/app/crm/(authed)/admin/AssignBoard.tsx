@@ -9,7 +9,7 @@ import { CONTROL, CONTROL_SIZE, LABEL } from "../_shell/compactForm";
 import { titleCaseWords } from "../_shell/format";
 import { assignWork, sendTask } from "./assign-actions";
 import { isDuplicateQuickTask, normalizeQuickTask } from "./quickTasks";
-import { sourceLabel } from "./companies/companyRow";
+import { SourcePill } from "../_shell/SourcePill";
 import { addQuickTask, removeQuickTask, type QuickTask } from "./quick-task-actions";
 import type { TeamMember, ComposerContact } from "./assign-data";
 import {
@@ -309,12 +309,7 @@ export function AssignBoard({
                               collapsing into "Other", which would hide the
                               junk that needs cleaning; null reads "Not
                               recorded". */}
-                          <span
-                            className="text-[12px] text-fg-muted"
-                            title={item.source ?? undefined}
-                          >
-                            {sourceLabel(item.source)}
-                          </span>
+                          <SourcePill source={item.source} />
                           {item.duplicateOf.length > 0 && (
                             <span
                               // The names go in the title so "which one?" —

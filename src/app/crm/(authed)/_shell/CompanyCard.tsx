@@ -3,10 +3,10 @@ import { titleCaseWords, upperCaseState, lastContactStatus, formatPhone } from "
 import { LIFECYCLE_TONE } from "../accounts/lifecycle";
 import { temperatureOf } from "@/lib/crm/temperature";
 import { TemperatureDot } from "./TemperatureDot";
+import { SourcePill } from "./SourcePill";
 import {
   cardStage,
   contactLine,
-  sourceBadge,
   stageWithAgeLabel,
   NEVER_CONTACTED_LABEL,
   NO_CONTACT_LABEL,
@@ -77,7 +77,6 @@ export function CompanyCard({
   hideStage?: boolean;
 }) {
   const place = [titleCaseWords(card.city), upperCaseState(card.state)].filter(Boolean).join(", ");
-  const badge = sourceBadge(card.source);
   const stage = cardStage(card);
   const contact = contactLine(card);
   const phone = (card.contactPhone ?? "").trim();
@@ -98,11 +97,11 @@ export function CompanyCard({
         <span className="min-w-0 truncate text-[13.5px] font-bold text-fg">
           {titleCaseWords(card.name)}
         </span>
-        {badge && (
-          <span className="shrink-0 rounded-[3px] border border-line-strong px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.06em] text-fg-subtle">
-            {badge}
-          </span>
-        )}
+        {/* The SHARED pill, abbreviated for the 216px pipeline column. This
+            card used to carry its own badge with its own words ("Prospect"
+            where every other screen said "AI agent"), which is exactly the
+            drift one component exists to stop. */}
+        <SourcePill source={card.source} short />
       </div>
 
       {place && <p className="mt-0.5 truncate text-[11.5px] text-fg-subtle">{place}</p>}

@@ -7,6 +7,7 @@ import { Card, BTN_PRIMARY, BTN_NEUTRAL } from "../../_shell/ui";
 import { FormError } from "../../_shell/form";
 import { SegmentedTabs } from "../../_shell/SegmentedTabs";
 import { lastContactStatus, titleCaseWords, upperCaseState } from "../../_shell/format";
+import { SourcePill } from "../../_shell/SourcePill";
 import { temperatureOf } from "@/lib/crm/temperature";
 import { TemperatureDot } from "../../_shell/TemperatureDot";
 import { stageLabel, stageTone } from "../../accounts/lifecycle";
@@ -17,7 +18,6 @@ import {
   countByOwner,
   matchesOwner,
   sortForAdmin,
-  sourceLabel,
   UNASSIGNED,
   type CompanyRow,
 } from "./companyRow";
@@ -302,8 +302,8 @@ export function CompaniesBoard({
                       </td>
                       {/* Verbatim for anything unrecognised — the admin needs
                           to see the actual junk to clean it up. */}
-                      <td className="px-2 py-2.5 text-[12.5px] text-fg-muted" title={row.source ?? undefined}>
-                        {sourceLabel(row.source)}
+                      <td className="px-2 py-2.5">
+                        <SourcePill source={row.source} />
                       </td>
                       <td className="px-2 py-2.5">
                         <span
