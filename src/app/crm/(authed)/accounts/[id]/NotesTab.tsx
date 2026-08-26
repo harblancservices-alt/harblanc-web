@@ -29,8 +29,7 @@ function isKartik(author: string | null): boolean {
 /**
  * "Notes" — a pinned/recent feed, the company-wide Notes card AND (reused,
  * scoped) the selected contact's Notes sub-tab in ContactsMasterDetail.
- * `contactId` set = a per-contact note (addContactNote, same shape
- * QuickNoteDialog writes) and the composer's "Attach to contact" picker is
+ * `contactId` set = a per-contact note (addContactNote) and the composer's "Attach to contact" picker is
  * hidden (the note is already scoped to that one person); omitted = the
  * company-wide composer, where `contactOptions` drives a real picker of the
  * account's contacts so a company note can still be attributed to a specific

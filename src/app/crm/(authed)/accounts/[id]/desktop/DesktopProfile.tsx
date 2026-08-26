@@ -9,50 +9,67 @@ import { StageTrackerSection } from "../StageTrackerSection";
 import { CommoditiesCard } from "../CommoditiesCard";
 import { TagsCard } from "../TagsCard";
 import { StrayNumbersSection } from "../StrayNumbersSection";
+import { EditCompany } from "../EditCompany";
 import { ProfileTopBar } from "./ProfileTopBar";
-import { IdentityCard, type IdentityLink } from "./IdentityCard";
 import { ContactsWheel, type WheelContact } from "./ContactsWheel";
-import { AtAGlanceCard, type GlanceFacts } from "./AtAGlanceCard";
 import { FollowUpBanner } from "./FollowUpBanner";
-import { WorkspaceTabs } from "./WorkspaceTabs";
-import { ActivityFeed } from "./ActivityFeed";
 import { LocationsCard } from "./LocationsCard";
-import { CompanyProfileGrid, type ProfileFacts } from "./CompanyProfileGrid";
 import { EnrichmentCard } from "./EnrichmentCard";
-import { D_CAP, D_CARD } from "./ui";
+import { ProfileSection, ProfileBlock } from "./ProfileSection";
+import { ContactBlock } from "./ContactBlock";
+import { DetailsGrid, countFilled, DETAIL_FIELD_COUNT, type CompanyDetails } from "./DetailsGrid";
+import { HistoryBlock } from "./HistoryBlock";
+import { titleCaseWords, upperCaseState } from "../../../_shell/format";
 
 export type DesktopFollowUp = { taskId: string; title: string; notes: string | null; dueAt: string };
 
 /**
- * The DESKTOP (lg:) company profile — the design handoff rebuilt in the
- * CRM's own token system ("hybrid skin", Brent's 2026-08-22 call):
+ * The DESKTOP company profile, rebuilt 2026-08-26 (Brent: "right now its
+ * sooo cluttered").
  *
- *   sticky top bar
- *   pipeline stage strip (the real 6-stage lifecycle, same writes)
- *   296px identity rail | 1fr workspace
- *     rail:  Company · Contacts wheel · At a glance · Commodities · Tags
- *     main:  next-follow-up banner · workspace tabs
- *            (Overview = activity preview + notes) ·
- *            Locations + Stray numbers side by side ·
- *            Company profile grid · Enrichment data
+ * The old page carried 43 distinct elements. An inventory against the real
+ * book found the reason: it was built for a data model nobody fills — 14 of
+ * the 24 company fields are empty on all 99 companies, Shipments is empty on
+ * 98, Tags on 97, commodity photos on all of them. The layout reserved
+ * structure for all of it.
  *
- * This is a LAYOUT rebuild, not a data change. It is a Server Component that
- * only ever hands plain serializable props (or already-built ReactNode
- * panels) to the existing client components — StageTrackerSection,
- * CommoditiesCard, TagsCard, StrayNumbersSection, NotesTab, TasksTab,
- * ActivityLogSection, ShipmentsTab, FilesTab, CompanyDialog/ContactDialog/
- * LocationDialog/LogCallDialog. No function prop crosses the RSC boundary
- * (this route has 500'd on exactly that before).
+ * This is ~25 elements, about 11 visible at rest, in ONE SCROLL. No tabs:
+ * five tabs meant five panels mounted at once and hid the two things every
+ * company has — its history and its people — behind a click.
  *
- * Mobile is untouched: page.tsx renders the pre-existing layout under
- * `lg:hidden` and this tree under `hidden lg:block`, so nothing about the
- * phone profile changes.
+ * Every section is in one of three states (see ProfileSection):
+ *
+ *   ALWAYS OPEN   name · stage · owner · trade and town · people ·
+ *                 company numbers · next thing owed · open tasks · history
+ *   COLLAPSED     notes · details · links · address · other addresses ·
+ *                 what they ship · tags
+ *   ABSENT        shipments · bills of lading · loose numbers · imported
+ *                 data — the section does not render at all when empty
+ *
+ * FIVE MERGES landed here: the two edit forms became one (CompanyDialog
+ * absorbed the four fields the second one owned), the two history views
+ * became one (HistoryBlock), the company's call/email buttons and phone and
+ * email rows became one (ContactBlock), "At a glance" and the details grid
+ * became one (DetailsGrid), and the company name is printed once.
+ *
+ * CUT: the duplicate name, the monogram, "At a glance", commodity photos,
+ * the second edit form, and the "Stage 1 of 10 · 0%" readout. Nothing was
+ * deleted from the database — commodity photos in particular keep their
+ * storage and their rows; only the UI is gone.
+ *
+ * Still a Server Component that hands already-rendered ReactNode panels to
+ * client components. No function prop crosses the boundary — this route has
+ * 500'd on exactly that before.
+ *
+ * Mobile is untouched: page.tsx renders mobile/MobileProfile under
+ * `lg:hidden` and this tree under `hidden lg:block`.
  */
 export function DesktopProfile({
   accountId,
   accountName,
   industry,
   city,
+  state,
   stage,
   ownerId,
   ownerLabel,
@@ -66,9 +83,8 @@ export function DesktopProfile({
   fullAddress,
   links,
   contacts,
-  glance,
+  details,
   commodities,
-  commoditiesFromAi,
   attachedTags,
   orgTags,
   followUp,
@@ -76,19 +92,20 @@ export function DesktopProfile({
   notesCount,
   strayContacts,
   locations,
-  profileFacts,
   custom,
-  activityPanel,
   notesPanel,
   shipmentsPanel,
+  hasShipments,
   tasksPanel,
-  tasksCount,
+  openTaskCount,
   documentsPanel,
+  hasDocuments,
 }: {
   accountId: string;
   accountName: string;
   industry: string | null;
   city: string | null;
+  state: string | null;
   stage: string;
   ownerId: string | null;
   ownerLabel: string | null;
@@ -100,28 +117,37 @@ export function DesktopProfile({
   email: string | null;
   phones: PhoneEntry[];
   fullAddress: string | null;
-  links: IdentityLink[];
+  links: { label: string; href: string }[];
   contacts: WheelContact[];
-  glance: GlanceFacts;
+  details: CompanyDetails;
   commodities: string[];
-  commoditiesFromAi: boolean;
   attachedTags: CrmTagOption[];
   orgTags: CrmTagOption[];
-  /** Soonest open dated task, or null when nothing is owed. */
   followUp: DesktopFollowUp | null;
   activityItems: CrmActivityLogItem[];
   notesCount: number;
   strayContacts: StrayContactOption[];
   locations: LocationListItem[];
-  profileFacts: ProfileFacts;
   custom: Record<string, unknown> | null;
-  activityPanel: ReactNode;
   notesPanel: ReactNode;
   shipmentsPanel: ReactNode;
+  /** Whether this company has ANY loads — decides if the section exists. */
+  hasShipments: boolean;
   tasksPanel: ReactNode;
-  tasksCount: number;
+  openTaskCount: number;
   documentsPanel: ReactNode;
+  hasDocuments: boolean;
 }) {
+  const place = [titleCaseWords(city), upperCaseState(state)].filter(Boolean).join(", ");
+  const trade = (industry ?? "").trim();
+  const filled = countFilled(details);
+  const hasCustom = !!custom && Object.keys(custom).length > 0;
+
+  /** The one edit form, reached from wherever a gap is visible. */
+  const editLink = (label: string) => (
+    <EditCompany defaults={editDefaults} reps={reps} canAssign={isAdmin} variant="link" label={label} />
+  );
+
   return (
     <div>
       <ProfileTopBar
@@ -141,79 +167,140 @@ export function DesktopProfile({
         <StageTrackerSection accountId={accountId} accountName={accountName} stage={stage} variant="strip" />
       </div>
 
-      <div className="mx-auto grid w-full max-w-[1440px] grid-cols-[296px_1fr] items-start gap-5 px-6 py-5">
-        {/* ── Left identity rail ─────────────────────────────────────── */}
-        <div className="flex flex-col gap-3">
-          <IdentityCard
-            accountId={accountId}
-            name={accountName}
-            industry={industry}
-            city={city}
-            email={email}
-            phones={phones}
-            fullAddress={fullAddress}
-            links={links}
-          />
-
-          <ContactsWheel accountId={accountId} contacts={contacts} />
-
-          <AtAGlanceCard facts={glance} />
-
-          <div className={`${D_CARD} p-4 px-[18px]`}>
-            <CommoditiesCard accountId={accountId} commodities={commodities} fromAi={commoditiesFromAi} />
-          </div>
-
-          <div className={`${D_CARD} p-4 px-[18px]`}>
-            <TagsCard accountId={accountId} attached={attachedTags} orgTags={orgTags} />
-          </div>
-        </div>
-
-        {/* ── Main workspace ─────────────────────────────────────────── */}
-        <div className="flex min-w-0 flex-col gap-4">
-          {followUp && (
-            <FollowUpBanner
-              taskId={followUp.taskId}
-              title={followUp.title}
-              notes={followUp.notes}
-              dueAt={followUp.dueAt}
-            />
+      <div className="mx-auto flex w-full max-w-[900px] flex-col gap-3 px-6 py-5">
+        {/* WHO AND WHERE — trade and town, and the gap buttons for both.
+            Missing values are buttons where you would fix them, which is the
+            same idea as the completeness gaps on the dashboard. */}
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-1 text-[13px]">
+          {trade ? (
+            <span className="font-semibold text-fg">{trade}</span>
+          ) : (
+            editLink("+ industry")
           )}
-
-          <WorkspaceTabs
-            overviewActivity={<ActivityFeed items={activityItems} />}
-            overviewNotes={notesPanel}
-            notesCount={notesCount}
-            activity={activityPanel}
-            activityCount={activityItems.length}
-            shipments={shipmentsPanel}
-            tasks={tasksPanel}
-            tasksCount={tasksCount}
-            documents={documentsPanel}
-          />
-
-          <div className="grid grid-cols-2 items-start gap-4">
-            <LocationsCard accountId={accountId} locations={locations} />
-            {phones.length > 0 ? (
-              <StrayNumbersSection
-                accountId={accountId}
-                phones={phones}
-                contacts={strayContacts}
-                variant="compact"
-              />
-            ) : (
-              <div className={`${D_CARD} p-4 px-[18px]`}>
-                <div className={D_CAP}>Stray numbers</div>
-                <p className="mt-2 text-[12.5px] text-fg-muted">
-                  No company-level numbers waiting to be tied to a person.
-                </p>
-              </div>
-            )}
-          </div>
-
-          <CompanyProfileGrid accountId={accountId} facts={profileFacts} />
-
-          <EnrichmentCard custom={custom} />
+          {place ? (
+            <span className="text-fg-muted">{place}</span>
+          ) : (
+            editLink("+ location")
+          )}
         </div>
+
+        {followUp && (
+          <FollowUpBanner
+            taskId={followUp.taskId}
+            title={followUp.title}
+            notes={followUp.notes}
+            dueAt={followUp.dueAt}
+          />
+        )}
+
+        {/* ── ALWAYS OPEN ────────────────────────────────────────────── */}
+
+        <ProfileBlock
+          title="People"
+          count={contacts.length ? String(contacts.length) : null}
+        >
+          <ContactsWheel accountId={accountId} contacts={contacts} />
+        </ProfileBlock>
+
+        <ProfileBlock title="Company number">
+          <ContactBlock phones={phones} email={email} addGap={editLink("+ number")} />
+        </ProfileBlock>
+
+        <ProfileBlock title="Open tasks" count={openTaskCount ? String(openTaskCount) : null}>
+          {tasksPanel}
+        </ProfileBlock>
+
+        <ProfileBlock title="History" count={String(activityItems.length)}>
+          <HistoryBlock accountId={accountId} items={activityItems} />
+        </ProfileBlock>
+
+        {/* ── COLLAPSED ──────────────────────────────────────────────── */}
+
+        <ProfileSection title="Notes" count={notesCount ? String(notesCount) : null}>
+          {notesPanel}
+        </ProfileSection>
+
+        {/* Collapsed WITH A COUNT, deliberately. Eight of these eleven fields
+            are near-empty across the book, so "2 of 11" tells you whether
+            opening it is worth the click — which a bare chevron does not. */}
+        <ProfileSection title="Details" count={`${filled} of ${DETAIL_FIELD_COUNT}`}>
+          <DetailsGrid details={details} editAction={editLink(filled ? "Edit details" : "+ add details")} />
+        </ProfileSection>
+
+        <ProfileSection title="Links" count={links.length ? String(links.length) : null}>
+          {links.length ? (
+            <ul className="flex flex-col gap-1">
+              {links.map((l) => (
+                <li key={l.href}>
+                  <a
+                    href={l.href}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[12.5px] text-accent hover:underline"
+                  >
+                    {l.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-[12.5px] text-fg-muted">No website or links on file. {editLink("+ link")}</p>
+          )}
+        </ProfileSection>
+
+        <ProfileSection title="Address">
+          {fullAddress ? (
+            <a
+              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(fullAddress)}`}
+              target="_blank"
+              rel="noreferrer"
+              className="text-[12.5px] text-accent hover:underline"
+            >
+              {fullAddress}
+            </a>
+          ) : (
+            <p className="text-[12.5px] text-fg-muted">No street address on file. {editLink("+ address")}</p>
+          )}
+        </ProfileSection>
+
+        <ProfileSection title="Other addresses" count={locations.length ? String(locations.length) : null}>
+          <LocationsCard accountId={accountId} locations={locations} />
+        </ProfileSection>
+
+        <ProfileSection title="What they ship" count={commodities.length ? String(commodities.length) : null}>
+          <CommoditiesCard accountId={accountId} commodities={commodities} />
+        </ProfileSection>
+
+        <ProfileSection title="Tags" count={attachedTags.length ? String(attachedTags.length) : null}>
+          <TagsCard accountId={accountId} attached={attachedTags} orgTags={orgTags} />
+        </ProfileSection>
+
+        {/* ── ONLY WHEN IT EXISTS ────────────────────────────────────── */}
+
+        {hasShipments && (
+          <ProfileSection title="Loads">{shipmentsPanel}</ProfileSection>
+        )}
+
+        {hasDocuments && (
+          <ProfileSection title="Bills of lading">{documentsPanel}</ProfileSection>
+        )}
+
+        {phones.length > 0 && (
+          <ProfileSection title="Loose numbers">
+            <StrayNumbersSection
+              accountId={accountId}
+              phones={phones}
+              contacts={strayContacts}
+              variant="compact"
+            />
+          </ProfileSection>
+        )}
+
+        {hasCustom && (
+          <ProfileSection title="Imported data">
+            <EnrichmentCard custom={custom} />
+          </ProfileSection>
+        )}
       </div>
     </div>
   );

@@ -14,7 +14,7 @@ import { CompanyProfileDialog } from "./CompanyProfileDialog";
  *
  * 2026-08-10: also picked up Company type/Employees/Annual revenue/Source/
  * MC-DOT/Description — real fields the Company Details card's "A" redesign
- * (CompanyDetailsCard.tsx) deliberately doesn't show anymore (that card
+ * (the old mobile details card, deleted 2026-08-26) deliberately didn't show (that card
  * narrowed to name/industry/contact info/freight profile/tags). Still edited
  * via the same top-bar Edit dialog (CompanyDialog) either way — this section
  * has its own separate CompanyProfileDialog for DBA/LinkedIn/Year founded/

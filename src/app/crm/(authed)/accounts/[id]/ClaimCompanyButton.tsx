@@ -5,17 +5,18 @@ import { useRouter } from "next/navigation";
 import { assignAccount } from "../actions";
 
 /**
- * MOBILE-ONLY "Claim" button — the phone profile's counterpart to the
- * desktop AssignmentControl, and deliberately a fraction of it.
+ * MOBILE-ONLY "Claim" button — an OLD-MODEL SURVIVOR.
  *
- * The mobile header (CompanyHeader.tsx) is locked layout: identity +
- * navigation + rep-at-a-glance in two flex-wrap groups. So only the
- * UNCLAIMED branch of RepBadge becomes interactive — it swaps a bare
- * "Unassigned" span for this one button, which claims the company for the
- * caller. A company that already has an owner keeps the exact static chip it
- * has always had on mobile: reassigning/unassigning is admin work that
- * belongs on the desktop control (or the Edit dialog), not squeezed into
- * this row.
+ * The claim model was retired on 2026-08-25: agents no longer pick work out
+ * of a pool, an admin assigns it. The desktop profile replaced this with
+ * AssignmentControl, but the phone header still renders it, so the two trees
+ * currently disagree about the rule. Left in place deliberately — mobile is
+ * deprioritised and this works today.
+ *
+ * Only the UNCLAIMED branch is interactive: it swaps a bare "Unassigned"
+ * span for this one button. A company that already has an owner keeps a
+ * static chip on mobile, because reassigning is admin work that belongs on
+ * the desktop control or the edit form.
  *
  * Same server action, same rule — assignAccount() re-checks everything and
  * the crm_accounts_guard_assignment trigger re-checks it again at the DB.

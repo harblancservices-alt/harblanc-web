@@ -21,7 +21,7 @@ type TabKey = (typeof TABS)[number]["key"];
  * with count pills on Activity/Tasks.
  *
  * Structurally the handoff's; behaviorally identical to the mobile
- * ProfileCenterTabs it sits beside: every panel stays MOUNTED (just hidden)
+ * now-deleted ProfileCenterTabs: every panel stayed MOUNTED (just hidden)
  * so in-flight client state inside one — a half-typed note, a BOL upload —
  * survives a tab switch. All five panels are the existing components,
  * unmodified and passed in as ReactNode from the Server Component page (no

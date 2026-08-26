@@ -24,7 +24,7 @@ const ACTION = "flex-1 px-0 py-2 text-[12px]";
  *
  * Data paths are unchanged: the same `parsePhones(account.phones)` array,
  * `account.email`, the same composed address string, and the same
- * website/linkedin/links bubbles the mobile CompanyDetailsCard renders.
+ * website/linkedin/links bubbles the mobile contact block renders.
  */
 export function IdentityCard({
   accountId,

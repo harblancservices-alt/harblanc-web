@@ -2,7 +2,7 @@
  * Single source of truth for every Details-tab field the AI confirm-to-fill
  * flow can suggest. Both the AI→field mapper (ai-suggestions-actions.ts,
  * building the prompt/tool schema) and the suggestion review UI
- * (AiSuggestionsPanel.tsx, rendering + confirming a suggestion) key off this
+ * (the AI suggestions panel, deleted 2026-08-26) keyed off this
  * registry — a field_key that isn't listed here can never be suggested and
  * can never be confirmed, so a malformed AI response can't write to an
  * arbitrary column.

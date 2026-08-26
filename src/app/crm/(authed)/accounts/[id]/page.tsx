@@ -11,7 +11,6 @@ import { ActivityLogSection, type CrmActivityLogItem } from "./ActivityLogSectio
 import { TasksTab } from "./TasksTab";
 import { NotesTab, type CrmNoteItem } from "./NotesTab";
 import { FilesTab } from "./FilesTab";
-import { type CrmCommodityPhoto } from "./CommodityPhotoTiles";
 import { callOutcomeLabel, callOutcomeTone } from "../../calls/outcomes";
 import type { TaskContactOption } from "../../tasks/TaskDialog";
 import { type CrmBolDocument } from "./BolSection";
@@ -28,8 +27,6 @@ import type { MobilePerson } from "./mobile/MobilePeople";
 
 export const dynamic = "force-dynamic";
 
-const STORAGE_BUCKET = "crm-documents";
-const SIGNED_URL_TTL_SECONDS = 300;
 
 type ProfileRow = { id: string; full_name: string | null; email: string | null; is_active: boolean; role: string };
 
@@ -50,15 +47,14 @@ function profileName(p: ProfileRow | undefined): string | null {
  * an async Server Component (ShipmentsTab, CompanyProfileSection) it is
  * built here and handed down as a ReactNode.
  *
- * The AI Suggestions/AI Research components (and their underlying
- * crm_ai_suggestions data / ai_status columns) still exist on disk — see
- * AiSuggestionsPanel.tsx/AiResearchSection.tsx — just not rendered here.
- * No Deals tab either: crm_deals has no real usage anywhere in this codebase.
+ * The AI research and suggestions COMPONENTS were deleted on 2026-08-26.
+ * Their data (crm_ai_suggestions, ai_confirmed_fields) is untouched but has
+ * no writer any more, and nothing on this page reads it. No Deals tab
+ * either: crm_deals has no real usage anywhere in this codebase.
  *
- * CompanyHeader.tsx / CompanyDetailsCard.tsx / ProfileCenterTabs.tsx /
- * ContactsMasterDetail.tsx are no longer rendered by this page — the mobile
- * redesign replaced the first three outright and moved per-contact detail to
- * /crm/contacts/[contactId]. They are left on disk because other surfaces
+ * ContactsMasterDetail.tsx is no longer rendered by this page — per-contact
+ * detail moved to /crm/contacts/[contactId]. It is left on disk because
+ * other surfaces
  * still reference their types and behavior; nothing imports them from here.
  */
 export default async function AccountDetailPage({
@@ -95,7 +91,6 @@ export default async function AccountDetailPage({
     activitiesRes,
     tasksRes,
     documentsRes,
-    commodityPhotosRes,
     accountTagsRes,
     orgTagsRes,
     locations,
@@ -149,14 +144,6 @@ export default async function AccountDetailPage({
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(200),
-    supabase
-      .from("crm_documents")
-      .select("id, file_name, storage_path, created_at")
-      .eq("account_id", id)
-      .eq("kind", "commodity_photo")
-      .is("deleted_at", null)
-      .order("created_at", { ascending: false })
-      .limit(60),
     supabase.from("crm_account_tags").select("tag_id").eq("account_id", id),
     supabase.from("crm_tags").select("id, label, color").order("label", { ascending: true }),
     // Desktop layout only — the mobile tree still renders the self-fetching
@@ -266,26 +253,23 @@ export default async function AccountDetailPage({
     uploaderName: d.user_id ? profileName(profileById.get(d.user_id)) : null,
   }));
 
-  const commodityPhotoRows = (commodityPhotosRes.data ?? []) as {
-    id: string;
-    file_name: string;
-    storage_path: string;
-    created_at: string;
-  }[];
-  const photoPaths = commodityPhotoRows.map((p) => p.storage_path);
-  const signedUrlByPath = new Map<string, string>();
-  if (photoPaths.length) {
-    const { data: signedRows } = await supabase.storage.from(STORAGE_BUCKET).createSignedUrls(photoPaths, SIGNED_URL_TTL_SECONDS);
-    for (const row of signedRows ?? []) {
-      if (row.signedUrl && row.path) signedUrlByPath.set(row.path, row.signedUrl);
-    }
-  }
-  const commodityPhotos: CrmCommodityPhoto[] = commodityPhotoRows.map((p) => ({
-    id: p.id,
-    fileName: p.file_name,
-    storagePath: p.storage_path,
-    signedUrl: signedUrlByPath.get(p.storage_path) ?? null,
-  }));
+  // Does this company have ANY loads? The Loads section does not render at
+  // all when it has none (98 of 99 companies today), so the page has to know
+  // before it decides to render the panel. An id-only probe, capped at one
+  // row — the panel itself still does its own full fetch when it renders.
+  const { data: shipmentProbe } = await supabase
+    .from("crm_shipments")
+    .select("id")
+    .eq("account_id", account.id as string)
+    .is("deleted_at", null)
+    .limit(1);
+  const hasShipments = (shipmentProbe ?? []).length > 0;
+
+  // COMMODITY PHOTOS came out of the UI on 2026-08-26 (zero rows across all
+  // 99 companies). The query, the storage signing round-trip and the mapping
+  // went with it — they were doing real work per page load for a card that
+  // rendered nothing. The rows, the bucket, the `commodity_photo` kind and
+  // CommodityPhotoTiles are all untouched on disk.
 
   const accountTagIds = new Set(((accountTagsRes.data ?? []) as { tag_id: string }[]).map((t) => t.tag_id));
   const orgTags = ((orgTagsRes.data ?? []) as CrmTagOption[]);
@@ -560,7 +544,6 @@ export default async function AccountDetailPage({
           accountId={account.id as string}
           orgId={user.orgId}
           documents={documents}
-          photos={commodityPhotos}
         />
       }
       companyProfilePanel={<CompanyProfileSection accountId={account.id as string} />}
@@ -589,6 +572,7 @@ export default async function AccountDetailPage({
           accountName={accountName}
           industry={account.industry as string | null}
           city={accountCity}
+          state={account.state as string | null}
           stage={stage}
           ownerId={currentRepId}
           ownerLabel={currentRepLabel}
@@ -602,16 +586,23 @@ export default async function AccountDetailPage({
           fullAddress={fullAddress}
           links={desktopLinks}
           contacts={wheelContacts}
-          glance={{
-            annualFreightSpend: account.annual_freight_spend as number | null,
-            companySize: account.company_size as string | null,
+          // "At a glance" and the profile grid merged into one set — the six
+          // firmographics were already a subset of the ten.
+          details={{
+            industry: account.industry as string | null,
+            dba: account.dba as string | null,
             yearFounded: account.year_founded as number | null,
             companyType: account.company_type as string | null,
+            companySize: account.company_size as string | null,
+            annualFreightSpend: account.annual_freight_spend as number | null,
             ownershipType: account.ownership_type as string | null,
+            linkedinUrl: account.linkedin_url as string | null,
             source: account.source as string | null,
+            dotNumber: account.dot_number as string | null,
+            mcNumber: account.mc_number as string | null,
+            contextNotes: account.context_notes as string | null,
           }}
           commodities={commodityChips}
-          commoditiesFromAi={!!aiConfirmedFields.commodities}
           attachedTags={attachedTags}
           orgTags={orgTags}
           followUp={
@@ -628,22 +619,7 @@ export default async function AccountDetailPage({
           notesCount={humanNotes.length}
           strayContacts={contactOptions}
           locations={locations}
-          profileFacts={{
-            dba: account.dba as string | null,
-            linkedinUrl: account.linkedin_url as string | null,
-            yearFounded: account.year_founded as number | null,
-            ownershipType: account.ownership_type as string | null,
-            companyType: account.company_type as string | null,
-            companySize: account.company_size as string | null,
-            annualFreightSpend: account.annual_freight_spend as number | null,
-            source: account.source as string | null,
-            dotNumber: account.dot_number as string | null,
-            mcNumber: account.mc_number as string | null,
-            contextNotes: account.context_notes as string | null,
-            confirmed: aiConfirmedFields,
-          }}
           custom={account.custom as Record<string, unknown> | null}
-          activityPanel={<ActivityLogSection accountId={account.id as string} items={activityItems} />}
           notesPanel={
             <NotesTab
               accountId={account.id as string}
@@ -654,6 +630,7 @@ export default async function AccountDetailPage({
             />
           }
           shipmentsPanel={<ShipmentsTab accountId={account.id as string} accountName={accountName} />}
+          hasShipments={hasShipments}
           tasksPanel={
             <TasksTab
               accountId={account.id as string}
@@ -664,15 +641,15 @@ export default async function AccountDetailPage({
               currentUser={currentUser}
             />
           }
-          tasksCount={openTasks.length}
+          openTaskCount={openTasks.length}
           documentsPanel={
             <FilesTab
               accountId={account.id as string}
               orgId={user.orgId}
               documents={documents}
-              photos={commodityPhotos}
             />
           }
+          hasDocuments={documents.length > 0}
         />
       </div>
     </>

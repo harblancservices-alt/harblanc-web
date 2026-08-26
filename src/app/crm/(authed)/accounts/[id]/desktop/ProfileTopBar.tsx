@@ -24,8 +24,9 @@ import type { CompanyDefaults, RepOption } from "../../CompanyDialog";
  * EditCompany → CompanyDialog). Nothing here passes a function across the
  * boundary — see the standing RSC rule this route has 500'd over before.
  *
- * The mobile profile keeps CompanyHeader.tsx unchanged; this is its lg:
- * counterpart, not a replacement.
+ * The mobile profile has its own header (mobile/MobileHeader.tsx); this is
+ * the lg: counterpart, not a replacement. (This used to name
+ * CompanyHeader.tsx, deleted 2026-08-26 as an orphan.)
  */
 export function ProfileTopBar({
   name,
