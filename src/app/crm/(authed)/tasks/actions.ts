@@ -7,6 +7,7 @@ import { syncFollowupOnTaskChange } from "@/lib/crm/followupTask";
 import { normalizePriority } from "./priority";
 import { snoozeDays, snoozedDueAt } from "./snooze";
 import { centralInputToIso } from "../_shell/format";
+import { dueAtForColumn, PLAN_COLUMNS, type PlanColumn } from "./plan";
 
 /**
  * Task writes. Same contract as every CRM mutation: resolve the caller with
@@ -152,6 +153,62 @@ export async function updateTask(
   }
 
   revalidate(fields.account_id);
+  return { ok: true };
+}
+
+/**
+ * Set ONE open task's due date — nothing else. Drives the Workspace → Tasks
+ * planning board's drag between columns (2026-08-25).
+ *
+ * The caller sends a COLUMN, not a date. The date it maps to is computed
+ * server-side by plan.ts::dueAtForColumn, so a tampered request can only ever
+ * choose between the four buckets the board offers — it cannot write an
+ * arbitrary timestamp through this path. `inbox` clears the date, which is a
+ * real plan ("I haven't decided when"), not an error.
+ *
+ * ONLY YOUR OWN TASKS, unless you're an admin. The board is a personal
+ * planning surface; rescheduling someone else's work from it would be
+ * invisible to them.
+ *
+ * AN AGENT MAY PUSH A DATE AN ADMIN SET. Deliberate, and worth stating:
+ * crm_tasks has one due_at and no record of who set it, so "don't let them
+ * move an admin's date" would need a second column to preserve the original
+ * — a schema change nobody has asked for. A due date is a due date, whoever
+ * set it, and Admin → Tasks always shows the current one.
+ */
+export async function planTask(taskId: string, column: PlanColumn): Promise<ActionResult> {
+  const user = await requireCrmUser();
+  if (!PLAN_COLUMNS.includes(column)) {
+    return { ok: false, error: "That isn't a column." };
+  }
+
+  const supabase = await createCrmServerClient();
+
+  const { data: task } = await supabase
+    .from("crm_tasks")
+    .select("account_id, assigned_user_id, status")
+    .eq("id", taskId)
+    .is("deleted_at", null)
+    .maybeSingle();
+  if (!task) return { ok: false, error: "That task no longer exists." };
+
+  if (user.role !== "owner" && (task.assigned_user_id as string | null) !== user.id) {
+    return { ok: false, error: "You can only plan your own tasks." };
+  }
+
+  const dueAt = dueAtForColumn(column);
+  const { error } = await supabase.from("crm_tasks").update({ due_at: dueAt }).eq("id", taskId);
+  if (error) return { ok: false, error: "Could not move that task. Please try again." };
+
+  // Keep any follow-up this task represents pointing at the new date, the
+  // same way snoozeTask does — otherwise the dashboard and calendar would go
+  // on showing the old one. "reopened" is that module's verb for "still open,
+  // just due at a different time" (see snoozeTask's note). Dropping into the
+  // inbox passes null, which correctly leaves the follow-up with no date
+  // rather than a stale one.
+  await syncFollowupOnTaskChange(supabase, taskId, "reopened", dueAt);
+
+  revalidate((task.account_id as string | null) ?? null);
   return { ok: true };
 }
 
