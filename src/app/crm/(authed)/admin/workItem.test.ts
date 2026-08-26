@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { DEFAULT_QUICK_TASKS, isDuplicateQuickTask, normalizeQuickTask } from "./quickTasks";
 import {
   countBySource,
   itemHref,
@@ -44,6 +45,28 @@ describe("itemKey / parseItemKey", () => {
   it("survives a uuid containing no colon and keeps the full id", () => {
     const id = "f267e2a5-767a-4478-a34d-0622d9442172";
     expect(parseItemKey(itemKey({ source: "bol", id })).id).toBe(id);
+  });
+});
+
+describe("quick task helpers", () => {
+  it("trims, collapses whitespace and caps length", () => {
+    expect(normalizeQuickTask("  Follow   up  ")).toBe("Follow up");
+    expect(normalizeQuickTask("x".repeat(80))).toHaveLength(40);
+  });
+
+  it("rejects an empty or whitespace-only label", () => {
+    expect(normalizeQuickTask("")).toBeNull();
+    expect(normalizeQuickTask("   ")).toBeNull();
+  });
+
+  it("catches duplicates regardless of case", () => {
+    expect(isDuplicateQuickTask(["Follow up"], "follow up")).toBe(true);
+    expect(isDuplicateQuickTask(["Follow up"], "Follow up later")).toBe(false);
+  });
+
+  it("ships a default set with no duplicates", () => {
+    const lower = DEFAULT_QUICK_TASKS.map((t) => t.toLowerCase());
+    expect(new Set(lower).size).toBe(DEFAULT_QUICK_TASKS.length);
   });
 });
 

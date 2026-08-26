@@ -9,6 +9,7 @@ import { CONTROL, CONTROL_SIZE, LABEL } from "../_shell/compactForm";
 import { SegmentedTabs } from "../_shell/SegmentedTabs";
 import { titleCaseWords } from "../_shell/format";
 import { assignWork, sendTask } from "./assign-actions";
+import { DEFAULT_QUICK_TASKS, isDuplicateQuickTask, normalizeQuickTask } from "./quickTasks";
 import type { TeamMember } from "./assign-data";
 import {
   ASSIGN_FALLBACK_NOTE,
@@ -200,8 +201,8 @@ export function AssignBoard({
             <button
               type="button"
               onClick={toggleSelectMode}
-              className={`rounded-md px-3 py-1.5 text-[12.5px] font-semibold transition-colors ${
-                selectMode ? BTN_NEUTRAL : BTN_EDIT
+              className={`rounded-md px-3 py-1.5 text-[12.5px] font-bold transition-colors ${
+                selectMode ? BTN_NEUTRAL : BTN_PRIMARY
               }`}
             >
               {selectMode ? "Cancel" : "Select to assign"}
@@ -223,25 +224,34 @@ export function AssignBoard({
             <table className="w-full min-w-[680px] border-collapse">
               <thead>
                 <tr className="border-b border-line text-[10.5px] font-bold uppercase tracking-[0.07em] text-fg-muted">
-                  {/* The select-all cell EXISTS ONLY IN SELECT MODE. Browse
-                      mode renders no checkbox anywhere in the DOM — not a
-                      hidden one, not a disabled one. */}
-                  {selectMode && (
-                    <th className="w-9 px-4 py-2">
+                  {/* The GUTTER is always here; the checkbox inside it is
+                      not. Reserving the cell in both modes is what stops the
+                      whole list jumping sideways when select mode turns on —
+                      and rendering no <input> in browse mode keeps the
+                      earlier rule true: there is no checkbox in the DOM until
+                      you ask for one. It doubles as the company column's
+                      left indent, so the list reads as a column rather than
+                      text shoved against the card edge. */}
+                  <th className="w-12 px-4 py-2">
+                    {selectMode && (
                       <input
                         type="checkbox"
                         checked={allVisibleSelected}
                         onChange={toggleAllVisible}
                         aria-label="Select everything shown"
-                        className="h-4 w-4 cursor-pointer accent-[#2563eb]"
+                        className="h-4 w-4 cursor-pointer accent-[#2f5fd6]"
                       />
-                    </th>
-                  )}
+                    )}
+                  </th>
                   <th className="px-2 py-2 text-left">Company</th>
                   <th className="px-2 py-2 text-left">Type</th>
                   <th className="px-2 py-2 text-left">What it needs</th>
                   <th className="px-2 py-2 text-left">Waiting</th>
-                  {!selectMode && <th className="w-32 px-2 py-2" />}
+                  {/* Reserved in BOTH modes, like the gutter. The column count
+                      has to be identical either way or the table
+                      redistributes its widths and the whole list drifts —
+                      measured at 4px before this was pinned. */}
+                  <th className="w-32 px-2 py-2" />
                 </tr>
               </thead>
               <tbody>
@@ -258,17 +268,24 @@ export function AssignBoard({
                         checked ? "bg-accent-bg" : "hover:bg-accent-bg"
                       }`}
                     >
-                      {selectMode && (
-                        <td className="px-4 py-2.5" onClick={(e) => e.stopPropagation()}>
+                      {/* Same gutter, same width, both modes — see the header
+                          cell. Only stops click propagation when it actually
+                          holds a checkbox; in browse mode the gutter is part
+                          of the row's clickable area like any other cell. */}
+                      <td
+                        className="w-12 px-4 py-2.5"
+                        onClick={selectMode ? (e) => e.stopPropagation() : undefined}
+                      >
+                        {selectMode && (
                           <input
                             type="checkbox"
                             checked={checked}
                             onChange={() => toggle(key)}
                             aria-label={`Select ${item.company}`}
-                            className="h-4 w-4 cursor-pointer accent-[#2563eb]"
+                            className="h-4 w-4 cursor-pointer accent-[#2f5fd6]"
                           />
-                        </td>
-                      )}
+                        )}
+                      </td>
                       <td className="px-2 py-2.5">
                         <p className="text-[13px] font-semibold text-fg">{titleCaseWords(item.company)}</p>
                         {(item.city || item.state) && (
@@ -292,11 +309,15 @@ export function AssignBoard({
                       >
                         {waitingLabel(item.waitingSince, now)}
                       </td>
-                      {/* A REAL link, not just the row handler — so the label
-                          can say where it goes, and middle-click / open-in-
-                          new-tab work the way they do everywhere else. */}
-                      {!selectMode && (
-                        <td className="px-2 py-2.5 text-right" onClick={(e) => e.stopPropagation()}>
+                      {/* Always present so the column count never changes; the
+                          LINK inside it is browse-only. A REAL link, not just
+                          the row handler — so the label can say where it goes
+                          and middle-click / open-in-new-tab behave normally. */}
+                      <td
+                        className="w-32 px-2 py-2.5 text-right"
+                        onClick={selectMode ? undefined : (e) => e.stopPropagation()}
+                      >
+                        {!selectMode && (
                           <Link
                             href={href}
                             prefetch={false}
@@ -304,8 +325,8 @@ export function AssignBoard({
                           >
                             {itemOpenLabel(item.source)} &rsaquo;
                           </Link>
-                        </td>
-                      )}
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
@@ -440,15 +461,6 @@ export function AssignBoard({
   );
 }
 
-const QUICK_TASKS = [
-  "Call them back",
-  "Send a quote",
-  "Research this company",
-  "Follow up",
-  "Get a rate",
-  "Chase the PO",
-] as const;
-
 /**
  * The small-ask composer. Every field here persists: crm_tasks carries
  * assigned_user_id, due_at and account_id, so Who / Due / On are real
@@ -461,6 +473,17 @@ const QUICK_TASKS = [
  */
 function TaskComposer({ team, items }: { team: TeamMember[]; items: WorkItem[] }) {
   const [title, setTitle] = useState("");
+  /**
+   * SESSION-ONLY. Seeded from DEFAULT_QUICK_TASKS; adds and deletes live here
+   * and nowhere else, because there is no approved place to put them yet.
+   * When a store exists this becomes the fetched list and these two handlers
+   * become server actions — the UI does not change. See quickTasks.ts.
+   */
+  const [quickTasks, setQuickTasks] = useState<string[]>([...DEFAULT_QUICK_TASKS]);
+  const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [addError, setAddError] = useState<string | null>(null);
   const [who, setWho] = useState(team[0]?.id ?? "");
   const [due, setDue] = useState("");
   const [accountId, setAccountId] = useState("");
@@ -476,6 +499,28 @@ function TaskComposer({ team, items }: { team: TeamMember[]; items: WorkItem[] }
         .sort((a, b) => a.name.localeCompare(b.name)),
     [items],
   );
+
+  function addQuickTask() {
+    const label = normalizeQuickTask(draft);
+    if (!label) {
+      setAddError("Give the button a label.");
+      return;
+    }
+    if (isDuplicateQuickTask(quickTasks, label)) {
+      setAddError(`"${label}" is already there.`);
+      return;
+    }
+    setQuickTasks((prev) => [...prev, label]);
+    setDraft("");
+    setAddError(null);
+  }
+
+  function removeQuickTask(label: string) {
+    setQuickTasks((prev) => prev.filter((q) => q !== label));
+    // Clearing a button that is currently the composer's title would leave a
+    // selected-looking state with nothing selected.
+    setTitle((t) => (t === label ? "" : t));
+  }
 
   function send() {
     setError(null);
@@ -503,33 +548,102 @@ function TaskComposer({ team, items }: { team: TeamMember[]; items: WorkItem[] }
 
   return (
     <Card>
-      <div className="border-b border-line px-4 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3">
         <h2 className="text-[15px] font-bold tracking-tight text-fg">Or send them a task</h2>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => {
+              setAdding((v) => !v);
+              setEditing(false);
+              setAddError(null);
+            }}
+            className={`rounded-md px-2.5 py-1.5 text-[12px] font-bold transition-colors ${BTN_PRIMARY}`}
+          >
+            {adding ? "Close" : "+ Add"}
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setEditing((v) => !v);
+              setAdding(false);
+            }}
+            className={`rounded-md px-2.5 py-1.5 text-[12px] font-semibold transition-colors ${
+              editing ? BTN_NEUTRAL : BTN_EDIT
+            }`}
+          >
+            {editing ? "Done" : "Edit"}
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-col gap-3 p-4">
         <div>
           <p className={LABEL}>Quick tasks — one click</p>
-          {/* A fixed grid, not flex-wrap. Six buttons of different widths
-              wrapped raggedly and left "Chase the PO" orphaned on its own
-              line at most widths; an even grid puts three per row at every
-              size the panel actually gets. */}
-          <div className="mt-1.5 grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-            {QUICK_TASKS.map((q) => (
+
+          {adding && (
+            <div className="mt-1.5 flex flex-wrap items-start gap-1.5">
+              <input
+                type="text"
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && addQuickTask()}
+                placeholder="e.g. Ask about their reefer volume"
+                aria-label="New quick task"
+                className={`min-w-0 flex-1 ${CONTROL_SIZE} ${CONTROL}`}
+              />
               <button
-                key={q}
                 type="button"
-                onClick={() => setTitle(q)}
-                className={`rounded-[5px] border px-2.5 py-1.5 text-center text-[12.5px] font-semibold transition-colors ${
-                  title === q
-                    ? "border-accent bg-accent text-white"
-                    : "border-accent/40 bg-card text-accent hover:border-accent hover:bg-accent-bg"
-                }`}
+                onClick={addQuickTask}
+                className={`rounded-md px-3 py-2 text-[12.5px] font-bold transition-colors ${BTN_PRIMARY}`}
               >
-                {q}
+                Add
               </button>
+            </div>
+          )}
+          {addError && <p className="mt-1 text-[12px] font-semibold text-bad">{addError}</p>}
+
+          {/* A fixed grid, not flex-wrap — buttons of differing widths wrapped
+              raggedly and orphaned the last one. Every button is solid accent;
+              in edit mode each grows a remove control instead of setting the
+              title. */}
+          <div className="mt-1.5 grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+            {quickTasks.map((q) => (
+              <div key={q} className="relative">
+                <button
+                  type="button"
+                  onClick={() => (editing ? removeQuickTask(q) : setTitle(q))}
+                  className={`w-full rounded-[5px] border border-accent px-2.5 py-1.5 text-center text-[12.5px] font-semibold text-white transition-colors ${
+                    title === q && !editing
+                      ? "bg-accent-hover ring-2 ring-accent/40"
+                      : "bg-accent hover:bg-accent-hover"
+                  }`}
+                  title={editing ? `Remove "${q}"` : undefined}
+                >
+                  {q}
+                </button>
+                {editing && (
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#c0272d] text-[10px] font-bold leading-none text-white"
+                  >
+                    ×
+                  </span>
+                )}
+              </div>
             ))}
           </div>
+          {editing && (
+            <p className="mt-1.5 text-[11.5px] text-fg-muted">
+              Click a button to remove it. Changes last for this session only — see below.
+            </p>
+          )}
+          {/* Said plainly on screen, not just in a commit message: this is
+              the one part of the panel that does not survive a reload. */}
+          <p className="mt-1.5 text-[11.5px] text-warn">
+            Custom quick tasks aren&rsquo;t saved yet — they reset on reload and aren&rsquo;t shared with the
+            team. Needs a place to store them.
+          </p>
         </div>
 
         <label className="flex flex-col gap-1">
