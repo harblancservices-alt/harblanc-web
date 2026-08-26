@@ -95,18 +95,16 @@ export function StageTracker({
     commit(stage);
   }
 
-  const total = SELECTABLE_LIFECYCLE_STAGES.length;
-  const stageNum = activeIndex + 1;
-  const pct = Math.round((activeIndex / (total - 1)) * 100);
 
   return (
     <div className="w-full">
-      <div className="flex items-baseline justify-between gap-2.5">
+      {/* NO "Stage 3 of 10 · 22%" READOUT (Brent, 2026-08-26: cut). A funnel
+          position is not a percentage of anything — Dormant is stage 8 of 10
+          and is not 78% of a sale — and the number sat next to ten buttons
+          that already say where the company is. */}
+      <div className="flex items-baseline gap-2.5">
         <span className="min-w-0 truncate text-[15px] font-extrabold tracking-[-0.01em] text-fg">
           {LIFECYCLE_LABEL[active]}
-        </span>
-        <span className="crm-num shrink-0 whitespace-nowrap text-[11.5px] font-bold text-fg-muted">
-          Stage {stageNum} of {total} · {pct}%
         </span>
       </div>
 

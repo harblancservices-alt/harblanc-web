@@ -641,7 +641,6 @@ export default async function AccountDetailPage({
               currentUser={currentUser}
             />
           }
-          openTaskCount={openTasks.length}
           documentsPanel={
             <FilesTab
               accountId={account.id as string}

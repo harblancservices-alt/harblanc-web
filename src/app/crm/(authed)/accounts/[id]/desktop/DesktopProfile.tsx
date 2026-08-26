@@ -97,7 +97,6 @@ export function DesktopProfile({
   shipmentsPanel,
   hasShipments,
   tasksPanel,
-  openTaskCount,
   documentsPanel,
   hasDocuments,
 }: {
@@ -134,7 +133,6 @@ export function DesktopProfile({
   /** Whether this company has ANY loads — decides if the section exists. */
   hasShipments: boolean;
   tasksPanel: ReactNode;
-  openTaskCount: number;
   documentsPanel: ReactNode;
   hasDocuments: boolean;
 }) {
@@ -195,20 +193,23 @@ export function DesktopProfile({
 
         {/* ── ALWAYS OPEN ────────────────────────────────────────────── */}
 
-        <ProfileBlock
-          title="People"
-          count={contacts.length ? String(contacts.length) : null}
-        >
-          <ContactsWheel accountId={accountId} contacts={contacts} />
-        </ProfileBlock>
+        {/* ContactsWheel brings its own card, header and "+ Add", so it is
+            rendered BARE — wrapping it in a ProfileBlock put a header above a
+            header. It is still an always-visible section; it just supplies
+            its own chrome. */}
+        <ContactsWheel accountId={accountId} contacts={contacts} />
 
         <ProfileBlock title="Company number">
           <ContactBlock phones={phones} email={email} addGap={editLink("+ number")} />
         </ProfileBlock>
 
-        <ProfileBlock title="Open tasks" count={openTaskCount ? String(openTaskCount) : null}>
+        {/* TasksTab supplies its own heading and Add button but NOT a card,
+            so unlike ContactsWheel it needs the border — without it the
+            section floated on the page background while every neighbour sat
+            on a card. Header-less wrapper: the panel already has one. */}
+        <section className="rounded-lg border border-line-strong bg-card shadow-e1">
           {tasksPanel}
-        </ProfileBlock>
+        </section>
 
         <ProfileBlock title="History" count={String(activityItems.length)}>
           <HistoryBlock accountId={accountId} items={activityItems} />
@@ -230,8 +231,11 @@ export function DesktopProfile({
         <ProfileSection title="Links" count={links.length ? String(links.length) : null}>
           {links.length ? (
             <ul className="flex flex-col gap-1">
-              {links.map((l) => (
-                <li key={l.href}>
+              {/* key includes the index: a company can legitimately carry the
+                  same URL twice (Metallic Products has its LinkedIn listed
+                  twice), and href alone threw a duplicate-key error. */}
+              {links.map((l, i) => (
+                <li key={`${l.href}-${i}`}>
                   <a
                     href={l.href}
                     target="_blank"

@@ -1,6 +1,5 @@
 import { Badge } from "../../../_shell/ui";
 import { BackButton } from "../../../_shell/BackButton";
-import { CompanyAvatar } from "../../../_shell/InitialAvatar";
 import { stageBadgeTone, stageLabel } from "../../lifecycle";
 import { EditCompany } from "../EditCompany";
 import { CompanyMoreMenu } from "../CompanyMoreMenu";
@@ -9,7 +8,7 @@ import type { CompanyDefaults, RepOption } from "../../CompanyDialog";
 
 /**
  * DESKTOP-ONLY sticky top bar (design handoff §Layout 1) — "← Companies"
- * back link · divider · company monogram · name · stage chip · owner control ·
+ * back link · divider · name · stage chip · owner control ·
  * More · Edit, in one 56px white row that stays pinned while the profile
  * scrolls. The window is the scroll container (CrmShell's <main> doesn't
  * scroll independently — only the sidebar is sticky), so `sticky top-0`
@@ -64,7 +63,6 @@ export function ProfileTopBar({
       <span aria-hidden className="h-5 w-px shrink-0 bg-line-strong" />
 
       <div className="flex min-w-0 items-center gap-2.5">
-        <CompanyAvatar name={name} className="h-7 w-7 text-[12px]" />
         <span className="min-w-0 truncate text-[15px] font-bold text-fg">{name}</span>
         <span className="shrink-0">
           <Badge tone={stageBadgeTone(stage)}>{stageLabel(stage)}</Badge>
