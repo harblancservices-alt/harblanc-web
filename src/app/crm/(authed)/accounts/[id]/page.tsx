@@ -418,6 +418,25 @@ export default async function AccountDetailPage({
       email: c.email ?? null,
       phone: c.phones[0]?.number ?? null,
       isPrimary: c.id === (account.primary_contact_id as string | null),
+      // The card is the contact profile now, so it carries what the retired
+      // standalone page owned: the edit dialog's defaults, plus the three
+      // facts it displayed.
+      defaults: {
+        id: c.id,
+        name: c.name,
+        title: c.title ?? null,
+        email: c.email ?? null,
+        phones: c.phones,
+        links: c.links,
+        best_time_to_call: c.best_time_to_call ?? null,
+        notes: c.notes ?? null,
+        next_followup_at: c.next_followup_at ?? null,
+        role_category: c.role_category ?? null,
+        current_mood: c.current_mood ?? null,
+      },
+      role: c.role_category ?? null,
+      mood: c.current_mood ?? null,
+      bestTimeToCall: c.best_time_to_call ?? null,
     }))
     .sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary));
 

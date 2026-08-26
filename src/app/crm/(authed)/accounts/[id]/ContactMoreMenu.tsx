@@ -6,11 +6,11 @@ import { IconMore } from "../../_shell/icons";
 import { LogCallDialog } from "../../calls/LogCallDialog";
 import { Modal } from "../../_shell/Modal";
 import { BTN_DANGER } from "../../_shell/ui";
-import { deleteContact } from "../../accounts/actions";
+import { deleteContact } from "../actions";
 import type { TaskContactOption } from "../../tasks/TaskDialog";
 
 /**
- * The contact header's "More" menu — Log a call (only when there's a
+ * A contact's "More" menu — Log a call (only when there's a
  * company: crm_calls is keyed to account_id, so a company-less contact has
  * nowhere for the call to land) and, owner-only, Delete. Same
  * outside-click/Escape + ref-stashed-open-callback pattern, and same shared
@@ -25,9 +25,8 @@ export function ContactMoreMenu({
   contactId: string;
   contactName: string;
   accountId: string | null;
-  // Accepted for caller compatibility (the contact profile page, out of this
-  // task's scope) but no longer used — LogCallDialog now self-fetches
-  // everything it needs to cross-autofill.
+  // Accepted for caller compatibility but no longer used — LogCallDialog
+  // self-fetches everything it needs to cross-autofill.
   contactOptions?: TaskContactOption[];
   canDelete: boolean;
 }) {

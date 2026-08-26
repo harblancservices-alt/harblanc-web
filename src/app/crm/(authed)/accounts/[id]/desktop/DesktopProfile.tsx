@@ -197,7 +197,7 @@ export function DesktopProfile({
             rendered BARE — wrapping it in a ProfileBlock put a header above a
             header. It is still an always-visible section; it just supplies
             its own chrome. */}
-        <ContactsWheel accountId={accountId} contacts={contacts} />
+        <ContactsWheel accountId={accountId} contacts={contacts} canDelete={canDelete} />
 
         <ProfileBlock title="Company number">
           <ContactBlock phones={phones} email={email} addGap={editLink("+ number")} />
