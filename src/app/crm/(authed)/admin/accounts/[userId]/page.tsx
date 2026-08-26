@@ -99,7 +99,7 @@ export default async function AdminMemberDetailPage({
               </p>
             ) : (
               <MemberAccountForm
-                key={`${member.id}-${member.role}-${member.isActive}-${member.canViewAllCompanies}`}
+                key={`${member.id}-${member.role}-${member.isActive}-${member.canViewAllCompanies}-${member.showUnassigned}`}
                 member={member}
                 reassignTargets={reassignTargets}
               />

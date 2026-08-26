@@ -1,5 +1,5 @@
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
-import { getCompanyVisibility } from "../_shell/companyVisibility";
+import { getCompanyVisibility, applyCompanyVisibility } from "../_shell/companyVisibility";
 import { Card, CardHead, EmptyState } from "../_shell/ui";
 import { IconCustomers } from "../_shell/icons";
 import { firstName, timestampMs, titleCaseWords } from "../_shell/format";
@@ -50,7 +50,7 @@ export async function ActiveCustomersPanel() {
     .is("deleted_at", null)
     .order("name", { ascending: true })
     .limit(500);
-  if (visibility.restricted) accountsQuery = accountsQuery.eq("assigned_user_id", visibility.userId);
+  accountsQuery = applyCompanyVisibility(accountsQuery, visibility);
   const { data } = await accountsQuery;
 
   const accounts = ((data ?? []) as AccountRow[]).map((a) => ({ ...a, lifecycle_status: "active_customer" as const }));
@@ -65,7 +65,7 @@ export async function ActiveCustomersPanel() {
     .is("deleted_at", null)
     .order("name", { ascending: true })
     .limit(1000);
-  if (visibility.restricted) companyOptionsQuery = companyOptionsQuery.eq("assigned_user_id", visibility.userId);
+  companyOptionsQuery = applyCompanyVisibility(companyOptionsQuery, visibility);
   const { data: companyOptionsData } = await companyOptionsQuery;
   const companyOptions: CompanyOption[] = ((companyOptionsData ?? []) as CompanyOption[]).map((a) => ({
     id: a.id,

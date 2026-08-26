@@ -10,8 +10,9 @@ import { SuspendReassignDialog } from "./SuspendReassignDialog";
 
 /**
  * The Accounts detail page's editable right side — ACCESS LEVEL segmented
- * control (Sales Agent/Admin) + the two ACCOUNT CONTROLS toggles (Active
- * account, Can view all companies) + footer (Suspend user / Save changes).
+ * control (Sales Agent/Admin) + the two ACCOUNT CONTROLS visibility toggles
+ * (Show all companies, Show unassigned) + footer (Suspend user / Save
+ * changes).
  * Only ever rendered for an editable target (the page itself renders the
  * locked notice instead when `member.isPrimaryOwner` or the viewer is
  * looking at their own row) — this component doesn't re-check either
@@ -20,7 +21,8 @@ import { SuspendReassignDialog } from "./SuspendReassignDialog";
  * either rule.
  *
  * The caller MUST remount this on every server-confirmed change (the detail
- * page does via a `key` derived from member.role/isActive/canViewAllCompanies)
+ * page does via a `key` derived from member.role/isActive/canViewAllCompanies/
+ * showUnassigned)
  * — accessLevel's useState and the CheckboxField's `defaultChecked` are only
  * ever read on mount.
  *
@@ -105,12 +107,27 @@ export function MemberAccountForm({
         <p className="mb-1.5 text-[12px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">
           Account controls
         </p>
+        {/* TWO INDEPENDENT VISIBILITY GRANTS (Brent, 2026-08-25), both
+            governing the agent-facing Companies list only — never Admin →
+            Companies, which is gated on role. Kept as separate checkboxes
+            rather than one three-state control because an admin routinely
+            wants the second without the first. */}
         <div className="flex flex-col gap-2">
           <CheckboxField
-            label="Can view all companies"
+            label="Show all companies"
             name="can_view_all_companies"
             defaultChecked={member.canViewAllCompanies}
           />
+          <CheckboxField
+            label="Show unassigned"
+            name="show_unassigned"
+            defaultChecked={member.showUnassigned}
+          />
+          <p className="text-[12px] text-fg-subtle">
+            Off on both, {member.fullName || "this user"} sees only the companies assigned to
+            them. &ldquo;Show unassigned&rdquo; adds companies nobody owns yet.
+            &ldquo;Show all companies&rdquo; makes both moot &mdash; they see the whole org.
+          </p>
         </div>
       </div>
 

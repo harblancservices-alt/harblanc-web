@@ -17,7 +17,7 @@ export async function listTeamMembers(): Promise<AdminTeamMember[]> {
     await Promise.all([
       supabase
         .from("crm_profiles")
-        .select("id, full_name, email, role, is_active, is_primary_owner, can_view_all_companies, created_at")
+        .select("id, full_name, email, role, is_active, is_primary_owner, can_view_all_companies, show_unassigned, created_at")
         .order("full_name", { ascending: true }),
       supabase.from("crm_accounts").select("assigned_user_id").is("deleted_at", null).not("assigned_user_id", "is", null),
       supabase.from("crm_tasks").select("assigned_user_id").eq("status", "open").not("assigned_user_id", "is", null),
@@ -47,6 +47,7 @@ export async function listTeamMembers(): Promise<AdminTeamMember[]> {
     isActive: r.is_active,
     isPrimaryOwner: r.is_primary_owner,
     canViewAllCompanies: r.can_view_all_companies,
+    showUnassigned: r.show_unassigned ?? false,
     createdAt: r.created_at,
     companiesOwned: companiesOwnedByUser.get(r.id) ?? 0,
     openTasks: openTasksByUser.get(r.id) ?? 0,

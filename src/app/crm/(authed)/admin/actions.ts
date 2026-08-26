@@ -114,6 +114,13 @@ export async function updateMemberAccount(
   const roleInput = String(formData.get("access_level") ?? "").trim();
   const role = roleInput === "owner" ? "owner" : "member";
   const canViewAllCompanies = String(formData.get("can_view_all_companies") ?? "") === "on";
+  // The second, INDEPENDENT visibility flag (2026-08-25). Submitted and
+  // stored on its own: "sees everyone's book" and "sees the unowned pile"
+  // are different grants, and an admin needs to give one without the other.
+  // Read here even when canViewAllCompanies is true — an unrestricted caller
+  // already sees unowned companies, so the stored value is simply inert
+  // rather than wrong, and it survives being toggled back.
+  const showUnassigned = String(formData.get("show_unassigned") ?? "") === "on";
 
   const supabase = createServiceRoleClient();
   const { error } = await supabase
@@ -121,6 +128,7 @@ export async function updateMemberAccount(
     .update({
       role,
       can_view_all_companies: canViewAllCompanies,
+      show_unassigned: showUnassigned,
     })
     .eq("id", memberId)
     .eq("org_id", loaded.callerOrgId);

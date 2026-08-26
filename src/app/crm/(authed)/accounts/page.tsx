@@ -1,5 +1,5 @@
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
-import { getCompanyVisibility } from "../_shell/companyVisibility";
+import { getCompanyVisibility, applyCompanyVisibility } from "../_shell/companyVisibility";
 import { PageShell, Card, EmptyState } from "../_shell/ui";
 import { IconCompanies } from "../_shell/icons";
 import { AccountsFilters } from "./AccountsFilters";
@@ -95,15 +95,14 @@ export default async function CompaniesPage({
   // Restricted the same way the main list is when the caller can't see every
   // company (see getCompanyVisibility) — otherwise a restricted agent could
   // still pick any company by name through this dropdown.
-  let companyOptionsQuery = excludeUnclaimedProspects(
-    supabase
-      .from("crm_accounts")
-      .select("id, name")
-      .is("deleted_at", null)
-      .order("name", { ascending: true })
-      .limit(1000),
-  );
-  if (visibility.restricted) companyOptionsQuery = companyOptionsQuery.eq("assigned_user_id", visibility.userId);
+  let companyOptionsQuery = supabase
+    .from("crm_accounts")
+    .select("id, name")
+    .is("deleted_at", null)
+    .order("name", { ascending: true })
+    .limit(1000);
+  if (!visibility.includeUnassigned) companyOptionsQuery = excludeUnclaimedProspects(companyOptionsQuery);
+  companyOptionsQuery = applyCompanyVisibility(companyOptionsQuery, visibility);
   const { data: companyOptionsData } = await companyOptionsQuery;
   const companyOptions = ((companyOptionsData ?? []) as CompanyOption[]).map((a) => ({
     id: a.id,
@@ -140,15 +139,21 @@ export default async function CompaniesPage({
   // queue's predicate; see excludeUnclaimedProspects' comment for why it's a
   // negated OR ("Unassigned" in the rep filter below still works for
   // never-released companies).
-  query = excludeUnclaimedProspects(query);
+  // YIELDS to an explicit "Show unassigned" grant. This exclusion hides
+  // released-but-unclaimed prospects from the roster (they used to live only
+  // in the claim queue). Someone whose profile says they may see the unowned
+  // pile has been given exactly those rows on purpose, so silently keeping 17
+  // of them back would make the flag under-deliver against its own promise.
+  // For everyone else it behaves exactly as before.
+  if (!visibility.includeUnassigned) query = excludeUnclaimedProspects(query);
 
   if (stage) query = query.eq("lifecycle_status", stage);
-  // A restricted agent (can_view_all_companies=false) only ever sees their
-  // own companies — this OVERRIDES the `rep` URL param entirely rather than
-  // combining with it, since that param is client-submitted and must never
-  // be trusted to narrow (or widen) what a restricted caller can reach.
+  // A restricted caller sees only what their profile flags allow — this
+  // OVERRIDES the `rep` URL param entirely rather than combining with it,
+  // since that param is client-submitted and must never be trusted to narrow
+  // (or widen) what a restricted caller can reach.
   if (visibility.restricted) {
-    query = query.eq("assigned_user_id", visibility.userId);
+    query = applyCompanyVisibility(query, visibility);
   } else if (rep === "unassigned") {
     query = query.is("assigned_user_id", null);
   } else if (rep) {
@@ -263,7 +268,9 @@ export default async function CompaniesPage({
       title="Companies"
       subtitle={
         visibility.restricted
-          ? "Showing only companies assigned to you."
+          ? visibility.includeUnassigned
+            ? "Showing companies assigned to you, plus any with no owner."
+            : "Showing only companies assigned to you."
           : `${cards.length} compan${cards.length === 1 ? "y" : "ies"} in your org.`
       }
       actions={<AddContactDialog companies={companyOptions} />}

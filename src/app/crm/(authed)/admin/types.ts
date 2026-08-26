@@ -12,6 +12,8 @@ export type AdminTeamMemberRow = {
   is_active: boolean;
   is_primary_owner: boolean;
   can_view_all_companies: boolean;
+  /** Nullable in the DB (additive column) — read as false when absent. */
+  show_unassigned: boolean | null;
   created_at: string;
 };
 
@@ -23,6 +25,7 @@ export type AdminTeamMember = {
   isActive: boolean;
   isPrimaryOwner: boolean;
   canViewAllCompanies: boolean;
+  showUnassigned: boolean;
   createdAt: string;
   companiesOwned: number;
   openTasks: number;
