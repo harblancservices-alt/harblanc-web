@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { assignmentTaskSpec, assignmentTaskTable, batchTaskSpec } from "./assignmentTask";
+import { assignmentBrief, assignmentDoneWhen, assignmentTaskSpec, assignmentTaskTable, batchTaskSpec } from "./assignmentTask";
+import { gapsForCompany } from "../../agent/completeness";
 import { LIFECYCLE_STAGES } from "../../accounts/lifecycle";
 import { TASK_TYPES } from "../../tasks/taskType";
 
@@ -95,5 +96,78 @@ describe("batchTaskSpec", () => {
 
   it("handles an empty selection without throwing", () => {
     expect(batchTaskSpec([]).title).toBe("Research and qualify this company");
+  });
+});
+
+describe("assignmentBrief — the fix for 'research prospect is silent'", () => {
+  const bare = { id: "a", name: "Acme", city: null, state: null, address: null, industry: null, contactCount: 0 };
+
+  it("says what is missing when the record is empty", () => {
+    const brief = assignmentBrief(bare)!;
+    expect(brief).toContain("nobody on file to call");
+    expect(brief).toContain("no address");
+    expect(brief).toContain("no trade recorded");
+    // And what to actually do about it.
+    expect(brief).toContain("Find out who handles their freight");
+  });
+
+  it("says what is KNOWN when there is something to go on", () => {
+    const brief = assignmentBrief({
+      ...bare,
+      city: "Houston",
+      state: "TX",
+      industry: "Scaffolding",
+      contactCount: 1,
+      contactName: "Dave Mena",
+      phone: "713-856-9696",
+    })!;
+    expect(brief).toContain("Dave Mena on 713-856-9696");
+    expect(brief).toContain("scaffolding");
+    expect(brief).toContain("Houston, TX");
+    // Different instruction: there is already somebody to ring.
+    expect(brief).toContain("Confirm who still handles their freight");
+    expect(brief).not.toContain("Find out who handles");
+  });
+
+  it("gives a company with a contact a different brief from one without", () => {
+    const withContact = assignmentBrief({ ...bare, contactCount: 1, contactName: "Sam" });
+    const without = assignmentBrief(bare);
+    expect(withContact).not.toBe(without);
+  });
+
+  it("stays in step with the gaps panel — same derivation, same verdict", () => {
+    // A company with city+state has no ADDRESS gap, so the brief must not
+    // claim one. This is the case a second hand-written rule would get wrong.
+    const brief = assignmentBrief({ ...bare, city: "Dallas", state: "TX" })!;
+    expect(brief).not.toContain("no address");
+    expect(gapsForCompany({ ...bare, city: "Dallas", state: "TX" }).map((g) => g.kind)).not.toContain(
+      "address",
+    );
+  });
+
+  it("returns null rather than a brief that says nothing", () => {
+    // Nothing known, nothing missing cannot happen with real gaps, but the
+    // guard matters: an empty brief is worse than no brief.
+    expect(assignmentBrief({ ...bare, contactCount: 1, city: "X", state: "Y", industry: "Z" })).toBeTruthy();
+  });
+});
+
+describe("assignmentDoneWhen", () => {
+  const bare = { id: "a", name: "Acme", city: null, state: null, address: null, industry: null, contactCount: 0 };
+
+  it("asks for a name and a number when there is nobody on file", () => {
+    expect(assignmentDoneWhen("new_lead", bare)).toContain("phone number");
+  });
+
+  it("asks for a conversation when there already is somebody", () => {
+    expect(assignmentDoneWhen("new_lead", { ...bare, contactCount: 2 })).toContain("spoken to");
+  });
+
+  it("stays SILENT where there is no obvious answer", () => {
+    // A definition of done that restates the title teaches nobody anything
+    // and trains people to ignore the field.
+    for (const stage of ["contacted", "quoting", "active", "lost"]) {
+      expect(assignmentDoneWhen(stage, bare)).toBeNull();
+    }
   });
 });

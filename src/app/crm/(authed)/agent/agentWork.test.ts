@@ -27,6 +27,8 @@ function task(id: string, dueAt: string | null, title = `Task ${id}`): AgentTask
     hint: null,
     contactName: null,
     isHigh: false,
+    brief: null,
+    doneWhen: null,
   };
 }
 

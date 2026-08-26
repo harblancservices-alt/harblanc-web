@@ -249,7 +249,7 @@ function Group({
         : "bg-inset text-fg-muted";
   return (
     <>
-      <div className="flex items-center gap-2 border-b border-line px-4 py-2">
+      <div className="flex items-center gap-2 px-3 pb-1 pt-2">
         <span
           className={`rounded-[3px] px-2 py-0.5 text-[10.5px] font-bold uppercase tracking-[0.07em] ${chip}`}
         >
@@ -257,7 +257,7 @@ function Group({
         </span>
         <span className="text-[11.5px] font-semibold text-fg-muted">{rows.length}</span>
       </div>
-      <ul>
+      <ul className="flex flex-col gap-2 px-3 pb-2">
         {visible.map((task) => (
           <TaskRow key={task.id} task={task} now={now} />
         ))}
@@ -277,65 +277,103 @@ function TaskRow({ task, now }: { task: AgentTask; now: Date }) {
   const tint = dueTint(task.dueAt, now);
 
   return (
-    <li className="flex flex-wrap items-center gap-3 border-b border-line px-4 py-2.5 last:border-b-0">
-      <div className="min-w-0 flex-1">
-        <p className="flex items-start gap-1.5 text-[13.5px] font-bold text-fg">
-          {/* Same quiet dot as the planning board — one marker, not a badge,
-              and nothing at all for normal priority. */}
-          {task.isHigh && (
-            <span
-              aria-label="High priority"
-              title="High priority"
-              className="mt-[6px] h-[7px] w-[7px] shrink-0 rounded-full bg-bad"
-            />
-          )}
-          <span className="min-w-0">{task.title}</span>
-        </p>
-        <p className="flex flex-wrap items-center gap-1.5 text-[11.5px] text-fg-subtle">
-          {task.accountId && task.companyName ? (
-            <Link
-              href={`/crm/accounts/${task.accountId}`}
-              prefetch={false}
-              className="font-semibold text-accent hover:underline"
-            >
-              {titleCaseWords(task.companyName)}
-            </Link>
-          ) : (
-            <span>No company</span>
-          )}
-          {/* WHO to speak to. The row exists so an agent can act without
-              opening anything; a name is the difference between "call
-              Longhorn Tube" and knowing who picks up. */}
-          {task.contactName && (
-            <span className="font-semibold text-fg-muted">
-              &middot; {titleCaseWords(task.contactName)}
-            </span>
-          )}
-          {task.hint && <span>&middot; {task.hint}</span>}
-        </p>
-        {error && <p className="text-[11.5px] font-semibold text-bad">{error}</p>}
+    /* A CARD, NOT A ROW (Brent, 2026-08-26: "the task sheet sucks too").
+       What was wrong, and what each change answers:
+
+         - flat rows under a small chip, no hierarchy  -> a card per task,
+           the same one the gaps panel uses, so the three dashboard areas
+           read as one product.
+         - the company was small and the title dominated -> the COMPANY
+           leads now. "Longhorn Tube" is what you recognise; "Follow up" is
+           what you do about it, and it is the same six words on half the
+           board.
+         - no sense of WHY the task exists -> the brief renders on the face
+           when there is one. Auto-created tasks now carry one derived from
+           the company's real state, which is the other half of this fix.
+         - one task looked lost in a large empty panel -> a bordered card
+           with real padding occupies its space honestly. */
+    <li className="rounded-lg border border-line-strong bg-card p-3 shadow-e1">
+      <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1">
+          {/* Company first. */}
+          <div className="flex items-center gap-1.5">
+            {task.isHigh && (
+              <span
+                aria-label="High priority"
+                title="High priority"
+                className="h-[7px] w-[7px] shrink-0 rounded-full bg-warn"
+              />
+            )}
+            {task.accountId && task.companyName ? (
+              <Link
+                href={`/crm/accounts/${task.accountId}`}
+                prefetch={false}
+                className="min-w-0 truncate text-[13px] font-bold text-fg hover:text-accent hover:underline"
+              >
+                {titleCaseWords(task.companyName)}
+              </Link>
+            ) : (
+              <span className="text-[13px] font-bold text-fg-subtle">No company</span>
+            )}
+          </div>
+
+          {/* Then what to do about it. */}
+          <p className="mt-0.5 text-[12.5px] text-fg">{task.title}</p>
+
+          <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11.5px] text-fg-subtle">
+            {task.contactName && (
+              <span className="font-semibold text-fg-muted">{titleCaseWords(task.contactName)}</span>
+            )}
+            {task.contactName && task.hint && <span>&middot;</span>}
+            {task.hint && <span>{task.hint}</span>}
+          </p>
+        </div>
+
+        <span
+          className={`shrink-0 text-[12px] font-bold ${
+            tint === "late"
+              ? "text-bad"
+              : tint === "now"
+                ? "text-accent"
+                : tint === "soon"
+                  ? "text-fg-muted"
+                  : "text-fg-subtle"
+          }`}
+        >
+          {dueLabel(task.dueAt, now)}
+        </span>
       </div>
-      <span
-        className={`shrink-0 text-[12.5px] font-bold ${
-          tint === "late"
-            ? "text-bad"
-            : tint === "now"
-              ? "text-accent"
-              : tint === "soon"
-                ? "text-fg-muted"
-                : "text-fg-subtle"
-        }`}
-      >
-        {dueLabel(task.dueAt, now)}
-      </span>
-      <button
-        type="button"
-        onClick={() => setClosing(true)}
-        disabled={pending}
-        className={`shrink-0 rounded-md px-3.5 py-1.5 text-[12.5px] font-bold transition-colors ${BTN_EDIT}`}
-      >
-        {pending ? "…" : "Done"}
-      </button>
+
+      {/* WHY. Rendered only when there is one, so most cards stay short and
+          a tall one means somebody actually wrote a brief — the same rule
+          the planning board's card follows. */}
+      {(task.brief || task.doneWhen) && (
+        <div className="mt-2 space-y-1 border-l-2 border-line pl-2">
+          {task.doneWhen && (
+            <p className="text-[11.5px] leading-relaxed text-fg-muted">
+              <span className="font-bold text-fg">Done when:</span> {task.doneWhen}
+            </p>
+          )}
+          {task.brief && (
+            <p className="whitespace-pre-wrap text-[11.5px] leading-relaxed text-fg-muted">
+              {task.brief}
+            </p>
+          )}
+        </div>
+      )}
+
+      {error && <p className="mt-1 text-[11.5px] font-semibold text-bad">{error}</p>}
+
+      <div className="mt-2 flex justify-end">
+        <button
+          type="button"
+          onClick={() => setClosing(true)}
+          disabled={pending}
+          className={`rounded-md px-3 py-1 text-[12px] font-bold transition-colors ${BTN_EDIT}`}
+        >
+          {pending ? "…" : "Done"}
+        </button>
+      </div>
 
       {closing && (
         <CompleteTaskDialog

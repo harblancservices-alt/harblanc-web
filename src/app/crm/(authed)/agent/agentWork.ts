@@ -32,6 +32,14 @@ export type AgentTask = {
   contactName: string | null;
   /** crm_tasks.priority = 'high'. One quiet marker or nothing. */
   isHigh: boolean;
+  /** crm_tasks.notes — WHY this task exists. Auto-created tasks now carry a
+   * brief derived from the company's real state (see
+   * admin/companies/assignmentTask.ts::assignmentBrief); before that they
+   * were, in Brent's word, silent. Null when there is nothing to say. */
+  brief: string | null;
+  /** crm_tasks.definition_of_done — what finishing looks like, where there
+   * is an obvious answer. Null otherwise, deliberately. */
+  doneWhen: string | null;
 };
 
 /**

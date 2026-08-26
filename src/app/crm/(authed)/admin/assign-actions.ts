@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { batchTaskSpec } from "./companies/assignmentTask";
+import { batchTaskSpec, assignmentBrief, assignmentDoneWhen } from "./companies/assignmentTask";
 import { createCrmServerClient, requireCrmUser } from "@/lib/crm/auth";
 import { normalizePriority } from "../tasks/priority";
 
@@ -208,6 +208,60 @@ export async function assignCompanies(
   );
   const needTask = accountIds.filter((id) => !alreadyHasKind.has(id));
 
+  // ── 1b. What each company actually needs, for the brief ───────────────
+  //
+  // "Research prospect is silent" (Brent, 2026-08-26): these tasks used to
+  // carry a title and nothing else. The brief is derived per company from
+  // the SAME facts the dashboard's gaps panel uses (completeness.ts), so
+  // the task and the gaps listed beside it can never disagree.
+  const { data: factRows } = needTask.length
+    ? await supabase
+        .from("crm_accounts")
+        .select("id, name, city, state, address, industry, phone, lifecycle_status")
+        .in("id", needTask)
+        .is("deleted_at", null)
+    : { data: [] as Record<string, unknown>[] };
+
+  const { data: contactRows } = needTask.length
+    ? await supabase
+        .from("crm_contacts")
+        .select("account_id, name, phone")
+        .in("account_id", needTask)
+        .is("deleted_at", null)
+        .order("name", { ascending: true })
+    : { data: [] as Record<string, unknown>[] };
+
+  const contactsByAccount = new Map<string, { name: string; phone: string | null }[]>();
+  for (const c of contactRows ?? []) {
+    const key = c.account_id as string;
+    const list = contactsByAccount.get(key) ?? [];
+    list.push({ name: (c.name as string) || "", phone: (c.phone as string | null) ?? null });
+    contactsByAccount.set(key, list);
+  }
+
+  const factsById = new Map<string, { brief: string | null; doneWhen: string | null }>();
+  for (const row of factRows ?? []) {
+    const id = row.id as string;
+    const people = contactsByAccount.get(id) ?? [];
+    const input = {
+      id,
+      name: (row.name as string) || "",
+      city: (row.city as string | null) ?? null,
+      state: (row.state as string | null) ?? null,
+      address: (row.address as string | null) ?? null,
+      industry: (row.industry as string | null) ?? null,
+      contactCount: people.length,
+    };
+    factsById.set(id, {
+      brief: assignmentBrief({
+        ...input,
+        contactName: people[0]?.name ?? null,
+        phone: people[0]?.phone ?? (row.phone as string | null) ?? null,
+      }),
+      doneWhen: assignmentDoneWhen(row.lifecycle_status as string | null, input),
+    });
+  }
+
   // ── 2. Create the tasks ───────────────────────────────────────────────
   const inserted = await insertTasks(
     supabase,
@@ -216,6 +270,11 @@ export async function assignCompanies(
       account_id: id,
       title,
       task_type: task.taskType,
+      // The brief and the goal, per company — what makes these tasks say
+      // something. insertTasks already carried both columns; the automatic
+      // path simply never filled them in.
+      notes: factsById.get(id)?.brief ?? null,
+      definition_of_done: factsById.get(id)?.doneWhen ?? null,
       // Undated — see the `task` parameter. An undated task is UNPLANNED,
       // never overdue: taskUrgencyBucket reads a null due_at as "upcoming",
       // so nothing counts it as late anywhere.

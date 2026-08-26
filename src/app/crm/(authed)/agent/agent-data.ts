@@ -41,7 +41,7 @@ export async function getAgentDashboardData(user: CrmUser): Promise<AgentDashboa
   const [tasksRes, accountsRes] = await Promise.all([
     supabase
       .from("crm_tasks")
-      .select("id, title, due_at, task_type, account_id, contact_id, priority")
+      .select("id, title, due_at, task_type, account_id, contact_id, priority, notes, definition_of_done")
       .eq("status", "open")
       .eq("assigned_user_id", user.id)
       .is("deleted_at", null)
@@ -124,6 +124,8 @@ export async function getAgentDashboardData(user: CrmUser): Promise<AgentDashboa
       hint: type.length ? type.toLowerCase() : null,
       contactName: t.contact_id ? (contactNameById.get(t.contact_id as string) ?? null) : null,
       isHigh: normalizePriority(t.priority as string | null) === "high",
+      brief: ((t.notes as string | null) ?? "").trim() || null,
+      doneWhen: ((t.definition_of_done as string | null) ?? "").trim() || null,
     };
   });
 

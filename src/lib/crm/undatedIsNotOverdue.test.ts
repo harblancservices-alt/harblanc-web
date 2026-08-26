@@ -81,6 +81,8 @@ describe("an undated task is never overdue", () => {
           hint: null,
           contactName: null,
           isHigh: false,
+          brief: null,
+          doneWhen: null,
         },
       ],
       NOW,

@@ -1,4 +1,5 @@
 import { normalizeStage, stageRank, LIFECYCLE_LABEL, type LifecycleStage } from "../../accounts/lifecycle";
+import { gapsForCompany, type CompletenessInput } from "../../agent/completeness";
 
 /**
  * What task to create when an admin hands a company to an agent.
@@ -105,6 +106,83 @@ export function assignmentTaskTable(): { stage: string; label: string; title: st
     title: BY_STAGE[stage].title,
     taskType: BY_STAGE[stage].taskType,
   }));
+}
+
+/**
+ * WHAT THE WORK ACTUALLY IS, written from the company's real state.
+ *
+ * Brent, 2026-08-26: "research prospect is silent." An auto-created task
+ * carried a derived title and nothing else — no brief, no definition of
+ * done — so an agent opened their dashboard, read "Research and qualify
+ * this company", and learned nothing they did not already know. The task
+ * composer has always supported a brief and a goal; the automatic path
+ * simply never filled them in.
+ *
+ * THE FACTS COME FROM completeness.ts, not from a second rule written here.
+ * gapsForCompany already decides what a company is missing, and it drives
+ * the dashboard's gaps panel — so the brief on the task and the gaps listed
+ * beside it can never disagree about the same company. One derivation, two
+ * surfaces.
+ *
+ * It says what is KNOWN as well as what is missing, because those lead to
+ * different work: "nobody on file, no address, no trade recorded — find out
+ * who to call" is a different afternoon from "Dave Mena on 713-856-9696 —
+ * confirm he still runs their freight".
+ *
+ * Returns null when there is nothing worth saying. A brief that reads
+ * "nothing is missing" is worse than no brief.
+ */
+export function assignmentBrief(company: CompletenessInput & { contactName?: string | null; phone?: string | null }): string | null {
+  const gaps = gapsForCompany(company).map((g) => g.kind);
+  const known: string[] = [];
+  const missing: string[] = [];
+
+  const contact = (company.contactName ?? "").trim();
+  const phone = (company.phone ?? "").trim();
+  const industry = (company.industry ?? "").trim();
+  const place = [company.city, company.state].filter((v) => v && v.trim()).join(", ");
+
+  if (contact) known.push(phone ? `${contact} on ${phone}` : contact);
+  else if (phone) known.push(`a company number, ${phone}`);
+  if (industry) known.push(industry.toLowerCase());
+  if (place) known.push(place);
+
+  if (gaps.includes("contact")) missing.push("nobody on file to call");
+  if (gaps.includes("address")) missing.push("no address");
+  if (gaps.includes("industry")) missing.push("no trade recorded");
+
+  if (missing.length === 0 && known.length === 0) return null;
+
+  const parts: string[] = [];
+  if (known.length) parts.push(`What we have: ${known.join(" · ")}.`);
+  if (missing.length) parts.push(`Missing: ${missing.join(", ")}.`);
+
+  // The instruction, which depends on whether there is anyone to call yet.
+  parts.push(
+    gaps.includes("contact")
+      ? "Find out who handles their freight and get a name and a number on the record."
+      : "Confirm who still handles their freight, and fill in whatever is missing above.",
+  );
+
+  return parts.join(" ");
+}
+
+/**
+ * What finishing looks like — set only where there IS an obvious answer.
+ *
+ * Deliberately not written for every stage. A definition of done that says
+ * "the follow-up is done" teaches nobody anything and trains people to
+ * ignore the field.
+ */
+export function assignmentDoneWhen(
+  stage: string | null | undefined,
+  company: CompletenessInput,
+): string | null {
+  const gaps = gapsForCompany(company).map((g) => g.kind);
+  if (normalizeStage(stage) !== "new_lead") return null;
+  return gaps.includes("contact")
+    ? "A named contact with a phone number is on the record."
+    : "You have spoken to the right person and logged what they said.";
 }
 
 // DEFAULT_DUE_DAYS / defaultDueDate / dueDateToInstant lived here until

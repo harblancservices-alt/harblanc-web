@@ -1,5 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { logActivity, CRM_ACTIVITY } from "./activity";
+import {
+  assignmentBrief,
+  assignmentDoneWhen,
+} from "@/app/crm/(authed)/admin/companies/assignmentTask";
 import { DEFAULT_PRIORITY } from "@/app/crm/(authed)/tasks/priority";
 import type { LifecycleStage } from "@/app/crm/(authed)/accounts/lifecycle";
 
@@ -91,11 +95,58 @@ export async function fireStageEntryTask(
 
   const due_at = spec.dueInHours ? new Date(Date.now() + spec.dueInHours * 3_600_000).toISOString() : null;
 
+  // THE BRIEF — the other half of "research prospect is silent" (Brent,
+  // 2026-08-26). Assignment-created tasks got one first; this is the OTHER
+  // path that makes them, and it was the one actually on his dashboard:
+  // "Research + first outreach" is the qualified stage's entry task, and it
+  // carried a title and nothing else.
+  //
+  // Same derivation as everywhere else — assignmentBrief reads the company's
+  // real state through completeness.ts's gap rule, so a task's brief, the
+  // dashboard's gaps panel and an assignment-created task can never disagree
+  // about the same company.
+  const { data: facts } = await supabase
+    .from("crm_accounts")
+    .select("id, name, city, state, address, industry, phone")
+    .eq("id", input.accountId)
+    .maybeSingle();
+
+  const { data: people } = await supabase
+    .from("crm_contacts")
+    .select("name, phone")
+    .eq("account_id", input.accountId)
+    .is("deleted_at", null)
+    .order("name", { ascending: true });
+
+  const contacts = people ?? [];
+  const companyInput = facts
+    ? {
+        id: facts.id as string,
+        name: (facts.name as string) || "",
+        city: (facts.city as string | null) ?? null,
+        state: (facts.state as string | null) ?? null,
+        address: (facts.address as string | null) ?? null,
+        industry: (facts.industry as string | null) ?? null,
+        contactCount: contacts.length,
+      }
+    : null;
+
+  const brief = companyInput
+    ? assignmentBrief({
+        ...companyInput,
+        contactName: (contacts[0]?.name as string | null) ?? null,
+        phone: (contacts[0]?.phone as string | null) ?? (facts?.phone as string | null) ?? null,
+      })
+    : null;
+  const doneWhen = companyInput ? assignmentDoneWhen(input.stage, companyInput) : null;
+
   const { error } = await supabase.from("crm_tasks").insert({
     org_id: input.orgId,
     account_id: input.accountId,
     title: spec.title,
     task_type: spec.task_type,
+    notes: brief,
+    definition_of_done: doneWhen,
     due_at,
     priority: DEFAULT_PRIORITY,
     assigned_user_id: input.ownerUserId,
