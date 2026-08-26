@@ -27,7 +27,6 @@ const KNOWN_LABELS: Record<string, string> = {
   "/crm/contacts": "Contacts",
   "/crm/pipeline": "Pipeline",
   "/crm/tasks": "Tasks",
-  "/crm/ai-agent": "AI Agent",
   "/crm/settings": "Settings",
   "/crm/admin": "Admin Account",
   "/crm/admin/accounts": "Admin Accounts",

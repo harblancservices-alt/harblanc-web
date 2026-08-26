@@ -166,11 +166,12 @@ export async function findPossibleDuplicates(
  * org_id + assigned rep come from the session; RLS WITH CHECK enforces org.
  *
  * `options.unassigned` (default false) is the ONE override to the "defaults
- * to the creator" rule below — used only by BOL Center's new-company paths
- * (resolveAndProspectCompany/createAndProspectCompany/prospectCarrier),
- * which need a freshly-created prospect to land UNCLAIMED in the agent
- * queue (/crm/ai-agent), not pre-owned by whichever admin happened to
- * process the BOL. An explicit empty assigned_user_id in the form data does
+ * to the creator" rule below. Its callers were BOL Center's new-company
+ * paths, which needed a freshly-created company to land UNOWNED in the pool
+ * rather than pre-owned by whichever admin happened to process the BOL. That
+ * page was retired on 2026-08-26; the option stays because "create this
+ * company but do not make me its owner" is the same thing the intake on
+ * Admin → Overview needs, and it is the only expression of it. An explicit empty assigned_user_id in the form data does
  * NOT achieve this — optStr treats "" as null and the `?? user.id` fallback
  * still applies — so this needs its own real signal. Every other caller
  * (the manual Add-Company dialog included) omits `options` entirely and
@@ -340,7 +341,7 @@ export async function updateAccount(
  * pattern to this column; until it's applied, the checks below are the only
  * enforcement there is.
  *
- * Race-safe exactly like claimAiLead (ai-agent/actions.ts:36-45): the UPDATE
+ * Race-safe: the UPDATE
  * re-asserts the ownership state this call decided against — `IS NULL` for a
  * claim, `= currentOwner` for a reassign — so two people acting at once can
  * only ever seat one of them, and the loser gets a clear message instead of
@@ -462,8 +463,9 @@ export async function assignAccount(
     meta: { from: currentOwner, to: targetUserId },
   });
 
-  // Claim-only stage advance — mirrors claimAiLead (ai-agent/actions.ts:62-87)
-  // so the two claim surfaces can't drift. Never runs on a reassign.
+  // Claim-only stage advance. Never runs on a reassign. This was one of two
+  // copies (claimAiLead held the other) until the Prospects queue was
+  // retired on 2026-08-26; it is now the only one.
   const priorStage = normalizeStage(account.lifecycle_status as string | null);
   if (currentOwner === null && targetUserId !== null && priorStage === "new_lead") {
     const { error: stageError } = await supabase
@@ -492,10 +494,8 @@ export async function assignAccount(
   }
 
   revalidateAccount(accountId);
-  // The Prospects tab and its nav badge are both keyed on
-  // assigned_user_id IS NULL (ai-agent/page.tsx:37, layout.tsx:45), so a
-  // claim made from a profile has to drop the lead out of both.
-  revalidatePath("/crm/ai-agent");
+  // Admin → Overview's assign pool is keyed on assigned_user_id IS NULL, so
+  // taking ownership from a profile has to drop the company out of it.
   return { ok: true };
 }
 
@@ -505,7 +505,7 @@ export async function assignAccount(
  * researching/contacted/quoting, assigned to whoever currently owns the
  * account; see lib/crm/stageAutomation.ts). No cron in this CRM, so this
  * synchronous call IS the automation — there's nowhere else it fires from
- * besides here and claimAiLead's own claim→researching advance.
+ * besides here.
  */
 export async function updateLifecycleStatus(
   id: string,
@@ -557,10 +557,13 @@ export async function updateLifecycleStatus(
 }
 
 /**
- * The single shared "send to Prospects and publish into the agent claim
- * queue" action — used by BOL Center (admin/bol-center/actions.ts) and OTR
- * (admin/otr/actions.ts) so both intake funnels feed /crm/ai-agent through
- * the exact same rule, not two parallel copies that could drift.
+ * The single shared "publish this company into the unowned pool" action.
+ *
+ * Both intake funnels that used to call it — BOL Center and OTR — were
+ * retired on 2026-08-26. It survives because it is still the ONE definition
+ * of "released", and released-and-unassigned is exactly what puts a company
+ * in Admin → Overview's assign pool. Its remaining callers reach it from the
+ * company profile.
  *
  * Two independent things happen together, both idempotent:
  *  - Lifecycle promotion, guardrail-checked: only (re-)sets the company to
@@ -573,13 +576,13 @@ export async function updateLifecycleStatus(
  *    this purpose.
  *  - ai_status is set to 'released' UNCONDITIONALLY (not gated on whether a
  *    stage change happened) — that's what makes the company appear in the
- *    claim queue at all; /crm/ai-agent and claimAiLead() key on ai_status/
- *    source, not lifecycle stage, so a company already sitting at Prospect
- *    (or beyond) still needs this to become claimable.
+ *    assign pool at all; the pool keys on ai_status and assigned_user_id, not
+ *    lifecycle stage, so a company already sitting at Prospect (or beyond)
+ *    still needs this to become assignable.
  *
  * assigned_user_id is never written here — leaving it untouched (normally
- * still NULL for a fresh intake) is what keeps the company claimable; the
- * claim queue's own `assigned_user_id IS NULL` gate is what actually keeps
+ * still NULL for a fresh intake) is what keeps the company in the pool; the
+ * pool's own `assigned_user_id IS NULL` gate is what actually keeps
  * an already-owned company from surfacing there, so there's nothing extra
  * to guard. source is only set when the account has none yet — a real
  * existing source is never clobbered.
@@ -615,7 +618,6 @@ export async function promoteAccountToProspect(
   }
 
   revalidateAccount(accountId);
-  revalidatePath("/crm/ai-agent");
   return { ok: true };
 }
 

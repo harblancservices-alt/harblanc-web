@@ -9,7 +9,7 @@
  *
  * This is the MANAGEMENT view: every crm_accounts row in the org regardless
  * of owner. It deliberately does NOT reuse the agent-facing visibility gate
- * in ai-agent/queue.ts — that gate exists to hide unclaimed work from agents,
+ * in _shell/unclaimedCompanies.ts — that gate hides unowned work from agents,
  * and hiding it from the admin whose job is to assign it would defeat the
  * screen.
  */

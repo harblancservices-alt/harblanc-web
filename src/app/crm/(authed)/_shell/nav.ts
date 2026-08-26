@@ -105,12 +105,13 @@ export function buildCrmNav(
     // because it is the same book of business, arranged by where each one is
     // rather than alphabetically.
     { href: "/crm/pipeline", label: "Pipeline", Icon: IconPipeline },
-    // PROSPECTS IS GONE (2026-08-25). The claim model is retired: agents no
-    // longer pick work out of a shared pool, an admin assigns it. The route
-    // /crm/ai-agent and its page are untouched and still load, they are
-    // simply not a nav destination any more — and its unclaimed-leads badge
-    // went with it. Unclaimed companies now surface on Admin → Companies
-    // under the Unassigned filter, which is the admin's inbox.
+    // PROSPECTS IS GONE. The claim model was retired 2026-08-25 (agents no
+    // longer pick work out of a shared pool, an admin assigns it), which left
+    // /crm/ai-agent loading but unreachable; the route itself was deleted
+    // 2026-08-26. Its one load-bearing piece, the predicate that keeps
+    // unowned companies out of an agent's roster, moved to
+    // _shell/unclaimedCompanies.ts. Unassigned companies surface on Admin →
+    // Companies under the Unassigned filter, and in Admin → Overview's pool.
     { href: "/crm/tasks", label: "Tasks", Icon: IconTasks },
     // Operations — the everyday operating tools: Quote Calculator,
     // Documents/vendor packets, Active Loads, Active Clients, Active

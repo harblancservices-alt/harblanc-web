@@ -7,7 +7,7 @@ import type { CompanyRow } from "./companyRow";
  * Server-side read for Admin → Companies — every crm_accounts row in the org,
  * whoever owns it.
  *
- * NO agent visibility gate. ai-agent/queue.ts's CLAIMED_COMPANIES_OR_FILTER
+ * NO agent visibility gate. _shell/unclaimedCompanies.ts's CLAIMED_COMPANIES_OR_FILTER
  * exists to hide unclaimed work from agents; applying it here would hide from
  * the admin exactly the rows this screen is for. That is a deliberate
  * difference, not an oversight.

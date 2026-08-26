@@ -96,7 +96,7 @@ export async function getCompanyVisibility(user: CrmUser): Promise<CompanyVisibi
  *
  * Structurally typed against the Supabase builder's own `.eq()`/`.or()` so
  * it composes with any query without importing PostgREST generics — same
- * shape as ai-agent/queue.ts::excludeUnclaimedProspects.
+ * shape as _shell/unclaimedCompanies.ts::excludeUnclaimedProspects.
  *
  * The unowned case is a PostgREST `or=`, which is its own top-level
  * AND-ed condition, so it stacks safely with the stage/search/tag filters a

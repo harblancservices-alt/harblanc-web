@@ -154,7 +154,7 @@ export const ZEBRA_ROWS =
  *
  *   BTN_PRIMARY — filled steel-blue (var(--accent)). Save / Add / Create /
  *                 Search / primary CTA.
- *   BTN_SUCCESS — filled green.  Done / Complete / Release to Prospects / approve.
+ *   BTN_SUCCESS — filled green.  Done / Complete / approve.
  *   BTN_ACTION  — filled 2563eb. Operational actions — Log call, Add person,
  *                 Add task, Note, Email, and the per-contact card actions.
  *                 Brent's explicit call: these read as "do something now"
@@ -197,8 +197,8 @@ export const BTN_NEUTRAL =
  * Originally page-scoped to the BOL detail page's visual-hierarchy pass
  * (Brent, approved 2026-08-21); promoted here unchanged when the task card's
  * Style-C rebuild adopted the same treatment, so the two can't drift.
- * bol-center/[id]/buttonDepth.ts now re-exports these — the strings are
- * byte-identical to what it defined before, so that page renders the same.
+ * (bol-center/[id]/buttonDepth.ts re-exported these until that page was
+ * retired on 2026-08-26; this is now the only definition.)
  *
  * Each constant is a single, fully self-contained class string — never
  * composed on top of a BTN_* import — so there's no risk of two utilities
