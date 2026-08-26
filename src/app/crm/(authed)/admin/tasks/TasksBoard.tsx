@@ -278,7 +278,18 @@ function TaskCard({
         isDragging ? "opacity-40" : ""
       } ${tint === "late" ? "border-l-[3px] border-l-bad" : ""}`}
     >
-      <p className="text-[13px] font-bold leading-snug text-fg">{card.title}</p>
+      <p className="flex items-start gap-1.5 text-[13px] font-bold leading-snug text-fg">
+        {/* The same quiet dot the agent surfaces use, so "high priority"
+            looks like one thing across the CRM rather than three. */}
+        {card.isHigh && (
+          <span
+            aria-label="High priority"
+            title="High priority"
+            className="mt-[5px] h-[7px] w-[7px] shrink-0 rounded-full bg-bad"
+          />
+        )}
+        <span className="min-w-0">{card.title}</span>
+      </p>
       {card.accountId && card.companyName ? (
         <Link
           href={`/crm/accounts/${card.accountId}`}

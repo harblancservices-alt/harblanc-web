@@ -27,6 +27,10 @@ export type AgentTask = {
   companyName: string | null;
   /** Short trailing hint next to the company ("from OTR", "gone quiet"). */
   hint: string | null;
+  /** Who to speak to at the company — enough to act without opening it. */
+  contactName: string | null;
+  /** crm_tasks.priority = 'high'. One quiet marker or nothing. */
+  isHigh: boolean;
 };
 
 export type AgentCompany = {

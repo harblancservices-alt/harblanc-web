@@ -23,10 +23,10 @@ export const dynamic = "force-dynamic";
  * current load, and it answers "who has room".
  */
 export default async function AdminOverviewPage() {
-  const [{ items, team, now }, quickTasks] = await Promise.all([
+  const [{ items, team, contacts, now }, quickTasks] = await Promise.all([
     getAssignBoardData(),
     listQuickTasks(),
   ]);
 
-  return <AssignBoard items={items} team={team} now={now} quickTasks={quickTasks} />;
+  return <AssignBoard items={items} team={team} contacts={contacts} now={now} quickTasks={quickTasks} />;
 }

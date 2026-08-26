@@ -18,7 +18,16 @@ import {
 const NOW = new Date("2026-08-25T19:00:00.000Z");
 
 function task(id: string, dueAt: string | null, title = `Task ${id}`): AgentTask {
-  return { id, title, dueAt, accountId: null, companyName: null, hint: null };
+  return {
+    id,
+    title,
+    dueAt,
+    accountId: null,
+    companyName: null,
+    hint: null,
+    contactName: null,
+    isHigh: false,
+  };
 }
 
 function company(name: string, lastContactMs: number | null, stage: string | null): AgentCompany {

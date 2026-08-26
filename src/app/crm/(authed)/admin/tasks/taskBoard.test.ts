@@ -25,7 +25,7 @@ function t(
   assigneeId: string | null = null,
   title = `Task ${id}`,
 ): DueTaskRow {
-  return { id, title, dueAt, assigneeId, accountId: null, companyName: null };
+  return { id, title, dueAt, assigneeId, accountId: null, companyName: null, isHigh: false };
 }
 
 const PEOPLE = [

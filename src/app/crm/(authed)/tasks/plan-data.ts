@@ -4,6 +4,7 @@ import {
   getCompanyVisibility,
   applyCompanyVisibility,
 } from "../_shell/companyVisibility";
+import { normalizePriority } from "./priority";
 import type { PlanTask } from "./plan";
 
 /**
@@ -54,7 +55,7 @@ export async function getPlanData(user: CrmUser): Promise<PlanData> {
   const [openRes, doneRes, companiesRes] = await Promise.all([
     supabase
       .from("crm_tasks")
-      .select("id, title, due_at, task_type, account_id")
+      .select("id, title, due_at, task_type, account_id, contact_id, notes, priority, definition_of_done")
       .eq("status", "open")
       .eq("assigned_user_id", user.id)
       .is("deleted_at", null)
@@ -71,6 +72,26 @@ export async function getPlanData(user: CrmUser): Promise<PlanData> {
   ]);
 
   const openTasks = openRes.data ?? [];
+
+  // Contact names for the cards. One lookup for the ids actually referenced,
+  // rather than pulling the org's whole contact list to label a handful of
+  // tasks.
+  const contactIds = [
+    ...new Set(
+      openTasks
+        .map((t) => (t.contact_id as string | null) ?? null)
+        .filter((id): id is string => id !== null),
+    ),
+  ];
+  const contactNameById = new Map<string, string>();
+  if (contactIds.length) {
+    const { data } = await supabase
+      .from("crm_contacts")
+      .select("id, name")
+      .in("id", contactIds)
+      .is("deleted_at", null);
+    for (const c of data ?? []) contactNameById.set(c.id as string, c.name as string);
+  }
 
   // A task can point at a company outside this person's own book — an admin
   // can send one about anything. The NAME is still resolved (a card reading
@@ -107,6 +128,10 @@ export async function getPlanData(user: CrmUser): Promise<PlanData> {
       accountId: accountId && nameById.has(accountId) ? accountId : null,
       companyName: accountId ? (nameById.get(accountId) ?? null) : null,
       provenance: type.length ? type.toLowerCase() : null,
+      contactName: t.contact_id ? (contactNameById.get(t.contact_id as string) ?? null) : null,
+      isHigh: normalizePriority(t.priority as string | null) === "high",
+      instructions: ((t.notes as string | null) ?? "").trim() || null,
+      definitionOfDone: ((t.definition_of_done as string | null) ?? "").trim() || null,
     };
   });
 

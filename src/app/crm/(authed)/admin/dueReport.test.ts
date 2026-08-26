@@ -5,7 +5,7 @@ import { summarizeDue, UNASSIGNED_KEY, type DueTaskRow } from "./dueReport";
 const NOW = new Date("2026-08-25T19:00:00.000Z");
 
 function t(id: string, dueAt: string | null, assigneeId: string | null = null): DueTaskRow {
-  return { id, title: `Task ${id}`, dueAt, assigneeId, accountId: null, companyName: null };
+  return { id, title: `Task ${id}`, dueAt, assigneeId, accountId: null, companyName: null, isHigh: false };
 }
 
 const LATE_4 = "2026-08-21T17:00:00.000Z";

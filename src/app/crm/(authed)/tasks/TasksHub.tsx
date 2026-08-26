@@ -264,7 +264,20 @@ function TaskCard({
           className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer rounded-full accent-[#2f5fd6] disabled:opacity-60"
         />
         <div className="min-w-0 flex-1">
-          <p className="text-[13px] font-bold leading-snug text-fg">{task.title}</p>
+          <p className="flex items-start gap-1.5 text-[13px] font-bold leading-snug text-fg">
+            {/* HIGH PRIORITY IS A DOT, not a badge. It has to be findable at a
+                glance without competing with the due pill, and a card carrying
+                three coloured chips reads as noise. Normal priority shows
+                nothing at all — the absence is the signal. */}
+            {task.isHigh && (
+              <span
+                aria-label="High priority"
+                title="High priority"
+                className="mt-[5px] h-[7px] w-[7px] shrink-0 rounded-full bg-bad"
+              />
+            )}
+            <span className="min-w-0">{task.title}</span>
+          </p>
           {task.accountId && task.companyName ? (
             <Link
               href={`/crm/accounts/${task.accountId}`}
@@ -277,9 +290,16 @@ function TaskCard({
           ) : (
             <p className="mt-0.5 text-[12px] text-fg-subtle">No company</p>
           )}
-          {task.provenance && (
-            <p className="text-[11.5px] text-fg-subtle">{task.provenance}</p>
-          )}
+          {/* WHO to speak to sits on the face — it changes what you do next,
+              which the task type does not. The two share a line so the card
+              doesn't grow a row for each. */}
+          <p className="truncate text-[11.5px] text-fg-subtle">
+            {task.contactName ? (
+              <span className="font-semibold text-fg-muted">{titleCaseWords(task.contactName)}</span>
+            ) : null}
+            {task.contactName && task.provenance ? " · " : null}
+            {task.provenance}
+          </p>
         </div>
         {label && (
           <span
@@ -291,6 +311,30 @@ function TaskCard({
           </span>
         )}
       </div>
+
+      {/* THE BRIEF AND THE BAR, folded away. Both can be paragraphs, and a
+          board of open paragraphs stops being a board — so the card stays one
+          glance and opens when you're actually about to do the work. Rendered
+          only when there is something to reveal. */}
+      {(task.instructions || task.definitionOfDone) && (
+        <details className="mt-1.5">
+          <summary className="cursor-pointer list-none text-[11.5px] font-semibold text-accent hover:underline">
+            Details
+          </summary>
+          <div className="mt-1 space-y-1.5 border-l-2 border-line pl-2">
+            {task.definitionOfDone && (
+              <p className="text-[11.5px] text-fg-muted">
+                <span className="font-bold text-fg">Done when:</span> {task.definitionOfDone}
+              </p>
+            )}
+            {task.instructions && (
+              <p className="whitespace-pre-wrap text-[11.5px] leading-relaxed text-fg-muted">
+                {task.instructions}
+              </p>
+            )}
+          </div>
+        </details>
+      )}
 
       {/* The non-drag path. Always present, not hover-revealed, so keyboard
           and touch users can plan too — dragging is unreliable on both. */}

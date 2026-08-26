@@ -1,4 +1,5 @@
 import { createCrmServerClient } from "@/lib/crm/auth";
+import { normalizePriority } from "../tasks/priority";
 import type { DueTaskRow } from "./dueReport";
 
 /**
@@ -28,7 +29,7 @@ export async function getOpenTasksForReport(): Promise<OpenTasksReport> {
 
   const { data: taskData } = await supabase
     .from("crm_tasks")
-    .select("id, title, due_at, assigned_user_id, account_id")
+    .select("id, title, due_at, assigned_user_id, account_id, priority")
     .eq("status", "open")
     .is("deleted_at", null)
     .order("due_at", { ascending: true, nullsFirst: false })
@@ -58,6 +59,7 @@ export async function getOpenTasksForReport(): Promise<OpenTasksReport> {
       assigneeId: (t.assigned_user_id as string | null) ?? null,
       accountId,
       companyName: accountId ? (nameById.get(accountId) ?? null) : null,
+      isHigh: normalizePriority(t.priority as string | null) === "high",
     };
   });
 

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createCrmServerClient, requireCrmUser } from "@/lib/crm/auth";
 import { parseItemKey, type WorkSource } from "./workItem";
+import { normalizePriority } from "../tasks/priority";
 
 /**
  * Writes for the Admin → Overview assignment board.
@@ -90,6 +91,12 @@ type NewTask = {
   task_type: string | null;
   due_at: string | null;
   assigned_user_id: string;
+  /** The brief — crm_tasks.notes. Optional; assignment leaves it null. */
+  notes?: string | null;
+  contact_id?: string | null;
+  /** low/normal/high (tasks/priority.ts). Omitted means 'normal'. */
+  priority?: string | null;
+  definition_of_done?: string | null;
 };
 
 async function insertTasks(
@@ -104,12 +111,13 @@ async function insertTasks(
       tasks.map((t) => ({
         org_id: orgId,
         account_id: t.account_id,
-        contact_id: null,
+        contact_id: t.contact_id ?? null,
         title: t.title,
-        notes: null,
+        notes: t.notes ?? null,
         task_type: t.task_type,
         due_at: t.due_at,
-        priority: "normal",
+        priority: normalizePriority(t.priority),
+        definition_of_done: t.definition_of_done ?? null,
         reminder_at: null,
         assigned_user_id: t.assigned_user_id,
         status: "open",
@@ -349,13 +357,35 @@ export async function assignWork(personId: string, keys: string[]): Promise<Assi
   return { ok: true, claimed, tasked };
 }
 
-/** The task composer. crm_tasks carries assigned_user_id, due_at and
- * account_id, so every field on the composer persists for real. */
+/**
+ * The task composer on Admin → Overview. EVERY FIELD PERSISTS FOR REAL —
+ * crm_tasks already carried assigned_user_id, account_id, contact_id, notes,
+ * priority and due_at, and gained definition_of_done on 2026-08-26. Nothing
+ * here is decorative.
+ *
+ * What each field is for, since three of them are easy to confuse:
+ *   title              the ACTION      "Call about their reefer volume"
+ *   definitionOfDone   the OUTCOME     "got a rate"
+ *   notes              the BRIEF       why this exists, context to go in with
+ *
+ * DUE DATE DEFAULTS TO NONE, matching what assignment does: undated work
+ * lands in the agent's Inbox and they plan it. A date is still allowed here,
+ * for the case where it genuinely cannot move.
+ *
+ * The CONTACT is re-checked against the chosen company rather than trusted:
+ * the picker only offers that company's contacts, but a stale or tampered
+ * pairing must not be stored, or a task would point at somebody who doesn't
+ * work there.
+ */
 export async function sendTask(input: {
   title: string;
   assignedUserId: string;
   dueAt: string | null;
   accountId: string | null;
+  contactId?: string | null;
+  notes?: string | null;
+  definitionOfDone?: string | null;
+  priority?: string | null;
 }): Promise<TaskResult> {
   const user = await requireCrmUser();
   if (user.role !== "owner" && input.assignedUserId !== user.id) {
@@ -366,6 +396,25 @@ export async function sendTask(input: {
   if (!input.assignedUserId) return { ok: false, error: "Pick who it's for." };
 
   const supabase = await createCrmServerClient();
+
+  // A contact only makes sense as "someone AT this company". Verified here,
+  // never trusted from the client.
+  let contactId = input.contactId?.trim() || null;
+  if (contactId) {
+    if (!input.accountId) {
+      contactId = null;
+    } else {
+      const { data: contact } = await supabase
+        .from("crm_contacts")
+        .select("id")
+        .eq("id", contactId)
+        .eq("account_id", input.accountId)
+        .is("deleted_at", null)
+        .maybeSingle();
+      if (!contact) return { ok: false, error: "That contact isn't at that company." };
+    }
+  }
+
   const result = await insertTasks(supabase, user.orgId, [
     {
       account_id: input.accountId,
@@ -373,6 +422,10 @@ export async function sendTask(input: {
       task_type: null,
       due_at: input.dueAt,
       assigned_user_id: input.assignedUserId,
+      contact_id: contactId,
+      notes: input.notes?.trim() || null,
+      definition_of_done: input.definitionOfDone?.trim() || null,
+      priority: input.priority,
     },
   ]);
 

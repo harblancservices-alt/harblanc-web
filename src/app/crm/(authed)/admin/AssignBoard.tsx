@@ -11,7 +11,7 @@ import { titleCaseWords } from "../_shell/format";
 import { assignWork, sendTask } from "./assign-actions";
 import { isDuplicateQuickTask, normalizeQuickTask } from "./quickTasks";
 import { addQuickTask, removeQuickTask, type QuickTask } from "./quick-task-actions";
-import type { TeamMember } from "./assign-data";
+import type { TeamMember, ComposerContact } from "./assign-data";
 import {
   ASSIGN_FALLBACK_NOTE,
   countBySource,
@@ -46,11 +46,14 @@ import {
 export function AssignBoard({
   items,
   team,
+  contacts,
   now,
   quickTasks,
 }: {
   items: WorkItem[];
   team: TeamMember[];
+  /** Org contacts for the composer's contact picker — see ComposerContact. */
+  contacts: ComposerContact[];
   now: number;
   /** Live rows from crm_quick_tasks, org-shared and ordered. */
   quickTasks: QuickTask[];
@@ -466,7 +469,7 @@ export function AssignBoard({
           )}
         </Card>
 
-        <TaskComposer team={team} items={items} quickTasks={quickTasks} />
+        <TaskComposer team={team} items={items} contacts={contacts} quickTasks={quickTasks} />
       </div>
     </div>
   );
@@ -485,10 +488,12 @@ export function AssignBoard({
 function TaskComposer({
   team,
   items,
+  contacts,
   quickTasks,
 }: {
   team: TeamMember[];
   items: WorkItem[];
+  contacts: ComposerContact[];
   /** Live rows from crm_quick_tasks, already ordered by sort_order. */
   quickTasks: QuickTask[];
 }) {
@@ -500,8 +505,23 @@ function TaskComposer({
   const [draft, setDraft] = useState("");
   const [addError, setAddError] = useState<string | null>(null);
   const [who, setWho] = useState(team[0]?.id ?? "");
+  // DUE DEFAULTS TO EMPTY (2026-08-26) — undated work lands in the agent's
+  // Inbox on Workspace → Tasks and they plan it, matching what assignment
+  // now does. A date is still allowed, for work that genuinely can't move.
   const [due, setDue] = useState("");
   const [accountId, setAccountId] = useState("");
+  const [contactId, setContactId] = useState("");
+  /** The BRIEF — why this task exists, what to walk in knowing. Stored in
+   * crm_tasks.notes, which has always been the brief. */
+  const [instructions, setInstructions] = useState("");
+  /** The OUTCOME — "got a rate". The bar the close-out note gets checked
+   * against once that standard lands. */
+  const [doneWhen, setDoneWhen] = useState("");
+  /** TWO STATES ONLY (Brent). crm_tasks.priority's vocabulary is
+   * low/normal/high; the composer offers the two that carry meaning here —
+   * due date already says WHEN, priority only has to say "does this jump
+   * the queue". "low" stays valid in the column for tasks made elsewhere. */
+  const [high, setHigh] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
@@ -514,6 +534,11 @@ function TaskComposer({
         .sort((a, b) => a.name.localeCompare(b.name)),
     [items],
   );
+
+  /** The chosen company's own contacts. Plainly computed, not memoised:
+   * the dependency would include `contacts`, and the list is small enough
+   * that a filter per render is cheaper than the memo bookkeeping. */
+  const companyContacts = accountId ? contacts.filter((c) => c.accountId === accountId) : [];
 
   /** Both handlers write to crm_quick_tasks and let the server action's
    * revalidatePath refresh the list — no local copy to drift out of sync. */
@@ -561,6 +586,10 @@ function TaskComposer({
       const result = await sendTask({
         title,
         assignedUserId: who,
+        contactId: contactId || null,
+        notes: instructions,
+        definitionOfDone: doneWhen,
+        priority: high ? "high" : "normal",
         // A date input gives "YYYY-MM-DD"; store it as an instant at local
         // midday so a timezone shift can't roll it onto the wrong day.
         dueAt: due ? new Date(`${due}T12:00:00`).toISOString() : null,
@@ -575,6 +604,10 @@ function TaskComposer({
       setTitle("");
       setDue("");
       setAccountId("");
+      setContactId("");
+      setInstructions("");
+      setDoneWhen("");
+      setHigh(false);
     });
   }
 
@@ -709,7 +742,13 @@ function TaskComposer({
             <span className={LABEL}>On</span>
             <select
               value={accountId}
-              onChange={(e) => setAccountId(e.target.value)}
+              onChange={(e) => {
+                setAccountId(e.target.value);
+                // The contact belongs to the company. Changing the company
+                // must drop it, or the form would carry a pairing that no
+                // longer exists — which sendTask would reject anyway.
+                setContactId("");
+              }}
               className={`w-full ${CONTROL_SIZE} ${CONTROL}`}
             >
               <option value="">No company</option>
@@ -719,6 +758,70 @@ function TaskComposer({
                 </option>
               ))}
             </select>
+          </label>
+        </div>
+
+        {/* WHO AT THE COMPANY. "Call Dale at Longhorn Tube" beats "Call
+            Longhorn Tube". Only appears once a company is chosen, since a
+            contact with no company can't be reached from here; says so
+            plainly when that company has nobody on file rather than
+            rendering an empty control. */}
+        {accountId && (
+          <label className="flex flex-col gap-1">
+            <span className={LABEL}>Who to speak to</span>
+            {companyContacts.length === 0 ? (
+              <span className="text-[12px] text-fg-subtle">
+                No contacts on file for this company yet.
+              </span>
+            ) : (
+              <select
+                value={contactId}
+                onChange={(e) => setContactId(e.target.value)}
+                className={`w-full ${CONTROL_SIZE} ${CONTROL}`}
+              >
+                <option value="">Anyone there</option>
+                {companyContacts.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.title ? `${c.name} — ${c.title}` : c.name}
+                  </option>
+                ))}
+              </select>
+            )}
+          </label>
+        )}
+
+        <label className="flex flex-col gap-1">
+          <span className={LABEL}>Instructions</span>
+          <textarea
+            value={instructions}
+            onChange={(e) => setInstructions(e.target.value)}
+            rows={3}
+            placeholder="Why this matters, what they should know walking in, anything already tried."
+            className={`w-full resize-y ${CONTROL_SIZE} ${CONTROL}`}
+          />
+        </label>
+
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+          <label className="flex flex-col gap-1">
+            <span className={LABEL}>What done looks like</span>
+            <input
+              type="text"
+              value={doneWhen}
+              onChange={(e) => setDoneWhen(e.target.value)}
+              placeholder="Got a rate · confirmed they're still shipping"
+              className={`w-full ${CONTROL_SIZE} ${CONTROL}`}
+            />
+          </label>
+          {/* Two states, not a scale. A checkbox rather than a select makes
+              that structural — there is no third thing to pick. */}
+          <label className="flex items-end gap-2 pb-2">
+            <input
+              type="checkbox"
+              checked={high}
+              onChange={(e) => setHigh(e.target.checked)}
+              className="h-4 w-4 cursor-pointer accent-[#c0272d]"
+            />
+            <span className="text-[12.5px] font-semibold text-fg">High priority</span>
           </label>
         </div>
 
@@ -734,7 +837,7 @@ function TaskComposer({
             {pending ? "Sending…" : "Send it"}
           </button>
           <span className="text-[12px] text-fg-muted">
-            {sent ?? "Lands in their queue immediately."}
+            {sent ?? (due ? "Lands on their board for that day." : "Lands in their Inbox to plan.")}
           </span>
           {title && (
             <button

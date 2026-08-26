@@ -282,7 +282,18 @@ function TaskRow({ task, now }: { task: AgentTask; now: Date }) {
   return (
     <li className="flex flex-wrap items-center gap-3 border-b border-line px-4 py-2.5 last:border-b-0">
       <div className="min-w-0 flex-1">
-        <p className="text-[13.5px] font-bold text-fg">{task.title}</p>
+        <p className="flex items-start gap-1.5 text-[13.5px] font-bold text-fg">
+          {/* Same quiet dot as the planning board — one marker, not a badge,
+              and nothing at all for normal priority. */}
+          {task.isHigh && (
+            <span
+              aria-label="High priority"
+              title="High priority"
+              className="mt-[6px] h-[7px] w-[7px] shrink-0 rounded-full bg-bad"
+            />
+          )}
+          <span className="min-w-0">{task.title}</span>
+        </p>
         <p className="flex flex-wrap items-center gap-1.5 text-[11.5px] text-fg-subtle">
           {task.accountId && task.companyName ? (
             <Link
@@ -294,6 +305,14 @@ function TaskRow({ task, now }: { task: AgentTask; now: Date }) {
             </Link>
           ) : (
             <span>No company</span>
+          )}
+          {/* WHO to speak to. The row exists so an agent can act without
+              opening anything; a name is the difference between "call
+              Longhorn Tube" and knowing who picks up. */}
+          {task.contactName && (
+            <span className="font-semibold text-fg-muted">
+              &middot; {titleCaseWords(task.contactName)}
+            </span>
           )}
           {task.hint && <span>&middot; {task.hint}</span>}
         </p>

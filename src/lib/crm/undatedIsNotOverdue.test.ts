@@ -32,7 +32,7 @@ describe("an undated task is never overdue", () => {
 
   it("Admin → Tasks counters (dueReport.summarizeDue)", () => {
     const counts = summarizeDue(
-      [{ id: "a", title: "A", dueAt: null, assigneeId: "u1", accountId: null, companyName: null }],
+      [{ id: "a", title: "A", dueAt: null, assigneeId: "u1", accountId: null, companyName: null, isHigh: false }],
       NOW,
     );
     expect(counts.overdue).toBe(0);
@@ -41,7 +41,7 @@ describe("an undated task is never overdue", () => {
 
   it("Admin → Tasks board columns", () => {
     const board = buildBoard(
-      [{ id: "a", title: "A", dueAt: null, assigneeId: "u1", accountId: null, companyName: null }],
+      [{ id: "a", title: "A", dueAt: null, assigneeId: "u1", accountId: null, companyName: null, isHigh: false }],
       [{ id: "u1", name: "Agent" }],
       NOW,
     );
@@ -53,7 +53,7 @@ describe("an undated task is never overdue", () => {
   it("Admin → Tasks card order puts undated last, not first", () => {
     const rows = sortByUrgency(
       [
-        { id: "undated", title: "U", dueAt: null, assigneeId: null, accountId: null, companyName: null },
+        { id: "undated", title: "U", dueAt: null, assigneeId: null, accountId: null, companyName: null, isHigh: false },
         {
           id: "late",
           title: "L",
@@ -61,6 +61,7 @@ describe("an undated task is never overdue", () => {
           assigneeId: null,
           accountId: null,
           companyName: null,
+          isHigh: false,
         },
       ],
       NOW,
@@ -70,7 +71,18 @@ describe("an undated task is never overdue", () => {
 
   it("the agent dashboard", () => {
     const groups = groupAgentWork(
-      [{ id: "a", title: "A", dueAt: null, accountId: null, companyName: null, hint: null }],
+      [
+        {
+          id: "a",
+          title: "A",
+          dueAt: null,
+          accountId: null,
+          companyName: null,
+          hint: null,
+          contactName: null,
+          isHigh: false,
+        },
+      ],
       NOW,
     );
     expect(groups.overdue).toHaveLength(0);
@@ -80,7 +92,18 @@ describe("an undated task is never overdue", () => {
   });
 
   it("the Tasks planning board", () => {
-    const task = { id: "a", title: "A", dueAt: null, accountId: null, companyName: null, provenance: null };
+    const task = {
+      id: "a",
+      title: "A",
+      dueAt: null,
+      accountId: null,
+      companyName: null,
+      provenance: null,
+      contactName: null,
+      isHigh: false,
+      instructions: null,
+      definitionOfDone: null,
+    };
     expect(isOverdue(task, NOW)).toBe(false);
     expect(planColumnOf(task, NOW)).toBe("inbox");
     expect(planCardLabel(task, NOW)).toBeNull();

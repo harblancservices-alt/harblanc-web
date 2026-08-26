@@ -47,6 +47,15 @@ export type PlanTask = {
    * schema can actually answer.
    */
   provenance: string | null;
+  /** Who to speak to at the company — crm_tasks.contact_id resolved. */
+  contactName: string | null;
+  /** True for crm_tasks.priority = 'high'. Collapsed to a boolean on purpose:
+   * the card shows one quiet marker or nothing, never a three-way scale. */
+  isHigh: boolean;
+  /** The brief — crm_tasks.notes. Revealed on open, not on the face. */
+  instructions: string | null;
+  /** The outcome — crm_tasks.definition_of_done. Revealed on open. */
+  definitionOfDone: string | null;
 };
 
 const DAY_MS = 86_400_000;

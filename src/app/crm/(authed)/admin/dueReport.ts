@@ -26,6 +26,8 @@ export type DueTaskRow = {
   assigneeId: string | null;
   accountId: string | null;
   companyName: string | null;
+  /** crm_tasks.priority = 'high' — so Brent can see what he flagged. */
+  isHigh: boolean;
 };
 
 export type DueCounts = {

@@ -15,7 +15,18 @@ import {
 const NOW = new Date("2026-08-25T19:00:00.000Z");
 
 function t(id: string, dueAt: string | null, title = `Task ${id}`): PlanTask {
-  return { id, title, dueAt, accountId: null, companyName: null, provenance: null };
+  return {
+    id,
+    title,
+    dueAt,
+    accountId: null,
+    companyName: null,
+    provenance: null,
+    contactName: null,
+    isHigh: false,
+    instructions: null,
+    definitionOfDone: null,
+  };
 }
 
 describe("planColumnOf", () => {

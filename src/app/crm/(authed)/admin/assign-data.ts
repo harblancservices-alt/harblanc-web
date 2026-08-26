@@ -30,9 +30,25 @@ export type TeamMember = {
   prospects: number;
 };
 
+/** One contact the composer can point a task at, with the company it belongs
+ * to so the picker can narrow as soon as a company is chosen. */
+export type ComposerContact = {
+  id: string;
+  name: string;
+  accountId: string;
+  title: string | null;
+};
+
 export type AssignBoardData = {
   items: WorkItem[];
   team: TeamMember[];
+  /** Every contact in the org that HAS a company, for the composer's
+   * contact picker. Org-wide on purpose: this is the admin's own composer on
+   * an owner-gated page, and the whole point is assigning work about any
+   * company to anyone. A contact with no company is excluded — it could never
+   * be reached through the picker, which only opens once a company is
+   * chosen. */
+  contacts: ComposerContact[];
   /** Server clock, passed to the client so every "waiting" label is computed
    * against ONE instant — see waitingLabel's note on hydration. */
   now: number;
@@ -54,7 +70,7 @@ export async function getAssignBoardData(): Promise<AssignBoardData> {
   const user = await requireCrmUser();
   const supabase = await createCrmServerClient();
 
-  const [prospectsRes, otrRes, bolRes, profilesRes, tasksRes, ownedRes] = await Promise.all([
+  const [prospectsRes, otrRes, bolRes, profilesRes, tasksRes, ownedRes, contactsRes] = await Promise.all([
     // Unclaimed prospects — the CRM's existing gate, verbatim:
     // ai_status = 'released' AND assigned_user_id IS NULL (see ai-agent/queue.ts).
     supabase
@@ -92,6 +108,14 @@ export async function getAssignBoardData(): Promise<AssignBoardData> {
       .is("deleted_at", null)
       .not("assigned_user_id", "is", null)
       .in("lifecycle_status", IN_FUNNEL),
+
+    supabase
+      .from("crm_contacts")
+      .select("id, name, account_id, title")
+      .is("deleted_at", null)
+      .not("account_id", "is", null)
+      .order("name", { ascending: true })
+      .limit(2000),
   ]);
 
   const items: WorkItem[] = [];
@@ -173,5 +197,12 @@ export async function getAssignBoardData(): Promise<AssignBoardData> {
     })
     .sort((a, b) => a.name.localeCompare(b.name));
 
-  return { items, team, now: Date.now() };
+  const contacts: ComposerContact[] = (contactsRes.data ?? []).map((c) => ({
+    id: c.id as string,
+    name: (c.name as string) || "Unnamed contact",
+    accountId: c.account_id as string,
+    title: (c.title as string | null) ?? null,
+  }));
+
+  return { items, team, contacts, now: Date.now() };
 }

@@ -1,6 +1,7 @@
 import { createCrmServerClient, type CrmUser } from "@/lib/crm/auth";
 import { CRM_CONTACT_ACTIVITY_KINDS } from "@/lib/crm/activity";
 import { timestampMs } from "../_shell/format";
+import { normalizePriority } from "../tasks/priority";
 import type { AgentTask, AgentCompany } from "./agentWork";
 
 /**
@@ -33,7 +34,7 @@ export async function getAgentDashboardData(user: CrmUser): Promise<AgentDashboa
   const [tasksRes, accountsRes] = await Promise.all([
     supabase
       .from("crm_tasks")
-      .select("id, title, due_at, task_type, account_id")
+      .select("id, title, due_at, task_type, account_id, contact_id, priority")
       .eq("status", "open")
       .eq("assigned_user_id", user.id)
       .is("deleted_at", null)
@@ -109,6 +110,24 @@ export async function getAgentDashboardData(user: CrmUser): Promise<AgentDashboa
     }
   }
 
+  // Contact names for the rows — one lookup for the ids actually used.
+  const contactIds = [
+    ...new Set(
+      (tasksRes.data ?? [])
+        .map((t) => (t.contact_id as string | null) ?? null)
+        .filter((id): id is string => id !== null),
+    ),
+  ];
+  const contactNameById = new Map<string, string>();
+  if (contactIds.length) {
+    const { data } = await supabase
+      .from("crm_contacts")
+      .select("id, name")
+      .in("id", contactIds)
+      .is("deleted_at", null);
+    for (const c of data ?? []) contactNameById.set(c.id as string, c.name as string);
+  }
+
   const tasks: AgentTask[] = (tasksRes.data ?? []).map((t) => {
     const accountId = (t.account_id as string | null) ?? null;
     const linked = accountId !== null && nameById.has(accountId);
@@ -124,6 +143,8 @@ export async function getAgentDashboardData(user: CrmUser): Promise<AgentDashboa
       accountId: linked ? accountId : null,
       companyName: linked ? (nameById.get(accountId) ?? null) : null,
       hint: type.length ? type.toLowerCase() : null,
+      contactName: t.contact_id ? (contactNameById.get(t.contact_id as string) ?? null) : null,
+      isHigh: normalizePriority(t.priority as string | null) === "high",
     };
   });
 
