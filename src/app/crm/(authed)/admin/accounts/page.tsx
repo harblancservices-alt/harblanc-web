@@ -3,6 +3,8 @@ import { Card, CardHead, ZEBRA_ROWS, EmptyState, Badge } from "../../_shell/ui";
 import { firstName, formatDate } from "../../_shell/format";
 import { IconContacts } from "../../_shell/icons";
 import { listTeamMembers } from "../accounts-data";
+import { getBrokerProfile } from "../../_shell/brokerProfile";
+import { BrokerProfileEditButton } from "../../settings/BrokerProfileEditButton";
 
 export const dynamic = "force-dynamic";
 
@@ -21,10 +23,12 @@ function initials(name: string | null, email: string | null): string {
  * is editable inline here.
  */
 export default async function AdminAccountsPage() {
-  const members = await listTeamMembers();
+  const [members, profile] = await Promise.all([listTeamMembers(), getBrokerProfile()]);
 
   return (
-    <Card>
+    <div className="flex flex-col gap-4">
+      <OrgInfoCard profile={profile} />
+      <Card>
       <CardHead title="Team" hint={`${members.length} ${members.length === 1 ? "account" : "accounts"}`} />
       {members.length === 0 ? (
         <EmptyState icon={<IconContacts />} title="No team accounts" body="Team members will show up here." />
@@ -67,6 +71,47 @@ export default async function AdminAccountsPage() {
           ))}
         </ul>
       )}
+      </Card>
+    </div>
+  );
+}
+
+/**
+ * The org's brokerage/letterhead details, folded in from the retired
+ * Organization tab (2026-08-25).
+ *
+ * COMPACT, not a section: the old page was a Card with six full-width rows
+ * stacked vertically, which is a whole screen for six short values. Same six
+ * fields, same edit control, same data — laid out as a wrapping definition
+ * list so it reads as a header strip above the team roster rather than
+ * competing with it. NOTHING was cut; every field the Organization page
+ * showed is here.
+ */
+function OrgInfoCard({ profile }: { profile: Awaited<ReturnType<typeof getBrokerProfile>> }) {
+  const fields: [string, string][] = [
+    ["Company", profile.name || "—"],
+    ["MC #", profile.mc || "—"],
+    ["DOT #", profile.dot || "—"],
+    ["Phone", profile.phone || "—"],
+    ["Email", profile.email || "—"],
+    ["Address", profile.address || "—"],
+  ];
+
+  return (
+    <Card>
+      <CardHead
+        title="Company / Brokerage Info"
+        hint="The letterhead every generated document reads from."
+        right={<BrokerProfileEditButton profile={profile} />}
+      />
+      <dl className="flex flex-wrap gap-x-8 gap-y-2.5 px-5 py-3.5">
+        {fields.map(([label, value]) => (
+          <div key={label} className="min-w-0">
+            <dt className="text-[10.5px] font-bold uppercase tracking-[0.08em] text-fg-subtle">{label}</dt>
+            <dd className="text-[13px] text-fg">{value}</dd>
+          </div>
+        ))}
+      </dl>
     </Card>
   );
 }

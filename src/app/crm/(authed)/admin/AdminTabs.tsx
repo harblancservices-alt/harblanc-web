@@ -3,18 +3,21 @@
 import { usePathname } from "next/navigation";
 import { SegmentedTabs } from "../_shell/SegmentedTabs";
 
+/**
+ * FOUR TABS (2026-08-25). What left, and why:
+ *
+ *   Companies    — moved to the left sidebar as a child of Admin Account. It
+ *                  is a destination of its own, not one of Admin's sections.
+ *   BOL Center   — off the row per Brent's direction that the two intake
+ *   OTR            funnels stop being prominent destinations and become
+ *                  SOURCES feeding the central company/work model. Both
+ *                  routes and pages are untouched and still hold live data;
+ *                  Overview reads from them.
+ *   Organization — folded into Accounts as a compact info card; the route
+ *                  now redirects there.
+ */
 const TABS: { href: string; label: string; exact: boolean }[] = [
   { href: "/crm/admin", label: "Overview", exact: true },
-  // Companies is NOT here. It moved to the left sidebar as a child of Admin
-  // Account (2026-08-25) — it is a destination in its own right, not one of
-  // Admin's internal sections. Route and page are unchanged; see
-  // _shell/nav.ts.
-  // BOL Center and OTR sit right after Overview, matching crm-design's
-  // admin tab order — the two intake funnels are the highest-priority admin
-  // work, grouped adjacently. Both have real backends now (crm_bol_entries
-  // and crm_otr_entries, 2026-08-20).
-  { href: "/crm/admin/bol-center", label: "BOL Center", exact: false },
-  { href: "/crm/admin/otr", label: "OTR", exact: false },
   { href: "/crm/admin/accounts", label: "Accounts", exact: false },
   // Deliberately still labeled "Activity", not "Activity Log" — this tab
   // shows the real CRM's org-wide SALES activity feed (crm_activities/
@@ -26,48 +29,30 @@ const TABS: { href: string; label: string; exact: boolean }[] = [
   // shows" bug this section already had fixed once — see admin/page.tsx.
   { href: "/crm/admin/activity", label: "Activity", exact: false },
   { href: "/crm/admin/documents", label: "Documents", exact: false },
-  { href: "/crm/admin/organization", label: "Organization", exact: false },
 ];
 
 /**
- * Top-row tab strip for the Admin Account section — real routes (not client-
- * only state like ProfileCenterTabs.tsx's company-profile tabs), since the
- * Accounts tab drills into its own /crm/admin/accounts/[userId] detail
- * route and needs a real back-navigable URL. Same pill-in-an-inset-bar
- * visual idiom as that component, just Link-driven with pathname-based
- * active state instead of client tab-index state.
+ * Top-row tab strip for the Admin Account section — real routes (not
+ * client-only tab state), since Accounts drills into its own
+ * /crm/admin/accounts/[userId] detail route and needs a back-navigable URL.
+ *
+ * No badges any more: the only two this row ever carried were BOL Center's
+ * and OTR's attention counts, and both tabs are gone. See admin/layout.tsx
+ * for what that means for the counts themselves.
  */
-export function AdminTabs({
-  otrNeedsAttention = 0,
-  bolNeedsAttention = 0,
-}: {
-  otrNeedsAttention?: number;
-  bolNeedsAttention?: number;
-}) {
+export function AdminTabs() {
   const pathname = usePathname() ?? "";
-  const badgeByHref: Record<string, number> = {
-    "/crm/admin/otr": otrNeedsAttention,
-    "/crm/admin/bol-center": bolNeedsAttention,
-  };
 
   return (
     <SegmentedTabs
       ariaLabel="Admin Account sections"
       size="lg"
-      items={TABS.map((t) => {
-        const badge = badgeByHref[t.href] ?? 0;
-        return {
-          key: t.href,
-          label: t.label,
-          href: t.href,
-          active: t.exact ? pathname === t.href : pathname.startsWith(t.href),
-          count: badge || undefined,
-          // OTR and BOL Center counts are an ATTENTION queue — rows sitting
-          // in new/needs-review that an owner has to clear — so they take the
-          // red. Every other tab here has no count at all.
-          countNeedsAttention: true,
-        };
-      })}
+      items={TABS.map((t) => ({
+        key: t.href,
+        label: t.label,
+        href: t.href,
+        active: t.exact ? pathname === t.href : pathname.startsWith(t.href),
+      }))}
     />
   );
 }

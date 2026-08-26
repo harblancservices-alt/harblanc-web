@@ -134,11 +134,13 @@ export function CompaniesBoard({
    * selection updates the suggestion; the admin's own edits are held in
    * titleOverride/dueDate and survive it.
    */
-  const selectedRows = useMemo(
-    () => rows.filter((r) => selected.has(r.id)).map((r) => ({ source: r.source, stage: r.stage })),
-    [rows, selected],
+  // Computed plainly, NOT via useMemo. The dependency would be `selected`, a
+  // Set — a mutable reference the React Compiler cannot prove stable, so a
+  // manual memo here makes it skip optimising this whole component. The work
+  // is a filter over at most a few dozen rows; the memo bought nothing.
+  const spec = batchTaskSpec(
+    rows.filter((r) => selected.has(r.id)).map((r) => ({ source: r.source, stage: r.stage })),
   );
-  const spec = useMemo(() => batchTaskSpec(selectedRows), [selectedRows]);
   const taskTitle = titleOverride ?? spec.title;
 
   // Unassigned first and loudest, then All, then one tab per agent.

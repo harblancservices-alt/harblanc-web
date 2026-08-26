@@ -60,11 +60,11 @@ export default async function SettingsPage() {
             right={
               isAdmin && (
                 <Link
-                  href="/crm/admin/organization"
+                  href="/crm/admin/accounts"
                   prefetch={false}
                   className="shrink-0 text-[12.5px] font-semibold text-accent hover:underline"
                 >
-                  Edit in Admin → Organization
+                  Edit in Admin → Accounts
                 </Link>
               )
             }

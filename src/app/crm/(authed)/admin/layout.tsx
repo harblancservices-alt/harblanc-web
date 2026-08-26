@@ -1,5 +1,4 @@
 import { requireCrmAdmin } from "./guard";
-import { createCrmServerClient } from "@/lib/crm/auth";
 import { PageShell } from "../_shell/ui";
 import { AdminTabs } from "./AdminTabs";
 
@@ -12,25 +11,20 @@ export const dynamic = "force-dynamic";
  * re-verifies role==='owner' itself too (../admin/actions.ts), so this
  * layout is defense in depth, not the only enforcement point.
  */
+/**
+ * The OTR and BOL Center attention counts used to be queried here and shown
+ * as badges on their tabs. Both tabs came off the row (2026-08-25), so the
+ * queries went with them rather than being computed and thrown away.
+ *
+ * WHAT THAT COSTS: the exact badge number — OTR entries in new/
+ * ready_for_approval, BOL entries in new/needs_review — is no longer shown
+ * anywhere. Admin → Overview's work list carries an OTR count, but it is a
+ * DIFFERENT number (new/researching/ready_for_approval, i.e. everything
+ * before release), and its BOL count uses new/needs_review/ready. Close, not
+ * equal. See the report.
+ */
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   await requireCrmAdmin();
-  const supabase = await createCrmServerClient();
-
-  // OTR's tab badge — its own new/ready-for-approval funnel.
-  const { count: otrNeedsAttention } = await supabase
-    .from("crm_otr_entries")
-    .select("id", { count: "exact", head: true })
-    .in("status", ["new", "ready_for_approval"])
-    .is("deleted_at", null);
-
-  // BOL Center's tab badge — new or explicitly flagged rows in the review
-  // queue; 'ready' isn't included here since it's a normal, expected resting
-  // state (both sides resolved), not something needing the admin's attention.
-  const { count: bolNeedsAttention } = await supabase
-    .from("crm_bol_entries")
-    .select("id", { count: "exact", head: true })
-    .in("status", ["new", "needs_review"])
-    .is("deleted_at", null);
 
   return (
     // No title/subtitle: the tab row IS the section header, and the heading
@@ -39,7 +33,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     // renders nothing at all when both are omitted, so the tabs sit at the
     // top of the content area with the shell's normal padding.
     <PageShell>
-      <AdminTabs otrNeedsAttention={otrNeedsAttention ?? 0} bolNeedsAttention={bolNeedsAttention ?? 0} />
+      <AdminTabs />
       {children}
     </PageShell>
   );
