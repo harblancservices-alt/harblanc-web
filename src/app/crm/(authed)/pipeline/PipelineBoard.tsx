@@ -12,19 +12,42 @@ import {
 } from "../accounts/lifecycle";
 import { updateLifecycleStatus } from "../accounts/actions";
 import { StageReasonDialog } from "../accounts/StageReasonDialog";
-import { splitPipeline, isRealStageMove, isStage, type PipelineCard } from "./pipeline";
+import { buildPipeline, isRealStageMove, isStage, type PipelineCard } from "./pipeline";
 
 /**
  * Workspace → Pipeline — the agent's book of business as a funnel.
  *
- * OPTION B (Brent, 2026-08-26): a column only for stages that have something
- * in them, and one tile at the end naming the ones that do not.
+ * ALL TEN STAGES, IN LINE (Brent, 2026-08-26: "show the stages in line").
  *
- * What that replaced: ten fixed columns, which needed volume spread across
- * ten stages to make sense. With four companies all at New Lead it drew one
- * real column and nine slivers of rotated vertical text across a dead screen.
- * The rotated text was the symptom of forcing ten columns into a narrow page;
- * it cannot happen here because nothing renders a column it has no room for.
+ * Every stage gets a real column, always, left to right in funnel order, with
+ * a horizontal readable label and its count — including zero. An empty stage
+ * is a normal empty column, not a rail and not a footnote.
+ *
+ * THIS REPLACED TWO EARLIER ATTEMPTS, and the reason is worth keeping:
+ *
+ *   - The first drew ten fixed columns and COLLAPSED the empty ones to 44px
+ *     rails with `writingMode: vertical-rl`. Nine slivers of rotated text.
+ *   - The second (option B) rendered only the populated stages and put the
+ *     rest behind a "+ 9 more stages" tile. Readable, but you could not drag
+ *     into a stage that was not on screen, and the funnel stopped looking
+ *     like a funnel.
+ *
+ * ROTATED TEXT IS NOW IMPOSSIBLE, not merely avoided: nothing in this file
+ * sets a writing mode, and the columns are `shrink-0`, so they cannot be
+ * squeezed to the width that made rotation seem necessary. When ten columns
+ * do not fit, the ROW SCROLLS — a readable row you scroll beats ten
+ * unreadable slivers.
+ *
+ * COLUMN WIDTH IS A MEASURED CHOICE, not a guess — and the first guess was
+ * wrong. 14rem columns came to 2312px against a scroller measured at 2276px
+ * on Brent's screen: a 36px overflow, which is the worst possible amount. It
+ * buys nothing and costs a scrollbar plus a clipped last column.
+ *
+ * 13.5rem × 10 + nine 8px gaps = 2232px, which fits his 2276px with room to
+ * spare. Losing 8px a column to fit all ten on screen is a good trade;
+ * shrinking them far enough to need rotated labels would not be, which is
+ * where the line sits. On anything narrower the row scrolls, and that is
+ * fine — a readable row you scroll beats ten unreadable slivers.
  *
  * THE WRITE IS THE EXISTING ONE. Moving a card calls
  * accounts/actions.ts::updateLifecycleStatus, the same action the company
@@ -47,7 +70,7 @@ export function PipelineBoard({
 }) {
   const router = useRouter();
   const at = new Date(now);
-  const { columns, emptyStages } = splitPipeline(cards);
+  const columns = buildPipeline(cards);
 
   const [dragging, setDragging] = useState<string | null>(null);
   const [over, setOver] = useState<LifecycleStage | null>(null);
@@ -127,12 +150,8 @@ export function PipelineBoard({
         </p>
       )}
 
-      {/* Columns size to the space and sit LEFT, they do not stretch to fill
-          it. One populated column spread across a 2500px screen would be
-          worse than the problem being fixed — so each is a comfortable
-          reading width and the row simply ends where the stages do. */}
       <div className="min-h-0 flex-1 overflow-x-auto pb-1">
-        <div className="flex h-full min-h-[20rem] items-stretch gap-3">
+        <div className="flex h-full min-h-[20rem] items-stretch gap-2">
           {columns.map((col) => (
             <section
               key={col.stage}
@@ -149,20 +168,39 @@ export function PipelineBoard({
                 if (id && isStage(col.stage)) move(id, col.stage);
               }}
               aria-label={`${LIFECYCLE_LABEL[col.stage]}, ${col.cards.length} companies`}
-              className={`flex w-[19rem] shrink-0 flex-col rounded-lg border transition-colors ${
+              className={`flex w-[13.5rem] shrink-0 flex-col rounded-lg border transition-colors ${
                 over === col.stage ? "border-accent bg-accent-bg" : "border-line-strong bg-inset"
               }`}
             >
-              <header className="flex items-center gap-2 px-3 py-2.5">
+              {/* Horizontal label, always. `truncate` rather than any kind of
+                  rotation or wrapping — a clipped name still reads left to
+                  right, and the column has a title attribute for the full
+                  one. The count shows at zero too: "nothing is Quoting" is
+                  information. */}
+              <header className="flex items-center gap-1.5 px-2.5 py-2.5">
                 <span
-                  className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${LIFECYCLE_TONE[col.stage]}`}
+                  title={LIFECYCLE_LABEL[col.stage]}
+                  className={`min-w-0 truncate rounded-full px-2 py-0.5 text-[11px] font-semibold ${LIFECYCLE_TONE[col.stage]}`}
                 >
                   {LIFECYCLE_LABEL[col.stage]}
                 </span>
-                <span className="text-[13px] font-bold text-fg">{col.cards.length}</span>
+                <span
+                  className={`ml-auto shrink-0 text-[13px] font-bold ${
+                    col.cards.length === 0 ? "text-fg-subtle" : "text-fg"
+                  }`}
+                >
+                  {col.cards.length}
+                </span>
               </header>
 
               <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-2 pb-2">
+                {/* A quiet empty state, not a shout. The column still accepts
+                    a drop — which is the thing option B could not do. */}
+                {col.cards.length === 0 && (
+                  <p className="px-1 py-4 text-center text-[11.5px] text-fg-subtle">
+                    Drop here
+                  </p>
+                )}
                 {col.cards.map((card) => (
                   <CompanyCard
                     key={card.id}
@@ -182,39 +220,12 @@ export function PipelineBoard({
             </section>
           ))}
 
-          {/* THE STAGES WITH NOTHING IN THEM — one tile, named, at the end.
-              Not hidden: a stage you cannot see is a stage you assume is
-              gone, and a company can still be moved into any of these from
-              a card's own control. Not a drop target either, deliberately —
-              a single tile standing for seven stages cannot say WHICH one a
-              drop meant. */}
-          {emptyStages.length > 0 && (
-            <aside
-              aria-label={`${emptyStages.length} stages with no companies`}
-              className="flex w-[13rem] shrink-0 flex-col rounded-lg border border-dashed border-line-strong bg-inset/50 px-3 py-2.5"
-            >
-              <p className="text-[12.5px] font-bold text-fg-muted">
-                + {emptyStages.length} more {emptyStages.length === 1 ? "stage" : "stages"}
-              </p>
-              <p className="mt-0.5 text-[11px] text-fg-subtle">nothing here yet</p>
-              <ul className="mt-2 flex flex-col gap-0.5">
-                {emptyStages.map((s) => (
-                  <li key={s} className="truncate text-[11.5px] text-fg-subtle">
-                    {LIFECYCLE_LABEL[s]}
-                  </li>
-                ))}
-              </ul>
-              <p className="mt-auto pt-2 text-[11px] leading-snug text-fg-subtle">
-                Use a card&rsquo;s Move control to send a company to one of these.
-              </p>
-            </aside>
-          )}
         </div>
       </div>
 
       <p className="text-[12px] text-fg-subtle">
         Drag a company to another column to move its stage · coldest sits at the top of each
-        column · stages with nothing in them are listed at the end.
+        column · use a card&rsquo;s Move control if you would rather not drag.
       </p>
 
       <StageReasonDialog
