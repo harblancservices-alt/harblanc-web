@@ -287,6 +287,18 @@ export default async function CompaniesPage({
               title="No companies match"
               body="Try a different search or clear the filters to see every company."
             />
+          ) : visibility.restricted ? (
+            /* NOT the same empty as "the org has none" (2026-08-25). A
+               restricted caller with nothing assigned to them was being told
+               "No companies yet — companies come in through the BOL and
+               prospect workflow", which reads as "the database is empty" when
+               in fact 60 companies exist and none are theirs. Say which it
+               actually is, and where the ones they can't see live. */
+            <EmptyState
+              icon={<IconCompanies />}
+              title="Nothing assigned to you yet"
+              body="This list only shows companies you own. An admin assigns them from Admin → Companies."
+            />
           ) : (
             <EmptyState
               icon={<IconCompanies />}
