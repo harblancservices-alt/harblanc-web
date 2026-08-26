@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { requireCrmUser, createCrmServerClient } from "@/lib/crm/auth";
 import { CRM_ACTIVITY } from "@/lib/crm/activity";
-import { PageShell, Card, CardHead } from "../../_shell/ui";
+import { PageShell } from "../../_shell/ui";
 import { firstName, titleCaseWords, formatDate, formatDateTime } from "../../_shell/format";
 import { parsePhones, parseLinks } from "../../_shell/contactFields";
 import { RoleControl } from "../../accounts/[id]/RoleControl";
@@ -11,6 +11,7 @@ import { TaskRow, type CrmTaskItem } from "../../tasks/TaskRow";
 import { callOutcomeLabel } from "../../calls/outcomes";
 import type { RepOption } from "../../accounts/CompanyDialog";
 import { NotesTab, type CrmNoteItem } from "../../accounts/[id]/NotesTab";
+import { ProfileSection } from "../../accounts/[id]/desktop/ProfileSection";
 import { ContactHeader } from "./ContactHeader";
 import { AddTaskButton } from "./ContactProfileActions";
 import { ContactHistorySection, type CrmContactHistoryItem } from "./ContactHistorySection";
@@ -245,108 +246,115 @@ export default async function ContactProfilePage({
           canDelete={isOwner}
         />
 
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[300px_1fr] lg:items-start">
-          {/* Left — contact facts, matching crm-design's "Contact info" card slot. */}
-          <div className="flex flex-col gap-4">
-            <Card>
-              <CardHead title="Role" />
-              <div className="p-4">
-                <RoleControl contactId={contact.id as string} accountId={accountId} current={contact.role_category as string | null} />
-              </div>
-            </Card>
+        {/* ONE SCROLL, SAME LANGUAGE AS THE COMPANY PROFILE (2026-08-26).
+            This was a 300px left rail of small cards beside a wide right
+            column. Two of the rail's three cards were a whole card each for a
+            single control: Role, set on 6 of 63 contacts, and Current Mood,
+            set on ZERO of 63. "Best time to call" is 0 of 63 too.
 
-            <Card>
-              <CardHead title="Current Mood" />
-              <div className="p-4">
-                <MoodControl contactId={contact.id as string} accountId={accountId} current={contact.current_mood as string | null} />
-              </div>
-            </Card>
+            Same three states as accounts/[id] — always open, collapsed,
+            absent — so the two pages read as a family. */}
 
-            {hasDetails && (
-              <Card>
-                <CardHead title="Details" />
-                <dl className="divide-y divide-line">
-                  {contact.best_time_to_call && (
-                    <div className="flex items-center justify-between gap-3 px-3.5 py-2.5">
-                      <dt className="text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">Best time to call</dt>
-                      <dd className="truncate text-[12.5px] font-medium text-fg">{contact.best_time_to_call as string}</dd>
-                    </div>
-                  )}
-                  {contact.next_followup_at && (
-                    <div className="flex items-center justify-between gap-3 px-3.5 py-2.5">
-                      <dt className="text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">Next follow-up</dt>
-                      <dd className="truncate text-[12.5px] font-medium text-fg">{formatDateTime(contact.next_followup_at as string)}</dd>
-                    </div>
-                  )}
-                  {contact.last_contacted_at && (
-                    <div className="flex items-center justify-between gap-3 px-3.5 py-2.5">
-                      <dt className="text-[11px] font-semibold uppercase tracking-[0.1em] text-fg-subtle">Last contacted</dt>
-                      <dd className="truncate text-[12.5px] font-medium text-fg">{formatDate(contact.last_contacted_at as string)}</dd>
-                    </div>
-                  )}
-                </dl>
-              </Card>
+        {/* ── ALWAYS OPEN ────────────────────────────────────────────── */}
+        <section className="rounded-lg border border-line-strong bg-card shadow-e1">
+          <div className="flex flex-wrap items-center gap-2 border-b border-line px-4 py-2.5">
+            <span className="text-[13px] font-bold tracking-tight text-fg">Tasks</span>
+            {openTasks.length > 0 && (
+              <span className="text-[12px] font-semibold text-fg-subtle">{openTasks.length} open</span>
             )}
-          </div>
-
-          {/* Right — activity, matching crm-design's "Activity history" card slot
-              (widened here to also hold Tasks/Notes, real sections the prototype's
-              simpler mock doesn't have). */}
-          <div className="flex flex-col gap-4">
-            <Card>
-              <CardHead
-                title="Tasks"
-                hint={openTasks.length ? `${openTasks.length} open` : undefined}
-                right={
-                  <AddTaskButton
-                    accountId={accountId}
-                    contactOptions={contactOptions}
-                    reps={reps}
-                    canAssignOthers={isOwner}
-                    currentUser={currentUser}
-                    defaultContactId={contact.id as string}
-                  />
-                }
+            <span className="ml-auto">
+              <AddTaskButton
+                accountId={accountId}
+                contactOptions={contactOptions}
+                reps={reps}
+                canAssignOthers={isOwner}
+                currentUser={currentUser}
+                defaultContactId={contact.id as string}
               />
-              {tasks.length === 0 ? (
-                <p className="px-5 py-6 text-center text-[13px] text-fg-muted">No tasks tied to {contactName} yet.</p>
-              ) : (
-                <>
-                  <ul className="grid grid-cols-1 items-start gap-2 p-2.5 sm:grid-cols-2">
-                    {openTasks.map((t) => (
+            </span>
+          </div>
+          {tasks.length === 0 ? (
+            <p className="px-5 py-6 text-center text-[13px] text-fg-muted">
+              No tasks tied to {contactName} yet.
+            </p>
+          ) : (
+            <>
+              <ul className="flex flex-col gap-2 p-2.5">
+                {openTasks.map((t) => (
+                  <TaskRow key={t.id} task={t} accountId={accountId ?? undefined} reps={reps} contacts={contactOptions} canAssignOthers={isOwner} currentUser={currentUser} />
+                ))}
+              </ul>
+              {doneTasks.length > 0 && (
+                <details className="border-t border-line-strong">
+                  <summary className="cursor-pointer list-none px-4 py-2 text-[12px] font-semibold text-fg-subtle transition-colors hover:text-fg">
+                    {doneTasks.length} completed
+                  </summary>
+                  <ul className="flex flex-col gap-2 border-t border-line-strong p-2.5">
+                    {doneTasks.map((t) => (
                       <TaskRow key={t.id} task={t} accountId={accountId ?? undefined} reps={reps} contacts={contactOptions} canAssignOthers={isOwner} currentUser={currentUser} />
                     ))}
                   </ul>
-                  {doneTasks.length > 0 && (
-                    <details className="border-t border-line-strong">
-                      <summary className="cursor-pointer list-none px-4 py-2 text-[12px] font-semibold text-fg-subtle transition-colors hover:text-fg">
-                        {doneTasks.length} completed
-                      </summary>
-                      <ul className="grid grid-cols-1 items-start gap-2 border-t border-line-strong p-2.5 sm:grid-cols-2">
-                        {doneTasks.map((t) => (
-                          <TaskRow key={t.id} task={t} accountId={accountId ?? undefined} reps={reps} contacts={contactOptions} canAssignOthers={isOwner} currentUser={currentUser} />
-                        ))}
-                      </ul>
-                    </details>
-                  )}
-                </>
+                </details>
               )}
-            </Card>
+            </>
+          )}
+        </section>
 
-            <ContactHistorySection accountId={accountId} items={historyItems} />
+        <ContactHistorySection accountId={accountId} items={historyItems} />
 
-            <Card>
-              <CardHead title="Notes" hint={humanNotes.length ? `${humanNotes.length} on file` : undefined} />
-              <NotesTab
-                accountId={accountId}
-                contactId={contact.id as string}
-                contactName={contactName}
-                notes={humanNotes}
-                currentUser={currentUser}
-              />
-            </Card>
+        {/* ── COLLAPSED ──────────────────────────────────────────────── */}
+        <ProfileSection title="Notes" count={humanNotes.length ? String(humanNotes.length) : null}>
+          <NotesTab
+            accountId={accountId}
+            contactId={contact.id as string}
+            contactName={contactName}
+            notes={humanNotes}
+            currentUser={currentUser}
+          />
+        </ProfileSection>
+
+        {/* Role and mood share one section. They are CONTROLS, not readouts,
+            so they cannot simply vanish when unset — you would never be able
+            to set them. But between them they are filled on 6 of 63 contacts,
+            which does not earn two cards at the top of the page. */}
+        <ProfileSection title="Role &amp; mood" count={contact.role_category ? "set" : null}>
+          <div className="flex flex-col gap-4">
+            <div>
+              <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.07em] text-fg-subtle">Role</p>
+              <RoleControl contactId={contact.id as string} accountId={accountId} current={contact.role_category as string | null} />
+            </div>
+            <div>
+              <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.07em] text-fg-subtle">Current mood</p>
+              <MoodControl contactId={contact.id as string} accountId={accountId} current={contact.current_mood as string | null} />
+            </div>
           </div>
-        </div>
+        </ProfileSection>
+
+        {/* ── ABSENT WHEN EMPTY ──────────────────────────────────────── */}
+        {hasDetails && (
+          <ProfileSection title="Details">
+            <dl className="grid grid-cols-[auto_1fr] gap-x-5 gap-y-1.5">
+              {contact.best_time_to_call ? (
+                <div className="contents">
+                  <dt className="text-[11px] font-bold uppercase tracking-[0.07em] text-fg-subtle">Best time to call</dt>
+                  <dd className="text-[12.5px] text-fg">{contact.best_time_to_call as string}</dd>
+                </div>
+              ) : null}
+              {contact.next_followup_at ? (
+                <div className="contents">
+                  <dt className="text-[11px] font-bold uppercase tracking-[0.07em] text-fg-subtle">Next follow-up</dt>
+                  <dd className="text-[12.5px] text-fg">{formatDateTime(contact.next_followup_at as string)}</dd>
+                </div>
+              ) : null}
+              {contact.last_contacted_at ? (
+                <div className="contents">
+                  <dt className="text-[11px] font-bold uppercase tracking-[0.07em] text-fg-subtle">Last contacted</dt>
+                  <dd className="text-[12.5px] text-fg">{formatDate(contact.last_contacted_at as string)}</dd>
+                </div>
+              ) : null}
+            </dl>
+          </ProfileSection>
+        )}
       </div>
     </PageShell>
   );
