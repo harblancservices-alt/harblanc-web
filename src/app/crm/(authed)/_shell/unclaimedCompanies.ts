@@ -23,19 +23,24 @@
  * the column is plain nullable text with no constraint. Anything keyed on it
  * was always going to drift.
  *
- * Consumers that must stay in lockstep with this file:
- *   - ./page.tsx                    the claim queue itself
- *   - ./actions.ts                  claimAiLead's update guard
- *   - ../layout.tsx                 the nav's unclaimed badge count
- *   - ../page.tsx                   isClaimableNewLead (dashboard Claim pill)
- *   - ../accounts/page.tsx          the Companies list (via the helper below)
+ * WHERE THIS LIVES, AND WHY IT MOVED (2026-08-26). This was ai-agent/queue.ts,
+ * next to the Prospects claim queue that owned the idea. That page is gone —
+ * the claim model was retired on 2026-08-25 (agents no longer pick work out of
+ * a shared pool, an admin assigns it) and its route came out today. The RULE
+ * outlived the page: released-but-unassigned companies still exist, they are
+ * exactly what sits in Admin -> Overview's assign pool, and the Companies
+ * roster still has to keep them out of an agent's book until somebody owns
+ * them. So the predicate moved here rather than dying with its old home.
+ *
+ * Its one remaining consumer is ../accounts/page.tsx (the Companies list),
+ * which yields to an explicit "show unassigned" grant on the profile.
  */
 
 /**
  * The COMPLEMENT of the gate, as a PostgREST `or=` filter: keep a row unless
- * it is a released, still-unclaimed prospect. Claiming a company is what
- * makes it appear in the Companies roster; until then it lives only in the
- * claim queue.
+ * it is a released, still-unassigned company. Being ASSIGNED is what makes a
+ * company appear in the roster; until then it lives only in Admin ->
+ * Overview's pool, waiting to be handed to someone.
  *
  * Written as a NEGATED OR rather than `.not()` calls because PostgREST ANDs
  * top-level filters, and we need NOT(ai_status='released' AND

@@ -6,37 +6,33 @@ import { useRouter } from "next/navigation";
 import { Card, BTN_PRIMARY, BTN_NEUTRAL, BTN_EDIT } from "../_shell/ui";
 import { FormError } from "../_shell/form";
 import { CONTROL, CONTROL_SIZE, LABEL } from "../_shell/compactForm";
-import { SegmentedTabs } from "../_shell/SegmentedTabs";
 import { titleCaseWords } from "../_shell/format";
 import { assignWork, sendTask } from "./assign-actions";
 import { isDuplicateQuickTask, normalizeQuickTask } from "./quickTasks";
 import { addQuickTask, removeQuickTask, type QuickTask } from "./quick-task-actions";
 import type { TeamMember, ComposerContact } from "./assign-data";
 import {
-  ASSIGN_FALLBACK_NOTE,
-  countBySource,
   itemHref,
-  itemKey,
-  itemOpenLabel,
-  matchesFilter,
-  partitionBySource,
   sortByLongestWaiting,
   splitEvenly,
-  SOURCE_LABEL,
-  SOURCE_TONE,
   waitingLabel,
   waitingUrgency,
-  WORK_FILTERS,
-  type WorkFilterKey,
   type WorkItem,
 } from "./workItem";
+import { AddCompanyButton } from "./AddCompanyButton";
 
 /**
  * Admin → Overview. ONE job: handing work out.
  *
- * Left, everything in the org that nobody owns, pooled across three tables
- * and sorted longest-waiting first. Right, the people it can go to. Below
- * that, a composer for the small asks that aren't a whole company.
+ * Left, every company in the org that nobody owns, sorted longest-waiting
+ * first. Right, the people it can go to. Below that, a composer for the small
+ * asks that aren't a whole company.
+ *
+ * The left list used to pool three tables and carry a filter tab per source
+ * (Prospects / OTR / BOL Center), a provenance badge on every row and a
+ * warning that some selections could only become a task. All of that went on
+ * 2026-08-26 when OTR and BOL Center were retired: the pool is one kind of
+ * thing now, and a filter with a single option is furniture.
  *
  * There is deliberately no metric tile, no activity feed and no per-person
  * performance number on this page. The only number attached to a person is
@@ -59,7 +55,6 @@ export function AssignBoard({
   quickTasks: QuickTask[];
 }) {
   const router = useRouter();
-  const [filter, setFilter] = useState<WorkFilterKey>("all");
   /**
    * TWO MODES. Default is BROWSE: no checkbox exists anywhere, the whole row
    * opens the item so an admin can look before deciding. SELECT mode reveals
@@ -75,11 +70,9 @@ export function AssignBoard({
   const [notice, setNotice] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
-  const sorted = useMemo(() => sortByLongestWaiting(items), [items]);
-  const counts = useMemo(() => countBySource(items), [items]);
-  const visible = useMemo(() => sorted.filter((i) => matchesFilter(i, filter)), [sorted, filter]);
+  const visible = useMemo(() => sortByLongestWaiting(items), [items]);
 
-  const visibleKeys = visible.map(itemKey);
+  const visibleKeys = visible.map((i) => i.id);
   const allVisibleSelected = visibleKeys.length > 0 && visibleKeys.every((k) => selected.has(k));
 
   /** Leaving select mode always clears the selection — an invisible pending
@@ -102,9 +95,7 @@ export function AssignBoard({
     });
   }
 
-  /** Select-all applies to what's ON SCREEN, not the whole pool — ticking a
-   * header box while a filter is active must never quietly select rows the
-   * filter is hiding. */
+  /** Select-all applies to what's ON SCREEN. */
   function toggleAllVisible() {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -114,7 +105,6 @@ export function AssignBoard({
     });
   }
 
-  const { ownable, taskOnly } = partitionBySource(items, selected);
   const selectedCount = selected.size;
 
   function describe(claimed: number, tasked: number): string {
@@ -197,19 +187,11 @@ export function AssignBoard({
         </div>
 
         <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-3">
-          <SegmentedTabs
-            ariaLabel="Work source"
-            items={WORK_FILTERS.map((f) => ({
-              key: f.key,
-              label: f.label,
-              active: filter === f.key,
-              onSelect: () => setFilter(f.key),
-              count: counts[f.key],
-              // "All" aggregates the others rather than owning work, so it
-              // never carries a dot; the per-source tabs do, when non-zero.
-              countNeedsAttention: f.key !== "all",
-            }))}
-          />
+          {/* "Add company" lives here because this is where the pool lives.
+              It was the OTR page's "Add entry" button until that page was
+              retired; the dialog is the same one, and what it writes is now a
+              real unassigned company rather than a queue entry. */}
+          <AddCompanyButton />
           <div className="flex flex-wrap items-center gap-3">
             <p className="text-[12px] text-fg-subtle">Sorted by longest waiting</p>
             <button
@@ -227,11 +209,7 @@ export function AssignBoard({
         {visible.length === 0 ? (
           <div className="px-4 pb-8 pt-4 text-center">
             <p className="text-[13.5px] font-semibold text-fg">Nothing waiting here</p>
-            <p className="mt-0.5 text-[12.5px] text-fg-muted">
-              {filter === "all"
-                ? "Everything in the org has an owner."
-                : `No ${SOURCE_LABEL[filter as Exclude<WorkFilterKey, "all">]} items need attention right now.`}
-            </p>
+            <p className="mt-0.5 text-[12.5px] text-fg-muted">Every company in the org has an owner.</p>
           </div>
         ) : (
           <div className="min-h-0 flex-1 overflow-auto">
@@ -258,7 +236,6 @@ export function AssignBoard({
                     )}
                   </th>
                   <th className="px-2 py-2 text-left">Company</th>
-                  <th className="px-2 py-2 text-left">Type</th>
                   <th className="px-2 py-2 text-left">What it needs</th>
                   <th className="px-2 py-2 text-left">Waiting</th>
                   {/* Reserved in BOTH modes, like the gutter. The column count
@@ -270,7 +247,7 @@ export function AssignBoard({
               </thead>
               <tbody>
                 {visible.map((item) => {
-                  const key = itemKey(item);
+                  const key = item.id;
                   const checked = selected.has(key);
                   const urgency = waitingUrgency(item.waitingSince, now);
                   const href = itemHref(item);
@@ -308,13 +285,6 @@ export function AssignBoard({
                           </p>
                         )}
                       </td>
-                      <td className="px-2 py-2.5">
-                        <span
-                          className={`inline-flex rounded-[4px] border px-1.5 py-0.5 text-[11px] font-semibold ${SOURCE_TONE[item.source]}`}
-                        >
-                          {SOURCE_LABEL[item.source]}
-                        </span>
-                      </td>
                       <td className="px-2 py-2.5 text-[12.5px] text-fg-muted">{item.needs}</td>
                       <td
                         className={`px-2 py-2.5 text-[12.5px] font-semibold ${
@@ -337,7 +307,7 @@ export function AssignBoard({
                             prefetch={false}
                             className="invisible whitespace-nowrap text-[12px] font-semibold text-accent underline-offset-2 hover:underline group-hover:visible"
                           >
-                            {itemOpenLabel(item.source)} &rsaquo;
+                            View company &rsaquo;
                           </Link>
                         )}
                       </td>
@@ -458,15 +428,6 @@ export function AssignBoard({
               })}
             </ul>
           )}
-
-          {taskOnly.length > 0 && (
-            <p className="border-t border-line bg-inset px-4 py-2 text-[11.5px] text-fg-muted">
-              {ownable.length > 0
-                ? `${ownable.length} of these can be owned outright. `
-                : "None of these can be owned outright. "}
-              {ASSIGN_FALLBACK_NOTE}
-            </p>
-          )}
         </Card>
 
         <TaskComposer team={team} items={items} contacts={contacts} quickTasks={quickTasks} />
@@ -528,8 +489,10 @@ function TaskComposer({
 
   const companies = useMemo(
     () =>
+      // Every pooled item is a company now, so there is nothing to filter
+      // out — this used to drop the OTR and BOL rows, which had no
+      // crm_accounts id to point a task at.
       items
-        .filter((i) => i.source === "prospect")
         .map((i) => ({ id: i.id, name: titleCaseWords(i.company) }))
         .sort((a, b) => a.name.localeCompare(b.name)),
     [items],

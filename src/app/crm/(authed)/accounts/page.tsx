@@ -11,7 +11,7 @@ import type { RepOption } from "./CompanyDialog";
 import type { CrmTag } from "./tags";
 import { AddContactDialog } from "../contacts/AddContactDialog";
 import type { CompanyOption } from "../contacts/CompanyCombobox";
-import { excludeUnclaimedProspects } from "../ai-agent/queue";
+import { excludeUnclaimedProspects } from "../_shell/unclaimedCompanies";
 import { contactCountByAccount } from "@/lib/crm/contactCount";
 import { lastContactByAccount } from "@/lib/crm/lastContact";
 
@@ -135,14 +135,14 @@ export default async function CompaniesPage({
     // would silently hide every ordinary company.
     .or("ai_status.is.null,ai_status.neq.pending_review");
 
-  // Released-but-unclaimed prospects live in the claim queue (/crm/ai-agent)
-  // only — claiming one is what surfaces it here. Exact complement of that
-  // queue's predicate; see excludeUnclaimedProspects' comment for why it's a
+  // Released-but-unassigned companies live in Admin -> Overview's assign pool
+  // only — being assigned is what surfaces one here. Exact complement of that
+  // pool's predicate; see excludeUnclaimedProspects' comment for why it's a
   // negated OR ("Unassigned" in the rep filter below still works for
   // never-released companies).
   // YIELDS to an explicit "Show unassigned" grant. This exclusion hides
-  // released-but-unclaimed prospects from the roster (they used to live only
-  // in the claim queue). Someone whose profile says they may see the unowned
+  // released-but-unassigned companies from the roster (they live in the
+  // assign pool). Someone whose profile says they may see the unowned
   // pile has been given exactly those rows on purpose, so silently keeping 17
   // of them back would make the flag under-deliver against its own promise.
   // For everyone else it behaves exactly as before.

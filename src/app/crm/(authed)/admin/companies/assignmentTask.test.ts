@@ -10,10 +10,12 @@ describe("assignmentTaskSpec", () => {
     expect(assignmentTaskSpec("otr", "new_lead").title).toBe("Research and qualify this company");
   });
 
-  it("sends a BOL company to party matching", () => {
-    expect(assignmentTaskSpec("bol", "new_lead").title).toBe(
-      "Match the companies on this bill of lading",
-    );
+  it("treats a BOL company as ordinary now that BOL Center is retired", () => {
+    // Was "Match the companies on this bill of lading", which pointed the
+    // agent at a page deleted on 2026-08-26. Provenance is still reported in
+    // the Source column; it just no longer implies a task.
+    expect(assignmentTaskSpec("bol", "new_lead").title).toBe("Make first contact");
+    expect(assignmentTaskSpec("bol", "contacted").title).toBe("Follow up with this company");
   });
 
   it("asks for first contact on an untouched company", () => {
@@ -30,7 +32,7 @@ describe("assignmentTaskSpec", () => {
     expect(assignmentTaskSpec("otr", "contacted").title).toBe("Research and qualify this company");
   });
 
-  it("treats free-typed source as ordinary, not as OTR or BOL", () => {
+  it("treats free-typed source as ordinary, not as OTR", () => {
     expect(assignmentTaskSpec("Cold Call", "new_lead").title).toBe("Make first contact");
     expect(assignmentTaskSpec("Kermit Layman", "new_lead").title).toBe("Make first contact");
   });
@@ -71,7 +73,7 @@ describe("batchTaskSpec", () => {
     expect(
       batchTaskSpec([
         { source: "otr", stage: "new_lead" },
-        { source: "bol", stage: "new_lead" },
+        { source: "manual", stage: "new_lead" },
       ]).title,
     ).toBe("Make first contact");
   });

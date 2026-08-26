@@ -30,10 +30,6 @@ const RESEARCH: AssignmentTaskSpec = {
   title: "Research and qualify this company",
   taskType: "Research prospect",
 };
-const MATCH_BOL: AssignmentTaskSpec = {
-  title: "Match the companies on this bill of lading",
-  taskType: "Research prospect",
-};
 const FOLLOW_UP: AssignmentTaskSpec = {
   title: "Follow up with this company",
   taskType: "Follow-up call",
@@ -48,18 +44,24 @@ const FIRST_CONTACT: AssignmentTaskSpec = {
  * already exist:
  *
  *   OTR      — a name someone gave over the phone; it needs researching.
- *   BOL      — came off a bill of lading; its parties need matching.
  *   moved on — already contacted/quoting/researching, so the next act is a
  *              follow-up, not a first call.
  *   else     — nobody has spoken to them yet.
+ *
+ * BOL used to be its own case ("Match the companies on this bill of lading"),
+ * pointing the agent at BOL Center. That page was retired on 2026-08-26 —
+ * nothing in the app ever wrote crm_bol_entries — so the instruction named a
+ * screen that no longer exists. The 15 companies carrying source='bol' are
+ * ordinary companies whose provenance happens to be a bill of lading, and
+ * they now get the same stage-based task as anything else. sourceBucket still
+ * reports 'bol' for the Source column: where a company came from is still
+ * true, it just no longer implies a task.
  */
 export function assignmentTaskSpec(
   source: string | null | undefined,
   stage: string | null | undefined,
 ): AssignmentTaskSpec {
-  const bucket = sourceBucket(source);
-  if (bucket === "otr") return RESEARCH;
-  if (bucket === "bol") return MATCH_BOL;
+  if (sourceBucket(source) === "otr") return RESEARCH;
   return normalizeStage(stage) === "new_lead" ? FIRST_CONTACT : FOLLOW_UP;
 }
 

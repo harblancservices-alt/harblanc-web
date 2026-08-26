@@ -1,13 +1,26 @@
 /**
- * Admin → Overview's "work to assign" model — one pooled queue of everything
- * in the org that nobody owns yet, drawn from three different tables.
+ * Admin → Overview's "work to assign" model — every company in the org that
+ * nobody owns yet.
  *
  * A PLAIN module (no React, no DB), same contract as operations/loads/
  * loadRow.ts and shipments/readiness.ts: the server page builds WorkItem[]
  * from the existing data layer and hands it to a client component, and every
- * derivation in between — what it needs, how long it's waited, how a
- * selection splits across a team — is a pure function tested without a
- * browser.
+ * derivation in between — how long something has waited, how a selection
+ * splits across a team — is a pure function tested without a browser.
+ *
+ * ONE SOURCE, AS OF 2026-08-26. This used to pool three tables: unclaimed
+ * prospects, OTR entries and BOL entries. Both funnels are gone. An OTR entry
+ * now becomes an unassigned company the moment it is created (Brent's rule:
+ * deciding who to assign it to IS the review), and BOL Center was retired
+ * because nothing in the app ever wrote crm_bol_entries. What is left is one
+ * homogeneous list of crm_accounts rows, which is why WorkItem no longer
+ * carries a `source`, an `ownable` flag or a namespaced key: every row is a
+ * company, and every company can record its own owner.
+ *
+ * That deleted a lot from this file — source labels and tones, the filter
+ * tabs, per-source counting, the assign-fallback note and the partition
+ * helper that existed only to split a mixed selection. None of it had a
+ * second caller.
  *
  * NOT A DASHBOARD. There is no metric, no trend and no per-person
  * performance number anywhere in this module on purpose: the page hands work
@@ -15,14 +28,9 @@
  * load, and it exists to answer "who has room", not "who is doing well".
  */
 
-/** Which table an item came from. Provenance only — never control flow. */
-export type WorkSource = "prospect" | "otr" | "bol";
-
 export type WorkItem = {
-  /** The SOURCE ROW's id (crm_accounts.id, crm_otr_entries.id, …). Unique
-   * within a source but namespaced by `key` across the pooled list. */
+  /** crm_accounts.id. */
   id: string;
-  source: WorkSource;
   company: string;
   city: string | null;
   state: string | null;
@@ -30,102 +38,11 @@ export type WorkItem = {
   needs: string;
   /** ISO timestamp this item started waiting (its created_at). */
   waitingSince: string;
-  /**
-   * Can the SOURCE ROW itself record an owner?
-   *
-   * TRUE only for prospects: crm_accounts.assigned_user_id exists and is the
-   * CRM's real ownership mechanism. crm_otr_entries and crm_bol_entries have
-   * NO assignee column — see ASSIGN_FALLBACK_NOTE.
-   */
-  ownable: boolean;
 };
 
-/** Namespaced key for React lists and selection sets — two tables can (and
- * do) hand back the same uuid shape, and the pooled list mixes them. */
-export function itemKey(item: Pick<WorkItem, "source" | "id">): string {
-  return `${item.source}:${item.id}`;
-}
-
-export function parseItemKey(key: string): { source: WorkSource; id: string } {
-  const i = key.indexOf(":");
-  return { source: key.slice(0, i) as WorkSource, id: key.slice(i + 1) };
-}
-
-/**
- * Where "open this item" goes, per source. The three sources are genuinely
- * different kinds of record and only one of them is a company:
- *
- *   prospect — a real crm_accounts row (ai_status='released'), so it opens
- *              the company profile.
- *   bol      — crm_bol_entries has its own detail route in the BOL Center.
- *   otr      — an OTR entry is NOT a company. It has no crm_accounts row
- *              until it is RELEASED, and crm_otr_entries has no per-entry
- *              route either (admin/otr renders a single list of cards with no
- *              anchors to link to), so this lands on the OTR queue itself.
- *              That is the most specific destination that exists; inventing a
- *              deep link to a page that cannot receive one would just 404.
- */
-export function itemHref(item: Pick<WorkItem, "source" | "id">): string {
-  switch (item.source) {
-    case "prospect":
-      return `/crm/accounts/${item.id}`;
-    case "bol":
-      return `/crm/admin/bol-center/${item.id}`;
-    case "otr":
-      return "/crm/admin/otr";
-  }
-}
-
-/** The hover affordance's label. Never promises "company" for a record that
- * is not one — an OTR entry is a name someone said over the phone. */
-export function itemOpenLabel(source: WorkSource): string {
-  switch (source) {
-    case "prospect":
-      return "View company";
-    case "bol":
-      return "Open BOL entry";
-    case "otr":
-      return "Open in OTR";
-  }
-}
-
-export const SOURCE_LABEL: Record<WorkSource, string> = {
-  prospect: "Prospects",
-  otr: "OTR",
-  bol: "BOL Center",
-};
-
-/** Badge tone per source — outline pills, matching the mockup. */
-export const SOURCE_TONE: Record<WorkSource, string> = {
-  prospect: "border-accent/50 text-accent",
-  otr: "border-ok/60 text-ok",
-  bol: "border-warn/60 text-warn",
-};
-
-export const WORK_FILTERS = [
-  { key: "all", label: "All" },
-  { key: "prospect", label: "Prospects" },
-  { key: "otr", label: "OTR" },
-  { key: "bol", label: "BOL Center" },
-] as const;
-
-export type WorkFilterKey = (typeof WORK_FILTERS)[number]["key"];
-
-/**
- * Why an item is in the queue, in the words an agent would use.
- *
- * BOL entries carry counts because the work is per-party: one entry can name
- * a shipper, a consignee, a bill-to and a carrier, and any subset of those
- * may already be matched to a real company.
- */
-export function needsLabel(
-  source: WorkSource,
-  bol?: { unmatched: number; named: number },
-): string {
-  if (source === "prospect") return "Claim and start research";
-  if (source === "otr") return "Research, then release";
-  if (!bol || bol.named === 0) return "Match its companies";
-  return `Match ${bol.unmatched} of ${bol.named} companies`;
+/** Every item is a company now, so "open this" is always its profile. */
+export function itemHref(item: Pick<WorkItem, "id">): string {
+  return `/crm/accounts/${item.id}`;
 }
 
 const HOUR = 3_600_000;
@@ -179,17 +96,6 @@ export function sortByLongestWaiting(items: WorkItem[]): WorkItem[] {
   });
 }
 
-export function matchesFilter(item: WorkItem, filter: WorkFilterKey): boolean {
-  return filter === "all" || item.source === filter;
-}
-
-/** Live counts for the filter tabs, in one pass. */
-export function countBySource(items: WorkItem[]): Record<WorkFilterKey, number> {
-  const counts: Record<WorkFilterKey, number> = { all: items.length, prospect: 0, otr: 0, bol: 0 };
-  for (const item of items) counts[item.source] += 1;
-  return counts;
-}
-
 /**
  * Deal a selection round-robin across the team, longest-waiting first.
  *
@@ -200,35 +106,12 @@ export function countBySource(items: WorkItem[]): Record<WorkFilterKey, number> 
  *
  * Returns a map keyed by person id; a person who draws nothing is absent.
  */
-export function splitEvenly(keys: string[], personIds: string[]): Record<string, string[]> {
+export function splitEvenly(ids: string[], personIds: string[]): Record<string, string[]> {
   const out: Record<string, string[]> = {};
   if (personIds.length === 0) return out;
-  keys.forEach((key, i) => {
+  ids.forEach((id, i) => {
     const person = personIds[i % personIds.length];
-    (out[person] ??= []).push(key);
+    (out[person] ??= []).push(id);
   });
   return out;
-}
-
-/**
- * The honest sentence about what "Assign" does to a non-prospect.
- *
- * crm_otr_entries and crm_bol_entries have no assignee column, so there is
- * nowhere on those rows to record an owner. Rather than disable the action or
- * silently assign only part of a mixed selection, assigning one of them
- * creates a crm_task for that person — the closest mechanism that already
- * exists — so the work still lands in someone's queue and "Assign 4" is true
- * for all four. The UI says so; nothing here is implied.
- */
-export const ASSIGN_FALLBACK_NOTE =
-  "OTR and BOL Center rows have no owner field, so those become an assigned task instead.";
-
-/** Split a selection by what assigning it can actually do. */
-export function partitionBySource(items: WorkItem[], keys: Set<string>) {
-  const selected = items.filter((i) => keys.has(itemKey(i)));
-  return {
-    selected,
-    ownable: selected.filter((i) => i.ownable),
-    taskOnly: selected.filter((i) => !i.ownable),
-  };
 }

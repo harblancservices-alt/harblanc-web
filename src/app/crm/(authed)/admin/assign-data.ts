@@ -1,24 +1,19 @@
 import { createCrmServerClient, requireCrmUser } from "@/lib/crm/auth";
 import { initialsOf } from "../_shell/format";
-import { needsLabel, type WorkItem } from "./workItem";
+import { type WorkItem } from "./workItem";
 
 /**
- * Server-side reads for Admin → Overview's assignment board. Pooled from
- * three tables into ONE list of unowned work, plus the team and how loaded
- * each person is.
+ * Server-side reads for Admin → Overview's assignment board: every company
+ * nobody owns yet, plus the team and how loaded each person is.
  *
- * Every status vocabulary here is imported from the tab that owns it rather
- * than re-typed, so "what counts as open" can't drift between this page and
- * the BOL Center / OTR screens themselves.
+ * ONE QUERY, AS OF 2026-08-26. This used to pool three tables — unclaimed
+ * prospects, open OTR entries and unmatched BOL entries — each with its own
+ * status vocabulary imported from the screen that owned it. Both those
+ * funnels are gone: an OTR entry is now a company from the moment it is
+ * created, and BOL Center was retired because nothing in the app ever wrote
+ * crm_bol_entries. The pool is the same size it was; it is just made of one
+ * kind of thing now.
  */
-
-/** OTR entries still needing a human: everything before release, excluding
- * the ones already rejected. Matches OtrEntryCard's own `editable` rule
- * (status is neither "released" nor "rejected"). */
-const OTR_OPEN_STATUSES = ["new", "researching", "ready_for_approval"] as const;
-
-/** BOL entries still needing matching — the same set BolTable calls OPEN. */
-const BOL_OPEN_STATUSES = ["new", "needs_review", "ready"] as const;
 
 export type TeamMember = {
   id: string;
@@ -64,29 +59,15 @@ export async function getAssignBoardData(): Promise<AssignBoardData> {
   const user = await requireCrmUser();
   const supabase = await createCrmServerClient();
 
-  const [prospectsRes, otrRes, bolRes, profilesRes, tasksRes, ownedRes, contactsRes] = await Promise.all([
-    // Unclaimed prospects — the CRM's existing gate, verbatim:
-    // ai_status = 'released' AND assigned_user_id IS NULL (see ai-agent/queue.ts).
+  const [prospectsRes, profilesRes, tasksRes, ownedRes, contactsRes] = await Promise.all([
+    // Unowned companies — the CRM's existing gate, verbatim:
+    // ai_status = 'released' AND assigned_user_id IS NULL.
     supabase
       .from("crm_accounts")
       .select("id, name, city, state, created_at")
       .is("deleted_at", null)
       .eq("ai_status", "released")
       .is("assigned_user_id", null),
-
-    supabase
-      .from("crm_otr_entries")
-      .select("id, company_name, city, state, created_at")
-      .is("deleted_at", null)
-      .in("status", OTR_OPEN_STATUSES as unknown as string[]),
-
-    supabase
-      .from("crm_bol_entries")
-      .select(
-        "id, shipper_name, consignee_name, bill_to, carrier, created_at, matched_shipper_account_id, matched_consignee_account_id, matched_bill_to_account_id, matched_carrier_account_id",
-      )
-      .is("deleted_at", null)
-      .in("status", BOL_OPEN_STATUSES as unknown as string[]),
 
     supabase
       .from("crm_profiles")
@@ -117,50 +98,14 @@ export async function getAssignBoardData(): Promise<AssignBoardData> {
   for (const row of prospectsRes.data ?? []) {
     items.push({
       id: row.id as string,
-      source: "prospect",
       company: (row.name as string) || "Unnamed company",
       city: (row.city as string | null) ?? null,
       state: (row.state as string | null) ?? null,
-      needs: needsLabel("prospect"),
+      // One sentence now that the list is homogeneous. It used to vary by
+      // source ("Research, then release" for OTR, a match count for BOL);
+      // every row is an unowned company, and what it needs is an owner.
+      needs: "Assign an owner",
       waitingSince: row.created_at as string,
-      ownable: true,
-    });
-  }
-
-  for (const row of otrRes.data ?? []) {
-    items.push({
-      id: row.id as string,
-      source: "otr",
-      company: (row.company_name as string) || "Unnamed company",
-      city: (row.city as string | null) ?? null,
-      state: (row.state as string | null) ?? null,
-      needs: needsLabel("otr"),
-      waitingSince: row.created_at as string,
-      ownable: false,
-    });
-  }
-
-  for (const row of bolRes.data ?? []) {
-    // A BOL entry's work is per-party: count the parties it NAMES, then how
-    // many of those still have no matched company.
-    const parties: [unknown, unknown][] = [
-      [row.shipper_name, row.matched_shipper_account_id],
-      [row.consignee_name, row.matched_consignee_account_id],
-      [row.bill_to, row.matched_bill_to_account_id],
-      [row.carrier, row.matched_carrier_account_id],
-    ];
-    const named = parties.filter(([name]) => typeof name === "string" && name.trim());
-    const unmatched = named.filter(([, matched]) => !matched).length;
-
-    items.push({
-      id: row.id as string,
-      source: "bol",
-      company: (row.shipper_name as string) || (row.consignee_name as string) || "Bill of lading",
-      city: null,
-      state: null,
-      needs: needsLabel("bol", { unmatched, named: named.length }),
-      waitingSince: row.created_at as string,
-      ownable: false,
     });
   }
 

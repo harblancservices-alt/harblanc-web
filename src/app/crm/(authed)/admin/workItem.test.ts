@@ -1,20 +1,22 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_QUICK_TASKS, isDuplicateQuickTask, normalizeQuickTask } from "./quickTasks";
 import {
-  countBySource,
   itemHref,
-  itemKey,
-  itemOpenLabel,
-  matchesFilter,
-  needsLabel,
-  parseItemKey,
-  partitionBySource,
   sortByLongestWaiting,
   splitEvenly,
   waitingLabel,
   waitingUrgency,
   type WorkItem,
 } from "./workItem";
+
+/**
+ * Trimmed on 2026-08-26 with the module it covers. The suites for itemKey /
+ * parseItemKey, itemOpenLabel, needsLabel, countBySource / matchesFilter and
+ * partitionBySource went because those functions went: the assign pool draws
+ * from one table now (unowned crm_accounts rows) instead of three, so there is
+ * no source to namespace a key by, label, count or partition a mixed selection
+ * against. What remains covers what survived.
+ */
 
 const NOW = Date.parse("2026-08-25T12:00:00Z");
 const ago = (ms: number) => new Date(NOW - ms).toISOString();
@@ -24,27 +26,18 @@ const DAY = 24 * HOUR;
 function item(over: Partial<WorkItem> = {}): WorkItem {
   return {
     id: "a1",
-    source: "prospect",
     company: "Core And Main",
     city: "Dallas",
     state: "TX",
-    needs: "Claim and start research",
+    needs: "Assign an owner",
     waitingSince: ago(2 * HOUR),
-    ownable: true,
     ...over,
   };
 }
 
-describe("itemKey / parseItemKey", () => {
-  it("namespaces an id by its source and round-trips", () => {
-    const k = itemKey({ source: "otr", id: "abc-123" });
-    expect(k).toBe("otr:abc-123");
-    expect(parseItemKey(k)).toEqual({ source: "otr", id: "abc-123" });
-  });
-
-  it("survives a uuid containing no colon and keeps the full id", () => {
-    const id = "f267e2a5-767a-4478-a34d-0622d9442172";
-    expect(parseItemKey(itemKey({ source: "bol", id })).id).toBe(id);
+describe("itemHref", () => {
+  it("points at the company profile — every pooled item is a company now", () => {
+    expect(itemHref({ id: "abc-123" })).toBe("/crm/accounts/abc-123");
   });
 });
 
@@ -67,47 +60,6 @@ describe("quick task helpers", () => {
   it("ships a default set with no duplicates", () => {
     const lower = DEFAULT_QUICK_TASKS.map((t) => t.toLowerCase());
     expect(new Set(lower).size).toBe(DEFAULT_QUICK_TASKS.length);
-  });
-});
-
-describe("itemHref / itemOpenLabel", () => {
-  it("sends a prospect to its company profile", () => {
-    expect(itemHref({ source: "prospect", id: "acc-1" })).toBe("/crm/accounts/acc-1");
-    expect(itemOpenLabel("prospect")).toBe("View company");
-  });
-
-  it("sends a BOL entry to its own detail route", () => {
-    expect(itemHref({ source: "bol", id: "bol-1" })).toBe("/crm/admin/bol-center/bol-1");
-    expect(itemOpenLabel("bol")).toBe("Open BOL entry");
-  });
-
-  it("sends an OTR entry to the OTR queue, not to a company", () => {
-    // An OTR entry has no crm_accounts row until it is released, and there is
-    // no per-entry route, so it must NOT be linked as if it were a company.
-    expect(itemHref({ source: "otr", id: "otr-1" })).toBe("/crm/admin/otr");
-    expect(itemOpenLabel("otr")).toBe("Open in OTR");
-    expect(itemOpenLabel("otr")).not.toContain("company");
-  });
-
-  it("never routes a non-prospect into /crm/accounts", () => {
-    expect(itemHref({ source: "otr", id: "x" })).not.toContain("/crm/accounts/");
-    expect(itemHref({ source: "bol", id: "x" })).not.toContain("/crm/accounts/");
-  });
-});
-
-describe("needsLabel", () => {
-  it("speaks plainly per source", () => {
-    expect(needsLabel("prospect")).toBe("Claim and start research");
-    expect(needsLabel("otr")).toBe("Research, then release");
-  });
-
-  it("counts the unmatched parties on a BOL entry", () => {
-    expect(needsLabel("bol", { unmatched: 2, named: 3 })).toBe("Match 2 of 3 companies");
-  });
-
-  it("falls back when a BOL entry names nobody", () => {
-    expect(needsLabel("bol", { unmatched: 0, named: 0 })).toBe("Match its companies");
-    expect(needsLabel("bol")).toBe("Match its companies");
   });
 });
 
@@ -171,28 +123,6 @@ describe("sortByLongestWaiting", () => {
   });
 });
 
-describe("countBySource / matchesFilter", () => {
-  const items = [
-    item({ id: "1", source: "prospect" }),
-    item({ id: "2", source: "prospect" }),
-    item({ id: "3", source: "otr" }),
-    item({ id: "4", source: "bol" }),
-  ];
-
-  it("counts every source plus the total", () => {
-    expect(countBySource(items)).toEqual({ all: 4, prospect: 2, otr: 1, bol: 1 });
-  });
-
-  it("reports zero for a source with no items", () => {
-    expect(countBySource([item({ source: "prospect" })])).toEqual({ all: 1, prospect: 1, otr: 0, bol: 0 });
-  });
-
-  it("filters by source, and 'all' keeps everything", () => {
-    expect(items.filter((i) => matchesFilter(i, "otr")).map((i) => i.id)).toEqual(["3"]);
-    expect(items.filter((i) => matchesFilter(i, "all"))).toHaveLength(4);
-  });
-});
-
 describe("splitEvenly", () => {
   it("deals round-robin, not in contiguous blocks", () => {
     const out = splitEvenly(["k1", "k2", "k3", "k4"], ["p1", "p2"]);
@@ -219,26 +149,5 @@ describe("splitEvenly", () => {
     const a = splitEvenly(["k1", "k2", "k3"], ["p1", "p2"]);
     const b = splitEvenly(["k1", "k2", "k3"], ["p1", "p2"]);
     expect(a).toEqual(b);
-  });
-});
-
-describe("partitionBySource", () => {
-  const items = [
-    item({ id: "p1", source: "prospect", ownable: true }),
-    item({ id: "o1", source: "otr", ownable: false }),
-    item({ id: "b1", source: "bol", ownable: false }),
-  ];
-
-  it("splits a mixed selection into what can own and what cannot", () => {
-    const keys = new Set(items.map(itemKey));
-    const { selected, ownable, taskOnly } = partitionBySource(items, keys);
-    expect(selected).toHaveLength(3);
-    expect(ownable.map((i) => i.id)).toEqual(["p1"]);
-    expect(taskOnly.map((i) => i.id)).toEqual(["o1", "b1"]);
-  });
-
-  it("ignores keys that match nothing in the list", () => {
-    const { selected } = partitionBySource(items, new Set(["prospect:ghost"]));
-    expect(selected).toEqual([]);
   });
 });
